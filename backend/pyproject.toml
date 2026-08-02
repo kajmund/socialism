@@ -1,9 +1,68 @@
 [project]
-name = "document-copilot-backend"
+name = "opinionssimulator-backend"
 version = "0.1.0"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "aiosqlite>=0.22.1",
+    "alembic>=1.18.5",
+    "fastapi>=0.140.7",
+    "greenlet==3.5.4",
+    "httpx>=0.28.1",
+    "openai==2.48.0",
+    "pydantic>=2.13.4",
+    "pydantic-settings>=2.14.2",
+    "sqlalchemy>=2.0.51",
+    "structlog>=26.1.0",
+    "uvicorn>=0.51.0",
+]
+
+[project.optional-dependencies]
+# Live körningar spike. Install: uv sync --extra oasis
+# Justification: multi-agent social env + action space + recsys we would not
+# reimplement in <30 lines; used only when SIMULATION_ENGINE=oasis.
+oasis = [
+    "camel-oasis",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
 
 [tool.uv]
 add-bounds = "exact"
-exclude-newer = "7 days"
+# camel-oasis pins older transitive deps that lack py3.13 wheels; keep ours.
+override-dependencies = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "openai>=1.86.0",
+    "tiktoken>=0.9.0",
+    "pillow>=10.4.0",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "ruff>=0.16.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+markers = [
+    "integration: hits network or optional heavy deps (skipped in default CI)",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+ignore = [
+    "B008",  # FastAPI Depends() / Query() in defaults is idiomatic
+]

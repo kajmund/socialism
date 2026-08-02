@@ -1,68 +1,123 @@
-# Document Copilot
+# Opinionssimulator
 
-An internal AI chatbot that lets analysts query a corpus of documents in plain English and get sourced, citable answers.
+Internal tool for testing political messaging (A/B) against AI agent populations grounded in local civic context. Swedish UI. Pilot: Norrköping 2026.
 
-## The client
+## What you can do
 
-**Driftwood Capital** — fictional independent investment research firm. Their analysts spend half their week reading 10-Ks and 10-Qs before they can produce any original analysis. Document Copilot eats that intake work so they can skip straight to insight.
+1. Build or compose a **population** (demographic mix of personas)
+2. Manage a **persona library** (biography, tone, local context)
+3. Configure a **körning** (budskap A/B, scenario, timeline)
+4. Browse admin surfaces for Personas / Populationer / Körningar
+5. Walk the paper **simulator** demo wizard (`/simulator`)
 
-Full brief: [docs/client-brief.md](docs/client-brief.md)
+Phase 1: admin CRUD is API-backed (SQLite). Simulation start defaults to status-only; live multi-agent (OASIS) is optional. Auth and Supabase Postgres come later.
 
 ## Stack
 
-| Layer              | Choice                                               |
-| ------------------ | ---------------------------------------------------- |
-| Backend            | Python + FastAPI                                     |
-| Frontend           | Vite + React SPA + TypeScript                        |
-| Database           | Supabase Postgres (users, chats, documents, chunks)  |
-| Migrations         | SQLAlchemy models + Alembic                          |
-| Retrieval          | Supabase `pgvector` + Postgres full-text search      |
-| Auth               | Supabase Auth (email only)                           |
-| Hosting            | Railway                                              |
-| LLM + embeddings   | OpenAI                                               |
+| Layer | Choice |
+| ----- | ------ |
+| Backend | Python 3.12+ · FastAPI · SQLAlchemy · Alembic |
+| Frontend | Vite · React · TypeScript · Tailwind · shadcn |
+| Database (phase 1) | SQLite (`aiosqlite`) under `backend/data/` |
+| Database (later) | Supabase Postgres |
+| Auth (later) | Supabase Auth (email) |
+| LLM | DeepSeek (OpenAI-compatible SDK; stub mode offline) |
+| Hosting | Railway |
 
 ## Repo layout
 
 ```text
-document-copilot/
-├── AGENTS.md           # agent instructions (read first)
-├── README.md           # this file
-├── data/               # local corpus + download script (payloads gitignored)
-├── docs/
-│   └── client-brief.md # the client one-pager
-├── backend/            # FastAPI service
-└── frontend/           # React SPA (Vite)
+socialism/
+├── AGENTS.md          # conventions for coding agents
+├── Makefile           # make start | backend | frontend | install
+├── data/              # local corpus helpers
+├── docs/              # client brief, setup guides, architecture
+├── backend/           # FastAPI admin API
+└── frontend/          # React SPA
 ```
 
 ## Prerequisites
 
-Install these before setting up `backend/` or `frontend/`:
+| Tool | Version | Used for |
+| ---- | ------- | -------- |
+| [Python](https://www.python.org/downloads/) | 3.12+ | Backend |
+| [uv](https://docs.astral.sh/uv/) | latest | Backend deps |
+| [Node.js](https://nodejs.org/) | 20+ | Frontend |
+| [pnpm](https://pnpm.io/) | latest | Frontend packages |
 
-| Tool | Version | Used for | Install |
-| ---- | ------- | -------- | ------- |
-| [Python](https://www.python.org/downloads/) | 3.12+ | Backend runtime | OS package manager or python.org |
-| [uv](https://docs.astral.sh/uv/getting-started/installation/) | latest | Backend deps + `data/download.py` | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
-| [Node.js](https://nodejs.org/) | 20+ (LTS) | Frontend toolchain | nodejs.org or `nvm install --lts` |
-| [pnpm](https://pnpm.io/installation) | latest | Frontend package manager | `corepack enable && corepack prepare pnpm@latest --activate` |
-
-You also need accounts/keys for external services once the app is wired up. Start with [docs/guides/supabase-setup.md](docs/guides/supabase-setup.md) (account + project), then create an [OpenAI API key](https://platform.openai.com/api-keys) when the LLM layer is wired up.
-
-## Running locally
-
-To be added during the build. Setup guides:
-
-- [Supabase](docs/guides/supabase-setup.md) — account, hosted project (dashboard or CLI)
-- [Backend](docs/guides/backend-setup.md)
-- [Frontend](docs/guides/frontend-setup.md)
-
-## Sample SEC data
-
-Use the standalone downloader to fetch a small local 10-K sample from SEC EDGAR.
-Edit the params at the top of `data/download.py`, especially `USER_AGENT`, then run:
+## Quick start
 
 ```bash
-uv run data/download.py
+# 1) Install deps
+make install
+
+# 2) Backend env + DB
+cd backend
+cp .env.example .env          # set DEEPSEEK_API_KEY or PERSONA_GENERATOR=stub
+uv run alembic upgrade head
+uv run python -m app.seed
+cd ..
+
+# 3) Frontend env
+cd frontend
+cp .env.example .env          # VITE_API_BASE_URL=http://localhost:8000
+cd ..
+
+# 4) Run both (API :8000, Vite :5173)
+make start
 ```
 
-By default this downloads the latest 5 10-K filings for AAPL, MSFT, NVDA, AMZN, and GOOGL into year folders under `data/downloads/` and writes a `manifest.json`.
-Downloaded files are gitignored; the `data/` folder itself stays in git for the script and notes.
+Open [http://localhost:5173/runs](http://localhost:5173/runs). API docs: [http://localhost:8000/docs](http://localhost:8000/docs).
+
+Or start services separately: `make backend` / `make frontend`.
+
+## Frontend
+
+Dual visual system (do not collapse them):
+
+| Area | Theme | Routes |
+| ---- | ----- | ------ |
+| Admin | Devbrains charcoal + gold | `/runs`, `/personas`, `/populations` |
+| Simulator | Paper / editorial | `/simulator` |
+
+Admin pages call the API via `VITE_API_BASE_URL`. The simulator wizard still uses mock data unless you open a run that has OASIS results.
+
+```bash
+cd frontend
+pnpm install
+pnpm dev
+```
+
+Checks: `pnpm exec tsc -p tsconfig.app.json --noEmit` and `pnpm lint`.
+
+Source mockup: `frontend/mockup/Socialism.zip`.
+
+## Backend
+
+Local admin API: personas, populations (recipe + members), runs (timeline JSON). No auth in phase 1.
+
+```bash
+cd backend
+uv sync
+cp .env.example .env
+uv run alembic upgrade head
+uv run python -m app.seed
+uv run uvicorn app.main:app --reload
+```
+
+Useful env knobs (see `backend/.env.example`):
+
+- `PERSONA_GENERATOR=deepseek|stub` — offline stub vs DeepSeek
+- `SIMULATION_ENGINE=none|oasis` — status flip vs optional OASIS spike (`uv sync --extra oasis`)
+
+Tests: `cd backend && uv run pytest`.
+
+## Docs
+
+| Doc | Purpose |
+| --- | ------- |
+| [docs/client-brief.md](docs/client-brief.md) | Product brief |
+| [docs/guides/backend-setup.md](docs/guides/backend-setup.md) | Backend setup detail |
+| [docs/guides/frontend-setup.md](docs/guides/frontend-setup.md) | Frontend setup detail |
+| [docs/architecture.md](docs/architecture.md) | Architecture notes |
+| [AGENTS.md](AGENTS.md) | Agent / contributor conventions |
