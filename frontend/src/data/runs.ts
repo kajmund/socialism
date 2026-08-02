@@ -41,6 +41,7 @@ export function makeInjection(): Injection {
     fetching: false,
     sourceDomain: "",
     isVideo: false,
+    message_id: null,
   }
 }
 

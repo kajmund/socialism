@@ -1,7 +1,8 @@
 from datetime import datetime
 from typing import Any, Literal
+from uuid import uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 PersonaOrigin = Literal["manuell", "beskrivning", "demografi", "population"]
 
@@ -221,6 +222,91 @@ class Injection(BaseModel):
     fetching: bool = False
     sourceDomain: str = ""
     isVideo: bool = False
+    message_id: str | None = None
+
+
+MessageType = Literal["post", "news"]
+MessageVariant = Literal["analytical", "narrative", "concise"]
+
+
+class MessageOut(BaseModel):
+    id: str
+    type: MessageType
+    title: str
+    body: str
+    source_url: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    created_at: str
+
+
+class MessageCreate(BaseModel):
+    id: str | None = None
+    type: MessageType
+    title: str = Field(min_length=1, max_length=255)
+    body: str = Field(min_length=1)
+    source_url: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def news_requires_source_url(self) -> "MessageCreate":
+        if self.type == "news" and not (self.source_url or "").strip():
+            raise ValueError("source_url is required when type is news")
+        return self
+
+
+class MessageUpdate(BaseModel):
+    type: MessageType | None = None
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    body: str | None = Field(default=None, min_length=1)
+    source_url: str | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class SummarizeUrlRequest(BaseModel):
+    url: str = Field(min_length=1)
+    message_type: MessageType = "news"
+
+
+class SummarizeUrlResponse(BaseModel):
+    summary: str
+    source_url: str
+    source_domain: str = ""
+
+
+class GenerateVariantsRequest(BaseModel):
+    type: MessageType
+    raw_text: str = ""
+    source_url: str | None = None
+    audience: str = ""
+    purpose: str = ""
+    tone: str = ""
+
+    @field_validator("raw_text")
+    @classmethod
+    def strip_raw(cls, value: str) -> str:
+        return value.strip()
+
+    @model_validator(mode="after")
+    def require_input(self) -> "GenerateVariantsRequest":
+        if not self.raw_text and not (self.source_url or "").strip():
+            raise ValueError("raw_text or source_url is required")
+        if self.type == "news" and not (self.source_url or "").strip():
+            raise ValueError("source_url is required when type is news")
+        return self
+
+
+class MessageVariantOut(BaseModel):
+    key: MessageVariant
+    label: str
+    body: str
+
+
+class GenerateVariantsResponse(BaseModel):
+    variants: list[MessageVariantOut]
+
+
+def new_message_id() -> str:
+    return str(uuid4())
 
 
 class Tick(BaseModel):
