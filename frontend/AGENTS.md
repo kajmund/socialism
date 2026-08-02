@@ -1,12 +1,14 @@
 # Frontend — agent notes
 
-This is the React SPA for Document Copilot. Read [../AGENTS.md](../AGENTS.md) first — universal building rules live there. This file adds frontend-specific conventions.
+This is the React SPA for **Opinionssimulator**. Read [../AGENTS.md](../AGENTS.md) first — universal building rules live there. This file adds frontend-specific conventions.
 
 ## Stack
 
 - **Plain React SPA** (Vite + TypeScript, strict). **Not Next.js** — do not suggest Next, SSR, server components, or file-based routing.
 - **Tailwind CSS** for styling. No CSS modules, styled-components, Emotion, or `.module.css` files for component styles. Global theme tokens live in `src/index.css`.
-- **shadcn/ui** for UI primitives. Add components with `pnpm dlx shadcn@latest add <name>` — don't hand-roll what shadcn already ships.
+- **Simulator theme:** paper/editorial CSS lives in `src/styles/simulator.css`, scoped under `.theme-simulator` (ported from the mockup). Do not restyle the wizard to Devbrains unless asked.
+- **Admin theme:** Devbrains charcoal + gold via Tailwind tokens + shadcn. Run list/config styles live in `src/styles/admin-runs.css` (`.theme-admin`).
+- **shadcn/ui** for UI primitives (admin surfaces). Add components with `pnpm dlx shadcn@latest add <name>` — don't hand-roll what shadcn already ships.
 - **React Router** for routing.
 - **`@supabase/supabase-js`** for auth (email only — no Google sign-in, no SSO providers).
 
@@ -38,17 +40,22 @@ Before adding a package, check:
 
 If yes to (3), add it — but flag the decision in the commit message.
 
-## Layout (to be created during build)
+## Layout
 
 ```text
 frontend/
 ├── src/
-│   ├── components/        # App components. shadcn primitives under components/ui/
-│   ├── lib/               # Framework-agnostic helpers (http, api, auth, supabase, env)
+│   ├── components/        # App components. shadcn under components/ui/
+│   │   └── simulator/     # Wizard-specific pieces
+│   ├── data/              # Shared types + helpers; simulator mock in mock.ts
+│   ├── api/               # Domain API helpers (personas, populations, runs)
+│   ├── lib/               # http, api, auth, supabase, env
 │   ├── pages/             # Route-level components
+│   ├── styles/            # simulator.css (paper theme)
 │   ├── App.tsx            # Router
 │   ├── main.tsx
-│   └── index.css          # Tailwind directives + global theme tokens
+│   └── index.css          # Tailwind + Devbrains tokens
+├── mockup/                # Source HTML mockup (zip + optional extract)
 ├── index.html
 ├── vite.config.ts
 ├── tsconfig.json
@@ -57,12 +64,33 @@ frontend/
 
 Keep imports consistent with the `@/*` alias (e.g. `@/lib/api`, `@/components/ui/button`).
 
+## Routes (current)
+
+| Path | Status |
+|------|--------|
+| `/runs` | Körningar list |
+| `/runs/new`, `/runs/:id/edit` | Konfigurera körning |
+| `/personas` | Persona library (grid/list) |
+| `/personas/new`, `/personas/:id` | Persona-kompositör |
+| `/populations` | Population list |
+| `/populations/:id` | Population detail |
+| `/populations/new`, `/populations/:id/edit` | Population builder (5 steps) |
+| `/simulator` | Demo wizard (paper theme) |
+
+Home redirects to `/runs`.
+
+## Themes
+
+- **Simulator theme:** paper/editorial CSS in `src/styles/simulator.css`, scoped under `.theme-simulator`.
+- **Admin theme:** Devbrains charcoal + gold. Dense run-config chrome lives in `src/styles/admin-runs.css` under `.theme-admin` (same rationale as simulator.css — ported mockup density). Use Tailwind + shadcn for new admin chrome where practical.
+
+
 ## Code style (frontend-specific)
 
 - **TypeScript strict.** No `any` unless there's no alternative; prefer `unknown` and narrow.
 - **Small, composable functions and components** over clever abstractions. Three similar lines > a premature generic.
 - **One component = one file.** Components stay small enough to fit on one screen.
-- **Tailwind classes inline.** No CSS modules, styled-components, Emotion, or `.module.css` for component styles. Global tokens live in `src/index.css`.
+- **Tailwind classes inline** for admin. Simulator keeps mockup class names + `simulator.css`.
 
 ## Configuration
 
@@ -74,10 +102,11 @@ Keep imports consistent with the `@/*` alias (e.g. `@/lib/api`, `@/components/ui
 - Talks to a separate Python backend over JSON. URL comes from `VITE_API_BASE_URL`.
 - Always use `api.get/post/put/patch/delete` from `@/lib/api` — it handles base URL, JSON, Supabase bearer token, timeouts, and typed `ApiError`s (including the `isNetworkError` flag that distinguishes CORS/network from HTTP errors).
 - Auth is Supabase email. The bearer token is injected automatically via the `api` client; never thread tokens through component props.
+- Admin surfaces (personas / populations / runs) talk to the FastAPI backend. Simulator Phase 1 stays on local mock data.
 
 ## Testing
 
-**No frontend tests.** Do not write `*.test.ts` / `*.test.tsx` files or introduce a test runner. We verify the frontend manually in the browser plus `pnpm tsc --noEmit` and `pnpm lint`. If you find yourself reaching for vitest, Playwright, or Cypress — stop. That's not what this project does. Correctness for shared logic comes from keeping it simple and well-typed, not from a test suite.
+**No frontend tests.** Do not write `*.test.ts` / `*.test.tsx` files or introduce a test runner. We verify the frontend manually in the browser plus `pnpm tsc --noEmit` and `pnpm lint` (**oxlint** — not Biome/ESLint). If you find yourself reaching for vitest, Playwright, or Cypress — stop. That's not what this project does. Correctness for shared logic comes from keeping it simple and well-typed, not from a test suite.
 
 ## Anti-patterns (rejected)
 
@@ -85,6 +114,7 @@ Keep imports consistent with the `@/*` alias (e.g. `@/lib/api`, `@/components/ui
 - Importing an HTTP library when `fetch` would do.
 - Mixing client state libraries (Zustand + Jotai + Redux) for one project.
 - `any` annotations to silence the type-checker.
-- Custom CSS files / styled-components alongside Tailwind.
+- Custom CSS files / styled-components alongside Tailwind for new admin chrome — prefer Tailwind; documented exceptions are `simulator.css` and `admin-runs.css`.
 - Re-implementing a shadcn primitive by hand.
 - Reaching for Next.js, SSR, or any framework that requires a Node server in front of the SPA.
+- Collapsing the dual theme into one without an explicit request.

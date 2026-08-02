@@ -1,8 +1,10 @@
 # Frontend setup
 
-This project uses a Vite + React SPA because the frontend is an internal tool that mainly needs fast iteration, authenticated app flows, and a clean connection to the FastAPI backend. We do not need the extra server-rendering, SEO, or full-stack routing features that Next.js is optimized for.
+Opinionssimulator SPA: Vite + React + TypeScript + Tailwind + shadcn + React Router.
 
-## Init (from empty `frontend/`)
+## Init (already done)
+
+The app was scaffolded from the mockup. To recreate from empty:
 
 ```bash
 cd frontend
@@ -18,12 +20,22 @@ pnpm dlx shadcn@latest init
 ```bash
 cd frontend
 pnpm install
+cp .env.example .env   # set VITE_API_BASE_URL=http://localhost:8000
 pnpm dev
 ```
+
+Open http://localhost:5173/runs — admin pages call the backend. Simulator stays mock at `/simulator`.
+
+Start the backend first (see [backend-setup.md](backend-setup.md)).
 
 ## Check
 
 ```bash
-pnpm tsc --noEmit
+pnpm exec tsc -p tsconfig.app.json --noEmit
 pnpm lint
 ```
+
+## Themes
+
+- Simulator: `src/styles/simulator.css` (`.theme-simulator`)
+- Admin stubs: Devbrains tokens in `src/index.css`

@@ -1,0 +1,413 @@
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.database.models import Persona, Population, PopulationMember, Run
+from app.database.session import get_session
+from app.schemas.domain import (
+    PopulationCreate,
+    PopulationDetail,
+    PopulationGenerateRequest,
+    PopulationGenerateResponse,
+    PopulationMemberCreate,
+    PopulationMemberOut,
+    PopulationSummary,
+    PopulationUpdate,
+)
+from app.serializers import (
+    serialize_member,
+    serialize_population_detail,
+    serialize_population_summary,
+    slug_id,
+    utcnow,
+)
+from app.services import population_generate as gen
+
+router = APIRouter(prefix="/populations", tags=["populations"])
+
+
+async def _run_count(session: AsyncSession, population_id: int) -> int:
+    result = await session.execute(
+        select(func.count()).select_from(Run).where(Run.population_id == population_id)
+    )
+    return int(result.scalar_one())
+
+
+async def _get_population(session: AsyncSession, population_id: int) -> Population:
+    result = await session.execute(
+        select(Population)
+        .options(selectinload(Population.members))
+        .where(Population.id == population_id)
+    )
+    population = result.scalar_one_or_none()
+    if population is None:
+        raise HTTPException(status_code=404, detail="Population not found")
+    return population
+
+
+def _member_from_create(
+    population_id: int,
+    body: PopulationMemberCreate,
+) -> PopulationMember:
+    return PopulationMember(
+        population_id=population_id,
+        persona_id=body.persona_id,
+        name=body.name,
+        initials=body.initials,
+        age=body.age,
+        occ=body.occ,
+        district=body.district,
+        trait=body.trait,
+    )
+
+
+async def _sync_size(session: AsyncSession, population: Population) -> None:
+    result = await session.execute(
+        select(func.count())
+        .select_from(PopulationMember)
+        .where(PopulationMember.population_id == population.id)
+    )
+    population.size = int(result.scalar_one())
+    population.updated_at = utcnow()
+
+
+async def _members_from_generation(
+    session: AsyncSession,
+    generation_id: str,
+    keep_keys: list[str] | None,
+    extra_members: list[PopulationMemberCreate],
+) -> tuple[list[PopulationMemberCreate], list[list[int]], dict]:
+    stored = gen.get_generation(generation_id)
+    if stored is None:
+        raise HTTPException(status_code=404, detail="Generation not found or expired")
+
+    keep = set(keep_keys) if keep_keys is not None else None
+    members: list[PopulationMemberCreate] = []
+    seen_persona_ids: set[str] = set()
+
+    for candidate in stored.candidates:
+        if keep is not None and candidate.key not in keep:
+            continue
+        persona = candidate.persona
+        persona_id = candidate.persona_id
+        if candidate.source == "generated":
+            persona_id = slug_id(persona.name)
+            while await session.get(Persona, persona_id) is not None:
+                persona_id = slug_id(persona.name)
+            row = Persona(
+                id=persona_id,
+                name=persona.name,
+                age=persona.age,
+                occ=persona.occ,
+                district=persona.district,
+                quote=persona.quote or persona.trait,
+                origin="population",
+                profile=persona.profile.model_dump(),
+                updated_at=utcnow(),
+            )
+            session.add(row)
+        elif persona_id:
+            existing = await session.get(Persona, persona_id)
+            if existing is None:
+                raise HTTPException(status_code=404, detail=f"Persona not found: {persona_id}")
+
+        if persona_id:
+            seen_persona_ids.add(persona_id)
+        members.append(
+            PopulationMemberCreate(
+                persona_id=persona_id,
+                name=persona.name,
+                initials=persona.initials,
+                age=persona.age,
+                occ=persona.occ,
+                district=persona.district,
+                trait=persona.trait,
+            )
+        )
+
+    for extra in extra_members:
+        if extra.persona_id and extra.persona_id in seen_persona_ids:
+            continue
+        if extra.persona_id:
+            seen_persona_ids.add(extra.persona_id)
+        members.append(extra)
+
+    return members, stored.fingerprint, stored.recipe.model_dump()
+
+
+@router.get("", response_model=list[PopulationSummary])
+async def list_populations(
+    session: AsyncSession = Depends(get_session),
+) -> list[PopulationSummary]:
+    result = await session.execute(select(Population).order_by(Population.updated_at.desc()))
+    populations = list(result.scalars().all())
+    out: list[PopulationSummary] = []
+    for population in populations:
+        out.append(
+            serialize_population_summary(population, await _run_count(session, population.id))
+        )
+    return out
+
+
+@router.post("/generate", response_model=PopulationGenerateResponse)
+async def generate_population(
+    body: PopulationGenerateRequest,
+    session: AsyncSession = Depends(get_session),
+) -> PopulationGenerateResponse:
+    library: dict[str, tuple[str, int, str, str, str]] = {}
+    ids = list(body.include_persona_ids)
+    for cand in body.existing:
+        if cand.source == "library" and cand.persona_id:
+            ids.append(cand.persona_id)
+    if ids:
+        result = await session.execute(select(Persona).where(Persona.id.in_(ids)))
+        for persona in result.scalars().all():
+            library[persona.id] = (
+                persona.name,
+                persona.age,
+                persona.occ,
+                persona.district,
+                persona.quote,
+            )
+        missing = [pid for pid in body.include_persona_ids if pid not in library]
+        if missing:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Persona not found: {missing[0]}",
+            )
+    return await gen.run_generate(body, library)
+
+
+@router.get("/{population_id}", response_model=PopulationDetail)
+async def get_population(
+    population_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> PopulationDetail:
+    population = await _get_population(session, population_id)
+    return serialize_population_detail(
+        population,
+        await _run_count(session, population.id),
+        list(population.members),
+    )
+
+
+@router.post("", response_model=PopulationDetail, status_code=201)
+async def create_population(
+    body: PopulationCreate,
+    session: AsyncSession = Depends(get_session),
+) -> PopulationDetail:
+    existing = await session.execute(select(Population).where(Population.name == body.name))
+    if existing.scalar_one_or_none() is not None:
+        raise HTTPException(status_code=409, detail="Population name already exists")
+
+    members = list(body.members)
+    fingerprint = body.fingerprint
+    recipe = body.recipe
+    if body.generation_id:
+        members, fingerprint, recipe = await _members_from_generation(
+            session,
+            body.generation_id,
+            body.keep_keys,
+            body.members,
+        )
+
+    population = Population(
+        name=body.name,
+        size=len(members),
+        versions=1,
+        fingerprint=fingerprint,
+        recipe=recipe,
+        updated_at=utcnow(),
+    )
+    session.add(population)
+    await session.flush()
+    for member in members:
+        session.add(_member_from_create(population.id, member))
+    await session.commit()
+    if body.generation_id:
+        gen.pop_generation(body.generation_id)
+    population = await _get_population(session, population.id)
+    return serialize_population_detail(population, 0, list(population.members))
+
+
+@router.put("/{population_id}", response_model=PopulationDetail)
+async def update_population(
+    population_id: int,
+    body: PopulationUpdate,
+    session: AsyncSession = Depends(get_session),
+) -> PopulationDetail:
+    population = await _get_population(session, population_id)
+    data = body.model_dump(exclude_unset=True)
+    members = data.pop("members", None)
+    bump = data.pop("bump_version", False)
+    generation_id = data.pop("generation_id", None)
+    keep_keys = data.pop("keep_keys", None)
+
+    if "name" in data and data["name"] != population.name:
+        clash = await session.execute(
+            select(Population).where(
+                Population.name == data["name"],
+                Population.id != population_id,
+            )
+        )
+        if clash.scalar_one_or_none() is not None:
+            raise HTTPException(status_code=409, detail="Population name already exists")
+
+    if generation_id:
+        extras = (
+            [PopulationMemberCreate(**m) for m in members]
+            if members is not None
+            else []
+        )
+        built, fingerprint, recipe = await _members_from_generation(
+            session,
+            generation_id,
+            keep_keys,
+            extras,
+        )
+        for existing_member in list(population.members):
+            await session.delete(existing_member)
+        await session.flush()
+        for member in built:
+            session.add(_member_from_create(population.id, member))
+        population.size = len(built)
+        population.fingerprint = fingerprint
+        population.recipe = recipe
+        data.pop("fingerprint", None)
+        data.pop("recipe", None)
+    elif members is not None:
+        for existing_member in list(population.members):
+            await session.delete(existing_member)
+        await session.flush()
+        for member in members:
+            session.add(_member_from_create(population.id, PopulationMemberCreate(**member)))
+        population.size = len(members)
+
+    for key, value in data.items():
+        setattr(population, key, value)
+    if bump:
+        population.versions += 1
+    population.updated_at = utcnow()
+    await session.commit()
+    if generation_id:
+        gen.pop_generation(generation_id)
+    population = await _get_population(session, population_id)
+    return serialize_population_detail(
+        population,
+        await _run_count(session, population.id),
+        list(population.members),
+    )
+
+
+@router.delete("/{population_id}", status_code=204)
+async def delete_population(
+    population_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> None:
+    population = await _get_population(session, population_id)
+    run_count = await _run_count(session, population_id)
+    if run_count > 0:
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot delete population that has runs",
+        )
+    await session.delete(population)
+    await session.commit()
+
+
+@router.post("/{population_id}/duplicate", response_model=PopulationDetail, status_code=201)
+async def duplicate_population(
+    population_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> PopulationDetail:
+    source = await _get_population(session, population_id)
+    base_name = f"{source.name} (kopia)"
+    name = base_name
+    suffix = 2
+    while True:
+        clash = await session.execute(select(Population).where(Population.name == name))
+        if clash.scalar_one_or_none() is None:
+            break
+        name = f"{base_name} {suffix}"
+        suffix += 1
+
+    population = Population(
+        name=name,
+        size=source.size,
+        versions=1,
+        fingerprint=list(source.fingerprint or []),
+        recipe=dict(source.recipe or {}),
+        updated_at=utcnow(),
+    )
+    session.add(population)
+    await session.flush()
+    for member in source.members:
+        session.add(
+            PopulationMember(
+                population_id=population.id,
+                persona_id=member.persona_id,
+                name=member.name,
+                initials=member.initials,
+                age=member.age,
+                occ=member.occ,
+                district=member.district,
+                trait=member.trait,
+            )
+        )
+    await session.commit()
+    population = await _get_population(session, population.id)
+    return serialize_population_detail(population, 0, list(population.members))
+
+
+@router.post(
+    "/{population_id}/members",
+    response_model=PopulationMemberOut,
+    status_code=201,
+)
+async def add_member(
+    population_id: int,
+    body: PopulationMemberCreate,
+    session: AsyncSession = Depends(get_session),
+) -> PopulationMemberOut:
+    population = await _get_population(session, population_id)
+    if body.persona_id:
+        persona = await session.get(Persona, body.persona_id)
+        if persona is None:
+            raise HTTPException(status_code=404, detail="Persona not found")
+        existing = await session.execute(
+            select(PopulationMember).where(
+                PopulationMember.population_id == population_id,
+                PopulationMember.persona_id == body.persona_id,
+            )
+        )
+        if existing.scalar_one_or_none() is not None:
+            raise HTTPException(status_code=409, detail="Persona already in population")
+    member = _member_from_create(population.id, body)
+    session.add(member)
+    await session.flush()
+    await _sync_size(session, population)
+    await session.commit()
+    await session.refresh(member)
+    return serialize_member(member)
+
+
+@router.delete("/{population_id}/members/{member_id}", status_code=204)
+async def remove_member(
+    population_id: int,
+    member_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> None:
+    population = await _get_population(session, population_id)
+    result = await session.execute(
+        select(PopulationMember).where(
+            PopulationMember.population_id == population_id,
+            PopulationMember.id == member_id,
+        )
+    )
+    member = result.scalar_one_or_none()
+    if member is None:
+        raise HTTPException(status_code=404, detail="Member not found")
+    await session.delete(member)
+    await _sync_size(session, population)
+    await session.commit()

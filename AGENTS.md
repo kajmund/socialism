@@ -2,23 +2,27 @@
 
 This file is the source of truth for any coding agent (Claude Code, Cursor, Codex, etc.) working in this repo. Read it before touching code.
 
+## Product
+
+**Opinionssimulator** — internal tool for testing political messaging against AI agent populations (personas grounded in local context). Swedish UI by default.
+
 ## Stack
 
 - **Backend:** Python + FastAPI
 - **Frontend:** Vite + React SPA + TypeScript
-- **Database:** Supabase Postgres (users, chats, source documents, chunks)
+- **Database (phase 1):** SQLite via SQLAlchemy + `aiosqlite` (local file under `backend/data/`)
+- **Database (later):** Supabase Postgres — swap `DATABASE_URL` when ready; keep models/migrations portable
 - **Migrations:** SQLAlchemy models + Alembic from the backend
-- **Retrieval:** Supabase `pgvector` + Postgres full-text search
-- **Auth:** Supabase Auth
+- **Auth (later):** Supabase Auth (not required for phase 1 admin CRUD)
 - **Hosting:** Railway (backend service + frontend service)
-- **LLM + embeddings:** OpenAI
+- **LLM + embeddings:** DeepSeek (OpenAI-compatible SDK; embeddings later)
 
-Stack is locked unless explicitly changed. Don't propose alternatives without a stated reason.
+Stack is locked unless explicitly changed. Phase 1 deliberately uses SQLite before Supabase — don't reintroduce Postgres/Auth/LLM deps until that phase.
 
 ## Repo layout
 
 ```text
-document-copilot/
+socialism/
 ├── AGENTS.md           # this file
 ├── README.md
 ├── data/               # local corpus + download script (payloads gitignored)
@@ -27,6 +31,13 @@ document-copilot/
 └── frontend/           # React SPA (see frontend/AGENTS.md)
 ```
 
+## Frontend visual system (dual)
+
+- **Simulator wizard** (`/simulator`): paper/editorial theme (Lora + Nunito, cream paper) — see `frontend/src/styles/simulator.css`.
+- **Admin surfaces** (Personas, Populationer, Körningar): Devbrains charcoal + gold — Tailwind tokens in `frontend/src/index.css` + shadcn.
+
+Do not collapse these into one look unless explicitly asked.
+
 ## Dependency policy
 
 **Default: write it yourself. Reach for a library only when the alternative would be non-trivial, error-prone, or reinvention of a standard.** Every dependency is a liability — bundle size, supply-chain risk, future upgrade work.
@@ -34,7 +45,7 @@ document-copilot/
 OK to depend on:
 
 - Things that are genuinely hard to get right (HTTP clients, ASGI servers, SQL drivers, parsers, LLM SDKs, ORM, migrations, auth SDKs).
-- The declared stack (FastAPI, React, Vite, Supabase clients, OpenAI SDK, etc.).
+- The declared stack (FastAPI, React, Vite, Supabase clients, DeepSeek via OpenAI SDK, etc.).
 
 Not OK:
 
@@ -52,7 +63,7 @@ Per-stack specifics live in `backend/AGENTS.md` and `frontend/AGENTS.md`.
 
 ## Configuration
 
-A single settings module is the source of truth for environment per service (`backend/app/config.py`, `frontend/lib/env.ts`). Do not call `os.getenv` / read `process.env` directly in app code. Do not call `load_dotenv` anywhere. If a third-party SDK reads env vars directly, mirror them in the settings module — don't sprinkle `setdefault` elsewhere.
+A single settings module is the source of truth for environment per service (`backend/app/config.py`, `frontend/src/lib/env.ts`). Do not call `os.getenv` / read `process.env` directly in app code. Do not call `load_dotenv` anywhere. If a third-party SDK reads env vars directly, mirror them in the settings module — don't sprinkle `setdefault` elsewhere.
 
 Fail fast on startup if required config is missing. No silent fallbacks that hide real config errors.
 

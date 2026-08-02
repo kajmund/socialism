@@ -1,0 +1,420 @@
+async def test_health(client):
+    response = await client.get("/health")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
+async def test_persona_crud(client):
+    create = await client.post(
+        "/personas",
+        json={
+            "name": "Test Persona",
+            "age": 40,
+            "occ": "Lärare",
+            "district": "Centrum",
+            "quote": "En testquote",
+            "origin": "manuell",
+        },
+    )
+    assert create.status_code == 201
+    persona = create.json()
+    assert persona["name"] == "Test Persona"
+    assert persona["profile"]["name"] == "Test Persona"
+    persona_id = persona["id"]
+
+    listed = await client.get("/personas")
+    assert listed.status_code == 200
+    assert any(p["id"] == persona_id for p in listed.json())
+
+    updated = await client.put(
+        f"/personas/{persona_id}",
+        json={"quote": "Uppdaterad quote"},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["quote"] == "Uppdaterad quote"
+
+    dup = await client.post(f"/personas/{persona_id}/duplicate")
+    assert dup.status_code == 201
+    assert dup.json()["id"] != persona_id
+    assert "(kopia)" in dup.json()["name"]
+
+
+async def test_population_and_members(client):
+    persona = (
+        await client.post(
+            "/personas",
+            json={
+                "id": "tp",
+                "name": "Test Persona",
+                "age": 40,
+                "occ": "Lärare",
+                "district": "Centrum",
+                "quote": "Quote",
+                "origin": "manuell",
+            },
+        )
+    ).json()
+
+    create = await client.post(
+        "/populations",
+        json={
+            "name": "Testpop",
+            "fingerprint": [[33, 34, 33], [33, 34, 33], [33, 34, 33]],
+            "recipe": {"note": "demo"},
+            "members": [
+                {
+                    "persona_id": persona["id"],
+                    "name": persona["name"],
+                    "initials": "TP",
+                    "age": 40,
+                    "occ": "Lärare",
+                    "district": "Centrum",
+                    "trait": "Quote",
+                }
+            ],
+        },
+    )
+    assert create.status_code == 201
+    population = create.json()
+    assert population["size"] == 1
+    assert population["members"][0]["id"] == "tp"
+    assert isinstance(population["members"][0]["member_id"], int)
+
+    listed = await client.get("/populations")
+    assert any(p["name"] == "Testpop" for p in listed.json())
+
+    detail = await client.get(f"/populations/{population['id']}")
+    assert detail.status_code == 200
+    assert detail.json()["recipe"]["note"] == "demo"
+
+    add = await client.post(
+        f"/populations/{population['id']}/members",
+        json={
+            "name": "Extra Member",
+            "initials": "EM",
+            "age": 22,
+            "occ": "Student",
+            "district": "Innerstaden",
+            "trait": "Ny",
+        },
+    )
+    assert add.status_code == 201
+    extra_member_id = add.json()["member_id"]
+
+    refreshed = await client.get(f"/populations/{population['id']}")
+    assert refreshed.json()["size"] == 2
+
+    remove = await client.delete(
+        f"/populations/{population['id']}/members/{population['members'][0]['member_id']}"
+    )
+    assert remove.status_code == 204
+
+    after = await client.get(f"/populations/{population['id']}")
+    assert after.json()["size"] == 1
+    assert after.json()["members"][0]["member_id"] == extra_member_id
+
+    dup = await client.post(f"/populations/{population['id']}/duplicate")
+    assert dup.status_code == 201
+    assert "(kopia)" in dup.json()["name"]
+
+    # Deleting a persona must remove membership rows (not leave orphans)
+    linked = (
+        await client.post(
+            "/personas",
+            json={
+                "id": "link-me",
+                "name": "Linked",
+                "age": 41,
+                "occ": "Lärare",
+                "district": "Centrum",
+                "quote": "x",
+                "origin": "manuell",
+            },
+        )
+    ).json()
+    await client.post(
+        f"/populations/{population['id']}/members",
+        json={
+            "persona_id": linked["id"],
+            "name": linked["name"],
+            "initials": "LI",
+            "age": 41,
+            "occ": "Lärare",
+            "district": "Centrum",
+            "trait": "x",
+        },
+    )
+    before = await client.get(f"/populations/{population['id']}")
+    assert any(m["id"] == "link-me" for m in before.json()["members"])
+
+    deleted = await client.delete("/personas/link-me")
+    assert deleted.status_code == 204
+    after_persona_delete = await client.get(f"/populations/{population['id']}")
+    assert all(m["id"] != "link-me" for m in after_persona_delete.json()["members"])
+
+
+async def test_run_lifecycle(client):
+    pop = (
+        await client.post(
+            "/populations",
+            json={"name": "Runpop", "members": []},
+        )
+    ).json()
+
+    create = await client.post(
+        "/runs",
+        json={
+            "name": "Testkörning",
+            "population_id": pop["id"],
+            "seed": "abc12345",
+            "main_ticks": [
+                {
+                    "key": "t1",
+                    "day": 1,
+                    "silent": False,
+                    "injections": [],
+                    "rounds": 1,
+                    "measurements": ["opinion_snapshot"],
+                }
+            ],
+            "branch": None,
+        },
+    )
+    assert create.status_code == 201
+    run = create.json()
+    assert run["status"] == "draft"
+    assert run["population"] == "Runpop"
+    assert run["ticks"] == 1
+    assert run["variants"] == 1
+
+    started = await client.post(f"/runs/{run['id']}/start")
+    assert started.status_code == 200
+    assert started.json()["status"] == "running"
+
+    listed = await client.get("/runs", params={"status": "running"})
+    assert any(r["id"] == run["id"] for r in listed.json())
+
+    options = await client.get("/runs/populations")
+    assert options.status_code == 200
+    assert any(p["name"] == "Runpop" for p in options.json())
+
+    dup = await client.post(f"/runs/{run['id']}/duplicate")
+    assert dup.status_code == 201
+    assert dup.json()["status"] == "draft"
+
+    delete = await client.delete(f"/runs/{run['id']}")
+    assert delete.status_code == 204
+
+
+async def test_start_oasis_without_package_returns_503(client, monkeypatch):
+    from app.config import settings
+    import app.api.runs as runs_api
+
+    monkeypatch.setattr(runs_api, "oasis_installed", lambda: False)
+
+    pop = (
+        await client.post(
+            "/populations",
+            json={"name": "Oasispop", "members": []},
+        )
+    ).json()
+    create = await client.post(
+        "/runs",
+        json={
+            "name": "Oasis test",
+            "population_id": pop["id"],
+            "main_ticks": [],
+        },
+    )
+    run_id = create.json()["id"]
+
+    settings.simulation_engine = "oasis"
+    settings.deepseek_api_key = "sk-test"
+    try:
+        started = await client.post(f"/runs/{run_id}/start")
+        assert started.status_code == 503
+        assert "camel-oasis" in started.json()["detail"]
+    finally:
+        settings.simulation_engine = "none"
+        settings.deepseek_api_key = ""
+
+
+def _sample_recipe(size: int = 6, seed: int = 42) -> dict:
+    return {
+        "size": size,
+        "entryMode": "manual",
+        "freeText": "",
+        "locale": "norrkoping",
+        "seed": seed,
+        "dist": {
+            "age": {
+                "label": "Ålder",
+                "rows": [
+                    {"k": "ung", "l": "Ung", "v": 30},
+                    {"k": "medel", "l": "Medel", "v": 45},
+                    {"k": "aldre", "l": "Äldre", "v": 25},
+                ],
+            },
+            "district": {
+                "label": "Ort",
+                "rows": [
+                    {"k": "centrum", "l": "Centrum", "v": 50},
+                    {"k": "ovriga", "l": "Övriga", "v": 50},
+                ],
+            },
+            "occupation": {
+                "label": "Yrke",
+                "rows": [
+                    {"k": "vard", "l": "Vård", "v": 50},
+                    {"k": "ovrigt", "l": "Övrigt", "v": 50},
+                ],
+            },
+            "leaning": {
+                "label": "Lutning",
+                "rows": [
+                    {"k": "vanster", "l": "Vänster", "v": 20},
+                    {"k": "mvanster", "l": "Mitt-vänster", "v": 20},
+                    {"k": "mitt", "l": "Mitt", "v": 20},
+                    {"k": "mhoger", "l": "Mitt-höger", "v": 20},
+                    {"k": "hoger", "l": "Höger", "v": 20},
+                ],
+            },
+        },
+    }
+
+
+async def test_generate_and_create_from_generation(client):
+    generated = await client.post(
+        "/populations/generate",
+        json={"recipe": _sample_recipe(size=5, seed=7), "mode": "replace"},
+    )
+    assert generated.status_code == 200
+    payload = generated.json()
+    assert payload["generation_id"].startswith("gen_")
+    assert len(payload["candidates"]) == 5
+    assert len(payload["fingerprint"]) == 3
+    assert all(c["source"] == "generated" for c in payload["candidates"])
+
+    keep = [c["key"] for c in payload["candidates"][:4]]
+    create = await client.post(
+        "/populations",
+        json={
+            "name": "Generated pop",
+            "generation_id": payload["generation_id"],
+            "keep_keys": keep,
+        },
+    )
+    assert create.status_code == 201
+    population = create.json()
+    assert population["size"] == 4
+    assert population["recipe"]["size"] == 5
+    assert len(population["fp"]) == 3
+
+    personas = await client.get("/personas")
+    assert len([p for p in personas.json() if p["origin"] == "population"]) == 4
+
+    reuse = await client.post(
+        "/populations",
+        json={
+            "name": "Reuse expired",
+            "generation_id": payload["generation_id"],
+        },
+    )
+    assert reuse.status_code == 404
+
+
+async def test_persona_generate_and_chat(client):
+    generated = await client.post(
+        "/personas/generate",
+        json={"mode": "beskrivning", "freeText": "cynisk undersköterska", "count": 2},
+    )
+    assert generated.status_code == 200
+    candidates = generated.json()["candidates"]
+    assert len(candidates) == 2
+    assert candidates[0]["name"]
+
+    created = await client.post(
+        "/personas",
+        json={
+            "name": candidates[0]["name"],
+            "age": int("".join(ch for ch in candidates[0]["age"] if ch.isdigit()) or "40"),
+            "occ": candidates[0]["yrke"],
+            "district": candidates[0]["ort"],
+            "quote": candidates[0].get("ton", ""),
+            "origin": "beskrivning",
+            "profile": candidates[0],
+        },
+    )
+    assert created.status_code == 201
+    persona_id = created.json()["id"]
+
+    chat = await client.post(
+        f"/personas/{persona_id}/chat",
+        json={"mode": "interview", "message": "Vad tycker du om skolan?"},
+    )
+    assert chat.status_code == 200
+    body = chat.json()
+    assert body["reply"]
+    assert len(body["messages"]) == 2
+
+    listed = await client.get(f"/personas/{persona_id}/messages", params={"mode": "interview"})
+    assert listed.status_code == 200
+    assert len(listed.json()) == 2
+
+    other = await client.get(f"/personas/{persona_id}/messages", params={"mode": "character"})
+    assert other.json() == []
+
+    cleared = await client.delete(
+        f"/personas/{persona_id}/messages",
+        params={"mode": "interview"},
+    )
+    assert cleared.status_code == 204
+    after = await client.get(f"/personas/{persona_id}/messages", params={"mode": "interview"})
+    assert after.json() == []
+
+
+async def test_generate_replace_key_and_library(client):
+    persona = (
+        await client.post(
+            "/personas",
+            json={
+                "id": "lib1",
+                "name": "Library One",
+                "age": 33,
+                "occ": "Lärare",
+                "district": "Centrum",
+                "quote": "Från bibliotek",
+                "origin": "manuell",
+            },
+        )
+    ).json()
+
+    first = await client.post(
+        "/populations/generate",
+        json={
+            "recipe": _sample_recipe(size=4, seed=1),
+            "include_persona_ids": [persona["id"]],
+            "mode": "replace",
+        },
+    )
+    assert first.status_code == 200
+    body = first.json()
+    assert len(body["candidates"]) == 4
+    assert sum(1 for c in body["candidates"] if c["source"] == "library") == 1
+
+    target = next(c for c in body["candidates"] if c["source"] == "generated")
+    second = await client.post(
+        "/populations/generate",
+        json={
+            "recipe": _sample_recipe(size=4, seed=99),
+            "generation_id": body["generation_id"],
+            "existing": body["candidates"],
+            "replace_keys": [target["key"]],
+        },
+    )
+    assert second.status_code == 200
+    replaced = second.json()
+    assert replaced["generation_id"] == body["generation_id"]
+    assert len(replaced["candidates"]) == 4
+    new_target = next(c for c in replaced["candidates"] if c["key"] == target["key"])
+    assert new_target["source"] == "generated"
