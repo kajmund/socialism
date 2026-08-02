@@ -418,3 +418,196 @@ async def test_generate_replace_key_and_library(client):
     assert len(replaced["candidates"]) == 4
     new_target = next(c for c in replaced["candidates"] if c["key"] == target["key"])
     assert new_target["source"] == "generated"
+
+
+async def test_message_crud_and_filters(client):
+    news_missing = await client.post(
+        "/messages",
+        json={"type": "news", "title": "Saknar url", "body": "Text"},
+    )
+    assert news_missing.status_code == 422
+
+    post = await client.post(
+        "/messages",
+        json={
+            "type": "post",
+            "title": "Trygghet i vardagen",
+            "body": "Trygghet börjar nära dig.",
+            "metadata": {"variant": "concise"},
+        },
+    )
+    assert post.status_code == 201
+    post_body = post.json()
+    assert post_body["type"] == "post"
+    assert post_body["source_url"] is None
+    assert post_body["metadata"]["variant"] == "concise"
+    post_id = post_body["id"]
+
+    news = await client.post(
+        "/messages",
+        json={
+            "type": "news",
+            "title": "Lokal nyhet",
+            "body": "Kommunen öppnar ny vårdcentral.",
+            "source_url": "example.com/nyhet",
+        },
+    )
+    assert news.status_code == 201
+    assert news.json()["source_url"].startswith("https://")
+
+    listed = await client.get("/messages")
+    assert listed.status_code == 200
+    assert len(listed.json()) == 2
+
+    only_post = await client.get("/messages", params={"type": "post"})
+    assert len(only_post.json()) == 1
+    assert only_post.json()[0]["id"] == post_id
+
+    searched = await client.get("/messages", params={"q": "vårdcentral"})
+    assert len(searched.json()) == 1
+    assert searched.json()[0]["type"] == "news"
+
+    patched = await client.patch(
+        f"/messages/{post_id}",
+        json={"title": "Uppdaterad trygghet", "body": "Ny brödtext."},
+    )
+    assert patched.status_code == 200
+    assert patched.json()["title"] == "Uppdaterad trygghet"
+
+    got = await client.get(f"/messages/{post_id}")
+    assert got.json()["body"] == "Ny brödtext."
+
+    deleted = await client.delete(f"/messages/{post_id}")
+    assert deleted.status_code == 204
+    assert (await client.get(f"/messages/{post_id}")).status_code == 404
+
+
+async def test_generate_variants_parallel_stub(client):
+    from app.llm import set_text_completer
+
+    calls: list[str] = []
+
+    async def stub(messages):
+        content = messages[-1]["content"]
+        calls.append(content)
+        if "analytisk" in content.lower():
+            return "Analytisk variant"
+        if "berättande" in content.lower():
+            return "Berättande variant"
+        return "Kort variant"
+
+    set_text_completer(stub)
+    try:
+        res = await client.post(
+            "/messages/generate-variants",
+            json={
+                "type": "post",
+                "raw_text": "Satsa på skolan i Norrköping",
+                "audience": "föräldrar",
+                "purpose": "bygga auktoritet",
+                "tone": "saklig",
+            },
+        )
+        assert res.status_code == 200
+        variants = res.json()["variants"]
+        assert len(variants) == 3
+        keys = {v["key"] for v in variants}
+        assert keys == {"analytical", "narrative", "concise"}
+        assert len(calls) == 3
+    finally:
+        set_text_completer(None)
+
+
+async def test_run_start_snapshots_message_body(client):
+    msg = (
+        await client.post(
+            "/messages",
+            json={
+                "type": "post",
+                "title": "Snapshot budskap",
+                "body": "Original body from library",
+            },
+        )
+    ).json()
+
+    pop = (
+        await client.post(
+            "/populations",
+            json={"name": "Snap pop", "members": []},
+        )
+    ).json()
+
+    run = (
+        await client.post(
+            "/runs",
+            json={
+                "name": "Snap run",
+                "population_id": pop["id"],
+                "main_ticks": [
+                    {
+                        "key": "t1",
+                        "day": 1,
+                        "silent": False,
+                        "injections": [
+                            {
+                                "key": "i1",
+                                "type": "party_post",
+                                "sender": "@parti",
+                                "text": "Stale draft text",
+                                "mode": "text",
+                                "url": "",
+                                "fetching": False,
+                                "sourceDomain": "",
+                                "isVideo": False,
+                                "message_id": msg["id"],
+                            }
+                        ],
+                        "rounds": 1,
+                        "measurements": [],
+                    }
+                ],
+            },
+        )
+    ).json()
+
+    # Edit library after run was saved — start must re-snapshot current body
+    await client.patch(
+        f"/messages/{msg['id']}",
+        json={"body": "Frozen body at start"},
+    )
+
+    started = await client.post(f"/runs/{run['id']}/start")
+    assert started.status_code == 200
+    inj = started.json()["main_ticks"][0]["injections"][0]
+    assert inj["message_id"] == msg["id"]
+    assert inj["text"] == "Frozen body at start"
+
+    missing = (
+        await client.post(
+            "/runs",
+            json={
+                "name": "Missing msg run",
+                "population_id": pop["id"],
+                "main_ticks": [
+                    {
+                        "key": "t1",
+                        "day": 1,
+                        "silent": False,
+                        "injections": [
+                            {
+                                "key": "i1",
+                                "type": "party_post",
+                                "text": "x",
+                                "message_id": "00000000-0000-0000-0000-000000000099",
+                            }
+                        ],
+                        "rounds": 1,
+                        "measurements": [],
+                    }
+                ],
+            },
+        )
+    ).json()
+    bad = await client.post(f"/runs/{missing['id']}/start")
+    assert bad.status_code == 400
+    assert "not found" in bad.json()["detail"]

@@ -1,4 +1,6 @@
 import secrets
+from copy import deepcopy
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
@@ -6,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.config import settings
-from app.database.models import Population, Run
+from app.database.models import Message, Population, Run
 from app.database.session import get_session
 from app.schemas.domain import (
     RunCreate,
@@ -44,6 +46,58 @@ def _branch_payload(branch) -> dict | None:
     if branch is None:
         return None
     return branch.model_dump() if hasattr(branch, "model_dump") else branch
+
+
+async def _snapshot_message_bodies(session: AsyncSession, run: Run) -> None:
+    """Freeze library Message.body into Injection.text before a run starts."""
+
+    def collect_ids(ticks: list[Any]) -> set[str]:
+        ids: set[str] = set()
+        for tick in ticks or []:
+            for inj in (tick.get("injections") if isinstance(tick, dict) else []) or []:
+                mid = inj.get("message_id") if isinstance(inj, dict) else None
+                if mid:
+                    ids.add(mid)
+        return ids
+
+    message_ids = collect_ids(run.main_ticks or [])
+    branch = run.branch or {}
+    if isinstance(branch, dict):
+        message_ids |= collect_ids(branch.get("a") or [])
+        message_ids |= collect_ids(branch.get("b") or [])
+
+    if not message_ids:
+        return
+
+    result = await session.execute(select(Message).where(Message.id.in_(message_ids)))
+    by_id = {m.id: m for m in result.scalars().all()}
+    missing = sorted(message_ids - set(by_id))
+    if missing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Referenced messages not found: {', '.join(missing)}",
+        )
+
+    def apply(ticks: list[Any]) -> list[Any]:
+        out = deepcopy(ticks or [])
+        for tick in out:
+            if not isinstance(tick, dict):
+                continue
+            for inj in tick.get("injections") or []:
+                if not isinstance(inj, dict):
+                    continue
+                mid = inj.get("message_id")
+                if mid and mid in by_id:
+                    inj["text"] = by_id[mid].body
+        return out
+
+    run.main_ticks = apply(run.main_ticks or [])
+    if isinstance(branch, dict) and branch:
+        run.branch = {
+            **branch,
+            "a": apply(branch.get("a") or []),
+            "b": apply(branch.get("b") or []),
+        }
 
 
 @router.get("", response_model=list[RunSummary])
@@ -154,6 +208,8 @@ async def start_run(
     run = await _get_run(session, run_id)
     if run.status == "done":
         raise HTTPException(status_code=409, detail="Run already completed")
+
+    await _snapshot_message_bodies(session, run)
 
     if settings.simulation_engine != "oasis":
         run.status = "running"

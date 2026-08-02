@@ -1,9 +1,11 @@
+import { useEffect, useMemo, useState } from "react"
+import { Link } from "react-router-dom"
 import {
-  MEASUREMENTS,
-  extractDomain,
-  looksLikeVideo,
-  makeInjection,
-} from "@/data/runs"
+  libraryTypeForInjection,
+  listMessages,
+  type Message,
+} from "@/api/messages"
+import { MEASUREMENTS, makeInjection } from "@/data/runs"
 import type { Injection, Tick } from "@/data/runs-types"
 
 type RoundsDotsProps = {
@@ -43,21 +45,65 @@ type InjectionEditorProps = {
 export function InjectionEditor({ inj, onChange, onRemove }: InjectionEditorProps) {
   const typeId = `inj-type-${inj.key}`
   const senderId = `inj-sender-${inj.key}`
-  const urlId = `inj-url-${inj.key}`
+  const libraryId = `inj-lib-${inj.key}`
+  const searchId = `inj-search-${inj.key}`
   const textId = `inj-text-${inj.key}`
 
-  function fetchLink() {
-    if (!inj.url) return
-    onChange({ ...inj, fetching: true })
-    window.setTimeout(() => {
-      onChange({
-        ...inj,
-        fetching: false,
-        text: "Sammanfattning av innehållet på länken (redigera vid behov innan det sparas som injektionstext).",
-        sourceDomain: extractDomain(inj.url),
-        isVideo: looksLikeVideo(inj.url),
+  const libraryType = libraryTypeForInjection(inj.type)
+  const [library, setLibrary] = useState<Message[]>([])
+  const [libQuery, setLibQuery] = useState("")
+  const [libError, setLibError] = useState<string | null>(null)
+  const [scratchOpen, setScratchOpen] = useState(!inj.message_id && Boolean(inj.text))
+
+  useEffect(() => {
+    let cancelled = false
+    listMessages({ type: libraryType })
+      .then((data) => {
+        if (!cancelled) {
+          setLibrary(data)
+          setLibError(null)
+        }
       })
-    }, 1200)
+      .catch(() => {
+        if (!cancelled) setLibError("Kunde inte hämta budskapsbiblioteket")
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [libraryType])
+
+  const filteredLibrary = useMemo(() => {
+    const q = libQuery.trim().toLowerCase()
+    if (!q) return library
+    return library.filter(
+      (m) =>
+        m.title.toLowerCase().includes(q) || m.body.toLowerCase().includes(q),
+    )
+  }, [library, libQuery])
+
+  function selectLibraryMessage(messageId: string) {
+    if (!messageId) {
+      onChange({ ...inj, message_id: null })
+      return
+    }
+    const msg = library.find((m) => m.id === messageId)
+    if (!msg) return
+    onChange({
+      ...inj,
+      message_id: msg.id,
+      text: msg.body,
+      url: msg.source_url ?? "",
+      mode: "text",
+      sourceDomain: "",
+      isVideo: false,
+      fetching: false,
+    })
+    setScratchOpen(false)
+  }
+
+  function enableScratch() {
+    setScratchOpen(true)
+    onChange({ ...inj, message_id: null })
   }
 
   return (
@@ -69,7 +115,11 @@ export function InjectionEditor({ inj, onChange, onRemove }: InjectionEditorProp
             id={typeId}
             value={inj.type}
             onChange={(e) =>
-              onChange({ ...inj, type: e.target.value as Injection["type"] })
+              onChange({
+                ...inj,
+                type: e.target.value as Injection["type"],
+                message_id: null,
+              })
             }
           >
             <option value="party_post">Partipost</option>
@@ -91,71 +141,69 @@ export function InjectionEditor({ inj, onChange, onRemove }: InjectionEditorProp
         </button>
       </div>
 
-      <div className="inj-mode-switch">
-        <button
-          type="button"
-          className={inj.mode === "text" ? "on" : ""}
-          onClick={() => onChange({ ...inj, mode: "text" })}
-        >
-          Skriv/klistra in text
-        </button>
-        <button
-          type="button"
-          className={inj.mode === "link" ? "on" : ""}
-          onClick={() => onChange({ ...inj, mode: "link" })}
-        >
-          Klistra in en länk
-        </button>
-      </div>
-
-      {inj.mode === "link" && (
-        <div className="inj-field">
-          <label htmlFor={urlId}>URL</label>
-          <div className="inj-link-row">
-            <input
-              id={urlId}
-              placeholder="Klistra in länk till artikel, klipp eller webbsida..."
-              value={inj.url}
-              onChange={(e) => onChange({ ...inj, url: e.target.value })}
-            />
-            <button
-              type="button"
-              className="inj-fetch-btn"
-              onClick={fetchLink}
-              disabled={!inj.url || inj.fetching}
-            >
-              Hämta
-            </button>
-          </div>
-        </div>
-      )}
-
-      {inj.mode === "link" && inj.fetching && (
-        <div className="inj-fetching">
-          <span className="spin" />
-          Hämtar & sammanfattar...
-        </div>
-      )}
-
       <div className="inj-field">
-        <label htmlFor={textId}>Textinnehåll</label>
-        <textarea
-          id={textId}
-          placeholder="Skriv eller klistra in budskapets text här..."
-          value={inj.text}
-          onChange={(e) => onChange({ ...inj, text: e.target.value })}
+        <label htmlFor={searchId}>Sök i biblioteket</label>
+        <input
+          id={searchId}
+          placeholder="Sök titel…"
+          value={libQuery}
+          onChange={(e) => setLibQuery(e.target.value)}
         />
       </div>
 
-      {inj.mode === "link" && inj.sourceDomain && !inj.fetching && (
-        <div className="inj-source">
-          {inj.isVideo && (
-            <span className="src-video" title="Videokälla">
-              ▶
-            </span>
-          )}
-          <span className="src-icon">🔗</span>
-          {inj.sourceDomain}
+      <div className="inj-field">
+        <label htmlFor={libraryId}>Budskap från biblioteket</label>
+        <select
+          id={libraryId}
+          value={inj.message_id ?? ""}
+          onChange={(e) => selectLibraryMessage(e.target.value)}
+        >
+          <option value="">— Välj sparat budskap —</option>
+          {filteredLibrary.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.title}
+            </option>
+          ))}
+        </select>
+        {libError && <p className="inj-source">{libError}</p>}
+        {!libError && library.length === 0 && (
+          <p className="inj-source">
+            Inga {libraryType === "news" ? "nyheter" : "poster"} i biblioteket.{" "}
+            <Link to="/messages/new">Öppna verkstaden</Link>
+          </p>
+        )}
+      </div>
+
+      {inj.message_id && (
+        <div className="inj-field">
+          <label>Förhandsvisning (snapshottas vid start)</label>
+          <textarea id={textId} value={inj.text} readOnly rows={4} />
+        </div>
+      )}
+
+      <div className="inj-mode-switch">
+        <button
+          type="button"
+          className={scratchOpen && !inj.message_id ? "on" : ""}
+          onClick={enableScratch}
+        >
+          Scratch / tillfällig text
+        </button>
+      </div>
+
+      {scratchOpen && !inj.message_id && (
+        <div className="inj-field">
+          <label htmlFor={textId}>
+            Tillfällig text (sparas inte i biblioteket — bara denna körning)
+          </label>
+          <textarea
+            id={textId}
+            placeholder="Engångstext för snabb test…"
+            value={inj.text}
+            onChange={(e) =>
+              onChange({ ...inj, message_id: null, text: e.target.value, mode: "text" })
+            }
+          />
         </div>
       )}
     </div>

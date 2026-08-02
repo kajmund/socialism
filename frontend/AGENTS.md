@@ -75,6 +75,8 @@ Keep imports consistent with the `@/*` alias (e.g. `@/lib/api`, `@/components/ui
 | `/populations` | Population list |
 | `/populations/:id` | Population detail |
 | `/populations/new`, `/populations/:id/edit` | Population builder (5 steps) |
+| `/messages` | Budskapsbibliotek |
+| `/messages/new` | Budskapsverkstad |
 | `/simulator` | Demo wizard (paper theme) |
 
 Home redirects to `/runs`.

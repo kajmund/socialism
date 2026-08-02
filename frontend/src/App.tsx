@@ -1,5 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom"
 import { ConfigureRunPage } from "@/pages/ConfigureRunPage"
+import { MessagesPage } from "@/pages/MessagesPage"
+import { MessagesWorkshopPage } from "@/pages/MessagesWorkshopPage"
 import { PersonaComposerPage } from "@/pages/PersonaComposerPage"
 import { PersonasPage } from "@/pages/PersonasPage"
 import { PopulationBuilderPage } from "@/pages/PopulationBuilderPage"
@@ -24,6 +26,9 @@ export default function App() {
       <Route path="/populations/new" element={<PopulationBuilderPage />} />
       <Route path="/populations/:id" element={<PopulationDetailPage />} />
       <Route path="/populations/:id/edit" element={<PopulationBuilderPage />} />
+
+      <Route path="/messages" element={<MessagesPage />} />
+      <Route path="/messages/new" element={<MessagesWorkshopPage />} />
 
       <Route path="/simulator" element={<SimulatorPage />} />
       <Route path="*" element={<Navigate to="/runs" replace />} />
