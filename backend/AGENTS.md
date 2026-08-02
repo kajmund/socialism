@@ -1,6 +1,6 @@
 # Backend — agent notes
 
-This is the FastAPI service for Document Copilot. Read [../AGENTS.md](../AGENTS.md) first — universal building rules live there. This file adds backend-specific conventions.
+This is the FastAPI service for **Opinionssimulator**. Read [../AGENTS.md](../AGENTS.md) first — universal building rules live there. This file adds backend-specific conventions.
 
 ## Stack
 
@@ -9,10 +9,10 @@ This is the FastAPI service for Document Copilot. Read [../AGENTS.md](../AGENTS.
 - Pydantic v2 + pydantic-settings
 - `httpx` for outbound HTTP
 - `pytest` for tests
-- Supabase Python client (DB + auth)
 - SQLAlchemy models + Alembic migrations for database schema changes
-- OpenAI SDK for LLM & embeddings
-- Supabase `pgvector` for semantic search and Postgres full-text search for keyword retrieval. Hybrid search should run vector and full-text queries separately, then fuse ranked results in Python with Reciprocal Rank Fusion.
+- **Phase 1 DB:** SQLite via `aiosqlite` (local file under `backend/data/`)
+- **Later:** Supabase Postgres + Auth (not wired yet)
+- **LLM:** DeepSeek via OpenAI-compatible SDK (`app/llm/`)
 - `structlog` for logging
 - `uv` for dependency + project management
 
@@ -24,7 +24,7 @@ See universal policy in [../AGENTS.md](../AGENTS.md). Backend-specific:
 - **Not OK without justification:** `python-dateutil`, `toolz`, `funcy`, `more-itertools`, small JSON/string micro-libs, "ergonomic" wrappers on top of declared SDKs.
 - Dev deps (test/lint/build) have a looser bar but still pick widely-used, low-footprint tools (`pytest`, `ruff`, `httpx`).
 
-## Layout (to be created during build)
+## Layout
 
 ```text
 backend/
@@ -35,19 +35,18 @@ backend/
 ├── app/
 │   ├── main.py          # FastAPI entrypoint
 │   ├── config.py        # Pydantic settings — single source of truth for env
-│   ├── api/             # FastAPI routers (chat, ingest, auth)
-│   ├── auth/            # Supabase JWT verification + current user dependency
-│   ├── chat/            # turn orchestration, AI SDK message conversion, streaming
-│   ├── assistant/       # PydanticAI agent, deps, outputs, instructions
-│   ├── retrieval/       # pgvector/full-text queries, RRF fusion, source passage lookup
-│   ├── grounding/       # citation validation and answer grounding checks
-│   ├── database/        # SQLAlchemy models, Supabase client wrapper, typed query helpers
-│   └── prompts/         # prompt/instruction templates if not colocated with assistant
-├── ingest/              # one-off ingestion scripts (Markdown extraction, chunking, embedding, Supabase writes)
+│   ├── api/             # FastAPI routers (personas, populations, runs, health)
+│   ├── database/        # SQLAlchemy models, async session, base
+│   ├── llm/             # DeepSeek client, persona gen, interview chat
+│   ├── locality/        # Norrköping brief for grounded prompts
+│   ├── schemas/         # Pydantic request/response models
+│   ├── services/        # Population generate, OASIS körning spike, catalogs
+│   └── seed.py          # Load demo data into SQLite
 ├── tests/
 └── pyproject.toml
 ```
 
+Optional dependency extra `oasis` (`camel-oasis`) — not installed by default (`uv sync --extra oasis`). That install is heavy (CAMEL + torch). On Python 3.13, `pyproject.toml` overrides pin conflicts (`openai`, `tiktoken`, `pillow`, pytest).
 ## Code style (backend-specific)
 
 - **Type hints on public functions and module-level things.** Don't annotate every local.
@@ -61,21 +60,26 @@ backend/
 - If a third-party SDK reads `os.environ` directly, add the mirror in `config.py` — don't sprinkle `setdefault` elsewhere.
 - Fail fast on startup when required env vars are missing.
 
-## Database migrations
+## Database
 
-- Alembic is the source of truth for schema changes. Do not change production tables manually in the Supabase dashboard.
-- SQLAlchemy models describe normal tables and columns. Alembic autogenerate creates candidate migrations, but every generated migration must be reviewed before applying.
-- Supabase/Postgres-specific features belong in explicit migration operations: `create extension vector`, generated `tsvector` columns, HNSW/GIN indexes, RLS enablement, and RLS policies.
-- Alembic must use the direct/session database connection, not the Supabase transaction pooler URL.
+- Alembic is the source of truth for schema changes.
+- Phase 1 uses SQLite (`DATABASE_URL=sqlite+aiosqlite:///./data/opinionssimulator.db`). Models stay dialect-portable so we can point at Supabase Postgres later.
 - Run migrations from `backend/` with `uv run alembic upgrade head`.
+- Seed demo data with `uv run python -m app.seed`.
+
+## Domain (admin library)
+
+CRUD for personas, populations (members + recipe/fingerprint), and runs (timeline JSON). No auth.
+
+**Simulation:** default `SIMULATION_ENGINE=none` — `POST /runs/{id}/start` only sets status to `running`. Optional OASIS spike (`SIMULATION_ENGINE=oasis`) runs a capped live Twitter-style multi-agent sim via `camel-oasis` and stores a results JSON on the run. Install with `uv sync --extra oasis`. Caps: `OASIS_MAX_AGENTS`, `OASIS_MAX_TICKS`. CLI: `uv run python -m app.services.oasis_run --run-id N`. Simulator wizard stays frontend-mock unless you open a run that has OASIS results.
 
 ## Tests
 
 - **Prefer unit over integration.** Mock at the service boundary.
-- Fast suite (`pytest -m "not integration"`) must stay green and hit no network / no DB.
-- Integration tests go behind `@pytest.mark.integration` and may require live OpenAI / Supabase credentials.
-- Tests live next to what they test (`retrieval/retriever.py` → `tests/retrieval/test_retriever.py`).
-- Required test coverage: ingestion logic, retrieval, citation extraction, grounding enforcement.
+- Fast suite uses in-memory SQLite and must stay green with no network.
+- Integration tests (when added) go behind `@pytest.mark.integration`.
+- Tests live under `tests/` mirroring the area under test.
+- Profile CSV mapping for OASIS is unit-tested without importing `camel-oasis`.
 
 ## Anti-patterns (rejected)
 
@@ -84,4 +88,3 @@ backend/
 - Over-catching `Exception` just to log and re-raise; let it propagate.
 - Shared state through globals instead of FastAPI `app.state` or DI.
 - Silent fallbacks that hide real config errors.
-- Mocking the LLM in unit tests without also testing the grounding contract — the prompt is the product.
