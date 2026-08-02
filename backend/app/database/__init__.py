@@ -1,4 +1,4 @@
 from app.database.base import Base
-from app.database.models import Persona, Population, PopulationMember, Run
+from app.database.models import Message, Persona, Population, PopulationMember, Run
 
-__all__ = ["Base", "Persona", "Population", "PopulationMember", "Run"]
+__all__ = ["Base", "Message", "Persona", "Population", "PopulationMember", "Run"]

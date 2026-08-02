@@ -9,11 +9,14 @@ export type OasisRunResults = {
     username: string
     member_name: string
     persona_id: string | null
+    role?: "population" | "injector"
   }>
   posts?: Array<{
     post_id: number
     user_id: number
+    original_post_id?: number | null
     content: string
+    quote_content?: string | null
     num_likes: number
     num_dislikes?: number
     num_shares?: number
@@ -60,6 +63,8 @@ export type Injection = {
   fetching: boolean
   sourceDomain: string
   isVideo: boolean
+  /** Library Message id; null = scratch text for this run only. */
+  message_id: string | null
 }
 
 export type Tick = {

@@ -122,3 +122,21 @@ class PersonaMessage(Base):
         server_default=func.now(),
         nullable=False,
     )
+
+
+class Message(Base):
+    """Campaign message library (post / news) — not persona chat transcripts."""
+
+    __tablename__ = "messages"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    type: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    source_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    metadata_: Mapped[dict] = mapped_column("metadata", JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )

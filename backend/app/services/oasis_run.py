@@ -1,6 +1,6 @@
 """Run a capped OASIS Twitter simulation for a körning.
 
-Requires optional dependency group: `uv sync --group oasis`.
+Requires optional dependency group: `uv sync --extra oasis`.
 """
 
 from __future__ import annotations
@@ -20,7 +20,12 @@ from app.database.models import Population, PopulationMember, Run
 from app.database.session import SessionLocal
 from app.schemas.domain import Injection, Tick
 from app.serializers import utcnow
-from app.services.oasis_profiles import members_to_profiles, write_twitter_profile_csv
+from app.services.oasis_profiles import (
+    build_run_profiles,
+    injection_has_content,
+    injector_key,
+    write_twitter_profile_csv,
+)
 
 ARTIFACT_ROOT = Path("data/oasis")
 
@@ -43,18 +48,12 @@ def _artifact_dir(run_id: int) -> Path:
     return path
 
 
-def _injection_text(injection: Injection) -> str:
-    parts: list[str] = []
-    if injection.sender.strip():
-        parts.append(f"[{injection.type}] {injection.sender}:")
-    else:
-        parts.append(f"[{injection.type}]")
+def _injection_body(injection: Injection) -> str:
+    """Post body only — author is the institutional injector account."""
     if injection.mode == "link" and injection.url.strip():
         body = injection.text.strip() or injection.sourceDomain.strip() or injection.url
-        parts.append(f"{body}\n{injection.url.strip()}")
-    else:
-        parts.append(injection.text.strip())
-    return "\n".join(p for p in parts if p).strip()
+        return f"{body}\n{injection.url.strip()}".strip()
+    return injection.text.strip()
 
 
 def _read_oasis_results(db_path: Path) -> dict[str, Any]:
@@ -66,8 +65,9 @@ def _read_oasis_results(db_path: Path) -> dict[str, Any]:
         posts = [
             dict(row)
             for row in conn.execute(
-                "SELECT post_id, user_id, content, num_likes, num_dislikes, "
-                "num_shares, created_at FROM post ORDER BY post_id"
+                "SELECT post_id, user_id, original_post_id, content, "
+                "quote_content, num_likes, num_dislikes, num_shares, "
+                "created_at FROM post ORDER BY post_id"
             )
         ]
         comments: list[dict[str, Any]] = []
@@ -109,8 +109,14 @@ async def run_oasis_simulation(
     from camel.types import ModelPlatformType
     from oasis import ActionType, LLMAction, ManualAction, generate_twitter_agent_graph
 
-    profiles = members_to_profiles(members, max_agents=settings.oasis_max_agents)
-    if not profiles:
+    ticks = [t for t in main_ticks if not t.silent][: settings.oasis_max_ticks]
+    profiles, key_to_index = build_run_profiles(
+        members,
+        ticks,
+        max_agents=settings.oasis_max_agents,
+    )
+    population_indices = {i for i, p in enumerate(profiles) if p.role == "population"}
+    if not population_indices:
         raise OasisUnavailable("Population has no members to simulate")
 
     art = _artifact_dir(run_id)
@@ -126,13 +132,15 @@ async def run_oasis_simulation(
         api_key=settings.deepseek_api_key,
     )
 
+    # Population reacts — no CREATE_POST (avoids copy-paste of injections as "egna" inlägg).
     available_actions = [
-        ActionType.CREATE_POST,
         ActionType.LIKE_POST,
+        ActionType.CREATE_COMMENT,
         ActionType.REPOST,
+        ActionType.QUOTE_POST,
         ActionType.FOLLOW,
         ActionType.DO_NOTHING,
-        ActionType.QUOTE_POST,
+        ActionType.REFRESH,
     ]
 
     agent_graph = await generate_twitter_agent_graph(
@@ -147,36 +155,41 @@ async def run_oasis_simulation(
         database_path=str(db_path),
     )
 
-    ticks = [t for t in main_ticks if not t.silent][: settings.oasis_max_ticks]
     ticks_run = 0
 
     try:
         await env.reset()
-        injector = env.agent_graph.get_agent(0)
 
         for tick in ticks:
-            inject_actions: dict[Any, list[ManualAction]] = {}
-            manuals: list[ManualAction] = []
+            inject_actions: dict[Any, list[Any]] = {}
             for injection in tick.injections:
-                content = _injection_text(injection)
+                if not injection_has_content(injection):
+                    continue
+                content = _injection_body(injection)
                 if not content:
                     continue
-                manuals.append(
+                idx = key_to_index.get(injector_key(injection))
+                if idx is None:
+                    continue
+                agent = env.agent_graph.get_agent(idx)
+                inject_actions.setdefault(agent, []).append(
                     ManualAction(
                         action_type=ActionType.CREATE_POST,
                         action_args={"content": content},
                     )
                 )
-            if manuals:
-                inject_actions[injector] = manuals
+            if inject_actions:
                 await env.step(inject_actions)
 
             rounds = max(1, tick.rounds)
             for _ in range(rounds):
                 llm_actions = {
-                    agent: LLMAction() for _, agent in env.agent_graph.get_agents()
+                    agent: LLMAction()
+                    for agent_id, agent in env.agent_graph.get_agents()
+                    if agent_id in population_indices
                 }
-                await env.step(llm_actions)
+                if llm_actions:
+                    await env.step(llm_actions)
             ticks_run += 1
     finally:
         await env.close()
@@ -191,6 +204,7 @@ async def run_oasis_simulation(
                 "username": p.username,
                 "member_name": p.member_name,
                 "persona_id": p.persona_id,
+                "role": p.role,
             }
             for i, p in enumerate(profiles)
         ],
