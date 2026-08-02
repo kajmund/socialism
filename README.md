@@ -1,48 +1,40 @@
 # Opinionssimulator
 
-Internal tool for testing political messaging (A/B) against AI agent populations grounded in local context. Swedish UI. Pilot context: Norrköping 2026.
+Internal tool for testing political messaging (A/B) against AI agent populations grounded in local civic context. Swedish UI. Pilot: Norrköping 2026.
+
+## What you can do
+
+1. Build or compose a **population** (demographic mix of personas)
+2. Manage a **persona library** (biography, tone, local context)
+3. Configure a **körning** (budskap A/B, scenario, timeline)
+4. Browse admin surfaces for Personas / Populationer / Körningar
+5. Walk the paper **simulator** demo wizard (`/simulator`)
+
+Phase 1: admin CRUD is API-backed (SQLite). Simulation start defaults to status-only; live multi-agent (OASIS) is optional. Auth and Supabase Postgres come later.
 
 ## Stack
 
-| Layer              | Choice                                               |
-| ------------------ | ---------------------------------------------------- |
-| Backend            | Python + FastAPI                                     |
-| Frontend           | Vite + React SPA + TypeScript                        |
-| Database (phase 1) | SQLite (`aiosqlite`) via SQLAlchemy + Alembic        |
-| Database (later)   | Supabase Postgres                                    |
-| Auth (later)       | Supabase Auth (email only)                           |
-| Hosting            | Railway                                              |
-| LLM + embeddings   | OpenAI (later)                                       |
+| Layer | Choice |
+| ----- | ------ |
+| Backend | Python 3.12+ · FastAPI · SQLAlchemy · Alembic |
+| Frontend | Vite · React · TypeScript · Tailwind · shadcn |
+| Database (phase 1) | SQLite (`aiosqlite`) under `backend/data/` |
+| Database (later) | Supabase Postgres |
+| Auth (later) | Supabase Auth (email) |
+| LLM | DeepSeek (OpenAI-compatible SDK; stub mode offline) |
+| Hosting | Railway |
 
 ## Repo layout
 
 ```text
 socialism/
-├── AGENTS.md
-├── README.md
-├── data/
-├── docs/
-├── backend/
-└── frontend/
+├── AGENTS.md          # conventions for coding agents
+├── Makefile           # make start | backend | frontend | install
+├── data/              # local corpus helpers
+├── docs/              # client brief, setup guides, architecture
+├── backend/           # FastAPI admin API
+└── frontend/          # React SPA
 ```
-
-## Frontend
-
-Dual visual system:
-
-- **Simulator** (`/simulator`) — paper/editorial 5-step wizard from the mockup
-- **Admin** (Personas / Populationer / Körningar) — Devbrains charcoal + gold (API-backed)
-
-```bash
-cd frontend
-pnpm install
-cp .env.example .env   # then edit if needed
-pnpm dev
-```
-
-Checks: `pnpm tsc --noEmit` and `pnpm lint`.
-
-Source mockup: `frontend/mockup/Socialism.zip`.
 
 ## Prerequisites
 
@@ -53,9 +45,56 @@ Source mockup: `frontend/mockup/Socialism.zip`.
 | [Node.js](https://nodejs.org/) | 20+ | Frontend |
 | [pnpm](https://pnpm.io/) | latest | Frontend packages |
 
+## Quick start
+
+```bash
+# 1) Install deps
+make install
+
+# 2) Backend env + DB
+cd backend
+cp .env.example .env          # set DEEPSEEK_API_KEY or PERSONA_GENERATOR=stub
+uv run alembic upgrade head
+uv run python -m app.seed
+cd ..
+
+# 3) Frontend env
+cd frontend
+cp .env.example .env          # VITE_API_BASE_URL=http://localhost:8000
+cd ..
+
+# 4) Run both (API :8000, Vite :5173)
+make start
+```
+
+Open [http://localhost:5173/runs](http://localhost:5173/runs). API docs: [http://localhost:8000/docs](http://localhost:8000/docs).
+
+Or start services separately: `make backend` / `make frontend`.
+
+## Frontend
+
+Dual visual system (do not collapse them):
+
+| Area | Theme | Routes |
+| ---- | ----- | ------ |
+| Admin | Devbrains charcoal + gold | `/runs`, `/personas`, `/populations` |
+| Simulator | Paper / editorial | `/simulator` |
+
+Admin pages call the API via `VITE_API_BASE_URL`. The simulator wizard still uses mock data unless you open a run that has OASIS results.
+
+```bash
+cd frontend
+pnpm install
+pnpm dev
+```
+
+Checks: `pnpm exec tsc -p tsconfig.app.json --noEmit` and `pnpm lint`.
+
+Source mockup: `frontend/mockup/Socialism.zip`.
+
 ## Backend
 
-Local SQLite admin API (personas, populations, runs). See [docs/guides/backend-setup.md](docs/guides/backend-setup.md).
+Local admin API: personas, populations (recipe + members), runs (timeline JSON). No auth in phase 1.
 
 ```bash
 cd backend
@@ -66,4 +105,19 @@ uv run python -m app.seed
 uv run uvicorn app.main:app --reload
 ```
 
-Frontend still uses mock data for `/simulator`. Admin pages call the API at `VITE_API_BASE_URL`. Supabase comes in a later phase.
+Useful env knobs (see `backend/.env.example`):
+
+- `PERSONA_GENERATOR=deepseek|stub` — offline stub vs DeepSeek
+- `SIMULATION_ENGINE=none|oasis` — status flip vs optional OASIS spike (`uv sync --extra oasis`)
+
+Tests: `cd backend && uv run pytest`.
+
+## Docs
+
+| Doc | Purpose |
+| --- | ------- |
+| [docs/client-brief.md](docs/client-brief.md) | Product brief |
+| [docs/guides/backend-setup.md](docs/guides/backend-setup.md) | Backend setup detail |
+| [docs/guides/frontend-setup.md](docs/guides/frontend-setup.md) | Frontend setup detail |
+| [docs/architecture.md](docs/architecture.md) | Architecture notes |
+| [AGENTS.md](AGENTS.md) | Agent / contributor conventions |
