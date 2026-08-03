@@ -140,3 +140,20 @@ class Message(Base):
         server_default=func.now(),
         nullable=False,
     )
+
+
+class CatalogList(Base):
+    """Editable master-data option lists for persona composer dropdowns."""
+
+    __tablename__ = "catalog_lists"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    section: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    items: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
