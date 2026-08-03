@@ -6,6 +6,7 @@ const LINKS = [
   { label: "Personas", to: "/personas", match: "/personas" },
   { label: "Populationer", to: "/populations", match: "/populations" },
   { label: "Budskap", to: "/messages", match: "/messages" },
+  { label: "Konfiguration", to: "/config", match: "/config" },
   { label: "Körningar", to: "/runs", match: "/runs" },
   { label: "Simulator", to: "/simulator", match: "/simulator" },
 ] as const

@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react"
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import {
+  catalogToFieldOptions,
+  listCatalog,
+} from "@/api/catalog"
+import {
   chatWithPersona,
   clearPersonaMessages,
   createPersona,
@@ -21,67 +25,23 @@ import { blankEditablePersona } from "@/data/library"
 import type { EditablePersona, PersonaOrigin } from "@/data/library-types"
 import { ApiError } from "@/lib/api"
 
-const FIELD_OPTIONS: Record<string, string[]> = {
-  yrke: [
-    "Undersköterska",
-    "Lagerarbetare",
-    "Grundskollärare",
-    "Taxichaufför",
-    "Barnmorska",
-    "Handläggare",
-    "Butiksbiträde",
-    "Egen företagare",
-  ],
-  utbildning: ["Grundskola", "Gymnasium", "Högskola"],
-  livssituation: [
-    "Ensamhushåll",
-    "Sambo, barn",
-    "Bor med föräldrar",
-    "Gift, vuxna barn",
-    "Sambo, inga barn",
-  ],
-  sakfragor: ["Vård och skola", "Bostäder och trygghet", "Ekonomi och jobb", "Miljö och klimat"],
-  fortroende: [
-    "Lågt för kommunen",
-    "Högt för sjukvården",
-    "Blandat, skeptisk generellt",
-    "Lågt för kommunen / Högt för sjukvården",
-  ],
-  ton: [
-    "Sarkastisk och otålig",
-    "Uppgiven men engagerad",
-    "Optimistisk och pratglad",
-    "Direkt och kort i tonen",
-    "Cynisk mot politiker",
-  ],
-  sprak: ["Kort och konkret", "Långa resonemang", "Blandar in fackspråk", "Vardagligt, många skämt"],
-  medievanor: ["Instagram, FB-grupper", "Lokal nyhetskälla", "Regional TV", "Lite/ingen media"],
-  parti: [
-    "Socialdemokraterna",
-    "Moderaterna",
-    "Vänsterpartiet",
-    "Sverigedemokraterna",
-    "Osäker väljare",
-  ],
-  valdeltagande: ["Röstar alltid", "Röstar oftast", "Osäker om hen röstar"],
-}
-
 type LayerRow = { k: keyof EditablePersona | string; l: string; v: string; locked: boolean }
 
 type LayerTableProps = {
   rows: LayerRow[]
   pol?: boolean
+  fieldOptions: Record<string, string[]>
   onChange: (k: string, v?: string) => void
 }
 
-function LayerTable({ rows, pol, onChange }: LayerTableProps) {
+function LayerTable({ rows, pol, fieldOptions, onChange }: LayerTableProps) {
   return (
     <table className={"lt" + (pol ? " pol" : "")}>
       <tbody>
         {rows.map((r) => {
-          const opts = FIELD_OPTIONS[r.k]
+          const opts = fieldOptions[r.k]
           const cell =
-            !r.locked && opts ? (
+            !r.locked && opts && opts.length > 0 ? (
               <select
                 className="cell-input"
                 value={opts.includes(r.v) ? r.v : opts[0]}
@@ -180,6 +140,27 @@ function Editor({
   const [messages, setMessages] = useState<PersonaMessage[]>([])
   const [draft, setDraft] = useState("")
   const [chatBusy, setChatBusy] = useState(false)
+  const [fieldOptions, setFieldOptions] = useState<Record<string, string[]>>({})
+
+  useEffect(() => {
+    let cancelled = false
+    listCatalog()
+      .then((lists) => {
+        if (!cancelled) setFieldOptions(catalogToFieldOptions(lists))
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          onToast(
+            err instanceof ApiError ? err.message : "Kunde inte hämta grunddata",
+          )
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+    // intentionally omit onToast — parent recreates it each render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (!personaId) {
@@ -355,6 +336,7 @@ function Editor({
         <div className="layers-col">
           <div className="layer-h">I. Demografi</div>
           <LayerTable
+            fieldOptions={fieldOptions}
             onChange={upd}
             rows={[
               { k: "age", l: "Ålder", v: persona.age, locked: !!locks.age },
@@ -366,6 +348,7 @@ function Editor({
           />
           <div className="layer-h">II. Värderingar & attityder</div>
           <LayerTable
+            fieldOptions={fieldOptions}
             onChange={upd}
             rows={[
               { k: "lutning", l: "Lutning", v: persona.lutning, locked: !!locks.lutning },
@@ -375,6 +358,7 @@ function Editor({
           />
           <div className="layer-h">III. Röst & personlighet</div>
           <LayerTable
+            fieldOptions={fieldOptions}
             onChange={upd}
             rows={[
               { k: "ton", l: "Ton", v: persona.ton, locked: !!locks.ton },
@@ -385,6 +369,7 @@ function Editor({
           <div className="layer-h pol">IV. Domänänattribut · Politik</div>
           <LayerTable
             pol
+            fieldOptions={fieldOptions}
             onChange={upd}
             rows={[
               { k: "parti", l: "Partisympati", v: persona.parti, locked: !!locks.parti },

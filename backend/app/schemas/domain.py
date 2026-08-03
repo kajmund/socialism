@@ -374,3 +374,31 @@ def format_date(value: datetime | None) -> str:
     if value is None:
         return ""
     return value.date().isoformat()
+
+
+CatalogSection = Literal["demografi", "politik", "varderingar", "rost_media"]
+
+
+class CatalogListOut(BaseModel):
+    key: str
+    section: CatalogSection
+    title: str
+    items: list[str]
+    updated_at: str
+
+
+class CatalogListUpdate(BaseModel):
+    items: list[str]
+
+    @field_validator("items")
+    @classmethod
+    def clean_items(cls, value: list[str]) -> list[str]:
+        cleaned: list[str] = []
+        seen: set[str] = set()
+        for raw in value:
+            label = raw.strip()
+            if not label or label in seen:
+                continue
+            seen.add(label)
+            cleaned.append(label)
+        return cleaned

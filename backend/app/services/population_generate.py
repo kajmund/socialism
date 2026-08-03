@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import secrets
 from dataclasses import dataclass, field
 from random import Random
@@ -210,16 +211,27 @@ def library_candidate(
     )
 
 
-async def _make_generated(recipe: PopulationRecipe, rng: Random) -> GeneratedPersonaOut:
+async def _make_generated_batch(
+    recipe: PopulationRecipe,
+    rng: Random,
+    count: int,
+) -> list[GeneratedPersonaOut]:
+    if count <= 0:
+        return []
     if settings.persona_generator == "stub" or not settings.deepseek_api_key:
-        return stub_persona(recipe, rng)
+        return [stub_persona(recipe, rng) for _ in range(count)]
     if not settings.uses_llm_generator():
         raise HTTPException(
             status_code=503,
             detail="DeepSeek is not configured (set DEEPSEEK_API_KEY or PERSONA_GENERATOR=stub)",
         )
-    slot = sample_slot(recipe, rng)
-    return await llm_persona_from_slot(slot, free_text=recipe.freeText)
+    # Sample slots first so Random stays single-threaded, then fan out LLM calls.
+    slots = [sample_slot(recipe, rng) for _ in range(count)]
+    return list(
+        await asyncio.gather(
+            *[llm_persona_from_slot(slot, free_text=recipe.freeText) for slot in slots]
+        )
+    )
 
 
 async def run_generate(
@@ -249,16 +261,20 @@ async def run_generate(
 
     if body.replace_keys:
         replace_set = set(body.replace_keys)
+        replace_count = sum(
+            1 for c in existing if c.key in replace_set and c.source == "generated"
+        )
+        personas = await _make_generated_batch(recipe, rng, replace_count)
+        persona_iter = iter(personas)
         candidates: list[GenerationCandidate] = []
         for cand in existing:
             if cand.key in replace_set and cand.source == "generated":
-                persona = await _make_generated(recipe, rng)
                 candidates.append(
                     GenerationCandidate(
                         key=cand.key,
                         source="generated",
                         persona_id=None,
-                        persona=persona,
+                        persona=next(persona_iter),
                     )
                 )
             else:
@@ -266,8 +282,7 @@ async def run_generate(
     elif body.mode == "append":
         candidates = list(existing)
         need = max(0, recipe.size - len(candidates))
-        for _ in range(need):
-            persona = await _make_generated(recipe, rng)
+        for persona in await _make_generated_batch(recipe, rng, need):
             candidates.append(
                 GenerationCandidate(
                     key=_candidate_key(),
@@ -280,8 +295,7 @@ async def run_generate(
         kept = [c for c in existing if c.source == "library"]
         need = max(0, recipe.size - len(kept))
         candidates = list(kept)
-        for _ in range(need):
-            persona = await _make_generated(recipe, rng)
+        for persona in await _make_generated_batch(recipe, rng, need):
             candidates.append(
                 GenerationCandidate(
                     key=_candidate_key(),

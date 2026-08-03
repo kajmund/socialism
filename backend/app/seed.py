@@ -8,6 +8,7 @@ from pathlib import Path
 
 from sqlalchemy import delete, select
 
+from app.api.catalog import ensure_catalog_defaults
 from app.database.models import Persona, Population, PopulationMember, Run
 from app.database.session import SessionLocal, engine
 from app.serializers import blank_profile, persona_initials
@@ -397,6 +398,8 @@ def _ensure_data_dir() -> None:
 async def seed(*, reset: bool = True) -> None:
     _ensure_data_dir()
     async with SessionLocal() as session:
+        catalog_added = await ensure_catalog_defaults(session)
+
         if reset:
             await session.execute(delete(Run))
             await session.execute(delete(PopulationMember))
@@ -406,7 +409,10 @@ async def seed(*, reset: bool = True) -> None:
 
         existing = await session.execute(select(Persona).limit(1))
         if existing.scalar_one_or_none() is not None:
-            print("Database already has data; pass reset=True to wipe and reseed.")
+            print(
+                "Database already has data; pass reset=True to wipe and reseed."
+                + (f" Catalog: +{catalog_added} lists." if catalog_added else "")
+            )
             return
 
         for row in PERSONAS:
@@ -486,7 +492,8 @@ async def seed(*, reset: bool = True) -> None:
 
         await session.commit()
         print(
-            f"Seeded {len(PERSONAS)} personas, {len(POPULATIONS)} populations, {len(RUNS)} runs."
+            f"Seeded {len(PERSONAS)} personas, {len(POPULATIONS)} populations, "
+            f"{len(RUNS)} runs, catalog +{catalog_added} lists."
         )
 
 
