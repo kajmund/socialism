@@ -8,7 +8,7 @@ from pathlib import Path
 
 from sqlalchemy import delete, select
 
-from app.api.catalog import ensure_catalog_defaults
+from app.services.catalog_store import ensure_catalog_defaults
 from app.database.models import Persona, Population, PopulationMember, Run
 from app.database.session import SessionLocal, engine
 from app.serializers import blank_profile, persona_initials

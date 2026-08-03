@@ -7,8 +7,16 @@ from app.locality import load_norrkoping_brief
 from app.schemas.domain import ChatMode, EditablePersona
 
 
-def build_chat_system_prompt(profile: EditablePersona, mode: ChatMode) -> str:
+def build_chat_system_prompt(
+    profile: EditablePersona,
+    mode: ChatMode,
+    *,
+    area_block: str = "",
+) -> str:
     brief = load_norrkoping_brief()
+    local = brief
+    if area_block.strip():
+        local = f"{brief}\n\n{area_block.strip()}"
     persona_block = "\n".join(
         [
             f"Namn: {profile.name}",
@@ -41,7 +49,7 @@ def build_chat_system_prompt(profile: EditablePersona, mode: ChatMode) -> str:
     return (
         f"{mode_rules}\n\n"
         f"Din persona:\n{persona_block}\n\n"
-        f"Lokal kontext:\n{brief}"
+        f"Lokal kontext:\n{local}"
     )
 
 
@@ -50,9 +58,14 @@ async def reply_as_persona(
     mode: ChatMode,
     history: list[tuple[str, str]],
     user_message: str,
+    *,
+    area_block: str = "",
 ) -> str:
     messages: list[dict[str, str]] = [
-        {"role": "system", "content": build_chat_system_prompt(profile, mode)},
+        {
+            "role": "system",
+            "content": build_chat_system_prompt(profile, mode, area_block=area_block),
+        },
     ]
     for role, content in history:
         messages.append({"role": role, "content": content})

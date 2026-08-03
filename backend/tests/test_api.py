@@ -658,14 +658,106 @@ async def test_catalog_lists(client):
     assert "lutning" in keys
 
     parti = next(row for row in rows if row["key"] == "parti")
-    assert "Socialdemokraterna" in parti["items"]
+    assert any(item["label"] == "Socialdemokraterna" for item in parti["items"])
+
+    ort = next(row for row in rows if row["key"] == "ort")
+    centrum = next(item for item in ort["items"] if item["label"] == "Centrum")
+    assert centrum["description"]
+    assert centrum["bounds"] is not None
+    assert centrum["bounds"]["south"] < centrum["bounds"]["north"]
 
     updated = await client.put(
         "/catalog/parti",
-        json={"items": ["Socialdemokraterna", "Moderaterna", "  ", "Socialdemokraterna"]},
+        json={
+            "items": [
+                {"label": "Socialdemokraterna"},
+                {"label": "Moderaterna"},
+                {"label": "  "},
+                {"label": "Socialdemokraterna"},
+            ]
+        },
     )
     assert updated.status_code == 200
-    assert updated.json()["items"] == ["Socialdemokraterna", "Moderaterna"]
+    assert [item["label"] for item in updated.json()["items"]] == [
+        "Socialdemokraterna",
+        "Moderaterna",
+    ]
 
-    missing = await client.put("/catalog/does-not-exist", json={"items": ["x"]})
+    # Legacy string items are coerced on write.
+    legacy = await client.put(
+        "/catalog/ton",
+        json={"items": ["Sarkastisk", "Direkt"]},
+    )
+    assert legacy.status_code == 200
+    assert legacy.json()["items"] == [
+        {"label": "Sarkastisk", "description": "", "bounds": None},
+        {"label": "Direkt", "description": "", "bounds": None},
+    ]
+
+    bounds_ok = await client.put(
+        "/catalog/ort",
+        json={
+            "items": [
+                {
+                    "label": "Centrum",
+                    "description": "Innerstad",
+                    "bounds": {
+                        "south": 58.58,
+                        "west": 16.17,
+                        "north": 58.59,
+                        "east": 16.19,
+                    },
+                }
+            ]
+        },
+    )
+    assert bounds_ok.status_code == 200
+    saved = bounds_ok.json()["items"][0]
+    assert saved["description"] == "Innerstad"
+    assert saved["bounds"]["east"] == 16.19
+
+    bad_bounds = await client.put(
+        "/catalog/ort",
+        json={
+            "items": [
+                {
+                    "label": "Centrum",
+                    "bounds": {
+                        "south": 58.59,
+                        "west": 16.17,
+                        "north": 58.58,
+                        "east": 16.19,
+                    },
+                }
+            ]
+        },
+    )
+    assert bad_bounds.status_code == 422
+
+    missing = await client.put(
+        "/catalog/does-not-exist",
+        json={"items": [{"label": "x"}]},
+    )
     assert missing.status_code == 404
+
+
+def test_format_area_block_includes_relative_hint():
+    from app.schemas.domain import GeoBounds
+    from app.services.district_context import DistrictContext, format_area_block
+
+    centrum = DistrictContext(
+        label="Centrum",
+        description="Innerstad",
+        bounds=GeoBounds(south=58.58, west=16.17, north=58.59, east=16.19),
+    )
+    south = DistrictContext(
+        label="Distrikt A",
+        description="Miljonprogram söderut",
+        bounds=GeoBounds(south=58.56, west=16.17, north=58.57, east=16.19),
+    )
+    text = format_area_block(south, centrum=centrum)
+    assert "Distrikt A" in text
+    assert "Miljonprogram" in text
+    assert "mittpunkt" in text.lower()
+    assert "Centrum" in text
+

@@ -40,14 +40,17 @@ function LayerTable({ rows, pol, fieldOptions, onChange }: LayerTableProps) {
       <tbody>
         {rows.map((r) => {
           const opts = fieldOptions[r.k]
+          // Lock marks fields for regeneration — it must not block editing.
           const cell =
-            !r.locked && opts && opts.length > 0 ? (
+            opts && opts.length > 0 ? (
               <select
                 className="cell-input"
-                value={opts.includes(r.v) ? r.v : opts[0]}
+                value={r.v}
                 onChange={(e) => onChange(r.k, e.target.value)}
               >
-                {!opts.includes(r.v) && <option value={r.v}>{r.v}</option>}
+                {!opts.includes(r.v) && (
+                  <option value={r.v}>{r.v || "—"}</option>
+                )}
                 {opts.map((o) => (
                   <option key={o} value={o}>
                     {o}
@@ -58,7 +61,6 @@ function LayerTable({ rows, pol, fieldOptions, onChange }: LayerTableProps) {
               <input
                 className="cell-input"
                 value={r.v}
-                disabled={r.locked}
                 onChange={(e) => onChange(r.k, e.target.value)}
               />
             )
@@ -70,6 +72,11 @@ function LayerTable({ rows, pol, fieldOptions, onChange }: LayerTableProps) {
                 <span
                   className={"lock" + (r.locked ? " on" : "")}
                   onClick={() => onChange("__lock__" + r.k)}
+                  title={
+                    r.locked
+                      ? "Låst vid regenerering"
+                      : "Olåst — kan ändras vid regenerering"
+                  }
                 >
                   {r.locked ? "🔒" : "🔓"}
                 </span>
@@ -110,6 +117,7 @@ type EditorProps = {
   onSave: () => void
   onDelete?: () => void
   onToast: (message: string) => void
+  fieldOptions: Record<string, string[]>
   saving?: boolean
   deleting?: boolean
 }
@@ -123,6 +131,7 @@ function Editor({
   onSave,
   onDelete,
   onToast,
+  fieldOptions,
   saving,
   deleting,
 }: EditorProps) {
@@ -140,27 +149,6 @@ function Editor({
   const [messages, setMessages] = useState<PersonaMessage[]>([])
   const [draft, setDraft] = useState("")
   const [chatBusy, setChatBusy] = useState(false)
-  const [fieldOptions, setFieldOptions] = useState<Record<string, string[]>>({})
-
-  useEffect(() => {
-    let cancelled = false
-    listCatalog()
-      .then((lists) => {
-        if (!cancelled) setFieldOptions(catalogToFieldOptions(lists))
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          onToast(
-            err instanceof ApiError ? err.message : "Kunde inte hämta grunddata",
-          )
-        }
-      })
-    return () => {
-      cancelled = true
-    }
-    // intentionally omit onToast — parent recreates it each render
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   useEffect(() => {
     if (!personaId) {
@@ -340,7 +328,7 @@ function Editor({
             onChange={upd}
             rows={[
               { k: "age", l: "Ålder", v: persona.age, locked: !!locks.age },
-              { k: "ort", l: "Ort", v: persona.ort, locked: !!locks.ort },
+              { k: "ort", l: "Distrikt", v: persona.ort, locked: !!locks.ort },
               { k: "yrke", l: "Yrke", v: persona.yrke, locked: !!locks.yrke },
               { k: "utbildning", l: "Utbildning", v: persona.utbildning, locked: !!locks.utbildning },
               { k: "livssituation", l: "Livssituation", v: persona.livssituation, locked: !!locks.livssituation },
@@ -581,17 +569,36 @@ export function PersonaComposerPage() {
   )
   const [demo, setDemo] = useState({
     age: "42",
-    ort: "Centrum",
+    ort: "Distrikt A",
     yrke: "Handläggare",
     utbildning: "Högskola",
     livssituation: "Sambo, barn",
   })
   const [generating, setGenerating] = useState(false)
+  const [fieldOptions, setFieldOptions] = useState<Record<string, string[]>>({})
 
   function showToast(message: string) {
     setToast(message)
     window.setTimeout(() => setToast(""), 2400)
   }
+
+  useEffect(() => {
+    let cancelled = false
+    listCatalog()
+      .then((lists) => {
+        if (!cancelled) setFieldOptions(catalogToFieldOptions(lists))
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          showToast(
+            err instanceof ApiError ? err.message : "Kunde inte hämta grunddata",
+          )
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   async function runCandidateGenerate(
     mode: "beskrivning" | "demografi",
@@ -760,26 +767,44 @@ export function PersonaComposerPage() {
                 {(
                   [
                     ["age", "Ålder"],
-                    ["ort", "Ort / stadsdel"],
+                    ["ort", "Distrikt"],
                     ["yrke", "Yrke"],
                     ["utbildning", "Utbildning"],
+                    ["livssituation", "Livssituation"],
                   ] as const
-                ).map(([k, label]) => (
-                  <div className="field" key={k}>
-                    <label>{label}</label>
-                    <input
-                      value={demo[k]}
-                      onChange={(e) => setDemo({ ...demo, [k]: e.target.value })}
-                    />
-                  </div>
-                ))}
-                <div className="field" style={{ gridColumn: "1 / -1" }}>
-                  <label>Livssituation</label>
-                  <input
-                    value={demo.livssituation}
-                    onChange={(e) => setDemo({ ...demo, livssituation: e.target.value })}
-                  />
-                </div>
+                ).map(([k, label]) => {
+                  const opts = fieldOptions[k]
+                  return (
+                    <div
+                      className="field"
+                      key={k}
+                      style={k === "livssituation" ? { gridColumn: "1 / -1" } : undefined}
+                    >
+                      <label>{label}</label>
+                      {opts && opts.length > 0 ? (
+                        <select
+                          className="dsearch"
+                          value={demo[k]}
+                          onChange={(e) => setDemo({ ...demo, [k]: e.target.value })}
+                        >
+                          {!opts.includes(demo[k]) && (
+                            <option value={demo[k]}>{demo[k] || "—"}</option>
+                          )}
+                          {opts.map((o) => (
+                            <option key={o} value={o}>
+                              {o}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          value={demo[k]}
+                          onChange={(e) => setDemo({ ...demo, [k]: e.target.value })}
+                        />
+                      )}
+                    </div>
+                  )
+                })}
               </div>
               <div style={{ display: "flex", gap: 10 }}>
                 <AdminButton variant="secondary" onClick={() => setCreateStep("choose")}>
@@ -862,6 +887,7 @@ export function PersonaComposerPage() {
               onSave={() => {
                 if (persona) void savePersona(persona, createOrigin)
               }}
+              fieldOptions={fieldOptions}
               saving={saving}
               deleting={deleting}
               onToast={showToast}
