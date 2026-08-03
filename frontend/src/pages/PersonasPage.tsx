@@ -1,10 +1,18 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Link } from "react-router-dom"
-import { deletePersona, listPersonas } from "@/api/personas"
+import {
+  catalogToFieldOptions,
+  listCatalog,
+} from "@/api/catalog"
+import { deletePersona, listPersonas, updatePersona } from "@/api/personas"
 import { AdminShell } from "@/components/layout/AdminShell"
+import {
+  PersonaCardFields,
+  type CardFieldKey,
+} from "@/components/personas/PersonaCardFields"
 import { Card, CardContent } from "@/components/ui/card"
-import { formatLibraryDate, ORIGIN_LABEL, personaInitials } from "@/data/library"
-import type { LibraryPersona, PersonaOrigin } from "@/data/library-types"
+import { blankEditablePersona, formatLibraryDate, ORIGIN_LABEL, personaInitials } from "@/data/library"
+import type { EditablePersona, LibraryPersona, PersonaOrigin } from "@/data/library-types"
 import { ApiError } from "@/lib/api"
 
 function DiagramExplainer() {
@@ -89,15 +97,70 @@ function DiagramExplainer() {
   )
 }
 
+type SaveStatus = "idle" | "saving" | "saved" | "error"
+
+function ensureProfile(persona: LibraryPersona): EditablePersona {
+  return persona.profile ?? {
+    ...blankEditablePersona(),
+    name: persona.name,
+    initials: personaInitials(persona.name),
+    age: String(persona.age),
+    yrke: persona.occ,
+    ort: persona.district,
+  }
+}
+
+function applyProfileField(
+  persona: LibraryPersona,
+  key: CardFieldKey,
+  value: string,
+): LibraryPersona {
+  const profile = { ...ensureProfile(persona), [key]: value }
+  let age = persona.age
+  let occ = persona.occ
+  let district = persona.district
+  let quote = persona.quote
+  if (key === "age") {
+    const parsed = Number.parseInt(value, 10)
+    if (Number.isFinite(parsed)) age = parsed
+  }
+  if (key === "yrke") occ = value
+  if (key === "ort") district = value
+  // List view short description uses quote; composer treats ton as the source.
+  if (key === "ton") quote = value
+  return { ...persona, age, occ, district, quote, profile }
+}
+
 type PersonaCardProps = {
   persona: LibraryPersona
   open: boolean
+  fieldOptions: Record<string, string[]>
+  saveStatus: SaveStatus
   onTogglePops: () => void
+  onFieldChange: (key: CardFieldKey, value: string) => void
   onDelete: (id: string) => void
 }
 
-function PersonaCard({ persona, open, onTogglePops, onDelete }: PersonaCardProps) {
+function PersonaCard({
+  persona,
+  open,
+  fieldOptions,
+  saveStatus,
+  onTogglePops,
+  onFieldChange,
+  onDelete,
+}: PersonaCardProps) {
   const [confirming, setConfirming] = useState(false)
+  const profile = ensureProfile(persona)
+  const statusLabel =
+    saveStatus === "saving"
+      ? "Sparar…"
+      : saveStatus === "saved"
+        ? "Sparad"
+        : saveStatus === "error"
+          ? "Kunde inte spara"
+          : `Uppdaterad ${formatLibraryDate(persona.updated)}`
+
   return (
     <div className="p-card">
       <Card className="h-full gap-0 py-4 ring-1 ring-border">
@@ -108,15 +171,13 @@ function PersonaCard({ persona, open, onTogglePops, onDelete }: PersonaCardProps
               <div className="nm" style={{ fontSize: "0.95rem" }}>
                 {persona.name}
               </div>
-              <div className="meta">
-                {persona.age} · {persona.occ} · {persona.district}
-              </div>
             </div>
           </div>
-          <div className="meta" style={{ fontSize: 11.5 }}>
-            “{persona.quote.slice(0, 50)}
-            {persona.quote.length > 50 ? "…" : ""}”
-          </div>
+          <PersonaCardFields
+            profile={profile}
+            fieldOptions={fieldOptions}
+            onChange={onFieldChange}
+          />
           <div className="tag-row">
             {persona.pops.length === 0 ? (
               <span className="rounded-full border border-[color:var(--border-hairline)] px-2 py-0.5 text-[11px]">
@@ -149,11 +210,17 @@ function PersonaCard({ persona, open, onTogglePops, onDelete }: PersonaCardProps
               {ORIGIN_LABEL[persona.origin]}
             </span>
           </div>
-          <div className="updated">
-            Uppdaterad {formatLibraryDate(persona.updated)}
+          <div
+            className={
+              "updated" +
+              (saveStatus === "error" ? " is-error" : "") +
+              (saveStatus === "saved" || saveStatus === "saving" ? " is-live" : "")
+            }
+          >
+            {statusLabel}
           </div>
           {confirming ? (
-            <div className="confirm-row" style={{ marginTop: "auto" }}>
+            <div className="confirm-row" style={{ marginTop: 0 }}>
               <button type="button" style={{ flex: 1 }} onClick={() => setConfirming(false)}>
                 Avbryt
               </button>
@@ -187,7 +254,7 @@ function PersonaRow({
   open,
   onTogglePops,
   onDelete,
-}: PersonaCardProps) {
+}: Omit<PersonaCardProps, "fieldOptions" | "saveStatus" | "onFieldChange">) {
   const [confirming, setConfirming] = useState(false)
   const affilText =
     persona.pops.length === 0 ? "Ofördelad" : `I ${persona.pops.length} pop.`
@@ -202,9 +269,11 @@ function PersonaRow({
         </div>
         <div className="nm2">{persona.name}</div>
       </Link>
-      <div className="quote2">{persona.quote}</div>
+      <div className="quote2">
+        {persona.quote || ensureProfile(persona).ton || "—"}
+      </div>
       <div className="meta">
-        {persona.age} · {persona.district}
+        {persona.age} · {persona.occ} · {persona.district}
       </div>
       {persona.pops.length === 0 ? (
         <div
@@ -279,6 +348,7 @@ export function PersonasPage() {
   const [personas, setPersonas] = useState<LibraryPersona[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [fieldOptions, setFieldOptions] = useState<Record<string, string[]>>({})
   const [view, setView] = useState<"grid" | "lista">("grid")
   const [query, setQuery] = useState("")
   const [affil, setAffil] = useState("alla")
@@ -287,14 +357,19 @@ export function PersonasPage() {
   const [popOpenIdx, setPopOpenIdx] = useState(-1)
   const [showDiagram, setShowDiagram] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  const [saveStatus, setSaveStatus] = useState<Record<string, SaveStatus>>({})
+  const pendingRef = useRef<Record<string, LibraryPersona>>({})
+  const timersRef = useRef<Record<string, number>>({})
+  const savedFlashRef = useRef<Record<string, number>>({})
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    listPersonas()
-      .then((data) => {
+    Promise.all([listPersonas(), listCatalog()])
+      .then(([data, catalog]) => {
         if (!cancelled) {
           setPersonas(data)
+          setFieldOptions(catalogToFieldOptions(catalog))
           setError(null)
         }
       })
@@ -315,6 +390,15 @@ export function PersonasPage() {
     const h = () => setPopOpenIdx(-1)
     document.addEventListener("click", h)
     return () => document.removeEventListener("click", h)
+  }, [])
+
+  useEffect(() => {
+    const timers = timersRef.current
+    const flashes = savedFlashRef.current
+    return () => {
+      for (const id of Object.keys(timers)) window.clearTimeout(timers[id])
+      for (const id of Object.keys(flashes)) window.clearTimeout(flashes[id])
+    }
   }, [])
 
   const popNames = useMemo(() => {
@@ -352,9 +436,80 @@ export function PersonasPage() {
     window.setTimeout(() => setToast(null), 2400)
   }
 
+  function markSaved(id: string) {
+    setSaveStatus((prev) => ({ ...prev, [id]: "saved" }))
+    window.clearTimeout(savedFlashRef.current[id])
+    savedFlashRef.current[id] = window.setTimeout(() => {
+      setSaveStatus((prev) => (prev[id] === "saved" ? { ...prev, [id]: "idle" } : prev))
+    }, 1600)
+  }
+
+  async function persistPersona(id: string) {
+    const body = pendingRef.current[id]
+    if (!body) return
+    delete pendingRef.current[id]
+    setSaveStatus((prev) => ({ ...prev, [id]: "saving" }))
+    try {
+      const saved = await updatePersona(id, {
+        name: body.name,
+        age: body.age,
+        occ: body.occ,
+        district: body.district,
+        quote: body.quote,
+        origin: body.origin,
+        profile: ensureProfile(body),
+      })
+      setPersonas((prev) =>
+        prev.map((p) => {
+          if (p.id !== id) return p
+          if (pendingRef.current[id]) return p
+          return {
+            ...p,
+            age: saved.age,
+            occ: saved.occ,
+            district: saved.district,
+            quote: saved.quote,
+            updated: saved.updated,
+            profile: saved.profile,
+          }
+        }),
+      )
+      markSaved(id)
+    } catch (err) {
+      setSaveStatus((prev) => ({ ...prev, [id]: "error" }))
+      showToast(err instanceof ApiError ? err.message : "Kunde inte spara")
+    }
+  }
+
+  function schedulePersist(persona: LibraryPersona, immediate: boolean) {
+    pendingRef.current[persona.id] = persona
+    window.clearTimeout(timersRef.current[persona.id])
+    if (immediate) {
+      void persistPersona(persona.id)
+      return
+    }
+    timersRef.current[persona.id] = window.setTimeout(() => {
+      void persistPersona(persona.id)
+    }, 450)
+  }
+
+  function handleFieldChange(id: string, key: CardFieldKey, value: string) {
+    let nextPersona: LibraryPersona | null = null
+    setPersonas((prev) =>
+      prev.map((p) => {
+        if (p.id !== id) return p
+        nextPersona = applyProfileField(p, key, value)
+        return nextPersona
+      }),
+    )
+    if (nextPersona) schedulePersist(nextPersona, key !== "age")
+  }
+
   async function handleDelete(id: string) {
     try {
       await deletePersona(id)
+      window.clearTimeout(timersRef.current[id])
+      delete pendingRef.current[id]
       setPersonas((prev) => prev.filter((p) => p.id !== id))
       showToast("Persona borttagen")
     } catch (err) {
@@ -386,7 +541,8 @@ export function PersonasPage() {
               }}
             >
               Alla skapade personas i ett platt bibliotek — oavsett om de tillhör
-              en population eller är fristående.
+              en population eller är fristående. Ändra fält direkt på kortet; det
+              sparas automatiskt.
             </div>
           </div>
           <button
@@ -482,14 +638,17 @@ export function PersonasPage() {
         {loading ? (
           <div className="no-match">Hämtar personas…</div>
         ) : view === "grid" ? (
-          <div className="p-grid">
+          <div className="p-grid persona-grid">
             {list.length ? (
               list.map((p, i) => (
                 <PersonaCard
                   key={p.id}
                   persona={p}
                   open={popOpenIdx === i}
+                  fieldOptions={fieldOptions}
+                  saveStatus={saveStatus[p.id] ?? "idle"}
                   onTogglePops={() => setPopOpenIdx(popOpenIdx === i ? -1 : i)}
+                  onFieldChange={(key, value) => handleFieldChange(p.id, key, value)}
                   onDelete={handleDelete}
                 />
               ))

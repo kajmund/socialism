@@ -61,15 +61,12 @@ def serialize_library_persona(persona: Persona, pops: list[str]) -> LibraryPerso
         pops=pops,
         updated=format_date(persona.updated_at),
         origin=persona.origin,  # type: ignore[arg-type]
+        profile=profile_from_dict(persona.profile, persona.name),
     )
 
 
 def serialize_persona_detail(persona: Persona, pops: list[str]) -> PersonaDetail:
-    base = serialize_library_persona(persona, pops)
-    return PersonaDetail(
-        **base.model_dump(),
-        profile=profile_from_dict(persona.profile, persona.name),
-    )
+    return PersonaDetail(**serialize_library_persona(persona, pops).model_dump())
 
 
 def serialize_member(member: PopulationMember) -> PopulationMemberOut:

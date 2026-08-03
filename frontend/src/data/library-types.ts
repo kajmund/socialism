@@ -10,6 +10,7 @@ export type LibraryPersona = {
   pops: string[]
   updated: string
   origin: PersonaOrigin
+  profile: EditablePersona
 }
 
 export type PopulationSummary = {

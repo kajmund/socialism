@@ -6,13 +6,15 @@ import type { LibraryPersona } from "@/data/library-types"
 import { ApiError } from "@/lib/api"
 
 type AddFromLibraryPanelProps = {
-  excludeNames: string[]
+  excludeNames?: string[]
+  excludeIds?: string[]
   onAdd: (persona: LibraryPersona) => void
   hint?: string
 }
 
 export function AddFromLibraryPanel({
-  excludeNames,
+  excludeNames = [],
+  excludeIds = [],
   onAdd,
   hint = "Sök i biblioteket och lägg till personas som saknas i populationen.",
 }: AddFromLibraryPanelProps) {
@@ -39,15 +41,17 @@ export function AddFromLibraryPanel({
     }
   }, [])
 
-  const exclude = useMemo(
+  const excludeNameSet = useMemo(
     () => new Set(excludeNames.map((n) => n.toLowerCase())),
     [excludeNames],
   )
+  const excludeIdSet = useMemo(() => new Set(excludeIds), [excludeIds])
 
   const list = useMemo(() => {
     const ql = query.toLowerCase()
     return personas.filter((p) => {
-      if (exclude.has(p.name.toLowerCase())) return false
+      if (excludeIdSet.has(p.id)) return false
+      if (excludeNameSet.has(p.name.toLowerCase())) return false
       if (!ql) return true
       return (
         p.name.toLowerCase().includes(ql) ||
@@ -55,7 +59,7 @@ export function AddFromLibraryPanel({
         p.occ.toLowerCase().includes(ql)
       )
     })
-  }, [personas, exclude, query])
+  }, [personas, excludeNameSet, excludeIdSet, query])
 
   return (
     <Card className="add-lib-panel mb-5 gap-0 py-5 ring-1 ring-border">
