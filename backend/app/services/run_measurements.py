@@ -290,7 +290,7 @@ def build_measurements(
 ) -> list[dict[str, Any]]:
     """Build measurement rows for ticks that requested measurements.
 
-    Feed activity is split across executed non-silent ticks (by post order).
+    Feed activity is split across executed ticks (by post order).
     Snapshot-style metrics use the cumulative feed through that tick;
     engagement_decay compares the tick window to the previous tick window.
     """
@@ -300,7 +300,7 @@ def build_measurements(
     member_districts = member_districts or {}
     district_by_agent = _district_by_agent_index(agents, member_districts)
 
-    active = [t for t in ticks if not t.silent]
+    active = list(ticks)
     if ticks_run is not None and ticks_run > 0:
         active = active[:ticks_run]
     elif ticks_run == 0:

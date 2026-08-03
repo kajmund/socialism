@@ -89,5 +89,38 @@ async def complete_text(messages: list[ChatMessage]) -> str:
     return content.strip()
 
 
+ToolsCompleter = Callable[
+    [list[dict[str, Any]], list[dict[str, Any]] | None],
+    Awaitable[Any],
+]
+
+_tools_completer: ToolsCompleter | None = None
+
+
+def set_tools_completer(completer: ToolsCompleter | None) -> None:
+    global _tools_completer
+    _tools_completer = completer
+
+
+async def complete_with_tools(
+    messages: list[dict[str, Any]],
+    tools: list[dict[str, Any]] | None = None,
+) -> Any:
+    """One chat.completions turn; may return tool_calls. Injectable for tests."""
+    if _tools_completer is not None:
+        return await _tools_completer(messages, tools)
+
+    client = get_client()
+    kwargs: dict[str, Any] = {
+        "model": settings.deepseek_model,
+        "messages": messages,
+    }
+    if tools:
+        kwargs["tools"] = tools
+        kwargs["tool_choice"] = "auto"
+    completion = await client.chat.completions.create(**kwargs)
+    return completion.choices[0].message
+
+
 async def generate_editable_persona(messages: list[ChatMessage]) -> EditablePersona:
     return await complete_structured(messages, EditablePersona)

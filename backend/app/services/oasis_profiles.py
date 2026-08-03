@@ -164,14 +164,13 @@ def build_user_char(member: PopulationMember, *, area_block: str = "") -> str:
 def members_to_profiles(
     members: list[PopulationMember],
     *,
-    max_agents: int,
     start_index: int = 0,
     area_blocks: dict[str, str] | None = None,
 ) -> list[OasisAgentProfile]:
-    capped = members[: max(0, max_agents)]
+    """Map every population member to an OASIS profile (no capping)."""
     blocks = area_blocks or {}
     out: list[OasisAgentProfile] = []
-    for i, member in enumerate(capped):
+    for i, member in enumerate(members):
         index = start_index + i
         profile = profile_from_dict(
             member.persona.profile if member.persona else None,
@@ -203,15 +202,12 @@ def build_run_profiles(
     members: list[PopulationMember],
     ticks: list[Tick],
     *,
-    max_agents: int,
     area_blocks: dict[str, str] | None = None,
 ) -> tuple[list[OasisAgentProfile], dict[str, int]]:
-    """Injectors first (no LLM), then population — combined length ≤ max_agents."""
-    injectors = injectors_from_ticks(ticks)[: max(0, max_agents)]
-    population_slots = max(0, max_agents - len(injectors))
+    """Injectors first (no LLM), then the full population — no agent cap."""
+    injectors = injectors_from_ticks(ticks)
     population = members_to_profiles(
         members,
-        max_agents=population_slots,
         start_index=len(injectors),
         area_blocks=area_blocks,
     )

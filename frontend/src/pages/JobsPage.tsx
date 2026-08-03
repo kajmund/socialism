@@ -22,6 +22,23 @@ function formatWhen(iso: string | null | undefined): string {
   }).format(d)
 }
 
+/** Wall-clock duration from started→finished (falls back to created→finished). */
+function formatJobDuration(job: Job): string | null {
+  const startIso = job.started_at ?? job.created_at
+  const endIso = job.finished_at
+  if (!startIso || !endIso) return null
+  const ms = new Date(endIso).getTime() - new Date(startIso).getTime()
+  if (!Number.isFinite(ms) || ms < 0) return null
+  const sec = Math.round(ms / 1000)
+  if (sec < 60) return `${sec} s`
+  const m = Math.floor(sec / 60)
+  const s = sec % 60
+  if (m < 60) return s > 0 ? `${m} min ${s} s` : `${m} min`
+  const h = Math.floor(m / 60)
+  const rm = m % 60
+  return rm > 0 ? `${h} h ${rm} min` : `${h} h`
+}
+
 function statusClass(status: JobStatus): string {
   switch (status) {
     case "pending":
@@ -103,12 +120,20 @@ export function JobsPage() {
               const runId =
                 job.result?.run_id ??
                 (typeof job.request.run_id === "number" ? job.request.run_id : null)
+              const reportId =
+                job.result?.report_id ??
+                (typeof job.request.report_id === "string"
+                  ? job.request.report_id
+                  : null)
               const kindLabel =
                 job.kind === "population_generate"
                   ? "Populationsgenerering"
                   : job.kind === "run_simulate"
                     ? "Simulering"
-                    : job.kind
+                    : job.kind === "report_generate"
+                      ? "Rapport"
+                      : job.kind
+              const duration = formatJobDuration(job)
               return (
                 <Card key={job.id} className="gap-0 py-4 ring-1 ring-border">
                   <CardContent className="px-5">
@@ -127,6 +152,7 @@ export function JobsPage() {
                         </div>
                         <div style={{ font: "var(--text-body-sm)", color: "var(--text-muted)" }}>
                           {kindLabel} · skapad {formatWhen(job.created_at)}
+                          {duration ? ` · tog ${duration}` : null}
                         </div>
                       </div>
                       <span className={statusClass(job.status)}>
@@ -147,6 +173,13 @@ export function JobsPage() {
                           <Link to={`/runs/${runId}/edit?tab=results`}>
                             Öppna resultat →
                           </Link>
+                        </div>
+                      )}
+                    {job.status === "succeeded" &&
+                      job.kind === "report_generate" &&
+                      reportId != null && (
+                        <div style={{ marginTop: 12, font: "var(--text-body-sm)" }}>
+                          <Link to={`/reports/${reportId}`}>Öppna rapport →</Link>
                         </div>
                       )}
                     {job.status === "failed" && job.error && (
@@ -171,7 +204,9 @@ export function JobsPage() {
                         {job.status === "running"
                           ? job.kind === "run_simulate"
                             ? "Simulerar…"
-                            : "Genererar…"
+                            : job.kind === "report_generate"
+                              ? "Genererar rapport…"
+                              : "Genererar…"
                           : "I kö…"}{" "}
                         startad {formatWhen(job.started_at ?? job.created_at)}
                         {job.kind === "run_simulate" && runId != null ? (
@@ -180,6 +215,12 @@ export function JobsPage() {
                             <Link to={`/runs/${runId}/edit?tab=results`}>
                               Öppna körning →
                             </Link>
+                          </>
+                        ) : null}
+                        {job.kind === "report_generate" && reportId != null ? (
+                          <>
+                            {" · "}
+                            <Link to={`/reports/${reportId}`}>Öppna rapport →</Link>
                           </>
                         ) : null}
                       </div>

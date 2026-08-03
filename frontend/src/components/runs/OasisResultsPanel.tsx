@@ -1,4 +1,7 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { useNavigate } from "react-router-dom"
+import { createReport, listReports } from "@/api/reports"
+import { ApiError } from "@/lib/api"
 import type {
   OasisAttemptResult,
   OasisMeasurementPoint,
@@ -621,6 +624,16 @@ function variantSummary(variant: OasisVariantResult): string {
   return `${ticks}${posts} inlägg${measPart}`
 }
 
+function attemptHasData(attempt: OasisAttemptResult): boolean {
+  return (attempt.variants ?? []).some(
+    (v) =>
+      !v.error &&
+      ((v.posts?.length ?? 0) > 0 ||
+        (v.comments?.length ?? 0) > 0 ||
+        (v.agents?.length ?? 0) > 0),
+  )
+}
+
 function AttemptBlock({
   attempt,
   index,
@@ -628,6 +641,10 @@ function AttemptBlock({
   defaultOpen,
   onDelete,
   deleting,
+  selected,
+  onToggleSelect,
+  onOrderReport,
+  ordering,
 }: {
   attempt: OasisAttemptResult
   index: number
@@ -635,6 +652,10 @@ function AttemptBlock({
   defaultOpen: boolean
   onDelete?: (attemptId: string) => void
   deleting?: boolean
+  selected?: boolean
+  onToggleSelect?: (attemptId: string) => void
+  onOrderReport?: (attemptId: string) => void
+  ordering?: boolean
 }) {
   const variants = attempt.variants ?? []
   const postCount = variants.reduce((n, v) => n + (v.posts?.length ?? 0), 0)
@@ -647,6 +668,7 @@ function AttemptBlock({
   ].filter(Boolean)
   const single = variants.length === 1
   const canDelete = Boolean(onDelete && attempt.id)
+  const hasData = attemptHasData(attempt)
 
   return (
     <details
@@ -654,18 +676,50 @@ function AttemptBlock({
       open={defaultOpen}
     >
       <summary className="flex cursor-pointer list-none items-start justify-between gap-3 px-4 py-3 marker:content-none [&::-webkit-details-marker]:hidden">
-        <div className="min-w-0">
-          <time
-            className="block font-mono text-sm font-semibold tabular-nums text-foreground"
-            dateTime={attempt.finished_at ?? undefined}
-          >
-            {stamp}
-          </time>
-          <div className="mt-0.5 text-xs text-muted-foreground">
-            {metaParts.join(" · ")}
+        <div className="flex min-w-0 items-start gap-3">
+          {onToggleSelect && hasData ? (
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={Boolean(selected)}
+              aria-label={`Välj körning ${stamp}`}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+              }}
+              onChange={(e) => {
+                e.stopPropagation()
+                onToggleSelect(attempt.id)
+              }}
+            />
+          ) : null}
+          <div className="min-w-0">
+            <time
+              className="block font-mono text-sm font-semibold tabular-nums text-foreground"
+              dateTime={attempt.finished_at ?? undefined}
+            >
+              {stamp}
+            </time>
+            <div className="mt-0.5 text-xs text-muted-foreground">
+              {metaParts.join(" · ")}
+            </div>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2 pt-0.5">
+          {hasData && onOrderReport ? (
+            <button
+              type="button"
+              className="rounded px-2 py-1 text-xs text-db-gold-700 hover:bg-db-gold-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+              disabled={ordering}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                onOrderReport(attempt.id)
+              }}
+            >
+              {ordering ? "Genererar…" : "Beställ rapport"}
+            </button>
+          ) : null}
           {canDelete ? (
             <button
               type="button"
@@ -743,6 +797,7 @@ function AttemptBlock({
 type Props = {
   results: OasisRunResults
   status: string
+  runId?: number
   onDeleteAttempt?: (attemptId: string) => void | Promise<void>
   deletingAttemptId?: string | null
 }
@@ -750,10 +805,119 @@ type Props = {
 export function OasisResultsPanel({
   results,
   status,
+  runId,
   onDeleteAttempt,
   deletingAttemptId = null,
 }: Props) {
+  const navigate = useNavigate()
   const attempts = normalizeRunAttempts(results)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [orderingId, setOrderingId] = useState<string | null>(null)
+  const [compareBusy, setCompareBusy] = useState(false)
+  const [busyAttemptIds, setBusyAttemptIds] = useState<Set<string>>(new Set())
+  const [orderError, setOrderError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (runId == null) return
+    let cancelled = false
+    let timer: number | undefined
+
+    async function refreshBusy() {
+      try {
+        const reports = await listReports({ limit: 50 })
+        if (cancelled) return
+        const active = reports.filter(
+          (r) =>
+            (r.status === "pending" || r.status === "running") &&
+            r.sources.some((s) => s.run_id === runId),
+        )
+        const next = new Set<string>()
+        for (const r of active) {
+          for (const s of r.sources) {
+            if (s.run_id === runId) next.add(s.attempt_id)
+          }
+        }
+        setBusyAttemptIds(next)
+        timer = window.setTimeout(refreshBusy, active.length > 0 ? 2000 : 8000)
+      } catch {
+        if (!cancelled) timer = window.setTimeout(refreshBusy, 8000)
+      }
+    }
+
+    void refreshBusy()
+    return () => {
+      cancelled = true
+      if (timer != null) window.clearTimeout(timer)
+    }
+  }, [runId])
+
+  async function orderSources(
+    sources: Array<{ run_id: number; attempt_id: string }>,
+    title?: string,
+  ) {
+    if (!runId) return
+    setOrderError(null)
+    setBusyAttemptIds((prev) => {
+      const next = new Set(prev)
+      for (const s of sources) next.add(s.attempt_id)
+      return next
+    })
+    const report = await createReport({ sources, title })
+    navigate(`/reports/${report.id}`)
+  }
+
+  async function handleOrderOne(attemptId: string) {
+    if (!runId) return
+    if (busyAttemptIds.has(attemptId) || orderingId != null || compareBusy) return
+    setOrderingId(attemptId)
+    try {
+      await orderSources([{ run_id: runId, attempt_id: attemptId }])
+    } catch (err) {
+      setBusyAttemptIds((prev) => {
+        const next = new Set(prev)
+        next.delete(attemptId)
+        return next
+      })
+      setOrderError(err instanceof ApiError ? err.message : "Kunde inte beställa rapport")
+    } finally {
+      setOrderingId(null)
+    }
+  }
+
+  async function handleCompare() {
+    if (!runId || selected.size === 0) return
+    if (compareBusy || orderingId != null) return
+    if ([...selected].some((id) => busyAttemptIds.has(id))) return
+    setCompareBusy(true)
+    const ids = [...selected]
+    try {
+      await orderSources(
+        ids.map((attempt_id) => ({ run_id: runId, attempt_id })),
+        selected.size > 1 ? `Jämförelserapport (${selected.size} körningar)` : undefined,
+      )
+    } catch (err) {
+      setBusyAttemptIds((prev) => {
+        const next = new Set(prev)
+        for (const id of ids) next.delete(id)
+        return next
+      })
+      setOrderError(err instanceof ApiError ? err.message : "Kunde inte beställa rapport")
+    } finally {
+      setCompareBusy(false)
+    }
+  }
+
+  function toggleSelect(attemptId: string) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(attemptId)) next.delete(attemptId)
+      else next.add(attemptId)
+      return next
+    })
+  }
+
+  const selectionBusy = [...selected].some((id) => busyAttemptIds.has(id))
+  const compareDisabled = compareBusy || orderingId != null || selectionBusy
 
   if (attempts.length === 0) {
     return (
@@ -766,28 +930,64 @@ export function OasisResultsPanel({
 
   return (
     <div className="mb-9 flex flex-col gap-3">
-      <div className="flex items-baseline justify-between gap-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
         <h2 className="text-base font-semibold text-foreground">Resultat</h2>
-        <span className="text-xs text-muted-foreground">
-          {attempts.length} {attempts.length === 1 ? "körning" : "körningar"} ·{" "}
-          {status}
-        </span>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-xs text-muted-foreground">
+            {attempts.length} {attempts.length === 1 ? "körning" : "körningar"} ·{" "}
+            {status}
+          </span>
+          {runId && selected.size > 0 ? (
+            <button
+              type="button"
+              className="rounded-md border border-db-gold-600 bg-db-gold-100 px-3 py-1.5 text-xs font-medium text-db-gold-800 hover:bg-db-gold-200 disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={compareDisabled}
+              onClick={() => void handleCompare()}
+            >
+              {compareBusy || selectionBusy
+                ? "Genererar…"
+                : selected.size === 1
+                  ? "Beställ rapport"
+                  : `Jämför i rapport (${selected.size})`}
+            </button>
+          ) : null}
+        </div>
       </div>
-      {attempts.map((attempt, index) => (
-        <AttemptBlock
-          key={attempt.id || `attempt-${index}`}
-          attempt={attempt}
-          index={index}
-          total={attempts.length}
-          defaultOpen={index === 0}
-          onDelete={
-            status === "running" || !onDeleteAttempt
-              ? undefined
-              : onDeleteAttempt
-          }
-          deleting={deletingAttemptId === attempt.id}
-        />
-      ))}
+      {orderError ? (
+        <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {orderError}
+        </p>
+      ) : null}
+      {runId ? (
+        <p className="text-xs text-muted-foreground">
+          Bocka i flera körningar för att jämföra, eller beställ rapport per rad.
+        </p>
+      ) : null}
+      {attempts.map((attempt, index) => {
+        const attemptBusy =
+          orderingId === attempt.id ||
+          compareBusy ||
+          busyAttemptIds.has(attempt.id)
+        return (
+          <AttemptBlock
+            key={attempt.id || `attempt-${index}`}
+            attempt={attempt}
+            index={index}
+            total={attempts.length}
+            defaultOpen={index === 0}
+            onDelete={
+              status === "running" || !onDeleteAttempt
+                ? undefined
+                : onDeleteAttempt
+            }
+            deleting={deletingAttemptId === attempt.id}
+            selected={selected.has(attempt.id)}
+            onToggleSelect={runId ? toggleSelect : undefined}
+            onOrderReport={runId ? (id) => void handleOrderOne(id) : undefined}
+            ordering={attemptBusy}
+          />
+        )
+      })}
     </div>
   )
 }

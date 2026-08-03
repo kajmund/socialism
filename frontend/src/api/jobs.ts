@@ -1,7 +1,7 @@
 import { api } from "@/lib/api"
 import type { PopulationRecipe } from "@/api/populations"
 
-export type JobKind = "population_generate" | "run_simulate"
+export type JobKind = "population_generate" | "run_simulate" | "report_generate"
 export type JobStatus = "pending" | "running" | "succeeded" | "failed"
 
 export type PopulationGenerateJobRequest = {
@@ -27,6 +27,10 @@ export type Job = {
     run_id?: number
     engine?: string
     ticks_run?: number
+    report_id?: string
+    html_path?: string
+    sources?: number
+    dry_run?: boolean
   } | null
   error: string | null
   created_at: string

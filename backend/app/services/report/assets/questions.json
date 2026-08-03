@@ -1,0 +1,130 @@
+{
+  "version": 1,
+  "description": "Narrativa slots — diagram fylls deterministiskt i charts.py",
+  "questions": [
+    {
+      "slot": "page_title",
+      "question": "Kort sidtitel (max 80 tecken) för HTML-rapporten. Endast titeltext."
+    },
+    {
+      "slot": "cover_eyebrow",
+      "question": "Kort eyebrow-rad till omslaget (t.ex. Pilottest — Meddelandeanalys). Endast text."
+    },
+    {
+      "slot": "cover_h1",
+      "question": "Huvudrubrik: hur togs budskapen emot? Max 120 tecken. Endast rubrik."
+    },
+    {
+      "slot": "cover_sub",
+      "question": "Undertext 2–3 meningar: vad som testats och antal körningar. Vanlig text. Använd endast ämnen/toner från describe_runs — hitta inte på Äldreomsorg/Trafik."
+    },
+    {
+      "slot": "cover_box1_lbl",
+      "question": "Kort etikett max 6 ord (t.ex. Viktigaste insikt). Aldrig en hel mening."
+    },
+    {
+      "slot": "cover_box1_html",
+      "question": "1–2 meningar till första cover-boxen. Valfria <strong>. Ingen yttre wrapper."
+    },
+    {
+      "slot": "cover_box2_lbl",
+      "question": "Kort etikett max 6 ord (t.ex. Vad fungerade). Aldrig en hel mening."
+    },
+    {
+      "slot": "cover_box2_html",
+      "question": "1–2 meningar: vad fick genomslag. Valfria <strong>."
+    },
+    {
+      "slot": "cover_box3_lbl",
+      "question": "Kort etikett max 6 ord (t.ex. Vad vi testade). Aldrig en hel mening."
+    },
+    {
+      "slot": "cover_box3_html",
+      "question": "En mening med antal körningar/agenter från faktan. Valfria <strong>."
+    },
+    {
+      "slot": "meta_scenario",
+      "question": "Kort scenariolabel utifrån injektionernas budskap. Endast text."
+    },
+    {
+      "slot": "meta_topics",
+      "question": "Kort ämneslista från topic_shares i describe_runs. En rad, semikolon-separerad. Inga påhittade ämnen."
+    },
+    {
+      "slot": "infographic_eyebrow",
+      "question": "Överrubrik till infografik (t.ex. SAMMANFATTNING). Max 8 ord."
+    },
+    {
+      "slot": "infographic_h2",
+      "question": "Rubrik: Vad visade testerna? eller motsvarande. Endast rubrik."
+    },
+    {
+      "slot": "infographic_lead",
+      "question": "En ledande mening under infografik-rubriken. Vanlig text utan markdown."
+    },
+    {
+      "slot": "info_conc_1_html",
+      "question": "<strong>Rubrik</strong> + 1 mening huvudinsikt. Endast inner HTML — aldrig markdown **."
+    },
+    {
+      "slot": "info_conc_2_html",
+      "question": "<strong>Rubrik</strong> + vad som inte fungerade. Inner HTML — aldrig markdown **."
+    },
+    {
+      "slot": "info_conc_3_html",
+      "question": "<strong>Rubrik</strong> + varning/begränsning. Inner HTML — aldrig markdown **."
+    },
+    {
+      "slot": "sec01_intro",
+      "question": "Metodintro 2–3 meningar om simuleringen. Vanlig text."
+    },
+    {
+      "slot": "method_steps_html",
+      "question": "Fem steg. Varje steg EXAKT: <div class=\"mstep\"><div class=\"mstep-num\">N</div><h4>…</h4><p>…</p></div>. Endast de fem divarna. Aldrig attributet mstep-num."
+    },
+    {
+      "slot": "method_explainer_html",
+      "question": "<strong>Varför simulering?</strong> + 2 meningar. Inner HTML — aldrig markdown **."
+    },
+    {
+      "slot": "sec02_intro",
+      "question": "Intro mottagande 2–3 meningar. Text. Använd topic_shares/tone_shares från verktygen."
+    },
+    {
+      "slot": "sec02_findings_html",
+      "question": "Två finding-kort: <div class=\"fc neu|pos|neg|cau\"> med badge, h3, p. Mellanslag mellan fc och modifierare (inte fc-neu)."
+    },
+    {
+      "slot": "sec03_intro",
+      "question": "Intro budskapsstil 1–2 meningar. Text. Oklassad betyder ingen stilträff."
+    },
+    {
+      "slot": "sec03_findings_html",
+      "question": "Två <div class=\"fc pos|neu\"> med analys av stil. Mellanslag i class."
+    },
+    {
+      "slot": "sec04_h2",
+      "question": "Kort rubrik för ämnesdrift (max ~80 tecken). Endast rubrik — ingen markdown, ingen analys."
+    },
+    {
+      "slot": "sec04_intro",
+      "question": "Intro ämnesdrift 2–3 meningar utifrån topic_shares. Text utan markdown."
+    },
+    {
+      "slot": "sec04_explainer_html",
+      "question": "Strategisk tolkning: börja med <strong>Vad betyder detta?</strong> + 2–3 meningar. Använd <strong>, aldrig **. Inner HTML."
+    },
+    {
+      "slot": "sec05_intro",
+      "question": "Intro opinionsledare 2 meningar. Text. Citat kan vara väderskämt — påstå inte att allt är budskapsgenomslag."
+    },
+    {
+      "slot": "sec06_intro",
+      "question": "Intro jämförelse 2 meningar. Vid A/B (Version A vs B): säg uttryckligen att det är A/B och vad som skiljer. Annars väljargrupper/flera körningar."
+    },
+    {
+      "slot": "sec06_findings_html",
+      "question": "Två kort: <div class=\"fc neu\"> och <div class=\"fc cau\"> (mellanslag). Vid A/B: ett kort om skillnad A vs B, ett om osäkerhet. Endast de två divarna."
+    }
+  ]
+}

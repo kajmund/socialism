@@ -458,8 +458,9 @@ class CatalogListUpdate(BaseModel):
         return cleaned
 
 
-JobKind = Literal["population_generate", "run_simulate"]
+JobKind = Literal["population_generate", "run_simulate", "report_generate"]
 JobStatus = Literal["pending", "running", "succeeded", "failed"]
+ReportStatus = Literal["pending", "running", "succeeded", "failed"]
 
 
 class PopulationGenerateJobRequest(BaseModel):
@@ -474,6 +475,36 @@ class RunSimulateJobRequest(BaseModel):
     """Payload stored on a run_simulate job."""
 
     run_id: int
+
+
+class ReportSource(BaseModel):
+    run_id: int
+    attempt_id: str
+
+
+class ReportGenerateJobRequest(BaseModel):
+    """Payload stored on a report_generate job."""
+
+    report_id: str
+
+
+class ReportCreate(BaseModel):
+    sources: list[ReportSource] = Field(min_length=1)
+    title: str = ""
+
+
+class ReportOut(BaseModel):
+    id: str
+    status: ReportStatus
+    title: str
+    sources: list[ReportSource]
+    html_path: str | None = None
+    slots_path: str | None = None
+    job_id: str | None = None
+    error: str | None = None
+    created_at: str
+    finished_at: str | None = None
+    updated_at: str
 
 
 class JobCreate(BaseModel):

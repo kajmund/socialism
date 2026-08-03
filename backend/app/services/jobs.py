@@ -12,7 +12,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.config import settings
-from app.database.models import Job, Run
+from app.database.models import Job, Report, Run
 from app.database.session import SessionLocal
 from app.schemas.domain import (
     JobCreate,
@@ -20,6 +20,7 @@ from app.schemas.domain import (
     JobStatus,
     PopulationGenerateJobRequest,
     PopulationGenerateRequest,
+    ReportGenerateJobRequest,
     RunSimulateJobRequest,
 )
 from app.serializers import utcnow
@@ -88,6 +89,12 @@ async def create_job(session: AsyncSession, body: JobCreate) -> Job:
         if run is None:
             raise ValueError(f"Run not found: {payload.run_id}")
         label = (body.label or "").strip() or run.name
+    elif body.kind == "report_generate":
+        payload = ReportGenerateJobRequest.model_validate(body.request)
+        report = await session.get(Report, payload.report_id)
+        if report is None:
+            raise ValueError(f"Report not found: {payload.report_id}")
+        label = (body.label or "").strip() or report.title or payload.report_id
     else:
         raise ValueError(f"Unsupported job kind: {body.kind}")
 
@@ -136,10 +143,12 @@ async def _run_job(job_id: str) -> None:
             await _run_population_generate(job_id)
         elif job.kind == "run_simulate":
             await _run_simulate(job_id)
+        elif job.kind == "report_generate":
+            await _run_report_generate(job_id)
         else:
             async with factory() as session:
                 await _fail(session, job_id, f"Unsupported job kind: {job.kind}")
-    except Exception as exc:  # noqa: BLE001 — boundary: background worker
+    except Exception as exc:
         logger.exception("Job %s failed", job_id)
         async with factory() as session:
             await _fail(session, job_id, str(exc) or exc.__class__.__name__)
@@ -311,6 +320,66 @@ async def _run_simulate(job_id: str) -> None:
             await _fail(session, job_id, str(exc) or exc.__class__.__name__)
 
 
+async def _run_report_generate(job_id: str) -> None:
+    from pathlib import Path
+
+    from app.services.report import ARTIFACT_ROOT
+    from app.services.report.bundles import build_bundles
+    from app.services.report.generate import generate_report_html
+
+    factory = job_session_factory()
+    async with factory() as session:
+        job = await session.get(Job, job_id)
+        if job is None:
+            return
+        payload = ReportGenerateJobRequest.model_validate(job.request)
+        report = await session.get(Report, payload.report_id)
+        if report is None:
+            await _fail(session, job_id, f"Report not found: {payload.report_id}")
+            return
+
+        report.status = "running"
+        report.updated_at = utcnow()
+        await session.commit()
+
+        try:
+            bundles = await build_bundles(session, list(report.sources or []))
+            out_dir = Path(ARTIFACT_ROOT) / report.id
+            # dry_run when no API key — still produce charts + placeholder narrative
+            dry_run = not bool(settings.deepseek_api_key)
+            html_path, slots_path, _slots = await generate_report_html(
+                bundles,
+                out_dir=out_dir,
+                dry_run=dry_run,
+                title=report.title,
+            )
+            report.status = "succeeded"
+            report.html_path = str(html_path)
+            report.slots_path = str(slots_path)
+            report.error = None
+            report.finished_at = utcnow()
+            report.updated_at = utcnow()
+            await session.commit()
+            await _succeed(
+                session,
+                job_id,
+                {
+                    "report_id": report.id,
+                    "html_path": str(html_path),
+                    "slots_path": str(slots_path),
+                    "sources": len(bundles),
+                    "dry_run": dry_run,
+                },
+            )
+        except Exception as exc:  # noqa: BLE001 — mark report failed
+            report.status = "failed"
+            report.error = (str(exc) or exc.__class__.__name__)[:2000]
+            report.finished_at = utcnow()
+            report.updated_at = utcnow()
+            await session.commit()
+            await _fail(session, job_id, str(exc) or exc.__class__.__name__)
+
+
 async def list_jobs(
     session: AsyncSession,
     *,
@@ -339,12 +408,16 @@ async def fail_interrupted_jobs(
         select(Job).where(Job.status.in_(("pending", "running")))
     )
     run_ids: list[int] = []
+    report_ids: list[str] = []
     for job in active.scalars().all():
-        if job.kind != "run_simulate":
-            continue
-        rid = (job.request or {}).get("run_id")
-        if isinstance(rid, int):
-            run_ids.append(rid)
+        if job.kind == "run_simulate":
+            rid = (job.request or {}).get("run_id")
+            if isinstance(rid, int):
+                run_ids.append(rid)
+        elif job.kind == "report_generate":
+            rid = (job.request or {}).get("report_id")
+            if isinstance(rid, str):
+                report_ids.append(rid)
 
     result = await session.execute(
         update(Job)
@@ -369,6 +442,14 @@ async def fail_interrupted_jobs(
                 engine=settings.simulation_engine,
             )
             run.updated_at = now
+    for report_id in report_ids:
+        report = await session.get(Report, report_id)
+        if report is None or report.status not in {"pending", "running"}:
+            continue
+        report.status = "failed"
+        report.error = message
+        report.finished_at = now
+        report.updated_at = now
     await session.commit()
     return int(result.rowcount or 0)
 
