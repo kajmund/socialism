@@ -1,11 +1,11 @@
-from contextlib import asynccontextmanager
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import OperationalError, ProgrammingError
 
-from app.api import catalog, health, jobs, messages, personas, populations, runs
+from app.api import catalog, health, jobs, messages, personas, populations, reports, runs
 from app.config import settings
 from app.services import jobs as jobs_service
 
@@ -40,6 +40,7 @@ def create_app() -> FastAPI:
     app.include_router(messages.router)
     app.include_router(catalog.router)
     app.include_router(jobs.router)
+    app.include_router(reports.router)
     return app
 
 

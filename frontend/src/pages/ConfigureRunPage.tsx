@@ -666,6 +666,7 @@ export function ConfigureRunPage() {
               <OasisResultsPanel
                 results={results}
                 status={runStatus}
+                runId={runId ?? undefined}
                 onDeleteAttempt={
                   runId ? (id) => void handleDeleteAttempt(id) : undefined
                 }

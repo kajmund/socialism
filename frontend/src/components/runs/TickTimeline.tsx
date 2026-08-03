@@ -245,7 +245,7 @@ export function TickCard({
   isBranchNode = false,
 }: TickCardProps) {
   const summary = tick.silent
-    ? "Tyst tick — endast mätning"
+    ? "Tyst dag — ingen injektion · " + tick.rounds + " reaktionsronder"
     : tick.injections.length
       ? tick.injections.length + " event · " + tick.rounds + " ronder"
       : "Ingen injektion ännu"
@@ -326,9 +326,10 @@ export function TickCard({
           <div className="tl-body">
             <div className="silent-toggle-row">
               <div>
-                <div className="t">Tyst tick</div>
+                <div className="t">Tyst dag</div>
                 <div className="s">
-                  Ingen injektion — bara mätning av läget den här dagen.
+                  Ingen ny injektion — populationen får fortfarande reagera
+                  (ronder) på det som redan finns i flödet.
                 </div>
               </div>
               <button
@@ -336,41 +337,41 @@ export function TickCard({
                 className={"toggle" + (tick.silent ? " on" : "")}
                 onClick={() => onUpdate({ ...tick, silent: !tick.silent })}
                 aria-pressed={tick.silent}
-                aria-label="Tyst tick"
+                aria-label="Tyst dag"
               />
             </div>
 
             {!tick.silent && (
-              <>
-                <div>
-                  <span className="tl-row-lbl">Injektionsfas</span>
-                  {tick.injections.map((inj, i) => (
-                    <InjectionEditor
-                      key={inj.key}
-                      inj={inj}
-                      onChange={(n) => updateInj(i, n)}
-                      onRemove={() => removeInj(i)}
-                    />
-                  ))}
-                  <button type="button" className="add-inj-btn" onClick={addInj}>
-                    + Lägg till event
-                  </button>
-                </div>
-                <div>
-                  <span className="tl-row-lbl">
-                    Ronder efter injektion
-                    <span className="tl-row-desc">
-                      Antal simulerade svarsronder som körs efter injektionen, innan
-                      nästa mätning tas.
-                    </span>
-                  </span>
-                  <RoundsDots
-                    value={tick.rounds}
-                    onChange={(n) => onUpdate({ ...tick, rounds: n })}
+              <div>
+                <span className="tl-row-lbl">Injektionsfas</span>
+                {tick.injections.map((inj, i) => (
+                  <InjectionEditor
+                    key={inj.key}
+                    inj={inj}
+                    onChange={(n) => updateInj(i, n)}
+                    onRemove={() => removeInj(i)}
                   />
-                </div>
-              </>
+                ))}
+                <button type="button" className="add-inj-btn" onClick={addInj}>
+                  + Lägg till event
+                </button>
+              </div>
             )}
+
+            <div>
+              <span className="tl-row-lbl">
+                {tick.silent ? "Reaktionsronder" : "Ronder efter injektion"}
+                <span className="tl-row-desc">
+                  {tick.silent
+                    ? "Antal simulerade svarsronder den här dagen, utan ny injektion."
+                    : "Antal simulerade svarsronder som körs efter injektionen, innan nästa mätning tas."}
+                </span>
+              </span>
+              <RoundsDots
+                value={tick.rounds}
+                onChange={(n) => onUpdate({ ...tick, rounds: n })}
+              />
+            </div>
 
             <div>
               <span className="tl-row-lbl">Mätpunkter</span>

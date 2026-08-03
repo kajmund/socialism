@@ -269,11 +269,11 @@ async def run_oasis_simulation(
     from oasis import ActionType, LLMAction, ManualAction, generate_twitter_agent_graph
 
     apply_swedish_social_environment_prompts()
-    active_ticks = [t for t in ticks if not t.silent][: settings.oasis_max_ticks]
+    # All configured ticks run: silent = no injection that day, population still reacts.
+    active_ticks = list(ticks)
     profiles, key_to_index = build_run_profiles(
         members,
         active_ticks,
-        max_agents=settings.oasis_max_agents,
         area_blocks=area_blocks,
     )
     population_indices = {i for i, p in enumerate(profiles) if p.role == "population"}
@@ -325,25 +325,26 @@ async def run_oasis_simulation(
         await env.reset()
 
         for tick in active_ticks:
-            inject_actions: dict[Any, list[Any]] = {}
-            for injection in tick.injections:
-                if not injection_has_content(injection):
-                    continue
-                content = _injection_body(injection)
-                if not content:
-                    continue
-                idx = key_to_index.get(injector_key(injection))
-                if idx is None:
-                    continue
-                agent = env.agent_graph.get_agent(idx)
-                inject_actions.setdefault(agent, []).append(
-                    ManualAction(
-                        action_type=ActionType.CREATE_POST,
-                        action_args={"content": content},
+            if not tick.silent:
+                inject_actions: dict[Any, list[Any]] = {}
+                for injection in tick.injections:
+                    if not injection_has_content(injection):
+                        continue
+                    content = _injection_body(injection)
+                    if not content:
+                        continue
+                    idx = key_to_index.get(injector_key(injection))
+                    if idx is None:
+                        continue
+                    agent = env.agent_graph.get_agent(idx)
+                    inject_actions.setdefault(agent, []).append(
+                        ManualAction(
+                            action_type=ActionType.CREATE_POST,
+                            action_args={"content": content},
+                        )
                     )
-                )
-            if inject_actions:
-                await env.step(inject_actions)
+                if inject_actions:
+                    await env.step(inject_actions)
 
             rounds = max(1, tick.rounds)
             for _ in range(rounds):
@@ -373,8 +374,8 @@ async def run_oasis_simulation(
             for i, p in enumerate(profiles)
         ],
         "ticks_run": ticks_run,
-        "max_agents": settings.oasis_max_agents,
-        "max_ticks": settings.oasis_max_ticks,
+        "agent_count": len(profiles),
+        "configured_ticks": len(active_ticks),
         "posts": feed["posts"],
         "comments": feed["comments"],
         "artifact_db": str(db_path),
@@ -498,8 +499,8 @@ async def simulate_run(session: AsyncSession, run: Run) -> dict[str, Any]:
                     "comments": comments,
                     "artifact_db": sim.get("artifact_db"),
                     "profile_csv": sim.get("profile_csv"),
-                    "max_agents": sim.get("max_agents"),
-                    "max_ticks": sim.get("max_ticks"),
+                    "agent_count": sim.get("agent_count"),
+                    "configured_ticks": sim.get("configured_ticks"),
                     "measurements": build_measurements(
                         ticks,
                         posts=posts,

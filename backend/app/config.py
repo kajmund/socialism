@@ -23,8 +23,6 @@ class Settings(BaseSettings):
 
     # none = status-only start; oasis = live CAMEL OASIS spike (optional dep group)
     simulation_engine: SimulationEngine = "none"
-    oasis_max_agents: int = 5
-    oasis_max_ticks: int = 2
 
     @field_validator("allowed_origins", mode="before")
     @classmethod

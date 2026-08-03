@@ -184,3 +184,30 @@ class Job(Base):
         onupdate=func.now(),
         nullable=False,
     )
+
+
+class Report(Base):
+    """Generated HTML simulation report (one or more run attempts)."""
+
+    __tablename__ = "reports"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending", index=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    sources: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    html_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    slots_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    job_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )

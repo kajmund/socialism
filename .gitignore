@@ -34,6 +34,7 @@ pnpm-debug.log*
 /backend/data/*.db
 /backend/data/*.db-*
 /backend/data/oasis/
+/backend/data/reports/
 
 # Mockup extract (keep the zip; extracted HTML is local reference only)
 /frontend/mockup/extracted/
