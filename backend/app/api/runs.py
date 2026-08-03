@@ -11,6 +11,7 @@ from app.config import settings
 from app.database.models import Message, Population, Run
 from app.database.session import get_session
 from app.schemas.domain import (
+    JobCreate,
     RunCreate,
     RunDetail,
     RunPopulationOption,
@@ -23,7 +24,8 @@ from app.serializers import (
     serialize_run_summary,
     utcnow,
 )
-from app.services.oasis_run import OasisUnavailable, oasis_installed, simulate_run
+from app.services import jobs as jobs_service
+from app.services.oasis_run import oasis_installed, remove_attempt
 
 router = APIRouter(prefix="/runs", tags=["runs"])
 
@@ -200,61 +202,52 @@ async def update_run(
     return serialize_run_detail(run, run.population.name)
 
 
-@router.post("/{run_id}/start", response_model=RunDetail)
+@router.post("/{run_id}/start", response_model=RunDetail, status_code=202)
 async def start_run(
     run_id: int,
     session: AsyncSession = Depends(get_session),
 ) -> RunDetail:
+    """Queue simulation as a background job; returns immediately with status=running."""
     run = await _get_run(session, run_id)
-    if run.status == "done":
-        raise HTTPException(status_code=409, detail="Run already completed")
+    if run.status == "running":
+        raise HTTPException(status_code=409, detail="Run is already running")
 
     await _snapshot_message_bodies(session, run)
 
-    if settings.simulation_engine != "oasis":
-        run.status = "running"
-        run.updated_at = utcnow()
-        await session.commit()
-        run = await _get_run(session, run_id)
-        return serialize_run_detail(run, run.population.name)
+    if settings.simulation_engine == "oasis":
+        if not settings.deepseek_api_key:
+            raise HTTPException(
+                status_code=503,
+                detail="DEEPSEEK_API_KEY is required when SIMULATION_ENGINE=oasis",
+            )
+        if not oasis_installed():
+            raise HTTPException(
+                status_code=503,
+                detail="camel-oasis is not installed. Run: uv sync --extra oasis",
+            )
 
-    if not settings.deepseek_api_key:
-        raise HTTPException(
-            status_code=503,
-            detail="DEEPSEEK_API_KEY is required when SIMULATION_ENGINE=oasis",
-        )
-    if not oasis_installed():
-        raise HTTPException(
-            status_code=503,
-            detail="camel-oasis is not installed. Run: uv sync --extra oasis",
-        )
-
+    # Keep prior attempts in results; the worker appends the new one.
     run.status = "running"
-    run.results = None
     run.updated_at = utcnow()
     await session.commit()
 
-    try:
-        results = await simulate_run(session, run)
-        run.status = "done"
-        run.results = results
-    except OasisUnavailable as exc:
-        run.status = "failed"
-        run.results = {"engine": "oasis", "error": str(exc)}
-        await session.commit()
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-    except Exception as exc:  # noqa: BLE001 — mark run failed for any OASIS/LLM error
-        run.status = "failed"
-        run.results = {"engine": "oasis", "error": str(exc)}
-        run.updated_at = utcnow()
-        await session.commit()
-        run = await _get_run(session, run_id)
-        return serialize_run_detail(run, run.population.name)
+    job = await jobs_service.create_job(
+        session,
+        JobCreate(
+            kind="run_simulate",
+            label=run.name,
+            request={"run_id": run.id},
+        ),
+    )
 
-    run.updated_at = utcnow()
-    await session.commit()
     run = await _get_run(session, run_id)
-    return serialize_run_detail(run, run.population.name)
+    detail = serialize_run_detail(run, run.population.name).model_copy(
+        update={"job_id": job.id}
+    )
+    # Enqueue after the response payload is ready so the worker cannot
+    # starve the event loop before we return 202.
+    jobs_service.enqueue_job(job.id)
+    return detail
 
 
 @router.post("/{run_id}/duplicate", response_model=RunDetail, status_code=201)
@@ -276,6 +269,32 @@ async def duplicate_run(
     session.add(run)
     await session.commit()
     run = await _get_run(session, run.id)
+    return serialize_run_detail(run, run.population.name)
+
+
+@router.delete("/{run_id}/results/attempts/{attempt_id}", response_model=RunDetail)
+async def delete_run_result_attempt(
+    run_id: int,
+    attempt_id: str,
+    session: AsyncSession = Depends(get_session),
+) -> RunDetail:
+    """Remove one saved simulation attempt from the run's results history."""
+    run = await _get_run(session, run_id)
+    if run.status == "running":
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot delete results while the run is simulating",
+        )
+    try:
+        run.results = remove_attempt(
+            run.results if isinstance(run.results, dict) else None,
+            attempt_id,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Result attempt not found") from exc
+    run.updated_at = utcnow()
+    await session.commit()
+    run = await _get_run(session, run_id)
     return serialize_run_detail(run, run.population.name)
 
 

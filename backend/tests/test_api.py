@@ -154,6 +154,10 @@ async def test_population_and_members(client):
 
 
 async def test_run_lifecycle(client):
+    from app.services import jobs as jobs_service
+
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+
     pop = (
         await client.post(
             "/populations",
@@ -188,8 +192,10 @@ async def test_run_lifecycle(client):
     assert run["variants"] == 1
 
     started = await client.post(f"/runs/{run['id']}/start")
-    assert started.status_code == 200
-    assert started.json()["status"] == "running"
+    assert started.status_code == 202
+    body = started.json()
+    assert body["status"] == "running"
+    assert body["job_id"]
 
     listed = await client.get("/runs", params={"status": "running"})
     assert any(r["id"] == run["id"] for r in listed.json())
@@ -556,6 +562,10 @@ async def test_generate_variants_parallel_stub(client):
 
 
 async def test_run_start_snapshots_message_body(client):
+    from app.services import jobs as jobs_service
+
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+
     msg = (
         await client.post(
             "/messages",
@@ -614,7 +624,7 @@ async def test_run_start_snapshots_message_body(client):
     )
 
     started = await client.post(f"/runs/{run['id']}/start")
-    assert started.status_code == 200
+    assert started.status_code == 202
     inj = started.json()["main_ticks"][0]["injections"][0]
     assert inj["message_id"] == msg["id"]
     assert inj["text"] == "Frozen body at start"
@@ -833,4 +843,133 @@ async def test_population_generate_job_fails_missing_population(client):
     assert payload["status"] == "failed"
     assert payload["error"]
     assert "not found" in payload["error"].lower() or "Population" in payload["error"]
+
+
+async def test_start_run_queues_simulate_job(client):
+    from app.services import jobs as jobs_service
+
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+
+    pop = (
+        await client.post(
+            "/populations",
+            json={"name": "Simpop", "members": []},
+        )
+    ).json()
+    run = (
+        await client.post(
+            "/runs",
+            json={
+                "name": "Bakgrundssim",
+                "population_id": pop["id"],
+                "main_ticks": [],
+            },
+        )
+    ).json()
+
+    started = await client.post(f"/runs/{run['id']}/start")
+    assert started.status_code == 202
+    job_id = started.json()["job_id"]
+    assert job_id
+    assert started.json()["status"] == "running"
+
+    await jobs_service._run_job(job_id)
+
+    got = await client.get(f"/jobs/{job_id}")
+    assert got.status_code == 200
+    payload = got.json()
+    assert payload["status"] == "succeeded"
+    assert payload["kind"] == "run_simulate"
+    assert payload["result"]["run_id"] == run["id"]
+
+    detail = await client.get(f"/runs/{run['id']}")
+    assert detail.json()["status"] == "done"
+    results = detail.json()["results"]
+    assert results["engine"] == "none"
+    assert len(results["attempts"]) == 1
+    assert len(results["attempts"][0]["variants"]) == 1
+    assert results["attempts"][0]["variants"][0]["id"] == "main"
+    assert "measurements" in results["attempts"][0]["variants"][0]
+
+
+async def test_start_run_with_branch_stores_a_and_b_variants(client):
+    from app.services import jobs as jobs_service
+
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+
+    pop = (
+        await client.post(
+            "/populations",
+            json={"name": "ABpop", "members": []},
+        )
+    ).json()
+    run = (
+        await client.post(
+            "/runs",
+            json={
+                "name": "AB sim",
+                "population_id": pop["id"],
+                "main_ticks": [
+                    {
+                        "key": "m1",
+                        "day": 1,
+                        "silent": False,
+                        "injections": [],
+                        "rounds": 1,
+                        "measurements": [],
+                    }
+                ],
+                "branch": {
+                    "afterIndex": 0,
+                    "a": [
+                        {
+                            "key": "a2",
+                            "day": 2,
+                            "silent": False,
+                            "injections": [],
+                            "rounds": 1,
+                            "measurements": [],
+                        }
+                    ],
+                    "b": [
+                        {
+                            "key": "b2",
+                            "day": 2,
+                            "silent": False,
+                            "injections": [],
+                            "rounds": 1,
+                            "measurements": [],
+                        }
+                    ],
+                },
+            },
+        )
+    ).json()
+
+    started = await client.post(f"/runs/{run['id']}/start")
+    job_id = started.json()["job_id"]
+    await jobs_service._run_job(job_id)
+
+    # Re-run to verify attempts are appended, not replaced
+    started2 = await client.post(f"/runs/{run['id']}/start")
+    assert started2.status_code == 202
+    await jobs_service._run_job(started2.json()["job_id"])
+
+    detail = await client.get(f"/runs/{run['id']}")
+    results = detail.json()["results"]
+    assert len(results["attempts"]) == 2
+    variants = results["attempts"][0]["variants"]
+    assert [v["id"] for v in variants] == ["a", "b"]
+    assert [v["label"] for v in variants] == ["Version A", "Version B"]
+
+    first_id = results["attempts"][0]["id"]
+    deleted = await client.delete(f"/runs/{run['id']}/results/attempts/{first_id}")
+    assert deleted.status_code == 200
+    assert len(deleted.json()["results"]["attempts"]) == 1
+
+    second_id = deleted.json()["results"]["attempts"][0]["id"]
+    cleared = await client.delete(f"/runs/{run['id']}/results/attempts/{second_id}")
+    assert cleared.status_code == 200
+    assert cleared.json()["results"] is None
+
 

@@ -62,11 +62,29 @@ function toastFromTransition(job: Job, prev: JobStatus | undefined): ToastState 
   }
   if (job.status === "succeeded") {
     const popId = job.result?.population_id
+    const runId = job.result?.run_id
+    if (job.kind === "run_simulate" && runId != null) {
+      return {
+        kind: "ok",
+        message: `Simuleringen »${job.label}« är klar`,
+        href: `/runs/${runId}/edit?tab=results`,
+        hrefLabel: "Öppna resultat",
+      }
+    }
     return {
       kind: "ok",
       message: `Jobbet »${job.label}« är klart`,
       href: popId != null ? `/populations/${popId}` : "/jobs",
       hrefLabel: popId != null ? "Öppna population" : "Visa jobb",
+    }
+  }
+  const runId = job.request?.run_id
+  if (job.kind === "run_simulate" && typeof runId === "number") {
+    return {
+      kind: "err",
+      message: `Simuleringen »${job.label}« misslyckades${job.error ? `: ${job.error}` : ""}`,
+      href: `/runs/${runId}/edit?tab=results`,
+      hrefLabel: "Öppna körning",
     }
   }
   return {

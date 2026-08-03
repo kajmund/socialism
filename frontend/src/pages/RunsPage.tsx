@@ -61,14 +61,17 @@ function RunCard({ run, onDelete, onDuplicate }: RunCardProps) {
               </Link>
             ) : (
               <>
-                <Link className="primary" to={`/runs/${run.id}/edit`}>
+                <Link
+                  className="primary"
+                  to={`/runs/${run.id}/edit?tab=results`}
+                >
                   {run.status === "running"
                     ? "Se status"
                     : run.status === "failed"
                       ? "Se fel"
                       : "Öppna resultat"}
                 </Link>
-                <Link to={`/runs/${run.id}/edit`}>Redigera</Link>
+                <Link to={`/runs/${run.id}/edit?tab=config`}>Konfiguration</Link>
               </>
             )}
             <button type="button" onClick={() => onDuplicate(run.id, run.name)}>

@@ -1,8 +1,47 @@
 export type RunStatus = "done" | "running" | "draft" | "failed"
 
-export type OasisRunResults = {
-  engine?: string
-  error?: string
+export type OasisMeasurementPoint = {
+  id: string
+  label: string
+  summary: string
+  metrics?: {
+    engagement?: {
+      posts?: number
+      comments?: number
+      likes?: number
+      shares?: number
+      dislikes?: number
+      engagement_score?: number
+    }
+    sentiment?: {
+      positive?: number
+      neutral?: number
+      negative?: number
+    }
+    top_phrases?: Array<{ phrase: string; count: number }>
+    by_district?: Array<{
+      label: string
+      posts?: number
+      comments?: number
+      engagement_score?: number
+    }>
+    engagement_delta?: number
+    previous_engagement_score?: number
+  }
+}
+
+export type OasisMeasurementRow = {
+  tick_key: string
+  day: number
+  tick_index: number
+  kinds: string[]
+  points: OasisMeasurementPoint[]
+}
+
+export type OasisVariantResult = {
+  id: string
+  label: string
+  error?: string | null
   ticks_run?: number
   agents?: Array<{
     index: number
@@ -21,6 +60,12 @@ export type OasisRunResults = {
     num_dislikes?: number
     num_shares?: number
     created_at?: string
+    liked_by?: number[]
+    shared_by?: Array<{
+      user_id: number
+      kind: "repost" | "quote"
+      share_post_id?: number
+    }>
   }>
   comments?: Array<{
     comment_id: number
@@ -28,7 +73,33 @@ export type OasisRunResults = {
     user_id: number
     content: string
     num_likes?: number
+    liked_by?: number[]
   }>
+  measurements?: OasisMeasurementRow[]
+  artifact_db?: string
+  profile_csv?: string
+}
+
+export type OasisAttemptResult = {
+  id: string
+  finished_at?: string | null
+  seed?: string
+  engine?: string
+  error?: string | null
+  variants: OasisVariantResult[]
+}
+
+/** Stored on a run — may be legacy flat shape; normalize with `normalizeRunAttempts`. */
+export type OasisRunResults = {
+  engine?: string
+  seed?: string
+  error?: string
+  ticks_run?: number
+  attempts?: OasisAttemptResult[]
+  variants?: OasisVariantResult[]
+  agents?: OasisVariantResult["agents"]
+  posts?: OasisVariantResult["posts"]
+  comments?: OasisVariantResult["comments"]
   artifact_db?: string
 }
 

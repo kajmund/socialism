@@ -100,6 +100,15 @@ export function JobsPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {jobs.map((job) => {
               const popId = job.result?.population_id
+              const runId =
+                job.result?.run_id ??
+                (typeof job.request.run_id === "number" ? job.request.run_id : null)
+              const kindLabel =
+                job.kind === "population_generate"
+                  ? "Populationsgenerering"
+                  : job.kind === "run_simulate"
+                    ? "Simulering"
+                    : job.kind
               return (
                 <Card key={job.id} className="gap-0 py-4 ring-1 ring-border">
                   <CardContent className="px-5">
@@ -117,10 +126,7 @@ export function JobsPage() {
                           {job.label || job.id}
                         </div>
                         <div style={{ font: "var(--text-body-sm)", color: "var(--text-muted)" }}>
-                          {job.kind === "population_generate"
-                            ? "Populationsgenerering"
-                            : job.kind}{" "}
-                          · skapad {formatWhen(job.created_at)}
+                          {kindLabel} · skapad {formatWhen(job.created_at)}
                         </div>
                       </div>
                       <span className={statusClass(job.status)}>
@@ -134,6 +140,15 @@ export function JobsPage() {
                         <Link to={`/populations/${popId}`}>Öppna population →</Link>
                       </div>
                     )}
+                    {job.status === "succeeded" &&
+                      job.kind === "run_simulate" &&
+                      runId != null && (
+                        <div style={{ marginTop: 12, font: "var(--text-body-sm)" }}>
+                          <Link to={`/runs/${runId}/edit?tab=results`}>
+                            Öppna resultat →
+                          </Link>
+                        </div>
+                      )}
                     {job.status === "failed" && job.error && (
                       <div
                         style={{
@@ -153,8 +168,20 @@ export function JobsPage() {
                           color: "var(--text-muted)",
                         }}
                       >
-                        {job.status === "running" ? "Genererar…" : "I kö…"} startad{" "}
-                        {formatWhen(job.started_at ?? job.created_at)}
+                        {job.status === "running"
+                          ? job.kind === "run_simulate"
+                            ? "Simulerar…"
+                            : "Genererar…"
+                          : "I kö…"}{" "}
+                        startad {formatWhen(job.started_at ?? job.created_at)}
+                        {job.kind === "run_simulate" && runId != null ? (
+                          <>
+                            {" · "}
+                            <Link to={`/runs/${runId}/edit?tab=results`}>
+                              Öppna körning →
+                            </Link>
+                          </>
+                        ) : null}
                       </div>
                     )}
                   </CardContent>
