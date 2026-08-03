@@ -9,6 +9,7 @@ import argparse
 import asyncio
 import secrets
 import sqlite3
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -19,7 +20,7 @@ from sqlalchemy.orm import selectinload
 from app.config import settings
 from app.database.models import Population, PopulationMember, Run
 from app.database.session import SessionLocal
-from app.schemas.domain import Injection, Tick
+from app.schemas.domain import Injection, OasisRunOptions, Tick
 from app.serializers import utcnow
 from app.services.district_context import format_area_block, list_district_contexts
 from app.services.oasis_profiles import (
@@ -33,6 +34,31 @@ from app.services.run_measurements import build_measurements
 
 ARTIFACT_ROOT = Path("data/oasis")
 
+# Twitter population actions as names (no camel-oasis import required for tests).
+_BASE_POPULATION_ACTIONS: tuple[str, ...] = (
+    "LIKE_POST",
+    "DISLIKE_POST",
+    "UNLIKE_POST",
+    "UNDO_DISLIKE_POST",
+    "CREATE_COMMENT",
+    "LIKE_COMMENT",
+    "DISLIKE_COMMENT",
+    "UNLIKE_COMMENT",
+    "UNDO_DISLIKE_COMMENT",
+    "REPOST",
+    "QUOTE_POST",
+    "FOLLOW",
+    "UNFOLLOW",
+    "MUTE",
+    "UNMUTE",
+    "SEARCH_USER",
+    "SEARCH_POSTS",
+    "REPORT_POST",
+    "TREND",
+    "DO_NOTHING",
+    "REFRESH",
+)
+
 
 class OasisUnavailable(RuntimeError):
     """Raised when camel-oasis is not installed or config is incomplete."""
@@ -44,6 +70,18 @@ def oasis_installed() -> bool:
     except ImportError:
         return False
     return True
+
+
+def parse_oasis_options(raw: dict | None) -> OasisRunOptions:
+    return OasisRunOptions.model_validate(raw or {})
+
+
+def population_action_names(*, allow_population_create_post: bool = False) -> list[str]:
+    """Return ActionType names available to population agents."""
+    names = list(_BASE_POPULATION_ACTIONS)
+    if allow_population_create_post:
+        names.insert(0, "CREATE_POST")
+    return names
 
 
 def _artifact_dir(run_id: int, variant_id: str = "main") -> Path:
@@ -142,77 +180,86 @@ def _injection_body(injection: Injection) -> str:
     return injection.text.strip()
 
 
+def _table_rows(
+    conn: sqlite3.Connection, sql: str
+) -> list[dict[str, Any]]:
+    try:
+        return [dict(row) for row in conn.execute(sql)]
+    except sqlite3.OperationalError:
+        return []
+
+
+def _action_histogram(trace: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    counts: Counter[str] = Counter()
+    for row in trace:
+        action = str(row.get("action") or "").strip()
+        if action:
+            counts[action] += 1
+    return [{"action": a, "count": c} for a, c in counts.most_common()]
+
+
 def _read_oasis_results(db_path: Path) -> dict[str, Any]:
     if not db_path.exists():
-        return {"posts": [], "comments": []}
+        return {
+            "posts": [],
+            "comments": [],
+            "follows": [],
+            "mutes": [],
+            "reports": [],
+            "trace": [],
+            "action_histogram": [],
+        }
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     try:
-        posts = [
-            dict(row)
-            for row in conn.execute(
-                "SELECT post_id, user_id, original_post_id, content, "
-                "quote_content, num_likes, num_dislikes, num_shares, "
-                "created_at FROM post ORDER BY post_id"
-            )
-        ]
-        comments: list[dict[str, Any]] = []
-        try:
-            comments = [
-                dict(row)
-                for row in conn.execute(
-                    "SELECT comment_id, post_id, user_id, content, "
-                    "num_likes, num_dislikes, created_at FROM comment "
-                    "ORDER BY comment_id"
-                )
-            ]
-        except sqlite3.OperationalError:
-            comments = []
+        posts = _table_rows(
+            conn,
+            "SELECT post_id, user_id, original_post_id, content, "
+            "quote_content, num_likes, num_dislikes, num_shares, "
+            "created_at FROM post ORDER BY post_id",
+        )
+        comments = _table_rows(
+            conn,
+            "SELECT comment_id, post_id, user_id, content, "
+            "num_likes, num_dislikes, created_at FROM comment "
+            "ORDER BY comment_id",
+        )
 
         likes_by_post: dict[int, list[int]] = {}
-        try:
-            for row in conn.execute(
-                "SELECT user_id, post_id FROM like ORDER BY like_id"
-            ):
-                likes_by_post.setdefault(int(row["post_id"]), []).append(
-                    int(row["user_id"])
-                )
-        except sqlite3.OperationalError:
-            likes_by_post = {}
+        for row in _table_rows(
+            conn, "SELECT user_id, post_id FROM like ORDER BY like_id"
+        ):
+            likes_by_post.setdefault(int(row["post_id"]), []).append(
+                int(row["user_id"])
+            )
 
         dislikes_by_post: dict[int, list[int]] = {}
-        try:
-            for row in conn.execute(
-                "SELECT user_id, post_id FROM dislike ORDER BY dislike_id"
-            ):
-                dislikes_by_post.setdefault(int(row["post_id"]), []).append(
-                    int(row["user_id"])
-                )
-        except sqlite3.OperationalError:
-            dislikes_by_post = {}
+        for row in _table_rows(
+            conn, "SELECT user_id, post_id FROM dislike ORDER BY dislike_id"
+        ):
+            dislikes_by_post.setdefault(int(row["post_id"]), []).append(
+                int(row["user_id"])
+            )
 
         comment_likes_by_id: dict[int, list[int]] = {}
-        try:
-            for row in conn.execute(
-                "SELECT user_id, comment_id FROM comment_like ORDER BY comment_like_id"
-            ):
-                comment_likes_by_id.setdefault(int(row["comment_id"]), []).append(
-                    int(row["user_id"])
-                )
-        except sqlite3.OperationalError:
-            comment_likes_by_id = {}
+        for row in _table_rows(
+            conn,
+            "SELECT user_id, comment_id FROM comment_like "
+            "ORDER BY comment_like_id",
+        ):
+            comment_likes_by_id.setdefault(int(row["comment_id"]), []).append(
+                int(row["user_id"])
+            )
 
         comment_dislikes_by_id: dict[int, list[int]] = {}
-        try:
-            for row in conn.execute(
-                "SELECT user_id, comment_id FROM comment_dislike "
-                "ORDER BY comment_dislike_id"
-            ):
-                comment_dislikes_by_id.setdefault(
-                    int(row["comment_id"]), []
-                ).append(int(row["user_id"]))
-        except sqlite3.OperationalError:
-            comment_dislikes_by_id = {}
+        for row in _table_rows(
+            conn,
+            "SELECT user_id, comment_id FROM comment_dislike "
+            "ORDER BY comment_dislike_id",
+        ):
+            comment_dislikes_by_id.setdefault(
+                int(row["comment_id"]), []
+            ).append(int(row["user_id"]))
 
         # Shares = reposts + quotes (rows that point at an original post).
         shares_by_post: dict[int, list[dict[str, Any]]] = {}
@@ -239,10 +286,38 @@ def _read_oasis_results(db_path: Path) -> dict[str, Any]:
             cid = int(comment["comment_id"])
             comment["liked_by"] = comment_likes_by_id.get(cid, [])
             comment["disliked_by"] = comment_dislikes_by_id.get(cid, [])
+
+        follows = _table_rows(
+            conn,
+            "SELECT follow_id, follower_id, followee_id, created_at FROM follow "
+            "ORDER BY follow_id",
+        )
+        mutes = _table_rows(
+            conn,
+            "SELECT mute_id, muter_id, mutee_id, created_at FROM mute "
+            "ORDER BY mute_id",
+        )
+        reports = _table_rows(
+            conn,
+            "SELECT report_id, user_id, post_id, report_reason, created_at "
+            "FROM report ORDER BY report_id",
+        )
+        trace = _table_rows(
+            conn,
+            "SELECT user_id, created_at, action, info FROM trace "
+            "ORDER BY created_at, user_id",
+        )
     finally:
         conn.close()
-    return {"posts": posts, "comments": comments}
-
+    return {
+        "posts": posts,
+        "comments": comments,
+        "follows": follows,
+        "mutes": mutes,
+        "reports": reports,
+        "trace": trace,
+        "action_histogram": _action_histogram(trace),
+    }
 
 async def run_oasis_simulation(
     *,
@@ -252,6 +327,7 @@ async def run_oasis_simulation(
     seed: str,
     variant_id: str = "main",
     area_blocks: dict[str, str] | None = None,
+    oasis_options: OasisRunOptions | None = None,
 ) -> dict[str, Any]:
     if not oasis_installed():
         raise OasisUnavailable(
@@ -260,6 +336,8 @@ async def run_oasis_simulation(
     if not settings.deepseek_api_key:
         raise OasisUnavailable("DEEPSEEK_API_KEY is required for OASIS simulation")
 
+    options = oasis_options or OasisRunOptions()
+    allow_create = options.allow_population_create_post
     settings.apply_oasis_env()
 
     # Deferred: camel-oasis is an optional extra and may not be installed.
@@ -275,6 +353,7 @@ async def run_oasis_simulation(
         members,
         active_ticks,
         area_blocks=area_blocks,
+        allow_create_post=allow_create,
     )
     population_indices = {i for i, p in enumerate(profiles) if p.role == "population"}
     if not population_indices:
@@ -293,18 +372,11 @@ async def run_oasis_simulation(
         api_key=settings.deepseek_api_key,
     )
 
-    # Population reacts — no CREATE_POST (avoids copy-paste of injections as "egna" inlägg).
     available_actions = [
-        ActionType.LIKE_POST,
-        ActionType.DISLIKE_POST,
-        ActionType.CREATE_COMMENT,
-        ActionType.LIKE_COMMENT,
-        ActionType.DISLIKE_COMMENT,
-        ActionType.REPOST,
-        ActionType.QUOTE_POST,
-        ActionType.FOLLOW,
-        ActionType.DO_NOTHING,
-        ActionType.REFRESH,
+        ActionType[name]
+        for name in population_action_names(
+            allow_population_create_post=allow_create
+        )
     ]
 
     agent_graph = await generate_twitter_agent_graph(
@@ -378,8 +450,14 @@ async def run_oasis_simulation(
         "configured_ticks": len(active_ticks),
         "posts": feed["posts"],
         "comments": feed["comments"],
+        "follows": feed["follows"],
+        "mutes": feed["mutes"],
+        "reports": feed["reports"],
+        "trace": feed["trace"],
+        "action_histogram": feed["action_histogram"],
         "artifact_db": str(db_path),
         "profile_csv": str(profile_csv),
+        "oasis_options": options.model_dump(),
     }
 
 
@@ -471,6 +549,9 @@ async def simulate_run(session: AsyncSession, run: Run) -> dict[str, Any]:
         if member.name:
             member_districts[member.name] = member.district
 
+    options = parse_oasis_options(
+        run.oasis_options if isinstance(run.oasis_options, dict) else None
+    )
     plans = variant_plans(run)
     variants_out: list[dict[str, Any]] = []
 
@@ -483,10 +564,16 @@ async def simulate_run(session: AsyncSession, run: Run) -> dict[str, Any]:
                 seed=run.seed,
                 variant_id=variant_id,
                 area_blocks=area_blocks,
+                oasis_options=options,
             )
             agents = sim.get("agents") or []
             posts = sim.get("posts") or []
             comments = sim.get("comments") or []
+            follows = sim.get("follows") or []
+            mutes = sim.get("mutes") or []
+            reports = sim.get("reports") or []
+            trace = sim.get("trace") or []
+            action_histogram = sim.get("action_histogram") or []
             ticks_run = int(sim.get("ticks_run") or 0)
             variants_out.append(
                 {
@@ -497,15 +584,22 @@ async def simulate_run(session: AsyncSession, run: Run) -> dict[str, Any]:
                     "agents": agents,
                     "posts": posts,
                     "comments": comments,
+                    "follows": follows,
+                    "mutes": mutes,
+                    "reports": reports,
+                    "trace": trace,
+                    "action_histogram": action_histogram,
                     "artifact_db": sim.get("artifact_db"),
                     "profile_csv": sim.get("profile_csv"),
                     "agent_count": sim.get("agent_count"),
                     "configured_ticks": sim.get("configured_ticks"),
+                    "oasis_options": sim.get("oasis_options"),
                     "measurements": build_measurements(
                         ticks,
                         posts=posts,
                         comments=comments,
                         agents=agents,
+                        follows=follows,
                         member_districts=member_districts,
                         ticks_run=ticks_run,
                     ),
@@ -523,6 +617,11 @@ async def simulate_run(session: AsyncSession, run: Run) -> dict[str, Any]:
                     "agents": [],
                     "posts": [],
                     "comments": [],
+                    "follows": [],
+                    "mutes": [],
+                    "reports": [],
+                    "trace": [],
+                    "action_histogram": [],
                     "measurements": build_measurements(ticks, ticks_run=0),
                 }
             )

@@ -13,8 +13,10 @@ import { OasisResultsPanel } from "@/components/runs/OasisResultsPanel"
 import { TickColumn } from "@/components/runs/TickTimeline"
 import { Card, CardContent } from "@/components/ui/card"
 import { genSeed, makeTick } from "@/data/runs"
+import { validateRunConfig } from "@/data/runValidation"
 import type {
   BranchState,
+  OasisRunOptions,
   OasisRunResults,
   RunPopulationOption,
   RunStatus,
@@ -23,6 +25,10 @@ import type {
 import { ApiError } from "@/lib/api"
 
 type RunTab = "config" | "results"
+
+const DEFAULT_OASIS_OPTIONS: OasisRunOptions = {
+  allow_population_create_post: false,
+}
 
 function parseTab(raw: string | null): RunTab {
   return raw === "results" ? "results" : "config"
@@ -49,6 +55,8 @@ export function ConfigureRunPage() {
     makeTick(3),
   ])
   const [branch, setBranch] = useState<BranchState | null>(null)
+  const [oasisOptions, setOasisOptions] =
+    useState<OasisRunOptions>(DEFAULT_OASIS_OPTIONS)
   const [openKey, setOpenKey] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -98,6 +106,7 @@ export function ConfigureRunPage() {
         setPopId(run.population_id)
         setMainTicks(run.main_ticks.length ? run.main_ticks : [makeTick(1)])
         setBranch(run.branch)
+        setOasisOptions(run.oasis_options ?? DEFAULT_OASIS_OPTIONS)
         setRunStatus(run.status)
         setResults(run.results)
         if (defaultedTabForRun.current !== runId) {
@@ -226,6 +235,21 @@ export function ConfigureRunPage() {
       showToast("Välj en population först")
       return
     }
+    if (andStart) {
+      const check = validateRunConfig({
+        name,
+        populationId: popId,
+        populationSize: population.size,
+        seed,
+        startDate,
+        mainTicks,
+        branch,
+      })
+      if (!check.ok) {
+        showToast(check.errors.slice(0, 2).join(" · "))
+        return
+      }
+    }
     setSaving(true)
     try {
       // Do not force status back to draft when starting — that left the UI on
@@ -238,6 +262,7 @@ export function ConfigureRunPage() {
             start_date: startDate,
             main_ticks: mainTicks,
             branch,
+            oasis_options: oasisOptions,
           }
         : {
             name,
@@ -247,6 +272,7 @@ export function ConfigureRunPage() {
             status: "draft" as const,
             main_ticks: mainTicks,
             branch,
+            oasis_options: oasisOptions,
           }
       const saved = runId
         ? await updateRun(runId, payload)
@@ -258,6 +284,7 @@ export function ConfigureRunPage() {
             status: "draft",
             main_ticks: mainTicks,
             branch,
+            oasis_options: oasisOptions,
           })
       if (andStart) {
         setRunStatus("running")
@@ -489,6 +516,30 @@ export function ConfigureRunPage() {
                       )}
                     </div>
                   </div>
+                  <div className="id-field">
+                    <label htmlFor="oasis-create-post">OASIS</label>
+                    <label className="flex cursor-pointer items-start gap-2 text-sm text-foreground">
+                      <input
+                        id="oasis-create-post"
+                        type="checkbox"
+                        className="mt-1"
+                        checked={oasisOptions.allow_population_create_post}
+                        disabled={configLocked}
+                        onChange={(e) =>
+                          setOasisOptions({
+                            allow_population_create_post: e.target.checked,
+                          })
+                        }
+                      />
+                      <span>
+                        Låt populationen skapa egna inlägg
+                        <span className="mt-0.5 block text-xs text-muted-foreground">
+                          Av = bara injektorer postar (standard). På =
+                          CREATE_POST aktiveras för agenter.
+                        </span>
+                      </span>
+                    </label>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -604,13 +655,6 @@ export function ConfigureRunPage() {
                         : "Starta körning"}
                     </button>
                   </div>
-                  <button
-                    type="button"
-                    className="preflight-link"
-                    onClick={() => showToast("Pre-flight kommer i en senare fas")}
-                  >
-                    Kör pre-flight-check först
-                  </button>
                 </div>
               </CardContent>
             </Card>

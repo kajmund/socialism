@@ -50,6 +50,12 @@ def _branch_payload(branch) -> dict | None:
     return branch.model_dump() if hasattr(branch, "model_dump") else branch
 
 
+def _oasis_options_payload(options) -> dict:
+    if options is None:
+        return {}
+    return options.model_dump() if hasattr(options, "model_dump") else dict(options)
+
+
 async def _snapshot_message_bodies(session: AsyncSession, run: Run) -> None:
     """Freeze library Message.body into Injection.text before a run starts."""
 
@@ -168,6 +174,7 @@ async def create_run(
         start_date=parse_optional_date(body.start_date),
         main_ticks=_ticks_payload(body.main_ticks),
         branch=_branch_payload(body.branch),
+        oasis_options=_oasis_options_payload(body.oasis_options),
         updated_at=utcnow(),
     )
     session.add(run)
@@ -194,6 +201,8 @@ async def update_run(
         data["main_ticks"] = _ticks_payload(data["main_ticks"])
     if "branch" in data and data["branch"] is not None:
         data["branch"] = _branch_payload(data["branch"])
+    if "oasis_options" in data and data["oasis_options"] is not None:
+        data["oasis_options"] = _oasis_options_payload(data["oasis_options"])
     for key, value in data.items():
         setattr(run, key, value)
     run.updated_at = utcnow()
@@ -264,6 +273,7 @@ async def duplicate_run(
         start_date=source.start_date,
         main_ticks=list(source.main_ticks or []),
         branch=dict(source.branch) if source.branch else None,
+        oasis_options=dict(source.oasis_options or {}),
         updated_at=utcnow(),
     )
     session.add(run)

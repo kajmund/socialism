@@ -35,7 +35,8 @@ def apply_swedish_social_environment_prompts() -> None:
         "Gilla (like) bara när du faktiskt stöder inlägget eller håller med. "
         "Ogilla (dislike) när du tar avstånd. "
         "Om du kritiserar eller sarkastiskt kommenterar ett inlägg: gilla det inte. "
-        "Kommentera, följ, dela eller gör inget om det passar bättre. "
+        "Du kan följa, avfölja, mutea, söka, rapportera, dela eller kommentera "
+        "när det passar — eller göra inget. "
         "Om du skriver text: variera formulering; upprepa inte samma inledning "
         "eller avslutning varje gång."
     )

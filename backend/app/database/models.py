@@ -94,6 +94,7 @@ class Run(Base):
     start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     main_ticks: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     branch: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    oasis_options: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     results: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
