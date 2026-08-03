@@ -2,6 +2,12 @@ import { useEffect, useRef, useState, type ReactNode } from "react"
 import { useNavigate } from "react-router-dom"
 import { createReport, listReports } from "@/api/reports"
 import { PersonaProfileModal } from "@/components/personas/PersonaProfileModal"
+import {
+  buildTimelineItems,
+  CARD_COVERED_ACTIONS,
+  groupTimelineSegments,
+  type TimelineActionItem,
+} from "@/components/runs/activityFeed"
 import { personaInitials } from "@/data/library"
 import { ApiError } from "@/lib/api"
 import type {
@@ -194,10 +200,13 @@ function FeedAuthorHeader({
   )
 }
 
-function formatFeedWhen(iso: string | null | undefined): string | null {
-  if (!iso) return null
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso
+function formatFeedWhen(iso: string | number | null | undefined): string | null {
+  if (iso == null || iso === "") return null
+  if (typeof iso === "number" || (/^\d+(\.\d+)?$/.test(String(iso)) && !String(iso).includes("-"))) {
+    return `t=${iso}`
+  }
+  const d = new Date(String(iso))
+  if (Number.isNaN(d.getTime())) return String(iso)
   return new Intl.DateTimeFormat("sv-SE", {
     day: "numeric",
     month: "long",
@@ -223,6 +232,7 @@ function MeasurementDetail({ point }: { point: OasisMeasurementPoint }) {
   const sentiment = metrics?.sentiment
   const phrases = metrics?.top_phrases ?? []
   const districts = metrics?.by_district ?? []
+  const follows = metrics?.follows
   const maxDistrictEng = Math.max(
     1,
     ...districts.map((d) => d.engagement_score ?? 0),
@@ -238,6 +248,9 @@ function MeasurementDetail({ point }: { point: OasisMeasurementPoint }) {
           <span>{engagement.dislikes ?? 0} dislikes</span>
           <span>{engagement.shares ?? 0} shares</span>
           <span>engagemang {engagement.engagement_score ?? 0}</span>
+          {typeof follows?.edges === "number" ? (
+            <span>{follows.edges} följningar</span>
+          ) : null}
           {typeof metrics?.engagement_delta === "number" ? (
             <span>
               Δ {metrics.engagement_delta >= 0 ? "+" : ""}
@@ -317,6 +330,25 @@ function MeasurementDetail({ point }: { point: OasisMeasurementPoint }) {
                 <span className="text-[11px] tabular-nums text-muted-foreground">
                   {d.engagement_score ?? 0}
                 </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {follows?.top_followees && follows.top_followees.length > 0 ? (
+        <div>
+          <div className="mb-1 text-xs font-medium text-muted-foreground">
+            Mest följda (agent-index)
+          </div>
+          <ul className="flex flex-wrap gap-1.5">
+            {follows.top_followees.map((f) => (
+              <li
+                key={f.user_id}
+                className="rounded border border-border bg-muted/40 px-2 py-0.5 text-xs"
+              >
+                #{f.user_id}{" "}
+                <span className="text-muted-foreground">×{f.followers}</span>
               </li>
             ))}
           </ul>
@@ -635,6 +667,232 @@ function LikeShareBar({
   )
 }
 
+function NetworkActivitySection({
+  variant,
+  onOpenAgent,
+}: {
+  variant: OasisVariantResult
+  onOpenAgent: (userId: number) => void
+}) {
+  const agents = variant.agents ?? []
+  const follows = variant.follows ?? []
+  const mutes = variant.mutes ?? []
+  const reports = variant.reports ?? []
+  const histogram = variant.action_histogram ?? []
+  if (
+    follows.length === 0 &&
+    mutes.length === 0 &&
+    reports.length === 0 &&
+    histogram.length === 0
+  ) {
+    return null
+  }
+
+  const maxHist = Math.max(1, ...histogram.map((h) => h.count))
+
+  return (
+    <div className="mb-4 space-y-3 rounded-lg border border-border bg-card/60 px-4 py-3">
+      <h3 className="text-sm font-semibold text-foreground">Nätverk & åtgärder</h3>
+
+      {follows.length > 0 ? (
+        <div>
+          <div className="mb-1 text-xs font-medium text-muted-foreground">
+            Följningar ({follows.length})
+          </div>
+          <ul className="max-h-36 space-y-1 overflow-y-auto text-xs text-muted-foreground">
+            {follows.slice(0, 40).map((f, i) => (
+              <li key={`${f.follower_id}-${f.followee_id}-${i}`}>
+                <AgentNameButton
+                  name={agentLabel(agents, f.follower_id)}
+                  className="text-xs text-muted-foreground"
+                  showAvatar={!agentIsInjector(agents, f.follower_id)}
+                  onOpen={() => onOpenAgent(f.follower_id)}
+                />
+                {" → "}
+                <AgentNameButton
+                  name={agentLabel(agents, f.followee_id)}
+                  className="text-xs text-muted-foreground"
+                  showAvatar={!agentIsInjector(agents, f.followee_id)}
+                  onOpen={() => onOpenAgent(f.followee_id)}
+                />
+              </li>
+            ))}
+            {follows.length > 40 ? (
+              <li className="text-muted-foreground/80">
+                …och {follows.length - 40} till
+              </li>
+            ) : null}
+          </ul>
+        </div>
+      ) : null}
+
+      {mutes.length > 0 || reports.length > 0 ? (
+        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+          {mutes.length > 0 ? <span>{mutes.length} mutes</span> : null}
+          {reports.length > 0 ? <span>{reports.length} rapporter</span> : null}
+        </div>
+      ) : null}
+
+      {histogram.length > 0 ? (
+        <div>
+          <div className="mb-1 text-xs font-medium text-muted-foreground">
+            Åtgärder (trace)
+          </div>
+          <ul className="space-y-1">
+            {histogram.slice(0, 12).map((row) => (
+              <li
+                key={row.action}
+                className="grid grid-cols-[8rem_1fr_auto] items-center gap-2"
+              >
+                <span className="truncate font-mono text-[11px] text-foreground">
+                  {row.action}
+                </span>
+                <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-[var(--db-gold-500)]"
+                    style={{
+                      width: `${Math.round((row.count / maxHist) * 100)}%`,
+                    }}
+                  />
+                </div>
+                <span className="text-[11px] tabular-nums text-muted-foreground">
+                  {row.count}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function CompactActionRow({
+  item,
+  agents,
+  onOpenAgent,
+}: {
+  item: TimelineActionItem
+  agents: NonNullable<OasisVariantResult["agents"]>
+  onOpenAgent: (userId: number) => void
+}) {
+  const when = formatFeedWhen(item.createdAt)
+  return (
+    <li className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border border-dashed border-border/70 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+      <AgentNameButton
+        name={agentLabel(agents, item.userId)}
+        className="text-xs font-medium text-foreground"
+        showAvatar={!agentIsInjector(agents, item.userId)}
+        onOpen={() => onOpenAgent(item.userId)}
+      />
+      <span>{item.label}</span>
+      {item.targetUserId != null ? (
+        <AgentNameButton
+          name={item.detail ?? agentLabel(agents, item.targetUserId)}
+          className="text-xs text-muted-foreground"
+          showAvatar={!agentIsInjector(agents, item.targetUserId)}
+          onOpen={() => onOpenAgent(item.targetUserId!)}
+        />
+      ) : item.detail ? (
+        <span className="text-foreground/80">{item.detail}</span>
+      ) : null}
+      {when ? (
+        <span className="ml-auto tabular-nums text-[10px] text-muted-foreground/80">
+          {when}
+        </span>
+      ) : null}
+    </li>
+  )
+}
+
+function FeedNoiseFilter({
+  hideNoise,
+  onChange,
+}: {
+  hideNoise: boolean
+  onChange: (hideNoise: boolean) => void
+}) {
+  return (
+    <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
+      <span className="text-muted-foreground">Händelser:</span>
+      <button
+        type="button"
+        className={
+          "rounded border px-2 py-0.5 " +
+          (!hideNoise
+            ? "border-[var(--db-gold-500)] bg-[var(--db-gold-500)]/15 text-foreground"
+            : "border-border text-muted-foreground hover:bg-muted/40")
+        }
+        aria-pressed={!hideNoise}
+        onClick={() => onChange(false)}
+      >
+        Alla
+      </button>
+      <button
+        type="button"
+        className={
+          "rounded border px-2 py-0.5 " +
+          (hideNoise
+            ? "border-[var(--db-gold-500)] bg-[var(--db-gold-500)]/15 text-foreground"
+            : "border-border text-muted-foreground hover:bg-muted/40")
+        }
+        aria-pressed={hideNoise}
+        onClick={() => onChange(true)}
+      >
+        Dölj brus
+      </button>
+      <span className="text-[10px] text-muted-foreground/80">
+        Brus = refresh, sign_up, do_nothing
+      </span>
+    </div>
+  )
+}
+
+function ActionCluster({
+  actions,
+  agents,
+  onOpenAgent,
+}: {
+  actions: TimelineActionItem[]
+  agents: NonNullable<OasisVariantResult["agents"]>
+  onOpenAgent: (userId: number) => void
+}) {
+  if (actions.length === 0) return null
+  const labels = [...new Set(actions.map((a) => a.label))].slice(0, 3)
+  const labelHint = labels.join(", ") + (labels.length < actions.length ? "…" : "")
+
+  return (
+    <li className="list-none">
+      <details className="rounded-lg border border-dashed border-border/80 bg-muted/15">
+        <summary className="cursor-pointer list-none px-3 py-2 text-xs font-medium text-foreground marker:content-none [&::-webkit-details-marker]:hidden">
+          <span className="flex flex-wrap items-center justify-between gap-2">
+            <span>
+              {actions.length} händelse{actions.length === 1 ? "" : "r"}
+              <span className="ml-1.5 font-normal text-muted-foreground">
+                ({labelHint})
+              </span>
+            </span>
+            <span className="font-normal text-muted-foreground">Visa</span>
+          </span>
+        </summary>
+        <ul
+          className="flex max-h-56 flex-col gap-1.5 overflow-y-auto overscroll-y-contain border-t border-border/50 px-2 py-2"
+          onWheel={(e) => e.stopPropagation()}
+        >
+          {actions.map((item) => (
+            <CompactActionRow
+              key={`action-${item.userId}-${item.action}-${item.sortKey}-${item.tie}`}
+              item={item}
+              agents={agents}
+              onOpenAgent={onOpenAgent}
+            />
+          ))}
+        </ul>
+      </details>
+    </li>
+  )
+}
+
 function VariantBody({ variant }: { variant: OasisVariantResult }) {
   const posts = variant.posts ?? []
   const comments = variant.comments ?? []
@@ -642,6 +900,7 @@ function VariantBody({ variant }: { variant: OasisVariantResult }) {
   const measurements = variant.measurements ?? []
   const postsById = new Map(posts.map((p) => [p.post_id, p]))
   const [profile, setProfile] = useState<ProfileTarget | null>(null)
+  const [hideNoise, setHideNoise] = useState(false)
 
   function openAgent(userId: number) {
     setProfile(agentProfileTarget(agents, userId))
@@ -664,10 +923,20 @@ function VariantBody({ variant }: { variant: OasisVariantResult }) {
 
   const injectors = agents.filter((a) => a.role === "injector")
   const population = agents.filter((a) => a.role !== "injector")
+  const timeline = buildTimelineItems(variant, {
+    hideNoise,
+    agentName: (id) => agentLabel(agents, id),
+  })
+  const segments = groupTimelineSegments(timeline)
+  const hasTraceActions = (variant.trace ?? []).some((t) => {
+    const a = (t.action || "").trim()
+    return a.length > 0 && !CARD_COVERED_ACTIONS.has(a)
+  })
 
   return (
     <div>
       <MeasurementsSection rows={measurements} />
+      <NetworkActivitySection variant={variant} onOpenAgent={openAgent} />
 
       {agents.length > 0 ? (
         <div className="mb-3 space-y-1 text-sm text-muted-foreground">
@@ -710,14 +979,29 @@ function VariantBody({ variant }: { variant: OasisVariantResult }) {
         </div>
       ) : null}
 
-      <h3 className="mb-2 text-sm font-semibold text-foreground">Inlägg</h3>
+      <h3 className="mb-2 text-sm font-semibold text-foreground">Flöde</h3>
+      {hasTraceActions ? (
+        <FeedNoiseFilter hideNoise={hideNoise} onChange={setHideNoise} />
+      ) : null}
 
-      {posts.length === 0 ? (
+      {posts.length === 0 && segments.every((s) => s.kind !== "actions") ? (
         <p className="text-sm text-muted-foreground">Inga inlägg sparades.</p>
       ) : null}
 
       <ul className="flex flex-col gap-3">
-        {posts.map((post) => {
+        {segments.map((segment) => {
+          if (segment.kind === "actions") {
+            return (
+              <ActionCluster
+                key={segment.key}
+                actions={segment.actions}
+                agents={agents}
+                onOpenAgent={openAgent}
+              />
+            )
+          }
+
+          const post = segment.post
           const agent = agents.find((a) => a.index === post.user_id)
           const author = agent?.member_name ?? `agent ${post.user_id}`
           const isInjector = agent?.role === "injector"
@@ -739,7 +1023,7 @@ function VariantBody({ variant }: { variant: OasisVariantResult }) {
 
           return (
             <li
-              key={post.post_id}
+              key={segment.key}
               className="rounded-lg border border-border bg-card px-4 py-3 shadow-sm"
             >
               <FeedAuthorHeader

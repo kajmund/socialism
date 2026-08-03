@@ -25,6 +25,10 @@ export type OasisMeasurementPoint = {
       comments?: number
       engagement_score?: number
     }>
+    follows?: {
+      edges?: number
+      top_followees?: Array<{ user_id: number; followers: number }>
+    }
     engagement_delta?: number
     previous_engagement_score?: number
   }
@@ -59,7 +63,7 @@ export type OasisVariantResult = {
     num_likes: number
     num_dislikes?: number
     num_shares?: number
-    created_at?: string
+    created_at?: string | number
     liked_by?: number[]
     disliked_by?: number[]
     shared_by?: Array<{
@@ -78,6 +82,32 @@ export type OasisVariantResult = {
     liked_by?: number[]
     disliked_by?: number[]
   }>
+  follows?: Array<{
+    follow_id?: number
+    follower_id: number
+    followee_id: number
+    created_at?: string | number
+  }>
+  mutes?: Array<{
+    mute_id?: number
+    muter_id: number
+    mutee_id: number
+    created_at?: string | number
+  }>
+  reports?: Array<{
+    report_id?: number
+    user_id: number
+    post_id: number
+    report_reason?: string | null
+    created_at?: string | number
+  }>
+  trace?: Array<{
+    user_id: number
+    created_at?: string | number
+    action: string
+    info?: string | null
+  }>
+  action_histogram?: Array<{ action: string; count: number }>
   measurements?: OasisMeasurementRow[]
   artifact_db?: string
   profile_csv?: string
@@ -154,6 +184,10 @@ export type BranchState = {
   afterIndex: number
   a: Tick[]
   b: Tick[]
+}
+
+export type OasisRunOptions = {
+  allow_population_create_post: boolean
 }
 
 export type Measurement = {

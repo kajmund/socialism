@@ -99,6 +99,21 @@ def _post_text(post: dict[str, Any]) -> str:
     return f"{quote}\n{content}".strip()
 
 
+def _follow_metrics(follows: list[dict[str, Any]]) -> dict[str, Any]:
+    edges = len(follows)
+    incoming: Counter[int] = Counter()
+    for row in follows:
+        try:
+            incoming[int(row["followee_id"])] += 1
+        except (KeyError, TypeError, ValueError):
+            continue
+    top = [
+        {"user_id": uid, "followers": count}
+        for uid, count in incoming.most_common(5)
+    ]
+    return {"edges": edges, "top_followees": top}
+
+
 def _engagement(posts: list[dict[str, Any]], comments: list[dict[str, Any]]) -> dict[str, Any]:
     likes = sum(int(p.get("num_likes") or 0) for p in posts)
     shares = sum(int(p.get("num_shares") or 0) for p in posts)
@@ -226,12 +241,15 @@ def _summary_for(kind: str, metrics: dict[str, Any]) -> str:
     posts = eng.get("posts", 0)
     comments = eng.get("comments", 0)
     score = eng.get("engagement_score", 0)
+    follows = metrics.get("follows") or {}
+    follow_edges = follows.get("edges", 0)
     if kind in {"opinion_snapshot", "sentiment_baseline", "sentiment_recovery"}:
         sent = metrics.get("sentiment") or {}
         return (
             f"{posts} inlägg · {comments} kommentarer · "
             f"pos {int(round((sent.get('positive') or 0) * 100))}% · "
             f"engagemang {score}"
+            + (f" · {follow_edges} följningar" if follow_edges else "")
         )
     if kind == "phrase_propagation":
         top = metrics.get("top_phrases") or []
@@ -257,6 +275,7 @@ def _point_metrics(
     prev_comments: list[dict[str, Any]] | None,
     agents: list[dict[str, Any]],
     district_by_agent: dict[int, str],
+    follows: list[dict[str, Any]],
 ) -> dict[str, Any]:
     texts = [_post_text(p) for p in window_posts] + [
         (c.get("content") or "") for c in window_comments
@@ -269,6 +288,7 @@ def _point_metrics(
         "by_district": _by_district(
             window_posts, window_comments, agents, district_by_agent
         ),
+        "follows": _follow_metrics(follows),
     }
     if kind == "engagement_decay" and prev_posts is not None:
         prev_eng = _engagement(prev_posts, prev_comments or [])
@@ -285,6 +305,7 @@ def build_measurements(
     posts: list[dict[str, Any]] | None = None,
     comments: list[dict[str, Any]] | None = None,
     agents: list[dict[str, Any]] | None = None,
+    follows: list[dict[str, Any]] | None = None,
     member_districts: dict[str, str] | None = None,
     ticks_run: int | None = None,
 ) -> list[dict[str, Any]]:
@@ -297,6 +318,7 @@ def build_measurements(
     posts = list(posts or [])
     comments = list(comments or [])
     agents = list(agents or [])
+    follows = list(follows or [])
     member_districts = member_districts or {}
     district_by_agent = _district_by_agent_index(agents, member_districts)
 
@@ -336,6 +358,7 @@ def build_measurements(
                 prev_comments=prev_c,
                 agents=agents,
                 district_by_agent=district_by_agent,
+                follows=follows,
             )
             points.append(
                 {

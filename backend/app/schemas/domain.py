@@ -336,6 +336,12 @@ class BranchState(BaseModel):
     b: list[Tick] = Field(default_factory=list)
 
 
+class OasisRunOptions(BaseModel):
+    """Per-run OASIS simulation knobs (Twitter spike)."""
+
+    allow_population_create_post: bool = False
+
+
 class RunSummary(BaseModel):
     id: int
     name: str
@@ -352,6 +358,7 @@ class RunDetail(RunSummary):
     start_date: str | None = None
     main_ticks: list[Tick] = Field(default_factory=list)
     branch: BranchState | None = None
+    oasis_options: OasisRunOptions = Field(default_factory=OasisRunOptions)
     results: dict[str, Any] | None = None
     job_id: str | None = None
 
@@ -364,6 +371,7 @@ class RunCreate(BaseModel):
     status: RunStatus = "draft"
     main_ticks: list[Tick] = Field(default_factory=list)
     branch: BranchState | None = None
+    oasis_options: OasisRunOptions = Field(default_factory=OasisRunOptions)
 
 
 class RunUpdate(BaseModel):
@@ -374,6 +382,7 @@ class RunUpdate(BaseModel):
     status: RunStatus | None = None
     main_ticks: list[Tick] | None = None
     branch: BranchState | None = None
+    oasis_options: OasisRunOptions | None = None
 
 
 class RunPopulationOption(BaseModel):

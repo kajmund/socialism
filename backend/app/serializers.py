@@ -9,6 +9,7 @@ from app.schemas.domain import (
     BranchState,
     EditablePersona,
     LibraryPersona,
+    OasisRunOptions,
     PersonaDetail,
     PopulationDetail,
     PopulationMemberOut,
@@ -138,12 +139,14 @@ def serialize_run_detail(run: Run, population_name: str) -> RunDetail:
         branch = BranchState.model_validate(run.branch)
     ticks = [Tick.model_validate(t) for t in (run.main_ticks or [])]
     start = run.start_date.isoformat() if run.start_date else None
+    oasis_options = OasisRunOptions.model_validate(run.oasis_options or {})
     return RunDetail(
         **summary.model_dump(),
         population_id=run.population_id,
         start_date=start,
         main_ticks=ticks,
         branch=branch,
+        oasis_options=oasis_options,
         results=run.results,
     )
 

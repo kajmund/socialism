@@ -1,6 +1,7 @@
 import { api } from "@/lib/api"
 import type {
   BranchState,
+  OasisRunOptions,
   OasisRunResults,
   RunPopulationOption,
   RunStatus,
@@ -13,6 +14,7 @@ export type RunDetail = RunSummary & {
   start_date: string | null
   main_ticks: Tick[]
   branch: BranchState | null
+  oasis_options: OasisRunOptions
   results: OasisRunResults | null
   job_id?: string | null
 }
@@ -25,6 +27,7 @@ export type RunWrite = {
   status?: RunStatus
   main_ticks?: Tick[]
   branch?: BranchState | null
+  oasis_options?: OasisRunOptions
 }
 
 export type RunUpdate = {
@@ -35,6 +38,7 @@ export type RunUpdate = {
   status?: RunStatus
   main_ticks?: Tick[]
   branch?: BranchState | null
+  oasis_options?: OasisRunOptions
 }
 
 export function listRuns(params?: {

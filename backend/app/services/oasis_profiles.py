@@ -69,12 +69,15 @@ def injection_has_content(injection: Injection) -> bool:
 
 
 # Shared behavioural rules for population agents (Twitter user_char).
-_POPULATION_ACTION_RULES = """\
+_POPULATION_ACTION_RULES_BASE = """\
 ÅTGÄRDER (viktigt):
 - Gilla (like_post / like_comment) BARA när du faktiskt stöder eller håller med.
 - Ogilla (dislike_post / dislike_comment) när du tar avstånd eller tycker illa om innehållet.
 - Om du kommenterar kritiskt, sarkastiskt eller ifrågasättande: gilla INTE samma inlägg.
 - Du får gärna kommentera utan att gilla/ogilla — kommentar och reaktion ska peka åt samma håll.
+- Följ (follow) personer vars röst du vill höra mer av; avfölj (unfollow) om de inte längre passar.
+- Mutea konton som bara stör dig; sök efter användare eller inlägg om du vill hitta något specifikt.
+- Rapportera (report_post) bara tydligt olämpligt innehåll.
 - Gör inget (do_nothing) om inget i flödet engagerar dig. Scrolla förbi är normalt.
 - Gilla inte bara för att visa att du sett något.
 
@@ -85,6 +88,29 @@ HUR DU SKRIVER KOMMENTARER:
 - Välj EN struktur per kommentar: invändning, ny vinkel, konkret exempel, kort anekdot, eller retorisk fråga.
 - Upprepa inte samma inledning/avslutning mellan inlägg. Variera språket; håll åsikten konsekvent.
 """
+
+_NO_CREATE_POST_RULE = """\
+- Skapa INTE egna inlägg (create_post). Reagera bara på det du ser: gilla, ogilla, kommentera, dela, följ eller gör inget.
+"""
+
+_ALLOW_CREATE_POST_RULE = """\
+- Du FÅR skapa egna inlägg (create_post) när du har något eget att säga — kort, i din röst, utan att kopiera andras budskap ordagrant.
+"""
+
+
+def population_action_rules(*, allow_create_post: bool = False) -> str:
+    post_rule = _ALLOW_CREATE_POST_RULE if allow_create_post else _NO_CREATE_POST_RULE
+    # Insert post rule after the first header block line of ÅTGÄRDER.
+    base = _POPULATION_ACTION_RULES_BASE.strip()
+    marker = "ÅTGÄRDER (viktigt):\n"
+    if marker in base:
+        head, rest = base.split(marker, 1)
+        return f"{head}{marker}{post_rule.strip()}\n{rest}"
+    return f"{base}\n{post_rule.strip()}"
+
+
+# Back-compat alias for tests / callers that expect the default (no create_post).
+_POPULATION_ACTION_RULES = population_action_rules(allow_create_post=False)
 
 
 def build_injector_profile(injection: Injection, index: int) -> OasisAgentProfile:
@@ -128,7 +154,12 @@ def injectors_from_ticks(ticks: list[Tick]) -> list[OasisAgentProfile]:
     return ordered
 
 
-def build_user_char(member: PopulationMember, *, area_block: str = "") -> str:
+def build_user_char(
+    member: PopulationMember,
+    *,
+    area_block: str = "",
+    allow_create_post: bool = False,
+) -> str:
     profile = profile_from_dict(
         member.persona.profile if member.persona else None,
         member.name,
@@ -157,7 +188,7 @@ def build_user_char(member: PopulationMember, *, area_block: str = "") -> str:
         "assistent eller balanserad analytiker. "
         "Reagera autentiskt på politiska budskap utifrån din bakgrund."
     )
-    lines.append(_POPULATION_ACTION_RULES.strip())
+    lines.append(population_action_rules(allow_create_post=allow_create_post))
     return "\n".join(lines)
 
 
@@ -166,6 +197,7 @@ def members_to_profiles(
     *,
     start_index: int = 0,
     area_blocks: dict[str, str] | None = None,
+    allow_create_post: bool = False,
 ) -> list[OasisAgentProfile]:
     """Map every population member to an OASIS profile (no capping)."""
     blocks = area_blocks or {}
@@ -189,7 +221,11 @@ def members_to_profiles(
             OasisAgentProfile(
                 username=_slug_username(member.name, index),
                 description=description,
-                user_char=build_user_char(member, area_block=area_block),
+                user_char=build_user_char(
+                    member,
+                    area_block=area_block,
+                    allow_create_post=allow_create_post,
+                ),
                 persona_id=member.persona_id,
                 member_name=member.name,
                 role="population",
@@ -203,6 +239,7 @@ def build_run_profiles(
     ticks: list[Tick],
     *,
     area_blocks: dict[str, str] | None = None,
+    allow_create_post: bool = False,
 ) -> tuple[list[OasisAgentProfile], dict[str, int]]:
     """Injectors first (no LLM), then the full population — no agent cap."""
     injectors = injectors_from_ticks(ticks)
@@ -210,6 +247,7 @@ def build_run_profiles(
         members,
         start_index=len(injectors),
         area_blocks=area_blocks,
+        allow_create_post=allow_create_post,
     )
     profiles = injectors + population
     key_to_index = {
