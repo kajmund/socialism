@@ -99,7 +99,10 @@ export function getPopulation(id: number): Promise<PopulationDetail> {
 export function generatePopulation(
   body: PopulationGenerateRequest,
 ): Promise<PopulationGenerateResponse> {
-  return api.post<PopulationGenerateResponse>("/populations/generate", body)
+  // DeepSeek builds each persona sequentially/in parallel; a full batch can take minutes.
+  return api.post<PopulationGenerateResponse>("/populations/generate", body, {
+    timeoutMs: 600_000,
+  })
 }
 
 export function createPopulation(body: PopulationWrite): Promise<PopulationDetail> {

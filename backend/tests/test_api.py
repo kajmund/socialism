@@ -611,3 +611,27 @@ async def test_run_start_snapshots_message_body(client):
     bad = await client.post(f"/runs/{missing['id']}/start")
     assert bad.status_code == 400
     assert "not found" in bad.json()["detail"]
+
+
+async def test_catalog_lists(client):
+    listed = await client.get("/catalog")
+    assert listed.status_code == 200
+    rows = listed.json()
+    assert len(rows) >= 12
+    keys = {row["key"] for row in rows}
+    assert "parti" in keys
+    assert "ort" in keys
+    assert "lutning" in keys
+
+    parti = next(row for row in rows if row["key"] == "parti")
+    assert "Socialdemokraterna" in parti["items"]
+
+    updated = await client.put(
+        "/catalog/parti",
+        json={"items": ["Socialdemokraterna", "Moderaterna", "  ", "Socialdemokraterna"]},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["items"] == ["Socialdemokraterna", "Moderaterna"]
+
+    missing = await client.put("/catalog/does-not-exist", json={"items": ["x"]})
+    assert missing.status_code == 404
