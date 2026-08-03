@@ -1,12 +1,31 @@
+from contextlib import asynccontextmanager
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.exc import OperationalError, ProgrammingError
 
-from app.api import catalog, health, messages, personas, populations, runs
+from app.api import catalog, health, jobs, messages, personas, populations, runs
 from app.config import settings
+from app.services import jobs as jobs_service
+
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    factory = jobs_service.job_session_factory()
+    try:
+        async with factory() as session:
+            await jobs_service.fail_interrupted_jobs(session)
+    except (OperationalError, ProgrammingError) as exc:
+        # Fresh checkout / migration not applied yet — don't block boot.
+        logger.warning("Skipping interrupted-job sweep on startup: %s", exc)
+    yield
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="Opinionssimulator", version="0.1.0")
+    app = FastAPI(title="Opinionssimulator", version="0.1.0", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.allowed_origins,
@@ -20,6 +39,7 @@ def create_app() -> FastAPI:
     app.include_router(runs.router)
     app.include_router(messages.router)
     app.include_router(catalog.router)
+    app.include_router(jobs.router)
     return app
 
 

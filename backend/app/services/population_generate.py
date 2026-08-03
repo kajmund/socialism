@@ -82,19 +82,55 @@ def fingerprint_from_dist(dist: dict[str, DistGroup]) -> list[list[int]]:
 
     lean_group = dist.get("leaning")
     lean_rows = lean_group.rows if lean_group else []
-    lean_map = {r.k: r.v for r in lean_rows}
-    lean = [
-        lean_map.get("vanster", 0) + lean_map.get("mvanster", 0),
-        lean_map.get("mitt", 0),
-        lean_map.get("mhoger", 0) + lean_map.get("hoger", 0),
-    ]
+    left = sum(r.v for r in lean_rows if _lean_bucket(r) == "left")
+    mid = sum(r.v for r in lean_rows if _lean_bucket(r) == "mid")
+    right = sum(r.v for r in lean_rows if _lean_bucket(r) == "right")
+    lean = [left, mid, right]
 
     district_group = dist.get("district")
-    d_map = {r.k: r.v for r in district_group.rows} if district_group else {}
-    centrum = d_map.get("centrum", 0)
-    ovriga = d_map.get("ovriga", 0)
+    d_rows = district_group.rows if district_group else []
+    centrum = sum(r.v for r in d_rows if _is_centrum_row(r))
+    ovriga = sum(r.v for r in d_rows if _is_ovriga_row(r))
     middle = max(0, 100 - centrum - ovriga)
     return [age, lean, [centrum, middle, ovriga]]
+
+
+def _norm_token(value: str) -> str:
+    return (
+        value.lower()
+        .replace("å", "a")
+        .replace("ä", "a")
+        .replace("ö", "o")
+        .replace(" ", "_")
+        .replace("-", "_")
+    )
+
+
+def _lean_bucket(row) -> str:
+    """Map a leaning row to left/mid/right for the 3-bucket fingerprint."""
+    key = _norm_token(row.k)
+    label = _norm_token(row.l)
+    # Legacy recipe keys
+    if key in {"vanster", "mvanster"} or "vanster" in label:
+        return "left"
+    if key in {"mhoger", "hoger"} or "hoger" in label:
+        return "right"
+    if key == "mitt" or label == "mitt":
+        return "mid"
+    # "mitt-vanster" / "mitt_vanster" already caught by vanster; mitt-höger by hoger
+    return "mid"
+
+
+def _is_centrum_row(row) -> bool:
+    key = _norm_token(row.k)
+    label = _norm_token(row.l)
+    return key == "centrum" or label == "centrum"
+
+
+def _is_ovriga_row(row) -> bool:
+    key = _norm_token(row.k)
+    label = _norm_token(row.l)
+    return key in {"ovriga", "ovrig"} or label in {"ovriga", "ovrig"}
 
 
 def _weighted_pick(rng: Random, rows: list) -> str:
@@ -105,6 +141,36 @@ def _weighted_pick(rng: Random, rows: list) -> str:
             return row.k
         x -= row.v
     return rows[0].k
+
+
+def _row_by_key(rows: list, key: str):
+    for row in rows:
+        if row.k == key:
+            return row
+    return rows[0] if rows else None
+
+
+def _resolve_label(rows: list, key: str, fallback_map: dict[str, str]) -> str:
+    """Prefer the recipe row label so catalog edits flow through generation."""
+    row = _row_by_key(rows, key) if rows else None
+    if row is not None and getattr(row, "l", None):
+        return row.l
+    return fallback_map.get(key, key)
+
+
+def _trait_for_lean(lean_key: str, lean_label: str) -> str:
+    if lean_key in TRAIT_BY_LEAN:
+        return TRAIT_BY_LEAN[lean_key]
+    token = _norm_token(lean_label)
+    if "vanster" in token and "mitt" not in token:
+        return TRAIT_BY_LEAN["vanster"]
+    if "vanster" in token:
+        return TRAIT_BY_LEAN["mvanster"]
+    if "hoger" in token and "mitt" not in token:
+        return TRAIT_BY_LEAN["hoger"]
+    if "hoger" in token:
+        return TRAIT_BY_LEAN["mhoger"]
+    return TRAIT_BY_LEAN.get("mitt", "")
 
 
 def _candidate_key() -> str:
@@ -128,16 +194,17 @@ def sample_slot(recipe: PopulationRecipe, rng: Random) -> SlotPlan:
     occ_key = _weighted_pick(rng, occ_rows) if occ_rows else "ovrigt"
     lean_rows = dist["leaning"].rows if "leaning" in dist else []
     lean = _weighted_pick(rng, lean_rows) if lean_rows else "mitt"
+    lean_label = _resolve_label(lean_rows, lean, LEAN_LABEL)
 
     return SlotPlan(
         age=age,
         age_bucket=age_bucket,
         district_key=district_key,
-        district=DISTRICT_LABEL.get(district_key, district_key),
+        district=_resolve_label(district_rows, district_key, DISTRICT_LABEL),
         occ_key=occ_key,
-        occ=JOB_BY_CAT.get(occ_key, occ_key),
+        occ=_resolve_label(occ_rows, occ_key, JOB_BY_CAT),
         lean=lean,
-        lean_label=LEAN_LABEL.get(lean, lean),
+        lean_label=lean_label,
     )
 
 
@@ -147,7 +214,7 @@ def stub_persona(recipe: PopulationRecipe, rng: Random) -> GeneratedPersonaOut:
     first = rng.choice(NAMES_F if is_f else NAMES_M)
     last = rng.choice(LASTN)
     name = f"{first} {last}"
-    trait = TRAIT_BY_LEAN.get(slot.lean, "")
+    trait = _trait_for_lean(slot.lean, slot.lean_label)
     initials = persona_initials(name)
     profile = EditablePersona(
         name=name,

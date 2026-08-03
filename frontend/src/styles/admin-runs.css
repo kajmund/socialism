@@ -424,7 +424,7 @@ textarea.free{width:100%;min-height:90px;font:inherit;font-size:14px;padding:12p
 .dist-bar span{height:100%}
 .dist-row{display:grid;grid-template-columns:14px 1fr 34px;gap:10px;align-items:center;margin-bottom:8px}
 .dist-row .dot{width:10px;height:10px;border-radius:2px}
-.dist-row input[type=range]{width:100%;accent-color:var(--db-ink-950)}
+.dist-row input[type=range]{width:100%;accent-color:var(--db-ink-950);height:1.25rem}
 .dist-row .lbl{font:var(--text-body-sm);color:var(--text-body)}
 .dist-row .pct{font:var(--text-mono);font-size:0.75rem;text-align:right;color:var(--text-muted)}
 
@@ -442,6 +442,13 @@ textarea.free{width:100%;min-height:90px;font:inherit;font-size:14px;padding:12p
 .compose-actions{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;gap:16px;flex-wrap:wrap}
 .compose-actions-left{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .bs-item .warn{color:var(--db-error)}
+
+.job-status{font:var(--text-label);letter-spacing:.02em;text-transform:uppercase;padding:5px 10px;border-radius:var(--radius-pill);border:1px solid var(--border-hairline)}
+.job-status.pending{background:var(--db-ink-100);color:var(--text-muted)}
+.job-status.running{background:var(--db-gold-100);color:var(--db-navy-ink)}
+.job-status.succeeded{background:color-mix(in srgb, var(--db-success) 18%, white);color:var(--db-success)}
+.job-status.failed{background:color-mix(in srgb, var(--db-error) 14%, white);color:var(--db-error)}
+.toast a{color:var(--db-gold-500)}
 .pcard-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
 .pcard{height:250px;min-width:0}
 .pcard>div{height:100%}

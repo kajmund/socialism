@@ -761,3 +761,73 @@ def test_format_area_block_includes_relative_hint():
     assert "mittpunkt" in text.lower()
     assert "Centrum" in text
 
+
+async def test_population_generate_job_creates_population(client):
+    from app.services import jobs as jobs_service
+
+    # Run worker inline so the test does not race asyncio.create_task.
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+
+    created = await client.post(
+        "/jobs",
+        json={
+            "kind": "population_generate",
+            "label": "Jobb-pop A",
+            "request": {
+                "name": "Jobb-pop A",
+                "recipe": _sample_recipe(size=4, seed=11),
+            },
+        },
+    )
+    assert created.status_code == 202
+    job_id = created.json()["id"]
+    assert created.json()["status"] == "pending"
+
+    await jobs_service._run_job(job_id)
+
+    got = await client.get(f"/jobs/{job_id}")
+    assert got.status_code == 200
+    payload = got.json()
+    assert payload["status"] == "succeeded"
+    assert payload["result"]["member_count"] == 4
+    pop_id = payload["result"]["population_id"]
+    assert isinstance(pop_id, int)
+
+    pop = await client.get(f"/populations/{pop_id}")
+    assert pop.status_code == 200
+    assert pop.json()["name"] == "Jobb-pop A"
+    assert len(pop.json()["members"]) == 4
+
+    listed = await client.get("/jobs")
+    assert listed.status_code == 200
+    assert any(j["id"] == job_id for j in listed.json())
+
+
+async def test_population_generate_job_fails_missing_population(client):
+    from app.services import jobs as jobs_service
+
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+
+    created = await client.post(
+        "/jobs",
+        json={
+            "kind": "population_generate",
+            "label": "Saknad pop",
+            "request": {
+                "name": "Saknad pop",
+                "recipe": _sample_recipe(size=3, seed=3),
+                "population_id": 99999,
+            },
+        },
+    )
+    assert created.status_code == 202
+    job_id = created.json()["id"]
+    await jobs_service._run_job(job_id)
+
+    got = await client.get(f"/jobs/{job_id}")
+    assert got.status_code == 200
+    payload = got.json()
+    assert payload["status"] == "failed"
+    assert payload["error"]
+    assert "not found" in payload["error"].lower() or "Population" in payload["error"]
+
