@@ -56,7 +56,31 @@ def test_build_user_char_includes_profile_and_swedish_instruction():
     assert "Anna Andersson" in text
     assert "center" in text
     assert "Skolan först" in text
-    assert "svenska" in text.lower()
+    assert "svensk" in text.lower()
+    assert "like_post" in text
+    assert "dislike_post" in text
+    assert "gilla INTE" in text
+    assert "Temperament" in text
+    assert "invändning" in text
+
+
+def test_injector_user_char_forbids_likes_and_dislikes():
+    ticks = [
+        Tick(
+            key="t1",
+            day=1,
+            injections=[
+                Injection(
+                    key="i1",
+                    type="party_post",
+                    sender="@Socialdemokraterna",
+                    text="Budskap A",
+                ),
+            ],
+        ),
+    ]
+    injectors = injectors_from_ticks(ticks)
+    assert "ogillar inte" in injectors[0].user_char
 
 
 def test_members_to_profiles_caps_and_csv(tmp_path):

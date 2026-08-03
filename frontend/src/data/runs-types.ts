@@ -61,6 +61,7 @@ export type OasisVariantResult = {
     num_shares?: number
     created_at?: string
     liked_by?: number[]
+    disliked_by?: number[]
     shared_by?: Array<{
       user_id: number
       kind: "repost" | "quote"
@@ -73,7 +74,9 @@ export type OasisVariantResult = {
     user_id: number
     content: string
     num_likes?: number
+    num_dislikes?: number
     liked_by?: number[]
+    disliked_by?: number[]
   }>
   measurements?: OasisMeasurementRow[]
   artifact_db?: string

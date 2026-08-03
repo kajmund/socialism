@@ -68,6 +68,25 @@ def injection_has_content(injection: Injection) -> bool:
     return bool(injection.text.strip())
 
 
+# Shared behavioural rules for population agents (Twitter user_char).
+_POPULATION_ACTION_RULES = """\
+ÅTGÄRDER (viktigt):
+- Gilla (like_post / like_comment) BARA när du faktiskt stöder eller håller med.
+- Ogilla (dislike_post / dislike_comment) när du tar avstånd eller tycker illa om innehållet.
+- Om du kommenterar kritiskt, sarkastiskt eller ifrågasättande: gilla INTE samma inlägg.
+- Du får gärna kommentera utan att gilla/ogilla — kommentar och reaktion ska peka åt samma håll.
+- Gör inget (do_nothing) om inget i flödet engagerar dig. Scrolla förbi är normalt.
+- Gilla inte bara för att visa att du sett något.
+
+HUR DU SKRIVER KOMMENTARER:
+- Vardagssvenska i din egen röst. Oftast 1–4 meningar. Inga punktlistor, rubriker eller "sammanfattningsvis".
+- Börja ALDRIG med: "Intressant att…", "Viktiga frågor", "Tack för", "Som [yrke] ser jag",
+  "Jag håller med om att…", ensam "Precis." / "Exakt!" som öppning, eller "Kommentar 3…".
+- Välj EN struktur per kommentar: invändning, ny vinkel, konkret exempel, kort anekdot, eller retorisk fråga.
+- Upprepa inte samma inledning/avslutning mellan inlägg. Variera språket; håll åsikten konsekvent.
+"""
+
+
 def build_injector_profile(injection: Injection, index: int) -> OasisAgentProfile:
     raw_sender = injection.sender.strip().lstrip("@")
     display = raw_sender or _TYPE_DEFAULT_NAME[injection.type]
@@ -78,7 +97,7 @@ def build_injector_profile(injection: Injection, index: int) -> OasisAgentProfil
         f"Du är det officiella kontot {display} på en svensk social medietjänst. "
         f"Kontotyp: {type_label}. "
         "Du publicerar endast förberedda budskap och är inte en privatperson eller väljare. "
-        "Du deltar inte i diskussioner, gillar inte andras inlägg och svarar inte."
+        "Du deltar inte i diskussioner, gillar inte, ogillar inte andras inlägg och svarar inte."
     )
     return OasisAgentProfile(
         username=_slug_username(display, index),
@@ -115,6 +134,8 @@ def build_user_char(member: PopulationMember, *, area_block: str = "") -> str:
         member.name,
     )
     quote = (member.persona.quote if member.persona else "") or ""
+    trait = member.trait.strip()
+    ton = profile.ton.strip() if profile.ton.strip() not in ("", "—") else ""
     lines = [
         f"Du är {profile.name}, {profile.age} år, bor i {profile.ort} ({member.district}).",
         f"Yrke: {profile.yrke}. Livssituation: {profile.livssituation}.",
@@ -125,15 +146,18 @@ def build_user_char(member: PopulationMember, *, area_block: str = "") -> str:
     ]
     if area_block.strip():
         lines.append(area_block.strip())
-    if member.trait.strip():
-        lines.append(f"Karaktärsdrag: {member.trait.strip()}")
+    if trait:
+        lines.append(f"Temperament / karaktärsdrag: {trait}")
+    if ton and ton.casefold() not in trait.casefold():
+        lines.append(f"Skrivsärdrag: håll dig till tonen «{ton}» — det är din röst, inte en fras att klistra in.")
     if quote.strip():
-        lines.append(f"Citat: {quote.strip()}")
+        lines.append(f"Citat / ledstjärna: {quote.strip()}")
     lines.append(
-        "Du är användare på en svensk social medietjänst. "
-        "Skriv korta inlägg på svenska, i din egen röst. "
+        "Du är en vanlig svensk person på en social medietjänst — inte debattör, "
+        "assistent eller balanserad analytiker. "
         "Reagera autentiskt på politiska budskap utifrån din bakgrund."
     )
+    lines.append(_POPULATION_ACTION_RULES.strip())
     return "\n".join(lines)
 
 
