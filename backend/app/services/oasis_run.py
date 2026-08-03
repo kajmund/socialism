@@ -20,6 +20,7 @@ from app.database.models import Population, PopulationMember, Run
 from app.database.session import SessionLocal
 from app.schemas.domain import Injection, Tick
 from app.serializers import utcnow
+from app.services.district_context import format_area_block, list_district_contexts
 from app.services.oasis_profiles import (
     build_run_profiles,
     injection_has_content,
@@ -93,6 +94,7 @@ async def run_oasis_simulation(
     members: list[PopulationMember],
     main_ticks: list[Tick],
     seed: str,
+    area_blocks: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     if not oasis_installed():
         raise OasisUnavailable(
@@ -114,6 +116,7 @@ async def run_oasis_simulation(
         members,
         ticks,
         max_agents=settings.oasis_max_agents,
+        area_blocks=area_blocks,
     )
     population_indices = {i for i, p in enumerate(profiles) if p.role == "population"}
     if not population_indices:
@@ -229,11 +232,17 @@ async def simulate_run(session: AsyncSession, run: Run) -> dict[str, Any]:
     )
     population = result.scalar_one()
     ticks = [Tick.model_validate(t) for t in (run.main_ticks or [])]
+    districts = await list_district_contexts(session)
+    centrum = next((d for d in districts if d.label.casefold() == "centrum"), None)
+    area_blocks = {
+        d.label: format_area_block(d, centrum=centrum) for d in districts
+    }
     return await run_oasis_simulation(
         run_id=run.id,
         members=list(population.members),
         main_ticks=ticks,
         seed=run.seed,
+        area_blocks=area_blocks,
     )
 
 

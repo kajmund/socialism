@@ -4,10 +4,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.llm import generate_editable_persona
 from app.locality import load_norrkoping_brief
 from app.schemas.domain import EditablePersona, GeneratedPersonaOut
 from app.serializers import persona_initials
+from app.services.district_context import area_block_for_name
 from app.services.persona_catalog import LEAN_LABEL
 
 
@@ -54,8 +57,22 @@ def profile_to_generated(profile: EditablePersona, slot: SlotPlan | None = None)
     )
 
 
-async def llm_persona_from_slot(slot: SlotPlan, free_text: str = "") -> GeneratedPersonaOut:
+def _local_context(area_block: str = "") -> str:
     brief = load_norrkoping_brief()
+    if area_block.strip():
+        return f"{brief}\n\n{area_block.strip()}"
+    return brief
+
+
+async def llm_persona_from_slot(
+    slot: SlotPlan,
+    free_text: str = "",
+    *,
+    session: AsyncSession | None = None,
+) -> GeneratedPersonaOut:
+    area_block = ""
+    if session is not None:
+        area_block = await area_block_for_name(session, slot.district)
     user = f"""Skapa en trovärdig Norrköpingspersona.
 
 Demografiska krav (följ dessa):
@@ -76,7 +93,7 @@ Extra önskemål från användaren:
                 "content": (
                     "Du skapar politiska testpersonas för Opinionssimulator. "
                     "Svara endast med det strukturerade objektet.\n\n"
-                    f"Lokal kontext:\n{brief}"
+                    f"Lokal kontext:\n{_local_context(area_block)}"
                 ),
             },
             {"role": "user", "content": user},
@@ -96,8 +113,12 @@ async def llm_personas_from_description(
     free_text: str,
     count: int = 3,
     demografi: dict[str, str] | None = None,
+    *,
+    session: AsyncSession | None = None,
 ) -> list[EditablePersona]:
-    brief = load_norrkoping_brief()
+    area_block = ""
+    if session is not None and demografi and demografi.get("ort"):
+        area_block = await area_block_for_name(session, demografi["ort"])
     demo_block = ""
     if demografi:
         demo_block = "Fasta demografiska fält:\n" + "\n".join(
@@ -123,7 +144,7 @@ Returnera EN persona (vi anropar dig {count} gånger). Variera namn och detaljer
                     "content": (
                         "Du skapar politiska testpersonas för Opinionssimulator. "
                         f"Detta är kandidat {i + 1} av {count}.\n\n"
-                        f"Lokal kontext:\n{brief}"
+                        f"Lokal kontext:\n{_local_context(area_block)}"
                     ),
                 },
                 {"role": "user", "content": user},

@@ -38,6 +38,7 @@ from app.serializers import (
     slug_id,
     utcnow,
 )
+from app.services.district_context import area_block_for_name
 from app.services.population_generate import stub_persona
 
 router = APIRouter(prefix="/personas", tags=["personas"])
@@ -156,7 +157,10 @@ async def list_personas(
 
 
 @router.post("/generate", response_model=PersonaGenerateResponse)
-async def generate_personas(body: PersonaGenerateRequest) -> PersonaGenerateResponse:
+async def generate_personas(
+    body: PersonaGenerateRequest,
+    session: AsyncSession = Depends(get_session),
+) -> PersonaGenerateResponse:
     if settings.persona_generator == "stub" or not settings.deepseek_api_key:
         return PersonaGenerateResponse(candidates=_stub_candidates(body))
     if not settings.uses_llm_generator():
@@ -169,6 +173,7 @@ async def generate_personas(body: PersonaGenerateRequest) -> PersonaGenerateResp
         free_text=body.freeText,
         count=body.count,
         demografi=demografi,
+        session=session,
     )
     return PersonaGenerateResponse(candidates=candidates)
 
@@ -300,7 +305,14 @@ async def chat_with_persona(
     has_llm = bool(settings.deepseek_api_key)
     has_injected = llm_state.get("_text_completer") is not None
     if has_llm or has_injected:
-        reply = await reply_as_persona(profile, body.mode, history, body.message)
+        area_block = await area_block_for_name(session, profile.ort or persona.district)
+        reply = await reply_as_persona(
+            profile,
+            body.mode,
+            history,
+            body.message,
+            area_block=area_block,
+        )
     elif settings.persona_generator == "stub":
         reply = (
             f"Som {profile.name} i {profile.ort}: det handlar om konkreta besked, "
