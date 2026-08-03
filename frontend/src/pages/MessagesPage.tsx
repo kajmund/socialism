@@ -151,22 +151,27 @@ export function MessagesPage() {
         </div>
 
         <div className="controls-row">
-          <input
-            className="dsearch"
-            placeholder="Sök titel eller innehåll…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <select
-            className="dsel"
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value as "" | MessageType)}
+          <div className="controls-left">
+            <input
+              className="dsearch"
+              placeholder="Sök titel eller innehåll…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            <select
+              className="dsel"
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value as "" | MessageType)}
+            >
+              <option value="">Alla typer</option>
+              <option value="post">Post</option>
+              <option value="news">Nyhet</option>
+            </select>
+          </div>
+          <Link
+            to="/messages/new"
+            className="admin-cta inline-flex h-9 shrink-0 items-center rounded-md bg-db-black px-4 text-sm text-db-ink-0 no-underline hover:bg-db-ink-800"
           >
-            <option value="">Alla typer</option>
-            <option value="post">Post</option>
-            <option value="news">Nyhet</option>
-          </select>
-          <Link className="admin-cta" to="/messages/new">
             + Ny i verkstaden
           </Link>
         </div>
@@ -176,7 +181,10 @@ export function MessagesPage() {
         {!loading && !error && filtered.length === 0 && (
           <div className="empty-state">
             <p>Inga budskap ännu.</p>
-            <Link className="admin-cta" to="/messages/new">
+            <Link
+              to="/messages/new"
+              className="admin-cta inline-flex h-9 items-center rounded-md bg-db-black px-4 text-sm text-db-ink-0 no-underline hover:bg-db-ink-800"
+            >
               Öppna budskapsverkstaden
             </Link>
           </div>

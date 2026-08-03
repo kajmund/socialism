@@ -35,36 +35,132 @@ VARIANT_SPECS: list[tuple[MessageVariant, str, str]] = [
     ),
 ]
 
+_SKIP_TAGS = frozenset(
+    {
+        "script",
+        "style",
+        "noscript",
+        "svg",
+        "iframe",
+        "template",
+        "nav",
+        "header",
+        "footer",
+        "aside",
+        "form",
+        "button",
+        "select",
+        "option",
+        "label",
+    }
+)
+_CONTENT_TAGS = frozenset({"article", "main"})
+_BROWSER_UA = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/131.0.0.0 Safari/537.36"
+)
+
 
 class _TextExtractor(HTMLParser):
+    """Prefer article/main body; fall back to page text. Capture title + meta."""
+
     def __init__(self) -> None:
         super().__init__()
-        self._chunks: list[str] = []
         self._skip = 0
+        self._in_title = 0
+        self._content_depth = 0
+        self._title_chunks: list[str] = []
+        self._meta: dict[str, str] = {}
+        self._content_chunks: list[str] = []
+        self._body_chunks: list[str] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        if tag in {"script", "style", "noscript"}:
+        attr = {k.lower(): (v or "") for k, v in attrs}
+        if tag == "meta":
+            self._capture_meta(attr)
+            return
+        if tag == "title":
+            self._in_title += 1
+            return
+        if tag in _SKIP_TAGS:
             self._skip += 1
+            return
+        if tag in _CONTENT_TAGS:
+            self._content_depth += 1
 
     def handle_endtag(self, tag: str) -> None:
-        if tag in {"script", "style", "noscript"} and self._skip > 0:
+        if tag == "title" and self._in_title > 0:
+            self._in_title -= 1
+            return
+        if tag in _SKIP_TAGS and self._skip > 0:
             self._skip -= 1
+            return
+        if tag in _CONTENT_TAGS and self._content_depth > 0:
+            self._content_depth -= 1
 
     def handle_data(self, data: str) -> None:
-        if self._skip == 0:
-            text = data.strip()
-            if text:
-                self._chunks.append(text)
+        text = data.strip()
+        if not text:
+            return
+        if self._in_title > 0:
+            self._title_chunks.append(text)
+            return
+        if self._skip > 0:
+            return
+        if self._content_depth > 0:
+            self._content_chunks.append(text)
+        else:
+            self._body_chunks.append(text)
 
-    def text(self) -> str:
-        return " ".join(self._chunks)
+    def _capture_meta(self, attr: dict[str, str]) -> None:
+        name = (attr.get("name") or attr.get("property") or "").lower()
+        content = attr.get("content", "").strip()
+        if not name or not content:
+            return
+        if name in {
+            "description",
+            "og:description",
+            "twitter:description",
+            "og:title",
+            "twitter:title",
+        }:
+            self._meta[name] = content
+
+    def assembled(self) -> str:
+        title = (
+            self._meta.get("og:title")
+            or self._meta.get("twitter:title")
+            or " ".join(self._title_chunks).strip()
+        )
+        description = (
+            self._meta.get("og:description")
+            or self._meta.get("twitter:description")
+            or self._meta.get("description")
+            or ""
+        )
+        body_src = self._content_chunks if len(" ".join(self._content_chunks)) >= 80 else self._body_chunks
+        body = re.sub(r"\s+", " ", " ".join(body_src)).strip()
+
+        parts: list[str] = []
+        if title:
+            parts.append(f"Titel: {title}")
+        if description:
+            parts.append(f"Beskrivning: {description}")
+        if body:
+            parts.append(body)
+        return "\n\n".join(parts).strip()[:8000]
 
 
 def extract_text_from_html(html: str) -> str:
     parser = _TextExtractor()
-    parser.feed(html)
-    text = re.sub(r"\s+", " ", parser.text()).strip()
-    return text[:8000]
+    # Ignore malformed markup noise — feed what we can.
+    try:
+        parser.feed(html)
+        parser.close()
+    except Exception:  # noqa: BLE001 — best-effort scrape
+        pass
+    return parser.assembled()
 
 
 def source_domain(url: str) -> str:
@@ -86,17 +182,40 @@ def normalize_url(url: str) -> str:
 
 async def fetch_url_text(url: str) -> str:
     normalized = normalize_url(url)
-    async with httpx.AsyncClient(follow_redirects=True, timeout=15.0) as client:
-        response = await client.get(
-            normalized,
-            headers={"User-Agent": "Opinionssimulator/0.1 (+budskapsverkstad)"},
+    headers = {
+        "User-Agent": _BROWSER_UA,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "sv-SE,sv;q=0.9,en;q=0.8",
+    }
+    try:
+        async with httpx.AsyncClient(follow_redirects=True, timeout=20.0) as client:
+            response = await client.get(normalized, headers=headers)
+    except httpx.TimeoutException as exc:
+        raise ValueError("Hämtningen tog för lång tid — försök igen eller klistra in texten manuellt") from exc
+    except httpx.RequestError as exc:
+        raise ValueError(f"Kunde inte nå länken: {exc}") from exc
+
+    if response.status_code >= 400:
+        raise ValueError(
+            f"Länken svarade med HTTP {response.status_code} "
+            f"({source_domain(normalized) or 'okänd källa'})"
         )
-        response.raise_for_status()
-        content_type = response.headers.get("content-type", "")
-        body = response.text
-        if "html" in content_type or body.lstrip().startswith("<"):
-            return extract_text_from_html(body)
-        return re.sub(r"\s+", " ", body).strip()[:8000]
+
+    content_type = response.headers.get("content-type", "")
+    body = response.text
+    if "html" in content_type or body.lstrip().startswith("<!"):
+        text = extract_text_from_html(body)
+    elif body.lstrip().startswith("<"):
+        text = extract_text_from_html(body)
+    else:
+        text = re.sub(r"\s+", " ", body).strip()[:8000]
+
+    if len(text) < 40:
+        raise ValueError(
+            "Kunde inte läsa ut tillräckligt med innehåll från länken "
+            "(sidan kan vara låst eller kräva JavaScript). Klistra in texten manuellt."
+        )
+    return text
 
 
 def _type_label(message_type: MessageType) -> str:
@@ -105,13 +224,13 @@ def _type_label(message_type: MessageType) -> str:
 
 async def summarize_url_content(url: str, message_type: MessageType = "news") -> str:
     page_text = await fetch_url_text(url)
-    if not page_text:
-        raise ValueError("Kunde inte hämta något läsbart innehåll från länken")
     messages = [
         {
             "role": "system",
             "content": (
                 "Du sammanfattar webbinnehåll på svenska för politisk budskapsutveckling. "
+                "Fokusera på artikelns faktiska innehåll (titel, ingress, brödtext). "
+                "Ignorera navigering, menyer, cookies och reklam. "
                 "Returnera endast sammanfattningen, ingen meta-kommentar."
             ),
         },
