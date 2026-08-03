@@ -400,26 +400,68 @@ def format_date(value: datetime | None) -> str:
 CatalogSection = Literal["demografi", "politik", "varderingar", "rost_media"]
 
 
+class GeoBounds(BaseModel):
+    """Axis-aligned WGS84 rectangle (south/west/north/east)."""
+
+    south: float
+    west: float
+    north: float
+    east: float
+
+    @model_validator(mode="after")
+    def validate_rect(self) -> "GeoBounds":
+        if self.south >= self.north:
+            raise ValueError("south must be less than north")
+        if self.west >= self.east:
+            raise ValueError("west must be less than east")
+        return self
+
+
+class CatalogItem(BaseModel):
+    label: str
+    description: str = ""
+    bounds: GeoBounds | None = None
+
+
 class CatalogListOut(BaseModel):
     key: str
     section: CatalogSection
     title: str
-    items: list[str]
+    items: list[CatalogItem]
     updated_at: str
 
 
 class CatalogListUpdate(BaseModel):
-    items: list[str]
+    items: list[CatalogItem]
+
+    @field_validator("items", mode="before")
+    @classmethod
+    def coerce_items(cls, value: Any) -> list[Any]:
+        if not isinstance(value, list):
+            return value
+        out: list[Any] = []
+        for raw in value:
+            if isinstance(raw, str):
+                out.append({"label": raw, "description": "", "bounds": None})
+            else:
+                out.append(raw)
+        return out
 
     @field_validator("items")
     @classmethod
-    def clean_items(cls, value: list[str]) -> list[str]:
-        cleaned: list[str] = []
+    def clean_items(cls, value: list[CatalogItem]) -> list[CatalogItem]:
+        cleaned: list[CatalogItem] = []
         seen: set[str] = set()
-        for raw in value:
-            label = raw.strip()
+        for item in value:
+            label = item.label.strip()
             if not label or label in seen:
                 continue
             seen.add(label)
-            cleaned.append(label)
+            cleaned.append(
+                CatalogItem(
+                    label=label,
+                    description=item.description.strip(),
+                    bounds=item.bounds,
+                )
+            )
         return cleaned
