@@ -28,6 +28,7 @@ from app.services.oasis_profiles import (
     injector_key,
     write_twitter_profile_csv,
 )
+from app.services.oasis_swedish import apply_swedish_social_environment_prompts
 from app.services.run_measurements import build_measurements
 
 ARTIFACT_ROOT = Path("data/oasis")
@@ -179,6 +180,17 @@ def _read_oasis_results(db_path: Path) -> dict[str, Any]:
         except sqlite3.OperationalError:
             likes_by_post = {}
 
+        dislikes_by_post: dict[int, list[int]] = {}
+        try:
+            for row in conn.execute(
+                "SELECT user_id, post_id FROM dislike ORDER BY dislike_id"
+            ):
+                dislikes_by_post.setdefault(int(row["post_id"]), []).append(
+                    int(row["user_id"])
+                )
+        except sqlite3.OperationalError:
+            dislikes_by_post = {}
+
         comment_likes_by_id: dict[int, list[int]] = {}
         try:
             for row in conn.execute(
@@ -189,6 +201,18 @@ def _read_oasis_results(db_path: Path) -> dict[str, Any]:
                 )
         except sqlite3.OperationalError:
             comment_likes_by_id = {}
+
+        comment_dislikes_by_id: dict[int, list[int]] = {}
+        try:
+            for row in conn.execute(
+                "SELECT user_id, comment_id FROM comment_dislike "
+                "ORDER BY comment_dislike_id"
+            ):
+                comment_dislikes_by_id.setdefault(
+                    int(row["comment_id"]), []
+                ).append(int(row["user_id"]))
+        except sqlite3.OperationalError:
+            comment_dislikes_by_id = {}
 
         # Shares = reposts + quotes (rows that point at an original post).
         shares_by_post: dict[int, list[dict[str, Any]]] = {}
@@ -208,11 +232,13 @@ def _read_oasis_results(db_path: Path) -> dict[str, Any]:
         for post in posts:
             pid = int(post["post_id"])
             post["liked_by"] = likes_by_post.get(pid, [])
+            post["disliked_by"] = dislikes_by_post.get(pid, [])
             post["shared_by"] = shares_by_post.get(pid, [])
 
         for comment in comments:
             cid = int(comment["comment_id"])
             comment["liked_by"] = comment_likes_by_id.get(cid, [])
+            comment["disliked_by"] = comment_dislikes_by_id.get(cid, [])
     finally:
         conn.close()
     return {"posts": posts, "comments": comments}
@@ -242,6 +268,7 @@ async def run_oasis_simulation(
     from camel.types import ModelPlatformType
     from oasis import ActionType, LLMAction, ManualAction, generate_twitter_agent_graph
 
+    apply_swedish_social_environment_prompts()
     active_ticks = [t for t in ticks if not t.silent][: settings.oasis_max_ticks]
     profiles, key_to_index = build_run_profiles(
         members,
@@ -269,7 +296,10 @@ async def run_oasis_simulation(
     # Population reacts — no CREATE_POST (avoids copy-paste of injections as "egna" inlägg).
     available_actions = [
         ActionType.LIKE_POST,
+        ActionType.DISLIKE_POST,
         ActionType.CREATE_COMMENT,
+        ActionType.LIKE_COMMENT,
+        ActionType.DISLIKE_COMMENT,
         ActionType.REPOST,
         ActionType.QUOTE_POST,
         ActionType.FOLLOW,

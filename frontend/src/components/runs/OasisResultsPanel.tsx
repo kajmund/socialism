@@ -100,6 +100,7 @@ function MeasurementDetail({ point }: { point: OasisMeasurementPoint }) {
           <span>{engagement.posts ?? 0} inlägg</span>
           <span>{engagement.comments ?? 0} kommentarer</span>
           <span>{engagement.likes ?? 0} likes</span>
+          <span>{engagement.dislikes ?? 0} dislikes</span>
           <span>{engagement.shares ?? 0} shares</span>
           <span>engagemang {engagement.engagement_score ?? 0}</span>
           {typeof metrics?.engagement_delta === "number" ? (
@@ -276,11 +277,13 @@ function ActorList({
 function LikeShareBar({
   agents,
   likedBy,
+  dislikedBy,
   sharedBy,
   compact = false,
 }: {
   agents: NonNullable<OasisVariantResult["agents"]>
   likedBy?: number[]
+  dislikedBy?: number[]
   sharedBy?: Array<{
     user_id: number
     kind: "repost" | "quote"
@@ -289,10 +292,11 @@ function LikeShareBar({
   compact?: boolean
 }) {
   const likes = likedBy ?? []
+  const dislikes = dislikedBy ?? []
   const shares = sharedBy ?? []
-  const [open, setOpen] = useState<"like" | "share" | null>(null)
+  const [open, setOpen] = useState<"like" | "dislike" | "share" | null>(null)
 
-  function toggle(kind: "like" | "share") {
+  function toggle(kind: "like" | "dislike" | "share") {
     setOpen((prev) => (prev === kind ? null : kind))
   }
 
@@ -350,6 +354,58 @@ function LikeShareBar({
                 agents={agents}
                 userIds={likes}
                 emptyLabel="Ingen har gillat ännu"
+              />
+            </div>
+          ) : null}
+        </div>
+
+        <div className="relative">
+          <button
+            type="button"
+            disabled={dislikes.length === 0}
+            aria-expanded={open === "dislike"}
+            aria-label={`Ogilla, ${dislikes.length}`}
+            className={
+              "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors " +
+              (open === "dislike"
+                ? "bg-[#fde8e8] text-[#e41e3f]"
+                : dislikes.length > 0
+                  ? "text-[#e41e3f] hover:bg-[#fde8e8]"
+                  : "cursor-default text-muted-foreground opacity-50")
+            }
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              if (dislikes.length > 0) toggle("dislike")
+            }}
+          >
+            <span
+              aria-hidden
+              className={
+                "inline-grid h-5 w-5 place-items-center rounded-full text-[11px] leading-none " +
+                (dislikes.length > 0
+                  ? "bg-[#e41e3f] text-white"
+                  : "bg-muted text-muted-foreground")
+              }
+            >
+              👎
+            </span>
+            <span className="tabular-nums">{dislikes.length}</span>
+            {!compact ? <span>Ogilla</span> : null}
+          </button>
+          {open === "dislike" ? (
+            <div
+              className="absolute bottom-full left-0 z-20 mb-1.5 min-w-[12rem] max-w-[16rem] rounded-lg border border-border bg-card p-1.5 shadow-lg"
+              role="dialog"
+              aria-label="Ogillat av"
+            >
+              <div className="border-b border-border/60 px-2 py-1 text-[11px] font-semibold text-muted-foreground">
+                Ogillat av
+              </div>
+              <ActorList
+                agents={agents}
+                userIds={dislikes}
+                emptyLabel="Ingen har ogillat ännu"
               />
             </div>
           ) : null}
@@ -520,6 +576,7 @@ function VariantBody({ variant }: { variant: OasisVariantResult }) {
               <LikeShareBar
                 agents={agents}
                 likedBy={post.liked_by}
+                dislikedBy={post.disliked_by}
                 sharedBy={post.shared_by}
               />
 
@@ -536,6 +593,7 @@ function VariantBody({ variant }: { variant: OasisVariantResult }) {
                       <LikeShareBar
                         agents={agents}
                         likedBy={c.liked_by}
+                        dislikedBy={c.disliked_by}
                         compact
                       />
                     </li>
