@@ -1,6 +1,7 @@
 from app.database.base import Base
 from app.database.models import (
     CatalogList,
+    Job,
     Message,
     Persona,
     Population,
@@ -11,6 +12,7 @@ from app.database.models import (
 __all__ = [
     "Base",
     "CatalogList",
+    "Job",
     "Message",
     "Persona",
     "Population",

@@ -1,12 +1,14 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import StaticPool
 
+from app.config import settings
 from app.database.base import Base
 from app.database.session import get_session
 from app.main import create_app
+from app.services import jobs as jobs_service
 from app.services.population_generate import clear_generations
-from app.config import settings
 
 
 @pytest.fixture
@@ -15,11 +17,18 @@ async def client():
     settings.persona_generator = "stub"
     settings.deepseek_api_key = ""
     settings.simulation_engine = "none"
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    engine = create_async_engine(
+        "sqlite+aiosqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     session_factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    jobs_service.set_job_session_factory(session_factory)
+    jobs_service.set_schedule_hook(None)
 
     app = create_app()
 
@@ -33,4 +42,6 @@ async def client():
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
 
+    jobs_service.set_job_session_factory(None)
+    jobs_service.set_schedule_hook(None)
     await engine.dispose()

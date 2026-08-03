@@ -19,10 +19,13 @@ from app.serializers import (
     serialize_member,
     serialize_population_detail,
     serialize_population_summary,
-    slug_id,
     utcnow,
 )
 from app.services import population_generate as gen
+from app.services.population_persist import (
+    member_row,
+    members_from_generation,
+)
 
 router = APIRouter(prefix="/populations", tags=["populations"])
 
@@ -50,16 +53,7 @@ def _member_from_create(
     population_id: int,
     body: PopulationMemberCreate,
 ) -> PopulationMember:
-    return PopulationMember(
-        population_id=population_id,
-        persona_id=body.persona_id,
-        name=body.name,
-        initials=body.initials,
-        age=body.age,
-        occ=body.occ,
-        district=body.district,
-        trait=body.trait,
-    )
+    return member_row(population_id, body)
 
 
 async def _sync_size(session: AsyncSession, population: Population) -> None:
@@ -78,62 +72,14 @@ async def _members_from_generation(
     keep_keys: list[str] | None,
     extra_members: list[PopulationMemberCreate],
 ) -> tuple[list[PopulationMemberCreate], list[list[int]], dict]:
-    stored = gen.get_generation(generation_id)
-    if stored is None:
-        raise HTTPException(status_code=404, detail="Generation not found or expired")
-
-    keep = set(keep_keys) if keep_keys is not None else None
-    members: list[PopulationMemberCreate] = []
-    seen_persona_ids: set[str] = set()
-
-    for candidate in stored.candidates:
-        if keep is not None and candidate.key not in keep:
-            continue
-        persona = candidate.persona
-        persona_id = candidate.persona_id
-        if candidate.source == "generated":
-            persona_id = slug_id(persona.name)
-            while await session.get(Persona, persona_id) is not None:
-                persona_id = slug_id(persona.name)
-            row = Persona(
-                id=persona_id,
-                name=persona.name,
-                age=persona.age,
-                occ=persona.occ,
-                district=persona.district,
-                quote=persona.quote or persona.trait,
-                origin="population",
-                profile=persona.profile.model_dump(),
-                updated_at=utcnow(),
-            )
-            session.add(row)
-        elif persona_id:
-            existing = await session.get(Persona, persona_id)
-            if existing is None:
-                raise HTTPException(status_code=404, detail=f"Persona not found: {persona_id}")
-
-        if persona_id:
-            seen_persona_ids.add(persona_id)
-        members.append(
-            PopulationMemberCreate(
-                persona_id=persona_id,
-                name=persona.name,
-                initials=persona.initials,
-                age=persona.age,
-                occ=persona.occ,
-                district=persona.district,
-                trait=persona.trait,
-            )
+    try:
+        return await members_from_generation(
+            session, generation_id, keep_keys, extra_members
         )
-
-    for extra in extra_members:
-        if extra.persona_id and extra.persona_id in seen_persona_ids:
-            continue
-        if extra.persona_id:
-            seen_persona_ids.add(extra.persona_id)
-        members.append(extra)
-
-    return members, stored.fingerprint, stored.recipe.model_dump()
+    except ValueError as exc:
+        msg = str(exc)
+        code = 404 if "not found" in msg.lower() or "expired" in msg.lower() else 400
+        raise HTTPException(status_code=code, detail=msg) from exc
 
 
 @router.get("", response_model=list[PopulationSummary])

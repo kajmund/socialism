@@ -465,3 +465,35 @@ class CatalogListUpdate(BaseModel):
                 )
             )
         return cleaned
+
+
+JobKind = Literal["population_generate"]
+JobStatus = Literal["pending", "running", "succeeded", "failed"]
+
+
+class PopulationGenerateJobRequest(BaseModel):
+    """Payload stored on a population_generate job."""
+
+    name: str
+    recipe: PopulationRecipe
+    population_id: int | None = None
+
+
+class JobCreate(BaseModel):
+    kind: JobKind
+    label: str = ""
+    request: dict[str, Any] = Field(default_factory=dict)
+
+
+class JobOut(BaseModel):
+    id: str
+    kind: str
+    status: JobStatus
+    label: str
+    request: dict[str, Any] = Field(default_factory=dict)
+    result: dict[str, Any] | None = None
+    error: str | None = None
+    created_at: str
+    started_at: str | None = None
+    finished_at: str | None = None
+    updated_at: str
