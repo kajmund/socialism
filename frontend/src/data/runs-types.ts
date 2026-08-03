@@ -108,6 +108,15 @@ export type OasisVariantResult = {
     info?: string | null
   }>
   action_histogram?: Array<{ action: string; count: number }>
+  tick_markers?: Array<{
+    tick_index: number
+    day: number
+    silent: boolean
+    key: string
+    rounds?: number
+    time_start: number
+    time_end: number
+  }>
   measurements?: OasisMeasurementRow[]
   artifact_db?: string
   profile_csv?: string

@@ -848,6 +848,44 @@ function FeedNoiseFilter({
   )
 }
 
+function TickMarkerCard({
+  tick,
+}: {
+  tick: {
+    day: number
+    silent: boolean
+    rounds: number
+    timeStart: number
+    timeEnd: number
+  }
+}) {
+  const empty = tick.timeEnd < tick.timeStart
+  return (
+    <li className="list-none">
+      <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs">
+        <span className="font-semibold text-foreground">Dag {tick.day}</span>
+        {tick.silent ? (
+          <span className="rounded border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+            tyst
+          </span>
+        ) : (
+          <span className="rounded border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+            tick
+          </span>
+        )}
+        <span className="text-muted-foreground">
+          {tick.rounds} rond{tick.rounds === 1 ? "" : "er"}
+        </span>
+        <span className="ml-auto tabular-nums text-[10px] text-muted-foreground/80">
+          {empty
+            ? "inga nya händelser"
+            : `t=${tick.timeStart}–${tick.timeEnd}`}
+        </span>
+      </div>
+    </li>
+  )
+}
+
 function ActionCluster({
   actions,
   agents,
@@ -990,6 +1028,9 @@ function VariantBody({ variant }: { variant: OasisVariantResult }) {
 
       <ul className="flex flex-col gap-3">
         {segments.map((segment) => {
+          if (segment.kind === "tick") {
+            return <TickMarkerCard key={segment.key} tick={segment.tick} />
+          }
           if (segment.kind === "actions") {
             return (
               <ActionCluster

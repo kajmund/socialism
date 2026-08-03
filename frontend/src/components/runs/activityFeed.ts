@@ -29,6 +29,7 @@ export const NOISE_ACTIONS = new Set(["refresh", "sign_up", "do_nothing"])
 
 export type TimelinePostItem = {
   kind: "post"
+  tickIndex: number
   sortKey: number
   tie: number
   post: PostRow
@@ -36,6 +37,7 @@ export type TimelinePostItem = {
 
 export type TimelineActionItem = {
   kind: "action"
+  tickIndex: number
   sortKey: number
   tie: number
   userId: number
@@ -47,7 +49,34 @@ export type TimelineActionItem = {
   postId: number | null
 }
 
-export type TimelineItem = TimelinePostItem | TimelineActionItem
+export type TimelineTickItem = {
+  kind: "tick"
+  tickIndex: number
+  sortKey: number
+  tie: number
+  day: number
+  silent: boolean
+  tickKey: string
+  rounds: number
+  timeStart: number
+  timeEnd: number
+}
+
+export type TimelineItem =
+  | TimelinePostItem
+  | TimelineActionItem
+  | TimelineTickItem
+
+export type TickMarker = NonNullable<OasisVariantResult["tick_markers"]>[number]
+
+function tickIndexForTime(t: number, markers: TickMarker[]): number {
+  for (const m of markers) {
+    if (m.time_start <= t && t <= m.time_end) return m.tick_index
+  }
+  if (markers.length === 0) return 0
+  if (t < markers[0].time_start) return -1
+  return markers[markers.length - 1].tick_index
+}
 
 export function sortKeyFromCreatedAt(value: string | number | undefined): number {
   if (value == null || value === "") return Number.MAX_SAFE_INTEGER
@@ -303,6 +332,7 @@ export function buildTimelineItems(
   const follows = variant.follows ?? []
   const mutes = variant.mutes ?? []
   const reports = variant.reports ?? []
+  const markers = variant.tick_markers ?? []
 
   const followsById = new Map<number, FollowRow>()
   for (const f of follows) {
@@ -320,10 +350,27 @@ export function buildTimelineItems(
 
   const items: TimelineItem[] = []
 
+  for (const m of markers) {
+    items.push({
+      kind: "tick",
+      tickIndex: m.tick_index,
+      sortKey: m.time_start,
+      tie: -1,
+      day: m.day,
+      silent: m.silent,
+      tickKey: m.key,
+      rounds: m.rounds ?? 1,
+      timeStart: m.time_start,
+      timeEnd: m.time_end,
+    })
+  }
+
   posts.forEach((post, i) => {
+    const t = sortKeyFromCreatedAt(post.created_at)
     items.push({
       kind: "post",
-      sortKey: sortKeyFromCreatedAt(post.created_at),
+      tickIndex: markers.length ? tickIndexForTime(t, markers) : 0,
+      sortKey: t,
       tie: i,
       post,
     })
@@ -344,9 +391,11 @@ export function buildTimelineItems(
       postsById,
       agentName,
     })
+    const t = sortKeyFromCreatedAt(row.created_at)
     items.push({
       kind: "action",
-      sortKey: sortKeyFromCreatedAt(row.created_at),
+      tickIndex: markers.length ? tickIndexForTime(t, markers) : 0,
+      sortKey: t,
       tie: 10_000 + actionTie++,
       userId: row.user_id,
       action,
@@ -359,9 +408,9 @@ export function buildTimelineItems(
   }
 
   items.sort((a, b) => {
-    if (a.sortKey !== b.sortKey) return a.sortKey - b.sortKey
+    if (a.tickIndex !== b.tickIndex) return a.tickIndex - b.tickIndex
     const rank = (item: TimelineItem): number => {
-      // Bootstrap: agents exist before they post at the same sim timestamp.
+      if (item.kind === "tick") return -1
       if (item.kind === "action" && item.action === "sign_up") return 0
       if (item.kind === "post") return 1
       return 2
@@ -369,16 +418,18 @@ export function buildTimelineItems(
     const ra = rank(a)
     const rb = rank(b)
     if (ra !== rb) return ra - rb
+    if (a.sortKey !== b.sortKey) return a.sortKey - b.sortKey
     return a.tie - b.tie
   })
   return items
 }
 
 export type TimelineSegment =
+  | { kind: "tick"; tick: TimelineTickItem; key: string }
   | { kind: "post"; post: PostRow; key: string }
   | { kind: "actions"; actions: TimelineActionItem[]; key: string }
 
-/** Collapse consecutive action rows into expandable clusters between posts. */
+/** Collapse consecutive action rows; keep tick cards and posts as boundaries. */
 export function groupTimelineSegments(items: TimelineItem[]): TimelineSegment[] {
   const segments: TimelineSegment[] = []
   let pending: TimelineActionItem[] = []
@@ -389,13 +440,20 @@ export function groupTimelineSegments(items: TimelineItem[]): TimelineSegment[] 
     segments.push({
       kind: "actions",
       actions: pending,
-      key: `actions-${cluster++}-${pending[0].sortKey}-${pending.length}`,
+      key: `actions-${cluster++}-${pending[0].tickIndex}-${pending[0].sortKey}-${pending.length}`,
     })
     pending = []
   }
 
   for (const item of items) {
-    if (item.kind === "post") {
+    if (item.kind === "tick") {
+      flushActions()
+      segments.push({
+        kind: "tick",
+        tick: item,
+        key: `tick-${item.tickKey}-${item.tickIndex}`,
+      })
+    } else if (item.kind === "post") {
       flushActions()
       segments.push({
         kind: "post",
