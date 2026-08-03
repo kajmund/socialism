@@ -10,7 +10,9 @@ from app.database.models import CatalogList
 from app.database.session import get_session
 from app.schemas.domain import CatalogListOut, CatalogListUpdate, format_date
 from app.serializers import utcnow
-from app.services.catalog_defaults import CATALOG_DEFAULTS, SECTION_ORDER
+from app.services.catalog_defaults import SECTION_ORDER
+from app.services.catalog_items import catalog_items_as_json, coerce_catalog_items
+from app.services.catalog_store import ensure_catalog_defaults
 
 router = APIRouter(prefix="/catalog", tags=["catalog"])
 
@@ -20,7 +22,7 @@ def _serialize(row: CatalogList) -> CatalogListOut:
         key=row.key,
         section=row.section,  # type: ignore[arg-type]
         title=row.title,
-        items=list(row.items or []),
+        items=coerce_catalog_items(row.items),
         updated_at=format_date(row.updated_at) if row.updated_at else "",
     )
 
@@ -31,30 +33,6 @@ def _sort_key(row: CatalogList) -> tuple[int, str]:
     except ValueError:
         section_idx = len(SECTION_ORDER)
     return (section_idx, row.title)
-
-
-async def ensure_catalog_defaults(session: AsyncSession) -> int:
-    """Insert missing catalog keys from defaults. Returns number of rows added."""
-    existing = set(
-        (await session.execute(select(CatalogList.key))).scalars().all()
-    )
-    added = 0
-    for default in CATALOG_DEFAULTS:
-        if default["key"] in existing:
-            continue
-        session.add(
-            CatalogList(
-                key=default["key"],
-                section=default["section"],
-                title=default["title"],
-                items=list(default["items"]),
-                updated_at=utcnow(),
-            )
-        )
-        added += 1
-    if added:
-        await session.commit()
-    return added
 
 
 @router.get("", response_model=list[CatalogListOut])
@@ -90,7 +68,7 @@ async def update_catalog_list(
     row = await session.get(CatalogList, key)
     if row is None:
         raise HTTPException(status_code=404, detail="Catalog list not found")
-    row.items = body.items
+    row.items = catalog_items_as_json(body.items)
     row.updated_at = utcnow()
     await session.commit()
     await session.refresh(row)

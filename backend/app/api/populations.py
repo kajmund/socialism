@@ -176,7 +176,7 @@ async def generate_population(
                 status_code=404,
                 detail=f"Persona not found: {missing[0]}",
             )
-    return await gen.run_generate(body, library)
+    return await gen.run_generate(body, library, session=session)
 
 
 @router.get("/{population_id}", response_model=PopulationDetail)

@@ -1,31 +1,63 @@
 import { useEffect, useMemo, useState } from "react"
 import {
+  blankCatalogItem,
   listCatalog,
   SECTION_LABELS,
   SECTION_ORDER,
   updateCatalogList,
+  type CatalogItem,
   type CatalogList,
   type CatalogSection,
 } from "@/api/catalog"
+import { DistrictMapModal } from "@/components/config/DistrictMapModal"
+import { DistrictMapPreview } from "@/components/config/DistrictMapPreview"
 import { AdminShell } from "@/components/layout/AdminShell"
 import { AdminButton } from "@/components/ui/admin-button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ApiError } from "@/lib/api"
 
-type DraftMap = Record<string, string[]>
+type DraftMap = Record<string, CatalogItem[]>
 
 type ListEditorProps = {
   list: CatalogList
-  draft: string[]
-  onChange: (items: string[]) => void
+  draft: CatalogItem[]
+  onChange: (items: CatalogItem[]) => void
   onSave: () => void
   saving: boolean
   dirty: boolean
 }
 
-function ListEditor({ list, draft, onChange, onSave, saving, dirty }: ListEditorProps) {
-  function setItem(index: number, value: string) {
-    onChange(draft.map((item, i) => (i === index ? value : item)))
+function sameItems(a: CatalogItem[], b: CatalogItem[]) {
+  if (a.length !== b.length) return false
+  return a.every((item, i) => {
+    const other = b[i]
+    if (item.label !== other.label) return false
+    if (item.description !== other.description) return false
+    if (item.bounds === null && other.bounds === null) return true
+    if (!item.bounds || !other.bounds) return false
+    return (
+      item.bounds.south === other.bounds.south &&
+      item.bounds.west === other.bounds.west &&
+      item.bounds.north === other.bounds.north &&
+      item.bounds.east === other.bounds.east
+    )
+  })
+}
+
+function LabelListEditor({
+  list,
+  draft,
+  onChange,
+  onSave,
+  saving,
+  dirty,
+}: ListEditorProps) {
+  function setLabel(index: number, value: string) {
+    onChange(
+      draft.map((item, i) =>
+        i === index ? { ...item, label: value } : item,
+      ),
+    )
   }
 
   function removeItem(index: number) {
@@ -33,7 +65,7 @@ function ListEditor({ list, draft, onChange, onSave, saving, dirty }: ListEditor
   }
 
   function addItem() {
-    onChange([...draft, ""])
+    onChange([...draft, blankCatalogItem()])
   }
 
   function moveItem(index: number, delta: number) {
@@ -71,10 +103,10 @@ function ListEditor({ list, draft, onChange, onSave, saving, dirty }: ListEditor
           {draft.map((item, index) => (
             <li key={`${list.key}-${index}`} className="flex items-center gap-2">
               <input
-                className="dsearch flex-1"
-                value={item}
+                className="dsearch min-w-0 flex-1"
+                value={item.label}
                 placeholder="Alternativ…"
-                onChange={(e) => setItem(index, e.target.value)}
+                onChange={(e) => setLabel(index, e.target.value)}
               />
               <button
                 type="button"
@@ -115,9 +147,148 @@ function ListEditor({ list, draft, onChange, onSave, saving, dirty }: ListEditor
   )
 }
 
-function sameItems(a: string[], b: string[]) {
-  if (a.length !== b.length) return false
-  return a.every((v, i) => v === b[i])
+function DistrictListEditor({
+  list,
+  draft,
+  onChange,
+  onSave,
+  saving,
+  dirty,
+}: ListEditorProps) {
+  const [mapIndex, setMapIndex] = useState<number | null>(null)
+
+  function patchItem(index: number, patch: Partial<CatalogItem>) {
+    onChange(draft.map((item, i) => (i === index ? { ...item, ...patch } : item)))
+  }
+
+  function removeItem(index: number) {
+    onChange(draft.filter((_, i) => i !== index))
+    if (mapIndex === index) setMapIndex(null)
+    else if (mapIndex !== null && mapIndex > index) setMapIndex(mapIndex - 1)
+  }
+
+  function addItem() {
+    onChange([...draft, blankCatalogItem("Nytt distrikt")])
+  }
+
+  function moveItem(index: number, delta: number) {
+    const target = index + delta
+    if (target < 0 || target >= draft.length) return
+    const next = [...draft]
+    const [row] = next.splice(index, 1)
+    next.splice(target, 0, row)
+    onChange(next)
+    if (mapIndex === index) setMapIndex(target)
+    else if (mapIndex === target) setMapIndex(index)
+  }
+
+  const mapDistrict = mapIndex !== null ? draft[mapIndex] : null
+
+  return (
+    <Card className="gap-0 py-4 ring-1 ring-border">
+      <CardContent className="px-5">
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div>
+            <div className="text-sm font-medium text-[color:var(--text-body)]">
+              {list.title}
+            </div>
+            <div className="mt-0.5 text-xs text-muted-foreground">
+              Namn, beskrivning och områdesrektangel för LLM-kontext och framtida
+              heatmaps · {draft.length} distrikt
+            </div>
+          </div>
+          <AdminButton
+            variant="accent"
+            size="sm"
+            disabled={!dirty || saving}
+            onClick={onSave}
+          >
+            {saving ? "Sparar…" : "Spara"}
+          </AdminButton>
+        </div>
+
+        <ul className="flex flex-col gap-3">
+          {draft.map((item, index) => (
+            <li
+              key={`ort-${index}`}
+              className="grid gap-3 rounded border border-[color:var(--border-hairline)] p-3 sm:grid-cols-[minmax(0,1fr)_220px]"
+            >
+              <div className="min-w-0">
+                <input
+                  className="dsearch mb-2 !w-full"
+                  value={item.label}
+                  placeholder="Distriktsnamn…"
+                  onChange={(e) => patchItem(index, { label: e.target.value })}
+                />
+                <textarea
+                  className="dsearch min-h-[88px] !w-full resize-y"
+                  value={item.description}
+                  placeholder="Beskriv området för LLM:en (bebyggelse, vardag, sakfrågor)…"
+                  onChange={(e) =>
+                    patchItem(index, { description: e.target.value })
+                  }
+                />
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <AdminButton
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setMapIndex(index)}
+                  >
+                    {item.bounds ? "Redigera karta" : "Sätt område på karta"}
+                  </AdminButton>
+                  <span className="flex-1" />
+                  <button
+                    type="button"
+                    className="rounded border border-[color:var(--border-hairline)] px-2 py-1 text-xs text-muted-foreground hover:text-[color:var(--text-body)] disabled:opacity-30"
+                    disabled={index === 0}
+                    onClick={() => moveItem(index, -1)}
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded border border-[color:var(--border-hairline)] px-2 py-1 text-xs text-muted-foreground hover:text-[color:var(--text-body)] disabled:opacity-30"
+                    disabled={index === draft.length - 1}
+                    onClick={() => moveItem(index, 1)}
+                  >
+                    ↓
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded border border-[color:var(--border-hairline)] px-2 py-1 text-xs text-destructive hover:bg-destructive/5"
+                    onClick={() => removeItem(index)}
+                  >
+                    Ta bort
+                  </button>
+                </div>
+              </div>
+              <DistrictMapPreview
+                bounds={item.bounds}
+                label={item.label}
+                onOpen={() => setMapIndex(index)}
+              />
+            </li>
+          ))}
+        </ul>
+
+        <div className="mt-3">
+          <AdminButton variant="secondary" size="sm" onClick={addItem}>
+            + Lägg till distrikt
+          </AdminButton>
+        </div>
+
+        {mapDistrict && mapIndex !== null && (
+          <DistrictMapModal
+            open
+            district={mapDistrict}
+            others={draft.filter((_, i) => i !== mapIndex)}
+            onClose={() => setMapIndex(null)}
+            onChangeBounds={(bounds) => patchItem(mapIndex, { bounds })}
+          />
+        )}
+      </CardContent>
+    </Card>
+  )
 }
 
 export function ConfigurationPage() {
@@ -127,6 +298,10 @@ export function ConfigurationPage() {
   const [error, setError] = useState<string | null>(null)
   const [savingKey, setSavingKey] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const [activeSection, setActiveSection] = useState<CatalogSection>(
+    SECTION_ORDER[0],
+  )
+  const [activeListKey, setActiveListKey] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -137,7 +312,7 @@ export function ConfigurationPage() {
         setLists(data)
         const next: DraftMap = {}
         for (const list of data) {
-          next[list.key] = [...list.items]
+          next[list.key] = list.items.map((item) => ({ ...item }))
         }
         setDrafts(next)
         setError(null)
@@ -176,7 +351,37 @@ export function ConfigurationPage() {
     return map
   }, [lists])
 
-  function setDraft(key: string, items: string[]) {
+  const visibleSections = useMemo(
+    () =>
+      SECTION_ORDER.filter(
+        (section) => (bySection.get(section) ?? []).length > 0,
+      ),
+    [bySection],
+  )
+
+  const sectionLists = useMemo(
+    () => bySection.get(activeSection) ?? [],
+    [bySection, activeSection],
+  )
+
+  useEffect(() => {
+    if (visibleSections.length === 0) return
+    if (!visibleSections.includes(activeSection)) {
+      setActiveSection(visibleSections[0])
+    }
+  }, [visibleSections, activeSection])
+
+  useEffect(() => {
+    if (sectionLists.length === 0) {
+      setActiveListKey(null)
+      return
+    }
+    if (!activeListKey || !sectionLists.some((list) => list.key === activeListKey)) {
+      setActiveListKey(sectionLists[0].key)
+    }
+  }, [sectionLists, activeListKey])
+
+  function setDraft(key: string, items: CatalogItem[]) {
     setDrafts((prev) => ({ ...prev, [key]: items }))
   }
 
@@ -186,7 +391,10 @@ export function ConfigurationPage() {
     try {
       const updated = await updateCatalogList(key, draft)
       setLists((prev) => prev.map((list) => (list.key === key ? updated : list)))
-      setDrafts((prev) => ({ ...prev, [key]: [...updated.items] }))
+      setDrafts((prev) => ({
+        ...prev,
+        [key]: updated.items.map((item) => ({ ...item })),
+      }))
       setToast(`${updated.title} sparades`)
     } catch (err: unknown) {
       setToast(err instanceof ApiError ? err.message : "Kunde inte spara")
@@ -195,6 +403,16 @@ export function ConfigurationPage() {
     }
   }
 
+  const activeList =
+    sectionLists.find((list) => list.key === activeListKey) ?? sectionLists[0] ?? null
+  const activeDraft = activeList
+    ? (drafts[activeList.key] ?? activeList.items)
+    : null
+  const activeDirty =
+    activeList && activeDraft
+      ? !sameItems(activeDraft, activeList.items)
+      : false
+
   return (
     <AdminShell>
       <div className="wrap">
@@ -202,8 +420,9 @@ export function ConfigurationPage() {
           <div>
             <h1>Konfiguration</h1>
             <p className="muted">
-              Grunddata för dropdowns i persona-kompositören. Ändringar syns nästa
-              gång formuläret laddas. Befintliga personas behåller sina värden.
+              Grunddata för dropdowns i persona-kompositören. Distrikt har
+              beskrivning och karta som matas in i LLM-promptar. Ändringar syns
+              nästa gång formuläret laddas.
             </p>
           </div>
         </div>
@@ -212,35 +431,119 @@ export function ConfigurationPage() {
         {error && <p className="text-destructive">{error}</p>}
 
         {!loading && !error && (
-          <div className="flex flex-col gap-10">
-            {SECTION_ORDER.map((section) => {
-              const sectionLists = bySection.get(section) ?? []
-              if (sectionLists.length === 0) return null
-              return (
-                <section key={section}>
-                  <h2 className="mb-4 text-base font-medium text-[color:var(--text-body)]">
+          <div>
+            <div
+              role="tablist"
+              aria-label="Konfigurationssektioner"
+              className="mb-3 flex flex-wrap gap-1 border-b border-[color:var(--border-hairline)]"
+            >
+              {visibleSections.map((section) => {
+                const selected = section === activeSection
+                return (
+                  <button
+                    key={section}
+                    type="button"
+                    role="tab"
+                    id={`config-tab-${section}`}
+                    aria-selected={selected}
+                    aria-controls={`config-panel-${section}`}
+                    tabIndex={selected ? 0 : -1}
+                    className={
+                      selected
+                        ? "-mb-px border-b-2 border-db-ink-950 px-3 py-2 text-sm font-medium text-[color:var(--text-body)]"
+                        : "-mb-px border-b-2 border-transparent px-3 py-2 text-sm text-muted-foreground hover:text-[color:var(--text-body)]"
+                    }
+                    onClick={() => {
+                      setActiveSection(section)
+                      const first = bySection.get(section)?.[0]
+                      setActiveListKey(first?.key ?? null)
+                    }}
+                  >
                     {SECTION_LABELS[section]}
-                  </h2>
-                  <div className="grid gap-4 lg:grid-cols-2">
-                    {sectionLists.map((list) => {
-                      const draft = drafts[list.key] ?? list.items
-                      const dirty = !sameItems(draft, list.items)
-                      return (
-                        <ListEditor
-                          key={list.key}
-                          list={list}
-                          draft={draft}
-                          dirty={dirty}
-                          saving={savingKey === list.key}
-                          onChange={(items) => setDraft(list.key, items)}
-                          onSave={() => void saveList(list.key)}
-                        />
-                      )
-                    })}
-                  </div>
-                </section>
-              )
-            })}
+                  </button>
+                )
+              })}
+            </div>
+
+            <div
+              role="tabpanel"
+              id={`config-panel-${activeSection}`}
+              aria-labelledby={`config-tab-${activeSection}`}
+            >
+              {sectionLists.length > 0 && (
+                <div
+                  role="tablist"
+                  aria-label={`${SECTION_LABELS[activeSection]}-listor`}
+                  className="mb-5 flex flex-wrap gap-2"
+                >
+                  {sectionLists.map((list) => {
+                    const selected = list.key === activeList?.key
+                    const dirty = !sameItems(
+                      drafts[list.key] ?? list.items,
+                      list.items,
+                    )
+                    return (
+                      <button
+                        key={list.key}
+                        type="button"
+                        role="tab"
+                        id={`config-list-tab-${list.key}`}
+                        aria-selected={selected}
+                        aria-controls={`config-list-panel-${list.key}`}
+                        tabIndex={selected ? 0 : -1}
+                        className={
+                          selected
+                            ? "inline-flex items-center gap-1.5 rounded-md bg-db-ink-950 px-3 py-1.5 text-sm text-db-ink-0"
+                            : "inline-flex items-center gap-1.5 rounded-md border border-[color:var(--border-hairline)] bg-db-ink-0 px-3 py-1.5 text-sm text-muted-foreground hover:text-[color:var(--text-body)]"
+                        }
+                        onClick={() => setActiveListKey(list.key)}
+                      >
+                        {list.title}
+                        {dirty && (
+                          <span
+                            className={
+                              selected
+                                ? "h-1.5 w-1.5 rounded-full bg-db-gold-500"
+                                : "h-1.5 w-1.5 rounded-full bg-db-ink-950"
+                            }
+                            title="Osparade ändringar"
+                            aria-label="Osparade ändringar"
+                          />
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+
+              {activeList && activeDraft && (
+                <div
+                  role="tabpanel"
+                  id={`config-list-panel-${activeList.key}`}
+                  aria-labelledby={`config-list-tab-${activeList.key}`}
+                >
+                  {activeList.key === "ort" ? (
+                    <DistrictListEditor
+                      list={activeList}
+                      draft={activeDraft}
+                      dirty={activeDirty}
+                      saving={savingKey === activeList.key}
+                      onChange={(items) => setDraft(activeList.key, items)}
+                      onSave={() => void saveList(activeList.key)}
+                    />
+                  ) : (
+                    <LabelListEditor
+                      list={activeList}
+                      draft={activeDraft}
+                      dirty={activeDirty}
+                      saving={savingKey === activeList.key}
+                      onChange={(items) => setDraft(activeList.key, items)}
+                      onSave={() => void saveList(activeList.key)}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

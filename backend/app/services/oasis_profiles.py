@@ -109,7 +109,7 @@ def injectors_from_ticks(ticks: list[Tick]) -> list[OasisAgentProfile]:
     return ordered
 
 
-def build_user_char(member: PopulationMember) -> str:
+def build_user_char(member: PopulationMember, *, area_block: str = "") -> str:
     profile = profile_from_dict(
         member.persona.profile if member.persona else None,
         member.name,
@@ -123,6 +123,8 @@ def build_user_char(member: PopulationMember) -> str:
         f"Förtroende: {profile.fortroende}. Valdeltagande: {profile.valdeltagande}.",
         f"Ton: {profile.ton}. Språk: {profile.sprak}. Medievanor: {profile.medievanor}.",
     ]
+    if area_block.strip():
+        lines.append(area_block.strip())
     if member.trait.strip():
         lines.append(f"Karaktärsdrag: {member.trait.strip()}")
     if quote.strip():
@@ -140,8 +142,10 @@ def members_to_profiles(
     *,
     max_agents: int,
     start_index: int = 0,
+    area_blocks: dict[str, str] | None = None,
 ) -> list[OasisAgentProfile]:
     capped = members[: max(0, max_agents)]
+    blocks = area_blocks or {}
     out: list[OasisAgentProfile] = []
     for i, member in enumerate(capped):
         index = start_index + i
@@ -153,11 +157,16 @@ def members_to_profiles(
             f"{member.occ}, {member.age} år, {member.district}. "
             f"Lutning: {profile.lutning}."
         )
+        area_block = (
+            blocks.get(member.district)
+            or blocks.get(profile.ort)
+            or ""
+        )
         out.append(
             OasisAgentProfile(
                 username=_slug_username(member.name, index),
                 description=description,
-                user_char=build_user_char(member),
+                user_char=build_user_char(member, area_block=area_block),
                 persona_id=member.persona_id,
                 member_name=member.name,
                 role="population",
@@ -171,13 +180,16 @@ def build_run_profiles(
     ticks: list[Tick],
     *,
     max_agents: int,
+    area_blocks: dict[str, str] | None = None,
 ) -> tuple[list[OasisAgentProfile], dict[str, int]]:
-    """Injectors first (no LLM), then capped population. Returns profiles + key→index."""
-    injectors = injectors_from_ticks(ticks)
+    """Injectors first (no LLM), then population — combined length ≤ max_agents."""
+    injectors = injectors_from_ticks(ticks)[: max(0, max_agents)]
+    population_slots = max(0, max_agents - len(injectors))
     population = members_to_profiles(
         members,
-        max_agents=max_agents,
+        max_agents=population_slots,
         start_index=len(injectors),
+        area_blocks=area_blocks,
     )
     profiles = injectors + population
     key_to_index = {
