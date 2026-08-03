@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
 import { useNavigate } from "react-router-dom"
 import { createReport, listReports } from "@/api/reports"
+import { PersonaProfileModal } from "@/components/personas/PersonaProfileModal"
+import { personaInitials } from "@/data/library"
 import { ApiError } from "@/lib/api"
 import type {
   OasisAttemptResult,
@@ -9,6 +11,13 @@ import type {
   OasisRunResults,
   OasisVariantResult,
 } from "@/data/runs-types"
+
+type AgentRow = NonNullable<OasisVariantResult["agents"]>[number]
+
+type ProfileTarget = {
+  personaId: string | null
+  name: string
+}
 
 /** Normalize legacy flat results and current attempts[] into a stable list. */
 export function normalizeRunAttempts(
@@ -79,6 +88,129 @@ function agentLabel(
   userId: number,
 ): string {
   return agents.find((a) => a.index === userId)?.member_name ?? `agent ${userId}`
+}
+
+function agentProfileTarget(
+  agents: NonNullable<OasisVariantResult["agents"]>,
+  userId: number,
+): ProfileTarget {
+  const agent = agents.find((a) => a.index === userId)
+  return {
+    personaId: agent?.persona_id ?? null,
+    name: agent?.member_name ?? `agent ${userId}`,
+  }
+}
+
+function AgentAvatar({
+  name,
+  size = "sm",
+}: {
+  name: string
+  size?: "xs" | "sm" | "md"
+}) {
+  let box = "h-8 w-8 text-[10px]"
+  if (size === "xs") box = "h-5 w-5 text-[9px]"
+  else if (size === "md") box = "h-10 w-10 text-[12px]"
+  return (
+    <span
+      aria-hidden
+      className={
+        "inline-grid shrink-0 place-items-center rounded-full bg-db-ink-950 font-semibold uppercase leading-none text-white " +
+        box
+      }
+    >
+      {personaInitials(name)}
+    </span>
+  )
+}
+
+function AgentNameButton({
+  name,
+  onOpen,
+  className,
+  size = "xs",
+  showAvatar = true,
+}: {
+  name: string
+  onOpen: () => void
+  className?: string
+  size?: "xs" | "sm" | "md"
+  showAvatar?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      className={
+        "inline-flex items-center gap-1.5 font-medium text-foreground underline-offset-2 hover:underline " +
+        (className ?? "")
+      }
+      onClick={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        onOpen()
+      }}
+    >
+      {showAvatar ? <AgentAvatar name={name} size={size} /> : null}
+      <span>{name}</span>
+    </button>
+  )
+}
+
+function FeedAuthorHeader({
+  name,
+  showAvatar,
+  meta,
+  onOpen,
+  size = "md",
+}: {
+  name: string
+  showAvatar: boolean
+  meta?: ReactNode
+  onOpen: () => void
+  size?: "xs" | "sm" | "md"
+}) {
+  return (
+    <div className="flex items-start gap-2.5">
+      {showAvatar ? <AgentAvatar name={name} size={size} /> : null}
+      <div className="min-w-0 leading-tight">
+        <button
+          type="button"
+          className="font-semibold text-foreground underline-offset-2 hover:underline"
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            onOpen()
+          }}
+        >
+          {name}
+        </button>
+        {meta ? (
+          <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+            {meta}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+function formatFeedWhen(iso: string | null | undefined): string | null {
+  if (!iso) return null
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  return new Intl.DateTimeFormat("sv-SE", {
+    day: "numeric",
+    month: "long",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(d)
+}
+
+function agentIsInjector(
+  agents: NonNullable<OasisVariantResult["agents"]>,
+  userId: number,
+): boolean {
+  return agents.find((a) => a.index === userId)?.role === "injector"
 }
 
 function pct(value: number | undefined): string {
@@ -255,10 +387,12 @@ function ActorList({
   agents,
   userIds,
   emptyLabel,
+  onOpenAgent,
 }: {
   agents: NonNullable<OasisVariantResult["agents"]>
   userIds: number[]
   emptyLabel: string
+  onOpenAgent: (userId: number) => void
 }) {
   if (userIds.length === 0) {
     return <p className="px-1 py-0.5 text-xs text-muted-foreground">{emptyLabel}</p>
@@ -266,11 +400,13 @@ function ActorList({
   return (
     <ul className="max-h-40 overflow-auto py-0.5">
       {userIds.map((id) => (
-        <li
-          key={id}
-          className="rounded px-2 py-1 text-xs text-foreground hover:bg-muted/60"
-        >
-          {agentLabel(agents, id)}
+        <li key={id} className="rounded px-2 py-0.5 text-xs hover:bg-muted/60">
+          <AgentNameButton
+            name={agentLabel(agents, id)}
+            className="w-full px-0 py-1 text-left text-xs"
+            showAvatar={!agentIsInjector(agents, id)}
+            onOpen={() => onOpenAgent(id)}
+          />
         </li>
       ))}
     </ul>
@@ -283,6 +419,7 @@ function LikeShareBar({
   dislikedBy,
   sharedBy,
   compact = false,
+  onOpenAgent,
 }: {
   agents: NonNullable<OasisVariantResult["agents"]>
   likedBy?: number[]
@@ -293,18 +430,37 @@ function LikeShareBar({
     share_post_id?: number
   }>
   compact?: boolean
+  onOpenAgent: (userId: number) => void
 }) {
   const likes = likedBy ?? []
   const dislikes = dislikedBy ?? []
   const shares = sharedBy ?? []
   const [open, setOpen] = useState<"like" | "dislike" | "share" | null>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
 
   function toggle(kind: "like" | "dislike" | "share") {
     setOpen((prev) => (prev === kind ? null : kind))
   }
 
+  useEffect(() => {
+    if (open == null) return
+    function onPointerDown(e: PointerEvent) {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
+        setOpen(null)
+      }
+    }
+    document.addEventListener("pointerdown", onPointerDown)
+    return () => document.removeEventListener("pointerdown", onPointerDown)
+  }, [open])
+
+  function openAgentAndClose(userId: number) {
+    setOpen(null)
+    onOpenAgent(userId)
+  }
+
   return (
     <div
+      ref={rootRef}
       className={
         "relative " + (compact ? "mt-1" : "mt-2 border-t border-border/60 pt-2")
       }
@@ -357,6 +513,7 @@ function LikeShareBar({
                 agents={agents}
                 userIds={likes}
                 emptyLabel="Ingen har gillat ännu"
+                onOpenAgent={openAgentAndClose}
               />
             </div>
           ) : null}
@@ -409,6 +566,7 @@ function LikeShareBar({
                 agents={agents}
                 userIds={dislikes}
                 emptyLabel="Ingen har ogillat ännu"
+                onOpenAgent={openAgentAndClose}
               />
             </div>
           ) : null}
@@ -454,9 +612,14 @@ function LikeShareBar({
                   {shares.map((s) => (
                     <li
                       key={`${s.user_id}-${s.kind}-${s.share_post_id ?? ""}`}
-                      className="flex items-center justify-between gap-2 rounded px-2 py-1 text-xs text-foreground hover:bg-muted/60"
+                      className="flex items-center justify-between gap-2 rounded px-2 py-0.5 text-xs hover:bg-muted/60"
                     >
-                      <span>{agentLabel(agents, s.user_id)}</span>
+                      <AgentNameButton
+                        name={agentLabel(agents, s.user_id)}
+                        className="px-0 py-1 text-left text-xs"
+                        showAvatar={!agentIsInjector(agents, s.user_id)}
+                        onOpen={() => openAgentAndClose(s.user_id)}
+                      />
                       <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
                         {s.kind === "quote" ? "citat" : "delning"}
                       </span>
@@ -478,6 +641,18 @@ function VariantBody({ variant }: { variant: OasisVariantResult }) {
   const agents = variant.agents ?? []
   const measurements = variant.measurements ?? []
   const postsById = new Map(posts.map((p) => [p.post_id, p]))
+  const [profile, setProfile] = useState<ProfileTarget | null>(null)
+
+  function openAgent(userId: number) {
+    setProfile(agentProfileTarget(agents, userId))
+  }
+
+  function openAgentRow(agent: AgentRow | undefined, fallbackName: string) {
+    setProfile({
+      personaId: agent?.persona_id ?? null,
+      name: agent?.member_name ?? fallbackName,
+    })
+  }
 
   if (variant.error) {
     return (
@@ -487,27 +662,50 @@ function VariantBody({ variant }: { variant: OasisVariantResult }) {
     )
   }
 
+  const injectors = agents.filter((a) => a.role === "injector")
+  const population = agents.filter((a) => a.role !== "injector")
+
   return (
     <div>
       <MeasurementsSection rows={measurements} />
 
       {agents.length > 0 ? (
         <div className="mb-3 space-y-1 text-sm text-muted-foreground">
-          {agents.some((a) => a.role === "injector") ? (
+          {injectors.length > 0 ? (
             <p>
               Injektorer:{" "}
-              {agents
-                .filter((a) => a.role === "injector")
-                .map((a) => a.member_name || a.username)
-                .join(", ")}
+              {injectors.map((a, i) => (
+                <span key={a.index}>
+                  {i > 0 ? ", " : null}
+                  <AgentNameButton
+                    name={a.member_name || a.username}
+                    className="text-sm text-muted-foreground"
+                    showAvatar={false}
+                    onOpen={() =>
+                      openAgentRow(a, a.member_name || a.username)
+                    }
+                  />
+                </span>
+              ))}
             </p>
           ) : null}
           <p>
             Population:{" "}
-            {agents
-              .filter((a) => a.role !== "injector")
-              .map((a) => a.member_name || a.username)
-              .join(", ") || "—"}
+            {population.length === 0
+              ? "—"
+              : population.map((a, i) => (
+                  <span key={a.index}>
+                    {i > 0 ? ", " : null}
+                    <AgentNameButton
+                      name={a.member_name || a.username}
+                      className="text-sm text-muted-foreground"
+                      showAvatar={false}
+                      onOpen={() =>
+                        openAgentRow(a, a.member_name || a.username)
+                      }
+                    />
+                  </span>
+                ))}
           </p>
         </div>
       ) : null}
@@ -532,6 +730,7 @@ function VariantBody({ variant }: { variant: OasisVariantResult }) {
           const isQuote = originalId != null && quote.length > 0
           const isRepost = originalId != null && quote.length === 0
           const postComments = comments.filter((c) => c.post_id === post.post_id)
+          const when = formatFeedWhen(post.created_at)
 
           let kindLabel: string | null = null
           if (isInjector) kindLabel = "injektion"
@@ -541,72 +740,130 @@ function VariantBody({ variant }: { variant: OasisVariantResult }) {
           return (
             <li
               key={post.post_id}
-              className="rounded-md border border-border bg-muted/30 px-3 py-2"
+              className="rounded-lg border border-border bg-card px-4 py-3 shadow-sm"
             >
-              <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">{author}</span>
-                {kindLabel ? (
-                  <span className="rounded border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
-                    {kindLabel}
-                  </span>
+              <FeedAuthorHeader
+                name={author}
+                showAvatar={!isInjector}
+                size="md"
+                onOpen={() => openAgentRow(agent, author)}
+                meta={
+                  <>
+                    {when ? <span>{when}</span> : null}
+                    {kindLabel ? (
+                      <span className="rounded border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
+                        {kindLabel}
+                      </span>
+                    ) : null}
+                    <span className="text-muted-foreground/80">#{post.post_id}</span>
+                  </>
+                }
+              />
+
+              <div className="mt-2.5">
+                {isQuote ? (
+                  <div className="space-y-2">
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                      {quote}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Citerar{" "}
+                      {original != null ? (
+                        <AgentNameButton
+                          name={originalAuthor ?? "okänd"}
+                          className="text-xs text-muted-foreground"
+                          showAvatar={!agentIsInjector(agents, original.user_id)}
+                          onOpen={() => openAgent(original.user_id)}
+                        />
+                      ) : (
+                        "okänd"
+                      )}{" "}
+                      #{originalId}
+                    </p>
+                  </div>
                 ) : null}
-                <span>#{post.post_id}</span>
+
+                {isRepost ? (
+                  <p className="text-sm text-muted-foreground">
+                    Delade inlägg från{" "}
+                    {original != null ? (
+                      <AgentNameButton
+                        name={originalAuthor ?? "okänd"}
+                        className="text-sm text-muted-foreground"
+                        showAvatar={!agentIsInjector(agents, original.user_id)}
+                        onOpen={() => openAgent(original.user_id)}
+                      />
+                    ) : (
+                      "okänd"
+                    )}{" "}
+                    #{originalId}
+                  </p>
+                ) : null}
+
+                {!isQuote && !isRepost ? (
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                    {post.content}
+                  </p>
+                ) : null}
               </div>
-
-              {isQuote ? (
-                <div className="space-y-2">
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                    {quote}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Citerar {originalAuthor ?? "okänd"} #{originalId}
-                  </p>
-                </div>
-              ) : null}
-
-              {isRepost ? (
-                <p className="text-sm text-muted-foreground">
-                  Delade inlägg från {originalAuthor ?? "okänd"} #{originalId}
-                </p>
-              ) : null}
-
-              {!isQuote && !isRepost ? (
-                <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                  {post.content}
-                </p>
-              ) : null}
 
               <LikeShareBar
                 agents={agents}
                 likedBy={post.liked_by}
                 dislikedBy={post.disliked_by}
                 sharedBy={post.shared_by}
+                onOpenAgent={openAgent}
               />
 
               {postComments.length > 0 ? (
-                <ul className="mt-2 space-y-2 border-t border-border/60 pt-2">
-                  {postComments.map((c) => (
-                    <li key={c.comment_id} className="text-xs text-muted-foreground">
-                      <div>
-                        <span className="font-medium text-foreground">
-                          {agentLabel(agents, c.user_id)}:
-                        </span>{" "}
-                        {c.content}
-                      </div>
-                      <LikeShareBar
-                        agents={agents}
-                        likedBy={c.liked_by}
-                        dislikedBy={c.disliked_by}
-                        compact
-                      />
-                    </li>
-                  ))}
+                <ul className="mt-3 space-y-3 border-t border-border/60 pt-3">
+                  {postComments.map((c) => {
+                    const commentName = agentLabel(agents, c.user_id)
+                    const commentInjector = agentIsInjector(agents, c.user_id)
+                    return (
+                      <li key={c.comment_id} className="flex items-start gap-2.5">
+                        {commentInjector ? null : (
+                          <AgentAvatar name={commentName} size="sm" />
+                        )}
+                        <div className="min-w-0 flex-1 rounded-2xl bg-muted/50 px-3 py-2">
+                          <button
+                            type="button"
+                            className="text-xs font-semibold text-foreground underline-offset-2 hover:underline"
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              openAgent(c.user_id)
+                            }}
+                          >
+                            {commentName}
+                          </button>
+                          <p className="mt-0.5 whitespace-pre-wrap text-xs leading-relaxed text-foreground">
+                            {c.content}
+                          </p>
+                          <LikeShareBar
+                            agents={agents}
+                            likedBy={c.liked_by}
+                            dislikedBy={c.disliked_by}
+                            compact
+                            onOpenAgent={openAgent}
+                          />
+                        </div>
+                      </li>
+                    )
+                  })}
                 </ul>
               ) : null}
             </li>
           )
         })}
       </ul>
+
+      <PersonaProfileModal
+        open={profile != null}
+        personaId={profile?.personaId ?? null}
+        fallbackName={profile?.name}
+        onClose={() => setProfile(null)}
+      />
     </div>
   )
 }
