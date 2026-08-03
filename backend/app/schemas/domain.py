@@ -261,13 +261,6 @@ class MessageCreate(BaseModel):
     def strip_title_body(cls, value: object) -> object:
         return _strip_required_text(value)
 
-    @model_validator(mode="after")
-    def news_requires_source_url(self) -> "MessageCreate":
-        if self.type == "news" and not (self.source_url or "").strip():
-            raise ValueError("source_url is required when type is news")
-        return self
-
-
 class MessageUpdate(BaseModel):
     type: MessageType | None = None
     title: str | None = Field(default=None, min_length=1, max_length=255)
@@ -311,10 +304,7 @@ class GenerateVariantsRequest(BaseModel):
     def require_input(self) -> "GenerateVariantsRequest":
         if not self.raw_text and not (self.source_url or "").strip():
             raise ValueError("raw_text or source_url is required")
-        if self.type == "news" and not (self.source_url or "").strip():
-            raise ValueError("source_url is required when type is news")
         return self
-
 
 class MessageVariantOut(BaseModel):
     key: MessageVariant
