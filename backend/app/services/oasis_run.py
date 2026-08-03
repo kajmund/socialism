@@ -172,6 +172,31 @@ def previous_attempts(results: dict[str, Any] | None) -> list[dict[str, Any]]:
     return []
 
 
+def _max_event_time(db_path: Path) -> int:
+    """Highest created_at seen in OASIS artifact (trace/post), or -1."""
+    if not db_path.exists():
+        return -1
+    conn = sqlite3.connect(db_path)
+    try:
+        times: list[int] = []
+        for sql in (
+            "SELECT MAX(created_at) FROM trace",
+            "SELECT MAX(created_at) FROM post",
+        ):
+            try:
+                row = conn.execute(sql).fetchone()
+            except sqlite3.OperationalError:
+                continue
+            if row and row[0] is not None:
+                try:
+                    times.append(int(float(row[0])))
+                except (TypeError, ValueError):
+                    continue
+        return max(times) if times else -1
+    finally:
+        conn.close()
+
+
 def _injection_body(injection: Injection) -> str:
     """Post body only — author is the institutional injector account."""
     if injection.mode == "link" and injection.url.strip():
@@ -392,11 +417,14 @@ async def run_oasis_simulation(
     )
 
     ticks_run = 0
+    tick_markers: list[dict[str, Any]] = []
+    prev_end = -1
 
     try:
         await env.reset()
 
-        for tick in active_ticks:
+        for tick_index, tick in enumerate(active_ticks):
+            time_start = prev_end + 1
             if not tick.silent:
                 inject_actions: dict[Any, list[Any]] = {}
                 for injection in tick.injections:
@@ -427,6 +455,21 @@ async def run_oasis_simulation(
                 }
                 if llm_actions:
                     await env.step(llm_actions)
+
+            end = _max_event_time(db_path)
+            time_end = end if end >= time_start else time_start - 1
+            tick_markers.append(
+                {
+                    "tick_index": tick_index,
+                    "day": tick.day,
+                    "silent": tick.silent,
+                    "key": tick.key,
+                    "rounds": tick.rounds,
+                    "time_start": time_start,
+                    "time_end": time_end,
+                }
+            )
+            prev_end = max(prev_end, end)
             ticks_run += 1
     finally:
         await env.close()
@@ -446,6 +489,7 @@ async def run_oasis_simulation(
             for i, p in enumerate(profiles)
         ],
         "ticks_run": ticks_run,
+        "tick_markers": tick_markers,
         "agent_count": len(profiles),
         "configured_ticks": len(active_ticks),
         "posts": feed["posts"],
@@ -574,6 +618,7 @@ async def simulate_run(session: AsyncSession, run: Run) -> dict[str, Any]:
             reports = sim.get("reports") or []
             trace = sim.get("trace") or []
             action_histogram = sim.get("action_histogram") or []
+            tick_markers = sim.get("tick_markers") or []
             ticks_run = int(sim.get("ticks_run") or 0)
             variants_out.append(
                 {
@@ -581,6 +626,7 @@ async def simulate_run(session: AsyncSession, run: Run) -> dict[str, Any]:
                     "label": label,
                     "error": None,
                     "ticks_run": ticks_run,
+                    "tick_markers": tick_markers,
                     "agents": agents,
                     "posts": posts,
                     "comments": comments,
@@ -614,6 +660,7 @@ async def simulate_run(session: AsyncSession, run: Run) -> dict[str, Any]:
                     "label": label,
                     "error": str(exc) or exc.__class__.__name__,
                     "ticks_run": 0,
+                    "tick_markers": [],
                     "agents": [],
                     "posts": [],
                     "comments": [],
