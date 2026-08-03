@@ -352,6 +352,7 @@ class RunDetail(RunSummary):
     main_ticks: list[Tick] = Field(default_factory=list)
     branch: BranchState | None = None
     results: dict[str, Any] | None = None
+    job_id: str | None = None
 
 
 class RunCreate(BaseModel):
@@ -457,7 +458,7 @@ class CatalogListUpdate(BaseModel):
         return cleaned
 
 
-JobKind = Literal["population_generate"]
+JobKind = Literal["population_generate", "run_simulate"]
 JobStatus = Literal["pending", "running", "succeeded", "failed"]
 
 
@@ -467,6 +468,12 @@ class PopulationGenerateJobRequest(BaseModel):
     name: str
     recipe: PopulationRecipe
     population_id: int | None = None
+
+
+class RunSimulateJobRequest(BaseModel):
+    """Payload stored on a run_simulate job."""
+
+    run_id: int
 
 
 class JobCreate(BaseModel):

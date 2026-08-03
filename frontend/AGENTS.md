@@ -69,7 +69,8 @@ Keep imports consistent with the `@/*` alias (e.g. `@/lib/api`, `@/components/ui
 | Path | Status |
 |------|--------|
 | `/runs` | Körningar list |
-| `/runs/new`, `/runs/:id/edit` | Konfigurera körning |
+| `/runs/new`, `/runs/:id/edit` | Körning (flikar: Konfiguration / Resultat) |
+| `/jobs` | Bakgrundsjobb (populationsgenerering, simulering) |
 | `/personas` | Persona library (grid/list) |
 | `/personas/new`, `/personas/:id` | Persona-kompositör |
 | `/populations` | Population list |

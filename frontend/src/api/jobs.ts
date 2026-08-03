@@ -1,13 +1,17 @@
 import { api } from "@/lib/api"
 import type { PopulationRecipe } from "@/api/populations"
 
-export type JobKind = "population_generate"
+export type JobKind = "population_generate" | "run_simulate"
 export type JobStatus = "pending" | "running" | "succeeded" | "failed"
 
 export type PopulationGenerateJobRequest = {
   name: string
   recipe: PopulationRecipe
   population_id?: number | null
+}
+
+export type RunSimulateJobRequest = {
+  run_id: number
 }
 
 export type Job = {
@@ -20,6 +24,9 @@ export type Job = {
     population_id?: number
     fingerprint?: number[][]
     member_count?: number
+    run_id?: number
+    engine?: string
+    ticks_run?: number
   } | null
   error: string | null
   created_at: string
@@ -31,7 +38,7 @@ export type Job = {
 export type JobCreate = {
   kind: JobKind
   label?: string
-  request: PopulationGenerateJobRequest | Record<string, unknown>
+  request: PopulationGenerateJobRequest | RunSimulateJobRequest | Record<string, unknown>
 }
 
 export function createJob(body: JobCreate): Promise<Job> {

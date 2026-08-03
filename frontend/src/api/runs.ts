@@ -14,6 +14,7 @@ export type RunDetail = RunSummary & {
   main_ticks: Tick[]
   branch: BranchState | null
   results: OasisRunResults | null
+  job_id?: string | null
 }
 
 export type RunWrite = {
@@ -60,8 +61,7 @@ export function updateRun(id: number, body: RunUpdate): Promise<RunDetail> {
 }
 
 export function startRun(id: number): Promise<RunDetail> {
-  // OASIS in-request sim can take several minutes with small agent caps.
-  return api.post<RunDetail>(`/runs/${id}/start`, undefined, { timeoutMs: 600_000 })
+  return api.post<RunDetail>(`/runs/${id}/start`)
 }
 
 export function duplicateRun(id: number): Promise<RunDetail> {
@@ -70,4 +70,14 @@ export function duplicateRun(id: number): Promise<RunDetail> {
 
 export function deleteRun(id: number): Promise<void> {
   return api.delete(`/runs/${id}`)
+}
+
+export async function deleteRunResultAttempt(
+  runId: number,
+  attemptId: string,
+): Promise<RunDetail> {
+  await api.delete(
+    `/runs/${runId}/results/attempts/${encodeURIComponent(attemptId)}`,
+  )
+  return getRun(runId)
 }
