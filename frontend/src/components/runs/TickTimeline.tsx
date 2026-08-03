@@ -83,7 +83,16 @@ export function InjectionEditor({ inj, onChange, onRemove }: InjectionEditorProp
 
   function selectLibraryMessage(messageId: string) {
     if (!messageId) {
-      onChange({ ...inj, message_id: null })
+      onChange({
+        ...inj,
+        message_id: null,
+        text: "",
+        url: "",
+        sourceDomain: "",
+        isVideo: false,
+        fetching: false,
+      })
+      setScratchOpen(false)
       return
     }
     const msg = library.find((m) => m.id === messageId)
