@@ -17,7 +17,7 @@ export function RoundsDots({ value, onChange }: RoundsDotsProps) {
   return (
     <div style={{ display: "flex", alignItems: "center" }}>
       <div className="rounds-dots">
-        {[0, 1, 2, 3, 4, 5].map((n) => (
+        {[1, 2, 3, 4, 5].map((n) => (
           <button
             type="button"
             key={n}
