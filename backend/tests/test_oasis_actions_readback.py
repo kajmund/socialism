@@ -6,6 +6,8 @@ from pathlib import Path
 from app.database.models import PopulationMember
 from app.services.oasis_profiles import build_user_char, population_action_rules
 from app.services.oasis_run import (
+    _created_at_to_sort_key,
+    _max_event_time,
     _read_oasis_results,
     parse_oasis_options,
     population_action_names,
@@ -37,32 +39,96 @@ def test_population_action_names_default_excludes_create_post():
     assert "SEARCH_POSTS" in names
     assert "REPORT_POST" in names
     assert "TREND" in names
+    assert "REPOST" in names
+    assert "QUOTE_POST" in names
+
+
+def test_population_action_names_reddit_omits_repost_quote():
+    names = population_action_names(platform="reddit")
+    assert "REPOST" not in names
+    assert "QUOTE_POST" not in names
+    assert "LIKE_POST" in names
+    assert "CREATE_COMMENT" in names
+    assert "TREND" in names
 
 
 def test_population_action_names_with_create_post():
     names = population_action_names(allow_population_create_post=True)
     assert names[0] == "CREATE_POST"
     assert "CREATE_COMMENT" in names
+    reddit = population_action_names(
+        allow_population_create_post=True, platform="reddit"
+    )
+    assert reddit[0] == "CREATE_POST"
+    assert "REPOST" not in reddit
 
 
 def test_parse_oasis_options_defaults():
     opts = parse_oasis_options(None)
-    assert opts.allow_population_create_post is False
-    opts2 = parse_oasis_options({"allow_population_create_post": True})
-    assert opts2.allow_population_create_post is True
+    assert opts.allow_population_create_post is True
+    assert opts.platform == "twitter"
+    opts2 = parse_oasis_options(
+        {"allow_population_create_post": False, "platform": "reddit"}
+    )
+    assert opts2.allow_population_create_post is False
+    assert opts2.platform == "reddit"
 
 
 def test_user_char_reflects_create_post_flag():
     blocked = build_user_char(_member(), allow_create_post=False)
     assert "Skapa INTE egna inlägg" in blocked
+    assert "dela" in blocked
     allowed = build_user_char(_member(), allow_create_post=True)
     assert "FÅR skapa egna inlägg" in allowed
     assert "Skapa INTE egna inlägg" not in allowed
+    reddit_blocked = build_user_char(
+        _member(), allow_create_post=False, platform="reddit"
+    )
+    assert "dela" not in reddit_blocked
 
 
 def test_population_action_rules_helpers():
     assert "follow" in population_action_rules(allow_create_post=False).casefold()
     assert "create_post" in population_action_rules(allow_create_post=True).casefold()
+    reddit = population_action_rules(platform="reddit", allow_create_post=False)
+    assert "dela" not in reddit
+
+
+def test_created_at_sort_key_handles_timestep_and_iso():
+    assert _created_at_to_sort_key(12) == 12
+    assert _created_at_to_sort_key("12") == 12
+    iso = _created_at_to_sort_key("2026-08-01 00:00:00.001")
+    assert iso is not None
+    assert iso > 1_000_000_000_000
+
+
+def test_max_event_time_iso_datetime(tmp_path: Path):
+    db_path = tmp_path / "simulation.db"
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.executescript(
+            """
+            CREATE TABLE post (
+                post_id INTEGER PRIMARY KEY,
+                created_at TEXT
+            );
+            CREATE TABLE trace (
+                user_id INTEGER,
+                created_at TEXT,
+                action TEXT,
+                info TEXT
+            );
+            INSERT INTO post (post_id, created_at)
+            VALUES (1, '2026-08-01 00:00:00.001');
+            INSERT INTO trace (user_id, created_at, action, info)
+            VALUES (1, '2026-08-01 00:00:00.005', 'like_post', '{}');
+            """
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    end = _max_event_time(db_path)
+    assert end == _created_at_to_sort_key("2026-08-01 00:00:00.005")
 
 
 def test_read_oasis_results_follow_mute_report_trace(tmp_path: Path):

@@ -11,6 +11,7 @@ type CardFieldDef = {
 /** Compact card editors — same catalog-backed keys as composer dropdowns, plus age. */
 export const PERSONA_CARD_FIELDS: CardFieldDef[] = [
   { key: "age", label: "Ålder", kind: "age" },
+  { key: "kön", label: "Kön", kind: "select" },
   { key: "ort", label: "Distrikt", kind: "select" },
   { key: "yrke", label: "Yrke", kind: "select" },
   { key: "utbildning", label: "Utbildning", kind: "select" },
