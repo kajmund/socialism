@@ -8,6 +8,7 @@ export type PopulationGenerateJobRequest = {
   name: string
   recipe: PopulationRecipe
   population_id?: number | null
+  include_persona_ids?: string[]
 }
 
 export type RunSimulateJobRequest = {

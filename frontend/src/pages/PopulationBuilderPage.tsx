@@ -1,11 +1,14 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { listCatalog, type CatalogList } from "@/api/catalog"
 import { createJob } from "@/api/jobs"
 import { getPopulation, type DistRow, type PopulationRecipe } from "@/api/populations"
 import { AdminShell, rememberJobPending } from "@/components/layout/AdminShell"
+import { AddFromLibraryPanel } from "@/components/populations/AddFromLibraryPanel"
 import { AdminButton } from "@/components/ui/admin-button"
 import { Card, CardContent } from "@/components/ui/card"
+import { personaInitials } from "@/data/library"
+import type { LibraryPersona } from "@/data/library-types"
 import { ApiError } from "@/lib/api"
 
 const STEP_TITLES = ["Starta", "Fördelningar", "Förhandsgranska"] as const
@@ -30,9 +33,24 @@ const CATALOG_DIST_MAP: { catalogKey: string; groupKey: string; fallbackLabel: s
   { catalogKey: "ort", groupKey: "district", fallbackLabel: "Distrikt" },
   { catalogKey: "yrke", groupKey: "occupation", fallbackLabel: "Yrken" },
   { catalogKey: "utbildning", groupKey: "education", fallbackLabel: "Utbildningsnivåer" },
+  { catalogKey: "livssituation", groupKey: "livssituation", fallbackLabel: "Livssituationer" },
   { catalogKey: "lutning", groupKey: "leaning", fallbackLabel: "Politisk lutning" },
+  { catalogKey: "parti", groupKey: "parti", fallbackLabel: "Partisympatier" },
+  { catalogKey: "valdeltagande", groupKey: "valdeltagande", fallbackLabel: "Valdeltagande" },
+  { catalogKey: "sakfragor", groupKey: "sakfragor", fallbackLabel: "Sakfrågor" },
+  { catalogKey: "fortroende", groupKey: "fortroende", fallbackLabel: "Förtroende" },
+  { catalogKey: "ton", groupKey: "ton", fallbackLabel: "Ton" },
+  { catalogKey: "sprak", groupKey: "sprak", fallbackLabel: "Språkmönster" },
   { catalogKey: "medievanor", groupKey: "media", fallbackLabel: "Medievanor" },
 ]
+
+function mergeMissingDist(base: DistState, extras: DistState): DistState {
+  const next: DistState = { ...base }
+  for (const [key, group] of Object.entries(extras)) {
+    if (!(key in next)) next[key] = group
+  }
+  return next
+}
 
 const AGE_GROUP: DistGroupData = {
   label: "Åldersspann",
@@ -189,13 +207,24 @@ export function PopulationBuilderPage() {
   const [catalogReady, setCatalogReady] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [selectedPersonas, setSelectedPersonas] = useState<LibraryPersona[]>([])
+
+  const effectiveSize = Math.max(popSize, selectedPersonas.length)
+  const libraryCount = selectedPersonas.length
+  const generateCount = Math.max(0, effectiveSize - libraryCount)
+  const selectedIds = useMemo(
+    () => selectedPersonas.map((p) => p.id),
+    [selectedPersonas],
+  )
 
   useEffect(() => {
     let cancelled = false
     listCatalog()
       .then((lists) => {
         if (cancelled) return
-        if (!editId) setDist(distFromCatalog(lists))
+        const fromCatalog = distFromCatalog(lists)
+        if (!editId) setDist(fromCatalog)
+        else setDist((prev) => mergeMissingDist(prev, fromCatalog))
         setCatalogReady(true)
       })
       .catch((err: unknown) => {
@@ -220,7 +249,8 @@ export function PopulationBuilderPage() {
         setPopName(pop.name)
         setPopSize(pop.size || pop.members.length || 12)
         if (pop.recipe && typeof pop.recipe === "object" && "dist" in pop.recipe) {
-          setDist(pop.recipe.dist as DistState)
+          const recipeDist = pop.recipe.dist as DistState
+          setDist((prev) => mergeMissingDist(recipeDist, prev))
         }
         if (pop.recipe && typeof pop.recipe === "object" && "entryMode" in pop.recipe) {
           const mode = pop.recipe.entryMode
@@ -243,7 +273,7 @@ export function PopulationBuilderPage() {
 
   function buildRecipe(): PopulationRecipe {
     return {
-      size: popSize,
+      size: effectiveSize,
       entryMode,
       freeText,
       dist,
@@ -330,6 +360,7 @@ export function PopulationBuilderPage() {
           name,
           recipe: buildRecipe(),
           population_id: editId,
+          include_persona_ids: selectedIds,
         },
       })
       rememberJobPending(job.id)
@@ -341,6 +372,16 @@ export function PopulationBuilderPage() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  function addLibraryPersona(persona: LibraryPersona) {
+    setSelectedPersonas((prev) =>
+      prev.some((p) => p.id === persona.id) ? prev : [...prev, persona],
+    )
+  }
+
+  function removeLibraryPersona(id: string) {
+    setSelectedPersonas((prev) => prev.filter((p) => p.id !== id))
   }
 
   function next() {
@@ -525,8 +566,8 @@ export function PopulationBuilderPage() {
                 Så här ser populationen ut i sin helhet
               </h1>
               <p>
-                Kontrollera sammansättningen. Generering startar ett bakgrundsjobb och skapar
-                populationen när det är klart.
+                Välj gärna personas från biblioteket. Resten genereras upp till önskad
+                storlek — eller skapa enbart med bibliotekspicks.
               </p>
             </div>
             <div className="prev-grid">
@@ -534,13 +575,76 @@ export function PopulationBuilderPage() {
                 <PrevGroup key={gkey} group={dist[gkey]!} />
               ))}
             </div>
+
+            <div style={{ marginTop: 28, marginBottom: 10 }}>
+              <h3 style={{ font: "var(--text-h3)", marginBottom: 6 }}>
+                Från biblioteket
+              </h3>
+              <p style={{ color: "var(--text-muted)", fontSize: 13.5, marginBottom: 12 }}>
+                {libraryCount} från bibliotek · {generateCount} genereras
+                {effectiveSize !== popSize
+                  ? ` · storlek höjd till ${effectiveSize}`
+                  : ` · storlek ${effectiveSize}`}
+              </p>
+              {selectedPersonas.length > 0 && (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8,
+                    marginBottom: 14,
+                  }}
+                >
+                  {selectedPersonas.map((p) => (
+                    <div
+                      key={p.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 12,
+                        padding: "8px 4px",
+                        borderBottom: "1px solid var(--border-hairline)",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                        <div className="av">{personaInitials(p.name)}</div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, fontSize: 13 }}>{p.name}</div>
+                          <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                            {p.age} · {p.occ} · {p.district}
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="add-lib-toggle"
+                        onClick={() => removeLibraryPersona(p.id)}
+                      >
+                        Ta bort
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <AddFromLibraryPanel
+                excludeIds={selectedIds}
+                onAdd={addLibraryPersona}
+                hint="Lägg till personas från biblioteket. Du kan skapa populationen med bara dessa, eller fylla på med genererade."
+              />
+            </div>
+
             <div className="run-cta">
               <AdminButton
                 variant="accent"
                 disabled={submitting}
                 onClick={() => void startGenerationJob()}
               >
-                {submitting ? "Startar jobb…" : "Generera personas →"}
+                {submitting
+                  ? "Startar jobb…"
+                  : generateCount === 0
+                    ? "Skapa population →"
+                    : "Generera personas →"}
               </AdminButton>
             </div>
           </section>

@@ -5,9 +5,7 @@ import type {
   PersonaOrigin,
 } from "@/data/library-types"
 
-export type PersonaDetail = LibraryPersona & {
-  profile: EditablePersona
-}
+export type PersonaDetail = LibraryPersona
 
 export type PersonaWrite = {
   id?: string

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,6 +24,8 @@ class SlotPlan:
     occ: str
     lean: str
     lean_label: str
+    # EditablePersona field name → sampled catalog label (ton, parti, …).
+    profile_fields: dict[str, str] = field(default_factory=dict)
 
 
 FIELD_GUIDE = """
@@ -64,6 +66,51 @@ def _local_context(area_block: str = "") -> str:
     return brief
 
 
+_PROFILE_FIELD_LABELS: dict[str, str] = {
+    "ort": "Ort/stadsdel",
+    "yrke": "Yrke",
+    "utbildning": "Utbildning",
+    "livssituation": "Livssituation",
+    "lutning": "Politisk lutning",
+    "sakfragor": "Sakfrågor",
+    "fortroende": "Förtroende",
+    "ton": "Ton",
+    "sprak": "Språkmönster",
+    "medievanor": "Medievanor",
+    "parti": "Partisympati",
+    "valdeltagande": "Valdeltagande",
+}
+
+
+def _slot_requirement_lines(slot: SlotPlan) -> list[str]:
+    lines = [
+        f"- Ålder ca {slot.age} (spann: {slot.age_bucket})",
+        f"- Ort/stadsdel: {slot.district}",
+        f"- Yrke: {slot.occ}",
+        f"- Politisk lutning: {slot.lean_label}",
+    ]
+    skip = {"ort", "yrke", "lutning"}
+    for key, value in slot.profile_fields.items():
+        if key in skip or not value:
+            continue
+        label = _PROFILE_FIELD_LABELS.get(key, key)
+        lines.append(f"- {label}: {value}")
+    return lines
+
+
+def apply_slot_to_profile(profile: EditablePersona, slot: SlotPlan) -> None:
+    """Overwrite profile fields with values sampled from the population recipe."""
+    profile.age = str(slot.age)
+    profile.ort = slot.district or profile.ort
+    profile.yrke = slot.occ or profile.yrke
+    profile.lutning = slot.lean_label or profile.lutning
+    for key, value in slot.profile_fields.items():
+        if value and hasattr(profile, key):
+            setattr(profile, key, value)
+    if not profile.initials or profile.initials == "--":
+        profile.initials = persona_initials(profile.name)
+
+
 async def llm_persona_from_slot(
     slot: SlotPlan,
     free_text: str = "",
@@ -73,13 +120,11 @@ async def llm_persona_from_slot(
     area_block = ""
     if session is not None:
         area_block = await area_block_for_name(session, slot.district)
+    requirements = "\n".join(_slot_requirement_lines(slot))
     user = f"""Skapa en trovärdig Norrköpingspersona.
 
-Demografiska krav (följ dessa):
-- Ålder ca {slot.age} (spann: {slot.age_bucket})
-- Ort/stadsdel: {slot.district}
-- Yrke: {slot.occ}
-- Politisk lutning: {slot.lean_label}
+Demografiska och attributkrav (följ dessa):
+{requirements}
 
 Extra önskemål från användaren:
 {free_text or "(inga)"}
@@ -99,13 +144,7 @@ Extra önskemål från användaren:
             {"role": "user", "content": user},
         ]
     )
-    # Enforce slot constraints that the UI recipe sampled
-    profile.age = str(slot.age)
-    profile.ort = slot.district or profile.ort
-    profile.yrke = slot.occ or profile.yrke
-    profile.lutning = slot.lean_label or profile.lutning
-    if not profile.initials or profile.initials == "--":
-        profile.initials = persona_initials(profile.name)
+    apply_slot_to_profile(profile, slot)
     return profile_to_generated(profile, slot)
 
 

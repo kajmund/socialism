@@ -35,10 +35,11 @@ class LibraryPersona(BaseModel):
     pops: list[str]
     updated: str
     origin: PersonaOrigin
+    profile: EditablePersona
 
 
 class PersonaDetail(LibraryPersona):
-    profile: EditablePersona
+    pass
 
 
 class PersonaCreate(BaseModel):
@@ -469,6 +470,7 @@ class PopulationGenerateJobRequest(BaseModel):
     name: str
     recipe: PopulationRecipe
     population_id: int | None = None
+    include_persona_ids: list[str] = Field(default_factory=list)
 
 
 class RunSimulateJobRequest(BaseModel):

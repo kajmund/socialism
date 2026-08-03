@@ -845,6 +845,115 @@ async def test_population_generate_job_fails_missing_population(client):
     assert "not found" in payload["error"].lower() or "Population" in payload["error"]
 
 
+async def test_population_generate_job_mixes_library_personas(client):
+    from app.services import jobs as jobs_service
+
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+
+    persona = (
+        await client.post(
+            "/personas",
+            json={
+                "id": "joblib1",
+                "name": "Jobb Library One",
+                "age": 41,
+                "occ": "Lärare",
+                "district": "Centrum",
+                "quote": "Från bibliotek",
+                "origin": "manuell",
+            },
+        )
+    ).json()
+
+    created = await client.post(
+        "/jobs",
+        json={
+            "kind": "population_generate",
+            "label": "Mix-pop",
+            "request": {
+                "name": "Mix-pop",
+                "recipe": _sample_recipe(size=4, seed=21),
+                "include_persona_ids": [persona["id"]],
+            },
+        },
+    )
+    assert created.status_code == 202
+    job_id = created.json()["id"]
+    await jobs_service._run_job(job_id)
+
+    got = await client.get(f"/jobs/{job_id}")
+    assert got.status_code == 200
+    payload = got.json()
+    assert payload["status"] == "succeeded"
+    assert payload["result"]["member_count"] == 4
+
+    pop = await client.get(f"/populations/{payload['result']['population_id']}")
+    assert pop.status_code == 200
+    members = pop.json()["members"]
+    assert len(members) == 4
+    assert sum(1 for m in members if m["id"] == persona["id"]) == 1
+
+
+async def test_population_generate_job_library_only(client):
+    from app.services import jobs as jobs_service
+
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+
+    a = (
+        await client.post(
+            "/personas",
+            json={
+                "id": "jobliba",
+                "name": "Library A",
+                "age": 30,
+                "occ": "Lärare",
+                "district": "Centrum",
+                "origin": "manuell",
+            },
+        )
+    ).json()
+    b = (
+        await client.post(
+            "/personas",
+            json={
+                "id": "joblibb",
+                "name": "Library B",
+                "age": 45,
+                "occ": "Sjuksköterska",
+                "district": "Övriga",
+                "origin": "manuell",
+            },
+        )
+    ).json()
+
+    created = await client.post(
+        "/jobs",
+        json={
+            "kind": "population_generate",
+            "label": "Lib-only",
+            "request": {
+                "name": "Lib-only",
+                "recipe": _sample_recipe(size=2, seed=22),
+                "include_persona_ids": [a["id"], b["id"]],
+            },
+        },
+    )
+    assert created.status_code == 202
+    job_id = created.json()["id"]
+    await jobs_service._run_job(job_id)
+
+    got = await client.get(f"/jobs/{job_id}")
+    assert got.status_code == 200
+    payload = got.json()
+    assert payload["status"] == "succeeded"
+    assert payload["result"]["member_count"] == 2
+
+    pop = await client.get(f"/populations/{payload['result']['population_id']}")
+    assert pop.status_code == 200
+    member_ids = {m["id"] for m in pop.json()["members"]}
+    assert member_ids == {a["id"], b["id"]}
+
+
 async def test_start_run_queues_simulate_job(client):
     from app.services import jobs as jobs_service
 

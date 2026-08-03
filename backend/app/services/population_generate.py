@@ -8,10 +8,12 @@ from dataclasses import dataclass, field
 from random import Random
 
 from fastapi import HTTPException
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.llm.persona_gen import SlotPlan, llm_persona_from_slot
+from app.database.models import Persona
+from app.llm.persona_gen import SlotPlan, apply_slot_to_profile, llm_persona_from_slot
 from app.schemas.domain import (
     DistGroup,
     EditablePersona,
@@ -32,6 +34,8 @@ from app.services.persona_catalog import (
     TRAIT_BY_LEAN,
 )
 
+LibraryPersonaRow = tuple[str, int, str, str, str]
+
 # Re-export for older imports
 __all__ = [
     "DISTRICT_LABEL",
@@ -45,6 +49,7 @@ __all__ = [
     "fingerprint_from_dist",
     "stub_persona",
     "library_candidate",
+    "load_library_personas",
     "run_generate",
     "sample_slot",
 ]
@@ -74,6 +79,30 @@ def pop_generation(generation_id: str) -> StoredGeneration | None:
 
 def put_generation(generation_id: str, stored: StoredGeneration) -> None:
     _GENERATIONS[generation_id] = stored
+
+
+async def load_library_personas(
+    session: AsyncSession,
+    ids: list[str],
+) -> dict[str, LibraryPersonaRow]:
+    """Load library personas by id. Raises ValueError if any id is missing."""
+    unique = list(dict.fromkeys(ids))
+    if not unique:
+        return {}
+    result = await session.execute(select(Persona).where(Persona.id.in_(unique)))
+    library: dict[str, LibraryPersonaRow] = {}
+    for persona in result.scalars().all():
+        library[persona.id] = (
+            persona.name,
+            persona.age,
+            persona.occ,
+            persona.district,
+            persona.quote,
+        )
+    missing = [pid for pid in unique if pid not in library]
+    if missing:
+        raise ValueError(f"Persona not found: {missing[0]}")
+    return library
 
 
 def fingerprint_from_dist(dist: dict[str, DistGroup]) -> list[list[int]]:
@@ -177,6 +206,36 @@ def _candidate_key() -> str:
     return f"tmp_{secrets.token_hex(4)}"
 
 
+# Recipe dist group key → EditablePersona field (labels sampled into profile).
+_DIST_PROFILE_FIELDS: dict[str, str] = {
+    "district": "ort",
+    "occupation": "yrke",
+    "education": "utbildning",
+    "leaning": "lutning",
+    "media": "medievanor",
+    "livssituation": "livssituation",
+    "parti": "parti",
+    "valdeltagande": "valdeltagande",
+    "sakfragor": "sakfragor",
+    "fortroende": "fortroende",
+    "ton": "ton",
+    "sprak": "sprak",
+}
+
+
+def _sample_profile_fields(dist: dict, rng: Random) -> dict[str, str]:
+    fields: dict[str, str] = {}
+    for group_key, profile_key in _DIST_PROFILE_FIELDS.items():
+        group = dist.get(group_key)
+        if group is None or not group.rows:
+            continue
+        picked = _weighted_pick(rng, group.rows)
+        label = _resolve_label(group.rows, picked, {})
+        if label:
+            fields[profile_key] = label
+    return fields
+
+
 def sample_slot(recipe: PopulationRecipe, rng: Random) -> SlotPlan:
     dist = recipe.dist
     age_rows = dist["age"].rows if "age" in dist else []
@@ -195,16 +254,22 @@ def sample_slot(recipe: PopulationRecipe, rng: Random) -> SlotPlan:
     lean_rows = dist["leaning"].rows if "leaning" in dist else []
     lean = _weighted_pick(rng, lean_rows) if lean_rows else "mitt"
     lean_label = _resolve_label(lean_rows, lean, LEAN_LABEL)
+    profile_fields = _sample_profile_fields(dist, rng)
+    # Keep core slot fields authoritative for denormalized GeneratedPersonaOut.
+    profile_fields["ort"] = _resolve_label(district_rows, district_key, DISTRICT_LABEL)
+    profile_fields["yrke"] = _resolve_label(occ_rows, occ_key, JOB_BY_CAT)
+    profile_fields["lutning"] = lean_label
 
     return SlotPlan(
         age=age,
         age_bucket=age_bucket,
         district_key=district_key,
-        district=_resolve_label(district_rows, district_key, DISTRICT_LABEL),
+        district=profile_fields["ort"],
         occ_key=occ_key,
-        occ=_resolve_label(occ_rows, occ_key, JOB_BY_CAT),
+        occ=profile_fields["yrke"],
         lean=lean,
         lean_label=lean_label,
+        profile_fields=profile_fields,
     )
 
 
@@ -214,7 +279,6 @@ def stub_persona(recipe: PopulationRecipe, rng: Random) -> GeneratedPersonaOut:
     first = rng.choice(NAMES_F if is_f else NAMES_M)
     last = rng.choice(LASTN)
     name = f"{first} {last}"
-    trait = _trait_for_lean(slot.lean, slot.lean_label)
     initials = persona_initials(name)
     profile = EditablePersona(
         name=name,
@@ -223,8 +287,10 @@ def stub_persona(recipe: PopulationRecipe, rng: Random) -> GeneratedPersonaOut:
         ort=slot.district,
         yrke=slot.occ,
         lutning=slot.lean_label,
-        ton=trait,
+        ton=_trait_for_lean(slot.lean, slot.lean_label),
     )
+    apply_slot_to_profile(profile, slot)
+    trait = profile.ton or profile.sakfragor or _trait_for_lean(slot.lean, slot.lean_label)
     return GeneratedPersonaOut(
         name=name,
         initials=initials,

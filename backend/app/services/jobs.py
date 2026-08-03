@@ -184,8 +184,13 @@ async def _run_population_generate(job_id: str) -> None:
         if job is None:
             return
         payload = PopulationGenerateJobRequest.model_validate(job.request)
-        gen_req = PopulationGenerateRequest(recipe=payload.recipe, mode="replace")
-        response = await gen.run_generate(gen_req, {}, session=session)
+        library = await gen.load_library_personas(session, payload.include_persona_ids)
+        gen_req = PopulationGenerateRequest(
+            recipe=payload.recipe,
+            include_persona_ids=payload.include_persona_ids,
+            mode="replace",
+        )
+        response = await gen.run_generate(gen_req, library, session=session)
 
         if payload.population_id is not None:
             population = await update_population_from_generation(

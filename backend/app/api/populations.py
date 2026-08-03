@@ -101,27 +101,14 @@ async def generate_population(
     body: PopulationGenerateRequest,
     session: AsyncSession = Depends(get_session),
 ) -> PopulationGenerateResponse:
-    library: dict[str, tuple[str, int, str, str, str]] = {}
     ids = list(body.include_persona_ids)
     for cand in body.existing:
         if cand.source == "library" and cand.persona_id:
             ids.append(cand.persona_id)
-    if ids:
-        result = await session.execute(select(Persona).where(Persona.id.in_(ids)))
-        for persona in result.scalars().all():
-            library[persona.id] = (
-                persona.name,
-                persona.age,
-                persona.occ,
-                persona.district,
-                persona.quote,
-            )
-        missing = [pid for pid in body.include_persona_ids if pid not in library]
-        if missing:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Persona not found: {missing[0]}",
-            )
+    try:
+        library = await gen.load_library_personas(session, ids)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     return await gen.run_generate(body, library, session=session)
 
 
