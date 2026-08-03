@@ -128,18 +128,6 @@ async def update_message(
 ) -> MessageOut:
     row = await _get_message(session, message_id)
     data = body.model_dump(exclude_unset=True)
-    # Explicit null type means "leave unchanged" — do not bypass news URL checks.
-    next_type = (
-        data["type"]
-        if "type" in data and data["type"] is not None
-        else row.type
-    )
-    next_url = data["source_url"] if "source_url" in data else row.source_url
-    if next_type == "news" and not (next_url or "").strip():
-        raise HTTPException(
-            status_code=422,
-            detail="source_url is required when type is news",
-        )
     if "title" in data and data["title"] is not None:
         row.title = data["title"]
     if "body" in data and data["body"] is not None:
