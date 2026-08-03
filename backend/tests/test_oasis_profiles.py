@@ -138,3 +138,42 @@ def test_build_run_profiles_puts_injectors_before_population():
     assert profiles[1].role == "population"
     assert profiles[1].member_name == "Bo Lindgren"
     assert key_to_index["party_post:socialdemokraterna"] == 0
+
+
+def test_build_run_profiles_respects_combined_agent_cap():
+    members = [
+        _member(name="Bo Lindgren", member_id=1),
+        _member(name="Göran Svensson", member_id=2),
+        _member(name="Eva Nilsson", member_id=3),
+    ]
+    ticks = [
+        Tick(
+            key="t1",
+            day=1,
+            injections=[
+                Injection(
+                    key="i1",
+                    type="party_post",
+                    sender="@Socialdemokraterna",
+                    text="Hej",
+                ),
+                Injection(
+                    key="i2",
+                    type="news_post",
+                    sender="NT",
+                    text="Nyhet",
+                ),
+            ],
+        )
+    ]
+    profiles, key_to_index = build_run_profiles(members, ticks, max_agents=2)
+    assert len(profiles) == 2
+    assert all(p.role == "injector" for p in profiles)
+    assert "party_post:socialdemokraterna" in key_to_index
+    assert "news_post:nt" in key_to_index
+
+    mixed, _ = build_run_profiles(members, ticks, max_agents=3)
+    assert len(mixed) == 3
+    assert mixed[0].role == "injector"
+    assert mixed[1].role == "injector"
+    assert mixed[2].role == "population"

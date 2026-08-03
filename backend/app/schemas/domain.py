@@ -239,6 +239,15 @@ class MessageOut(BaseModel):
     created_at: str
 
 
+def _strip_required_text(value: object) -> object:
+    if not isinstance(value, str):
+        return value
+    stripped = value.strip()
+    if not stripped:
+        raise ValueError("must not be empty or whitespace-only")
+    return stripped
+
+
 class MessageCreate(BaseModel):
     id: str | None = None
     type: MessageType
@@ -246,6 +255,11 @@ class MessageCreate(BaseModel):
     body: str = Field(min_length=1)
     source_url: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("title", "body", mode="before")
+    @classmethod
+    def strip_title_body(cls, value: object) -> object:
+        return _strip_required_text(value)
 
     @model_validator(mode="after")
     def news_requires_source_url(self) -> "MessageCreate":
@@ -260,6 +274,13 @@ class MessageUpdate(BaseModel):
     body: str | None = Field(default=None, min_length=1)
     source_url: str | None = None
     metadata: dict[str, Any] | None = None
+
+    @field_validator("title", "body", mode="before")
+    @classmethod
+    def strip_title_body(cls, value: object) -> object:
+        if value is None:
+            return None
+        return _strip_required_text(value)
 
 
 class SummarizeUrlRequest(BaseModel):

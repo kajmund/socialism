@@ -482,6 +482,40 @@ async def test_message_crud_and_filters(client):
     assert (await client.get(f"/messages/{post_id}")).status_code == 404
 
 
+async def test_message_rejects_whitespace_and_null_type_clears_url(client):
+    blank = await client.post(
+        "/messages",
+        json={"type": "post", "title": "   ", "body": "ok"},
+    )
+    assert blank.status_code == 422
+
+    news = await client.post(
+        "/messages",
+        json={
+            "type": "news",
+            "title": "  Nyhet  ",
+            "body": "  Brödtext  ",
+            "source_url": "example.com/a",
+        },
+    )
+    assert news.status_code == 201
+    news_id = news.json()["id"]
+    assert news.json()["title"] == "Nyhet"
+    assert news.json()["body"] == "Brödtext"
+
+    bad_patch = await client.patch(
+        f"/messages/{news_id}",
+        json={"type": None, "source_url": None},
+    )
+    assert bad_patch.status_code == 422
+
+    blank_body = await client.patch(
+        f"/messages/{news_id}",
+        json={"body": " \n\t "},
+    )
+    assert blank_body.status_code == 422
+
+
 async def test_generate_variants_parallel_stub(client):
     from app.llm import set_text_completer
 

@@ -108,8 +108,8 @@ async def create_message(
     row = Message(
         id=message_id,
         type=body.type,
-        title=body.title.strip(),
-        body=body.body.strip(),
+        title=body.title,
+        body=body.body,
         source_url=(normalize_url(body.source_url) if body.source_url else None),
         metadata_=dict(body.metadata or {}),
         created_at=utcnow(),
@@ -128,7 +128,12 @@ async def update_message(
 ) -> MessageOut:
     row = await _get_message(session, message_id)
     data = body.model_dump(exclude_unset=True)
-    next_type = data.get("type", row.type)
+    # Explicit null type means "leave unchanged" — do not bypass news URL checks.
+    next_type = (
+        data["type"]
+        if "type" in data and data["type"] is not None
+        else row.type
+    )
     next_url = data["source_url"] if "source_url" in data else row.source_url
     if next_type == "news" and not (next_url or "").strip():
         raise HTTPException(
@@ -136,9 +141,9 @@ async def update_message(
             detail="source_url is required when type is news",
         )
     if "title" in data and data["title"] is not None:
-        row.title = data["title"].strip()
+        row.title = data["title"]
     if "body" in data and data["body"] is not None:
-        row.body = data["body"].strip()
+        row.body = data["body"]
     if "type" in data and data["type"] is not None:
         row.type = data["type"]
     if "source_url" in data:

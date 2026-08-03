@@ -172,11 +172,12 @@ def build_run_profiles(
     *,
     max_agents: int,
 ) -> tuple[list[OasisAgentProfile], dict[str, int]]:
-    """Injectors first (no LLM), then capped population. Returns profiles + key→index."""
-    injectors = injectors_from_ticks(ticks)
+    """Injectors first (no LLM), then population — combined length ≤ max_agents."""
+    injectors = injectors_from_ticks(ticks)[: max(0, max_agents)]
+    population_slots = max(0, max_agents - len(injectors))
     population = members_to_profiles(
         members,
-        max_agents=max_agents,
+        max_agents=population_slots,
         start_index=len(injectors),
     )
     profiles = injectors + population
