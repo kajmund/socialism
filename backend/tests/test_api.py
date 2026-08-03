@@ -421,11 +421,12 @@ async def test_generate_replace_key_and_library(client):
 
 
 async def test_message_crud_and_filters(client):
-    news_missing = await client.post(
+    news_raw = await client.post(
         "/messages",
-        json={"type": "news", "title": "Saknar url", "body": "Text"},
+        json={"type": "news", "title": "Råtextnyhet", "body": "Bara text, ingen länk."},
     )
-    assert news_missing.status_code == 422
+    assert news_raw.status_code == 201
+    assert news_raw.json()["source_url"] is None
 
     post = await client.post(
         "/messages",
@@ -457,7 +458,7 @@ async def test_message_crud_and_filters(client):
 
     listed = await client.get("/messages")
     assert listed.status_code == 200
-    assert len(listed.json()) == 2
+    assert len(listed.json()) == 3
 
     only_post = await client.get("/messages", params={"type": "post"})
     assert len(only_post.json()) == 1
@@ -503,11 +504,13 @@ async def test_message_rejects_whitespace_and_null_type_clears_url(client):
     assert news.json()["title"] == "Nyhet"
     assert news.json()["body"] == "Brödtext"
 
-    bad_patch = await client.patch(
+    cleared = await client.patch(
         f"/messages/{news_id}",
         json={"type": None, "source_url": None},
     )
-    assert bad_patch.status_code == 422
+    assert cleared.status_code == 200
+    assert cleared.json()["type"] == "news"
+    assert cleared.json()["source_url"] is None
 
     blank_body = await client.patch(
         f"/messages/{news_id}",
