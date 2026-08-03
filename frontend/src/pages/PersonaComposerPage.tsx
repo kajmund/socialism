@@ -328,6 +328,7 @@ function Editor({
             onChange={upd}
             rows={[
               { k: "age", l: "Ålder", v: persona.age, locked: !!locks.age },
+              { k: "kön", l: "Kön", v: persona.kön, locked: !!locks.kön },
               { k: "ort", l: "Distrikt", v: persona.ort, locked: !!locks.ort },
               { k: "yrke", l: "Yrke", v: persona.yrke, locked: !!locks.yrke },
               { k: "utbildning", l: "Utbildning", v: persona.utbildning, locked: !!locks.utbildning },
@@ -569,6 +570,7 @@ export function PersonaComposerPage() {
   )
   const [demo, setDemo] = useState({
     age: "42",
+    kön: "Kvinna",
     ort: "Distrikt A",
     yrke: "Handläggare",
     utbildning: "Högskola",
@@ -613,7 +615,11 @@ export function PersonaComposerPage() {
         count,
       })
       setCandidates(
-        result.candidates.map((c) => ({ ...c, key: Math.random() })),
+        result.candidates.map((c) => ({
+          ...blankEditablePersona(),
+          ...c,
+          key: Math.random(),
+        })),
       )
       setCreateStep("candidates")
     } catch (err) {
@@ -630,7 +636,7 @@ export function PersonaComposerPage() {
     getPersona(existingId)
       .then((detail) => {
         if (cancelled) return
-        setPersona(detail.profile)
+        setPersona({ ...blankEditablePersona(), ...detail.profile })
         setPersonaId(detail.id)
         setCreateOrigin(detail.origin)
       })
@@ -658,11 +664,11 @@ export function PersonaComposerPage() {
       const body = editableToWrite(target, origin)
       if (personaId) {
         const saved = await updatePersona(personaId, body)
-        setPersona(saved.profile)
+        setPersona({ ...blankEditablePersona(), ...saved.profile })
         setPersonaId(saved.id)
       } else {
         const saved = await createPersona(body)
-        setPersona(saved.profile)
+        setPersona({ ...blankEditablePersona(), ...saved.profile })
         setPersonaId(saved.id)
         navigate(`/personas/${saved.id}`, { replace: true })
       }
@@ -767,6 +773,7 @@ export function PersonaComposerPage() {
                 {(
                   [
                     ["age", "Ålder"],
+                    ["kön", "Kön"],
                     ["ort", "Distrikt"],
                     ["yrke", "Yrke"],
                     ["utbildning", "Utbildning"],
@@ -835,7 +842,7 @@ export function PersonaComposerPage() {
                     className="cand-card"
                     key={c.key}
                     onClick={() => {
-                      setPersona(c)
+                      setPersona({ ...blankEditablePersona(), ...c })
                       setScreen("edit")
                     }}
                   >
@@ -982,6 +989,7 @@ function VariantsView({
       mode: "demografi",
       demografi: {
         age: base.age,
+        kön: base.kön,
         ort: base.ort,
         yrke: base.yrke,
         utbildning: base.utbildning,
@@ -992,7 +1000,13 @@ function VariantsView({
     })
       .then((result) => {
         if (!cancelled) {
-          setVariants(result.candidates.map((c) => ({ ...c, key: Math.random() })))
+          setVariants(
+            result.candidates.map((c) => ({
+              ...blankEditablePersona(),
+              ...c,
+              key: Math.random(),
+            })),
+          )
         }
       })
       .catch((err: unknown) => {
@@ -1007,7 +1021,7 @@ function VariantsView({
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [base.name, base.age, base.ort, base.yrke])
+  }, [base.name, base.age, base.kön, base.ort, base.yrke])
 
   async function saveVariant(i: number, c: EditablePersona) {
     setBusyIdx(i)

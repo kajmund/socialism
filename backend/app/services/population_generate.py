@@ -207,6 +207,7 @@ def _candidate_key() -> str:
 
 
 # Recipe dist group key → EditablePersona field (labels sampled into profile).
+# kön is sampled separately via _sample_kon (normalized labels + fallback).
 _DIST_PROFILE_FIELDS: dict[str, str] = {
     "district": "ort",
     "occupation": "yrke",
@@ -221,6 +222,37 @@ _DIST_PROFILE_FIELDS: dict[str, str] = {
     "ton": "ton",
     "sprak": "sprak",
 }
+
+_KON_FEMALE = "Kvinna"
+_KON_MALE = "Man"
+_KON_NONBINARY = "Icke-binär"
+
+
+def _norm_kon(label: str) -> str:
+    token = _norm_token(label)
+    if token in {"kvinna", "female", "woman", "f"} or "kvinna" in token:
+        return _KON_FEMALE
+    if token in {"man", "male", "m"} or token.startswith("man"):
+        return _KON_MALE
+    if "icke" in token or "nonbinary" in token or "non_binary" in token:
+        return _KON_NONBINARY
+    return label.strip() or _KON_FEMALE
+
+
+def _sample_kon(dist: dict, rng: Random) -> str:
+    group = dist.get("kön")
+    if group is not None and group.rows:
+        picked = _weighted_pick(rng, group.rows)
+        return _norm_kon(_resolve_label(group.rows, picked, {}))
+    return _KON_FEMALE if rng.random() < 0.5 else _KON_MALE
+
+
+def _first_name_for_kon(kon: str, rng: Random) -> str:
+    if kon == _KON_FEMALE:
+        return rng.choice(NAMES_F)
+    if kon == _KON_MALE:
+        return rng.choice(NAMES_M)
+    return rng.choice(NAMES_F if rng.random() < 0.5 else NAMES_M)
 
 
 def _sample_profile_fields(dist: dict, rng: Random) -> dict[str, str]:
@@ -254,11 +286,14 @@ def sample_slot(recipe: PopulationRecipe, rng: Random) -> SlotPlan:
     lean_rows = dist["leaning"].rows if "leaning" in dist else []
     lean = _weighted_pick(rng, lean_rows) if lean_rows else "mitt"
     lean_label = _resolve_label(lean_rows, lean, LEAN_LABEL)
+    # Sample kön before other profile fields so fallback RNG is consumed once.
+    kon = _sample_kon(dist, rng)
     profile_fields = _sample_profile_fields(dist, rng)
     # Keep core slot fields authoritative for denormalized GeneratedPersonaOut.
     profile_fields["ort"] = _resolve_label(district_rows, district_key, DISTRICT_LABEL)
     profile_fields["yrke"] = _resolve_label(occ_rows, occ_key, JOB_BY_CAT)
     profile_fields["lutning"] = lean_label
+    profile_fields["kön"] = kon
 
     return SlotPlan(
         age=age,
@@ -275,8 +310,8 @@ def sample_slot(recipe: PopulationRecipe, rng: Random) -> SlotPlan:
 
 def stub_persona(recipe: PopulationRecipe, rng: Random) -> GeneratedPersonaOut:
     slot = sample_slot(recipe, rng)
-    is_f = rng.random() < 0.5
-    first = rng.choice(NAMES_F if is_f else NAMES_M)
+    kon = slot.profile_fields.get("kön") or _sample_kon(recipe.dist, rng)
+    first = _first_name_for_kon(kon, rng)
     last = rng.choice(LASTN)
     name = f"{first} {last}"
     initials = persona_initials(name)
@@ -284,6 +319,7 @@ def stub_persona(recipe: PopulationRecipe, rng: Random) -> GeneratedPersonaOut:
         name=name,
         initials=initials,
         age=str(slot.age),
+        kön=kon,
         ort=slot.district,
         yrke=slot.occ,
         lutning=slot.lean_label,

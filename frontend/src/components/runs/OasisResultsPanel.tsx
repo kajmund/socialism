@@ -971,8 +971,16 @@ function VariantBody({ variant }: { variant: OasisVariantResult }) {
     return a.length > 0 && !CARD_COVERED_ACTIONS.has(a)
   })
 
+  const platform =
+    variant.platform ??
+    variant.oasis_options?.platform ??
+    "twitter"
+
   return (
     <div>
+      <p className="mb-3 text-xs text-muted-foreground">
+        Plattform: {platform === "reddit" ? "Reddit" : "Twitter"}
+      </p>
       <MeasurementsSection rows={measurements} />
       <NetworkActivitySection variant={variant} onOpenAgent={openAgent} />
 

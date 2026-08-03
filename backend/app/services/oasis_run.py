@@ -1,4 +1,4 @@
-"""Run a capped OASIS Twitter simulation for a körning.
+"""Run an OASIS Twitter or Reddit simulation for a körning.
 
 Requires optional dependency group: `uv sync --extra oasis`.
 """
@@ -10,6 +10,7 @@ import asyncio
 import secrets
 import sqlite3
 from collections import Counter
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -20,22 +21,25 @@ from sqlalchemy.orm import selectinload
 from app.config import settings
 from app.database.models import Population, PopulationMember, Run
 from app.database.session import SessionLocal
-from app.schemas.domain import Injection, OasisRunOptions, Tick
+from app.schemas.domain import Injection, OasisPlatform, OasisRunOptions, Tick
 from app.serializers import utcnow
 from app.services.district_context import format_area_block, list_district_contexts
+from app.services.oasis_clock import OasisScenarioClock
 from app.services.oasis_profiles import (
     build_run_profiles,
     injection_has_content,
     injector_key,
+    write_reddit_profile_json,
     write_twitter_profile_csv,
 )
 from app.services.oasis_swedish import apply_swedish_social_environment_prompts
 from app.services.run_measurements import build_measurements
 
 ARTIFACT_ROOT = Path("data/oasis")
+DEFAULT_SIMULATION_START = date(2026, 8, 1)
 
 # Twitter population actions as names (no camel-oasis import required for tests).
-_BASE_POPULATION_ACTIONS: tuple[str, ...] = (
+_TWITTER_POPULATION_ACTIONS: tuple[str, ...] = (
     "LIKE_POST",
     "DISLIKE_POST",
     "UNLIKE_POST",
@@ -59,6 +63,32 @@ _BASE_POPULATION_ACTIONS: tuple[str, ...] = (
     "REFRESH",
 )
 
+# Reddit: no REPOST / QUOTE_POST.
+_REDDIT_POPULATION_ACTIONS: tuple[str, ...] = (
+    "LIKE_POST",
+    "DISLIKE_POST",
+    "UNLIKE_POST",
+    "UNDO_DISLIKE_POST",
+    "CREATE_COMMENT",
+    "LIKE_COMMENT",
+    "DISLIKE_COMMENT",
+    "UNLIKE_COMMENT",
+    "UNDO_DISLIKE_COMMENT",
+    "FOLLOW",
+    "UNFOLLOW",
+    "MUTE",
+    "UNMUTE",
+    "SEARCH_USER",
+    "SEARCH_POSTS",
+    "REPORT_POST",
+    "TREND",
+    "DO_NOTHING",
+    "REFRESH",
+)
+
+# Back-compat alias for older imports / tests.
+_BASE_POPULATION_ACTIONS = _TWITTER_POPULATION_ACTIONS
+
 
 class OasisUnavailable(RuntimeError):
     """Raised when camel-oasis is not installed or config is incomplete."""
@@ -76,12 +106,53 @@ def parse_oasis_options(raw: dict | None) -> OasisRunOptions:
     return OasisRunOptions.model_validate(raw or {})
 
 
-def population_action_names(*, allow_population_create_post: bool = False) -> list[str]:
+def population_action_names(
+    *,
+    allow_population_create_post: bool = False,
+    platform: OasisPlatform = "twitter",
+) -> list[str]:
     """Return ActionType names available to population agents."""
-    names = list(_BASE_POPULATION_ACTIONS)
+    base = (
+        _REDDIT_POPULATION_ACTIONS
+        if platform == "reddit"
+        else _TWITTER_POPULATION_ACTIONS
+    )
+    names = list(base)
     if allow_population_create_post:
         names.insert(0, "CREATE_POST")
     return names
+
+
+def _parse_simulation_start(raw: str | None) -> date:
+    if raw and raw.strip():
+        try:
+            return date.fromisoformat(raw.strip()[:10])
+        except ValueError:
+            pass
+    return DEFAULT_SIMULATION_START
+
+
+def _created_at_to_sort_key(value: Any) -> int | None:
+    """Normalize OASIS created_at (timestep int or ISO datetime) to a sortable int."""
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return int(value)
+    text = str(value).strip()
+    if not text:
+        return None
+    if "-" not in text and "T" not in text and ":" not in text:
+        try:
+            return int(float(text))
+        except ValueError:
+            return None
+    try:
+        # OASIS often stores "YYYY-MM-DD HH:MM:SS.ffffff"
+        normalized = text.replace(" ", "T", 1)
+        dt = datetime.fromisoformat(normalized)
+        return int(dt.timestamp() * 1000)
+    except ValueError:
+        return None
 
 
 def _artifact_dir(run_id: int, variant_id: str = "main") -> Path:
@@ -173,25 +244,27 @@ def previous_attempts(results: dict[str, Any] | None) -> list[dict[str, Any]]:
 
 
 def _max_event_time(db_path: Path) -> int:
-    """Highest created_at seen in OASIS artifact (trace/post), or -1."""
+    """Highest created_at seen in OASIS artifact (trace/post), or -1.
+
+    Twitter uses integer timesteps; Reddit uses datetime strings → epoch ms.
+    """
     if not db_path.exists():
         return -1
     conn = sqlite3.connect(db_path)
     try:
         times: list[int] = []
         for sql in (
-            "SELECT MAX(created_at) FROM trace",
-            "SELECT MAX(created_at) FROM post",
+            "SELECT created_at FROM trace",
+            "SELECT created_at FROM post",
         ):
             try:
-                row = conn.execute(sql).fetchone()
+                rows = conn.execute(sql).fetchall()
             except sqlite3.OperationalError:
                 continue
-            if row and row[0] is not None:
-                try:
-                    times.append(int(float(row[0])))
-                except (TypeError, ValueError):
-                    continue
+            for row in rows:
+                key = _created_at_to_sort_key(row[0] if row else None)
+                if key is not None:
+                    times.append(key)
         return max(times) if times else -1
     finally:
         conn.close()
@@ -344,6 +417,34 @@ def _read_oasis_results(db_path: Path) -> dict[str, Any]:
         "action_histogram": _action_histogram(trace),
     }
 
+def _make_reddit_env(agent_graph: Any, db_path: Path, sim_start: date) -> Any:
+    """Build OasisEnv with Reddit recsys + discrete scenario clock."""
+    import oasis
+    from oasis.environment.env import OasisEnv
+    from oasis.social_platform.channel import Channel
+    from oasis.social_platform.platform import Platform
+
+    channel = Channel()
+    clock = OasisScenarioClock(sim_start)
+    sim_start_dt = datetime.combine(sim_start, datetime.min.time())
+    platform = Platform(
+        db_path=str(db_path),
+        channel=channel,
+        sandbox_clock=clock,
+        start_time=sim_start_dt,
+        recsys_type="reddit",
+        allow_self_rating=True,
+        show_score=True,
+        max_rec_post_len=100,
+        refresh_rec_post_count=5,
+    )
+    return OasisEnv(
+        agent_graph=agent_graph,
+        platform=platform,
+        database_path=str(db_path),
+    )
+
+
 async def run_oasis_simulation(
     *,
     run_id: int,
@@ -353,6 +454,7 @@ async def run_oasis_simulation(
     variant_id: str = "main",
     area_blocks: dict[str, str] | None = None,
     oasis_options: OasisRunOptions | None = None,
+    simulation_start: date | None = None,
 ) -> dict[str, Any]:
     if not oasis_installed():
         raise OasisUnavailable(
@@ -363,13 +465,15 @@ async def run_oasis_simulation(
 
     options = oasis_options or OasisRunOptions()
     allow_create = options.allow_population_create_post
+    platform = options.platform
     settings.apply_oasis_env()
 
     # Deferred: camel-oasis is an optional extra and may not be installed.
     import oasis
     from camel.models import ModelFactory
     from camel.types import ModelPlatformType
-    from oasis import ActionType, LLMAction, ManualAction, generate_twitter_agent_graph
+    from oasis import ActionType, LLMAction, ManualAction
+    from oasis import generate_reddit_agent_graph, generate_twitter_agent_graph
 
     apply_swedish_social_environment_prompts()
     # All configured ticks run: silent = no injection that day, population still reacts.
@@ -379,13 +483,22 @@ async def run_oasis_simulation(
         active_ticks,
         area_blocks=area_blocks,
         allow_create_post=allow_create,
+        platform=platform,
     )
     population_indices = {i for i, p in enumerate(profiles) if p.role == "population"}
     if not population_indices:
         raise OasisUnavailable("Population has no members to simulate")
 
     art = _artifact_dir(run_id, variant_id)
-    profile_csv = write_twitter_profile_csv(profiles, art / "profiles.csv")
+    profile_csv: str | None = None
+    profile_json: str | None = None
+    if platform == "reddit":
+        profile_path = write_reddit_profile_json(profiles, art / "profiles.json")
+        profile_json = str(profile_path)
+    else:
+        profile_path = write_twitter_profile_csv(profiles, art / "profiles.csv")
+        profile_csv = str(profile_path)
+
     db_path = art / "simulation.db"
     if db_path.exists():
         db_path.unlink()
@@ -400,21 +513,34 @@ async def run_oasis_simulation(
     available_actions = [
         ActionType[name]
         for name in population_action_names(
-            allow_population_create_post=allow_create
+            allow_population_create_post=allow_create,
+            platform=platform,
         )
     ]
 
-    agent_graph = await generate_twitter_agent_graph(
-        profile_path=str(profile_csv),
-        model=model,
-        available_actions=available_actions,
-    )
+    sim_start = simulation_start or DEFAULT_SIMULATION_START
+    scenario_clock: OasisScenarioClock | None = None
 
-    env = oasis.make(
-        agent_graph=agent_graph,
-        platform=oasis.DefaultPlatformType.TWITTER,
-        database_path=str(db_path),
-    )
+    if platform == "reddit":
+        agent_graph = await generate_reddit_agent_graph(
+            profile_path=str(profile_path),
+            model=model,
+            available_actions=available_actions,
+        )
+        env = _make_reddit_env(agent_graph, db_path, sim_start)
+        if isinstance(env.platform.sandbox_clock, OasisScenarioClock):
+            scenario_clock = env.platform.sandbox_clock
+    else:
+        agent_graph = await generate_twitter_agent_graph(
+            profile_path=str(profile_path),
+            model=model,
+            available_actions=available_actions,
+        )
+        env = oasis.make(
+            agent_graph=agent_graph,
+            platform=oasis.DefaultPlatformType.TWITTER,
+            database_path=str(db_path),
+        )
 
     ticks_run = 0
     tick_markers: list[dict[str, Any]] = []
@@ -424,6 +550,8 @@ async def run_oasis_simulation(
         await env.reset()
 
         for tick_index, tick in enumerate(active_ticks):
+            if scenario_clock is not None:
+                scenario_clock.set_day_index(max(0, tick.day - 1))
             time_start = prev_end + 1
             if not tick.silent:
                 inject_actions: dict[Any, list[Any]] = {}
@@ -478,6 +606,7 @@ async def run_oasis_simulation(
     return {
         "engine": "oasis",
         "seed": seed,
+        "platform": platform,
         "agents": [
             {
                 "index": i,
@@ -500,7 +629,9 @@ async def run_oasis_simulation(
         "trace": feed["trace"],
         "action_histogram": feed["action_histogram"],
         "artifact_db": str(db_path),
-        "profile_csv": str(profile_csv),
+        "profile_path": str(profile_path),
+        "profile_csv": profile_csv,
+        "profile_json": profile_json,
         "oasis_options": options.model_dump(),
     }
 
@@ -609,6 +740,11 @@ async def simulate_run(session: AsyncSession, run: Run) -> dict[str, Any]:
                 variant_id=variant_id,
                 area_blocks=area_blocks,
                 oasis_options=options,
+                simulation_start=(
+                    run.start_date
+                    if isinstance(run.start_date, date)
+                    else _parse_simulation_start(None)
+                ),
             )
             agents = sim.get("agents") or []
             posts = sim.get("posts") or []
@@ -636,7 +772,10 @@ async def simulate_run(session: AsyncSession, run: Run) -> dict[str, Any]:
                     "trace": trace,
                     "action_histogram": action_histogram,
                     "artifact_db": sim.get("artifact_db"),
+                    "profile_path": sim.get("profile_path"),
                     "profile_csv": sim.get("profile_csv"),
+                    "profile_json": sim.get("profile_json"),
+                    "platform": sim.get("platform"),
                     "agent_count": sim.get("agent_count"),
                     "configured_ticks": sim.get("configured_ticks"),
                     "oasis_options": sim.get("oasis_options"),

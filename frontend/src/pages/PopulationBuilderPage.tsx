@@ -30,6 +30,7 @@ type DistState = Record<string, DistGroupData>
 
 /** Catalog keys → builder distribution groups (age stays local — not in catalog). */
 const CATALOG_DIST_MAP: { catalogKey: string; groupKey: string; fallbackLabel: string }[] = [
+  { catalogKey: "kön", groupKey: "kön", fallbackLabel: "Kön" },
   { catalogKey: "ort", groupKey: "district", fallbackLabel: "Distrikt" },
   { catalogKey: "yrke", groupKey: "occupation", fallbackLabel: "Yrken" },
   { catalogKey: "utbildning", groupKey: "education", fallbackLabel: "Utbildningsnivåer" },

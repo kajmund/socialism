@@ -46,6 +46,10 @@ def _recipe_with_extras() -> PopulationRecipe:
                 label="Språk",
                 rows=[DistRow(k="kort", l="Kort och konkret", v=100)],
             ),
+            "kön": DistGroup(
+                label="Kön",
+                rows=[DistRow(k="kvinna", l="Kvinna", v=100)],
+            ),
         },
     )
 
@@ -56,6 +60,7 @@ def test_sample_slot_includes_catalog_profile_fields():
     assert slot.profile_fields["parti"] == "Vänsterpartiet"
     assert slot.profile_fields["utbildning"] == "Gymnasium"
     assert slot.profile_fields["sprak"] == "Kort och konkret"
+    assert slot.profile_fields["kön"] == "Kvinna"
 
 
 def test_stub_persona_applies_ton_and_parti():
@@ -64,4 +69,35 @@ def test_stub_persona_applies_ton_and_parti():
     assert persona.profile.parti == "Vänsterpartiet"
     assert persona.profile.utbildning == "Gymnasium"
     assert persona.profile.sprak == "Kort och konkret"
+    assert persona.profile.kön == "Kvinna"
     assert persona.quote == "Sarkastisk och otålig"
+
+
+def test_stub_persona_fallback_kon_without_dist_group():
+    recipe = PopulationRecipe(
+        size=2,
+        entryMode="manual",
+        freeText="",
+        locale="norrkoping",
+        seed=7,
+        dist={
+            "age": DistGroup(
+                label="Ålder",
+                rows=[DistRow(k="medel", l="Medel", v=100)],
+            ),
+            "district": DistGroup(
+                label="Ort",
+                rows=[DistRow(k="centrum", l="Centrum", v=100)],
+            ),
+            "occupation": DistGroup(
+                label="Yrke",
+                rows=[DistRow(k="vard", l="Undersköterska", v=100)],
+            ),
+            "leaning": DistGroup(
+                label="Lutning",
+                rows=[DistRow(k="mitt", l="Mitt", v=100)],
+            ),
+        },
+    )
+    persona = stub_persona(recipe, Random(0))
+    assert persona.profile.kön in {"Kvinna", "Man"}
