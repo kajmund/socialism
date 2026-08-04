@@ -6,6 +6,8 @@ import {
   buildTimelineItems,
   CARD_COVERED_ACTIONS,
   groupTimelineSegments,
+  parseTraceInfo,
+  sortKeyFromCreatedAt,
   type TimelineActionItem,
 } from "@/components/runs/activityFeed"
 import {
@@ -20,6 +22,10 @@ import {
   formatPostForClipboard,
   postBodyTextForCopy,
 } from "@/components/runs/feedCopy"
+import {
+  InterviewIcon,
+  RunPersonaInterviewModal,
+} from "@/components/runs/RunPersonaInterviewPanel"
 import { personaInitials } from "@/data/library"
 import { RUN_STATUS_LABEL } from "@/data/runs"
 import { ApiError } from "@/lib/api"
@@ -999,6 +1005,11 @@ function FeedNoiseFilter({
 
 function TickMarkerCard({
   tick,
+  expanded,
+  onToggle,
+  interviewEnabled,
+  onInterview,
+  children,
 }: {
   tick: {
     day: number
@@ -1006,30 +1017,81 @@ function TickMarkerCard({
     rounds: number
     timeStart: number
     timeEnd: number
+    tickIndex: number
   }
+  expanded: boolean
+  onToggle: () => void
+  interviewEnabled: boolean
+  onInterview: () => void
+  children?: ReactNode
 }) {
   const empty = tick.timeEnd < tick.timeStart
   return (
     <li className="list-none">
-      <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs">
-        <span className="font-semibold text-foreground">Dag {tick.day}</span>
-        {tick.silent ? (
-          <span className="rounded border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
-            tyst
+      <div className="rounded-md border border-border bg-muted/30">
+        <div className="flex flex-wrap items-center gap-2 px-3 py-2 text-xs">
+          <button
+            type="button"
+            className="inline-flex items-center gap-2 rounded px-1 py-0.5 text-left hover:bg-muted/60"
+            onClick={onToggle}
+            aria-expanded={expanded}
+            aria-label={
+              (expanded ? "Stäng" : "Expandera") + " dag " + tick.day
+            }
+          >
+            <span className="w-3 text-muted-foreground" aria-hidden="true">
+              {expanded ? "▾" : "▸"}
+            </span>
+            <span className="font-semibold text-foreground">Dag {tick.day}</span>
+          </button>
+          {tick.silent ? (
+            <span className="rounded border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+              tyst
+            </span>
+          ) : (
+            <span className="rounded border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+              tick
+            </span>
+          )}
+          <span className="text-muted-foreground">
+            {tick.rounds} rond{tick.rounds === 1 ? "" : "er"}
           </span>
-        ) : (
-          <span className="rounded border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
-            tick
+          <span className="ml-auto flex items-center gap-2 tabular-nums text-[10px] text-muted-foreground/80">
+            <span>
+              {empty
+                ? "inga nya händelser"
+                : `t=${tick.timeStart}–${tick.timeEnd}`}
+            </span>
+            {interviewEnabled ? (
+              <button
+                type="button"
+                className="inline-grid h-6 w-6 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                title={`Intervjua efter dag ${tick.day}`}
+                aria-label={`Intervjua efter dag ${tick.day}`}
+                onClick={onInterview}
+              >
+                <svg
+                  aria-hidden="true"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+              </button>
+            ) : null}
           </span>
-        )}
-        <span className="text-muted-foreground">
-          {tick.rounds} rond{tick.rounds === 1 ? "" : "er"}
-        </span>
-        <span className="ml-auto tabular-nums text-[10px] text-muted-foreground/80">
-          {empty
-            ? "inga nya händelser"
-            : `t=${tick.timeStart}–${tick.timeEnd}`}
-        </span>
+        </div>
+        {expanded && children ? (
+          <div className="border-t border-border px-3 py-2 text-xs text-muted-foreground">
+            {children}
+          </div>
+        ) : null}
       </div>
     </li>
   )
@@ -1080,7 +1142,92 @@ function ActionCluster({
   )
 }
 
-function VariantBody({ variant }: { variant: OasisVariantResult }) {
+function PlannedOasisInterviews({ variant }: { variant: OasisVariantResult }) {
+  const agents = variant.agents ?? []
+  const markers = variant.tick_markers ?? []
+  const interviews = useMemo(() => {
+    const rows: Array<{
+      key: string
+      tickIndex: number
+      day: number
+      agentName: string
+      prompt: string
+      response: string
+    }> = []
+    for (const row of variant.trace ?? []) {
+      if ((row.action || "").toLowerCase() !== "interview") continue
+      const info = parseTraceInfo(row.info)
+      const prompt = typeof info.prompt === "string" ? info.prompt : ""
+      const response = typeof info.response === "string" ? info.response : ""
+      const t = sortKeyFromCreatedAt(row.created_at)
+      let tickIndex = 0
+      let day = 1
+      for (const m of markers) {
+        if (m.time_start <= t && t <= m.time_end) {
+          tickIndex = m.tick_index
+          day = m.day
+          break
+        }
+        if (t > m.time_end) {
+          tickIndex = m.tick_index
+          day = m.day
+        }
+      }
+      rows.push({
+        key: `${row.user_id}-${row.created_at}-${prompt.slice(0, 12)}`,
+        tickIndex,
+        day,
+        agentName: agentLabel(agents, row.user_id),
+        prompt,
+        response,
+      })
+    }
+    return rows
+  }, [variant.trace, agents, markers])
+
+  if (interviews.length === 0) return null
+
+  return (
+    <section className="mb-4 rounded-md border border-[color:var(--border-hairline)] p-4">
+      <h3 className="mb-1 text-sm font-medium text-foreground">
+        Planerade OASIS-intervjuer
+      </h3>
+      <p className="mb-3 text-xs text-muted-foreground">
+        Frågor som kördes under simuleringen via ActionType.INTERVIEW.
+      </p>
+      <ul className="flex flex-col gap-3">
+        {interviews.map((iv) => (
+          <li
+            key={iv.key}
+            className="rounded border border-[color:var(--border-hairline)] px-3 py-2 text-sm"
+          >
+            <div className="mb-1 text-xs text-muted-foreground">
+              {iv.agentName} · efter dag {iv.day} (tick {iv.tickIndex + 1})
+            </div>
+            <p className="text-foreground">
+              <span className="text-muted-foreground">Q: </span>
+              {iv.prompt || "—"}
+            </p>
+            <p className="mt-1 text-muted-foreground">
+              <span className="text-foreground/80">A: </span>
+              {iv.response || "—"}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+function VariantBody({
+  variant,
+  runId,
+  attemptId,
+}: {
+  variant: OasisVariantResult
+  runId?: number
+  attemptId?: string
+}) {
   const posts = variant.posts ?? []
   const comments = variant.comments ?? []
   const agents = variant.agents ?? []
@@ -1110,6 +1257,11 @@ function VariantBody({ variant }: { variant: OasisVariantResult }) {
     label: string
   } | null>(null)
   const [hideNoise, setHideNoise] = useState(false)
+  const [expandedTicks, setExpandedTicks] = useState<Set<number>>(() => new Set())
+  const [interviewTarget, setInterviewTarget] = useState<{
+    tickIndex: number
+    personaId: string | null
+  } | null>(null)
 
   const openAgent = useCallback(
     (userId: number) => {
@@ -1183,7 +1335,20 @@ function VariantBody({ variant }: { variant: OasisVariantResult }) {
       </p>
       {qualityWarnings ? <QualityWarningsBanner data={qualityWarnings} /> : null}
       <MeasurementsSection rows={measurements} />
+      <PlannedOasisInterviews variant={variant} />
       <NetworkActivitySection variant={variant} onOpenAgent={openAgent} />
+      {runId != null && attemptId && interviewTarget != null ? (
+        <RunPersonaInterviewModal
+          key={`${interviewTarget.tickIndex}-${interviewTarget.personaId ?? "any"}`}
+          open
+          onClose={() => setInterviewTarget(null)}
+          runId={runId}
+          attemptId={attemptId}
+          variant={variant}
+          tickIndex={interviewTarget.tickIndex}
+          initialPersonaId={interviewTarget.personaId}
+        />
+      ) : null}
 
       {agents.length > 0 ? (
         <div className="mb-3 space-y-1 text-sm text-muted-foreground">
@@ -1238,7 +1403,66 @@ function VariantBody({ variant }: { variant: OasisVariantResult }) {
       <ul className="flex flex-col gap-3">
         {segments.map((segment) => {
           if (segment.kind === "tick") {
-            return <TickMarkerCard key={segment.key} tick={segment.tick} />
+            const tickItem = segment.tick
+            const expanded = expandedTicks.has(tickItem.tickIndex)
+            const dayPosts = timeline.filter(
+              (item) =>
+                item.kind === "post" && item.tickIndex === tickItem.tickIndex,
+            ).length
+            const dayActions = timeline.filter(
+              (item) =>
+                item.kind === "action" && item.tickIndex === tickItem.tickIndex,
+            ).length
+            const dayInterviews = (variant.trace ?? []).filter((row) => {
+              if ((row.action || "").toLowerCase() !== "interview") return false
+              const t = sortKeyFromCreatedAt(row.created_at)
+              return (
+                tickItem.timeStart <= t && t <= tickItem.timeEnd
+              )
+            }).length
+            return (
+              <TickMarkerCard
+                key={segment.key}
+                tick={tickItem}
+                expanded={expanded}
+                onToggle={() =>
+                  setExpandedTicks((prev) => {
+                    const next = new Set(prev)
+                    if (next.has(tickItem.tickIndex)) next.delete(tickItem.tickIndex)
+                    else next.add(tickItem.tickIndex)
+                    return next
+                  })
+                }
+                interviewEnabled={runId != null && Boolean(attemptId)}
+                onInterview={() =>
+                  setInterviewTarget({
+                    tickIndex: tickItem.tickIndex,
+                    personaId: null,
+                  })
+                }
+              >
+                <p>
+                  {dayPosts} inlägg · {dayActions} övriga handlingar
+                  {dayInterviews > 0
+                    ? ` · ${dayInterviews} OASIS-intervju${dayInterviews === 1 ? "" : "er"}`
+                    : ""}
+                </p>
+                {runId != null && attemptId ? (
+                  <button
+                    type="button"
+                    className="mt-2 text-xs font-medium text-[color:var(--text-link)] hover:underline"
+                    onClick={() =>
+                      setInterviewTarget({
+                        tickIndex: tickItem.tickIndex,
+                        personaId: null,
+                      })
+                    }
+                  >
+                    Öppna post-hoc intervju…
+                  </button>
+                ) : null}
+              </TickMarkerCard>
+            )
           }
           if (segment.kind === "actions") {
             return (
@@ -1286,6 +1510,16 @@ function VariantBody({ variant }: { variant: OasisVariantResult }) {
               content: c.content,
             })),
           )
+          const postTickIndex =
+            timeline.find(
+              (item) =>
+                item.kind === "post" && item.post.post_id === post.post_id,
+            )?.tickIndex ?? 0
+          const canInterviewPost =
+            runId != null &&
+            Boolean(attemptId) &&
+            !isInjector &&
+            Boolean(agent?.persona_id)
 
           return (
             <li
@@ -1310,7 +1544,25 @@ function VariantBody({ variant }: { variant: OasisVariantResult }) {
                     </>
                   }
                 />
-                <CopyFeedTextButton text={postCopyText} label="Kopiera inlägg" />
+                <div className="flex shrink-0 items-center gap-1">
+                  {canInterviewPost ? (
+                    <button
+                      type="button"
+                      className="inline-grid h-7 w-7 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                      title={`Intervjua ${author}`}
+                      aria-label={`Intervjua ${author}`}
+                      onClick={() =>
+                        setInterviewTarget({
+                          tickIndex: postTickIndex,
+                          personaId: agent!.persona_id,
+                        })
+                      }
+                    >
+                      <InterviewIcon />
+                    </button>
+                  ) : null}
+                  <CopyFeedTextButton text={postCopyText} label="Kopiera inlägg" />
+                </div>
               </div>
 
               <div className="mt-2.5">
@@ -1377,8 +1629,14 @@ function VariantBody({ variant }: { variant: OasisVariantResult }) {
               {postComments.length > 0 ? (
                 <ul className="mt-3 space-y-3 border-t border-border/60 pt-3">
                   {postComments.map((c) => {
+                    const commentAgent = agents.find((a) => a.index === c.user_id)
                     const commentName = agentLabel(agents, c.user_id)
                     const commentInjector = agentIsInjector(agents, c.user_id)
+                    const canInterviewComment =
+                      runId != null &&
+                      Boolean(attemptId) &&
+                      !commentInjector &&
+                      Boolean(commentAgent?.persona_id)
                     return (
                       <li key={c.comment_id} className="flex items-start gap-1.5">
                         {commentInjector ? null : (
@@ -1410,10 +1668,28 @@ function VariantBody({ variant }: { variant: OasisVariantResult }) {
                             onOpenAgent={openAgent}
                           />
                         </div>
-                        <CopyFeedTextButton
-                          text={formatCommentForClipboard(commentName, c.content)}
-                          label="Kopiera kommentar"
-                        />
+                        <div className="flex shrink-0 flex-col items-center gap-1">
+                          {canInterviewComment ? (
+                            <button
+                              type="button"
+                              className="inline-grid h-7 w-7 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                              title={`Intervjua ${commentName}`}
+                              aria-label={`Intervjua ${commentName}`}
+                              onClick={() =>
+                                setInterviewTarget({
+                                  tickIndex: postTickIndex,
+                                  personaId: commentAgent!.persona_id,
+                                })
+                              }
+                            >
+                              <InterviewIcon />
+                            </button>
+                          ) : null}
+                          <CopyFeedTextButton
+                            text={formatCommentForClipboard(commentName, c.content)}
+                            label="Kopiera kommentar"
+                          />
+                        </div>
                       </li>
                     )
                   })}
@@ -1513,6 +1789,7 @@ function AttemptBlock({
   onOrderReport,
   ordering,
   branchMode,
+  runId,
 }: {
   attempt: OasisAttemptResult
   index: number
@@ -1525,6 +1802,7 @@ function AttemptBlock({
   onOrderReport?: (attemptId: string) => void
   ordering?: boolean
   branchMode?: BranchMode | null
+  runId?: number
 }) {
   const variants = attempt.variants ?? []
   const stimulusVariant = variants.find((v) => v.id === "a")
@@ -1634,7 +1912,11 @@ function AttemptBlock({
         ) : null}
 
         {single ? (
-          <VariantBody variant={variants[0]} />
+          <VariantBody
+            variant={variants[0]}
+            runId={runId}
+            attemptId={attempt.id}
+          />
         ) : (
           <div className="flex flex-col gap-2">
             {variants.map((variant, vi) => (
@@ -1666,7 +1948,11 @@ function AttemptBlock({
                   </div>
                 </summary>
                 <div className="border-t border-border/60 px-3 py-3">
-                  <VariantBody variant={variant} />
+                  <VariantBody
+                    variant={variant}
+                    runId={runId}
+                    attemptId={attempt.id}
+                  />
                 </div>
               </details>
             ))}
@@ -1875,6 +2161,7 @@ export function OasisResultsPanel({
             onOrderReport={runId ? (id) => void handleOrderOne(id) : undefined}
             ordering={attemptBusy}
             branchMode={branchMode}
+            runId={runId}
           />
         )
       })}

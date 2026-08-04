@@ -183,13 +183,16 @@
 .tl-head .rounds-mini{display:flex;gap:3px}
 .tl-head .rounds-mini .d{width:5px;height:5px;border-radius:50%;background:var(--db-ink-100)}
 .tl-head .rounds-mini .d.on{background:var(--db-ink-950)}
-.tl-head .caret{color:var(--text-muted);font-size:11px;flex-shrink:0}
+.tl-head .caret{color:var(--text-muted);font-size:11px;flex-shrink:0;width:1em;text-align:center}
 .tl-edit-hint{font-size:11px;font-weight:600;color:var(--text-link);flex-shrink:0}
 .tl-head-main:hover .tl-edit-hint{color:var(--text-link-hover)}
-.tl-head-actions{display:flex;gap:4px;flex-shrink:0}
-.tl-icon-btn{width:26px;height:26px;border:none;background:transparent;border-radius:var(--radius-sm);color:var(--text-muted);cursor:pointer;font-size:13px;display:grid;place-items:center}
+.tl-head-actions{display:flex;gap:4px;flex-shrink:0;align-items:center}
+.tl-icon-btn{width:26px;height:26px;border:none;background:transparent;border-radius:var(--radius-sm);color:var(--text-muted);cursor:pointer;font-size:13px;display:grid;place-items:center;position:relative}
 .tl-icon-btn:hover{background:var(--db-ink-100);color:var(--text-body)}
 .tl-icon-btn.danger:hover{color:var(--db-error)}
+.tl-interview-btn{margin-left:2px}
+.tl-interview-btn.has-items{color:var(--db-gold-700)}
+.tl-interview-badge{position:absolute;top:-2px;right:-2px;min-width:12px;height:12px;padding:0 3px;border-radius:999px;background:var(--db-gold-500);color:var(--db-navy-ink);font-size:8px;font-weight:700;line-height:12px;text-align:center}
 
 .tl-body{border-top:1px solid var(--border-hairline);padding:18px 20px 20px;display:flex;flex-direction:column;gap:20px}
 .tl-row-lbl{font:var(--text-label);color:var(--text-muted);margin-bottom:9px;display:block}

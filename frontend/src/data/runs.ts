@@ -4,6 +4,7 @@ import type {
   Measurement,
   RunSummary,
   Tick,
+  TickInterview,
 } from "@/data/runs-types"
 
 export const RUN_STATUS_LABEL: Record<RunSummary["status"], string> = {
@@ -28,6 +29,10 @@ function cloneTick(t: Tick): Tick {
     injections: t.injections.map((inj) => ({
       ...inj,
       key: "i" + Math.random().toString(36).slice(2, 8),
+    })),
+    interviews: (t.interviews ?? []).map((iv) => ({
+      ...iv,
+      key: "iv" + Math.random().toString(36).slice(2, 8),
     })),
   }
 }
@@ -57,7 +62,28 @@ export function makeTick(day: number): Tick {
     injections: [],
     rounds: 3,
     measurements: ["opinion_snapshot"],
+    interviews: [],
   }
+}
+
+export function makeTickInterview(): TickInterview {
+  return {
+    key: "iv" + Math.random().toString(36).slice(2, 8),
+    persona_id: "",
+    prompt: "",
+  }
+}
+
+/** Ensure ticks from API (older payloads) have interviews[]. */
+export function normalizeTick(tick: Tick): Tick {
+  return {
+    ...tick,
+    interviews: tick.interviews ?? [],
+  }
+}
+
+export function normalizeTicks(ticks: Tick[]): Tick[] {
+  return ticks.map(normalizeTick)
 }
 
 export function makeInjection(): Injection {

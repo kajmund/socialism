@@ -123,6 +123,11 @@ class PersonaMessage(Base):
         server_default=func.now(),
         nullable=False,
     )
+    # When set together: post-hoc interview scoped to a run attempt/variant/tick.
+    run_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    attempt_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    variant_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    through_tick_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 class Message(Base):

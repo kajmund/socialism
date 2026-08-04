@@ -206,6 +206,12 @@ export type Injection = {
   message_id: string | null
 }
 
+export type TickInterview = {
+  key: string
+  persona_id: string
+  prompt: string
+}
+
 export type Tick = {
   key: string
   day: number
@@ -213,6 +219,7 @@ export type Tick = {
   injections: Injection[]
   rounds: number
   measurements: string[]
+  interviews: TickInterview[]
 }
 
 export type BranchMode = "ab" | "stimulus_control"
