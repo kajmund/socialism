@@ -15,7 +15,11 @@ import { RunCreateWizard } from "@/components/runs/RunCreateWizard"
 import { RunIdentityFields } from "@/components/runs/RunIdentityFields"
 import { RunTimelineSection } from "@/components/runs/RunTimelineSection"
 import { Card, CardContent } from "@/components/ui/card"
-import { makeStimulusControlBranch, makeTick } from "@/data/runs"
+import {
+  makeStimulusControlBranch,
+  makeTick,
+  normalizeTicks,
+} from "@/data/runs"
 import { validateRunConfig } from "@/data/runValidation"
 import type {
   BranchState,
@@ -109,8 +113,16 @@ export function ConfigureRunPage() {
         setName(run.name)
         setStartDate(run.start_date ?? "2026-08-03")
         setPopId(run.population_id)
-        setMainTicks(run.main_ticks)
-        setBranch(run.branch)
+        setMainTicks(normalizeTicks(run.main_ticks))
+        setBranch(
+          run.branch
+            ? {
+                ...run.branch,
+                a: normalizeTicks(run.branch.a),
+                b: normalizeTicks(run.branch.b),
+              }
+            : null,
+        )
         setOasisOptions({
           ...DEFAULT_OASIS_OPTIONS,
           ...(run.oasis_options ?? {}),

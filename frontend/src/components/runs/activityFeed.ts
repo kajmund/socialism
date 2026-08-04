@@ -246,6 +246,25 @@ export function describeTimelineAction(
         targetUserId: null,
         postId: null,
       }
+    case "interview": {
+      const prompt =
+        typeof ctx.info.prompt === "string" ? ctx.info.prompt : null
+      const response =
+        typeof ctx.info.response === "string" ? ctx.info.response : null
+      const snippet = response
+        ? response.length > 80
+          ? `${response.slice(0, 80)}…`
+          : response
+        : null
+      return {
+        label: "intervjuades",
+        detail: prompt
+          ? `Q: ${prompt}${snippet ? ` — ${snippet}` : ""}`
+          : snippet,
+        targetUserId: null,
+        postId: null,
+      }
+    }
     case "search_user": {
       const q =
         typeof ctx.info.query === "string"
