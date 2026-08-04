@@ -101,16 +101,6 @@ function distFromCatalog(lists: CatalogList[]): DistState {
   return dist
 }
 
-function normalizeGroup(rows: DistRow[]) {
-  const sum = rows.reduce((a, r) => a + r.v, 0) || 1
-  rows.forEach((r) => {
-    r.v = Math.round((r.v * 100) / sum)
-  })
-  let diff = 100 - rows.reduce((a, r) => a + r.v, 0)
-  rows[0]!.v += diff
-  return rows
-}
-
 function DistGroup({
   gkey,
   group,
@@ -196,10 +186,6 @@ export function PopulationBuilderPage() {
 
   const [cur, setCur] = useState(isEditRecipe ? 2 : 1)
   const [maxReached, setMaxReached] = useState(isEditRecipe ? 3 : 1)
-  const [entryMode, setEntryMode] = useState<"free" | "manual">("free")
-  const [freeText, setFreeText] = useState(
-    "En blandad grupp, något höger-tung, cynisk ton",
-  )
   const [popName, setPopName] = useState("Ny population")
   const [popSize, setPopSize] = useState(12)
   const [dist, setDist] = useState<DistState>(() => ({
@@ -253,14 +239,6 @@ export function PopulationBuilderPage() {
           const recipeDist = pop.recipe.dist as DistState
           setDist((prev) => mergeMissingDist(recipeDist, prev))
         }
-        if (pop.recipe && typeof pop.recipe === "object" && "entryMode" in pop.recipe) {
-          const mode = pop.recipe.entryMode
-          if (mode === "free" || mode === "manual") setEntryMode(mode)
-        }
-        if (pop.recipe && typeof pop.recipe === "object" && "freeText" in pop.recipe) {
-          const text = pop.recipe.freeText
-          if (typeof text === "string") setFreeText(text)
-        }
       })
       .catch((err: unknown) => {
         if (!cancelled) {
@@ -275,8 +253,7 @@ export function PopulationBuilderPage() {
   function buildRecipe(): PopulationRecipe {
     return {
       size: effectiveSize,
-      entryMode,
-      freeText,
+      entryMode: "manual",
       dist,
       locale: "norrkoping",
     }
@@ -308,43 +285,6 @@ export function PopulationBuilderPage() {
       const diff = 100 - rows.reduce((a, r) => a + r.v, 0)
       if (others[0]) others[0].v += diff
       else row.v += diff
-      return next
-    })
-  }
-
-  function applyFreeTextHeuristics() {
-    if (entryMode !== "free" || !freeText) return
-    const txt = freeText.toLowerCase()
-    setDist((prev) => {
-      const next = JSON.parse(JSON.stringify(prev)) as DistState
-      const skew = (
-        gkey: string,
-        up: (r: DistRow) => boolean,
-        down: (r: DistRow) => boolean,
-      ) => {
-        const group = next[gkey]
-        if (!group) return
-        group.rows.forEach((r) => {
-          if (up(r)) r.v = Math.round(r.v * 1.6)
-          if (down(r)) r.v = Math.round(r.v * 0.5)
-        })
-        normalizeGroup(group.rows)
-      }
-      const labelHas = (needle: string) => (r: DistRow) =>
-        r.l.toLowerCase().includes(needle) ||
-        r.k.includes(needle.replace(/[äå]/g, "a").replace(/ö/g, "o"))
-      if (txt.includes("höger")) {
-        skew("leaning", labelHas("höger"), labelHas("vänster"))
-      }
-      if (txt.includes("vänster")) {
-        skew("leaning", labelHas("vänster"), labelHas("höger"))
-      }
-      if (txt.includes("äldre") || txt.includes("pensionär")) {
-        skew("age", (r) => r.k === "aldre", (r) => r.k === "ung")
-      }
-      if (txt.includes("ung")) {
-        skew("age", (r) => r.k === "ung", (r) => r.k === "aldre")
-      }
       return next
     })
   }
@@ -386,7 +326,6 @@ export function PopulationBuilderPage() {
   }
 
   function next() {
-    if (cur === 1) applyFreeTextHeuristics()
     if (cur < 3) {
       setCur(cur + 1)
       setMaxReached((m) => Math.max(m, cur + 1))
@@ -457,54 +396,12 @@ export function PopulationBuilderPage() {
             <div className="section-head">
               <span className="kicker">Steg 1 · Starta</span>
               <h1 style={{ font: "var(--text-h1)", fontFamily: "'Bai Jamjuree', sans-serif", fontWeight: 400 }}>
-                Hur vill du starta populationen?
+                Skapa population manuellt
               </h1>
               <p>
-                Beskriv gruppen i ord, eller ställ in demografiska fördelningar själv.
-                Generering körs som bakgrundsjobb.
+                Ange namn och önskad storlek. I nästa steg ställer du in demografiska
+                fördelningar själv. Generering körs som bakgrundsjobb.
               </p>
-            </div>
-            <div className="entry-grid entry-grid-2">
-              <button
-                type="button"
-                className={"entry-card" + (entryMode === "free" ? " sel" : "")}
-                onClick={() => setEntryMode("free")}
-              >
-                <Card className="gap-0 py-5 ring-1 ring-border">
-                  <CardContent className="px-5">
-                    <h3 style={{ font: "var(--text-h3)", marginBottom: 8 }}>
-                      Fritextbeskrivning
-                    </h3>
-                    <p style={{ color: "var(--text-muted)", fontSize: 13.5 }}>
-                      Skriv en kort beskrivning — vi föreslår demografiska fördelningar du kan
-                      justera i nästa steg.
-                    </p>
-                    {entryMode === "free" && (
-                      <textarea
-                        className="free"
-                        value={freeText}
-                        onChange={(e) => setFreeText(e.target.value)}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    )}
-                  </CardContent>
-                </Card>
-              </button>
-              <button
-                type="button"
-                className={"entry-card" + (entryMode === "manual" ? " sel" : "")}
-                onClick={() => setEntryMode("manual")}
-              >
-                <Card className="gap-0 py-5 ring-1 ring-border">
-                  <CardContent className="px-5">
-                    <h3 style={{ font: "var(--text-h3)", marginBottom: 8 }}>Bygg manuellt</h3>
-                    <p style={{ color: "var(--text-muted)", fontSize: 13.5 }}>
-                      Hoppa över fritext — gå direkt till fördelningarna med neutrala
-                      standardvärden och justera själv.
-                    </p>
-                  </CardContent>
-                </Card>
-              </button>
             </div>
             <div className="field-row">
               <div className="field">
