@@ -7,24 +7,32 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.config import settings
-from app.database.models import Message, Population, Run
+from app.database.models import Message, Persona, PersonaMessage, Population, Run
 from app.database.session import get_session
+from app.llm.chat import build_run_interview_prompt, reply_as_persona
 from app.schemas.domain import (
     JobCreate,
+    PersonaChatResponse,
+    PersonaMessageOut,
     RunCreate,
     RunDetail,
+    RunPersonaInterviewRequest,
     RunPopulationOption,
     RunSummary,
     RunUpdate,
+    format_date,
 )
 from app.serializers import (
     parse_optional_date,
+    profile_from_dict,
     serialize_run_detail,
     serialize_run_summary,
     utcnow,
 )
 from app.services import jobs as jobs_service
-from app.services.oasis_run import oasis_installed, remove_attempt
+from app.services.district_context import area_block_for_name
+from app.services.oasis_run import oasis_installed, previous_attempts, remove_attempt
+from app.services.run_tick_context import build_persona_feed_context
 
 router = APIRouter(prefix="/runs", tags=["runs"])
 
@@ -305,6 +313,279 @@ async def delete_run_result_attempt(
     await session.commit()
     run = await _get_run(session, run_id)
     return serialize_run_detail(run, run.population.name)
+
+
+def _serialize_persona_message(row: PersonaMessage) -> PersonaMessageOut:
+    return PersonaMessageOut(
+        id=row.id,
+        mode=row.mode,  # type: ignore[arg-type]
+        role=row.role,  # type: ignore[arg-type]
+        content=row.content,
+        created_at=format_date(row.created_at) if row.created_at else "",
+        run_id=row.run_id,
+        attempt_id=row.attempt_id,
+        variant_id=row.variant_id,
+        through_tick_index=row.through_tick_index,
+    )
+
+
+def _find_attempt_variant(
+    results: dict[str, Any] | None,
+    attempt_id: str,
+    variant_id: str,
+) -> dict[str, Any]:
+    attempts = previous_attempts(results)
+    attempt = next((a for a in attempts if a.get("id") == attempt_id), None)
+    if attempt is None and attempt_id == "legacy" and results:
+        # Legacy flat shape treated as a single attempt.
+        variants = results.get("variants") or []
+        for variant in variants:
+            if variant.get("id") == variant_id:
+                return variant
+        if results.get("posts") is not None or results.get("agents") is not None:
+            if variant_id == "main":
+                return {
+                    "id": "main",
+                    "agents": results.get("agents") or [],
+                    "posts": results.get("posts") or [],
+                    "comments": results.get("comments") or [],
+                    "trace": results.get("trace") or [],
+                    "tick_markers": results.get("tick_markers") or [],
+                    "ticks_run": results.get("ticks_run"),
+                }
+    if attempt is None:
+        raise HTTPException(status_code=404, detail="Result attempt not found")
+    for variant in attempt.get("variants") or []:
+        if variant.get("id") == variant_id:
+            return variant
+    raise HTTPException(status_code=404, detail="Result variant not found")
+
+
+def _run_interview_filter(
+    *,
+    persona_id: str,
+    run_id: int,
+    attempt_id: str,
+    variant_id: str,
+    through_tick_index: int,
+):
+    return (
+        PersonaMessage.persona_id == persona_id,
+        PersonaMessage.mode == "interview",
+        PersonaMessage.run_id == run_id,
+        PersonaMessage.attempt_id == attempt_id,
+        PersonaMessage.variant_id == variant_id,
+        PersonaMessage.through_tick_index == through_tick_index,
+    )
+
+
+def _validate_interview_variant(
+    run: Run,
+    variant: dict[str, Any],
+    *,
+    persona_id: str,
+    through_tick_index: int,
+) -> None:
+    if run.status == "running":
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot interview while the run is simulating",
+        )
+    markers = variant.get("tick_markers") or []
+    ticks_run = int(variant.get("ticks_run") or 0)
+    if through_tick_index < 0 or through_tick_index >= len(markers):
+        raise HTTPException(status_code=400, detail="through_tick_index out of range")
+    if ticks_run > 0 and through_tick_index > ticks_run - 1:
+        raise HTTPException(status_code=400, detail="through_tick_index beyond ticks_run")
+    agents = variant.get("agents") or []
+    if not any(
+        a.get("persona_id") == persona_id and a.get("role") != "injector"
+        for a in agents
+    ):
+        raise HTTPException(
+            status_code=404,
+            detail="Persona not found in this simulation variant",
+        )
+
+
+@router.get(
+    "/{run_id}/attempts/{attempt_id}/variants/{variant_id}/personas/{persona_id}/interview",
+    response_model=list[PersonaMessageOut],
+)
+async def list_run_persona_interview(
+    run_id: int,
+    attempt_id: str,
+    variant_id: str,
+    persona_id: str,
+    through_tick_index: int = Query(ge=0),
+    session: AsyncSession = Depends(get_session),
+) -> list[PersonaMessageOut]:
+    run = await _get_run(session, run_id)
+    variant = _find_attempt_variant(
+        run.results if isinstance(run.results, dict) else None,
+        attempt_id,
+        variant_id,
+    )
+    _validate_interview_variant(
+        run, variant, persona_id=persona_id, through_tick_index=through_tick_index
+    )
+    result = await session.execute(
+        select(PersonaMessage)
+        .where(
+            *_run_interview_filter(
+                persona_id=persona_id,
+                run_id=run_id,
+                attempt_id=attempt_id,
+                variant_id=variant_id,
+                through_tick_index=through_tick_index,
+            )
+        )
+        .order_by(PersonaMessage.id.asc())
+    )
+    return [_serialize_persona_message(row) for row in result.scalars().all()]
+
+
+@router.post(
+    "/{run_id}/attempts/{attempt_id}/variants/{variant_id}/personas/{persona_id}/interview",
+    response_model=PersonaChatResponse,
+)
+async def run_persona_interview(
+    run_id: int,
+    attempt_id: str,
+    variant_id: str,
+    persona_id: str,
+    body: RunPersonaInterviewRequest,
+    session: AsyncSession = Depends(get_session),
+) -> PersonaChatResponse:
+    run = await _get_run(session, run_id)
+    persona = await session.get(Persona, persona_id)
+    if persona is None:
+        raise HTTPException(status_code=404, detail="Persona not found")
+
+    variant = _find_attempt_variant(
+        run.results if isinstance(run.results, dict) else None,
+        attempt_id,
+        variant_id,
+    )
+    _validate_interview_variant(
+        run,
+        variant,
+        persona_id=persona_id,
+        through_tick_index=body.through_tick_index,
+    )
+
+    try:
+        feed_context, meta = build_persona_feed_context(
+            variant,
+            persona_id=persona_id,
+            through_tick_index=body.through_tick_index,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    profile = profile_from_dict(persona.profile, persona.name)
+    area_block = await area_block_for_name(session, profile.ort or persona.district)
+    system_prompt = build_run_interview_prompt(
+        profile,
+        feed_context,
+        day=int(meta["day"]),
+        tick_index=int(meta["tick_index"]),
+        area_block=area_block,
+    )
+
+    history_rows = await session.execute(
+        select(PersonaMessage)
+        .where(
+            *_run_interview_filter(
+                persona_id=persona_id,
+                run_id=run_id,
+                attempt_id=attempt_id,
+                variant_id=variant_id,
+                through_tick_index=body.through_tick_index,
+            )
+        )
+        .order_by(PersonaMessage.id.asc())
+    )
+    history = [(row.role, row.content) for row in history_rows.scalars().all()]
+
+    reply = await reply_as_persona(
+        profile,
+        "interview",
+        history,
+        body.message,
+        system_prompt=system_prompt,
+    )
+
+    user_row = PersonaMessage(
+        persona_id=persona_id,
+        mode="interview",
+        role="user",
+        content=body.message,
+        created_at=utcnow(),
+        run_id=run_id,
+        attempt_id=attempt_id,
+        variant_id=variant_id,
+        through_tick_index=body.through_tick_index,
+    )
+    assistant_row = PersonaMessage(
+        persona_id=persona_id,
+        mode="interview",
+        role="assistant",
+        content=reply,
+        created_at=utcnow(),
+        run_id=run_id,
+        attempt_id=attempt_id,
+        variant_id=variant_id,
+        through_tick_index=body.through_tick_index,
+    )
+    session.add(user_row)
+    session.add(assistant_row)
+    await session.commit()
+
+    all_rows = await session.execute(
+        select(PersonaMessage)
+        .where(
+            *_run_interview_filter(
+                persona_id=persona_id,
+                run_id=run_id,
+                attempt_id=attempt_id,
+                variant_id=variant_id,
+                through_tick_index=body.through_tick_index,
+            )
+        )
+        .order_by(PersonaMessage.id.asc())
+    )
+    messages = [_serialize_persona_message(row) for row in all_rows.scalars().all()]
+    return PersonaChatResponse(reply=reply, messages=messages)
+
+
+@router.delete(
+    "/{run_id}/attempts/{attempt_id}/variants/{variant_id}/personas/{persona_id}/interview",
+    status_code=204,
+)
+async def clear_run_persona_interview(
+    run_id: int,
+    attempt_id: str,
+    variant_id: str,
+    persona_id: str,
+    through_tick_index: int = Query(ge=0),
+    session: AsyncSession = Depends(get_session),
+) -> None:
+    await _get_run(session, run_id)
+    result = await session.execute(
+        select(PersonaMessage).where(
+            *_run_interview_filter(
+                persona_id=persona_id,
+                run_id=run_id,
+                attempt_id=attempt_id,
+                variant_id=variant_id,
+                through_tick_index=through_tick_index,
+            )
+        )
+    )
+    for row in result.scalars().all():
+        await session.delete(row)
+    await session.commit()
 
 
 @router.delete("/{run_id}", status_code=204)

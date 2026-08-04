@@ -115,7 +115,10 @@ def population_action_names(
     allow_population_create_post: bool = False,
     platform: OasisPlatform = "twitter",
 ) -> list[str]:
-    """Return ActionType names available to population agents."""
+    """Return ActionType names available to population agents.
+
+    INTERVIEW is intentionally omitted — interviews use ManualAction only.
+    """
     base = (
         _REDDIT_POPULATION_ACTIONS
         if platform == "reddit"
@@ -125,6 +128,41 @@ def population_action_names(
     if allow_population_create_post:
         names.insert(0, "CREATE_POST")
     return names
+
+
+def resolve_tick_interviews(
+    interviews: list,
+    profiles: list,
+) -> list[tuple[int, str]]:
+    """Map planned TickInterview rows to (agent_index, prompt).
+
+    Skips missing persona_id, empty prompts, and injector agents.
+    """
+    persona_to_index: dict[str, int] = {}
+    for i, profile in enumerate(profiles):
+        persona_id = getattr(profile, "persona_id", None)
+        role = getattr(profile, "role", "population")
+        if persona_id and role == "population":
+            persona_to_index[str(persona_id)] = i
+
+    out: list[tuple[int, str]] = []
+    for interview in interviews or []:
+        persona_id = getattr(interview, "persona_id", None) or (
+            interview.get("persona_id") if isinstance(interview, dict) else None
+        )
+        prompt = getattr(interview, "prompt", None) or (
+            interview.get("prompt") if isinstance(interview, dict) else None
+        )
+        if not persona_id or not prompt:
+            continue
+        text = str(prompt).strip()
+        if not text:
+            continue
+        idx = persona_to_index.get(str(persona_id))
+        if idx is None:
+            continue
+        out.append((idx, text))
+    return out
 
 
 def _parse_simulation_start(raw: str | None) -> date:
@@ -616,6 +654,21 @@ async def run_oasis_simulation(
                 }
                 if llm_actions:
                     await env.step(llm_actions)
+
+            # Planned interviews after reactions — agent has no future-tick context.
+            interview_actions: dict[Any, list[Any]] = {}
+            for agent_idx, prompt in resolve_tick_interviews(
+                tick.interviews, profiles
+            ):
+                agent = env.agent_graph.get_agent(agent_idx)
+                interview_actions.setdefault(agent, []).append(
+                    ManualAction(
+                        action_type=ActionType.INTERVIEW,
+                        action_args={"prompt": prompt},
+                    )
+                )
+            if interview_actions:
+                await env.step(interview_actions)
 
             end = _max_event_time(db_path)
             time_end = end if end >= time_start else time_start - 1

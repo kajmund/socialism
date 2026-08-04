@@ -14,8 +14,9 @@ import {
   type CatalogLabelOption,
 } from "@/components/runs/CatalogLabelPicker"
 import { MessageLibraryPicker } from "@/components/runs/MessageLibraryPicker"
-import { MEASUREMENTS, makeInjection } from "@/data/runs"
-import type { Injection, Tick } from "@/data/runs-types"
+import { getPopulation } from "@/api/populations"
+import { MEASUREMENTS, makeInjection, makeTickInterview } from "@/data/runs"
+import type { Injection, Tick, TickInterview } from "@/data/runs-types"
 
 const INJECTION_TYPE_LABEL: Record<Injection["type"], string> = {
   party_post: "Partipost",
@@ -250,22 +251,46 @@ function InjectionEditor({
   )
 }
 
+type InterviewCandidate = { personaId: string; name: string }
+
+export type DayModalTab = "injections" | "metrics" | "interviews"
+
 type TickEditorBodyProps = {
   tick: Tick
   onUpdate: (next: Tick) => void
+  populationId?: number | null
+  initialTab?: DayModalTab
+  /** When set, only these tabs are shown (e.g. interviews-only modal). */
+  tabs?: DayModalTab[]
+  /** Skip outer tl-body chrome when nested in an expanded day card. */
+  embedded?: boolean
 }
 
-type DayModalTab = "injections" | "metrics"
-
-function TickEditorBody({ tick, onUpdate }: TickEditorBodyProps) {
+export function TickEditorBody({
+  tick,
+  onUpdate,
+  populationId,
+  initialTab = "injections",
+  tabs,
+  embedded = false,
+}: TickEditorBodyProps) {
+  const tabList: DayModalTab[] = tabs ?? ["injections", "metrics", "interviews"]
   const [senderOptions, setSenderOptions] = useState<CatalogLabelOption[]>([])
-  const [activeTab, setActiveTab] = useState<DayModalTab>("injections")
+  const [activeTab, setActiveTab] = useState<DayModalTab>(
+    tabList.includes(initialTab) ? initialTab : tabList[0]!,
+  )
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => new Set())
+  const [candidates, setCandidates] = useState<InterviewCandidate[]>([])
+  const interviews = tick.interviews ?? []
 
   useEffect(() => {
     setExpandedKeys(new Set())
-    setActiveTab("injections")
-  }, [tick.key])
+    setActiveTab(
+      tabList.includes(initialTab) ? initialTab : (tabList[0] ?? "injections"),
+    )
+    // Reset tab when switching day or modal focus — not on every tabList identity change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- tabList derived from tabs/initialTab
+  }, [tick.key, initialTab, tabs])
 
   useEffect(() => {
     let cancelled = false
@@ -286,6 +311,29 @@ function TickEditorBody({ tick, onUpdate }: TickEditorBodyProps) {
       cancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    if (populationId == null) {
+      setCandidates([])
+      return
+    }
+    let cancelled = false
+    getPopulation(populationId)
+      .then((pop) => {
+        if (cancelled) return
+        setCandidates(
+          pop.members
+            .filter((m) => Boolean(m.id))
+            .map((m) => ({ personaId: m.id as string, name: m.name })),
+        )
+      })
+      .catch(() => {
+        if (!cancelled) setCandidates([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [populationId])
 
   function updateInj(i: number, next: Injection) {
     const arr = [...tick.injections]
@@ -328,42 +376,79 @@ function TickEditorBody({ tick, onUpdate }: TickEditorBodyProps) {
         : [...tick.measurements, id],
     })
   }
+  function updateInterview(i: number, next: TickInterview) {
+    const arr = [...interviews]
+    arr[i] = next
+    onUpdate({ ...tick, interviews: arr })
+  }
+  function addInterview() {
+    const first = candidates[0]
+    onUpdate({
+      ...tick,
+      interviews: [
+        ...interviews,
+        {
+          ...makeTickInterview(),
+          persona_id: first?.personaId ?? "",
+        },
+      ],
+    })
+  }
+  function removeInterview(i: number) {
+    onUpdate({
+      ...tick,
+      interviews: interviews.filter((_, idx) => idx !== i),
+    })
+  }
+
+  const showTabs = tabList.length > 1
 
   return (
-    <div className="tl-body" style={{ borderTop: "none", padding: 0 }}>
-      <div
-        role="tablist"
-        aria-label="Dagkonfiguration"
-        className="tick-modal-tabs mb-5 flex flex-wrap gap-1 border-b border-[color:var(--border-hairline)]"
-      >
-        {(
-          [
-            { id: "injections" as const, label: "Injektioner" },
-            { id: "metrics" as const, label: "Ronder & mätpunkter" },
-          ] as const
-        ).map((tab) => {
-          const selected = tab.id === activeTab
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              role="tab"
-              id={`tick-day-tab-${tab.id}`}
-              aria-selected={selected}
-              aria-controls={`tick-day-panel-${tab.id}`}
-              tabIndex={selected ? 0 : -1}
-              className={
-                selected
-                  ? "-mb-px border-b-2 border-db-ink-950 px-3 py-2 text-sm font-medium text-[color:var(--text-body)]"
-                  : "-mb-px border-b-2 border-transparent px-3 py-2 text-sm text-muted-foreground hover:text-[color:var(--text-body)]"
-              }
-              onClick={() => setActiveTab(tab.id)}
-            >
-              {tab.label}
-            </button>
+    <div
+      className={embedded ? undefined : "tl-body"}
+      style={embedded ? undefined : { borderTop: "none", padding: 0 }}
+    >
+      {showTabs ? (
+        <div
+          role="tablist"
+          aria-label="Dagkonfiguration"
+          className="tick-modal-tabs mb-5 flex flex-wrap gap-1 border-b border-[color:var(--border-hairline)]"
+        >
+          {(
+            [
+              { id: "injections" as const, label: "Injektioner" },
+              { id: "metrics" as const, label: "Ronder & mätpunkter" },
+              { id: "interviews" as const, label: "Intervjuer" },
+            ] as const
           )
-        })}
-      </div>
+            .filter((tab) => tabList.includes(tab.id))
+            .map((tab) => {
+              const selected = tab.id === activeTab
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  id={`tick-day-tab-${tab.id}`}
+                  aria-selected={selected}
+                  aria-controls={`tick-day-panel-${tab.id}`}
+                  tabIndex={selected ? 0 : -1}
+                  className={
+                    selected
+                      ? "-mb-px border-b-2 border-db-ink-950 px-3 py-2 text-sm font-medium text-[color:var(--text-body)]"
+                      : "-mb-px border-b-2 border-transparent px-3 py-2 text-sm text-muted-foreground hover:text-[color:var(--text-body)]"
+                  }
+                  onClick={() => setActiveTab(tab.id)}
+                >
+                  {tab.label}
+                  {tab.id === "interviews" && interviews.length > 0
+                    ? ` (${interviews.length})`
+                    : ""}
+                </button>
+              )
+            })}
+        </div>
+      ) : null}
 
       {activeTab === "injections" ? (
         <div
@@ -408,7 +493,7 @@ function TickEditorBody({ tick, onUpdate }: TickEditorBodyProps) {
             </div>
           )}
         </div>
-      ) : (
+      ) : activeTab === "metrics" ? (
         <div
           role="tabpanel"
           id="tick-day-panel-metrics"
@@ -450,6 +535,79 @@ function TickEditorBody({ tick, onUpdate }: TickEditorBodyProps) {
             </div>
           </div>
         </div>
+      ) : (
+        <div
+          role="tabpanel"
+          id="tick-day-panel-interviews"
+          aria-labelledby="tick-day-tab-interviews"
+        >
+          <p className="mb-4 text-sm text-muted-foreground">
+            Förplanerade OASIS-intervjuer körs efter dagens reaktionsronder. Agenten
+            svarar utifrån sitt faktiska flöde hittills — utan kännedom om framtida
+            dagar. Intervjun sparas i simuleringsspåret och påverkar inte senare
+            beteende.
+          </p>
+          {candidates.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {populationId == null
+                ? "Välj en population för att lägga till intervjuer."
+                : "Populationen har inga länkade personas att intervjua."}
+            </p>
+          ) : null}
+          <div className="space-y-3">
+            {interviews.map((iv, i) => (
+              <div
+                key={iv.key || `iv-${i}`}
+                className="rounded-md border border-[color:var(--border-hairline)] p-3"
+              >
+                <label className="mb-1 block text-xs text-muted-foreground">
+                  Persona
+                </label>
+                <select
+                  className="mb-3 w-full rounded border border-[color:var(--border-hairline)] bg-transparent px-2 py-1.5 text-sm"
+                  value={iv.persona_id}
+                  onChange={(e) =>
+                    updateInterview(i, { ...iv, persona_id: e.target.value })
+                  }
+                >
+                  <option value="">Välj persona…</option>
+                  {candidates.map((c) => (
+                    <option key={c.personaId} value={c.personaId}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+                <label className="mb-1 block text-xs text-muted-foreground">
+                  Fråga
+                </label>
+                <textarea
+                  className="mb-2 w-full rounded border border-[color:var(--border-hairline)] bg-transparent px-2 py-1.5 text-sm"
+                  rows={3}
+                  value={iv.prompt}
+                  placeholder="Vad tyckte du om nyheten som dök upp idag?"
+                  onChange={(e) =>
+                    updateInterview(i, { ...iv, prompt: e.target.value })
+                  }
+                />
+                <button
+                  type="button"
+                  className="text-xs text-destructive hover:underline"
+                  onClick={() => removeInterview(i)}
+                >
+                  Ta bort
+                </button>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="add-inj-btn mt-3"
+            onClick={addInterview}
+            disabled={candidates.length === 0}
+          >
+            + Lägg till intervju
+          </button>
+        </div>
       )}
     </div>
   )
@@ -460,6 +618,11 @@ type TickDayModalProps = {
   tick: Tick | null
   onUpdate: (next: Tick) => void
   onClose: () => void
+  populationId?: number | null
+  initialTab?: DayModalTab
+  tabs?: DayModalTab[]
+  title?: string
+  subtitle?: string
 }
 
 export function TickDayModal({
@@ -467,6 +630,11 @@ export function TickDayModal({
   tick,
   onUpdate,
   onClose,
+  populationId = null,
+  initialTab = "injections",
+  tabs,
+  title,
+  subtitle,
 }: TickDayModalProps) {
   const overlayMouseDownRef = useRef(false)
 
@@ -510,10 +678,11 @@ export function TickDayModal({
         <div className="flex items-start justify-between gap-3 border-b border-[color:var(--border-hairline)] px-5 py-4">
           <div>
             <h2 id="tick-day-modal-title" className="text-base font-medium">
-              Dag {tick.day}
+              {title ?? `Dag ${tick.day}`}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Injektioner, ronder och mätningar — välj flik nedan.
+              {subtitle ??
+                "Injektioner, ronder och mätningar — välj flik nedan."}
             </p>
           </div>
           <button
@@ -526,7 +695,13 @@ export function TickDayModal({
           </button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
-          <TickEditorBody tick={tick} onUpdate={onUpdate} />
+          <TickEditorBody
+            tick={tick}
+            onUpdate={onUpdate}
+            populationId={populationId}
+            initialTab={initialTab}
+            tabs={tabs}
+          />
         </div>
         <div className="flex justify-end gap-2 border-t border-[color:var(--border-hairline)] px-5 py-4">
           <AdminButton variant="primary" onClick={onClose}>

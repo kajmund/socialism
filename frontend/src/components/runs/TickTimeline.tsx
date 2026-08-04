@@ -2,11 +2,19 @@ import type { Tick } from "@/data/runs-types"
 import { TickDayModal } from "@/components/runs/TickDayModal"
 
 function tickSummary(tick: Tick): string {
+  const ivCount = (tick.interviews ?? []).length
+  const ivSuffix =
+    ivCount > 0 ? ` · ${ivCount} intervju${ivCount === 1 ? "" : "er"}` : ""
   if (tick.silent) {
-    return "Tyst dag — ingen injektion · " + tick.rounds + " reaktionsronder"
+    return (
+      "Tyst dag — ingen injektion · " + tick.rounds + " reaktionsronder" + ivSuffix
+    )
   }
   if (tick.injections.length) {
-    return tick.injections.length + " event · " + tick.rounds + " ronder"
+    return tick.injections.length + " event · " + tick.rounds + " ronder" + ivSuffix
+  }
+  if (ivCount > 0) {
+    return tick.rounds + " ronder" + ivSuffix
   }
   return "Ingen injektion ännu — klicka för att konfigurera"
 }
@@ -126,6 +134,7 @@ type TickColumnProps = {
   onStimulusControl?: (i: number) => void
   branchable: boolean
   showAdd?: boolean
+  populationId?: number | null
 }
 
 export function TickColumn({
@@ -140,6 +149,7 @@ export function TickColumn({
   onStimulusControl,
   branchable,
   showAdd = true,
+  populationId = null,
 }: TickColumnProps) {
   const editingIndex = ticks.findIndex((t) => t.key === openKey)
   const editingTick = editingIndex >= 0 ? ticks[editingIndex] : null
@@ -179,6 +189,7 @@ export function TickColumn({
       <TickDayModal
         open={editingTick != null}
         tick={editingTick}
+        populationId={populationId}
         onUpdate={(next) => {
           if (editingIndex >= 0) updateTick(editingIndex, next)
         }}

@@ -59,6 +59,7 @@ export function RunTimelineSection({
         onStimulusControl={onStartStimulusControlBranch}
         branchable={!branch && !disabled}
         showAdd={!branch && !disabled}
+        populationId={population.id}
       />
 
       {branch && (
@@ -107,6 +108,7 @@ export function RunTimelineSection({
                 addTick={() => onAddBranchTick("a")}
                 onBranch={() => undefined}
                 branchable={false}
+                populationId={population.id}
               />
             </div>
             <div>
@@ -128,6 +130,7 @@ export function RunTimelineSection({
                 addTick={() => onAddBranchTick("b")}
                 onBranch={() => undefined}
                 branchable={false}
+                populationId={population.id}
               />
             </div>
           </div>
