@@ -20,14 +20,14 @@ cp .env.example .env
 DATABASE_URL=sqlite+aiosqlite:///./data/opinionssimulator.db
 ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 
-# LLM (persona generation + interview chat) — DeepSeek
+# LLM (required — persona generation, interview chat, reports)
 DEEPSEEK_API_KEY=sk-...
 DEEPSEEK_MODEL=deepseek-chat
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 PERSONA_GENERATOR=deepseek
 ```
 
-Set `PERSONA_GENERATOR=stub` (or leave `DEEPSEEK_API_KEY` empty with stub) for offline generation without calling DeepSeek. Interview chat also falls back to a short stub reply in stub mode.
+`DEEPSEEK_API_KEY` is required at startup. There is no keyword/heuristic LLM fallback. Set `PERSONA_GENERATOR=stub` only for offline persona *sampling* in tests (API key is still required).
 
 ## Database migrations
 
@@ -73,7 +73,7 @@ cd backend
 uv run pytest
 ```
 
-Uses in-memory SQLite; no network required.
+Uses in-memory SQLite; no network required. Tests set a dummy `DEEPSEEK_API_KEY` and mock the LLM client.
 
 ## Later: Supabase Postgres
 

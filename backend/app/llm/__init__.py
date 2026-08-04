@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import Awaitable, Callable
 from typing import Any
@@ -28,6 +29,7 @@ def get_client() -> AsyncOpenAI:
         _client = AsyncOpenAI(
             api_key=settings.deepseek_api_key,
             base_url=settings.deepseek_base_url,
+            timeout=settings.deepseek_timeout_seconds,
         )
     return _client
 
@@ -63,10 +65,14 @@ async def complete_structured[T](messages: list[ChatMessage], response_model: ty
             ),
         }
     )
-    completion = await client.chat.completions.create(
-        model=settings.deepseek_model,
-        messages=guided,  # type: ignore[arg-type]
-        response_format={"type": "json_object"},
+    timeout = settings.deepseek_timeout_seconds
+    completion = await asyncio.wait_for(
+        client.chat.completions.create(
+            model=settings.deepseek_model,
+            messages=guided,  # type: ignore[arg-type]
+            response_format={"type": "json_object"},
+        ),
+        timeout=timeout,
     )
     content = completion.choices[0].message.content
     if not content:
