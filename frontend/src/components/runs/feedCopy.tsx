@@ -249,7 +249,7 @@ export function CopyAttemptButton({
   return (
     <button
       type="button"
-      className="rounded px-2 py-1 text-xs text-muted-foreground hover:bg-muted/40 disabled:opacity-50"
+      className="inline-grid h-7 w-7 shrink-0 place-items-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50"
       disabled={disabled}
       title={copied ? "Kopierat" : "Kopiera hela resultatet"}
       aria-label={copied ? "Kopierat" : "Kopiera hela resultatet"}
@@ -259,7 +259,11 @@ export function CopyAttemptButton({
         void handleCopy()
       }}
     >
-      {copied ? "Kopierat" : "Kopiera"}
+      {copied ? (
+        <Check className="size-3.5" aria-hidden />
+      ) : (
+        <Clipboard className="size-3.5" aria-hidden />
+      )}
     </button>
   )
 }

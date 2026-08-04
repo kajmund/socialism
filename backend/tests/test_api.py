@@ -377,6 +377,65 @@ async def test_persona_generate_and_chat(client):
     after = await client.get(f"/personas/{persona_id}/messages", params={"mode": "interview"})
     assert after.json() == []
 
+    chat2 = await client.post(
+        f"/personas/{persona_id}/chat",
+        json={"mode": "interview", "message": "Andra frågan?"},
+    )
+    assert chat2.status_code == 200
+    msg_id = chat2.json()["messages"][0]["id"]
+
+    deleted = await client.delete(f"/personas/{persona_id}/messages/{msg_id}")
+    assert deleted.status_code == 204
+    remaining = await client.get(f"/personas/{persona_id}/messages", params={"mode": "interview"})
+    assert len(remaining.json()) == 1
+    assert remaining.json()[0]["role"] == "assistant"
+
+    cleared_again = await client.delete(
+        f"/personas/{persona_id}/messages",
+        params={"mode": "interview"},
+    )
+    assert cleared_again.status_code == 204
+
+    turn1 = await client.post(
+        f"/personas/{persona_id}/chat",
+        json={"mode": "interview", "message": "Fråga ett?"},
+    )
+    assert turn1.status_code == 200
+    turn2 = await client.post(
+        f"/personas/{persona_id}/chat",
+        json={"mode": "interview", "message": "Fråga två?"},
+    )
+    assert turn2.status_code == 200
+    thread = turn2.json()["messages"]
+    assert len(thread) == 4
+    first_user_id = thread[0]["id"]
+
+    resent_user = await client.post(
+        f"/personas/{persona_id}/messages/{first_user_id}/resend",
+    )
+    assert resent_user.status_code == 200
+    after_user_resend = resent_user.json()["messages"]
+    assert len(after_user_resend) == 2
+    assert after_user_resend[0]["content"] == "Fråga ett?"
+
+    turn3 = await client.post(
+        f"/personas/{persona_id}/chat",
+        json={"mode": "interview", "message": "Fråga tre?"},
+    )
+    assert turn3.status_code == 200
+    extended = turn3.json()["messages"]
+    assert len(extended) == 4
+    first_assistant_id = extended[1]["id"]
+
+    resent_assistant = await client.post(
+        f"/personas/{persona_id}/messages/{first_assistant_id}/resend",
+    )
+    assert resent_assistant.status_code == 200
+    after_assistant_resend = resent_assistant.json()["messages"]
+    assert len(after_assistant_resend) == 2
+    assert after_assistant_resend[0]["content"] == "Fråga ett?"
+    assert after_assistant_resend[1]["role"] == "assistant"
+
 
 async def test_generate_replace_key_and_library(client):
     persona = (

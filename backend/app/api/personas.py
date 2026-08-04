@@ -364,6 +364,130 @@ async def clear_messages(
     await session.commit()
 
 
+@router.delete("/{persona_id}/messages/{message_id}", status_code=204)
+async def delete_message(
+    persona_id: str,
+    message_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> None:
+    await _get_persona(session, persona_id)
+    result = await session.execute(
+        select(PersonaMessage).where(
+            PersonaMessage.id == message_id,
+            PersonaMessage.persona_id == persona_id,
+            PersonaMessage.run_id.is_(None),
+        )
+    )
+    row = result.scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Meddelande hittades inte")
+    await session.delete(row)
+    await session.commit()
+
+
+@router.post("/{persona_id}/messages/{message_id}/resend", response_model=PersonaChatResponse)
+async def resend_message(
+    persona_id: str,
+    message_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> PersonaChatResponse:
+    persona = await _get_persona(session, persona_id)
+    profile = profile_from_dict(persona.profile, persona.name)
+
+    result = await session.execute(
+        select(PersonaMessage)
+        .where(
+            PersonaMessage.id == message_id,
+            PersonaMessage.persona_id == persona_id,
+            PersonaMessage.run_id.is_(None),
+        )
+    )
+    target = result.scalar_one_or_none()
+    if target is None:
+        raise HTTPException(status_code=404, detail="Meddelande hittades inte")
+
+    all_result = await session.execute(
+        select(PersonaMessage)
+        .where(*_library_chat_filter(persona_id, target.mode))
+        .order_by(PersonaMessage.id.asc())
+    )
+    all_rows = list(all_result.scalars().all())
+    idx = next((i for i, row in enumerate(all_rows) if row.id == message_id), None)
+    if idx is None:
+        raise HTTPException(status_code=404, detail="Meddelande hittades inte")
+
+    kept = all_rows[:idx]
+    for row in all_rows[idx:]:
+        await session.delete(row)
+    await session.flush()
+
+    area_block = await area_block_for_name(session, profile.ort or persona.district)
+    mode = target.mode
+
+    if target.role == "user":
+        history = [(row.role, row.content) for row in kept]
+        user_message = target.content
+        reply = await reply_as_persona(
+            profile,
+            mode,
+            history,
+            user_message,
+            area_block=area_block,
+        )
+        session.add(
+            PersonaMessage(
+                persona_id=persona_id,
+                mode=mode,
+                role="user",
+                content=user_message,
+                created_at=utcnow(),
+            )
+        )
+        session.add(
+            PersonaMessage(
+                persona_id=persona_id,
+                mode=mode,
+                role="assistant",
+                content=reply,
+                created_at=utcnow(),
+            )
+        )
+    else:
+        if not kept or kept[-1].role != "user":
+            raise HTTPException(
+                status_code=400,
+                detail="Kan inte regenerera utan föregående användarmeddelande",
+            )
+        user_message = kept[-1].content
+        history = [(row.role, row.content) for row in kept[:-1]]
+        reply = await reply_as_persona(
+            profile,
+            mode,
+            history,
+            user_message,
+            area_block=area_block,
+        )
+        session.add(
+            PersonaMessage(
+                persona_id=persona_id,
+                mode=mode,
+                role="assistant",
+                content=reply,
+                created_at=utcnow(),
+            )
+        )
+
+    await session.commit()
+
+    all_rows = await session.execute(
+        select(PersonaMessage)
+        .where(*_library_chat_filter(persona_id, mode))
+        .order_by(PersonaMessage.id.asc())
+    )
+    messages = [_serialize_message(row) for row in all_rows.scalars().all()]
+    return PersonaChatResponse(reply=reply, messages=messages)
+
+
 @router.delete("/{persona_id}", status_code=204)
 async def delete_persona(
     persona_id: str,
