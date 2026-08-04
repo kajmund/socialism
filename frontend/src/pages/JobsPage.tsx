@@ -164,6 +164,17 @@ export function JobsPage() {
                       <div style={{ marginTop: 12, font: "var(--text-body-sm)" }}>
                         {job.result?.member_count ?? "?"} personas ·{" "}
                         <Link to={`/populations/${popId}`}>Öppna population →</Link>
+                        {Array.isArray(job.result?.warnings) &&
+                        job.result.warnings.length > 0 ? (
+                          <ul
+                            className="mt-2 list-disc pl-5 text-amber-800 dark:text-amber-200"
+                            style={{ font: "var(--text-body-sm)" }}
+                          >
+                            {job.result.warnings.map((w: string) => (
+                              <li key={w}>{w}</li>
+                            ))}
+                          </ul>
+                        ) : null}
                       </div>
                     )}
                     {job.status === "succeeded" &&

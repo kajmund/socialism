@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import secrets
 from dataclasses import dataclass, field
 from random import Random
@@ -32,6 +31,7 @@ from app.services.persona_catalog import (
     NAMES_F,
     NAMES_M,
     TRAIT_BY_LEAN,
+    WRITING_TRAITS,
 )
 
 LibraryPersonaRow = tuple[str, int, str, str, str]
@@ -255,6 +255,50 @@ def _first_name_for_kon(kon: str, rng: Random) -> str:
     return rng.choice(NAMES_F if rng.random() < 0.5 else NAMES_M)
 
 
+def surname_from_name(name: str) -> str:
+    parts = name.strip().split()
+    return parts[-1].casefold() if parts else ""
+
+
+def surnames_from_candidates(candidates: list[GenerationCandidate]) -> set[str]:
+    used: set[str] = set()
+    for cand in candidates:
+        persona = cand.persona
+        if persona is None or not persona.name.strip():
+            continue
+        sur = surname_from_name(persona.name)
+        if sur:
+            used.add(sur)
+    return used
+
+
+def validate_surname_uniqueness(candidates: list[GenerationCandidate]) -> list[str]:
+    """Return warning lines for duplicate surnames within a population."""
+    by_surname: dict[str, list[str]] = {}
+    for cand in candidates:
+        persona = cand.persona
+        if persona is None or not persona.name.strip():
+            continue
+        sur = surname_from_name(persona.name)
+        if not sur:
+            continue
+        by_surname.setdefault(sur, []).append(persona.name)
+    warnings: list[str] = []
+    for sur, names in sorted(by_surname.items()):
+        if len(names) > 1:
+            warnings.append(
+                f"Efternamn «{names[0].split()[-1]}» förekommer {len(names)} gånger: {names!r}"
+            )
+    return warnings
+
+
+def _pick_stub_surname(rng: Random, used: set[str]) -> tuple[str, bool]:
+    available = [s for s in LASTN if surname_from_name(s) not in used]
+    if available:
+        return rng.choice(available), False
+    return rng.choice(LASTN), True
+
+
 def _sample_profile_fields(dist: dict, rng: Random) -> dict[str, str]:
     fields: dict[str, str] = {}
     for group_key, profile_key in _DIST_PROFILE_FIELDS.items():
@@ -266,6 +310,25 @@ def _sample_profile_fields(dist: dict, rng: Random) -> dict[str, str]:
         if label:
             fields[profile_key] = label
     return fields
+
+
+def _pick_writing_trait(
+    occ_key: str,
+    used_by_occ: dict[str, set[str]],
+    rng: Random,
+) -> str:
+    used = used_by_occ.setdefault(occ_key, set())
+    available = [trait for trait in WRITING_TRAITS if trait not in used]
+    if not available:
+        available = list(WRITING_TRAITS)
+    choice = rng.choice(available)
+    used.add(choice)
+    return choice
+
+
+def _writing_traits_for_slots(slots: list[SlotPlan], rng: Random) -> list[str]:
+    used_by_occ: dict[str, set[str]] = {}
+    return [_pick_writing_trait(slot.occ_key, used_by_occ, rng) for slot in slots]
 
 
 def sample_slot(recipe: PopulationRecipe, rng: Random) -> SlotPlan:
@@ -308,13 +371,27 @@ def sample_slot(recipe: PopulationRecipe, rng: Random) -> SlotPlan:
     )
 
 
-def stub_persona(recipe: PopulationRecipe, rng: Random) -> GeneratedPersonaOut:
-    slot = sample_slot(recipe, rng)
+def stub_persona(
+    recipe: PopulationRecipe,
+    rng: Random,
+    *,
+    used_surnames: set[str] | None = None,
+    slot: SlotPlan | None = None,
+    writing_trait: str | None = None,
+) -> GeneratedPersonaOut:
+    slot = slot or sample_slot(recipe, rng)
     kon = slot.profile_fields.get("kön") or _sample_kon(recipe.dist, rng)
     first = _first_name_for_kon(kon, rng)
-    last = rng.choice(LASTN)
+    if used_surnames is None:
+        last = rng.choice(LASTN)
+    else:
+        last, _forced = _pick_stub_surname(rng, used_surnames)
+        sur = surname_from_name(last)
+        if sur:
+            used_surnames.add(sur)
     name = f"{first} {last}"
     initials = persona_initials(name)
+    voice = writing_trait or _trait_for_lean(slot.lean, slot.lean_label)
     profile = EditablePersona(
         name=name,
         initials=initials,
@@ -323,10 +400,14 @@ def stub_persona(recipe: PopulationRecipe, rng: Random) -> GeneratedPersonaOut:
         ort=slot.district,
         yrke=slot.occ,
         lutning=slot.lean_label,
-        ton=_trait_for_lean(slot.lean, slot.lean_label),
+        ton=voice,
     )
     apply_slot_to_profile(profile, slot)
-    trait = profile.ton or profile.sakfragor or _trait_for_lean(slot.lean, slot.lean_label)
+    if writing_trait:
+        profile.ton = writing_trait
+    trait = writing_trait or profile.ton or profile.sakfragor or _trait_for_lean(
+        slot.lean, slot.lean_label
+    )
     return GeneratedPersonaOut(
         name=name,
         initials=initials,
@@ -387,26 +468,96 @@ async def _make_generated_batch(
     count: int,
     *,
     session: AsyncSession | None = None,
-) -> list[GeneratedPersonaOut]:
+    used_surnames: set[str] | None = None,
+) -> tuple[list[GeneratedPersonaOut], list[str]]:
     if count <= 0:
-        return []
+        return [], []
+    warnings: list[str] = []
+    surnames = used_surnames if used_surnames is not None else set()
+
     if settings.persona_generator == "stub":
-        return [stub_persona(recipe, rng) for _ in range(count)]
+        slots = [sample_slot(recipe, rng) for _ in range(count)]
+        writing_traits = _writing_traits_for_slots(slots, rng)
+        personas: list[GeneratedPersonaOut] = []
+        for slot, voice in zip(slots, writing_traits, strict=True):
+            prior = set(surnames)
+            persona = stub_persona(
+                recipe,
+                rng,
+                used_surnames=surnames,
+                slot=slot,
+                writing_trait=voice,
+            )
+            personas.append(persona)
+            sur = surname_from_name(persona.name)
+            if sur and sur in prior:
+                warnings.append(
+                    f"Stub: efternamn «{persona.name.split()[-1]}» kolliderar "
+                    f"({len(LASTN)} unika i katalogen)"
+                )
+        return personas, warnings
+
     if not settings.uses_llm_generator():
         raise HTTPException(
             status_code=503,
             detail="PERSONA_GENERATOR must be deepseek or stub",
         )
-    # Sample slots first so Random stays single-threaded, then fan out LLM calls.
     slots = [sample_slot(recipe, rng) for _ in range(count)]
-    return list(
-        await asyncio.gather(
-            *[
-                llm_persona_from_slot(slot, free_text=recipe.freeText, session=session)
-                for slot in slots
-            ]
+    writing_traits = _writing_traits_for_slots(slots, rng)
+    personas: list[GeneratedPersonaOut] = []
+    previous_personas: list[str] = []
+    for slot, voice in zip(slots, writing_traits, strict=True):
+        persona, slot_warnings = await _llm_persona_unique_surname(
+            slot,
+            free_text=recipe.freeText,
+            session=session,
+            used_surnames=surnames,
+            writing_trait=voice,
+            previous_personas=tuple(previous_personas),
         )
-    )
+        personas.append(persona)
+        warnings.extend(slot_warnings)
+        previous_personas.append(
+            f"{persona.name} | yrke: {persona.occ} | röst: {persona.trait[:80]}"
+        )
+    return personas, warnings
+
+
+async def _llm_persona_unique_surname(
+    slot: SlotPlan,
+    *,
+    free_text: str,
+    session: AsyncSession | None,
+    used_surnames: set[str],
+    writing_trait: str | None = None,
+    previous_personas: tuple[str, ...] = (),
+) -> tuple[GeneratedPersonaOut, list[str]]:
+    warnings: list[str] = []
+    persona: GeneratedPersonaOut | None = None
+    for _attempt in range(3):
+        persona = await llm_persona_from_slot(
+            slot,
+            free_text=free_text,
+            session=session,
+            taken_surnames=frozenset(used_surnames),
+            writing_trait=writing_trait,
+            previous_personas=previous_personas,
+        )
+        sur = surname_from_name(persona.name)
+        if not sur or sur not in used_surnames:
+            if sur:
+                used_surnames.add(sur)
+            return persona, warnings
+    assert persona is not None
+    sur = surname_from_name(persona.name)
+    if sur and sur in used_surnames:
+        last = persona.name.split()[-1] if persona.name.split() else persona.name
+        warnings.append(
+            f"Efternamn «{last}» kolliderar efter 3 försök: {persona.name!r}"
+        )
+    if sur:
+        used_surnames.add(sur)
+    return persona, warnings
 
 
 async def run_generate(
@@ -436,14 +587,22 @@ async def run_generate(
         existing.append(library_candidate(persona_id, *row))
         present_library.add(persona_id)
 
+    used_surnames = surnames_from_candidates(existing)
+    gen_warnings: list[str] = []
+
     if body.replace_keys:
         replace_set = set(body.replace_keys)
         replace_count = sum(
             1 for c in existing if c.key in replace_set and c.source == "generated"
         )
-        personas = await _make_generated_batch(
-            recipe, rng, replace_count, session=session
+        personas, batch_warnings = await _make_generated_batch(
+            recipe,
+            rng,
+            replace_count,
+            session=session,
+            used_surnames=used_surnames,
         )
+        gen_warnings.extend(batch_warnings)
         persona_iter = iter(personas)
         candidates: list[GenerationCandidate] = []
         for cand in existing:
@@ -461,9 +620,15 @@ async def run_generate(
     elif body.mode == "append":
         candidates = list(existing)
         need = max(0, recipe.size - len(candidates))
-        for persona in await _make_generated_batch(
-            recipe, rng, need, session=session
-        ):
+        personas, batch_warnings = await _make_generated_batch(
+            recipe,
+            rng,
+            need,
+            session=session,
+            used_surnames=used_surnames,
+        )
+        gen_warnings.extend(batch_warnings)
+        for persona in personas:
             candidates.append(
                 GenerationCandidate(
                     key=_candidate_key(),
@@ -476,9 +641,15 @@ async def run_generate(
         kept = [c for c in existing if c.source == "library"]
         need = max(0, recipe.size - len(kept))
         candidates = list(kept)
-        for persona in await _make_generated_batch(
-            recipe, rng, need, session=session
-        ):
+        personas, batch_warnings = await _make_generated_batch(
+            recipe,
+            rng,
+            need,
+            session=session,
+            used_surnames=used_surnames,
+        )
+        gen_warnings.extend(batch_warnings)
+        for persona in personas:
             candidates.append(
                 GenerationCandidate(
                     key=_candidate_key(),
@@ -494,8 +665,10 @@ async def run_generate(
         generation_id,
         StoredGeneration(recipe=recipe, fingerprint=fingerprint, candidates=candidates),
     )
+    gen_warnings = list(dict.fromkeys(gen_warnings + validate_surname_uniqueness(candidates)))
     return PopulationGenerateResponse(
         generation_id=generation_id,
         fingerprint=fingerprint,
         candidates=candidates,
+        warnings=gen_warnings,
     )

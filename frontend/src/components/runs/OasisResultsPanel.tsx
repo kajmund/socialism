@@ -14,18 +14,24 @@ import {
   getMentionMatcher,
 } from "@/components/runs/commentMentions"
 import {
+  CopyAttemptButton,
   CopyFeedTextButton,
   formatCommentForClipboard,
   formatPostForClipboard,
+  postBodyTextForCopy,
 } from "@/components/runs/feedCopy"
 import { personaInitials } from "@/data/library"
 import { ApiError } from "@/lib/api"
-import type {
-  OasisAttemptResult,
-  OasisMeasurementPoint,
-  OasisMeasurementRow,
-  OasisRunResults,
-  OasisVariantResult,
+import {
+  CONTROL_VARIANT_LABEL,
+  STIMULUS_VARIANT_LABEL,
+  type BranchMode,
+  type OasisAttemptResult,
+  type OasisMeasurementPoint,
+  type OasisMeasurementRow,
+  type OasisRunResults,
+  type OasisVariantResult,
+  type QualityWarnings,
 } from "@/data/runs-types"
 
 type AgentRow = NonNullable<OasisVariantResult["agents"]>[number]
@@ -236,31 +242,6 @@ function pct(value: number | undefined): string {
   return `${Math.round((value ?? 0) * 100)}%`
 }
 
-type FeedPostRow = NonNullable<OasisVariantResult["posts"]>[number]
-
-function postBodyTextForCopy(
-  post: FeedPostRow,
-  opts: {
-    isQuote: boolean
-    isRepost: boolean
-    quote: string
-    originalAuthor: string | null
-    originalId: number | null
-  },
-): string {
-  if (opts.isQuote) {
-    const cite = opts.originalAuthor ?? "okänd"
-    const id = opts.originalId ?? "?"
-    return `${opts.quote}\n\n(Citerar ${cite} #${id})`
-  }
-  if (opts.isRepost) {
-    const cite = opts.originalAuthor ?? "okänd"
-    const id = opts.originalId ?? "?"
-    return `Delade inlägg från ${cite} #${id}`
-  }
-  return post.content.trim()
-}
-
 function MeasurementDetail({ point }: { point: OasisMeasurementPoint }) {
   const metrics = point.metrics
   const engagement = metrics?.engagement
@@ -390,6 +371,137 @@ function MeasurementDetail({ point }: { point: OasisMeasurementPoint }) {
         </div>
       ) : null}
     </div>
+  )
+}
+
+function QualityWarningsBanner({ data }: { data: QualityWarnings }) {
+  const warnings = data.warnings ?? []
+  if (warnings.length === 0) return null
+
+  const thresholdPct = Math.round(data.threshold * 100)
+
+  return (
+    <section
+      className="mb-4 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2.5"
+      aria-label="Kvalitetsvarningar"
+    >
+      <h3 className="text-sm font-semibold text-amber-900 dark:text-amber-100">
+        Lexikal konvergens
+      </h3>
+      <p className="mt-1 text-xs text-amber-900/80 dark:text-amber-100/80">
+        {warnings.length} fras{warnings.length === 1 ? "" : "er"} delas av ≥
+        {thresholdPct}% av populationen ({data.population_agents} agenter).
+      </p>
+      <ul className="mt-2 space-y-1.5">
+        {warnings.slice(0, 8).map((w) => (
+          <li
+            key={`${w.kind}-${w.source ?? ""}-${w.phrase}`}
+            className="text-xs text-amber-950 dark:text-amber-50"
+          >
+            <span className="font-medium">«{w.phrase}»</span>
+            <span className="text-amber-900/70 dark:text-amber-100/70">
+              {" "}
+              — {w.agent_count}/{data.population_agents} agenter (
+              {Math.round(w.agent_share * 100)}%)
+              {w.kind === "source_phrase_echo" ? " · eko av injektion" : " · gemensam fras"}
+              {w.source ? ` (${w.source})` : ""}
+            </span>
+          </li>
+        ))}
+      </ul>
+      {warnings.length > 8 ? (
+        <p className="mt-1.5 text-[11px] text-amber-900/70 dark:text-amber-100/70">
+          +{warnings.length - 8} till
+        </p>
+      ) : null}
+    </section>
+  )
+}
+
+function warningPhraseSet(data: QualityWarnings | undefined): Set<string> {
+  return new Set((data?.warnings ?? []).map((w) => w.phrase))
+}
+
+function isStimulusControlPair(
+  variants: OasisVariantResult[],
+  branchMode: BranchMode | null | undefined,
+): boolean {
+  if (branchMode === "stimulus_control") return true
+  const a = variants.find((v) => v.id === "a")
+  const b = variants.find((v) => v.id === "b")
+  return (
+    a?.label === STIMULUS_VARIANT_LABEL && b?.label === CONTROL_VARIANT_LABEL
+  )
+}
+
+function StimulusControlComparison({
+  stimulus,
+  control,
+}: {
+  stimulus: OasisVariantResult
+  control: OasisVariantResult
+}) {
+  const sw = stimulus.quality_warnings
+  const cw = control.quality_warnings
+  const sCount = sw?.warnings.length ?? 0
+  const cCount = cw?.warnings.length ?? 0
+  const delta = sCount - cCount
+  const controlPhrases = warningPhraseSet(cw)
+  const stimulusOnly = (sw?.warnings ?? []).filter(
+    (w) => !controlPhrases.has(w.phrase),
+  )
+
+  return (
+    <section
+      className="mb-4 rounded-md border border-sky-500/35 bg-sky-500/10 px-3 py-2.5"
+      aria-label="Stimulus vs kontroll"
+    >
+      <h3 className="text-sm font-semibold text-sky-950 dark:text-sky-50">
+        Stimulus vs kontroll
+      </h3>
+      <p className="mt-1 text-xs text-sky-950/80 dark:text-sky-50/80">
+        Med stimulus: {sCount} konvergensvarning
+        {sCount === 1 ? "" : "ar"}. Kontroll: {cCount} konvergensvarning
+        {cCount === 1 ? "" : "ar"}.
+      </p>
+      {delta > 0 ? (
+        <p className="mt-1 text-xs text-sky-950/80 dark:text-sky-50/80">
+          Stimulus ökar lexikal konvergens med {delta} varning
+          {delta === 1 ? "" : "ar"} — troligen kopplat till injektionstext eller
+          budskapsspridning.
+        </p>
+      ) : delta < 0 ? (
+        <p className="mt-1 text-xs text-sky-950/80 dark:text-sky-50/80">
+          Kontroll har fler varningar än stimulus (oväntat — granska
+          populationens spontana språkmönster).
+        </p>
+      ) : sCount > 0 ? (
+        <p className="mt-1 text-xs text-sky-950/80 dark:text-sky-50/80">
+          Samma antal varningar i båda varianterna — konvergens verkar inte
+          drivas enbart av injektionen.
+        </p>
+      ) : (
+        <p className="mt-1 text-xs text-sky-950/80 dark:text-sky-50/80">
+          Inga konvergensvarningar i någon variant.
+        </p>
+      )}
+      {stimulusOnly.length > 0 ? (
+        <ul className="mt-2 space-y-1">
+          {stimulusOnly.slice(0, 6).map((w) => (
+            <li
+              key={`stimulus-only-${w.kind}-${w.phrase}`}
+              className="text-xs text-sky-950 dark:text-sky-50"
+            >
+              <span className="font-medium">«{w.phrase}»</span>
+              <span className="text-sky-900/70 dark:text-sky-100/70">
+                {" "}
+                — bara i stimulus ({w.agent_count} agenter)
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </section>
   )
 }
 
@@ -971,6 +1083,7 @@ function VariantBody({ variant }: { variant: OasisVariantResult }) {
   const comments = variant.comments ?? []
   const agents = variant.agents ?? []
   const measurements = variant.measurements ?? []
+  const qualityWarnings = variant.quality_warnings
   const postsById = useMemo(
     () => new Map(posts.map((p) => [p.post_id, p])),
     [posts],
@@ -1066,6 +1179,7 @@ function VariantBody({ variant }: { variant: OasisVariantResult }) {
       <p className="mb-3 text-xs text-muted-foreground">
         Plattform: {platform === "reddit" ? "Reddit" : "Twitter"}
       </p>
+      {qualityWarnings ? <QualityWarningsBanner data={qualityWarnings} /> : null}
       <MeasurementsSection rows={measurements} />
       <NetworkActivitySection variant={variant} onOpenAgent={openAgent} />
 
@@ -1396,6 +1510,7 @@ function AttemptBlock({
   onToggleSelect,
   onOrderReport,
   ordering,
+  branchMode,
 }: {
   attempt: OasisAttemptResult
   index: number
@@ -1407,8 +1522,15 @@ function AttemptBlock({
   onToggleSelect?: (attemptId: string) => void
   onOrderReport?: (attemptId: string) => void
   ordering?: boolean
+  branchMode?: BranchMode | null
 }) {
   const variants = attempt.variants ?? []
+  const stimulusVariant = variants.find((v) => v.id === "a")
+  const controlVariant = variants.find((v) => v.id === "b")
+  const showStimulusControl =
+    stimulusVariant &&
+    controlVariant &&
+    isStimulusControlPair(variants, branchMode)
   const postCount = variants.reduce((n, v) => n + (v.posts?.length ?? 0), 0)
   const stamp = formatWhen(attempt.finished_at)
   const metaParts = [
@@ -1485,6 +1607,7 @@ function AttemptBlock({
               {deleting ? "Raderar…" : "Radera"}
             </button>
           ) : null}
+          {hasData ? <CopyAttemptButton attempt={attempt} disabled={deleting} /> : null}
           <span className="text-xs text-muted-foreground group-open:hidden">
             Visa ▾
           </span>
@@ -1499,6 +1622,13 @@ function AttemptBlock({
           <p className="mb-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {attempt.error}
           </p>
+        ) : null}
+
+        {showStimulusControl ? (
+          <StimulusControlComparison
+            stimulus={stimulusVariant}
+            control={controlVariant}
+          />
         ) : null}
 
         {single ? (
@@ -1549,6 +1679,7 @@ type Props = {
   results: OasisRunResults
   status: string
   runId?: number
+  branchMode?: BranchMode | null
   onDeleteAttempt?: (attemptId: string) => void | Promise<void>
   deletingAttemptId?: string | null
 }
@@ -1557,6 +1688,7 @@ export function OasisResultsPanel({
   results,
   status,
   runId,
+  branchMode = null,
   onDeleteAttempt,
   deletingAttemptId = null,
 }: Props) {
@@ -1736,6 +1868,7 @@ export function OasisResultsPanel({
             onToggleSelect={runId ? toggleSelect : undefined}
             onOrderReport={runId ? (id) => void handleOrderOne(id) : undefined}
             ordering={attemptBusy}
+            branchMode={branchMode}
           />
         )
       })}

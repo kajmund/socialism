@@ -6,9 +6,6 @@ export type RunIdentityFieldsProps = {
   onNameChange: (value: string) => void
   startDate: string
   onStartDateChange: (value: string) => void
-  seed: string
-  onSeedChange: (value: string) => void
-  onSeedRefresh: () => void
   populations: RunPopulationOption[]
   popId: number | null
   onPopIdChange: (id: number) => void
@@ -25,9 +22,6 @@ export function RunIdentityFields({
   onNameChange,
   startDate,
   onStartDateChange,
-  seed,
-  onSeedChange,
-  onSeedRefresh,
   populations,
   popId,
   onPopIdChange,
@@ -67,29 +61,6 @@ export function RunIdentityFields({
           disabled={disabled}
           onChange={(e) => onStartDateChange(e.target.value)}
         />
-      </div>
-      <div className="id-field">
-        <label>Seed</label>
-        <div className="seed-row">
-          <input
-            className="mono"
-            value={seed}
-            disabled={disabled}
-            onChange={(e) => onSeedChange(e.target.value)}
-          />
-          <button
-            type="button"
-            className="seed-refresh"
-            disabled={disabled}
-            onClick={onSeedRefresh}
-            title="Slumpa ny seed"
-          >
-            ⟳
-          </button>
-        </div>
-        <div className="seed-hint">
-          Samma seed + olika budskap = jämförbara resultat.
-        </div>
       </div>
       <div className="id-field">
         <label>Population</label>
