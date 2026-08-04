@@ -25,7 +25,10 @@ export const CARD_COVERED_ACTIONS = new Set([
   "quote_post",
 ])
 
-export const NOISE_ACTIONS = new Set(["refresh", "sign_up", "do_nothing"])
+export const NOISE_ACTIONS = new Set(["refresh", "do_nothing"])
+
+/** Never shown in feed or day-event modals. */
+export const HIDDEN_ACTIONS = new Set(["sign_up"])
 
 export type TimelinePostItem = {
   kind: "post"
@@ -334,6 +337,7 @@ export function isTimelineAction(
   hideNoise: boolean,
 ): boolean {
   if (CARD_COVERED_ACTIONS.has(action)) return false
+  if (HIDDEN_ACTIONS.has(action)) return false
   if (hideNoise && NOISE_ACTIONS.has(action)) return false
   return true
 }
@@ -430,7 +434,6 @@ export function buildTimelineItems(
     if (a.tickIndex !== b.tickIndex) return a.tickIndex - b.tickIndex
     const rank = (item: TimelineItem): number => {
       if (item.kind === "tick") return -1
-      if (item.kind === "action" && item.action === "sign_up") return 0
       if (item.kind === "post") return 1
       return 2
     }

@@ -105,3 +105,17 @@ export function chatWithPersona(
 export function clearPersonaMessages(id: string, mode: ChatMode): Promise<void> {
   return api.delete(`/personas/${id}/messages?mode=${encodeURIComponent(mode)}`)
 }
+
+export function deletePersonaMessage(
+  id: string,
+  messageId: number,
+): Promise<void> {
+  return api.delete(`/personas/${id}/messages/${messageId}`)
+}
+
+export function resendPersonaMessage(
+  id: string,
+  messageId: number,
+): Promise<{ reply: string; messages: PersonaMessage[] }> {
+  return api.post(`/personas/${id}/messages/${messageId}/resend`)
+}
