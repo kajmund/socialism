@@ -327,7 +327,7 @@ class Tick(BaseModel):
     day: int
     silent: bool = False
     injections: list[Injection] = Field(default_factory=list)
-    rounds: int = 1
+    rounds: int = 3
     measurements: list[str] = Field(default_factory=list)
 
 
@@ -403,7 +403,7 @@ def format_date(value: datetime | None) -> str:
     return value.date().isoformat()
 
 
-CatalogSection = Literal["demografi", "politik", "varderingar", "rost_media"]
+CatalogSection = Literal["demografi", "politik", "varderingar", "rost_media", "simulering"]
 
 
 class GeoBounds(BaseModel):

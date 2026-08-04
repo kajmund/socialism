@@ -664,11 +664,12 @@ async def test_catalog_lists(client):
     listed = await client.get("/catalog")
     assert listed.status_code == 200
     rows = listed.json()
-    assert len(rows) >= 12
+    assert len(rows) >= 13
     keys = {row["key"] for row in rows}
     assert "parti" in keys
     assert "ort" in keys
     assert "lutning" in keys
+    assert "avsandare" in keys
 
     parti = next(row for row in rows if row["key"] == "parti")
     assert any(item["label"] == "Socialdemokraterna" for item in parti["items"])

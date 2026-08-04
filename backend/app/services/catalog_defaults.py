@@ -243,15 +243,29 @@ CATALOG_DEFAULTS: list[CatalogDefault] = [
             "Lite/ingen media",
         ),
     },
+    {
+        "key": "avsandare",
+        "section": "simulering",
+        "title": "Avsändare",
+        "items": _labels(
+            "Socialdemokraterna",
+            "Moderaterna",
+            "Centerpartiet",
+            "Lokalnyheterna",
+            "Norrköpings Tidningar",
+            "@partihandle",
+        ),
+    },
 ]
 
-SECTION_ORDER = ("demografi", "politik", "varderingar", "rost_media")
+SECTION_ORDER = ("demografi", "politik", "varderingar", "rost_media", "simulering")
 
 SECTION_LABELS: dict[str, str] = {
     "demografi": "Demografi",
     "politik": "Politik",
     "varderingar": "Värderingar",
     "rost_media": "Röst & media",
+    "simulering": "Simulering",
 }
 
 ORT_DEFAULTS_BY_LABEL: dict[str, CatalogItemDict] = {

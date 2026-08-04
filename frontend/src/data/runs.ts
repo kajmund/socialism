@@ -25,7 +25,7 @@ export function makeTick(day: number): Tick {
     day,
     silent: false,
     injections: [],
-    rounds: 1,
+    rounds: 3,
     measurements: ["opinion_snapshot"],
   }
 }
