@@ -1,3 +1,5 @@
+import json
+
 from app.database.models import Persona, PopulationMember
 from app.schemas.domain import Injection, Tick
 from app.services.oasis_profiles import (
@@ -6,6 +8,8 @@ from app.services.oasis_profiles import (
     injector_key,
     injectors_from_ticks,
     members_to_profiles,
+    oasis_gender_from_kon,
+    write_reddit_profile_json,
     write_twitter_profile_csv,
 )
 
@@ -43,6 +47,7 @@ def test_build_user_char_includes_profile_and_swedish_instruction():
         profile={
             "name": "Anna Andersson",
             "age": "42",
+            "kön": "Kvinna",
             "ort": "Norrköping",
             "yrke": "Lärare",
             "lutning": "center",
@@ -54,6 +59,7 @@ def test_build_user_char_includes_profile_and_swedish_instruction():
     )
     text = build_user_char(_member(persona=persona))
     assert "Anna Andersson" in text
+    assert "kvinna" in text
     assert "center" in text
     assert "Skolan först" in text
     assert "svensk" in text.lower()
@@ -62,6 +68,40 @@ def test_build_user_char_includes_profile_and_swedish_instruction():
     assert "gilla INTE" in text
     assert "Temperament" in text
     assert "invändning" in text
+    assert "nämna andra personer" in text
+    assert "Håller med Linda" in text
+    assert "Kommentar 3" in text  # still banned as numbered ref
+
+
+def test_write_reddit_profile_json_includes_gender_and_persona(tmp_path):
+    persona = Persona(
+        id="aa01",
+        name="Anna Andersson",
+        age=42,
+        occ="Lärare",
+        district="Centrum",
+        quote="",
+        origin="manuell",
+        profile={
+            "name": "Anna Andersson",
+            "age": "42",
+            "kön": "Kvinna",
+            "ort": "Centrum",
+            "yrke": "Lärare",
+            "lutning": "Mitt",
+        },
+    )
+    profiles = members_to_profiles([_member(persona=persona)], platform="reddit")
+    assert "kvinna" in profiles[0].description
+    path = write_reddit_profile_json(profiles, tmp_path / "profiles.json")
+    rows = json.loads(path.read_text(encoding="utf-8"))
+    assert len(rows) == 1
+    assert rows[0]["gender"] == "female"
+    assert rows[0]["realname"] == "Anna Andersson"
+    assert rows[0]["bio"]
+    assert "like_post" in rows[0]["persona"]
+    assert oasis_gender_from_kon("Man") == "male"
+    assert oasis_gender_from_kon("Icke-binär") == "nonbinary"
 
 
 def test_injector_user_char_forbids_likes_and_dislikes():

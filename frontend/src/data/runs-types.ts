@@ -42,6 +42,13 @@ export type OasisMeasurementRow = {
   points: OasisMeasurementPoint[]
 }
 
+export type OasisPlatform = "twitter" | "reddit"
+
+export type OasisRunOptions = {
+  platform: OasisPlatform
+  allow_population_create_post: boolean
+}
+
 export type OasisVariantResult = {
   id: string
   label: string
@@ -119,7 +126,11 @@ export type OasisVariantResult = {
   }>
   measurements?: OasisMeasurementRow[]
   artifact_db?: string
-  profile_csv?: string
+  profile_path?: string
+  profile_csv?: string | null
+  profile_json?: string | null
+  platform?: OasisPlatform
+  oasis_options?: OasisRunOptions
 }
 
 export type OasisAttemptResult = {
@@ -193,10 +204,6 @@ export type BranchState = {
   afterIndex: number
   a: Tick[]
   b: Tick[]
-}
-
-export type OasisRunOptions = {
-  allow_population_create_post: boolean
 }
 
 export type Measurement = {

@@ -41,6 +41,7 @@ export function blankEditablePersona(): EditablePersona {
     name: "Namnlös persona",
     initials: "--",
     age: "—",
+    kön: "—",
     ort: "—",
     yrke: "—",
     utbildning: "—",

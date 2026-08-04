@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import csv
+import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
 from app.database.models import PopulationMember
-from app.schemas.domain import Injection, InjectionType, Tick
+from app.schemas.domain import Injection, InjectionType, OasisPlatform, Tick
 from app.serializers import profile_from_dict
 
 AgentRole = Literal["population", "injector"]
@@ -36,6 +37,8 @@ class OasisAgentProfile:
     member_name: str
     role: AgentRole = "population"
     injector_key: str | None = None
+    age: int = 30
+    kön: str = "—"
 
 
 def _ascii_slug(name: str) -> str:
@@ -68,7 +71,48 @@ def injection_has_content(injection: Injection) -> bool:
     return bool(injection.text.strip())
 
 
-# Shared behavioural rules for population agents (Twitter user_char).
+def _kon_is_set(kön: str) -> bool:
+    return bool(kön.strip()) and kön.strip() not in ("—", "-", "?")
+
+
+def oasis_gender_from_kon(kön: str) -> str:
+    """Map Swedish kön label to OASIS Reddit gender enum string."""
+    token = (
+        kön.lower()
+        .replace("å", "a")
+        .replace("ä", "a")
+        .replace("ö", "o")
+        .replace(" ", "_")
+        .replace("-", "_")
+    )
+    if token in {"kvinna", "female", "woman", "f"} or "kvinna" in token:
+        return "female"
+    if token in {"man", "male", "m"} or token == "man":
+        return "male"
+    if "icke" in token or "nonbinary" in token or "non_binary" in token:
+        return "nonbinary"
+    return "other"
+
+
+def _short_description(
+    *,
+    occ: str,
+    age: int,
+    district: str,
+    lutning: str,
+    kön: str,
+) -> str:
+    parts: list[str] = []
+    if _kon_is_set(kön):
+        parts.append(kön.strip().casefold())
+    parts.append(f"{age} år")
+    parts.append(occ)
+    parts.append(district)
+    base = ", ".join(parts)
+    return f"{base}. Lutning: {lutning}."
+
+
+# Shared behavioural rules for population agents.
 _POPULATION_ACTION_RULES_BASE = """\
 ÅTGÄRDER (viktigt):
 - Gilla (like_post / like_comment) BARA när du faktiskt stöder eller håller med.
@@ -84,13 +128,22 @@ _POPULATION_ACTION_RULES_BASE = """\
 HUR DU SKRIVER KOMMENTARER:
 - Vardagssvenska i din egen röst. Oftast 1–4 meningar. Inga punktlistor, rubriker eller "sammanfattningsvis".
 - Börja ALDRIG med: "Intressant att…", "Viktiga frågor", "Tack för", "Som [yrke] ser jag",
-  "Jag håller med om att…", ensam "Precis." / "Exakt!" som öppning, eller "Kommentar 3…".
-- Välj EN struktur per kommentar: invändning, ny vinkel, konkret exempel, kort anekdot, eller retorisk fråga.
+  "Jag håller med om att…", "Håller med om att…", ensam "Precis." / "Exakt!" som öppning,
+  eller numrerade hänvisningar ("Kommentar 3…", "Kommentar 12 har rätt").
+- Du FÅR (och bör ibland) nämna andra personer vid namn när du hakar på dem — använd namnet
+  du ser i flödet (t.ex. "Håller med Linda faktiskt.", "Som Erik säger — det funkar inte.",
+  "Nej, Anna har fel om skolan."). Det är mer levande än att bara parafrasera idén anonymt.
+- Välj EN struktur per kommentar: invändning, ny vinkel, konkret exempel, kort anekdot,
+  retorisk fråga, eller kort instämmande/avståndstagande med namngiven person.
 - Upprepa inte samma inledning/avslutning mellan inlägg. Variera språket; håll åsikten konsekvent.
 """
 
-_NO_CREATE_POST_RULE = """\
+_NO_CREATE_POST_RULE_TWITTER = """\
 - Skapa INTE egna inlägg (create_post). Reagera bara på det du ser: gilla, ogilla, kommentera, dela, följ eller gör inget.
+"""
+
+_NO_CREATE_POST_RULE_REDDIT = """\
+- Skapa INTE egna inlägg (create_post). Reagera bara på det du ser: gilla, ogilla, kommentera, följ eller gör inget.
 """
 
 _ALLOW_CREATE_POST_RULE = """\
@@ -98,9 +151,17 @@ _ALLOW_CREATE_POST_RULE = """\
 """
 
 
-def population_action_rules(*, allow_create_post: bool = False) -> str:
-    post_rule = _ALLOW_CREATE_POST_RULE if allow_create_post else _NO_CREATE_POST_RULE
-    # Insert post rule after the first header block line of ÅTGÄRDER.
+def population_action_rules(
+    *,
+    allow_create_post: bool = False,
+    platform: OasisPlatform = "twitter",
+) -> str:
+    if allow_create_post:
+        post_rule = _ALLOW_CREATE_POST_RULE
+    elif platform == "reddit":
+        post_rule = _NO_CREATE_POST_RULE_REDDIT
+    else:
+        post_rule = _NO_CREATE_POST_RULE_TWITTER
     base = _POPULATION_ACTION_RULES_BASE.strip()
     marker = "ÅTGÄRDER (viktigt):\n"
     if marker in base:
@@ -133,6 +194,8 @@ def build_injector_profile(injection: Injection, index: int) -> OasisAgentProfil
         member_name=display,
         role="injector",
         injector_key=key,
+        age=40,
+        kön="—",
     )
 
 
@@ -159,6 +222,7 @@ def build_user_char(
     *,
     area_block: str = "",
     allow_create_post: bool = False,
+    platform: OasisPlatform = "twitter",
 ) -> str:
     profile = profile_from_dict(
         member.persona.profile if member.persona else None,
@@ -167,8 +231,13 @@ def build_user_char(
     quote = (member.persona.quote if member.persona else "") or ""
     trait = member.trait.strip()
     ton = profile.ton.strip() if profile.ton.strip() not in ("", "—") else ""
+    kön = profile.kön.strip() if _kon_is_set(profile.kön) else ""
+    identity = f"Du är {profile.name}, {profile.age} år"
+    if kön:
+        identity += f", {kön.casefold()}"
+    identity += f", bor i {profile.ort} ({member.district})."
     lines = [
-        f"Du är {profile.name}, {profile.age} år, bor i {profile.ort} ({member.district}).",
+        identity,
         f"Yrke: {profile.yrke}. Livssituation: {profile.livssituation}.",
         f"Politisk lutning: {profile.lutning}. Parti: {profile.parti}.",
         f"Sakfrågor: {profile.sakfragor}.",
@@ -180,7 +249,10 @@ def build_user_char(
     if trait:
         lines.append(f"Temperament / karaktärsdrag: {trait}")
     if ton and ton.casefold() not in trait.casefold():
-        lines.append(f"Skrivsärdrag: håll dig till tonen «{ton}» — det är din röst, inte en fras att klistra in.")
+        lines.append(
+            f"Skrivsärdrag: håll dig till tonen «{ton}» — det är din röst, "
+            "inte en fras att klistra in."
+        )
     if quote.strip():
         lines.append(f"Citat / ledstjärna: {quote.strip()}")
     lines.append(
@@ -188,7 +260,12 @@ def build_user_char(
         "assistent eller balanserad analytiker. "
         "Reagera autentiskt på politiska budskap utifrån din bakgrund."
     )
-    lines.append(population_action_rules(allow_create_post=allow_create_post))
+    lines.append(
+        population_action_rules(
+            allow_create_post=allow_create_post,
+            platform=platform,
+        )
+    )
     return "\n".join(lines)
 
 
@@ -198,6 +275,7 @@ def members_to_profiles(
     start_index: int = 0,
     area_blocks: dict[str, str] | None = None,
     allow_create_post: bool = False,
+    platform: OasisPlatform = "twitter",
 ) -> list[OasisAgentProfile]:
     """Map every population member to an OASIS profile (no capping)."""
     blocks = area_blocks or {}
@@ -208,9 +286,13 @@ def members_to_profiles(
             member.persona.profile if member.persona else None,
             member.name,
         )
-        description = (
-            f"{member.occ}, {member.age} år, {member.district}. "
-            f"Lutning: {profile.lutning}."
+        kön = profile.kön if _kon_is_set(profile.kön) else "—"
+        description = _short_description(
+            occ=member.occ,
+            age=member.age,
+            district=member.district,
+            lutning=profile.lutning,
+            kön=kön,
         )
         area_block = (
             blocks.get(member.district)
@@ -225,10 +307,13 @@ def members_to_profiles(
                     member,
                     area_block=area_block,
                     allow_create_post=allow_create_post,
+                    platform=platform,
                 ),
                 persona_id=member.persona_id,
                 member_name=member.name,
                 role="population",
+                age=member.age,
+                kön=kön,
             )
         )
     return out
@@ -240,6 +325,7 @@ def build_run_profiles(
     *,
     area_blocks: dict[str, str] | None = None,
     allow_create_post: bool = False,
+    platform: OasisPlatform = "twitter",
 ) -> tuple[list[OasisAgentProfile], dict[str, int]]:
     """Injectors first (no LLM), then the full population — no agent cap."""
     injectors = injectors_from_ticks(ticks)
@@ -248,6 +334,7 @@ def build_run_profiles(
         start_index=len(injectors),
         area_blocks=area_blocks,
         allow_create_post=allow_create_post,
+        platform=platform,
     )
     profiles = injectors + population
     key_to_index = {
@@ -271,4 +358,25 @@ def write_twitter_profile_csv(profiles: list[OasisAgentProfile], path: Path) -> 
                     "user_char": row.user_char,
                 }
             )
+    return path
+
+
+def write_reddit_profile_json(profiles: list[OasisAgentProfile], path: Path) -> Path:
+    """Write OASIS Reddit agent JSON (generate_reddit_agent_graph format)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    rows: list[dict[str, object]] = []
+    for profile in profiles:
+        rows.append(
+            {
+                "username": profile.username,
+                "realname": profile.member_name,
+                "bio": profile.description,
+                "persona": profile.user_char,
+                "age": profile.age,
+                "gender": oasis_gender_from_kon(profile.kön),
+                "mbti": "ISFJ",
+                "country": "Sweden",
+            }
+        )
+    path.write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
     return path

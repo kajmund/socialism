@@ -38,6 +38,7 @@ export type EditablePersona = {
   name: string
   initials: string
   age: string
+  kön: string
   ort: string
   yrke: string
   utbildning: string
