@@ -78,3 +78,69 @@ export function validateRunConfig(input: {
 
   return { ok: errors.length === 0, errors }
 }
+
+export type RunWizardStep = 1 | 2 | 3
+
+/** Per-step validation for the create wizard — step 3 has no "next" gate. */
+export function validateRunWizardStep(
+  step: RunWizardStep,
+  input: {
+    name: string
+    populationId: number | null
+    populationSize: number
+    seed: string
+    startDate: string
+    mainTicks: Tick[]
+    branch: BranchState | null
+  },
+): RunConfigValidation {
+  const errors: string[] = []
+
+  if (step === 1) {
+    if (!input.name.trim()) {
+      errors.push("Ge körningen ett namn")
+    }
+    if (input.populationId == null || input.populationId <= 0) {
+      errors.push("Välj en population")
+    } else if (input.populationSize <= 0) {
+      errors.push("Populationen har inga personas")
+    }
+    if (!input.seed.trim()) {
+      errors.push("Ange en seed")
+    }
+    if (!input.startDate.trim()) {
+      errors.push("Ange startdatum")
+    }
+    return { ok: errors.length === 0, errors }
+  }
+
+  if (step === 2) {
+    if (input.mainTicks.length === 0) {
+      errors.push("Tidslinjen behöver minst en dag/tick")
+    }
+    input.mainTicks.forEach((tick, i) => {
+      validateTick(tick, `Dag ${tick.day} (tick ${i + 1})`, errors)
+    })
+    const branch = input.branch
+    if (branch) {
+      if (branch.afterIndex < 0 || branch.afterIndex >= input.mainTicks.length) {
+        errors.push("Delningspunkten pekar utanför huvudtidslinjen")
+      }
+      if (branch.a.length === 0) {
+        errors.push("Version A behöver minst en tick")
+      }
+      if (branch.b.length === 0) {
+        errors.push("Version B behöver minst en tick")
+      }
+      branch.a.forEach((tick, i) => {
+        validateTick(tick, `Version A · dag ${tick.day} (tick ${i + 1})`, errors)
+      })
+      branch.b.forEach((tick, i) => {
+        validateTick(tick, `Version B · dag ${tick.day} (tick ${i + 1})`, errors)
+      })
+    }
+    return { ok: errors.length === 0, errors }
+  }
+
+  return { ok: true, errors: [] }
+}

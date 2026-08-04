@@ -10,7 +10,10 @@ import {
 } from "@/api/runs"
 import { AdminShell, rememberJobPending } from "@/components/layout/AdminShell"
 import { OasisResultsPanel } from "@/components/runs/OasisResultsPanel"
-import { TickColumn } from "@/components/runs/TickTimeline"
+import { RunActionCard } from "@/components/runs/RunActionCard"
+import { RunCreateWizard } from "@/components/runs/RunCreateWizard"
+import { RunIdentityFields } from "@/components/runs/RunIdentityFields"
+import { RunTimelineSection } from "@/components/runs/RunTimelineSection"
 import { Card, CardContent } from "@/components/ui/card"
 import { genSeed, makeTick } from "@/data/runs"
 import { validateRunConfig } from "@/data/runValidation"
@@ -40,6 +43,8 @@ export function ConfigureRunPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const runId = id && id !== "new" ? Number(id) : null
+  const isNew = !runId
+  const isQuickMode = searchParams.get("mode") === "quick"
   const activeTab = parseTab(searchParams.get("tab"))
   const defaultedTabForRun = useRef<number | null>(null)
 
@@ -50,17 +55,16 @@ export function ConfigureRunPage() {
   const [seed, setSeed] = useState(genSeed())
   const [popId, setPopId] = useState<number | null>(null)
   const [popOpen, setPopOpen] = useState(false)
-  const [mainTicks, setMainTicks] = useState<Tick[]>([
-    makeTick(1),
-    makeTick(2),
-    makeTick(3),
-  ])
+  const [mainTicks, setMainTicks] = useState<Tick[]>([])
   const [branch, setBranch] = useState<BranchState | null>(null)
   const [oasisOptions, setOasisOptions] =
     useState<OasisRunOptions>(DEFAULT_OASIS_OPTIONS)
   const [openKey, setOpenKey] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [pendingAction, setPendingAction] = useState<"save" | "start" | null>(
+    null,
+  )
   const [runStatus, setRunStatus] = useState<RunStatus>("draft")
   const [results, setResults] = useState<OasisRunResults | null>(null)
   const [deletingAttemptId, setDeletingAttemptId] = useState<string | null>(null)
@@ -73,7 +77,9 @@ export function ConfigureRunPage() {
   function setTab(tab: RunTab) {
     // Keep an explicit tab param so clearing the URL can't re-trigger
     // the "default to results" redirect for non-draft runs.
-    setSearchParams({ tab }, { replace: true })
+    const next: Record<string, string> = { tab }
+    if (isQuickMode) next.mode = "quick"
+    setSearchParams(next, { replace: true })
   }
 
   useEffect(() => {
@@ -105,7 +111,7 @@ export function ConfigureRunPage() {
         setSeed(run.seed)
         setStartDate(run.start_date ?? "2026-08-03")
         setPopId(run.population_id)
-        setMainTicks(run.main_ticks.length ? run.main_ticks : [makeTick(1)])
+        setMainTicks(run.main_ticks)
         setBranch(run.branch)
         setOasisOptions({
           ...DEFAULT_OASIS_OPTIONS,
@@ -193,7 +199,9 @@ export function ConfigureRunPage() {
     setMainTicks(arr)
   }
   function addMain() {
-    setMainTicks([...mainTicks, makeTick(mainTicks.length + 1)])
+    const tick = makeTick(mainTicks.length + 1)
+    setMainTicks([...mainTicks, tick])
+    setOpenKey(tick.key)
   }
 
   function startBranch(i: number) {
@@ -225,13 +233,13 @@ export function ConfigureRunPage() {
     })
   }
   function addBranchTick(side: "a" | "b") {
-    setBranch((b) => {
-      if (!b) return b
-      const lastDay = b[side].length
-        ? b[side][b[side].length - 1].day
-        : mainTicks[b.afterIndex].day + 1
-      return { ...b, [side]: [...b[side], makeTick(lastDay + 1)] }
-    })
+    if (!branch) return
+    const lastDay = branch[side].length
+      ? branch[side][branch[side].length - 1].day
+      : mainTicks[branch.afterIndex].day + 1
+    const tick = makeTick(lastDay + 1)
+    setBranch({ ...branch, [side]: [...branch[side], tick] })
+    setOpenKey(tick.key)
   }
 
   async function saveDraft(andStart: boolean) {
@@ -254,6 +262,7 @@ export function ConfigureRunPage() {
         return
       }
     }
+    setPendingAction(andStart ? "start" : "save")
     setSaving(true)
     try {
       // Do not force status back to draft when starting — that left the UI on
@@ -292,12 +301,17 @@ export function ConfigureRunPage() {
           })
       if (andStart) {
         setRunStatus("running")
+        if (runId) {
+          setTab("results")
+        }
         const started = await startRun(saved.id)
         setRunStatus(started.status)
         setResults(started.results)
         if (started.job_id) rememberJobPending(started.job_id)
         showToast(`Körning "${name}" startad i bakgrunden`)
-        navigate(`/runs/${started.id}/edit?tab=results`, { replace: true })
+        if (!runId) {
+          navigate(`/runs/${started.id}/edit?tab=results`, { replace: true })
+        }
         return
       }
       setRunStatus(saved.status)
@@ -325,6 +339,7 @@ export function ConfigureRunPage() {
       }
       showToast(err instanceof ApiError ? err.message : "Kunde inte spara")
     } finally {
+      setPendingAction(null)
       setSaving(false)
     }
   }
@@ -350,7 +365,55 @@ export function ConfigureRunPage() {
   const tickCount =
     mainTicks.length + (branch ? branch.a.length + branch.b.length : 0)
   const variantCount = branch ? 2 : 1
-  const configLocked = runStatus === "running"
+  const configLocked = runStatus === "running" || pendingAction !== null
+  const pendingMessage =
+    pendingAction === "start" ? "Startar körning…" : "Sparar…"
+
+  const timelineProps = {
+    mainTicks,
+    branch,
+    activeMain,
+    seed,
+    population,
+    openKey,
+    onOpenKeyChange: setOpenKey,
+    onUpdateMain: updateMain,
+    onRemoveMain: removeMain,
+    onMoveMain: moveMain,
+    onAddMain: addMain,
+    onStartBranch: startBranch,
+    onClearBranch: () => setBranch(null),
+    onUpdateBranchTick: updateBranchTick,
+    onRemoveBranchTick: removeBranchTick,
+    onMoveBranchTick: moveBranchTick,
+    onAddBranchTick: addBranchTick,
+    disabled: configLocked,
+  }
+
+  const wizardProps = {
+    name,
+    onNameChange: setName,
+    startDate,
+    onStartDateChange: setStartDate,
+    onSeedChange: setSeed,
+    onSeedRefresh: () => setSeed(genSeed()),
+    populations,
+    popId,
+    onPopIdChange: setPopId,
+    popOpen,
+    onPopOpenChange: setPopOpen,
+    ...timelineProps,
+    oasisOptions,
+    onOasisOptionsChange: setOasisOptions,
+    tickCount,
+    variantCount,
+    runStatus,
+    saving,
+    pendingAction,
+    onSave: () => void saveDraft(false),
+    onStart: () => void saveDraft(true),
+    onValidationError: showToast,
+  }
 
   if (loading) {
     return (
@@ -362,57 +425,114 @@ export function ConfigureRunPage() {
     )
   }
 
+  if (isNew && !isQuickMode) {
+    return (
+      <AdminShell>
+        <div className="wrap" style={{ maxWidth: 1180 }}>
+          <RunCreateWizard {...wizardProps} />
+        </div>
+        {toast && (
+          <div className="fixed bottom-6 right-6 rounded-md bg-db-ink-950 px-4 py-3 text-sm text-db-ink-0 shadow-lg">
+            {toast}
+          </div>
+        )}
+        {pendingAction ? (
+          <div
+            className="run-pending-overlay"
+            role="alertdialog"
+            aria-modal="true"
+            aria-busy="true"
+            aria-label={pendingMessage}
+          >
+            <div className="run-pending-panel">{pendingMessage}</div>
+          </div>
+        ) : null}
+      </AdminShell>
+    )
+  }
+
   return (
     <AdminShell>
       <div className="wrap" style={{ maxWidth: 1180 }}>
         <div className="head-row">
-          <div>
-            <h1>{name || "Körning"}</h1>
+          <div className="head-row-main">
+            <h1>{isNew ? "Ny körning" : name || "Körning"}</h1>
             <p>
-              Konfigurera tidslinjen eller följ simuleringsresultatet när körningen
-              körs i bakgrunden.
+              {isNew
+                ? "All konfiguration på en sida — spara när du är klar."
+                : "Konfigurera tidslinjen eller följ simuleringsresultatet när körningen körs i bakgrunden."}
             </p>
+          </div>
+          <div className="head-row-aside">
+            {(isNew || activeTab === "config") && (
+              <RunActionCard
+                layout="bar"
+                platform={oasisOptions.platform}
+                onPlatformChange={(platform) =>
+                  setOasisOptions((prev) => ({ ...prev, platform }))
+                }
+                tickCount={tickCount}
+                populationSize={population.size}
+                variantCount={variantCount}
+                runStatus={runStatus}
+                saving={saving}
+                pendingAction={pendingAction}
+                disabled={configLocked}
+                onSave={() => void saveDraft(false)}
+                onStart={() => void saveDraft(true)}
+              />
+            )}
+            {isNew ? (
+              <Link
+                to="/runs/new"
+                className="head-row-link text-sm text-db-gold-700 underline-offset-2 hover:underline"
+              >
+                Guidat skapande →
+              </Link>
+            ) : null}
           </div>
         </div>
 
-        <div
-          role="tablist"
-          aria-label="Körningsvy"
-          className="mb-6 flex flex-wrap gap-1 border-b border-[color:var(--border-hairline)]"
-        >
-          {(
-            [
-              { id: "config" as const, label: "Konfiguration" },
-              { id: "results" as const, label: "Resultat" },
-            ] as const
-          ).map((tab) => {
-            const selected = tab.id === activeTab
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                id={`run-tab-${tab.id}`}
-                aria-selected={selected}
-                aria-controls={`run-panel-${tab.id}`}
-                tabIndex={selected ? 0 : -1}
-                className={
-                  selected
-                    ? "-mb-px border-b-2 border-db-ink-950 px-3 py-2 text-sm font-medium text-[color:var(--text-body)]"
-                    : "-mb-px border-b-2 border-transparent px-3 py-2 text-sm text-muted-foreground hover:text-[color:var(--text-body)]"
-                }
-                onClick={() => setTab(tab.id)}
-              >
-                {tab.label}
-                {tab.id === "results" && runStatus === "running" ? (
-                  <span className="ml-2 inline-block h-1.5 w-1.5 rounded-full bg-db-gold-500 align-middle" />
-                ) : null}
-              </button>
-            )
-          })}
-        </div>
+        {!isNew ? (
+          <div
+            role="tablist"
+            aria-label="Körningsvy"
+            className="mb-6 flex flex-wrap gap-1 border-b border-[color:var(--border-hairline)]"
+          >
+            {(
+              [
+                { id: "config" as const, label: "Konfiguration" },
+                { id: "results" as const, label: "Resultat" },
+              ] as const
+            ).map((tab) => {
+              const selected = tab.id === activeTab
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  id={`run-tab-${tab.id}`}
+                  aria-selected={selected}
+                  aria-controls={`run-panel-${tab.id}`}
+                  tabIndex={selected ? 0 : -1}
+                  className={
+                    selected
+                      ? "-mb-px border-b-2 border-db-ink-950 px-3 py-2 text-sm font-medium text-[color:var(--text-body)]"
+                      : "-mb-px border-b-2 border-transparent px-3 py-2 text-sm text-muted-foreground hover:text-[color:var(--text-body)]"
+                  }
+                  onClick={() => setTab(tab.id)}
+                >
+                  {tab.label}
+                  {tab.id === "results" && runStatus === "running" ? (
+                    <span className="ml-2 inline-block h-1.5 w-1.5 rounded-full bg-db-gold-500 align-middle" />
+                  ) : null}
+                </button>
+              )
+            })}
+          </div>
+        ) : null}
 
-        {activeTab === "config" ? (
+        {(isNew || activeTab === "config") ? (
           <div
             role="tabpanel"
             id="run-panel-config"
@@ -421,287 +541,36 @@ export function ConfigureRunPage() {
             <Card className="id-card mb-9 gap-0 overflow-visible py-0 ring-1 ring-border">
               <CardContent className="px-0">
                 <div className="id-grid">
-                  <div className="id-field">
-                    <label>Namn / scenario-id</label>
-                    <input
-                      value={name}
-                      disabled={configLocked}
-                      onChange={(e) => setName(e.target.value)}
-                    />
-                  </div>
-                  <div className="id-field">
-                    <label>Startdatum</label>
-                    <input
-                      type="date"
-                      value={startDate}
-                      disabled={configLocked}
-                      onChange={(e) => setStartDate(e.target.value)}
-                    />
-                  </div>
-                  <div className="id-field">
-                    <label>Seed</label>
-                    <div className="seed-row">
-                      <input
-                        className="mono"
-                        value={seed}
-                        disabled={configLocked}
-                        onChange={(e) => setSeed(e.target.value)}
-                      />
-                      <button
-                        type="button"
-                        className="seed-refresh"
-                        disabled={configLocked}
-                        onClick={() => setSeed(genSeed())}
-                        title="Slumpa ny seed"
-                      >
-                        ⟳
-                      </button>
-                    </div>
-                    <div className="seed-hint">
-                      Samma seed + olika budskap = jämförbara resultat.
-                    </div>
-                  </div>
-                  <div className="id-field">
-                    <label>Population</label>
-                    <div
-                      className="pop-mini"
-                      onClick={() => {
-                        if (!configLocked) setPopOpen(true)
-                      }}
-                    >
-                      <div className="cluster">
-                        {population.initials.map((ini) => (
-                          <div className="av" key={ini}>
-                            {ini}
-                          </div>
-                        ))}
-                      </div>
-                      <div className="info">
-                        <div className="nm">{population.name}</div>
-                        <div className="sub">{population.size} personas</div>
-                      </div>
-                      <span className="swap">Byt ▾</span>
-                      {popOpen && (
-                        <>
-                          <div
-                            className="pop-overlay"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setPopOpen(false)
-                            }}
-                          />
-                          <div
-                            className="pop-dropdown"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {populations.map((p) => (
-                              <div
-                                key={p.id}
-                                className={
-                                  "pop-opt" + (p.id === popId ? " sel" : "")
-                                }
-                                onClick={() => {
-                                  setPopId(p.id)
-                                  setPopOpen(false)
-                                }}
-                              >
-                                <div className="av">{p.initials[0]}</div>
-                                <div className="nm">{p.name}</div>
-                                <div className="sub">{p.size} personas</div>
-                              </div>
-                            ))}
-                            <div className="pop-dropdown-foot">
-                              <Link to="/populations">
-                                Visa alla populationer →
-                              </Link>
-                            </div>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  <div className="id-field">
-                    <label htmlFor="oasis-platform">OASIS</label>
-                    <div className="flex flex-col gap-3">
-                      <div>
-                        <span className="mb-1 block text-xs text-muted-foreground">
-                          Plattform
-                        </span>
-                        <div className="flex gap-4 text-sm text-foreground">
-                          {(
-                            [
-                              ["twitter", "Twitter"],
-                              ["reddit", "Reddit"],
-                            ] as const
-                          ).map(([value, label]) => (
-                            <label
-                              key={value}
-                              className="flex cursor-pointer items-center gap-2"
-                            >
-                              <input
-                                type="radio"
-                                name="oasis-platform"
-                                id={
-                                  value === "twitter"
-                                    ? "oasis-platform"
-                                    : undefined
-                                }
-                                checked={oasisOptions.platform === value}
-                                disabled={configLocked}
-                                onChange={() =>
-                                  setOasisOptions({
-                                    ...oasisOptions,
-                                    platform: value,
-                                  })
-                                }
-                              />
-                              {label}
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                      <label className="flex cursor-pointer items-start gap-2 text-sm font-normal text-foreground">
-                        <input
-                          id="oasis-create-post"
-                          type="checkbox"
-                          className="mt-[3px]"
-                          checked={oasisOptions.allow_population_create_post}
-                          disabled={configLocked}
-                          onChange={(e) =>
-                            setOasisOptions({
-                              ...oasisOptions,
-                              allow_population_create_post: e.target.checked,
-                            })
-                          }
-                        />
-                        <span className="min-w-0 leading-snug">
-                          Låt populationen skapa egna inlägg
-                          <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
-                            På = populationen får CREATE_POST (standard). Av =
-                            bara injektorer postar.
-                          </span>
-                        </span>
-                      </label>
-                    </div>
-                  </div>
+                  <RunIdentityFields
+                    name={name}
+                    onNameChange={setName}
+                    startDate={startDate}
+                    onStartDateChange={setStartDate}
+                    seed={seed}
+                    onSeedChange={setSeed}
+                    onSeedRefresh={() => setSeed(genSeed())}
+                    populations={populations}
+                    popId={popId}
+                    onPopIdChange={setPopId}
+                    population={population}
+                    popOpen={popOpen}
+                    onPopOpenChange={setPopOpen}
+                    allowPopulationCreatePost={
+                      oasisOptions.allow_population_create_post
+                    }
+                    onAllowPopulationCreatePostChange={(checked) =>
+                      setOasisOptions((prev) => ({
+                        ...prev,
+                        allow_population_create_post: checked,
+                      }))
+                    }
+                    disabled={configLocked}
+                  />
                 </div>
               </CardContent>
             </Card>
 
-            <div className="tl-section">
-              <span className="tl-kicker">Tick-tidslinje</span>
-              <TickColumn
-                ticks={activeMain}
-                openKey={openKey}
-                setOpenKey={setOpenKey}
-                updateTick={updateMain}
-                removeTick={removeMain}
-                moveTick={moveMain}
-                addTick={branch || configLocked ? () => undefined : addMain}
-                onBranch={startBranch}
-                branchable={!branch && !configLocked}
-                showAdd={!branch && !configLocked}
-              />
-
-              {branch && (
-                <>
-                  <div className="fork-wrap">
-                    <div className="fork-line" />
-                    <div className="fork-bar">
-                      <span className="t">
-                        Delningspunkt vid dag {mainTicks[branch.afterIndex].day}
-                      </span>
-                      <span className="s">
-                        Version A och B delar seed ({seed}) och population (
-                        {population.name}) fram till denna punkt.
-                      </span>
-                      {!configLocked ? (
-                        <button type="button" onClick={() => setBranch(null)}>
-                          Ta bort gren
-                        </button>
-                      ) : null}
-                    </div>
-                  </div>
-                  <div className="branches-grid">
-                    <div>
-                      <div className="branch-head">
-                        <span className="branch-badge a">A</span>
-                        <span className="lbl">Version A</span>
-                      </div>
-                      <TickColumn
-                        ticks={branch.a}
-                        openKey={openKey}
-                        setOpenKey={setOpenKey}
-                        updateTick={(i, n) => updateBranchTick("a", i, n)}
-                        removeTick={(i) => removeBranchTick("a", i)}
-                        moveTick={(i, d) => moveBranchTick("a", i, d)}
-                        addTick={() => addBranchTick("a")}
-                        onBranch={() => undefined}
-                        branchable={false}
-                      />
-                    </div>
-                    <div>
-                      <div className="branch-head">
-                        <span className="branch-badge b">B</span>
-                        <span className="lbl">Version B</span>
-                      </div>
-                      <TickColumn
-                        ticks={branch.b}
-                        openKey={openKey}
-                        setOpenKey={setOpenKey}
-                        updateTick={(i, n) => updateBranchTick("b", i, n)}
-                        removeTick={(i) => removeBranchTick("b", i)}
-                        moveTick={(i, d) => moveBranchTick("b", i, d)}
-                        addTick={() => addBranchTick("b")}
-                        onBranch={() => undefined}
-                        branchable={false}
-                      />
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-
-            <Card className="start-card gap-0 ring-1 ring-border">
-              <CardContent className="flex flex-wrap items-center justify-between gap-6 px-8 py-7">
-                <div className="start-summary">
-                  <div className="start-stat">
-                    <div className="n">{tickCount}</div>
-                    <div className="l">Tickar</div>
-                  </div>
-                  <div className="start-stat">
-                    <div className="n">{population.size}</div>
-                    <div className="l">Personas</div>
-                  </div>
-                  <div className="start-stat">
-                    <div className="n">{variantCount}</div>
-                    <div className="l">Varianter</div>
-                  </div>
-                </div>
-                <div className="start-actions">
-                  <div className="start-buttons">
-                    <button
-                      type="button"
-                      className="btn-save"
-                      disabled={saving || configLocked}
-                      onClick={() => void saveDraft(false)}
-                    >
-                      Spara körning
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-run"
-                      disabled={saving || configLocked}
-                      onClick={() => void saveDraft(true)}
-                    >
-                      {runStatus === "done" || runStatus === "failed"
-                        ? "Kör igen"
-                        : "Starta körning"}
-                    </button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <RunTimelineSection {...timelineProps} />
           </div>
         ) : (
           <div
@@ -756,7 +625,7 @@ export function ConfigureRunPage() {
                 status={runStatus}
                 runId={runId ?? undefined}
                 onDeleteAttempt={
-                  runId ? (id) => void handleDeleteAttempt(id) : undefined
+                  runId ? (attemptId) => void handleDeleteAttempt(attemptId) : undefined
                 }
                 deletingAttemptId={deletingAttemptId}
               />
@@ -784,6 +653,17 @@ export function ConfigureRunPage() {
           {toast}
         </div>
       )}
+      {pendingAction ? (
+        <div
+          className="run-pending-overlay"
+          role="alertdialog"
+          aria-modal="true"
+          aria-busy="true"
+          aria-label={pendingMessage}
+        >
+          <div className="run-pending-panel">{pendingMessage}</div>
+        </div>
+      ) : null}
     </AdminShell>
   )
 }

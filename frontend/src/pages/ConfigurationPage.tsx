@@ -420,9 +420,9 @@ export function ConfigurationPage() {
           <div>
             <h1>Konfiguration</h1>
             <p className="muted">
-              Grunddata för dropdowns i persona-kompositören. Distrikt har
-              beskrivning och karta som matas in i LLM-promptar. Ändringar syns
-              nästa gång formuläret laddas.
+              Grunddata för dropdowns i persona-kompositören och körningar.
+              Distrikt har beskrivning och karta som matas in i LLM-promptar.
+              Ändringar syns nästa gång formuläret laddas.
             </p>
           </div>
         </div>
