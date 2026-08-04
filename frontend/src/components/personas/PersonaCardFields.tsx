@@ -1,4 +1,5 @@
 import type { EditablePersona } from "@/data/library-types"
+import { PersonaAnekdotEditor } from "@/components/personas/PersonaAnekdot"
 
 export type CardFieldKey = keyof EditablePersona
 
@@ -8,7 +9,7 @@ type CardFieldDef = {
   kind: "age" | "select"
 }
 
-/** Compact card editors — same catalog-backed keys as composer dropdowns, plus age. */
+/** Catalog-backed compact fields — anekdot is edited separately (generativ, ej recept). */
 export const PERSONA_CARD_FIELDS: CardFieldDef[] = [
   { key: "age", label: "Ålder", kind: "age" },
   { key: "kön", label: "Kön", kind: "select" },
@@ -82,6 +83,11 @@ export function PersonaCardFields({
           </label>
         )
       })}
+      <PersonaAnekdotEditor
+        value={profile.anekdot ?? "—"}
+        disabled={disabled}
+        onChange={(v) => onChange("anekdot", v)}
+      />
     </div>
   )
 }

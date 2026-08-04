@@ -75,6 +75,31 @@ def test_build_user_char_includes_profile_and_swedish_instruction():
     assert "Undvik att upprepa politikerns" in text
 
 
+def test_build_user_char_includes_anekdot_when_present():
+    persona = Persona(
+        id="aa01",
+        name="Anna Andersson",
+        age=42,
+        occ="Lärare",
+        district="Centrum",
+        quote="Skolan först",
+        origin="manuell",
+        profile={
+            "name": "Anna Andersson",
+            "age": "42",
+            "kön": "Kvinna",
+            "ort": "Norrköping",
+            "yrke": "Lärare",
+            "lutning": "center",
+            "parti": "C",
+            "anekdot": "Förra veckan såg jag elever vänta i regnet vid skolans cykelställ.",
+        },
+    )
+    text = build_user_char(_member(persona=persona))
+    assert "Förra veckan såg jag elever vänta i regnet vid skolans cykelställ." in text
+    assert "Personlig vardagsdetalj" in text
+
+
 def test_build_user_char_places_voice_before_occupation():
     persona = Persona(
         id="aa01",

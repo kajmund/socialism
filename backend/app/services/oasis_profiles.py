@@ -249,6 +249,13 @@ def build_user_char(
         )
     if quote.strip() and quote.strip().casefold() not in trait.casefold():
         lines.append(f"Citat / ledstjärna: {quote.strip()}")
+    anekdot = profile.anekdot.strip()
+    if anekdot and anekdot != "—":
+        lines.append(
+            "Personlig vardagsdetalj (anekdot du kan väva in ibland — "
+            "inte i varje inlägg, ingen politisk poäng): "
+            f"{anekdot}"
+        )
     lines.append(
         "Din röst och temperament ska synas tydligare än ditt yrke — "
         "nämn jobb eller titel sällan, bara när det är direkt relevant."

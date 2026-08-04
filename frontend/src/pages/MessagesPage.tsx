@@ -71,6 +71,9 @@ function MsgCard({ msg, onDelete }: MsgCardProps) {
             </div>
           ) : (
             <div className="card-actions">
+              <Link className="primary" to={`/messages/${msg.id}/edit`}>
+                Redigera
+              </Link>
               <button type="button" className="danger" onClick={() => setConfirming(true)}>
                 Ta bort
               </button>

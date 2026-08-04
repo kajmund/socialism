@@ -24,6 +24,23 @@ class EditablePersona(BaseModel):
     medievanor: str = "—"
     parti: str = "—"
     valdeltagande: str = "—"
+    # Genereras vid persona-skapande — inte ett recept-/katalogfält.
+    anekdot: str = "—"
+
+
+class PersonaAnecdoteOut(BaseModel):
+    anekdot: str = Field(min_length=8, max_length=220)
+
+    @field_validator("anekdot")
+    @classmethod
+    def normalize_anecdote(cls, value: str) -> str:
+        text = " ".join(value.split())
+        if not text:
+            raise ValueError("anekdot is empty")
+        words = text.split()
+        if len(words) > 20:
+            raise ValueError("anekdot exceeds 20 words")
+        return text
 
 
 class LibraryPersona(BaseModel):
