@@ -19,6 +19,7 @@ import {
   type PersonaMessage,
 } from "@/api/personas"
 import { AdminShell } from "@/components/layout/AdminShell"
+import { PersonaAnekdotEditor, PersonaAnekdotPresentation } from "@/components/personas/PersonaAnekdot"
 import { AdminButton } from "@/components/ui/admin-button"
 import { Card, CardContent } from "@/components/ui/card"
 import { blankEditablePersona } from "@/data/library"
@@ -103,6 +104,12 @@ function Drawer({ persona }: { persona: EditablePersona }) {
         <b>[LÅST]</b> Politisk lutning: {persona.lutning}. Partisympati: {persona.parti}...
         <br />
         Ton: {persona.ton}.
+        {persona.anekdot && persona.anekdot !== "—" ? (
+          <>
+            <br />
+            Anekdot: {persona.anekdot}
+          </>
+        ) : null}
       </div>
     </div>
   )
@@ -365,6 +372,18 @@ function Editor({
               { k: "valdeltagande", l: "Valdeltagande", v: persona.valdeltagande, locked: !!locks.valdeltagande },
             ]}
           />
+          <div className="layer-h">V. Vardagsdetalj</div>
+          <div className="anekdot-layer">
+            <PersonaAnekdotEditor
+              value={persona.anekdot ?? "—"}
+              className="cell-input"
+              onChange={(v) => upd("anekdot", v)}
+            />
+            <p className="anekdot-hint">
+              Genereras automatiskt vid populationsskapande. Kan redigeras här — inte ett
+              receptfält som ton eller yrke.
+            </p>
+          </div>
         </div>
         <div className="chat-col">
           <div className="chat-top">
@@ -480,6 +499,7 @@ function Editor({
               <b>{persona.valdeltagande}</b>.
             </p>
           </div>
+          <PersonaAnekdotPresentation profile={persona} />
         </div>
         <div className="p-interview">
           <div className="p-interview-head">

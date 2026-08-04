@@ -21,6 +21,7 @@ import {
   postBodyTextForCopy,
 } from "@/components/runs/feedCopy"
 import { personaInitials } from "@/data/library"
+import { RUN_STATUS_LABEL } from "@/data/runs"
 import { ApiError } from "@/lib/api"
 import {
   CONTROL_VARIANT_LABEL,
@@ -32,6 +33,7 @@ import {
   type OasisRunResults,
   type OasisVariantResult,
   type QualityWarnings,
+  type RunStatus,
 } from "@/data/runs-types"
 
 type AgentRow = NonNullable<OasisVariantResult["agents"]>[number]
@@ -1801,12 +1803,16 @@ export function OasisResultsPanel({
 
   const selectionBusy = [...selected].some((id) => busyAttemptIds.has(id))
   const compareDisabled = compareBusy || orderingId != null || selectionBusy
+  const statusLabel =
+    status in RUN_STATUS_LABEL
+      ? RUN_STATUS_LABEL[status as RunStatus]
+      : status
 
   if (attempts.length === 0) {
+    if (status === "running") return null
     return (
       <div className="mb-9 rounded-md border border-border px-5 py-6 text-sm text-muted-foreground">
         Inga sparade resultat.
-        {status === "running" ? " Simulering pågår…" : null}
       </div>
     )
   }
@@ -1817,8 +1823,8 @@ export function OasisResultsPanel({
         <h2 className="text-base font-semibold text-foreground">Resultat</h2>
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-xs text-muted-foreground">
-            {attempts.length} {attempts.length === 1 ? "körning" : "körningar"} ·{" "}
-            {status}
+            {attempts.length} {attempts.length === 1 ? "körning" : "körningar"}
+            {status !== "running" ? ` · ${statusLabel}` : null}
           </span>
           {runId && selected.size > 0 ? (
             <button
