@@ -114,6 +114,51 @@ async def _seed_run_with_attempt(client) -> tuple[int, str]:
 
 @pytest.mark.asyncio
 async def test_create_report_and_generate(client, tmp_path, monkeypatch):
+    from typing import Any
+
+    from app.llm import set_structured_completer
+    from app.services.report.agent import SlotBatchResponse
+    from app.services.report.classify import (
+        _TopicBatchResponse,
+        _TopicItem,
+        _TopicPackModel,
+        _TopicPacksResponse,
+        _ToneBatchResponse,
+        _ToneItem,
+    )
+
+    async def mock_llm(messages: list[dict[str, str]], response_model: type[Any]) -> Any:
+        name = response_model.__name__
+        if name == "_TopicPacksResponse":
+            return _TopicPacksResponse(
+                topics=[_TopicPackModel(label="Äldreomsorg", keywords=["äldreomsorg"])]
+            )
+        if name == "_TopicBatchResponse":
+            user = messages[-1]["content"]
+            n = sum(1 for line in user.splitlines() if line[:1].isdigit())
+            return _TopicBatchResponse(
+                items=[_TopicItem(index=i, topic="Äldreomsorg") for i in range(n)]
+            )
+        if name == "_ToneBatchResponse":
+            user = messages[-1]["content"]
+            n = sum(1 for line in user.splitlines() if line[:1].isdigit())
+            return _ToneBatchResponse(
+                items=[
+                    _ToneItem(index=i, tone="Konstruktiv")  # type: ignore[arg-type]
+                    for i in range(n)
+                ]
+            )
+        if name == "SlotBatchResponse":
+            content = messages[-1]["content"] if messages else ""
+            slots: dict[str, str] = {}
+            for line in content.splitlines():
+                if line.startswith("- **") and "**:" in line:
+                    slot = line.split("**")[1]
+                    slots[slot] = f"text för {slot}"
+            return SlotBatchResponse(slots=slots)
+        raise AssertionError(f"Unexpected model {response_model}")
+
+    set_structured_completer(mock_llm)
     monkeypatch.chdir(tmp_path)
     run_id, attempt_id = await _seed_run_with_attempt(client)
 
@@ -128,29 +173,38 @@ async def test_create_report_and_generate(client, tmp_path, monkeypatch):
 
     jobs_service.set_schedule_hook(hook)
 
-    resp = await client.post(
-        "/reports",
-        json={"sources": [{"run_id": run_id, "attempt_id": attempt_id}], "title": "Min rapport"},
-    )
-    assert resp.status_code == 202, resp.text
-    body = resp.json()
-    assert body["status"] == "pending"
-    assert body["job_id"]
-    report_id = body["id"]
+    try:
+        resp = await client.post(
+            "/reports",
+            json={
+                "sources": [{"run_id": run_id, "attempt_id": attempt_id}],
+                "title": "Min rapport",
+            },
+        )
+        assert resp.status_code == 202, resp.text
+        body = resp.json()
+        assert body["status"] == "pending"
+        assert body["job_id"]
+        report_id = body["id"]
 
-    await asyncio.wait_for(done.wait(), timeout=30)
+        await asyncio.wait_for(done.wait(), timeout=30)
 
-    got = await client.get(f"/reports/{report_id}")
-    assert got.status_code == 200
-    data = got.json()
-    assert data["status"] == "succeeded"
-    assert data["html_path"]
+        got = await client.get(f"/reports/{report_id}")
+        assert got.status_code == 200
+        data = got.json()
+        assert data["status"] == "succeeded"
+        assert data["html_path"]
 
-    html = await client.get(f"/reports/{report_id}/html")
-    assert html.status_code == 200
-    assert "text/html" in html.headers.get("content-type", "")
-    assert b"donut" in html.content or b"info-kpi" in html.content or b"pyramid" in html.content
-
+        html = await client.get(f"/reports/{report_id}/html")
+        assert html.status_code == 200
+        assert "text/html" in html.headers.get("content-type", "")
+        assert (
+            b"donut" in html.content
+            or b"info-kpi" in html.content
+            or b"pyramid" in html.content
+        )
+    finally:
+        set_structured_completer(None)
 
 @pytest.mark.asyncio
 async def test_create_report_missing_attempt(client):

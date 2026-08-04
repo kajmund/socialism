@@ -242,7 +242,7 @@ async def test_start_oasis_without_package_returns_503(client, monkeypatch):
         assert "camel-oasis" in started.json()["detail"]
     finally:
         settings.simulation_engine = "none"
-        settings.deepseek_api_key = ""
+        settings.deepseek_api_key = "test-key-not-real"
 
 
 def _sample_recipe(size: int = 6, seed: int = 42) -> dict:

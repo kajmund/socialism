@@ -350,12 +350,10 @@ async def _run_report_generate(job_id: str) -> None:
         try:
             bundles = await build_bundles(session, list(report.sources or []))
             out_dir = Path(ARTIFACT_ROOT) / report.id
-            # dry_run when no API key — still produce charts + placeholder narrative
-            dry_run = not bool(settings.deepseek_api_key)
             html_path, slots_path, _slots = await generate_report_html(
                 bundles,
                 out_dir=out_dir,
-                dry_run=dry_run,
+                dry_run=False,
                 title=report.title,
             )
             report.status = "succeeded"
@@ -373,7 +371,6 @@ async def _run_report_generate(job_id: str) -> None:
                     "html_path": str(html_path),
                     "slots_path": str(slots_path),
                     "sources": len(bundles),
-                    "dry_run": dry_run,
                 },
             )
         except Exception as exc:  # noqa: BLE001 — mark report failed
