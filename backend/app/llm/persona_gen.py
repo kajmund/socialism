@@ -30,9 +30,10 @@ class SlotPlan:
 
 FIELD_GUIDE = """
 Fält att fylla i (svenska strängar, korta och konkreta):
-- name: för- och efternamn (svenskt eller vanligt i Sverige)
+- name: för- och efternamn (svenskt eller vanligt i Sverige; matcha kön)
 - initials: två bokstäver
 - age: ålder som sträng (siffra)
+- kön: Kvinna, Man eller Icke-binär
 - ort: stadsdel/ort
 - yrke: yrke
 - utbildning, livssituation, lutning, sakfragor, fortroende, ton, sprak, medievanor, parti, valdeltagande
@@ -67,6 +68,7 @@ def _local_context(area_block: str = "") -> str:
 
 
 _PROFILE_FIELD_LABELS: dict[str, str] = {
+    "kön": "Kön",
     "ort": "Ort/stadsdel",
     "yrke": "Yrke",
     "utbildning": "Utbildning",

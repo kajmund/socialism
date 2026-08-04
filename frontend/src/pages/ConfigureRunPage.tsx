@@ -27,7 +27,8 @@ import { ApiError } from "@/lib/api"
 type RunTab = "config" | "results"
 
 const DEFAULT_OASIS_OPTIONS: OasisRunOptions = {
-  allow_population_create_post: false,
+  platform: "twitter",
+  allow_population_create_post: true,
 }
 
 function parseTab(raw: string | null): RunTab {
@@ -106,7 +107,10 @@ export function ConfigureRunPage() {
         setPopId(run.population_id)
         setMainTicks(run.main_ticks.length ? run.main_ticks : [makeTick(1)])
         setBranch(run.branch)
-        setOasisOptions(run.oasis_options ?? DEFAULT_OASIS_OPTIONS)
+        setOasisOptions({
+          ...DEFAULT_OASIS_OPTIONS,
+          ...(run.oasis_options ?? {}),
+        })
         setRunStatus(run.status)
         setResults(run.results)
         if (defaultedTabForRun.current !== runId) {
@@ -517,28 +521,68 @@ export function ConfigureRunPage() {
                     </div>
                   </div>
                   <div className="id-field">
-                    <label htmlFor="oasis-create-post">OASIS</label>
-                    <label className="flex cursor-pointer items-start gap-2 text-sm text-foreground">
-                      <input
-                        id="oasis-create-post"
-                        type="checkbox"
-                        className="mt-1"
-                        checked={oasisOptions.allow_population_create_post}
-                        disabled={configLocked}
-                        onChange={(e) =>
-                          setOasisOptions({
-                            allow_population_create_post: e.target.checked,
-                          })
-                        }
-                      />
-                      <span>
-                        Låt populationen skapa egna inlägg
-                        <span className="mt-0.5 block text-xs text-muted-foreground">
-                          Av = bara injektorer postar (standard). På =
-                          CREATE_POST aktiveras för agenter.
+                    <label htmlFor="oasis-platform">OASIS</label>
+                    <div className="flex flex-col gap-3">
+                      <div>
+                        <span className="mb-1 block text-xs text-muted-foreground">
+                          Plattform
                         </span>
-                      </span>
-                    </label>
+                        <div className="flex gap-4 text-sm text-foreground">
+                          {(
+                            [
+                              ["twitter", "Twitter"],
+                              ["reddit", "Reddit"],
+                            ] as const
+                          ).map(([value, label]) => (
+                            <label
+                              key={value}
+                              className="flex cursor-pointer items-center gap-2"
+                            >
+                              <input
+                                type="radio"
+                                name="oasis-platform"
+                                id={
+                                  value === "twitter"
+                                    ? "oasis-platform"
+                                    : undefined
+                                }
+                                checked={oasisOptions.platform === value}
+                                disabled={configLocked}
+                                onChange={() =>
+                                  setOasisOptions({
+                                    ...oasisOptions,
+                                    platform: value,
+                                  })
+                                }
+                              />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                      <label className="flex cursor-pointer items-start gap-2 text-sm font-normal text-foreground">
+                        <input
+                          id="oasis-create-post"
+                          type="checkbox"
+                          className="mt-[3px]"
+                          checked={oasisOptions.allow_population_create_post}
+                          disabled={configLocked}
+                          onChange={(e) =>
+                            setOasisOptions({
+                              ...oasisOptions,
+                              allow_population_create_post: e.target.checked,
+                            })
+                          }
+                        />
+                        <span className="min-w-0 leading-snug">
+                          Låt populationen skapa egna inlägg
+                          <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                            På = populationen får CREATE_POST (standard). Av =
+                            bara injektorer postar.
+                          </span>
+                        </span>
+                      </label>
+                    </div>
                   </div>
                 </div>
               </CardContent>

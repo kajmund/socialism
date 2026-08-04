@@ -21,6 +21,7 @@ def build_chat_system_prompt(
         [
             f"Namn: {profile.name}",
             f"Ålder: {profile.age}",
+            f"Kön: {profile.kön}",
             f"Ort: {profile.ort}",
             f"Yrke: {profile.yrke}",
             f"Utbildning: {profile.utbildning}",

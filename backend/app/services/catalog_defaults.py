@@ -115,6 +115,12 @@ def _labels(*labels: str) -> list[CatalogItemDict]:
 
 CATALOG_DEFAULTS: list[CatalogDefault] = [
     {
+        "key": "kön",
+        "section": "demografi",
+        "title": "Kön",
+        "items": _labels("Kvinna", "Man", "Icke-binär"),
+    },
+    {
         "key": "yrke",
         "section": "demografi",
         "title": "Yrken",

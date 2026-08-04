@@ -11,6 +11,7 @@ class EditablePersona(BaseModel):
     name: str
     initials: str = "--"
     age: str = "—"
+    kön: str = "—"
     ort: str = "—"
     yrke: str = "—"
     utbildning: str = "—"
@@ -336,10 +337,14 @@ class BranchState(BaseModel):
     b: list[Tick] = Field(default_factory=list)
 
 
-class OasisRunOptions(BaseModel):
-    """Per-run OASIS simulation knobs (Twitter spike)."""
+OasisPlatform = Literal["twitter", "reddit"]
 
-    allow_population_create_post: bool = False
+
+class OasisRunOptions(BaseModel):
+    """Per-run OASIS simulation knobs."""
+
+    platform: OasisPlatform = "twitter"
+    allow_population_create_post: bool = True
 
 
 class RunSummary(BaseModel):
