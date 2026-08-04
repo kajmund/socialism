@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { getPersona, type PersonaDetail } from "@/api/personas"
+import { PersonaAnekdotPresentation } from "@/components/personas/PersonaAnekdot"
 import { AdminButton } from "@/components/ui/admin-button"
 import { ApiError } from "@/lib/api"
 
@@ -163,6 +164,7 @@ export function PersonaProfileModal({
                   <b>{profile.valdeltagande}</b>.
                 </p>
               </div>
+              <PersonaAnekdotPresentation profile={profile} />
             </div>
           ) : null}
 

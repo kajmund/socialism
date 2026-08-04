@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.llm import generate_editable_persona
+from app.llm.persona_anecdote import llm_persona_anecdote
 from app.locality import load_norrkoping_brief
 from app.schemas.domain import EditablePersona, GeneratedPersonaOut
 from app.serializers import persona_initials
@@ -37,6 +38,7 @@ Fält att fylla i (svenska strängar, korta och konkreta):
 - ort: stadsdel/ort
 - yrke: yrke
 - utbildning, livssituation, lutning, sakfragor, fortroende, ton, sprak, medievanor, parti, valdeltagande
+(Lämna anekdot som "—" — genereras separat.)
 """.strip()
 
 
@@ -121,6 +123,7 @@ async def llm_persona_from_slot(
     taken_surnames: frozenset[str] | None = None,
     writing_trait: str | None = None,
     previous_personas: tuple[str, ...] = (),
+    previous_anecdotes: tuple[str, ...] = (),
 ) -> GeneratedPersonaOut:
     area_block = ""
     if session is not None:
@@ -171,6 +174,11 @@ Extra önskemål från användaren:
     apply_slot_to_profile(profile, slot)
     if writing_trait:
         profile.ton = writing_trait
+    profile.anekdot = await llm_persona_anecdote(
+        profile,
+        session=session,
+        previous_anecdotes=previous_anecdotes,
+    )
     generated = profile_to_generated(profile, slot)
     if writing_trait:
         return GeneratedPersonaOut(

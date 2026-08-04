@@ -51,5 +51,6 @@ export type EditablePersona = {
   medievanor: string
   parti: string
   valdeltagande: string
+  anekdot?: string
   key?: number
 }

@@ -344,6 +344,11 @@ select.p-field-ctl{cursor:pointer;appearance:none;-webkit-appearance:none;backgr
 .p-field-ctl:hover{border-color:var(--border-hairline)}
 .p-field-ctl:focus{outline:none;border-color:var(--db-ink-400);background:var(--db-ink-0)}
 .p-field-ctl:disabled{opacity:.55;cursor:not-allowed}
+.p-field-span2{grid-column:1 / -1}
+textarea.p-field-ctl{min-height:4.5rem;resize:vertical;line-height:1.35;padding:6px 8px}
+.anekdot-layer{margin-top:8px;display:flex;flex-direction:column;gap:6px}
+.anekdot-layer .p-field-span2{margin:0}
+.anekdot-hint{font:var(--text-mono);font-size:0.62rem;color:var(--text-muted);line-height:1.4;margin:0}
 .tag-row{display:flex;justify-content:space-between;align-items:center;gap:6px;flex-shrink:0}
 .updated{font:var(--text-mono);font-size:0.7rem;color:var(--text-muted);border-top:1px dashed var(--border-hairline);padding-top:8px;margin-top:auto;flex-shrink:0}
 .updated.is-live{color:var(--db-gold-700)}

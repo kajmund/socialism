@@ -572,23 +572,22 @@ export function ConfigureRunPage() {
             aria-labelledby="run-tab-results"
           >
             {runStatus === "running" ? (
-              <Card className="mb-6 gap-0 ring-1 ring-border">
-                <CardContent className="px-5 py-6">
-                  <h2 className="mb-2 text-base font-semibold text-foreground">
-                    Simulering pågår
-                  </h2>
-                  <p className="text-sm text-muted-foreground">
-                    Körningen körs som bakgrundsjobb
-                    {results ? " — tidigare resultat behålls nedan" : ""}. Du kan
-                    lämna sidan.
-                  </p>
-                  <p className="mt-3 text-sm">
-                    <Link to="/jobs" className="text-db-gold-700 underline-offset-2 hover:underline">
-                      Visa bakgrundsjobb →
-                    </Link>
-                  </p>
-                </CardContent>
-              </Card>
+              <div className="mb-3 flex flex-col gap-1">
+                <h2 className="text-base font-semibold text-foreground">
+                  Simulering pågår
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Körningen körs som bakgrundsjobb
+                  {results ? " — tidigare resultat behålls nedan" : ""}. Du kan lämna
+                  sidan.{" "}
+                  <Link
+                    to="/jobs"
+                    className="text-db-gold-700 underline-offset-2 hover:underline"
+                  >
+                    Visa bakgrundsjobb →
+                  </Link>
+                </p>
+              </div>
             ) : null}
 
             {runStatus === "draft" && !results ? (

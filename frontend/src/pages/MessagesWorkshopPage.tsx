@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react"
-import { Link, useNavigate } from "react-router-dom"
+import { Link, useNavigate, useParams } from "react-router-dom"
 import {
   createMessage,
   generateVariants,
+  getMessage,
   summarizeUrl,
+  updateMessage,
   type MessageType,
   type MessageVariant,
   type MessageVariantKey,
@@ -19,9 +21,22 @@ function suggestTitle(body: string): string {
   return body.slice(0, 60).replace(/\s+/g, " ").trim()
 }
 
+function metaString(meta: Record<string, unknown>, key: string): string {
+  const v = meta[key]
+  return typeof v === "string" ? v : ""
+}
+
+function metaVariant(meta: Record<string, unknown>): MessageVariantKey | null {
+  const v = meta.variant
+  if (v === "analytical" || v === "narrative" || v === "concise") return v
+  return null
+}
+
 export function MessagesWorkshopPage() {
   const navigate = useNavigate()
-  const [step, setStep] = useState<Step>("type")
+  const { id: editId } = useParams<{ id?: string }>()
+  const isEdit = Boolean(editId)
+  const [step, setStep] = useState<Step>(isEdit ? "compose" : "type")
   const [messageType, setMessageType] = useState<MessageType | null>(null)
 
   const [body, setBody] = useState("")
@@ -38,9 +53,41 @@ export function MessagesWorkshopPage() {
   const [generating, setGenerating] = useState(false)
   const [variants, setVariants] = useState<MessageVariant[]>([])
   const [modalError, setModalError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(isEdit)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!editId) return
+    let cancelled = false
+    setLoading(true)
+    getMessage(editId)
+      .then((msg) => {
+        if (cancelled) return
+        setMessageType(msg.type)
+        setStep("compose")
+        setBody(msg.body)
+        setTitle(msg.title)
+        setSourceUrl(msg.source_url ?? "")
+        setSelectedKey(metaVariant(msg.metadata))
+        setAudience(metaString(msg.metadata, "audience"))
+        setPurpose(metaString(msg.metadata, "purpose"))
+        setTone(metaString(msg.metadata, "tone"))
+        setError(null)
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setError(err instanceof ApiError ? err.message : "Kunde inte hämta budskap")
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [editId])
 
   useEffect(() => {
     if (!toast) return
@@ -139,19 +186,25 @@ export function MessagesWorkshopPage() {
     }
     setSaving(true)
     setError(null)
+    const payload = {
+      type: messageType,
+      title: saveTitle,
+      body: text,
+      source_url: sourceUrl.trim() || null,
+      metadata: {
+        variant: selectedKey ?? undefined,
+        audience: audience.trim() || undefined,
+        purpose: purpose.trim() || undefined,
+        tone: tone.trim() || undefined,
+      },
+    }
     try {
-      await createMessage({
-        type: messageType,
-        title: saveTitle,
-        body: text,
-        source_url: sourceUrl.trim() || null,
-        metadata: {
-          variant: selectedKey ?? undefined,
-          audience: audience.trim() || undefined,
-          purpose: purpose.trim() || undefined,
-          tone: tone.trim() || undefined,
-        },
-      })
+      if (isEdit && editId) {
+        await updateMessage(editId, payload)
+        setToast("Budskapet sparades")
+      } else {
+        await createMessage(payload)
+      }
       navigate("/messages")
     } catch (err: unknown) {
       setError(err instanceof ApiError ? err.message : "Kunde inte spara")
@@ -172,15 +225,18 @@ export function MessagesWorkshopPage() {
               {" / "}
               Verkstad
             </p>
-            <h1>Budskapsverkstad</h1>
+            <h1>{isEdit ? "Redigera budskap" : "Budskapsverkstad"}</h1>
             <p className="muted">
-              Skriv budskapet, hämta från en länk eller generera formuleringar — spara sedan
-              till biblioteket.
+              {isEdit
+                ? "Uppdatera titel, text och länk. Sparade ändringar gäller i biblioteket direkt."
+                : "Skriv budskapet, hämta från en länk eller generera formuleringar — spara sedan till biblioteket."}
             </p>
           </div>
         </div>
 
-        {step === "type" && (
+        {loading && <p className="muted">Hämtar budskap…</p>}
+
+        {!loading && step === "type" && (
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
             <button
               type="button"
@@ -205,7 +261,7 @@ export function MessagesWorkshopPage() {
           </div>
         )}
 
-        {step === "compose" && messageType && (
+        {!loading && step === "compose" && messageType && (
           <div className="mt-6 space-y-6">
             <div className="flex items-center justify-between gap-3">
               <span className="rounded-full border border-[color:var(--border-hairline)] px-3 py-1 text-sm">
@@ -284,7 +340,7 @@ export function MessagesWorkshopPage() {
 
             <div className="flex flex-wrap items-center gap-3">
               <AdminButton variant="accent" onClick={onSave} disabled={saving}>
-                {saving ? "Sparar…" : "Spara till biblioteket"}
+                {saving ? "Sparar…" : isEdit ? "Spara ändringar" : "Spara till biblioteket"}
               </AdminButton>
               <AdminButton variant="secondary" onClick={openVariantsModal}>
                 Generera varianter…

@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database.models import Persona
 from app.llm.persona_gen import SlotPlan, apply_slot_to_profile, llm_persona_from_slot
+from app.llm.persona_anecdote import stub_persona_anecdote
 from app.schemas.domain import (
     DistGroup,
     EditablePersona,
@@ -405,6 +406,7 @@ def stub_persona(
     apply_slot_to_profile(profile, slot)
     if writing_trait:
         profile.ton = writing_trait
+    profile.anekdot = stub_persona_anecdote(profile, rng)
     trait = writing_trait or profile.ton or profile.sakfragor or _trait_for_lean(
         slot.lean, slot.lean_label
     )
@@ -506,6 +508,7 @@ async def _make_generated_batch(
     writing_traits = _writing_traits_for_slots(slots, rng)
     personas: list[GeneratedPersonaOut] = []
     previous_personas: list[str] = []
+    previous_anecdotes: list[str] = []
     for slot, voice in zip(slots, writing_traits, strict=True):
         persona, slot_warnings = await _llm_persona_unique_surname(
             slot,
@@ -514,12 +517,15 @@ async def _make_generated_batch(
             used_surnames=surnames,
             writing_trait=voice,
             previous_personas=tuple(previous_personas),
+            previous_anecdotes=tuple(previous_anecdotes),
         )
         personas.append(persona)
         warnings.extend(slot_warnings)
         previous_personas.append(
             f"{persona.name} | yrke: {persona.occ} | röst: {persona.trait[:80]}"
         )
+        if persona.profile.anekdot.strip() not in ("", "—"):
+            previous_anecdotes.append(persona.profile.anekdot.strip())
     return personas, warnings
 
 
@@ -531,6 +537,7 @@ async def _llm_persona_unique_surname(
     used_surnames: set[str],
     writing_trait: str | None = None,
     previous_personas: tuple[str, ...] = (),
+    previous_anecdotes: tuple[str, ...] = (),
 ) -> tuple[GeneratedPersonaOut, list[str]]:
     warnings: list[str] = []
     persona: GeneratedPersonaOut | None = None
@@ -542,6 +549,7 @@ async def _llm_persona_unique_surname(
             taken_surnames=frozenset(used_surnames),
             writing_trait=writing_trait,
             previous_personas=previous_personas,
+            previous_anecdotes=previous_anecdotes,
         )
         sur = surname_from_name(persona.name)
         if not sur or sur not in used_surnames:
