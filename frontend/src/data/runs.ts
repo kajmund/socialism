@@ -1,4 +1,10 @@
-import type { Injection, Measurement, RunSummary, Tick } from "@/data/runs-types"
+import type {
+  BranchState,
+  Injection,
+  Measurement,
+  RunSummary,
+  Tick,
+} from "@/data/runs-types"
 
 export const RUN_STATUS_LABEL: Record<RunSummary["status"], string> = {
   done: "Klar",
@@ -15,8 +21,32 @@ export const MEASUREMENTS: Measurement[] = [
   { id: "engagement_decay", label: "Engagemangsavklingning" },
 ]
 
-export function genSeed(): string {
-  return Math.random().toString(36).slice(2, 10)
+function cloneTick(t: Tick): Tick {
+  return {
+    ...t,
+    key: "t" + Math.random().toString(36).slice(2, 8),
+    injections: t.injections.map((inj) => ({
+      ...inj,
+      key: "i" + Math.random().toString(36).slice(2, 8),
+    })),
+  }
+}
+
+function silentCopy(t: Tick): Tick {
+  const copy = cloneTick(t)
+  return { ...copy, silent: true, injections: [] }
+}
+
+/** Fork after tick `afterIndex`: A keeps injections, B is silent copy (control). */
+export function makeStimulusControlBranch(
+  mainTicks: Tick[],
+  afterIndex: number,
+): BranchState {
+  const afterStem = mainTicks.slice(afterIndex + 1)
+  const nextDay = mainTicks[afterIndex].day + 1
+  const aTicks = afterStem.length > 0 ? afterStem.map(cloneTick) : [makeTick(nextDay)]
+  const bTicks = aTicks.map(silentCopy)
+  return { afterIndex, mode: "stimulus_control", a: aTicks, b: bTicks }
 }
 
 export function makeTick(day: number): Tick {

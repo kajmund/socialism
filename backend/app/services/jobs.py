@@ -214,6 +214,7 @@ async def _run_population_generate(job_id: str) -> None:
                 "population_id": population.id,
                 "fingerprint": response.fingerprint,
                 "member_count": population.size,
+                "warnings": response.warnings,
             },
         )
 

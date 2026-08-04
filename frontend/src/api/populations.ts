@@ -57,6 +57,7 @@ export type PopulationGenerateResponse = {
   generation_id: string
   fingerprint: number[][]
   candidates: GenerationCandidate[]
+  warnings?: string[]
 }
 
 export type PopulationMemberWrite = {
