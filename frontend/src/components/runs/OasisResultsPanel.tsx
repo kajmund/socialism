@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react"
+import { useEffect, useMemo, useRef, useState, useCallback, type ReactNode } from "react"
 import { useNavigate } from "react-router-dom"
 import { createReport, listReports } from "@/api/reports"
 import { PersonaProfileModal } from "@/components/personas/PersonaProfileModal"
@@ -8,6 +8,16 @@ import {
   groupTimelineSegments,
   type TimelineActionItem,
 } from "@/components/runs/activityFeed"
+import {
+  buildMentionAliases,
+  CommentBody,
+  getMentionMatcher,
+} from "@/components/runs/commentMentions"
+import {
+  CopyFeedTextButton,
+  formatCommentForClipboard,
+  formatPostForClipboard,
+} from "@/components/runs/feedCopy"
 import { personaInitials } from "@/data/library"
 import { ApiError } from "@/lib/api"
 import type {
@@ -224,6 +234,31 @@ function agentIsInjector(
 
 function pct(value: number | undefined): string {
   return `${Math.round((value ?? 0) * 100)}%`
+}
+
+type FeedPostRow = NonNullable<OasisVariantResult["posts"]>[number]
+
+function postBodyTextForCopy(
+  post: FeedPostRow,
+  opts: {
+    isQuote: boolean
+    isRepost: boolean
+    quote: string
+    originalAuthor: string | null
+    originalId: number | null
+  },
+): string {
+  if (opts.isQuote) {
+    const cite = opts.originalAuthor ?? "okänd"
+    const id = opts.originalId ?? "?"
+    return `${opts.quote}\n\n(Citerar ${cite} #${id})`
+  }
+  if (opts.isRepost) {
+    const cite = opts.originalAuthor ?? "okänd"
+    const id = opts.originalId ?? "?"
+    return `Delade inlägg från ${cite} #${id}`
+  }
+  return post.content.trim()
 }
 
 function MeasurementDetail({ point }: { point: OasisMeasurementPoint }) {
@@ -936,13 +971,48 @@ function VariantBody({ variant }: { variant: OasisVariantResult }) {
   const comments = variant.comments ?? []
   const agents = variant.agents ?? []
   const measurements = variant.measurements ?? []
-  const postsById = new Map(posts.map((p) => [p.post_id, p]))
+  const postsById = useMemo(
+    () => new Map(posts.map((p) => [p.post_id, p])),
+    [posts],
+  )
+  const commentsByPostId = useMemo(() => {
+    const map = new Map<number, NonNullable<OasisVariantResult["comments"]>>()
+    for (const comment of comments) {
+      const bucket = map.get(comment.post_id)
+      if (bucket) bucket.push(comment)
+      else map.set(comment.post_id, [comment])
+    }
+    return map
+  }, [comments])
+  const mentionAliases = useMemo(() => buildMentionAliases(agents), [agents])
+  const mentionMatcher = useMemo(
+    () => getMentionMatcher(mentionAliases),
+    [mentionAliases],
+  )
   const [profile, setProfile] = useState<ProfileTarget | null>(null)
+  const [mentionPick, setMentionPick] = useState<{
+    userIds: number[]
+    label: string
+  } | null>(null)
   const [hideNoise, setHideNoise] = useState(false)
 
-  function openAgent(userId: number) {
-    setProfile(agentProfileTarget(agents, userId))
-  }
+  const openAgent = useCallback(
+    (userId: number) => {
+      setProfile(agentProfileTarget(agents, userId))
+    },
+    [agents],
+  )
+
+  const openMention = useCallback(
+    (userIds: number[], label: string) => {
+      if (userIds.length === 1) {
+        openAgent(userIds[0]!)
+        return
+      }
+      setMentionPick({ userIds, label })
+    },
+    [openAgent],
+  )
 
   function openAgentRow(agent: AgentRow | undefined, fallbackName: string) {
     setProfile({
@@ -951,6 +1021,33 @@ function VariantBody({ variant }: { variant: OasisVariantResult }) {
     })
   }
 
+  const agentName = useCallback(
+    (id: number) => agentLabel(agents, id),
+    [agents],
+  )
+
+  const timeline = useMemo(
+    () => buildTimelineItems(variant, { hideNoise, agentName }),
+    [variant, hideNoise, agentName],
+  )
+  const segments = useMemo(() => groupTimelineSegments(timeline), [timeline])
+  const injectors = useMemo(
+    () => agents.filter((a) => a.role === "injector"),
+    [agents],
+  )
+  const population = useMemo(
+    () => agents.filter((a) => a.role !== "injector"),
+    [agents],
+  )
+  const hasTraceActions = useMemo(
+    () =>
+      (variant.trace ?? []).some((t) => {
+        const a = (t.action || "").trim()
+        return a.length > 0 && !CARD_COVERED_ACTIONS.has(a)
+      }),
+    [variant.trace],
+  )
+
   if (variant.error) {
     return (
       <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -958,18 +1055,6 @@ function VariantBody({ variant }: { variant: OasisVariantResult }) {
       </p>
     )
   }
-
-  const injectors = agents.filter((a) => a.role === "injector")
-  const population = agents.filter((a) => a.role !== "injector")
-  const timeline = buildTimelineItems(variant, {
-    hideNoise,
-    agentName: (id) => agentLabel(agents, id),
-  })
-  const segments = groupTimelineSegments(timeline)
-  const hasTraceActions = (variant.trace ?? []).some((t) => {
-    const a = (t.action || "").trim()
-    return a.length > 0 && !CARD_COVERED_ACTIONS.has(a)
-  })
 
   const platform =
     variant.platform ??
@@ -1062,7 +1147,7 @@ function VariantBody({ variant }: { variant: OasisVariantResult }) {
           const quote = (post.quote_content ?? "").trim()
           const isQuote = originalId != null && quote.length > 0
           const isRepost = originalId != null && quote.length === 0
-          const postComments = comments.filter((c) => c.post_id === post.post_id)
+          const postComments = commentsByPostId.get(post.post_id) ?? []
           const when = formatFeedWhen(post.created_at)
 
           let kindLabel: string | null = null
@@ -1070,35 +1155,57 @@ function VariantBody({ variant }: { variant: OasisVariantResult }) {
           else if (isQuote) kindLabel = "citat"
           else if (isRepost) kindLabel = "delning"
 
+          const postBody = postBodyTextForCopy(post, {
+            isQuote,
+            isRepost,
+            quote,
+            originalAuthor,
+            originalId,
+          })
+          const postCopyText = formatPostForClipboard(
+            author,
+            postBody,
+            postComments.map((c) => ({
+              author: agentLabel(agents, c.user_id),
+              content: c.content,
+            })),
+          )
+
           return (
             <li
               key={segment.key}
               className="rounded-lg border border-border bg-card px-4 py-3 shadow-sm"
             >
-              <FeedAuthorHeader
-                name={author}
-                showAvatar={!isInjector}
-                size="md"
-                onOpen={() => openAgentRow(agent, author)}
-                meta={
-                  <>
-                    {when ? <span>{when}</span> : null}
-                    {kindLabel ? (
-                      <span className="rounded border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
-                        {kindLabel}
-                      </span>
-                    ) : null}
-                    <span className="text-muted-foreground/80">#{post.post_id}</span>
-                  </>
-                }
-              />
+              <div className="flex items-start justify-between gap-2">
+                <FeedAuthorHeader
+                  name={author}
+                  showAvatar={!isInjector}
+                  size="md"
+                  onOpen={() => openAgentRow(agent, author)}
+                  meta={
+                    <>
+                      {when ? <span>{when}</span> : null}
+                      {kindLabel ? (
+                        <span className="rounded border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
+                          {kindLabel}
+                        </span>
+                      ) : null}
+                      <span className="text-muted-foreground/80">#{post.post_id}</span>
+                    </>
+                  }
+                />
+                <CopyFeedTextButton text={postCopyText} label="Kopiera inlägg" />
+              </div>
 
               <div className="mt-2.5">
                 {isQuote ? (
                   <div className="space-y-2">
-                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-                      {quote}
-                    </p>
+                    <CommentBody
+                      text={quote}
+                      matcher={mentionMatcher}
+                      onOpenMention={openMention}
+                      className="whitespace-pre-wrap text-sm leading-relaxed text-foreground"
+                    />
                     <p className="text-xs text-muted-foreground">
                       Citerar{" "}
                       {original != null ? (
@@ -1134,9 +1241,12 @@ function VariantBody({ variant }: { variant: OasisVariantResult }) {
                 ) : null}
 
                 {!isQuote && !isRepost ? (
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-                    {post.content}
-                  </p>
+                  <CommentBody
+                    text={post.content}
+                    matcher={mentionMatcher}
+                    onOpenMention={openMention}
+                    className="whitespace-pre-wrap text-sm leading-relaxed text-foreground"
+                  />
                 ) : null}
               </div>
 
@@ -1154,7 +1264,7 @@ function VariantBody({ variant }: { variant: OasisVariantResult }) {
                     const commentName = agentLabel(agents, c.user_id)
                     const commentInjector = agentIsInjector(agents, c.user_id)
                     return (
-                      <li key={c.comment_id} className="flex items-start gap-2.5">
+                      <li key={c.comment_id} className="flex items-start gap-1.5">
                         {commentInjector ? null : (
                           <AgentAvatar name={commentName} size="sm" />
                         )}
@@ -1170,9 +1280,12 @@ function VariantBody({ variant }: { variant: OasisVariantResult }) {
                           >
                             {commentName}
                           </button>
-                          <p className="mt-0.5 whitespace-pre-wrap text-xs leading-relaxed text-foreground">
-                            {c.content}
-                          </p>
+                          <CommentBody
+                            text={c.content}
+                            matcher={mentionMatcher}
+                            onOpenMention={openMention}
+                            className="mt-0.5 whitespace-pre-wrap text-xs leading-relaxed text-foreground"
+                          />
                           <LikeShareBar
                             agents={agents}
                             likedBy={c.liked_by}
@@ -1181,6 +1294,10 @@ function VariantBody({ variant }: { variant: OasisVariantResult }) {
                             onOpenAgent={openAgent}
                           />
                         </div>
+                        <CopyFeedTextButton
+                          text={formatCommentForClipboard(commentName, c.content)}
+                          label="Kopiera kommentar"
+                        />
                       </li>
                     )
                   })}
@@ -1197,6 +1314,50 @@ function VariantBody({ variant }: { variant: OasisVariantResult }) {
         fallbackName={profile?.name}
         onClose={() => setProfile(null)}
       />
+
+      {mentionPick ? (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
+          role="presentation"
+          onClick={() => setMentionPick(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-lg border border-border bg-card p-4 shadow-lg"
+            role="dialog"
+            aria-labelledby="mention-pick-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h4
+              id="mention-pick-title"
+              className="text-sm font-semibold text-foreground"
+            >
+              Vem menades med {mentionPick.label}?
+            </h4>
+            <ul className="mt-3 space-y-2">
+              {mentionPick.userIds.map((userId) => (
+                <li key={userId}>
+                  <AgentNameButton
+                    name={agentLabel(agents, userId)}
+                    className="text-sm"
+                    showAvatar={!agentIsInjector(agents, userId)}
+                    onOpen={() => {
+                      openAgent(userId)
+                      setMentionPick(null)
+                    }}
+                  />
+                </li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              className="mt-3 text-xs text-muted-foreground underline-offset-2 hover:underline"
+              onClick={() => setMentionPick(null)}
+            >
+              Avbryt
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
