@@ -5,23 +5,19 @@ from __future__ import annotations
 import re
 from typing import Final
 
-_NO_INLINE_MARKDOWN: Final[frozenset[str]] = frozenset(
-    {
-        "page_title",
-        "cover_h1",
-        "cover_eyebrow",
-        "cover_box1_lbl",
-        "cover_box2_lbl",
-        "cover_box3_lbl",
-        "infographic_h2",
-        "infographic_eyebrow",
-        "infographic_lead",
-        "sec04_h2",
-        "meta_scenario",
-        "meta_topics",
-        "meta_tests",
-    }
+_DANGEROUS_BLOCK: Final[re.Pattern[str]] = re.compile(
+    r"(?is)<\s*(script|iframe|object|embed|form|link|meta|base|svg)\b[^>]*>.*?</\s*\1\s*>"
 )
+_DANGEROUS_VOID: Final[re.Pattern[str]] = re.compile(
+    r"(?is)<\s*(script|iframe|object|embed|form|link|meta|base|svg)\b[^>]*/?\s*>"
+)
+_EVENT_HANDLER_ATTR: Final[re.Pattern[str]] = re.compile(
+    r"(?i)\s+on[a-z]+\s*=\s*(['\"]).*?\1"
+)
+_EVENT_HANDLER_ATTR_UNQUOTED: Final[re.Pattern[str]] = re.compile(
+    r"(?i)\s+on[a-z]+\s*=\s*[^\s>]+"
+)
+_JS_URI: Final[re.Pattern[str]] = re.compile(r"(?i)javascript\s*:")
 
 _LABEL_SLOTS: Final[frozenset[str]] = frozenset(
     {
@@ -169,6 +165,16 @@ def _fix_html_classes(text: str) -> str:
     return s
 
 
+def strip_dangerous_html(text: str) -> str:
+    """Best-effort removal of high-risk tags/handlers from trusted-shape HTML slots."""
+    s = _DANGEROUS_BLOCK.sub("", text)
+    s = _DANGEROUS_VOID.sub("", s)
+    s = _EVENT_HANDLER_ATTR.sub("", s)
+    s = _EVENT_HANDLER_ATTR_UNQUOTED.sub("", s)
+    s = _JS_URI.sub("", s)
+    return s
+
+
 def sanitize_slot_output(slot: str, raw: str) -> str:
     s = strip_all_code_fences(raw).strip()
     if not s:
@@ -180,12 +186,13 @@ def sanitize_slot_output(slot: str, raw: str) -> str:
     s = "\n".join(lines).strip()
     if is_html and "<" in s:
         s = trim_leading_to_first_html_tag(s)
-    if slot in _NO_INLINE_MARKDOWN:
-        s = strip_markdown_bold(s)
-    else:
+    if is_html:
         s = inline_markdown_bold_to_html(s)
+        s = strip_dangerous_html(s)
+        s = _fix_html_classes(s)
+    else:
+        # Text slots are HTML-escaped at render time — never inject tags here.
+        s = strip_markdown_bold(s)
     if slot in _LABEL_SLOTS:
         s = _trim_label(s)
-    if is_html:
-        s = _fix_html_classes(s)
     return s.strip()

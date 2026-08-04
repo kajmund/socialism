@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from html import escape
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,8 @@ def list_slots_in_template(html: str) -> list[str]:
 
 
 def apply_slots(html: str, slots: dict[str, Any], *, strict: bool = False) -> str:
+    """Substitute slots. Non-`*_html` values are HTML-escaped; `*_html` stay raw."""
+
     def repl(m: re.Match[str]) -> str:
         key = m.group(1)
         if key not in slots:
@@ -23,7 +26,12 @@ def apply_slots(html: str, slots: dict[str, Any], *, strict: bool = False) -> st
                 raise KeyError(f"Saknar slot: {key}")
             return ""
         val = slots[key]
-        return "" if val is None else str(val)
+        if val is None:
+            return ""
+        text = str(val)
+        if key.endswith("_html"):
+            return text
+        return escape(text)
 
     return _SLOT_RE.sub(repl, html)
 
