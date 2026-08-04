@@ -220,11 +220,20 @@ class PersonaMessageOut(BaseModel):
     role: ChatRole
     content: str
     created_at: str
+    run_id: int | None = None
+    attempt_id: str | None = None
+    variant_id: str | None = None
+    through_tick_index: int | None = None
 
 
 class PersonaChatResponse(BaseModel):
     reply: str
     messages: list[PersonaMessageOut]
+
+
+class RunPersonaInterviewRequest(BaseModel):
+    through_tick_index: int = Field(ge=0)
+    message: str = Field(min_length=1)
 
 
 RunStatus = Literal["done", "running", "draft", "failed"]
@@ -340,6 +349,14 @@ def new_message_id() -> str:
     return str(uuid4())
 
 
+class TickInterview(BaseModel):
+    """Planned OASIS INTERVIEW after a tick's reaction rounds."""
+
+    key: str = ""
+    persona_id: str
+    prompt: str = Field(min_length=1)
+
+
 class Tick(BaseModel):
     key: str
     day: int
@@ -347,6 +364,7 @@ class Tick(BaseModel):
     injections: list[Injection] = Field(default_factory=list)
     rounds: int = 3
     measurements: list[str] = Field(default_factory=list)
+    interviews: list[TickInterview] = Field(default_factory=list)
 
 
 BranchMode = Literal["ab", "stimulus_control"]

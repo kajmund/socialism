@@ -83,3 +83,63 @@ export async function deleteRunResultAttempt(
   )
   return getRun(runId)
 }
+
+export type RunInterviewMessage = {
+  id: number
+  mode: "interview" | "character"
+  role: "user" | "assistant"
+  content: string
+  created_at: string
+  run_id?: number | null
+  attempt_id?: string | null
+  variant_id?: string | null
+  through_tick_index?: number | null
+}
+
+function interviewPath(
+  runId: number,
+  attemptId: string,
+  variantId: string,
+  personaId: string,
+): string {
+  return (
+    `/runs/${runId}/attempts/${encodeURIComponent(attemptId)}` +
+    `/variants/${encodeURIComponent(variantId)}` +
+    `/personas/${encodeURIComponent(personaId)}/interview`
+  )
+}
+
+export function listRunPersonaInterviewMessages(
+  runId: number,
+  attemptId: string,
+  variantId: string,
+  personaId: string,
+  throughTickIndex: number,
+): Promise<RunInterviewMessage[]> {
+  return api.get<RunInterviewMessage[]>(
+    interviewPath(runId, attemptId, variantId, personaId),
+    { through_tick_index: throughTickIndex },
+  )
+}
+
+export function runPersonaInterview(
+  runId: number,
+  attemptId: string,
+  variantId: string,
+  personaId: string,
+  body: { through_tick_index: number; message: string },
+): Promise<{ reply: string; messages: RunInterviewMessage[] }> {
+  return api.post(interviewPath(runId, attemptId, variantId, personaId), body)
+}
+
+export function clearRunPersonaInterview(
+  runId: number,
+  attemptId: string,
+  variantId: string,
+  personaId: string,
+  throughTickIndex: number,
+): Promise<void> {
+  return api.delete(
+    `${interviewPath(runId, attemptId, variantId, personaId)}?through_tick_index=${throughTickIndex}`,
+  )
+}

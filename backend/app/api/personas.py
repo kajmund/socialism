@@ -70,6 +70,10 @@ def _serialize_message(row: PersonaMessage) -> PersonaMessageOut:
         role=row.role,  # type: ignore[arg-type]
         content=row.content,
         created_at=format_date(row.created_at) if row.created_at else "",
+        run_id=row.run_id,
+        attempt_id=row.attempt_id,
+        variant_id=row.variant_id,
+        through_tick_index=row.through_tick_index,
     )
 
 
@@ -267,6 +271,15 @@ async def duplicate_persona(
     return serialize_persona_detail(persona, [])
 
 
+def _library_chat_filter(persona_id: str, mode: ChatMode):
+    """Library interview/character chat — exclude run-scoped post-hoc threads."""
+    return (
+        PersonaMessage.persona_id == persona_id,
+        PersonaMessage.mode == mode,
+        PersonaMessage.run_id.is_(None),
+    )
+
+
 @router.get("/{persona_id}/messages", response_model=list[PersonaMessageOut])
 async def list_messages(
     persona_id: str,
@@ -276,7 +289,7 @@ async def list_messages(
     await _get_persona(session, persona_id)
     result = await session.execute(
         select(PersonaMessage)
-        .where(PersonaMessage.persona_id == persona_id, PersonaMessage.mode == mode)
+        .where(*_library_chat_filter(persona_id, mode))
         .order_by(PersonaMessage.id.asc())
     )
     return [_serialize_message(row) for row in result.scalars().all()]
@@ -293,10 +306,7 @@ async def chat_with_persona(
 
     history_rows = await session.execute(
         select(PersonaMessage)
-        .where(
-            PersonaMessage.persona_id == persona_id,
-            PersonaMessage.mode == body.mode,
-        )
+        .where(*_library_chat_filter(persona_id, body.mode))
         .order_by(PersonaMessage.id.asc())
     )
     history = [(row.role, row.content) for row in history_rows.scalars().all()]
@@ -332,10 +342,7 @@ async def chat_with_persona(
 
     all_rows = await session.execute(
         select(PersonaMessage)
-        .where(
-            PersonaMessage.persona_id == persona_id,
-            PersonaMessage.mode == body.mode,
-        )
+        .where(*_library_chat_filter(persona_id, body.mode))
         .order_by(PersonaMessage.id.asc())
     )
     messages = [_serialize_message(row) for row in all_rows.scalars().all()]
@@ -350,10 +357,7 @@ async def clear_messages(
 ) -> None:
     await _get_persona(session, persona_id)
     result = await session.execute(
-        select(PersonaMessage).where(
-            PersonaMessage.persona_id == persona_id,
-            PersonaMessage.mode == mode,
-        )
+        select(PersonaMessage).where(*_library_chat_filter(persona_id, mode))
     )
     for row in result.scalars().all():
         await session.delete(row)
