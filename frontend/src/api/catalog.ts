@@ -5,6 +5,7 @@ export type CatalogSection =
   | "politik"
   | "varderingar"
   | "rost_media"
+  | "simulering"
 
 export type GeoBounds = {
   south: number
@@ -32,6 +33,7 @@ export const SECTION_ORDER: CatalogSection[] = [
   "politik",
   "varderingar",
   "rost_media",
+  "simulering",
 ]
 
 export const SECTION_LABELS: Record<CatalogSection, string> = {
@@ -39,6 +41,7 @@ export const SECTION_LABELS: Record<CatalogSection, string> = {
   politik: "Politik",
   varderingar: "Värderingar",
   rost_media: "Röst & media",
+  simulering: "Simulering",
 }
 
 export function listCatalog(): Promise<CatalogList[]> {
