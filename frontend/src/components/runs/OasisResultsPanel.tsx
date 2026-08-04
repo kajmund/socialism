@@ -1,13 +1,23 @@
-import { useEffect, useMemo, useRef, useState, useCallback, type ReactNode } from "react"
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useCallback,
+  type ReactNode,
+} from "react"
+import { createPortal } from "react-dom"
+import { FileText, Files, Loader2, Network } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { createReport, listReports } from "@/api/reports"
 import { PersonaProfileModal } from "@/components/personas/PersonaProfileModal"
 import {
   buildTimelineItems,
-  CARD_COVERED_ACTIONS,
   groupTimelineSegments,
+  HIDDEN_ACTIONS,
   parseTraceInfo,
   sortKeyFromCreatedAt,
+  type PostRow,
   type TimelineActionItem,
 } from "@/components/runs/activityFeed"
 import {
@@ -513,60 +523,15 @@ function StimulusControlComparison({
   )
 }
 
-function MeasurementsSection({ rows }: { rows: OasisMeasurementRow[] }) {
-  if (rows.length === 0) {
-    return (
-      <p className="mb-4 text-sm text-muted-foreground">
-        Inga mätpunkter konfigurerades på tidslinjen.
-      </p>
-    )
-  }
-
+function MeasurementPointBlock({ point }: { point: OasisMeasurementPoint }) {
   return (
-    <section className="mb-5">
-      <h3 className="mb-2 text-sm font-semibold text-foreground">Mätpunkter</h3>
-      <div className="flex flex-col gap-2">
-        {rows.map((row) => (
-          <div
-            key={`${row.tick_key}-${row.tick_index}`}
-            className="rounded-md border border-border/80 bg-muted/15"
-          >
-            <div className="border-b border-border/60 px-3 py-2 text-xs text-muted-foreground">
-              Dag {row.day}
-              <span className="mx-1.5 text-border">·</span>
-              tick {row.tick_index + 1}
-            </div>
-            <ul className="divide-y divide-border/50">
-              {row.points.map((point) => (
-                <li key={point.id}>
-                  <details className="group">
-                    <summary className="flex cursor-pointer list-none items-start justify-between gap-3 px-3 py-2.5 marker:content-none [&::-webkit-details-marker]:hidden">
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium text-foreground">
-                          {point.label}
-                        </div>
-                        <div className="mt-0.5 text-xs text-muted-foreground">
-                          {point.summary}
-                        </div>
-                      </div>
-                      <span className="shrink-0 pt-0.5 text-xs text-muted-foreground group-open:hidden">
-                        Detalj ▾
-                      </span>
-                      <span className="hidden shrink-0 pt-0.5 text-xs text-muted-foreground group-open:inline">
-                        Dölj ▴
-                      </span>
-                    </summary>
-                    <div className="border-t border-border/50 px-3 py-3">
-                      <MeasurementDetail point={point} />
-                    </div>
-                  </details>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
+    <div className="rounded-md border border-border/80 bg-muted/15 px-3 py-3">
+      <div className="text-sm font-medium text-foreground">{point.label}</div>
+      <div className="mt-0.5 text-xs text-muted-foreground">{point.summary}</div>
+      <div className="mt-3 border-t border-border/50 pt-3">
+        <MeasurementDetail point={point} />
       </div>
-    </section>
+    </div>
   )
 }
 
@@ -822,7 +787,165 @@ function LikeShareBar({
   )
 }
 
-function NetworkActivitySection({
+function OrderReportButton({
+  busy,
+  disabled,
+  label,
+  compareCount,
+  onClick,
+  prominent = false,
+}: {
+  busy?: boolean
+  disabled?: boolean
+  label: string
+  compareCount?: number
+  onClick: () => void
+  prominent?: boolean
+}) {
+  const title = busy ? "Genererar rapport…" : label
+
+  return (
+    <button
+      type="button"
+      className={
+        prominent
+          ? "inline-grid h-8 w-8 place-items-center rounded-md border border-db-gold-600 bg-db-gold-100 text-db-gold-800 hover:bg-db-gold-200 disabled:cursor-not-allowed disabled:opacity-40"
+          : "inline-grid h-7 w-7 place-items-center rounded text-db-gold-700 hover:bg-db-gold-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+      }
+      disabled={disabled || busy}
+      title={title}
+      aria-label={title}
+      onClick={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        onClick()
+      }}
+    >
+      {busy ? (
+        <Loader2 className="size-3.5 animate-spin" aria-hidden />
+      ) : compareCount != null && compareCount > 1 ? (
+        <Files className="size-3.5" aria-hidden />
+      ) : (
+        <FileText className="size-3.5" aria-hidden />
+      )}
+    </button>
+  )
+}
+
+function AdminModal({
+  open,
+  titleId,
+  title,
+  description,
+  children,
+  onClose,
+  wide = false,
+}: {
+  open: boolean
+  titleId: string
+  title: string
+  description?: string
+  children: ReactNode
+  onClose: () => void
+  wide?: boolean
+}) {
+  const overlayMouseDownRef = useRef(false)
+
+  useEffect(() => {
+    if (!open) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose()
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [open, onClose])
+
+  if (!open) return null
+
+  return createPortal(
+    <div
+      className="theme-admin fixed inset-0 z-[1100] flex items-center justify-center bg-black/50 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+      onMouseDown={(e) => {
+        overlayMouseDownRef.current = e.target === e.currentTarget
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && overlayMouseDownRef.current) {
+          onClose()
+        }
+        overlayMouseDownRef.current = false
+      }}
+    >
+      <div
+        className={
+          "w-full rounded-lg border border-[color:var(--border-hairline)] bg-db-ink-0 shadow-xl " +
+          (wide ? "max-w-2xl" : "max-w-md")
+        }
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="border-b border-[color:var(--border-hairline)] px-5 py-4">
+          <h2 id={titleId} className="text-base font-medium text-foreground">
+            {title}
+          </h2>
+          {description ? (
+            <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+          ) : null}
+        </div>
+        <div className="px-5 py-4">{children}</div>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
+function variantHasNetworkActivity(variant: OasisVariantResult): boolean {
+  const histogram = (variant.action_histogram ?? []).filter(
+    (row) => !HIDDEN_ACTIONS.has(row.action),
+  )
+  return (
+    (variant.follows?.length ?? 0) > 0 ||
+    (variant.mutes?.length ?? 0) > 0 ||
+    (variant.reports?.length ?? 0) > 0 ||
+    histogram.length > 0
+  )
+}
+
+function NetworkActivityIconButton({
+  label,
+  onClick,
+}: {
+  label: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      className="inline-grid h-7 w-7 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+      title={label}
+      aria-label={label}
+      onClick={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        onClick()
+      }}
+    >
+      <Network className="size-3.5" aria-hidden />
+    </button>
+  )
+}
+
+function NetworkActivityContent({
   variant,
   onOpenAgent,
 }: {
@@ -833,28 +956,18 @@ function NetworkActivitySection({
   const follows = variant.follows ?? []
   const mutes = variant.mutes ?? []
   const reports = variant.reports ?? []
-  const histogram = variant.action_histogram ?? []
-  if (
-    follows.length === 0 &&
-    mutes.length === 0 &&
-    reports.length === 0 &&
-    histogram.length === 0
-  ) {
-    return null
-  }
-
-  const maxHist = Math.max(1, ...histogram.map((h) => h.count))
+  const histogram = (variant.action_histogram ?? []).filter(
+    (row) => !HIDDEN_ACTIONS.has(row.action),
+  )
 
   return (
-    <div className="mb-4 space-y-3 rounded-lg border border-border bg-card/60 px-4 py-3">
-      <h3 className="text-sm font-semibold text-foreground">Nätverk & åtgärder</h3>
-
+    <div className="space-y-3">
       {follows.length > 0 ? (
         <div>
           <div className="mb-1 text-xs font-medium text-muted-foreground">
             Följningar ({follows.length})
           </div>
-          <ul className="max-h-36 space-y-1 overflow-y-auto text-xs text-muted-foreground">
+          <ul className="max-h-48 space-y-1 overflow-y-auto text-xs text-muted-foreground">
             {follows.slice(0, 40).map((f, i) => (
               <li key={`${f.follower_id}-${f.followee_id}-${i}`}>
                 <AgentNameButton
@@ -890,32 +1003,123 @@ function NetworkActivitySection({
 
       {histogram.length > 0 ? (
         <div>
-          <div className="mb-1 text-xs font-medium text-muted-foreground">
+          <div className="mb-2 text-xs font-medium text-muted-foreground">
             Åtgärder (trace)
           </div>
-          <ul className="space-y-1">
-            {histogram.slice(0, 12).map((row) => (
-              <li
-                key={row.action}
-                className="grid grid-cols-[8rem_1fr_auto] items-center gap-2"
-              >
-                <span className="truncate font-mono text-[11px] text-foreground">
-                  {row.action}
-                </span>
-                <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-[var(--db-gold-500)]"
-                    style={{
-                      width: `${Math.round((row.count / maxHist) * 100)}%`,
-                    }}
-                  />
-                </div>
-                <span className="text-[11px] tabular-nums text-muted-foreground">
-                  {row.count}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <ActionHistogramChart rows={histogram} />
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function ActionHistogramChart({
+  rows,
+}: {
+  rows: Array<{ action: string; count: number }>
+}) {
+  const top = rows.slice(0, 12)
+  const max = Math.max(1, ...top.map((row) => row.count))
+
+  return (
+    <div
+      className="flex h-36 items-end gap-1 border-b border-border/60 pb-1 pt-2"
+      role="img"
+      aria-label="Stapeldiagram över spårade åtgärder"
+    >
+      {top.map((row) => {
+        const heightPct = Math.round((row.count / max) * 100)
+        return (
+          <div
+            key={row.action}
+            className="flex min-w-0 flex-1 flex-col items-center gap-1"
+            title={`${row.action}: ${row.count}`}
+          >
+            <span className="text-[10px] tabular-nums leading-none text-muted-foreground">
+              {row.count}
+            </span>
+            <div className="flex h-24 w-full items-end">
+              <div
+                className="w-full rounded-t bg-[var(--db-gold-500)] transition-[height]"
+                style={{
+                  height: `${heightPct}%`,
+                  minHeight: row.count > 0 ? "3px" : 0,
+                }}
+              />
+            </div>
+            <span
+              className="w-full truncate text-center font-mono text-[9px] leading-tight text-muted-foreground"
+              title={row.action}
+            >
+              {row.action}
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function VariantBlock({
+  variant,
+  expanded,
+  onToggleExpand,
+  onOpenNetwork,
+  runId,
+  attemptId,
+}: {
+  variant: OasisVariantResult
+  expanded: boolean
+  onToggleExpand: () => void
+  onOpenNetwork: () => void
+  runId?: number
+  attemptId?: string
+}) {
+  const hasNetwork = variantHasNetworkActivity(variant)
+
+  return (
+    <div className="rounded-md border border-border/80 bg-muted/20">
+      <div className="flex items-start justify-between gap-3 px-3 py-2.5">
+        <div className="flex min-w-0 items-center gap-2">
+          {variant.id === "a" || variant.id === "b" ? (
+            <span
+              className={
+                "inline-grid h-5 min-w-5 shrink-0 place-items-center rounded px-1 text-[11px] font-semibold " +
+                (variant.id === "a"
+                  ? "bg-db-gold-100 text-db-gold-700"
+                  : "bg-db-ink-200 text-db-ink-950")
+              }
+            >
+              {variant.id.toUpperCase()}
+            </span>
+          ) : null}
+          <div className="min-w-0">
+            <span className="text-sm font-medium text-foreground">{variant.label}</span>
+            <span className="mt-0.5 block text-xs text-muted-foreground">
+              {variantSummary(variant)}
+            </span>
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2 pt-0.5">
+          {hasNetwork ? (
+            <NetworkActivityIconButton
+              label={`Nätverk & åtgärder · ${variant.label}`}
+              onClick={onOpenNetwork}
+            />
+          ) : null}
+          <button
+            type="button"
+            className="rounded px-2 py-1 text-xs text-muted-foreground hover:bg-muted/60"
+            aria-expanded={expanded}
+            onClick={onToggleExpand}
+          >
+            {expanded ? "Dölj ▴" : "Visa ▾"}
+          </button>
+        </div>
+      </div>
+      {expanded ? (
+        <div className="border-t border-border/60 px-3 py-3">
+          <VariantBody variant={variant} runId={runId} attemptId={attemptId} />
         </div>
       ) : null}
     </div>
@@ -960,46 +1164,48 @@ function CompactActionRow({
   )
 }
 
-function FeedNoiseFilter({
-  hideNoise,
-  onChange,
-}: {
-  hideNoise: boolean
-  onChange: (hideNoise: boolean) => void
-}) {
+function DayEventsIcon({ className }: { className?: string }) {
   return (
-    <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
-      <span className="text-muted-foreground">Händelser:</span>
-      <button
-        type="button"
-        className={
-          "rounded border px-2 py-0.5 " +
-          (!hideNoise
-            ? "border-[var(--db-gold-500)] bg-[var(--db-gold-500)]/15 text-foreground"
-            : "border-border text-muted-foreground hover:bg-muted/40")
-        }
-        aria-pressed={!hideNoise}
-        onClick={() => onChange(false)}
-      >
-        Alla
-      </button>
-      <button
-        type="button"
-        className={
-          "rounded border px-2 py-0.5 " +
-          (hideNoise
-            ? "border-[var(--db-gold-500)] bg-[var(--db-gold-500)]/15 text-foreground"
-            : "border-border text-muted-foreground hover:bg-muted/40")
-        }
-        aria-pressed={hideNoise}
-        onClick={() => onChange(true)}
-      >
-        Dölj brus
-      </button>
-      <span className="text-[10px] text-muted-foreground/80">
-        Brus = refresh, sign_up, do_nothing
-      </span>
-    </div>
+    <svg
+      aria-hidden="true"
+      className={className}
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M8 6h13" />
+      <path d="M8 12h13" />
+      <path d="M8 18h13" />
+      <path d="M3 6h.01" />
+      <path d="M3 12h.01" />
+      <path d="M3 18h.01" />
+    </svg>
+  )
+}
+
+function OpinionMeasurementIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M6 20V10" />
+      <path d="M12 20V4" />
+      <path d="M18 20v-6" />
+    </svg>
   )
 }
 
@@ -1007,6 +1213,10 @@ function TickMarkerCard({
   tick,
   expanded,
   onToggle,
+  eventsEnabled,
+  onOpenEvents,
+  measurementEnabled,
+  onOpenMeasurements,
   interviewEnabled,
   onInterview,
   children,
@@ -1021,6 +1231,10 @@ function TickMarkerCard({
   }
   expanded: boolean
   onToggle: () => void
+  eventsEnabled: boolean
+  onOpenEvents: () => void
+  measurementEnabled: boolean
+  onOpenMeasurements: () => void
   interviewEnabled: boolean
   onInterview: () => void
   children?: ReactNode
@@ -1030,20 +1244,7 @@ function TickMarkerCard({
     <li className="list-none">
       <div className="rounded-md border border-border bg-muted/30">
         <div className="flex flex-wrap items-center gap-2 px-3 py-2 text-xs">
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 rounded px-1 py-0.5 text-left hover:bg-muted/60"
-            onClick={onToggle}
-            aria-expanded={expanded}
-            aria-label={
-              (expanded ? "Stäng" : "Expandera") + " dag " + tick.day
-            }
-          >
-            <span className="w-3 text-muted-foreground" aria-hidden="true">
-              {expanded ? "▾" : "▸"}
-            </span>
-            <span className="font-semibold text-foreground">Dag {tick.day}</span>
-          </button>
+          <span className="font-semibold text-foreground">Dag {tick.day}</span>
           {tick.silent ? (
             <span className="rounded border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
               tyst
@@ -1062,6 +1263,28 @@ function TickMarkerCard({
                 ? "inga nya händelser"
                 : `t=${tick.timeStart}–${tick.timeEnd}`}
             </span>
+            {eventsEnabled ? (
+              <button
+                type="button"
+                className="inline-grid h-6 w-6 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                title={`Händelser dag ${tick.day}`}
+                aria-label={`Händelser dag ${tick.day}`}
+                onClick={onOpenEvents}
+              >
+                <DayEventsIcon />
+              </button>
+            ) : null}
+            {measurementEnabled ? (
+              <button
+                type="button"
+                className="inline-grid h-6 w-6 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                title={`Opinionsmätning efter dag ${tick.day}`}
+                aria-label={`Opinionsmätning efter dag ${tick.day}`}
+                onClick={onOpenMeasurements}
+              >
+                <OpinionMeasurementIcon />
+              </button>
+            ) : null}
             {interviewEnabled ? (
               <button
                 type="button"
@@ -1085,6 +1308,17 @@ function TickMarkerCard({
                 </svg>
               </button>
             ) : null}
+            <button
+              type="button"
+              className="rounded px-2 py-1 text-xs text-muted-foreground hover:bg-muted/60"
+              aria-expanded={expanded}
+              aria-label={
+                (expanded ? "Stäng" : "Expandera") + " dag " + tick.day
+              }
+              onClick={onToggle}
+            >
+              {expanded ? "Dölj ▴" : "Visa ▾"}
+            </button>
           </span>
         </div>
         {expanded && children ? (
@@ -1093,51 +1327,6 @@ function TickMarkerCard({
           </div>
         ) : null}
       </div>
-    </li>
-  )
-}
-
-function ActionCluster({
-  actions,
-  agents,
-  onOpenAgent,
-}: {
-  actions: TimelineActionItem[]
-  agents: NonNullable<OasisVariantResult["agents"]>
-  onOpenAgent: (userId: number) => void
-}) {
-  if (actions.length === 0) return null
-  const labels = [...new Set(actions.map((a) => a.label))].slice(0, 3)
-  const labelHint = labels.join(", ") + (labels.length < actions.length ? "…" : "")
-
-  return (
-    <li className="list-none">
-      <details className="rounded-lg border border-dashed border-border/80 bg-muted/15">
-        <summary className="cursor-pointer list-none px-3 py-2 text-xs font-medium text-foreground marker:content-none [&::-webkit-details-marker]:hidden">
-          <span className="flex flex-wrap items-center justify-between gap-2">
-            <span>
-              {actions.length} händelse{actions.length === 1 ? "" : "r"}
-              <span className="ml-1.5 font-normal text-muted-foreground">
-                ({labelHint})
-              </span>
-            </span>
-            <span className="font-normal text-muted-foreground">Visa</span>
-          </span>
-        </summary>
-        <ul
-          className="flex max-h-56 flex-col gap-1.5 overflow-y-auto overscroll-y-contain border-t border-border/50 px-2 py-2"
-          onWheel={(e) => e.stopPropagation()}
-        >
-          {actions.map((item) => (
-            <CompactActionRow
-              key={`action-${item.userId}-${item.action}-${item.sortKey}-${item.tie}`}
-              item={item}
-              agents={agents}
-              onOpenAgent={onOpenAgent}
-            />
-          ))}
-        </ul>
-      </details>
     </li>
   )
 }
@@ -1219,6 +1408,246 @@ function PlannedOasisInterviews({ variant }: { variant: OasisVariantResult }) {
   )
 }
 
+function FeedPostCard({
+  post,
+  tickIndex,
+  agents,
+  postsById,
+  commentsByPostId,
+  mentionMatcher,
+  openMention,
+  openAgent,
+  openAgentRow,
+  runId,
+  attemptId,
+  onInterview,
+  compact = false,
+}: {
+  post: PostRow
+  tickIndex: number
+  agents: NonNullable<OasisVariantResult["agents"]>
+  postsById: Map<number, PostRow>
+  commentsByPostId: Map<number, NonNullable<OasisVariantResult["comments"]>>
+  mentionMatcher: ReturnType<typeof getMentionMatcher>
+  openMention: (userIds: number[], label: string) => void
+  openAgent: (userId: number) => void
+  openAgentRow: (agent: AgentRow | undefined, fallbackName: string) => void
+  runId?: number
+  attemptId?: string
+  onInterview: (tickIndex: number, personaId: string) => void
+  compact?: boolean
+}) {
+  const agent = agents.find((a) => a.index === post.user_id)
+  const author = agent?.member_name ?? `agent ${post.user_id}`
+  const isInjector = agent?.role === "injector"
+  const originalId = post.original_post_id ?? null
+  const original = originalId != null ? postsById.get(originalId) : undefined
+  const originalAuthor =
+    original != null ? agentLabel(agents, original.user_id) : null
+  const quote = (post.quote_content ?? "").trim()
+  const isQuote = originalId != null && quote.length > 0
+  const isRepost = originalId != null && quote.length === 0
+  const postComments = commentsByPostId.get(post.post_id) ?? []
+  const when = formatFeedWhen(post.created_at)
+
+  let kindLabel: string | null = null
+  if (isInjector) kindLabel = "injektion"
+  else if (isQuote) kindLabel = "citat"
+  else if (isRepost) kindLabel = "delning"
+
+  const postBody = postBodyTextForCopy(post, {
+    isQuote,
+    isRepost,
+    quote,
+    originalAuthor,
+    originalId,
+  })
+  const postCopyText = formatPostForClipboard(
+    author,
+    postBody,
+    postComments.map((c) => ({
+      author: agentLabel(agents, c.user_id),
+      content: c.content,
+    })),
+  )
+  const canInterviewPost =
+    runId != null &&
+    Boolean(attemptId) &&
+    !isInjector &&
+    Boolean(agent?.persona_id)
+
+  return (
+    <li
+      className={
+        "list-none rounded-lg border border-border bg-card shadow-sm " +
+        (compact ? "px-3 py-2.5" : "px-4 py-3")
+      }
+    >
+      <div className="flex items-start justify-between gap-2">
+        <FeedAuthorHeader
+          name={author}
+          showAvatar={!isInjector}
+          size={compact ? "sm" : "md"}
+          onOpen={() => openAgentRow(agent, author)}
+          meta={
+            <>
+              {when ? <span>{when}</span> : null}
+              {kindLabel ? (
+                <span className="rounded border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
+                  {kindLabel}
+                </span>
+              ) : null}
+              <span className="text-muted-foreground/80">#{post.post_id}</span>
+            </>
+          }
+        />
+        <div className="flex shrink-0 items-center gap-1">
+          {canInterviewPost ? (
+            <button
+              type="button"
+              className="inline-grid h-7 w-7 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+              title={`Intervjua ${author}`}
+              aria-label={`Intervjua ${author}`}
+              onClick={() => onInterview(tickIndex, agent!.persona_id!)}
+            >
+              <InterviewIcon />
+            </button>
+          ) : null}
+          <CopyFeedTextButton text={postCopyText} label="Kopiera inlägg" />
+        </div>
+      </div>
+
+      <div className="mt-2.5">
+        {isQuote ? (
+          <div className="space-y-2">
+            <CommentBody
+              text={quote}
+              matcher={mentionMatcher}
+              onOpenMention={openMention}
+              className="whitespace-pre-wrap text-sm leading-relaxed text-foreground"
+            />
+            <p className="text-xs text-muted-foreground">
+              Citerar{" "}
+              {original != null ? (
+                <AgentNameButton
+                  name={originalAuthor ?? "okänd"}
+                  className="text-xs text-muted-foreground"
+                  showAvatar={!agentIsInjector(agents, original.user_id)}
+                  onOpen={() => openAgent(original.user_id)}
+                />
+              ) : (
+                "okänd"
+              )}{" "}
+              #{originalId}
+            </p>
+          </div>
+        ) : null}
+
+        {isRepost ? (
+          <p className="text-sm text-muted-foreground">
+            Delade inlägg från{" "}
+            {original != null ? (
+              <AgentNameButton
+                name={originalAuthor ?? "okänd"}
+                className="text-sm text-muted-foreground"
+                showAvatar={!agentIsInjector(agents, original.user_id)}
+                onOpen={() => openAgent(original.user_id)}
+              />
+            ) : (
+              "okänd"
+            )}{" "}
+            #{originalId}
+          </p>
+        ) : null}
+
+        {!isQuote && !isRepost ? (
+          <CommentBody
+            text={post.content}
+            matcher={mentionMatcher}
+            onOpenMention={openMention}
+            className="whitespace-pre-wrap text-sm leading-relaxed text-foreground"
+          />
+        ) : null}
+      </div>
+
+      <LikeShareBar
+        agents={agents}
+        likedBy={post.liked_by}
+        dislikedBy={post.disliked_by}
+        sharedBy={post.shared_by}
+        onOpenAgent={openAgent}
+      />
+
+      {postComments.length > 0 ? (
+        <ul className="mt-3 space-y-3 border-t border-border/60 pt-3">
+          {postComments.map((c) => {
+            const commentAgent = agents.find((a) => a.index === c.user_id)
+            const commentName = agentLabel(agents, c.user_id)
+            const commentInjector = agentIsInjector(agents, c.user_id)
+            const canInterviewComment =
+              runId != null &&
+              Boolean(attemptId) &&
+              !commentInjector &&
+              Boolean(commentAgent?.persona_id)
+            return (
+              <li key={c.comment_id} className="flex items-start gap-1.5">
+                {commentInjector ? null : (
+                  <AgentAvatar name={commentName} size="sm" />
+                )}
+                <div className="min-w-0 flex-1 rounded-2xl bg-muted/50 px-3 py-2">
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-foreground underline-offset-2 hover:underline"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      openAgent(c.user_id)
+                    }}
+                  >
+                    {commentName}
+                  </button>
+                  <CommentBody
+                    text={c.content}
+                    matcher={mentionMatcher}
+                    onOpenMention={openMention}
+                    className="mt-0.5 whitespace-pre-wrap text-xs leading-relaxed text-foreground"
+                  />
+                  <LikeShareBar
+                    agents={agents}
+                    likedBy={c.liked_by}
+                    dislikedBy={c.disliked_by}
+                    compact
+                    onOpenAgent={openAgent}
+                  />
+                </div>
+                <div className="flex shrink-0 flex-col items-center gap-1">
+                  {canInterviewComment ? (
+                    <button
+                      type="button"
+                      className="inline-grid h-7 w-7 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                      title={`Intervjua ${commentName}`}
+                      aria-label={`Intervjua ${commentName}`}
+                      onClick={() =>
+                        onInterview(tickIndex, commentAgent!.persona_id!)
+                      }
+                    >
+                      <InterviewIcon />
+                    </button>
+                  ) : null}
+                  <CopyFeedTextButton
+                    text={formatCommentForClipboard(commentName, c.content)}
+                    label="Kopiera kommentar"
+                  />
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      ) : null}
+    </li>
+  )
+}
+
 function VariantBody({
   variant,
   runId,
@@ -1256,8 +1685,11 @@ function VariantBody({
     userIds: number[]
     label: string
   } | null>(null)
-  const [hideNoise, setHideNoise] = useState(false)
-  const [expandedTicks, setExpandedTicks] = useState<Set<number>>(() => new Set())
+  const [expandedTickIndex, setExpandedTickIndex] = useState<number | null>(null)
+  const [dayEventsModalTick, setDayEventsModalTick] = useState<number | null>(null)
+  const [dayMeasurementsModalTick, setDayMeasurementsModalTick] = useState<
+    number | null
+  >(null)
   const [interviewTarget, setInterviewTarget] = useState<{
     tickIndex: number
     personaId: string | null
@@ -1294,8 +1726,8 @@ function VariantBody({
   )
 
   const timeline = useMemo(
-    () => buildTimelineItems(variant, { hideNoise, agentName }),
-    [variant, hideNoise, agentName],
+    () => buildTimelineItems(variant, { hideNoise: true, agentName }),
+    [variant, agentName],
   )
   const segments = useMemo(() => groupTimelineSegments(timeline), [timeline])
   const injectors = useMemo(
@@ -1306,14 +1738,58 @@ function VariantBody({
     () => agents.filter((a) => a.role !== "injector"),
     [agents],
   )
-  const hasTraceActions = useMemo(
-    () =>
-      (variant.trace ?? []).some((t) => {
-        const a = (t.action || "").trim()
-        return a.length > 0 && !CARD_COVERED_ACTIONS.has(a)
-      }),
-    [variant.trace],
+  const hasTickMarkers = (variant.tick_markers ?? []).length > 0
+  const measurementsByTick = useMemo(() => {
+    const map = new Map<number, OasisMeasurementRow>()
+    for (const row of measurements) {
+      map.set(row.tick_index, row)
+    }
+    return map
+  }, [measurements])
+  const postsByTick = useMemo(() => {
+    const map = new Map<number, PostRow[]>()
+    for (const item of timeline) {
+      if (item.kind !== "post") continue
+      const bucket = map.get(item.tickIndex)
+      if (bucket) bucket.push(item.post)
+      else map.set(item.tickIndex, [item.post])
+    }
+    return map
+  }, [timeline])
+
+  const openPostInterview = useCallback(
+    (tickIndex: number, personaId: string) => {
+      setInterviewTarget({ tickIndex, personaId })
+    },
+    [],
   )
+
+  const modalDayActions = useMemo(() => {
+    if (dayEventsModalTick == null) return []
+    return timeline.filter(
+      (item): item is TimelineActionItem =>
+        item.kind === "action" && item.tickIndex === dayEventsModalTick,
+    )
+  }, [timeline, dayEventsModalTick])
+
+  const modalDayMeasurements = useMemo(() => {
+    if (dayMeasurementsModalTick == null) return []
+    return measurementsByTick.get(dayMeasurementsModalTick)?.points ?? []
+  }, [dayMeasurementsModalTick, measurementsByTick])
+
+  const tickDayLabel = useCallback(
+    (tickIndex: number) => {
+      const marker = (variant.tick_markers ?? []).find(
+        (m) => m.tick_index === tickIndex,
+      )
+      return marker?.day ?? tickIndex + 1
+    },
+    [variant.tick_markers],
+  )
+
+  function toggleTickExpand(tickIndex: number) {
+    setExpandedTickIndex((prev) => (prev === tickIndex ? null : tickIndex))
+  }
 
   if (variant.error) {
     return (
@@ -1334,22 +1810,7 @@ function VariantBody({
         Plattform: {platform === "reddit" ? "Reddit" : "Twitter"}
       </p>
       {qualityWarnings ? <QualityWarningsBanner data={qualityWarnings} /> : null}
-      <MeasurementsSection rows={measurements} />
       <PlannedOasisInterviews variant={variant} />
-      <NetworkActivitySection variant={variant} onOpenAgent={openAgent} />
-      {runId != null && attemptId && interviewTarget != null ? (
-        <RunPersonaInterviewModal
-          key={`${interviewTarget.tickIndex}-${interviewTarget.personaId ?? "any"}`}
-          open
-          onClose={() => setInterviewTarget(null)}
-          runId={runId}
-          attemptId={attemptId}
-          variant={variant}
-          tickIndex={interviewTarget.tickIndex}
-          initialPersonaId={interviewTarget.personaId}
-        />
-      ) : null}
-
       {agents.length > 0 ? (
         <div className="mb-3 space-y-1 text-sm text-muted-foreground">
           {injectors.length > 0 ? (
@@ -1390,11 +1851,20 @@ function VariantBody({
           </p>
         </div>
       ) : null}
+      {runId != null && attemptId && interviewTarget != null ? (
+        <RunPersonaInterviewModal
+          key={`${interviewTarget.tickIndex}-${interviewTarget.personaId ?? "any"}`}
+          open
+          onClose={() => setInterviewTarget(null)}
+          runId={runId}
+          attemptId={attemptId}
+          variant={variant}
+          tickIndex={interviewTarget.tickIndex}
+          initialPersonaId={interviewTarget.personaId}
+        />
+      ) : null}
 
       <h3 className="mb-2 text-sm font-semibold text-foreground">Flöde</h3>
-      {hasTraceActions ? (
-        <FeedNoiseFilter hideNoise={hideNoise} onChange={setHideNoise} />
-      ) : null}
 
       {posts.length === 0 && segments.every((s) => s.kind !== "actions") ? (
         <p className="text-sm text-muted-foreground">Inga inlägg sparades.</p>
@@ -1404,34 +1874,37 @@ function VariantBody({
         {segments.map((segment) => {
           if (segment.kind === "tick") {
             const tickItem = segment.tick
-            const expanded = expandedTicks.has(tickItem.tickIndex)
-            const dayPosts = timeline.filter(
-              (item) =>
-                item.kind === "post" && item.tickIndex === tickItem.tickIndex,
-            ).length
-            const dayActions = timeline.filter(
-              (item) =>
+            const expanded = expandedTickIndex === tickItem.tickIndex
+            const dayPosts = postsByTick.get(tickItem.tickIndex) ?? []
+            const dayComments = dayPosts.reduce(
+              (n, post) => n + (commentsByPostId.get(post.post_id)?.length ?? 0),
+              0,
+            )
+            const dayActionItems = timeline.filter(
+              (item): item is TimelineActionItem =>
                 item.kind === "action" && item.tickIndex === tickItem.tickIndex,
-            ).length
+            )
             const dayInterviews = (variant.trace ?? []).filter((row) => {
               if ((row.action || "").toLowerCase() !== "interview") return false
               const t = sortKeyFromCreatedAt(row.created_at)
-              return (
-                tickItem.timeStart <= t && t <= tickItem.timeEnd
-              )
+              return tickItem.timeStart <= t && t <= tickItem.timeEnd
             }).length
+            const dayMeasurements =
+              measurementsByTick.get(tickItem.tickIndex)?.points ?? []
+            const hasOpinionMeasurement = dayMeasurements.some(
+              (point) => point.id === "opinion_snapshot",
+            )
             return (
               <TickMarkerCard
                 key={segment.key}
                 tick={tickItem}
                 expanded={expanded}
-                onToggle={() =>
-                  setExpandedTicks((prev) => {
-                    const next = new Set(prev)
-                    if (next.has(tickItem.tickIndex)) next.delete(tickItem.tickIndex)
-                    else next.add(tickItem.tickIndex)
-                    return next
-                  })
+                onToggle={() => toggleTickExpand(tickItem.tickIndex)}
+                eventsEnabled={dayActionItems.length > 0}
+                onOpenEvents={() => setDayEventsModalTick(tickItem.tickIndex)}
+                measurementEnabled={hasOpinionMeasurement}
+                onOpenMeasurements={() =>
+                  setDayMeasurementsModalTick(tickItem.tickIndex)
                 }
                 interviewEnabled={runId != null && Boolean(attemptId)}
                 onInterview={() =>
@@ -1442,263 +1915,126 @@ function VariantBody({
                 }
               >
                 <p>
-                  {dayPosts} inlägg · {dayActions} övriga handlingar
+                  {dayPosts.length} inlägg
+                  {dayComments > 0
+                    ? ` · ${dayComments} kommentar${dayComments === 1 ? "" : "er"}`
+                    : ""}
+                  {dayActionItems.length > 0
+                    ? ` · ${dayActionItems.length} händelse${dayActionItems.length === 1 ? "" : "r"}`
+                    : ""}
                   {dayInterviews > 0
                     ? ` · ${dayInterviews} OASIS-intervju${dayInterviews === 1 ? "" : "er"}`
                     : ""}
                 </p>
-                {runId != null && attemptId ? (
-                  <button
-                    type="button"
-                    className="mt-2 text-xs font-medium text-[color:var(--text-link)] hover:underline"
-                    onClick={() =>
-                      setInterviewTarget({
-                        tickIndex: tickItem.tickIndex,
-                        personaId: null,
-                      })
-                    }
-                  >
-                    Öppna post-hoc intervju…
-                  </button>
+                {expanded && dayPosts.length > 0 ? (
+                  <ul className="mt-3 flex flex-col gap-2">
+                    {dayPosts.map((post) => (
+                      <FeedPostCard
+                        key={post.post_id}
+                        post={post}
+                        tickIndex={tickItem.tickIndex}
+                        agents={agents}
+                        postsById={postsById}
+                        commentsByPostId={commentsByPostId}
+                        mentionMatcher={mentionMatcher}
+                        openMention={openMention}
+                        openAgent={openAgent}
+                        openAgentRow={openAgentRow}
+                        runId={runId}
+                        attemptId={attemptId}
+                        onInterview={openPostInterview}
+                        compact
+                      />
+                    ))}
+                  </ul>
+                ) : expanded && dayPosts.length === 0 ? (
+                  <p className="mt-2 text-muted-foreground/80">
+                    Inga inlägg denna dag.
+                  </p>
                 ) : null}
               </TickMarkerCard>
             )
           }
-          if (segment.kind === "actions") {
-            return (
-              <ActionCluster
-                key={segment.key}
-                actions={segment.actions}
-                agents={agents}
-                onOpenAgent={openAgent}
-              />
-            )
-          }
+          if (segment.kind === "actions") return null
 
-          const post = segment.post
-          const agent = agents.find((a) => a.index === post.user_id)
-          const author = agent?.member_name ?? `agent ${post.user_id}`
-          const isInjector = agent?.role === "injector"
-          const originalId = post.original_post_id ?? null
-          const original =
-            originalId != null ? postsById.get(originalId) : undefined
-          const originalAuthor =
-            original != null ? agentLabel(agents, original.user_id) : null
-          const quote = (post.quote_content ?? "").trim()
-          const isQuote = originalId != null && quote.length > 0
-          const isRepost = originalId != null && quote.length === 0
-          const postComments = commentsByPostId.get(post.post_id) ?? []
-          const when = formatFeedWhen(post.created_at)
-
-          let kindLabel: string | null = null
-          if (isInjector) kindLabel = "injektion"
-          else if (isQuote) kindLabel = "citat"
-          else if (isRepost) kindLabel = "delning"
-
-          const postBody = postBodyTextForCopy(post, {
-            isQuote,
-            isRepost,
-            quote,
-            originalAuthor,
-            originalId,
-          })
-          const postCopyText = formatPostForClipboard(
-            author,
-            postBody,
-            postComments.map((c) => ({
-              author: agentLabel(agents, c.user_id),
-              content: c.content,
-            })),
-          )
-          const postTickIndex =
-            timeline.find(
-              (item) =>
-                item.kind === "post" && item.post.post_id === post.post_id,
-            )?.tickIndex ?? 0
-          const canInterviewPost =
-            runId != null &&
-            Boolean(attemptId) &&
-            !isInjector &&
-            Boolean(agent?.persona_id)
+          if (hasTickMarkers) return null
 
           return (
-            <li
+            <FeedPostCard
               key={segment.key}
-              className="rounded-lg border border-border bg-card px-4 py-3 shadow-sm"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <FeedAuthorHeader
-                  name={author}
-                  showAvatar={!isInjector}
-                  size="md"
-                  onOpen={() => openAgentRow(agent, author)}
-                  meta={
-                    <>
-                      {when ? <span>{when}</span> : null}
-                      {kindLabel ? (
-                        <span className="rounded border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
-                          {kindLabel}
-                        </span>
-                      ) : null}
-                      <span className="text-muted-foreground/80">#{post.post_id}</span>
-                    </>
-                  }
-                />
-                <div className="flex shrink-0 items-center gap-1">
-                  {canInterviewPost ? (
-                    <button
-                      type="button"
-                      className="inline-grid h-7 w-7 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
-                      title={`Intervjua ${author}`}
-                      aria-label={`Intervjua ${author}`}
-                      onClick={() =>
-                        setInterviewTarget({
-                          tickIndex: postTickIndex,
-                          personaId: agent!.persona_id,
-                        })
-                      }
-                    >
-                      <InterviewIcon />
-                    </button>
-                  ) : null}
-                  <CopyFeedTextButton text={postCopyText} label="Kopiera inlägg" />
-                </div>
-              </div>
-
-              <div className="mt-2.5">
-                {isQuote ? (
-                  <div className="space-y-2">
-                    <CommentBody
-                      text={quote}
-                      matcher={mentionMatcher}
-                      onOpenMention={openMention}
-                      className="whitespace-pre-wrap text-sm leading-relaxed text-foreground"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Citerar{" "}
-                      {original != null ? (
-                        <AgentNameButton
-                          name={originalAuthor ?? "okänd"}
-                          className="text-xs text-muted-foreground"
-                          showAvatar={!agentIsInjector(agents, original.user_id)}
-                          onOpen={() => openAgent(original.user_id)}
-                        />
-                      ) : (
-                        "okänd"
-                      )}{" "}
-                      #{originalId}
-                    </p>
-                  </div>
-                ) : null}
-
-                {isRepost ? (
-                  <p className="text-sm text-muted-foreground">
-                    Delade inlägg från{" "}
-                    {original != null ? (
-                      <AgentNameButton
-                        name={originalAuthor ?? "okänd"}
-                        className="text-sm text-muted-foreground"
-                        showAvatar={!agentIsInjector(agents, original.user_id)}
-                        onOpen={() => openAgent(original.user_id)}
-                      />
-                    ) : (
-                      "okänd"
-                    )}{" "}
-                    #{originalId}
-                  </p>
-                ) : null}
-
-                {!isQuote && !isRepost ? (
-                  <CommentBody
-                    text={post.content}
-                    matcher={mentionMatcher}
-                    onOpenMention={openMention}
-                    className="whitespace-pre-wrap text-sm leading-relaxed text-foreground"
-                  />
-                ) : null}
-              </div>
-
-              <LikeShareBar
-                agents={agents}
-                likedBy={post.liked_by}
-                dislikedBy={post.disliked_by}
-                sharedBy={post.shared_by}
-                onOpenAgent={openAgent}
-              />
-
-              {postComments.length > 0 ? (
-                <ul className="mt-3 space-y-3 border-t border-border/60 pt-3">
-                  {postComments.map((c) => {
-                    const commentAgent = agents.find((a) => a.index === c.user_id)
-                    const commentName = agentLabel(agents, c.user_id)
-                    const commentInjector = agentIsInjector(agents, c.user_id)
-                    const canInterviewComment =
-                      runId != null &&
-                      Boolean(attemptId) &&
-                      !commentInjector &&
-                      Boolean(commentAgent?.persona_id)
-                    return (
-                      <li key={c.comment_id} className="flex items-start gap-1.5">
-                        {commentInjector ? null : (
-                          <AgentAvatar name={commentName} size="sm" />
-                        )}
-                        <div className="min-w-0 flex-1 rounded-2xl bg-muted/50 px-3 py-2">
-                          <button
-                            type="button"
-                            className="text-xs font-semibold text-foreground underline-offset-2 hover:underline"
-                            onClick={(e) => {
-                              e.preventDefault()
-                              e.stopPropagation()
-                              openAgent(c.user_id)
-                            }}
-                          >
-                            {commentName}
-                          </button>
-                          <CommentBody
-                            text={c.content}
-                            matcher={mentionMatcher}
-                            onOpenMention={openMention}
-                            className="mt-0.5 whitespace-pre-wrap text-xs leading-relaxed text-foreground"
-                          />
-                          <LikeShareBar
-                            agents={agents}
-                            likedBy={c.liked_by}
-                            dislikedBy={c.disliked_by}
-                            compact
-                            onOpenAgent={openAgent}
-                          />
-                        </div>
-                        <div className="flex shrink-0 flex-col items-center gap-1">
-                          {canInterviewComment ? (
-                            <button
-                              type="button"
-                              className="inline-grid h-7 w-7 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
-                              title={`Intervjua ${commentName}`}
-                              aria-label={`Intervjua ${commentName}`}
-                              onClick={() =>
-                                setInterviewTarget({
-                                  tickIndex: postTickIndex,
-                                  personaId: commentAgent!.persona_id,
-                                })
-                              }
-                            >
-                              <InterviewIcon />
-                            </button>
-                          ) : null}
-                          <CopyFeedTextButton
-                            text={formatCommentForClipboard(commentName, c.content)}
-                            label="Kopiera kommentar"
-                          />
-                        </div>
-                      </li>
-                    )
-                  })}
-                </ul>
-              ) : null}
-            </li>
+              post={segment.post}
+              tickIndex={
+                timeline.find(
+                  (item) =>
+                    item.kind === "post" &&
+                    item.post.post_id === segment.post.post_id,
+                )?.tickIndex ?? 0
+              }
+              agents={agents}
+              postsById={postsById}
+              commentsByPostId={commentsByPostId}
+              mentionMatcher={mentionMatcher}
+              openMention={openMention}
+              openAgent={openAgent}
+              openAgentRow={openAgentRow}
+              runId={runId}
+              attemptId={attemptId}
+              onInterview={openPostInterview}
+            />
           )
         })}
       </ul>
+
+      <AdminModal
+        open={dayEventsModalTick != null}
+        titleId="day-events-modal-title"
+        title={
+          dayEventsModalTick != null
+            ? `Händelser · dag ${tickDayLabel(dayEventsModalTick)}`
+            : "Händelser"
+        }
+        onClose={() => setDayEventsModalTick(null)}
+        wide
+      >
+        {modalDayActions.length > 0 ? (
+          <ul className="flex max-h-[min(28rem,70vh)] flex-col gap-1.5 overflow-y-auto">
+            {modalDayActions.map((item) => (
+              <CompactActionRow
+                key={`modal-action-${item.userId}-${item.action}-${item.sortKey}-${item.tie}`}
+                item={item}
+                agents={agents}
+                onOpenAgent={openAgent}
+              />
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted-foreground">Inga händelser denna dag.</p>
+        )}
+      </AdminModal>
+
+      <AdminModal
+        open={dayMeasurementsModalTick != null}
+        titleId="day-measurements-modal-title"
+        title={
+          dayMeasurementsModalTick != null
+            ? `Opinionsmätning · dag ${tickDayLabel(dayMeasurementsModalTick)}`
+            : "Opinionsmätning"
+        }
+        onClose={() => setDayMeasurementsModalTick(null)}
+        wide
+      >
+        {modalDayMeasurements.length > 0 ? (
+          <div className="flex max-h-[min(28rem,70vh)] flex-col gap-3 overflow-y-auto">
+            {modalDayMeasurements.map((point) => (
+              <MeasurementPointBlock key={point.id} point={point} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Ingen opinionsmätning denna dag.
+          </p>
+        )}
+      </AdminModal>
 
       <PersonaProfileModal
         open={profile != null}
@@ -1781,12 +2117,13 @@ function AttemptBlock({
   attempt,
   index,
   total,
-  defaultOpen,
-  onDelete,
+  expanded,
+  onToggleExpand,
+  onRequestDelete,
   deleting,
   selected,
   onToggleSelect,
-  onOrderReport,
+  onRequestOrderReport,
   ordering,
   branchMode,
   runId,
@@ -1794,12 +2131,13 @@ function AttemptBlock({
   attempt: OasisAttemptResult
   index: number
   total: number
-  defaultOpen: boolean
-  onDelete?: (attemptId: string) => void
+  expanded: boolean
+  onToggleExpand: () => void
+  onRequestDelete?: (attemptId: string) => void
   deleting?: boolean
   selected?: boolean
   onToggleSelect?: (attemptId: string) => void
-  onOrderReport?: (attemptId: string) => void
+  onRequestOrderReport?: (attemptId: string) => void
   ordering?: boolean
   branchMode?: BranchMode | null
   runId?: number
@@ -1820,15 +2158,45 @@ function AttemptBlock({
     `${postCount} inlägg`,
   ].filter(Boolean)
   const single = variants.length === 1
-  const canDelete = Boolean(onDelete && attempt.id)
+  const singleVariant = single ? variants[0] : undefined
+  const variantIdsKey = variants.map((v) => v.id).join("|")
+  const canDelete = Boolean(onRequestDelete && attempt.id)
   const hasData = attemptHasData(attempt)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [expandedVariantId, setExpandedVariantId] = useState<string | null>(() =>
+    variants.length > 1 ? (variants[0]?.id ?? null) : null,
+  )
+  const [networkModalVariant, setNetworkModalVariant] =
+    useState<OasisVariantResult | null>(null)
+  const [networkProfile, setNetworkProfile] = useState<ProfileTarget | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (variants.length <= 1) return
+    setExpandedVariantId((prev) => {
+      if (prev && variants.some((v) => v.id === prev)) return prev
+      return variants[0]?.id ?? null
+    })
+  }, [attempt.id, variantIdsKey, variants.length])
+
+  function toggleVariantExpand(variantId: string) {
+    setExpandedVariantId((prev) => (prev === variantId ? null : variantId))
+  }
+
+  useEffect(() => {
+    if (!menuOpen) return
+    function onDocClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", onDocClick)
+    return () => document.removeEventListener("mousedown", onDocClick)
+  }, [menuOpen])
 
   return (
-    <details
-      className="group rounded-md border border-border bg-card open:bg-card"
-      open={defaultOpen}
-    >
-      <summary className="flex cursor-pointer list-none items-start justify-between gap-3 px-4 py-3 marker:content-none [&::-webkit-details-marker]:hidden">
+    <div className="rounded-md border border-border bg-card">
+      <div className="flex items-start justify-between gap-3 px-4 py-3">
         <div className="flex min-w-0 items-start gap-3">
           {onToggleSelect && hasData ? (
             <input
@@ -1836,14 +2204,7 @@ function AttemptBlock({
               className="mt-1"
               checked={Boolean(selected)}
               aria-label={`Välj körning ${stamp}`}
-              onClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-              }}
-              onChange={(e) => {
-                e.stopPropagation()
-                onToggleSelect(attempt.id)
-              }}
+              onChange={() => onToggleSelect(attempt.id)}
             />
           ) : null}
           <div className="min-w-0">
@@ -1859,107 +2220,162 @@ function AttemptBlock({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2 pt-0.5">
-          {hasData && onOrderReport ? (
-            <button
-              type="button"
-              className="rounded px-2 py-1 text-xs text-db-gold-700 hover:bg-db-gold-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
-              disabled={ordering}
-              onClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                onOrderReport(attempt.id)
-              }}
-            >
-              {ordering ? "Genererar…" : "Beställ rapport"}
-            </button>
+          {single &&
+          singleVariant &&
+          variantHasNetworkActivity(singleVariant) ? (
+            <NetworkActivityIconButton
+              label="Nätverk & åtgärder"
+              onClick={() => setNetworkModalVariant(singleVariant)}
+            />
+          ) : null}
+          {hasData && onRequestOrderReport ? (
+            <OrderReportButton
+              busy={ordering}
+              label="Beställ rapport"
+              onClick={() => onRequestOrderReport(attempt.id)}
+            />
+          ) : null}
+          {hasData ? (
+            <CopyAttemptButton attempt={attempt} disabled={deleting} />
           ) : null}
           {canDelete ? (
-            <button
-              type="button"
-              className="rounded px-2 py-1 text-xs text-destructive hover:bg-destructive/10 disabled:opacity-50"
-              disabled={deleting}
-              onClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                onDelete?.(attempt.id)
-              }}
-            >
-              {deleting ? "Raderar…" : "Radera"}
-            </button>
-          ) : null}
-          {hasData ? <CopyAttemptButton attempt={attempt} disabled={deleting} /> : null}
-          <span className="text-xs text-muted-foreground group-open:hidden">
-            Visa ▾
-          </span>
-          <span className="hidden text-xs text-muted-foreground group-open:inline">
-            Dölj ▴
-          </span>
-        </div>
-      </summary>
-
-      <div className="border-t border-border px-4 py-3">
-        {attempt.error ? (
-          <p className="mb-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {attempt.error}
-          </p>
-        ) : null}
-
-        {showStimulusControl ? (
-          <StimulusControlComparison
-            stimulus={stimulusVariant}
-            control={controlVariant}
-          />
-        ) : null}
-
-        {single ? (
-          <VariantBody
-            variant={variants[0]}
-            runId={runId}
-            attemptId={attempt.id}
-          />
-        ) : (
-          <div className="flex flex-col gap-2">
-            {variants.map((variant, vi) => (
-              <details
-                key={variant.id}
-                className="rounded-md border border-border/80 bg-muted/20"
-                open={vi === 0}
+            <div className="relative ml-1 border-l border-border pl-2" ref={menuRef}>
+              <button
+                type="button"
+                className="inline-grid h-7 w-7 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label="Fler åtgärder"
+                aria-expanded={menuOpen}
+                aria-haspopup="menu"
+                disabled={deleting}
+                onClick={() => setMenuOpen((open) => !open)}
               >
-                <summary className="flex cursor-pointer list-none items-baseline justify-between gap-3 px-3 py-2.5 marker:content-none [&::-webkit-details-marker]:hidden">
-                  <div className="flex items-center gap-2">
-                    {variant.id === "a" || variant.id === "b" ? (
-                      <span
-                        className={
-                          "inline-grid h-5 min-w-5 place-items-center rounded px-1 text-[11px] font-semibold " +
-                          (variant.id === "a"
-                            ? "bg-db-gold-100 text-db-gold-700"
-                            : "bg-db-ink-200 text-db-ink-950")
-                        }
-                      >
-                        {variant.id.toUpperCase()}
-                      </span>
-                    ) : null}
-                    <span className="text-sm font-medium text-foreground">
-                      {variant.label}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {variantSummary(variant)}
-                    </span>
-                  </div>
-                </summary>
-                <div className="border-t border-border/60 px-3 py-3">
-                  <VariantBody
-                    variant={variant}
-                    runId={runId}
-                    attemptId={attempt.id}
-                  />
+                <svg
+                  aria-hidden="true"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <circle cx="5" cy="12" r="1.5" />
+                  <circle cx="12" cy="12" r="1.5" />
+                  <circle cx="19" cy="12" r="1.5" />
+                </svg>
+              </button>
+              {menuOpen ? (
+                <div
+                  role="menu"
+                  className="absolute right-0 top-full z-20 mt-1 min-w-[10rem] rounded-md border border-border bg-card py-1 shadow-lg"
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-destructive hover:bg-destructive/10 disabled:opacity-50"
+                    disabled={deleting}
+                    onClick={() => {
+                      setMenuOpen(false)
+                      onRequestDelete?.(attempt.id)
+                    }}
+                  >
+                    <svg
+                      aria-hidden="true"
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M3 6h18" />
+                      <path d="M8 6V4h8v2" />
+                      <path d="M19 6l-1 14H6L5 6" />
+                      <path d="M10 11v6" />
+                      <path d="M14 11v6" />
+                    </svg>
+                    {deleting ? "Raderar…" : "Radera resultat"}
+                  </button>
                 </div>
-              </details>
-            ))}
-          </div>
-        )}
+              ) : null}
+            </div>
+          ) : null}
+          <button
+            type="button"
+            className="rounded px-2 py-1 text-xs text-muted-foreground hover:bg-muted/60"
+            aria-expanded={expanded}
+            onClick={onToggleExpand}
+          >
+            {expanded ? "Dölj ▴" : "Visa ▾"}
+          </button>
+        </div>
       </div>
-    </details>
+
+      {expanded ? (
+        <div className="border-t border-border px-4 py-3">
+          {attempt.error ? (
+            <p className="mb-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {attempt.error}
+            </p>
+          ) : null}
+
+          {showStimulusControl ? (
+            <StimulusControlComparison
+              stimulus={stimulusVariant}
+              control={controlVariant}
+            />
+          ) : null}
+
+          {single ? (
+            <VariantBody
+              variant={variants[0]}
+              runId={runId}
+              attemptId={attempt.id}
+            />
+          ) : (
+            <div className="flex flex-col gap-2">
+              {variants.map((variant) => (
+                <VariantBlock
+                  key={variant.id}
+                  variant={variant}
+                  expanded={expandedVariantId === variant.id}
+                  onToggleExpand={() => toggleVariantExpand(variant.id)}
+                  onOpenNetwork={() => setNetworkModalVariant(variant)}
+                  runId={runId}
+                  attemptId={attempt.id}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      ) : null}
+
+      <AdminModal
+        open={networkModalVariant != null}
+        titleId="network-activity-modal-title"
+        title="Nätverk & åtgärder"
+        description={networkModalVariant?.label}
+        wide
+        onClose={() => setNetworkModalVariant(null)}
+      >
+        {networkModalVariant ? (
+          <NetworkActivityContent
+            variant={networkModalVariant}
+            onOpenAgent={(userId) =>
+              setNetworkProfile(
+                agentProfileTarget(networkModalVariant.agents ?? [], userId),
+              )
+            }
+          />
+        ) : null}
+      </AdminModal>
+
+      <PersonaProfileModal
+        open={networkProfile != null}
+        personaId={networkProfile?.personaId ?? null}
+        fallbackName={networkProfile?.name}
+        onClose={() => setNetworkProfile(null)}
+      />
+    </div>
   )
 }
 
@@ -1972,6 +2388,17 @@ type Props = {
   deletingAttemptId?: string | null
 }
 
+type ReportConfirmState = {
+  sources: Array<{ run_id: number; attempt_id: string }>
+  title?: string
+  labels: string[]
+}
+
+type DeleteConfirmState = {
+  attemptId: string
+  label: string
+}
+
 export function OasisResultsPanel({
   results,
   status,
@@ -1982,11 +2409,26 @@ export function OasisResultsPanel({
 }: Props) {
   const navigate = useNavigate()
   const attempts = normalizeRunAttempts(results)
+  const attemptIds = useMemo(() => attempts.map((a) => a.id), [results])
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [orderingId, setOrderingId] = useState<string | null>(null)
   const [compareBusy, setCompareBusy] = useState(false)
   const [busyAttemptIds, setBusyAttemptIds] = useState<Set<string>>(new Set())
   const [orderError, setOrderError] = useState<string | null>(null)
+  const [reportConfirm, setReportConfirm] = useState<ReportConfirmState | null>(
+    null,
+  )
+  const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirmState | null>(
+    null,
+  )
+  const [expandedAttemptId, setExpandedAttemptId] = useState<string | null>(null)
+
+  useEffect(() => {
+    setExpandedAttemptId((prev) => {
+      if (prev && attemptIds.includes(prev)) return prev
+      return attemptIds[0] ?? null
+    })
+  }, [attemptIds])
 
   useEffect(() => {
     if (runId == null) return
@@ -2022,6 +2464,10 @@ export function OasisResultsPanel({
     }
   }, [runId])
 
+  function toggleAttemptExpand(attemptId: string) {
+    setExpandedAttemptId((prev) => (prev === attemptId ? null : attemptId))
+  }
+
   async function orderSources(
     sources: Array<{ run_id: number; attempt_id: string }>,
     title?: string,
@@ -2055,27 +2501,70 @@ export function OasisResultsPanel({
     }
   }
 
-  async function handleCompare() {
+  function attemptLabel(attemptId: string): string {
+    const attempt = attempts.find((a) => a.id === attemptId)
+    return formatWhen(attempt?.finished_at)
+  }
+
+  function requestOrderOne(attemptId: string) {
+    if (!runId) return
+    setReportConfirm({
+      sources: [{ run_id: runId, attempt_id: attemptId }],
+      labels: [attemptLabel(attemptId)],
+    })
+  }
+
+  function requestCompare() {
     if (!runId || selected.size === 0) return
-    if (compareBusy || orderingId != null) return
-    if ([...selected].some((id) => busyAttemptIds.has(id))) return
-    setCompareBusy(true)
     const ids = [...selected]
-    try {
-      await orderSources(
-        ids.map((attempt_id) => ({ run_id: runId, attempt_id })),
-        selected.size > 1 ? `Jämförelserapport (${selected.size} körningar)` : undefined,
-      )
-    } catch (err) {
-      setBusyAttemptIds((prev) => {
-        const next = new Set(prev)
-        for (const id of ids) next.delete(id)
-        return next
-      })
-      setOrderError(err instanceof ApiError ? err.message : "Kunde inte beställa rapport")
-    } finally {
-      setCompareBusy(false)
+    setReportConfirm({
+      sources: ids.map((attempt_id) => ({ run_id: runId, attempt_id })),
+      title:
+        selected.size > 1
+          ? `Jämförelserapport (${selected.size} körningar)`
+          : undefined,
+      labels: ids.map(attemptLabel),
+    })
+  }
+
+  async function confirmReportOrder() {
+    if (!reportConfirm) return
+    const { sources, title } = reportConfirm
+    setReportConfirm(null)
+    if (sources.length === 1) {
+      await handleOrderOne(sources[0]!.attempt_id)
+    } else {
+      setCompareBusy(true)
+      const ids = sources.map((s) => s.attempt_id)
+      try {
+        await orderSources(sources, title)
+      } catch (err) {
+        setBusyAttemptIds((prev) => {
+          const next = new Set(prev)
+          for (const id of ids) next.delete(id)
+          return next
+        })
+        setOrderError(
+          err instanceof ApiError ? err.message : "Kunde inte beställa rapport",
+        )
+      } finally {
+        setCompareBusy(false)
+      }
     }
+  }
+
+  function requestDelete(attemptId: string) {
+    setDeleteConfirm({
+      attemptId,
+      label: attemptLabel(attemptId),
+    })
+  }
+
+  async function confirmDelete() {
+    if (!deleteConfirm || !onDeleteAttempt) return
+    const { attemptId } = deleteConfirm
+    setDeleteConfirm(null)
+    await onDeleteAttempt(attemptId)
   }
 
   function toggleSelect(attemptId: string) {
@@ -2113,18 +2602,18 @@ export function OasisResultsPanel({
             {status !== "running" ? ` · ${statusLabel}` : null}
           </span>
           {runId && selected.size > 0 ? (
-            <button
-              type="button"
-              className="rounded-md border border-db-gold-600 bg-db-gold-100 px-3 py-1.5 text-xs font-medium text-db-gold-800 hover:bg-db-gold-200 disabled:cursor-not-allowed disabled:opacity-40"
+            <OrderReportButton
+              prominent
+              busy={compareBusy || selectionBusy}
               disabled={compareDisabled}
-              onClick={() => void handleCompare()}
-            >
-              {compareBusy || selectionBusy
-                ? "Genererar…"
-                : selected.size === 1
+              label={
+                selected.size === 1
                   ? "Beställ rapport"
-                  : `Jämför i rapport (${selected.size})`}
-            </button>
+                  : `Jämför i rapport (${selected.size})`
+              }
+              compareCount={selected.size}
+              onClick={requestCompare}
+            />
           ) : null}
         </div>
       </div>
@@ -2149,22 +2638,103 @@ export function OasisResultsPanel({
             attempt={attempt}
             index={index}
             total={attempts.length}
-            defaultOpen={index === 0}
-            onDelete={
+            expanded={expandedAttemptId === attempt.id}
+            onToggleExpand={() => toggleAttemptExpand(attempt.id)}
+            onRequestDelete={
               status === "running" || !onDeleteAttempt
                 ? undefined
-                : onDeleteAttempt
+                : requestDelete
             }
             deleting={deletingAttemptId === attempt.id}
             selected={selected.has(attempt.id)}
             onToggleSelect={runId ? toggleSelect : undefined}
-            onOrderReport={runId ? (id) => void handleOrderOne(id) : undefined}
+            onRequestOrderReport={runId ? requestOrderOne : undefined}
             ordering={attemptBusy}
             branchMode={branchMode}
             runId={runId}
           />
         )
       })}
+
+      <AdminModal
+        open={reportConfirm != null}
+        titleId="report-confirm-title"
+        title={
+          reportConfirm && reportConfirm.sources.length > 1
+            ? "Jämför i rapport"
+            : "Beställ rapport"
+        }
+        description="Genereringen tar cirka 10 minuter. Du kan lämna sidan och följa status under Rapporter."
+        onClose={() => setReportConfirm(null)}
+      >
+        {reportConfirm ? (
+          <div className="space-y-4">
+            <p className="text-sm text-foreground">
+              {reportConfirm.sources.length === 1
+                ? "1 körning ska analyseras och sammanställas till rapport."
+                : `${reportConfirm.sources.length} körningar ska jämföras i en gemensam rapport.`}
+            </p>
+            <ul className="max-h-40 space-y-1 overflow-y-auto rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
+              {reportConfirm.labels.map((label, i) => (
+                <li key={`${label}-${i}`} className="font-mono tabular-nums text-foreground">
+                  {label}
+                </li>
+              ))}
+            </ul>
+            <div className="flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                className="rounded-md border border-border px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted/40"
+                onClick={() => setReportConfirm(null)}
+              >
+                Avbryt
+              </button>
+              <button
+                type="button"
+                className="rounded-md border border-db-gold-600 bg-db-gold-100 px-3 py-1.5 text-sm font-medium text-db-gold-800 hover:bg-db-gold-200"
+                onClick={() => void confirmReportOrder()}
+              >
+                Starta generering
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </AdminModal>
+
+      <AdminModal
+        open={deleteConfirm != null}
+        titleId="delete-confirm-title"
+        title="Radera simuleringsresultat?"
+        description="Detta går inte att ångra. Körningen i listan behålls, men detta resultat försvinner permanent."
+        onClose={() => setDeleteConfirm(null)}
+      >
+        {deleteConfirm ? (
+          <div className="space-y-4">
+            <p className="text-sm text-foreground">
+              Resultat från{" "}
+              <span className="font-mono tabular-nums">{deleteConfirm.label}</span>{" "}
+              raderas.
+            </p>
+            <div className="flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                className="rounded-md border border-border px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted/40"
+                onClick={() => setDeleteConfirm(null)}
+              >
+                Avbryt
+              </button>
+              <button
+                type="button"
+                className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-1.5 text-sm font-medium text-destructive hover:bg-destructive/20 disabled:opacity-50"
+                disabled={deletingAttemptId != null}
+                onClick={() => void confirmDelete()}
+              >
+                {deletingAttemptId != null ? "Raderar…" : "Radera permanent"}
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </AdminModal>
     </div>
   )
 }

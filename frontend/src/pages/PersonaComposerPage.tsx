@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
+import { createPortal } from "react-dom"
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import {
   catalogToFieldOptions,
@@ -9,11 +10,13 @@ import {
   clearPersonaMessages,
   createPersona,
   deletePersona,
+  deletePersonaMessage,
   duplicatePersona,
   editableToWrite,
   generatePersonas,
   getPersona,
   listPersonaMessages,
+  resendPersonaMessage,
   updatePersona,
   type ChatMode,
   type PersonaMessage,
@@ -27,6 +30,78 @@ import type { EditablePersona, PersonaOrigin } from "@/data/library-types"
 import { ApiError } from "@/lib/api"
 
 type LayerRow = { k: keyof EditablePersona | string; l: string; v: string; locked: boolean }
+
+function ConfirmModal({
+  open,
+  titleId,
+  title,
+  description,
+  children,
+  onClose,
+}: {
+  open: boolean
+  titleId: string
+  title: string
+  description?: string
+  children: ReactNode
+  onClose: () => void
+}) {
+  const overlayMouseDownRef = useRef(false)
+
+  useEffect(() => {
+    if (!open) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose()
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [open, onClose])
+
+  if (!open) return null
+
+  return createPortal(
+    <div
+      className="theme-admin fixed inset-0 z-[1100] flex items-center justify-center bg-black/50 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+      onMouseDown={(e) => {
+        overlayMouseDownRef.current = e.target === e.currentTarget
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && overlayMouseDownRef.current) {
+          onClose()
+        }
+        overlayMouseDownRef.current = false
+      }}
+    >
+      <div
+        className="w-full max-w-md rounded-lg border border-[color:var(--border-hairline)] bg-db-ink-0 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="border-b border-[color:var(--border-hairline)] px-5 py-4">
+          <h2 id={titleId} className="text-base font-medium text-foreground">
+            {title}
+          </h2>
+          {description ? (
+            <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+          ) : null}
+        </div>
+        <div className="px-5 py-4">{children}</div>
+      </div>
+    </div>,
+    document.body,
+  )
+}
 
 type LayerTableProps = {
   rows: LayerRow[]
@@ -129,6 +204,46 @@ type EditorProps = {
   deleting?: boolean
 }
 
+function ChatMessageActions({
+  message,
+  chatBusy,
+  onDelete,
+  onResend,
+}: {
+  message: PersonaMessage
+  chatBusy: boolean
+  onDelete: (messageId: number) => void
+  onResend: (messageId: number) => void
+}) {
+  const resendLabel =
+    message.role === "user" ? "Skicka om meddelande" : "Generera om svar"
+
+  return (
+    <div className="chat-msg-actions">
+      <button
+        type="button"
+        className="chat-msg-resend"
+        title={resendLabel}
+        disabled={chatBusy}
+        onClick={() => onResend(message.id)}
+        aria-label={resendLabel}
+      >
+        ↻
+      </button>
+      <button
+        type="button"
+        className="chat-msg-delete"
+        title="Ta bort meddelande"
+        disabled={chatBusy}
+        onClick={() => onDelete(message.id)}
+        aria-label="Ta bort meddelande"
+      >
+        ×
+      </button>
+    </div>
+  )
+}
+
 function Editor({
   persona,
   personaId,
@@ -156,6 +271,10 @@ function Editor({
   const [messages, setMessages] = useState<PersonaMessage[]>([])
   const [draft, setDraft] = useState("")
   const [chatBusy, setChatBusy] = useState(false)
+  const [confirmClearInterview, setConfirmClearInterview] = useState(false)
+  const [confirmDeleteMessageId, setConfirmDeleteMessageId] = useState<number | null>(
+    null,
+  )
 
   useEffect(() => {
     if (!personaId) {
@@ -211,6 +330,59 @@ function Editor({
       }
     } catch (err) {
       onToast(err instanceof ApiError ? err.message : "Kunde inte regenerera")
+    } finally {
+      setChatBusy(false)
+    }
+  }
+
+  async function confirmClearInterviewAction() {
+    if (!personaId || chatBusy || messages.length === 0) return
+    setChatBusy(true)
+    try {
+      await clearPersonaMessages(personaId, icMode)
+      setMessages([])
+      setDraft("")
+      setConfirmClearInterview(false)
+    } catch (err) {
+      onToast(err instanceof ApiError ? err.message : "Kunde inte rensa intervjun")
+    } finally {
+      setChatBusy(false)
+    }
+  }
+
+  const clearChatLabel =
+    icMode === "interview" ? "Rensa intervju" : "Rensa chatt"
+  const clearConfirmTitle =
+    icMode === "interview" ? "Rensa intervju?" : "Rensa chatt?"
+  const clearConfirmDescription =
+    icMode === "interview"
+      ? "Detta går inte att ångra. Hela intervjutranskriptet tas bort permanent."
+      : "Detta går inte att ångra. Alla meddelanden i chattläget tas bort permanent."
+
+  async function confirmDeleteMessageAction() {
+    if (!personaId || chatBusy || confirmDeleteMessageId == null) return
+    setChatBusy(true)
+    try {
+      await deletePersonaMessage(personaId, confirmDeleteMessageId)
+      setMessages((prev) => prev.filter((m) => m.id !== confirmDeleteMessageId))
+      setConfirmDeleteMessageId(null)
+    } catch (err) {
+      onToast(err instanceof ApiError ? err.message : "Kunde inte ta bort meddelandet")
+    } finally {
+      setChatBusy(false)
+    }
+  }
+
+  const messagePendingDelete = messages.find((m) => m.id === confirmDeleteMessageId)
+
+  async function resendMessage(messageId: number) {
+    if (!personaId || chatBusy) return
+    setChatBusy(true)
+    try {
+      const result = await resendPersonaMessage(personaId, messageId)
+      setMessages(result.messages)
+    } catch (err) {
+      onToast(err instanceof ApiError ? err.message : "Kunde inte skicka om meddelandet")
     } finally {
       setChatBusy(false)
     }
@@ -407,6 +579,14 @@ function Editor({
               variant="secondary"
               size="sm"
               disabled={!personaId || chatBusy || messages.length === 0}
+              onClick={() => setConfirmClearInterview(true)}
+            >
+              {clearChatLabel}
+            </AdminButton>
+            <AdminButton
+              variant="secondary"
+              size="sm"
+              disabled={!personaId || chatBusy || messages.length === 0}
               onClick={() => void regenerate()}
             >
               ↻ Regenerera svar
@@ -422,9 +602,19 @@ function Editor({
             {messages.map((m) => (
               <div
                 key={m.id}
-                className={"bub " + (m.role === "assistant" ? "them" : "me")}
+                className={"chat-msg-row " + (m.role === "assistant" ? "them" : "me")}
               >
-                {m.content}
+                <div className={"bub " + (m.role === "assistant" ? "them" : "me")}>
+                  {m.content}
+                </div>
+                {personaId ? (
+                  <ChatMessageActions
+                    message={m}
+                    chatBusy={chatBusy}
+                    onDelete={setConfirmDeleteMessageId}
+                    onResend={(messageId) => void resendMessage(messageId)}
+                  />
+                ) : null}
               </div>
             ))}
           </div>
@@ -502,8 +692,26 @@ function Editor({
           <PersonaAnekdotPresentation profile={persona} />
         </div>
         <div className="p-interview">
-          <div className="p-interview-head">
-            <h3 style={{ fontStyle: "italic", fontSize: 22 }}>Intervju</h3>
+          <div
+            className="p-interview-head"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+            }}
+          >
+            <h3 style={{ fontStyle: "italic", fontSize: 22, margin: 0 }}>Intervju</h3>
+            {personaId && messages.length > 0 ? (
+              <AdminButton
+                variant="secondary"
+                size="sm"
+                disabled={chatBusy}
+                onClick={() => setConfirmClearInterview(true)}
+              >
+                {clearChatLabel}
+              </AdminButton>
+            ) : null}
           </div>
           <div className="p-transcript">
             {!personaId && (
@@ -517,18 +725,28 @@ function Editor({
               </p>
             )}
             {messages.map((m) => (
-              <p key={m.id}>
-                {m.role === "assistant" ? (
-                  <>
-                    <b>{persona.initials}:</b> {m.content}
-                  </>
-                ) : (
-                  <>
-                    <b style={{ color: "var(--db-gold-700)" }}>Du:</b>{" "}
-                    <i>{m.content}</i>
-                  </>
-                )}
-              </p>
+              <div key={m.id} className="p-transcript-msg">
+                <p className="p-transcript-body">
+                  {m.role === "assistant" ? (
+                    <>
+                      <b>{persona.initials}:</b> {m.content}
+                    </>
+                  ) : (
+                    <>
+                      <b style={{ color: "var(--db-gold-700)" }}>Du:</b>{" "}
+                      <i>{m.content}</i>
+                    </>
+                  )}
+                </p>
+                {personaId ? (
+                  <ChatMessageActions
+                    message={m}
+                    chatBusy={chatBusy}
+                    onDelete={setConfirmDeleteMessageId}
+                    onResend={(messageId) => void resendMessage(messageId)}
+                  />
+                ) : null}
+              </div>
             ))}
           </div>
           <div
@@ -558,6 +776,88 @@ function Editor({
           </div>
         </div>
       </div>
+
+      <ConfirmModal
+        open={confirmClearInterview}
+        titleId="clear-interview-confirm-title"
+        title={clearConfirmTitle}
+        description={clearConfirmDescription}
+        onClose={() => {
+          if (!chatBusy) setConfirmClearInterview(false)
+        }}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-foreground">
+            {messages.length} meddelande{messages.length === 1 ? "" : "n"} i{" "}
+            {icMode === "interview" ? "intervjun" : "chatten"} för{" "}
+            <span className="font-medium">{persona.name}</span> raderas.
+          </p>
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              className="rounded-md border border-border px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted/40 disabled:opacity-50"
+              disabled={chatBusy}
+              onClick={() => setConfirmClearInterview(false)}
+            >
+              Avbryt
+            </button>
+            <button
+              type="button"
+              className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-1.5 text-sm font-medium text-destructive hover:bg-destructive/20 disabled:opacity-50"
+              disabled={chatBusy}
+              onClick={() => void confirmClearInterviewAction()}
+            >
+              {chatBusy ? "Rensar…" : clearChatLabel}
+            </button>
+          </div>
+        </div>
+      </ConfirmModal>
+
+      <ConfirmModal
+        open={confirmDeleteMessageId != null}
+        titleId="delete-message-confirm-title"
+        title="Ta bort meddelande?"
+        description="Meddelandet tas bort från chatten. Detta går inte att ångra."
+        onClose={() => {
+          if (!chatBusy) setConfirmDeleteMessageId(null)
+        }}
+      >
+        {messagePendingDelete ? (
+          <div className="space-y-4">
+            <p className="text-sm text-foreground line-clamp-4">
+              {messagePendingDelete.role === "assistant" ? (
+                <>
+                  <span className="font-medium">{persona.name}:</span>{" "}
+                  {messagePendingDelete.content}
+                </>
+              ) : (
+                <>
+                  <span className="font-medium">Du:</span>{" "}
+                  <span className="italic">{messagePendingDelete.content}</span>
+                </>
+              )}
+            </p>
+            <div className="flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                className="rounded-md border border-border px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted/40 disabled:opacity-50"
+                disabled={chatBusy}
+                onClick={() => setConfirmDeleteMessageId(null)}
+              >
+                Avbryt
+              </button>
+              <button
+                type="button"
+                className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-1.5 text-sm font-medium text-destructive hover:bg-destructive/20 disabled:opacity-50"
+                disabled={chatBusy}
+                onClick={() => void confirmDeleteMessageAction()}
+              >
+                {chatBusy ? "Tar bort…" : "Ta bort meddelande"}
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </ConfirmModal>
     </>
   )
 }
