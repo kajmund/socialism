@@ -333,6 +333,11 @@ async def _run_report_generate(job_id: str) -> None:
     from app.services.report.generate import generate_report_html
 
     factory = job_session_factory()
+    report_id: str | None = None
+    title = ""
+    sources: list = []
+    out_dir: Path | None = None
+
     async with factory() as session:
         job = await session.get(Job, job_id)
         if job is None:
@@ -343,47 +348,58 @@ async def _run_report_generate(job_id: str) -> None:
             await _fail(session, job_id, f"Report not found: {payload.report_id}")
             return
 
+        report_id = report.id
+        title = report.title
+        sources = list(report.sources or [])
         report.status = "running"
         report.updated_at = utcnow()
         await session.commit()
 
-        try:
-            bundles = await build_bundles(session, list(report.sources or []))
-            out_dir = Path(ARTIFACT_ROOT) / report.id
-            # dry_run when no API key — still produce charts + placeholder narrative
-            dry_run = not bool(settings.deepseek_api_key)
-            html_path, slots_path, _slots = await generate_report_html(
-                bundles,
-                out_dir=out_dir,
-                dry_run=dry_run,
-                title=report.title,
-            )
-            report.status = "succeeded"
-            report.html_path = str(html_path)
-            report.slots_path = str(slots_path)
-            report.error = None
-            report.finished_at = utcnow()
-            report.updated_at = utcnow()
-            await session.commit()
-            await _succeed(
-                session,
-                job_id,
-                {
-                    "report_id": report.id,
-                    "html_path": str(html_path),
-                    "slots_path": str(slots_path),
-                    "sources": len(bundles),
-                    "dry_run": dry_run,
-                },
-            )
-        except Exception as exc:  # noqa: BLE001 — mark report failed
-            report.status = "failed"
-            report.error = (str(exc) or exc.__class__.__name__)[:2000]
-            report.finished_at = utcnow()
-            report.updated_at = utcnow()
-            await session.commit()
-            await _fail(session, job_id, str(exc) or exc.__class__.__name__)
+        # Build bundles while session is open, then release before long LLM work.
+        bundles = await build_bundles(session, sources)
+        out_dir = Path(ARTIFACT_ROOT) / report_id
 
+    try:
+        html_path, slots_path, _slots = await generate_report_html(
+            bundles,
+            out_dir=out_dir,
+            dry_run=False,
+            title=title,
+        )
+    except Exception as exc:  # noqa: BLE001 — mark report failed
+        async with factory() as session:
+            report = await session.get(Report, report_id)
+            if report is not None:
+                report.status = "failed"
+                report.error = (str(exc) or exc.__class__.__name__)[:2000]
+                report.finished_at = utcnow()
+                report.updated_at = utcnow()
+                await session.commit()
+            await _fail(session, job_id, str(exc) or exc.__class__.__name__)
+        return
+
+    async with factory() as session:
+        report = await session.get(Report, report_id)
+        if report is None:
+            await _fail(session, job_id, f"Report disappeared: {report_id}")
+            return
+        report.status = "succeeded"
+        report.html_path = str(html_path)
+        report.slots_path = str(slots_path)
+        report.error = None
+        report.finished_at = utcnow()
+        report.updated_at = utcnow()
+        await session.commit()
+        await _succeed(
+            session,
+            job_id,
+            {
+                "report_id": report.id,
+                "html_path": str(html_path),
+                "slots_path": str(slots_path),
+                "sources": len(bundles),
+            },
+        )
 
 async def list_jobs(
     session: AsyncSession,

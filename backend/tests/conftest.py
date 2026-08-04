@@ -1,3 +1,8 @@
+import os
+
+# Required before importing app.config — Settings fails without a key.
+os.environ.setdefault("DEEPSEEK_API_KEY", "test-key-not-real")
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -6,17 +11,31 @@ from sqlalchemy.pool import StaticPool
 from app.config import settings
 from app.database.base import Base
 from app.database.session import get_session
+from app.llm import set_structured_completer, set_text_completer
 from app.main import create_app
 from app.services import jobs as jobs_service
 from app.services.population_generate import clear_generations
+
+
+@pytest.fixture(autouse=True)
+def _reset_llm_completers():
+    yield
+    set_structured_completer(None)
+    set_text_completer(None)
 
 
 @pytest.fixture
 async def client():
     clear_generations()
     settings.persona_generator = "stub"
-    settings.deepseek_api_key = ""
+    settings.deepseek_api_key = "test-key-not-real"
     settings.simulation_engine = "none"
+
+    async def _mock_text(_messages: list[dict[str, str]]) -> str:
+        return "Mockad personasvar för tester."
+
+    set_text_completer(_mock_text)
+
     engine = create_async_engine(
         "sqlite+aiosqlite://",
         connect_args={"check_same_thread": False},

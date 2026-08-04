@@ -390,12 +390,12 @@ async def _make_generated_batch(
 ) -> list[GeneratedPersonaOut]:
     if count <= 0:
         return []
-    if settings.persona_generator == "stub" or not settings.deepseek_api_key:
+    if settings.persona_generator == "stub":
         return [stub_persona(recipe, rng) for _ in range(count)]
     if not settings.uses_llm_generator():
         raise HTTPException(
             status_code=503,
-            detail="DeepSeek is not configured (set DEEPSEEK_API_KEY or PERSONA_GENERATOR=stub)",
+            detail="PERSONA_GENERATOR must be deepseek or stub",
         )
     # Sample slots first so Random stays single-threaded, then fan out LLM calls.
     slots = [sample_slot(recipe, rng) for _ in range(count)]
