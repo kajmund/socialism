@@ -136,6 +136,9 @@ HUR DU SKRIVER KOMMENTARER:
 - Välj EN struktur per kommentar: invändning, ny vinkel, konkret exempel, kort anekdot,
   retorisk fråga, eller kort instämmande/avståndstagande med namngiven person.
 - Upprepa inte samma inledning/avslutning mellan inlägg. Variera språket; håll åsikten konsekvent.
+- Undvik att upprepa politikerns eller nyhetens exakta ordval och slogans. Reagera med
+  dina egna ord och din egen röst — sakinnehållet kan vara detsamma, men formuleringen
+  ska vara din.
 """
 
 _NO_CREATE_POST_RULE_TWITTER = """\
@@ -236,16 +239,7 @@ def build_user_char(
     if kön:
         identity += f", {kön.casefold()}"
     identity += f", bor i {profile.ort} ({member.district})."
-    lines = [
-        identity,
-        f"Yrke: {profile.yrke}. Livssituation: {profile.livssituation}.",
-        f"Politisk lutning: {profile.lutning}. Parti: {profile.parti}.",
-        f"Sakfrågor: {profile.sakfragor}.",
-        f"Förtroende: {profile.fortroende}. Valdeltagande: {profile.valdeltagande}.",
-        f"Ton: {profile.ton}. Språk: {profile.sprak}. Medievanor: {profile.medievanor}.",
-    ]
-    if area_block.strip():
-        lines.append(area_block.strip())
+    lines = [identity]
     if trait:
         lines.append(f"Temperament / karaktärsdrag: {trait}")
     if ton and ton.casefold() not in trait.casefold():
@@ -253,8 +247,23 @@ def build_user_char(
             f"Skrivsärdrag: håll dig till tonen «{ton}» — det är din röst, "
             "inte en fras att klistra in."
         )
-    if quote.strip():
+    if quote.strip() and quote.strip().casefold() not in trait.casefold():
         lines.append(f"Citat / ledstjärna: {quote.strip()}")
+    lines.append(
+        "Din röst och temperament ska synas tydligare än ditt yrke — "
+        "nämn jobb eller titel sällan, bara när det är direkt relevant."
+    )
+    if area_block.strip():
+        lines.append(area_block.strip())
+    lines.extend(
+        [
+            f"Yrke: {profile.yrke}. Livssituation: {profile.livssituation}.",
+            f"Politisk lutning: {profile.lutning}. Parti: {profile.parti}.",
+            f"Sakfrågor: {profile.sakfragor}.",
+            f"Förtroende: {profile.fortroende}. Valdeltagande: {profile.valdeltagande}.",
+            f"Språk: {profile.sprak}. Medievanor: {profile.medievanor}.",
+        ]
+    )
     lines.append(
         "Du är en vanlig svensk person på en social medietjänst — inte debattör, "
         "assistent eller balanserad analytiker. "

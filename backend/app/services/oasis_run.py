@@ -24,6 +24,7 @@ from app.database.session import SessionLocal
 from app.schemas.domain import Injection, OasisPlatform, OasisRunOptions, Tick
 from app.serializers import utcnow
 from app.services.district_context import format_area_block, list_district_contexts
+from app.services.lexical_convergence import analyze_lexical_convergence
 from app.services.oasis_clock import OasisScenarioClock
 from app.services.oasis_profiles import (
     build_run_profiles,
@@ -188,10 +189,16 @@ def variant_plans(run: Run) -> list[tuple[str, str, list[Tick]]]:
         a_raw = branch.a
         b_raw = branch.b
 
+    mode = branch.get("mode", "ab") if isinstance(branch, dict) else getattr(branch, "mode", "ab")
+    if mode == "stimulus_control":
+        label_a, label_b = "Med stimulus", "Kontroll (ingen injektion)"
+    else:
+        label_a, label_b = "Version A", "Version B"
+
     stem = main[: max(0, after + 1)]
     return [
-        ("a", "Version A", stem + _parse_ticks(a_raw)),
-        ("b", "Version B", stem + _parse_ticks(b_raw)),
+        ("a", label_a, stem + _parse_ticks(a_raw)),
+        ("b", label_b, stem + _parse_ticks(b_raw)),
     ]
 
 
@@ -279,6 +286,25 @@ def _injection_body(injection: Injection) -> str:
         body = injection.text.strip() or injection.sourceDomain.strip() or injection.url
         return f"{body}\n{injection.url.strip()}".strip()
     return injection.text.strip()
+
+
+def _injection_texts_labeled(ticks: list[Tick]) -> list[tuple[str, str]]:
+    """(source_label, body) for non-silent injections — used in convergence analysis."""
+    out: list[tuple[str, str]] = []
+    for tick in ticks:
+        if tick.silent:
+            continue
+        for injection in tick.injections:
+            if not injection_has_content(injection):
+                continue
+            body = _injection_body(injection)
+            if body:
+                out.append((tick.key, body))
+    return out
+
+
+async def _prepare_injection_content(injection: Injection) -> str:
+    return _injection_body(injection)
 
 
 def _table_rows(
@@ -565,7 +591,7 @@ async def run_oasis_simulation(
                 for injection in tick.injections:
                     if not injection_has_content(injection):
                         continue
-                    content = _injection_body(injection)
+                    content = await _prepare_injection_content(injection)
                     if not content:
                         continue
                     idx = key_to_index.get(injector_key(injection))
@@ -794,6 +820,12 @@ async def simulate_run(session: AsyncSession, run: Run) -> dict[str, Any]:
                         follows=follows,
                         member_districts=member_districts,
                         ticks_run=ticks_run,
+                    ),
+                    "quality_warnings": analyze_lexical_convergence(
+                        posts=posts,
+                        comments=comments,
+                        agents=agents,
+                        injection_texts=_injection_texts_labeled(ticks),
                     ),
                 }
             )

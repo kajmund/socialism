@@ -118,16 +118,38 @@ async def llm_persona_from_slot(
     free_text: str = "",
     *,
     session: AsyncSession | None = None,
+    taken_surnames: frozenset[str] | None = None,
+    writing_trait: str | None = None,
+    previous_personas: tuple[str, ...] = (),
 ) -> GeneratedPersonaOut:
     area_block = ""
     if session is not None:
         area_block = await area_block_for_name(session, slot.district)
     requirements = "\n".join(_slot_requirement_lines(slot))
+    surname_block = ""
+    if taken_surnames:
+        listed = ", ".join(sorted(taken_surnames))
+        surname_block = (
+            f"\nEfternamn som redan används i populationen (välj ett annat): {listed}\n"
+            "Varje efternamn ska vara unikt inom populationen.\n"
+        )
+    voice_block = ""
+    if writing_trait:
+        voice_block = (
+            f"\nSkrivsätt / röst (följ särskilt): {writing_trait}\n"
+            "Låt temperament och skrivstil skilja sig tydligt från andra med samma yrke.\n"
+        )
+    if previous_personas:
+        prev_lines = "\n".join(f"  * {line}" for line in previous_personas[-12:])
+        voice_block += (
+            f"\nPersonas som redan skapats i denna population (variera röst och detaljer):\n"
+            f"{prev_lines}\n"
+        )
     user = f"""Skapa en trovärdig Norrköpingspersona.
 
 Demografiska och attributkrav (följ dessa):
 {requirements}
-
+{surname_block}{voice_block}
 Extra önskemål från användaren:
 {free_text or "(inga)"}
 
@@ -147,7 +169,19 @@ Extra önskemål från användaren:
         ]
     )
     apply_slot_to_profile(profile, slot)
-    return profile_to_generated(profile, slot)
+    if writing_trait:
+        profile.ton = writing_trait
+    generated = profile_to_generated(profile, slot)
+    if writing_trait:
+        return GeneratedPersonaOut(
+            **{
+                **generated.model_dump(),
+                "trait": writing_trait,
+                "quote": writing_trait,
+                "profile": profile,
+            }
+        )
+    return generated
 
 
 async def llm_personas_from_description(

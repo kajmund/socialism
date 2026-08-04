@@ -1,4 +1,3 @@
-import secrets
 from copy import deepcopy
 from typing import Any
 
@@ -170,7 +169,7 @@ async def create_run(
         name=body.name,
         status=body.status,
         population_id=body.population_id,
-        seed=body.seed or secrets.token_hex(4),
+        seed="",
         start_date=parse_optional_date(body.start_date),
         main_ticks=_ticks_payload(body.main_ticks),
         branch=_branch_payload(body.branch),
@@ -269,7 +268,7 @@ async def duplicate_run(
         name=f"{source.name} (kopia)",
         status="draft",
         population_id=source.population_id,
-        seed=secrets.token_hex(4),
+        seed="",
         start_date=source.start_date,
         main_ticks=list(source.main_ticks or []),
         branch=dict(source.branch) if source.branch else None,

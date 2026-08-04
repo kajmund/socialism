@@ -22,7 +22,6 @@ export type RunDetail = RunSummary & {
 export type RunWrite = {
   name: string
   population_id: number
-  seed?: string
   start_date?: string | null
   status?: RunStatus
   main_ticks?: Tick[]
@@ -33,7 +32,6 @@ export type RunWrite = {
 export type RunUpdate = {
   name?: string
   population_id?: number
-  seed?: string
   start_date?: string | null
   status?: RunStatus
   main_ticks?: Tick[]

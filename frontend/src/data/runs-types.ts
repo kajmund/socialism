@@ -49,6 +49,20 @@ export type OasisRunOptions = {
   allow_population_create_post: boolean
 }
 
+export type LexicalConvergenceWarning = {
+  phrase: string
+  agent_share: number
+  agent_count: number
+  kind: "source_phrase_echo" | "cross_agent_convergence"
+  source?: string
+}
+
+export type QualityWarnings = {
+  threshold: number
+  population_agents: number
+  warnings: LexicalConvergenceWarning[]
+}
+
 export type OasisVariantResult = {
   id: string
   label: string
@@ -125,6 +139,7 @@ export type OasisVariantResult = {
     time_end: number
   }>
   measurements?: OasisMeasurementRow[]
+  quality_warnings?: QualityWarnings
   artifact_db?: string
   profile_path?: string
   profile_csv?: string | null
@@ -163,7 +178,7 @@ export type RunSummary = {
   population: string
   ticks: number
   variants: number
-  seed: string
+  seed?: string
   updated: string
 }
 
@@ -200,10 +215,16 @@ export type Tick = {
   measurements: string[]
 }
 
+export type BranchMode = "ab" | "stimulus_control"
+
+export const STIMULUS_VARIANT_LABEL = "Med stimulus"
+export const CONTROL_VARIANT_LABEL = "Kontroll (ingen injektion)"
+
 export type BranchState = {
   afterIndex: number
   a: Tick[]
   b: Tick[]
+  mode?: BranchMode
 }
 
 export type Measurement = {

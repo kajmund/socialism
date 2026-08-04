@@ -21,9 +21,6 @@ export type RunCreateWizardProps = {
   onNameChange: (value: string) => void
   startDate: string
   onStartDateChange: (value: string) => void
-  seed: string
-  onSeedChange: (value: string) => void
-  onSeedRefresh: () => void
   populations: RunPopulationOption[]
   popId: number | null
   onPopIdChange: (id: number) => void
@@ -40,6 +37,7 @@ export type RunCreateWizardProps = {
   onMoveMain: (index: number, direction: number) => void
   onAddMain: () => void
   onStartBranch: (index: number) => void
+  onStartStimulusControlBranch?: (index: number) => void
   onClearBranch: () => void
   onUpdateBranchTick: (side: "a" | "b", index: number, tick: Tick) => void
   onRemoveBranchTick: (side: "a" | "b", index: number) => void
@@ -71,7 +69,6 @@ export function RunCreateWizard(props: RunCreateWizardProps) {
       name: props.name,
       populationId: props.popId,
       populationSize: props.population.size,
-      seed: props.seed,
       startDate: props.startDate,
       mainTicks: props.mainTicks,
       branch: props.branch,
@@ -169,12 +166,9 @@ export function RunCreateWizard(props: RunCreateWizardProps) {
                 fontWeight: 400,
               }}
             >
-              Namn, population och seed
+              Namn och population
             </h1>
-            <p>
-              Välj vilken population som ska reagera och ett seed för
-              reproducerbara resultat.
-            </p>
+            <p>Välj vilken population som ska reagera på budskapen.</p>
           </div>
           <Card className="id-card mb-9 gap-0 overflow-visible py-0 ring-1 ring-border">
             <CardContent className="px-0">
@@ -184,9 +178,6 @@ export function RunCreateWizard(props: RunCreateWizardProps) {
                   onNameChange={props.onNameChange}
                   startDate={props.startDate}
                   onStartDateChange={props.onStartDateChange}
-                  seed={props.seed}
-                  onSeedChange={props.onSeedChange}
-                  onSeedRefresh={props.onSeedRefresh}
                   populations={props.populations}
                   popId={props.popId}
                   onPopIdChange={props.onPopIdChange}
@@ -231,7 +222,6 @@ export function RunCreateWizard(props: RunCreateWizardProps) {
             mainTicks={props.mainTicks}
             branch={props.branch}
             activeMain={props.activeMain}
-            seed={props.seed}
             population={props.population}
             openKey={props.openKey}
             onOpenKeyChange={props.onOpenKeyChange}
@@ -240,6 +230,7 @@ export function RunCreateWizard(props: RunCreateWizardProps) {
             onMoveMain={props.onMoveMain}
             onAddMain={props.onAddMain}
             onStartBranch={props.onStartBranch}
+            onStartStimulusControlBranch={props.onStartStimulusControlBranch}
             onClearBranch={() => props.onClearBranch()}
             onUpdateBranchTick={props.onUpdateBranchTick}
             onRemoveBranchTick={props.onRemoveBranchTick}

@@ -4,7 +4,7 @@ from app.database.models import Run
 from app.services.oasis_run import previous_attempts, variant_plans
 
 
-def _tick(key: str, day: int, text: str = "") -> dict:
+def _tick(key: str, day: int, text: str = "", *, silent: bool = False) -> dict:
     inj = []
     if text:
         inj = [
@@ -24,7 +24,7 @@ def _tick(key: str, day: int, text: str = "") -> dict:
     return {
         "key": key,
         "day": day,
-        "silent": False,
+        "silent": silent,
         "injections": inj,
         "rounds": 1,
         "measurements": [],
@@ -79,6 +79,25 @@ def test_variant_plans_with_branch_builds_stem_plus_a_and_b():
     assert a_ticks[-1].injections[0].text == "version A"
     assert b_ticks[2].injections[0].text == "version B"
     assert "m3-orphan" not in [t.key for t in a_ticks + b_ticks]
+
+
+def test_variant_plans_stimulus_control_uses_mode_labels():
+    run = Run(
+        id=3,
+        name="sc",
+        status="draft",
+        population_id=1,
+        seed="s",
+        main_ticks=[_tick("m1", 1, "gemensam"), _tick("m2", 2)],
+        branch={
+            "afterIndex": 0,
+            "mode": "stimulus_control",
+            "a": [_tick("a2", 2, "stimulus")],
+            "b": [_tick("b2", 2, "", silent=True)],
+        },
+    )
+    plans = variant_plans(run)
+    assert [p[1] for p in plans] == ["Med stimulus", "Kontroll (ingen injektion)"]
 
 
 def test_previous_attempts_normalizes_legacy_flat_results():

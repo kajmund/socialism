@@ -170,7 +170,6 @@ async def test_run_lifecycle(client):
         json={
             "name": "Testkörning",
             "population_id": pop["id"],
-            "seed": "abc12345",
             "main_ticks": [
                 {
                     "key": "t1",

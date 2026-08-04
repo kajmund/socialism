@@ -15,7 +15,7 @@ import { RunCreateWizard } from "@/components/runs/RunCreateWizard"
 import { RunIdentityFields } from "@/components/runs/RunIdentityFields"
 import { RunTimelineSection } from "@/components/runs/RunTimelineSection"
 import { Card, CardContent } from "@/components/ui/card"
-import { genSeed, makeTick } from "@/data/runs"
+import { makeStimulusControlBranch, makeTick } from "@/data/runs"
 import { validateRunConfig } from "@/data/runValidation"
 import type {
   BranchState,
@@ -52,7 +52,6 @@ export function ConfigureRunPage() {
   const [populations, setPopulations] = useState<RunPopulationOption[]>([])
   const [name, setName] = useState("Ny körning — v1")
   const [startDate, setStartDate] = useState("2026-08-03")
-  const [seed, setSeed] = useState(genSeed())
   const [popId, setPopId] = useState<number | null>(null)
   const [popOpen, setPopOpen] = useState(false)
   const [mainTicks, setMainTicks] = useState<Tick[]>([])
@@ -108,7 +107,6 @@ export function ConfigureRunPage() {
       .then((run) => {
         if (cancelled) return
         setName(run.name)
-        setSeed(run.seed)
         setStartDate(run.start_date ?? "2026-08-03")
         setPopId(run.population_id)
         setMainTicks(run.main_ticks)
@@ -206,7 +204,11 @@ export function ConfigureRunPage() {
 
   function startBranch(i: number) {
     const nextDay = mainTicks[i].day + 1
-    setBranch({ afterIndex: i, a: [makeTick(nextDay)], b: [makeTick(nextDay)] })
+    setBranch({ afterIndex: i, mode: "ab", a: [makeTick(nextDay)], b: [makeTick(nextDay)] })
+  }
+
+  function startStimulusControlBranch(i: number) {
+    setBranch(makeStimulusControlBranch(mainTicks, i))
   }
 
   function updateBranchTick(side: "a" | "b", i: number, next: Tick) {
@@ -252,7 +254,6 @@ export function ConfigureRunPage() {
         name,
         populationId: popId,
         populationSize: population.size,
-        seed,
         startDate,
         mainTicks,
         branch,
@@ -271,7 +272,6 @@ export function ConfigureRunPage() {
         ? {
             name,
             population_id: popId,
-            seed,
             start_date: startDate,
             main_ticks: mainTicks,
             branch,
@@ -280,7 +280,6 @@ export function ConfigureRunPage() {
         : {
             name,
             population_id: popId,
-            seed,
             start_date: startDate,
             status: "draft" as const,
             main_ticks: mainTicks,
@@ -292,7 +291,6 @@ export function ConfigureRunPage() {
         : await createRun({
             name,
             population_id: popId,
-            seed,
             start_date: startDate,
             status: "draft",
             main_ticks: mainTicks,
@@ -373,7 +371,6 @@ export function ConfigureRunPage() {
     mainTicks,
     branch,
     activeMain,
-    seed,
     population,
     openKey,
     onOpenKeyChange: setOpenKey,
@@ -382,6 +379,7 @@ export function ConfigureRunPage() {
     onMoveMain: moveMain,
     onAddMain: addMain,
     onStartBranch: startBranch,
+    onStartStimulusControlBranch: startStimulusControlBranch,
     onClearBranch: () => setBranch(null),
     onUpdateBranchTick: updateBranchTick,
     onRemoveBranchTick: removeBranchTick,
@@ -395,8 +393,6 @@ export function ConfigureRunPage() {
     onNameChange: setName,
     startDate,
     onStartDateChange: setStartDate,
-    onSeedChange: setSeed,
-    onSeedRefresh: () => setSeed(genSeed()),
     populations,
     popId,
     onPopIdChange: setPopId,
@@ -546,9 +542,6 @@ export function ConfigureRunPage() {
                     onNameChange={setName}
                     startDate={startDate}
                     onStartDateChange={setStartDate}
-                    seed={seed}
-                    onSeedChange={setSeed}
-                    onSeedRefresh={() => setSeed(genSeed())}
                     populations={populations}
                     popId={popId}
                     onPopIdChange={setPopId}
@@ -624,6 +617,7 @@ export function ConfigureRunPage() {
                 results={results}
                 status={runStatus}
                 runId={runId ?? undefined}
+                branchMode={branch?.mode ?? null}
                 onDeleteAttempt={
                   runId ? (attemptId) => void handleDeleteAttempt(attemptId) : undefined
                 }

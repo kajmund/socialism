@@ -5,7 +5,6 @@ export type RunTimelineSectionProps = {
   mainTicks: Tick[]
   branch: BranchState | null
   activeMain: Tick[]
-  seed: string
   population: RunPopulationOption
   openKey: string | null
   onOpenKeyChange: (key: string | null) => void
@@ -14,6 +13,7 @@ export type RunTimelineSectionProps = {
   onMoveMain: (index: number, direction: number) => void
   onAddMain: () => void
   onStartBranch: (index: number) => void
+  onStartStimulusControlBranch?: (index: number) => void
   onClearBranch: () => void
   onUpdateBranchTick: (side: "a" | "b", index: number, tick: Tick) => void
   onRemoveBranchTick: (side: "a" | "b", index: number) => void
@@ -27,7 +27,6 @@ export function RunTimelineSection({
   mainTicks,
   branch,
   activeMain,
-  seed,
   population,
   openKey,
   onOpenKeyChange,
@@ -36,6 +35,7 @@ export function RunTimelineSection({
   onMoveMain,
   onAddMain,
   onStartBranch,
+  onStartStimulusControlBranch,
   onClearBranch,
   onUpdateBranchTick,
   onRemoveBranchTick,
@@ -56,6 +56,7 @@ export function RunTimelineSection({
         moveTick={onMoveMain}
         addTick={branch || disabled ? () => undefined : onAddMain}
         onBranch={onStartBranch}
+        onStimulusControl={onStartStimulusControlBranch}
         branchable={!branch && !disabled}
         showAdd={!branch && !disabled}
       />
@@ -69,8 +70,17 @@ export function RunTimelineSection({
                 Delningspunkt vid dag {mainTicks[branch.afterIndex].day}
               </span>
               <span className="s">
-                Version A och B delar seed ({seed}) och population (
-                {population.name}) fram till denna punkt.
+                {branch.mode === "stimulus_control" ? (
+                  <>
+                    Med stimulus (A) vs kontroll utan injektion (B). Samma
+                    population ({population.name}) fram till denna punkt.
+                  </>
+                ) : (
+                  <>
+                    Version A och B delar population ({population.name}) fram
+                    till denna punkt.
+                  </>
+                )}
               </span>
               {!disabled ? (
                 <button type="button" onClick={onClearBranch}>
@@ -83,7 +93,9 @@ export function RunTimelineSection({
             <div>
               <div className="branch-head">
                 <span className="branch-badge a">A</span>
-                <span className="lbl">Version A</span>
+                <span className="lbl">
+                  {branch.mode === "stimulus_control" ? "Med stimulus" : "Version A"}
+                </span>
               </div>
               <TickColumn
                 ticks={branch.a}
@@ -100,7 +112,11 @@ export function RunTimelineSection({
             <div>
               <div className="branch-head">
                 <span className="branch-badge b">B</span>
-                <span className="lbl">Version B</span>
+                <span className="lbl">
+                  {branch.mode === "stimulus_control"
+                    ? "Kontroll (ingen injektion)"
+                    : "Version B"}
+                </span>
               </div>
               <TickColumn
                 ticks={branch.b}
