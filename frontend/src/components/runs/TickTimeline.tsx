@@ -19,6 +19,7 @@ type TickCardProps = {
   onMoveDown: () => void
   canBranch?: boolean
   onBranch?: () => void
+  onStimulusControl?: () => void
   isBranchNode?: boolean
 }
 
@@ -30,6 +31,7 @@ function TickCard({
   onMoveDown,
   canBranch = false,
   onBranch,
+  onStimulusControl,
   isBranchNode = false,
 }: TickCardProps) {
   const summary = tickSummary(tick)
@@ -78,6 +80,19 @@ function TickCard({
                 A/B
               </button>
             )}
+            {canBranch && onStimulusControl && (
+              <button
+                type="button"
+                className="tl-branch-btn"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onStimulusControl()
+                }}
+                title="Stimulus vs kontroll från denna dag (A med injektion, B tyst)"
+              >
+                S/K
+              </button>
+            )}
             <button type="button" className="tl-icon-btn" onClick={onMoveUp} title="Flytta upp">
               ↑
             </button>
@@ -108,6 +123,7 @@ type TickColumnProps = {
   moveTick: (i: number, dir: number) => void
   addTick: () => void
   onBranch: (i: number) => void
+  onStimulusControl?: (i: number) => void
   branchable: boolean
   showAdd?: boolean
 }
@@ -121,6 +137,7 @@ export function TickColumn({
   moveTick,
   addTick,
   onBranch,
+  onStimulusControl,
   branchable,
   showAdd = true,
 }: TickColumnProps) {
@@ -148,6 +165,9 @@ export function TickColumn({
           onMoveDown={() => moveTick(i, 1)}
           canBranch={branchable}
           onBranch={() => onBranch(i)}
+          onStimulusControl={
+            onStimulusControl ? () => onStimulusControl(i) : undefined
+          }
         />
       ))}
       {showAdd && (

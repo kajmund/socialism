@@ -72,6 +72,38 @@ def test_build_user_char_includes_profile_and_swedish_instruction():
     assert "author_first_name" in text
     assert "Som Erik säger" not in text
     assert "Kommentar 3" in text  # still banned as numbered ref
+    assert "Undvik att upprepa politikerns" in text
+
+
+def test_build_user_char_places_voice_before_occupation():
+    persona = Persona(
+        id="aa01",
+        name="Anna Andersson",
+        age=42,
+        occ="Lärare",
+        district="Centrum",
+        quote="Skolan först",
+        origin="manuell",
+        profile={
+            "name": "Anna Andersson",
+            "age": "42",
+            "kön": "Kvinna",
+            "ort": "Norrköping",
+            "yrke": "Lärare",
+            "lutning": "center",
+            "parti": "C",
+            "sakfragor": "skola",
+            "ton": "saklig",
+            "sprak": "rikssvenska",
+        },
+    )
+    text = build_user_char(_member(persona=persona, trait="Ironisk och snabb"))
+    trait_idx = text.index("Temperament")
+    occ_idx = text.index("Yrke:")
+    politics_idx = text.index("Politisk lutning")
+    assert trait_idx < occ_idx < politics_idx
+    assert "Din röst och temperament" in text
+    assert "Ton:" not in text
 
 
 def test_write_reddit_profile_json_includes_gender_and_persona(tmp_path):

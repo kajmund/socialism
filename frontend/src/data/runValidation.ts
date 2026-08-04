@@ -28,7 +28,6 @@ export function validateRunConfig(input: {
   name: string
   populationId: number | null
   populationSize: number
-  seed: string
   startDate: string
   mainTicks: Tick[]
   branch: BranchState | null
@@ -42,9 +41,6 @@ export function validateRunConfig(input: {
     errors.push("Välj en population")
   } else if (input.populationSize <= 0) {
     errors.push("Populationen har inga personas")
-  }
-  if (!input.seed.trim()) {
-    errors.push("Ange en seed")
   }
   if (!input.startDate.trim()) {
     errors.push("Ange startdatum")
@@ -88,7 +84,6 @@ export function validateRunWizardStep(
     name: string
     populationId: number | null
     populationSize: number
-    seed: string
     startDate: string
     mainTicks: Tick[]
     branch: BranchState | null
@@ -104,9 +99,6 @@ export function validateRunWizardStep(
       errors.push("Välj en population")
     } else if (input.populationSize <= 0) {
       errors.push("Populationen har inga personas")
-    }
-    if (!input.seed.trim()) {
-      errors.push("Ange en seed")
     }
     if (!input.startDate.trim()) {
       errors.push("Ange startdatum")

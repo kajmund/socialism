@@ -46,10 +46,6 @@ function RunCard({ run, onDelete, onDuplicate }: RunCardProps) {
               </span>
             </div>
             <div className="row">
-              <span>Seed</span>
-              <span className="v seed mono">{run.seed}</span>
-            </div>
-            <div className="row">
               <span>Uppdaterad</span>
               <span className="v">{formatRunDate(run.updated)}</span>
             </div>

@@ -140,6 +140,7 @@ class PopulationGenerateResponse(BaseModel):
     generation_id: str
     fingerprint: list[list[int]]
     candidates: list[GenerationCandidate]
+    warnings: list[str] = Field(default_factory=list)
 
 
 class PopulationSummary(BaseModel):
@@ -331,10 +332,14 @@ class Tick(BaseModel):
     measurements: list[str] = Field(default_factory=list)
 
 
+BranchMode = Literal["ab", "stimulus_control"]
+
+
 class BranchState(BaseModel):
     afterIndex: int
     a: list[Tick] = Field(default_factory=list)
     b: list[Tick] = Field(default_factory=list)
+    mode: BranchMode = "ab"
 
 
 OasisPlatform = Literal["twitter", "reddit"]
@@ -354,7 +359,7 @@ class RunSummary(BaseModel):
     population: str
     ticks: int
     variants: int
-    seed: str
+    seed: str = ""
     updated: str
 
 
@@ -371,7 +376,6 @@ class RunDetail(RunSummary):
 class RunCreate(BaseModel):
     name: str
     population_id: int
-    seed: str = ""
     start_date: str | None = None
     status: RunStatus = "draft"
     main_ticks: list[Tick] = Field(default_factory=list)
@@ -382,7 +386,6 @@ class RunCreate(BaseModel):
 class RunUpdate(BaseModel):
     name: str | None = None
     population_id: int | None = None
-    seed: str | None = None
     start_date: str | None = None
     status: RunStatus | None = None
     main_ticks: list[Tick] | None = None

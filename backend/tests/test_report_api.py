@@ -51,7 +51,6 @@ async def _seed_run_with_attempt(client) -> tuple[int, str]:
             json={
                 "name": "Rapportrun",
                 "population_id": pop["id"],
-                "seed": "1",
                 "main_ticks": [],
             },
         )
@@ -246,7 +245,7 @@ async def test_create_report_missing_attempt(client):
     run = (
         await client.post(
             "/runs",
-            json={"name": "Empty", "population_id": pop["id"], "seed": "1", "main_ticks": []},
+            json={"name": "Empty", "population_id": pop["id"], "main_ticks": []},
         )
     ).json()
     resp = await client.post(
