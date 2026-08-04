@@ -356,8 +356,6 @@ export function ConfigureRunPage() {
 
   async function handleDeleteAttempt(attemptId: string) {
     if (!runId) return
-    const ok = window.confirm("Radera detta simuleringsresultat?")
-    if (!ok) return
     setDeletingAttemptId(attemptId)
     try {
       const updated = await deleteRunResultAttempt(runId, attemptId)
@@ -462,14 +460,16 @@ export function ConfigureRunPage() {
   return (
     <AdminShell>
       <div className="wrap" style={{ maxWidth: 1180 }}>
-        <div className="head-row">
+        <div className={"head-row" + (activeTab === "results" ? " head-row-compact" : "")}>
           <div className="head-row-main">
             <h1>{isNew ? "Ny körning" : name || "Körning"}</h1>
-            <p>
-              {isNew
-                ? "All konfiguration på en sida — spara när du är klar."
-                : "Konfigurera tidslinjen eller följ simuleringsresultatet när körningen körs i bakgrunden."}
-            </p>
+            {isNew || activeTab === "config" ? (
+              <p>
+                {isNew
+                  ? "All konfiguration på en sida — spara när du är klar."
+                  : "Konfigurera tidslinjen eller följ simuleringsresultatet när körningen körs i bakgrunden."}
+              </p>
+            ) : null}
           </div>
           <div className="head-row-aside">
             {(isNew || activeTab === "config") && (
