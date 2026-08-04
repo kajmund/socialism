@@ -20,6 +20,12 @@ TONE_LABELS: tuple[str, ...] = (
 
 ToneMode = Literal["llm"]
 
+# Keep batches small — large structured prompts stall on DeepSeek.
+_CLASSIFY_BATCH_SIZE = 8
+_TEXT_CHARS = 200
+# Cap LLM calls: sample highest-engagement texts (likes).
+_MAX_CLASSIFY_TEXTS = 16
+
 
 @dataclass
 class TopicPack:
@@ -67,17 +73,27 @@ class _ToneBatchResponse(BaseModel):
     items: list[_ToneItem]
 
 
-def _texts(bundle: RunBundle) -> list[str]:
-    out: list[str] = []
+def _item_likes(item: dict) -> int:
+    for key in ("num_likes", "likes", "like_count"):
+        v = item.get(key)
+        if isinstance(v, (int, float)):
+            return int(v)
+    return 0
+
+
+def _texts_for_classify(bundle: RunBundle, *, limit: int = _MAX_CLASSIFY_TEXTS) -> list[str]:
+    """Prefer higher-engagement posts/comments; cap count for LLM cost/latency."""
+    scored: list[tuple[int, str]] = []
     for p in bundle.posts:
         c = p.get("content") or p.get("text") or ""
         if c:
-            out.append(str(c))
+            scored.append((_item_likes(p), str(c)))
     for c in bundle.comments:
         t = c.get("content") or c.get("text") or ""
         if t:
-            out.append(str(t))
-    return out
+            scored.append((_item_likes(c), str(t)))
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return [text for _, text in scored[:limit]]
 
 
 def _share_counts(labels: list[str], allowed: list[str]) -> dict[str, float]:
@@ -128,7 +144,7 @@ async def classify_topics(
     texts: list[str],
     packs: list[TopicPack],
     *,
-    batch_size: int = 20,
+    batch_size: int = _CLASSIFY_BATCH_SIZE,
 ) -> dict[str, float]:
     allowed = [p.label for p in packs] + ["Övrigt"]
     if not texts:
@@ -139,9 +155,10 @@ async def classify_topics(
     allowed_set = set(allowed)
     labels: list[str] = [""] * len(texts)
     pack_list = ", ".join(f"'{p.label}'" for p in packs)
+
     for start in range(0, len(texts), batch_size):
         chunk = texts[start : start + batch_size]
-        numbered = "\n".join(f"{i}. {t[:350]}" for i, t in enumerate(chunk))
+        numbered = "\n".join(f"{i}. {t[:_TEXT_CHARS]}" for i, t in enumerate(chunk))
         result = await complete_structured(
             [
                 {
@@ -168,7 +185,7 @@ async def classify_topics(
 async def classify_tones(
     texts: list[str],
     *,
-    batch_size: int = 20,
+    batch_size: int = _CLASSIFY_BATCH_SIZE,
 ) -> tuple[dict[str, float], ToneMode]:
     if not texts:
         return {lab: 0.0 for lab in TONE_LABELS}, "llm"
@@ -176,7 +193,7 @@ async def classify_tones(
     labels: list[str] = [""] * len(texts)
     for start in range(0, len(texts), batch_size):
         chunk = texts[start : start + batch_size]
-        numbered = "\n".join(f"{i}. {t[:350]}" for i, t in enumerate(chunk))
+        numbered = "\n".join(f"{i}. {t[:_TEXT_CHARS]}" for i, t in enumerate(chunk))
         result = await complete_structured(
             [
                 {
@@ -201,7 +218,7 @@ async def classify_tones(
 
 
 async def classify_bundle(bundle: RunBundle) -> BundleClassification:
-    texts = _texts(bundle)
+    texts = _texts_for_classify(bundle)
     packs = await derive_topic_packs(bundle.injection_texts)
     topic_shares = await classify_topics(texts, packs)
     tone_shares, tone_mode = await classify_tones(texts)

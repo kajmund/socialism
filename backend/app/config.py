@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     deepseek_api_key: str = ""
     deepseek_model: str = "deepseek-chat"
     deepseek_base_url: str = "https://api.deepseek.com"
+    # HTTP timeout for DeepSeek calls (seconds). Prevents hung report jobs.
+    deepseek_timeout_seconds: float = 60.0
     # stub = weighted random (tests only); deepseek = call DeepSeek
     persona_generator: PersonaGenerator = "deepseek"
 
