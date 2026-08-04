@@ -1,31 +1,38 @@
-"""Unit tests for report metrics, charts, sanitize, classify, and generate (dry-run)."""
+"""Unit tests for report metrics, charts, sanitize, classify, and generate."""
 
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 
+from app.llm import set_structured_completer
+from app.services.report.agent import (
+    SlotBatchResponse,
+    fill_slot_batch,
+    group_questions_into_batches,
+)
 from app.services.report.bundles import RunBundle
 from app.services.report.charts import prefill_chart_slots, render_agents_html, render_sec02_charts
 from app.services.report.classify import (
     BundleClassification,
     TopicPack,
+    _TopicBatchResponse,
+    _TopicItem,
+    _TopicPackModel,
+    _TopicPacksResponse,
+    _ToneBatchResponse,
+    _ToneItem,
     classify_topics,
-    fallback_topic_packs,
-    tone_shares_heuristic,
-)
-from app.services.report.agent import (
-    SlotBatchResponse,
-    fill_slot_batch,
-    group_questions_into_batches,
+    classify_tones,
+    derive_topic_packs,
 )
 from app.services.report.generate import _load_questions, fill_narrative_slots, generate_report_html
 from app.services.report.metrics import STYLE_UNCLASSIFIED, compute_report_metrics
 from app.services.report.render import apply_slots
 from app.services.report.sanitize import sanitize_slot_output
 from app.services.report.tools import ReportToolBundle, call_tool
-from app.llm import set_structured_completer
 
 
 def _bundle(
@@ -99,54 +106,90 @@ def _bundle(
 
 
 def _clf_for(bundle: RunBundle) -> BundleClassification:
-    packs = fallback_topic_packs(bundle.injection_texts)
-    texts = [
-        str(p.get("content") or "")
+    """Deterministic classification for metrics tests (no LLM)."""
+    packs = [TopicPack(label="Belysning", keywords=["belysning"])]
+    n = sum(
+        1
         for p in [*bundle.posts, *bundle.comments]
-        if p.get("content")
-    ]
+        if p.get("content") or p.get("text")
+    )
+    n = max(n, 1)
     return BundleClassification(
         topic_packs=packs,
-        topic_shares=classify_topics(texts, packs),
-        tone_shares=tone_shares_heuristic(texts),
-        tone_mode="heuristic",
+        topic_shares={"Belysning": 0.75, "Övrigt": 0.25},
+        tone_shares={
+            "Kritisk / uppgiven": 0.25,
+            "Konstruktiv": 0.25,
+            "Positiv / hoppfull": 0.25,
+            "Neutral / oklassad": 0.25,
+        },
+        tone_mode="llm",
     )
 
 
-def test_fallback_topics_belysning_not_aldreomsorg():
-    packs = fallback_topic_packs(
-        [
-            "Socialdemokraterna vill stoppa nedsläckningen av vägbelysning "
-            "i byar. Belysningen är avgörande för tryggheten för barn och äldre."
+async def _mock_classify_llm(messages: list[dict[str, str]], response_model: type[Any]) -> Any:
+    """Route mocked structured completions for classify + narrative."""
+    name = response_model.__name__
+    if name == "_TopicPacksResponse":
+        return _TopicPacksResponse(
+            topics=[
+                _TopicPackModel(label="Belysning", keywords=["belysning", "trygghet"]),
+                _TopicPackModel(label="Trygghet", keywords=["trygghet"]),
+            ]
+        )
+    if name == "_TopicBatchResponse":
+        user = messages[-1]["content"]
+        n = sum(1 for line in user.splitlines() if line[:1].isdigit())
+        return _TopicBatchResponse(
+            items=[_TopicItem(index=i, topic="Belysning" if i % 2 == 0 else "Övrigt") for i in range(n)]
+        )
+    if name == "_ToneBatchResponse":
+        user = messages[-1]["content"]
+        n = sum(1 for line in user.splitlines() if line[:1].isdigit())
+        tones = [
+            "Kritisk / uppgiven",
+            "Konstruktiv",
+            "Positiv / hoppfull",
+            "Neutral / oklassad",
         ]
-    )
-    assert packs
-    assert packs[0].label == "Budskap"
-    assert "belysning" in packs[0].keywords or "vägbelysning" in packs[0].keywords
-    texts = [
-        "Belysningen ska vara kvar i byarna för tryggheten.",
-        "Valfläsk om lampor igen.",
-        "24 grader över hela Sverige.",
-        "Äldreomsorgen behöver mer resurser.",  # should NOT match belysning pack via 'äldre' alone
-    ]
-    # Ensure pack keywords do not include bare 'äldre' as elderly-care topic
-    shares = classify_topics(texts, packs)
-    assert "Äldreomsorg" not in shares
-    assert shares.get("Budskap", 0) > 0
-    assert shares.get("Övrigt", 0) > 0
+        return _ToneBatchResponse(
+            items=[_ToneItem(index=i, tone=tones[i % 4]) for i in range(n)]  # type: ignore[arg-type]
+        )
+    if name == "SlotBatchResponse":
+        content = messages[-1]["content"] if messages else ""
+        slots: dict[str, str] = {}
+        for line in content.splitlines():
+            if line.startswith("- **") and "**:" in line:
+                slot = line.split("**")[1]
+                slots[slot] = f"text för {slot}"
+        return SlotBatchResponse(slots=slots)
+    raise AssertionError(f"Unexpected response_model: {response_model}")
 
 
-def test_tone_heuristic_neutral_default():
-    shares = tone_shares_heuristic(
-        [
-            "Lamporna är släckta i Skarphagen.",
-            "Skandal och valfläsk från politikerna.",
-            "Bra hopp om framtiden.",
+@pytest.mark.asyncio
+async def test_derive_and_classify_via_mocked_llm():
+    set_structured_completer(_mock_classify_llm)
+    try:
+        packs = await derive_topic_packs(
+            [
+                "Socialdemokraterna vill stoppa nedsläckningen av vägbelysning "
+                "i byar. Belysningen är avgörande för tryggheten."
+            ]
+        )
+        assert packs[0].label == "Belysning"
+        texts = [
+            "Belysningen ska vara kvar i byarna.",
+            "Skandal och valfläsk.",
+            "24 grader över hela Sverige.",
         ]
-    )
-    assert shares["Neutral / oklassad"] > 0
-    assert shares["Kritisk / uppgiven"] > 0
-    assert shares["Positiv / hoppfull"] > 0
+        topic_shares = await classify_topics(texts, packs)
+        assert "Belysning" in topic_shares
+        assert "Övrigt" in topic_shares
+        tone_shares, mode = await classify_tones(texts)
+        assert mode == "llm"
+        assert tone_shares["Kritisk / uppgiven"] > 0
+    finally:
+        set_structured_completer(None)
 
 
 def test_style_unclassified_not_personal_default():
@@ -172,7 +215,6 @@ def test_style_unclassified_not_personal_default():
     m = compute_report_metrics([b], [_clf_for(b)])
     by_style = dict(m.aggregate.style_avg_likes)
     assert by_style.get(STYLE_UNCLASSIFIED, 0) > 0
-    # Unmatched texts must not inflate Personlig
     personal = by_style.get("Personlig + hjärtlig berättelse", 0)
     assert personal == 0.0
 
@@ -189,8 +231,9 @@ def test_compute_metrics_single_bundle():
     assert m.n_runs == 1
     assert m.aggregate.agent_count >= 1
     assert m.aggregate.post_count == 2
-    assert "Budskap" in m.aggregate.topic_shares or "Övrigt" in m.aggregate.topic_shares
+    assert "Belysning" in m.aggregate.topic_shares or "Övrigt" in m.aggregate.topic_shares
     assert "Neutral / oklassad" in m.aggregate.tone_shares
+    assert m.tone_mode == "llm"
     assert m.cross_table[0]["label"] == "A"
 
 
@@ -215,7 +258,7 @@ def test_chart_slots_contain_donut_and_hbars():
     ]
     charts = render_sec02_charts(metrics)
     assert "Engagemang" in charts
-    assert "Neutral" in charts or "Heuristisk" in charts
+    assert "LLM" in charts or "Klassad" in charts
 
 
 def test_sanitize_strips_fences_and_chatter():
@@ -294,20 +337,6 @@ def test_sanitize_html_slot_hygiene():
     assert len(lbl) <= 48
 
 
-def test_classify_topics_longest_keyword_wins():
-    packs = [
-        TopicPack(label="Trygghet", keywords=["trygghet", "belysning"]),
-        TopicPack(label="Väder", keywords=["väder"]),
-    ]
-    shares = classify_topics(
-        ["Belysning och trygghet i byn", "Regnväder idag", "Något annat"],
-        packs,
-    )
-    assert shares["Trygghet"] == pytest.approx(1 / 3)
-    assert shares["Väder"] == pytest.approx(1 / 3)
-    assert shares["Övrigt"] == pytest.approx(1 / 3)
-
-
 def test_tools_describe_runs():
     b = _bundle()
     tools = ReportToolBundle([b], compute_report_metrics([b], [_clf_for(b)]))
@@ -336,7 +365,6 @@ def test_group_questions_into_section_batches():
     assert "cover" in names
     assert "infographic" in names
     assert "topics" in names
-    # Far fewer LLM calls than one-per-slot
     assert len(batches) <= 8
     total_slots = sum(len(items) for _, items in batches)
     assert total_slots >= 25
@@ -366,27 +394,14 @@ async def test_fill_slot_batch_structured():
             ],
         )
         assert out["sec04_h2"] == "Belysningen tog över"
-        assert "sec04_explainer_html" not in out  # missing from model → skipped
+        assert "sec04_explainer_html" not in out
     finally:
         set_structured_completer(None)
 
 
 @pytest.mark.asyncio
-async def test_fill_narrative_slots_batches_in_parallel(monkeypatch: pytest.MonkeyPatch):
-    async def fake_structured(messages, response_model):
-        content = messages[-1]["content"] if messages else ""
-        slots: dict[str, str] = {}
-        for line in content.splitlines():
-            if line.startswith("- **") and "**:" in line:
-                slot = line.split("**")[1]
-                slots[slot] = f"text för {slot}"
-        return SlotBatchResponse(slots=slots)
-
-    monkeypatch.setattr(
-        "app.services.report.generate.settings.deepseek_api_key",
-        "test-key",
-    )
-    set_structured_completer(fake_structured)
+async def test_fill_narrative_slots_batches_in_parallel():
+    set_structured_completer(_mock_classify_llm)
     try:
         b = _bundle()
         tools = ReportToolBundle([b], compute_report_metrics([b], [_clf_for(b)]))
@@ -402,38 +417,60 @@ async def test_fill_narrative_slots_batches_in_parallel(monkeypatch: pytest.Monk
 
 
 @pytest.mark.asyncio
-async def test_generate_report_dry_run(tmp_path: Path):
-    html_path, slots_path, slots = await generate_report_html(
-        [_bundle()],
-        out_dir=tmp_path / "rpt",
-        dry_run=True,
-        title="Test",
-    )
-    assert html_path.is_file()
-    assert slots_path.is_file()
-    html = html_path.read_text(encoding="utf-8")
-    assert "Opinionssimulator" in html or "Simuleringsrapport" in html
-    assert "donut" in html or "pyramid" in html or "info-kpi" in html
-    assert slots["page_title"]
-    assert "infographic_grid_html" in slots
-    assert "Äldreomsorg" not in slots.get("meta_topics", "")
-    assert "Budskap" in slots.get("meta_topics", "") or "Övrigt" in slots.get(
-        "meta_topics", ""
-    )
+async def test_generate_report_with_mocked_llm(tmp_path: Path):
+    set_structured_completer(_mock_classify_llm)
+    try:
+        html_path, slots_path, slots = await generate_report_html(
+            [_bundle()],
+            out_dir=tmp_path / "rpt",
+            dry_run=False,
+            title="Test",
+        )
+        assert html_path.is_file()
+        assert slots_path.is_file()
+        html = html_path.read_text(encoding="utf-8")
+        assert "Opinionssimulator" in html or "Simuleringsrapport" in html or "Test" in html
+        assert "donut" in html or "pyramid" in html or "info-kpi" in html
+        assert slots["page_title"]
+        assert "infographic_grid_html" in slots
+        assert "Belysning" in slots.get("meta_topics", "")
+    finally:
+        set_structured_completer(None)
+
+
+@pytest.mark.asyncio
+async def test_generate_report_dry_run_skips_narrative_but_classifies(tmp_path: Path):
+    set_structured_completer(_mock_classify_llm)
+    try:
+        _html_path, _slots_path, slots = await generate_report_html(
+            [_bundle()],
+            out_dir=tmp_path / "rpt_dry",
+            dry_run=True,
+            title="Dry",
+        )
+        # dry_run skips narrative LLM; classification still runs via mock
+        assert "Belysning" in slots.get("meta_topics", "")
+        assert slots["page_title"]
+    finally:
+        set_structured_completer(None)
 
 
 @pytest.mark.asyncio
 async def test_generate_report_escapes_hostile_title(tmp_path: Path):
-    hostile = '</title><script>alert("xss")</script><title>'
-    html_path, _slots_path, slots = await generate_report_html(
-        [_bundle(label="Run <img src=x onerror=alert(1)>")],
-        out_dir=tmp_path / "rpt_xss",
-        dry_run=True,
-        title=hostile,
-    )
-    html = html_path.read_text(encoding="utf-8")
-    assert slots["page_title"] == hostile
-    assert "<script>" not in html
-    assert "<img " not in html
-    assert "&lt;/title&gt;&lt;script&gt;" in html
-    assert "&lt;img src=x onerror=alert(1)&gt;" in html
+    set_structured_completer(_mock_classify_llm)
+    try:
+        hostile = '</title><script>alert("xss")</script><title>'
+        html_path, _slots_path, slots = await generate_report_html(
+            [_bundle(label="Run <img src=x onerror=alert(1)>")],
+            out_dir=tmp_path / "rpt_xss",
+            dry_run=True,
+            title=hostile,
+        )
+        html = html_path.read_text(encoding="utf-8")
+        assert slots["page_title"] == hostile
+        assert "<script>" not in html
+        assert "<img " not in html
+        assert "&lt;/title&gt;&lt;script&gt;" in html
+        assert "&lt;img src=x onerror=alert(1)&gt;" in html
+    finally:
+        set_structured_completer(None)

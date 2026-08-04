@@ -9,7 +9,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from app.config import settings
 from app.services.report.agent import (
     fill_slot_batch,
     group_questions_into_batches,
@@ -95,7 +94,7 @@ def narrative_defaults(metrics_slots: dict[str, str], bundles: list[RunBundle]) 
         "cover_box2_html": (
             "Jämför budskapsstil och likes mellan Version A och B i diagrammen."
             if ab
-            else "Se budskapsstil-sektionen för heuristisk ranking efter likes."
+            else "Se budskapsstil-sektionen för ranking efter likes."
         ),
         "cover_box3_lbl": "Vad vi testade",
         "cover_box3_html": (
@@ -124,7 +123,7 @@ def narrative_defaults(metrics_slots: dict[str, str], bundles: list[RunBundle]) 
             )
         ),
         "info_conc_1_html": "<strong>Engagemang koncentrerat</strong> — få röster bar majoriteten av likes.",
-        "info_conc_2_html": "<strong>Heuristik</strong> — stilranking bygger på nyckelord, inte manuell kodning.",
+        "info_conc_2_html": "<strong>Ton och ämne</strong> — klassade med LLM per kommentar.",
         "info_conc_3_html": "<strong>Begränsning</strong> — för få körningar för formell statistik.",
         "sec01_intro": (
             "Vi använde ett simuleringsverktyg där AI-agenter debatterar som vanliga medborgare "
@@ -158,7 +157,7 @@ def narrative_defaults(metrics_slots: dict[str, str], bundles: list[RunBundle]) 
             "<h3>Gini för likes</h3>"
             "<p>Högre värde betyder starkare koncentration.</p></div>"
         ),
-        "sec03_intro": "Vi grupperade texter heuristiskt efter kommunikationsstil och jämförde snittlikes.",
+        "sec03_intro": "Vi grupperade texter efter kommunikationsstil och jämförde snittlikes.",
         "sec03_findings_html": (
             '<div class="fc pos"><h3>Konkret kritik</h3>'
             "<p>Texter med siffror och skarp iakttagelse tenderar att få mer stöd.</p></div>"
@@ -166,7 +165,7 @@ def narrative_defaults(metrics_slots: dict[str, str], bundles: list[RunBundle]) 
             "<p>Kontrollera stilranking — provocerande språk får ofta lågt engagemang.</p></div>"
         ),
         "sec04_h2": "Ämnesfokus i debatten",
-        "sec04_intro": "Ämnesandelar bygger på nyckelord i inlägg och kommentarer.",
+        "sec04_intro": "Ämnesandelar bygger på LLM-klassning av inlägg och kommentarer.",
         "sec04_explainer_html": (
             "<strong>Vad betyder detta?</strong> Om ett sidospår dominerar kan huvudbudskapet "
             "behöva göras mer konkret och personligt."
@@ -183,7 +182,7 @@ async def fill_narrative_slots(
     questions: list[dict[str, Any]],
     dry_run: bool,
 ) -> dict[str, str]:
-    if dry_run or not settings.deepseek_api_key:
+    if dry_run:
         return {}
 
     digest = metrics_digest(tools)
@@ -222,8 +221,7 @@ async def generate_report_html(
 ) -> tuple[Path, Path, dict[str, str]]:
     """Write report.html + slots.json under out_dir. Returns (html_path, slots_path, slots)."""
     out_dir.mkdir(parents=True, exist_ok=True)
-    use_llm = (not dry_run) and bool(settings.deepseek_api_key)
-    classifications = await classify_bundles(bundles, use_llm=use_llm)
+    classifications = await classify_bundles(bundles)
     metrics = compute_report_metrics(bundles, classifications)
     chart_slots = prefill_chart_slots(metrics)
     tools = ReportToolBundle(bundles, metrics)

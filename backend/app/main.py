@@ -14,6 +14,9 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    if not settings.deepseek_api_key.strip():
+        raise RuntimeError("DEEPSEEK_API_KEY is required")
+    settings.apply_oasis_env()
     factory = jobs_service.job_session_factory()
     try:
         async with factory() as session:
@@ -25,6 +28,8 @@ async def lifespan(_app: FastAPI):
 
 
 def create_app() -> FastAPI:
+    if not settings.deepseek_api_key.strip():
+        raise RuntimeError("DEEPSEEK_API_KEY is required")
     app = FastAPI(title="Opinionssimulator", version="0.1.0", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,

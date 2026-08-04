@@ -27,9 +27,7 @@ def _topic_color(label: str, index: int) -> str:
 
 
 def _tone_subtitle(metrics: ReportMetrics) -> str:
-    if metrics.tone_mode == "llm":
-        return "Klassad per kommentar (LLM)"
-    return "Heuristisk fallback (Neutral om ingen träff)"
+    return "Klassad per kommentar (LLM)"
 
 
 def _badge_html(kind: str, n: int) -> str:
