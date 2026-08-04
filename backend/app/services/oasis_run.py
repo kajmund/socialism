@@ -32,7 +32,10 @@ from app.services.oasis_profiles import (
     write_reddit_profile_json,
     write_twitter_profile_csv,
 )
-from app.services.oasis_swedish import apply_swedish_social_environment_prompts
+from app.services.oasis_swedish import (
+    apply_swedish_social_environment_prompts,
+    set_oasis_user_display_names,
+)
 from app.services.run_measurements import build_measurements
 
 ARTIFACT_ROOT = Path("data/oasis")
@@ -484,6 +487,10 @@ async def run_oasis_simulation(
         area_blocks=area_blocks,
         allow_create_post=allow_create,
         platform=platform,
+    )
+    # OASIS feed only exposes user_id; map to member names for correct attribution.
+    set_oasis_user_display_names(
+        {i: p.member_name for i, p in enumerate(profiles)}
     )
     population_indices = {i for i, p in enumerate(profiles) if p.role == "population"}
     if not population_indices:
