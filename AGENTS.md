@@ -67,6 +67,24 @@ A single settings module is the source of truth for environment per service (`ba
 
 Fail fast on startup if required config is missing. No silent fallbacks that hide real config errors.
 
+## Project tracking (Trello)
+
+When creating or updating tasks for this repo via Trello MCP, **always use this board** (do not invent another):
+
+- **Name:** Socialism
+- **URL:** https://trello.com/b/BT9e2tNf/socialism
+- **Board ID:** `6a71aeccf10fb662906cfe94`
+- **Short link:** `BT9e2tNf`
+
+Set it as the active board (`set_active_board`) before list/card operations if the tool requires a default.
+
+**Every new card must include a description** with:
+
+1. **Vad** — en mening om vad det handlar om
+2. **Att göra** — korta punkter om vad som behöver göras
+
+Do not create title-only cards.
+
 ## Code style (universal)
 
 - **Small, obvious functions.** A 15-line function with clear names beats a three-class abstraction.
