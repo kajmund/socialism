@@ -69,7 +69,8 @@ def test_build_user_char_includes_profile_and_swedish_instruction():
     assert "Temperament" in text
     assert "invändning" in text
     assert "nämna andra personer" in text
-    assert "Håller med Linda" in text
+    assert "author_first_name" in text
+    assert "Som Erik säger" not in text
     assert "Kommentar 3" in text  # still banned as numbered ref
 
 

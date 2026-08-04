@@ -8,6 +8,54 @@ from __future__ import annotations
 
 import json
 from string import Template
+from typing import Any
+
+# user_id (same as agent index in our runs) → display name for feed enrichment.
+_USER_DISPLAY_NAMES: dict[int, str] = {}
+
+
+def set_oasis_user_display_names(mapping: dict[int, str]) -> None:
+    """Map OASIS user_id to human-readable names shown in the agent feed."""
+    global _USER_DISPLAY_NAMES
+    _USER_DISPLAY_NAMES = {int(k): v for k, v in mapping.items()}
+
+
+def _first_name(display_name: str) -> str:
+    token = display_name.strip().split()[0] if display_name.strip() else display_name
+    return token
+
+
+def enrich_feed_posts(posts: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Add author_name to posts/comments so agents can attribute speech correctly."""
+    if not _USER_DISPLAY_NAMES:
+        return posts
+    enriched: list[dict[str, Any]] = []
+    for post in posts:
+        row = dict(post)
+        uid = row.get("user_id")
+        if uid is not None:
+            display = _USER_DISPLAY_NAMES.get(int(uid))
+            if display:
+                row["author_name"] = display
+                row["author_first_name"] = _first_name(display)
+        comments = row.get("comments")
+        if isinstance(comments, list):
+            row["comments"] = [
+                _enrich_comment(comment) for comment in comments
+            ]
+        enriched.append(row)
+    return enriched
+
+
+def _enrich_comment(comment: dict[str, Any]) -> dict[str, Any]:
+    row = dict(comment)
+    uid = row.get("user_id")
+    if uid is not None:
+        display = _USER_DISPLAY_NAMES.get(int(uid))
+        if display:
+            row["author_name"] = display
+            row["author_first_name"] = _first_name(display)
+    return row
 
 
 def apply_swedish_social_environment_prompts() -> None:
@@ -18,7 +66,9 @@ def apply_swedish_social_environment_prompts() -> None:
     se.followers_env_template = Template("Jag har $num_followers följare.")
     se.follows_env_template = Template("Jag har $num_follows följningar.")
     se.posts_env_template = Template(
-        "Efter uppdatering ser du följande inlägg: $posts"
+        "Efter uppdatering ser du följande inlägg. "
+        "Varje inlägg och kommentar har author_name (visningsnamn) — "
+        "använd det om du refererar till avsändaren, inte user_id: $posts"
     )
     se.groups_env_template = Template(
         "Det finns gruppkanaler: $all_groups\n"
@@ -44,7 +94,8 @@ def apply_swedish_social_environment_prompts() -> None:
     async def get_posts_env_sv(self):
         posts = await self.action.refresh()
         if posts["success"]:
-            posts_env = json.dumps(posts["posts"], indent=4)
+            feed = enrich_feed_posts(posts["posts"])
+            posts_env = json.dumps(feed, indent=4, ensure_ascii=False)
             posts_env = self.posts_env_template.substitute(posts=posts_env)
         else:
             posts_env = "Efter uppdatering finns inga inlägg att visa."
