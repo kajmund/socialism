@@ -22,6 +22,7 @@ from app.services.report.agent import (
 )
 from app.services.report.generate import _load_questions, fill_narrative_slots, generate_report_html
 from app.services.report.metrics import STYLE_UNCLASSIFIED, compute_report_metrics
+from app.services.report.render import apply_slots
 from app.services.report.sanitize import sanitize_slot_output
 from app.services.report.tools import ReportToolBundle, call_tool
 from app.llm import set_structured_completer
@@ -220,7 +221,8 @@ def test_chart_slots_contain_donut_and_hbars():
 def test_sanitize_strips_fences_and_chatter():
     raw = "```html\nLåt mig tänka\n<p>Hej</p>\n```"
     assert sanitize_slot_output("cover_box1_html", raw) == "<p>Hej</p>"
-    assert "<strong>fet</strong>" in sanitize_slot_output("sec02_intro", "text **fet** här")
+    # Text slots keep prose only (escaped later at render) — no injected tags.
+    assert sanitize_slot_output("sec02_intro", "text **fet** här") == "text fet här"
 
 
 def test_sanitize_converts_markdown_bold_in_html_slots():
@@ -237,6 +239,29 @@ def test_sanitize_strips_markdown_from_title_slots():
     out = sanitize_slot_output("sec04_h2", "**Ämnesdrift/agenda:** Kort rubrik.")
     assert "**" not in out
     assert out.startswith("Ämnesdrift/agenda:")
+
+
+def test_sanitize_strips_script_from_html_slots():
+    raw = '<p>Hej</p><script>alert(1)</script><div class="fc neu" onclick="x()">ok</div>'
+    out = sanitize_slot_output("sec02_findings_html", raw)
+    assert "<script" not in out.lower()
+    assert "onclick" not in out.lower()
+    assert "<p>Hej</p>" in out
+    assert 'class="fc neu"' in out
+
+
+def test_apply_slots_escapes_text_but_keeps_html_slots():
+    html = "<title>@@SLOT_page_title@@</title><div>@@SLOT_body_html@@</div>"
+    out = apply_slots(
+        html,
+        {
+            "page_title": "</title><script>alert(1)</script><title>",
+            "body_html": "<p>ok</p>",
+        },
+    )
+    assert "<script>" not in out
+    assert "&lt;/title&gt;&lt;script&gt;alert(1)&lt;/script&gt;&lt;title&gt;" in out
+    assert "<p>ok</p>" in out
 
 
 def test_sanitize_html_slot_hygiene():
@@ -395,3 +420,20 @@ async def test_generate_report_dry_run(tmp_path: Path):
     assert "Budskap" in slots.get("meta_topics", "") or "Övrigt" in slots.get(
         "meta_topics", ""
     )
+
+
+@pytest.mark.asyncio
+async def test_generate_report_escapes_hostile_title(tmp_path: Path):
+    hostile = '</title><script>alert("xss")</script><title>'
+    html_path, _slots_path, slots = await generate_report_html(
+        [_bundle(label="Run <img src=x onerror=alert(1)>")],
+        out_dir=tmp_path / "rpt_xss",
+        dry_run=True,
+        title=hostile,
+    )
+    html = html_path.read_text(encoding="utf-8")
+    assert slots["page_title"] == hostile
+    assert "<script>" not in html
+    assert "<img " not in html
+    assert "&lt;/title&gt;&lt;script&gt;" in html
+    assert "&lt;img src=x onerror=alert(1)&gt;" in html
