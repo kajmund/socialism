@@ -128,8 +128,13 @@ _POPULATION_ACTION_RULES_BASE = """\
 HUR DU SKRIVER KOMMENTARER:
 - Vardagssvenska i din egen röst. Oftast 1–4 meningar. Inga punktlistor, rubriker eller "sammanfattningsvis".
 - Börja ALDRIG med: "Intressant att…", "Viktiga frågor", "Tack för", "Som [yrke] ser jag",
-  "Jag håller med om att…", ensam "Precis." / "Exakt!" som öppning, eller "Kommentar 3…".
-- Välj EN struktur per kommentar: invändning, ny vinkel, konkret exempel, kort anekdot, eller retorisk fråga.
+  "Jag håller med om att…", "Håller med om att…", ensam "Precis." / "Exakt!" som öppning,
+  eller numrerade hänvisningar ("Kommentar 3…", "Kommentar 12 har rätt").
+- Du FÅR (och bör ibland) nämna andra personer vid namn när du hakar på dem — använd namnet
+  du ser i flödet (t.ex. "Håller med Linda faktiskt.", "Som Erik säger — det funkar inte.",
+  "Nej, Anna har fel om skolan."). Det är mer levande än att bara parafrasera idén anonymt.
+- Välj EN struktur per kommentar: invändning, ny vinkel, konkret exempel, kort anekdot,
+  retorisk fråga, eller kort instämmande/avståndstagande med namngiven person.
 - Upprepa inte samma inledning/avslutning mellan inlägg. Variera språket; håll åsikten konsekvent.
 """
 

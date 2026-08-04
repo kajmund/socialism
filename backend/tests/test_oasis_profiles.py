@@ -68,6 +68,9 @@ def test_build_user_char_includes_profile_and_swedish_instruction():
     assert "gilla INTE" in text
     assert "Temperament" in text
     assert "invändning" in text
+    assert "nämna andra personer" in text
+    assert "Håller med Linda" in text
+    assert "Kommentar 3" in text  # still banned as numbered ref
 
 
 def test_write_reddit_profile_json_includes_gender_and_persona(tmp_path):
