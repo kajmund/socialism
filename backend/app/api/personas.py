@@ -9,7 +9,6 @@ from sqlalchemy.orm import selectinload
 from app.config import settings
 from app.database.models import Persona, PersonaMessage, Population, PopulationMember
 from app.database.session import get_session
-from app.llm import __dict__ as llm_state
 from app.llm.chat import reply_as_persona
 from app.llm.persona_gen import llm_personas_from_description
 from app.schemas.domain import (
@@ -161,12 +160,12 @@ async def generate_personas(
     body: PersonaGenerateRequest,
     session: AsyncSession = Depends(get_session),
 ) -> PersonaGenerateResponse:
-    if settings.persona_generator == "stub" or not settings.deepseek_api_key:
+    if settings.persona_generator == "stub":
         return PersonaGenerateResponse(candidates=_stub_candidates(body))
     if not settings.uses_llm_generator():
         raise HTTPException(
             status_code=503,
-            detail="DeepSeek is not configured (set DEEPSEEK_API_KEY or PERSONA_GENERATOR=stub)",
+            detail="PERSONA_GENERATOR must be deepseek or stub",
         )
     demografi = body.demografi if body.mode == "demografi" else None
     candidates = await llm_personas_from_description(
@@ -302,27 +301,14 @@ async def chat_with_persona(
     )
     history = [(row.role, row.content) for row in history_rows.scalars().all()]
 
-    has_llm = bool(settings.deepseek_api_key)
-    has_injected = llm_state.get("_text_completer") is not None
-    if has_llm or has_injected:
-        area_block = await area_block_for_name(session, profile.ort or persona.district)
-        reply = await reply_as_persona(
-            profile,
-            body.mode,
-            history,
-            body.message,
-            area_block=area_block,
-        )
-    elif settings.persona_generator == "stub":
-        reply = (
-            f"Som {profile.name} i {profile.ort}: det handlar om konkreta besked, "
-            f"inte fler löften. ({body.mode})"
-        )
-    else:
-        raise HTTPException(
-            status_code=503,
-            detail="DeepSeek is not configured (set DEEPSEEK_API_KEY)",
-        )
+    area_block = await area_block_for_name(session, profile.ort or persona.district)
+    reply = await reply_as_persona(
+        profile,
+        body.mode,
+        history,
+        body.message,
+        area_block=area_block,
+    )
 
     user_row = PersonaMessage(
         persona_id=persona_id,

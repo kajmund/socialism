@@ -1,88 +1,15 @@
-"""Topic packs from injections + tone classification (LLM with heuristic fallback)."""
+"""Topic packs + tone classification via LLM (no keyword/heuristic fallback)."""
 
 from __future__ import annotations
 
-import logging
-import re
 from collections import Counter
 from dataclasses import dataclass, field
 from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from app.config import settings
 from app.llm import complete_structured
 from app.services.report.bundles import RunBundle
-
-logger = logging.getLogger(__name__)
-
-_WORD_RE = re.compile(r"[a-zåäöA-ZÅÄÖ0-9%]+")
-
-_STOPWORDS: frozenset[str] = frozenset(
-    {
-        "och",
-        "att",
-        "det",
-        "som",
-        "för",
-        "med",
-        "på",
-        "av",
-        "en",
-        "ett",
-        "den",
-        "de",
-        "är",
-        "till",
-        "inte",
-        "om",
-        "har",
-        "ska",
-        "kan",
-        "vi",
-        "ni",
-        "jag",
-        "man",
-        "var",
-        "vad",
-        "när",
-        "eller",
-        "från",
-        "utan",
-        "också",
-        "vara",
-        "bli",
-        "blir",
-        "över",
-        "under",
-        "efter",
-        "innan",
-        "denna",
-        "detta",
-        "dessa",
-        "alla",
-        "mer",
-        "mycket",
-        "hela",
-        "sverige",
-        "socialdemokraterna",
-        "äldre",
-        "barn",
-        "unga",
-        "folk",
-        "viktig",
-        "avgörande",
-        "stoppa",
-        "vill",
-        "http",
-        "https",
-        "www",
-    }
-)
-
-TONE_CRITICAL = ("kritisk", "uselt", "dåligt", "misslyck", "skandal", "strunt", "skärp", "valfläsk")
-TONE_CONSTRUCTIVE = ("borde", "förslag", "lösning", "kan vi", "bättre om", "konkret")
-TONE_POSITIVE = ("bra", "hopp", "positiv", "framåt", "glad", "tack")
 
 TONE_LABELS: tuple[str, ...] = (
     "Kritisk / uppgiven",
@@ -91,13 +18,13 @@ TONE_LABELS: tuple[str, ...] = (
     "Neutral / oklassad",
 )
 
-ToneMode = Literal["llm", "heuristic"]
+ToneMode = Literal["llm"]
 
 
 @dataclass
 class TopicPack:
     label: str
-    keywords: list[str]
+    keywords: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -105,16 +32,25 @@ class BundleClassification:
     topic_packs: list[TopicPack] = field(default_factory=list)
     topic_shares: dict[str, float] = field(default_factory=dict)
     tone_shares: dict[str, float] = field(default_factory=dict)
-    tone_mode: ToneMode = "heuristic"
+    tone_mode: ToneMode = "llm"
 
 
 class _TopicPackModel(BaseModel):
     label: str = Field(min_length=1, max_length=60)
-    keywords: list[str] = Field(min_length=1, max_length=16)
+    keywords: list[str] = Field(default_factory=list, max_length=16)
 
 
 class _TopicPacksResponse(BaseModel):
     topics: list[_TopicPackModel] = Field(min_length=1, max_length=4)
+
+
+class _TopicItem(BaseModel):
+    index: int
+    topic: str
+
+
+class _TopicBatchResponse(BaseModel):
+    items: list[_TopicItem]
 
 
 class _ToneItem(BaseModel):
@@ -144,154 +80,131 @@ def _texts(bundle: RunBundle) -> list[str]:
     return out
 
 
-def fallback_topic_packs(injection_texts: list[str]) -> list[TopicPack]:
-    counts: Counter[str] = Counter()
-    for text in injection_texts:
-        for w in _WORD_RE.findall(text.lower()):
-            if len(w) >= 4 and w not in _STOPWORDS:
-                counts[w] += 1
-    keywords = [w for w, _ in counts.most_common(12)]
-    if not keywords:
-        return []
-    return [TopicPack(label="Budskap", keywords=keywords)]
+def _share_counts(labels: list[str], allowed: list[str]) -> dict[str, float]:
+    counts: Counter[str] = Counter({lab: 0 for lab in allowed})
+    for lab in labels:
+        counts[lab if lab in counts else allowed[-1]] += 1
+    total = sum(counts.values()) or 1
+    return {lab: counts[lab] / total for lab in allowed}
 
 
-async def derive_topic_packs(
-    injection_texts: list[str],
-    *,
-    use_llm: bool,
-) -> list[TopicPack]:
+async def derive_topic_packs(injection_texts: list[str]) -> list[TopicPack]:
     if not injection_texts:
         return []
-    if not use_llm:
-        return fallback_topic_packs(injection_texts)
 
     blob = "\n---\n".join(t[:800] for t in injection_texts[:8])
-    try:
+    result = await complete_structured(
+        [
+            {
+                "role": "system",
+                "content": (
+                    "Du härleder ämnesetiketter för en svensk politisk debattsimulering. "
+                    "Returnera 2–4 ämnen med korta svenska etiketter som fångar "
+                    "injektionernas innehåll. Undvik generiska partinamn ensamma. "
+                    "keywords är valfria hjälpord (behövs inte för klassning)."
+                ),
+            },
+            {
+                "role": "user",
+                "content": f"Injektionstexter:\n{blob}",
+            },
+        ],
+        _TopicPacksResponse,
+    )
+    packs = [
+        TopicPack(
+            label=t.label.strip(),
+            keywords=[k.strip().lower() for k in t.keywords if k.strip()],
+        )
+        for t in result.topics
+        if t.label.strip()
+    ]
+    if not packs:
+        raise RuntimeError("LLM returned no topic packs for injections")
+    return packs
+
+
+async def classify_topics(
+    texts: list[str],
+    packs: list[TopicPack],
+    *,
+    batch_size: int = 20,
+) -> dict[str, float]:
+    allowed = [p.label for p in packs] + ["Övrigt"]
+    if not texts:
+        return {lab: 0.0 for lab in allowed}
+    if not packs:
+        return {"Övrigt": 1.0}
+
+    allowed_set = set(allowed)
+    labels: list[str] = [""] * len(texts)
+    pack_list = ", ".join(f"'{p.label}'" for p in packs)
+    for start in range(0, len(texts), batch_size):
+        chunk = texts[start : start + batch_size]
+        numbered = "\n".join(f"{i}. {t[:350]}" for i, t in enumerate(chunk))
         result = await complete_structured(
             [
                 {
                     "role": "system",
                     "content": (
-                        "Du härleder ämnesetiketter för en svensk politisk debattsimulering. "
-                        "Returnera 2–4 ämnen med svenska nyckelord (lowercase substring) "
-                        "som fångar injektionernas innehåll. Undvik generiska partinamn ensamma."
+                        "Klassificera varje svensk kommentar/inlägg efter ämne. "
+                        f"Tillåtna värden: {pack_list}, eller 'Övrigt'. "
+                        "Välj efter mening och kontext — inte enbart nyckelord. "
+                        "Sarkasm och omskrivningar räknas till det ämne de egentligen handlar om. "
+                        "Returnera index 0..n-1 för batchen."
                     ),
                 },
-                {
-                    "role": "user",
-                    "content": f"Injektionstexter:\n{blob}",
-                },
+                {"role": "user", "content": numbered},
             ],
-            _TopicPacksResponse,
+            _TopicBatchResponse,
         )
-        packs = [
-            TopicPack(
-                label=t.label.strip(),
-                keywords=[k.strip().lower() for k in t.keywords if k.strip()],
-            )
-            for t in result.topics
-            if t.label.strip() and any(k.strip() for k in t.keywords)
-        ]
-        return packs or fallback_topic_packs(injection_texts)
-    except Exception:
-        logger.exception("derive_topic_packs LLM failed; using fallback")
-        return fallback_topic_packs(injection_texts)
-
-
-def classify_topics(texts: list[str], packs: list[TopicPack]) -> dict[str, float]:
-    labels = [p.label for p in packs] + ["Övrigt"]
-    counts: Counter[str] = Counter({lab: 0 for lab in labels})
-    if not texts:
-        return {lab: 0.0 for lab in labels}
-
-    for text in texts:
-        low = text.lower()
-        best: tuple[int, str] | None = None
-        for pack in packs:
-            for kw in pack.keywords:
-                if kw and kw in low:
-                    cand = (len(kw), pack.label)
-                    if best is None or cand[0] > best[0]:
-                        best = cand
-        counts[best[1] if best else "Övrigt"] += 1
-
-    total = sum(counts.values()) or 1
-    return {lab: counts[lab] / total for lab in labels}
-
-
-def tone_shares_heuristic(texts: list[str]) -> dict[str, float]:
-    counts = Counter({lab: 0 for lab in TONE_LABELS})
-    for text in texts:
-        low = text.lower()
-        if any(w in low for w in TONE_CRITICAL):
-            counts["Kritisk / uppgiven"] += 1
-        elif any(w in low for w in TONE_CONSTRUCTIVE):
-            counts["Konstruktiv"] += 1
-        elif any(w in low for w in TONE_POSITIVE):
-            counts["Positiv / hoppfull"] += 1
-        else:
-            counts["Neutral / oklassad"] += 1
-    total = sum(counts.values()) or 1
-    return {lab: counts[lab] / total for lab in TONE_LABELS}
+        by_idx = {item.index: item.topic for item in result.items}
+        for i in range(len(chunk)):
+            raw = by_idx.get(i, "Övrigt")
+            labels[start + i] = raw if raw in allowed_set else "Övrigt"
+    return _share_counts(labels, allowed)
 
 
 async def classify_tones(
     texts: list[str],
     *,
-    use_llm: bool,
     batch_size: int = 20,
 ) -> tuple[dict[str, float], ToneMode]:
     if not texts:
-        return {lab: 0.0 for lab in TONE_LABELS}, "heuristic"
-    if not use_llm:
-        return tone_shares_heuristic(texts), "heuristic"
+        return {lab: 0.0 for lab in TONE_LABELS}, "llm"
 
     labels: list[str] = [""] * len(texts)
-    try:
-        for start in range(0, len(texts), batch_size):
-            chunk = texts[start : start + batch_size]
-            numbered = "\n".join(f"{i}. {t[:350]}" for i, t in enumerate(chunk))
-            result = await complete_structured(
-                [
-                    {
-                        "role": "system",
-                        "content": (
-                            "Klassificera varje svensk kommentar/inlägg efter ton. "
-                            "Tillåtna värden: "
-                            "'Kritisk / uppgiven', 'Konstruktiv', "
-                            "'Positiv / hoppfull', 'Neutral / oklassad'. "
-                            "Sarkasm, valfläsk-misstro och skarp kritik = Kritisk / uppgiven. "
-                            "Returnera index 0..n-1 för batchen."
-                        ),
-                    },
-                    {"role": "user", "content": numbered},
-                ],
-                _ToneBatchResponse,
-            )
-            by_idx = {item.index: item.tone for item in result.items}
-            for i in range(len(chunk)):
-                labels[start + i] = by_idx.get(i, "Neutral / oklassad")
-        counts = Counter({lab: 0 for lab in TONE_LABELS})
-        for lab in labels:
-            counts[lab if lab in counts else "Neutral / oklassad"] += 1
-        total = sum(counts.values()) or 1
-        return {lab: counts[lab] / total for lab in TONE_LABELS}, "llm"
-    except Exception:
-        logger.exception("classify_tones LLM failed; using heuristic")
-        return tone_shares_heuristic(texts), "heuristic"
+    for start in range(0, len(texts), batch_size):
+        chunk = texts[start : start + batch_size]
+        numbered = "\n".join(f"{i}. {t[:350]}" for i, t in enumerate(chunk))
+        result = await complete_structured(
+            [
+                {
+                    "role": "system",
+                    "content": (
+                        "Klassificera varje svensk kommentar/inlägg efter ton. "
+                        "Tillåtna värden: "
+                        "'Kritisk / uppgiven', 'Konstruktiv', "
+                        "'Positiv / hoppfull', 'Neutral / oklassad'. "
+                        "Sarkasm, valfläsk-misstro och skarp kritik = Kritisk / uppgiven. "
+                        "Returnera index 0..n-1 för batchen."
+                    ),
+                },
+                {"role": "user", "content": numbered},
+            ],
+            _ToneBatchResponse,
+        )
+        by_idx = {item.index: item.tone for item in result.items}
+        for i in range(len(chunk)):
+            labels[start + i] = by_idx.get(i, "Neutral / oklassad")
+    return _share_counts(labels, list(TONE_LABELS)), "llm"
 
 
-async def classify_bundle(
-    bundle: RunBundle,
-    *,
-    use_llm: bool | None = None,
-) -> BundleClassification:
-    llm = bool(settings.deepseek_api_key) if use_llm is None else use_llm
+async def classify_bundle(bundle: RunBundle) -> BundleClassification:
     texts = _texts(bundle)
-    packs = await derive_topic_packs(bundle.injection_texts, use_llm=llm)
-    topic_shares = classify_topics(texts, packs)
-    tone_shares, tone_mode = await classify_tones(texts, use_llm=llm)
+    packs = await derive_topic_packs(bundle.injection_texts)
+    topic_shares = await classify_topics(texts, packs)
+    tone_shares, tone_mode = await classify_tones(texts)
     return BundleClassification(
         topic_packs=packs,
         topic_shares=topic_shares,
@@ -300,12 +213,8 @@ async def classify_bundle(
     )
 
 
-async def classify_bundles(
-    bundles: list[RunBundle],
-    *,
-    use_llm: bool | None = None,
-) -> list[BundleClassification]:
-    return [await classify_bundle(b, use_llm=use_llm) for b in bundles]
+async def classify_bundles(bundles: list[RunBundle]) -> list[BundleClassification]:
+    return [await classify_bundle(b) for b in bundles]
 
 
 def meta_topics_line(classifications: list[BundleClassification]) -> str:

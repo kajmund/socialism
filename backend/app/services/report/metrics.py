@@ -45,7 +45,7 @@ class ReportMetrics:
     bundles: list[BundleMetrics]
     aggregate: BundleMetrics
     cross_table: list[dict[str, Any]]
-    tone_mode: str = "heuristic"
+    tone_mode: str = "llm"
 
 
 def _likes(item: dict[str, Any]) -> int:
@@ -182,7 +182,7 @@ def _empty_classification() -> BundleClassification:
     return BundleClassification(
         topic_shares={"Övrigt": 1.0},
         tone_shares={lab: 0.0 for lab in TONE_LABELS},
-        tone_mode="heuristic",
+        tone_mode="llm",
     )
 
 
@@ -219,7 +219,7 @@ def compute_report_metrics(
         raise ValueError("classifications length must match bundles")
     clfs = classifications or [_empty_classification() for _ in bundles]
     per = [compute_bundle_metrics(b, c) for b, c in zip(bundles, clfs, strict=True)]
-    tone_mode = "llm" if any(c.tone_mode == "llm" for c in clfs) else "heuristic"
+    tone_mode = "llm"
 
     if len(per) == 1:
         agg = per[0]
