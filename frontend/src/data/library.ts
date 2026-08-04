@@ -36,6 +36,14 @@ export function formatLibraryDate(d: string): string {
   return new Date(d).toLocaleDateString("sv-SE", { day: "numeric", month: "short" })
 }
 
+export function personaAnekdot(
+  profile: Pick<EditablePersona, "anekdot">,
+): string | null {
+  const value = profile.anekdot?.trim()
+  if (!value || value === "—") return null
+  return value
+}
+
 export function blankEditablePersona(): EditablePersona {
   return {
     name: "Namnlös persona",
@@ -54,6 +62,7 @@ export function blankEditablePersona(): EditablePersona {
     medievanor: "—",
     parti: "—",
     valdeltagande: "—",
+    anekdot: "—",
   }
 }
 

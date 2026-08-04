@@ -32,6 +32,7 @@ export default function App() {
 
       <Route path="/messages" element={<MessagesPage />} />
       <Route path="/messages/new" element={<MessagesWorkshopPage />} />
+      <Route path="/messages/:id/edit" element={<MessagesWorkshopPage />} />
 
       <Route path="/config" element={<ConfigurationPage />} />
       <Route path="/jobs" element={<JobsPage />} />
