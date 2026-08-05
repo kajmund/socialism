@@ -79,6 +79,18 @@ Dual visual system (do not collapse):
 
 Use `api.get/post/put/patch/delete` from `@/lib/api` (base URL, JSON, typed `ApiError`). Do not add axios/ky. Domain helpers live under `src/api/`.
 
+## i18n
+
+UI locales live in `src/i18n/` (no i18n framework dependency). Default is Swedish; English is available via the language select in the admin top nav.
+
+| Piece | Path |
+| ----- | ---- |
+| Provider / hook | `src/i18n/LocaleContext.tsx` → `useLocale()` |
+| Catalogs | `src/i18n/messages/sv.ts`, `en.ts` |
+| Storage key | `opinionssimulator.locale` |
+
+Smoke-test: switch to English in the admin top nav — `/jobs`, `/runs`, and `/populations` (list + detail) should flip labels/dates; refresh should keep English. New strings: add to `sv.ts` first, mirror in `en.ts`, then call `t("…")`. See `frontend/AGENTS.md`.
+
 ## Troubleshooting
 
 | Symptom | Likely cause |

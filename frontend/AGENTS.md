@@ -49,6 +49,7 @@ frontend/
 │   │   └── simulator/     # Wizard-specific pieces
 │   ├── data/              # Shared types + helpers; simulator mock in mock.ts
 │   ├── api/               # Domain API helpers (personas, populations, runs)
+│   ├── i18n/              # Locale catalogs + LocaleProvider (sv default, en)
 │   ├── lib/               # http, api, auth, supabase, env
 │   ├── pages/             # Route-level components
 │   ├── styles/            # simulator.css (paper theme)
@@ -63,6 +64,24 @@ frontend/
 ```
 
 Keep imports consistent with the `@/*` alias (e.g. `@/lib/api`, `@/components/ui/button`).
+
+## i18n / L10n
+
+Swedish is the default UI locale. Do **not** add `react-i18next` / `lingui` unless catalogs outgrow a small helper.
+
+- Catalogs: `src/i18n/messages/sv.ts` (source of truth for keys) and `en.ts` (same shape).
+- Runtime: `LocaleProvider` + `useLocale()` from `@/i18n` (`t(key, params?)`, `locale`, `setLocale`, `intl` for `Intl.*`).
+- Persist choice in `localStorage` (`opinionssimulator.locale`); sync `document.documentElement.lang`.
+- Language switcher lives in `AdminShell` (admin chrome). Migrated so far: nav, Jobs, Runs list, Populations list/detail + job toasts.
+
+**Adding a string**
+
+1. Add the Swedish copy under the right nest in `messages/sv.ts`.
+2. Add the English copy for the same key path in `messages/en.ts` (TypeScript enforces matching keys).
+3. Replace hardcoded UI text with `const { t } = useLocale(); t("section.key")` (use `{name}` placeholders for interpolation).
+4. For dates/numbers, use `intl` from `useLocale()` with `Intl.DateTimeFormat` / `Intl.NumberFormat` — do not hardcode `"sv-SE"`.
+
+Still hardcoded (next slices): ConfigureRun / wizard / timeline, PopulationBuilder, Personas, Messages, Config, simulator wizard, backend report HTML / OASIS prompts.
 
 ## Routes (current)
 

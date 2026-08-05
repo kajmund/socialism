@@ -114,6 +114,6 @@ export function looksLikeVideo(url: string): boolean {
   return /youtube\.com|youtu\.be|vimeo\.com/i.test(url)
 }
 
-export function formatRunDate(d: string): string {
-  return new Date(d).toLocaleDateString("sv-SE", { day: "numeric", month: "short" })
+export function formatRunDate(d: string, locale = "sv-SE"): string {
+  return new Date(d).toLocaleDateString(locale, { day: "numeric", month: "short" })
 }
