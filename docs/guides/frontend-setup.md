@@ -83,7 +83,7 @@ UI locales live in `src/i18n/` (no i18n framework dependency). Default is Swedis
 | Catalogs | `src/i18n/messages/sv.ts`, `en.ts` |
 | Storage key | `opinionssimulator.locale` |
 
-Smoke-test: switch to English in the admin top nav — `/jobs`, `/runs`, `/populations`, `/runs/new` (wizard + tick modal), and a run’s **Resultat**-flik should flip labels; refresh should keep English. New strings: add to `sv.ts` first, mirror in `en.ts`, then call `t("…")`. See `frontend/AGENTS.md`.
+Smoke-test: switch to English in the admin top nav — `/jobs`, `/runs`, `/populations` (list/detail/`new` builder), `/runs/new`, and a run’s **Resultat**-flik should flip labels; refresh should keep English. New strings: add to `sv.ts` first, mirror in `en.ts`, then call `t("…")`. See `frontend/AGENTS.md`.
 
 ## Troubleshooting
 
