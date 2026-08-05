@@ -1,22 +1,37 @@
-import type { Tick } from "@/data/runs-types"
 import { TickDayModal } from "@/components/runs/TickDayModal"
+import type { Tick } from "@/data/runs-types"
+import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
 
-function tickSummary(tick: Tick): string {
+type Translate = (key: MessageKey, params?: TranslateParams) => string
+
+function tickSummary(tick: Tick, t: Translate): string {
   const ivCount = (tick.interviews ?? []).length
   const ivSuffix =
-    ivCount > 0 ? ` · ${ivCount} intervju${ivCount === 1 ? "" : "er"}` : ""
+    ivCount > 0
+      ? t(ivCount === 1 ? "runs.timeline.interviewOne" : "runs.timeline.interviewMany", {
+          count: ivCount,
+        })
+      : ""
   if (tick.silent) {
-    return (
-      "Tyst dag — ingen injektion · " + tick.rounds + " reaktionsronder" + ivSuffix
-    )
+    return t("runs.timeline.silentSummary", {
+      rounds: tick.rounds,
+      interviews: ivSuffix,
+    })
   }
   if (tick.injections.length) {
-    return tick.injections.length + " event · " + tick.rounds + " ronder" + ivSuffix
+    return t("runs.timeline.eventsSummary", {
+      events: tick.injections.length,
+      rounds: tick.rounds,
+      interviews: ivSuffix,
+    })
   }
   if (ivCount > 0) {
-    return tick.rounds + " ronder" + ivSuffix
+    return t("runs.timeline.roundsOnly", {
+      rounds: tick.rounds,
+      interviews: ivSuffix,
+    })
   }
-  return "Ingen injektion ännu — klicka för att konfigurera"
+  return t("runs.timeline.emptySummary")
 }
 
 type TickCardProps = {
@@ -42,7 +57,8 @@ function TickCard({
   onStimulusControl,
   isBranchNode = false,
 }: TickCardProps) {
-  const summary = tickSummary(tick)
+  const { t } = useLocale()
+  const summary = tickSummary(tick, t)
 
   return (
     <div className="tl-tick">
@@ -54,14 +70,14 @@ function TickCard({
           (isBranchNode ? " branchnode" : "")
         }
         onClick={onEdit}
-        aria-label={"Redigera dag " + tick.day}
+        aria-label={t("runs.timeline.editDayAria", { day: tick.day })}
       >
         {tick.day}
       </button>
       <div className="tl-card">
         <div className="tl-head">
           <button type="button" className="tl-head-main" onClick={onEdit}>
-            <div className="day">Dag {tick.day}</div>
+            <div className="day">{t("runs.timeline.dayLabel", { day: tick.day })}</div>
             <div className="sum">
               {tick.silent ? <em>{summary}</em> : summary}
             </div>
@@ -72,7 +88,7 @@ function TickCard({
                 ))}
               </div>
             )}
-            <span className="tl-edit-hint">Redigera</span>
+            <span className="tl-edit-hint">{t("runs.timeline.edit")}</span>
           </button>
           <div className="tl-head-actions">
             {canBranch && onBranch && (
@@ -83,7 +99,7 @@ function TickCard({
                   e.stopPropagation()
                   onBranch()
                 }}
-                title="Förgrena till A/B från denna dag"
+                title={t("runs.timeline.branchAbTitle")}
               >
                 A/B
               </button>
@@ -96,22 +112,22 @@ function TickCard({
                   e.stopPropagation()
                   onStimulusControl()
                 }}
-                title="Stimulus vs kontroll från denna dag (A med injektion, B tyst)"
+                title={t("runs.timeline.branchSkTitle")}
               >
                 S/K
               </button>
             )}
-            <button type="button" className="tl-icon-btn" onClick={onMoveUp} title="Flytta upp">
+            <button type="button" className="tl-icon-btn" onClick={onMoveUp} title={t("runs.timeline.moveUp")}>
               ↑
             </button>
-            <button type="button" className="tl-icon-btn" onClick={onMoveDown} title="Flytta ner">
+            <button type="button" className="tl-icon-btn" onClick={onMoveDown} title={t("runs.timeline.moveDown")}>
               ↓
             </button>
             <button
               type="button"
               className="tl-icon-btn danger"
               onClick={onRemove}
-              title="Ta bort dag"
+              title={t("runs.timeline.removeDay")}
             >
               ✕
             </button>
@@ -151,6 +167,7 @@ export function TickColumn({
   showAdd = true,
   populationId = null,
 }: TickColumnProps) {
+  const { t } = useLocale()
   const editingIndex = ticks.findIndex((t) => t.key === openKey)
   const editingTick = editingIndex >= 0 ? ticks[editingIndex] : null
 
@@ -182,7 +199,7 @@ export function TickColumn({
       ))}
       {showAdd && (
         <button type="button" className="add-tick-btn" onClick={addTick}>
-          + Lägg till dag
+          {t("runs.timeline.addDay")}
         </button>
       )}
 

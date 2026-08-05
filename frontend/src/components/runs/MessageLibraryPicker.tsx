@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import type { Message } from "@/api/messages"
+import { useLocale } from "@/i18n"
 
 type MessageLibraryPickerProps = {
   id: string
@@ -18,6 +19,7 @@ export function MessageLibraryPicker({
   error,
   emptyHint,
 }: MessageLibraryPickerProps) {
+  const { t } = useLocale()
   const rootRef = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
@@ -61,7 +63,9 @@ export function MessageLibraryPicker({
 
   return (
     <div className="msg-lib-picker" ref={rootRef}>
-      <label htmlFor={open ? `${id}-search` : id}>Budskap från biblioteket</label>
+      <label htmlFor={open ? `${id}-search` : id}>
+        {t("runs.tick.libLabel")}
+      </label>
       <div className="msg-lib-control">
         {open ? (
           <>
@@ -70,7 +74,7 @@ export function MessageLibraryPicker({
               className="msg-lib-search"
               type="search"
               autoFocus
-              placeholder="Sök titel eller text…"
+              placeholder={t("runs.tick.libSearch")}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => {
@@ -88,7 +92,7 @@ export function MessageLibraryPicker({
               id={`${id}-listbox`}
               className="msg-lib-list"
               role="listbox"
-              aria-label="Budskap från biblioteket"
+              aria-label={t("runs.tick.libLabel")}
             >
               <button
                 type="button"
@@ -97,7 +101,7 @@ export function MessageLibraryPicker({
                 className={"msg-lib-opt" + (value == null ? " sel" : "")}
                 onClick={() => select(null)}
               >
-                <span className="msg-lib-title">— Inget budskap —</span>
+                <span className="msg-lib-title">{t("runs.tick.libNone")}</span>
               </button>
               {filtered.map((m) => (
                 <button
@@ -120,8 +124,8 @@ export function MessageLibraryPicker({
               {filtered.length === 0 ? (
                 <div className="msg-lib-empty">
                   {query.trim()
-                    ? `Inga träffar för ”${query.trim()}”.`
-                    : "Inga budskap i biblioteket."}
+                    ? t("runs.tick.libNoMatch", { query: query.trim() })
+                    : t("runs.tick.libEmpty")}
                 </div>
               ) : null}
             </div>
@@ -136,7 +140,7 @@ export function MessageLibraryPicker({
             aria-expanded={false}
           >
             <span className="msg-lib-trigger-label">
-              {selected?.title ?? "— Välj sparat budskap —"}
+              {selected?.title ?? t("runs.tick.libPick")}
             </span>
             <span className="msg-lib-caret" aria-hidden>
               ▾
