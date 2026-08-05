@@ -10,22 +10,34 @@ import { getCatalogList } from "@/api/catalog"
 import { AdminButton } from "@/components/ui/admin-button"
 import {
   CatalogLabelPicker,
-  catalogSenderEmptyHint,
+  CatalogSenderEmptyHint,
   type CatalogLabelOption,
 } from "@/components/runs/CatalogLabelPicker"
 import { MessageLibraryPicker } from "@/components/runs/MessageLibraryPicker"
 import { getPopulation } from "@/api/populations"
-import { MEASUREMENTS, makeInjection, makeTickInterview } from "@/data/runs"
+import {
+  MEASUREMENT_IDS,
+  makeInjection,
+  makeTickInterview,
+  measurementLabel,
+} from "@/data/runs"
 import type { Injection, Tick, TickInterview } from "@/data/runs-types"
+import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
 
-const INJECTION_TYPE_LABEL: Record<Injection["type"], string> = {
-  party_post: "Partipost",
-  news_post: "Nyhetspost",
-  ad_post: "Reklampost",
+type Translate = (key: MessageKey, params?: TranslateParams) => string
+
+const INJECTION_TYPE_KEYS: Record<Injection["type"], MessageKey> = {
+  party_post: "runs.tick.typeParty",
+  news_post: "runs.tick.typeNews",
+  ad_post: "runs.tick.typeAd",
 }
 
-function injectionSummary(inj: Injection, library: Message[]): string {
-  const parts = [INJECTION_TYPE_LABEL[inj.type]]
+function injectionTypeLabel(type: Injection["type"], t: Translate): string {
+  return t(INJECTION_TYPE_KEYS[type])
+}
+
+function injectionSummary(inj: Injection, library: Message[], t: Translate): string {
+  const parts = [injectionTypeLabel(inj.type, t)]
   if (inj.sender.trim()) parts.push(inj.sender.trim())
   const saved = inj.message_id
     ? library.find((m) => m.id === inj.message_id)
@@ -36,7 +48,7 @@ function injectionSummary(inj: Injection, library: Message[]): string {
     const snippet = inj.text.trim()
     parts.push(snippet.length > 48 ? `${snippet.slice(0, 48)}…` : snippet)
   } else {
-    parts.push("Ingen text ännu")
+    parts.push(t("runs.tick.noTextYet"))
   }
   return parts.join(" · ")
 }
@@ -47,6 +59,8 @@ type RoundsDotsProps = {
 }
 
 function RoundsDots({ value, onChange }: RoundsDotsProps) {
+  const { t } = useLocale()
+
   return (
     <div style={{ display: "flex", alignItems: "center" }}>
       <div className="rounds-dots">
@@ -56,14 +70,14 @@ function RoundsDots({ value, onChange }: RoundsDotsProps) {
             key={n}
             className={"rd-dot" + (n <= value ? " on" : "")}
             onClick={() => onChange(n)}
-            title={n + " ronder"}
-            aria-label={n + " ronder"}
+            title={t("runs.tick.roundsTitle", { n })}
+            aria-label={t("runs.tick.roundsTitle", { n })}
             aria-pressed={n <= value}
           />
         ))}
       </div>
       <span className="rounds-num">
-        {value} {value === 1 ? "rond" : "ronder"}
+        {value} {t(value === 1 ? "runs.tick.roundOne" : "runs.tick.roundMany")}
       </span>
     </div>
   )
@@ -86,6 +100,7 @@ function InjectionEditor({
   expanded,
   onToggle,
 }: InjectionEditorProps) {
+  const { t } = useLocale()
   const typeId = `inj-type-${inj.key}`
   const senderId = `inj-sender-${inj.key}`
   const libraryId = `inj-lib-${inj.key}`
@@ -106,7 +121,7 @@ function InjectionEditor({
         }
       })
       .catch(() => {
-        if (!cancelled) setLibError("Kunde inte hämta budskapsbiblioteket")
+        if (!cancelled) setLibError(t("runs.tick.libraryLoadError"))
       })
     return () => {
       cancelled = true
@@ -156,12 +171,17 @@ function InjectionEditor({
           onClick={onToggle}
           aria-expanded={expanded}
         >
-          <span className="inj-head-title">{injectionSummary(inj, library)}</span>
+          <span className="inj-head-title">{injectionSummary(inj, library, t)}</span>
           <span className="inj-caret" aria-hidden>
             {expanded ? "▲" : "▼"}
           </span>
         </button>
-        <button type="button" className="inj-remove" onClick={onRemove} title="Ta bort event">
+        <button
+          type="button"
+          className="inj-remove"
+          onClick={onRemove}
+          title={t("runs.tick.removeEvent")}
+        >
           ✕
         </button>
       </div>
@@ -170,7 +190,7 @@ function InjectionEditor({
         <div className="inj-body">
           <div className="inj-top">
             <div className="inj-field">
-              <label htmlFor={typeId}>Typ</label>
+              <label htmlFor={typeId}>{t("runs.tick.typeLabel")}</label>
               <select
                 id={typeId}
                 value={inj.type}
@@ -182,21 +202,21 @@ function InjectionEditor({
                   })
                 }
               >
-                <option value="party_post">Partipost</option>
-                <option value="news_post">Nyhetspost</option>
-                <option value="ad_post">Reklampost</option>
+                <option value="party_post">{t("runs.tick.typeParty")}</option>
+                <option value="news_post">{t("runs.tick.typeNews")}</option>
+                <option value="ad_post">{t("runs.tick.typeAd")}</option>
               </select>
             </div>
           </div>
 
           <CatalogLabelPicker
             id={senderId}
-            fieldLabel="Avsändare"
+            fieldLabel={t("runs.tick.senderLabel")}
             options={senderOptions}
             value={inj.sender}
             onChange={(sender) => onChange({ ...inj, sender })}
-            placeholder="— Välj avsändare —"
-            emptyHint={catalogSenderEmptyHint()}
+            placeholder={t("runs.tick.senderPlaceholder")}
+            emptyHint={<CatalogSenderEmptyHint />}
           />
 
           <MessageLibraryPicker
@@ -207,15 +227,19 @@ function InjectionEditor({
             error={libError}
             emptyHint={
               <>
-                Inga {libraryType === "news" ? "nyheter" : "poster"} i biblioteket.{" "}
-                <Link to="/messages/new">Öppna verkstaden</Link>
+                {t(
+                  libraryType === "news"
+                    ? "runs.tick.emptyNews"
+                    : "runs.tick.emptyPosts",
+                )}{" "}
+                <Link to="/messages/new">{t("runs.tick.openWorkshop")}</Link>
               </>
             }
           />
 
           {inj.message_id && (
             <div className="inj-field">
-              <label>Förhandsvisning (snapshottas vid start)</label>
+              <label>{t("runs.tick.previewLabel")}</label>
               <textarea id={textId} value={inj.text} readOnly rows={4} />
             </div>
           )}
@@ -226,18 +250,18 @@ function InjectionEditor({
               className={scratchOpen && !inj.message_id ? "on" : ""}
               onClick={enableScratch}
             >
-              Scratch / tillfällig text
+              {t("runs.tick.scratchToggle")}
             </button>
           </div>
 
           {scratchOpen && !inj.message_id && (
             <div className="inj-field">
               <label htmlFor={textId}>
-                Tillfällig text (sparas inte i biblioteket — bara denna körning)
+                {t("runs.tick.scratchLabel")}
               </label>
               <textarea
                 id={textId}
-                placeholder="Engångstext för snabb test…"
+                placeholder={t("runs.tick.scratchPlaceholder")}
                 value={inj.text}
                 onChange={(e) =>
                   onChange({ ...inj, message_id: null, text: e.target.value, mode: "text" })
@@ -274,6 +298,7 @@ export function TickEditorBody({
   tabs,
   embedded = false,
 }: TickEditorBodyProps) {
+  const { t } = useLocale()
   const tabList: DayModalTab[] = tabs ?? ["injections", "metrics", "interviews"]
   const [senderOptions, setSenderOptions] = useState<CatalogLabelOption[]>([])
   const [activeTab, setActiveTab] = useState<DayModalTab>(
@@ -411,14 +436,14 @@ export function TickEditorBody({
       {showTabs ? (
         <div
           role="tablist"
-          aria-label="Dagkonfiguration"
+          aria-label={t("runs.tick.tabsAria")}
           className="tick-modal-tabs mb-5 flex flex-wrap gap-1 border-b border-[color:var(--border-hairline)]"
         >
           {(
             [
-              { id: "injections" as const, label: "Injektioner" },
-              { id: "metrics" as const, label: "Ronder & mätpunkter" },
-              { id: "interviews" as const, label: "Intervjuer" },
+              { id: "injections" as const, label: t("runs.tick.tabInjections") },
+              { id: "metrics" as const, label: t("runs.tick.tabMetrics") },
+              { id: "interviews" as const, label: t("runs.tick.tabInterviews") },
             ] as const
           )
             .filter((tab) => tabList.includes(tab.id))
@@ -458,10 +483,9 @@ export function TickEditorBody({
         >
           <div className="silent-toggle-row">
             <div>
-              <div className="t">Tyst dag</div>
+              <div className="t">{t("runs.tick.silentTitle")}</div>
               <div className="s">
-                Ingen ny injektion — populationen får fortfarande reagera (ronder) på
-                det som redan finns i flödet.
+                {t("runs.tick.silentBody")}
               </div>
             </div>
             <button
@@ -469,13 +493,13 @@ export function TickEditorBody({
               className={"toggle" + (tick.silent ? " on" : "")}
               onClick={() => onUpdate({ ...tick, silent: !tick.silent })}
               aria-pressed={tick.silent}
-              aria-label="Tyst dag"
+              aria-label={t("runs.tick.silentTitle")}
             />
           </div>
 
           {!tick.silent && (
             <div className="mt-5">
-              <span className="tl-row-lbl">Injektionsfaser</span>
+              <span className="tl-row-lbl">{t("runs.tick.injectionPhases")}</span>
               {tick.injections.map((inj, i) => (
                 <InjectionEditor
                   key={inj.key}
@@ -488,7 +512,7 @@ export function TickEditorBody({
                 />
               ))}
               <button type="button" className="add-inj-btn" onClick={addInj}>
-                + Lägg till event
+                {t("runs.tick.addEvent")}
               </button>
             </div>
           )}
@@ -501,11 +525,13 @@ export function TickEditorBody({
         >
           <div>
             <span className="tl-row-lbl">
-              {tick.silent ? "Reaktionsronder" : "Ronder efter injektion"}
+              {tick.silent
+                ? t("runs.tick.roundsSilent")
+                : t("runs.tick.roundsAfter")}
               <span className="tl-row-desc">
                 {tick.silent
-                  ? "Antal simulerade svarsronder den här dagen, utan ny injektion."
-                  : "Antal simulerade svarsronder som körs efter injektionen, innan nästa mätning tas."}
+                  ? t("runs.tick.roundsSilentDesc")
+                  : t("runs.tick.roundsAfterDesc")}
               </span>
             </span>
             <RoundsDots
@@ -515,21 +541,21 @@ export function TickEditorBody({
           </div>
 
           <div className="mt-6">
-            <span className="tl-row-lbl">Mätpunkter</span>
+            <span className="tl-row-lbl">{t("runs.tick.measurements")}</span>
             <div className="meas-chips">
-              {MEASUREMENTS.map((m) => (
+              {MEASUREMENT_IDS.map((id) => (
                 <button
                   type="button"
-                  key={m.id}
-                  title={m.id}
+                  key={id}
+                  title={id}
                   className={
-                    "meas-chip" + (tick.measurements.includes(m.id) ? " on" : "")
+                    "meas-chip" + (tick.measurements.includes(id) ? " on" : "")
                   }
-                  onClick={() => toggleMeas(m.id)}
-                  aria-pressed={tick.measurements.includes(m.id)}
+                  onClick={() => toggleMeas(id)}
+                  aria-pressed={tick.measurements.includes(id)}
                 >
-                  {m.label}
-                  <span className="mid">{m.id}</span>
+                  {measurementLabel(id, t)}
+                  <span className="mid">{id}</span>
                 </button>
               ))}
             </div>
@@ -542,16 +568,13 @@ export function TickEditorBody({
           aria-labelledby="tick-day-tab-interviews"
         >
           <p className="mb-4 text-sm text-muted-foreground">
-            Förplanerade OASIS-intervjuer körs efter dagens reaktionsronder. Agenten
-            svarar utifrån sitt faktiska flöde hittills — utan kännedom om framtida
-            dagar. Intervjun sparas i simuleringsspåret och påverkar inte senare
-            beteende.
+            {t("runs.tick.interviewsIntro")}
           </p>
           {candidates.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               {populationId == null
-                ? "Välj en population för att lägga till intervjuer."
-                : "Populationen har inga länkade personas att intervjua."}
+                ? t("runs.tick.interviewsNeedPop")
+                : t("runs.tick.interviewsNoMembers")}
             </p>
           ) : null}
           <div className="space-y-3">
@@ -561,7 +584,7 @@ export function TickEditorBody({
                 className="rounded-md border border-[color:var(--border-hairline)] p-3"
               >
                 <label className="mb-1 block text-xs text-muted-foreground">
-                  Persona
+                  {t("runs.tick.personaLabel")}
                 </label>
                 <select
                   className="mb-3 w-full rounded border border-[color:var(--border-hairline)] bg-transparent px-2 py-1.5 text-sm"
@@ -570,7 +593,7 @@ export function TickEditorBody({
                     updateInterview(i, { ...iv, persona_id: e.target.value })
                   }
                 >
-                  <option value="">Välj persona…</option>
+                  <option value="">{t("runs.tick.pickPersona")}</option>
                   {candidates.map((c) => (
                     <option key={c.personaId} value={c.personaId}>
                       {c.name}
@@ -578,13 +601,13 @@ export function TickEditorBody({
                   ))}
                 </select>
                 <label className="mb-1 block text-xs text-muted-foreground">
-                  Fråga
+                  {t("runs.tick.questionLabel")}
                 </label>
                 <textarea
                   className="mb-2 w-full rounded border border-[color:var(--border-hairline)] bg-transparent px-2 py-1.5 text-sm"
                   rows={3}
                   value={iv.prompt}
-                  placeholder="Vad tyckte du om nyheten som dök upp idag?"
+                  placeholder={t("runs.tick.questionPlaceholder")}
                   onChange={(e) =>
                     updateInterview(i, { ...iv, prompt: e.target.value })
                   }
@@ -594,7 +617,7 @@ export function TickEditorBody({
                   className="text-xs text-destructive hover:underline"
                   onClick={() => removeInterview(i)}
                 >
-                  Ta bort
+                  {t("common.delete")}
                 </button>
               </div>
             ))}
@@ -605,7 +628,7 @@ export function TickEditorBody({
             onClick={addInterview}
             disabled={candidates.length === 0}
           >
-            + Lägg till intervju
+            {t("runs.tick.addInterview")}
           </button>
         </div>
       )}
@@ -636,6 +659,7 @@ export function TickDayModal({
   title,
   subtitle,
 }: TickDayModalProps) {
+  const { t } = useLocale()
   const overlayMouseDownRef = useRef(false)
 
   useEffect(() => {
@@ -678,18 +702,17 @@ export function TickDayModal({
         <div className="flex items-start justify-between gap-3 border-b border-[color:var(--border-hairline)] px-5 py-4">
           <div>
             <h2 id="tick-day-modal-title" className="text-base font-medium">
-              {title ?? `Dag ${tick.day}`}
+              {title ?? t("runs.timeline.dayLabel", { day: tick.day })}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              {subtitle ??
-                "Injektioner, ronder och mätningar — välj flik nedan."}
+              {subtitle ?? t("runs.tick.defaultSubtitle")}
             </p>
           </div>
           <button
             type="button"
             className="tl-icon-btn shrink-0 text-lg"
             onClick={onClose}
-            aria-label="Stäng"
+            aria-label={t("common.close")}
           >
             ✕
           </button>
@@ -705,7 +728,7 @@ export function TickDayModal({
         </div>
         <div className="flex justify-end gap-2 border-t border-[color:var(--border-hairline)] px-5 py-4">
           <AdminButton variant="primary" onClick={onClose}>
-            Klar
+            {t("common.done")}
           </AdminButton>
         </div>
       </div>

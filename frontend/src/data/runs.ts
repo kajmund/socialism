@@ -1,12 +1,15 @@
 import type {
   BranchState,
   Injection,
-  Measurement,
   RunSummary,
   Tick,
   TickInterview,
 } from "@/data/runs-types"
+import type { MessageKey, TranslateParams } from "@/i18n"
 
+type Translate = (key: MessageKey, params?: TranslateParams) => string
+
+/** Fallback Swedish labels for surfaces not yet on useLocale (e.g. results panel). */
 export const RUN_STATUS_LABEL: Record<RunSummary["status"], string> = {
   done: "Klar",
   running: "Pågår",
@@ -14,13 +17,28 @@ export const RUN_STATUS_LABEL: Record<RunSummary["status"], string> = {
   failed: "Misslyckad",
 }
 
-export const MEASUREMENTS: Measurement[] = [
-  { id: "opinion_snapshot", label: "Opinionsmätning" },
-  { id: "sentiment_baseline", label: "Sentiment-baslinje" },
-  { id: "phrase_propagation", label: "Frasspridning" },
-  { id: "sentiment_recovery", label: "Sentiment-återhämtning" },
-  { id: "engagement_decay", label: "Engagemangsavklingning" },
-]
+export const MEASUREMENT_IDS = [
+  "opinion_snapshot",
+  "sentiment_baseline",
+  "phrase_propagation",
+  "sentiment_recovery",
+  "engagement_decay",
+] as const
+
+const MEASUREMENT_KEYS: Record<(typeof MEASUREMENT_IDS)[number], MessageKey> = {
+  opinion_snapshot: "runs.measure.opinionSnapshot",
+  sentiment_baseline: "runs.measure.sentimentBaseline",
+  phrase_propagation: "runs.measure.phrasePropagation",
+  sentiment_recovery: "runs.measure.sentimentRecovery",
+  engagement_decay: "runs.measure.engagementDecay",
+}
+
+export function measurementLabel(id: string, t: Translate): string {
+  if (id in MEASUREMENT_KEYS) {
+    return t(MEASUREMENT_KEYS[id as (typeof MEASUREMENT_IDS)[number]])
+  }
+  return id
+}
 
 function cloneTick(t: Tick): Tick {
   return {
