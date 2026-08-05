@@ -125,6 +125,7 @@ Tests: `cd backend && uv run pytest`.
 | [docs/client-brief.md](docs/client-brief.md) | Product brief |
 | [docs/guides/backend-setup.md](docs/guides/backend-setup.md) | Backend setup, jobs, OASIS, troubleshooting |
 | [docs/guides/frontend-setup.md](docs/guides/frontend-setup.md) | Frontend setup, routes, env |
+| [docs/guides/runs-interviews-and-quality.md](docs/guides/runs-interviews-and-quality.md) | Interviews, branches, quality warnings |
 | [docs/guides/supabase-setup.md](docs/guides/supabase-setup.md) | Future Supabase migration notes |
 | [docs/architecture.md](docs/architecture.md) | Current system architecture |
 | [AGENTS.md](AGENTS.md) | Agent / contributor conventions |

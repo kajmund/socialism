@@ -46,8 +46,8 @@ Open http://localhost:5173/runs.
 | ---- | ---- |
 | `/` | Redirects to `/runs` |
 | `/runs` | Körningar list |
-| `/runs/new`, `/runs/:id/edit` | Configure run (wizard or `?mode=quick`) + results |
-| `/personas`, `/personas/new`, `/personas/:id` | Persona library + composer (incl. chat) |
+| `/runs/new`, `/runs/:id/edit` | Configure run (wizard or `?mode=quick`) + results (incl. post-hoc interviews / quality warnings) |
+| `/personas`, `/personas/new`, `/personas/:id` | Persona library + composer (library chat, delete/resend, anecdotes) |
 | `/populations`, `/populations/new`, `/populations/:id`, `.../edit` | Population list / detail / builder |
 | `/messages`, `/messages/new`, `/messages/:id/edit` | Budskapsbibliotek + verkstad |
 | `/config` | Grunddata / catalog lists |
@@ -78,6 +78,8 @@ Dual visual system (do not collapse):
 ## API client
 
 Use `api.get/post/put/patch/delete` from `@/lib/api` (base URL, JSON, typed `ApiError`). Do not add axios/ky. Domain helpers live under `src/api/`.
+
+Run interview / branch / quality behavior for developers: [runs-interviews-and-quality.md](runs-interviews-and-quality.md). Operator how-tos: [`knowledge/manual/`](../../knowledge/manual/).
 
 ## Troubleshooting
 
