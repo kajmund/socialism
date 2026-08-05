@@ -11,7 +11,6 @@ const NAV_ITEMS = [
   { key: "nav.config" as const, to: "/config", match: "/config" },
   { key: "nav.runs" as const, to: "/runs", match: "/runs" },
   { key: "nav.jobs" as const, to: "/jobs", match: "/jobs" },
-  { key: "nav.simulator" as const, to: "/simulator", match: "/simulator" },
 ]
 
 const SEEN_KEY = "opinionssimulator.jobStatusSeen"

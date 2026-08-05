@@ -6,7 +6,7 @@ from html import escape
 
 from app.services.report.metrics import ReportMetrics, confidence_badge, fmt_num, pct
 
-# Paper-theme colors matching simulator tokens
+# Report chart palette (warm paper-adjacent tones for HTML reports)
 C_PRIMARY = "#1E3A55"
 C_PRIMARY_2 = "#2D5378"
 C_SOFT = "#DDE5EE"

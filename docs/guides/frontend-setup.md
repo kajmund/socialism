@@ -53,9 +53,8 @@ Open http://localhost:5173/runs.
 | `/config` | Grunddata / catalog lists |
 | `/jobs` | Background jobs |
 | `/reports/:id` | HTML report viewer |
-| `/simulator` | Paper demo wizard (mock data) |
 
-Admin surfaces call FastAPI. The simulator wizard stays on local mock data unless you inspect a run that already has OASIS results in the admin UI.
+Admin surfaces call FastAPI.
 
 ## Check
 
@@ -68,12 +67,7 @@ No frontend unit-test runner by project policy — typecheck + lint + manual bro
 
 ## Themes
 
-Dual visual system (do not collapse):
-
-| Area | Theme | CSS |
-| ---- | ----- | --- |
-| Simulator | Paper / editorial (Lora + Nunito) | `src/styles/simulator.css` (`.theme-simulator`) |
-| Admin | Devbrains charcoal + gold | Tailwind tokens in `src/index.css` + `src/styles/admin-runs.css` |
+Admin UI uses Devbrains charcoal + gold (Tailwind tokens in `src/index.css` + dense chrome in `src/styles/admin-runs.css`).
 
 ## API client
 
