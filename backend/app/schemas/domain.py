@@ -349,6 +349,42 @@ def new_message_id() -> str:
     return str(uuid4())
 
 
+ConfigurationLanguage = Literal["sv", "en", "nb"]
+
+
+class ConfigurationOut(BaseModel):
+    id: int
+    name: str
+    language: ConfigurationLanguage
+    prompt_text: str
+    created_at: str
+    updated_at: str
+
+
+class ConfigurationCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    language: ConfigurationLanguage
+    prompt_text: str = Field(min_length=1)
+
+    @field_validator("name", "prompt_text", mode="before")
+    @classmethod
+    def strip_required(cls, value: object) -> object:
+        return _strip_required_text(value)
+
+
+class ConfigurationUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    language: ConfigurationLanguage | None = None
+    prompt_text: str | None = Field(default=None, min_length=1)
+
+    @field_validator("name", "prompt_text", mode="before")
+    @classmethod
+    def strip_optional(cls, value: object) -> object:
+        if value is None:
+            return None
+        return _strip_required_text(value)
+
+
 class TickInterview(BaseModel):
     """Planned OASIS INTERVIEW after a tick's reaction rounds."""
 

@@ -35,7 +35,7 @@ backend/
 ├── app/
 │   ├── main.py          # FastAPI entrypoint
 │   ├── config.py        # Pydantic settings — single source of truth for env
-│   ├── api/             # Routers: personas, populations, runs, messages, catalog, jobs, reports, health
+│   ├── api/             # Routers: personas, populations, runs, messages, configurations, catalog, jobs, reports, health
 │   ├── database/        # SQLAlchemy models, async session, base
 │   ├── llm/             # DeepSeek client, persona gen, interview chat
 │   ├── locality/        # Norrköping brief for grounded prompts
@@ -69,7 +69,7 @@ Optional dependency extra `oasis` (`camel-oasis`) — not installed by default (
 
 ## Domain (admin library)
 
-CRUD for personas, populations (members + recipe/fingerprint), and runs (timeline JSON). No auth.
+CRUD for personas, populations (members + recipe/fingerprint), runs (timeline JSON), and configurations (name + language + prompt_text). No auth.
 
 **Simulation:** `POST /runs/{id}/start` queues a `run_simulate` background job (202) and sets the run to `running`. With an A/B branch, the worker simulates Version A and B **concurrently** (shared stem ticks through `afterIndex` + each branch; separate artifact dirs). Overlapping `run_simulate` jobs are capped by `MAX_CONCURRENT_SIMULATION_JOBS` (default 2); waiting jobs stay `pending` until a slot frees. Results are stored as `results.attempts[]` (newest first); each attempt has `variants[]`. Re-runs append attempts instead of overwriting. Default `SIMULATION_ENGINE=none` finishes quickly with empty variant payloads. Optional OASIS (`SIMULATION_ENGINE=oasis`) runs multi-agent sims via `camel-oasis` with the **full population** plus injectors, and **all configured ticks** (no agent/tick caps). A *silent* tick skips new injections but still runs population reaction rounds. Install with `uv sync --extra oasis`. CLI: `uv run python -m app.services.oasis_run --run-id N`. Population agents get Swedish env prompts (`oasis_swedish.py`) plus action rules in `user_char`: like = stöd, dislike = avstånd, no like+kritisk kommentar. Per-run `oasis_options.platform` (`twitter` default, or `reddit`) selects profile format, agent graph, recsys, and action set; Reddit uses a discrete scenario clock for tick markers. `oasis_options.allow_population_create_post` (default true) gates `CREATE_POST` for the population; injectors always post via `ManualAction`. Twitter actions include repost/quote; Reddit omits those. Variant results include `follows` / `mutes` / `reports` / `trace` / `action_histogram` from the OASIS SQLite artifact.
 
