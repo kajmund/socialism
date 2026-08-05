@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom"
 import type { RunPopulationOption } from "@/data/runs-types"
+import { useLocale } from "@/i18n"
 
 export type RunIdentityFieldsProps = {
   name: string
@@ -32,10 +33,12 @@ export function RunIdentityFields({
   onAllowPopulationCreatePostChange,
   disabled = false,
 }: RunIdentityFieldsProps) {
+  const { t } = useLocale()
+
   return (
     <>
       <div className="id-field">
-        <label htmlFor="run-name">Namn / scenario-id</label>
+        <label htmlFor="run-name">{t("runs.identity.nameLabel")}</label>
         <input
           id="run-name"
           value={name}
@@ -50,11 +53,11 @@ export function RunIdentityFields({
             disabled={disabled}
             onChange={(e) => onAllowPopulationCreatePostChange(e.target.checked)}
           />
-          Låt populationen skapa egna inlägg
+          {t("runs.identity.allowCreatePost")}
         </label>
       </div>
       <div className="id-field">
-        <label>Startdatum</label>
+        <label>{t("runs.identity.startDate")}</label>
         <input
           type="date"
           value={startDate}
@@ -63,7 +66,7 @@ export function RunIdentityFields({
         />
       </div>
       <div className="id-field">
-        <label>Population</label>
+        <label>{t("runs.identity.population")}</label>
         <div
           className="pop-mini"
           onClick={() => {
@@ -79,9 +82,11 @@ export function RunIdentityFields({
           </div>
           <div className="info">
             <div className="nm">{population.name}</div>
-            <div className="sub">{population.size} personas</div>
+            <div className="sub">
+              {t("common.personasCount", { count: population.size })}
+            </div>
           </div>
-          <span className="swap">Byt ▾</span>
+          <span className="swap">{t("runs.identity.swap")}</span>
           {popOpen && (
             <>
               <div
@@ -106,11 +111,13 @@ export function RunIdentityFields({
                   >
                     <div className="av">{p.initials[0]}</div>
                     <div className="nm">{p.name}</div>
-                    <div className="sub">{p.size} personas</div>
+                    <div className="sub">
+                      {t("common.personasCount", { count: p.size })}
+                    </div>
                   </div>
                 ))}
                 <div className="pop-dropdown-foot">
-                  <Link to="/populations">Visa alla populationer →</Link>
+                  <Link to="/populations">{t("runs.identity.viewAll")}</Link>
                 </div>
               </div>
             </>

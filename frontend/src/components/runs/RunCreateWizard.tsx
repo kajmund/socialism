@@ -13,8 +13,7 @@ import type {
   RunStatus,
   Tick,
 } from "@/data/runs-types"
-
-const STEP_TITLES = ["Grund", "Tidslinje", "Granska & spara"] as const
+import { useLocale } from "@/i18n"
 
 export type RunCreateWizardProps = {
   name: string
@@ -56,8 +55,14 @@ export type RunCreateWizardProps = {
 }
 
 export function RunCreateWizard(props: RunCreateWizardProps) {
+  const { t } = useLocale()
   const [cur, setCur] = useState(1)
   const [maxReached, setMaxReached] = useState(1)
+  const stepTitles = [
+    t("runs.wizard.stepGrund"),
+    t("runs.wizard.stepTimeline"),
+    t("runs.wizard.stepReview"),
+  ] as const
 
   function goTo(step: number) {
     setCur(step)
@@ -72,7 +77,7 @@ export function RunCreateWizard(props: RunCreateWizardProps) {
       startDate: props.startDate,
       mainTicks: props.mainTicks,
       branch: props.branch,
-    })
+    }, t)
     if (!check.ok) {
       props.onValidationError(check.errors.slice(0, 2).join(" · "))
       return
@@ -88,8 +93,8 @@ export function RunCreateWizard(props: RunCreateWizardProps) {
     <>
       <div className="head-row" style={{ marginBottom: 24 }}>
         <div className="head-row-main">
-          <h1>Ny körning</h1>
-          <p>Steg-för-steg — spara när du är klar för att redigera fritt.</p>
+          <h1>{t("runs.wizard.title")}</h1>
+          <p>{t("runs.wizard.intro")}</p>
         </div>
         <div className="head-row-aside">
           {cur === 3 && (
@@ -116,13 +121,13 @@ export function RunCreateWizard(props: RunCreateWizardProps) {
             to="/runs/new?mode=quick"
             className="head-row-link text-sm text-db-gold-700 underline-offset-2 hover:underline"
           >
-            Snabbskapande →
+            {t("runs.wizard.quickLink")}
           </Link>
         </div>
       </div>
 
       <div className="stepper stepper-3">
-        {STEP_TITLES.map((t, i) => {
+        {stepTitles.map((title, i) => {
           const n = i + 1
           const cls =
             n === cur
@@ -149,7 +154,7 @@ export function RunCreateWizard(props: RunCreateWizardProps) {
               }}
             >
               <div className="step-num">{n < cur ? "✓" : n}</div>
-              <div className="step-t">{t}</div>
+              <div className="step-t">{title}</div>
             </div>
           )
         })}
@@ -158,7 +163,7 @@ export function RunCreateWizard(props: RunCreateWizardProps) {
       {cur === 1 && (
         <section>
           <div className="section-head">
-            <span className="kicker">Steg 1 · Grund</span>
+            <span className="kicker">{t("runs.wizard.kicker1")}</span>
             <h1
               style={{
                 font: "var(--text-h1)",
@@ -166,9 +171,9 @@ export function RunCreateWizard(props: RunCreateWizardProps) {
                 fontWeight: 400,
               }}
             >
-              Namn och population
+              {t("runs.wizard.heading1")}
             </h1>
-            <p>Välj vilken population som ska reagera på budskapen.</p>
+            <p>{t("runs.wizard.body1")}</p>
           </div>
           <Card className="id-card mb-9 gap-0 overflow-visible py-0 ring-1 ring-border">
             <CardContent className="px-0">
@@ -203,7 +208,7 @@ export function RunCreateWizard(props: RunCreateWizardProps) {
       {cur === 2 && (
         <section>
           <div className="section-head">
-            <span className="kicker">Steg 2 · Tidslinje</span>
+            <span className="kicker">{t("runs.wizard.kicker2")}</span>
             <h1
               style={{
                 font: "var(--text-h1)",
@@ -211,12 +216,9 @@ export function RunCreateWizard(props: RunCreateWizardProps) {
                 fontWeight: 400,
               }}
             >
-              Bygg scenario och budskap
+              {t("runs.wizard.heading2")}
             </h1>
-            <p>
-              Klicka på en dag för att konfigurera budskap i en dialog. Valfritt:
-              dela tidslinjen i version A och B för A/B-test.
-            </p>
+            <p>{t("runs.wizard.body2")}</p>
           </div>
           <RunTimelineSection
             mainTicks={props.mainTicks}
@@ -243,7 +245,7 @@ export function RunCreateWizard(props: RunCreateWizardProps) {
       {cur === 3 && (
         <section>
           <div className="section-head">
-            <span className="kicker">Steg 3 · Granska & spara</span>
+            <span className="kicker">{t("runs.wizard.kicker3")}</span>
             <h1
               style={{
                 font: "var(--text-h1)",
@@ -251,23 +253,20 @@ export function RunCreateWizard(props: RunCreateWizardProps) {
                 fontWeight: 400,
               }}
             >
-              Granska och spara
+              {t("runs.wizard.heading3")}
             </h1>
-            <p>
-              Spara körningen som utkast eller starta simuleringen. Plattform
-              väljs i verktygsraden ovanför.
-            </p>
+            <p>{t("runs.wizard.body3")}</p>
           </div>
         </section>
       )}
 
       <div className="nav-bar">
         <AdminButton variant="secondary" disabled={cur === 1} onClick={back}>
-          ← Tillbaka
+          {t("common.back")}
         </AdminButton>
         {cur !== 3 && (
           <AdminButton variant="primary" onClick={next}>
-            Nästa →
+            {t("common.next")}
           </AdminButton>
         )}
       </div>
