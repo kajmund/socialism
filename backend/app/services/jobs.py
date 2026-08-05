@@ -416,6 +416,10 @@ async def _run_report_generate(job_id: str) -> None:
         # Build bundles while session is open, then release before long LLM work.
         bundles = await build_bundles(session, sources)
         out_dir = Path(ARTIFACT_ROOT) / report_id
+        from app.services.prompt_store import require_active_prompts
+
+        report_lang = "en" if locale == "en" else "sv"
+        prompts = await require_active_prompts(session, report_lang)  # type: ignore[arg-type]
 
     try:
         html_path, slots_path, _slots = await generate_report_html(
@@ -424,6 +428,7 @@ async def _run_report_generate(job_id: str) -> None:
             dry_run=False,
             title=title,
             locale=locale,
+            prompts=prompts,
         )
     except Exception as exc:  # noqa: BLE001 — mark report failed
         async with factory() as session:

@@ -4,6 +4,7 @@ from random import Random
 
 import pytest
 
+from app.services.prompt_catalog import default_prompts
 from app.llm.persona_anecdote import (
     anecdote_is_usable,
     llm_persona_anecdote,
@@ -86,7 +87,7 @@ async def test_llm_persona_anecdote_uses_structured_completer(monkeypatch):
 
     set_structured_completer(stub)
     try:
-        text = await llm_persona_anecdote(_profile())
+        text = await llm_persona_anecdote(_profile(), prompts=default_prompts("sv"))
     finally:
         set_structured_completer(None)
 

@@ -27,6 +27,7 @@ from app.schemas.domain import (
     new_message_id,
 )
 from app.serializers import utcnow
+from app.services.prompt_store import require_active_prompts
 
 router = APIRouter(prefix="/messages", tags=["messages"])
 
@@ -67,10 +68,14 @@ async def list_messages(
 
 
 @router.post("/summarize-url", response_model=SummarizeUrlResponse)
-async def summarize_url(body: SummarizeUrlRequest) -> SummarizeUrlResponse:
+async def summarize_url(
+    body: SummarizeUrlRequest,
+    session: AsyncSession = Depends(get_session),
+) -> SummarizeUrlResponse:
     url = normalize_url(body.url)
+    prompts = await require_active_prompts(session, "sv")
     try:
-        summary = await summarize_url_content(url, body.message_type)
+        summary = await summarize_url_content(url, body.message_type, prompts=prompts)
     except Exception as exc:  # noqa: BLE001 — surface fetch/LLM errors as 400
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return SummarizeUrlResponse(
@@ -81,9 +86,13 @@ async def summarize_url(body: SummarizeUrlRequest) -> SummarizeUrlResponse:
 
 
 @router.post("/generate-variants", response_model=GenerateVariantsResponse)
-async def generate_variants(body: GenerateVariantsRequest) -> GenerateVariantsResponse:
+async def generate_variants(
+    body: GenerateVariantsRequest,
+    session: AsyncSession = Depends(get_session),
+) -> GenerateVariantsResponse:
+    prompts = await require_active_prompts(session, "sv")
     try:
-        variants = await generate_message_variants(body)
+        variants = await generate_message_variants(body, prompts=prompts)
     except Exception as exc:  # noqa: BLE001 — surface generation errors as 400
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return GenerateVariantsResponse(variants=variants)

@@ -9,6 +9,7 @@ from pathlib import Path
 from sqlalchemy import delete, select
 
 from app.services.catalog_store import ensure_catalog_defaults
+from app.services.prompt_store import ensure_default_configurations
 from app.database.models import Persona, Population, PopulationMember, Run
 from app.database.session import SessionLocal, engine
 from app.serializers import blank_profile, persona_initials
@@ -399,6 +400,7 @@ async def seed(*, reset: bool = True) -> None:
     _ensure_data_dir()
     async with SessionLocal() as session:
         catalog_added = await ensure_catalog_defaults(session)
+        config_added = await ensure_default_configurations(session)
 
         if reset:
             await session.execute(delete(Run))
