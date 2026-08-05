@@ -1,6 +1,8 @@
 import { Navigate, Route, Routes } from "react-router-dom"
 import { ConfigureRunPage } from "@/pages/ConfigureRunPage"
+import { ConfigurationEditorPage } from "@/pages/ConfigurationEditorPage"
 import { ConfigurationPage } from "@/pages/ConfigurationPage"
+import { ConfigurationsPage } from "@/pages/ConfigurationsPage"
 import { JobsPage } from "@/pages/JobsPage"
 import { MessagesPage } from "@/pages/MessagesPage"
 import { MessagesWorkshopPage } from "@/pages/MessagesWorkshopPage"
@@ -32,6 +34,10 @@ export default function App() {
       <Route path="/messages" element={<MessagesPage />} />
       <Route path="/messages/new" element={<MessagesWorkshopPage />} />
       <Route path="/messages/:id/edit" element={<MessagesWorkshopPage />} />
+
+      <Route path="/configurations" element={<ConfigurationsPage />} />
+      <Route path="/configurations/new" element={<ConfigurationEditorPage />} />
+      <Route path="/configurations/:id/edit" element={<ConfigurationEditorPage />} />
 
       <Route path="/config" element={<ConfigurationPage />} />
       <Route path="/jobs" element={<JobsPage />} />

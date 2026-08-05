@@ -115,8 +115,6 @@ class DistGroup(BaseModel):
 
 class PopulationRecipe(BaseModel):
     size: int = Field(ge=1, le=40)
-    entryMode: Literal["free", "manual"] = "manual"
-    freeText: str = ""
     dist: dict[str, DistGroup]
     locale: str = "norrkoping"
     seed: int | None = None
@@ -347,6 +345,59 @@ class GenerateVariantsResponse(BaseModel):
 
 def new_message_id() -> str:
     return str(uuid4())
+
+
+ConfigurationLanguage = Literal["sv", "en", "nb"]
+
+
+class ConfigurationOut(BaseModel):
+    id: int
+    name: str
+    language: ConfigurationLanguage
+    prompts: dict[str, str]
+    is_active: bool
+    created_at: str
+    updated_at: str
+
+
+class ConfigurationCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    language: ConfigurationLanguage
+    prompts: dict[str, str] = Field(default_factory=dict)
+    is_active: bool = False
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def strip_name(cls, value: object) -> object:
+        return _strip_required_text(value)
+
+
+class ConfigurationUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    language: ConfigurationLanguage | None = None
+    prompts: dict[str, str] | None = None
+    is_active: bool | None = None
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def strip_name(cls, value: object) -> object:
+        if value is None:
+            return None
+        return _strip_required_text(value)
+
+
+class PromptFieldOut(BaseModel):
+    key: str
+    section: str
+    label: str
+    hint: str
+    default: str
+
+
+class PromptCatalogOut(BaseModel):
+    sections: list[dict[str, str]]
+    fields: list[PromptFieldOut]
+    defaults: dict[str, str]
 
 
 class TickInterview(BaseModel):

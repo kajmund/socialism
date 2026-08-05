@@ -9,6 +9,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from app.llm import complete_structured
+from app.services.prompt_catalog import render_prompt
 from app.services.report.bundles import RunBundle
 from app.services.report.locale import (
     ReportLocale,
@@ -105,27 +106,18 @@ async def derive_topic_packs(
     injection_texts: list[str],
     *,
     locale: ReportLocale = "sv",
+    prompts: dict[str, str],
 ) -> list[TopicPack]:
     if not injection_texts:
         return []
 
     blob = "\n---\n".join(t[:800] for t in injection_texts[:8])
-    if locale == "en":
-        system = (
-            "You derive topic labels for a political debate simulation. "
-            "Return 2–4 topics with short English labels that capture "
-            "the injection content. Avoid generic party names alone. "
-            "keywords are optional helper words (not required for classification)."
-        )
-        user = f"Injection texts:\n{blob}"
-    else:
-        system = (
-            "Du härleder ämnesetiketter för en svensk politisk debattsimulering. "
-            "Returnera 2–4 ämnen med korta svenska etiketter som fångar "
-            "injektionernas innehåll. Undvik generiska partinamn ensamma. "
-            "keywords är valfria hjälpord (behövs inte för klassning)."
-        )
-        user = f"Injektionstexter:\n{blob}"
+    system = render_prompt(prompts, "report.classify.topic_packs.system")
+    user = (
+        f"Injection texts:\n{blob}"
+        if locale == "en"
+        else f"Injektionstexter:\n{blob}"
+    )
     result = await complete_structured(
         [
             {"role": "system", "content": system},
@@ -151,6 +143,7 @@ async def classify_topics(
     packs: list[TopicPack],
     *,
     locale: ReportLocale = "sv",
+    prompts: dict[str, str],
     batch_size: int = _CLASSIFY_BATCH_SIZE,
 ) -> dict[str, float]:
     other = other_topic_label(locale)
@@ -167,22 +160,12 @@ async def classify_topics(
     for start in range(0, len(texts), batch_size):
         chunk = texts[start : start + batch_size]
         numbered = "\n".join(f"{i}. {t[:_TEXT_CHARS]}" for i, t in enumerate(chunk))
-        if locale == "en":
-            system = (
-                "Classify each comment/post by topic. "
-                f"Allowed values: {pack_list}, or '{other}'. "
-                "Choose by meaning and context — not keywords alone. "
-                "Sarcasm and paraphrase count toward the topic they really address. "
-                "Return index 0..n-1 for the batch."
-            )
-        else:
-            system = (
-                "Klassificera varje svensk kommentar/inlägg efter ämne. "
-                f"Tillåtna värden: {pack_list}, eller '{other}'. "
-                "Välj efter mening och kontext — inte enbart nyckelord. "
-                "Sarkasm och omskrivningar räknas till det ämne de egentligen handlar om. "
-                "Returnera index 0..n-1 för batchen."
-            )
+        system = render_prompt(
+            prompts,
+            "report.classify.topics.system",
+            pack_list=pack_list,
+            other=other,
+        )
         result = await complete_structured(
             [
                 {"role": "system", "content": system},
@@ -201,6 +184,7 @@ async def classify_tones(
     texts: list[str],
     *,
     locale: ReportLocale = "sv",
+    prompts: dict[str, str],
     batch_size: int = _CLASSIFY_BATCH_SIZE,
 ) -> tuple[dict[str, float], ToneMode]:
     labels_allowed = list(tone_labels(locale))
@@ -213,20 +197,12 @@ async def classify_tones(
     for start in range(0, len(texts), batch_size):
         chunk = texts[start : start + batch_size]
         numbered = "\n".join(f"{i}. {t[:_TEXT_CHARS]}" for i, t in enumerate(chunk))
-        if locale == "en":
-            system = (
-                "Classify each comment/post by tone. "
-                f"Allowed values: {quoted}. "
-                f"Sarcasm, campaign distrust, and sharp criticism = {labels_allowed[0]}. "
-                "Return index 0..n-1 for the batch."
-            )
-        else:
-            system = (
-                "Klassificera varje svensk kommentar/inlägg efter ton. "
-                f"Tillåtna värden: {quoted}. "
-                f"Sarkasm, valfläsk-misstro och skarp kritik = {labels_allowed[0]}. "
-                "Returnera index 0..n-1 för batchen."
-            )
+        system = render_prompt(
+            prompts,
+            "report.classify.tones.system",
+            quoted=quoted,
+            sharp_tone=labels_allowed[0],
+        )
         result = await complete_structured(
             [
                 {"role": "system", "content": system},
@@ -246,11 +222,18 @@ async def classify_bundle(
     bundle: RunBundle,
     *,
     locale: ReportLocale = "sv",
+    prompts: dict[str, str],
 ) -> BundleClassification:
     texts = _texts_for_classify(bundle)
-    packs = await derive_topic_packs(bundle.injection_texts, locale=locale)
-    topic_shares = await classify_topics(texts, packs, locale=locale)
-    tone_shares, tone_mode = await classify_tones(texts, locale=locale)
+    packs = await derive_topic_packs(
+        bundle.injection_texts, locale=locale, prompts=prompts
+    )
+    topic_shares = await classify_topics(
+        texts, packs, locale=locale, prompts=prompts
+    )
+    tone_shares, tone_mode = await classify_tones(
+        texts, locale=locale, prompts=prompts
+    )
     return BundleClassification(
         topic_packs=packs,
         topic_shares=topic_shares,
@@ -263,8 +246,11 @@ async def classify_bundles(
     bundles: list[RunBundle],
     *,
     locale: ReportLocale = "sv",
+    prompts: dict[str, str],
 ) -> list[BundleClassification]:
-    return [await classify_bundle(b, locale=locale) for b in bundles]
+    return [
+        await classify_bundle(b, locale=locale, prompts=prompts) for b in bundles
+    ]
 
 
 def meta_topics_line(

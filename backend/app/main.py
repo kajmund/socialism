@@ -5,7 +5,17 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import OperationalError, ProgrammingError
 
-from app.api import catalog, health, jobs, messages, personas, populations, reports, runs
+from app.api import (
+    catalog,
+    configurations,
+    health,
+    jobs,
+    messages,
+    personas,
+    populations,
+    reports,
+    runs,
+)
 from app.config import settings
 from app.services import jobs as jobs_service
 
@@ -43,6 +53,7 @@ def create_app() -> FastAPI:
     app.include_router(populations.router)
     app.include_router(runs.router)
     app.include_router(messages.router)
+    app.include_router(configurations.router)
     app.include_router(catalog.router)
     app.include_router(jobs.router)
     app.include_router(reports.router)

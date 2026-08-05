@@ -13,6 +13,7 @@ from app.database.session import SessionLocal, engine
 from app.schemas.domain import EditablePersona, new_message_id
 from app.serializers import blank_profile, persona_initials
 from app.services.catalog_store import ensure_catalog_defaults
+from app.services.prompt_store import ensure_default_configurations
 
 
 def _dt(day: str) -> datetime:
@@ -1118,6 +1119,7 @@ async def seed(*, reset: bool = True) -> None:
     _assert_profiles_complete()
     async with SessionLocal() as session:
         catalog_added = await ensure_catalog_defaults(session)
+        config_added = await ensure_default_configurations(session)
 
         if reset:
             await session.execute(delete(Run))

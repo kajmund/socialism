@@ -37,6 +37,7 @@ Guider för dig som använder Opinionssimulator i webbläsaren. Teknisk setup oc
 
 # Grunddata och jobb
 
+* [Hantera konfigurationer](hantera-konfigurationer.md) — Spara promptkonfigurationer med namn och språk
 * [Redigera grunddata](redigera-grunddata.md) — Kataloglistor och distriktskartor
 * [Följa bakgrundsjobb](folja-bakgrundsjobb.md) — Status för generering, simulering och rapporter
 

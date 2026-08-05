@@ -13,6 +13,7 @@ from app.database.models import PopulationMember
 from app.schemas.domain import Injection, InjectionType, OasisPlatform, OasisRunOptions, Tick
 from app.services.oasis_agent_tools import population_tool_rules
 from app.serializers import profile_from_dict
+from app.services.prompt_catalog import default_prompts, render_prompt
 
 AgentRole = Literal["population", "injector"]
 
@@ -113,82 +114,54 @@ def _short_description(
     return f"{base}. Lutning: {lutning}."
 
 
-# Shared behavioural rules for population agents.
-_POPULATION_ACTION_RULES_BASE = """\
-ÅTGÄRDER (viktigt):
-- Gilla (like_post / like_comment) BARA när du faktiskt stöder eller håller med.
-- Ogilla (dislike_post / dislike_comment) när du tar avstånd eller tycker illa om innehållet.
-- Om du kommenterar kritiskt, sarkastiskt eller ifrågasättande: gilla INTE samma inlägg.
-- Du får gärna kommentera utan att gilla/ogilla — kommentar och reaktion ska peka åt samma håll.
-- Följ (follow) personer vars röst du vill höra mer av; avfölj (unfollow) om de inte längre passar.
-- Mutea konton som bara stör dig; sök efter användare eller inlägg om du vill hitta något specifikt.
-- Rapportera (report_post) bara tydligt olämpligt innehåll.
-- Gör inget (do_nothing) om inget i flödet engagerar dig. Scrolla förbi är normalt.
-- Gilla inte bara för att visa att du sett något.
-
-HUR DU SKRIVER KOMMENTARER:
-- Vardagssvenska i din egen röst. Oftast 1–4 meningar. Inga punktlistor, rubriker eller "sammanfattningsvis".
-- Börja ALDRIG med: "Intressant att…", "Viktiga frågor", "Tack för", "Som [yrke] ser jag",
-  "Jag håller med om att…", "Håller med om att…", ensam "Precis." / "Exakt!" som öppning,
-  eller numrerade hänvisningar ("Kommentar 3…", "Kommentar 12 har rätt").
-- Du FÅR (och bör ibland) nämna andra personer vid namn när du hakar på dem — skriv
-  @ följt av author_first_name från flödet. Kopiera exakt från flödet; gissa ALDRIG namn,
-  blanda ALDRIG ihop avsändare, och återanvänd inte user_id som namn.
-- Välj EN struktur per kommentar: invändning, ny vinkel, konkret exempel, kort anekdot,
-  retorisk fråga, eller kort instämmande/avståndstagande med namngiven person.
-- Upprepa inte samma inledning/avslutning mellan inlägg. Variera språket; håll åsikten konsekvent.
-- Undvik att upprepa politikerns eller nyhetens exakta ordval och slogans. Reagera med
-  dina egna ord och din egen röst — sakinnehållet kan vara detsamma, men formuleringen
-  ska vara din.
-"""
-
-_NO_CREATE_POST_RULE_TWITTER = """\
-- Skapa INTE egna inlägg (create_post). Reagera bara på det du ser: gilla, ogilla, kommentera, dela, följ eller gör inget.
-"""
-
-_NO_CREATE_POST_RULE_REDDIT = """\
-- Skapa INTE egna inlägg (create_post). Reagera bara på det du ser: gilla, ogilla, kommentera, följ eller gör inget.
-"""
-
-_ALLOW_CREATE_POST_RULE = """\
-- Du FÅR skapa egna inlägg (create_post) när du har något eget att säga — kort, i din röst, utan att kopiera andras budskap ordagrant.
-"""
-
-
 def population_action_rules(
     *,
+    prompts: dict[str, str],
     allow_create_post: bool = False,
     platform: OasisPlatform = "twitter",
 ) -> str:
     if allow_create_post:
-        post_rule = _ALLOW_CREATE_POST_RULE
+        post_rule = render_prompt(prompts, "oasis.agents.create_post.allow")
     elif platform == "reddit":
-        post_rule = _NO_CREATE_POST_RULE_REDDIT
+        post_rule = render_prompt(prompts, "oasis.agents.create_post.deny_reddit")
     else:
-        post_rule = _NO_CREATE_POST_RULE_TWITTER
-    base = _POPULATION_ACTION_RULES_BASE.strip()
+        post_rule = render_prompt(prompts, "oasis.agents.create_post.deny_twitter")
+    base = render_prompt(prompts, "oasis.agents.action_rules").strip()
     marker = "ÅTGÄRDER (viktigt):\n"
     if marker in base:
         head, rest = base.split(marker, 1)
         return f"{head}{marker}{post_rule.strip()}\n{rest}"
+    # English defaults use "ACTIONS (important):"
+    en_marker = "ACTIONS (important):\n"
+    if en_marker in base:
+        head, rest = base.split(en_marker, 1)
+        return f"{head}{en_marker}{post_rule.strip()}\n{rest}"
     return f"{base}\n{post_rule.strip()}"
 
 
-# Back-compat alias for tests / callers that expect the default (no create_post).
-_POPULATION_ACTION_RULES = population_action_rules(allow_create_post=False)
+# Tests / callers that expect the default Swedish rules (no create_post).
+_POPULATION_ACTION_RULES = population_action_rules(
+    prompts=default_prompts("sv"),
+    allow_create_post=False,
+)
 
 
-def build_injector_profile(injection: Injection, index: int) -> OasisAgentProfile:
+def build_injector_profile(
+    injection: Injection,
+    index: int,
+    *,
+    prompts: dict[str, str],
+) -> OasisAgentProfile:
     raw_sender = injection.sender.strip().lstrip("@")
     display = raw_sender or _TYPE_DEFAULT_NAME[injection.type]
     type_label = _TYPE_LABEL[injection.type]
     key = injector_key(injection)
     description = f"Officiellt {type_label}. Publicerar konfigurerade budskap."
-    user_char = (
-        f"Du är det officiella kontot {display} på en svensk social medietjänst. "
-        f"Kontotyp: {type_label}. "
-        "Du publicerar endast förberedda budskap och är inte en privatperson eller väljare. "
-        "Du deltar inte i diskussioner, gillar inte, ogillar inte andras inlägg och svarar inte."
+    user_char = render_prompt(
+        prompts,
+        "oasis.agents.injector.user_char",
+        display=display,
+        type_label=type_label,
     )
     return OasisAgentProfile(
         username=_slug_username(display, index),
@@ -203,7 +176,11 @@ def build_injector_profile(injection: Injection, index: int) -> OasisAgentProfil
     )
 
 
-def injectors_from_ticks(ticks: list[Tick]) -> list[OasisAgentProfile]:
+def injectors_from_ticks(
+    ticks: list[Tick],
+    *,
+    prompts: dict[str, str],
+) -> list[OasisAgentProfile]:
     """One institutional injector per unique (type, sender) among non-empty injections."""
     ordered: list[OasisAgentProfile] = []
     seen: set[str] = set()
@@ -217,13 +194,16 @@ def injectors_from_ticks(ticks: list[Tick]) -> list[OasisAgentProfile]:
             if key in seen:
                 continue
             seen.add(key)
-            ordered.append(build_injector_profile(injection, len(ordered)))
+            ordered.append(
+                build_injector_profile(injection, len(ordered), prompts=prompts)
+            )
     return ordered
 
 
 def build_user_char(
     member: PopulationMember,
     *,
+    prompts: dict[str, str],
     area_block: str = "",
     allow_create_post: bool = False,
     platform: OasisPlatform = "twitter",
@@ -273,13 +253,10 @@ def build_user_char(
             f"Språk: {profile.sprak}. Medievanor: {profile.medievanor}.",
         ]
     )
-    lines.append(
-        "Du är en vanlig svensk person på en social medietjänst — inte debattör, "
-        "assistent eller balanserad analytiker. "
-        "Reagera autentiskt på politiska budskap utifrån din bakgrund."
-    )
+    lines.append(render_prompt(prompts, "oasis.agents.population.closing"))
     lines.append(
         population_action_rules(
+            prompts=prompts,
             allow_create_post=allow_create_post,
             platform=platform,
         )
@@ -293,6 +270,7 @@ def build_user_char(
 def members_to_profiles(
     members: list[PopulationMember],
     *,
+    prompts: dict[str, str],
     start_index: int = 0,
     area_blocks: dict[str, str] | None = None,
     allow_create_post: bool = False,
@@ -327,6 +305,7 @@ def members_to_profiles(
                 description=description,
                 user_char=build_user_char(
                     member,
+                    prompts=prompts,
                     area_block=area_block,
                     allow_create_post=allow_create_post,
                     platform=platform,
@@ -346,15 +325,17 @@ def build_run_profiles(
     members: list[PopulationMember],
     ticks: list[Tick],
     *,
+    prompts: dict[str, str],
     area_blocks: dict[str, str] | None = None,
     allow_create_post: bool = False,
     platform: OasisPlatform = "twitter",
     oasis_options: OasisRunOptions | None = None,
 ) -> tuple[list[OasisAgentProfile], dict[str, int]]:
     """Injectors first (no LLM), then the full population — no agent cap."""
-    injectors = injectors_from_ticks(ticks)
+    injectors = injectors_from_ticks(ticks, prompts=prompts)
     population = members_to_profiles(
         members,
+        prompts=prompts,
         start_index=len(injectors),
         area_blocks=area_blocks,
         allow_create_post=allow_create_post,

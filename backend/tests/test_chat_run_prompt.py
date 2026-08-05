@@ -2,6 +2,9 @@
 
 from app.llm.chat import build_chat_system_prompt, build_run_interview_prompt
 from app.schemas.domain import EditablePersona
+from app.services.prompt_catalog import default_prompts
+
+_PROMPTS = default_prompts("sv")
 
 
 def _profile(**overrides: str) -> EditablePersona:
@@ -17,7 +20,7 @@ def _profile(**overrides: str) -> EditablePersona:
 
 
 def test_chat_prompt_includes_anekdot():
-    prompt = build_chat_system_prompt(_profile(), "interview")
+    prompt = build_chat_system_prompt(_profile(), "interview", prompts=_PROMPTS)
     assert "Vardagsdetalj" in prompt
     assert "kaffe på pressbyrån" in prompt
 
@@ -26,6 +29,7 @@ def test_run_interview_prompt_blocks_future_context():
     prompt = build_run_interview_prompt(
         _profile(),
         "=== Flöde ===\n- Nyhet dag 1",
+        prompts=_PROMPTS,
         day=1,
         tick_index=0,
     )

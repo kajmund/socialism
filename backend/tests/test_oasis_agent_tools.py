@@ -11,7 +11,10 @@ from app.services.oasis_agent_tools import (
 )
 from app.services.oasis_profiles import build_user_char
 from app.services.oasis_run import parse_oasis_options
+from app.services.prompt_catalog import default_prompts
 from tests.test_oasis_actions_readback import _member
+
+_PROMPTS = default_prompts("sv")
 
 
 def test_parse_oasis_options_tool_defaults():
@@ -70,6 +73,7 @@ def test_build_population_extra_tools_sympy():
 def test_population_tool_rules_in_user_char():
     text = build_user_char(
         _member(),
+        prompts=_PROMPTS,
         oasis_options=OasisRunOptions(
             enable_web_search=True,
             enable_sympy_tools=True,

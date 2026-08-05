@@ -97,6 +97,11 @@ async def interview_client():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
+    from app.services.prompt_store import ensure_default_configurations
+
+    async with session_factory() as seed_session:
+        await ensure_default_configurations(seed_session)
+
     async with session_factory() as session:
         persona = Persona(
             id="p-anna",

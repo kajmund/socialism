@@ -95,6 +95,8 @@ Still hardcoded (next slices): OASIS simulation prompts (intentionally Swedish).
 | `/populations/new`, `/populations/:id/edit` | Population builder |
 | `/messages` | Budskapsbibliotek |
 | `/messages/new`, `/messages/:id/edit` | Budskapsverkstad |
+| `/configurations` | Promptkonfigurationer (namn + språk + prompt) |
+| `/configurations/new`, `/configurations/:id/edit` | Skapa/redigera konfiguration |
 | `/config` | Grunddata / catalog lists |
 | `/reports/:id` | HTML-rapport |
 

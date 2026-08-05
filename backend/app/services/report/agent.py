@@ -9,6 +9,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from app.llm import complete_structured
+from app.services.prompt_catalog import default_prompts, render_prompt
 from app.services.report.bundles import is_ab_comparison
 from app.services.report.locale import ReportLocale, narrative_system_prompt
 from app.services.report.tools import ReportToolBundle
@@ -16,8 +17,9 @@ from app.services.report.tools import ReportToolBundle
 logger = logging.getLogger(__name__)
 
 # Kept for tests / callers that import historical names.
-SYSTEM_META = narrative_system_prompt(multi=True, locale="sv")
-SYSTEM_SINGLE = narrative_system_prompt(multi=False, locale="sv")
+_DEFAULT_SV = default_prompts("sv")
+SYSTEM_META = narrative_system_prompt(multi=True, locale="sv", prompts=_DEFAULT_SV)
+SYSTEM_SINGLE = narrative_system_prompt(multi=False, locale="sv", prompts=_DEFAULT_SV)
 
 # Section batches: ~6 LLM calls instead of one agent loop per slot.
 NARRATIVE_BATCHES: tuple[tuple[str, tuple[str, ...]], ...] = (
@@ -185,19 +187,16 @@ async def fill_slot_batch(
     batch_name: str,
     items: list[dict[str, str]],
     locale: ReportLocale = "sv",
+    prompts: dict[str, str],
 ) -> dict[str, str]:
     if not items:
         return {}
-    system = narrative_system_prompt(multi=multi, locale=locale)
+    system = narrative_system_prompt(multi=multi, locale=locale, prompts=prompts)
     task_lines = [
         f"- **{it['slot']}**: {it['question']}" for it in items
     ]
     expected = [it["slot"] for it in items]
-    fill_intro = (
-        "Fill the following slots. Keys in slots must be exactly these names:\n"
-        if locale == "en"
-        else "Fyll följande slots. Nycklar i slots måste vara exakt dessa namn:\n"
-    )
+    fill_intro = render_prompt(prompts, "report.fill_slots.intro")
     try:
         result = await complete_structured(
             [

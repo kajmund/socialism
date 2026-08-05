@@ -4,6 +4,7 @@ from random import Random
 
 import pytest
 
+from app.services.prompt_catalog import default_prompts
 from app.llm.persona_anecdote import (
     anecdote_is_usable,
     llm_persona_anecdote,
@@ -39,8 +40,6 @@ def test_stub_persona_anecdote_is_short_and_grounded():
 def test_stub_persona_includes_anekdot():
     recipe = PopulationRecipe(
         size=1,
-        entryMode="manual",
-        freeText="",
         locale="norrkoping",
         seed=1,
         dist={
@@ -86,7 +85,7 @@ async def test_llm_persona_anecdote_uses_structured_completer(monkeypatch):
 
     set_structured_completer(stub)
     try:
-        text = await llm_persona_anecdote(_profile())
+        text = await llm_persona_anecdote(_profile(), prompts=default_prompts("sv"))
     finally:
         set_structured_completer(None)
 
@@ -98,8 +97,6 @@ async def test_llm_persona_anecdote_uses_structured_completer(monkeypatch):
 def test_sample_slot_does_not_assign_anekdot():
     recipe = PopulationRecipe(
         size=1,
-        entryMode="manual",
-        freeText="",
         locale="norrkoping",
         seed=1,
         dist={
