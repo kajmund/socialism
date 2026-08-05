@@ -26,4 +26,6 @@ När körningen är sparad kan du starta en simulering. Resultatet läggs till s
 ## Relaterade guider
 
 - [Skapa en ny körning](skapa-korning.md)
+- [Följa bakgrundsjobb](folja-bakgrundsjobb.md)
+- [Läsa simuleringsresultat](lasa-simuleringsresultat.md)
 - [Översikt av ytorna](oversikt.md)
