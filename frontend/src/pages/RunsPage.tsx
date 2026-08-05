@@ -3,17 +3,50 @@ import { Link } from "react-router-dom"
 import { deleteRun, duplicateRun, listRuns } from "@/api/runs"
 import { AdminShell } from "@/components/layout/AdminShell"
 import { Card, CardContent } from "@/components/ui/card"
-import { formatRunDate, RUN_STATUS_LABEL } from "@/data/runs"
+import { formatRunDate } from "@/data/runs"
 import type { RunStatus, RunSummary } from "@/data/runs-types"
+import { useLocale, type MessageKey } from "@/i18n"
 import { ApiError } from "@/lib/api"
+
+type Translate = (key: MessageKey, params?: Record<string, string | number>) => string
 
 type RunCardProps = {
   run: RunSummary
+  intl: string
+  t: Translate
   onDelete: (id: number) => void
   onDuplicate: (id: number, name: string) => void
 }
 
-function RunCard({ run, onDelete, onDuplicate }: RunCardProps) {
+function statusLabel(status: RunStatus, t: Translate): string {
+  switch (status) {
+    case "done":
+      return t("runs.status.done")
+    case "running":
+      return t("runs.status.running")
+    case "draft":
+      return t("runs.status.draft")
+    case "failed":
+      return t("runs.status.failed")
+    default: {
+      const _exhaustive: never = status
+      return _exhaustive
+    }
+  }
+}
+
+function primaryResultsLabel(status: RunStatus, t: Translate): string {
+  switch (status) {
+    case "running":
+      return t("runs.list.seeStatus")
+    case "failed":
+      return t("runs.list.seeError")
+    default:
+      return t("runs.list.openResults")
+  }
+}
+
+function RunCard({ run, intl, t, onDelete, onDuplicate }: RunCardProps) {
   return (
     <div className="run-card">
       <Card className="h-full gap-0 py-4 ring-1 ring-border">
@@ -21,19 +54,19 @@ function RunCard({ run, onDelete, onDuplicate }: RunCardProps) {
           <div className="run-top">
             <div className="run-nm">{run.name}</div>
             <span className={"status-tag " + run.status}>
-              {RUN_STATUS_LABEL[run.status]}
+              {statusLabel(run.status, t)}
             </span>
           </div>
           <div className="run-meta">
-            Population: <b>{run.population}</b>
+            {t("runs.list.population")} <b>{run.population}</b>
           </div>
           <div className="run-details">
             <div className="row">
-              <span>Tickar</span>
+              <span>{t("runs.list.ticks")}</span>
               <span className="v">{run.ticks}</span>
             </div>
             <div className="row">
-              <span>Varianter</span>
+              <span>{t("runs.list.variants")}</span>
               <span className="v">
                 {run.variants > 1 ? (
                   <span className="variant-badges">
@@ -46,14 +79,14 @@ function RunCard({ run, onDelete, onDuplicate }: RunCardProps) {
               </span>
             </div>
             <div className="row">
-              <span>Uppdaterad</span>
-              <span className="v">{formatRunDate(run.updated)}</span>
+              <span>{t("runs.list.updated")}</span>
+              <span className="v">{formatRunDate(run.updated, intl)}</span>
             </div>
           </div>
           <div className="run-actions">
             {run.status === "draft" ? (
               <Link className="primary full" to={`/runs/${run.id}/edit`}>
-                Fortsätt konfigurera
+                {t("runs.list.continueConfig")}
               </Link>
             ) : (
               <>
@@ -61,20 +94,18 @@ function RunCard({ run, onDelete, onDuplicate }: RunCardProps) {
                   className="primary"
                   to={`/runs/${run.id}/edit?tab=results`}
                 >
-                  {run.status === "running"
-                    ? "Se status"
-                    : run.status === "failed"
-                      ? "Se fel"
-                      : "Öppna resultat"}
+                  {primaryResultsLabel(run.status, t)}
                 </Link>
-                <Link to={`/runs/${run.id}/edit?tab=config`}>Konfiguration</Link>
+                <Link to={`/runs/${run.id}/edit?tab=config`}>
+                  {t("runs.list.configuration")}
+                </Link>
               </>
             )}
             <button type="button" onClick={() => onDuplicate(run.id, run.name)}>
-              Duplicera
+              {t("common.duplicate")}
             </button>
             <button type="button" onClick={() => onDelete(run.id)}>
-              Ta bort
+              {t("common.delete")}
             </button>
           </div>
         </CardContent>
@@ -84,6 +115,7 @@ function RunCard({ run, onDelete, onDuplicate }: RunCardProps) {
 }
 
 export function RunsPage() {
+  const { t, intl } = useLocale()
   const [runs, setRuns] = useState<RunSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -104,7 +136,7 @@ export function RunsPage() {
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setError(err instanceof ApiError ? err.message : "Kunde inte hämta körningar")
+          setError(err instanceof ApiError ? err.message : t("runs.list.loadError"))
         }
       })
       .finally(() => {
@@ -113,7 +145,7 @@ export function RunsPage() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [t])
 
   const list = useMemo(() => {
     let next = runs.filter(
@@ -141,9 +173,9 @@ export function RunsPage() {
     try {
       await deleteRun(id)
       setRuns((prev) => prev.filter((x) => x.id !== id))
-      showToast("Körning borttagen")
+      showToast(t("runs.list.deleted"))
     } catch (err) {
-      showToast(err instanceof ApiError ? err.message : "Kunde inte ta bort")
+      showToast(err instanceof ApiError ? err.message : t("common.deleteError"))
     }
   }
 
@@ -151,9 +183,9 @@ export function RunsPage() {
     try {
       const copy = await duplicateRun(id)
       setRuns((prev) => [copy, ...prev])
-      showToast(`Duplicerade '${name}'`)
+      showToast(t("runs.list.duplicated", { name }))
     } catch (err) {
-      showToast(err instanceof ApiError ? err.message : "Kunde inte duplicera")
+      showToast(err instanceof ApiError ? err.message : t("common.duplicateError"))
     }
   }
 
@@ -162,7 +194,7 @@ export function RunsPage() {
       <div className="wrap">
         <div className="head-row">
           <div>
-            <h1>Körningar</h1>
+            <h1>{t("runs.list.title")}</h1>
             <div
               style={{
                 font: "var(--text-body-sm)",
@@ -171,7 +203,7 @@ export function RunsPage() {
                 maxWidth: 640,
               }}
             >
-              Tidigare och pågående simuleringskörningar.
+              {t("runs.list.intro")}
             </div>
           </div>
         </div>
@@ -186,7 +218,7 @@ export function RunsPage() {
           <div className="controls-left">
             <input
               className="dsearch"
-              placeholder="Sök på namn..."
+              placeholder={t("runs.list.searchPlaceholder")}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -195,31 +227,31 @@ export function RunsPage() {
               value={status}
               onChange={(e) => setStatus(e.target.value as "all" | RunStatus)}
             >
-              <option value="all">Alla statusar</option>
-              <option value="done">Klara</option>
-              <option value="running">Pågår</option>
-              <option value="draft">Utkast</option>
-              <option value="failed">Misslyckade</option>
+              <option value="all">{t("runs.list.statusAll")}</option>
+              <option value="done">{t("runs.list.statusDone")}</option>
+              <option value="running">{t("runs.list.statusRunning")}</option>
+              <option value="draft">{t("runs.list.statusDraft")}</option>
+              <option value="failed">{t("runs.list.statusFailed")}</option>
             </select>
             <select
               className="dsel"
               value={sort}
               onChange={(e) => setSort(e.target.value as "updated" | "ticks")}
             >
-              <option value="updated">Sortera: Senast uppdaterad</option>
-              <option value="ticks">Sortera: Flest tickar</option>
+              <option value="updated">{t("runs.list.sortUpdated")}</option>
+              <option value="ticks">{t("runs.list.sortTicks")}</option>
             </select>
           </div>
           <Link
             to="/runs/new"
             className="admin-cta inline-flex h-9 items-center rounded-md bg-db-black px-4 text-sm text-db-ink-0 no-underline hover:bg-db-ink-800"
           >
-            + Ny körning
+            {t("runs.list.newRun")}
           </Link>
         </div>
 
         {loading ? (
-          <div className="no-match">Hämtar körningar…</div>
+          <div className="no-match">{t("runs.list.loading")}</div>
         ) : (
           <div className="run-grid">
             {list.length ? (
@@ -227,12 +259,14 @@ export function RunsPage() {
                 <RunCard
                   key={run.id}
                   run={run}
+                  intl={intl}
+                  t={t}
                   onDelete={handleDelete}
                   onDuplicate={handleDuplicate}
                 />
               ))
             ) : (
-              <div className="no-match">Inga körningar matchar filtret.</div>
+              <div className="no-match">{t("runs.list.emptyFilter")}</div>
             )}
           </div>
         )}
