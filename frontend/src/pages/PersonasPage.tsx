@@ -11,11 +11,14 @@ import {
   type CardFieldKey,
 } from "@/components/personas/PersonaCardFields"
 import { Card, CardContent } from "@/components/ui/card"
-import { blankEditablePersona, formatLibraryDate, ORIGIN_LABEL, personaInitials } from "@/data/library"
+import { blankEditablePersona, formatLibraryDate, originLabel, personaInitials } from "@/data/library"
 import type { EditablePersona, LibraryPersona, PersonaOrigin } from "@/data/library-types"
+import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
 import { ApiError } from "@/lib/api"
 
-function DiagramExplainer() {
+type Translate = (key: MessageKey, params?: TranslateParams) => string
+
+function DiagramExplainer({ t }: { t: Translate }) {
   return (
     <Card className="mb-6 gap-0 py-6 ring-1 ring-border">
       <CardContent className="px-6">
@@ -26,15 +29,14 @@ function DiagramExplainer() {
             marginBottom: 14,
           }}
         >
-          En persona kan höra till flera populationer, en, eller ingen —
-          biblioteket är alltid platt.
+          {t("personas.list.diagramText")}
         </div>
         <svg
           viewBox="0 0 560 190"
           style={{ width: "100%", maxWidth: 560, height: "auto" }}
           role="img"
         >
-          <title>Personas kan tillhöra flera populationer eller vara ofördelade</title>
+          <title>{t("personas.list.diagramTitle")}</title>
           <rect x="30" y="14" width="200" height="46" rx="23" fill="var(--db-ink-950)" />
           <text
             x="130"
@@ -43,7 +45,7 @@ function DiagramExplainer() {
             fill="var(--db-ink-0)"
             fontSize="13"
           >
-            Baslinjepopulation
+            {t("personas.list.baselinePopulation")}
           </text>
           <rect x="330" y="14" width="200" height="46" rx="23" fill="var(--db-gold-500)" />
           <text
@@ -53,7 +55,7 @@ function DiagramExplainer() {
             fill="var(--db-navy-ink)"
             fontSize="13"
           >
-            Kärnväljare
+            {t("personas.list.coreVoters")}
           </text>
           <line x1="110" y1="60" x2="110" y2="150" stroke="var(--db-ink-400)" strokeWidth="1.5" />
           <line x1="110" y1="150" x2="430" y2="60" stroke="var(--db-ink-400)" strokeWidth="1.5" />
@@ -89,7 +91,7 @@ function DiagramExplainer() {
             fill="var(--text-muted)"
             fontStyle="italic"
           >
-            Ofördelad
+            {t("personas.list.unassigned")}
           </text>
         </svg>
       </CardContent>
@@ -136,9 +138,17 @@ type PersonaCardProps = {
   open: boolean
   fieldOptions: Record<string, string[]>
   saveStatus: SaveStatus
+  intl: string
+  t: Translate
   onTogglePops: () => void
   onFieldChange: (key: CardFieldKey, value: string) => void
   onDelete: (id: string) => void
+}
+
+function populationCountLabel(count: number, t: Translate): string {
+  return count === 1
+    ? t("personas.list.populationCountOne")
+    : t("personas.list.populationCountOther", { count })
 }
 
 function PersonaCard({
@@ -146,6 +156,8 @@ function PersonaCard({
   open,
   fieldOptions,
   saveStatus,
+  intl,
+  t,
   onTogglePops,
   onFieldChange,
   onDelete,
@@ -154,12 +166,12 @@ function PersonaCard({
   const profile = ensureProfile(persona)
   const statusLabel =
     saveStatus === "saving"
-      ? "Sparar…"
+      ? t("common.saving")
       : saveStatus === "saved"
-        ? "Sparad"
+        ? t("personas.list.saved")
         : saveStatus === "error"
-          ? "Kunde inte spara"
-          : `Uppdaterad ${formatLibraryDate(persona.updated)}`
+          ? t("personas.list.saveFailed")
+          : t("personas.list.updated", { date: formatLibraryDate(persona.updated, intl) })
 
   return (
     <div className="p-card">
@@ -181,7 +193,7 @@ function PersonaCard({
           <div className="tag-row">
             {persona.pops.length === 0 ? (
               <span className="rounded-full border border-[color:var(--border-hairline)] px-2 py-0.5 text-[11px]">
-                Ofördelad
+                {t("personas.list.unassigned")}
               </span>
             ) : (
               <button
@@ -194,8 +206,7 @@ function PersonaCard({
                 }}
               >
                 <span className="rounded-full bg-db-gold-100 px-2 py-0.5 text-[11px] font-semibold text-db-gold-700">
-                  I {persona.pops.length} population
-                  {persona.pops.length > 1 ? "er" : ""}
+                  {populationCountLabel(persona.pops.length, t)}
                 </span>
                 {open && (
                   <div className="affil-pop">
@@ -207,7 +218,7 @@ function PersonaCard({
               </button>
             )}
             <span className="rounded-full border border-[color:var(--border-hairline)] px-2 py-0.5 text-[11px]">
-              {ORIGIN_LABEL[persona.origin]}
+              {originLabel(persona.origin, t)}
             </span>
           </div>
           <div
@@ -222,7 +233,7 @@ function PersonaCard({
           {confirming ? (
             <div className="confirm-row" style={{ marginTop: 0 }}>
               <button type="button" style={{ flex: 1 }} onClick={() => setConfirming(false)}>
-                Avbryt
+                {t("common.cancel")}
               </button>
               <button
                 type="button"
@@ -230,16 +241,16 @@ function PersonaCard({
                 style={{ flex: 1 }}
                 onClick={() => onDelete(persona.id)}
               >
-                Ta bort?
+                {t("common.deleteConfirm")}
               </button>
             </div>
           ) : (
             <div className="card-actions">
               <Link className="primary" to={`/personas/${persona.id}`}>
-                Öppna
+                {t("common.open")}
               </Link>
               <button type="button" className="danger" onClick={() => setConfirming(true)}>
-                Ta bort
+                {t("common.delete")}
               </button>
             </div>
           )}
@@ -252,12 +263,15 @@ function PersonaCard({
 function PersonaRow({
   persona,
   open,
+  t,
   onTogglePops,
   onDelete,
-}: Omit<PersonaCardProps, "fieldOptions" | "saveStatus" | "onFieldChange">) {
+}: Omit<PersonaCardProps, "fieldOptions" | "saveStatus" | "onFieldChange" | "intl">) {
   const [confirming, setConfirming] = useState(false)
   const affilText =
-    persona.pops.length === 0 ? "Ofördelad" : `I ${persona.pops.length} pop.`
+    persona.pops.length === 0
+      ? t("personas.list.unassigned")
+      : t("personas.list.populationCountShort", { count: persona.pops.length })
   return (
     <div className="p-row">
       <Link
@@ -312,15 +326,15 @@ function PersonaRow({
         </button>
       )}
       <div style={{ fontSize: 11, color: "var(--text-muted)", textAlign: "right" }}>
-        {ORIGIN_LABEL[persona.origin]}
+        {originLabel(persona.origin, t)}
       </div>
       {confirming ? (
         <div className="confirm-row" style={{ gap: 6 }}>
           <button type="button" onClick={() => setConfirming(false)}>
-            Avbryt
+            {t("common.cancel")}
           </button>
           <button type="button" className="yes" onClick={() => onDelete(persona.id)}>
-            Ta bort?
+            {t("common.deleteConfirm")}
           </button>
         </div>
       ) : (
@@ -337,7 +351,7 @@ function PersonaRow({
           }}
           onClick={() => setConfirming(true)}
         >
-          Ta bort
+          {t("common.delete")}
         </button>
       )}
     </div>
@@ -345,6 +359,7 @@ function PersonaRow({
 }
 
 export function PersonasPage() {
+  const { t, intl } = useLocale()
   const [personas, setPersonas] = useState<LibraryPersona[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -375,7 +390,7 @@ export function PersonasPage() {
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setError(err instanceof ApiError ? err.message : "Kunde inte hämta personas")
+          setError(err instanceof ApiError ? err.message : t("personas.list.fetchFailed"))
         }
       })
       .finally(() => {
@@ -384,7 +399,7 @@ export function PersonasPage() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     const h = () => setPopOpenIdx(-1)
@@ -477,7 +492,7 @@ export function PersonasPage() {
       markSaved(id)
     } catch (err) {
       setSaveStatus((prev) => ({ ...prev, [id]: "error" }))
-      showToast(err instanceof ApiError ? err.message : "Kunde inte spara")
+      showToast(err instanceof ApiError ? err.message : t("common.saveError"))
     }
   }
 
@@ -511,9 +526,9 @@ export function PersonasPage() {
       window.clearTimeout(timersRef.current[id])
       delete pendingRef.current[id]
       setPersonas((prev) => prev.filter((p) => p.id !== id))
-      showToast("Persona borttagen")
+      showToast(t("personas.list.deleted"))
     } catch (err) {
-      showToast(err instanceof ApiError ? err.message : "Kunde inte ta bort")
+      showToast(err instanceof ApiError ? err.message : t("common.deleteError"))
     }
   }
 
@@ -530,7 +545,7 @@ export function PersonasPage() {
                 margin: 0,
               }}
             >
-              Personas
+              {t("personas.list.title")}
             </h1>
             <div
               style={{
@@ -540,9 +555,7 @@ export function PersonasPage() {
                 maxWidth: 640,
               }}
             >
-              Alla skapade personas i ett platt bibliotek — oavsett om de tillhör
-              en population eller är fristående. Ändra fält direkt på kortet; det
-              sparas automatiskt.
+              {t("personas.list.description")}
             </div>
           </div>
           <button
@@ -558,26 +571,26 @@ export function PersonasPage() {
               flexShrink: 0,
             }}
           >
-            {showDiagram ? "Dölj förklaring" : "Hur funkar det?"}
+            {showDiagram ? t("personas.list.hideExplanation") : t("personas.list.showExplanation")}
           </button>
         </div>
 
-        {showDiagram && <DiagramExplainer />}
+        {showDiagram && <DiagramExplainer t={t} />}
 
         <div className="controls-row">
           <div className="controls-left">
             <input
               className="dsearch"
-              placeholder="Sök namn, ort, yrke..."
+              placeholder={t("personas.list.searchPlaceholder")}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
             <select className="dsel" value={affil} onChange={(e) => setAffil(e.target.value)}>
-              <option value="alla">Alla</option>
-              <option value="fristaende">Fristående</option>
+              <option value="alla">{t("personas.list.all")}</option>
+              <option value="fristaende">{t("personas.list.standalone")}</option>
               {popNames.map((name) => (
                 <option key={name} value={name}>
-                  Tillhör: {name}
+                  {t("personas.list.belongsTo", { name })}
                 </option>
               ))}
             </select>
@@ -586,27 +599,27 @@ export function PersonasPage() {
               value={origin}
               onChange={(e) => setOrigin(e.target.value as "alla" | PersonaOrigin)}
             >
-              <option value="alla">Alla ursprung</option>
-              <option value="manuell">Manuell</option>
-              <option value="beskrivning">Från beskrivning</option>
-              <option value="demografi">Från demografi</option>
-              <option value="population">Genererad via population</option>
+              <option value="alla">{t("personas.list.allOrigins")}</option>
+              <option value="manuell">{t("personas.origin.manual")}</option>
+              <option value="beskrivning">{t("personas.origin.fromDescription")}</option>
+              <option value="demografi">{t("personas.origin.fromDemographics")}</option>
+              <option value="population">{t("personas.origin.generatedViaPopulation")}</option>
             </select>
             <select
               className="dsel"
               value={sort}
               onChange={(e) => setSort(e.target.value as "updated" | "name" | "pops")}
             >
-              <option value="updated">Sortera: Senast uppdaterad</option>
-              <option value="name">Sortera: Namn</option>
-              <option value="pops">Sortera: Antal populationer</option>
+              <option value="updated">{t("personas.list.sortUpdated")}</option>
+              <option value="name">{t("personas.list.sortName")}</option>
+              <option value="pops">{t("personas.list.sortPops")}</option>
             </select>
           </div>
           <Link
             to="/personas/new"
             className="admin-cta inline-flex h-9 items-center rounded-md bg-db-black px-4 text-sm text-db-ink-0 no-underline hover:bg-db-ink-800"
           >
-            + Ny persona
+            {t("personas.list.newPersona")}
           </Link>
         </div>
 
@@ -617,14 +630,14 @@ export function PersonasPage() {
               className={view === "grid" ? "on" : ""}
               onClick={() => setView("grid")}
             >
-              ⬚ Rutnät
+              {t("personas.list.gridView")}
             </button>
             <button
               type="button"
               className={view === "lista" ? "on" : ""}
               onClick={() => setView("lista")}
             >
-              ≡ Lista
+              {t("personas.list.listView")}
             </button>
           </div>
         </div>
@@ -636,7 +649,7 @@ export function PersonasPage() {
         )}
 
         {loading ? (
-          <div className="no-match">Hämtar personas…</div>
+          <div className="no-match">{t("personas.list.loading")}</div>
         ) : view === "grid" ? (
           <div className="p-grid persona-grid">
             {list.length ? (
@@ -647,13 +660,15 @@ export function PersonasPage() {
                   open={popOpenIdx === i}
                   fieldOptions={fieldOptions}
                   saveStatus={saveStatus[p.id] ?? "idle"}
+                  intl={intl}
+                  t={t}
                   onTogglePops={() => setPopOpenIdx(popOpenIdx === i ? -1 : i)}
                   onFieldChange={(key, value) => handleFieldChange(p.id, key, value)}
                   onDelete={handleDelete}
                 />
               ))
             ) : (
-              <div className="no-match">Inga personas matchar filtren.</div>
+              <div className="no-match">{t("personas.list.noMatches")}</div>
             )}
           </div>
         ) : (
@@ -664,12 +679,13 @@ export function PersonasPage() {
                   key={p.id}
                   persona={p}
                   open={popOpenIdx === i}
+                  t={t}
                   onTogglePops={() => setPopOpenIdx(popOpenIdx === i ? -1 : i)}
                   onDelete={handleDelete}
                 />
               ))
             ) : (
-              <div className="no-match">Inga personas matchar filtren.</div>
+              <div className="no-match">{t("personas.list.noMatches")}</div>
             )}
           </div>
         )}

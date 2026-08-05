@@ -13,7 +13,10 @@ import {
 import { AdminShell } from "@/components/layout/AdminShell"
 import { MessageVariantsModal } from "@/components/messages/MessageVariantsModal"
 import { AdminButton } from "@/components/ui/admin-button"
+import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
 import { ApiError } from "@/lib/api"
+
+type Translate = (key: MessageKey, params?: TranslateParams) => string
 
 type Step = "type" | "compose"
 
@@ -32,7 +35,21 @@ function metaVariant(meta: Record<string, unknown>): MessageVariantKey | null {
   return null
 }
 
+function typeLabel(type: MessageType, t: Translate): string {
+  switch (type) {
+    case "post":
+      return t("messages.list.typePost")
+    case "news":
+      return t("messages.list.typeNews")
+    default: {
+      const exhaustive: never = type
+      return exhaustive
+    }
+  }
+}
+
 export function MessagesWorkshopPage() {
+  const { t } = useLocale()
   const navigate = useNavigate()
   const { id: editId } = useParams<{ id?: string }>()
   const isEdit = Boolean(editId)
@@ -78,7 +95,7 @@ export function MessagesWorkshopPage() {
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setError(err instanceof ApiError ? err.message : "Kunde inte hämta budskap")
+          setError(err instanceof ApiError ? err.message : t("messages.list.loadError"))
         }
       })
       .finally(() => {
@@ -87,6 +104,7 @@ export function MessagesWorkshopPage() {
     return () => {
       cancelled = true
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editId])
 
   useEffect(() => {
@@ -117,9 +135,9 @@ export function MessagesWorkshopPage() {
       setSourceUrl(res.source_url)
       setBody(res.summary)
       setSelectedKey(null)
-      setToast("Länken sammanfattades")
+      setToast(t("messages.workshop.summarizeSuccess"))
     } catch (err: unknown) {
-      setError(err instanceof ApiError ? err.message : "Kunde inte hämta länken")
+      setError(err instanceof ApiError ? err.message : t("messages.workshop.summarizeError"))
     } finally {
       setSummarizing(false)
     }
@@ -127,7 +145,7 @@ export function MessagesWorkshopPage() {
 
   function openVariantsModal() {
     if (!body.trim() && !sourceUrl.trim()) {
-      setError("Skriv text eller ange en länk innan du genererar varianter")
+      setError(t("messages.workshop.needBodyOrLink"))
       return
     }
     setError(null)
@@ -138,7 +156,7 @@ export function MessagesWorkshopPage() {
   async function onGenerate() {
     if (!messageType) return
     if (!body.trim() && !sourceUrl.trim()) {
-      setModalError("Saknar underlag — skriv text i verkstaden eller ange en länk")
+      setModalError(t("messages.workshop.missingInput"))
       return
     }
     setGenerating(true)
@@ -155,7 +173,7 @@ export function MessagesWorkshopPage() {
       setVariants(res.variants)
     } catch (err: unknown) {
       setModalError(
-        err instanceof ApiError ? err.message : "Kunde inte generera varianter",
+        err instanceof ApiError ? err.message : t("messages.workshop.variantsGenerateError"),
       )
     } finally {
       setGenerating(false)
@@ -169,19 +187,19 @@ export function MessagesWorkshopPage() {
       setTitle(suggestTitle(v.body))
     }
     setVariantsOpen(false)
-    setToast(`Valde: ${v.label}`)
+    setToast(t("messages.workshop.selectedToast", { label: v.label }))
   }
 
   async function onSave() {
     if (!messageType) return
     const text = body.trim()
     if (!text) {
-      setError("Skriv budskapet innan du sparar")
+      setError(t("messages.workshop.saveBodyRequired"))
       return
     }
     const saveTitle = title.trim() || suggestTitle(text)
     if (!saveTitle) {
-      setError("Ange en titel")
+      setError(t("messages.workshop.titleRequired"))
       return
     }
     setSaving(true)
@@ -201,13 +219,13 @@ export function MessagesWorkshopPage() {
     try {
       if (isEdit && editId) {
         await updateMessage(editId, payload)
-        setToast("Budskapet sparades")
+        setToast(t("messages.workshop.savedToast"))
       } else {
         await createMessage(payload)
       }
       navigate("/messages")
     } catch (err: unknown) {
-      setError(err instanceof ApiError ? err.message : "Kunde inte spara")
+      setError(err instanceof ApiError ? err.message : t("common.saveError"))
     } finally {
       setSaving(false)
     }
@@ -220,21 +238,19 @@ export function MessagesWorkshopPage() {
           <div>
             <p className="mb-1 text-sm text-muted-foreground">
               <Link to="/messages" className="underline-offset-2 hover:underline">
-                Budskap
+                {t("messages.list.title")}
               </Link>
               {" / "}
-              Verkstad
+              {t("messages.workshop.breadcrumbWorkshop")}
             </p>
-            <h1>{isEdit ? "Redigera budskap" : "Budskapsverkstad"}</h1>
+            <h1>{isEdit ? t("messages.workshop.editTitle") : t("messages.workshop.newTitle")}</h1>
             <p className="muted">
-              {isEdit
-                ? "Uppdatera titel, text och länk. Sparade ändringar gäller i biblioteket direkt."
-                : "Skriv budskapet, hämta från en länk eller generera formuleringar — spara sedan till biblioteket."}
+              {isEdit ? t("messages.workshop.editIntro") : t("messages.workshop.newIntro")}
             </p>
           </div>
         </div>
 
-        {loading && <p className="muted">Hämtar budskap…</p>}
+        {loading && <p className="muted">{t("messages.list.loading")}</p>}
 
         {!loading && step === "type" && (
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
@@ -243,9 +259,9 @@ export function MessagesWorkshopPage() {
               className="rounded-[var(--radius-md)] border border-[color:var(--border-hairline)] bg-db-ink-0 p-6 text-left transition-colors hover:border-db-ink-950"
               onClick={() => pickType("post")}
             >
-              <div className="text-lg font-medium">Post</div>
+              <div className="text-lg font-medium">{t("messages.list.typePost")}</div>
               <p className="mt-2 text-sm text-muted-foreground">
-                Partipost eller socialt inlägg som injiceras i simuleringen.
+                {t("messages.workshop.postTypeDesc")}
               </p>
             </button>
             <button
@@ -253,9 +269,9 @@ export function MessagesWorkshopPage() {
               className="rounded-[var(--radius-md)] border border-[color:var(--border-hairline)] bg-db-ink-0 p-6 text-left transition-colors hover:border-db-ink-950"
               onClick={() => pickType("news")}
             >
-              <div className="text-lg font-medium">Nyhet</div>
+              <div className="text-lg font-medium">{t("messages.list.typeNews")}</div>
               <p className="mt-2 text-sm text-muted-foreground">
-                Nyhetspost — skriv text eller hämta från en valfri källänk.
+                {t("messages.workshop.newsTypeDesc")}
               </p>
             </button>
           </div>
@@ -265,7 +281,7 @@ export function MessagesWorkshopPage() {
           <div className="mt-6 space-y-6">
             <div className="flex items-center justify-between gap-3">
               <span className="rounded-full border border-[color:var(--border-hairline)] px-3 py-1 text-sm">
-                Typ: {messageType === "post" ? "Post" : "Nyhet"}
+                {t("messages.workshop.typeLabel", { type: typeLabel(messageType, t) })}
               </span>
               <AdminButton
                 variant="secondary"
@@ -276,13 +292,15 @@ export function MessagesWorkshopPage() {
                   setVariantsOpen(false)
                 }}
               >
-                Byt typ
+                {t("messages.workshop.changeType")}
               </AdminButton>
             </div>
 
             <div className="field">
               <label htmlFor="message-body">
-                {messageType === "news" ? "Nyhetstext" : "Budskap"}
+                {messageType === "news"
+                  ? t("messages.workshop.bodyLabelNews")
+                  : t("messages.workshop.bodyLabelPost")}
               </label>
               <textarea
                 id="message-body"
@@ -290,8 +308,8 @@ export function MessagesWorkshopPage() {
                 className="w-full"
                 placeholder={
                   messageType === "news"
-                    ? "Skriv nyheten här, eller hämta från en länk…"
-                    : "Skriv budskapet här, eller hämta från en länk…"
+                    ? t("messages.workshop.bodyPlaceholderNews")
+                    : t("messages.workshop.bodyPlaceholderPost")
                 }
                 value={body}
                 onChange={(e) => {
@@ -302,12 +320,12 @@ export function MessagesWorkshopPage() {
             </div>
 
             <div className="field">
-              <label htmlFor="source-url">Länk (valfri)</label>
+              <label htmlFor="source-url">{t("messages.workshop.sourceUrlLabel")}</label>
               <div className="flex flex-wrap items-stretch gap-2">
                 <input
                   id="source-url"
                   className="min-w-0 flex-1"
-                  placeholder="https://…"
+                  placeholder={t("messages.workshop.sourceUrlPlaceholder")}
                   value={sourceUrl}
                   onChange={(e) => setSourceUrl(e.target.value)}
                   onKeyDown={(e) => {
@@ -323,27 +341,31 @@ export function MessagesWorkshopPage() {
                   onClick={onSummarizeLink}
                   disabled={!sourceUrl.trim() || summarizing}
                 >
-                  {summarizing ? "Hämtar…" : "Hämta & sammanfatta"}
+                  {summarizing ? t("messages.workshop.fetching") : t("messages.workshop.fetchAndSummarize")}
                 </AdminButton>
               </div>
             </div>
 
             <div className="field">
-              <label htmlFor="title">Titel (för listor)</label>
+              <label htmlFor="title">{t("messages.workshop.titleLabel")}</label>
               <input
                 id="title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Kort titel — fylls i automatiskt om tom"
+                placeholder={t("messages.workshop.titlePlaceholder")}
               />
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
               <AdminButton variant="accent" onClick={onSave} disabled={saving}>
-                {saving ? "Sparar…" : isEdit ? "Spara ändringar" : "Spara till biblioteket"}
+                {saving
+                  ? t("common.saving")
+                  : isEdit
+                    ? t("messages.workshop.saveChanges")
+                    : t("messages.workshop.saveToLibrary")}
               </AdminButton>
               <AdminButton variant="secondary" onClick={openVariantsModal}>
-                Generera varianter…
+                {t("messages.workshop.generateVariantsButton")}
               </AdminButton>
             </div>
 
