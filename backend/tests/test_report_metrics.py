@@ -28,11 +28,15 @@ from app.services.report.classify import (
     classify_tones,
     derive_topic_packs,
 )
+from app.services.prompt_catalog import default_prompts
 from app.services.report.generate import _load_questions, fill_narrative_slots, generate_report_html
 from app.services.report.metrics import STYLE_UNCLASSIFIED, compute_report_metrics
 from app.services.report.render import apply_slots
 from app.services.report.sanitize import sanitize_slot_output
 from app.services.report.tools import ReportToolBundle, call_tool
+
+_PROMPTS = default_prompts("sv")
+_PROMPTS_EN = default_prompts("en")
 
 
 def _bundle(
@@ -197,7 +201,8 @@ async def test_derive_and_classify_via_mocked_llm():
             [
                 "Socialdemokraterna vill stoppa nedsläckningen av vägbelysning "
                 "i byar. Belysningen är avgörande för tryggheten."
-            ]
+            ],
+            prompts=_PROMPTS,
         )
         assert packs[0].label == "Belysning"
         texts = [
@@ -205,10 +210,10 @@ async def test_derive_and_classify_via_mocked_llm():
             "Skandal och valfläsk.",
             "24 grader över hela Sverige.",
         ]
-        topic_shares = await classify_topics(texts, packs)
+        topic_shares = await classify_topics(texts, packs, prompts=_PROMPTS)
         assert "Belysning" in topic_shares
         assert "Övrigt" in topic_shares
-        tone_shares, mode = await classify_tones(texts)
+        tone_shares, mode = await classify_tones(texts, prompts=_PROMPTS)
         assert mode == "llm"
         assert tone_shares["Kritisk / uppgiven"] > 0
     finally:
@@ -415,6 +420,7 @@ async def test_fill_slot_batch_structured():
                 {"slot": "sec04_intro", "question": "Intro"},
                 {"slot": "sec04_explainer_html", "question": "Explainer"},
             ],
+            prompts=_PROMPTS,
         )
         assert out["sec04_h2"] == "Belysningen tog över"
         assert "sec04_explainer_html" not in out
@@ -433,6 +439,7 @@ async def test_fill_narrative_slots_batches_in_parallel():
             questions=_load_questions("sv"),
             dry_run=False,
             locale="sv",
+            prompts=_PROMPTS,
         )
         assert len(out) >= 20
         assert "cover_h1" in out or "page_title" in out
@@ -450,6 +457,7 @@ async def test_generate_report_with_mocked_llm(tmp_path: Path):
             dry_run=False,
             title="Test",
             locale="sv",
+            prompts=_PROMPTS,
         )
         assert html_path.is_file()
         assert slots_path.is_file()
@@ -474,6 +482,7 @@ async def test_generate_english_report_with_mocked_llm(tmp_path: Path):
             dry_run=False,
             title="My report",
             locale="en",
+            prompts=_PROMPTS_EN,
         )
         html = html_path.read_text(encoding="utf-8")
         assert 'lang="en"' in html
@@ -495,6 +504,7 @@ async def test_generate_report_dry_run_skips_narrative_but_classifies(tmp_path: 
             out_dir=tmp_path / "rpt_dry",
             dry_run=True,
             title="Dry",
+            prompts=_PROMPTS,
         )
         # dry_run skips narrative LLM; classification still runs via mock
         assert "Belysning" in slots.get("meta_topics", "")
@@ -513,6 +523,7 @@ async def test_generate_report_escapes_hostile_title(tmp_path: Path):
             out_dir=tmp_path / "rpt_xss",
             dry_run=True,
             title=hostile,
+            prompts=_PROMPTS,
         )
         html = html_path.read_text(encoding="utf-8")
         assert slots["page_title"] == hostile

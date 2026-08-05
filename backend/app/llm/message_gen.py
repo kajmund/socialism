@@ -16,23 +16,12 @@ from app.schemas.domain import (
     MessageVariant,
     MessageVariantOut,
 )
+from app.services.prompt_catalog import render_prompt
 
-VARIANT_SPECS: list[tuple[MessageVariant, str, str]] = [
-    (
-        "analytical",
-        "Professionell / analytisk",
-        "Skriv med en professionell, analytisk vinkel. Tydliga argument, saklig ton.",
-    ),
-    (
-        "narrative",
-        "Personlig / berättande",
-        "Skriv med en personlig, berättande vinkel. Mänsklig röst, konkret vardag.",
-    ),
-    (
-        "concise",
-        "Kort / koncis",
-        "Skriv kort och koncist. Max 2–3 meningar, hög densitet, ingen fluff.",
-    ),
+VARIANT_KEYS: list[tuple[MessageVariant, str, str]] = [
+    ("analytical", "Professionell / analytisk", "messages.variant.analytical"),
+    ("narrative", "Personlig / berättande", "messages.variant.narrative"),
+    ("concise", "Kort / koncis", "messages.variant.concise"),
 ]
 
 _SKIP_TAGS = frozenset(
@@ -222,23 +211,25 @@ def _type_label(message_type: MessageType) -> str:
     return "partipost / socialt inlägg" if message_type == "post" else "nyhetspost"
 
 
-async def summarize_url_content(url: str, message_type: MessageType = "news") -> str:
+async def summarize_url_content(
+    url: str,
+    message_type: MessageType = "news",
+    *,
+    prompts: dict[str, str],
+) -> str:
     page_text = await fetch_url_text(url)
     messages = [
         {
             "role": "system",
-            "content": (
-                "Du sammanfattar webbinnehåll på svenska för politisk budskapsutveckling. "
-                "Fokusera på artikelns faktiska innehåll (titel, ingress, brödtext). "
-                "Ignorera navigering, menyer, cookies och reklam. "
-                "Returnera endast sammanfattningen, ingen meta-kommentar."
-            ),
+            "content": render_prompt(prompts, "messages.summarize_url.system"),
         },
         {
             "role": "user",
-            "content": (
-                f"Sammanfatta följande innehåll kort (5–8 meningar) som underlag för en "
-                f"{_type_label(message_type)}:\n\n{page_text}"
+            "content": render_prompt(
+                prompts,
+                "messages.summarize_url.user",
+                type_label=_type_label(message_type),
+                page_text=page_text,
             ),
         },
     ]
@@ -249,6 +240,8 @@ def _variant_prompt(
     body: GenerateVariantsRequest,
     angle_instruction: str,
     source_material: str,
+    *,
+    prompts: dict[str, str],
 ) -> list[dict[str, str]]:
     context_bits = []
     if body.audience.strip():
@@ -264,18 +257,17 @@ def _variant_prompt(
     return [
         {
             "role": "system",
-            "content": (
-                "Du skriver politiska budskap på svenska för Opinionssimulator. "
-                "Returnera endast budskapstexten, ingen rubrik eller meta-kommentar."
-            ),
+            "content": render_prompt(prompts, "messages.variant.system"),
         },
         {
             "role": "user",
-            "content": (
-                f"Skriv en {_type_label(body.type)}.\n"
-                f"{angle_instruction}\n\n"
-                f"Kontext:\n{context_block}\n\n"
-                f"Underlag:\n{source_material}"
+            "content": render_prompt(
+                prompts,
+                "messages.variant.user",
+                type_label=_type_label(body.type),
+                angle_instruction=angle_instruction,
+                context_block=context_block,
+                source_material=source_material,
             ),
         },
     ]
@@ -283,18 +275,25 @@ def _variant_prompt(
 
 async def generate_message_variants(
     body: GenerateVariantsRequest,
+    *,
+    prompts: dict[str, str],
 ) -> list[MessageVariantOut]:
     source_material = body.raw_text
     if not source_material and body.source_url:
-        source_material = await summarize_url_content(body.source_url, body.type)
+        source_material = await summarize_url_content(
+            body.source_url, body.type, prompts=prompts
+        )
     if not source_material:
         raise ValueError("Saknar underlag för generering")
 
-    async def one(key: MessageVariant, label: str, instruction: str) -> MessageVariantOut:
-        text = await complete_text(_variant_prompt(body, instruction, source_material))
+    async def one(key: MessageVariant, label: str, prompt_key: str) -> MessageVariantOut:
+        instruction = render_prompt(prompts, prompt_key)
+        text = await complete_text(
+            _variant_prompt(body, instruction, source_material, prompts=prompts)
+        )
         return MessageVariantOut(key=key, label=label, body=text)
 
     results = await asyncio.gather(
-        *[one(key, label, instruction) for key, label, instruction in VARIANT_SPECS]
+        *[one(key, label, prompt_key) for key, label, prompt_key in VARIANT_KEYS]
     )
     return list(results)

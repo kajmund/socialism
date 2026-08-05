@@ -5,6 +5,9 @@ from pathlib import Path
 
 from app.database.models import PopulationMember
 from app.services.oasis_profiles import build_user_char, population_action_rules
+from app.services.prompt_catalog import default_prompts
+
+_PROMPTS = default_prompts("sv")
 from app.services.oasis_run import (
     _created_at_to_sort_key,
     _max_event_time,
@@ -75,22 +78,22 @@ def test_parse_oasis_options_defaults():
 
 
 def test_user_char_reflects_create_post_flag():
-    blocked = build_user_char(_member(), allow_create_post=False)
+    blocked = build_user_char(_member(), prompts=_PROMPTS, allow_create_post=False)
     assert "Skapa INTE egna inlägg" in blocked
     assert "dela" in blocked
-    allowed = build_user_char(_member(), allow_create_post=True)
+    allowed = build_user_char(_member(), prompts=_PROMPTS, allow_create_post=True)
     assert "FÅR skapa egna inlägg" in allowed
     assert "Skapa INTE egna inlägg" not in allowed
     reddit_blocked = build_user_char(
-        _member(), allow_create_post=False, platform="reddit"
+        _member(), prompts=_PROMPTS, allow_create_post=False, platform="reddit"
     )
     assert "dela" not in reddit_blocked
 
 
 def test_population_action_rules_helpers():
-    assert "follow" in population_action_rules(allow_create_post=False).casefold()
-    assert "create_post" in population_action_rules(allow_create_post=True).casefold()
-    reddit = population_action_rules(platform="reddit", allow_create_post=False)
+    assert "follow" in population_action_rules(prompts=_PROMPTS, allow_create_post=False).casefold()
+    assert "create_post" in population_action_rules(prompts=_PROMPTS, allow_create_post=True).casefold()
+    reddit = population_action_rules(prompts=_PROMPTS, platform="reddit", allow_create_post=False)
     assert "dela" not in reddit
 
 

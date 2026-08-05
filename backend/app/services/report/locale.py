@@ -400,30 +400,13 @@ def _narrative_defaults_en(
     }
 
 
-SYSTEM_META_SV = """Du är samhällsvetare som jämför simulerade politiska diskussioner.
-När källorna är Version A och Version B (A/B-test av budskap): jämför ALLTID A mot B
-uttryckligen — vad skiljde i engagemang, ton, ämne och stil? Vilken arm fungerade bättre och varför?
-När det är flera oberoende körningar: rapportera alltid hur många körningar ett fynd bygger på.
-Ett mönster i en arm/körning = observation. I båda/alla = tendens, inte bevis.
-Svara på svenska. Fyll varje slot enligt instruktionen — ingen inledning utanför slotvärdena."""
+def narrative_system_prompt(
+    *,
+    multi: bool,
+    locale: ReportLocale,
+    prompts: dict[str, str],
+) -> str:
+    from app.services.prompt_catalog import render_prompt
 
-SYSTEM_SINGLE_SV = """Du är samhällsvetare som analyserar EN simulerad politisk diskussion.
-Var ärlig om osäkerhet. En körning ger observationer, inte bevis.
-Svara på svenska. Fyll varje slot enligt instruktionen — ingen inledning utanför slotvärdena."""
-
-SYSTEM_META_EN = """You are a social scientist comparing simulated political discussions.
-When the sources are Version A and Version B (A/B message test): ALWAYS compare A vs B
-explicitly — what differed in engagement, tone, topic, and style? Which arm worked better and why?
-When there are several independent runs: always report how many runs a finding rests on.
-A pattern in one arm/run = observation. In both/all = tendency, not proof.
-Answer in English. Fill each slot per the instruction — no preamble outside slot values."""
-
-SYSTEM_SINGLE_EN = """You are a social scientist analyzing ONE simulated political discussion.
-Be honest about uncertainty. One run yields observations, not proof.
-Answer in English. Fill each slot per the instruction — no preamble outside slot values."""
-
-
-def narrative_system_prompt(*, multi: bool, locale: ReportLocale) -> str:
-    if locale == "en":
-        return SYSTEM_META_EN if multi else SYSTEM_SINGLE_EN
-    return SYSTEM_META_SV if multi else SYSTEM_SINGLE_SV
+    key = "report.narrative.system_meta" if multi else "report.narrative.system_single"
+    return render_prompt(prompts, key)

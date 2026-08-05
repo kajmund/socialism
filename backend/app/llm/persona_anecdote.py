@@ -10,6 +10,8 @@ from app.llm import complete_structured
 from app.locality import load_norrkoping_brief
 from app.schemas.domain import EditablePersona, PersonaAnecdoteOut
 from app.services.district_context import area_block_for_name
+from app.services.prompt_catalog import render_prompt
+from app.services.prompt_store import require_active_prompts
 
 _MAX_ANECDOTE_WORDS = 20
 _POLITICAL_MARKERS = (
@@ -81,7 +83,12 @@ async def llm_persona_anecdote(
     *,
     session: AsyncSession | None = None,
     previous_anecdotes: tuple[str, ...] = (),
+    prompts: dict[str, str] | None = None,
 ) -> str:
+    if prompts is None:
+        if session is None:
+            raise RuntimeError("session or prompts is required for anecdote generation")
+        prompts = await require_active_prompts(session, "sv")
     area_block = ""
     if session is not None:
         area_block = await area_block_for_name(session, profile.ort)
@@ -92,35 +99,21 @@ async def llm_persona_anecdote(
         prev_block = (
             f"\nAnekdoter som redan använts i populationen (skriv en annan):\n{listed}\n"
         )
-    user = f"""Skriv EN kort vardagsanekdot för denna persona.
-
-Persona:
-{_anecdote_context_lines(profile)}
-
-Krav:
-- Exakt en mening, max {_MAX_ANECDOTE_WORDS} ord.
-- Koppla till yrke, ort eller livssituation — inte generisk "alla vet att…".
-- Ska kunna vävas in naturligt i en kommentar (t.ex. "min syster jobbar…", "förra veckan såg jag…").
-- INGEN politisk ståndpunkt, inget parti, ingen lutning — bara en konkret vardagsdetalj.
-- Ingen moral om politik, skatter eller partier.
-{prev_block}
-Returnera JSON med fältet anekdot.
-"""
+    user = render_prompt(
+        prompts,
+        "persona.anecdote.user",
+        persona_block=_anecdote_context_lines(profile),
+        prev_block=prev_block,
+    )
     local = brief
     if area_block.strip():
         local = f"{brief}\n\n{area_block.strip()}"
+    system = render_prompt(prompts, "persona.anecdote.system", local_context=local)
     last_error = ""
     for _attempt in range(3):
         result = await complete_structured(
             [
-                {
-                    "role": "system",
-                    "content": (
-                        "Du skriver korta svenska vardagsanekdoter för simulerade medborgare. "
-                        "Svara endast med JSON.\n\n"
-                        f"Lokal kontext:\n{local}"
-                    ),
-                },
+                {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
             PersonaAnecdoteOut,

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
 import {
+  activateConfiguration,
   deleteConfiguration,
   listConfigurations,
   type Configuration,
@@ -31,11 +32,13 @@ function languageLabel(language: ConfigurationLanguage, t: Translate): string {
 type ConfigCardProps = {
   config: Configuration
   onDelete: (id: number) => void
+  onActivate: (id: number) => void
 }
 
-function ConfigCard({ config, onDelete }: ConfigCardProps) {
+function ConfigCard({ config, onDelete, onActivate }: ConfigCardProps) {
   const { t } = useLocale()
   const [confirming, setConfirming] = useState(false)
+  const promptCount = Object.keys(config.prompts).length
   return (
     <div className="pop-card">
       <Card className="h-full gap-0 py-4 ring-1 ring-border">
@@ -46,9 +49,13 @@ function ConfigCard({ config, onDelete }: ConfigCardProps) {
               {languageLabel(config.language, t)}
             </span>
           </div>
-          <p className="mt-2 line-clamp-3 text-sm text-muted-foreground whitespace-pre-wrap">
-            {config.prompt_text}
-          </p>
+          <div className="meta-line">
+            {config.is_active
+              ? t("configurations.list.activeBadge")
+              : t("configurations.list.inactiveBadge")}
+            {" · "}
+            {t("configurations.list.promptCount", { count: promptCount })}
+          </div>
           {confirming ? (
             <div className="confirm-row" style={{ marginTop: "auto" }}>
               <button type="button" style={{ flex: 1 }} onClick={() => setConfirming(false)}>
@@ -68,6 +75,11 @@ function ConfigCard({ config, onDelete }: ConfigCardProps) {
               <Link className="primary" to={`/configurations/${config.id}/edit`}>
                 {t("configurations.list.edit")}
               </Link>
+              {!config.is_active ? (
+                <button type="button" onClick={() => onActivate(config.id)}>
+                  {t("configurations.list.activate")}
+                </button>
+              ) : null}
               <button type="button" className="danger" onClick={() => setConfirming(true)}>
                 {t("common.delete")}
               </button>
@@ -122,9 +134,7 @@ export function ConfigurationsPage() {
     return configs.filter((c) => {
       if (languageFilter && c.language !== languageFilter) return false
       if (!q) return true
-      return (
-        c.name.toLowerCase().includes(q) || c.prompt_text.toLowerCase().includes(q)
-      )
+      return c.name.toLowerCase().includes(q)
     })
   }, [configs, query, languageFilter])
 
@@ -135,6 +145,22 @@ export function ConfigurationsPage() {
       setToast(t("configurations.list.deleted"))
     } catch (err: unknown) {
       setToast(err instanceof ApiError ? err.message : t("common.deleteError"))
+    }
+  }
+
+  async function onActivate(id: number) {
+    try {
+      const updated = await activateConfiguration(id)
+      setConfigs((prev) =>
+        prev.map((c) => {
+          if (c.id === updated.id) return updated
+          if (c.language === updated.language) return { ...c, is_active: false }
+          return c
+        }),
+      )
+      setToast(t("configurations.list.activated"))
+    } catch (err: unknown) {
+      setToast(err instanceof ApiError ? err.message : t("common.saveError"))
     }
   }
 
@@ -192,7 +218,12 @@ export function ConfigurationsPage() {
         )}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((config) => (
-            <ConfigCard key={config.id} config={config} onDelete={onDelete} />
+            <ConfigCard
+              key={config.id}
+              config={config}
+              onDelete={onDelete}
+              onActivate={onActivate}
+            />
           ))}
         </div>
       </div>

@@ -547,88 +547,73 @@ async def test_message_crud_and_filters(client):
 
 
 async def test_configuration_crud(client):
+    catalog = await client.get("/configurations/catalog", params={"language": "sv"})
+    assert catalog.status_code == 200
+    cat = catalog.json()
+    assert len(cat["fields"]) >= 10
+    assert "persona.field_guide" in cat["defaults"]
+
+    listed = await client.get("/configurations")
+    assert listed.status_code == 200
+    # Seeded Standard configs for sv + en
+    assert len(listed.json()) >= 2
+    assert any(c["is_active"] and c["language"] == "sv" for c in listed.json())
+
     create = await client.post(
         "/configurations",
         json={
-            "name": "  Svensk basprompt  ",
+            "name": "  Alternativ SV  ",
             "language": "sv",
-            "prompt_text": "  Svara på svenska.  ",
+            "prompts": {"persona.field_guide": "  Egen fältguide  "},
+            "is_active": True,
         },
     )
     assert create.status_code == 201
     row = create.json()
-    assert row["name"] == "Svensk basprompt"
+    assert row["name"] == "Alternativ SV"
     assert row["language"] == "sv"
-    assert row["prompt_text"] == "Svara på svenska."
-    assert row["id"] >= 1
-    assert row["created_at"]
-    assert row["updated_at"]
+    assert row["is_active"] is True
+    assert row["prompts"]["persona.field_guide"] == "Egen fältguide"
+    assert row["prompts"]["chat.mode.interview"]  # filled from defaults
     config_id = row["id"]
 
-    other = await client.post(
-        "/configurations",
-        json={
-            "name": "English prompt",
-            "language": "en",
-            "prompt_text": "Answer in English.",
-        },
-    )
-    assert other.status_code == 201
-
-    listed = await client.get("/configurations")
-    assert listed.status_code == 200
-    assert len(listed.json()) == 2
-    assert {c["language"] for c in listed.json()} == {"sv", "en"}
-
-    got = await client.get(f"/configurations/{config_id}")
-    assert got.status_code == 200
-    assert got.json()["name"] == "Svensk basprompt"
+    listed2 = await client.get("/configurations")
+    active_sv = [c for c in listed2.json() if c["language"] == "sv" and c["is_active"]]
+    assert len(active_sv) == 1
+    assert active_sv[0]["id"] == config_id
 
     patched = await client.patch(
         f"/configurations/{config_id}",
-        json={"name": "Uppdaterad", "language": "nb", "prompt_text": "Svar på norsk."},
+        json={
+            "name": "Uppdaterad",
+            "prompts": {"chat.mode.interview": "Ny intervjuregel."},
+        },
     )
     assert patched.status_code == 200
     assert patched.json()["name"] == "Uppdaterad"
-    assert patched.json()["language"] == "nb"
-    assert patched.json()["prompt_text"] == "Svar på norsk."
+    assert patched.json()["prompts"]["chat.mode.interview"] == "Ny intervjuregel."
+
+    activated = await client.post(f"/configurations/{config_id}/activate")
+    assert activated.status_code == 200
+    assert activated.json()["is_active"] is True
 
     deleted = await client.delete(f"/configurations/{config_id}")
     assert deleted.status_code == 204
     assert (await client.get(f"/configurations/{config_id}")).status_code == 404
 
 
-async def test_configuration_rejects_whitespace_and_invalid_language(client):
+async def test_configuration_rejects_invalid_language(client):
     blank_name = await client.post(
         "/configurations",
-        json={"name": "   ", "language": "sv", "prompt_text": "ok"},
+        json={"name": "   ", "language": "sv"},
     )
     assert blank_name.status_code == 422
 
-    blank_prompt = await client.post(
-        "/configurations",
-        json={"name": "Namn", "language": "sv", "prompt_text": " \n "},
-    )
-    assert blank_prompt.status_code == 422
-
     bad_lang = await client.post(
         "/configurations",
-        json={"name": "Namn", "language": "de", "prompt_text": "ok"},
+        json={"name": "Namn", "language": "de"},
     )
     assert bad_lang.status_code == 422
-
-    created = await client.post(
-        "/configurations",
-        json={"name": "Ok", "language": "sv", "prompt_text": "Text"},
-    )
-    assert created.status_code == 201
-    config_id = created.json()["id"]
-
-    blank_patch = await client.patch(
-        f"/configurations/{config_id}",
-        json={"prompt_text": "  "},
-    )
-    assert blank_patch.status_code == 422
 
     missing = await client.get("/configurations/999999")
     assert missing.status_code == 404

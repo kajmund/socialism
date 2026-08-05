@@ -356,7 +356,8 @@ class ConfigurationOut(BaseModel):
     id: int
     name: str
     language: ConfigurationLanguage
-    prompt_text: str
+    prompts: dict[str, str]
+    is_active: bool
     created_at: str
     updated_at: str
 
@@ -364,25 +365,41 @@ class ConfigurationOut(BaseModel):
 class ConfigurationCreate(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     language: ConfigurationLanguage
-    prompt_text: str = Field(min_length=1)
+    prompts: dict[str, str] = Field(default_factory=dict)
+    is_active: bool = False
 
-    @field_validator("name", "prompt_text", mode="before")
+    @field_validator("name", mode="before")
     @classmethod
-    def strip_required(cls, value: object) -> object:
+    def strip_name(cls, value: object) -> object:
         return _strip_required_text(value)
 
 
 class ConfigurationUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=255)
     language: ConfigurationLanguage | None = None
-    prompt_text: str | None = Field(default=None, min_length=1)
+    prompts: dict[str, str] | None = None
+    is_active: bool | None = None
 
-    @field_validator("name", "prompt_text", mode="before")
+    @field_validator("name", mode="before")
     @classmethod
-    def strip_optional(cls, value: object) -> object:
+    def strip_name(cls, value: object) -> object:
         if value is None:
             return None
         return _strip_required_text(value)
+
+
+class PromptFieldOut(BaseModel):
+    key: str
+    section: str
+    label: str
+    hint: str
+    default: str
+
+
+class PromptCatalogOut(BaseModel):
+    sections: list[dict[str, str]]
+    fields: list[PromptFieldOut]
+    defaults: dict[str, str]
 
 
 class TickInterview(BaseModel):

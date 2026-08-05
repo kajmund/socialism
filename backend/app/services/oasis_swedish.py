@@ -1,4 +1,4 @@
-"""Swedish OASIS environment prompts (inspired by inspiration/riksdag2026).
+"""OASIS environment prompts from the active prompt configuration.
 
 Monkeypatches camel-oasis SocialEnvironment templates for the current process.
 Call only when the oasis extra is installed.
@@ -10,6 +10,8 @@ import json
 from contextvars import ContextVar
 from string import Template
 from typing import Any
+
+from app.services.prompt_catalog import render_prompt
 
 # Per-task mapping so concurrent OASIS jobs / A/B variants do not clobber names.
 _USER_DISPLAY_NAMES: ContextVar[dict[int, str] | None] = ContextVar(
@@ -65,38 +67,21 @@ def _enrich_comment(comment: dict[str, Any], names: dict[int, str]) -> dict[str,
     return row
 
 
-def apply_swedish_social_environment_prompts() -> None:
-    """Replace English SocialEnvironment feed prompts with Swedish guidance."""
+def apply_swedish_social_environment_prompts(prompts: dict[str, str]) -> None:
+    """Replace SocialEnvironment feed prompts with configured language templates."""
     from oasis.social_agent import agent_environment as mod
 
     se = mod.SocialEnvironment
-    se.followers_env_template = Template("Jag har $num_followers följare.")
-    se.follows_env_template = Template("Jag har $num_follows följningar.")
-    se.posts_env_template = Template(
-        "Efter uppdatering ser du följande inlägg. "
-        "Varje inlägg och kommentar har author_name (visningsnamn) — "
-        "använd det om du refererar till avsändaren, inte user_id: $posts"
-    )
-    se.groups_env_template = Template(
-        "Det finns gruppkanaler: $all_groups\n"
-        "Du är redan med i vissa grupper: $joined_groups\n"
-        "Meddelanden: $messages\n"
-        "Du kan gå med i grupper du vill, lämna grupper du är i och skriva "
-        "till grupper du redan tillhör."
-    )
-    se.env_template = Template(
-        "$groups_env\n"
-        "$posts_env\n"
-        "Välj den åtgärd som bäst speglar din bakgrund och vad du ser i flödet. "
-        "Du behöver inte göra något om inget engagerar dig. "
-        "Gilla (like) bara när du faktiskt stöder inlägget eller håller med. "
-        "Ogilla (dislike) när du tar avstånd. "
-        "Om du kritiserar eller sarkastiskt kommenterar ett inlägg: gilla det inte. "
-        "Du kan följa, avfölja, mutea, söka, rapportera, dela eller kommentera "
-        "när det passar — eller göra inget. "
-        "Om du skriver text: variera formulering; upprepa inte samma inledning "
-        "eller avslutning varje gång."
-    )
+    se.followers_env_template = Template(render_prompt(prompts, "oasis.env.followers"))
+    se.follows_env_template = Template(render_prompt(prompts, "oasis.env.follows"))
+    se.posts_env_template = Template(render_prompt(prompts, "oasis.env.posts"))
+    se.groups_env_template = Template(render_prompt(prompts, "oasis.env.groups"))
+    se.env_template = Template(render_prompt(prompts, "oasis.env.main"))
+
+    empty_posts = render_prompt(prompts, "oasis.env.empty_posts")
+    empty_groups = render_prompt(prompts, "oasis.env.empty_groups")
+    empty_followers = render_prompt(prompts, "oasis.env.empty_followers")
+    empty_follows = render_prompt(prompts, "oasis.env.empty_follows")
 
     async def get_posts_env_sv(self):
         posts = await self.action.refresh()
@@ -105,7 +90,7 @@ def apply_swedish_social_environment_prompts() -> None:
             posts_env = json.dumps(feed, indent=4, ensure_ascii=False)
             posts_env = self.posts_env_template.substitute(posts=posts_env)
         else:
-            posts_env = "Efter uppdatering finns inga inlägg att visa."
+            posts_env = empty_posts
         return posts_env
 
     async def get_group_env_sv(self):
@@ -120,7 +105,7 @@ def apply_swedish_social_environment_prompts() -> None:
                 messages=messages,
             )
         else:
-            groups_env = "Inga gruppchattar."
+            groups_env = empty_groups
         return groups_env
 
     async def to_text_prompt_sv(
@@ -132,12 +117,12 @@ def apply_swedish_social_environment_prompts() -> None:
         followers_env = (
             await self.get_followers_env()
             if include_follows
-            else "Inga följare listade."
+            else empty_followers
         )
         follows_env = (
             await self.get_follows_env()
             if include_followers
-            else "Inga följningar listade."
+            else empty_follows
         )
         posts_env = await self.get_posts_env() if include_posts else ""
 

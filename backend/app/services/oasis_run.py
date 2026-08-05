@@ -542,12 +542,19 @@ async def run_oasis_simulation(
     from oasis import ActionType, LLMAction, ManualAction
     from oasis import generate_reddit_agent_graph, generate_twitter_agent_graph
 
-    apply_swedish_social_environment_prompts()
+    from app.services import jobs as jobs_service
+    from app.services.prompt_store import require_active_prompts
+
+    async with jobs_service.job_session_factory() as prompt_session:
+        prompts = await require_active_prompts(prompt_session, "sv")
+
+    apply_swedish_social_environment_prompts(prompts)
     # All configured ticks run: silent = no injection that day, population still reacts.
     active_ticks = list(ticks)
     profiles, key_to_index = build_run_profiles(
         members,
         active_ticks,
+        prompts=prompts,
         area_blocks=area_blocks,
         allow_create_post=allow_create,
         platform=platform,
