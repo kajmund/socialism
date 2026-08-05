@@ -11,20 +11,19 @@ from contextvars import ContextVar
 from string import Template
 from typing import Any
 
-# user_id (same as agent index in our runs) → display name for feed enrichment.
-# ContextVar keeps concurrent OASIS jobs from clobbering each other's mappings.
-_user_display_names: ContextVar[dict[int, str]] = ContextVar(
-    "oasis_user_display_names", default={}
+# Per-task mapping so concurrent OASIS jobs / A/B variants do not clobber names.
+_USER_DISPLAY_NAMES: ContextVar[dict[int, str] | None] = ContextVar(
+    "oasis_user_display_names", default=None
 )
 
 
 def set_oasis_user_display_names(mapping: dict[int, str]) -> None:
     """Map OASIS user_id to human-readable names shown in the agent feed."""
-    _user_display_names.set({int(k): v for k, v in mapping.items()})
+    _USER_DISPLAY_NAMES.set({int(k): v for k, v in mapping.items()})
 
 
-def _current_user_display_names() -> dict[int, str]:
-    return _user_display_names.get({})
+def _display_names() -> dict[int, str]:
+    return _USER_DISPLAY_NAMES.get() or {}
 
 
 def _first_name(display_name: str) -> str:
@@ -34,7 +33,7 @@ def _first_name(display_name: str) -> str:
 
 def enrich_feed_posts(posts: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Add author_name to posts/comments so agents can attribute speech correctly."""
-    names = _current_user_display_names()
+    names = _display_names()
     if not names:
         return posts
     enriched: list[dict[str, Any]] = []
@@ -49,17 +48,17 @@ def enrich_feed_posts(posts: list[dict[str, Any]]) -> list[dict[str, Any]]:
         comments = row.get("comments")
         if isinstance(comments, list):
             row["comments"] = [
-                _enrich_comment(comment) for comment in comments
+                _enrich_comment(comment, names) for comment in comments
             ]
         enriched.append(row)
     return enriched
 
 
-def _enrich_comment(comment: dict[str, Any]) -> dict[str, Any]:
+def _enrich_comment(comment: dict[str, Any], names: dict[int, str]) -> dict[str, Any]:
     row = dict(comment)
     uid = row.get("user_id")
     if uid is not None:
-        display = _current_user_display_names().get(int(uid))
+        display = names.get(int(uid))
         if display:
             row["author_name"] = display
             row["author_first_name"] = _first_name(display)
