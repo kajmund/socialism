@@ -42,3 +42,19 @@ def test_enrich_feed_posts_without_mapping_is_noop():
     set_oasis_user_display_names({})
     posts = [{"post_id": 1, "user_id": 1, "content": "hej", "comments": []}]
     assert enrich_feed_posts(posts) == posts
+
+
+async def test_display_names_isolated_across_async_tasks():
+    import asyncio
+
+    async def read_name(label: str) -> str:
+        set_oasis_user_display_names({0: label})
+        await asyncio.sleep(0.01)
+        enriched = enrich_feed_posts(
+            [{"post_id": 1, "user_id": 0, "content": "x", "comments": []}]
+        )
+        return enriched[0]["author_name"]
+
+    alice, bob = await asyncio.gather(read_name("Alice"), read_name("Bob"))
+    assert alice == "Alice"
+    assert bob == "Bob"
