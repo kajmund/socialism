@@ -1,0 +1,10 @@
+# OKF project config for Opinionssimulator end-user manuals.
+# Validate: npx -y @mfdaves/okf-mcp@0.3.3 --project ./okf.project.yaml validate
+# MCP later: npx -y @mfdaves/okf-mcp@0.3.3 --project ./okf.project.yaml mcp
+
+project: Opinionssimulator
+bundles:
+  - id: manual
+    root: knowledge/manual
+    include: ["**/*.md"]
+    exclude: []
