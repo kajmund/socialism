@@ -104,6 +104,9 @@ Useful env knobs (see `backend/.env.example`):
 - `PERSONA_GENERATOR=deepseek|stub` — DeepSeek vs offline persona sampling (key still required)
 - `SIMULATION_ENGINE=none|oasis` — empty attempt vs optional OASIS spike (`uv sync --extra oasis`)
 
+OASIS model comparison (after `uv sync --extra oasis`):  
+`uv run python scripts/benchmark_simulation_models.py --run-id N` — see [docs/guides/backend-setup.md](docs/guides/backend-setup.md#benchmark-deepseek-models).
+
 Tests: `cd backend && uv run pytest`.
 
 ## Docs
@@ -115,6 +118,7 @@ Tests: `cd backend && uv run pytest`.
 | [docs/client-brief.md](docs/client-brief.md) | Product brief |
 | [docs/guides/backend-setup.md](docs/guides/backend-setup.md) | Backend setup, jobs, OASIS, troubleshooting |
 | [docs/guides/frontend-setup.md](docs/guides/frontend-setup.md) | Frontend setup, routes, env |
+| [docs/guides/runs-interviews-and-quality.md](docs/guides/runs-interviews-and-quality.md) | Interviews, branches, quality warnings |
 | [docs/guides/supabase-setup.md](docs/guides/supabase-setup.md) | Future Supabase migration notes |
 | [docs/architecture.md](docs/architecture.md) | Current system architecture |
 | [AGENTS.md](AGENTS.md) | Agent / contributor conventions |
