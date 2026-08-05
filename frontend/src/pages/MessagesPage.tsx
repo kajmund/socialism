@@ -4,23 +4,35 @@ import { deleteMessage, listMessages, type Message, type MessageType } from "@/a
 import { AdminShell } from "@/components/layout/AdminShell"
 import { Card, CardContent } from "@/components/ui/card"
 import { formatLibraryDate } from "@/data/library"
+import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
 import { ApiError } from "@/lib/api"
 
-const TYPE_LABEL: Record<MessageType, string> = {
-  post: "Post",
-  news: "Nyhet",
+type Translate = (key: MessageKey, params?: TranslateParams) => string
+
+function typeLabel(type: MessageType, t: Translate): string {
+  switch (type) {
+    case "post":
+      return t("messages.list.typePost")
+    case "news":
+      return t("messages.list.typeNews")
+    default: {
+      const exhaustive: never = type
+      return exhaustive
+    }
+  }
 }
 
-const VARIANT_LABEL: Record<string, string> = {
-  analytical: "Analytisk",
-  narrative: "Berättande",
-  concise: "Koncis",
+const VARIANT_KEY: Record<string, MessageKey> = {
+  analytical: "messages.list.variantAnalytical",
+  narrative: "messages.list.variantNarrative",
+  concise: "messages.list.variantConcise",
 }
 
-function variantFromMeta(meta: Record<string, unknown>): string | null {
+function variantFromMeta(meta: Record<string, unknown>, t: Translate): string | null {
   const v = meta.variant
   if (typeof v !== "string") return null
-  return VARIANT_LABEL[v] ?? v
+  const key = VARIANT_KEY[v]
+  return key ? t(key) : v
 }
 
 type MsgCardProps = {
@@ -29,8 +41,9 @@ type MsgCardProps = {
 }
 
 function MsgCard({ msg, onDelete }: MsgCardProps) {
+  const { t } = useLocale()
   const [confirming, setConfirming] = useState(false)
-  const variant = variantFromMeta(msg.metadata)
+  const variant = variantFromMeta(msg.metadata, t)
   return (
     <div className="pop-card">
       <Card className="h-full gap-0 py-4 ring-1 ring-border">
@@ -38,11 +51,11 @@ function MsgCard({ msg, onDelete }: MsgCardProps) {
           <div className="top">
             <div className="nm">{msg.title}</div>
             <span className="rounded-full border border-[color:var(--border-hairline)] px-2 py-0.5 text-[11px]">
-              {TYPE_LABEL[msg.type]}
+              {typeLabel(msg.type, t)}
             </span>
           </div>
           <div className="meta-line">
-            Skapad {formatLibraryDate(msg.created_at)}
+            {t("messages.list.createdOn", { date: formatLibraryDate(msg.created_at) })}
             {variant ? ` · ${variant}` : ""}
           </div>
           <p className="mt-2 line-clamp-3 text-sm text-muted-foreground whitespace-pre-wrap">
@@ -58,7 +71,7 @@ function MsgCard({ msg, onDelete }: MsgCardProps) {
           {confirming ? (
             <div className="confirm-row" style={{ marginTop: "auto" }}>
               <button type="button" style={{ flex: 1 }} onClick={() => setConfirming(false)}>
-                Avbryt
+                {t("common.cancel")}
               </button>
               <button
                 type="button"
@@ -66,16 +79,16 @@ function MsgCard({ msg, onDelete }: MsgCardProps) {
                 style={{ flex: 1 }}
                 onClick={() => onDelete(msg.id)}
               >
-                Ta bort?
+                {t("common.deleteConfirm")}
               </button>
             </div>
           ) : (
             <div className="card-actions">
               <Link className="primary" to={`/messages/${msg.id}/edit`}>
-                Redigera
+                {t("messages.list.edit")}
               </Link>
               <button type="button" className="danger" onClick={() => setConfirming(true)}>
-                Ta bort
+                {t("common.delete")}
               </button>
             </div>
           )}
@@ -86,6 +99,7 @@ function MsgCard({ msg, onDelete }: MsgCardProps) {
 }
 
 export function MessagesPage() {
+  const { t } = useLocale()
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -105,7 +119,7 @@ export function MessagesPage() {
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setError(err instanceof ApiError ? err.message : "Kunde inte hämta budskap")
+          setError(err instanceof ApiError ? err.message : t("messages.list.loadError"))
         }
       })
       .finally(() => {
@@ -114,6 +128,7 @@ export function MessagesPage() {
     return () => {
       cancelled = true
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [typeFilter])
 
   useEffect(() => {
@@ -135,9 +150,9 @@ export function MessagesPage() {
     try {
       await deleteMessage(id)
       setMessages((prev) => prev.filter((m) => m.id !== id))
-      setToast("Budskapet togs bort")
+      setToast(t("messages.list.deleted"))
     } catch (err: unknown) {
-      setToast(err instanceof ApiError ? err.message : "Kunde inte ta bort")
+      setToast(err instanceof ApiError ? err.message : t("common.deleteError"))
     }
   }
 
@@ -146,10 +161,8 @@ export function MessagesPage() {
       <div className="wrap">
         <div className="head-row">
           <div>
-            <h1>Budskap</h1>
-            <p className="muted">
-              Bibliotek med sparade poster och nyheter för körningskonfiguration.
-            </p>
+            <h1>{t("messages.list.title")}</h1>
+            <p className="muted">{t("messages.list.intro")}</p>
           </div>
         </div>
 
@@ -157,7 +170,7 @@ export function MessagesPage() {
           <div className="controls-left">
             <input
               className="dsearch"
-              placeholder="Sök titel eller innehåll…"
+              placeholder={t("messages.list.searchPlaceholder")}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -166,29 +179,29 @@ export function MessagesPage() {
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value as "" | MessageType)}
             >
-              <option value="">Alla typer</option>
-              <option value="post">Post</option>
-              <option value="news">Nyhet</option>
+              <option value="">{t("messages.list.allTypes")}</option>
+              <option value="post">{t("messages.list.typePost")}</option>
+              <option value="news">{t("messages.list.typeNews")}</option>
             </select>
           </div>
           <Link
             to="/messages/new"
             className="admin-cta inline-flex h-9 shrink-0 items-center rounded-md bg-db-black px-4 text-sm text-db-ink-0 no-underline hover:bg-db-ink-800"
           >
-            + Ny i verkstaden
+            {t("messages.list.newInWorkshop")}
           </Link>
         </div>
 
-        {loading && <p className="muted">Hämtar budskap…</p>}
+        {loading && <p className="muted">{t("messages.list.loading")}</p>}
         {error && <p className="text-destructive">{error}</p>}
         {!loading && !error && filtered.length === 0 && (
           <div className="empty-state">
-            <p>Inga budskap ännu.</p>
+            <p>{t("messages.list.empty")}</p>
             <Link
               to="/messages/new"
               className="admin-cta inline-flex h-9 items-center rounded-md bg-db-black px-4 text-sm text-db-ink-0 no-underline hover:bg-db-ink-800"
             >
-              Öppna budskapsverkstaden
+              {t("messages.list.openWorkshop")}
             </Link>
           </div>
         )}
