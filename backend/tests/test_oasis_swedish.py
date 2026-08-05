@@ -1,3 +1,5 @@
+import asyncio
+
 from app.services.oasis_swedish import (
     enrich_feed_posts,
     set_oasis_user_display_names,
@@ -44,17 +46,20 @@ def test_enrich_feed_posts_without_mapping_is_noop():
     assert enrich_feed_posts(posts) == posts
 
 
-async def test_display_names_isolated_across_async_tasks():
-    import asyncio
+async def test_display_names_are_isolated_across_concurrent_tasks():
+    """Concurrent OASIS jobs / A/B variants must not clobber feed author maps."""
 
-    async def read_name(label: str) -> str:
-        set_oasis_user_display_names({0: label})
+    async def enrich_as(mapping: dict[int, str], user_id: int) -> str | None:
+        set_oasis_user_display_names(mapping)
         await asyncio.sleep(0.01)
         enriched = enrich_feed_posts(
-            [{"post_id": 1, "user_id": 0, "content": "x", "comments": []}]
+            [{"post_id": 1, "user_id": user_id, "content": "x", "comments": []}]
         )
-        return enriched[0]["author_name"]
+        return enriched[0].get("author_name")
 
-    alice, bob = await asyncio.gather(read_name("Alice"), read_name("Bob"))
-    assert alice == "Alice"
-    assert bob == "Bob"
+    a, b = await asyncio.gather(
+        enrich_as({0: "Version A sender", 1: "Anna"}, 0),
+        enrich_as({0: "Version B sender", 1: "Bertil"}, 0),
+    )
+    assert a == "Version A sender"
+    assert b == "Version B sender"

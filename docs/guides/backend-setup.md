@@ -28,6 +28,7 @@ cp .env.example .env
 | `DEEPSEEK_TIMEOUT_SECONDS` | no | `60` | HTTP timeout for DeepSeek calls (hangs reports if too low/high) |
 | `PERSONA_GENERATOR` | no | `deepseek` | `stub` = weighted random for offline persona *sampling* in tests only |
 | `SIMULATION_ENGINE` | no | `none` | `none` = empty attempt on start; `oasis` = live CAMEL OASIS |
+| `MAX_CONCURRENT_SIMULATION_JOBS` | no | `2` | Cap overlapping `run_simulate` jobs (1–32). A/B variants inside one job still run in parallel |
 
 `.env` example:
 
@@ -41,6 +42,7 @@ DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_TIMEOUT_SECONDS=60
 PERSONA_GENERATOR=deepseek
 SIMULATION_ENGINE=none
+MAX_CONCURRENT_SIMULATION_JOBS=2
 ```
 
 Constraints:
