@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { listPersonas } from "@/api/personas"
-import { ORIGIN_LABEL, personaInitials } from "@/data/library"
+import { personaInitials } from "@/data/library"
 import type { LibraryPersona } from "@/data/library-types"
+import { useLocale } from "@/i18n"
 import { ApiError } from "@/lib/api"
 
 type AddFromLibraryPanelProps = {
@@ -16,8 +17,9 @@ export function AddFromLibraryPanel({
   excludeNames = [],
   excludeIds = [],
   onAdd,
-  hint = "Sök i biblioteket och lägg till personas som saknas i populationen.",
+  hint,
 }: AddFromLibraryPanelProps) {
+  const { t } = useLocale()
   const [query, setQuery] = useState("")
   const [personas, setPersonas] = useState<LibraryPersona[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -33,13 +35,13 @@ export function AddFromLibraryPanel({
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setError(err instanceof ApiError ? err.message : "Kunde inte hämta biblioteket")
+          setError(err instanceof ApiError ? err.message : t("populations.libPanel.loadError"))
         }
       })
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [t])
 
   const excludeNameSet = useMemo(
     () => new Set(excludeNames.map((n) => n.toLowerCase())),
@@ -61,14 +63,31 @@ export function AddFromLibraryPanel({
     })
   }, [personas, excludeNameSet, excludeIdSet, query])
 
+  function originLabel(origin: LibraryPersona["origin"]): string {
+    switch (origin) {
+      case "manuell":
+        return t("populations.libPanel.originManual")
+      case "beskrivning":
+        return t("populations.libPanel.originDescription")
+      case "demografi":
+        return t("populations.libPanel.originDemographic")
+      case "population":
+        return t("populations.libPanel.originPopulation")
+      default: {
+        const exhaustive: never = origin
+        return exhaustive
+      }
+    }
+  }
+
   return (
     <Card className="add-lib-panel mb-5 gap-0 py-5 ring-1 ring-border">
       <CardContent className="px-5">
-        <div className="add-lib-hint">{hint}</div>
+        <div className="add-lib-hint">{hint ?? t("populations.libPanel.defaultHint")}</div>
         {error && <div className="add-lib-empty">{error}</div>}
         <input
           className="dsearch add-lib-search"
-          placeholder="Sök namn, ort, yrke..."
+          placeholder={t("populations.libPanel.searchPlaceholder")}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -81,13 +100,13 @@ export function AddFromLibraryPanel({
                   <div className="add-lib-meta">
                     <div className="nm">
                       {p.name}
-                      <span className="origin">{ORIGIN_LABEL[p.origin]}</span>
+                      <span className="origin">{originLabel(p.origin)}</span>
                     </div>
                     <div className="sub">
                       {p.age} · {p.occ} · {p.district}
                       {p.pops.length > 0
-                        ? ` · redan i ${p.pops.length} pop.`
-                        : " · ofördelad"}
+                        ? t("populations.libPanel.alreadyIn", { count: p.pops.length })
+                        : t("populations.libPanel.unassigned")}
                     </div>
                   </div>
                 </div>
@@ -96,15 +115,15 @@ export function AddFromLibraryPanel({
                   className="add-lib-btn"
                   onClick={() => onAdd(p)}
                 >
-                  + Lägg till
+                  {t("populations.libPanel.add")}
                 </button>
               </div>
             ))
           ) : (
             <div className="add-lib-empty">
               {query
-                ? `Inga träffar för ”${query}”.`
-                : "Alla personas i biblioteket finns redan här."}
+                ? t("populations.libPanel.noMatches", { query })
+                : t("populations.libPanel.allAlreadyHere")}
             </div>
           )}
         </div>
