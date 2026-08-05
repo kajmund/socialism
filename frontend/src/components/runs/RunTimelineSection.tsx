@@ -1,5 +1,6 @@
 import { TickColumn } from "@/components/runs/TickTimeline"
 import type { BranchState, RunPopulationOption, Tick } from "@/data/runs-types"
+import { useLocale } from "@/i18n"
 
 export type RunTimelineSectionProps = {
   mainTicks: Tick[]
@@ -44,9 +45,11 @@ export function RunTimelineSection({
   disabled = false,
   hideKicker = false,
 }: RunTimelineSectionProps) {
+  const { t } = useLocale()
+
   return (
     <div className="tl-section">
-      {!hideKicker ? <span className="tl-kicker">Tick-tidslinje</span> : null}
+      {!hideKicker ? <span className="tl-kicker">{t("runs.timeline.kicker")}</span> : null}
       <TickColumn
         ticks={activeMain}
         openKey={openKey}
@@ -68,24 +71,18 @@ export function RunTimelineSection({
             <div className="fork-line" />
             <div className="fork-bar">
               <span className="t">
-                Delningspunkt vid dag {mainTicks[branch.afterIndex].day}
+                {t("runs.timeline.splitAt", {
+                  day: mainTicks[branch.afterIndex].day,
+                })}
               </span>
               <span className="s">
-                {branch.mode === "stimulus_control" ? (
-                  <>
-                    Med stimulus (A) vs kontroll utan injektion (B). Samma
-                    population ({population.name}) fram till denna punkt.
-                  </>
-                ) : (
-                  <>
-                    Version A och B delar population ({population.name}) fram
-                    till denna punkt.
-                  </>
-                )}
+                {branch.mode === "stimulus_control"
+                  ? t("runs.timeline.splitStimulus", { name: population.name })
+                  : t("runs.timeline.splitAb", { name: population.name })}
               </span>
               {!disabled ? (
                 <button type="button" onClick={onClearBranch}>
-                  Ta bort gren
+                  {t("runs.timeline.removeBranch")}
                 </button>
               ) : null}
             </div>
@@ -95,7 +92,9 @@ export function RunTimelineSection({
               <div className="branch-head">
                 <span className="branch-badge a">A</span>
                 <span className="lbl">
-                  {branch.mode === "stimulus_control" ? "Med stimulus" : "Version A"}
+                  {branch.mode === "stimulus_control"
+                    ? t("runs.timeline.stimulusA")
+                    : t("runs.timeline.versionA")}
                 </span>
               </div>
               <TickColumn
@@ -116,8 +115,8 @@ export function RunTimelineSection({
                 <span className="branch-badge b">B</span>
                 <span className="lbl">
                   {branch.mode === "stimulus_control"
-                    ? "Kontroll (ingen injektion)"
-                    : "Version B"}
+                    ? t("runs.timeline.controlB")
+                    : t("runs.timeline.versionB")}
                 </span>
               </div>
               <TickColumn
