@@ -89,7 +89,7 @@ UI locales live in `src/i18n/` (no i18n framework dependency). Default is Swedis
 | Catalogs | `src/i18n/messages/sv.ts`, `en.ts` |
 | Storage key | `opinionssimulator.locale` |
 
-Smoke-test: open `/jobs`, switch to English — nav labels, Jobs page copy, and date formatting should follow the locale. New strings: add to `sv.ts` first, mirror in `en.ts`, then call `t("…")`. See `frontend/AGENTS.md`.
+Smoke-test: switch to English in the admin top nav — `/jobs`, `/runs`, and `/populations` (list + detail) should flip labels/dates; refresh should keep English. New strings: add to `sv.ts` first, mirror in `en.ts`, then call `t("…")`. See `frontend/AGENTS.md`.
 
 ## Troubleshooting
 
