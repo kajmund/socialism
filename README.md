@@ -29,9 +29,11 @@ Phase 1: admin CRUD is API-backed (SQLite). Simulation start defaults to status-
 ```text
 socialism/
 ├── AGENTS.md          # conventions for coding agents
-├── Makefile           # make start | backend | frontend | install
+├── Makefile           # make start | backend | frontend | install | knowledge-validate
+├── okf.project.yaml   # OKF project (end-user manuals)
 ├── data/              # local corpus helpers
-├── docs/              # client brief, setup guides, architecture
+├── docs/              # developer brief, setup guides, architecture
+├── knowledge/manual/  # OKF end-user guides (Swedish UI)
 ├── backend/           # FastAPI admin API
 └── frontend/          # React SPA
 ```
@@ -116,8 +118,12 @@ Tests: `cd backend && uv run pytest`.
 
 | Doc | Purpose |
 | --- | ------- |
+| [knowledge/manual/](knowledge/manual/) | End-user OKF guides (Swedish UI) |
+| [knowledge/README.md](knowledge/README.md) | OKF bundle conventions + validate/MCP |
 | [docs/client-brief.md](docs/client-brief.md) | Product brief |
 | [docs/guides/backend-setup.md](docs/guides/backend-setup.md) | Backend setup detail |
 | [docs/guides/frontend-setup.md](docs/guides/frontend-setup.md) | Frontend setup detail |
 | [docs/architecture.md](docs/architecture.md) | Architecture notes |
 | [AGENTS.md](AGENTS.md) | Agent / contributor conventions |
+
+Validate OKF manuals: `make knowledge-validate`.

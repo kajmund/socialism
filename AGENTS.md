@@ -25,11 +25,34 @@ Stack is locked unless explicitly changed. Phase 1 deliberately uses SQLite befo
 socialism/
 ├── AGENTS.md           # this file
 ├── README.md
+├── okf.project.yaml    # OKF project (end-user manuals → MCP later)
 ├── data/               # local corpus + download script (payloads gitignored)
-├── docs/               # specs, briefs, design notes
+├── docs/               # developer specs, briefs, setup, architecture
+├── knowledge/          # OKF bundles (end-user manuals)
+│   └── manual/         # Swedish operator guides
 ├── backend/            # FastAPI service (see backend/AGENTS.md)
 └── frontend/           # React SPA (see frontend/AGENTS.md)
 ```
+
+## Documentation split
+
+Keep audiences separate:
+
+| Location | Audience | Contents |
+| -------- | -------- | -------- |
+| `docs/` | Developers / agents shipping code | Setup, architecture, engineering notes |
+| `knowledge/manual/` | Operators using the Swedish UI | OKF how-to guides (`type: guide`) |
+
+Rules for agents:
+
+- **New user-facing UI flows** → add or update a guide under `knowledge/manual/` (Swedish, no implementation detail) and list it in `knowledge/manual/index.md`.
+- **Setup, API, architecture, env, troubleshooting for builders** → `docs/` (and service `AGENTS.md` files).
+- Do not duplicate the same guide in both places.
+- Reuse existing manual tags: `korningar`, `personas`, `populationer`, `budskap`, `grunddata`, `jobb`, `rapporter`, `simulator`.
+- Reserved OKF files: `index.md` (listing; root may have only `okf_version` frontmatter), `log.md` (changelog). Concept guides need YAML frontmatter with non-empty `type`.
+- Validate before merging manual changes: `make knowledge-validate`.
+
+OKF MCP (later): `npx -y @mfdaves/okf-mcp@0.3.3 --project ./okf.project.yaml mcp`.
 
 ## Frontend visual system (dual)
 
