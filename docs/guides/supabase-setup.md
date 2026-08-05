@@ -1,76 +1,60 @@
-# Supabase setup
+# Supabase setup (later)
 
-We use Supabase for **Postgres** (users, chats, source documents, chunks, embeddings, and citations) and **Auth** (email sign-in only). You need one hosted Supabase project before wiring up `backend/` and `frontend/`.
+**Phase 1 does not use Supabase for product state.** The app runs on SQLite via SQLAlchemy + Alembic (`DATABASE_URL` under `backend/`). Auth is not wired.
 
-## 1. Create an account
+This guide is for the **future** migration to Supabase Postgres + email Auth. Keep it as a checklist — do not assume the tables or Auth flows below are live today.
 
-1. Go to [supabase.com](https://supabase.com) and sign up (GitHub or email).
-2. Confirm your email if prompted.
-3. You land in the [dashboard](https://supabase.com/dashboard). The free tier is enough for local development.
+## What stays true
 
-## 2. Create a project
+- Alembic in `backend/` remains the schema source of truth (not the Supabase dashboard).
+- Frontend already requires placeholder env vars `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` so Auth can be plugged in without reshaping boot validation.
+- Backend settings stay in `app/config.py`; frontend env stays in `src/lib/env.ts`.
 
-1. Open [New project](https://supabase.com/dashboard/new).
-2. Pick your organization (a personal org is created automatically on first signup).
-3. Set a **project name** (e.g. `Document Copilot`).
-4. Choose a **database password** — save it somewhere safe; you need it for direct DB access and `supabase link`.
-5. Pick a **region** close to you.
-6. Click **Create new project** and wait until status is healthy (~1–2 minutes).
+## 1. Create a project (when ready)
 
-## 3. Collect credentials
+1. Sign up at [supabase.com](https://supabase.com).
+2. Create a project (name e.g. `Opinionssimulator`).
+3. Save the database password.
+4. Pick a region close to your Railway deploy.
 
-You need these values in backend and frontend env config (exact variable names will live in each service's settings module once the app is built).
+## 2. Credentials to collect
 
-| Value | Where to find it | Used by |
-| ----- | ---------------- | ------- |
-| **Project URL** | Dashboard → **Project Settings** → **API** → Project URL | Frontend + backend |
-| **anon (public) key** | Same page → `anon` `public` key | Frontend (browser-safe) |
-| **service_role (secret) key** | Same page → `service_role` `secret` key | Backend only — never expose to the browser |
-| **Project ref** | Dashboard URL `supabase.com/dashboard/project/<ref>` or `supabase projects list` | CLI commands |
-| **Direct database connection string** | Dashboard → **Project Settings** → **Database** → Connection string | Alembic migrations and backend DB access |
-| **Database password** | What you set at project creation | Direct Postgres connection |
-
-From the CLI you can also print API keys:
-
-```bash
-supabase projects api-keys --project-ref <your-project-ref>
-```
+| Value | Where | Used by |
+| ----- | ----- | ------- |
+| Project URL | Project Settings → API | Frontend (+ later backend Auth verify) |
+| `anon` public key | Same page | Frontend only |
+| `service_role` secret key | Same page | Backend only — never in the browser |
+| Direct database URL | Project Settings → Database (session / direct) | Alembic + SQLAlchemy |
+| Database password | Set at project creation | Direct Postgres connection |
 
 Keep `service_role` out of git, client bundles, and frontend env files.
 
-## 4. Auth settings (email only)
+## 3. Auth settings (planned)
 
-This app uses email auth only — no Google/SSO.
+Target: email auth only — no Google/SSO.
 
-1. Dashboard → **Authentication** → **Providers**.
-2. Leave **Email** enabled.
-3. For local dev, you may want **Authentication** → **Email** → disable "Confirm email" so sign-up works without inbox access (re-enable for production).
+1. Dashboard → Authentication → Providers → Email enabled.
+2. For local dev you may disable "Confirm email"; re-enable for production.
 
-## 5. Database schema management
+## 4. Schema migration path
 
-Document Copilot uses Alembic from the Python backend to manage database schema. Do not create production tables manually in the Supabase dashboard.
+When switching off SQLite:
 
-Alembic migrations create and update:
+1. Point backend `DATABASE_URL` at the **direct/session** Postgres URL (not the transaction pooler) for Alembic.
+2. Add a Postgres driver (`psycopg`) when needed.
+3. Run `uv run alembic upgrade head` from `backend/`.
+4. Expect current models — personas, populations, runs, messages, catalog lists, jobs, reports, persona messages — not a separate document/chunk/citation corpus.
 
-- the `vector` extension for `pgvector`
-- source document and chunk tables
-- embedding columns
-- generated full-text search columns
-- HNSW and GIN indexes
-- chat and citation tables
-- row-level security policies
+Do not hand-create production tables in the dashboard.
 
-Use the direct/session database connection string for Alembic. Do not use the transaction pooler connection string for migrations.
+## 5. Frontend wiring (planned)
 
-From `backend/`:
+- Keep using `@supabase/supabase-js` for browser session.
+- Inject the access token from the API client (`src/lib/api.ts`) once Auth is enabled.
+- Until then, placeholders satisfy boot; `accessToken()` can remain null.
 
-```bash
-uv run alembic upgrade head
-```
+## Related
 
-See [Backend setup](backend-setup.md) for the Alembic workflow.
-
-## Next steps
-
-- [Backend setup](backend-setup.md) — Python service + Supabase client
-- [Frontend setup](frontend-setup.md) — React app + `@supabase/supabase-js`
+- [Backend setup](backend-setup.md) — SQLite today, Postgres swap notes
+- [Frontend setup](frontend-setup.md) — required `VITE_SUPABASE_*` placeholders
+- [Architecture](../architecture.md) — current phase 1 system
