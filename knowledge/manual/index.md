@@ -8,8 +8,7 @@ Guider för dig som använder Opinionssimulator i webbläsaren. Teknisk setup oc
 
 # Kom igång
 
-* [Översikt av ytorna](oversikt.md) — Admin vs simulator, och var du hittar huvudfunktionerna
-* [Använda simulatorn](anvanda-simulatorn.md) — Demoguiden i pappersstil
+* [Översikt av ytorna](oversikt.md) — Var du hittar huvudfunktionerna i admin
 
 # Körningar
 
@@ -48,4 +47,4 @@ Guider för dig som använder Opinionssimulator i webbläsaren. Teknisk setup oc
 
 # Taggar
 
-Återanvänd dessa taggar i nya guider: `korningar`, `personas`, `populationer`, `budskap`, `grunddata`, `jobb`, `rapporter`, `simulator`.
+Återanvänd dessa taggar i nya guider: `korningar`, `personas`, `populationer`, `budskap`, `grunddata`, `jobb`, `rapporter`.

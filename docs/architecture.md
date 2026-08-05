@@ -45,7 +45,7 @@ Phase 1 deliberately uses SQLite before Supabase. Models/migrations stay portabl
 
 ## System boundaries
 
-- **Browser:** thin SPA. Renders admin UI and simulator wizard; calls FastAPI over JSON. Never holds service-role credentials or runs simulation logic.
+- **Browser:** thin SPA. Renders admin UI; calls FastAPI over JSON. Never holds service-role credentials or runs simulation logic.
 - **Backend:** authoritative for CRUD, LLM calls, background jobs, OASIS orchestration, and report generation.
 - **SQLite:** durable product state (personas, populations, runs, messages, catalog, jobs, reports, persona chat history).
 - **DeepSeek:** persona generation, anecdotes, library chat, run-scoped interviews, message variants/URL summarize, report narrative.
@@ -137,12 +137,7 @@ Interrupted jobs are marked failed on backend startup (after migrations exist).
 
 ## Frontend surfaces
 
-Dual visual system (do not collapse):
-
-| Area | Theme | Routes |
-| ---- | ----- | ------ |
-| Admin | Devbrains charcoal + gold | `/runs`, `/personas`, `/populations`, `/messages`, `/config`, `/jobs`, `/reports/:id` |
-| Simulator | Paper / editorial | `/simulator` (demo wizard; mock unless tied to OASIS results) |
+Admin UI (Devbrains charcoal + gold): `/runs`, `/personas`, `/populations`, `/messages`, `/config`, `/jobs`, `/reports/:id`.
 
 Admin pages call FastAPI via `VITE_API_BASE_URL`. Supabase env placeholders are required at frontend boot but auth is not wired yet (`accessToken()` returns null).
 
@@ -161,7 +156,6 @@ Fail fast on missing required config.
 - No durable external job queue (in-process background tasks)
 - Reports are hybrid HTML, not PDF
 - Supabase Postgres/Auth not used for product state yet
-- `/simulator` remains a paper demo wizard separate from admin run CRUD
 
 ## Related docs
 

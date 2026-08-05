@@ -5,7 +5,6 @@ import App from "@/App"
 import { LocaleProvider } from "@/i18n"
 import { env } from "@/lib/env"
 import "@/index.css"
-import "@/styles/simulator.css"
 import "@/styles/admin-runs.css"
 
 // Touch env at boot so missing config fails fast.
