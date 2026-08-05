@@ -3,40 +3,42 @@ import { Link } from "react-router-dom"
 import { listJobs, type Job, type JobStatus } from "@/api/jobs"
 import { AdminShell } from "@/components/layout/AdminShell"
 import { Card, CardContent } from "@/components/ui/card"
+import { useLocale, type MessageKey } from "@/i18n"
 import { ApiError } from "@/lib/api"
 
-const STATUS_LABEL: Record<JobStatus, string> = {
-  pending: "Väntar",
-  running: "Kör",
-  succeeded: "Klar",
-  failed: "Misslyckades",
-}
+type Translate = (key: MessageKey, params?: Record<string, string | number>) => string
 
-function formatWhen(iso: string | null | undefined): string {
-  if (!iso) return "—"
+function formatWhen(iso: string | null | undefined, intl: string, emDash: string): string {
+  if (!iso) return emDash
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
-  return new Intl.DateTimeFormat("sv-SE", {
+  return new Intl.DateTimeFormat(intl, {
     dateStyle: "short",
     timeStyle: "short",
   }).format(d)
 }
 
 /** Wall-clock duration from started→finished (falls back to created→finished). */
-function formatJobDuration(job: Job): string | null {
+function formatJobDuration(job: Job, t: Translate): string | null {
   const startIso = job.started_at ?? job.created_at
   const endIso = job.finished_at
   if (!startIso || !endIso) return null
   const ms = new Date(endIso).getTime() - new Date(startIso).getTime()
   if (!Number.isFinite(ms) || ms < 0) return null
   const sec = Math.round(ms / 1000)
-  if (sec < 60) return `${sec} s`
+  if (sec < 60) return t("jobs.duration.seconds", { n: sec })
   const m = Math.floor(sec / 60)
   const s = sec % 60
-  if (m < 60) return s > 0 ? `${m} min ${s} s` : `${m} min`
+  if (m < 60) {
+    return s > 0
+      ? t("jobs.duration.minutesSeconds", { m, s })
+      : t("jobs.duration.minutes", { m })
+  }
   const h = Math.floor(m / 60)
   const rm = m % 60
-  return rm > 0 ? `${h} h ${rm} min` : `${h} h`
+  return rm > 0
+    ? t("jobs.duration.hoursMinutes", { h, m: rm })
+    : t("jobs.duration.hours", { h })
 }
 
 function statusClass(status: JobStatus): string {
@@ -56,7 +58,50 @@ function statusClass(status: JobStatus): string {
   }
 }
 
+function statusLabel(status: JobStatus, t: Translate): string {
+  switch (status) {
+    case "pending":
+      return t("jobs.status.pending")
+    case "running":
+      return t("jobs.status.running")
+    case "succeeded":
+      return t("jobs.status.succeeded")
+    case "failed":
+      return t("jobs.status.failed")
+    default: {
+      const _exhaustive: never = status
+      return _exhaustive
+    }
+  }
+}
+
+function kindLabel(kind: string, t: Translate): string {
+  switch (kind) {
+    case "population_generate":
+      return t("jobs.kind.population_generate")
+    case "run_simulate":
+      return t("jobs.kind.run_simulate")
+    case "report_generate":
+      return t("jobs.kind.report_generate")
+    default:
+      return kind
+  }
+}
+
+function progressLabel(job: Job, t: Translate): string {
+  if (job.status === "pending") return t("jobs.progress.queued")
+  switch (job.kind) {
+    case "run_simulate":
+      return t("jobs.progress.simulating")
+    case "report_generate":
+      return t("jobs.progress.reporting")
+    default:
+      return t("jobs.progress.generating")
+  }
+}
+
 export function JobsPage() {
+  const { t, intl } = useLocale()
   const [jobs, setJobs] = useState<Job[]>([])
   const [error, setError] = useState<string | null>(null)
 
@@ -74,7 +119,7 @@ export function JobsPage() {
         timer = window.setTimeout(load, active ? 2000 : 8000)
       } catch (err) {
         if (cancelled) return
-        setError(err instanceof ApiError ? err.message : "Kunde inte hämta jobb")
+        setError(err instanceof ApiError ? err.message : t("jobs.loadError"))
         timer = window.setTimeout(load, 8000)
       }
     }
@@ -84,13 +129,13 @@ export function JobsPage() {
       cancelled = true
       if (timer != null) window.clearTimeout(timer)
     }
-  }, [])
+  }, [t])
 
   return (
     <AdminShell>
       <div className="wrap" style={{ maxWidth: 960 }}>
         <div className="section-head">
-          <span className="kicker">Bakgrundsjobb</span>
+          <span className="kicker">{t("jobs.kicker")}</span>
           <h1
             style={{
               font: "var(--text-h1)",
@@ -98,9 +143,9 @@ export function JobsPage() {
               fontWeight: 400,
             }}
           >
-            Jobb
+            {t("jobs.title")}
           </h1>
-          <p>Generering och andra långa körningar utan tidsbegränsning i webbläsaren.</p>
+          <p>{t("jobs.intro")}</p>
         </div>
 
         {error && (
@@ -111,7 +156,7 @@ export function JobsPage() {
 
         {jobs.length === 0 && !error ? (
           <div className="no-match" style={{ textAlign: "left" }}>
-            Inga bakgrundsjobb ännu.
+            {t("jobs.empty")}
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -125,15 +170,8 @@ export function JobsPage() {
                 (typeof job.request.report_id === "string"
                   ? job.request.report_id
                   : null)
-              const kindLabel =
-                job.kind === "population_generate"
-                  ? "Populationsgenerering"
-                  : job.kind === "run_simulate"
-                    ? "Simulering"
-                    : job.kind === "report_generate"
-                      ? "Rapport"
-                      : job.kind
-              const duration = formatJobDuration(job)
+              const duration = formatJobDuration(job, t)
+              const whenCreated = formatWhen(job.created_at, intl, t("common.emDash"))
               return (
                 <Card key={job.id} className="gap-0 py-4 ring-1 ring-border">
                   <CardContent className="px-5">
@@ -151,30 +189,37 @@ export function JobsPage() {
                           {job.label || job.id}
                         </div>
                         <div style={{ font: "var(--text-body-sm)", color: "var(--text-muted)" }}>
-                          {kindLabel} · skapad {formatWhen(job.created_at)}
-                          {duration ? ` · tog ${duration}` : null}
+                          {kindLabel(job.kind, t)} · {t("jobs.created", { when: whenCreated })}
+                          {duration ? ` · ${t("jobs.took", { duration })}` : null}
                         </div>
                       </div>
                       <span className={statusClass(job.status)}>
-                        {STATUS_LABEL[job.status]}
+                        {statusLabel(job.status, t)}
                       </span>
                     </div>
 
                     {job.status === "succeeded" && popId != null && (
                       <div style={{ marginTop: 12, font: "var(--text-body-sm)" }}>
-                        {job.result?.member_count ?? "?"} personas ·{" "}
-                        <Link to={`/populations/${popId}`}>Öppna population →</Link>
-                        {Array.isArray(job.result?.warnings) &&
-                        job.result.warnings.length > 0 ? (
-                          <ul
-                            className="mt-2 list-disc pl-5 text-amber-800 dark:text-amber-200"
-                            style={{ font: "var(--text-body-sm)" }}
-                          >
-                            {job.result.warnings.map((w: string) => (
-                              <li key={w}>{w}</li>
-                            ))}
-                          </ul>
-                        ) : null}
+                        {t("jobs.personasCount", {
+                          count: job.result?.member_count ?? "?",
+                        })}{" "}
+                        · <Link to={`/populations/${popId}`}>{t("jobs.openPopulation")}</Link>
+                        {(() => {
+                          const warnings = (
+                            job.result as { warnings?: unknown } | null | undefined
+                          )?.warnings
+                          if (!Array.isArray(warnings) || warnings.length === 0) return null
+                          return (
+                            <ul
+                              className="mt-2 list-disc pl-5 text-amber-800 dark:text-amber-200"
+                              style={{ font: "var(--text-body-sm)" }}
+                            >
+                              {warnings.map((w) => (
+                                <li key={String(w)}>{String(w)}</li>
+                              ))}
+                            </ul>
+                          )
+                        })()}
                       </div>
                     )}
                     {job.status === "succeeded" &&
@@ -182,7 +227,7 @@ export function JobsPage() {
                       runId != null && (
                         <div style={{ marginTop: 12, font: "var(--text-body-sm)" }}>
                           <Link to={`/runs/${runId}/edit?tab=results`}>
-                            Öppna resultat →
+                            {t("jobs.openResults")}
                           </Link>
                         </div>
                       )}
@@ -190,7 +235,7 @@ export function JobsPage() {
                       job.kind === "report_generate" &&
                       reportId != null && (
                         <div style={{ marginTop: 12, font: "var(--text-body-sm)" }}>
-                          <Link to={`/reports/${reportId}`}>Öppna rapport →</Link>
+                          <Link to={`/reports/${reportId}`}>{t("jobs.openReport")}</Link>
                         </div>
                       )}
                     {job.status === "failed" && job.error && (
@@ -212,26 +257,26 @@ export function JobsPage() {
                           color: "var(--text-muted)",
                         }}
                       >
-                        {job.status === "running"
-                          ? job.kind === "run_simulate"
-                            ? "Simulerar…"
-                            : job.kind === "report_generate"
-                              ? "Genererar rapport…"
-                              : "Genererar…"
-                          : "I kö…"}{" "}
-                        startad {formatWhen(job.started_at ?? job.created_at)}
+                        {progressLabel(job, t)}{" "}
+                        {t("jobs.started", {
+                          when: formatWhen(
+                            job.started_at ?? job.created_at,
+                            intl,
+                            t("common.emDash"),
+                          ),
+                        })}
                         {job.kind === "run_simulate" && runId != null ? (
                           <>
                             {" · "}
                             <Link to={`/runs/${runId}/edit?tab=results`}>
-                              Öppna körning →
+                              {t("jobs.openRun")}
                             </Link>
                           </>
                         ) : null}
                         {job.kind === "report_generate" && reportId != null ? (
                           <>
                             {" · "}
-                            <Link to={`/reports/${reportId}`}>Öppna rapport →</Link>
+                            <Link to={`/reports/${reportId}`}>{t("jobs.openReport")}</Link>
                           </>
                         ) : null}
                       </div>
