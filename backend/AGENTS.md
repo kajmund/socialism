@@ -42,11 +42,15 @@ backend/
 │   ├── schemas/         # Pydantic request/response models
 │   ├── services/        # Population generate, OASIS körning spike, catalogs
 │   └── seed.py          # Load demo data into SQLite
+├── scripts/             # Operator/dev CLIs (e.g. model benchmark)
 ├── tests/
 └── pyproject.toml
 ```
 
 Optional dependency extra `oasis` (`camel-oasis`) — not installed by default (`uv sync --extra oasis`). That install is heavy (CAMEL + torch). On Python 3.13, `pyproject.toml` overrides pin conflicts (`openai`, `tiktoken`, `pillow`, pytest).
+
+**Model benchmark:** `uv run python scripts/benchmark_simulation_models.py --run-id N` runs the same körning under each `--models` id (default reasoner vs chat), prints wall time + activity metrics, and writes JSON under `data/`. It calls `simulate_run` but does not commit `run.results` (unlike `python -m app.services.oasis_run`). See [docs/guides/backend-setup.md](../docs/guides/backend-setup.md#benchmark-deepseek-models).
+
 ## Code style (backend-specific)
 
 - **Type hints on public functions and module-level things.** Don't annotate every local.
