@@ -99,8 +99,9 @@ Interactive OpenAPI: `http://localhost:8000/docs`.
    - Freezes message-library bodies into injections when `message_id` is set
    - Sets status `running`, enqueues `run_simulate` job, returns **202** + `job_id`
 4. **Worker** (`app/services/jobs.py`):
+   - `run_simulate` jobs wait on `MAX_CONCURRENT_SIMULATION_JOBS` (default 2) before leaving `pending`
    - `SIMULATION_ENGINE=none` → empty attempt, status `done`
-   - `SIMULATION_ENGINE=oasis` → `simulate_run` for each variant (full population + injectors, all ticks)
+   - `SIMULATION_ENGINE=oasis` → `simulate_run` runs A/B variants concurrently (full population + injectors, all ticks)
 5. **Results** stored as `results.attempts[]` (newest first). Each attempt has `variants[]` with posts, comments, follows/mutes/reports, trace, action histogram, tick markers, measurements, quality warnings.
 6. **Re-run** appends a new attempt; individual attempts can be deleted.
 7. **Reports** via `POST /reports` with `{ sources: [{ run_id, attempt_id }], title? }` → `report_generate` job → artifacts under `backend/data/reports/{id}/`.
@@ -125,6 +126,8 @@ Interrupted jobs are marked failed on backend startup (after migrations exist).
 
 - Install: `cd backend && uv sync --extra oasis`
 - Enable: `SIMULATION_ENGINE=oasis`
+- A/B (and stimulus/control) variants run concurrently under distinct artifact dirs
+- Cap overlapping körningar with `MAX_CONCURRENT_SIMULATION_JOBS`
 - DeepSeek credentials are mirrored into env vars CAMEL reads (`apply_oasis_env`)
 - Platforms: Twitter (default) or Reddit (scenario clock for tick markers)
 - Injectors always post via manual actions; population `CREATE_POST` is gated by `oasis_options`

@@ -42,6 +42,8 @@ from app.services.population_persist import (
 logger = logging.getLogger(__name__)
 
 _session_factory: async_sessionmaker[AsyncSession] | None = None
+_simulation_job_semaphore: asyncio.Semaphore | None = None
+_simulation_job_semaphore_limit: int | None = None
 
 
 def set_job_session_factory(factory: async_sessionmaker[AsyncSession] | None) -> None:
@@ -52,6 +54,23 @@ def set_job_session_factory(factory: async_sessionmaker[AsyncSession] | None) ->
 
 def job_session_factory() -> async_sessionmaker[AsyncSession]:
     return _session_factory or SessionLocal
+
+
+def reset_simulation_job_semaphore() -> None:
+    """Drop cached semaphore (tests change max_concurrent_simulation_jobs)."""
+    global _simulation_job_semaphore, _simulation_job_semaphore_limit
+    _simulation_job_semaphore = None
+    _simulation_job_semaphore_limit = None
+
+
+def simulation_job_semaphore() -> asyncio.Semaphore:
+    """Process-wide cap on overlapping run_simulate workers."""
+    global _simulation_job_semaphore, _simulation_job_semaphore_limit
+    limit = settings.max_concurrent_simulation_jobs
+    if _simulation_job_semaphore is None or _simulation_job_semaphore_limit != limit:
+        _simulation_job_semaphore = asyncio.Semaphore(limit)
+        _simulation_job_semaphore_limit = limit
+    return _simulation_job_semaphore
 
 
 def _dt(value: datetime | None) -> str | None:
@@ -125,6 +144,35 @@ def schedule_job(job_id: str) -> None:
     asyncio.create_task(_deferred(), name=f"job:{job_id}")
 
 
+async def _mark_job_running(job_id: str) -> str | None:
+    """Transition pending/running → running. Returns kind, or None if skipped."""
+    factory = job_session_factory()
+    async with factory() as session:
+        job = await session.get(Job, job_id)
+        if job is None:
+            return None
+        if job.status not in {"pending", "running"}:
+            return None
+        job.status = "running"
+        job.started_at = utcnow()
+        job.updated_at = utcnow()
+        await session.commit()
+        return job.kind
+
+
+async def _execute_job_kind(job_id: str, kind: str) -> None:
+    if kind == "population_generate":
+        await _run_population_generate(job_id)
+    elif kind == "run_simulate":
+        await _run_simulate(job_id)
+    elif kind == "report_generate":
+        await _run_report_generate(job_id)
+    else:
+        factory = job_session_factory()
+        async with factory() as session:
+            await _fail(session, job_id, f"Unsupported job kind: {kind}")
+
+
 async def _run_job(job_id: str) -> None:
     factory = job_session_factory()
     try:
@@ -134,20 +182,22 @@ async def _run_job(job_id: str) -> None:
                 return
             if job.status not in {"pending", "running"}:
                 return
-            job.status = "running"
-            job.started_at = utcnow()
-            job.updated_at = utcnow()
-            await session.commit()
+            kind = job.kind
 
-        if job.kind == "population_generate":
-            await _run_population_generate(job_id)
-        elif job.kind == "run_simulate":
-            await _run_simulate(job_id)
-        elif job.kind == "report_generate":
-            await _run_report_generate(job_id)
-        else:
-            async with factory() as session:
-                await _fail(session, job_id, f"Unsupported job kind: {job.kind}")
+        # Keep run_simulate pending until a simulation slot is free so the UI
+        # does not show many "running" jobs that are only waiting on the cap.
+        if kind == "run_simulate":
+            async with simulation_job_semaphore():
+                marked = await _mark_job_running(job_id)
+                if marked is None:
+                    return
+                await _execute_job_kind(job_id, marked)
+            return
+
+        marked = await _mark_job_running(job_id)
+        if marked is None:
+            return
+        await _execute_job_kind(job_id, marked)
     except Exception as exc:
         logger.exception("Job %s failed", job_id)
         async with factory() as session:
