@@ -69,15 +69,17 @@ Keep imports consistent with the `@/*` alias (e.g. `@/lib/api`, `@/components/ui
 | Path | Status |
 |------|--------|
 | `/runs` | Körningar list |
-| `/runs/new`, `/runs/:id/edit` | Körning (flikar: Konfiguration / Resultat) |
-| `/jobs` | Bakgrundsjobb (populationsgenerering, simulering) |
+| `/runs/new`, `/runs/:id/edit` | Körning (wizard / quick + Resultat) |
+| `/jobs` | Bakgrundsjobb (population, simulering, report) |
 | `/personas` | Persona library (grid/list) |
-| `/personas/new`, `/personas/:id` | Persona-kompositör |
+| `/personas/new`, `/personas/:id` | Persona-kompositör (+ chat) |
 | `/populations` | Population list |
 | `/populations/:id` | Population detail |
-| `/populations/new`, `/populations/:id/edit` | Population builder (5 steps) |
+| `/populations/new`, `/populations/:id/edit` | Population builder |
 | `/messages` | Budskapsbibliotek |
-| `/messages/new` | Budskapsverkstad |
+| `/messages/new`, `/messages/:id/edit` | Budskapsverkstad |
+| `/config` | Grunddata / catalog lists |
+| `/reports/:id` | HTML-rapport |
 | `/simulator` | Demo wizard (paper theme) |
 
 Home redirects to `/runs`.
