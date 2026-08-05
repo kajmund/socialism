@@ -498,7 +498,7 @@ async def run_persona_interview(
 
     profile = profile_from_dict(persona.profile, persona.name)
     area_block = await area_block_for_name(session, profile.ort or persona.district)
-    prompts = await require_active_prompts(session, "sv")
+    prompts = await require_active_prompts(session)
     system_prompt = build_run_interview_prompt(
         profile,
         feed_context,

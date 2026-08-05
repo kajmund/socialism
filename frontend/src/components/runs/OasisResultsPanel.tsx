@@ -7,19 +7,24 @@ import {
   type ReactNode,
 } from "react"
 import { createPortal } from "react-dom"
-import { FileText, Files, Loader2, Network } from "lucide-react"
+import { FileText, Files, Loader2, Network, Wrench } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { createReport, listReports } from "@/api/reports"
 import { PersonaProfileModal } from "@/components/personas/PersonaProfileModal"
 import {
   agentToolHistogram,
+  agentToolsForAuthor,
+  argPreview,
   buildTimelineItems,
   describeAgentTool,
   groupTimelineSegments,
   HIDDEN_ACTIONS,
   parseTraceInfo,
   sortKeyFromCreatedAt,
+  tickIndexForCreatedAt,
+  type AgentToolRow,
   type PostRow,
+  type TickMarker,
   type TimelineActionItem,
 } from "@/components/runs/activityFeed"
 import {
@@ -995,6 +1000,74 @@ function NetworkActivityIconButton({
   )
 }
 
+function AgentToolsIconButton({
+  label,
+  onClick,
+}: {
+  label: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      className="inline-grid h-7 w-7 place-items-center rounded text-[var(--db-gold-700)] hover:bg-muted hover:text-foreground"
+      title={label}
+      aria-label={label}
+      onClick={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        onClick()
+      }}
+    >
+      <Wrench className="size-3.5" aria-hidden />
+    </button>
+  )
+}
+
+function AgentToolsModalContent({ tools }: { tools: AgentToolRow[] }) {
+  const { t } = useLocale()
+  return (
+    <ul className="flex max-h-[min(28rem,70vh)] flex-col gap-3 overflow-y-auto">
+      {tools.map((row, i) => {
+        const desc = describeAgentTool(row, t)
+        const query = argPreview(row.args) ?? desc.detail
+        const result = row.result_preview?.trim() || null
+        return (
+          <li
+            key={`${row.tool_name}-${row.sequence ?? i}-${row.tick_index}`}
+            className="rounded-md border border-border/70 bg-muted/20 px-3 py-2.5"
+          >
+            <div className="text-xs font-semibold text-foreground">
+              {desc.label}
+              <span className="ml-2 font-normal text-muted-foreground">
+                {row.tool_name}
+              </span>
+            </div>
+            {query ? (
+              <div className="mt-2">
+                <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                  {t("runs.feed.toolsQuery")}
+                </div>
+                <p className="mt-0.5 whitespace-pre-wrap text-sm text-foreground">
+                  {query}
+                </p>
+              </div>
+            ) : null}
+            <div className="mt-2">
+              <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                {t("runs.feed.toolsResult")}
+              </div>
+              <p className="mt-0.5 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+                {result ?? t("runs.feed.toolsEmptyResult")}
+              </p>
+            </div>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
 function NetworkActivityContent({
   variant,
   onOpenAgent,
@@ -1512,6 +1585,8 @@ function FeedPostCard({
   agents,
   postsById,
   commentsByPostId,
+  agentTools,
+  tickMarkers,
   mentionMatcher,
   openMention,
   openAgent,
@@ -1526,6 +1601,8 @@ function FeedPostCard({
   agents: NonNullable<OasisVariantResult["agents"]>
   postsById: Map<number, PostRow>
   commentsByPostId: Map<number, NonNullable<OasisVariantResult["comments"]>>
+  agentTools: AgentToolRow[]
+  tickMarkers: TickMarker[]
   mentionMatcher: ReturnType<typeof getMentionMatcher>
   openMention: (userIds: number[], label: string) => void
   openAgent: (userId: number) => void
@@ -1536,6 +1613,11 @@ function FeedPostCard({
   compact?: boolean
 }) {
   const { intl, t } = useLocale()
+  const [toolsModal, setToolsModal] = useState<{
+    kind: "post" | "comment"
+    authorName: string
+    tools: AgentToolRow[]
+  } | null>(null)
   const agent = agents.find((a) => a.index === post.user_id)
   const author = agent?.member_name ?? t("runs.feed.agentFallback", { userId: post.user_id })
   const isInjector = agent?.role === "injector"
@@ -1548,6 +1630,7 @@ function FeedPostCard({
   const isRepost = originalId != null && quote.length === 0
   const postComments = commentsByPostId.get(post.post_id) ?? []
   const when = formatFeedWhen(post.created_at, t, intl)
+  const postTools = agentToolsForAuthor(agentTools, post.user_id, tickIndex)
 
   let kindLabel: string | null = null
   if (isInjector) kindLabel = t("runs.feed.injection")
@@ -1596,11 +1679,28 @@ function FeedPostCard({
                   {kindLabel}
                 </span>
               ) : null}
+              {postTools.length > 0 ? (
+                <span className="rounded border border-[color:var(--db-gold-500)]/40 bg-[color:var(--db-gold-100)] px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[color:var(--db-gold-700)]">
+                  {t("runs.feed.toolsUsed")}
+                </span>
+              ) : null}
               <span className="text-muted-foreground/80">#{post.post_id}</span>
             </>
           }
         />
         <div className="flex shrink-0 items-center gap-1">
+          {postTools.length > 0 ? (
+            <AgentToolsIconButton
+              label={t("runs.feed.toolsUsedAria")}
+              onClick={() =>
+                setToolsModal({
+                  kind: "post",
+                  authorName: author,
+                  tools: postTools,
+                })
+              }
+            />
+          ) : null}
           {canInterviewPost ? (
             <button
               type="button"
@@ -1667,6 +1767,16 @@ function FeedPostCard({
             const commentAgent = agents.find((a) => a.index === c.user_id)
             const commentName = agentLabel(agents, c.user_id, t)
             const commentInjector = agentIsInjector(agents, c.user_id)
+            const commentTick = tickIndexForCreatedAt(
+              c.created_at,
+              tickMarkers,
+              tickIndex,
+            )
+            const commentTools = agentToolsForAuthor(
+              agentTools,
+              c.user_id,
+              commentTick,
+            )
             const canInterviewComment =
               runId != null &&
               Boolean(attemptId) &&
@@ -1678,17 +1788,24 @@ function FeedPostCard({
                   <AgentAvatar name={commentName} size="sm" />
                 )}
                 <div className="min-w-0 flex-1 rounded-2xl bg-muted/50 px-3 py-2">
-                  <button
-                    type="button"
-                    className="text-xs font-semibold text-foreground underline-offset-2 hover:underline"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      openAgent(c.user_id)
-                    }}
-                  >
-                    {commentName}
-                  </button>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <button
+                      type="button"
+                      className="text-xs font-semibold text-foreground underline-offset-2 hover:underline"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        openAgent(c.user_id)
+                      }}
+                    >
+                      {commentName}
+                    </button>
+                    {commentTools.length > 0 ? (
+                      <span className="rounded border border-[color:var(--db-gold-500)]/40 bg-[color:var(--db-gold-100)] px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[color:var(--db-gold-700)]">
+                        {t("runs.feed.toolsUsed")}
+                      </span>
+                    ) : null}
+                  </div>
                   <CommentBody
                     text={c.content}
                     matcher={mentionMatcher}
@@ -1704,6 +1821,18 @@ function FeedPostCard({
                   />
                 </div>
                 <div className="flex shrink-0 flex-col items-center gap-1">
+                  {commentTools.length > 0 ? (
+                    <AgentToolsIconButton
+                      label={t("runs.feed.toolsUsedCommentAria")}
+                      onClick={() =>
+                        setToolsModal({
+                          kind: "comment",
+                          authorName: commentName,
+                          tools: commentTools,
+                        })
+                      }
+                    />
+                  ) : null}
                   {canInterviewComment ? (
                     <button
                       type="button"
@@ -1713,7 +1842,7 @@ function FeedPostCard({
                         name: commentName,
                       })}
                       onClick={() =>
-                        onInterview(tickIndex, commentAgent!.persona_id!)
+                        onInterview(commentTick, commentAgent!.persona_id!)
                       }
                     >
                       <InterviewIcon />
@@ -1729,6 +1858,28 @@ function FeedPostCard({
           })}
         </ul>
       ) : null}
+
+      <AdminModal
+        open={toolsModal != null}
+        titleId="agent-tools-modal-title"
+        title={
+          toolsModal?.kind === "comment"
+            ? t("runs.feed.toolsModalTitleComment")
+            : t("runs.feed.toolsModalTitle")
+        }
+        description={
+          toolsModal
+            ? t("runs.feed.toolsModalDescription", {
+                name: toolsModal.authorName,
+                count: toolsModal.tools.length,
+              })
+            : undefined
+        }
+        onClose={() => setToolsModal(null)}
+        wide
+      >
+        {toolsModal ? <AgentToolsModalContent tools={toolsModal.tools} /> : null}
+      </AdminModal>
     </li>
   )
 }
@@ -2028,6 +2179,8 @@ function VariantBody({
                         agents={agents}
                         postsById={postsById}
                         commentsByPostId={commentsByPostId}
+                        agentTools={variant.agent_tools ?? []}
+                        tickMarkers={variant.tick_markers ?? []}
                         mentionMatcher={mentionMatcher}
                         openMention={openMention}
                         openAgent={openAgent}
@@ -2065,6 +2218,8 @@ function VariantBody({
               agents={agents}
               postsById={postsById}
               commentsByPostId={commentsByPostId}
+              agentTools={variant.agent_tools ?? []}
+              tickMarkers={variant.tick_markers ?? []}
               mentionMatcher={mentionMatcher}
               openMention={openMention}
               openAgent={openAgent}

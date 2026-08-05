@@ -418,8 +418,7 @@ async def _run_report_generate(job_id: str) -> None:
         out_dir = Path(ARTIFACT_ROOT) / report_id
         from app.services.prompt_store import require_active_prompts
 
-        report_lang = "en" if locale == "en" else "sv"
-        prompts = await require_active_prompts(session, report_lang)  # type: ignore[arg-type]
+        prompts = await require_active_prompts(session)
 
     try:
         html_path, slots_path, _slots = await generate_report_html(

@@ -65,6 +65,8 @@ Keep imports consistent with the `@/*` alias (e.g. `@/lib/api`, `@/components/ui
 
 ## i18n / L10n
 
+**Mandatory for all GUI changes.** Any new or updated user-facing UI text must go through i18n — never hardcode Swedish/English strings in components. See also root [../AGENTS.md](../AGENTS.md) → **Frontend i18n (mandatory)**.
+
 Swedish is the default UI locale. Do **not** add `react-i18next` / `lingui` unless catalogs outgrow a small helper.
 
 - Catalogs: `src/i18n/messages/sv.ts` (source of truth for keys) and `en.ts` (same shape).

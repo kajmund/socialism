@@ -209,6 +209,7 @@ export const en: LocalizedTree<SvMessages> = {
       start: "Start run",
       startShort: "Start",
       starting: "Starting…",
+      running: "Running…",
       rerun: "Run again",
       saveRun: "Save run",
     },
@@ -489,6 +490,15 @@ export const en: LocalizedTree<SvMessages> = {
       actionRefreshDetail: "{count} posts",
       actionInterviewDetail: "Q: {prompt} — {snippet}",
       actionInterviewPrompt: "Q: {prompt}",
+      toolsUsed: "Tools",
+      toolsUsedAria: "Show tools used before this post",
+      toolsUsedCommentAria: "Show tools used before this comment",
+      toolsModalTitle: "Tools before post",
+      toolsModalTitleComment: "Tools before comment",
+      toolsModalDescription: "{name} · {count} call(s) in the same tick",
+      toolsQuery: "Query",
+      toolsResult: "Result",
+      toolsEmptyResult: "No result saved",
     },
     interview: {
       loadError: "Could not load interview",
@@ -920,7 +930,7 @@ export const en: LocalizedTree<SvMessages> = {
     list: {
       title: "Configurations",
       intro:
-        "Saved prompt sets per language. The active configuration is used by backend LLM calls.",
+        "Saved prompt sets. Only one configuration can be active at a time — it is used by backend LLM calls. The active configuration is controlled here, not by the menu language switcher.",
       searchPlaceholder: "Search name…",
       allLanguages: "All languages",
       new: "+ New configuration",
@@ -940,16 +950,19 @@ export const en: LocalizedTree<SvMessages> = {
       newTitle: "New configuration",
       editTitle: "Edit configuration",
       newIntro:
-        "Name, language, and all prompt fields. Prefilled with defaults — edit as needed.",
+        "Name, prompt language, and prompt fields in tabs. Prefilled with defaults — edit as needed.",
       editIntro:
-        "Changes overwrite the existing entry. Activate it for the backend to use it.",
+        "Changes overwrite the existing entry. Activate it for the backend to use it (only one active at a time).",
       loading: "Loading configuration…",
       loadError: "Could not load the configuration",
       nameLabel: "Name",
       namePlaceholder: "e.g. Standard (Swedish)",
-      languageLabel: "Language",
-      activeLabel: "Active for this language (used by backend)",
+      languageLabel: "Prompt language",
+      languageHint:
+        "Language of the prompt texts — independent of the menu language switcher.",
+      activeLabel: "Active (used by backend; only one at a time)",
       nameRequired: "Enter a name",
+      tablistAria: "Prompt sections",
     },
   },
   config: {

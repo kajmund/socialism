@@ -60,13 +60,10 @@ async def _get_configuration(session: AsyncSession, configuration_id: int) -> Co
 async def _deactivate_others(
     session: AsyncSession,
     *,
-    language: str,
     keep_id: int | None,
 ) -> None:
-    stmt = select(Configuration).where(
-        Configuration.language == language,
-        Configuration.is_active.is_(True),
-    )
+    """Deactivate every active configuration except keep_id (global, not per language)."""
+    stmt = select(Configuration).where(Configuration.is_active.is_(True))
     if keep_id is not None:
         stmt = stmt.where(Configuration.id != keep_id)
     result = await session.execute(stmt)
@@ -130,7 +127,7 @@ async def create_configuration(
     prompts = normalize_prompts(body.prompts, language=body.language, fill_missing=True)
     now = utcnow()
     if body.is_active:
-        await _deactivate_others(session, language=body.language, keep_id=None)
+        await _deactivate_others(session, keep_id=None)
     row = Configuration(
         name=body.name,
         language=body.language,
@@ -165,7 +162,7 @@ async def update_configuration(
             fill_missing=True,
         )
     if data.get("is_active") is True:
-        await _deactivate_others(session, language=row.language, keep_id=row.id)
+        await _deactivate_others(session, keep_id=row.id)
         row.is_active = True
     elif data.get("is_active") is False:
         row.is_active = False

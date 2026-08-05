@@ -63,7 +63,7 @@ def drain_oasis_tool_trace() -> list[dict[str, Any]]:
     return list(_TRACE.get() or [])
 
 
-def _preview(value: Any, *, limit: int = 160) -> str | None:
+def _preview(value: Any, *, limit: int = 2000) -> str | None:
     if value is None:
         return None
     text = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)

@@ -1,4 +1,10 @@
-"""Optional CAMEL toolkits for OASIS population agents (search, SymPy)."""
+"""Optional CAMEL toolkits for OASIS population agents (search, SymPy).
+
+Web search uses our wrappers rather than CAMEL SearchToolkit:
+- ``duckduckgo-search`` was renamed/frozen to ``ddgs`` and silently returns [].
+- ``wikipedia`` needs an identifiable User-Agent or the API returns 403/empty
+  (JSONDecodeError). Wiki is also page-title oriented — long news queries fail.
+"""
 
 from __future__ import annotations
 
@@ -9,6 +15,39 @@ from app.schemas.domain import OasisRunOptions
 # OASIS cookbook examples use max_iteration=5 when agents have external tools.
 _TOOL_MAX_ITERATION = 5
 
+_WIKI_USER_AGENT = (
+    "Opinionssimulator/0.1 (internal political messaging simulator; "
+    "local research tool)"
+)
+
+# CAMEL's upstream docstring for series_expansion breaks Google-style parsing
+# (continuation line for `order` is under-indented), so FunctionTool emits
+# UserWarnings and the LLM gets params without descriptions. Patch before wrap.
+_SERIES_EXPANSION_DOC = """\
+Expands an expression into a Taylor series around a given point up to a
+specified order.
+
+Args:
+    expression (str): The mathematical expression to expand, provided as a
+        string.
+    variable (str): The variable with respect to which the series expansion
+        is performed.
+    point (float): The point around which the Taylor series is expanded.
+    order (int): The order up to which the series expansion is computed.
+
+Returns:
+    str: JSON string containing the Taylor series expansion of the
+        expression in the \"result\" field. If an error occurs, the JSON
+        string will include an \"error\" field with the corresponding error
+        message.
+"""
+
+
+def _patch_sympy_series_expansion_doc() -> None:
+    from camel.toolkits.sympy_toolkit import SymPyToolkit
+
+    SymPyToolkit.series_expansion.__doc__ = _SERIES_EXPANSION_DOC
+
 
 def population_agent_max_iteration(options: OasisRunOptions) -> int:
     if options.enable_web_search or options.enable_sympy_tools:
@@ -16,18 +55,124 @@ def population_agent_max_iteration(options: OasisRunOptions) -> int:
     return 1
 
 
+def search_wiki(entity: str) -> str:
+    """Search Swedish Wikipedia for a named entity and return a short summary.
+
+    Args:
+        entity (str): Short page title or proper name only (e.g.
+            \"Sverigedemokraterna\", \"gängkriminalitet\", \"visitationszon\").
+            Do not pass long news-style search queries.
+
+    Returns:
+        str: Summary text, or a short Swedish error if no page matches.
+    """
+    import wikipedia
+    from wikipedia.exceptions import (
+        DisambiguationError,
+        PageError,
+        WikipediaException,
+    )
+
+    wikipedia.set_user_agent(_WIKI_USER_AGENT)
+    wikipedia.set_lang("sv")
+    title = (entity or "").strip()
+    if not title:
+        return "Tom Wikipedia-fråga — ange ett kort namn eller begrepp."
+
+    try:
+        return wikipedia.summary(title, sentences=5, auto_suggest=False)
+    except DisambiguationError as e:
+        option = e.options[0] if e.options else None
+        if not option:
+            return (
+                f"Wikipedia har flera träffar för \"{title}\" men inget "
+                "tydligt alternativ. Ange ett mer specifikt namn."
+            )
+        try:
+            return wikipedia.summary(option, sentences=5, auto_suggest=False)
+        except WikipediaException as nested:
+            return f"Wikipedia-sökning misslyckades: {nested}"
+    except PageError:
+        try:
+            hits = wikipedia.search(title, results=5)
+        except WikipediaException as e:
+            return f"Wikipedia-sökning misslyckades: {e}"
+        if not hits:
+            return (
+                f"Ingen Wikipedia-sida för \"{title}\". Använd ett kort "
+                "namn/begrepp, eller search_duckduckgo för nyheter."
+            )
+        try:
+            return wikipedia.summary(hits[0], sentences=5, auto_suggest=False)
+        except WikipediaException as e:
+            return f"Wikipedia-sökning misslyckades: {e}"
+    except WikipediaException as e:
+        return f"Wikipedia-sökning misslyckades: {e}"
+    except Exception as e:
+        # Empty/403 API bodies surface as JSONDecodeError from the wikipedia lib.
+        return f"Wikipedia-sökning misslyckades: {e}"
+
+
+def search_duckduckgo(
+    query: str,
+    number_of_result_pages: int = 5,
+) -> list[dict[str, Any]]:
+    """Search the web via DuckDuckGo (Swedish region) for news and facts.
+
+    Args:
+        query (str): Search query (news, laws, figures, current events).
+        number_of_result_pages (int): Max results to return (default 5).
+
+    Returns:
+        list[dict]: Each item has result_id, title, description, url.
+            On failure, a single dict with an \"error\" key.
+    """
+    from ddgs import DDGS
+
+    q = (query or "").strip()
+    if not q:
+        return [{"error": "Tom sökfråga."}]
+
+    max_results = max(1, min(int(number_of_result_pages), 10))
+    try:
+        raw = list(
+            DDGS().text(q, max_results=max_results, region="se-sv")
+        )
+    except Exception as e:
+        return [{"error": f"duckduckgo search failed: {e}"}]
+
+    responses: list[dict[str, Any]] = []
+    for i, result in enumerate(raw, start=1):
+        responses.append(
+            {
+                "result_id": i,
+                "title": result.get("title"),
+                "description": result.get("body"),
+                "url": result.get("href"),
+            }
+        )
+    if not responses:
+        return [
+            {
+                "error": (
+                    "Inga DuckDuckGo-träffar. Prova en kortare eller mer "
+                    "konkret fråga."
+                )
+            }
+        ]
+    return responses
+
+
 def build_population_extra_tools(options: OasisRunOptions) -> list[Any]:
     """Return CAMEL tools to attach to population agents (empty if all disabled)."""
     tools: list[Any] = []
     if options.enable_web_search:
-        from camel.toolkits import SearchToolkit
-
-        search = SearchToolkit()
-        tools.append(search.search_duckduckgo)
-        tools.append(search.search_wiki)
+        tools.append(search_duckduckgo)
+        tools.append(search_wiki)
     if options.enable_sympy_tools:
         from camel.toolkits import SymPyToolkit
 
+        _patch_sympy_series_expansion_doc()
         tools.extend(SymPyToolkit().get_tools())
     return tools
 
@@ -50,10 +195,14 @@ def population_tool_rules(options: OasisRunOptions) -> str:
     ]
     if options.enable_web_search:
         lines.append(
-            "- Webb/Wikipedia: search_wiki för bakgrund om begrepp, institutioner "
-            "eller aktörer; search_duckduckgo för aktuella nyheter och siffror. "
-            "Sök på det konkreta (t.ex. plats, lag, belopp) — inte bara "
-            "partinamnet."
+            "- Wikipedia (search_wiki): BARA korta namn/begrepp som kan vara "
+            "en uppslagssida (t.ex. \"Sverigedemokraterna\", \"visitationszon\", "
+            "\"gängkriminalitet\"). Skicka aldrig långa nyhetsfrågor till wiki."
+        )
+        lines.append(
+            "- Webb (search_duckduckgo): aktuella nyheter, åtgärdspaket, "
+            "lagförslag och siffror. Sök på det konkreta (plats, lag, årtal) "
+            "— inte bara partinamnet."
         )
     if options.enable_sympy_tools:
         lines.append(

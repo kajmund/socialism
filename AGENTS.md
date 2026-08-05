@@ -58,6 +58,14 @@ OKF MCP (later): `npx -y @mfdaves/okf-mcp@0.3.3 --project ./okf.project.yaml mcp
 
 - **Admin surfaces** (Personas, Populationer, Körningar, …): Devbrains charcoal + gold — Tailwind tokens in `frontend/src/index.css` + shadcn. Dense run-config chrome lives in `frontend/src/styles/admin-runs.css`.
 
+## Frontend i18n (mandatory)
+
+**When changing or updating the GUI, always use the i18n system.** Do not hardcode user-facing strings (labels, headings, buttons, placeholders, toasts, empty states, aria-labels, error copy, etc.) in components.
+
+- Add/update keys in `frontend/src/i18n/messages/sv.ts` and the matching keys in `en.ts`.
+- Render via `useLocale()` → `t("section.key")` (and `intl` for dates/numbers).
+- Full workflow and exceptions: `frontend/AGENTS.md` → section **i18n / L10n**.
+
 ## Dependency policy
 
 **Default: write it yourself. Reach for a library only when the alternative would be non-trivial, error-prone, or reinvention of a standard.** Every dependency is a liability — bundle size, supply-chain risk, future upgrade work.

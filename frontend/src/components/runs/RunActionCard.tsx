@@ -37,24 +37,29 @@ export function RunActionCard({
   onStart,
 }: RunActionCardProps) {
   const { t } = useLocale()
-  const startLabel =
-    runStatus === "done" || runStatus === "failed"
+  const isRunning = runStatus === "running"
+  const startLabel = isRunning
+    ? t("runs.actions.running")
+    : runStatus === "done" || runStatus === "failed"
       ? t("runs.actions.rerun")
       : t("runs.actions.start")
   const saveBusy = pendingAction === "save"
   const startBusy = pendingAction === "start"
-  const barStartLabel =
-    runStatus === "done" || runStatus === "failed"
+  const barStartLabel = isRunning
+    ? t("runs.actions.running")
+    : runStatus === "done" || runStatus === "failed"
       ? t("runs.actions.rerun")
       : startBusy
         ? t("runs.actions.starting")
         : t("runs.actions.startShort")
   const barSaveLabel = saveBusy ? t("common.saving") : t("common.save")
   const cardSaveLabel = saveBusy ? t("common.saving") : t("runs.actions.saveRun")
-  const cardStartLabel = startBusy
-    ? t("runs.actions.starting")
-    : startLabel
-
+  const cardStartLabel = isRunning
+    ? t("runs.actions.running")
+    : startBusy
+      ? t("runs.actions.starting")
+      : startLabel
+  const controlsLocked = saving || disabled || isRunning
   const content = (
     <>
       <div className="start-summary">
@@ -63,7 +68,7 @@ export function RunActionCard({
             id="run-platform"
             className="run-platform-select"
             value={platform}
-            disabled={disabled}
+            disabled={controlsLocked}
             onChange={(e) => onPlatformChange(e.target.value as OasisPlatform)}
           >
             {PLATFORMS.map(({ value, label }) => (
@@ -91,7 +96,7 @@ export function RunActionCard({
           <button
             type="button"
             className="btn-save"
-            disabled={saving || disabled}
+            disabled={controlsLocked}
             onClick={onSave}
           >
             {layout === "bar" ? barSaveLabel : cardSaveLabel}
@@ -99,7 +104,7 @@ export function RunActionCard({
           <button
             type="button"
             className="btn-run"
-            disabled={saving || disabled}
+            disabled={controlsLocked}
             onClick={onStart}
           >
             {layout === "bar" ? barStartLabel : cardStartLabel}

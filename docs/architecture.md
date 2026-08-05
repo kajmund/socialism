@@ -138,7 +138,8 @@ Library chat and post-hoc run interviews share the `persona_messages` table but 
 - Injectors always post via manual actions; population `CREATE_POST` is gated by `oasis_options`
 - Swedish environment prompts + action semantics in `oasis_swedish.py` / `oasis_profiles.py`
 - Lexical convergence (`quality_warnings`) flags injection phrase-echo and cross-agent reuse (default ≥40% of population agents)
-- Artifacts: `backend/data/oasis/run_{id}/{variant}/`
+- Artifacts: `backend/data/oasis/run_{id}/{variant}/` (profiles + `simulation.db`)
+- Per-attempt logs: `backend/data/oasis/run_{id}/attempts/{attempt_id}/{variant}.log` (also `log_path` / `log_dir` on stored results)
 - CLI helper (persists attempt): `uv run python -m app.services.oasis_run --run-id N`
 - Model benchmark (wall time + output metrics; does not persist attempt): `uv run python scripts/benchmark_simulation_models.py --run-id N` — see [backend setup](guides/backend-setup.md#benchmark-deepseek-models)
 

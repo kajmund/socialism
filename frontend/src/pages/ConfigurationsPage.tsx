@@ -154,8 +154,7 @@ export function ConfigurationsPage() {
       setConfigs((prev) =>
         prev.map((c) => {
           if (c.id === updated.id) return updated
-          if (c.language === updated.language) return { ...c, is_active: false }
-          return c
+          return { ...c, is_active: false }
         }),
       )
       setToast(t("configurations.list.activated"))

@@ -435,6 +435,7 @@ export function ConfigureRunPage() {
     runStatus,
     saving,
     pendingAction,
+    disabled: configLocked,
     onSave: () => void saveDraft(false),
     onStart: () => void saveDraft(true),
     onValidationError: showToast,
