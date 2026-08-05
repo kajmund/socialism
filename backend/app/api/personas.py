@@ -311,7 +311,7 @@ async def chat_with_persona(
     history = [(row.role, row.content) for row in history_rows.scalars().all()]
 
     area_block = await area_block_for_name(session, profile.ort or persona.district)
-    prompts = await require_active_prompts(session, "sv")
+    prompts = await require_active_prompts(session)
     reply = await reply_as_persona(
         profile,
         body.mode,
@@ -442,7 +442,7 @@ async def resend_message(
     await session.flush()
 
     area_block = await area_block_for_name(session, profile.ort or persona.district)
-    prompts = await require_active_prompts(session, "sv")
+    prompts = await require_active_prompts(session)
     mode = target.mode
 
     if target.role == "user":

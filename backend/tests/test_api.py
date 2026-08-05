@@ -553,9 +553,12 @@ async def test_configuration_crud(client):
 
     listed = await client.get("/configurations")
     assert listed.status_code == 200
-    # Seeded Standard configs for sv + en
-    assert len(listed.json()) >= 2
-    assert any(c["is_active"] and c["language"] == "sv" for c in listed.json())
+    # Seeded Standard configs for sv + en; exactly one active globally
+    configs = listed.json()
+    assert len(configs) >= 2
+    active = [c for c in configs if c["is_active"]]
+    assert len(active) == 1
+    assert active[0]["language"] == "sv"
 
     create = await client.post(
         "/configurations",
@@ -576,20 +579,34 @@ async def test_configuration_crud(client):
     config_id = row["id"]
 
     listed2 = await client.get("/configurations")
-    active_sv = [c for c in listed2.json() if c["language"] == "sv" and c["is_active"]]
-    assert len(active_sv) == 1
-    assert active_sv[0]["id"] == config_id
+    active_all = [c for c in listed2.json() if c["is_active"]]
+    assert len(active_all) == 1
+    assert active_all[0]["id"] == config_id
+
+    # Activating an English config deactivates the Swedish one (global, not per language)
+    en_row = next(c for c in listed2.json() if c["language"] == "en")
+    activated_en = await client.post(f"/configurations/{en_row['id']}/activate")
+    assert activated_en.status_code == 200
+    assert activated_en.json()["is_active"] is True
+    listed3 = await client.get("/configurations")
+    active_after = [c for c in listed3.json() if c["is_active"]]
+    assert len(active_after) == 1
+    assert active_after[0]["id"] == en_row["id"]
 
     patched = await client.patch(
         f"/configurations/{config_id}",
         json={
             "name": "Uppdaterad",
             "prompts": {"chat.mode.interview": "Ny intervjuregel."},
+            "is_active": True,
         },
     )
     assert patched.status_code == 200
     assert patched.json()["name"] == "Uppdaterad"
     assert patched.json()["prompts"]["chat.mode.interview"] == "Ny intervjuregel."
+    assert patched.json()["is_active"] is True
+    listed4 = await client.get("/configurations")
+    assert len([c for c in listed4.json() if c["is_active"]]) == 1
 
     activated = await client.post(f"/configurations/{config_id}/activate")
     assert activated.status_code == 200

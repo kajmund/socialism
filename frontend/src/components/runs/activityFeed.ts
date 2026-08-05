@@ -76,13 +76,36 @@ export type TimelineItem =
 
 export type TickMarker = NonNullable<OasisVariantResult["tick_markers"]>[number]
 
-function tickIndexForTime(t: number, markers: TickMarker[]): number {
+export function tickIndexForTime(t: number, markers: TickMarker[]): number {
   for (const m of markers) {
     if (m.time_start <= t && t <= m.time_end) return m.tick_index
   }
   if (markers.length === 0) return 0
   if (t < markers[0].time_start) return -1
   return markers[markers.length - 1].tick_index
+}
+
+/** Tick for a post/comment timestamp; falls back when markers or time missing. */
+export function tickIndexForCreatedAt(
+  createdAt: string | number | undefined,
+  markers: TickMarker[],
+  fallbackTick = 0,
+): number {
+  if (markers.length === 0) return fallbackTick
+  if (createdAt == null || createdAt === "") return fallbackTick
+  const tick = tickIndexForTime(sortKeyFromCreatedAt(createdAt), markers)
+  return tick < 0 ? fallbackTick : tick
+}
+
+/** External tools used by an agent during the same tick as a post/comment. */
+export function agentToolsForAuthor(
+  tools: AgentToolRow[] | undefined,
+  userId: number,
+  tickIndex: number,
+): AgentToolRow[] {
+  return (tools ?? [])
+    .filter((row) => row.user_id === userId && row.tick_index === tickIndex)
+    .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0))
 }
 
 export function sortKeyFromCreatedAt(value: string | number | undefined): number {
@@ -114,7 +137,7 @@ export function parseTraceInfo(
   return {}
 }
 
-function argPreview(args: Record<string, unknown> | undefined): string | null {
+export function argPreview(args: Record<string, unknown> | undefined): string | null {
   if (!args) return null
   for (const key of ["query", "entity", "expression", "input", "text"]) {
     const value = args[key]
