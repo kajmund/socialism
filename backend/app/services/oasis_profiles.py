@@ -10,7 +10,8 @@ from pathlib import Path
 from typing import Literal
 
 from app.database.models import PopulationMember
-from app.schemas.domain import Injection, InjectionType, OasisPlatform, Tick
+from app.schemas.domain import Injection, InjectionType, OasisPlatform, OasisRunOptions, Tick
+from app.services.oasis_agent_tools import population_tool_rules
 from app.serializers import profile_from_dict
 
 AgentRole = Literal["population", "injector"]
@@ -226,6 +227,7 @@ def build_user_char(
     area_block: str = "",
     allow_create_post: bool = False,
     platform: OasisPlatform = "twitter",
+    oasis_options: OasisRunOptions | None = None,
 ) -> str:
     profile = profile_from_dict(
         member.persona.profile if member.persona else None,
@@ -282,6 +284,9 @@ def build_user_char(
             platform=platform,
         )
     )
+    tool_rules = population_tool_rules(oasis_options or OasisRunOptions())
+    if tool_rules:
+        lines.append(tool_rules)
     return "\n".join(lines)
 
 
@@ -292,6 +297,7 @@ def members_to_profiles(
     area_blocks: dict[str, str] | None = None,
     allow_create_post: bool = False,
     platform: OasisPlatform = "twitter",
+    oasis_options: OasisRunOptions | None = None,
 ) -> list[OasisAgentProfile]:
     """Map every population member to an OASIS profile (no capping)."""
     blocks = area_blocks or {}
@@ -324,6 +330,7 @@ def members_to_profiles(
                     area_block=area_block,
                     allow_create_post=allow_create_post,
                     platform=platform,
+                    oasis_options=oasis_options,
                 ),
                 persona_id=member.persona_id,
                 member_name=member.name,
@@ -342,6 +349,7 @@ def build_run_profiles(
     area_blocks: dict[str, str] | None = None,
     allow_create_post: bool = False,
     platform: OasisPlatform = "twitter",
+    oasis_options: OasisRunOptions | None = None,
 ) -> tuple[list[OasisAgentProfile], dict[str, int]]:
     """Injectors first (no LLM), then the full population — no agent cap."""
     injectors = injectors_from_ticks(ticks)
@@ -351,6 +359,7 @@ def build_run_profiles(
         area_blocks=area_blocks,
         allow_create_post=allow_create_post,
         platform=platform,
+        oasis_options=oasis_options,
     )
     profiles = injectors + population
     key_to_index = {
