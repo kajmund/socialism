@@ -81,8 +81,6 @@ def _serialize_message(row: PersonaMessage) -> PersonaMessageOut:
 def _stub_candidates(body: PersonaGenerateRequest) -> list[EditablePersona]:
     recipe = PopulationRecipe(
         size=body.count,
-        entryMode="manual",
-        freeText=body.freeText,
         dist={
             "age": DistGroup(
                 label="Ålder",

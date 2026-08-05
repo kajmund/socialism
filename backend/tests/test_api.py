@@ -247,8 +247,6 @@ async def test_start_oasis_without_package_returns_503(client, monkeypatch):
 def _sample_recipe(size: int = 6, seed: int = 42) -> dict:
     return {
         "size": size,
-        "entryMode": "manual",
-        "freeText": "",
         "locale": "norrkoping",
         "seed": seed,
         "dist": {
