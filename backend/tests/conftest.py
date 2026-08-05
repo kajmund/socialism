@@ -48,6 +48,8 @@ async def client():
 
     jobs_service.set_job_session_factory(session_factory)
     jobs_service.set_schedule_hook(None)
+    jobs_service.reset_simulation_job_semaphore()
+    settings.max_concurrent_simulation_jobs = 2
 
     app = create_app()
 
