@@ -1,6 +1,9 @@
 /** Build a chronological timeline: posts + compact non-engagement actions. */
 
 import type { OasisVariantResult } from "@/data/runs-types"
+import type { MessageKey, TranslateParams } from "@/i18n"
+
+type Translate = (key: MessageKey, params?: TranslateParams) => string
 
 export type PostRow = NonNullable<OasisVariantResult["posts"]>[number]
 export type TraceRow = NonNullable<OasisVariantResult["trace"]>[number]
@@ -144,6 +147,7 @@ type DescribeCtx = {
 export function describeTimelineAction(
   action: string,
   actorUserId: number,
+  t: Translate,
   ctx: DescribeCtx,
 ): ActionDescription {
   switch (action) {
@@ -155,8 +159,8 @@ export function describeTimelineAction(
       const target =
         row?.followee_id ?? asInt(ctx.info.followee_id) ?? null
       return {
-        label: "följde",
-        detail: target != null ? ctx.agentName(target) : "någon",
+        label: t("runs.feed.actionFollow"),
+        detail: target != null ? ctx.agentName(target) : t("runs.feed.actionSomeone"),
         targetUserId: target,
         postId: null,
       }
@@ -169,8 +173,8 @@ export function describeTimelineAction(
       const target =
         row?.followee_id ?? asInt(ctx.info.followee_id) ?? null
       return {
-        label: "slutade följa",
-        detail: target != null ? ctx.agentName(target) : "någon",
+        label: t("runs.feed.actionUnfollow"),
+        detail: target != null ? ctx.agentName(target) : t("runs.feed.actionSomeone"),
         targetUserId: target,
         postId: null,
       }
@@ -182,8 +186,8 @@ export function describeTimelineAction(
         ctx.mutesLoose.find((m) => m.muter_id === actorUserId)
       const target = row?.mutee_id ?? asInt(ctx.info.mutee_id) ?? null
       return {
-        label: "tystade",
-        detail: target != null ? ctx.agentName(target) : "någon",
+        label: t("runs.feed.actionMute"),
+        detail: target != null ? ctx.agentName(target) : t("runs.feed.actionSomeone"),
         targetUserId: target,
         postId: null,
       }
@@ -195,8 +199,8 @@ export function describeTimelineAction(
         ctx.mutesLoose.find((m) => m.muter_id === actorUserId)
       const target = row?.mutee_id ?? asInt(ctx.info.mutee_id) ?? null
       return {
-        label: "tog bort tystning av",
-        detail: target != null ? ctx.agentName(target) : "någon",
+        label: t("runs.feed.actionUnmute"),
+        detail: target != null ? ctx.agentName(target) : t("runs.feed.actionSomeone"),
         targetUserId: target,
         postId: null,
       }
@@ -215,7 +219,7 @@ export function describeTimelineAction(
           ? (ctx.postsById.get(postId)?.content ?? "").slice(0, 60)
           : ""
       return {
-        label: "rapporterade",
+        label: t("runs.feed.actionReport"),
         detail:
           postId != null
             ? `#${postId}${reason ? ` (${reason})` : ""}${preview ? ` — ${preview}` : ""}`
@@ -228,8 +232,8 @@ export function describeTimelineAction(
       const posts = ctx.info.posts
       const n = Array.isArray(posts) ? posts.length : null
       return {
-        label: "uppdaterade flödet",
-        detail: n != null ? `${n} inlägg` : null,
+        label: t("runs.feed.actionRefresh"),
+        detail: n != null ? t("runs.feed.actionRefreshDetail", { count: n }) : null,
         targetUserId: null,
         postId: null,
       }
@@ -237,14 +241,14 @@ export function describeTimelineAction(
     case "sign_up":
       // OASIS skapar kontot i sim-DB:n — agentnamnet syns redan som actor.
       return {
-        label: "skapades i simuleringen",
+        label: t("runs.feed.actionSignUp"),
         detail: null,
         targetUserId: null,
         postId: null,
       }
     case "do_nothing":
       return {
-        label: "gjorde inget",
+        label: t("runs.feed.actionDoNothing"),
         detail: null,
         targetUserId: null,
         postId: null,
@@ -260,9 +264,11 @@ export function describeTimelineAction(
           : response
         : null
       return {
-        label: "intervjuades",
+        label: t("runs.feed.actionInterview"),
         detail: prompt
-          ? `Q: ${prompt}${snippet ? ` — ${snippet}` : ""}`
+          ? snippet
+            ? t("runs.feed.actionInterviewDetail", { prompt, snippet })
+            : t("runs.feed.actionInterviewPrompt", { prompt })
           : snippet,
         targetUserId: null,
         postId: null,
@@ -276,7 +282,7 @@ export function describeTimelineAction(
             ? ctx.info.user_name
             : null
       return {
-        label: "sökte användare",
+        label: t("runs.feed.actionSearchUser"),
         detail: q,
         targetUserId: null,
         postId: null,
@@ -290,7 +296,7 @@ export function describeTimelineAction(
             ? ctx.info.content
             : null
       return {
-        label: "sökte inlägg",
+        label: t("runs.feed.actionSearchPosts"),
         detail: q,
         targetUserId: null,
         postId: null,
@@ -298,7 +304,7 @@ export function describeTimelineAction(
     }
     case "trend":
       return {
-        label: "såg trender",
+        label: t("runs.feed.actionTrend"),
         detail: null,
         targetUserId: null,
         postId: null,
@@ -347,9 +353,10 @@ export function buildTimelineItems(
   options: {
     hideNoise: boolean
     agentName: (userId: number) => string
+    t: Translate
   },
 ): TimelineItem[] {
-  const { hideNoise, agentName } = options
+  const { hideNoise, agentName, t } = options
   const posts = variant.posts ?? []
   const trace = variant.trace ?? []
   const follows = variant.follows ?? []
@@ -389,11 +396,11 @@ export function buildTimelineItems(
   }
 
   posts.forEach((post, i) => {
-    const t = sortKeyFromCreatedAt(post.created_at)
+    const sortTime = sortKeyFromCreatedAt(post.created_at)
     items.push({
       kind: "post",
-      tickIndex: markers.length ? tickIndexForTime(t, markers) : 0,
-      sortKey: t,
+      tickIndex: markers.length ? tickIndexForTime(sortTime, markers) : 0,
+      sortKey: sortTime,
       tie: i,
       post,
     })
@@ -404,7 +411,7 @@ export function buildTimelineItems(
     const action = (row.action || "").trim()
     if (!isTimelineAction(action, hideNoise)) continue
     const info = parseTraceInfo(row.info)
-    const desc = describeTimelineAction(action, row.user_id, {
+    const desc = describeTimelineAction(action, row.user_id, t, {
       info,
       followsById,
       mutesById,
@@ -414,11 +421,11 @@ export function buildTimelineItems(
       postsById,
       agentName,
     })
-    const t = sortKeyFromCreatedAt(row.created_at)
+    const sortTime = sortKeyFromCreatedAt(row.created_at)
     items.push({
       kind: "action",
-      tickIndex: markers.length ? tickIndexForTime(t, markers) : 0,
-      sortKey: t,
+      tickIndex: markers.length ? tickIndexForTime(sortTime, markers) : 0,
+      sortKey: sortTime,
       tie: 10_000 + actionTie++,
       userId: row.user_id,
       action,
