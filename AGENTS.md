@@ -90,6 +90,14 @@ A single settings module is the source of truth for environment per service (`ba
 
 Fail fast on startup if required config is missing. No silent fallbacks that hide real config errors.
 
+## No fallbacks
+
+**Do not implement fallback paths** — not in config, not in LLM/model selection, not in external APIs, not in simulation engines. Fallbacks make behavior non-deterministic: the same input can produce different output depending on what failed silently upstream.
+
+- One configured path per concern. If it fails, **fail loudly** with a clear error — do not try an alternate model, provider, heuristic, stub, or degraded mode unless the user explicitly asked for that alternate.
+- Do not suggest "if X fails, try Y" in code, scripts, or docs for this repo unless the user requested Y.
+- Tests may mock boundaries; production and benchmark code must not mask missing config or API errors with substitutes.
+
 ## Project tracking (Trello)
 
 When creating or updating tasks for this repo via Trello MCP, **always use this board** (do not invent another):
