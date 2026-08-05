@@ -877,6 +877,33 @@ export const en: LocalizedTree<SvMessages> = {
       pickOne: "Pick a variant",
     },
   },
+  reports: {
+    kicker: "Report",
+    titleFallback: "Simulation report",
+    backToJobs: "← Background jobs",
+    took: "took {duration}",
+    status: {
+      pending: "Pending",
+      running: "Generating",
+      succeeded: "Done",
+      failed: "Failed",
+    },
+    loadError: "Could not load report",
+    htmlMissing: "Report HTML is missing or invalid",
+    htmlLoadError: "Could not load report HTML",
+    generateFailed: "Report generation failed.",
+    generating: "Generating the report… This may take a few minutes.",
+    openNewTab: "Open in new tab →",
+    loadingHtml: "Loading report…",
+    iframeTitle: "Report",
+    duration: {
+      seconds: "{n} s",
+      minutes: "{m} min",
+      minutesSeconds: "{m} min {s} s",
+      hours: "{h} h",
+      hoursMinutes: "{h} h {m} min",
+    },
+  },
   config: {
     page: {
       title: "Configuration",
