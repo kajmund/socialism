@@ -4,6 +4,7 @@ import L from "leaflet"
 import "leaflet/dist/leaflet.css"
 import type { CatalogItem, GeoBounds } from "@/api/catalog"
 import { AdminButton } from "@/components/ui/admin-button"
+import { useLocale } from "@/i18n"
 
 const NORRKOPING: L.LatLngExpression = [58.5877, 16.1924]
 const DEFAULT_ZOOM = 12
@@ -52,6 +53,7 @@ export function DistrictMapModal({
   onClose,
   onChangeBounds,
 }: DistrictMapModalProps) {
+  const { t } = useLocale()
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<L.Map | null>(null)
   const otherLayerRef = useRef<L.LayerGroup | null>(null)
@@ -216,7 +218,7 @@ export function DistrictMapModal({
         fillOpacity: 0.06,
         interactive: false,
       })
-        .bindTooltip(item.label || "—", { sticky: true })
+        .bindTooltip(item.label || t("common.emDash"), { sticky: true })
         .addTo(othersLayer)
     }
 
@@ -329,7 +331,7 @@ export function DistrictMapModal({
       map.setView(NORRKOPING, DEFAULT_ZOOM, { animate: false })
       fittedRef.current = true
     }
-  }, [open, district.bounds, district.label, others, drawing])
+  }, [open, district.bounds, district.label, others, drawing, t])
 
   if (!open) return null
 
@@ -340,7 +342,7 @@ export function DistrictMapModal({
       className="theme-admin fixed inset-0 z-[1100] flex items-center justify-center bg-black/60 p-4"
       role="dialog"
       aria-modal="true"
-      aria-label={`Karta för ${district.label || "distrikt"}`}
+      aria-label={t("config.map.mapAriaLabel", { label: district.label || t("config.map.districtFallback") })}
       onMouseDown={(e) => {
         overlayMouseDownRef.current = e.target === e.currentTarget
       }}
@@ -358,14 +360,14 @@ export function DistrictMapModal({
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[color:var(--border-hairline)] px-5 py-4">
           <div>
             <div className="text-sm font-medium text-db-ink-0">
-              Område på karta · {district.label || "Namnlöst distrikt"}
+              {t("config.map.modalTitle", { label: district.label || t("config.map.untitledDistrict") })}
             </div>
             <p className="mt-1 text-xs text-db-ink-100/70">
               {drawing
-                ? "Rita: klicka och dra en rektangel på kartan. Släpp för att spara."
+                ? t("config.map.drawingHint")
                 : hasBounds
-                  ? "Dra i rektangeln för att flytta den, dra i hörnen för att ändra storlek."
-                  : "Klicka ”Rita område” och dra en rektangel på kartan."}
+                  ? t("config.map.moveResizeHint")
+                  : t("config.map.drawHint")}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -375,7 +377,7 @@ export function DistrictMapModal({
                 size="sm"
                 onClick={() => setDrawing(true)}
               >
-                {hasBounds ? "Rita om" : "Rita område"}
+                {hasBounds ? t("config.map.redraw") : t("config.map.drawArea")}
               </AdminButton>
             ) : (
               <AdminButton
@@ -383,7 +385,7 @@ export function DistrictMapModal({
                 size="sm"
                 onClick={() => setDrawing(false)}
               >
-                Avbryt ritning
+                {t("config.map.cancelDrawing")}
               </AdminButton>
             )}
             <AdminButton
@@ -395,10 +397,10 @@ export function DistrictMapModal({
                 onChangeBounds(null)
               }}
             >
-              Rensa
+              {t("config.map.clear")}
             </AdminButton>
             <AdminButton variant="accent" size="sm" onClick={onClose}>
-              Klar
+              {t("common.done")}
             </AdminButton>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { Link } from "react-router-dom"
+import { useLocale } from "@/i18n"
 
 export type CatalogLabelOption = {
   label: string
@@ -23,10 +24,11 @@ export function CatalogLabelPicker({
   options,
   value,
   onChange,
-  placeholder = "— Välj —",
+  placeholder,
   allowCustom = true,
   emptyHint,
 }: CatalogLabelPickerProps) {
+  const { t } = useLocale()
   const rootRef = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
@@ -82,7 +84,7 @@ export function CatalogLabelPicker({
           <input
             id={id}
             className="msg-lib-search"
-            placeholder="t.ex. @partihandle eller Lokalnyheterna"
+            placeholder={t("runs.tick.senderCustomPh")}
             value={value}
             onChange={(e) => onChange(e.target.value)}
           />
@@ -95,7 +97,7 @@ export function CatalogLabelPicker({
                 onChange("")
               }}
             >
-              Välj från grunddata →
+              {t("runs.tick.senderFromCatalog")}
             </button>
           )}
         </>
@@ -109,7 +111,7 @@ export function CatalogLabelPicker({
                   className="msg-lib-search"
                   type="search"
                   autoFocus
-                  placeholder="Sök avsändare…"
+                  placeholder={t("runs.tick.senderSearch")}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={(e) => {
@@ -147,8 +149,8 @@ export function CatalogLabelPicker({
                   {filtered.length === 0 ? (
                     <div className="msg-lib-empty">
                       {query.trim()
-                        ? `Inga träffar för ”${query.trim()}”.`
-                        : "Inga alternativ."}
+                        ? t("runs.tick.senderNoMatch", { query: query.trim() })
+                        : t("runs.tick.senderNoOptions")}
                     </div>
                   ) : null}
                 </div>
@@ -163,7 +165,7 @@ export function CatalogLabelPicker({
                 aria-expanded={false}
               >
                 <span className="msg-lib-trigger-label">
-                  {value.trim() || placeholder}
+                  {value.trim() || placeholder || t("runs.tick.pickPlaceholder")}
                 </span>
                 <span className="msg-lib-caret" aria-hidden>
                   ▾
@@ -177,7 +179,7 @@ export function CatalogLabelPicker({
               className="catalog-picker-mode-link"
               onClick={() => setManual(true)}
             >
-              Skriv egen avsändare →
+              {t("runs.tick.senderWriteOwn")}
             </button>
           )}
         </>
@@ -189,11 +191,13 @@ export function CatalogLabelPicker({
   )
 }
 
-export function catalogSenderEmptyHint() {
+export function CatalogSenderEmptyHint() {
+  const { t } = useLocale()
+
   return (
     <>
-      Inga avsändare i grunddata.{" "}
-      <Link to="/config">Lägg till under Konfiguration</Link>
+      {t("runs.tick.senderEmptyPrefix")}{" "}
+      <Link to="/config">{t("runs.tick.senderEmptyLink")}</Link>
     </>
   )
 }

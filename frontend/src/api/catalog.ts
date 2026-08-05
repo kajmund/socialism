@@ -36,14 +36,6 @@ export const SECTION_ORDER: CatalogSection[] = [
   "simulering",
 ]
 
-export const SECTION_LABELS: Record<CatalogSection, string> = {
-  demografi: "Demografi",
-  politik: "Politik",
-  varderingar: "Värderingar",
-  rost_media: "Röst & media",
-  simulering: "Simulering",
-}
-
 export function listCatalog(): Promise<CatalogList[]> {
   return api.get<CatalogList[]>("/catalog")
 }

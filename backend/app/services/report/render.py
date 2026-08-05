@@ -41,11 +41,16 @@ def load_template(path: Path | None = None) -> str:
     return p.read_text(encoding="utf-8")
 
 
-def dry_run_defaults(slots: list[str]) -> dict[str, str]:
+def dry_run_defaults(
+    slots: list[str],
+    *,
+    locale: str = "sv",
+) -> dict[str, str]:
     out: dict[str, str] = {}
     for s in slots:
         if s.endswith("_html"):
-            out[s] = f'<p class="sec-intro"><em>Platshållare ({s}).</em></p>'
+            label = "Placeholder" if locale == "en" else "Platshållare"
+            out[s] = f'<p class="sec-intro"><em>{label} ({s}).</em></p>'
         else:
             out[s] = f"… ({s})"
     return out

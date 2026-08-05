@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom"
 import type { RunPopulationOption } from "@/data/runs-types"
+import { useLocale } from "@/i18n"
 
 export type RunIdentityFieldsProps = {
   name: string
@@ -14,6 +15,10 @@ export type RunIdentityFieldsProps = {
   onPopOpenChange: (open: boolean) => void
   allowPopulationCreatePost: boolean
   onAllowPopulationCreatePostChange: (value: boolean) => void
+  enableWebSearch: boolean
+  onEnableWebSearchChange: (value: boolean) => void
+  enableSympyTools: boolean
+  onEnableSympyToolsChange: (value: boolean) => void
   disabled?: boolean
 }
 
@@ -30,12 +35,18 @@ export function RunIdentityFields({
   onPopOpenChange,
   allowPopulationCreatePost,
   onAllowPopulationCreatePostChange,
+  enableWebSearch,
+  onEnableWebSearchChange,
+  enableSympyTools,
+  onEnableSympyToolsChange,
   disabled = false,
 }: RunIdentityFieldsProps) {
+  const { t } = useLocale()
+
   return (
     <>
       <div className="id-field">
-        <label htmlFor="run-name">Namn / scenario-id</label>
+        <label htmlFor="run-name">{t("runs.identity.nameLabel")}</label>
         <input
           id="run-name"
           value={name}
@@ -50,11 +61,31 @@ export function RunIdentityFields({
             disabled={disabled}
             onChange={(e) => onAllowPopulationCreatePostChange(e.target.checked)}
           />
-          Låt populationen skapa egna inlägg
+          {t("runs.identity.allowCreatePost")}
+        </label>
+        <label className="id-check-row">
+          <input
+            id="run-web-search"
+            type="checkbox"
+            checked={enableWebSearch}
+            disabled={disabled}
+            onChange={(e) => onEnableWebSearchChange(e.target.checked)}
+          />
+          {t("runs.identity.enableWebSearch")}
+        </label>
+        <label className="id-check-row">
+          <input
+            id="run-sympy-tools"
+            type="checkbox"
+            checked={enableSympyTools}
+            disabled={disabled}
+            onChange={(e) => onEnableSympyToolsChange(e.target.checked)}
+          />
+          {t("runs.identity.enableSympyTools")}
         </label>
       </div>
       <div className="id-field">
-        <label>Startdatum</label>
+        <label>{t("runs.identity.startDate")}</label>
         <input
           type="date"
           value={startDate}
@@ -63,7 +94,7 @@ export function RunIdentityFields({
         />
       </div>
       <div className="id-field">
-        <label>Population</label>
+        <label>{t("runs.identity.population")}</label>
         <div
           className="pop-mini"
           onClick={() => {
@@ -79,9 +110,11 @@ export function RunIdentityFields({
           </div>
           <div className="info">
             <div className="nm">{population.name}</div>
-            <div className="sub">{population.size} personas</div>
+            <div className="sub">
+              {t("common.personasCount", { count: population.size })}
+            </div>
           </div>
-          <span className="swap">Byt ▾</span>
+          <span className="swap">{t("runs.identity.swap")}</span>
           {popOpen && (
             <>
               <div
@@ -106,11 +139,13 @@ export function RunIdentityFields({
                   >
                     <div className="av">{p.initials[0]}</div>
                     <div className="nm">{p.name}</div>
-                    <div className="sub">{p.size} personas</div>
+                    <div className="sub">
+                      {t("common.personasCount", { count: p.size })}
+                    </div>
                   </div>
                 ))}
                 <div className="pop-dropdown-foot">
-                  <Link to="/populations">Visa alla populationer →</Link>
+                  <Link to="/populations">{t("runs.identity.viewAll")}</Link>
                 </div>
               </div>
             </>

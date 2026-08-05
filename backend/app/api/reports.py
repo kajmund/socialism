@@ -23,6 +23,11 @@ from app.serializers import utcnow
 from app.services import jobs as jobs_service
 from app.services.report import ARTIFACT_ROOT
 from app.services.report.bundles import attempt_has_data, find_attempt
+from app.services.report.locale import (
+    default_report_title,
+    download_filename,
+    normalize_locale,
+)
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -32,6 +37,7 @@ def _serialize(report: Report) -> ReportOut:
         id=report.id,
         status=report.status,  # type: ignore[arg-type]
         title=report.title,
+        locale=normalize_locale(getattr(report, "locale", None)),
         sources=list(report.sources or []),
         html_path=report.html_path,
         slots_path=report.slots_path,
@@ -81,21 +87,27 @@ async def create_report(
 ) -> ReportOut:
     sources = await _validate_sources(session, body)
     report_id = f"rpt_{secrets.token_hex(8)}"
+    locale = normalize_locale(body.locale)
     ab_source = False
     if len(sources) == 1:
         run = await session.get(Run, sources[0]["run_id"])
         ab_source = run is not None and bool(run.branch)
     if (body.title or "").strip():
         title = body.title.strip()
-    elif ab_source:
-        title = f"A/B-rapport — {sources[0]['label'].rsplit(' (', 1)[0]}"
     else:
-        title = f"Rapport ({len(sources)} körning{'ar' if len(sources) != 1 else ''})"
+        source_label = sources[0]["label"].rsplit(" (", 1)[0] if sources else ""
+        title = default_report_title(
+            locale=locale,
+            ab_source=ab_source,
+            source_label=source_label,
+            n_sources=len(sources),
+        )
 
     report = Report(
         id=report_id,
         status="pending",
         title=title,
+        locale=locale,
         sources=sources,
         html_path=None,
         slots_path=None,
@@ -174,7 +186,8 @@ async def get_report_html(
             path = alt
         else:
             raise HTTPException(status_code=404, detail="Report file missing")
+    filename = download_filename(normalize_locale(getattr(report, "locale", None)))
     return HTMLResponse(
         content=path.read_text(encoding="utf-8"),
-        headers={"Content-Disposition": 'inline; filename="rapport.html"'},
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
     )

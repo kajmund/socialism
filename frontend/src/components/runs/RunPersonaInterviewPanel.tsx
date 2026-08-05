@@ -9,6 +9,7 @@ import {
 import { AdminButton } from "@/components/ui/admin-button"
 import { ApiError } from "@/lib/api"
 import type { OasisVariantResult } from "@/data/runs-types"
+import { useLocale } from "@/i18n"
 
 type PanelBodyProps = {
   runId: number
@@ -29,6 +30,7 @@ function InterviewBody({
   showTickSelect = false,
   initialPersonaId = null,
 }: PanelBodyProps) {
+  const { t } = useLocale()
   const markers = variant.tick_markers ?? []
   const populationAgents = useMemo(
     () =>
@@ -76,9 +78,9 @@ function InterviewBody({
       setMessages(rows)
     } catch (err) {
       setMessages([])
-      setError(err instanceof ApiError ? err.message : "Kunde inte hämta intervju")
+      setError(err instanceof ApiError ? err.message : t("runs.interview.loadError"))
     }
-  }, [runId, attemptId, variant.id, personaId, tickIndex, markers.length])
+  }, [runId, attemptId, variant.id, personaId, tickIndex, markers.length, t])
 
   useEffect(() => {
     void loadMessages()
@@ -100,7 +102,7 @@ function InterviewBody({
       setMessages(result.messages)
       setDraft("")
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Intervjun misslyckades")
+      setError(err instanceof ApiError ? err.message : t("runs.interview.sendError"))
     } finally {
       setBusy(false)
     }
@@ -120,7 +122,7 @@ function InterviewBody({
       )
       setMessages([])
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Kunde inte rensa")
+      setError(err instanceof ApiError ? err.message : t("runs.interview.clearError"))
     } finally {
       setBusy(false)
     }
@@ -129,7 +131,7 @@ function InterviewBody({
   if (populationAgents.length === 0 || markers.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        Ingen population eller tick-markörer att intervjua från.
+        {t("runs.interview.unavailable")}
       </p>
     )
   }
@@ -142,13 +144,16 @@ function InterviewBody({
         className="mb-3 rounded border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-foreground"
         role="status"
       >
-        Intervju efter dag {day} (tick {tickIndex + 1}) — persona ser inte dag{" "}
-        {day + 1}+
+        {t("runs.interview.contextStatus", {
+          day,
+          tick: tickIndex + 1,
+          nextDay: day + 1,
+        })}
       </div>
 
       <div className="mb-3 flex flex-wrap gap-3">
         <label className="flex min-w-[12rem] flex-1 flex-col gap-1 text-xs text-muted-foreground">
-          Persona
+          {t("runs.interview.personaLabel")}
           <select
             className="rounded border border-[color:var(--border-hairline)] bg-transparent px-2 py-1.5 text-sm text-foreground"
             value={personaId}
@@ -163,7 +168,7 @@ function InterviewBody({
         </label>
         {showTickSelect ? (
           <label className="flex min-w-[10rem] flex-1 flex-col gap-1 text-xs text-muted-foreground">
-            Efter tick
+            {t("runs.interview.tickLabel")}
             <select
               className="rounded border border-[color:var(--border-hairline)] bg-transparent px-2 py-1.5 text-sm text-foreground"
               value={tickIndex}
@@ -171,7 +176,10 @@ function InterviewBody({
             >
               {markers.map((m) => (
                 <option key={m.key || m.tick_index} value={m.tick_index}>
-                  Dag {m.day} (tick {m.tick_index + 1})
+                  {t("runs.interview.tickOption", {
+                    day: m.day,
+                    tick: m.tick_index + 1,
+                  })}
                 </option>
               ))}
             </select>
@@ -181,7 +189,9 @@ function InterviewBody({
 
       <div className="mb-3 max-h-64 space-y-2 overflow-y-auto rounded border border-[color:var(--border-hairline)] bg-black/10 p-3">
         {messages.length === 0 ? (
-          <p className="text-xs text-muted-foreground">Ingen intervju ännu.</p>
+          <p className="text-xs text-muted-foreground">
+            {t("runs.interview.empty")}
+          </p>
         ) : (
           messages.map((m) => (
             <div
@@ -193,7 +203,9 @@ function InterviewBody({
               }
             >
               <span className="mr-2 text-xs font-medium uppercase tracking-wide opacity-70">
-                {m.role === "user" ? "Du" : "Persona"}
+                {m.role === "user"
+                  ? t("runs.interview.roleUser")
+                  : t("runs.interview.rolePersona")}
               </span>
               {m.content}
             </div>
@@ -210,7 +222,7 @@ function InterviewBody({
       <div className="flex flex-col gap-2 sm:flex-row">
         <textarea
           className="min-h-[4rem] flex-1 rounded border border-[color:var(--border-hairline)] bg-transparent px-2 py-1.5 text-sm"
-          placeholder="Ställ en fråga…"
+          placeholder={t("runs.interview.placeholder")}
           value={draft}
           disabled={busy}
           onChange={(e) => setDraft(e.target.value)}
@@ -227,7 +239,7 @@ function InterviewBody({
             disabled={busy || !draft.trim()}
             onClick={() => void send()}
           >
-            Skicka
+            {t("runs.interview.send")}
           </AdminButton>
           <AdminButton
             type="button"
@@ -235,7 +247,7 @@ function InterviewBody({
             disabled={busy || messages.length === 0}
             onClick={() => void clearThread()}
           >
-            Rensa
+            {t("runs.interview.clear")}
           </AdminButton>
         </div>
       </div>
@@ -262,6 +274,7 @@ export function RunPersonaInterviewModal({
   tickIndex,
   initialPersonaId = null,
 }: ModalProps) {
+  const { t } = useLocale()
   const overlayMouseDownRef = useRef(false)
   const day = variant.tick_markers?.[tickIndex]?.day ?? tickIndex + 1
 
@@ -305,18 +318,17 @@ export function RunPersonaInterviewModal({
         <div className="flex items-start justify-between gap-3 border-b border-[color:var(--border-hairline)] px-5 py-4">
           <div>
             <h2 id="run-interview-modal-title" className="text-base font-medium">
-              Intervju efter dag {day}
+              {t("runs.interview.modalTitle", { day })}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Fri chat med flödeskontext fram till denna tick — inte framtida
-              dagar.
+              {t("runs.interview.modalDescription")}
             </p>
           </div>
           <button
             type="button"
             className="tl-icon-btn shrink-0 text-lg"
             onClick={onClose}
-            aria-label="Stäng"
+            aria-label={t("common.close")}
           >
             ✕
           </button>
@@ -332,7 +344,7 @@ export function RunPersonaInterviewModal({
         </div>
         <div className="flex justify-end gap-2 border-t border-[color:var(--border-hairline)] px-5 py-4">
           <AdminButton variant="primary" onClick={onClose}>
-            Klar
+            {t("common.done")}
           </AdminButton>
         </div>
       </div>
@@ -369,15 +381,15 @@ export function RunPersonaInterviewPanel(props: {
   variant: OasisVariantResult
   initialTickIndex?: number
 }) {
+  const { t } = useLocale()
   const [tickIndex, setTickIndex] = useState(props.initialTickIndex ?? 0)
   return (
     <section className="mt-6 rounded-md border border-[color:var(--border-hairline)] p-4">
       <h3 className="mb-1 text-sm font-medium text-foreground">
-        Post-hoc intervju
+        {t("runs.interview.panelTitle")}
       </h3>
       <p className="mb-3 text-xs text-muted-foreground">
-        Fri chat efter körningen. Persona får bara flödeskontext fram till vald
-        tick — inte framtida dagar.
+        {t("runs.interview.panelDescription")}
       </p>
       <InterviewBody
         runId={props.runId}

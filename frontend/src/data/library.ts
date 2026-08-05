@@ -1,14 +1,29 @@
 import type {
   EditablePersona,
   LibraryPersona,
+  PersonaOrigin,
   PopulationMember,
 } from "@/data/library-types"
+import type { MessageKey, TranslateParams } from "@/i18n"
 
-export const ORIGIN_LABEL: Record<LibraryPersona["origin"], string> = {
-  manuell: "Manuell",
-  beskrivning: "Från beskrivning",
-  demografi: "Från demografi",
-  population: "Via population",
+type Translate = (key: MessageKey, params?: TranslateParams) => string
+
+/** Persona origin badge label — cards/rows show the short "via population" form. */
+export function originLabel(origin: PersonaOrigin, t: Translate): string {
+  switch (origin) {
+    case "manuell":
+      return t("personas.origin.manual")
+    case "beskrivning":
+      return t("personas.origin.fromDescription")
+    case "demografi":
+      return t("personas.origin.fromDemographics")
+    case "population":
+      return t("personas.origin.viaPopulation")
+    default: {
+      const exhaustive: never = origin
+      return exhaustive
+    }
+  }
 }
 
 export const FP_COLORS = [
@@ -32,8 +47,8 @@ export function personaInitials(name: string): string {
     .toUpperCase()
 }
 
-export function formatLibraryDate(d: string): string {
-  return new Date(d).toLocaleDateString("sv-SE", { day: "numeric", month: "short" })
+export function formatLibraryDate(d: string, locale = "sv-SE"): string {
+  return new Date(d).toLocaleDateString(locale, { day: "numeric", month: "short" })
 }
 
 export function personaAnekdot(

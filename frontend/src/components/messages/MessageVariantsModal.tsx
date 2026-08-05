@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
 import type { MessageVariant } from "@/api/messages"
 import { AdminButton } from "@/components/ui/admin-button"
+import { useLocale } from "@/i18n"
 
 type MessageVariantsModalProps = {
   open: boolean
@@ -34,6 +35,7 @@ export function MessageVariantsModal({
   onSelect,
   onClose,
 }: MessageVariantsModalProps) {
+  const { t } = useLocale()
   const overlayMouseDownRef = useRef(false)
 
   useEffect(() => {
@@ -76,52 +78,51 @@ export function MessageVariantsModal({
         <div className="flex items-start justify-between gap-3 border-b border-[color:var(--border-hairline)] px-5 py-4">
           <div>
             <h2 id="variants-modal-title" className="text-base font-medium">
-              Generera varianter
+              {t("messages.variants.title")}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Tre formuleringar utifrån texten i verkstaden. Välj en så ersätter den
-              budskapstexten.
+              {t("messages.variants.description")}
             </p>
           </div>
           <AdminButton variant="secondary" size="sm" onClick={onClose}>
-            Stäng
+            {t("common.close")}
           </AdminButton>
         </div>
 
         <div className="overflow-y-auto px-5 py-4">
           <div className="form-grid">
             <div className="field">
-              <label htmlFor="variant-audience">Målgrupp (valfritt)</label>
+              <label htmlFor="variant-audience">{t("messages.variants.audienceLabel")}</label>
               <input
                 id="variant-audience"
                 value={audience}
                 onChange={(e) => onAudienceChange(e.target.value)}
-                placeholder="t.ex. småbarnsföräldrar i Norrköping"
+                placeholder={t("messages.variants.audiencePlaceholder")}
               />
             </div>
             <div className="field">
-              <label htmlFor="variant-purpose">Syfte (valfritt)</label>
+              <label htmlFor="variant-purpose">{t("messages.variants.purposeLabel")}</label>
               <input
                 id="variant-purpose"
                 value={purpose}
                 onChange={(e) => onPurposeChange(e.target.value)}
-                placeholder="t.ex. bygga auktoritet / testa reaktion"
+                placeholder={t("messages.variants.purposePlaceholder")}
               />
             </div>
             <div className="field">
-              <label htmlFor="variant-tone">Tonläge (valfritt)</label>
+              <label htmlFor="variant-tone">{t("messages.variants.toneLabel")}</label>
               <input
                 id="variant-tone"
                 value={tone}
                 onChange={(e) => onToneChange(e.target.value)}
-                placeholder="t.ex. saklig, varm, skarp"
+                placeholder={t("messages.variants.tonePlaceholder")}
               />
             </div>
           </div>
 
           <div className="mt-4">
             <AdminButton onClick={onGenerate} disabled={generating}>
-              {generating ? "Genererar…" : "Generera tre varianter"}
+              {generating ? t("messages.variants.generating") : t("messages.variants.generate")}
             </AdminButton>
           </div>
 
@@ -129,7 +130,7 @@ export function MessageVariantsModal({
 
           {variants.length > 0 && (
             <div className="mt-5 space-y-3">
-              <h3 className="text-sm font-medium">Välj en variant</h3>
+              <h3 className="text-sm font-medium">{t("messages.variants.pickOne")}</h3>
               <div className="grid gap-3 md:grid-cols-3">
                 {variants.map((v) => (
                   <button

@@ -130,7 +130,20 @@ def _clf_for(bundle: RunBundle) -> BundleClassification:
 async def _mock_classify_llm(messages: list[dict[str, str]], response_model: type[Any]) -> Any:
     """Route mocked structured completions for classify + narrative."""
     name = response_model.__name__
+    system = ""
+    for m in messages:
+        if m.get("role") == "system":
+            system = m.get("content") or ""
+            break
+    english = "Answer in English" in system or "Classify each" in system or "You derive" in system
     if name == "_TopicPacksResponse":
+        if english:
+            return _TopicPacksResponse(
+                topics=[
+                    _TopicPackModel(label="Lighting", keywords=["lighting", "safety"]),
+                    _TopicPackModel(label="Safety", keywords=["safety"]),
+                ]
+            )
         return _TopicPacksResponse(
             topics=[
                 _TopicPackModel(label="Belysning", keywords=["belysning", "trygghet"]),
@@ -140,20 +153,30 @@ async def _mock_classify_llm(messages: list[dict[str, str]], response_model: typ
     if name == "_TopicBatchResponse":
         user = messages[-1]["content"]
         n = sum(1 for line in user.splitlines() if line[:1].isdigit())
+        other = "Other" if english else "Övrigt"
+        primary = "Lighting" if english else "Belysning"
         return _TopicBatchResponse(
-            items=[_TopicItem(index=i, topic="Belysning" if i % 2 == 0 else "Övrigt") for i in range(n)]
+            items=[_TopicItem(index=i, topic=primary if i % 2 == 0 else other) for i in range(n)]
         )
     if name == "_ToneBatchResponse":
         user = messages[-1]["content"]
         n = sum(1 for line in user.splitlines() if line[:1].isdigit())
-        tones = [
-            "Kritisk / uppgiven",
-            "Konstruktiv",
-            "Positiv / hoppfull",
-            "Neutral / oklassad",
-        ]
+        if english:
+            tones = [
+                "Critical / resigned",
+                "Constructive",
+                "Positive / hopeful",
+                "Neutral / unclassified",
+            ]
+        else:
+            tones = [
+                "Kritisk / uppgiven",
+                "Konstruktiv",
+                "Positiv / hoppfull",
+                "Neutral / oklassad",
+            ]
         return _ToneBatchResponse(
-            items=[_ToneItem(index=i, tone=tones[i % 4]) for i in range(n)]  # type: ignore[arg-type]
+            items=[_ToneItem(index=i, tone=tones[i % 4]) for i in range(n)]
         )
     if name == "SlotBatchResponse":
         content = messages[-1]["content"] if messages else ""
@@ -161,7 +184,7 @@ async def _mock_classify_llm(messages: list[dict[str, str]], response_model: typ
         for line in content.splitlines():
             if line.startswith("- **") and "**:" in line:
                 slot = line.split("**")[1]
-                slots[slot] = f"text för {slot}"
+                slots[slot] = f"text for {slot}" if english else f"text för {slot}"
         return SlotBatchResponse(slots=slots)
     raise AssertionError(f"Unexpected response_model: {response_model}")
 
@@ -359,7 +382,7 @@ def test_is_ab_comparison_detects_variant_ids():
 
 
 def test_group_questions_into_section_batches():
-    questions = _load_questions()
+    questions = _load_questions("sv")
     batches = group_questions_into_batches(questions)
     names = [n for n, _ in batches]
     assert "cover" in names
@@ -407,8 +430,9 @@ async def test_fill_narrative_slots_batches_in_parallel():
         tools = ReportToolBundle([b], compute_report_metrics([b], [_clf_for(b)]))
         out = await fill_narrative_slots(
             tools=tools,
-            questions=_load_questions(),
+            questions=_load_questions("sv"),
             dry_run=False,
+            locale="sv",
         )
         assert len(out) >= 20
         assert "cover_h1" in out or "page_title" in out
@@ -425,15 +449,39 @@ async def test_generate_report_with_mocked_llm(tmp_path: Path):
             out_dir=tmp_path / "rpt",
             dry_run=False,
             title="Test",
+            locale="sv",
         )
         assert html_path.is_file()
         assert slots_path.is_file()
         html = html_path.read_text(encoding="utf-8")
+        assert 'lang="sv"' in html
         assert "Opinionssimulator" in html or "Simuleringsrapport" in html or "Test" in html
         assert "donut" in html or "pyramid" in html or "info-kpi" in html
         assert slots["page_title"]
         assert "infographic_grid_html" in slots
         assert "Belysning" in slots.get("meta_topics", "")
+    finally:
+        set_structured_completer(None)
+
+
+@pytest.mark.asyncio
+async def test_generate_english_report_with_mocked_llm(tmp_path: Path):
+    set_structured_completer(_mock_classify_llm)
+    try:
+        html_path, _slots_path, slots = await generate_report_html(
+            [_bundle()],
+            out_dir=tmp_path / "rpt_en",
+            dry_run=False,
+            title="My report",
+            locale="en",
+        )
+        html = html_path.read_text(encoding="utf-8")
+        assert 'lang="en"' in html
+        assert "How the test worked" in html
+        assert "Simulation report" in html or "My report" in html
+        assert "Metod" not in html
+        assert "Lighting" in slots.get("meta_topics", "")
+        assert "1 run" in slots.get("meta_tests", "")
     finally:
         set_structured_completer(None)
 

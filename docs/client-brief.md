@@ -23,7 +23,6 @@ In scope (shipped or API-backed):
 - Background jobs (population generate, run simulate, report generate)
 - Optional OASIS multi-agent simulation (`SIMULATION_ENGINE=oasis`)
 - Hybrid HTML reports (not PDF)
-- Paper **simulator** demo wizard at `/simulator` (mock UI path)
 
 Out of scope for now:
 
@@ -33,4 +32,4 @@ Out of scope for now:
 
 ## Source of truth for UI
 
-`frontend/mockup/Socialism.zip` — dual visual system (paper simulator + Devbrains admin).
+Admin surfaces follow the Devbrains charcoal + gold system in `frontend/src/index.css` (+ `admin-runs.css` for dense run chrome).

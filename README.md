@@ -9,7 +9,6 @@ Internal tool for testing political messaging (A/B or stimulus/control) against 
 3. Edit a **budskapsbibliotek** and configure a **körning** (timeline, branch, OASIS options)
 4. Start simulations via background jobs; inspect results and **HTML reports**
 5. Browse admin surfaces: Personas, Populationer, Körningar, Budskap, Grunddata, Jobb
-6. Walk the paper **simulator** demo wizard (`/simulator`)
 
 Phase 1: admin CRUD is API-backed (SQLite). Simulation start defaults to status-only; live multi-agent (OASIS) is optional. Auth and Supabase Postgres come later.
 
@@ -76,14 +75,7 @@ Or start services separately: `make backend` / `make frontend`.
 
 ## Frontend
 
-Dual visual system (do not collapse them):
-
-| Area | Theme | Routes |
-| ---- | ----- | ------ |
-| Admin | Devbrains charcoal + gold | `/runs`, `/personas`, `/populations`, `/messages`, `/config`, `/jobs`, `/reports/:id` |
-| Simulator | Paper / editorial | `/simulator` |
-
-Admin pages call the API via `VITE_API_BASE_URL`. The simulator wizard still uses mock data unless you open a run that has OASIS results in the admin UI.
+Admin UI uses the Devbrains charcoal + gold theme (`/runs`, `/personas`, `/populations`, `/messages`, `/config`, `/jobs`, `/reports/:id`). Pages call the API via `VITE_API_BASE_URL`.
 
 ```bash
 cd frontend
@@ -92,8 +84,6 @@ pnpm dev
 ```
 
 Checks: `pnpm exec tsc -p tsconfig.app.json --noEmit` and `pnpm lint`.
-
-Source mockup: `frontend/mockup/Socialism.zip`.
 
 ## Backend
 
@@ -113,6 +103,9 @@ Useful env knobs (see `backend/.env.example`):
 - `DEEPSEEK_API_KEY` — **required** at startup (no silent LLM fallback)
 - `PERSONA_GENERATOR=deepseek|stub` — DeepSeek vs offline persona sampling (key still required)
 - `SIMULATION_ENGINE=none|oasis` — empty attempt vs optional OASIS spike (`uv sync --extra oasis`)
+
+OASIS model comparison (after `uv sync --extra oasis`):  
+`uv run python scripts/benchmark_simulation_models.py --run-id N` — see [docs/guides/backend-setup.md](docs/guides/backend-setup.md#benchmark-deepseek-models).
 
 Tests: `cd backend && uv run pytest`.
 

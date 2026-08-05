@@ -141,11 +141,10 @@ async def test_create_report_and_generate(client, tmp_path, monkeypatch):
         if name == "_ToneBatchResponse":
             user = messages[-1]["content"]
             n = sum(1 for line in user.splitlines() if line[:1].isdigit())
+            system = next((m["content"] for m in messages if m.get("role") == "system"), "")
+            tone = "Constructive" if "Allowed values" in system else "Konstruktiv"
             return _ToneBatchResponse(
-                items=[
-                    _ToneItem(index=i, tone="Konstruktiv")  # type: ignore[arg-type]
-                    for i in range(n)
-                ]
+                items=[_ToneItem(index=i, tone=tone) for i in range(n)]
             )
         if name == "SlotBatchResponse":
             content = messages[-1]["content"] if messages else ""
@@ -178,11 +177,13 @@ async def test_create_report_and_generate(client, tmp_path, monkeypatch):
             json={
                 "sources": [{"run_id": run_id, "attempt_id": attempt_id}],
                 "title": "Min rapport",
+                "locale": "sv",
             },
         )
         assert resp.status_code == 202, resp.text
         body = resp.json()
         assert body["status"] == "pending"
+        assert body["locale"] == "sv"
         assert body["job_id"]
         report_id = body["id"]
 
@@ -193,15 +194,109 @@ async def test_create_report_and_generate(client, tmp_path, monkeypatch):
         data = got.json()
         assert data["status"] == "succeeded"
         assert data["html_path"]
+        assert data["locale"] == "sv"
 
         html = await client.get(f"/reports/{report_id}/html")
         assert html.status_code == 200
         assert "text/html" in html.headers.get("content-type", "")
+        assert "rapport.html" in html.headers.get("content-disposition", "")
         assert (
             b"donut" in html.content
             or b"info-kpi" in html.content
             or b"pyramid" in html.content
         )
+    finally:
+        set_structured_completer(None)
+
+
+@pytest.mark.asyncio
+async def test_create_english_report_locale(client, tmp_path, monkeypatch):
+    from typing import Any
+
+    from app.llm import set_structured_completer
+    from app.services.report.agent import SlotBatchResponse
+    from app.services.report.classify import (
+        _TopicBatchResponse,
+        _TopicItem,
+        _TopicPackModel,
+        _TopicPacksResponse,
+        _ToneBatchResponse,
+        _ToneItem,
+    )
+
+    async def mock_llm(messages: list[dict[str, str]], response_model: type[Any]) -> Any:
+        name = response_model.__name__
+        system = next((m["content"] for m in messages if m.get("role") == "system"), "")
+        english = "Answer in English" in system or "Classify each" in system or "You derive" in system
+        if name == "_TopicPacksResponse":
+            label = "Elder care" if english else "Äldreomsorg"
+            return _TopicPacksResponse(
+                topics=[_TopicPackModel(label=label, keywords=["care"])]
+            )
+        if name == "_TopicBatchResponse":
+            user = messages[-1]["content"]
+            n = sum(1 for line in user.splitlines() if line[:1].isdigit())
+            topic = "Elder care" if english else "Äldreomsorg"
+            return _TopicBatchResponse(
+                items=[_TopicItem(index=i, topic=topic) for i in range(n)]
+            )
+        if name == "_ToneBatchResponse":
+            user = messages[-1]["content"]
+            n = sum(1 for line in user.splitlines() if line[:1].isdigit())
+            tone = "Constructive" if english else "Konstruktiv"
+            return _ToneBatchResponse(
+                items=[_ToneItem(index=i, tone=tone) for i in range(n)]
+            )
+        if name == "SlotBatchResponse":
+            content = messages[-1]["content"] if messages else ""
+            slots: dict[str, str] = {}
+            for line in content.splitlines():
+                if line.startswith("- **") and "**:" in line:
+                    slot = line.split("**")[1]
+                    slots[slot] = f"text for {slot}"
+            return SlotBatchResponse(slots=slots)
+        raise AssertionError(f"Unexpected model {response_model}")
+
+    set_structured_completer(mock_llm)
+    monkeypatch.chdir(tmp_path)
+    run_id, attempt_id = await _seed_run_with_attempt(client)
+
+    done = asyncio.Event()
+
+    def hook(job_id: str) -> None:
+        async def _go() -> None:
+            await jobs_service._run_job(job_id)
+            done.set()
+
+        asyncio.create_task(_go())
+
+    jobs_service.set_schedule_hook(hook)
+
+    try:
+        resp = await client.post(
+            "/reports",
+            json={
+                "sources": [{"run_id": run_id, "attempt_id": attempt_id}],
+                "title": "My report",
+                "locale": "en",
+            },
+        )
+        assert resp.status_code == 202, resp.text
+        body = resp.json()
+        assert body["locale"] == "en"
+        report_id = body["id"]
+
+        await asyncio.wait_for(done.wait(), timeout=30)
+
+        got = (await client.get(f"/reports/{report_id}")).json()
+        assert got["status"] == "succeeded"
+        assert got["locale"] == "en"
+
+        html = await client.get(f"/reports/{report_id}/html")
+        assert html.status_code == 200
+        assert "report.html" in html.headers.get("content-disposition", "")
+        assert b'lang="en"' in html.content
+        assert b"How the test worked" in html.content
     finally:
         set_structured_completer(None)
 

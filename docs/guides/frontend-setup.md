@@ -53,9 +53,8 @@ Open http://localhost:5173/runs.
 | `/config` | Grunddata / catalog lists |
 | `/jobs` | Background jobs |
 | `/reports/:id` | HTML report viewer |
-| `/simulator` | Paper demo wizard (mock data) |
 
-Admin surfaces call FastAPI. The simulator wizard stays on local mock data unless you inspect a run that already has OASIS results in the admin UI.
+Admin surfaces call FastAPI.
 
 ## Check
 
@@ -68,18 +67,25 @@ No frontend unit-test runner by project policy — typecheck + lint + manual bro
 
 ## Themes
 
-Dual visual system (do not collapse):
-
-| Area | Theme | CSS |
-| ---- | ----- | --- |
-| Simulator | Paper / editorial (Lora + Nunito) | `src/styles/simulator.css` (`.theme-simulator`) |
-| Admin | Devbrains charcoal + gold | Tailwind tokens in `src/index.css` + `src/styles/admin-runs.css` |
+Admin UI uses Devbrains charcoal + gold (Tailwind tokens in `src/index.css` + dense chrome in `src/styles/admin-runs.css`).
 
 ## API client
 
 Use `api.get/post/put/patch/delete` from `@/lib/api` (base URL, JSON, typed `ApiError`). Do not add axios/ky. Domain helpers live under `src/api/`.
 
 Run interview / branch / quality behavior for developers: [runs-interviews-and-quality.md](runs-interviews-and-quality.md). Operator how-tos: [`knowledge/manual/`](../../knowledge/manual/).
+
+## i18n
+
+UI locales live in `src/i18n/` (no i18n framework dependency). Default is Swedish; English is available via the language select in the admin top nav.
+
+| Piece | Path |
+| ----- | ---- |
+| Provider / hook | `src/i18n/LocaleContext.tsx` → `useLocale()` |
+| Catalogs | `src/i18n/messages/sv.ts`, `en.ts` |
+| Storage key | `opinionssimulator.locale` |
+
+Smoke-test: switch to English in the admin top nav — `/jobs`, `/runs`, `/populations` (list/detail/`new` builder), `/runs/new`, a run’s **Resultat**-flik, `/personas` (list, card fields, composer, profile modal), `/messages` (list, workshop, variants modal), and `/config` (page + district map) should flip labels; refresh should keep English. New strings: add to `sv.ts` first, mirror in `en.ts`, then call `t("…")`. See `frontend/AGENTS.md`.
 
 ## Troubleshooting
 

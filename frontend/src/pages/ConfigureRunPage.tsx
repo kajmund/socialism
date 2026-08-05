@@ -29,6 +29,7 @@ import type {
   RunStatus,
   Tick,
 } from "@/data/runs-types"
+import { useLocale } from "@/i18n"
 import { ApiError } from "@/lib/api"
 
 type RunTab = "config" | "results"
@@ -36,6 +37,8 @@ type RunTab = "config" | "results"
 const DEFAULT_OASIS_OPTIONS: OasisRunOptions = {
   platform: "twitter",
   allow_population_create_post: true,
+  enable_web_search: false,
+  enable_sympy_tools: false,
 }
 
 function parseTab(raw: string | null): RunTab {
@@ -43,6 +46,7 @@ function parseTab(raw: string | null): RunTab {
 }
 
 export function ConfigureRunPage() {
+  const { t } = useLocale()
   const { id } = useParams()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -54,7 +58,9 @@ export function ConfigureRunPage() {
 
   const [loading, setLoading] = useState(!!runId)
   const [populations, setPopulations] = useState<RunPopulationOption[]>([])
-  const [name, setName] = useState("Ny körning — v1")
+  const [name, setName] = useState(() =>
+    isNew ? t("runs.configure.defaultName") : "",
+  )
   const [startDate, setStartDate] = useState("2026-08-03")
   const [popId, setPopId] = useState<number | null>(null)
   const [popOpen, setPopOpen] = useState(false)
@@ -95,7 +101,9 @@ export function ConfigureRunPage() {
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          showToast(err instanceof ApiError ? err.message : "Kunde inte hämta populationer")
+          showToast(
+            err instanceof ApiError ? err.message : t("populations.list.loadError"),
+          )
         }
       })
     return () => {
@@ -146,7 +154,9 @@ export function ConfigureRunPage() {
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          showToast(err instanceof ApiError ? err.message : "Kunde inte hämta körning")
+          showToast(
+            err instanceof ApiError ? err.message : t("runs.configure.loadError"),
+          )
         }
       })
       .finally(() => {
@@ -188,7 +198,7 @@ export function ConfigureRunPage() {
     populations.find((p) => p.id === popId) ??
     populations[0] ?? {
       id: 0,
-      name: "Ingen population",
+      name: t("runs.configure.noPopulation"),
       size: 0,
       initials: [],
     }
@@ -258,18 +268,21 @@ export function ConfigureRunPage() {
 
   async function saveDraft(andStart: boolean) {
     if (!popId) {
-      showToast("Välj en population först")
+      showToast(t("runs.configure.pickPopulationFirst"))
       return
     }
     if (andStart) {
-      const check = validateRunConfig({
-        name,
-        populationId: popId,
-        populationSize: population.size,
-        startDate,
-        mainTicks,
-        branch,
-      })
+      const check = validateRunConfig(
+        {
+          name,
+          populationId: popId,
+          populationSize: population.size,
+          startDate,
+          mainTicks,
+          branch,
+        },
+        t,
+      )
       if (!check.ok) {
         showToast(check.errors.slice(0, 2).join(" · "))
         return
@@ -279,7 +292,7 @@ export function ConfigureRunPage() {
     setSaving(true)
     try {
       // Do not force status back to draft when starting — that left the UI on
-      // "utkast" if /start timed out while the server already set running.
+      // draft if /start timed out while the server already set running.
       const payload = andStart
         ? {
             name,
@@ -318,14 +331,14 @@ export function ConfigureRunPage() {
         setRunStatus(started.status)
         setResults(started.results)
         if (started.job_id) rememberJobPending(started.job_id)
-        showToast(`Körning "${name}" startad i bakgrunden`)
+        showToast(t("runs.configure.startedBg", { name }))
         if (!runId) {
           navigate(`/runs/${started.id}/edit?tab=results`, { replace: true })
         }
         return
       }
       setRunStatus(saved.status)
-      showToast(`Sparade "${name}" som utkast`)
+      showToast(t("runs.configure.savedDraft", { name }))
       window.setTimeout(() => navigate(`/runs/${saved.id}/edit`), 700)
     } catch (err) {
       // If start timed out, the run may already be running — refresh truth from API.
@@ -337,8 +350,8 @@ export function ConfigureRunPage() {
           if (fresh.status === "running" || fresh.status === "done") {
             showToast(
               fresh.status === "running"
-                ? `Körning "${name}" pågår i bakgrunden`
-                : `Körning "${name}" är klar`,
+                ? t("runs.configure.runningBg", { name })
+                : t("runs.configure.runDone", { name }),
             )
             navigate(`/runs/${runId}/edit?tab=results`, { replace: true })
             return
@@ -347,7 +360,7 @@ export function ConfigureRunPage() {
           // fall through to error toast
         }
       }
-      showToast(err instanceof ApiError ? err.message : "Kunde inte spara")
+      showToast(err instanceof ApiError ? err.message : t("common.saveError"))
     } finally {
       setPendingAction(null)
       setSaving(false)
@@ -361,9 +374,13 @@ export function ConfigureRunPage() {
       const updated = await deleteRunResultAttempt(runId, attemptId)
       setResults(updated.results)
       setRunStatus(updated.status)
-      showToast("Resultatet raderades")
+      showToast(t("runs.configure.resultDeleted"))
     } catch (err) {
-      showToast(err instanceof ApiError ? err.message : "Kunde inte radera")
+      showToast(
+        err instanceof ApiError
+          ? err.message
+          : t("runs.configure.deleteResultError"),
+      )
     } finally {
       setDeletingAttemptId(null)
     }
@@ -375,7 +392,9 @@ export function ConfigureRunPage() {
   const variantCount = branch ? 2 : 1
   const configLocked = runStatus === "running" || pendingAction !== null
   const pendingMessage =
-    pendingAction === "start" ? "Startar körning…" : "Sparar…"
+    pendingAction === "start"
+      ? t("runs.configure.pendingStart")
+      : t("runs.configure.pendingSave")
 
   const timelineProps = {
     mainTicks,
@@ -425,7 +444,7 @@ export function ConfigureRunPage() {
     return (
       <AdminShell>
         <div className="wrap">
-          <div className="no-match">Hämtar körning…</div>
+          <div className="no-match">{t("runs.configure.loading")}</div>
         </div>
       </AdminShell>
     )
@@ -462,12 +481,16 @@ export function ConfigureRunPage() {
       <div className="wrap" style={{ maxWidth: 1180 }}>
         <div className={"head-row" + (activeTab === "results" ? " head-row-compact" : "")}>
           <div className="head-row-main">
-            <h1>{isNew ? "Ny körning" : name || "Körning"}</h1>
+            <h1>
+              {isNew
+                ? t("runs.configure.newTitle")
+                : name || t("runs.configure.runFallback")}
+            </h1>
             {isNew || activeTab === "config" ? (
               <p>
                 {isNew
-                  ? "All konfiguration på en sida — spara när du är klar."
-                  : "Konfigurera tidslinjen eller följ simuleringsresultatet när körningen körs i bakgrunden."}
+                  ? t("runs.configure.quickIntro")
+                  : t("runs.configure.editIntro")}
               </p>
             ) : null}
           </div>
@@ -495,7 +518,7 @@ export function ConfigureRunPage() {
                 to="/runs/new"
                 className="head-row-link text-sm text-db-gold-700 underline-offset-2 hover:underline"
               >
-                Guidat skapande →
+                {t("runs.configure.guidedLink")}
               </Link>
             ) : null}
           </div>
@@ -504,13 +527,13 @@ export function ConfigureRunPage() {
         {!isNew ? (
           <div
             role="tablist"
-            aria-label="Körningsvy"
+            aria-label={t("runs.configure.tablistAria")}
             className="mb-6 flex flex-wrap gap-1 border-b border-[color:var(--border-hairline)]"
           >
             {(
               [
-                { id: "config" as const, label: "Konfiguration" },
-                { id: "results" as const, label: "Resultat" },
+                { id: "config" as const, label: t("runs.configure.tabConfig") },
+                { id: "results" as const, label: t("runs.configure.tabResults") },
               ] as const
             ).map((tab) => {
               const selected = tab.id === activeTab
@@ -569,6 +592,20 @@ export function ConfigureRunPage() {
                         allow_population_create_post: checked,
                       }))
                     }
+                    enableWebSearch={oasisOptions.enable_web_search}
+                    onEnableWebSearchChange={(checked) =>
+                      setOasisOptions((prev) => ({
+                        ...prev,
+                        enable_web_search: checked,
+                      }))
+                    }
+                    enableSympyTools={oasisOptions.enable_sympy_tools}
+                    onEnableSympyToolsChange={(checked) =>
+                      setOasisOptions((prev) => ({
+                        ...prev,
+                        enable_sympy_tools: checked,
+                      }))
+                    }
                     disabled={configLocked}
                   />
                 </div>
@@ -586,17 +623,17 @@ export function ConfigureRunPage() {
             {runStatus === "running" ? (
               <div className="mb-3 flex flex-col gap-1">
                 <h2 className="text-base font-semibold text-foreground">
-                  Simulering pågår
+                  {t("runs.configure.runningTitle")}
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  Körningen körs som bakgrundsjobb
-                  {results ? " — tidigare resultat behålls nedan" : ""}. Du kan lämna
-                  sidan.{" "}
+                  {t("runs.configure.runningBody", {
+                    keep: results ? t("runs.configure.runningKeep") : "",
+                  })}{" "}
                   <Link
                     to="/jobs"
                     className="text-db-gold-700 underline-offset-2 hover:underline"
                   >
-                    Visa bakgrundsjobb →
+                    {t("runs.configure.viewJobs")}
                   </Link>
                 </p>
               </div>
@@ -606,18 +643,17 @@ export function ConfigureRunPage() {
               <Card className="mb-9 gap-0 ring-1 ring-border">
                 <CardContent className="px-5 py-6">
                   <h2 className="mb-2 text-base font-semibold text-foreground">
-                    Inget resultat ännu
+                    {t("runs.configure.emptyResultsTitle")}
                   </h2>
                   <p className="text-sm text-muted-foreground">
-                    Spara och starta körningen under Konfiguration för att få ett
-                    simuleringsresultat.
+                    {t("runs.configure.emptyResultsBody")}
                   </p>
                   <button
                     type="button"
                     className="mt-4 text-sm text-db-gold-700 underline-offset-2 hover:underline"
                     onClick={() => setTab("config")}
                   >
-                    Gå till konfiguration →
+                    {t("runs.configure.goToConfig")}
                   </button>
                 </CardContent>
               </Card>
@@ -640,11 +676,10 @@ export function ConfigureRunPage() {
               <Card className="mb-9 gap-0 ring-1 ring-border">
                 <CardContent className="px-5 py-6">
                   <h2 className="mb-2 text-base font-semibold text-foreground">
-                    Körningen misslyckades
+                    {t("runs.configure.failedTitle")}
                   </h2>
                   <p className="text-sm text-muted-foreground">
-                    Se bakgrundsjobben för feldetaljer, eller starta om från
-                    konfigurationen.
+                    {t("runs.configure.failedBody")}
                   </p>
                 </CardContent>
               </Card>
