@@ -247,8 +247,6 @@ async def test_start_oasis_without_package_returns_503(client, monkeypatch):
 def _sample_recipe(size: int = 6, seed: int = 42) -> dict:
     return {
         "size": size,
-        "entryMode": "manual",
-        "freeText": "",
         "locale": "norrkoping",
         "seed": seed,
         "dist": {
@@ -544,6 +542,79 @@ async def test_message_crud_and_filters(client):
     deleted = await client.delete(f"/messages/{post_id}")
     assert deleted.status_code == 204
     assert (await client.get(f"/messages/{post_id}")).status_code == 404
+
+
+async def test_configuration_crud(client):
+    catalog = await client.get("/configurations/catalog", params={"language": "sv"})
+    assert catalog.status_code == 200
+    cat = catalog.json()
+    assert len(cat["fields"]) >= 10
+    assert "persona.field_guide" in cat["defaults"]
+
+    listed = await client.get("/configurations")
+    assert listed.status_code == 200
+    # Seeded Standard configs for sv + en
+    assert len(listed.json()) >= 2
+    assert any(c["is_active"] and c["language"] == "sv" for c in listed.json())
+
+    create = await client.post(
+        "/configurations",
+        json={
+            "name": "  Alternativ SV  ",
+            "language": "sv",
+            "prompts": {"persona.field_guide": "  Egen fältguide  "},
+            "is_active": True,
+        },
+    )
+    assert create.status_code == 201
+    row = create.json()
+    assert row["name"] == "Alternativ SV"
+    assert row["language"] == "sv"
+    assert row["is_active"] is True
+    assert row["prompts"]["persona.field_guide"] == "Egen fältguide"
+    assert row["prompts"]["chat.mode.interview"]  # filled from defaults
+    config_id = row["id"]
+
+    listed2 = await client.get("/configurations")
+    active_sv = [c for c in listed2.json() if c["language"] == "sv" and c["is_active"]]
+    assert len(active_sv) == 1
+    assert active_sv[0]["id"] == config_id
+
+    patched = await client.patch(
+        f"/configurations/{config_id}",
+        json={
+            "name": "Uppdaterad",
+            "prompts": {"chat.mode.interview": "Ny intervjuregel."},
+        },
+    )
+    assert patched.status_code == 200
+    assert patched.json()["name"] == "Uppdaterad"
+    assert patched.json()["prompts"]["chat.mode.interview"] == "Ny intervjuregel."
+
+    activated = await client.post(f"/configurations/{config_id}/activate")
+    assert activated.status_code == 200
+    assert activated.json()["is_active"] is True
+
+    deleted = await client.delete(f"/configurations/{config_id}")
+    assert deleted.status_code == 204
+    assert (await client.get(f"/configurations/{config_id}")).status_code == 404
+
+
+async def test_configuration_rejects_invalid_language(client):
+    blank_name = await client.post(
+        "/configurations",
+        json={"name": "   ", "language": "sv"},
+    )
+    assert blank_name.status_code == 422
+
+    bad_lang = await client.post(
+        "/configurations",
+        json={"name": "Namn", "language": "de"},
+    )
+    assert bad_lang.status_code == 422
+
+    missing = await client.get("/configurations/999999")
+    assert missing.status_code == 404
 
 
 async def test_message_rejects_whitespace_and_null_type_clears_url(client):

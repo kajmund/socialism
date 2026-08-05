@@ -11,6 +11,7 @@ from app.database.models import Persona, PersonaMessage, Population, PopulationM
 from app.database.session import get_session
 from app.llm.chat import reply_as_persona
 from app.llm.persona_gen import llm_personas_from_description
+from app.services.prompt_store import require_active_prompts
 from app.schemas.domain import (
     ChatMode,
     DistGroup,
@@ -80,8 +81,6 @@ def _serialize_message(row: PersonaMessage) -> PersonaMessageOut:
 def _stub_candidates(body: PersonaGenerateRequest) -> list[EditablePersona]:
     recipe = PopulationRecipe(
         size=body.count,
-        entryMode="manual",
-        freeText=body.freeText,
         dist={
             "age": DistGroup(
                 label="Ålder",
@@ -312,11 +311,13 @@ async def chat_with_persona(
     history = [(row.role, row.content) for row in history_rows.scalars().all()]
 
     area_block = await area_block_for_name(session, profile.ort or persona.district)
+    prompts = await require_active_prompts(session, "sv")
     reply = await reply_as_persona(
         profile,
         body.mode,
         history,
         body.message,
+        prompts=prompts,
         area_block=area_block,
     )
 
@@ -441,6 +442,7 @@ async def resend_message(
     await session.flush()
 
     area_block = await area_block_for_name(session, profile.ort or persona.district)
+    prompts = await require_active_prompts(session, "sv")
     mode = target.mode
 
     if target.role == "user":
@@ -451,6 +453,7 @@ async def resend_message(
             mode,
             history,
             user_message,
+            prompts=prompts,
             area_block=area_block,
         )
         session.add(
@@ -484,6 +487,7 @@ async def resend_message(
             mode,
             history,
             user_message,
+            prompts=prompts,
             area_block=area_block,
         )
         session.add(

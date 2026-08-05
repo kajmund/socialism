@@ -13,6 +13,8 @@ from app.schemas.domain import EditablePersona, GeneratedPersonaOut
 from app.serializers import persona_initials
 from app.services.district_context import area_block_for_name
 from app.services.persona_catalog import LEAN_LABEL
+from app.services.prompt_catalog import render_prompt
+from app.services.prompt_store import require_active_prompts
 
 
 @dataclass(frozen=True)
@@ -27,19 +29,6 @@ class SlotPlan:
     lean_label: str
     # EditablePersona field name → sampled catalog label (ton, parti, …).
     profile_fields: dict[str, str] = field(default_factory=dict)
-
-
-FIELD_GUIDE = """
-Fält att fylla i (svenska strängar, korta och konkreta):
-- name: för- och efternamn (svenskt eller vanligt i Sverige; matcha kön)
-- initials: två bokstäver
-- age: ålder som sträng (siffra)
-- kön: Kvinna, Man eller Icke-binär
-- ort: stadsdel/ort
-- yrke: yrke
-- utbildning, livssituation, lutning, sakfragor, fortroende, ton, sprak, medievanor, parti, valdeltagande
-(Lämna anekdot som "—" — genereras separat.)
-""".strip()
 
 
 def profile_to_generated(profile: EditablePersona, slot: SlotPlan | None = None) -> GeneratedPersonaOut:
@@ -124,7 +113,12 @@ async def llm_persona_from_slot(
     writing_trait: str | None = None,
     previous_personas: tuple[str, ...] = (),
     previous_anecdotes: tuple[str, ...] = (),
+    prompts: dict[str, str] | None = None,
 ) -> GeneratedPersonaOut:
+    if prompts is None:
+        if session is None:
+            raise RuntimeError("session or prompts is required for persona generation")
+        prompts = await require_active_prompts(session, "sv")
     area_block = ""
     if session is not None:
         area_block = await area_block_for_name(session, slot.district)
@@ -148,26 +142,24 @@ async def llm_persona_from_slot(
             f"\nPersonas som redan skapats i denna population (variera röst och detaljer):\n"
             f"{prev_lines}\n"
         )
-    user = f"""Skapa en trovärdig Norrköpingspersona.
-
-Demografiska och attributkrav (följ dessa):
-{requirements}
-{surname_block}{voice_block}
-Extra önskemål från användaren:
-{free_text or "(inga)"}
-
-{FIELD_GUIDE}
-"""
+    field_guide = render_prompt(prompts, "persona.field_guide")
+    user = render_prompt(
+        prompts,
+        "persona.from_slot.user",
+        requirements=requirements,
+        surname_block=surname_block,
+        voice_block=voice_block,
+        free_text=free_text or "(inga)",
+        field_guide=field_guide,
+    )
+    system = render_prompt(
+        prompts,
+        "persona.from_slot.system",
+        local_context=_local_context(area_block),
+    )
     profile = await generate_editable_persona(
         [
-            {
-                "role": "system",
-                "content": (
-                    "Du skapar politiska testpersonas för Opinionssimulator. "
-                    "Svara endast med det strukturerade objektet.\n\n"
-                    f"Lokal kontext:\n{_local_context(area_block)}"
-                ),
-            },
+            {"role": "system", "content": system},
             {"role": "user", "content": user},
         ]
     )
@@ -178,6 +170,7 @@ Extra önskemål från användaren:
         profile,
         session=session,
         previous_anecdotes=previous_anecdotes,
+        prompts=prompts,
     )
     generated = profile_to_generated(profile, slot)
     if writing_trait:
@@ -198,7 +191,12 @@ async def llm_personas_from_description(
     demografi: dict[str, str] | None = None,
     *,
     session: AsyncSession | None = None,
+    prompts: dict[str, str] | None = None,
 ) -> list[EditablePersona]:
+    if prompts is None:
+        if session is None:
+            raise RuntimeError("session or prompts is required for persona generation")
+        prompts = await require_active_prompts(session, "sv")
     area_block = ""
     if session is not None and demografi and demografi.get("ort"):
         area_block = await area_block_for_name(session, demografi["ort"])
@@ -207,29 +205,27 @@ async def llm_personas_from_description(
         demo_block = "Fasta demografiska fält:\n" + "\n".join(
             f"- {k}: {v}" for k, v in demografi.items() if v
         )
-    user = f"""Generera {count} distinkta kandidatpersonas.
-
-Beskrivning:
-{free_text or "(ingen fritext)"}
-
-{demo_block}
-
-{FIELD_GUIDE}
-
-Returnera EN persona (vi anropar dig {count} gånger). Variera namn och detaljer.
-"""
+    field_guide = render_prompt(prompts, "persona.field_guide")
+    user = render_prompt(
+        prompts,
+        "persona.from_description.user",
+        count=count,
+        free_text=free_text or "(ingen fritext)",
+        demo_block=demo_block,
+        field_guide=field_guide,
+    )
     out: list[EditablePersona] = []
     for i in range(count):
+        system = render_prompt(
+            prompts,
+            "persona.from_description.system",
+            candidate_index=i + 1,
+            candidate_count=count,
+            local_context=_local_context(area_block),
+        )
         profile = await generate_editable_persona(
             [
-                {
-                    "role": "system",
-                    "content": (
-                        "Du skapar politiska testpersonas för Opinionssimulator. "
-                        f"Detta är kandidat {i + 1} av {count}.\n\n"
-                        f"Lokal kontext:\n{_local_context(area_block)}"
-                    ),
-                },
+                {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ]
         )

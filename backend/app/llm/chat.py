@@ -5,6 +5,7 @@ from __future__ import annotations
 from app.llm import complete_text
 from app.locality import load_norrkoping_brief
 from app.schemas.domain import ChatMode, EditablePersona
+from app.services.prompt_catalog import render_prompt
 
 
 def _persona_block(profile: EditablePersona) -> str:
@@ -35,6 +36,7 @@ def build_chat_system_prompt(
     profile: EditablePersona,
     mode: ChatMode,
     *,
+    prompts: dict[str, str],
     area_block: str = "",
     simulation_context: str = "",
 ) -> str:
@@ -44,16 +46,9 @@ def build_chat_system_prompt(
         local = f"{brief}\n\n{area_block.strip()}"
     persona_block = _persona_block(profile)
     if mode == "interview":
-        mode_rules = (
-            "Läge: INTERVJU. En analytiker intervjuar dig. Svara i första person som personan. "
-            "Var kort (1–4 meningar), konkret, och håll dig till din bakgrund. "
-            "Hitta inte på statistik du inte skulle kunna. Svara på svenska."
-        )
+        mode_rules = render_prompt(prompts, "chat.mode.interview")
     else:
-        mode_rules = (
-            "Läge: IN-CHARACTER. Användaren pratar med dig som i din vardag/sociala flöde. "
-            "Svara i första person, naturligt talspråk, kort. Svara på svenska."
-        )
+        mode_rules = render_prompt(prompts, "chat.mode.in_character")
     parts = [
         mode_rules,
         "",
@@ -68,8 +63,7 @@ def build_chat_system_prompt(
                 "Simuleringskontext (det du sett hittills — inget annat):",
                 simulation_context.strip(),
                 "",
-                "Viktigt: Du befinner dig vid tidpunkten ovan. Du har inte sett något "
-                "som hände efteråt. Hitta inte på händelser som inte finns i flödet.",
+                render_prompt(prompts, "chat.simulation_context.footer"),
             ]
         )
     return "\n".join(parts)
@@ -79,18 +73,22 @@ def build_run_interview_prompt(
     profile: EditablePersona,
     feed_context: str,
     *,
+    prompts: dict[str, str],
     day: int,
     tick_index: int,
     area_block: str = "",
 ) -> str:
     """System prompt for post-hoc interview after a specific simulation tick."""
-    header = (
-        f"Du befinner dig efter dag {day} (tick {tick_index + 1}) i en "
-        "simulering av ett socialt flöde. En analytiker intervjuar dig."
+    header = render_prompt(
+        prompts,
+        "chat.run_interview.header",
+        day=day,
+        tick_number=tick_index + 1,
     )
     return build_chat_system_prompt(
         profile,
         "interview",
+        prompts=prompts,
         area_block=area_block,
         simulation_context=f"{header}\n\n{feed_context}",
     )
@@ -102,6 +100,7 @@ async def reply_as_persona(
     history: list[tuple[str, str]],
     user_message: str,
     *,
+    prompts: dict[str, str],
     area_block: str = "",
     simulation_context: str = "",
     system_prompt: str | None = None,
@@ -109,6 +108,7 @@ async def reply_as_persona(
     content = system_prompt or build_chat_system_prompt(
         profile,
         mode,
+        prompts=prompts,
         area_block=area_block,
         simulation_context=simulation_context,
     )

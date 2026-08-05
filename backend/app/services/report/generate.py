@@ -49,6 +49,7 @@ async def fill_narrative_slots(
     questions: list[dict[str, Any]],
     dry_run: bool,
     locale: ReportLocale,
+    prompts: dict[str, str],
 ) -> dict[str, str]:
     if dry_run:
         return {}
@@ -67,6 +68,7 @@ async def fill_narrative_slots(
                 batch_name=name,
                 items=items,
                 locale=locale,
+                prompts=prompts,
             )
             for name, items in batches
         ]
@@ -88,11 +90,12 @@ async def generate_report_html(
     dry_run: bool = False,
     title: str = "",
     locale: str = "sv",
+    prompts: dict[str, str],
 ) -> tuple[Path, Path, dict[str, str]]:
     """Write report.html + slots.json under out_dir. Returns (html_path, slots_path, slots)."""
     loc = normalize_locale(locale)
     out_dir.mkdir(parents=True, exist_ok=True)
-    classifications = await classify_bundles(bundles, locale=loc)
+    classifications = await classify_bundles(bundles, locale=loc, prompts=prompts)
     metrics = compute_report_metrics(bundles, classifications)
     chart_slots = prefill_chart_slots(metrics, locale=loc)
     tools = ReportToolBundle(bundles, metrics)
@@ -115,6 +118,7 @@ async def generate_report_html(
         questions=questions,
         dry_run=dry_run,
         locale=loc,
+        prompts=prompts,
     )
     for k, v in narrative.items():
         if v:

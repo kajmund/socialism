@@ -512,7 +512,6 @@ async def _make_generated_batch(
     for slot, voice in zip(slots, writing_traits, strict=True):
         persona, slot_warnings = await _llm_persona_unique_surname(
             slot,
-            free_text=recipe.freeText,
             session=session,
             used_surnames=surnames,
             writing_trait=voice,
@@ -532,7 +531,6 @@ async def _make_generated_batch(
 async def _llm_persona_unique_surname(
     slot: SlotPlan,
     *,
-    free_text: str,
     session: AsyncSession | None,
     used_surnames: set[str],
     writing_trait: str | None = None,
@@ -544,7 +542,6 @@ async def _llm_persona_unique_surname(
     for _attempt in range(3):
         persona = await llm_persona_from_slot(
             slot,
-            free_text=free_text,
             session=session,
             taken_surnames=frozenset(used_surnames),
             writing_trait=writing_trait,

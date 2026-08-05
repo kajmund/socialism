@@ -46,6 +46,11 @@ async def client():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
+    from app.services.prompt_store import ensure_default_configurations
+
+    async with session_factory() as seed_session:
+        await ensure_default_configurations(seed_session)
+
     jobs_service.set_job_session_factory(session_factory)
     jobs_service.set_schedule_hook(None)
     jobs_service.reset_simulation_job_semaphore()
