@@ -1,17 +1,18 @@
 import { useEffect, useState, type ReactNode } from "react"
 import { Link, NavLink, useLocation } from "react-router-dom"
 import { listJobs, type Job, type JobStatus } from "@/api/jobs"
+import { useLocale, type Locale, type MessageKey } from "@/i18n"
 import { cn } from "@/lib/utils"
 
-const LINKS = [
-  { label: "Personas", to: "/personas", match: "/personas" },
-  { label: "Populationer", to: "/populations", match: "/populations" },
-  { label: "Budskap", to: "/messages", match: "/messages" },
-  { label: "Konfiguration", to: "/config", match: "/config" },
-  { label: "Körningar", to: "/runs", match: "/runs" },
-  { label: "Bakgrundsjobb", to: "/jobs", match: "/jobs" },
-  { label: "Simulator", to: "/simulator", match: "/simulator" },
-] as const
+const NAV_ITEMS = [
+  { key: "nav.personas" as const, to: "/personas", match: "/personas" },
+  { key: "nav.populations" as const, to: "/populations", match: "/populations" },
+  { key: "nav.messages" as const, to: "/messages", match: "/messages" },
+  { key: "nav.config" as const, to: "/config", match: "/config" },
+  { key: "nav.runs" as const, to: "/runs", match: "/runs" },
+  { key: "nav.jobs" as const, to: "/jobs", match: "/jobs" },
+  { key: "nav.simulator" as const, to: "/simulator", match: "/simulator" },
+]
 
 const SEEN_KEY = "opinionssimulator.jobStatusSeen"
 
@@ -25,6 +26,8 @@ type ToastState = {
   href?: string
   hrefLabel?: string
 }
+
+type Translate = (key: MessageKey, params?: Record<string, string | number>) => string
 
 function isSectionActive(pathname: string, match: string) {
   return pathname === match || pathname.startsWith(`${match}/`)
@@ -52,7 +55,11 @@ export function rememberJobPending(jobId: string) {
   writeSeen(seen)
 }
 
-function toastFromTransition(job: Job, prev: JobStatus | undefined): ToastState | null {
+function toastFromTransition(
+  job: Job,
+  prev: JobStatus | undefined,
+  t: Translate,
+): ToastState | null {
   if (job.status !== "succeeded" && job.status !== "failed") return null
   // Only notify when we observed a non-terminal status first (or never saw it and it's fresh).
   if (prev === "succeeded" || prev === "failed") return null
@@ -67,54 +74,81 @@ function toastFromTransition(job: Job, prev: JobStatus | undefined): ToastState 
     if (job.kind === "run_simulate" && runId != null) {
       return {
         kind: "ok",
-        message: `Simuleringen »${job.label}« är klar`,
+        message: t("toast.simulationDone", { label: job.label }),
         href: `/runs/${runId}/edit?tab=results`,
-        hrefLabel: "Öppna resultat",
+        hrefLabel: t("toast.openResults"),
       }
     }
     if (job.kind === "report_generate" && reportId != null) {
       return {
         kind: "ok",
-        message: `Rapporten »${job.label}« är klar`,
+        message: t("toast.reportDone", { label: job.label }),
         href: `/reports/${reportId}`,
-        hrefLabel: "Öppna rapport",
+        hrefLabel: t("toast.openReport"),
       }
     }
     return {
       kind: "ok",
-      message: `Jobbet »${job.label}« är klart`,
+      message: t("toast.jobDone", { label: job.label }),
       href: popId != null ? `/populations/${popId}` : "/jobs",
-      hrefLabel: popId != null ? "Öppna population" : "Visa jobb",
+      hrefLabel: popId != null ? t("toast.openPopulation") : t("toast.viewJobs"),
     }
   }
+  const detail = job.error ? `: ${job.error}` : ""
   const runId = job.request?.run_id
   if (job.kind === "run_simulate" && typeof runId === "number") {
     return {
       kind: "err",
-      message: `Simuleringen »${job.label}« misslyckades${job.error ? `: ${job.error}` : ""}`,
+      message: t("toast.simulationFailed", { label: job.label, detail }),
       href: `/runs/${runId}/edit?tab=results`,
-      hrefLabel: "Öppna körning",
+      hrefLabel: t("toast.openRun"),
     }
   }
   const reportId = job.request?.report_id
   if (job.kind === "report_generate" && typeof reportId === "string") {
     return {
       kind: "err",
-      message: `Rapporten »${job.label}« misslyckades${job.error ? `: ${job.error}` : ""}`,
+      message: t("toast.reportFailed", { label: job.label, detail }),
       href: `/reports/${reportId}`,
-      hrefLabel: "Öppna rapport",
+      hrefLabel: t("toast.openReport"),
     }
   }
   return {
     kind: "err",
-    message: `Jobbet »${job.label}« misslyckades${job.error ? `: ${job.error}` : ""}`,
+    message: t("toast.jobFailed", { label: job.label, detail }),
     href: "/jobs",
-    hrefLabel: "Visa jobb",
+    hrefLabel: t("toast.viewJobs"),
   }
+}
+
+function LocaleSwitcher({
+  locale,
+  setLocale,
+  t,
+}: {
+  locale: Locale
+  setLocale: (locale: Locale) => void
+  t: Translate
+}) {
+  return (
+    <label className="flex items-center gap-2 text-xs text-db-ink-0/70">
+      <span className="sr-only">{t("locale.switcherLabel")}</span>
+      <select
+        className="rounded border border-db-ink-0/25 bg-db-ink-950 px-2 py-1 text-xs text-db-ink-0"
+        value={locale}
+        onChange={(e) => setLocale(e.target.value as Locale)}
+        aria-label={t("locale.switcherLabel")}
+      >
+        <option value="sv">{t("locale.sv")}</option>
+        <option value="en">{t("locale.en")}</option>
+      </select>
+    </label>
+  )
 }
 
 export function AdminShell({ children }: AdminShellProps) {
   const { pathname } = useLocation()
+  const { locale, setLocale, t } = useLocale()
   const [activeCount, setActiveCount] = useState(0)
   const [toast, setToast] = useState<ToastState | null>(null)
 
@@ -131,7 +165,7 @@ export function AdminShell({ children }: AdminShellProps) {
         let notify: ToastState | null = null
         for (const job of rows) {
           const prev = seen[job.id]
-          const toastCandidate = toastFromTransition(job, prev)
+          const toastCandidate = toastFromTransition(job, prev, t)
           if (toastCandidate && !notify) notify = toastCandidate
           nextSeen[job.id] = job.status
         }
@@ -155,7 +189,7 @@ export function AdminShell({ children }: AdminShellProps) {
       cancelled = true
       if (timer != null) window.clearTimeout(timer)
     }
-  }, [])
+  }, [t])
 
   return (
     <div className="theme-admin">
@@ -168,36 +202,39 @@ export function AdminShell({ children }: AdminShellProps) {
               className="h-7 w-auto"
             />
             <span className="hidden text-sm text-db-ink-0/70 lg:inline">
-              Opinionssimulator
+              {t("brand.product")}
             </span>
           </NavLink>
-          <nav className="flex items-center gap-7 text-sm" aria-label="Huvudmeny">
-            {LINKS.map((link) => {
-              const active = isSectionActive(pathname, link.match)
-              return (
-                <NavLink
-                  key={link.to}
-                  to={link.to}
-                  className={cn(
-                    "admin-topnav-link border-b-2 pb-0.5 no-underline transition-colors",
-                    active
-                      ? "is-active border-db-gold-500 text-db-ink-0"
-                      : "border-transparent text-db-ink-0/75 hover:text-db-ink-0",
-                  )}
-                >
-                  {link.label}
-                  {link.to === "/jobs" && activeCount > 0 ? (
-                    <span
-                      className="ml-1.5 inline-grid h-4 min-w-4 place-items-center rounded-full bg-db-gold-500 px-1 text-[10px] font-semibold text-db-navy-ink"
-                      aria-label={`${activeCount} aktiva jobb`}
-                    >
-                      {activeCount}
-                    </span>
-                  ) : null}
-                </NavLink>
-              )
-            })}
-          </nav>
+          <div className="flex items-center gap-6">
+            <nav className="flex items-center gap-7 text-sm" aria-label={t("nav.ariaMain")}>
+              {NAV_ITEMS.map((link) => {
+                const active = isSectionActive(pathname, link.match)
+                return (
+                  <NavLink
+                    key={link.to}
+                    to={link.to}
+                    className={cn(
+                      "admin-topnav-link border-b-2 pb-0.5 no-underline transition-colors",
+                      active
+                        ? "is-active border-db-gold-500 text-db-ink-0"
+                        : "border-transparent text-db-ink-0/75 hover:text-db-ink-0",
+                    )}
+                  >
+                    {t(link.key)}
+                    {link.to === "/jobs" && activeCount > 0 ? (
+                      <span
+                        className="ml-1.5 inline-grid h-4 min-w-4 place-items-center rounded-full bg-db-gold-500 px-1 text-[10px] font-semibold text-db-navy-ink"
+                        aria-label={t("nav.activeJobs", { count: activeCount })}
+                      >
+                        {activeCount}
+                      </span>
+                    ) : null}
+                  </NavLink>
+                )
+              })}
+            </nav>
+            <LocaleSwitcher locale={locale} setLocale={setLocale} t={t} />
+          </div>
         </div>
       </header>
       {children}
@@ -211,7 +248,7 @@ export function AdminShell({ children }: AdminShellProps) {
                 to={toast.href}
                 style={{ color: "var(--db-gold-500)", marginTop: 4, display: "inline-block" }}
               >
-                {toast.hrefLabel ?? "Öppna"} →
+                {toast.hrefLabel ?? t("common.open")} →
               </Link>
             )}
           </div>
