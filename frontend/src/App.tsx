@@ -3,6 +3,7 @@ import { ConfigureRunPage } from "@/pages/ConfigureRunPage"
 import { ConfigurationEditorPage } from "@/pages/ConfigurationEditorPage"
 import { ConfigurationPage } from "@/pages/ConfigurationPage"
 import { ConfigurationsPage } from "@/pages/ConfigurationsPage"
+import { DashboardPage } from "@/pages/DashboardPage"
 import { JobsPage } from "@/pages/JobsPage"
 import { MessagesPage } from "@/pages/MessagesPage"
 import { MessagesWorkshopPage } from "@/pages/MessagesWorkshopPage"
@@ -17,7 +18,7 @@ import { RunsPage } from "@/pages/RunsPage"
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/runs" replace />} />
+      <Route path="/" element={<DashboardPage />} />
       <Route path="/runs" element={<RunsPage />} />
       <Route path="/runs/new" element={<ConfigureRunPage />} />
       <Route path="/runs/:id/edit" element={<ConfigureRunPage />} />
@@ -43,7 +44,7 @@ export default function App() {
       <Route path="/jobs" element={<JobsPage />} />
       <Route path="/reports/:id" element={<ReportPage />} />
 
-      <Route path="*" element={<Navigate to="/runs" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
 }
