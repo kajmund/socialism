@@ -372,7 +372,8 @@ async def delete_message(
 ) -> None:
     await _get_persona(session, persona_id)
     result = await session.execute(
-        select(PersonaMessage).where(
+        select(PersonaMessage)
+        .where(
             PersonaMessage.id == message_id,
             PersonaMessage.persona_id == persona_id,
             PersonaMessage.run_id.is_(None),
@@ -381,7 +382,25 @@ async def delete_message(
     row = result.scalar_one_or_none()
     if row is None:
         raise HTTPException(status_code=404, detail="Meddelande hittades inte")
-    await session.delete(row)
+
+    thread = await session.execute(
+        select(PersonaMessage)
+        .where(*_library_chat_filter(persona_id, row.mode))
+        .order_by(PersonaMessage.id.asc())
+    )
+    rows = list(thread.scalars().all())
+    idx = next((i for i, msg in enumerate(rows) if msg.id == message_id), None)
+    if idx is None:
+        raise HTTPException(status_code=404, detail="Meddelande hittades inte")
+
+    to_delete = [rows[idx]]
+    if row.role == "user" and idx + 1 < len(rows) and rows[idx + 1].role == "assistant":
+        to_delete.append(rows[idx + 1])
+    elif row.role == "assistant" and idx > 0 and rows[idx - 1].role == "user":
+        to_delete.insert(0, rows[idx - 1])
+
+    for msg in to_delete:
+        await session.delete(msg)
     await session.commit()
 
 
