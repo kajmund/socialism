@@ -79,7 +79,7 @@ Swedish is the default UI locale. Do **not** add `react-i18next` / `lingui` unle
 3. Replace hardcoded UI text with `const { t } = useLocale(); t("section.key")` (use `{name}` placeholders for interpolation).
 4. For dates/numbers, use `intl` from `useLocale()` with `Intl.DateTimeFormat` / `Intl.NumberFormat` — do not hardcode `"sv-SE"`.
 
-Still hardcoded (next slices): backend report HTML / OASIS prompts.
+Still hardcoded (next slices): OASIS simulation prompts (intentionally Swedish). Report HTML language follows UI locale at order time (`locale` on `POST /reports`).
 
 ## Routes (current)
 

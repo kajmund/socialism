@@ -1,0 +1,130 @@
+{
+  "version": 1,
+  "description": "Narrative slots — charts are filled deterministically in charts.py",
+  "questions": [
+    {
+      "slot": "page_title",
+      "question": "Short page title (max 80 characters) for the HTML report. Title text only."
+    },
+    {
+      "slot": "cover_eyebrow",
+      "question": "Short cover eyebrow line (e.g. Pilot — Message analysis). Text only."
+    },
+    {
+      "slot": "cover_h1",
+      "question": "Main headline: how were the messages received? Max 120 characters. Headline only."
+    },
+    {
+      "slot": "cover_sub",
+      "question": "Subtitle of 2–3 sentences: what was tested and how many runs. Plain text. Use only topics/tones from describe_runs — do not invent Elder care/Traffic."
+    },
+    {
+      "slot": "cover_box1_lbl",
+      "question": "Short label max 6 words (e.g. Key insight). Never a full sentence."
+    },
+    {
+      "slot": "cover_box1_html",
+      "question": "1–2 sentences for the first cover box. Optional <strong>. No outer wrapper."
+    },
+    {
+      "slot": "cover_box2_lbl",
+      "question": "Short label max 6 words (e.g. What worked). Never a full sentence."
+    },
+    {
+      "slot": "cover_box2_html",
+      "question": "1–2 sentences: what gained traction. Optional <strong>."
+    },
+    {
+      "slot": "cover_box3_lbl",
+      "question": "Short label max 6 words (e.g. What we tested). Never a full sentence."
+    },
+    {
+      "slot": "cover_box3_html",
+      "question": "One sentence with run/agent counts from the facts. Optional <strong>."
+    },
+    {
+      "slot": "meta_scenario",
+      "question": "Short scenario label based on the injected messages. Text only."
+    },
+    {
+      "slot": "meta_topics",
+      "question": "Short topic list from topic_shares in describe_runs. One line, semicolon-separated. No invented topics."
+    },
+    {
+      "slot": "infographic_eyebrow",
+      "question": "Overline for the infographic (e.g. SUMMARY). Max 8 words."
+    },
+    {
+      "slot": "infographic_h2",
+      "question": "Headline: What did the tests show? or equivalent. Headline only."
+    },
+    {
+      "slot": "infographic_lead",
+      "question": "One lead sentence under the infographic headline. Plain text, no markdown."
+    },
+    {
+      "slot": "info_conc_1_html",
+      "question": "<strong>Headline</strong> + 1 sentence main insight. Inner HTML only — never markdown **."
+    },
+    {
+      "slot": "info_conc_2_html",
+      "question": "<strong>Headline</strong> + what did not work. Inner HTML — never markdown **."
+    },
+    {
+      "slot": "info_conc_3_html",
+      "question": "<strong>Headline</strong> + warning/limitation. Inner HTML — never markdown **."
+    },
+    {
+      "slot": "sec01_intro",
+      "question": "Method intro of 2–3 sentences about the simulation. Plain text."
+    },
+    {
+      "slot": "method_steps_html",
+      "question": "Five steps. Each step EXACTLY: <div class=\"mstep\"><div class=\"mstep-num\">N</div><h4>…</h4><p>…</p></div>. Only the five divs. Never the attribute mstep-num."
+    },
+    {
+      "slot": "method_explainer_html",
+      "question": "<strong>Why simulate?</strong> + 2 sentences. Inner HTML — never markdown **."
+    },
+    {
+      "slot": "sec02_intro",
+      "question": "Reception intro of 2–3 sentences. Text. Use topic_shares/tone_shares from the tools."
+    },
+    {
+      "slot": "sec02_findings_html",
+      "question": "Two finding cards: <div class=\"fc neu|pos|neg|cau\"> with badge, h3, p. Space between fc and modifier (not fc-neu)."
+    },
+    {
+      "slot": "sec03_intro",
+      "question": "Message-style intro of 1–2 sentences. Text. Unclassified means no style match."
+    },
+    {
+      "slot": "sec03_findings_html",
+      "question": "Two <div class=\"fc pos|neu\"> with style analysis. Space in class."
+    },
+    {
+      "slot": "sec04_h2",
+      "question": "Short headline for topic drift (max ~80 characters). Headline only — no markdown, no analysis."
+    },
+    {
+      "slot": "sec04_intro",
+      "question": "Topic-drift intro of 2–3 sentences from topic_shares. Plain text without markdown."
+    },
+    {
+      "slot": "sec04_explainer_html",
+      "question": "Strategic takeaway: start with <strong>What does this mean?</strong> + 2–3 sentences. Use <strong>, never **. Inner HTML."
+    },
+    {
+      "slot": "sec05_intro",
+      "question": "Opinion-leader intro of 2 sentences. Text. Quotes may be weather jokes — do not claim everything is message impact."
+    },
+    {
+      "slot": "sec06_intro",
+      "question": "Comparison intro of 2 sentences. For A/B (Version A vs B): say explicitly it is A/B and what differs. Otherwise audience segments/multiple runs."
+    },
+    {
+      "slot": "sec06_findings_html",
+      "question": "Two cards: <div class=\"fc neu\"> and <div class=\"fc cau\"> (space). For A/B: one card on A vs B difference, one on uncertainty. Only the two divs."
+    }
+  ]
+}

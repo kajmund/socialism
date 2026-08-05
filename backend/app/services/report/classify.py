@@ -10,12 +10,11 @@ from pydantic import BaseModel, Field
 
 from app.llm import complete_structured
 from app.services.report.bundles import RunBundle
-
-TONE_LABELS: tuple[str, ...] = (
-    "Kritisk / uppgiven",
-    "Konstruktiv",
-    "Positiv / hoppfull",
-    "Neutral / oklassad",
+from app.services.report.locale import (
+    ReportLocale,
+    meta_topics_fallback,
+    other_topic_label,
+    tone_labels,
 )
 
 ToneMode = Literal["llm"]
@@ -25,6 +24,9 @@ _CLASSIFY_BATCH_SIZE = 8
 _TEXT_CHARS = 200
 # Cap LLM calls: sample highest-engagement texts (likes).
 _MAX_CLASSIFY_TEXTS = 16
+
+# Historical Swedish labels (tests / callers).
+TONE_LABELS: tuple[str, ...] = tone_labels("sv")
 
 
 @dataclass
@@ -61,12 +63,7 @@ class _TopicBatchResponse(BaseModel):
 
 class _ToneItem(BaseModel):
     index: int
-    tone: Literal[
-        "Kritisk / uppgiven",
-        "Konstruktiv",
-        "Positiv / hoppfull",
-        "Neutral / oklassad",
-    ]
+    tone: str
 
 
 class _ToneBatchResponse(BaseModel):
@@ -104,26 +101,35 @@ def _share_counts(labels: list[str], allowed: list[str]) -> dict[str, float]:
     return {lab: counts[lab] / total for lab in allowed}
 
 
-async def derive_topic_packs(injection_texts: list[str]) -> list[TopicPack]:
+async def derive_topic_packs(
+    injection_texts: list[str],
+    *,
+    locale: ReportLocale = "sv",
+) -> list[TopicPack]:
     if not injection_texts:
         return []
 
     blob = "\n---\n".join(t[:800] for t in injection_texts[:8])
+    if locale == "en":
+        system = (
+            "You derive topic labels for a political debate simulation. "
+            "Return 2–4 topics with short English labels that capture "
+            "the injection content. Avoid generic party names alone. "
+            "keywords are optional helper words (not required for classification)."
+        )
+        user = f"Injection texts:\n{blob}"
+    else:
+        system = (
+            "Du härleder ämnesetiketter för en svensk politisk debattsimulering. "
+            "Returnera 2–4 ämnen med korta svenska etiketter som fångar "
+            "injektionernas innehåll. Undvik generiska partinamn ensamma. "
+            "keywords är valfria hjälpord (behövs inte för klassning)."
+        )
+        user = f"Injektionstexter:\n{blob}"
     result = await complete_structured(
         [
-            {
-                "role": "system",
-                "content": (
-                    "Du härleder ämnesetiketter för en svensk politisk debattsimulering. "
-                    "Returnera 2–4 ämnen med korta svenska etiketter som fångar "
-                    "injektionernas innehåll. Undvik generiska partinamn ensamma. "
-                    "keywords är valfria hjälpord (behövs inte för klassning)."
-                ),
-            },
-            {
-                "role": "user",
-                "content": f"Injektionstexter:\n{blob}",
-            },
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
         ],
         _TopicPacksResponse,
     )
@@ -144,13 +150,15 @@ async def classify_topics(
     texts: list[str],
     packs: list[TopicPack],
     *,
+    locale: ReportLocale = "sv",
     batch_size: int = _CLASSIFY_BATCH_SIZE,
 ) -> dict[str, float]:
-    allowed = [p.label for p in packs] + ["Övrigt"]
+    other = other_topic_label(locale)
+    allowed = [p.label for p in packs] + [other]
     if not texts:
         return {lab: 0.0 for lab in allowed}
     if not packs:
-        return {"Övrigt": 1.0}
+        return {other: 1.0}
 
     allowed_set = set(allowed)
     labels: list[str] = [""] * len(texts)
@@ -159,69 +167,90 @@ async def classify_topics(
     for start in range(0, len(texts), batch_size):
         chunk = texts[start : start + batch_size]
         numbered = "\n".join(f"{i}. {t[:_TEXT_CHARS]}" for i, t in enumerate(chunk))
+        if locale == "en":
+            system = (
+                "Classify each comment/post by topic. "
+                f"Allowed values: {pack_list}, or '{other}'. "
+                "Choose by meaning and context — not keywords alone. "
+                "Sarcasm and paraphrase count toward the topic they really address. "
+                "Return index 0..n-1 for the batch."
+            )
+        else:
+            system = (
+                "Klassificera varje svensk kommentar/inlägg efter ämne. "
+                f"Tillåtna värden: {pack_list}, eller '{other}'. "
+                "Välj efter mening och kontext — inte enbart nyckelord. "
+                "Sarkasm och omskrivningar räknas till det ämne de egentligen handlar om. "
+                "Returnera index 0..n-1 för batchen."
+            )
         result = await complete_structured(
             [
-                {
-                    "role": "system",
-                    "content": (
-                        "Klassificera varje svensk kommentar/inlägg efter ämne. "
-                        f"Tillåtna värden: {pack_list}, eller 'Övrigt'. "
-                        "Välj efter mening och kontext — inte enbart nyckelord. "
-                        "Sarkasm och omskrivningar räknas till det ämne de egentligen handlar om. "
-                        "Returnera index 0..n-1 för batchen."
-                    ),
-                },
+                {"role": "system", "content": system},
                 {"role": "user", "content": numbered},
             ],
             _TopicBatchResponse,
         )
         by_idx = {item.index: item.topic for item in result.items}
         for i in range(len(chunk)):
-            raw = by_idx.get(i, "Övrigt")
-            labels[start + i] = raw if raw in allowed_set else "Övrigt"
+            raw = by_idx.get(i, other)
+            labels[start + i] = raw if raw in allowed_set else other
     return _share_counts(labels, allowed)
 
 
 async def classify_tones(
     texts: list[str],
     *,
+    locale: ReportLocale = "sv",
     batch_size: int = _CLASSIFY_BATCH_SIZE,
 ) -> tuple[dict[str, float], ToneMode]:
+    labels_allowed = list(tone_labels(locale))
     if not texts:
-        return {lab: 0.0 for lab in TONE_LABELS}, "llm"
+        return {lab: 0.0 for lab in labels_allowed}, "llm"
 
     labels: list[str] = [""] * len(texts)
+    quoted = ", ".join(f"'{lab}'" for lab in labels_allowed)
+    default = labels_allowed[-1]
     for start in range(0, len(texts), batch_size):
         chunk = texts[start : start + batch_size]
         numbered = "\n".join(f"{i}. {t[:_TEXT_CHARS]}" for i, t in enumerate(chunk))
+        if locale == "en":
+            system = (
+                "Classify each comment/post by tone. "
+                f"Allowed values: {quoted}. "
+                f"Sarcasm, campaign distrust, and sharp criticism = {labels_allowed[0]}. "
+                "Return index 0..n-1 for the batch."
+            )
+        else:
+            system = (
+                "Klassificera varje svensk kommentar/inlägg efter ton. "
+                f"Tillåtna värden: {quoted}. "
+                f"Sarkasm, valfläsk-misstro och skarp kritik = {labels_allowed[0]}. "
+                "Returnera index 0..n-1 för batchen."
+            )
         result = await complete_structured(
             [
-                {
-                    "role": "system",
-                    "content": (
-                        "Klassificera varje svensk kommentar/inlägg efter ton. "
-                        "Tillåtna värden: "
-                        "'Kritisk / uppgiven', 'Konstruktiv', "
-                        "'Positiv / hoppfull', 'Neutral / oklassad'. "
-                        "Sarkasm, valfläsk-misstro och skarp kritik = Kritisk / uppgiven. "
-                        "Returnera index 0..n-1 för batchen."
-                    ),
-                },
+                {"role": "system", "content": system},
                 {"role": "user", "content": numbered},
             ],
             _ToneBatchResponse,
         )
         by_idx = {item.index: item.tone for item in result.items}
+        allowed_set = set(labels_allowed)
         for i in range(len(chunk)):
-            labels[start + i] = by_idx.get(i, "Neutral / oklassad")
-    return _share_counts(labels, list(TONE_LABELS)), "llm"
+            raw = by_idx.get(i, default)
+            labels[start + i] = raw if raw in allowed_set else default
+    return _share_counts(labels, labels_allowed), "llm"
 
 
-async def classify_bundle(bundle: RunBundle) -> BundleClassification:
+async def classify_bundle(
+    bundle: RunBundle,
+    *,
+    locale: ReportLocale = "sv",
+) -> BundleClassification:
     texts = _texts_for_classify(bundle)
-    packs = await derive_topic_packs(bundle.injection_texts)
-    topic_shares = await classify_topics(texts, packs)
-    tone_shares, tone_mode = await classify_tones(texts)
+    packs = await derive_topic_packs(bundle.injection_texts, locale=locale)
+    topic_shares = await classify_topics(texts, packs, locale=locale)
+    tone_shares, tone_mode = await classify_tones(texts, locale=locale)
     return BundleClassification(
         topic_packs=packs,
         topic_shares=topic_shares,
@@ -230,11 +259,20 @@ async def classify_bundle(bundle: RunBundle) -> BundleClassification:
     )
 
 
-async def classify_bundles(bundles: list[RunBundle]) -> list[BundleClassification]:
-    return [await classify_bundle(b) for b in bundles]
+async def classify_bundles(
+    bundles: list[RunBundle],
+    *,
+    locale: ReportLocale = "sv",
+) -> list[BundleClassification]:
+    return [await classify_bundle(b, locale=locale) for b in bundles]
 
 
-def meta_topics_line(classifications: list[BundleClassification]) -> str:
+def meta_topics_line(
+    classifications: list[BundleClassification],
+    *,
+    locale: ReportLocale = "sv",
+) -> str:
+    other = other_topic_label(locale)
     labels: list[str] = []
     seen: set[str] = set()
     for c in classifications:
@@ -242,8 +280,8 @@ def meta_topics_line(classifications: list[BundleClassification]) -> str:
             if pack.label not in seen:
                 seen.add(pack.label)
                 labels.append(pack.label)
-        if "Övrigt" in c.topic_shares and c.topic_shares.get("Övrigt", 0) > 0:
-            if "Övrigt" not in seen:
-                seen.add("Övrigt")
-                labels.append("Övrigt")
-    return "; ".join(labels) if labels else "Se ämnesfördelning i rapporten"
+        if other in c.topic_shares and c.topic_shares.get(other, 0) > 0:
+            if other not in seen:
+                seen.add(other)
+                labels.append(other)
+    return "; ".join(labels) if labels else meta_topics_fallback(locale)
