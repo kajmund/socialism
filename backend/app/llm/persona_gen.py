@@ -118,7 +118,7 @@ async def llm_persona_from_slot(
     if prompts is None:
         if session is None:
             raise RuntimeError("session or prompts is required for persona generation")
-        prompts = await require_active_prompts(session, "sv")
+        prompts = await require_active_prompts(session)
     area_block = ""
     if session is not None:
         area_block = await area_block_for_name(session, slot.district)
@@ -196,7 +196,7 @@ async def llm_personas_from_description(
     if prompts is None:
         if session is None:
             raise RuntimeError("session or prompts is required for persona generation")
-        prompts = await require_active_prompts(session, "sv")
+        prompts = await require_active_prompts(session)
     area_block = ""
     if session is not None and demografi and demografi.get("ort"):
         area_block = await area_block_for_name(session, demografi["ort"])

@@ -207,6 +207,7 @@ export const sv = {
       start: "Starta körning",
       startShort: "Starta",
       starting: "Startar…",
+      running: "Pågår…",
       rerun: "Kör igen",
       saveRun: "Spara körning",
     },
@@ -487,6 +488,15 @@ export const sv = {
       actionRefreshDetail: "{count} inlägg",
       actionInterviewDetail: "Q: {prompt} — {snippet}",
       actionInterviewPrompt: "Q: {prompt}",
+      toolsUsed: "Verktyg",
+      toolsUsedAria: "Visa verktyg som använts före detta inlägg",
+      toolsUsedCommentAria: "Visa verktyg som använts före denna kommentar",
+      toolsModalTitle: "Verktyg före inlägg",
+      toolsModalTitleComment: "Verktyg före kommentar",
+      toolsModalDescription: "{name} · {count} anrop under samma tick",
+      toolsQuery: "Fråga",
+      toolsResult: "Resultat",
+      toolsEmptyResult: "Inget resultat sparat",
     },
     interview: {
       loadError: "Kunde inte hämta intervju",
@@ -919,7 +929,7 @@ export const sv = {
     list: {
       title: "Konfigurationer",
       intro:
-        "Sparade promptuppsättningar per språk. Den aktiva konfigurationen används av LLM-anrop i backend.",
+        "Sparade promptuppsättningar. Endast en konfiguration kan vara aktiv åt gången — den används av LLM-anrop i backend. Aktiv konfiguration styrs här, inte av språkvalet i menyn.",
       searchPlaceholder: "Sök namn…",
       allLanguages: "Alla språk",
       new: "+ Ny konfiguration",
@@ -939,16 +949,19 @@ export const sv = {
       newTitle: "Ny konfiguration",
       editTitle: "Redigera konfiguration",
       newIntro:
-        "Namn, språk och alla promptfält. Förifyllt med standardtexter — redigera efter behov.",
+        "Namn, promptspråk och promptfält i flikar. Förifyllt med standardtexter — redigera efter behov.",
       editIntro:
-        "Ändringar skriver över den befintliga posten. Aktivera för att backend ska använda den.",
+        "Ändringar skriver över den befintliga posten. Aktivera för att backend ska använda den (en aktiv åt gången).",
       loading: "Hämtar konfiguration…",
       loadError: "Kunde inte hämta konfigurationen",
       nameLabel: "Namn",
       namePlaceholder: "t.ex. Standard (svenska)",
-      languageLabel: "Språk",
-      activeLabel: "Aktiv för det här språket (används av backend)",
+      languageLabel: "Promptspråk",
+      languageHint:
+        "Språket för prompttexterna — oberoende av språkvalet i menyn.",
+      activeLabel: "Aktiv (används av backend; endast en åt gången)",
       nameRequired: "Ange ett namn",
+      tablistAria: "Promptsektioner",
     },
   },
   config: {

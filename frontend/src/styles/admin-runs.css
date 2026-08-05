@@ -312,11 +312,13 @@
 .start-actions{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
 .start-buttons{display:flex;align-items:center;gap:10px}
 .btn-save{background:var(--db-ink-0);color:var(--text-body);border:1.5px solid var(--border-hairline);font-family:'Bai Jamjuree',sans-serif;font-weight:400;font-size:15px;padding:14px 22px;border-radius:var(--radius-md);cursor:pointer}
-.btn-save:hover{border-color:var(--db-ink-950)}
+.btn-save:hover:not(:disabled){border-color:var(--db-ink-950)}
+.btn-save:disabled{opacity:.45;cursor:not-allowed}
 .preflight-link{font-size:12.5px;font-weight:600;color:var(--text-muted);background:none;border:none;cursor:pointer}
 .preflight-link:hover{color:var(--text-body);text-decoration:underline}
 .btn-run{background:var(--db-gold-500);color:var(--db-navy-ink);border:none;font-family:'Bai Jamjuree',sans-serif;font-weight:400;font-size:17px;padding:15px 30px;border-radius:var(--radius-md);cursor:pointer}
-.btn-run:hover{background:var(--db-gold-700)}
+.btn-run:hover:not(:disabled){background:var(--db-gold-700)}
+.btn-run:disabled{opacity:.45;cursor:not-allowed;background:var(--db-ink-200);color:var(--text-muted)}
 
 
 /* from Personaöversikten.html */

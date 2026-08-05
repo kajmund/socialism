@@ -88,7 +88,7 @@ async def llm_persona_anecdote(
     if prompts is None:
         if session is None:
             raise RuntimeError("session or prompts is required for anecdote generation")
-        prompts = await require_active_prompts(session, "sv")
+        prompts = await require_active_prompts(session)
     area_block = ""
     if session is not None:
         area_block = await area_block_for_name(session, profile.ort)

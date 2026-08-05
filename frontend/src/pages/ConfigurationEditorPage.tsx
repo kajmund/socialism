@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react"
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import {
   CONFIGURATION_LANGUAGES,
@@ -32,6 +32,11 @@ function languageLabel(language: ConfigurationLanguage, t: Translate): string {
   }
 }
 
+/** Catalog field labels follow the configuration language, not the GUI locale. */
+function labelLocaleFor(language: ConfigurationLanguage): ConfigurationLanguage {
+  return language === "en" ? "en" : "sv"
+}
+
 function fieldsBySection(
   catalog: PromptCatalog,
 ): { id: string; label: string; fields: PromptField[] }[] {
@@ -43,56 +48,82 @@ function fieldsBySection(
 }
 
 export function ConfigurationEditorPage() {
-  const { t, locale } = useLocale()
+  const { t } = useLocale()
   const navigate = useNavigate()
   const { id: editId } = useParams<{ id?: string }>()
   const isEdit = Boolean(editId)
   const numericId = editId ? Number(editId) : NaN
-  const labelLocale: ConfigurationLanguage = locale === "en" ? "en" : "sv"
 
   const [name, setName] = useState("")
   const [language, setLanguage] = useState<ConfigurationLanguage>("sv")
   const [isActive, setIsActive] = useState(false)
   const [prompts, setPrompts] = useState<Record<string, string>>({})
   const [catalog, setCatalog] = useState<PromptCatalog | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [activeSectionId, setActiveSectionId] = useState<string | null>(null)
+  const [rowReady, setRowReady] = useState(!isEdit)
+  const [catalogLoading, setCatalogLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // When editing, ignore language state changes after the row loads.
-  const catalogLanguage = isEdit ? null : language
+  // Saved prompt texts for the edit row — kept across language changes.
+  const savedPromptsRef = useRef<Record<string, string> | null>(null)
 
   useEffect(() => {
+    if (!isEdit) {
+      setRowReady(true)
+      savedPromptsRef.current = null
+      return
+    }
     let cancelled = false
-    setLoading(true)
+    setRowReady(false)
     ;(async () => {
       try {
-        if (isEdit) {
-          if (!Number.isFinite(numericId)) {
-            setError(t("configurations.editor.loadError"))
-            return
-          }
-          const row = await getConfiguration(numericId)
-          if (cancelled) return
-          const cat = await getPromptCatalog({
-            language: row.language,
-            label_locale: labelLocale,
-          })
-          if (cancelled) return
-          setCatalog(cat)
-          setName(row.name)
-          setLanguage(row.language)
-          setIsActive(row.is_active)
-          setPrompts({ ...cat.defaults, ...row.prompts })
+        if (!Number.isFinite(numericId)) {
+          setError(t("configurations.editor.loadError"))
+          return
+        }
+        const row = await getConfiguration(numericId)
+        if (cancelled) return
+        savedPromptsRef.current = { ...row.prompts }
+        setName(row.name)
+        setLanguage(row.language)
+        setIsActive(row.is_active)
+        setError(null)
+        setRowReady(true)
+      } catch (err: unknown) {
+        if (!cancelled) {
+          setError(
+            err instanceof ApiError ? err.message : t("configurations.editor.loadError"),
+          )
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [isEdit, numericId, t])
+
+  useEffect(() => {
+    if (!rowReady) return
+    let cancelled = false
+    setCatalogLoading(true)
+    ;(async () => {
+      try {
+        const cat = await getPromptCatalog({
+          language,
+          label_locale: labelLocaleFor(language),
+        })
+        if (cancelled) return
+        setCatalog(cat)
+        if (isEdit && savedPromptsRef.current) {
+          setPrompts({ ...cat.defaults, ...savedPromptsRef.current })
         } else {
-          const cat = await getPromptCatalog({
-            language: catalogLanguage ?? "sv",
-            label_locale: labelLocale,
-          })
-          if (cancelled) return
-          setCatalog(cat)
           setPrompts({ ...cat.defaults })
         }
+        setActiveSectionId((prev) => {
+          if (prev && cat.sections.some((s) => s.id === prev)) return prev
+          return cat.sections[0]?.id ?? null
+        })
         setError(null)
       } catch (err: unknown) {
         if (!cancelled) {
@@ -101,21 +132,35 @@ export function ConfigurationEditorPage() {
           )
         }
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) setCatalogLoading(false)
       }
     })()
     return () => {
       cancelled = true
     }
-  }, [isEdit, numericId, catalogLanguage, labelLocale, t])
+  }, [rowReady, language, isEdit, t])
 
   const sections = useMemo(
     () => (catalog ? fieldsBySection(catalog) : []),
     [catalog],
   )
 
+  const activeSection =
+    sections.find((s) => s.id === activeSectionId) ?? sections[0] ?? null
+
+  const loading = !rowReady || catalogLoading
+
   function setPromptValue(key: string, value: string) {
-    setPrompts((prev) => ({ ...prev, [key]: value }))
+    setPrompts((prev) => {
+      const next = { ...prev, [key]: value }
+      if (isEdit) {
+        savedPromptsRef.current = {
+          ...(savedPromptsRef.current ?? {}),
+          [key]: value,
+        }
+      }
+      return next
+    })
   }
 
   async function onSubmit(event: FormEvent) {
@@ -181,7 +226,7 @@ export function ConfigurationEditorPage() {
         {error && <p className="text-destructive">{error}</p>}
 
         {!loading && catalog && (
-          <form className="mt-6 space-y-8" onSubmit={onSubmit}>
+          <form className="mt-6 space-y-6" onSubmit={onSubmit}>
             <div className="grid max-w-2xl gap-5">
               <label className="block space-y-1.5">
                 <span className="text-sm font-medium">{t("configurations.editor.nameLabel")}</span>
@@ -201,7 +246,6 @@ export function ConfigurationEditorPage() {
                 <select
                   className="dsel w-full max-w-xs"
                   value={language}
-                  disabled={isEdit}
                   onChange={(e) => setLanguage(e.target.value as ConfigurationLanguage)}
                 >
                   {CONFIGURATION_LANGUAGES.map((code) => (
@@ -210,6 +254,9 @@ export function ConfigurationEditorPage() {
                     </option>
                   ))}
                 </select>
+                <span className="block text-xs text-muted-foreground">
+                  {t("configurations.editor.languageHint")}
+                </span>
               </label>
 
               <label className="flex items-center gap-2 text-sm">
@@ -222,11 +269,44 @@ export function ConfigurationEditorPage() {
               </label>
             </div>
 
-            {sections.map((section) => (
-              <section key={section.id} className="space-y-4 border-t border-[color:var(--border-hairline)] pt-6">
-                <h2 className="text-lg font-medium">{section.label}</h2>
-                <div className="space-y-5">
-                  {section.fields.map((field) => (
+            {sections.length > 0 && activeSection ? (
+              <div>
+                <div
+                  role="tablist"
+                  aria-label={t("configurations.editor.tablistAria")}
+                  className="mb-3 flex flex-wrap gap-1 border-b border-[color:var(--border-hairline)]"
+                >
+                  {sections.map((section) => {
+                    const selected = section.id === activeSection.id
+                    return (
+                      <button
+                        key={section.id}
+                        type="button"
+                        role="tab"
+                        id={`prompt-tab-${section.id}`}
+                        aria-selected={selected}
+                        aria-controls={`prompt-panel-${section.id}`}
+                        tabIndex={selected ? 0 : -1}
+                        className={
+                          selected
+                            ? "-mb-px border-b-2 border-db-ink-950 px-3 py-2 text-sm font-medium text-[color:var(--text-body)]"
+                            : "-mb-px border-b-2 border-transparent px-3 py-2 text-sm text-muted-foreground hover:text-[color:var(--text-body)]"
+                        }
+                        onClick={() => setActiveSectionId(section.id)}
+                      >
+                        {section.label}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                <div
+                  role="tabpanel"
+                  id={`prompt-panel-${activeSection.id}`}
+                  aria-labelledby={`prompt-tab-${activeSection.id}`}
+                  className="space-y-5"
+                >
+                  {activeSection.fields.map((field) => (
                     <label key={field.key} className="block space-y-1.5">
                       <span className="text-sm font-medium">{field.label}</span>
                       {field.hint ? (
@@ -240,8 +320,8 @@ export function ConfigurationEditorPage() {
                     </label>
                   ))}
                 </div>
-              </section>
-            ))}
+              </div>
+            ) : null}
 
             <div className="flex flex-wrap gap-3 border-t border-[color:var(--border-hairline)] pt-6">
               <AdminButton type="submit" variant="primary" disabled={saving}>

@@ -102,6 +102,7 @@ export type OasisVariantResult = {
     content: string
     num_likes?: number
     num_dislikes?: number
+    created_at?: string | number
     liked_by?: number[]
     disliked_by?: number[]
   }>
@@ -156,6 +157,8 @@ export type OasisVariantResult = {
   profile_json?: string | null
   platform?: OasisPlatform
   oasis_options?: OasisRunOptions
+  /** Backend-relative path, e.g. data/oasis/run_4/attempts/att_…/main.log */
+  log_path?: string
 }
 
 export type OasisAttemptResult = {
@@ -164,6 +167,8 @@ export type OasisAttemptResult = {
   seed?: string
   engine?: string
   error?: string | null
+  /** Directory with per-variant `.log` files for this attempt */
+  log_dir?: string
   variants: OasisVariantResult[]
 }
 
