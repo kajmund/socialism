@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import logging
 import secrets
 import sqlite3
 from collections import Counter
@@ -44,6 +45,12 @@ from app.services.oasis_tool_trace import (
     clear_oasis_tool_trace,
     drain_oasis_tool_trace,
     set_oasis_tool_trace_tick,
+)
+from app.services.run_log import (
+    capture_run_log,
+    run_attempt_log_dir,
+    run_variant_log_path,
+    write_run_log_note,
 )
 from app.services.run_measurements import build_measurements
 
@@ -553,8 +560,9 @@ async def run_oasis_simulation(
     from app.services import jobs as jobs_service
     from app.services.prompt_store import require_active_prompts
 
-    async with jobs_service.job_session_factory() as prompt_session:
-        prompts = await require_active_prompts(prompt_session, "sv")
+    factory = jobs_service.job_session_factory()
+    async with factory() as prompt_session:
+        prompts = await require_active_prompts(prompt_session)
 
     apply_swedish_social_environment_prompts(prompts)
     apply_deepseek_reasoning_patch()
@@ -750,13 +758,17 @@ def build_empty_attempt(
     run: Run, *, engine: str, error: str | None = None
 ) -> dict[str, Any]:
     plans = variant_plans(run)
-    return {
-        "id": f"att_{secrets.token_hex(4)}",
-        "finished_at": utcnow().isoformat(),
-        "seed": run.seed,
-        "engine": engine,
-        "error": error,
-        "variants": [
+    attempt_id = f"att_{secrets.token_hex(4)}"
+    log_dir = run_attempt_log_dir(run.id, attempt_id)
+    variants: list[dict[str, Any]] = []
+    for vid, label, ticks in plans:
+        log_path = run_variant_log_path(run.id, attempt_id, vid)
+        note = (
+            f"engine={engine}\nvariant={vid}\n"
+            + (f"error={error}\n" if error else "status=empty_attempt\n")
+        )
+        write_run_log_note(log_path, note)
+        variants.append(
             {
                 "id": vid,
                 "label": label,
@@ -766,9 +778,17 @@ def build_empty_attempt(
                 "posts": [],
                 "comments": [],
                 "measurements": build_measurements(ticks, ticks_run=0),
+                "log_path": str(log_path),
             }
-            for vid, label, ticks in plans
-        ],
+        )
+    return {
+        "id": attempt_id,
+        "finished_at": utcnow().isoformat(),
+        "seed": run.seed,
+        "engine": engine,
+        "error": error,
+        "log_dir": str(log_dir),
+        "variants": variants,
     }
 
 
@@ -816,8 +836,9 @@ def _failed_variant(
     label: str,
     ticks: list[Tick],
     error: str,
+    log_path: str | None = None,
 ) -> dict[str, Any]:
-    return {
+    out: dict[str, Any] = {
         "id": variant_id,
         "label": label,
         "error": error,
@@ -834,6 +855,9 @@ def _failed_variant(
         "agent_tools": [],
         "measurements": build_measurements(ticks, ticks_run=0),
     }
+    if log_path:
+        out["log_path"] = log_path
+    return out
 
 
 async def _simulate_variant(
@@ -843,93 +867,116 @@ async def _simulate_variant(
     member_districts: dict[str, str],
     area_blocks: dict[str, str],
     options: OasisRunOptions,
+    attempt_id: str,
     variant_id: str,
     label: str,
     ticks: list[Tick],
 ) -> dict[str, Any]:
     """Run one variant. OasisUnavailable propagates; other errors become variant.error."""
-    try:
-        sim = await run_oasis_simulation(
-            run_id=run.id,
-            members=members,
-            ticks=ticks,
-            seed=run.seed,
-            variant_id=variant_id,
-            area_blocks=area_blocks,
-            oasis_options=options,
-            simulation_start=(
-                run.start_date
-                if isinstance(run.start_date, date)
-                else _parse_simulation_start(None)
-            ),
+    log_path = run_variant_log_path(run.id, attempt_id, variant_id)
+    log = logging.getLogger(__name__)
+    with capture_run_log(log_path):
+        log.info(
+            "Simulating run_id=%s attempt=%s variant=%s (%s) ticks=%s",
+            run.id,
+            attempt_id,
+            variant_id,
+            label,
+            len(ticks),
         )
-    except OasisUnavailable:
-        raise
-    except Exception as exc:  # noqa: BLE001 — keep other variants; record this failure
-        return _failed_variant(
-            variant_id=variant_id,
-            label=label,
-            ticks=ticks,
-            error=str(exc) or exc.__class__.__name__,
-        )
+        try:
+            sim = await run_oasis_simulation(
+                run_id=run.id,
+                members=members,
+                ticks=ticks,
+                seed=run.seed,
+                variant_id=variant_id,
+                area_blocks=area_blocks,
+                oasis_options=options,
+                simulation_start=(
+                    run.start_date
+                    if isinstance(run.start_date, date)
+                    else _parse_simulation_start(None)
+                ),
+            )
+        except OasisUnavailable:
+            raise
+        except Exception as exc:  # noqa: BLE001 — keep other variants; record this failure
+            log.exception("Variant %s failed: %s", variant_id, exc)
+            return _failed_variant(
+                variant_id=variant_id,
+                label=label,
+                ticks=ticks,
+                error=str(exc) or exc.__class__.__name__,
+                log_path=str(log_path),
+            )
 
-    agents = sim.get("agents") or []
-    posts = sim.get("posts") or []
-    comments = sim.get("comments") or []
-    follows = sim.get("follows") or []
-    mutes = sim.get("mutes") or []
-    reports = sim.get("reports") or []
-    trace = sim.get("trace") or []
-    action_histogram = sim.get("action_histogram") or []
-    agent_tools = sim.get("agent_tools") or []
-    tick_markers = sim.get("tick_markers") or []
-    ticks_run = int(sim.get("ticks_run") or 0)
-    return {
-        "id": variant_id,
-        "label": label,
-        "error": None,
-        "ticks_run": ticks_run,
-        "tick_markers": tick_markers,
-        "agents": agents,
-        "posts": posts,
-        "comments": comments,
-        "follows": follows,
-        "mutes": mutes,
-        "reports": reports,
-        "trace": trace,
-        "action_histogram": action_histogram,
-        "agent_tools": agent_tools,
-        "artifact_db": sim.get("artifact_db"),
-        "profile_path": sim.get("profile_path"),
-        "profile_csv": sim.get("profile_csv"),
-        "profile_json": sim.get("profile_json"),
-        "platform": sim.get("platform"),
-        "agent_count": sim.get("agent_count"),
-        "configured_ticks": sim.get("configured_ticks"),
-        "oasis_options": sim.get("oasis_options"),
-        "measurements": build_measurements(
-            ticks,
-            posts=posts,
-            comments=comments,
-            agents=agents,
-            follows=follows,
-            member_districts=member_districts,
-            ticks_run=ticks_run,
-        ),
-        "quality_warnings": analyze_lexical_convergence(
-            posts=posts,
-            comments=comments,
-            agents=agents,
-            injection_texts=_injection_texts_labeled(ticks),
-        ),
-    }
+        agents = sim.get("agents") or []
+        posts = sim.get("posts") or []
+        comments = sim.get("comments") or []
+        follows = sim.get("follows") or []
+        mutes = sim.get("mutes") or []
+        reports = sim.get("reports") or []
+        trace = sim.get("trace") or []
+        action_histogram = sim.get("action_histogram") or []
+        agent_tools = sim.get("agent_tools") or []
+        tick_markers = sim.get("tick_markers") or []
+        ticks_run = int(sim.get("ticks_run") or 0)
+        log.info(
+            "Variant %s done: ticks_run=%s posts=%s comments=%s",
+            variant_id,
+            ticks_run,
+            len(posts),
+            len(comments),
+        )
+        return {
+            "id": variant_id,
+            "label": label,
+            "error": None,
+            "ticks_run": ticks_run,
+            "tick_markers": tick_markers,
+            "agents": agents,
+            "posts": posts,
+            "comments": comments,
+            "follows": follows,
+            "mutes": mutes,
+            "reports": reports,
+            "trace": trace,
+            "action_histogram": action_histogram,
+            "agent_tools": agent_tools,
+            "artifact_db": sim.get("artifact_db"),
+            "profile_path": sim.get("profile_path"),
+            "profile_csv": sim.get("profile_csv"),
+            "profile_json": sim.get("profile_json"),
+            "platform": sim.get("platform"),
+            "agent_count": sim.get("agent_count"),
+            "configured_ticks": sim.get("configured_ticks"),
+            "oasis_options": sim.get("oasis_options"),
+            "log_path": str(log_path),
+            "measurements": build_measurements(
+                ticks,
+                posts=posts,
+                comments=comments,
+                agents=agents,
+                follows=follows,
+                member_districts=member_districts,
+                ticks_run=ticks_run,
+            ),
+            "quality_warnings": analyze_lexical_convergence(
+                posts=posts,
+                comments=comments,
+                agents=agents,
+                injection_texts=_injection_texts_labeled(ticks),
+            ),
+        }
 
 
 async def simulate_run(session: AsyncSession, run: Run) -> dict[str, Any]:
     """Load population members and execute OASIS for each variant (main or A/B).
 
     A/B (and stimulus/control) variants run concurrently — each uses its own
-    artifact directory under data/oasis/run_{id}/{a|b}/.
+    artifact directory under data/oasis/run_{id}/{a|b}/. Per-attempt logs live
+    under data/oasis/run_{id}/attempts/{attempt_id}/{variant}.log.
     """
     result = await session.execute(
         select(Population)
@@ -957,6 +1004,9 @@ async def simulate_run(session: AsyncSession, run: Run) -> dict[str, Any]:
         run.oasis_options if isinstance(run.oasis_options, dict) else None
     )
     plans = variant_plans(run)
+    attempt_id = f"att_{secrets.token_hex(4)}"
+    log_dir = run_attempt_log_dir(run.id, attempt_id)
+    log_dir.mkdir(parents=True, exist_ok=True)
     variants_out = list(
         await asyncio.gather(
             *[
@@ -966,6 +1016,7 @@ async def simulate_run(session: AsyncSession, run: Run) -> dict[str, Any]:
                     member_districts=member_districts,
                     area_blocks=area_blocks,
                     options=options,
+                    attempt_id=attempt_id,
                     variant_id=variant_id,
                     label=label,
                     ticks=ticks,
@@ -977,11 +1028,12 @@ async def simulate_run(session: AsyncSession, run: Run) -> dict[str, Any]:
 
     all_failed = bool(variants_out) and all(v.get("error") for v in variants_out)
     attempt = {
-        "id": f"att_{secrets.token_hex(4)}",
+        "id": attempt_id,
         "finished_at": utcnow().isoformat(),
         "seed": run.seed,
         "engine": "oasis",
         "error": "Alla varianter misslyckades" if all_failed else None,
+        "log_dir": str(log_dir),
         "variants": variants_out,
     }
     await session.refresh(run)

@@ -49,6 +49,7 @@ export type RunCreateWizardProps = {
   runStatus: RunStatus
   saving: boolean
   pendingAction?: "save" | "start" | null
+  disabled?: boolean
   onSave: () => void
   onStart: () => void
   onValidationError: (message: string) => void
@@ -113,6 +114,7 @@ export function RunCreateWizard(props: RunCreateWizardProps) {
               runStatus={props.runStatus}
               saving={props.saving}
               pendingAction={props.pendingAction}
+              disabled={props.disabled}
               onSave={props.onSave}
               onStart={props.onStart}
             />

@@ -73,7 +73,7 @@ async def summarize_url(
     session: AsyncSession = Depends(get_session),
 ) -> SummarizeUrlResponse:
     url = normalize_url(body.url)
-    prompts = await require_active_prompts(session, "sv")
+    prompts = await require_active_prompts(session)
     try:
         summary = await summarize_url_content(url, body.message_type, prompts=prompts)
     except Exception as exc:  # noqa: BLE001 — surface fetch/LLM errors as 400
@@ -90,7 +90,7 @@ async def generate_variants(
     body: GenerateVariantsRequest,
     session: AsyncSession = Depends(get_session),
 ) -> GenerateVariantsResponse:
-    prompts = await require_active_prompts(session, "sv")
+    prompts = await require_active_prompts(session)
     try:
         variants = await generate_message_variants(body, prompts=prompts)
     except Exception as exc:  # noqa: BLE001 — surface generation errors as 400

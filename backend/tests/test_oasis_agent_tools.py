@@ -70,6 +70,30 @@ def test_build_population_extra_tools_sympy():
     assert len(tools) == 26
 
 
+def test_sympy_series_expansion_has_param_descriptions():
+    """Broken upstream docstring must not ship tools without param docs."""
+    import warnings
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        tools = build_population_extra_tools(
+            OasisRunOptions(enable_sympy_tools=True)
+        )
+
+    series_warns = [
+        w for w in caught if "series_expansion" in str(w.message)
+    ]
+    assert series_warns == []
+
+    series = next(
+        t for t in tools if getattr(t, "func", t).__name__ == "series_expansion"
+    )
+    props = series.get_openai_tool_schema()["function"]["parameters"]["properties"]
+    for name in ("expression", "variable", "point", "order"):
+        assert name in props
+        assert props[name].get("description"), name
+
+
 def test_population_tool_rules_in_user_char():
     text = build_user_char(
         _member(),
@@ -90,8 +114,22 @@ def test_population_tool_rules_in_user_char():
 def test_search_toolkit_runtime_dependencies():
     import importlib.util
 
-    assert importlib.util.find_spec("duckduckgo_search") is not None
+    assert importlib.util.find_spec("ddgs") is not None
     assert importlib.util.find_spec("wikipedia") is not None
+
+
+def test_search_wiki_rejects_empty():
+    from app.services.oasis_agent_tools import search_wiki
+
+    assert "Tom" in search_wiki("  ")
+
+
+def test_search_duckduckgo_rejects_empty():
+    from app.services.oasis_agent_tools import search_duckduckgo
+
+    out = search_duckduckgo(" ")
+    assert len(out) == 1
+    assert "error" in out[0]
 
 
 def test_apply_population_agent_tools_skips_injectors():
