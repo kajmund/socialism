@@ -148,6 +148,28 @@ class Message(Base):
     )
 
 
+class Configuration(Base):
+    """Standalone named prompt configuration with a language choice."""
+
+    __tablename__ = "configurations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    language: Mapped[str] = mapped_column(String(8), nullable=False, index=True)
+    prompt_text: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+
 class CatalogList(Base):
     """Editable master-data option lists for persona composer dropdowns."""
 
