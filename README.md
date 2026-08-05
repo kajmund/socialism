@@ -1,14 +1,15 @@
 # Opinionssimulator
 
-Internal tool for testing political messaging (A/B) against AI agent populations grounded in local civic context. Swedish UI. Pilot: Norrköping 2026.
+Internal tool for testing political messaging (A/B or stimulus/control) against AI agent populations grounded in local civic context. Swedish UI. Pilot: Norrköping 2026.
 
 ## What you can do
 
 1. Build or compose a **population** (demographic mix of personas)
-2. Manage a **persona library** (biography, tone, local context)
-3. Configure a **körning** (budskap A/B, scenario, timeline)
-4. Browse admin surfaces for Personas / Populationer / Körningar
-5. Walk the paper **simulator** demo wizard (`/simulator`)
+2. Manage a **persona library** (biography, tone, local context, chat, anecdotes)
+3. Edit a **budskapsbibliotek** and configure a **körning** (timeline, branch, OASIS options)
+4. Start simulations via background jobs; inspect results and **HTML reports**
+5. Browse admin surfaces: Personas, Populationer, Körningar, Budskap, Grunddata, Jobb
+6. Walk the paper **simulator** demo wizard (`/simulator`)
 
 Phase 1: admin CRUD is API-backed (SQLite). Simulation start defaults to status-only; live multi-agent (OASIS) is optional. Auth and Supabase Postgres come later.
 
@@ -21,7 +22,7 @@ Phase 1: admin CRUD is API-backed (SQLite). Simulation start defaults to status-
 | Database (phase 1) | SQLite (`aiosqlite`) under `backend/data/` |
 | Database (later) | Supabase Postgres |
 | Auth (later) | Supabase Auth (email) |
-| LLM | DeepSeek (OpenAI-compatible SDK; stub mode offline) |
+| LLM | DeepSeek (OpenAI-compatible SDK; stub persona sampling for tests) |
 | Hosting | Railway |
 
 ## Repo layout
@@ -55,14 +56,14 @@ make install
 
 # 2) Backend env + DB
 cd backend
-cp .env.example .env          # set DEEPSEEK_API_KEY or PERSONA_GENERATOR=stub
+cp .env.example .env          # DEEPSEEK_API_KEY is required at startup
 uv run alembic upgrade head
 uv run python -m app.seed
 cd ..
 
 # 3) Frontend env
 cd frontend
-cp .env.example .env          # VITE_API_BASE_URL=http://localhost:8000
+cp .env.example .env          # VITE_API_BASE_URL + Supabase placeholders
 cd ..
 
 # 4) Run both (API :8000, Vite :5173)
@@ -79,10 +80,10 @@ Dual visual system (do not collapse them):
 
 | Area | Theme | Routes |
 | ---- | ----- | ------ |
-| Admin | Devbrains charcoal + gold | `/runs`, `/personas`, `/populations` |
+| Admin | Devbrains charcoal + gold | `/runs`, `/personas`, `/populations`, `/messages`, `/config`, `/jobs`, `/reports/:id` |
 | Simulator | Paper / editorial | `/simulator` |
 
-Admin pages call the API via `VITE_API_BASE_URL`. The simulator wizard still uses mock data unless you open a run that has OASIS results.
+Admin pages call the API via `VITE_API_BASE_URL`. The simulator wizard still uses mock data unless you open a run that has OASIS results in the admin UI.
 
 ```bash
 cd frontend
@@ -96,7 +97,7 @@ Source mockup: `frontend/mockup/Socialism.zip`.
 
 ## Backend
 
-Local admin API: personas, populations (recipe + members), runs (timeline JSON). No auth in phase 1.
+Local admin API: personas, populations, runs, messages, catalog, jobs, reports. No auth in phase 1.
 
 ```bash
 cd backend
@@ -109,8 +110,9 @@ uv run uvicorn app.main:app --reload
 
 Useful env knobs (see `backend/.env.example`):
 
-- `PERSONA_GENERATOR=deepseek|stub` — offline stub vs DeepSeek
-- `SIMULATION_ENGINE=none|oasis` — status flip vs optional OASIS spike (`uv sync --extra oasis`)
+- `DEEPSEEK_API_KEY` — **required** at startup (no silent LLM fallback)
+- `PERSONA_GENERATOR=deepseek|stub` — DeepSeek vs offline persona sampling (key still required)
+- `SIMULATION_ENGINE=none|oasis` — empty attempt vs optional OASIS spike (`uv sync --extra oasis`)
 
 Tests: `cd backend && uv run pytest`.
 
@@ -121,9 +123,10 @@ Tests: `cd backend && uv run pytest`.
 | [knowledge/manual/](knowledge/manual/) | End-user OKF guides (Swedish UI) |
 | [knowledge/README.md](knowledge/README.md) | OKF bundle conventions + validate/MCP |
 | [docs/client-brief.md](docs/client-brief.md) | Product brief |
-| [docs/guides/backend-setup.md](docs/guides/backend-setup.md) | Backend setup detail |
-| [docs/guides/frontend-setup.md](docs/guides/frontend-setup.md) | Frontend setup detail |
-| [docs/architecture.md](docs/architecture.md) | Architecture notes |
+| [docs/guides/backend-setup.md](docs/guides/backend-setup.md) | Backend setup, jobs, OASIS, troubleshooting |
+| [docs/guides/frontend-setup.md](docs/guides/frontend-setup.md) | Frontend setup, routes, env |
+| [docs/guides/supabase-setup.md](docs/guides/supabase-setup.md) | Future Supabase migration notes |
+| [docs/architecture.md](docs/architecture.md) | Current system architecture |
 | [AGENTS.md](AGENTS.md) | Agent / contributor conventions |
 
 Validate OKF manuals: `make knowledge-validate`.
