@@ -385,6 +385,8 @@ class OasisRunOptions(BaseModel):
 
     platform: OasisPlatform = "twitter"
     allow_population_create_post: bool = True
+    enable_web_search: bool = False
+    enable_sympy_tools: bool = False
 
 
 class RunSummary(BaseModel):
