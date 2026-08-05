@@ -9,6 +9,10 @@ tags: [korningar, personas, populationer, budskap, grunddata, jobb, rapporter]
 
 Opinionssimulator är en adminyta (mörk Devbrains-stil) för det dagliga arbetet med personas, populationer och körningar.
 
+## Startsida (dashboard)
+
+När du öppnar appen landar du på **dashboard** (`/`). Där ser du snabbstart, senaste körningar, aktiva bakgrundsjobb, biblioteksstatistik och senaste rapporter. Om inget är skapat ännu visas en **Kom igång**-guide med steg i rätt ordning.
+
 ## Admin (det du använder till vardags)
 
 Från menyn når du bland annat:

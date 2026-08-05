@@ -195,7 +195,7 @@ export function AdminShell({ children }: AdminShellProps) {
     <div className="theme-admin">
       <header className="admin-topnav sticky top-0 z-50 bg-db-ink-950 text-db-ink-0">
         <div className="mx-auto flex max-w-[1240px] items-center justify-between gap-8 px-10 py-4">
-          <NavLink to="/runs" className="admin-topnav-brand flex items-center gap-3 no-underline">
+          <NavLink to="/" className="admin-topnav-brand flex items-center gap-3 no-underline">
             <img
               src="/devbrains-logo-white.png"
               alt="Devbrains"
