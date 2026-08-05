@@ -37,6 +37,8 @@ type RunTab = "config" | "results"
 const DEFAULT_OASIS_OPTIONS: OasisRunOptions = {
   platform: "twitter",
   allow_population_create_post: true,
+  enable_web_search: false,
+  enable_sympy_tools: false,
 }
 
 function parseTab(raw: string | null): RunTab {
@@ -588,6 +590,20 @@ export function ConfigureRunPage() {
                       setOasisOptions((prev) => ({
                         ...prev,
                         allow_population_create_post: checked,
+                      }))
+                    }
+                    enableWebSearch={oasisOptions.enable_web_search}
+                    onEnableWebSearchChange={(checked) =>
+                      setOasisOptions((prev) => ({
+                        ...prev,
+                        enable_web_search: checked,
+                      }))
+                    }
+                    enableSympyTools={oasisOptions.enable_sympy_tools}
+                    onEnableSympyToolsChange={(checked) =>
+                      setOasisOptions((prev) => ({
+                        ...prev,
+                        enable_sympy_tools: checked,
                       }))
                     }
                     disabled={configLocked}

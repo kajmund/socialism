@@ -11,6 +11,7 @@ export type FollowRow = NonNullable<OasisVariantResult["follows"]>[number]
 export type MuteRow = NonNullable<OasisVariantResult["mutes"]>[number]
 export type ReportRow = NonNullable<OasisVariantResult["reports"]>[number]
 export type AgentRow = NonNullable<OasisVariantResult["agents"]>[number]
+export type AgentToolRow = NonNullable<OasisVariantResult["agent_tools"]>[number]
 
 /** Actions already shown on post/comment cards — skip as timeline rows. */
 export const CARD_COVERED_ACTIONS = new Set([
@@ -111,6 +112,55 @@ export function parseTraceInfo(
     return {}
   }
   return {}
+}
+
+function argPreview(args: Record<string, unknown> | undefined): string | null {
+  if (!args) return null
+  for (const key of ["query", "entity", "expression", "input", "text"]) {
+    const value = args[key]
+    if (typeof value === "string" && value.trim()) return value.trim()
+  }
+  const first = Object.values(args).find((v) => typeof v === "string" && v.trim())
+  return typeof first === "string" ? first.trim() : null
+}
+
+export function describeAgentTool(
+  row: AgentToolRow,
+  t: Translate,
+): {
+  label: string
+  detail: string | null
+} {
+  const argsPreview = argPreview(row.args)
+  switch (row.tool_name) {
+    case "search_duckduckgo":
+      return { label: t("runs.feed.actionSearchWeb"), detail: argsPreview }
+    case "search_wiki":
+      return { label: t("runs.feed.actionSearchWiki"), detail: argsPreview }
+    default:
+      return {
+        label: t("runs.feed.actionSympy"),
+        detail: argsPreview ?? row.result_preview ?? row.tool_name,
+      }
+  }
+}
+
+function sortKeyForAgentTool(row: AgentToolRow, markers: TickMarker[]): number {
+  const marker = markers.find((m) => m.tick_index === row.tick_index)
+  if (!marker) return row.tick_index * 1_000_000
+  return marker.time_start + (row.sequence ?? 0)
+}
+
+export function agentToolHistogram(
+  rows: AgentToolRow[] | undefined,
+): Array<{ tool_name: string; count: number }> {
+  const counts = new Map<string, number>()
+  for (const row of rows ?? []) {
+    counts.set(row.tool_name, (counts.get(row.tool_name) ?? 0) + 1)
+  }
+  return [...counts.entries()]
+    .map(([tool_name, count]) => ({ tool_name, count }))
+    .sort((a, b) => b.count - a.count)
 }
 
 function asInt(value: unknown): number | null {
@@ -407,6 +457,23 @@ export function buildTimelineItems(
   })
 
   let actionTie = 0
+  for (const row of variant.agent_tools ?? []) {
+    const desc = describeAgentTool(row, t)
+    items.push({
+      kind: "action",
+      tickIndex: row.tick_index,
+      sortKey: sortKeyForAgentTool(row, markers),
+      tie: 20_000 + actionTie++,
+      userId: row.user_id,
+      action: `tool:${row.tool_name}`,
+      createdAt: undefined,
+      label: desc.label,
+      detail: row.result_preview ?? desc.detail,
+      targetUserId: null,
+      postId: null,
+    })
+  }
+
   for (const row of trace) {
     const action = (row.action || "").trim()
     if (!isTimelineAction(action, hideNoise)) continue
