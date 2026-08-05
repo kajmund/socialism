@@ -1,5 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card"
 import type { OasisPlatform, RunStatus } from "@/data/runs-types"
+import { useLocale } from "@/i18n"
 
 const PLATFORMS: { value: OasisPlatform; label: string }[] = [
   { value: "twitter", label: "Twitter" },
@@ -35,16 +36,23 @@ export function RunActionCard({
   onSave,
   onStart,
 }: RunActionCardProps) {
+  const { t } = useLocale()
   const startLabel =
-    runStatus === "done" || runStatus === "failed" ? "Kör igen" : "Starta körning"
+    runStatus === "done" || runStatus === "failed"
+      ? t("runs.actions.rerun")
+      : t("runs.actions.start")
   const saveBusy = pendingAction === "save"
   const startBusy = pendingAction === "start"
   const barStartLabel =
-    startLabel === "Kör igen" ? "Kör igen" : startBusy ? "Startar…" : "Starta"
-  const barSaveLabel = saveBusy ? "Sparar…" : "Spara"
-  const cardSaveLabel = saveBusy ? "Sparar…" : "Spara körning"
+    runStatus === "done" || runStatus === "failed"
+      ? t("runs.actions.rerun")
+      : startBusy
+        ? t("runs.actions.starting")
+        : t("runs.actions.startShort")
+  const barSaveLabel = saveBusy ? t("common.saving") : t("common.save")
+  const cardSaveLabel = saveBusy ? t("common.saving") : t("runs.actions.saveRun")
   const cardStartLabel = startBusy
-    ? "Startar…"
+    ? t("runs.actions.starting")
     : startLabel
 
   const content = (
@@ -67,15 +75,15 @@ export function RunActionCard({
         </div>
         <div className="start-stat">
           <div className="n">{tickCount}</div>
-          <div className="l">Tickar</div>
+          <div className="l">{t("runs.actions.ticks")}</div>
         </div>
         <div className="start-stat">
           <div className="n">{populationSize}</div>
-          <div className="l">Personas</div>
+          <div className="l">{t("runs.actions.personas")}</div>
         </div>
         <div className="start-stat">
           <div className="n">{variantCount}</div>
-          <div className="l">Varianter</div>
+          <div className="l">{t("runs.actions.variants")}</div>
         </div>
       </div>
       <div className="start-actions">

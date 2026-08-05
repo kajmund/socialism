@@ -1,6 +1,6 @@
 /**
  * Env validation. Required vars fail fast at boot.
- * Admin surfaces call the API via VITE_API_BASE_URL; simulator stays mock.
+ * Admin surfaces call the API via VITE_API_BASE_URL.
  */
 function required(name: string): string {
   const value = import.meta.env[name]

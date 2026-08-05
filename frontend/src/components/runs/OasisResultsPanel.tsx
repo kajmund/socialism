@@ -12,7 +12,9 @@ import { useNavigate } from "react-router-dom"
 import { createReport, listReports } from "@/api/reports"
 import { PersonaProfileModal } from "@/components/personas/PersonaProfileModal"
 import {
+  agentToolHistogram,
   buildTimelineItems,
+  describeAgentTool,
   groupTimelineSegments,
   HIDDEN_ACTIONS,
   parseTraceInfo,
@@ -37,8 +39,8 @@ import {
   RunPersonaInterviewModal,
 } from "@/components/runs/RunPersonaInterviewPanel"
 import { personaInitials } from "@/data/library"
-import { RUN_STATUS_LABEL } from "@/data/runs"
 import { ApiError } from "@/lib/api"
+import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
 import {
   CONTROL_VARIANT_LABEL,
   STIMULUS_VARIANT_LABEL,
@@ -52,6 +54,8 @@ import {
   type RunStatus,
 } from "@/data/runs-types"
 
+type Translate = (key: MessageKey, params?: TranslateParams) => string
+
 type AgentRow = NonNullable<OasisVariantResult["agents"]>[number]
 
 type ProfileTarget = {
@@ -62,6 +66,7 @@ type ProfileTarget = {
 /** Normalize legacy flat results and current attempts[] into a stable list. */
 export function normalizeRunAttempts(
   results: OasisRunResults | null | undefined,
+  t: Translate,
 ): OasisAttemptResult[] {
   if (!results) return []
   if (Array.isArray(results.attempts) && results.attempts.length > 0) {
@@ -95,7 +100,7 @@ export function normalizeRunAttempts(
         variants: [
           {
             id: "main",
-            label: "Huvudtidslinje",
+            label: t("runs.results.mainTimeline"),
             error: results.error,
             ticks_run: results.ticks_run,
             agents: results.agents ?? [],
@@ -110,11 +115,15 @@ export function normalizeRunAttempts(
   return []
 }
 
-function formatWhen(iso: string | null | undefined): string {
-  if (!iso) return "Okänd tidpunkt"
+function formatWhen(
+  iso: string | null | undefined,
+  t: Translate,
+  intl: string,
+): string {
+  if (!iso) return t("runs.results.unknownTime")
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
-  return new Intl.DateTimeFormat("sv-SE", {
+  return new Intl.DateTimeFormat(intl, {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -126,18 +135,23 @@ function formatWhen(iso: string | null | undefined): string {
 function agentLabel(
   agents: NonNullable<OasisVariantResult["agents"]>,
   userId: number,
+  t: Translate,
 ): string {
-  return agents.find((a) => a.index === userId)?.member_name ?? `agent ${userId}`
+  return (
+    agents.find((a) => a.index === userId)?.member_name ??
+    t("runs.feed.agentFallback", { userId })
+  )
 }
 
 function agentProfileTarget(
   agents: NonNullable<OasisVariantResult["agents"]>,
   userId: number,
+  t: Translate,
 ): ProfileTarget {
   const agent = agents.find((a) => a.index === userId)
   return {
     personaId: agent?.persona_id ?? null,
-    name: agent?.member_name ?? `agent ${userId}`,
+    name: agent?.member_name ?? t("runs.feed.agentFallback", { userId }),
   }
 }
 
@@ -234,14 +248,18 @@ function FeedAuthorHeader({
   )
 }
 
-function formatFeedWhen(iso: string | number | null | undefined): string | null {
+function formatFeedWhen(
+  iso: string | number | null | undefined,
+  t: Translate,
+  intl: string,
+): string | null {
   if (iso == null || iso === "") return null
   if (typeof iso === "number" || (/^\d+(\.\d+)?$/.test(String(iso)) && !String(iso).includes("-"))) {
-    return `t=${iso}`
+    return t("runs.feed.simTime", { value: iso })
   }
   const d = new Date(String(iso))
   if (Number.isNaN(d.getTime())) return String(iso)
-  return new Intl.DateTimeFormat("sv-SE", {
+  return new Intl.DateTimeFormat(intl, {
     day: "numeric",
     month: "long",
     hour: "2-digit",
@@ -261,6 +279,7 @@ function pct(value: number | undefined): string {
 }
 
 function MeasurementDetail({ point }: { point: OasisMeasurementPoint }) {
+  const { t } = useLocale()
   const metrics = point.metrics
   const engagement = metrics?.engagement
   const sentiment = metrics?.sentiment
@@ -276,14 +295,26 @@ function MeasurementDetail({ point }: { point: OasisMeasurementPoint }) {
     <div className="space-y-3 text-sm">
       {engagement ? (
         <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-          <span>{engagement.posts ?? 0} inlägg</span>
-          <span>{engagement.comments ?? 0} kommentarer</span>
-          <span>{engagement.likes ?? 0} likes</span>
-          <span>{engagement.dislikes ?? 0} dislikes</span>
-          <span>{engagement.shares ?? 0} shares</span>
-          <span>engagemang {engagement.engagement_score ?? 0}</span>
+          <span>{t("runs.results.metricPosts", { count: engagement.posts ?? 0 })}</span>
+          <span>
+            {t("runs.results.metricComments", {
+              count: engagement.comments ?? 0,
+            })}
+          </span>
+          <span>{t("runs.results.metricLikes", { count: engagement.likes ?? 0 })}</span>
+          <span>
+            {t("runs.results.metricDislikes", {
+              count: engagement.dislikes ?? 0,
+            })}
+          </span>
+          <span>{t("runs.results.metricShares", { count: engagement.shares ?? 0 })}</span>
+          <span>
+            {t("runs.results.metricEngagement", {
+              score: engagement.engagement_score ?? 0,
+            })}
+          </span>
           {typeof follows?.edges === "number" ? (
-            <span>{follows.edges} följningar</span>
+            <span>{t("runs.results.metricFollows", { count: follows.edges })}</span>
           ) : null}
           {typeof metrics?.engagement_delta === "number" ? (
             <span>
@@ -297,29 +328,39 @@ function MeasurementDetail({ point }: { point: OasisMeasurementPoint }) {
       {sentiment ? (
         <div>
           <div className="mb-1 text-xs font-medium text-muted-foreground">
-            Sentiment
+            {t("runs.results.sentiment")}
           </div>
           <div className="flex h-2 overflow-hidden rounded-full bg-muted">
             <div
               className="bg-[var(--db-success)]"
               style={{ width: pct(sentiment.positive) }}
-              title={`Positiv ${pct(sentiment.positive)}`}
+              title={t("runs.results.sentimentPositive", {
+                pct: pct(sentiment.positive),
+              })}
             />
             <div
               className="bg-[var(--db-ink-200)]"
               style={{ width: pct(sentiment.neutral) }}
-              title={`Neutral ${pct(sentiment.neutral)}`}
+              title={t("runs.results.sentimentNeutral", {
+                pct: pct(sentiment.neutral),
+              })}
             />
             <div
               className="bg-[var(--db-error)]"
               style={{ width: pct(sentiment.negative) }}
-              title={`Negativ ${pct(sentiment.negative)}`}
+              title={t("runs.results.sentimentNegative", {
+                pct: pct(sentiment.negative),
+              })}
             />
           </div>
           <div className="mt-1 flex flex-wrap gap-3 text-[11px] text-muted-foreground">
-            <span>Pos {pct(sentiment.positive)}</span>
-            <span>Neu {pct(sentiment.neutral)}</span>
-            <span>Neg {pct(sentiment.negative)}</span>
+            <span>
+              {t("runs.results.sentimentShort", {
+                positive: pct(sentiment.positive),
+                neutral: pct(sentiment.neutral),
+                negative: pct(sentiment.negative),
+              })}
+            </span>
           </div>
         </div>
       ) : null}
@@ -327,7 +368,7 @@ function MeasurementDetail({ point }: { point: OasisMeasurementPoint }) {
       {phrases.length > 0 ? (
         <div>
           <div className="mb-1 text-xs font-medium text-muted-foreground">
-            Toppfraser
+            {t("runs.results.topPhrases")}
           </div>
           <ul className="flex flex-wrap gap-1.5">
             {phrases.map((p) => (
@@ -345,7 +386,7 @@ function MeasurementDetail({ point }: { point: OasisMeasurementPoint }) {
       {districts.length > 0 ? (
         <div>
           <div className="mb-1 text-xs font-medium text-muted-foreground">
-            Engagemang per distrikt
+            {t("runs.results.engagementByDistrict")}
           </div>
           <ul className="space-y-1.5">
             {districts.slice(0, 8).map((d) => (
@@ -373,7 +414,7 @@ function MeasurementDetail({ point }: { point: OasisMeasurementPoint }) {
       {follows?.top_followees && follows.top_followees.length > 0 ? (
         <div>
           <div className="mb-1 text-xs font-medium text-muted-foreground">
-            Mest följda (agent-index)
+            {t("runs.results.mostFollowed")}
           </div>
           <ul className="flex flex-wrap gap-1.5">
             {follows.top_followees.map((f) => (
@@ -393,6 +434,7 @@ function MeasurementDetail({ point }: { point: OasisMeasurementPoint }) {
 }
 
 function QualityWarningsBanner({ data }: { data: QualityWarnings }) {
+  const { locale, t } = useLocale()
   const warnings = data.warnings ?? []
   if (warnings.length === 0) return null
 
@@ -401,14 +443,18 @@ function QualityWarningsBanner({ data }: { data: QualityWarnings }) {
   return (
     <section
       className="mb-4 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2.5"
-      aria-label="Kvalitetsvarningar"
+      aria-label={t("runs.results.qualityAria")}
     >
       <h3 className="text-sm font-semibold text-amber-900 dark:text-amber-100">
-        Lexikal konvergens
+        {t("runs.results.qualityTitle")}
       </h3>
       <p className="mt-1 text-xs text-amber-900/80 dark:text-amber-100/80">
-        {warnings.length} fras{warnings.length === 1 ? "" : "er"} delas av ≥
-        {thresholdPct}% av populationen ({data.population_agents} agenter).
+        {t("runs.results.qualitySummary", {
+          count: warnings.length,
+          suffix: warnings.length === 1 ? "" : locale === "sv" ? "er" : "s",
+          threshold: thresholdPct,
+          agents: data.population_agents,
+        })}
       </p>
       <ul className="mt-2 space-y-1.5">
         {warnings.slice(0, 8).map((w) => (
@@ -421,7 +467,10 @@ function QualityWarningsBanner({ data }: { data: QualityWarnings }) {
               {" "}
               — {w.agent_count}/{data.population_agents} agenter (
               {Math.round(w.agent_share * 100)}%)
-              {w.kind === "source_phrase_echo" ? " · eko av injektion" : " · gemensam fras"}
+              {" · "}
+              {w.kind === "source_phrase_echo"
+                ? t("runs.results.qualityEcho")
+                : t("runs.results.qualityCommon")}
               {w.source ? ` (${w.source})` : ""}
             </span>
           </li>
@@ -429,7 +478,7 @@ function QualityWarningsBanner({ data }: { data: QualityWarnings }) {
       </ul>
       {warnings.length > 8 ? (
         <p className="mt-1.5 text-[11px] text-amber-900/70 dark:text-amber-100/70">
-          +{warnings.length - 8} till
+          {t("runs.results.qualityMore", { count: warnings.length - 8 })}
         </p>
       ) : null}
     </section>
@@ -459,6 +508,7 @@ function StimulusControlComparison({
   stimulus: OasisVariantResult
   control: OasisVariantResult
 }) {
+  const { t } = useLocale()
   const sw = stimulus.quality_warnings
   const cw = control.quality_warnings
   const sCount = sw?.warnings.length ?? 0
@@ -472,35 +522,29 @@ function StimulusControlComparison({
   return (
     <section
       className="mb-4 rounded-md border border-sky-500/35 bg-sky-500/10 px-3 py-2.5"
-      aria-label="Stimulus vs kontroll"
+      aria-label={t("runs.results.stimulusTitle")}
     >
       <h3 className="text-sm font-semibold text-sky-950 dark:text-sky-50">
-        Stimulus vs kontroll
+        {t("runs.results.stimulusTitle")}
       </h3>
       <p className="mt-1 text-xs text-sky-950/80 dark:text-sky-50/80">
-        Med stimulus: {sCount} konvergensvarning
-        {sCount === 1 ? "" : "ar"}. Kontroll: {cCount} konvergensvarning
-        {cCount === 1 ? "" : "ar"}.
+        {t("runs.results.stimulusSummary", { sCount, cCount })}
       </p>
       {delta > 0 ? (
         <p className="mt-1 text-xs text-sky-950/80 dark:text-sky-50/80">
-          Stimulus ökar lexikal konvergens med {delta} varning
-          {delta === 1 ? "" : "ar"} — troligen kopplat till injektionstext eller
-          budskapsspridning.
+          {t("runs.results.stimulusIncreases", { delta })}
         </p>
       ) : delta < 0 ? (
         <p className="mt-1 text-xs text-sky-950/80 dark:text-sky-50/80">
-          Kontroll har fler varningar än stimulus (oväntat — granska
-          populationens spontana språkmönster).
+          {t("runs.results.stimulusControlHigher")}
         </p>
       ) : sCount > 0 ? (
         <p className="mt-1 text-xs text-sky-950/80 dark:text-sky-50/80">
-          Samma antal varningar i båda varianterna — konvergens verkar inte
-          drivas enbart av injektionen.
+          {t("runs.results.stimulusEqual")}
         </p>
       ) : (
         <p className="mt-1 text-xs text-sky-950/80 dark:text-sky-50/80">
-          Inga konvergensvarningar i någon variant.
+          {t("runs.results.stimulusNone")}
         </p>
       )}
       {stimulusOnly.length > 0 ? (
@@ -513,7 +557,7 @@ function StimulusControlComparison({
               <span className="font-medium">«{w.phrase}»</span>
               <span className="text-sky-900/70 dark:text-sky-100/70">
                 {" "}
-                — bara i stimulus ({w.agent_count} agenter)
+                — {t("runs.results.stimulusOnly", { count: w.agent_count })}
               </span>
             </li>
           ))}
@@ -546,6 +590,7 @@ function ActorList({
   emptyLabel: string
   onOpenAgent: (userId: number) => void
 }) {
+  const { t } = useLocale()
   if (userIds.length === 0) {
     return <p className="px-1 py-0.5 text-xs text-muted-foreground">{emptyLabel}</p>
   }
@@ -554,7 +599,7 @@ function ActorList({
       {userIds.map((id) => (
         <li key={id} className="rounded px-2 py-0.5 text-xs hover:bg-muted/60">
           <AgentNameButton
-            name={agentLabel(agents, id)}
+            name={agentLabel(agents, id, t)}
             className="w-full px-0 py-1 text-left text-xs"
             showAvatar={!agentIsInjector(agents, id)}
             onOpen={() => onOpenAgent(id)}
@@ -584,6 +629,7 @@ function LikeShareBar({
   compact?: boolean
   onOpenAgent: (userId: number) => void
 }) {
+  const { t } = useLocale()
   const likes = likedBy ?? []
   const dislikes = dislikedBy ?? []
   const shares = sharedBy ?? []
@@ -623,7 +669,7 @@ function LikeShareBar({
             type="button"
             disabled={likes.length === 0}
             aria-expanded={open === "like"}
-            aria-label={`Gilla, ${likes.length}`}
+            aria-label={t("runs.feed.likeAria", { count: likes.length })}
             className={
               "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors " +
               (open === "like"
@@ -650,21 +696,21 @@ function LikeShareBar({
               👍
             </span>
             <span className="tabular-nums">{likes.length}</span>
-            {!compact ? <span>Gilla</span> : null}
+            {!compact ? <span>{t("runs.feed.like")}</span> : null}
           </button>
           {open === "like" ? (
             <div
               className="absolute bottom-full left-0 z-20 mb-1.5 min-w-[12rem] max-w-[16rem] rounded-lg border border-border bg-card p-1.5 shadow-lg"
               role="dialog"
-              aria-label="Gillat av"
+              aria-label={t("runs.feed.likedBy")}
             >
               <div className="border-b border-border/60 px-2 py-1 text-[11px] font-semibold text-muted-foreground">
-                Gillat av
+                {t("runs.feed.likedBy")}
               </div>
               <ActorList
                 agents={agents}
                 userIds={likes}
-                emptyLabel="Ingen har gillat ännu"
+                emptyLabel={t("runs.feed.noLikes")}
                 onOpenAgent={openAgentAndClose}
               />
             </div>
@@ -676,7 +722,7 @@ function LikeShareBar({
             type="button"
             disabled={dislikes.length === 0}
             aria-expanded={open === "dislike"}
-            aria-label={`Ogilla, ${dislikes.length}`}
+            aria-label={t("runs.feed.dislikeAria", { count: dislikes.length })}
             className={
               "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors " +
               (open === "dislike"
@@ -703,21 +749,21 @@ function LikeShareBar({
               👎
             </span>
             <span className="tabular-nums">{dislikes.length}</span>
-            {!compact ? <span>Ogilla</span> : null}
+            {!compact ? <span>{t("runs.feed.dislike")}</span> : null}
           </button>
           {open === "dislike" ? (
             <div
               className="absolute bottom-full left-0 z-20 mb-1.5 min-w-[12rem] max-w-[16rem] rounded-lg border border-border bg-card p-1.5 shadow-lg"
               role="dialog"
-              aria-label="Ogillat av"
+              aria-label={t("runs.feed.dislikedBy")}
             >
               <div className="border-b border-border/60 px-2 py-1 text-[11px] font-semibold text-muted-foreground">
-                Ogillat av
+                {t("runs.feed.dislikedBy")}
               </div>
               <ActorList
                 agents={agents}
                 userIds={dislikes}
-                emptyLabel="Ingen har ogillat ännu"
+                emptyLabel={t("runs.feed.noDislikes")}
                 onOpenAgent={openAgentAndClose}
               />
             </div>
@@ -730,7 +776,7 @@ function LikeShareBar({
               type="button"
               disabled={shares.length === 0}
               aria-expanded={open === "share"}
-              aria-label={`Dela, ${shares.length}`}
+              aria-label={t("runs.feed.shareAria", { count: shares.length })}
               className={
                 "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors " +
                 (open === "share"
@@ -749,16 +795,16 @@ function LikeShareBar({
                 ↗
               </span>
               <span className="tabular-nums">{shares.length}</span>
-              <span>Dela</span>
+              <span>{t("runs.feed.shareVerb")}</span>
             </button>
             {open === "share" ? (
               <div
                 className="absolute bottom-full left-0 z-20 mb-1.5 min-w-[12rem] max-w-[16rem] rounded-lg border border-border bg-card p-1.5 shadow-lg"
                 role="dialog"
-                aria-label="Delat av"
+                aria-label={t("runs.feed.sharedBy")}
               >
                 <div className="border-b border-border/60 px-2 py-1 text-[11px] font-semibold text-muted-foreground">
-                  Delat av
+                  {t("runs.feed.sharedBy")}
                 </div>
                 <ul className="max-h-40 overflow-auto py-0.5">
                   {shares.map((s) => (
@@ -767,13 +813,15 @@ function LikeShareBar({
                       className="flex items-center justify-between gap-2 rounded px-2 py-0.5 text-xs hover:bg-muted/60"
                     >
                       <AgentNameButton
-                        name={agentLabel(agents, s.user_id)}
+                        name={agentLabel(agents, s.user_id, t)}
                         className="px-0 py-1 text-left text-xs"
                         showAvatar={!agentIsInjector(agents, s.user_id)}
                         onOpen={() => openAgentAndClose(s.user_id)}
                       />
                       <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                        {s.kind === "quote" ? "citat" : "delning"}
+                        {s.kind === "quote"
+                          ? t("runs.feed.quote")
+                          : t("runs.feed.share")}
                       </span>
                     </li>
                   ))}
@@ -802,7 +850,8 @@ function OrderReportButton({
   onClick: () => void
   prominent?: boolean
 }) {
-  const title = busy ? "Genererar rapport…" : label
+  const { t } = useLocale()
+  const title = busy ? t("runs.results.reportGenerating") : label
 
   return (
     <button
@@ -917,6 +966,7 @@ function variantHasNetworkActivity(variant: OasisVariantResult): boolean {
     (variant.follows?.length ?? 0) > 0 ||
     (variant.mutes?.length ?? 0) > 0 ||
     (variant.reports?.length ?? 0) > 0 ||
+    (variant.agent_tools?.length ?? 0) > 0 ||
     histogram.length > 0
   )
 }
@@ -952,6 +1002,7 @@ function NetworkActivityContent({
   variant: OasisVariantResult
   onOpenAgent: (userId: number) => void
 }) {
+  const { t } = useLocale()
   const agents = variant.agents ?? []
   const follows = variant.follows ?? []
   const mutes = variant.mutes ?? []
@@ -959,26 +1010,27 @@ function NetworkActivityContent({
   const histogram = (variant.action_histogram ?? []).filter(
     (row) => !HIDDEN_ACTIONS.has(row.action),
   )
+  const toolHistogram = agentToolHistogram(variant.agent_tools)
 
   return (
     <div className="space-y-3">
       {follows.length > 0 ? (
         <div>
           <div className="mb-1 text-xs font-medium text-muted-foreground">
-            Följningar ({follows.length})
+            {t("runs.results.networkFollows", { count: follows.length })}
           </div>
           <ul className="max-h-48 space-y-1 overflow-y-auto text-xs text-muted-foreground">
             {follows.slice(0, 40).map((f, i) => (
               <li key={`${f.follower_id}-${f.followee_id}-${i}`}>
                 <AgentNameButton
-                  name={agentLabel(agents, f.follower_id)}
+                  name={agentLabel(agents, f.follower_id, t)}
                   className="text-xs text-muted-foreground"
                   showAvatar={!agentIsInjector(agents, f.follower_id)}
                   onOpen={() => onOpenAgent(f.follower_id)}
                 />
                 {" → "}
                 <AgentNameButton
-                  name={agentLabel(agents, f.followee_id)}
+                  name={agentLabel(agents, f.followee_id, t)}
                   className="text-xs text-muted-foreground"
                   showAvatar={!agentIsInjector(agents, f.followee_id)}
                   onOpen={() => onOpenAgent(f.followee_id)}
@@ -987,7 +1039,7 @@ function NetworkActivityContent({
             ))}
             {follows.length > 40 ? (
               <li className="text-muted-foreground/80">
-                …och {follows.length - 40} till
+                {t("runs.results.networkMore", { count: follows.length - 40 })}
               </li>
             ) : null}
           </ul>
@@ -996,15 +1048,40 @@ function NetworkActivityContent({
 
       {mutes.length > 0 || reports.length > 0 ? (
         <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-          {mutes.length > 0 ? <span>{mutes.length} mutes</span> : null}
-          {reports.length > 0 ? <span>{reports.length} rapporter</span> : null}
+          {mutes.length > 0 ? (
+            <span>{t("runs.results.networkMutes", { count: mutes.length })}</span>
+          ) : null}
+          {reports.length > 0 ? (
+            <span>{t("runs.results.networkReports", { count: reports.length })}</span>
+          ) : null}
+        </div>
+      ) : null}
+
+      {toolHistogram.length > 0 ? (
+        <div>
+          <div className="mb-2 text-xs font-medium text-muted-foreground">
+            {t("runs.results.networkAgentTools")}
+          </div>
+          <ActionHistogramChart
+            rows={toolHistogram.map((row) => ({
+              action: describeAgentTool(
+                {
+                  user_id: 0,
+                  tick_index: 0,
+                  tool_name: row.tool_name,
+                },
+                t,
+              ).label,
+              count: row.count,
+            }))}
+          />
         </div>
       ) : null}
 
       {histogram.length > 0 ? (
         <div>
           <div className="mb-2 text-xs font-medium text-muted-foreground">
-            Åtgärder (trace)
+            {t("runs.results.networkTrace")}
           </div>
           <ActionHistogramChart rows={histogram} />
         </div>
@@ -1018,6 +1095,7 @@ function ActionHistogramChart({
 }: {
   rows: Array<{ action: string; count: number }>
 }) {
+  const { t } = useLocale()
   const top = rows.slice(0, 12)
   const max = Math.max(1, ...top.map((row) => row.count))
 
@@ -1025,7 +1103,7 @@ function ActionHistogramChart({
     <div
       className="flex h-36 items-end gap-1 border-b border-border/60 pb-1 pt-2"
       role="img"
-      aria-label="Stapeldiagram över spårade åtgärder"
+      aria-label={t("runs.results.networkChartAria")}
     >
       {top.map((row) => {
         const heightPct = Math.round((row.count / max) * 100)
@@ -1075,6 +1153,7 @@ function VariantBlock({
   runId?: number
   attemptId?: string
 }) {
+  const { t } = useLocale()
   const hasNetwork = variantHasNetworkActivity(variant)
 
   return (
@@ -1096,14 +1175,14 @@ function VariantBlock({
           <div className="min-w-0">
             <span className="text-sm font-medium text-foreground">{variant.label}</span>
             <span className="mt-0.5 block text-xs text-muted-foreground">
-              {variantSummary(variant)}
+              {variantSummary(variant, t)}
             </span>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2 pt-0.5">
           {hasNetwork ? (
             <NetworkActivityIconButton
-              label={`Nätverk & åtgärder · ${variant.label}`}
+              label={t("runs.results.networkForVariant", { variant: variant.label })}
               onClick={onOpenNetwork}
             />
           ) : null}
@@ -1113,7 +1192,7 @@ function VariantBlock({
             aria-expanded={expanded}
             onClick={onToggleExpand}
           >
-            {expanded ? "Dölj ▴" : "Visa ▾"}
+            {expanded ? t("runs.results.hide") : t("runs.results.show")}
           </button>
         </div>
       </div>
@@ -1135,11 +1214,12 @@ function CompactActionRow({
   agents: NonNullable<OasisVariantResult["agents"]>
   onOpenAgent: (userId: number) => void
 }) {
-  const when = formatFeedWhen(item.createdAt)
+  const { intl, t } = useLocale()
+  const when = formatFeedWhen(item.createdAt, t, intl)
   return (
     <li className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border border-dashed border-border/70 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
       <AgentNameButton
-        name={agentLabel(agents, item.userId)}
+        name={agentLabel(agents, item.userId, t)}
         className="text-xs font-medium text-foreground"
         showAvatar={!agentIsInjector(agents, item.userId)}
         onOpen={() => onOpenAgent(item.userId)}
@@ -1147,7 +1227,7 @@ function CompactActionRow({
       <span>{item.label}</span>
       {item.targetUserId != null ? (
         <AgentNameButton
-          name={item.detail ?? agentLabel(agents, item.targetUserId)}
+          name={item.detail ?? agentLabel(agents, item.targetUserId, t)}
           className="text-xs text-muted-foreground"
           showAvatar={!agentIsInjector(agents, item.targetUserId)}
           onOpen={() => onOpenAgent(item.targetUserId!)}
@@ -1239,36 +1319,39 @@ function TickMarkerCard({
   onInterview: () => void
   children?: ReactNode
 }) {
+  const { t } = useLocale()
   const empty = tick.timeEnd < tick.timeStart
   return (
     <li className="list-none">
       <div className="rounded-md border border-border bg-muted/30">
         <div className="flex flex-wrap items-center gap-2 px-3 py-2 text-xs">
-          <span className="font-semibold text-foreground">Dag {tick.day}</span>
+          <span className="font-semibold text-foreground">
+            {t("runs.results.dayLabel", { day: tick.day })}
+          </span>
           {tick.silent ? (
             <span className="rounded border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
-              tyst
+              {t("runs.results.silentTick")}
             </span>
           ) : (
             <span className="rounded border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
-              tick
+              {t("runs.results.tickWord")}
             </span>
           )}
           <span className="text-muted-foreground">
-            {tick.rounds} rond{tick.rounds === 1 ? "" : "er"}
+            {t("runs.results.rounds", { count: tick.rounds })}
           </span>
           <span className="ml-auto flex items-center gap-2 tabular-nums text-[10px] text-muted-foreground/80">
             <span>
               {empty
-                ? "inga nya händelser"
+                ? t("runs.results.noNewEvents")
                 : `t=${tick.timeStart}–${tick.timeEnd}`}
             </span>
             {eventsEnabled ? (
               <button
                 type="button"
                 className="inline-grid h-6 w-6 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
-                title={`Händelser dag ${tick.day}`}
-                aria-label={`Händelser dag ${tick.day}`}
+                title={t("runs.results.eventsForDay", { day: tick.day })}
+                aria-label={t("runs.results.eventsForDay", { day: tick.day })}
                 onClick={onOpenEvents}
               >
                 <DayEventsIcon />
@@ -1278,8 +1361,10 @@ function TickMarkerCard({
               <button
                 type="button"
                 className="inline-grid h-6 w-6 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
-                title={`Opinionsmätning efter dag ${tick.day}`}
-                aria-label={`Opinionsmätning efter dag ${tick.day}`}
+                title={t("runs.results.measurementsForDay", { day: tick.day })}
+                aria-label={t("runs.results.measurementsForDay", {
+                  day: tick.day,
+                })}
                 onClick={onOpenMeasurements}
               >
                 <OpinionMeasurementIcon />
@@ -1289,8 +1374,10 @@ function TickMarkerCard({
               <button
                 type="button"
                 className="inline-grid h-6 w-6 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
-                title={`Intervjua efter dag ${tick.day}`}
-                aria-label={`Intervjua efter dag ${tick.day}`}
+                title={t("runs.results.interviewAfterDay", { day: tick.day })}
+                aria-label={t("runs.results.interviewAfterDay", {
+                  day: tick.day,
+                })}
                 onClick={onInterview}
               >
                 <svg
@@ -1313,11 +1400,13 @@ function TickMarkerCard({
               className="rounded px-2 py-1 text-xs text-muted-foreground hover:bg-muted/60"
               aria-expanded={expanded}
               aria-label={
-                (expanded ? "Stäng" : "Expandera") + " dag " + tick.day
+                expanded
+                  ? t("runs.results.closeDay", { day: tick.day })
+                  : t("runs.results.expandDay", { day: tick.day })
               }
               onClick={onToggle}
             >
-              {expanded ? "Dölj ▴" : "Visa ▾"}
+              {expanded ? t("runs.results.hide") : t("runs.results.show")}
             </button>
           </span>
         </div>
@@ -1332,6 +1421,7 @@ function TickMarkerCard({
 }
 
 function PlannedOasisInterviews({ variant }: { variant: OasisVariantResult }) {
+  const { t } = useLocale()
   const agents = variant.agents ?? []
   const markers = variant.tick_markers ?? []
   const interviews = useMemo(() => {
@@ -1348,16 +1438,16 @@ function PlannedOasisInterviews({ variant }: { variant: OasisVariantResult }) {
       const info = parseTraceInfo(row.info)
       const prompt = typeof info.prompt === "string" ? info.prompt : ""
       const response = typeof info.response === "string" ? info.response : ""
-      const t = sortKeyFromCreatedAt(row.created_at)
+      const sortTime = sortKeyFromCreatedAt(row.created_at)
       let tickIndex = 0
       let day = 1
       for (const m of markers) {
-        if (m.time_start <= t && t <= m.time_end) {
+        if (m.time_start <= sortTime && sortTime <= m.time_end) {
           tickIndex = m.tick_index
           day = m.day
           break
         }
-        if (t > m.time_end) {
+        if (sortTime > m.time_end) {
           tickIndex = m.tick_index
           day = m.day
         }
@@ -1366,23 +1456,23 @@ function PlannedOasisInterviews({ variant }: { variant: OasisVariantResult }) {
         key: `${row.user_id}-${row.created_at}-${prompt.slice(0, 12)}`,
         tickIndex,
         day,
-        agentName: agentLabel(agents, row.user_id),
+        agentName: agentLabel(agents, row.user_id, t),
         prompt,
         response,
       })
     }
     return rows
-  }, [variant.trace, agents, markers])
+  }, [variant.trace, agents, markers, t])
 
   if (interviews.length === 0) return null
 
   return (
     <section className="mb-4 rounded-md border border-[color:var(--border-hairline)] p-4">
       <h3 className="mb-1 text-sm font-medium text-foreground">
-        Planerade OASIS-intervjuer
+        {t("runs.results.plannedInterviews")}
       </h3>
       <p className="mb-3 text-xs text-muted-foreground">
-        Frågor som kördes under simuleringen via ActionType.INTERVIEW.
+        {t("runs.results.plannedInterviewsDesc")}
       </p>
       <ul className="flex flex-col gap-3">
         {interviews.map((iv) => (
@@ -1391,14 +1481,22 @@ function PlannedOasisInterviews({ variant }: { variant: OasisVariantResult }) {
             className="rounded border border-[color:var(--border-hairline)] px-3 py-2 text-sm"
           >
             <div className="mb-1 text-xs text-muted-foreground">
-              {iv.agentName} · efter dag {iv.day} (tick {iv.tickIndex + 1})
+              {t("runs.results.plannedInterviewMeta", {
+                agentName: iv.agentName,
+                day: iv.day,
+                tick: iv.tickIndex + 1,
+              })}
             </div>
             <p className="text-foreground">
-              <span className="text-muted-foreground">Q: </span>
+              <span className="text-muted-foreground">
+                {t("runs.results.questionLabel")}{" "}
+              </span>
               {iv.prompt || "—"}
             </p>
             <p className="mt-1 text-muted-foreground">
-              <span className="text-foreground/80">A: </span>
+              <span className="text-foreground/80">
+                {t("runs.results.answerLabel")}{" "}
+              </span>
               {iv.response || "—"}
             </p>
           </li>
@@ -1437,25 +1535,26 @@ function FeedPostCard({
   onInterview: (tickIndex: number, personaId: string) => void
   compact?: boolean
 }) {
+  const { intl, t } = useLocale()
   const agent = agents.find((a) => a.index === post.user_id)
-  const author = agent?.member_name ?? `agent ${post.user_id}`
+  const author = agent?.member_name ?? t("runs.feed.agentFallback", { userId: post.user_id })
   const isInjector = agent?.role === "injector"
   const originalId = post.original_post_id ?? null
   const original = originalId != null ? postsById.get(originalId) : undefined
   const originalAuthor =
-    original != null ? agentLabel(agents, original.user_id) : null
+    original != null ? agentLabel(agents, original.user_id, t) : null
   const quote = (post.quote_content ?? "").trim()
   const isQuote = originalId != null && quote.length > 0
   const isRepost = originalId != null && quote.length === 0
   const postComments = commentsByPostId.get(post.post_id) ?? []
-  const when = formatFeedWhen(post.created_at)
+  const when = formatFeedWhen(post.created_at, t, intl)
 
   let kindLabel: string | null = null
-  if (isInjector) kindLabel = "injektion"
-  else if (isQuote) kindLabel = "citat"
-  else if (isRepost) kindLabel = "delning"
+  if (isInjector) kindLabel = t("runs.feed.injection")
+  else if (isQuote) kindLabel = t("runs.feed.quote")
+  else if (isRepost) kindLabel = t("runs.feed.share")
 
-  const postBody = postBodyTextForCopy(post, {
+  const postBody = postBodyTextForCopy(post, t, {
     isQuote,
     isRepost,
     quote,
@@ -1466,7 +1565,7 @@ function FeedPostCard({
     author,
     postBody,
     postComments.map((c) => ({
-      author: agentLabel(agents, c.user_id),
+        author: agentLabel(agents, c.user_id, t),
       content: c.content,
     })),
   )
@@ -1506,14 +1605,14 @@ function FeedPostCard({
             <button
               type="button"
               className="inline-grid h-7 w-7 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
-              title={`Intervjua ${author}`}
-              aria-label={`Intervjua ${author}`}
+              title={t("runs.feed.interviewAgent", { name: author })}
+              aria-label={t("runs.feed.interviewAgent", { name: author })}
               onClick={() => onInterview(tickIndex, agent!.persona_id!)}
             >
               <InterviewIcon />
             </button>
           ) : null}
-          <CopyFeedTextButton text={postCopyText} label="Kopiera inlägg" />
+          <CopyFeedTextButton text={postCopyText} label={t("runs.feed.copyPost")} />
         </div>
       </div>
 
@@ -1527,36 +1626,20 @@ function FeedPostCard({
               className="whitespace-pre-wrap text-sm leading-relaxed text-foreground"
             />
             <p className="text-xs text-muted-foreground">
-              Citerar{" "}
-              {original != null ? (
-                <AgentNameButton
-                  name={originalAuthor ?? "okänd"}
-                  className="text-xs text-muted-foreground"
-                  showAvatar={!agentIsInjector(agents, original.user_id)}
-                  onOpen={() => openAgent(original.user_id)}
-                />
-              ) : (
-                "okänd"
-              )}{" "}
-              #{originalId}
+              {t("runs.feed.quotePrefix", {
+                author: originalAuthor ?? t("runs.feed.unknown"),
+                postId: originalId ?? "?",
+              })}
             </p>
           </div>
         ) : null}
 
         {isRepost ? (
           <p className="text-sm text-muted-foreground">
-            Delade inlägg från{" "}
-            {original != null ? (
-              <AgentNameButton
-                name={originalAuthor ?? "okänd"}
-                className="text-sm text-muted-foreground"
-                showAvatar={!agentIsInjector(agents, original.user_id)}
-                onOpen={() => openAgent(original.user_id)}
-              />
-            ) : (
-              "okänd"
-            )}{" "}
-            #{originalId}
+            {t("runs.feed.repostPrefix", {
+              author: originalAuthor ?? t("runs.feed.unknown"),
+              postId: originalId ?? "?",
+            })}
           </p>
         ) : null}
 
@@ -1582,7 +1665,7 @@ function FeedPostCard({
         <ul className="mt-3 space-y-3 border-t border-border/60 pt-3">
           {postComments.map((c) => {
             const commentAgent = agents.find((a) => a.index === c.user_id)
-            const commentName = agentLabel(agents, c.user_id)
+            const commentName = agentLabel(agents, c.user_id, t)
             const commentInjector = agentIsInjector(agents, c.user_id)
             const canInterviewComment =
               runId != null &&
@@ -1625,8 +1708,10 @@ function FeedPostCard({
                     <button
                       type="button"
                       className="inline-grid h-7 w-7 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
-                      title={`Intervjua ${commentName}`}
-                      aria-label={`Intervjua ${commentName}`}
+                      title={t("runs.feed.interviewAgent", { name: commentName })}
+                      aria-label={t("runs.feed.interviewAgent", {
+                        name: commentName,
+                      })}
                       onClick={() =>
                         onInterview(tickIndex, commentAgent!.persona_id!)
                       }
@@ -1636,7 +1721,7 @@ function FeedPostCard({
                   ) : null}
                   <CopyFeedTextButton
                     text={formatCommentForClipboard(commentName, c.content)}
-                    label="Kopiera kommentar"
+                    label={t("runs.feed.copyComment")}
                   />
                 </div>
               </li>
@@ -1657,6 +1742,7 @@ function VariantBody({
   runId?: number
   attemptId?: string
 }) {
+  const { t } = useLocale()
   const posts = variant.posts ?? []
   const comments = variant.comments ?? []
   const agents = variant.agents ?? []
@@ -1697,9 +1783,9 @@ function VariantBody({
 
   const openAgent = useCallback(
     (userId: number) => {
-      setProfile(agentProfileTarget(agents, userId))
+      setProfile(agentProfileTarget(agents, userId, t))
     },
-    [agents],
+    [agents, t],
   )
 
   const openMention = useCallback(
@@ -1721,13 +1807,13 @@ function VariantBody({
   }
 
   const agentName = useCallback(
-    (id: number) => agentLabel(agents, id),
-    [agents],
+    (id: number) => agentLabel(agents, id, t),
+    [agents, t],
   )
 
   const timeline = useMemo(
-    () => buildTimelineItems(variant, { hideNoise: true, agentName }),
-    [variant, agentName],
+    () => buildTimelineItems(variant, { hideNoise: true, agentName, t }),
+    [variant, agentName, t],
   )
   const segments = useMemo(() => groupTimelineSegments(timeline), [timeline])
   const injectors = useMemo(
@@ -1807,7 +1893,9 @@ function VariantBody({
   return (
     <div>
       <p className="mb-3 text-xs text-muted-foreground">
-        Plattform: {platform === "reddit" ? "Reddit" : "Twitter"}
+        {t("runs.results.platform", {
+          platform: platform === "reddit" ? "Reddit" : "Twitter",
+        })}
       </p>
       {qualityWarnings ? <QualityWarningsBanner data={qualityWarnings} /> : null}
       <PlannedOasisInterviews variant={variant} />
@@ -1815,7 +1903,7 @@ function VariantBody({
         <div className="mb-3 space-y-1 text-sm text-muted-foreground">
           {injectors.length > 0 ? (
             <p>
-              Injektorer:{" "}
+              {t("runs.results.injectors")}{" "}
               {injectors.map((a, i) => (
                 <span key={a.index}>
                   {i > 0 ? ", " : null}
@@ -1832,9 +1920,9 @@ function VariantBody({
             </p>
           ) : null}
           <p>
-            Population:{" "}
+            {t("runs.results.population")}{" "}
             {population.length === 0
-              ? "—"
+              ? t("common.emDash")
               : population.map((a, i) => (
                   <span key={a.index}>
                     {i > 0 ? ", " : null}
@@ -1864,10 +1952,14 @@ function VariantBody({
         />
       ) : null}
 
-      <h3 className="mb-2 text-sm font-semibold text-foreground">Flöde</h3>
+      <h3 className="mb-2 text-sm font-semibold text-foreground">
+        {t("runs.feed.title")}
+      </h3>
 
       {posts.length === 0 && segments.every((s) => s.kind !== "actions") ? (
-        <p className="text-sm text-muted-foreground">Inga inlägg sparades.</p>
+        <p className="text-sm text-muted-foreground">
+          {t("runs.feed.noPostsSaved")}
+        </p>
       ) : null}
 
       <ul className="flex flex-col gap-3">
@@ -1915,12 +2007,12 @@ function VariantBody({
                 }
               >
                 <p>
-                  {dayPosts.length} inlägg
+                  {t("runs.results.metricPosts", { count: dayPosts.length })}
                   {dayComments > 0
-                    ? ` · ${dayComments} kommentar${dayComments === 1 ? "" : "er"}`
+                    ? ` · ${t("runs.results.metricComments", { count: dayComments })}`
                     : ""}
                   {dayActionItems.length > 0
-                    ? ` · ${dayActionItems.length} händelse${dayActionItems.length === 1 ? "" : "r"}`
+                    ? ` · ${dayActionItems.length} ${t("runs.results.eventsTitle").toLowerCase()}`
                     : ""}
                   {dayInterviews > 0
                     ? ` · ${dayInterviews} OASIS-intervju${dayInterviews === 1 ? "" : "er"}`
@@ -1949,7 +2041,7 @@ function VariantBody({
                   </ul>
                 ) : expanded && dayPosts.length === 0 ? (
                   <p className="mt-2 text-muted-foreground/80">
-                    Inga inlägg denna dag.
+                    {t("runs.feed.noPostsToday")}
                   </p>
                 ) : null}
               </TickMarkerCard>
@@ -1990,8 +2082,10 @@ function VariantBody({
         titleId="day-events-modal-title"
         title={
           dayEventsModalTick != null
-            ? `Händelser · dag ${tickDayLabel(dayEventsModalTick)}`
-            : "Händelser"
+            ? t("runs.results.eventsTitleDay", {
+                day: tickDayLabel(dayEventsModalTick),
+              })
+            : t("runs.results.eventsTitle")
         }
         onClose={() => setDayEventsModalTick(null)}
         wide
@@ -2008,7 +2102,9 @@ function VariantBody({
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-muted-foreground">Inga händelser denna dag.</p>
+          <p className="text-sm text-muted-foreground">
+            {t("runs.results.noEventsToday")}
+          </p>
         )}
       </AdminModal>
 
@@ -2017,8 +2113,10 @@ function VariantBody({
         titleId="day-measurements-modal-title"
         title={
           dayMeasurementsModalTick != null
-            ? `Opinionsmätning · dag ${tickDayLabel(dayMeasurementsModalTick)}`
-            : "Opinionsmätning"
+            ? t("runs.results.measurementsTitleDay", {
+                day: tickDayLabel(dayMeasurementsModalTick),
+              })
+            : t("runs.results.measurementsTitle")
         }
         onClose={() => setDayMeasurementsModalTick(null)}
         wide
@@ -2031,7 +2129,7 @@ function VariantBody({
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">
-            Ingen opinionsmätning denna dag.
+            {t("runs.results.noMeasurementToday")}
           </p>
         )}
       </AdminModal>
@@ -2059,13 +2157,13 @@ function VariantBody({
               id="mention-pick-title"
               className="text-sm font-semibold text-foreground"
             >
-              Vem menades med {mentionPick.label}?
+              {t("runs.feed.mentionQuestion", { label: mentionPick.label })}
             </h4>
             <ul className="mt-3 space-y-2">
               {mentionPick.userIds.map((userId) => (
                 <li key={userId}>
                   <AgentNameButton
-                    name={agentLabel(agents, userId)}
+                    name={agentLabel(agents, userId, t)}
                     className="text-sm"
                     showAvatar={!agentIsInjector(agents, userId)}
                     onOpen={() => {
@@ -2081,7 +2179,7 @@ function VariantBody({
               className="mt-3 text-xs text-muted-foreground underline-offset-2 hover:underline"
               onClick={() => setMentionPick(null)}
             >
-              Avbryt
+              {t("common.cancel")}
             </button>
           </div>
         </div>
@@ -2090,17 +2188,51 @@ function VariantBody({
   )
 }
 
-function variantSummary(variant: OasisVariantResult): string {
-  if (variant.error) return "misslyckades"
+function variantSummary(variant: OasisVariantResult, t: Translate): string {
+  if (variant.error) return t("runs.results.failed")
   const posts = variant.posts?.length ?? 0
   const meas = (variant.measurements ?? []).reduce(
     (n, row) => n + row.points.length,
     0,
   )
   const ticks =
-    typeof variant.ticks_run === "number" ? `${variant.ticks_run} tickar · ` : ""
-  const measPart = meas > 0 ? ` · ${meas} mätpunkter` : ""
-  return `${ticks}${posts} inlägg${measPart}`
+    typeof variant.ticks_run === "number" ? variant.ticks_run : t("common.emDash")
+  return t("runs.results.variantSummary", {
+    ticks,
+    posts,
+    measurements: meas,
+  })
+}
+
+function knownRunStatusLabel(status: RunStatus, t: Translate): string {
+  switch (status) {
+    case "done":
+      return t("runs.status.done")
+    case "running":
+      return t("runs.status.running")
+    case "draft":
+      return t("runs.status.draft")
+    case "failed":
+      return t("runs.status.failed")
+    default:
+      {
+        const exhaustive: never = status
+        return exhaustive
+      }
+  }
+}
+
+function isRunStatus(status: string): status is RunStatus {
+  return (
+    status === "done" ||
+    status === "running" ||
+    status === "draft" ||
+    status === "failed"
+  )
+}
+
+function runStatusLabel(status: string, t: Translate): string {
+  return isRunStatus(status) ? knownRunStatusLabel(status, t) : status
 }
 
 function attemptHasData(attempt: OasisAttemptResult): boolean {
@@ -2142,6 +2274,7 @@ function AttemptBlock({
   branchMode?: BranchMode | null
   runId?: number
 }) {
+  const { intl, t } = useLocale()
   const variants = attempt.variants ?? []
   const stimulusVariant = variants.find((v) => v.id === "a")
   const controlVariant = variants.find((v) => v.id === "b")
@@ -2150,12 +2283,14 @@ function AttemptBlock({
     controlVariant &&
     isStimulusControlPair(variants, branchMode)
   const postCount = variants.reduce((n, v) => n + (v.posts?.length ?? 0), 0)
-  const stamp = formatWhen(attempt.finished_at)
+  const stamp = formatWhen(attempt.finished_at, t, intl)
   const metaParts = [
-    total > 1 ? `Körning ${total - index}` : null,
+    total > 1 ? t("runs.results.attemptOrdinal", { number: total - index }) : null,
     attempt.engine ?? null,
-    variants.length > 1 ? `${variants.length} varianter` : null,
-    `${postCount} inlägg`,
+    variants.length > 1
+      ? t("runs.results.variantCount", { count: variants.length })
+      : null,
+    t("runs.results.metricPosts", { count: postCount }),
   ].filter(Boolean)
   const single = variants.length === 1
   const singleVariant = single ? variants[0] : undefined
@@ -2203,7 +2338,7 @@ function AttemptBlock({
               type="checkbox"
               className="mt-1"
               checked={Boolean(selected)}
-              aria-label={`Välj körning ${stamp}`}
+              aria-label={t("runs.results.selectAttempt", { stamp })}
               onChange={() => onToggleSelect(attempt.id)}
             />
           ) : null}
@@ -2224,14 +2359,14 @@ function AttemptBlock({
           singleVariant &&
           variantHasNetworkActivity(singleVariant) ? (
             <NetworkActivityIconButton
-              label="Nätverk & åtgärder"
+              label={t("runs.results.networkTitle")}
               onClick={() => setNetworkModalVariant(singleVariant)}
             />
           ) : null}
           {hasData && onRequestOrderReport ? (
             <OrderReportButton
               busy={ordering}
-              label="Beställ rapport"
+              label={t("runs.results.reportOrder")}
               onClick={() => onRequestOrderReport(attempt.id)}
             />
           ) : null}
@@ -2243,7 +2378,7 @@ function AttemptBlock({
               <button
                 type="button"
                 className="inline-grid h-7 w-7 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
-                aria-label="Fler åtgärder"
+                aria-label={t("runs.results.moreActions")}
                 aria-expanded={menuOpen}
                 aria-haspopup="menu"
                 disabled={deleting}
@@ -2293,7 +2428,9 @@ function AttemptBlock({
                       <path d="M10 11v6" />
                       <path d="M14 11v6" />
                     </svg>
-                    {deleting ? "Raderar…" : "Radera resultat"}
+                    {deleting
+                      ? t("runs.results.deleting")
+                      : t("runs.results.deleteResult")}
                   </button>
                 </div>
               ) : null}
@@ -2305,7 +2442,7 @@ function AttemptBlock({
             aria-expanded={expanded}
             onClick={onToggleExpand}
           >
-            {expanded ? "Dölj ▴" : "Visa ▾"}
+            {expanded ? t("runs.results.hide") : t("runs.results.show")}
           </button>
         </div>
       </div>
@@ -2352,7 +2489,7 @@ function AttemptBlock({
       <AdminModal
         open={networkModalVariant != null}
         titleId="network-activity-modal-title"
-        title="Nätverk & åtgärder"
+        title={t("runs.results.networkTitle")}
         description={networkModalVariant?.label}
         wide
         onClose={() => setNetworkModalVariant(null)}
@@ -2362,7 +2499,7 @@ function AttemptBlock({
             variant={networkModalVariant}
             onOpenAgent={(userId) =>
               setNetworkProfile(
-                agentProfileTarget(networkModalVariant.agents ?? [], userId),
+                agentProfileTarget(networkModalVariant.agents ?? [], userId, t),
               )
             }
           />
@@ -2407,8 +2544,9 @@ export function OasisResultsPanel({
   onDeleteAttempt,
   deletingAttemptId = null,
 }: Props) {
+  const { intl, locale, t } = useLocale()
   const navigate = useNavigate()
-  const attempts = normalizeRunAttempts(results)
+  const attempts = normalizeRunAttempts(results, t)
   const attemptIds = useMemo(() => attempts.map((a) => a.id), [results])
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [orderingId, setOrderingId] = useState<string | null>(null)
@@ -2479,7 +2617,7 @@ export function OasisResultsPanel({
       for (const s of sources) next.add(s.attempt_id)
       return next
     })
-    const report = await createReport({ sources, title })
+    const report = await createReport({ sources, title, locale })
     navigate(`/reports/${report.id}`)
   }
 
@@ -2495,7 +2633,7 @@ export function OasisResultsPanel({
         next.delete(attemptId)
         return next
       })
-      setOrderError(err instanceof ApiError ? err.message : "Kunde inte beställa rapport")
+      setOrderError(err instanceof ApiError ? err.message : t("runs.results.reportError"))
     } finally {
       setOrderingId(null)
     }
@@ -2503,7 +2641,7 @@ export function OasisResultsPanel({
 
   function attemptLabel(attemptId: string): string {
     const attempt = attempts.find((a) => a.id === attemptId)
-    return formatWhen(attempt?.finished_at)
+    return formatWhen(attempt?.finished_at, t, intl)
   }
 
   function requestOrderOne(attemptId: string) {
@@ -2521,7 +2659,7 @@ export function OasisResultsPanel({
       sources: ids.map((attempt_id) => ({ run_id: runId, attempt_id })),
       title:
         selected.size > 1
-          ? `Jämförelserapport (${selected.size} körningar)`
+          ? t("runs.results.reportCompareTitle", { count: selected.size })
           : undefined,
       labels: ids.map(attemptLabel),
     })
@@ -2545,7 +2683,7 @@ export function OasisResultsPanel({
           return next
         })
         setOrderError(
-          err instanceof ApiError ? err.message : "Kunde inte beställa rapport",
+          err instanceof ApiError ? err.message : t("runs.results.reportError"),
         )
       } finally {
         setCompareBusy(false)
@@ -2578,16 +2716,13 @@ export function OasisResultsPanel({
 
   const selectionBusy = [...selected].some((id) => busyAttemptIds.has(id))
   const compareDisabled = compareBusy || orderingId != null || selectionBusy
-  const statusLabel =
-    status in RUN_STATUS_LABEL
-      ? RUN_STATUS_LABEL[status as RunStatus]
-      : status
+  const statusLabel = runStatusLabel(status, t)
 
   if (attempts.length === 0) {
     if (status === "running") return null
     return (
       <div className="mb-9 rounded-md border border-border px-5 py-6 text-sm text-muted-foreground">
-        Inga sparade resultat.
+        {t("runs.results.noSaved")}
       </div>
     )
   }
@@ -2595,10 +2730,12 @@ export function OasisResultsPanel({
   return (
     <div className="mb-9 flex flex-col gap-3">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <h2 className="text-base font-semibold text-foreground">Resultat</h2>
+        <h2 className="text-base font-semibold text-foreground">
+          {t("runs.results.title")}
+        </h2>
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-xs text-muted-foreground">
-            {attempts.length} {attempts.length === 1 ? "körning" : "körningar"}
+            {t("runs.results.attemptCount", { count: attempts.length })}
             {status !== "running" ? ` · ${statusLabel}` : null}
           </span>
           {runId && selected.size > 0 ? (
@@ -2608,8 +2745,8 @@ export function OasisResultsPanel({
               disabled={compareDisabled}
               label={
                 selected.size === 1
-                  ? "Beställ rapport"
-                  : `Jämför i rapport (${selected.size})`
+                  ? t("runs.results.reportOrder")
+                  : t("runs.results.reportCompare", { count: selected.size })
               }
               compareCount={selected.size}
               onClick={requestCompare}
@@ -2624,7 +2761,7 @@ export function OasisResultsPanel({
       ) : null}
       {runId ? (
         <p className="text-xs text-muted-foreground">
-          Bocka i flera körningar för att jämföra, eller beställ rapport per rad.
+          {t("runs.results.compareHint")}
         </p>
       ) : null}
       {attempts.map((attempt, index) => {
@@ -2661,18 +2798,22 @@ export function OasisResultsPanel({
         titleId="report-confirm-title"
         title={
           reportConfirm && reportConfirm.sources.length > 1
-            ? "Jämför i rapport"
-            : "Beställ rapport"
+            ? t("runs.results.reportCompare", {
+                count: reportConfirm.sources.length,
+              })
+            : t("runs.results.reportOrder")
         }
-        description="Genereringen tar cirka 10 minuter. Du kan lämna sidan och följa status under Rapporter."
+        description={t("runs.results.reportConfirmDesc")}
         onClose={() => setReportConfirm(null)}
       >
         {reportConfirm ? (
           <div className="space-y-4">
             <p className="text-sm text-foreground">
               {reportConfirm.sources.length === 1
-                ? "1 körning ska analyseras och sammanställas till rapport."
-                : `${reportConfirm.sources.length} körningar ska jämföras i en gemensam rapport.`}
+                ? t("runs.results.reportConfirmOne")
+                : t("runs.results.reportConfirmMany", {
+                    count: reportConfirm.sources.length,
+                  })}
             </p>
             <ul className="max-h-40 space-y-1 overflow-y-auto rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
               {reportConfirm.labels.map((label, i) => (
@@ -2687,14 +2828,14 @@ export function OasisResultsPanel({
                 className="rounded-md border border-border px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted/40"
                 onClick={() => setReportConfirm(null)}
               >
-                Avbryt
+                {t("common.cancel")}
               </button>
               <button
                 type="button"
                 className="rounded-md border border-db-gold-600 bg-db-gold-100 px-3 py-1.5 text-sm font-medium text-db-gold-800 hover:bg-db-gold-200"
                 onClick={() => void confirmReportOrder()}
               >
-                Starta generering
+                {t("runs.results.startGeneration")}
               </button>
             </div>
           </div>
@@ -2704,16 +2845,14 @@ export function OasisResultsPanel({
       <AdminModal
         open={deleteConfirm != null}
         titleId="delete-confirm-title"
-        title="Radera simuleringsresultat?"
-        description="Detta går inte att ångra. Körningen i listan behålls, men detta resultat försvinner permanent."
+        title={t("runs.results.deleteTitle")}
+        description={t("runs.results.deleteDescription")}
         onClose={() => setDeleteConfirm(null)}
       >
         {deleteConfirm ? (
           <div className="space-y-4">
             <p className="text-sm text-foreground">
-              Resultat från{" "}
-              <span className="font-mono tabular-nums">{deleteConfirm.label}</span>{" "}
-              raderas.
+              {t("runs.results.deleteBody", { label: deleteConfirm.label })}
             </p>
             <div className="flex flex-wrap justify-end gap-2">
               <button
@@ -2721,7 +2860,7 @@ export function OasisResultsPanel({
                 className="rounded-md border border-border px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted/40"
                 onClick={() => setDeleteConfirm(null)}
               >
-                Avbryt
+                {t("common.cancel")}
               </button>
               <button
                 type="button"
@@ -2729,7 +2868,9 @@ export function OasisResultsPanel({
                 disabled={deletingAttemptId != null}
                 onClick={() => void confirmDelete()}
               >
-                {deletingAttemptId != null ? "Raderar…" : "Radera permanent"}
+                {deletingAttemptId != null
+                  ? t("runs.results.deleting")
+                  : t("runs.results.deletePermanent")}
               </button>
             </div>
           </div>

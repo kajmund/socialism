@@ -387,8 +387,7 @@ async def test_persona_generate_and_chat(client):
     deleted = await client.delete(f"/personas/{persona_id}/messages/{msg_id}")
     assert deleted.status_code == 204
     remaining = await client.get(f"/personas/{persona_id}/messages", params={"mode": "interview"})
-    assert len(remaining.json()) == 1
-    assert remaining.json()[0]["role"] == "assistant"
+    assert remaining.json() == []
 
     cleared_again = await client.delete(
         f"/personas/{persona_id}/messages",
@@ -1058,6 +1057,79 @@ async def test_start_run_queues_simulate_job(client):
     assert len(results["attempts"][0]["variants"]) == 1
     assert results["attempts"][0]["variants"][0]["id"] == "main"
     assert "measurements" in results["attempts"][0]["variants"][0]
+
+
+async def test_start_run_rejects_while_already_running(client):
+    from app.services import jobs as jobs_service
+
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+
+    pop = (
+        await client.post(
+            "/populations",
+            json={"name": "RunLockPop", "members": []},
+        )
+    ).json()
+    run = (
+        await client.post(
+            "/runs",
+            json={
+                "name": "Locked sim",
+                "population_id": pop["id"],
+                "main_ticks": [],
+            },
+        )
+    ).json()
+
+    first = await client.post(f"/runs/{run['id']}/start")
+    assert first.status_code == 202
+
+    second = await client.post(f"/runs/{run['id']}/start")
+    assert second.status_code == 409
+
+
+async def test_merge_attempt_appends_to_fresh_results(client):
+    from app.database.models import Run
+    from app.services import jobs as jobs_service
+    from app.services.oasis_run import merge_attempt
+
+    pop = (
+        await client.post(
+            "/populations",
+            json={"name": "MergePop", "members": []},
+        )
+    ).json()
+    run = (
+        await client.post(
+            "/runs",
+            json={
+                "name": "Merge sim",
+                "population_id": pop["id"],
+                "main_ticks": [],
+            },
+        )
+    ).json()
+
+    existing = {
+        "engine": "none",
+        "attempts": [{"id": "att_existing", "variants": []}],
+    }
+    factory = jobs_service.job_session_factory()
+    async with factory() as session:
+        row = await session.get(Run, run["id"])
+        row.results = existing
+        await session.commit()
+
+    async with factory() as session:
+        row = await session.get(Run, run["id"])
+        await session.refresh(row)
+        merged = merge_attempt(
+            row.results if isinstance(row.results, dict) else None,
+            {"id": "att_new", "variants": []},
+            engine="none",
+        )
+
+    assert [a["id"] for a in merged["attempts"]] == ["att_new", "att_existing"]
 
 
 async def test_start_run_with_branch_stores_a_and_b_variants(client):

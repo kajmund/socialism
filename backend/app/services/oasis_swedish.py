@@ -7,17 +7,23 @@ Call only when the oasis extra is installed.
 from __future__ import annotations
 
 import json
+from contextvars import ContextVar
 from string import Template
 from typing import Any
 
-# user_id (same as agent index in our runs) → display name for feed enrichment.
-_USER_DISPLAY_NAMES: dict[int, str] = {}
+# Per-task mapping so concurrent OASIS jobs / A/B variants do not clobber names.
+_USER_DISPLAY_NAMES: ContextVar[dict[int, str] | None] = ContextVar(
+    "oasis_user_display_names", default=None
+)
 
 
 def set_oasis_user_display_names(mapping: dict[int, str]) -> None:
     """Map OASIS user_id to human-readable names shown in the agent feed."""
-    global _USER_DISPLAY_NAMES
-    _USER_DISPLAY_NAMES = {int(k): v for k, v in mapping.items()}
+    _USER_DISPLAY_NAMES.set({int(k): v for k, v in mapping.items()})
+
+
+def _display_names() -> dict[int, str]:
+    return _USER_DISPLAY_NAMES.get() or {}
 
 
 def _first_name(display_name: str) -> str:
@@ -27,31 +33,32 @@ def _first_name(display_name: str) -> str:
 
 def enrich_feed_posts(posts: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Add author_name to posts/comments so agents can attribute speech correctly."""
-    if not _USER_DISPLAY_NAMES:
+    names = _display_names()
+    if not names:
         return posts
     enriched: list[dict[str, Any]] = []
     for post in posts:
         row = dict(post)
         uid = row.get("user_id")
         if uid is not None:
-            display = _USER_DISPLAY_NAMES.get(int(uid))
+            display = names.get(int(uid))
             if display:
                 row["author_name"] = display
                 row["author_first_name"] = _first_name(display)
         comments = row.get("comments")
         if isinstance(comments, list):
             row["comments"] = [
-                _enrich_comment(comment) for comment in comments
+                _enrich_comment(comment, names) for comment in comments
             ]
         enriched.append(row)
     return enriched
 
 
-def _enrich_comment(comment: dict[str, Any]) -> dict[str, Any]:
+def _enrich_comment(comment: dict[str, Any], names: dict[int, str]) -> dict[str, Any]:
     row = dict(comment)
     uid = row.get("user_id")
     if uid is not None:
-        display = _USER_DISPLAY_NAMES.get(int(uid))
+        display = names.get(int(uid))
         if display:
             row["author_name"] = display
             row["author_first_name"] = _first_name(display)

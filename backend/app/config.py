@@ -1,7 +1,7 @@
 import os
 from typing import Annotated, Literal
 
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 SimulationEngine = Literal["none", "oasis"]
@@ -26,6 +26,9 @@ class Settings(BaseSettings):
 
     # none = status-only start; oasis = live CAMEL OASIS spike (optional dep group)
     simulation_engine: SimulationEngine = "none"
+    # Cap overlapping run_simulate background jobs (A/B variants within one job
+    # still run concurrently; this limits distinct körningar fighting for the API).
+    max_concurrent_simulation_jobs: int = Field(default=2, ge=1, le=32)
 
     @field_validator("allowed_origins", mode="before")
     @classmethod

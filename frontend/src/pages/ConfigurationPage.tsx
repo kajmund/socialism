@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react"
 import {
   blankCatalogItem,
   listCatalog,
-  SECTION_LABELS,
   SECTION_ORDER,
   updateCatalogList,
   type CatalogItem,
@@ -14,7 +13,29 @@ import { DistrictMapPreview } from "@/components/config/DistrictMapPreview"
 import { AdminShell } from "@/components/layout/AdminShell"
 import { AdminButton } from "@/components/ui/admin-button"
 import { Card, CardContent } from "@/components/ui/card"
+import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
 import { ApiError } from "@/lib/api"
+
+type Translate = (key: MessageKey, params?: TranslateParams) => string
+
+function sectionLabel(section: CatalogSection, t: Translate): string {
+  switch (section) {
+    case "demografi":
+      return t("config.page.sectionDemography")
+    case "politik":
+      return t("config.page.sectionPolitics")
+    case "varderingar":
+      return t("config.page.sectionValues")
+    case "rost_media":
+      return t("config.page.sectionVoiceMedia")
+    case "simulering":
+      return t("config.page.sectionSimulation")
+    default: {
+      const exhaustive: never = section
+      return exhaustive
+    }
+  }
+}
 
 type DraftMap = Record<string, CatalogItem[]>
 
@@ -52,6 +73,8 @@ function LabelListEditor({
   saving,
   dirty,
 }: ListEditorProps) {
+  const { t } = useLocale()
+
   function setLabel(index: number, value: string) {
     onChange(
       draft.map((item, i) =>
@@ -86,7 +109,7 @@ function LabelListEditor({
               {list.title}
             </div>
             <div className="mt-0.5 text-xs text-muted-foreground">
-              Nyckel: {list.key} · {draft.length} alternativ
+              {t("config.page.keyLabel", { key: list.key, count: draft.length })}
             </div>
           </div>
           <AdminButton
@@ -95,7 +118,7 @@ function LabelListEditor({
             disabled={!dirty || saving}
             onClick={onSave}
           >
-            {saving ? "Sparar…" : "Spara"}
+            {saving ? t("common.saving") : t("common.save")}
           </AdminButton>
         </div>
 
@@ -105,7 +128,7 @@ function LabelListEditor({
               <input
                 className="dsearch min-w-0 flex-1"
                 value={item.label}
-                placeholder="Alternativ…"
+                placeholder={t("config.page.optionPlaceholder")}
                 onChange={(e) => setLabel(index, e.target.value)}
               />
               <button
@@ -113,7 +136,7 @@ function LabelListEditor({
                 className="rounded border border-[color:var(--border-hairline)] px-2 py-1 text-xs text-muted-foreground hover:text-[color:var(--text-body)] disabled:opacity-30"
                 disabled={index === 0}
                 onClick={() => moveItem(index, -1)}
-                aria-label="Flytta upp"
+                aria-label={t("config.page.moveUp")}
               >
                 ↑
               </button>
@@ -122,7 +145,7 @@ function LabelListEditor({
                 className="rounded border border-[color:var(--border-hairline)] px-2 py-1 text-xs text-muted-foreground hover:text-[color:var(--text-body)] disabled:opacity-30"
                 disabled={index === draft.length - 1}
                 onClick={() => moveItem(index, 1)}
-                aria-label="Flytta ner"
+                aria-label={t("config.page.moveDown")}
               >
                 ↓
               </button>
@@ -131,7 +154,7 @@ function LabelListEditor({
                 className="rounded border border-[color:var(--border-hairline)] px-2 py-1 text-xs text-destructive hover:bg-destructive/5"
                 onClick={() => removeItem(index)}
               >
-                Ta bort
+                {t("common.delete")}
               </button>
             </li>
           ))}
@@ -139,7 +162,7 @@ function LabelListEditor({
 
         <div className="mt-3">
           <AdminButton variant="secondary" size="sm" onClick={addItem}>
-            + Lägg till
+            {t("config.page.addOption")}
           </AdminButton>
         </div>
       </CardContent>
@@ -155,6 +178,7 @@ function DistrictListEditor({
   saving,
   dirty,
 }: ListEditorProps) {
+  const { t } = useLocale()
   const [mapIndex, setMapIndex] = useState<number | null>(null)
 
   function patchItem(index: number, patch: Partial<CatalogItem>) {
@@ -168,7 +192,7 @@ function DistrictListEditor({
   }
 
   function addItem() {
-    onChange([...draft, blankCatalogItem("Nytt distrikt")])
+    onChange([...draft, blankCatalogItem(t("config.page.newDistrict"))])
   }
 
   function moveItem(index: number, delta: number) {
@@ -193,8 +217,7 @@ function DistrictListEditor({
               {list.title}
             </div>
             <div className="mt-0.5 text-xs text-muted-foreground">
-              Namn, beskrivning och områdesrektangel för LLM-kontext och framtida
-              heatmaps · {draft.length} distrikt
+              {t("config.page.districtHint", { count: draft.length })}
             </div>
           </div>
           <AdminButton
@@ -203,7 +226,7 @@ function DistrictListEditor({
             disabled={!dirty || saving}
             onClick={onSave}
           >
-            {saving ? "Sparar…" : "Spara"}
+            {saving ? t("common.saving") : t("common.save")}
           </AdminButton>
         </div>
 
@@ -217,13 +240,13 @@ function DistrictListEditor({
                 <input
                   className="dsearch mb-2 !w-full"
                   value={item.label}
-                  placeholder="Distriktsnamn…"
+                  placeholder={t("config.page.districtNamePlaceholder")}
                   onChange={(e) => patchItem(index, { label: e.target.value })}
                 />
                 <textarea
                   className="dsearch min-h-[88px] !w-full resize-y"
                   value={item.description}
-                  placeholder="Beskriv området för LLM:en (bebyggelse, vardag, sakfrågor)…"
+                  placeholder={t("config.page.districtDescPlaceholder")}
                   onChange={(e) =>
                     patchItem(index, { description: e.target.value })
                   }
@@ -234,7 +257,7 @@ function DistrictListEditor({
                     size="sm"
                     onClick={() => setMapIndex(index)}
                   >
-                    {item.bounds ? "Redigera karta" : "Sätt område på karta"}
+                    {item.bounds ? t("config.page.editMap") : t("config.page.setMapArea")}
                   </AdminButton>
                   <span className="flex-1" />
                   <button
@@ -258,7 +281,7 @@ function DistrictListEditor({
                     className="rounded border border-[color:var(--border-hairline)] px-2 py-1 text-xs text-destructive hover:bg-destructive/5"
                     onClick={() => removeItem(index)}
                   >
-                    Ta bort
+                    {t("common.delete")}
                   </button>
                 </div>
               </div>
@@ -273,7 +296,7 @@ function DistrictListEditor({
 
         <div className="mt-3">
           <AdminButton variant="secondary" size="sm" onClick={addItem}>
-            + Lägg till distrikt
+            {t("config.page.addDistrict")}
           </AdminButton>
         </div>
 
@@ -292,6 +315,7 @@ function DistrictListEditor({
 }
 
 export function ConfigurationPage() {
+  const { t } = useLocale()
   const [lists, setLists] = useState<CatalogList[]>([])
   const [drafts, setDrafts] = useState<DraftMap>({})
   const [loading, setLoading] = useState(true)
@@ -320,7 +344,7 @@ export function ConfigurationPage() {
       .catch((err: unknown) => {
         if (!cancelled) {
           setError(
-            err instanceof ApiError ? err.message : "Kunde inte hämta grunddata",
+            err instanceof ApiError ? err.message : t("config.page.loadError"),
           )
         }
       })
@@ -330,6 +354,7 @@ export function ConfigurationPage() {
     return () => {
       cancelled = true
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -395,9 +420,9 @@ export function ConfigurationPage() {
         ...prev,
         [key]: updated.items.map((item) => ({ ...item })),
       }))
-      setToast(`${updated.title} sparades`)
+      setToast(t("config.page.savedToast", { title: updated.title }))
     } catch (err: unknown) {
-      setToast(err instanceof ApiError ? err.message : "Kunde inte spara")
+      setToast(err instanceof ApiError ? err.message : t("common.saveError"))
     } finally {
       setSavingKey(null)
     }
@@ -418,23 +443,19 @@ export function ConfigurationPage() {
       <div className="wrap">
         <div className="head-row">
           <div>
-            <h1>Konfiguration</h1>
-            <p className="muted">
-              Grunddata för dropdowns i persona-kompositören och körningar.
-              Distrikt har beskrivning och karta som matas in i LLM-promptar.
-              Ändringar syns nästa gång formuläret laddas.
-            </p>
+            <h1>{t("config.page.title")}</h1>
+            <p className="muted">{t("config.page.intro")}</p>
           </div>
         </div>
 
-        {loading && <p className="muted">Hämtar grunddata…</p>}
+        {loading && <p className="muted">{t("config.page.loading")}</p>}
         {error && <p className="text-destructive">{error}</p>}
 
         {!loading && !error && (
           <div>
             <div
               role="tablist"
-              aria-label="Konfigurationssektioner"
+              aria-label={t("config.page.tablistAria")}
               className="mb-3 flex flex-wrap gap-1 border-b border-[color:var(--border-hairline)]"
             >
               {visibleSections.map((section) => {
@@ -459,7 +480,7 @@ export function ConfigurationPage() {
                       setActiveListKey(first?.key ?? null)
                     }}
                   >
-                    {SECTION_LABELS[section]}
+                    {sectionLabel(section, t)}
                   </button>
                 )
               })}
@@ -473,7 +494,7 @@ export function ConfigurationPage() {
               {sectionLists.length > 0 && (
                 <div
                   role="tablist"
-                  aria-label={`${SECTION_LABELS[activeSection]}-listor`}
+                  aria-label={t("config.page.listTablistAria", { section: sectionLabel(activeSection, t) })}
                   className="mb-5 flex flex-wrap gap-2"
                 >
                   {sectionLists.map((list) => {
@@ -506,8 +527,8 @@ export function ConfigurationPage() {
                                 ? "h-1.5 w-1.5 rounded-full bg-db-gold-500"
                                 : "h-1.5 w-1.5 rounded-full bg-db-ink-950"
                             }
-                            title="Osparade ändringar"
-                            aria-label="Osparade ändringar"
+                            title={t("config.page.unsavedChanges")}
+                            aria-label={t("config.page.unsavedChanges")}
                           />
                         )}
                       </button>

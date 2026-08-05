@@ -9,9 +9,16 @@ import { AdminButton } from "@/components/ui/admin-button"
 import { Card, CardContent } from "@/components/ui/card"
 import { personaInitials } from "@/data/library"
 import type { LibraryPersona } from "@/data/library-types"
+import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
 import { ApiError } from "@/lib/api"
 
-const STEP_TITLES = ["Starta", "Fördelningar", "Förhandsgranska"] as const
+type Translator = (key: MessageKey, params?: TranslateParams) => string
+
+const STEP_TITLES = [
+  "populations.builder.stepStart",
+  "populations.builder.stepDistributions",
+  "populations.builder.stepPreview",
+] as const satisfies readonly MessageKey[]
 /** Palette uses tokens that exist on `.theme-admin` (ink-600 / gold-300 do not). */
 const ROW_COLORS = [
   "var(--db-ink-950)",
@@ -29,20 +36,24 @@ type DistGroupData = { label: string; rows: DistRow[] }
 type DistState = Record<string, DistGroupData>
 
 /** Catalog keys → builder distribution groups (age stays local — not in catalog). */
-const CATALOG_DIST_MAP: { catalogKey: string; groupKey: string; fallbackLabel: string }[] = [
-  { catalogKey: "kön", groupKey: "kön", fallbackLabel: "Kön" },
-  { catalogKey: "ort", groupKey: "district", fallbackLabel: "Distrikt" },
-  { catalogKey: "yrke", groupKey: "occupation", fallbackLabel: "Yrken" },
-  { catalogKey: "utbildning", groupKey: "education", fallbackLabel: "Utbildningsnivåer" },
-  { catalogKey: "livssituation", groupKey: "livssituation", fallbackLabel: "Livssituationer" },
-  { catalogKey: "lutning", groupKey: "leaning", fallbackLabel: "Politisk lutning" },
-  { catalogKey: "parti", groupKey: "parti", fallbackLabel: "Partisympatier" },
-  { catalogKey: "valdeltagande", groupKey: "valdeltagande", fallbackLabel: "Valdeltagande" },
-  { catalogKey: "sakfragor", groupKey: "sakfragor", fallbackLabel: "Sakfrågor" },
-  { catalogKey: "fortroende", groupKey: "fortroende", fallbackLabel: "Förtroende" },
-  { catalogKey: "ton", groupKey: "ton", fallbackLabel: "Ton" },
-  { catalogKey: "sprak", groupKey: "sprak", fallbackLabel: "Språkmönster" },
-  { catalogKey: "medievanor", groupKey: "media", fallbackLabel: "Medievanor" },
+const CATALOG_DIST_MAP: {
+  catalogKey: string
+  groupKey: string
+  fallbackKey: MessageKey
+}[] = [
+  { catalogKey: "kön", groupKey: "kön", fallbackKey: "populations.builder.distGender" },
+  { catalogKey: "ort", groupKey: "district", fallbackKey: "populations.builder.distDistrict" },
+  { catalogKey: "yrke", groupKey: "occupation", fallbackKey: "populations.builder.distOccupation" },
+  { catalogKey: "utbildning", groupKey: "education", fallbackKey: "populations.builder.distEducation" },
+  { catalogKey: "livssituation", groupKey: "livssituation", fallbackKey: "populations.builder.distLifeSituation" },
+  { catalogKey: "lutning", groupKey: "leaning", fallbackKey: "populations.builder.distPoliticalLean" },
+  { catalogKey: "parti", groupKey: "parti", fallbackKey: "populations.builder.distParty" },
+  { catalogKey: "valdeltagande", groupKey: "valdeltagande", fallbackKey: "populations.builder.distTurnout" },
+  { catalogKey: "sakfragor", groupKey: "sakfragor", fallbackKey: "populations.builder.distIssues" },
+  { catalogKey: "fortroende", groupKey: "fortroende", fallbackKey: "populations.builder.distTrust" },
+  { catalogKey: "ton", groupKey: "ton", fallbackKey: "populations.builder.distTone" },
+  { catalogKey: "sprak", groupKey: "sprak", fallbackKey: "populations.builder.distLanguage" },
+  { catalogKey: "medievanor", groupKey: "media", fallbackKey: "populations.builder.distMedia" },
 ]
 
 function mergeMissingDist(base: DistState, extras: DistState): DistState {
@@ -53,13 +64,15 @@ function mergeMissingDist(base: DistState, extras: DistState): DistState {
   return next
 }
 
-const AGE_GROUP: DistGroupData = {
-  label: "Åldersspann",
-  rows: [
-    { k: "ung", l: "Ung (18–34)", v: 30 },
-    { k: "medel", l: "Medel (35–59)", v: 45 },
-    { k: "aldre", l: "Äldre (60+)", v: 25 },
-  ],
+function buildAgeGroup(t: Translator): DistGroupData {
+  return {
+    label: t("populations.builder.ageGroup"),
+    rows: [
+      { k: "ung", l: t("populations.builder.ageYoung"), v: 30 },
+      { k: "medel", l: t("populations.builder.ageMiddle"), v: 45 },
+      { k: "aldre", l: t("populations.builder.ageOlder"), v: 25 },
+    ],
+  }
 }
 
 function slugifyLabel(label: string): string {
@@ -82,19 +95,20 @@ function equalWeightRows(labels: string[]): DistRow[] {
   }))
 }
 
-function distFromCatalog(lists: CatalogList[]): DistState {
+function distFromCatalog(lists: CatalogList[], t: Translator): DistState {
   const byKey = new Map(lists.map((list) => [list.key, list]))
+  const ageGroup = buildAgeGroup(t)
   const dist: DistState = {
-    age: { label: AGE_GROUP.label, rows: AGE_GROUP.rows.map((r) => ({ ...r })) },
+    age: { label: ageGroup.label, rows: ageGroup.rows.map((r) => ({ ...r })) },
   }
-  for (const { catalogKey, groupKey, fallbackLabel } of CATALOG_DIST_MAP) {
+  for (const { catalogKey, groupKey, fallbackKey } of CATALOG_DIST_MAP) {
     const list = byKey.get(catalogKey)
     const labels = (list?.items ?? [])
       .map((item) => item.label.trim())
       .filter(Boolean)
     if (labels.length === 0) continue
     dist[groupKey] = {
-      label: list?.title || fallbackLabel,
+      label: list?.title || t(fallbackKey),
       rows: equalWeightRows(labels),
     }
   }
@@ -178,6 +192,7 @@ function PrevGroup({ group }: { group: DistGroupData }) {
 }
 
 export function PopulationBuilderPage() {
+  const { t } = useLocale()
   const { id } = useParams()
   const [params] = useSearchParams()
   const navigate = useNavigate()
@@ -186,10 +201,10 @@ export function PopulationBuilderPage() {
 
   const [cur, setCur] = useState(isEditRecipe ? 2 : 1)
   const [maxReached, setMaxReached] = useState(isEditRecipe ? 3 : 1)
-  const [popName, setPopName] = useState("Ny population")
+  const [popName, setPopName] = useState(() => t("populations.builder.defaultName"))
   const [popSize, setPopSize] = useState(12)
   const [dist, setDist] = useState<DistState>(() => ({
-    age: { label: AGE_GROUP.label, rows: AGE_GROUP.rows.map((r) => ({ ...r })) },
+    age: buildAgeGroup(t),
   }))
   const [catalogReady, setCatalogReady] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -203,13 +218,14 @@ export function PopulationBuilderPage() {
     () => selectedPersonas.map((p) => p.id),
     [selectedPersonas],
   )
+  const stepTitles = useMemo(() => STEP_TITLES.map((key) => t(key)), [t])
 
   useEffect(() => {
     let cancelled = false
     listCatalog()
       .then((lists) => {
         if (cancelled) return
-        const fromCatalog = distFromCatalog(lists)
+        const fromCatalog = distFromCatalog(lists, t)
         if (!editId) setDist(fromCatalog)
         else setDist((prev) => mergeMissingDist(prev, fromCatalog))
         setCatalogReady(true)
@@ -217,7 +233,7 @@ export function PopulationBuilderPage() {
       .catch((err: unknown) => {
         if (!cancelled) {
           setLoadError(
-            err instanceof ApiError ? err.message : "Kunde inte hämta konfiguration",
+            err instanceof ApiError ? err.message : t("populations.builder.loadCatalogError"),
           )
           setCatalogReady(true)
         }
@@ -225,7 +241,7 @@ export function PopulationBuilderPage() {
     return () => {
       cancelled = true
     }
-  }, [editId])
+  }, [editId, t])
 
   useEffect(() => {
     if (!editId) return
@@ -242,13 +258,15 @@ export function PopulationBuilderPage() {
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setLoadError(err instanceof ApiError ? err.message : "Kunde inte hämta population")
+          setLoadError(
+            err instanceof ApiError ? err.message : t("populations.builder.loadPopulationError"),
+          )
         }
       })
     return () => {
       cancelled = true
     }
-  }, [editId])
+  }, [editId, t])
 
   function buildRecipe(): PopulationRecipe {
     return {
@@ -292,7 +310,7 @@ export function PopulationBuilderPage() {
   async function startGenerationJob() {
     setSubmitting(true)
     setLoadError(null)
-    const name = popName.trim() || "Namnlös population"
+    const name = popName.trim() || t("populations.builder.fallbackName")
     try {
       const job = await createJob({
         kind: "population_generate",
@@ -308,7 +326,7 @@ export function PopulationBuilderPage() {
       navigate("/jobs")
     } catch (err) {
       setLoadError(
-        err instanceof ApiError ? err.message : "Kunde inte starta bakgrundsjobb",
+        err instanceof ApiError ? err.message : t("populations.builder.startJobError"),
       )
     } finally {
       setSubmitting(false)
@@ -345,7 +363,7 @@ export function PopulationBuilderPage() {
           </div>
         )}
         <div className="stepper">
-          {STEP_TITLES.map((t, i) => {
+          {stepTitles.map((title, i) => {
             const n = i + 1
             const cls =
               n === cur
@@ -372,7 +390,7 @@ export function PopulationBuilderPage() {
                 }}
               >
                 <div className="step-num">{n < cur ? "✓" : n}</div>
-                <div className="step-t">{t}</div>
+                <div className="step-t">{title}</div>
               </div>
             )
           })}
@@ -387,25 +405,28 @@ export function PopulationBuilderPage() {
               marginTop: -16,
             }}
           >
-            Redigerar recept för »{popName}« — generering sparas som en ny version.
+            {t("populations.builder.editBanner", { name: popName })}
           </div>
         )}
 
         {cur === 1 && (
           <section>
             <div className="section-head">
-              <span className="kicker">Steg 1 · Starta</span>
-              <h1 style={{ font: "var(--text-h1)", fontFamily: "'Bai Jamjuree', sans-serif", fontWeight: 400 }}>
-                Skapa population manuellt
+              <span className="kicker">{t("populations.builder.step1Kicker")}</span>
+              <h1
+                style={{
+                  font: "var(--text-h1)",
+                  fontFamily: "'Bai Jamjuree', sans-serif",
+                  fontWeight: 400,
+                }}
+              >
+                {t("populations.builder.step1Title")}
               </h1>
-              <p>
-                Ange namn och önskad storlek. I nästa steg ställer du in demografiska
-                fördelningar själv. Generering körs som bakgrundsjobb.
-              </p>
+              <p>{t("populations.builder.step1Body")}</p>
             </div>
             <div className="field-row">
               <div className="field">
-                <label htmlFor="pop-name">Populationens namn</label>
+                <label htmlFor="pop-name">{t("populations.builder.nameLabel")}</label>
                 <input
                   id="pop-name"
                   value={popName}
@@ -413,7 +434,7 @@ export function PopulationBuilderPage() {
                 />
               </div>
               <div className="field">
-                <label htmlFor="pop-size">Önskad storlek (personas)</label>
+                <label htmlFor="pop-size">{t("populations.builder.sizeLabel")}</label>
                 <input
                   id="pop-size"
                   type="number"
@@ -430,21 +451,27 @@ export function PopulationBuilderPage() {
         {cur === 2 && (
           <section>
             <div className="section-head">
-              <span className="kicker">Steg 2 · Fördelningar</span>
-              <h1 style={{ font: "var(--text-h1)", fontFamily: "'Bai Jamjuree', sans-serif", fontWeight: 400 }}>
-                Ställ in demografiska fördelningar
+              <span className="kicker">{t("populations.builder.step2Kicker")}</span>
+              <h1
+                style={{
+                  font: "var(--text-h1)",
+                  fontFamily: "'Bai Jamjuree', sans-serif",
+                  fontWeight: 400,
+                }}
+              >
+                {t("populations.builder.step2Title")}
               </h1>
               <p>
-                Justera reglagen per dimension. Alternativen kommer från{" "}
+                {t("populations.builder.step2BodyPrefix")}{" "}
                 <Link to="/config" style={{ color: "var(--db-gold-700)" }}>
-                  Konfiguration
+                  {t("populations.builder.configLink")}
                 </Link>
-                . Balansen normaliseras automatiskt till 100%.
+                {t("populations.builder.step2BodySuffix")}
               </p>
             </div>
             {!catalogReady ? (
               <div className="no-match" style={{ textAlign: "left" }}>
-                Hämtar konfiguration…
+                {t("populations.builder.loadingConfig")}
               </div>
             ) : (
               <div className="dist-grid">
@@ -459,14 +486,17 @@ export function PopulationBuilderPage() {
         {cur === 3 && (
           <section>
             <div className="section-head">
-              <span className="kicker">Steg 3 · Förhandsgranska</span>
-              <h1 style={{ font: "var(--text-h1)", fontFamily: "'Bai Jamjuree', sans-serif", fontWeight: 400 }}>
-                Så här ser populationen ut i sin helhet
+              <span className="kicker">{t("populations.builder.step3Kicker")}</span>
+              <h1
+                style={{
+                  font: "var(--text-h1)",
+                  fontFamily: "'Bai Jamjuree', sans-serif",
+                  fontWeight: 400,
+                }}
+              >
+                {t("populations.builder.step3Title")}
               </h1>
-              <p>
-                Välj gärna personas från biblioteket. Resten genereras upp till önskad
-                storlek — eller skapa enbart med bibliotekspicks.
-              </p>
+              <p>{t("populations.builder.step3Body")}</p>
             </div>
             <div className="prev-grid">
               {Object.keys(dist).map((gkey) => (
@@ -476,13 +506,20 @@ export function PopulationBuilderPage() {
 
             <div style={{ marginTop: 28, marginBottom: 10 }}>
               <h3 style={{ font: "var(--text-h3)", marginBottom: 6 }}>
-                Från biblioteket
+                {t("populations.builder.libraryTitle")}
               </h3>
               <p style={{ color: "var(--text-muted)", fontSize: 13.5, marginBottom: 12 }}>
-                {libraryCount} från bibliotek · {generateCount} genereras
                 {effectiveSize !== popSize
-                  ? ` · storlek höjd till ${effectiveSize}`
-                  : ` · storlek ${effectiveSize}`}
+                  ? t("populations.builder.librarySummaryRaised", {
+                      libraryCount,
+                      generateCount,
+                      effectiveSize,
+                    })
+                  : t("populations.builder.librarySummary", {
+                      libraryCount,
+                      generateCount,
+                      effectiveSize,
+                    })}
               </p>
               {selectedPersonas.length > 0 && (
                 <div
@@ -519,7 +556,7 @@ export function PopulationBuilderPage() {
                         className="add-lib-toggle"
                         onClick={() => removeLibraryPersona(p.id)}
                       >
-                        Ta bort
+                        {t("common.delete")}
                       </button>
                     </div>
                   ))}
@@ -528,7 +565,7 @@ export function PopulationBuilderPage() {
               <AddFromLibraryPanel
                 excludeIds={selectedIds}
                 onAdd={addLibraryPersona}
-                hint="Lägg till personas från biblioteket. Du kan skapa populationen med bara dessa, eller fylla på med genererade."
+                hint={t("populations.builder.libraryHint")}
               />
             </div>
 
@@ -539,10 +576,10 @@ export function PopulationBuilderPage() {
                 onClick={() => void startGenerationJob()}
               >
                 {submitting
-                  ? "Startar jobb…"
+                  ? t("populations.builder.startingJob")
                   : generateCount === 0
-                    ? "Skapa population →"
-                    : "Generera personas →"}
+                    ? t("populations.builder.createPopulation")
+                    : t("populations.builder.generatePersonas")}
               </AdminButton>
             </div>
           </section>
@@ -550,11 +587,11 @@ export function PopulationBuilderPage() {
 
         <div className="nav-bar">
           <AdminButton variant="secondary" disabled={cur === 1} onClick={back}>
-            ← Tillbaka
+            {t("common.back")}
           </AdminButton>
           {cur !== 3 && (
             <AdminButton variant="primary" onClick={next}>
-              Nästa →
+              {t("common.next")}
             </AdminButton>
           )}
         </div>

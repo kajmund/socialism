@@ -1,30 +1,31 @@
-import type { EditablePersona } from "@/data/library-types"
 import { PersonaAnekdotEditor } from "@/components/personas/PersonaAnekdot"
+import type { EditablePersona } from "@/data/library-types"
+import { useLocale, type MessageKey } from "@/i18n"
 
-export type CardFieldKey = keyof EditablePersona
+export type CardFieldKey = Exclude<keyof EditablePersona, "key">
 
 type CardFieldDef = {
   key: CardFieldKey
-  label: string
+  labelKey: MessageKey
   kind: "age" | "select"
 }
 
 /** Catalog-backed compact fields — anekdot is edited separately (generativ, ej recept). */
-export const PERSONA_CARD_FIELDS: CardFieldDef[] = [
-  { key: "age", label: "Ålder", kind: "age" },
-  { key: "kön", label: "Kön", kind: "select" },
-  { key: "ort", label: "Distrikt", kind: "select" },
-  { key: "yrke", label: "Yrke", kind: "select" },
-  { key: "utbildning", label: "Utbildning", kind: "select" },
-  { key: "livssituation", label: "Livssituation", kind: "select" },
-  { key: "lutning", label: "Lutning", kind: "select" },
-  { key: "sakfragor", label: "Sakfrågor", kind: "select" },
-  { key: "fortroende", label: "Förtroende", kind: "select" },
-  { key: "ton", label: "Ton", kind: "select" },
-  { key: "sprak", label: "Språk", kind: "select" },
-  { key: "medievanor", label: "Media", kind: "select" },
-  { key: "parti", label: "Parti", kind: "select" },
-  { key: "valdeltagande", label: "Val", kind: "select" },
+const PERSONA_CARD_FIELDS: CardFieldDef[] = [
+  { key: "age", labelKey: "personas.fields.age", kind: "age" },
+  { key: "kön", labelKey: "personas.fields.gender", kind: "select" },
+  { key: "ort", labelKey: "personas.fields.district", kind: "select" },
+  { key: "yrke", labelKey: "personas.fields.occupation", kind: "select" },
+  { key: "utbildning", labelKey: "personas.fields.education", kind: "select" },
+  { key: "livssituation", labelKey: "personas.fields.lifeSituation", kind: "select" },
+  { key: "lutning", labelKey: "personas.fields.leaning", kind: "select" },
+  { key: "sakfragor", labelKey: "personas.fields.issues", kind: "select" },
+  { key: "fortroende", labelKey: "personas.fields.trust", kind: "select" },
+  { key: "ton", labelKey: "personas.fields.tone", kind: "select" },
+  { key: "sprak", labelKey: "personas.fields.language", kind: "select" },
+  { key: "medievanor", labelKey: "personas.fields.media", kind: "select" },
+  { key: "parti", labelKey: "personas.fields.party", kind: "select" },
+  { key: "valdeltagande", labelKey: "personas.fields.voting", kind: "select" },
 ]
 
 type PersonaCardFieldsProps = {
@@ -40,14 +41,16 @@ export function PersonaCardFields({
   disabled,
   onChange,
 }: PersonaCardFieldsProps) {
+  const { t } = useLocale()
   return (
     <div className="p-fields">
       {PERSONA_CARD_FIELDS.map((field) => {
         const value = profile[field.key] ?? ""
+        const label = t(field.labelKey)
         if (field.kind === "age") {
           return (
             <label key={field.key} className="p-field">
-              <span className="p-field-lbl">{field.label}</span>
+              <span className="p-field-lbl">{label}</span>
               <input
                 className="p-field-ctl"
                 type="number"
@@ -64,7 +67,7 @@ export function PersonaCardFields({
         const opts = fieldOptions[field.key] ?? []
         return (
           <label key={field.key} className="p-field">
-            <span className="p-field-lbl">{field.label}</span>
+            <span className="p-field-lbl">{label}</span>
             <select
               className="p-field-ctl"
               value={value}

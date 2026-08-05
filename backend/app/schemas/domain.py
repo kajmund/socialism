@@ -385,6 +385,8 @@ class OasisRunOptions(BaseModel):
 
     platform: OasisPlatform = "twitter"
     allow_population_create_post: bool = True
+    enable_web_search: bool = False
+    enable_sympy_tools: bool = False
 
 
 class RunSummary(BaseModel):
@@ -545,12 +547,14 @@ class ReportGenerateJobRequest(BaseModel):
 class ReportCreate(BaseModel):
     sources: list[ReportSource] = Field(min_length=1)
     title: str = ""
+    locale: Literal["sv", "en"] = "sv"
 
 
 class ReportOut(BaseModel):
     id: str
     status: ReportStatus
     title: str
+    locale: Literal["sv", "en"] = "sv"
     sources: list[ReportSource]
     html_path: str | None = None
     slots_path: str | None = None

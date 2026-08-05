@@ -1,5 +1,6 @@
 import { api, ApiError } from "@/lib/api"
 import { env } from "@/lib/env"
+import type { Locale } from "@/i18n"
 
 export type ReportStatus = "pending" | "running" | "succeeded" | "failed"
 
@@ -13,6 +14,7 @@ export type Report = {
   id: string
   status: ReportStatus
   title: string
+  locale: Locale
   sources: ReportSource[]
   html_path: string | null
   slots_path: string | null
@@ -26,6 +28,7 @@ export type Report = {
 export type ReportCreate = {
   sources: Array<{ run_id: number; attempt_id: string }>
   title?: string
+  locale?: Locale
 }
 
 export function createReport(body: ReportCreate): Promise<Report> {
@@ -51,7 +54,7 @@ export function reportHtmlUrl(id: string): string {
 export async function getReportHtml(id: string): Promise<string> {
   const body = await api.get<unknown>(`/reports/${id}/html`)
   if (typeof body !== "string" || !body.trim()) {
-    throw new ApiError("Rapport-HTML saknas eller är ogiltig")
+    throw new ApiError("Report HTML missing")
   }
   return body
 }

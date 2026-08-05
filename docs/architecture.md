@@ -45,7 +45,7 @@ Phase 1 deliberately uses SQLite before Supabase. Models/migrations stay portabl
 
 ## System boundaries
 
-- **Browser:** thin SPA. Renders admin UI and simulator wizard; calls FastAPI over JSON. Never holds service-role credentials or runs simulation logic.
+- **Browser:** thin SPA. Renders admin UI; calls FastAPI over JSON. Never holds service-role credentials or runs simulation logic.
 - **Backend:** authoritative for CRUD, LLM calls, background jobs, OASIS orchestration, and report generation.
 - **SQLite:** durable product state (personas, populations, runs, messages, catalog, jobs, reports, persona chat history).
 - **DeepSeek:** persona generation, anecdotes, library chat, run-scoped interviews, message variants/URL summarize, report narrative.
@@ -102,8 +102,9 @@ Interactive OpenAPI: `http://localhost:8000/docs`.
    - Freezes message-library bodies into injections when `message_id` is set
    - Sets status `running`, enqueues `run_simulate` job, returns **202** + `job_id`
 4. **Worker** (`app/services/jobs.py`):
+   - `run_simulate` jobs wait on `MAX_CONCURRENT_SIMULATION_JOBS` (default 2) before leaving `pending`
    - `SIMULATION_ENGINE=none` → empty attempt, status `done`
-   - `SIMULATION_ENGINE=oasis` → `simulate_run` for each variant (full population + injectors, all ticks)
+   - `SIMULATION_ENGINE=oasis` → `simulate_run` runs A/B variants concurrently (full population + injectors, all ticks)
 5. **Results** stored as `results.attempts[]` (newest first). Each attempt has `variants[]` with posts, comments, follows/mutes/reports, trace, action histogram, tick markers, measurements, quality warnings.
 6. **Re-run** appends a new attempt; individual attempts can be deleted.
 7. **Reports** via `POST /reports` with `{ sources: [{ run_id, attempt_id }], title? }` → `report_generate` job → artifacts under `backend/data/reports/{id}/`.
@@ -130,21 +131,20 @@ Library chat and post-hoc run interviews share the `persona_messages` table but 
 
 - Install: `cd backend && uv sync --extra oasis`
 - Enable: `SIMULATION_ENGINE=oasis`
+- A/B (and stimulus/control) variants run concurrently under distinct artifact dirs
+- Cap overlapping körningar with `MAX_CONCURRENT_SIMULATION_JOBS`
 - DeepSeek credentials are mirrored into env vars CAMEL reads (`apply_oasis_env`)
 - Platforms: Twitter (default) or Reddit (scenario clock for tick markers)
 - Injectors always post via manual actions; population `CREATE_POST` is gated by `oasis_options`
 - Swedish environment prompts + action semantics in `oasis_swedish.py` / `oasis_profiles.py`
 - Lexical convergence (`quality_warnings`) flags injection phrase-echo and cross-agent reuse (default ≥40% of population agents)
-- CLI helper: `uv run python -m app.services.oasis_run --run-id N`
+- Artifacts: `backend/data/oasis/run_{id}/{variant}/`
+- CLI helper (persists attempt): `uv run python -m app.services.oasis_run --run-id N`
+- Model benchmark (wall time + output metrics; does not persist attempt): `uv run python scripts/benchmark_simulation_models.py --run-id N` — see [backend setup](guides/backend-setup.md#benchmark-deepseek-models)
 
 ## Frontend surfaces
 
-Dual visual system (do not collapse):
-
-| Area | Theme | Routes |
-| ---- | ----- | ------ |
-| Admin | Devbrains charcoal + gold | `/runs`, `/personas`, `/populations`, `/messages`, `/config`, `/jobs`, `/reports/:id` |
-| Simulator | Paper / editorial | `/simulator` (demo wizard; mock unless tied to OASIS results) |
+Admin UI (Devbrains charcoal + gold): `/runs`, `/personas`, `/populations`, `/messages`, `/config`, `/jobs`, `/reports/:id`.
 
 Admin pages call FastAPI via `VITE_API_BASE_URL`. Supabase env placeholders are required at frontend boot but auth is not wired yet (`accessToken()` returns null).
 
@@ -163,7 +163,6 @@ Fail fast on missing required config.
 - No durable external job queue (in-process background tasks)
 - Reports are hybrid HTML, not PDF
 - Supabase Postgres/Auth not used for product state yet
-- `/simulator` remains a paper demo wizard separate from admin run CRUD
 
 ## Related docs
 

@@ -10,21 +10,14 @@ from pydantic import BaseModel, Field
 
 from app.llm import complete_structured
 from app.services.report.bundles import is_ab_comparison
+from app.services.report.locale import ReportLocale, narrative_system_prompt
 from app.services.report.tools import ReportToolBundle
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_META = """Du är samhällsvetare som jämför simulerade politiska diskussioner.
-När källorna är Version A och Version B (A/B-test av budskap): jämför ALLTID A mot B
-uttryckligen — vad skiljde i engagemang, ton, ämne och stil? Vilken arm fungerade bättre och varför?
-När det är flera oberoende körningar: rapportera alltid hur många körningar ett fynd bygger på.
-Ett mönster i en arm/körning = observation. I båda/alla = tendens, inte bevis.
-Svara på svenska. Fyll varje slot enligt instruktionen — ingen inledning utanför slotvärdena."""
-
-
-SYSTEM_SINGLE = """Du är samhällsvetare som analyserar EN simulerad politisk diskussion.
-Var ärlig om osäkerhet. En körning ger observationer, inte bevis.
-Svara på svenska. Fyll varje slot enligt instruktionen — ingen inledning utanför slotvärdena."""
+# Kept for tests / callers that import historical names.
+SYSTEM_META = narrative_system_prompt(multi=True, locale="sv")
+SYSTEM_SINGLE = narrative_system_prompt(multi=False, locale="sv")
 
 # Section batches: ~6 LLM calls instead of one agent loop per slot.
 NARRATIVE_BATCHES: tuple[tuple[str, tuple[str, ...]], ...] = (
@@ -97,7 +90,7 @@ class SlotBatchResponse(BaseModel):
     slots: dict[str, str] = Field(default_factory=dict)
 
 
-def metrics_digest(tools: ReportToolBundle) -> str:
+def metrics_digest(tools: ReportToolBundle, *, locale: ReportLocale = "sv") -> str:
     data = tools.describe_runs()
     extras = {
         "opinion_leaders": tools.opinion_leaders(limit=4),
@@ -107,6 +100,29 @@ def metrics_digest(tools: ReportToolBundle) -> str:
         "engagement": tools.compare_engagement(),
     }
     ab = is_ab_comparison(tools.bundles)
+    if locale == "en":
+        ab_block = ""
+        if ab:
+            ab_block = (
+                "\n\n### A/B TEST\n"
+                "This is Version A vs Version B from the same run. "
+                "Compare the arms side by side. Do not invent a single merged debate.\n"
+            )
+        return (
+            "### REQUIRED FACTS (do not change these numbers):\n"
+            + json.dumps(data, ensure_ascii=False, indent=2)
+            + "\n\n### SUPPORTING DATA (quotes and distributions):\n"
+            + json.dumps(extras, ensure_ascii=False, indent=2, default=str)
+            + ab_block
+            + "\n\n### Response format\n"
+            "- Return JSON with key slots: {slot_name: content}.\n"
+            "- Fill ALL requested slots. Empty string only if impossible.\n"
+            "- No preamble or reasoning outside slot values.\n"
+            "- No markdown code fences.\n"
+            "- Never markdown ** — use <strong> only in HTML slots.\n"
+            "- Heading/title slots: short headline text without analysis.\n"
+            "- Do not invent percentages that contradict the facts above.\n"
+        )
     ab_block = ""
     if ab:
         ab_block = (
@@ -168,14 +184,20 @@ async def fill_slot_batch(
     multi: bool,
     batch_name: str,
     items: list[dict[str, str]],
+    locale: ReportLocale = "sv",
 ) -> dict[str, str]:
     if not items:
         return {}
-    system = SYSTEM_META if multi else SYSTEM_SINGLE
+    system = narrative_system_prompt(multi=multi, locale=locale)
     task_lines = [
         f"- **{it['slot']}**: {it['question']}" for it in items
     ]
     expected = [it["slot"] for it in items]
+    fill_intro = (
+        "Fill the following slots. Keys in slots must be exactly these names:\n"
+        if locale == "en"
+        else "Fyll följande slots. Nycklar i slots måste vara exakt dessa namn:\n"
+    )
     try:
         result = await complete_structured(
             [
@@ -185,7 +207,7 @@ async def fill_slot_batch(
                     "content": (
                         f"{digest}\n\n"
                         f"### Batch: {batch_name}\n"
-                        "Fyll följande slots. Nycklar i slots måste vara exakt dessa namn:\n"
+                        f"{fill_intro}"
                         f"{', '.join(expected)}\n\n"
                         + "\n".join(task_lines)
                     ),
