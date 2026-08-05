@@ -3,32 +3,43 @@ import { Link, useParams } from "react-router-dom"
 import { getReport, getReportHtml, type Report } from "@/api/reports"
 import { AdminShell } from "@/components/layout/AdminShell"
 import { Card, CardContent } from "@/components/ui/card"
+import { useLocale, type MessageKey } from "@/i18n"
 import { ApiError } from "@/lib/api"
 
-const STATUS_LABEL: Record<Report["status"], string> = {
-  pending: "Väntar",
-  running: "Genererar",
-  succeeded: "Klar",
-  failed: "Misslyckades",
+const STATUS_KEY: Record<Report["status"], MessageKey> = {
+  pending: "reports.status.pending",
+  running: "reports.status.running",
+  succeeded: "reports.status.succeeded",
+  failed: "reports.status.failed",
 }
 
-function formatReportDuration(report: Report): string | null {
+function formatReportDuration(
+  report: Report,
+  t: (key: MessageKey, params?: Record<string, string | number>) => string,
+): string | null {
   if (!report.created_at || !report.finished_at) return null
   const ms =
     new Date(report.finished_at).getTime() - new Date(report.created_at).getTime()
   if (!Number.isFinite(ms) || ms < 0) return null
   const sec = Math.round(ms / 1000)
-  if (sec < 60) return `${sec} s`
+  if (sec < 60) return t("reports.duration.seconds", { n: sec })
   const m = Math.floor(sec / 60)
   const s = sec % 60
-  if (m < 60) return s > 0 ? `${m} min ${s} s` : `${m} min`
+  if (m < 60) {
+    return s > 0
+      ? t("reports.duration.minutesSeconds", { m, s })
+      : t("reports.duration.minutes", { m })
+  }
   const h = Math.floor(m / 60)
   const rm = m % 60
-  return rm > 0 ? `${h} h ${rm} min` : `${h} h`
+  return rm > 0
+    ? t("reports.duration.hoursMinutes", { h, m: rm })
+    : t("reports.duration.hours", { h })
 }
 
 export function ReportPage() {
   const { id } = useParams<{ id: string }>()
+  const { t } = useLocale()
   const [report, setReport] = useState<Report | null>(null)
   const [html, setHtml] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -50,7 +61,7 @@ export function ReportPage() {
         }
       } catch (err) {
         if (cancelled) return
-        setError(err instanceof ApiError ? err.message : "Kunde inte hämta rapport")
+        setError(err instanceof ApiError ? err.message : t("reports.loadError"))
         timer = window.setTimeout(load, 5000)
       }
     }
@@ -60,7 +71,7 @@ export function ReportPage() {
       cancelled = true
       if (timer != null) window.clearTimeout(timer)
     }
-  }, [id])
+  }, [id, t])
 
   useEffect(() => {
     if (!report || report.status !== "succeeded") {
@@ -79,14 +90,16 @@ export function ReportPage() {
         if (cancelled) return
         setHtml(null)
         setHtmlError(
-          err instanceof ApiError ? err.message : "Kunde inte ladda rapport-HTML",
+          err instanceof ApiError
+            ? t("reports.htmlMissing")
+            : t("reports.htmlLoadError"),
         )
       }
     })()
     return () => {
       cancelled = true
     }
-  }, [report])
+  }, [report, t])
 
   function openInNewTab() {
     if (!html) return
@@ -96,11 +109,13 @@ export function ReportPage() {
     window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
   }
 
+  const duration = report ? formatReportDuration(report, t) : null
+
   return (
     <AdminShell>
       <div className="wrap" style={{ maxWidth: 1100 }}>
         <div className="section-head">
-          <span className="kicker">Rapport</span>
+          <span className="kicker">{t("reports.kicker")}</span>
           <h1
             style={{
               font: "var(--text-h1)",
@@ -108,14 +123,12 @@ export function ReportPage() {
               fontWeight: 400,
             }}
           >
-            {report?.title || "Simuleringsrapport"}
+            {report?.title || t("reports.titleFallback")}
           </h1>
           <p>
-            <Link to="/jobs">← Bakgrundsjobb</Link>
-            {report ? ` · ${STATUS_LABEL[report.status]}` : null}
-            {report && formatReportDuration(report)
-              ? ` · tog ${formatReportDuration(report)}`
-              : null}
+            <Link to="/jobs">{t("reports.backToJobs")}</Link>
+            {report ? ` · ${t(STATUS_KEY[report.status])}` : null}
+            {duration ? ` · ${t("reports.took", { duration })}` : null}
           </p>
         </div>
 
@@ -128,7 +141,7 @@ export function ReportPage() {
         {report?.status === "failed" ? (
           <Card className="mb-4 gap-0 ring-1 ring-border">
             <CardContent className="px-5 py-4 text-sm text-destructive">
-              {report.error || "Rapportgenereringen misslyckades."}
+              {report.error || t("reports.generateFailed")}
             </CardContent>
           </Card>
         ) : null}
@@ -136,7 +149,7 @@ export function ReportPage() {
         {report && (report.status === "pending" || report.status === "running") ? (
           <Card className="mb-4 gap-0 ring-1 ring-border">
             <CardContent className="px-5 py-4 text-sm text-muted-foreground">
-              Rapporten genereras… Det kan ta några minuter.
+              {t("reports.generating")}
             </CardContent>
           </Card>
         ) : null}
@@ -148,7 +161,7 @@ export function ReportPage() {
               onClick={openInNewTab}
               className="text-db-gold-700 underline-offset-2 hover:underline"
             >
-              Öppna i ny flik →
+              {t("reports.openNewTab")}
             </button>
           </div>
         ) : null}
@@ -162,14 +175,14 @@ export function ReportPage() {
         {report?.status === "succeeded" && !html && !htmlError ? (
           <Card className="mb-4 gap-0 ring-1 ring-border">
             <CardContent className="px-5 py-4 text-sm text-muted-foreground">
-              Laddar rapport…
+              {t("reports.loadingHtml")}
             </CardContent>
           </Card>
         ) : null}
 
         {html ? (
           <iframe
-            title={report?.title || "Rapport"}
+            title={report?.title || t("reports.iframeTitle")}
             srcDoc={html}
             className="w-full rounded-md border border-border bg-white"
             style={{ minHeight: "80vh" }}

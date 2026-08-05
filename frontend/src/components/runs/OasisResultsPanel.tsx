@@ -2519,7 +2519,7 @@ export function OasisResultsPanel({
   onDeleteAttempt,
   deletingAttemptId = null,
 }: Props) {
-  const { intl, t } = useLocale()
+  const { intl, locale, t } = useLocale()
   const navigate = useNavigate()
   const attempts = normalizeRunAttempts(results, t)
   const attemptIds = useMemo(() => attempts.map((a) => a.id), [results])
@@ -2592,7 +2592,7 @@ export function OasisResultsPanel({
       for (const s of sources) next.add(s.attempt_id)
       return next
     })
-    const report = await createReport({ sources, title })
+    const report = await createReport({ sources, title, locale })
     navigate(`/reports/${report.id}`)
   }
 
