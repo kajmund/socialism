@@ -32,8 +32,8 @@ export function personaInitials(name: string): string {
     .toUpperCase()
 }
 
-export function formatLibraryDate(d: string): string {
-  return new Date(d).toLocaleDateString("sv-SE", { day: "numeric", month: "short" })
+export function formatLibraryDate(d: string, locale = "sv-SE"): string {
+  return new Date(d).toLocaleDateString(locale, { day: "numeric", month: "short" })
 }
 
 export function personaAnekdot(

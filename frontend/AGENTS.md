@@ -72,7 +72,7 @@ Swedish is the default UI locale. Do **not** add `react-i18next` / `lingui` unle
 - Catalogs: `src/i18n/messages/sv.ts` (source of truth for keys) and `en.ts` (same shape).
 - Runtime: `LocaleProvider` + `useLocale()` from `@/i18n` (`t(key, params?)`, `locale`, `setLocale`, `intl` for `Intl.*`).
 - Persist choice in `localStorage` (`opinionssimulator.locale`); sync `document.documentElement.lang`.
-- Language switcher lives in `AdminShell` (admin chrome). First migrated surface: nav + Jobs page + job toasts.
+- Language switcher lives in `AdminShell` (admin chrome). Migrated so far: nav, Jobs, Runs list, Populations list/detail + job toasts.
 
 **Adding a string**
 
@@ -81,7 +81,7 @@ Swedish is the default UI locale. Do **not** add `react-i18next` / `lingui` unle
 3. Replace hardcoded UI text with `const { t } = useLocale(); t("section.key")` (use `{name}` placeholders for interpolation).
 4. For dates/numbers, use `intl` from `useLocale()` with `Intl.DateTimeFormat` / `Intl.NumberFormat` — do not hardcode `"sv-SE"`.
 
-Out of scope for the first slice: simulator wizard, persona composer, run results, backend report HTML / OASIS prompts.
+Still hardcoded (next slices): ConfigureRun / wizard / timeline, PopulationBuilder, Personas, Messages, Config, simulator wizard, backend report HTML / OASIS prompts.
 
 ## Routes (current)
 

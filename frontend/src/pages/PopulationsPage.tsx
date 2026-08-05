@@ -9,16 +9,26 @@ import { AdminShell } from "@/components/layout/AdminShell"
 import { Card, CardContent } from "@/components/ui/card"
 import { FP_COLORS, formatLibraryDate } from "@/data/library"
 import type { PopulationSummary } from "@/data/library-types"
+import { useLocale, type MessageKey } from "@/i18n"
 import { ApiError } from "@/lib/api"
+
+type Translate = (key: MessageKey, params?: Record<string, string | number>) => string
 
 type PopCardProps = {
   pop: PopulationSummary
+  intl: string
+  t: Translate
   onDelete: (id: number) => void
   onDup: (id: number, name: string) => void
 }
 
-function PopCard({ pop, onDelete, onDup }: PopCardProps) {
+function PopCard({ pop, intl, t, onDelete, onDup }: PopCardProps) {
   const [confirming, setConfirming] = useState(false)
+  const fpLabels = [
+    t("populations.list.fpAge"),
+    t("populations.list.fpLean"),
+    t("populations.list.fpDistrict"),
+  ] as const
   return (
     <div className="pop-card">
       <Card className="h-full gap-0 py-4 ring-1 ring-border">
@@ -27,15 +37,18 @@ function PopCard({ pop, onDelete, onDup }: PopCardProps) {
             <div className="nm">{pop.name}</div>
             {pop.versions > 1 && (
               <span className="rounded-full border border-[color:var(--border-hairline)] px-2 py-0.5 text-[11px]">
-                {pop.versions} versioner
+                {t("common.versions", { count: pop.versions })}
               </span>
             )}
           </div>
           <div className="meta-line">
-            <b>{pop.size}</b> personas · uppdaterad {formatLibraryDate(pop.updated)}
+            {t("populations.list.metaLine", {
+              size: pop.size,
+              when: formatLibraryDate(pop.updated, intl),
+            })}
           </div>
           <div className="fingerprint">
-            {(["ålder", "lutn.", "ort"] as const).map((label, i) => (
+            {fpLabels.map((label, i) => (
               <div className="fp-row" key={label}>
                 <div className="fp-lbl">{label}</div>
                 <div className="fp-bar">
@@ -52,16 +65,17 @@ function PopCard({ pop, onDelete, onDup }: PopCardProps) {
           <div className="usage-row">
             {pop.runs > 0 ? (
               <span>
-                Använd i <b>{pop.runs}</b> körningar
+                {t("populations.list.usedInPrefix")} <b>{pop.runs}</b>{" "}
+                {t("populations.list.usedInSuffix")}
               </span>
             ) : (
-              <span className="unused">Oanvänd ännu</span>
+              <span className="unused">{t("populations.list.unused")}</span>
             )}
           </div>
           {confirming ? (
             <div className="confirm-row" style={{ marginTop: "auto" }}>
               <button type="button" style={{ flex: 1 }} onClick={() => setConfirming(false)}>
-                Avbryt
+                {t("common.cancel")}
               </button>
               <button
                 type="button"
@@ -69,20 +83,20 @@ function PopCard({ pop, onDelete, onDup }: PopCardProps) {
                 style={{ flex: 1 }}
                 onClick={() => onDelete(pop.id)}
               >
-                Ta bort?
+                {t("common.deleteConfirm")}
               </button>
             </div>
           ) : (
             <div className="card-actions">
               <Link className="primary" to={`/populations/${pop.id}`}>
-                Öppna
+                {t("common.open")}
               </Link>
               <button type="button" onClick={() => onDup(pop.id, pop.name)}>
-                Duplicera
+                {t("common.duplicate")}
               </button>
-              <Link to={`/populations/${pop.id}/edit`}>Redigera recept</Link>
+              <Link to={`/populations/${pop.id}/edit`}>{t("common.editRecipe")}</Link>
               <button type="button" className="danger" onClick={() => setConfirming(true)}>
-                Ta bort
+                {t("common.delete")}
               </button>
             </div>
           )}
@@ -93,6 +107,7 @@ function PopCard({ pop, onDelete, onDup }: PopCardProps) {
 }
 
 export function PopulationsPage() {
+  const { t, intl } = useLocale()
   const [pops, setPops] = useState<PopulationSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -112,7 +127,7 @@ export function PopulationsPage() {
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setError(err instanceof ApiError ? err.message : "Kunde inte hämta populationer")
+          setError(err instanceof ApiError ? err.message : t("populations.list.loadError"))
         }
       })
       .finally(() => {
@@ -121,7 +136,7 @@ export function PopulationsPage() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [t])
 
   const list = useMemo(() => {
     let next = pops.filter((p) => p.name.toLowerCase().includes(query.toLowerCase()))
@@ -144,9 +159,9 @@ export function PopulationsPage() {
     try {
       await deletePopulation(id)
       setPops((prev) => prev.filter((x) => x.id !== id))
-      showToast("Population borttagen")
+      showToast(t("populations.list.deleted"))
     } catch (err) {
-      showToast(err instanceof ApiError ? err.message : "Kunde inte ta bort")
+      showToast(err instanceof ApiError ? err.message : t("common.deleteError"))
     }
   }
 
@@ -154,9 +169,9 @@ export function PopulationsPage() {
     try {
       const copy = await duplicatePopulation(id)
       setPops((prev) => [copy, ...prev])
-      showToast(`Duplicerade '${name}'`)
+      showToast(t("populations.list.duplicated", { name }))
     } catch (err) {
-      showToast(err instanceof ApiError ? err.message : "Kunde inte duplicera")
+      showToast(err instanceof ApiError ? err.message : t("common.duplicateError"))
     }
   }
 
@@ -173,7 +188,7 @@ export function PopulationsPage() {
                 margin: 0,
               }}
             >
-              Populationer
+              {t("populations.list.title")}
             </h1>
             <div
               style={{
@@ -183,7 +198,7 @@ export function PopulationsPage() {
                 maxWidth: 640,
               }}
             >
-              Sparade demografiska recept och deras genererade personas.
+              {t("populations.list.intro")}
             </div>
           </div>
         </div>
@@ -195,14 +210,14 @@ export function PopulationsPage() {
         )}
 
         {loading ? (
-          <div className="no-match">Hämtar populationer…</div>
+          <div className="no-match">{t("populations.list.loading")}</div>
         ) : pops.length > 0 ? (
           <>
             <div className="controls-row">
               <div className="controls-left">
                 <input
                   className="dsearch"
-                  placeholder="Sök på namn..."
+                  placeholder={t("populations.list.searchPlaceholder")}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                 />
@@ -213,16 +228,16 @@ export function PopulationsPage() {
                     setSort(e.target.value as "updated" | "size" | "runs")
                   }
                 >
-                  <option value="updated">Sortera: Senast uppdaterad</option>
-                  <option value="size">Sortera: Flest personas</option>
-                  <option value="runs">Sortera: Flest körningar</option>
+                  <option value="updated">{t("populations.list.sortUpdated")}</option>
+                  <option value="size">{t("populations.list.sortSize")}</option>
+                  <option value="runs">{t("populations.list.sortRuns")}</option>
                 </select>
               </div>
               <Link
                 to="/populations/new"
                 className="admin-cta inline-flex h-9 items-center rounded-md bg-db-black px-4 text-sm text-db-ink-0 no-underline hover:bg-db-ink-800"
               >
-                + Ny population
+                {t("populations.list.newPopulation")}
               </Link>
             </div>
             <div className="pop-grid">
@@ -231,30 +246,32 @@ export function PopulationsPage() {
                   <PopCard
                     key={p.id}
                     pop={p}
+                    intl={intl}
+                    t={t}
                     onDelete={handleDelete}
                     onDup={handleDup}
                   />
                 ))
               ) : (
-                <div className="no-match">Inga populationer matchar &quot;{query}&quot;.</div>
+                <div className="no-match">
+                  {t("populations.list.emptyFilter", { query })}
+                </div>
               )}
             </div>
           </>
         ) : (
           <div className="empty-state">
             <h2 style={{ font: "var(--text-h2)", marginBottom: 10 }}>
-              Inga populationer ännu
+              {t("populations.list.emptyTitle")}
             </h2>
             <p style={{ color: "var(--text-muted)", marginBottom: 24 }}>
-              En population är ett sparat demografiskt recept med tillhörande
-              personas. Skapa den första för att börja testa budskap mot en
-              definierad grupp.
+              {t("populations.list.emptyBody")}
             </p>
             <Link
               to="/populations/new"
               className="admin-cta inline-flex h-9 items-center rounded-md bg-db-black px-4 text-sm text-db-ink-0 no-underline"
             >
-              + Ny population
+              {t("populations.list.newPopulation")}
             </Link>
           </div>
         )}
