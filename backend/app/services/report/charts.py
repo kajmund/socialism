@@ -4,6 +4,12 @@ from __future__ import annotations
 
 from html import escape
 
+from app.services.report.locale import (
+    ReportLocale,
+    display_style_label,
+    other_topic_label,
+    runs_label,
+)
 from app.services.report.metrics import ReportMetrics, confidence_badge, fmt_num, pct
 
 # Report chart palette (warm paper-adjacent tones for HTML reports)
@@ -20,17 +26,19 @@ C_INK = "#1A1814"
 _TOPIC_PALETTE = (C_PRIMARY, C_ORANGE, C_PRIMARY_2, C_GREEN, C_AMBER, C_MUTED, C_ROSE)
 
 
-def _topic_color(label: str, index: int) -> str:
-    if label == "Övrigt":
+def _topic_color(label: str, index: int, *, locale: ReportLocale = "sv") -> str:
+    if label == other_topic_label(locale):
         return C_MUTED
     return _TOPIC_PALETTE[index % len(_TOPIC_PALETTE)]
 
 
-def _tone_subtitle(metrics: ReportMetrics) -> str:
-    return "Klassad per kommentar (LLM)"
-
-
-def _badge_html(kind: str, n: int) -> str:
+def _badge_html(kind: str, n: int, locale: ReportLocale) -> str:
+    if locale == "en":
+        if kind == "confirmed":
+            return f'<span class="badge confirmed">Confirmed in all {n} tests</span>'
+        if kind == "indicated":
+            return f'<span class="badge indicated">Tendency in {n} tests</span>'
+        return '<span class="badge single">Observation</span>'
     if kind == "confirmed":
         return f'<span class="badge confirmed">Bekräftat i alla {n} tester</span>'
     if kind == "indicated":
@@ -63,64 +71,95 @@ def _donut(shares: list[tuple[str, float, str]], center: str) -> str:
     )
 
 
-def render_engagement_donut(metrics: ReportMetrics) -> str:
+def render_engagement_donut(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -> str:
     m = metrics.aggregate
     total = max(1, m.top_agents + m.mid_agents + m.zero_like_agents)
-    shares = [
-        ("Toppengagerade", m.top_agents / total, C_PRIMARY),
-        ("Viss aktivitet", m.mid_agents / total, C_PRIMARY_2),
-        ("Inga likes alls", m.zero_like_agents / total, C_SOFT),
-    ]
+    if locale == "en":
+        shares = [
+            ("Top engaged", m.top_agents / total, C_PRIMARY),
+            ("Some activity", m.mid_agents / total, C_PRIMARY_2),
+            ("No likes at all", m.zero_like_agents / total, C_SOFT),
+        ]
+        title = "Engagement in the debate"
+        sub = f"Of {m.agent_count} simulated citizens"
+    else:
+        shares = [
+            ("Toppengagerade", m.top_agents / total, C_PRIMARY),
+            ("Viss aktivitet", m.mid_agents / total, C_PRIMARY_2),
+            ("Inga likes alls", m.zero_like_agents / total, C_SOFT),
+        ]
+        title = "Engagemang i debatten"
+        sub = f"Av {m.agent_count} simulerade medborgare"
     return (
         '<div class="chart-card">'
-        "<h4>Engagemang i debatten</h4>"
-        f'<div class="chart-sub">Av {m.agent_count} simulerade medborgare</div>'
+        f"<h4>{title}</h4>"
+        f'<div class="chart-sub">{sub}</div>'
         f"{_donut(shares, str(m.zero_like_agents))}"
         "</div>"
     )
 
 
-def render_topic_donut(metrics: ReportMetrics) -> str:
+def render_topic_donut(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -> str:
     m = metrics.aggregate
     ordered = sorted(m.topic_shares.items(), key=lambda x: x[1], reverse=True)
-    shares = [(k, v, _topic_color(k, i)) for i, (k, v) in enumerate(ordered)]
+    shares = [(k, v, _topic_color(k, i, locale=locale)) for i, (k, v) in enumerate(ordered)]
     top = ordered[0][0] if ordered else "—"
+    if locale == "en":
+        title = "What was discussed?"
+        sub = "Topic distribution in text (keywords from injections)"
+    else:
+        title = "Vad diskuterades?"
+        sub = "Ämnesfördelning i text (nyckelord från injektioner)"
     return (
         '<div class="chart-card">'
-        "<h4>Vad diskuterades?</h4>"
-        '<div class="chart-sub">Ämnesfördelning i text (nyckelord från injektioner)</div>'
+        f"<h4>{title}</h4>"
+        f'<div class="chart-sub">{sub}</div>'
         f"{_donut(shares, top[:12])}"
         "</div>"
     )
 
 
-def render_tone_donut(metrics: ReportMetrics) -> str:
+def render_tone_donut(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -> str:
     m = metrics.aggregate
-    colors = {
-        "Kritisk / uppgiven": C_ROSE,
-        "Konstruktiv": C_GREEN,
-        "Positiv / hoppfull": C_AMBER,
-        "Neutral / oklassad": C_MUTED,
-    }
+    if locale == "en":
+        colors = {
+            "Critical / resigned": C_ROSE,
+            "Constructive": C_GREEN,
+            "Positive / hopeful": C_AMBER,
+            "Neutral / unclassified": C_MUTED,
+        }
+        title = "Debate tone"
+        sub = "Classified per comment (LLM)"
+        center = "tone"
+    else:
+        colors = {
+            "Kritisk / uppgiven": C_ROSE,
+            "Konstruktiv": C_GREEN,
+            "Positiv / hoppfull": C_AMBER,
+            "Neutral / oklassad": C_MUTED,
+        }
+        title = "Debattens ton"
+        sub = "Klassad per kommentar (LLM)"
+        center = "ton"
     shares = [(k, v, colors.get(k, C_MUTED)) for k, v in m.tone_shares.items()]
     return (
         '<div class="chart-card">'
-        "<h4>Debattens ton</h4>"
-        f'<div class="chart-sub">{_tone_subtitle(metrics)}</div>'
-        f"{_donut(shares, 'ton')}"
+        f"<h4>{title}</h4>"
+        f'<div class="chart-sub">{sub}</div>'
+        f"{_donut(shares, center)}"
         "</div>"
     )
 
 
-def render_sec02_charts(metrics: ReportMetrics) -> str:
+def render_sec02_charts(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -> str:
     return (
-        render_engagement_donut(metrics)
-        + render_topic_donut(metrics)
-        + render_tone_donut(metrics)
+        render_engagement_donut(metrics, locale=locale)
+        + render_topic_donut(metrics, locale=locale)
+        + render_tone_donut(metrics, locale=locale)
     )
 
 
-def render_style_hbars(metrics: ReportMetrics) -> str:
+def render_style_hbars(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -> str:
     styles = metrics.aggregate.style_avg_likes
     max_v = max((v for _, v in styles), default=1.0) or 1.0
     palette = [C_PRIMARY, C_PRIMARY_2, C_GREEN, C_ORANGE, C_MUTED, C_ROSE]
@@ -129,32 +168,40 @@ def render_style_hbars(metrics: ReportMetrics) -> str:
         width = max(2, round((avg / max_v) * 100)) if avg > 0 else 2
         color = palette[i % len(palette)]
         zero_cls = " hb-zero" if avg <= 0 else ""
+        shown = display_style_label(label, locale)
         rows.append(
             f'<div class="hbar-row">'
-            f'<div class="hbar-lbl">{escape(label)}</div>'
+            f'<div class="hbar-lbl">{escape(shown)}</div>'
             f'<div class="hbar-track"><div class="hbar-fill{zero_cls}" '
             f'style="width:{width}%;background:{color}">{fmt_num(avg)}</div></div>'
             f'<div class="hbar-val">{fmt_num(avg)}</div></div>'
         )
+    if locale == "en":
+        title = "Average likes per message style"
+        sub = "Keyword match — unmatched text = Unclassified (no Personal default)"
+    else:
+        title = "Genomsnittliga likes per budskapsstil"
+        sub = "Nyckelordsmatch — omatchad text = Oklassad (ingen Personlig-default)"
     return (
         '<div class="chart-card">'
-        "<h4>Genomsnittliga likes per budskapsstil</h4>"
-        '<div class="chart-sub">Nyckelordsmatch — omatchad text = Oklassad (ingen Personlig-default)</div>'
+        f"<h4>{title}</h4>"
+        f'<div class="chart-sub">{sub}</div>'
         f'<div class="hbar-chart">{"".join(rows)}</div></div>'
     )
 
 
-def render_topic_race(metrics: ReportMetrics) -> str:
+def render_topic_race(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -> str:
     shares = metrics.aggregate.topic_shares
     rows = []
     ordered = sorted(shares.items(), key=lambda x: x[1], reverse=True)
+    share_note = "share of matched text" if locale == "en" else "andel av matchad text"
     for i, (topic, share) in enumerate(ordered):
         w = max(2, round(share * 100))
-        color = _topic_color(topic, i)
+        color = _topic_color(topic, i, locale=locale)
         rows.append(
             f'<div class="topic-row">'
             f'<div class="t-name">{escape(topic)}'
-            f'<small>andel av matchad text</small></div>'
+            f"<small>{share_note}</small></div>"
             f'<div class="t-track"><div class="t-fill" style="width:{w}%;background:{color}">'
             f"</div></div>"
             f'<div class="t-pct">{pct(share)}</div></div>'
@@ -162,55 +209,100 @@ def render_topic_race(metrics: ReportMetrics) -> str:
     return f'<div class="topic-race">{"".join(rows)}</div>'
 
 
-def render_infographic_grid(metrics: ReportMetrics) -> str:
+def render_infographic_grid(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -> str:
     m = metrics.aggregate
     n = metrics.n_runs
     top_style = m.style_avg_likes[0] if m.style_avg_likes else ("—", 0.0)
     top_topic = max(m.topic_shares, key=m.topic_shares.get) if m.topic_shares else "—"
     top_share = m.topic_shares.get(top_topic, 0.0)
+    top_style_label = display_style_label(top_style[0], locale)
+    style_rows = [
+        (display_style_label(s, locale), a) for s, a in m.style_avg_likes[:5]
+    ]
 
-    pyramid = (
-        f'<div class="info-card tall">'
-        f'<div class="info-card-label">Vem engagerade sig?</div>'
-        f'<div class="info-card-title">Engagemanget samlades hos ett fåtal</div>'
-        f'<div class="pyramid">'
-        f'<div class="pyr-top">{m.top_agents}<span>Ledde</span></div>'
-        f'<div class="pyr-mid">{m.mid_agents}<span>Deltog</span></div>'
-        f'<div class="pyr-base">{m.zero_like_agents}<span>Scrollade förbi</span></div>'
-        f"</div>"
-        f'<p class="chart-sub">av {m.agent_count} simulerade medborgare · Gini {fmt_num(m.gini)}</p>'
-        f"</div>"
-    )
-
-    kpis = (
-        f'<div class="info-col"><div class="info-kpi-row">'
-        f'<div class="info-kpi red"><div class="info-kpi-num">{m.zero_like_agents}</div>'
-        f'<div class="info-kpi-label">agenter utan likes'
-        f"<span>{'snitt över ' + str(n) + ' tester' if n > 1 else 'i denna körning'}</span>"
-        f"</div></div>"
-        f'<div class="info-kpi blue"><div class="info-kpi-num">{fmt_num(top_style[1])}</div>'
-        f'<div class="info-kpi-label">likes/inlägg · {escape(top_style[0])}</div></div>'
-        f'<div class="info-kpi orange"><div class="info-kpi-num">{pct(top_share)}</div>'
-        f'<div class="info-kpi-label">av debatten om {escape(top_topic)}</div></div>'
-        f"</div>"
-        f'<div class="info-card"><div class="info-card-label">Budskapsstil</div>'
-        f'<div class="info-card-title">Genomslag (heuristik)</div>'
-        f"{_mini_style_bars(m.style_avg_likes[:5])}</div></div>"
-    )
-
-    tone_rows = "".join(
-        f"<div class=\"tone-row\"><span>{escape(k)}</span><strong>{pct(v)}</strong></div>"
-        for k, v in m.tone_shares.items()
-    )
-    tone_card = (
-        f'<div class="info-col">'
-        f'<div class="info-card"><div class="info-card-label">Stämning</div>'
-        f'<div class="info-card-title">Hur var tonen?</div>{tone_rows}</div>'
-        f'<div class="info-card"><div class="info-card-label">Volym</div>'
-        f'<div class="info-card-title">{m.post_count} inlägg · {m.comment_count} kommentarer</div>'
-        f'<p class="chart-sub">{n} körning{"ar" if n != 1 else ""} · upp till {m.ticks_run} ticks</p>'
-        f"</div></div>"
-    )
+    if locale == "en":
+        pyramid = (
+            f'<div class="info-card tall">'
+            f'<div class="info-card-label">Who engaged?</div>'
+            f'<div class="info-card-title">Engagement gathered around a few</div>'
+            f'<div class="pyramid">'
+            f'<div class="pyr-top">{m.top_agents}<span>Led</span></div>'
+            f'<div class="pyr-mid">{m.mid_agents}<span>Participated</span></div>'
+            f'<div class="pyr-base">{m.zero_like_agents}<span>Scrolled past</span></div>'
+            f"</div>"
+            f'<p class="chart-sub">of {m.agent_count} simulated citizens · Gini {fmt_num(m.gini)}</p>'
+            f"</div>"
+        )
+        avg_note = f"avg across {n} tests" if n > 1 else "in this run"
+        kpis = (
+            f'<div class="info-col"><div class="info-kpi-row">'
+            f'<div class="info-kpi red"><div class="info-kpi-num">{m.zero_like_agents}</div>'
+            f'<div class="info-kpi-label">agents with no likes'
+            f"<span>{avg_note}</span>"
+            f"</div></div>"
+            f'<div class="info-kpi blue"><div class="info-kpi-num">{fmt_num(top_style[1])}</div>'
+            f'<div class="info-kpi-label">likes/post · {escape(top_style_label)}</div></div>'
+            f'<div class="info-kpi orange"><div class="info-kpi-num">{pct(top_share)}</div>'
+            f'<div class="info-kpi-label">of the debate about {escape(top_topic)}</div></div>'
+            f"</div>"
+            f'<div class="info-card"><div class="info-card-label">Message style</div>'
+            f'<div class="info-card-title">Impact (heuristic)</div>'
+            f"{_mini_style_bars(style_rows)}</div></div>"
+        )
+        tone_rows = "".join(
+            f"<div class=\"tone-row\"><span>{escape(k)}</span><strong>{pct(v)}</strong></div>"
+            for k, v in m.tone_shares.items()
+        )
+        tone_card = (
+            f'<div class="info-col">'
+            f'<div class="info-card"><div class="info-card-label">Mood</div>'
+            f'<div class="info-card-title">What was the tone?</div>{tone_rows}</div>'
+            f'<div class="info-card"><div class="info-card-label">Volume</div>'
+            f'<div class="info-card-title">{m.post_count} posts · {m.comment_count} comments</div>'
+            f'<p class="chart-sub">{runs_label(n, locale)} · up to {m.ticks_run} ticks</p>'
+            f"</div></div>"
+        )
+    else:
+        pyramid = (
+            f'<div class="info-card tall">'
+            f'<div class="info-card-label">Vem engagerade sig?</div>'
+            f'<div class="info-card-title">Engagemanget samlades hos ett fåtal</div>'
+            f'<div class="pyramid">'
+            f'<div class="pyr-top">{m.top_agents}<span>Ledde</span></div>'
+            f'<div class="pyr-mid">{m.mid_agents}<span>Deltog</span></div>'
+            f'<div class="pyr-base">{m.zero_like_agents}<span>Scrollade förbi</span></div>'
+            f"</div>"
+            f'<p class="chart-sub">av {m.agent_count} simulerade medborgare · Gini {fmt_num(m.gini)}</p>'
+            f"</div>"
+        )
+        kpis = (
+            f'<div class="info-col"><div class="info-kpi-row">'
+            f'<div class="info-kpi red"><div class="info-kpi-num">{m.zero_like_agents}</div>'
+            f'<div class="info-kpi-label">agenter utan likes'
+            f"<span>{'snitt över ' + str(n) + ' tester' if n > 1 else 'i denna körning'}</span>"
+            f"</div></div>"
+            f'<div class="info-kpi blue"><div class="info-kpi-num">{fmt_num(top_style[1])}</div>'
+            f'<div class="info-kpi-label">likes/inlägg · {escape(top_style_label)}</div></div>'
+            f'<div class="info-kpi orange"><div class="info-kpi-num">{pct(top_share)}</div>'
+            f'<div class="info-kpi-label">av debatten om {escape(top_topic)}</div></div>'
+            f"</div>"
+            f'<div class="info-card"><div class="info-card-label">Budskapsstil</div>'
+            f'<div class="info-card-title">Genomslag (heuristik)</div>'
+            f"{_mini_style_bars(style_rows)}</div></div>"
+        )
+        tone_rows = "".join(
+            f"<div class=\"tone-row\"><span>{escape(k)}</span><strong>{pct(v)}</strong></div>"
+            for k, v in m.tone_shares.items()
+        )
+        tone_card = (
+            f'<div class="info-col">'
+            f'<div class="info-card"><div class="info-card-label">Stämning</div>'
+            f'<div class="info-card-title">Hur var tonen?</div>{tone_rows}</div>'
+            f'<div class="info-card"><div class="info-card-label">Volym</div>'
+            f'<div class="info-card-title">{m.post_count} inlägg · {m.comment_count} kommentarer</div>'
+            f'<p class="chart-sub">{runs_label(n, locale)} · upp till {m.ticks_run} ticks</p>'
+            f"</div></div>"
+        )
     return pyramid + kpis + tone_card
 
 
@@ -226,104 +318,153 @@ def _mini_style_bars(styles: list[tuple[str, float]]) -> str:
     return '<div class="mini-bars">' + "".join(parts) + "</div>"
 
 
-def render_agents_html(metrics: ReportMetrics) -> str:
+def render_agents_html(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -> str:
     cards = []
     for i, actor in enumerate(metrics.aggregate.top_actors):
         warn = " ag-warn" if i == len(metrics.aggregate.top_actors) - 1 else ""
         quote = escape(str(actor.get("sample") or "")[:160])
+        if locale == "en":
+            role = "Opinion voice"
+            likes_l = "likes/post"
+            total_l = "total"
+            items_l = "posts"
+            empty = '<p class="sec-intro">No clear opinion leaders in the data.</p>'
+        else:
+            role = "Opinionsröst"
+            likes_l = "likes/inlägg"
+            total_l = "totalt"
+            items_l = "poster"
+            empty = '<p class="sec-intro">Inga tydliga opinionsledare i datan.</p>'
         cards.append(
             f'<div class="agent-card{warn}">'
             f'<div class="ag-name">{escape(str(actor["name"]))}</div>'
-            f'<div class="ag-title">Opinionsröst</div>'
+            f'<div class="ag-title">{role}</div>'
             f'<div class="ag-scores">'
             f'<div class="ag-score"><div class="ag-score-v">{fmt_num(actor["likes_per_item"])}</div>'
-            f'<div class="ag-score-l">likes/inlägg</div></div>'
+            f'<div class="ag-score-l">{likes_l}</div></div>'
             f'<div class="ag-score"><div class="ag-score-v">{actor["likes_total"]}</div>'
-            f'<div class="ag-score-l">totalt</div></div>'
+            f'<div class="ag-score-l">{total_l}</div></div>'
             f'<div class="ag-score"><div class="ag-score-v">{actor["items"]}</div>'
-            f'<div class="ag-score-l">poster</div></div></div>'
+            f'<div class="ag-score-l">{items_l}</div></div></div>'
             f'{f"<div class=\"ag-quote\">“{quote}”</div>" if quote else ""}'
             f"</div>"
         )
     if not cards:
-        return '<p class="sec-intro">Inga tydliga opinionsledare i datan.</p>'
+        return empty
     return '<div class="agents-grid">' + "".join(cards) + "</div>"
 
 
-def render_pop_compare(metrics: ReportMetrics) -> str:
+def render_pop_compare(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -> str:
     cards = []
     for m in metrics.bundles:
         top_topic = max(m.topic_shares, key=m.topic_shares.get) if m.topic_shares else "—"
+        if locale == "en":
+            agents_l = f"{m.agent_count} agents"
+            topic_l = "Dominant topic"
+            comments_l = "Comments"
+        else:
+            agents_l = f"{m.agent_count} agenter"
+            topic_l = "Dominerande ämne"
+            comments_l = "Kommentarer"
         cards.append(
             f'<div class="pop-card">'
             f'<div class="pop-head">{escape(m.label)}'
-            f"<small>{m.agent_count} agenter</small></div>"
+            f"<small>{agents_l}</small></div>"
             f'<div class="pop-body">'
             f'<div class="pop-row"><span class="pop-row-l">Gini</span>'
             f'<span class="pop-row-v">{fmt_num(m.gini)}</span></div>'
             f'<div class="pop-row"><span class="pop-row-l">0 likes</span>'
             f'<span class="pop-row-v">{m.zero_like_agents}</span></div>'
-            f'<div class="pop-row"><span class="pop-row-l">Dominerande ämne</span>'
+            f'<div class="pop-row"><span class="pop-row-l">{topic_l}</span>'
             f'<span class="pop-row-v">{escape(top_topic)}</span></div>'
-            f'<div class="pop-row"><span class="pop-row-l">Kommentarer</span>'
+            f'<div class="pop-row"><span class="pop-row-l">{comments_l}</span>'
             f'<span class="pop-row-v">{m.comment_count}</span></div>'
             f"</div></div>"
         )
     return f'<div class="pop-compare">{"".join(cards)}</div>'
 
 
-def render_appendix_tables(metrics: ReportMetrics) -> str:
+def render_appendix_tables(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -> str:
     rows = "".join(
         f"<tr><td>{escape(r['label'])}</td><td>{fmt_num(r['gini'])}</td>"
         f"<td>{r['zero_likes']}</td><td>{r['agents']}</td>"
         f"<td>{escape(str(r['top_topic']))}</td></tr>"
         for r in metrics.cross_table
     )
-    glossary = (
-        '<div class="app-card"><h4>Ordlista</h4>'
-        '<div class="tech-def"><strong>Agent</strong> — '
-        "<span>AI-simulerad medborgare med yrke, ålder och personlighet.</span></div>"
-        '<div class="tech-def"><strong>Gini</strong> — '
-        "<span>Ojämlikhet i likes (0 = jämnt, 1 = en person tar allt).</span></div>"
-        '<div class="tech-def"><strong>Budskapsstil</strong> — '
-        "<span>Heuristik via nyckelord, inte manuell annotering.</span></div>"
-        "</div>"
-    )
-    table = (
-        '<div class="app-card"><h4>Jämförelse</h4>'
-        '<table class="data-table"><thead><tr>'
-        "<th>Körning</th><th>Gini</th><th>0 likes</th><th>Agenter</th><th>Ämne</th>"
-        f"</tr></thead><tbody>{rows}</tbody></table></div>"
-    )
-    limits = (
-        '<div class="app-card"><h4>Begränsningar</h4>'
-        f'<div class="tech-def"><strong>{metrics.n_runs} körning'
-        f'{"ar" if metrics.n_runs != 1 else ""}</strong> — '
-        "<span>För få för formell statistik; tala om tendenser.</span></div>"
-        '<div class="tech-def"><strong>Simulerat ≠ verkligt</strong> — '
-        "<span>AI-agenter modellerar beteende, de är inte väljare.</span></div>"
-        "</div>"
-    )
+    if locale == "en":
+        glossary = (
+            '<div class="app-card"><h4>Glossary</h4>'
+            '<div class="tech-def"><strong>Agent</strong> — '
+            "<span>AI-simulated citizen with occupation, age, and personality.</span></div>"
+            '<div class="tech-def"><strong>Gini</strong> — '
+            "<span>Inequality in likes (0 = even, 1 = one person takes all).</span></div>"
+            '<div class="tech-def"><strong>Message style</strong> — '
+            "<span>Heuristic via keywords, not manual annotation.</span></div>"
+            "</div>"
+        )
+        table = (
+            '<div class="app-card"><h4>Comparison</h4>'
+            '<table class="data-table"><thead><tr>'
+            "<th>Run</th><th>Gini</th><th>0 likes</th><th>Agents</th><th>Topic</th>"
+            f"</tr></thead><tbody>{rows}</tbody></table></div>"
+        )
+        limits = (
+            '<div class="app-card"><h4>Limitations</h4>'
+            f'<div class="tech-def"><strong>{runs_label(metrics.n_runs, locale)}</strong> — '
+            "<span>Too few for formal statistics; speak of tendencies.</span></div>"
+            '<div class="tech-def"><strong>Simulated ≠ real</strong> — '
+            "<span>AI agents model behavior; they are not voters.</span></div>"
+            "</div>"
+        )
+    else:
+        glossary = (
+            '<div class="app-card"><h4>Ordlista</h4>'
+            '<div class="tech-def"><strong>Agent</strong> — '
+            "<span>AI-simulerad medborgare med yrke, ålder och personlighet.</span></div>"
+            '<div class="tech-def"><strong>Gini</strong> — '
+            "<span>Ojämlikhet i likes (0 = jämnt, 1 = en person tar allt).</span></div>"
+            '<div class="tech-def"><strong>Budskapsstil</strong> — '
+            "<span>Heuristik via nyckelord, inte manuell annotering.</span></div>"
+            "</div>"
+        )
+        table = (
+            '<div class="app-card"><h4>Jämförelse</h4>'
+            '<table class="data-table"><thead><tr>'
+            "<th>Körning</th><th>Gini</th><th>0 likes</th><th>Agenter</th><th>Ämne</th>"
+            f"</tr></thead><tbody>{rows}</tbody></table></div>"
+        )
+        limits = (
+            '<div class="app-card"><h4>Begränsningar</h4>'
+            f'<div class="tech-def"><strong>{runs_label(metrics.n_runs, locale)}</strong> — '
+            "<span>För få för formell statistik; tala om tendenser.</span></div>"
+            '<div class="tech-def"><strong>Simulerat ≠ verkligt</strong> — '
+            "<span>AI-agenter modellerar beteende, de är inte väljare.</span></div>"
+            "</div>"
+        )
     return f'<div class="app-grid">{glossary}{table}{limits}</div>'
 
 
-def prefill_chart_slots(metrics: ReportMetrics) -> dict[str, str]:
+def prefill_chart_slots(
+    metrics: ReportMetrics,
+    *,
+    locale: ReportLocale = "sv",
+) -> dict[str, str]:
     """Slots filled without LLM."""
     n = metrics.n_runs
     m = metrics.aggregate
     badge = confidence_badge(n)
     return {
-        "meta_tests": f"{n} körning{'ar' if n != 1 else ''}",
-        "infographic_grid_html": render_infographic_grid(metrics),
-        "sec02_charts_html": render_sec02_charts(metrics),
-        "sec03_bars_html": render_style_hbars(metrics),
-        "sec04_topic_race_html": render_topic_race(metrics),
-        "sec05_agents_html": render_agents_html(metrics),
-        "sec06_pop_html": render_pop_compare(metrics),
-        "appendix_grid_html": render_appendix_tables(metrics),
+        "meta_tests": runs_label(n, locale),
+        "infographic_grid_html": render_infographic_grid(metrics, locale=locale),
+        "sec02_charts_html": render_sec02_charts(metrics, locale=locale),
+        "sec03_bars_html": render_style_hbars(metrics, locale=locale),
+        "sec04_topic_race_html": render_topic_race(metrics, locale=locale),
+        "sec05_agents_html": render_agents_html(metrics, locale=locale),
+        "sec06_pop_html": render_pop_compare(metrics, locale=locale),
+        "appendix_grid_html": render_appendix_tables(metrics, locale=locale),
         "chart_zero_likes": str(m.zero_like_agents),
         "chart_gini": fmt_num(m.gini),
         "chart_agent_count": str(m.agent_count),
         "badge_kind": badge,
-        "badge_html": _badge_html(badge, n),
+        "badge_html": _badge_html(badge, n, locale),
     }

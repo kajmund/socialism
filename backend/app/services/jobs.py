@@ -391,6 +391,7 @@ async def _run_report_generate(job_id: str) -> None:
     factory = job_session_factory()
     report_id: str | None = None
     title = ""
+    locale = "sv"
     sources: list = []
     out_dir: Path | None = None
 
@@ -406,6 +407,7 @@ async def _run_report_generate(job_id: str) -> None:
 
         report_id = report.id
         title = report.title
+        locale = getattr(report, "locale", None) or "sv"
         sources = list(report.sources or [])
         report.status = "running"
         report.updated_at = utcnow()
@@ -421,6 +423,7 @@ async def _run_report_generate(job_id: str) -> None:
             out_dir=out_dir,
             dry_run=False,
             title=title,
+            locale=locale,
         )
     except Exception as exc:  # noqa: BLE001 — mark report failed
         async with factory() as session:

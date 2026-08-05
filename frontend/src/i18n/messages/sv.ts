@@ -876,6 +876,33 @@ export const sv = {
       pickOne: "Välj en variant",
     },
   },
+  reports: {
+    kicker: "Rapport",
+    titleFallback: "Simuleringsrapport",
+    backToJobs: "← Bakgrundsjobb",
+    took: "tog {duration}",
+    status: {
+      pending: "Väntar",
+      running: "Genererar",
+      succeeded: "Klar",
+      failed: "Misslyckades",
+    },
+    loadError: "Kunde inte hämta rapport",
+    htmlMissing: "Rapport-HTML saknas eller är ogiltig",
+    htmlLoadError: "Kunde inte ladda rapport-HTML",
+    generateFailed: "Rapportgenereringen misslyckades.",
+    generating: "Rapporten genereras… Det kan ta några minuter.",
+    openNewTab: "Öppna i ny flik →",
+    loadingHtml: "Laddar rapport…",
+    iframeTitle: "Rapport",
+    duration: {
+      seconds: "{n} s",
+      minutes: "{m} min",
+      minutesSeconds: "{m} min {s} s",
+      hours: "{h} h",
+      hoursMinutes: "{h} h {m} min",
+    },
+  },
   config: {
     page: {
       title: "Konfiguration",

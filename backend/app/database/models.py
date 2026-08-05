@@ -200,6 +200,7 @@ class Report(Base):
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending", index=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    locale: Mapped[str] = mapped_column(String(8), nullable=False, default="sv")
     sources: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     html_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     slots_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
