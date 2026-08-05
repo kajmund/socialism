@@ -133,7 +133,9 @@ Interrupted jobs are marked failed on backend startup (after migrations exist).
 - Injectors always post via manual actions; population `CREATE_POST` is gated by `oasis_options`
 - Swedish environment prompts + action semantics in `oasis_swedish.py` / `oasis_profiles.py`
 - Lexical convergence warnings surface phrase-echo quality issues in results
-- CLI helper: `uv run python -m app.services.oasis_run --run-id N`
+- Artifacts: `backend/data/oasis/run_{id}/{variant}/`
+- CLI helper (persists attempt): `uv run python -m app.services.oasis_run --run-id N`
+- Model benchmark (wall time + output metrics; does not persist attempt): `uv run python scripts/benchmark_simulation_models.py --run-id N` — see [backend setup](guides/backend-setup.md#benchmark-deepseek-models)
 
 ## Frontend surfaces
 
