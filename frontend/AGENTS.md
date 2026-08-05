@@ -85,6 +85,7 @@ Still hardcoded (next slices): OASIS simulation prompts (intentionally Swedish).
 
 | Path | Status |
 |------|--------|
+| `/` | Dashboard (startsida) |
 | `/runs` | Körningar list |
 | `/runs/new`, `/runs/:id/edit` | Körning (wizard / quick + Resultat) |
 | `/jobs` | Bakgrundsjobb (population, simulering, report) |
@@ -100,7 +101,7 @@ Still hardcoded (next slices): OASIS simulation prompts (intentionally Swedish).
 | `/config` | Grunddata / catalog lists |
 | `/reports/:id` | HTML-rapport |
 
-Home redirects to `/runs`.
+Home is `/` (dashboard). Unknown routes redirect to `/`.
 
 ## Themes
 
