@@ -18,7 +18,6 @@ export const en: LocalizedTree<SvMessages> = {
     config: "Configuration",
     runs: "Runs",
     jobs: "Background jobs",
-    simulator: "Simulator",
     activeJobs: "{count} active jobs",
   },
   locale: {

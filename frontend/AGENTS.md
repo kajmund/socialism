@@ -6,7 +6,6 @@ This is the React SPA for **Opinionssimulator**. Read [../AGENTS.md](../AGENTS.m
 
 - **Plain React SPA** (Vite + TypeScript, strict). **Not Next.js** — do not suggest Next, SSR, server components, or file-based routing.
 - **Tailwind CSS** for styling. No CSS modules, styled-components, Emotion, or `.module.css` files for component styles. Global theme tokens live in `src/index.css`.
-- **Simulator theme:** paper/editorial CSS lives in `src/styles/simulator.css`, scoped under `.theme-simulator` (ported from the mockup). Do not restyle the wizard to Devbrains unless asked.
 - **Admin theme:** Devbrains charcoal + gold via Tailwind tokens + shadcn. Run list/config styles live in `src/styles/admin-runs.css` (`.theme-admin`).
 - **shadcn/ui** for UI primitives (admin surfaces). Add components with `pnpm dlx shadcn@latest add <name>` — don't hand-roll what shadcn already ships.
 - **React Router** for routing.
@@ -46,17 +45,16 @@ If yes to (3), add it — but flag the decision in the commit message.
 frontend/
 ├── src/
 │   ├── components/        # App components. shadcn under components/ui/
-│   │   └── simulator/     # Wizard-specific pieces
-│   ├── data/              # Shared types + helpers; simulator mock in mock.ts
+│   ├── data/              # Shared types + helpers
 │   ├── api/               # Domain API helpers (personas, populations, runs)
 │   ├── i18n/              # Locale catalogs + LocaleProvider (sv default, en)
 │   ├── lib/               # http, api, auth, supabase, env
 │   ├── pages/             # Route-level components
-│   ├── styles/            # simulator.css (paper theme)
+│   ├── styles/            # admin-runs.css (dense run-config chrome)
 │   ├── App.tsx            # Router
 │   ├── main.tsx
 │   └── index.css          # Tailwind + Devbrains tokens
-├── mockup/                # Source HTML mockup (zip + optional extract)
+├── mockup/                # Historical HTML mockup (zip + optional extract)
 ├── index.html
 ├── vite.config.ts
 ├── tsconfig.json
@@ -81,7 +79,7 @@ Swedish is the default UI locale. Do **not** add `react-i18next` / `lingui` unle
 3. Replace hardcoded UI text with `const { t } = useLocale(); t("section.key")` (use `{name}` placeholders for interpolation).
 4. For dates/numbers, use `intl` from `useLocale()` with `Intl.DateTimeFormat` / `Intl.NumberFormat` — do not hardcode `"sv-SE"`.
 
-Still hardcoded (next slices): ConfigureRun / wizard / timeline, PopulationBuilder, Personas, Messages, Config, simulator wizard, backend report HTML / OASIS prompts.
+Still hardcoded (next slices): ConfigureRun / wizard / timeline, PopulationBuilder, Personas, Messages, Config, backend report HTML / OASIS prompts.
 
 ## Routes (current)
 
@@ -99,22 +97,19 @@ Still hardcoded (next slices): ConfigureRun / wizard / timeline, PopulationBuild
 | `/messages/new`, `/messages/:id/edit` | Budskapsverkstad |
 | `/config` | Grunddata / catalog lists |
 | `/reports/:id` | HTML-rapport |
-| `/simulator` | Demo wizard (paper theme) |
 
 Home redirects to `/runs`.
 
 ## Themes
 
-- **Simulator theme:** paper/editorial CSS in `src/styles/simulator.css`, scoped under `.theme-simulator`.
-- **Admin theme:** Devbrains charcoal + gold. Dense run-config chrome lives in `src/styles/admin-runs.css` under `.theme-admin` (same rationale as simulator.css — ported mockup density). Use Tailwind + shadcn for new admin chrome where practical.
-
+- **Admin theme:** Devbrains charcoal + gold. Dense run-config chrome lives in `src/styles/admin-runs.css` under `.theme-admin`. Use Tailwind + shadcn for new admin chrome where practical.
 
 ## Code style (frontend-specific)
 
 - **TypeScript strict.** No `any` unless there's no alternative; prefer `unknown` and narrow.
 - **Small, composable functions and components** over clever abstractions. Three similar lines > a premature generic.
 - **One component = one file.** Components stay small enough to fit on one screen.
-- **Tailwind classes inline** for admin. Simulator keeps mockup class names + `simulator.css`.
+- **Tailwind classes inline** for admin.
 
 ## Configuration
 
@@ -126,7 +121,7 @@ Home redirects to `/runs`.
 - Talks to a separate Python backend over JSON. URL comes from `VITE_API_BASE_URL`.
 - Always use `api.get/post/put/patch/delete` from `@/lib/api` — it handles base URL, JSON, Supabase bearer token, timeouts, and typed `ApiError`s (including the `isNetworkError` flag that distinguishes CORS/network from HTTP errors).
 - Auth is Supabase email. The bearer token is injected automatically via the `api` client; never thread tokens through component props.
-- Admin surfaces (personas / populations / runs) talk to the FastAPI backend. Simulator Phase 1 stays on local mock data.
+- Admin surfaces (personas / populations / runs) talk to the FastAPI backend.
 
 ## Testing
 
@@ -138,7 +133,6 @@ Home redirects to `/runs`.
 - Importing an HTTP library when `fetch` would do.
 - Mixing client state libraries (Zustand + Jotai + Redux) for one project.
 - `any` annotations to silence the type-checker.
-- Custom CSS files / styled-components alongside Tailwind for new admin chrome — prefer Tailwind; documented exceptions are `simulator.css` and `admin-runs.css`.
+- Custom CSS files / styled-components alongside Tailwind for new admin chrome — prefer Tailwind; documented exception is `admin-runs.css`.
 - Re-implementing a shadcn primitive by hand.
 - Reaching for Next.js, SSR, or any framework that requires a Node server in front of the SPA.
-- Collapsing the dual theme into one without an explicit request.

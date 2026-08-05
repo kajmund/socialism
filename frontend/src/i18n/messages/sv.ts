@@ -16,7 +16,6 @@ export const sv = {
     config: "Konfiguration",
     runs: "Körningar",
     jobs: "Bakgrundsjobb",
-    simulator: "Simulator",
     activeJobs: "{count} aktiva jobb",
   },
   locale: {

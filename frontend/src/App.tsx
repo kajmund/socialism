@@ -11,7 +11,6 @@ import { PopulationDetailPage } from "@/pages/PopulationDetailPage"
 import { PopulationsPage } from "@/pages/PopulationsPage"
 import { ReportPage } from "@/pages/ReportPage"
 import { RunsPage } from "@/pages/RunsPage"
-import { SimulatorPage } from "@/pages/SimulatorPage"
 
 export default function App() {
   return (
@@ -38,7 +37,6 @@ export default function App() {
       <Route path="/jobs" element={<JobsPage />} />
       <Route path="/reports/:id" element={<ReportPage />} />
 
-      <Route path="/simulator" element={<SimulatorPage />} />
       <Route path="*" element={<Navigate to="/runs" replace />} />
     </Routes>
   )

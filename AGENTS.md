@@ -48,18 +48,15 @@ Rules for agents:
 - **New user-facing UI flows** → add or update a guide under `knowledge/manual/` (Swedish, no implementation detail) and list it in `knowledge/manual/index.md`.
 - **Setup, API, architecture, env, troubleshooting for builders** → `docs/` (and service `AGENTS.md` files).
 - Do not duplicate the same guide in both places.
-- Reuse existing manual tags: `korningar`, `personas`, `populationer`, `budskap`, `grunddata`, `jobb`, `rapporter`, `simulator`.
+- Reuse existing manual tags: `korningar`, `personas`, `populationer`, `budskap`, `grunddata`, `jobb`, `rapporter`.
 - Reserved OKF files: `index.md` (listing; root may have only `okf_version` frontmatter), `log.md` (changelog). Concept guides need YAML frontmatter with non-empty `type`.
 - Validate before merging manual changes: `make knowledge-validate`.
 
 OKF MCP (later): `npx -y @mfdaves/okf-mcp@0.3.3 --project ./okf.project.yaml mcp`.
 
-## Frontend visual system (dual)
+## Frontend visual system
 
-- **Simulator wizard** (`/simulator`): paper/editorial theme (Lora + Nunito, cream paper) — see `frontend/src/styles/simulator.css`.
-- **Admin surfaces** (Personas, Populationer, Körningar): Devbrains charcoal + gold — Tailwind tokens in `frontend/src/index.css` + shadcn.
-
-Do not collapse these into one look unless explicitly asked.
+- **Admin surfaces** (Personas, Populationer, Körningar, …): Devbrains charcoal + gold — Tailwind tokens in `frontend/src/index.css` + shadcn. Dense run-config chrome lives in `frontend/src/styles/admin-runs.css`.
 
 ## Dependency policy
 
