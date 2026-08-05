@@ -40,8 +40,6 @@ def test_stub_persona_anecdote_is_short_and_grounded():
 def test_stub_persona_includes_anekdot():
     recipe = PopulationRecipe(
         size=1,
-        entryMode="manual",
-        freeText="",
         locale="norrkoping",
         seed=1,
         dist={
@@ -99,8 +97,6 @@ async def test_llm_persona_anecdote_uses_structured_completer(monkeypatch):
 def test_sample_slot_does_not_assign_anekdot():
     recipe = PopulationRecipe(
         size=1,
-        entryMode="manual",
-        freeText="",
         locale="norrkoping",
         seed=1,
         dist={

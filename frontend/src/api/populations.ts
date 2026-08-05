@@ -15,8 +15,6 @@ export type DistGroup = { label: string; rows: DistRow[] }
 
 export type PopulationRecipe = {
   size: number
-  entryMode: "manual"
-  freeText?: string
   dist: Record<string, DistGroup>
   locale?: string
   seed?: number | null

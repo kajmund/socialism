@@ -271,7 +271,6 @@ export function PopulationBuilderPage() {
   function buildRecipe(): PopulationRecipe {
     return {
       size: effectiveSize,
-      entryMode: "manual",
       dist,
       locale: "norrkoping",
     }

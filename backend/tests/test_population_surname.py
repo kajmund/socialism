@@ -17,8 +17,6 @@ from app.services.population_generate import (
 def _minimal_recipe(size: int, *, seed: int = 42) -> PopulationRecipe:
     return PopulationRecipe(
         size=size,
-        entryMode="manual",
-        freeText="",
         locale="norrkoping",
         seed=seed,
         dist={

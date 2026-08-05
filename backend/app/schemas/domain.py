@@ -115,8 +115,6 @@ class DistGroup(BaseModel):
 
 class PopulationRecipe(BaseModel):
     size: int = Field(ge=1, le=40)
-    entryMode: Literal["free", "manual"] = "manual"
-    freeText: str = ""
     dist: dict[str, DistGroup]
     locale: str = "norrkoping"
     seed: int | None = None
