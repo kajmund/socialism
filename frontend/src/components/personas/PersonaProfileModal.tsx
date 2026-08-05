@@ -3,6 +3,7 @@ import { createPortal } from "react-dom"
 import { getPersona, type PersonaDetail } from "@/api/personas"
 import { PersonaAnekdotPresentation } from "@/components/personas/PersonaAnekdot"
 import { AdminButton } from "@/components/ui/admin-button"
+import { useLocale } from "@/i18n"
 import { ApiError } from "@/lib/api"
 
 type PersonaProfileModalProps = {
@@ -18,6 +19,7 @@ export function PersonaProfileModal({
   fallbackName,
   onClose,
 }: PersonaProfileModalProps) {
+  const { t } = useLocale()
   const overlayMouseDownRef = useRef(false)
   const [persona, setPersona] = useState<PersonaDetail | null>(null)
   const [loading, setLoading] = useState(false)
@@ -45,7 +47,7 @@ export function PersonaProfileModal({
     if (!open || !personaId) {
       setPersona(null)
       setLoading(false)
-      setError(personaId ? null : "Ingen kopplad persona")
+      setError(personaId ? null : t("personas.profile.noLinkedPersona"))
       return
     }
     let cancelled = false
@@ -59,7 +61,7 @@ export function PersonaProfileModal({
       .catch((err: unknown) => {
         if (cancelled) return
         setError(
-          err instanceof ApiError ? err.message : "Kunde inte hämta persona",
+          err instanceof ApiError ? err.message : t("personas.profile.loadError"),
         )
       })
       .finally(() => {
@@ -68,12 +70,12 @@ export function PersonaProfileModal({
     return () => {
       cancelled = true
     }
-  }, [open, personaId])
+  }, [open, personaId, t])
 
   if (!open) return null
 
   const profile = persona?.profile
-  const title = profile?.name ?? persona?.name ?? fallbackName ?? "Persona"
+  const title = profile?.name ?? persona?.name ?? fallbackName ?? t("personas.profile.fallbackTitle")
 
   return createPortal(
     <div
@@ -100,13 +102,13 @@ export function PersonaProfileModal({
             {title}
           </h2>
           <AdminButton variant="secondary" size="sm" onClick={onClose}>
-            Stäng
+            {t("common.close")}
           </AdminButton>
         </div>
 
         <div className="overflow-y-auto px-5 py-4">
           {loading ? (
-            <p className="text-sm text-muted-foreground">Hämtar profil…</p>
+            <p className="text-sm text-muted-foreground">{t("personas.profile.loadingProfile")}</p>
           ) : null}
 
           {!loading && error ? (
@@ -116,7 +118,7 @@ export function PersonaProfileModal({
           {!loading && !error && profile ? (
             <div className="p-portrait-col" style={{ paddingRight: 0 }}>
               <div className="flex h-[160px] w-full items-center justify-center rounded bg-db-ink-100 text-sm text-[color:var(--text-muted)]">
-                Porträtt av {profile.name}
+                {t("personas.profile.portraitOf", { name: profile.name })}
               </div>
               <h1
                 className="p-name"
@@ -129,39 +131,56 @@ export function PersonaProfileModal({
                 {profile.name}
               </h1>
               <div className="p-tag">
-                {profile.age} år, {profile.yrke}, {profile.ort} — {profile.parti}
+                {t("personas.profile.tagLine", {
+                  age: profile.age,
+                  occupation: profile.yrke,
+                  district: profile.ort,
+                  party: profile.parti,
+                })}
               </div>
               <div className="p-sec">
                 <div className="p-num">I.</div>
-                <div className="p-lbl">Demografi</div>
+                <div className="p-lbl">{t("personas.profile.sectionDemography")}</div>
                 <p>
-                  {profile.name} bor i <b>{profile.ort}</b> (
-                  {profile.livssituation}) och arbetar som <b>{profile.yrke}</b>{" "}
-                  med utbildningsnivå {profile.utbildning}.
+                  {t("personas.profile.demographyParagraph", {
+                    name: profile.name,
+                    district: profile.ort,
+                    lifeSituation: profile.livssituation,
+                    occupation: profile.yrke,
+                    education: profile.utbildning,
+                  })}
                 </p>
               </div>
               <div className="p-sec">
                 <div className="p-num">II.</div>
-                <div className="p-lbl">Värderingar</div>
+                <div className="p-lbl">{t("personas.profile.sectionValues")}</div>
                 <p>
-                  Politiskt lutar personen <b>{profile.lutning}</b>. Engagemang
-                  kring {profile.sakfragor}. Förtroende: {profile.fortroende}.
+                  {t("personas.profile.valuesParagraph", {
+                    leaning: profile.lutning,
+                    issues: profile.sakfragor,
+                    trust: profile.fortroende,
+                  })}
                 </p>
               </div>
               <div className="p-sec">
                 <div className="p-num">III.</div>
-                <div className="p-lbl">Röst & personlighet</div>
+                <div className="p-lbl">{t("personas.profile.sectionVoice")}</div>
                 <p>
-                  Ton: <b>{profile.ton}</b>. Språkmönster: {profile.sprak}.
-                  Medievanor: {profile.medievanor}.
+                  {t("personas.profile.voiceParagraph", {
+                    tone: profile.ton,
+                    language: profile.sprak,
+                    media: profile.medievanor,
+                  })}
                 </p>
               </div>
               <div className="p-sec pol">
                 <div className="p-num">IV.</div>
-                <div className="p-lbl">Politik</div>
+                <div className="p-lbl">{t("personas.profile.sectionPolitics")}</div>
                 <p>
-                  Partisympati: <b>{profile.parti}</b>. Valdeltagande:{" "}
-                  <b>{profile.valdeltagande}</b>.
+                  {t("personas.profile.politicsParagraph", {
+                    party: profile.parti,
+                    turnout: profile.valdeltagande,
+                  })}
                 </p>
               </div>
               <PersonaAnekdotPresentation profile={profile} />
@@ -170,7 +189,7 @@ export function PersonaProfileModal({
 
           {!loading && !error && !profile && fallbackName ? (
             <p className="text-sm text-muted-foreground">
-              Ingen sparad profil för {fallbackName}.
+              {t("personas.profile.noSavedProfile", { name: fallbackName })}
             </p>
           ) : null}
         </div>

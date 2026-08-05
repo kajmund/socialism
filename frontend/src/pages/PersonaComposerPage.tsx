@@ -27,7 +27,10 @@ import { AdminButton } from "@/components/ui/admin-button"
 import { Card, CardContent } from "@/components/ui/card"
 import { blankEditablePersona } from "@/data/library"
 import type { EditablePersona, PersonaOrigin } from "@/data/library-types"
+import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
 import { ApiError } from "@/lib/api"
+
+type Translate = (key: MessageKey, params?: TranslateParams) => string
 
 type LayerRow = { k: keyof EditablePersona | string; l: string; v: string; locked: boolean }
 
@@ -107,10 +110,11 @@ type LayerTableProps = {
   rows: LayerRow[]
   pol?: boolean
   fieldOptions: Record<string, string[]>
+  t: Translate
   onChange: (k: string, v?: string) => void
 }
 
-function LayerTable({ rows, pol, fieldOptions, onChange }: LayerTableProps) {
+function LayerTable({ rows, pol, fieldOptions, t, onChange }: LayerTableProps) {
   return (
     <table className={"lt" + (pol ? " pol" : "")}>
       <tbody>
@@ -150,8 +154,8 @@ function LayerTable({ rows, pol, fieldOptions, onChange }: LayerTableProps) {
                   onClick={() => onChange("__lock__" + r.k)}
                   title={
                     r.locked
-                      ? "Låst vid regenerering"
-                      : "Olåst — kan ändras vid regenerering"
+                      ? t("personas.composer.lockedRegenerate")
+                      : t("personas.composer.unlockedRegenerate")
                   }
                 >
                   {r.locked ? "🔒" : "🔓"}
@@ -165,24 +169,43 @@ function LayerTable({ rows, pol, fieldOptions, onChange }: LayerTableProps) {
   )
 }
 
-function Drawer({ persona }: { persona: EditablePersona }) {
+function Drawer({
+  persona,
+  t,
+}: {
+  persona: EditablePersona
+  t: Translate
+}) {
   const [open, setOpen] = useState(true)
   return (
     <div className={"drawer" + (open ? "" : " collapsed")}>
       <div className="drawer-head" onClick={() => setOpen(!open)}>
-        <div className="t">▾ system_prompt.txt — live</div>
-        <div className="n">~{300 + persona.name.length * 3} tok</div>
+        <div className="t">{t("personas.composer.promptLive")}</div>
+        <div className="n">
+          {t("personas.composer.tokenCount", {
+            count: 300 + persona.name.length * 3,
+          })}
+        </div>
       </div>
       <div className="drawer-body">
-        Du är {persona.name}, {persona.age}, {persona.yrke}, boende i {persona.ort}...
+        {t("personas.composer.promptIntro", {
+          name: persona.name,
+          age: persona.age,
+          occupation: persona.yrke,
+          district: persona.ort,
+        })}
         <br />
-        <b>[LÅST]</b> Politisk lutning: {persona.lutning}. Partisympati: {persona.parti}...
+        <b>{t("personas.composer.lockedLabel")}</b>{" "}
+        {t("personas.composer.promptPolitics", {
+          leaning: persona.lutning,
+          party: persona.parti,
+        })}
         <br />
-        Ton: {persona.ton}.
+        {t("personas.composer.promptTone", { tone: persona.ton })}
         {persona.anekdot && persona.anekdot !== "—" ? (
           <>
             <br />
-            Anekdot: {persona.anekdot}
+            {t("personas.composer.promptAnecdote", { anekdot: persona.anekdot })}
           </>
         ) : null}
       </div>
@@ -193,6 +216,7 @@ function Drawer({ persona }: { persona: EditablePersona }) {
 type EditorProps = {
   persona: EditablePersona
   personaId: string | null
+  t: Translate
   setPersona: (updater: (p: EditablePersona) => EditablePersona) => void
   onOpenVariants: () => void
   onDuplicate: () => void
@@ -207,16 +231,21 @@ type EditorProps = {
 function ChatMessageActions({
   message,
   chatBusy,
+  t,
   onDelete,
   onResend,
 }: {
   message: PersonaMessage
   chatBusy: boolean
+  t: Translate
   onDelete: (messageId: number) => void
   onResend: (messageId: number) => void
 }) {
   const resendLabel =
-    message.role === "user" ? "Skicka om meddelande" : "Generera om svar"
+    message.role === "user"
+      ? t("personas.composer.resendMessage")
+      : t("personas.composer.regenerateAnswer")
+  const deleteLabel = t("personas.composer.deleteMessage")
 
   return (
     <div className="chat-msg-actions">
@@ -233,10 +262,10 @@ function ChatMessageActions({
       <button
         type="button"
         className="chat-msg-delete"
-        title="Ta bort meddelande"
+        title={deleteLabel}
         disabled={chatBusy}
         onClick={() => onDelete(message.id)}
-        aria-label="Ta bort meddelande"
+        aria-label={deleteLabel}
       >
         ×
       </button>
@@ -247,6 +276,7 @@ function ChatMessageActions({
 function Editor({
   persona,
   personaId,
+  t,
   setPersona,
   onOpenVariants,
   onDuplicate,
@@ -288,13 +318,13 @@ function Editor({
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          onToast(err instanceof ApiError ? err.message : "Kunde inte hämta chatt")
+          onToast(err instanceof ApiError ? err.message : t("personas.composer.fetchChatError"))
         }
       })
     return () => {
       cancelled = true
     }
-    // intentionally omit onToast — parent recreates it each render
+    // intentionally omit onToast/t — parent recreates them each render
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [personaId, icMode])
 
@@ -307,7 +337,7 @@ function Editor({
       setMessages(result.messages)
       setDraft("")
     } catch (err) {
-      onToast(err instanceof ApiError ? err.message : "Kunde inte skicka")
+      onToast(err instanceof ApiError ? err.message : t("personas.composer.sendError"))
     } finally {
       setChatBusy(false)
     }
@@ -329,7 +359,7 @@ function Editor({
         setMessages([])
       }
     } catch (err) {
-      onToast(err instanceof ApiError ? err.message : "Kunde inte regenerera")
+      onToast(err instanceof ApiError ? err.message : t("personas.composer.regenerateError"))
     } finally {
       setChatBusy(false)
     }
@@ -344,20 +374,30 @@ function Editor({
       setDraft("")
       setConfirmClearInterview(false)
     } catch (err) {
-      onToast(err instanceof ApiError ? err.message : "Kunde inte rensa intervjun")
+      onToast(
+        err instanceof ApiError
+          ? err.message
+          : icMode === "interview"
+            ? t("personas.composer.clearInterviewError")
+            : t("personas.composer.clearChatError"),
+      )
     } finally {
       setChatBusy(false)
     }
   }
 
   const clearChatLabel =
-    icMode === "interview" ? "Rensa intervju" : "Rensa chatt"
+    icMode === "interview"
+      ? t("personas.composer.clearInterview")
+      : t("personas.composer.clearChat")
   const clearConfirmTitle =
-    icMode === "interview" ? "Rensa intervju?" : "Rensa chatt?"
+    icMode === "interview"
+      ? t("personas.composer.clearInterviewConfirmTitle")
+      : t("personas.composer.clearChatConfirmTitle")
   const clearConfirmDescription =
     icMode === "interview"
-      ? "Detta går inte att ångra. Hela intervjutranskriptet tas bort permanent."
-      : "Detta går inte att ångra. Alla meddelanden i chattläget tas bort permanent."
+      ? t("personas.composer.clearInterviewConfirmDesc")
+      : t("personas.composer.clearChatConfirmDesc")
 
   async function confirmDeleteMessageAction() {
     if (!personaId || chatBusy || confirmDeleteMessageId == null) return
@@ -367,7 +407,7 @@ function Editor({
       setMessages((prev) => prev.filter((m) => m.id !== confirmDeleteMessageId))
       setConfirmDeleteMessageId(null)
     } catch (err) {
-      onToast(err instanceof ApiError ? err.message : "Kunde inte ta bort meddelandet")
+      onToast(err instanceof ApiError ? err.message : t("personas.composer.deleteMessageError"))
     } finally {
       setChatBusy(false)
     }
@@ -382,7 +422,7 @@ function Editor({
       const result = await resendPersonaMessage(personaId, messageId)
       setMessages(result.messages)
     } catch (err) {
-      onToast(err instanceof ApiError ? err.message : "Kunde inte skicka om meddelandet")
+      onToast(err instanceof ApiError ? err.message : t("personas.composer.resendError"))
     } finally {
       setChatBusy(false)
     }
@@ -428,21 +468,21 @@ function Editor({
               className={mode === "work" ? "on" : ""}
               onClick={() => setMode("work")}
             >
-              Arbetsläge
+              {t("personas.composer.workMode")}
             </button>
             <button
               type="button"
               className={mode === "present" ? "on" : ""}
               onClick={() => setMode("present")}
             >
-              Presentationsläge
+              {t("personas.composer.presentMode")}
             </button>
           </div>
           <AdminButton variant="secondary" size="sm" onClick={onDuplicate}>
-            Duplicera
+            {t("common.duplicate")}
           </AdminButton>
           <AdminButton variant="secondary" size="sm" onClick={onOpenVariants}>
-            Varianter ×5
+            {t("personas.composer.variantsButton")}
           </AdminButton>
           <AdminButton
             variant="primary"
@@ -454,7 +494,7 @@ function Editor({
               window.setTimeout(() => setSaved(false), 2600)
             }}
           >
-            Spara persona
+            {t("personas.composer.savePersona")}
           </AdminButton>
           {onDelete &&
             (confirmDelete ? (
@@ -465,7 +505,7 @@ function Editor({
                   disabled={deleting}
                   onClick={() => setConfirmDelete(false)}
                 >
-                  Avbryt
+                  {t("common.cancel")}
                 </AdminButton>
                 <AdminButton
                   variant="secondary"
@@ -473,7 +513,7 @@ function Editor({
                   disabled={deleting}
                   onClick={onDelete}
                 >
-                  Bekräfta borttagning
+                  {t("personas.composer.confirmDeleteButton")}
                 </AdminButton>
               </>
             ) : (
@@ -483,78 +523,119 @@ function Editor({
                 disabled={deleting}
                 onClick={() => setConfirmDelete(true)}
               >
-                Ta bort
+                {t("common.delete")}
               </AdminButton>
             ))}
           <Link to="/personas/new" className="no-underline">
             <AdminButton variant="secondary" size="sm">
-              + Ny persona
+              {t("personas.list.newPersona")}
             </AdminButton>
           </Link>
         </div>
       </div>
       {saved && (
         <div className="toast">
-          <div className="ck">✓</div>Persona sparad i biblioteket
+          <div className="ck">✓</div>{t("personas.composer.savedToast")}
         </div>
       )}
 
       <div className="work" style={{ display: mode === "work" ? "flex" : "none" }}>
         <div className="layers-col">
-          <div className="layer-h">I. Demografi</div>
+          <div className="layer-h">{t("personas.composer.layerDemography")}</div>
           <LayerTable
             fieldOptions={fieldOptions}
+            t={t}
             onChange={upd}
             rows={[
-              { k: "age", l: "Ålder", v: persona.age, locked: !!locks.age },
-              { k: "kön", l: "Kön", v: persona.kön, locked: !!locks.kön },
-              { k: "ort", l: "Distrikt", v: persona.ort, locked: !!locks.ort },
-              { k: "yrke", l: "Yrke", v: persona.yrke, locked: !!locks.yrke },
-              { k: "utbildning", l: "Utbildning", v: persona.utbildning, locked: !!locks.utbildning },
-              { k: "livssituation", l: "Livssituation", v: persona.livssituation, locked: !!locks.livssituation },
+              { k: "age", l: t("personas.fields.age"), v: persona.age, locked: !!locks.age },
+              { k: "kön", l: t("personas.fields.gender"), v: persona.kön, locked: !!locks.kön },
+              { k: "ort", l: t("personas.fields.district"), v: persona.ort, locked: !!locks.ort },
+              { k: "yrke", l: t("personas.fields.occupation"), v: persona.yrke, locked: !!locks.yrke },
+              {
+                k: "utbildning",
+                l: t("personas.fields.education"),
+                v: persona.utbildning,
+                locked: !!locks.utbildning,
+              },
+              {
+                k: "livssituation",
+                l: t("personas.fields.lifeSituation"),
+                v: persona.livssituation,
+                locked: !!locks.livssituation,
+              },
             ]}
           />
-          <div className="layer-h">II. Värderingar & attityder</div>
+          <div className="layer-h">{t("personas.composer.layerValues")}</div>
           <LayerTable
             fieldOptions={fieldOptions}
+            t={t}
             onChange={upd}
             rows={[
-              { k: "lutning", l: "Lutning", v: persona.lutning, locked: !!locks.lutning },
-              { k: "sakfragor", l: "Sakfrågor", v: persona.sakfragor, locked: !!locks.sakfragor },
-              { k: "fortroende", l: "Förtroende", v: persona.fortroende, locked: !!locks.fortroende },
+              { k: "lutning", l: t("personas.fields.leaning"), v: persona.lutning, locked: !!locks.lutning },
+              {
+                k: "sakfragor",
+                l: t("personas.fields.issues"),
+                v: persona.sakfragor,
+                locked: !!locks.sakfragor,
+              },
+              {
+                k: "fortroende",
+                l: t("personas.fields.trust"),
+                v: persona.fortroende,
+                locked: !!locks.fortroende,
+              },
             ]}
           />
-          <div className="layer-h">III. Röst & personlighet</div>
+          <div className="layer-h">{t("personas.composer.layerVoice")}</div>
           <LayerTable
             fieldOptions={fieldOptions}
+            t={t}
             onChange={upd}
             rows={[
-              { k: "ton", l: "Ton", v: persona.ton, locked: !!locks.ton },
-              { k: "sprak", l: "Språkmönster", v: persona.sprak, locked: !!locks.sprak },
-              { k: "medievanor", l: "Medievanor", v: persona.medievanor, locked: !!locks.medievanor },
+              { k: "ton", l: t("personas.fields.tone"), v: persona.ton, locked: !!locks.ton },
+              {
+                k: "sprak",
+                l: t("personas.fields.languagePattern"),
+                v: persona.sprak,
+                locked: !!locks.sprak,
+              },
+              {
+                k: "medievanor",
+                l: t("personas.fields.mediaHabits"),
+                v: persona.medievanor,
+                locked: !!locks.medievanor,
+              },
             ]}
           />
-          <div className="layer-h pol">IV. Domänänattribut · Politik</div>
+          <div className="layer-h pol">{t("personas.composer.layerPolitics")}</div>
           <LayerTable
             pol
             fieldOptions={fieldOptions}
+            t={t}
             onChange={upd}
             rows={[
-              { k: "parti", l: "Partisympati", v: persona.parti, locked: !!locks.parti },
-              { k: "valdeltagande", l: "Valdeltagande", v: persona.valdeltagande, locked: !!locks.valdeltagande },
+              {
+                k: "parti",
+                l: t("personas.fields.partyPreference"),
+                v: persona.parti,
+                locked: !!locks.parti,
+              },
+              {
+                k: "valdeltagande",
+                l: t("personas.fields.turnout"),
+                v: persona.valdeltagande,
+                locked: !!locks.valdeltagande,
+              },
             ]}
           />
-          <div className="layer-h">V. Vardagsdetalj</div>
+          <div className="layer-h">{t("personas.composer.layerEverydayDetail")}</div>
           <div className="anekdot-layer">
             <PersonaAnekdotEditor
               value={persona.anekdot ?? "—"}
               className="cell-input"
               onChange={(v) => upd("anekdot", v)}
             />
-            <p className="anekdot-hint">
-              Genereras automatiskt vid populationsskapande. Kan redigeras här — inte ett
-              receptfält som ton eller yrke.
-            </p>
+            <p className="anekdot-hint">{t("personas.composer.anecdoteHint")}</p>
           </div>
         </div>
         <div className="chat-col">
@@ -565,14 +646,14 @@ function Editor({
                 className={icMode === "character" ? "on" : ""}
                 onClick={() => setIcMode("character")}
               >
-                In-character
+                {t("personas.composer.inCharacter")}
               </button>
               <button
                 type="button"
                 className={icMode === "interview" ? "on" : ""}
                 onClick={() => setIcMode("interview")}
               >
-                Intervju
+                {t("personas.composer.interviewTab")}
               </button>
             </div>
             <AdminButton
@@ -589,15 +670,15 @@ function Editor({
               disabled={!personaId || chatBusy || messages.length === 0}
               onClick={() => void regenerate()}
             >
-              ↻ Regenerera svar
+              ↻ {t("personas.composer.regenerateAnswer")}
             </AdminButton>
           </div>
           <div className="chat-msgs">
             {!personaId && (
-              <div className="bub them">Spara personan för att börja intervjua.</div>
+              <div className="bub them">{t("personas.composer.saveToInterviewChat")}</div>
             )}
             {personaId && messages.length === 0 && (
-              <div className="bub them">Ställ en fråga för att börja samtalet.</div>
+              <div className="bub them">{t("personas.composer.askToStart")}</div>
             )}
             {messages.map((m) => (
               <div
@@ -611,6 +692,7 @@ function Editor({
                   <ChatMessageActions
                     message={m}
                     chatBusy={chatBusy}
+                    t={t}
                     onDelete={setConfirmDeleteMessageId}
                     onResend={(messageId) => void resendMessage(messageId)}
                   />
@@ -620,7 +702,11 @@ function Editor({
           </div>
           <div className="chat-input">
             <input
-              placeholder={personaId ? "Meddelande..." : "Spara persona först"}
+              placeholder={
+                personaId
+                  ? t("personas.composer.messagePlaceholder")
+                  : t("personas.composer.savePersonaFirst")
+              }
               value={draft}
               disabled={!personaId || chatBusy}
               onChange={(e) => setDraft(e.target.value)}
@@ -637,56 +723,74 @@ function Editor({
               disabled={!personaId || chatBusy || !draft.trim()}
               onClick={() => void sendMessage(draft)}
             >
-              {chatBusy ? "…" : "Skicka"}
+              {chatBusy ? "…" : t("personas.composer.send")}
             </AdminButton>
           </div>
         </div>
       </div>
-      {mode === "work" && <Drawer persona={persona} />}
+      {mode === "work" && <Drawer persona={persona} t={t} />}
 
       <div className={"present" + (mode === "present" ? " show" : "")}>
         <div className="p-portrait-col">
           <div
             className="flex h-[260px] w-full items-center justify-center rounded bg-db-ink-100 text-sm text-[color:var(--text-muted)]"
           >
-            Porträtt av {persona.name}
+            {t("personas.profile.portraitOf", { name: persona.name })}
           </div>
           <h1 className="p-name" style={{ fontFamily: "'Bai Jamjuree', sans-serif", fontWeight: 400 }}>
             {persona.name}
           </h1>
           <div className="p-tag">
-            {persona.age} år, {persona.yrke}, {persona.ort} — {persona.parti}
+            {t("personas.profile.tagLine", {
+              age: persona.age,
+              occupation: persona.yrke,
+              district: persona.ort,
+              party: persona.parti,
+            })}
           </div>
           <div className="p-sec">
             <div className="p-num">I.</div>
-            <div className="p-lbl">Demografi</div>
+            <div className="p-lbl">{t("personas.profile.sectionDemography")}</div>
             <p>
-              {persona.name} bor i <b>{persona.ort}</b> ({persona.livssituation}) och arbetar
-              som <b>{persona.yrke}</b> med utbildningsnivå {persona.utbildning}.
+              {t("personas.profile.demographyParagraph", {
+                name: persona.name,
+                district: persona.ort,
+                lifeSituation: persona.livssituation,
+                occupation: persona.yrke,
+                education: persona.utbildning,
+              })}
             </p>
           </div>
           <div className="p-sec">
             <div className="p-num">II.</div>
-            <div className="p-lbl">Värderingar</div>
+            <div className="p-lbl">{t("personas.profile.sectionValues")}</div>
             <p>
-              Politiskt lutar personen <b>{persona.lutning}</b>. Engagemang kring{" "}
-              {persona.sakfragor}. Förtroende: {persona.fortroende}.
+              {t("personas.profile.valuesParagraph", {
+                leaning: persona.lutning,
+                issues: persona.sakfragor,
+                trust: persona.fortroende,
+              })}
             </p>
           </div>
           <div className="p-sec">
             <div className="p-num">III.</div>
-            <div className="p-lbl">Röst & personlighet</div>
+            <div className="p-lbl">{t("personas.profile.sectionVoice")}</div>
             <p>
-              Ton: <b>{persona.ton}</b>. Språkmönster: {persona.sprak}. Medievanor:{" "}
-              {persona.medievanor}.
+              {t("personas.profile.voiceParagraph", {
+                tone: persona.ton,
+                language: persona.sprak,
+                media: persona.medievanor,
+              })}
             </p>
           </div>
           <div className="p-sec pol">
             <div className="p-num">IV.</div>
-            <div className="p-lbl">Politik</div>
+            <div className="p-lbl">{t("personas.profile.sectionPolitics")}</div>
             <p>
-              Partisympati: <b>{persona.parti}</b>. Valdeltagande:{" "}
-              <b>{persona.valdeltagande}</b>.
+              {t("personas.profile.politicsParagraph", {
+                party: persona.parti,
+                turnout: persona.valdeltagande,
+              })}
             </p>
           </div>
           <PersonaAnekdotPresentation profile={persona} />
@@ -701,7 +805,9 @@ function Editor({
               gap: 12,
             }}
           >
-            <h3 style={{ fontStyle: "italic", fontSize: 22, margin: 0 }}>Intervju</h3>
+            <h3 style={{ fontStyle: "italic", fontSize: 22, margin: 0 }}>
+              {t("personas.composer.interviewTab")}
+            </h3>
             {personaId && messages.length > 0 ? (
               <AdminButton
                 variant="secondary"
@@ -716,12 +822,12 @@ function Editor({
           <div className="p-transcript">
             {!personaId && (
               <p>
-                <i>Spara personan för att intervjua.</i>
+                <i>{t("personas.composer.saveToInterviewPresent")}</i>
               </p>
             )}
             {personaId && messages.length === 0 && (
               <p>
-                <i>Ingen intervju ännu.</i>
+                <i>{t("personas.composer.noInterviewYet")}</i>
               </p>
             )}
             {messages.map((m) => (
@@ -733,7 +839,9 @@ function Editor({
                     </>
                   ) : (
                     <>
-                      <b style={{ color: "var(--db-gold-700)" }}>Du:</b>{" "}
+                      <b style={{ color: "var(--db-gold-700)" }}>
+                        {t("personas.composer.youLabel")}:
+                      </b>{" "}
                       <i>{m.content}</i>
                     </>
                   )}
@@ -742,6 +850,7 @@ function Editor({
                   <ChatMessageActions
                     message={m}
                     chatBusy={chatBusy}
+                    t={t}
                     onDelete={setConfirmDeleteMessageId}
                     onResend={(messageId) => void resendMessage(messageId)}
                   />
@@ -754,7 +863,7 @@ function Editor({
             style={{ borderTop: "1px solid var(--border-hairline)", paddingTop: 16, marginTop: 4 }}
           >
             <input
-              placeholder={"Fråga " + persona.name + " något..."}
+              placeholder={t("personas.composer.askPersonaPlaceholder", { name: persona.name })}
               value={draft}
               disabled={!personaId || chatBusy}
               onChange={(e) => setDraft(e.target.value)}
@@ -771,7 +880,7 @@ function Editor({
               disabled={!personaId || chatBusy || !draft.trim()}
               onClick={() => void sendMessage(draft)}
             >
-              {chatBusy ? "…" : "Skicka"}
+              {chatBusy ? "…" : t("personas.composer.send")}
             </AdminButton>
           </div>
         </div>
@@ -788,9 +897,24 @@ function Editor({
       >
         <div className="space-y-4">
           <p className="text-sm text-foreground">
-            {messages.length} meddelande{messages.length === 1 ? "" : "n"} i{" "}
-            {icMode === "interview" ? "intervjun" : "chatten"} för{" "}
-            <span className="font-medium">{persona.name}</span> raderas.
+            {messages.length === 1
+              ? t("personas.composer.clearCountOne", {
+                  mode: t(
+                    icMode === "interview"
+                      ? "personas.composer.modeInterview"
+                      : "personas.composer.modeChat",
+                  ),
+                  name: persona.name,
+                })
+              : t("personas.composer.clearCountOther", {
+                  count: messages.length,
+                  mode: t(
+                    icMode === "interview"
+                      ? "personas.composer.modeInterview"
+                      : "personas.composer.modeChat",
+                  ),
+                  name: persona.name,
+                })}
           </p>
           <div className="flex flex-wrap justify-end gap-2">
             <button
@@ -799,7 +923,7 @@ function Editor({
               disabled={chatBusy}
               onClick={() => setConfirmClearInterview(false)}
             >
-              Avbryt
+              {t("common.cancel")}
             </button>
             <button
               type="button"
@@ -807,7 +931,7 @@ function Editor({
               disabled={chatBusy}
               onClick={() => void confirmClearInterviewAction()}
             >
-              {chatBusy ? "Rensar…" : clearChatLabel}
+              {chatBusy ? t("personas.composer.clearing") : clearChatLabel}
             </button>
           </div>
         </div>
@@ -816,8 +940,8 @@ function Editor({
       <ConfirmModal
         open={confirmDeleteMessageId != null}
         titleId="delete-message-confirm-title"
-        title="Ta bort meddelande?"
-        description="Meddelandet tas bort från chatten. Detta går inte att ångra."
+        title={t("personas.composer.deleteMessageConfirmTitle")}
+        description={t("personas.composer.deleteMessageConfirmDesc")}
         onClose={() => {
           if (!chatBusy) setConfirmDeleteMessageId(null)
         }}
@@ -832,7 +956,7 @@ function Editor({
                 </>
               ) : (
                 <>
-                  <span className="font-medium">Du:</span>{" "}
+                  <span className="font-medium">{t("personas.composer.youLabel")}:</span>{" "}
                   <span className="italic">{messagePendingDelete.content}</span>
                 </>
               )}
@@ -844,7 +968,7 @@ function Editor({
                 disabled={chatBusy}
                 onClick={() => setConfirmDeleteMessageId(null)}
               >
-                Avbryt
+                {t("common.cancel")}
               </button>
               <button
                 type="button"
@@ -852,7 +976,7 @@ function Editor({
                 disabled={chatBusy}
                 onClick={() => void confirmDeleteMessageAction()}
               >
-                {chatBusy ? "Tar bort…" : "Ta bort meddelande"}
+                {chatBusy ? t("personas.composer.deletingMessage") : t("personas.composer.deleteMessage")}
               </button>
             </div>
           </div>
@@ -863,6 +987,7 @@ function Editor({
 }
 
 export function PersonaComposerPage() {
+  const { t } = useLocale()
   const { id } = useParams()
   const [params] = useSearchParams()
   const navigate = useNavigate()
@@ -913,13 +1038,14 @@ export function PersonaComposerPage() {
       .catch((err: unknown) => {
         if (!cancelled) {
           showToast(
-            err instanceof ApiError ? err.message : "Kunde inte hämta grunddata",
+            err instanceof ApiError ? err.message : t("personas.composer.fetchOptionsError"),
           )
         }
       })
     return () => {
       cancelled = true
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function runCandidateGenerate(
@@ -943,7 +1069,7 @@ export function PersonaComposerPage() {
       )
       setCreateStep("candidates")
     } catch (err) {
-      showToast(err instanceof ApiError ? err.message : "Kunde inte generera")
+      showToast(err instanceof ApiError ? err.message : t("personas.composer.generateError"))
     } finally {
       setGenerating(false)
     }
@@ -962,7 +1088,7 @@ export function PersonaComposerPage() {
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setToast(err instanceof ApiError ? err.message : "Kunde inte hämta persona")
+          setToast(err instanceof ApiError ? err.message : t("personas.composer.fetchPersonaError"))
           window.setTimeout(() => setToast(""), 2400)
         }
       })
@@ -972,6 +1098,7 @@ export function PersonaComposerPage() {
     return () => {
       cancelled = true
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [existingId])
 
   function setPersonaState(updater: (p: EditablePersona) => EditablePersona) {
@@ -993,7 +1120,7 @@ export function PersonaComposerPage() {
         navigate(`/personas/${saved.id}`, { replace: true })
       }
     } catch (err) {
-      setToast(err instanceof ApiError ? err.message : "Kunde inte spara")
+      setToast(err instanceof ApiError ? err.message : t("common.saveError"))
       window.setTimeout(() => setToast(""), 2400)
     } finally {
       setSaving(false)
@@ -1005,7 +1132,7 @@ export function PersonaComposerPage() {
       <AdminShell>
         <div className="shell" style={{ height: "calc(100vh - 57px)" }}>
           <div className="mainarea">
-            <div className="no-match">Hämtar persona…</div>
+            <div className="no-match">{t("personas.composer.loadingPersona")}</div>
           </div>
         </div>
       </AdminShell>
@@ -1019,17 +1146,17 @@ export function PersonaComposerPage() {
           {screen === "create" && createStep === "choose" && (
             <div className="create-wrap">
               <h1 style={{ font: "var(--text-h1)", fontFamily: "'Bai Jamjuree', sans-serif", fontWeight: 400 }}>
-                Skapa ny persona
+                {t("personas.composer.createTitle")}
               </h1>
               <p style={{ color: "var(--text-muted)", marginTop: 8, maxWidth: 600 }}>
-                Välj hur du vill börja. Alla tre vägar landar i samma redigerbara persona.
+                {t("personas.composer.createIntro")}
               </p>
               <div className="entry-grid">
                 {(
                   [
-                    ["blank", "Tom", "Börja från en blank editor och fyll i allt själv.", "manuell"],
-                    ["free", "Från beskrivning", "Skriv en kort text — vi genererar tre kandidater.", "beskrivning"],
-                    ["demografi", "Från demografi", "Fyll i strukturerade fält — vi fyller i resten.", "demografi"],
+                    ["blank", t("personas.composer.blankTitle"), t("personas.composer.blankDesc"), "manuell"],
+                    ["free", t("personas.origin.fromDescription"), t("personas.composer.descriptionDesc"), "beskrivning"],
+                    ["demografi", t("personas.origin.fromDemographics"), t("personas.composer.demographicsDesc"), "demografi"],
                   ] as const
                 ).map(([kind, title, desc, origin]) => (
                   <div
@@ -1054,7 +1181,7 @@ export function PersonaComposerPage() {
               </div>
               <div style={{ marginTop: 24 }}>
                 <AdminButton variant="secondary" onClick={() => navigate("/personas")}>
-                  ← Tillbaka till biblioteket
+                  {t("personas.composer.backToLibrary")}
                 </AdminButton>
               </div>
             </div>
@@ -1063,22 +1190,22 @@ export function PersonaComposerPage() {
           {screen === "create" && createStep === "free" && (
             <div className="create-wrap">
               <h1 style={{ font: "var(--text-h1)", fontFamily: "'Bai Jamjuree', sans-serif", fontWeight: 400 }}>
-                Beskriv personan
+                {t("personas.composer.describeTitle")}
               </h1>
               <div className="field" style={{ marginTop: 20 }}>
-                <label>Fritextbeskrivning</label>
+                <label>{t("personas.composer.freeTextLabel")}</label>
                 <textarea value={freeText} onChange={(e) => setFreeText(e.target.value)} />
               </div>
               <div style={{ display: "flex", gap: 10 }}>
                 <AdminButton variant="secondary" onClick={() => setCreateStep("choose")}>
-                  ← Tillbaka
+                  {t("common.back")}
                 </AdminButton>
                 <AdminButton
                   variant="primary"
                   disabled={generating}
                   onClick={() => void runCandidateGenerate("beskrivning")}
                 >
-                  {generating ? "Genererar…" : "Generera 3 kandidater →"}
+                  {generating ? t("personas.composer.generating") : t("personas.composer.generateCandidates")}
                 </AdminButton>
               </div>
             </div>
@@ -1087,17 +1214,17 @@ export function PersonaComposerPage() {
           {screen === "create" && createStep === "demografi" && (
             <div className="create-wrap">
               <h1 style={{ font: "var(--text-h1)", fontFamily: "'Bai Jamjuree', sans-serif", fontWeight: 400 }}>
-                Demografiska fält
+                {t("personas.composer.demographicFieldsTitle")}
               </h1>
               <div className="form-grid" style={{ marginTop: 20 }}>
                 {(
                   [
-                    ["age", "Ålder"],
-                    ["kön", "Kön"],
-                    ["ort", "Distrikt"],
-                    ["yrke", "Yrke"],
-                    ["utbildning", "Utbildning"],
-                    ["livssituation", "Livssituation"],
+                    ["age", t("personas.fields.age")],
+                    ["kön", t("personas.fields.gender")],
+                    ["ort", t("personas.fields.district")],
+                    ["yrke", t("personas.fields.occupation")],
+                    ["utbildning", t("personas.fields.education")],
+                    ["livssituation", t("personas.fields.lifeSituation")],
                   ] as const
                 ).map(([k, label]) => {
                   const opts = fieldOptions[k]
@@ -1135,14 +1262,14 @@ export function PersonaComposerPage() {
               </div>
               <div style={{ display: "flex", gap: 10 }}>
                 <AdminButton variant="secondary" onClick={() => setCreateStep("choose")}>
-                  ← Tillbaka
+                  {t("common.back")}
                 </AdminButton>
                 <AdminButton
                   variant="primary"
                   disabled={generating}
                   onClick={() => void runCandidateGenerate("demografi")}
                 >
-                  {generating ? "Genererar…" : "Generera 3 kandidater →"}
+                  {generating ? t("personas.composer.generating") : t("personas.composer.generateCandidates")}
                 </AdminButton>
               </div>
             </div>
@@ -1151,10 +1278,10 @@ export function PersonaComposerPage() {
           {screen === "create" && createStep === "candidates" && (
             <div className="create-wrap">
               <h1 style={{ font: "var(--text-h1)", fontFamily: "'Bai Jamjuree', sans-serif", fontWeight: 400 }}>
-                Välj en kandidat
+                {t("personas.composer.pickCandidateTitle")}
               </h1>
               <p style={{ color: "var(--text-muted)", marginTop: 8 }}>
-                Alla tre är genererade från samma indata. Du kan justera allt efteråt.
+                {t("personas.composer.pickCandidateIntro")}
               </p>
               <div className="cand-grid">
                 {candidates.map((c) => (
@@ -1199,7 +1326,7 @@ export function PersonaComposerPage() {
               </div>
               <div style={{ marginTop: 24 }}>
                 <AdminButton variant="secondary" onClick={() => setCreateStep("choose")}>
-                  ← Tillbaka
+                  {t("common.back")}
                 </AdminButton>
               </div>
             </div>
@@ -1209,6 +1336,7 @@ export function PersonaComposerPage() {
             <Editor
               persona={persona}
               personaId={personaId}
+              t={t}
               setPersona={setPersonaState}
               onOpenVariants={() => setScreen("variants")}
               onSave={() => {
@@ -1228,7 +1356,7 @@ export function PersonaComposerPage() {
                           navigate("/personas")
                         } catch (err) {
                           setToast(
-                            err instanceof ApiError ? err.message : "Kunde inte ta bort",
+                            err instanceof ApiError ? err.message : t("common.deleteError"),
                           )
                           window.setTimeout(() => setToast(""), 2400)
                         } finally {
@@ -1242,18 +1370,18 @@ export function PersonaComposerPage() {
                 if (personaId) {
                   void duplicatePersona(personaId)
                     .then((copy) => {
-                      setToast("Persona duplicerad")
+                      setToast(t("personas.composer.duplicatedToast"))
                       window.setTimeout(() => setToast(""), 2400)
                       navigate(`/personas/${copy.id}`)
                     })
                     .catch((err: unknown) => {
-                      setToast(err instanceof ApiError ? err.message : "Kunde inte duplicera")
+                      setToast(err instanceof ApiError ? err.message : t("common.duplicateError"))
                       window.setTimeout(() => setToast(""), 2400)
                     })
                   return
                 }
                 setPersona((p) => (p ? { ...p, name: p.name + " (kopia)" } : p))
-                setToast("Persona duplicerad")
+                setToast(t("personas.composer.duplicatedToast"))
                 window.setTimeout(() => setToast(""), 2400)
               }}
             />
@@ -1297,6 +1425,7 @@ function VariantsView({
   onOpen: (c: EditablePersona) => void
   onToast: (message: string) => void
 }) {
+  const { t } = useLocale()
   const [variants, setVariants] = useState<EditablePersona[]>([])
   const [loading, setLoading] = useState(true)
   const [savedIdx, setSavedIdx] = useState<number[]>([])
@@ -1331,7 +1460,7 @@ function VariantsView({
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          onToast(err instanceof ApiError ? err.message : "Kunde inte generera varianter")
+          onToast(err instanceof ApiError ? err.message : t("personas.composer.variantsGenerateError"))
         }
       })
       .finally(() => {
@@ -1356,13 +1485,13 @@ function VariantsView({
   return (
     <div className="create-wrap">
       <h1 style={{ font: "var(--text-h1)", fontFamily: "'Bai Jamjuree', sans-serif", fontWeight: 400 }}>
-        5 varianter av {base.name}
+        {t("personas.composer.variantsTitle", { name: base.name })}
       </h1>
       <p style={{ color: "var(--text-muted)", marginTop: 8, maxWidth: 640 }}>
-        Samma profil, olika individer. Spara de du vill behålla i biblioteket.
+        {t("personas.composer.variantsIntro")}
       </p>
       {loading ? (
-        <div className="no-match">Genererar varianter…</div>
+        <div className="no-match">{t("personas.composer.generatingVariants")}</div>
       ) : (
       <div className="cand-grid">
         {variants.map((c, i) => (
@@ -1402,7 +1531,7 @@ function VariantsView({
                     disabled={savedIdx.includes(i) || busyIdx === i}
                     onClick={() => void saveVariant(i, c)}
                   >
-                    {savedIdx.includes(i) ? "✓ Sparad" : "Spara"}
+                    {savedIdx.includes(i) ? t("personas.composer.variantSaved") : t("common.save")}
                   </AdminButton>
                   <AdminButton
                     variant="secondary"
@@ -1410,7 +1539,7 @@ function VariantsView({
                     style={{ flex: 1 }}
                     onClick={() => onOpen(c)}
                   >
-                    Öppna
+                    {t("common.open")}
                   </AdminButton>
                 </div>
               </CardContent>
@@ -1421,10 +1550,10 @@ function VariantsView({
       )}
       <div style={{ marginTop: 24, display: "flex", gap: 10, alignItems: "center" }}>
         <AdminButton variant="primary" onClick={onDone}>
-          Klart — tillbaka till {base.name} →
+          {t("personas.composer.doneBackTo", { name: base.name })}
         </AdminButton>
         <span style={{ font: "var(--text-body-sm)", color: "var(--text-muted)" }}>
-          {savedIdx.length} av 5 sparade i biblioteket
+          {t("personas.composer.savedOfFive", { count: savedIdx.length })}
         </span>
       </div>
     </div>
