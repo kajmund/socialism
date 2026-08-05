@@ -233,12 +233,13 @@ async def _run_simulate(job_id: str) -> None:
 
         if settings.simulation_engine != "oasis":
             attempt = build_empty_attempt(run, engine=settings.simulation_engine)
-            run.status = "done"
+            await session.refresh(run)
             run.results = merge_attempt(
                 run.results if isinstance(run.results, dict) else None,
                 attempt,
                 engine=settings.simulation_engine,
             )
+            run.status = "done"
             run.updated_at = utcnow()
             await session.commit()
             await _succeed(
@@ -256,12 +257,13 @@ async def _run_simulate(job_id: str) -> None:
         if not settings.deepseek_api_key:
             msg = "DEEPSEEK_API_KEY is required when SIMULATION_ENGINE=oasis"
             attempt = build_empty_attempt(run, engine="oasis", error=msg)
-            run.status = "failed"
+            await session.refresh(run)
             run.results = merge_attempt(
                 run.results if isinstance(run.results, dict) else None,
                 attempt,
                 engine="oasis",
             )
+            run.status = "failed"
             run.updated_at = utcnow()
             await session.commit()
             await _fail(session, job_id, msg)
@@ -269,12 +271,13 @@ async def _run_simulate(job_id: str) -> None:
         if not oasis_installed():
             msg = "camel-oasis is not installed. Run: uv sync --extra oasis"
             attempt = build_empty_attempt(run, engine="oasis", error=msg)
-            run.status = "failed"
+            await session.refresh(run)
             run.results = merge_attempt(
                 run.results if isinstance(run.results, dict) else None,
                 attempt,
                 engine="oasis",
             )
+            run.status = "failed"
             run.updated_at = utcnow()
             await session.commit()
             await _fail(session, job_id, msg)
@@ -302,12 +305,13 @@ async def _run_simulate(job_id: str) -> None:
             )
         except OasisUnavailable as exc:
             attempt = build_empty_attempt(run, engine="oasis", error=str(exc))
-            run.status = "failed"
+            await session.refresh(run)
             run.results = merge_attempt(
                 run.results if isinstance(run.results, dict) else None,
                 attempt,
                 engine="oasis",
             )
+            run.status = "failed"
             run.updated_at = utcnow()
             await session.commit()
             await _fail(session, job_id, str(exc))
@@ -315,12 +319,13 @@ async def _run_simulate(job_id: str) -> None:
             attempt = build_empty_attempt(
                 run, engine="oasis", error=str(exc) or exc.__class__.__name__
             )
-            run.status = "failed"
+            await session.refresh(run)
             run.results = merge_attempt(
                 run.results if isinstance(run.results, dict) else None,
                 attempt,
                 engine="oasis",
             )
+            run.status = "failed"
             run.updated_at = utcnow()
             await session.commit()
             await _fail(session, job_id, str(exc) or exc.__class__.__name__)
@@ -457,12 +462,13 @@ async def fail_interrupted_jobs(
             if run is None or run.status != "running":
                 continue
             attempt = build_empty_attempt(run, engine=settings.simulation_engine, error=message)
-            run.status = "failed"
+            await session.refresh(run)
             run.results = merge_attempt(
                 run.results if isinstance(run.results, dict) else None,
                 attempt,
                 engine=settings.simulation_engine,
             )
+            run.status = "failed"
             run.updated_at = now
     for report_id in report_ids:
         report = await session.get(Report, report_id)

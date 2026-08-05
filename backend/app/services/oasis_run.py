@@ -913,6 +913,7 @@ async def simulate_run(session: AsyncSession, run: Run) -> dict[str, Any]:
         "error": "Alla varianter misslyckades" if all_failed else None,
         "variants": variants_out,
     }
+    await session.refresh(run)
     prev = run.results if isinstance(run.results, dict) else None
     return merge_attempt(prev, attempt, engine="oasis")
 

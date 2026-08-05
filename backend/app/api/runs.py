@@ -2,7 +2,7 @@ from copy import deepcopy
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -228,8 +228,6 @@ async def start_run(
     if run.status == "running":
         raise HTTPException(status_code=409, detail="Run is already running")
 
-    await _snapshot_message_bodies(session, run)
-
     if settings.simulation_engine == "oasis":
         if not settings.deepseek_api_key:
             raise HTTPException(
@@ -242,9 +240,23 @@ async def start_run(
                 detail="camel-oasis is not installed. Run: uv sync --extra oasis",
             )
 
-    # Keep prior attempts in results; the worker appends the new one.
-    run.status = "running"
-    run.updated_at = utcnow()
+    await _snapshot_message_bodies(session, run)
+
+    # Atomic flip so concurrent /start cannot queue two workers for the same run.
+    prior_status = run.status
+    now = utcnow()
+    flipped = await session.execute(
+        update(Run)
+        .where(Run.id == run_id, Run.status == prior_status)
+        .values(
+            status="running",
+            updated_at=now,
+            main_ticks=run.main_ticks,
+            branch=run.branch,
+        )
+    )
+    if int(flipped.rowcount or 0) != 1:
+        raise HTTPException(status_code=409, detail="Run is already running")
     await session.commit()
 
     job = await jobs_service.create_job(
