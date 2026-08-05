@@ -104,6 +104,9 @@ Useful env knobs (see `backend/.env.example`):
 - `PERSONA_GENERATOR=deepseek|stub` — DeepSeek vs offline persona sampling (key still required)
 - `SIMULATION_ENGINE=none|oasis` — empty attempt vs optional OASIS spike (`uv sync --extra oasis`)
 
+OASIS model comparison (after `uv sync --extra oasis`):  
+`uv run python scripts/benchmark_simulation_models.py --run-id N` — see [docs/guides/backend-setup.md](docs/guides/backend-setup.md#benchmark-deepseek-models).
+
 Tests: `cd backend && uv run pytest`.
 
 ## Docs
