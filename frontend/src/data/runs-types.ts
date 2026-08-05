@@ -47,6 +47,8 @@ export type OasisPlatform = "twitter" | "reddit"
 export type OasisRunOptions = {
   platform: OasisPlatform
   allow_population_create_post: boolean
+  enable_web_search: boolean
+  enable_sympy_tools: boolean
 }
 
 export type LexicalConvergenceWarning = {
@@ -127,6 +129,14 @@ export type OasisVariantResult = {
     created_at?: string | number
     action: string
     info?: string | null
+  }>
+  agent_tools?: Array<{
+    user_id: number
+    tick_index: number
+    sequence?: number
+    tool_name: string
+    args?: Record<string, unknown>
+    result_preview?: string | null
   }>
   action_histogram?: Array<{ action: string; count: number }>
   tick_markers?: Array<{

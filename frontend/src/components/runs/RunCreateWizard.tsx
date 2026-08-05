@@ -198,6 +198,20 @@ export function RunCreateWizard(props: RunCreateWizardProps) {
                       allow_population_create_post: checked,
                     })
                   }
+                  enableWebSearch={props.oasisOptions.enable_web_search}
+                  onEnableWebSearchChange={(checked) =>
+                    props.onOasisOptionsChange({
+                      ...props.oasisOptions,
+                      enable_web_search: checked,
+                    })
+                  }
+                  enableSympyTools={props.oasisOptions.enable_sympy_tools}
+                  onEnableSympyToolsChange={(checked) =>
+                    props.onOasisOptionsChange({
+                      ...props.oasisOptions,
+                      enable_sympy_tools: checked,
+                    })
+                  }
                 />
               </div>
             </CardContent>

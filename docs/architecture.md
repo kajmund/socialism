@@ -69,9 +69,12 @@ Phase 1 deliberately uses SQLite before Supabase. Models/migrations stay portabl
 - **Tick:** `day`, `silent`, `injections`, `rounds`, `measurements`, planned `interviews`
 - **Silent tick:** no new injections; still runs population reaction rounds under OASIS
 - **Branch:** after shared stem (`afterIndex`), variants `a` / `b` with `mode`:
-  - `ab` — two message formulations
-  - `stimulus_control` — A with stimulus, B as silent control (no injections)
+  - `ab` — two message formulations (labels “Version A/B”)
+  - `stimulus_control` — labels “Med stimulus” / “Kontroll (ingen injektion)”; backend does **not** strip B injections — the admin UI builds silent control ticks via `makeStimulusControlBranch`
 - **Oasis options:** `platform` (`twitter` \| `reddit`), `allow_population_create_post`
+- **Quality:** each OASIS variant may include `quality_warnings` from lexical convergence analysis (phrase echo / cross-agent reuse)
+
+See [runs-interviews-and-quality.md](guides/runs-interviews-and-quality.md) for API shapes, interview scopes, and constraints.
 
 ## Public API (routers)
 
@@ -113,14 +116,16 @@ Interrupted jobs are marked failed on backend startup (after migrations exist).
 | Flow | Where | Notes |
 | ---- | ----- | ----- |
 | Persona generate | `POST /personas/generate` | DeepSeek or weighted stub sampling (`PERSONA_GENERATOR`) |
-| Persona anecdote | persona gen path | Generative `anekdot` field |
-| Library chat | `/personas/{id}/chat` | Persisted `PersonaMessage` with `run_id = null`; delete/clear/resend |
-| Planned tick interviews | tick `interviews[]` | OASIS INTERVIEW after reaction rounds |
-| Post-hoc run interview | `/runs/.../interview` | Feed context only through selected tick (`run_tick_context`) |
+| Persona anecdote | persona / population gen | Short `anekdot` (≤20 words, non-political); see runbook |
+| Library chat | `/personas/{id}/chat` | `PersonaMessage` with `run_id = null`; delete/clear/resend |
+| Planned tick interviews | tick `interviews[]` | OASIS `ManualAction(INTERVIEW)` after reaction rounds |
+| Post-hoc run interview | `/runs/.../interview` | Scoped by attempt/variant/`through_tick_index`; feed cutoff via `run_tick_context` |
 | Message variants / URL | `/messages/*` | Budskapsverkstad helpers |
 | Report narrative | report job | Deterministic metrics + LLM narrative/classification |
 
 `DEEPSEEK_API_KEY` is required even when `PERSONA_GENERATOR=stub` — there is no heuristic LLM fallback for chat/reports.
+
+Library chat and post-hoc run interviews share the `persona_messages` table but are **separate threads** (null vs set `run_id`). Planned tick interviews are OASIS actions, not rows in that table.
 
 ## OASIS (optional)
 
@@ -132,8 +137,10 @@ Interrupted jobs are marked failed on backend startup (after migrations exist).
 - Platforms: Twitter (default) or Reddit (scenario clock for tick markers)
 - Injectors always post via manual actions; population `CREATE_POST` is gated by `oasis_options`
 - Swedish environment prompts + action semantics in `oasis_swedish.py` / `oasis_profiles.py`
-- Lexical convergence warnings surface phrase-echo quality issues in results
-- CLI helper: `uv run python -m app.services.oasis_run --run-id N`
+- Lexical convergence (`quality_warnings`) flags injection phrase-echo and cross-agent reuse (default ≥40% of population agents)
+- Artifacts: `backend/data/oasis/run_{id}/{variant}/`
+- CLI helper (persists attempt): `uv run python -m app.services.oasis_run --run-id N`
+- Model benchmark (wall time + output metrics; does not persist attempt): `uv run python scripts/benchmark_simulation_models.py --run-id N` — see [backend setup](guides/backend-setup.md#benchmark-deepseek-models)
 
 ## Frontend surfaces
 
@@ -159,8 +166,10 @@ Fail fast on missing required config.
 
 ## Related docs
 
+- [Runs: interviews, branches, quality](guides/runs-interviews-and-quality.md)
 - [Backend setup](guides/backend-setup.md)
 - [Frontend setup](guides/frontend-setup.md)
 - [Supabase (later)](guides/supabase-setup.md)
 - [Client brief](client-brief.md)
+- Operator OKF manuals: [knowledge/manual/](../knowledge/manual/)
 - Root [README](../README.md) and [AGENTS.md](../AGENTS.md)

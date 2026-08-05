@@ -25,6 +25,8 @@ from app.schemas.domain import Injection, OasisPlatform, OasisRunOptions, Tick
 from app.serializers import utcnow
 from app.services.district_context import format_area_block, list_district_contexts
 from app.services.lexical_convergence import analyze_lexical_convergence
+from app.services.oasis_agent_tools import apply_population_agent_tools
+from app.services.oasis_deepseek_reasoning import apply_deepseek_reasoning_patch
 from app.services.oasis_clock import OasisScenarioClock
 from app.services.oasis_profiles import (
     build_run_profiles,
@@ -36,6 +38,12 @@ from app.services.oasis_profiles import (
 from app.services.oasis_swedish import (
     apply_swedish_social_environment_prompts,
     set_oasis_user_display_names,
+)
+from app.services.oasis_tool_trace import (
+    apply_oasis_tool_trace_patch,
+    clear_oasis_tool_trace,
+    drain_oasis_tool_trace,
+    set_oasis_tool_trace_tick,
 )
 from app.services.run_measurements import build_measurements
 
@@ -549,6 +557,9 @@ async def run_oasis_simulation(
         prompts = await require_active_prompts(prompt_session, "sv")
 
     apply_swedish_social_environment_prompts(prompts)
+    apply_deepseek_reasoning_patch()
+    apply_oasis_tool_trace_patch()
+    clear_oasis_tool_trace()
     # All configured ticks run: silent = no injection that day, population still reacts.
     active_ticks = list(ticks)
     profiles, key_to_index = build_run_profiles(
@@ -558,6 +569,7 @@ async def run_oasis_simulation(
         area_blocks=area_blocks,
         allow_create_post=allow_create,
         platform=platform,
+        oasis_options=options,
     )
     # OASIS feed only exposes user_id; map to member names for correct attribution.
     set_oasis_user_display_names(
@@ -620,6 +632,8 @@ async def run_oasis_simulation(
             database_path=str(db_path),
         )
 
+    apply_population_agent_tools(agent_graph, population_indices, options)
+
     ticks_run = 0
     tick_markers: list[dict[str, Any]] = []
     prev_end = -1
@@ -653,6 +667,7 @@ async def run_oasis_simulation(
                     await env.step(inject_actions)
 
             rounds = max(1, tick.rounds)
+            set_oasis_tool_trace_tick(tick_index)
             for _ in range(rounds):
                 llm_actions = {
                     agent: LLMAction()
@@ -696,6 +711,7 @@ async def run_oasis_simulation(
         await env.close()
 
     feed = _read_oasis_results(db_path)
+    agent_tools = drain_oasis_tool_trace()
     return {
         "engine": "oasis",
         "seed": seed,
@@ -721,6 +737,7 @@ async def run_oasis_simulation(
         "reports": feed["reports"],
         "trace": feed["trace"],
         "action_histogram": feed["action_histogram"],
+        "agent_tools": agent_tools,
         "artifact_db": str(db_path),
         "profile_path": str(profile_path),
         "profile_csv": profile_csv,
@@ -814,6 +831,7 @@ def _failed_variant(
         "reports": [],
         "trace": [],
         "action_histogram": [],
+        "agent_tools": [],
         "measurements": build_measurements(ticks, ticks_run=0),
     }
 
@@ -863,6 +881,7 @@ async def _simulate_variant(
     reports = sim.get("reports") or []
     trace = sim.get("trace") or []
     action_histogram = sim.get("action_histogram") or []
+    agent_tools = sim.get("agent_tools") or []
     tick_markers = sim.get("tick_markers") or []
     ticks_run = int(sim.get("ticks_run") or 0)
     return {
@@ -879,6 +898,7 @@ async def _simulate_variant(
         "reports": reports,
         "trace": trace,
         "action_histogram": action_histogram,
+        "agent_tools": agent_tools,
         "artifact_db": sim.get("artifact_db"),
         "profile_path": sim.get("profile_path"),
         "profile_csv": sim.get("profile_csv"),

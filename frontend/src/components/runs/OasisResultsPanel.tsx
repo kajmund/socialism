@@ -12,7 +12,9 @@ import { useNavigate } from "react-router-dom"
 import { createReport, listReports } from "@/api/reports"
 import { PersonaProfileModal } from "@/components/personas/PersonaProfileModal"
 import {
+  agentToolHistogram,
   buildTimelineItems,
+  describeAgentTool,
   groupTimelineSegments,
   HIDDEN_ACTIONS,
   parseTraceInfo,
@@ -964,6 +966,7 @@ function variantHasNetworkActivity(variant: OasisVariantResult): boolean {
     (variant.follows?.length ?? 0) > 0 ||
     (variant.mutes?.length ?? 0) > 0 ||
     (variant.reports?.length ?? 0) > 0 ||
+    (variant.agent_tools?.length ?? 0) > 0 ||
     histogram.length > 0
   )
 }
@@ -1007,6 +1010,7 @@ function NetworkActivityContent({
   const histogram = (variant.action_histogram ?? []).filter(
     (row) => !HIDDEN_ACTIONS.has(row.action),
   )
+  const toolHistogram = agentToolHistogram(variant.agent_tools)
 
   return (
     <div className="space-y-3">
@@ -1050,6 +1054,27 @@ function NetworkActivityContent({
           {reports.length > 0 ? (
             <span>{t("runs.results.networkReports", { count: reports.length })}</span>
           ) : null}
+        </div>
+      ) : null}
+
+      {toolHistogram.length > 0 ? (
+        <div>
+          <div className="mb-2 text-xs font-medium text-muted-foreground">
+            {t("runs.results.networkAgentTools")}
+          </div>
+          <ActionHistogramChart
+            rows={toolHistogram.map((row) => ({
+              action: describeAgentTool(
+                {
+                  user_id: 0,
+                  tick_index: 0,
+                  tool_name: row.tool_name,
+                },
+                t,
+              ).label,
+              count: row.count,
+            }))}
+          />
         </div>
       ) : null}
 
