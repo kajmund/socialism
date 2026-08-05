@@ -2,7 +2,7 @@
 
 Python + FastAPI admin API for Opinionssimulator: personas, populations, runs, messages (budskap), catalog (grunddata), background jobs, and reports. The frontend talks to it over JSON via `VITE_API_BASE_URL`.
 
-See [architecture.md](../architecture.md) for domain and run lifecycle.
+See [architecture.md](../architecture.md) for domain and run lifecycle. For interviews, branch modes (`ab` / `stimulus_control`), message freeze, lexical `quality_warnings`, and persona anecdotes, see [runs-interviews-and-quality.md](runs-interviews-and-quality.md).
 
 ## Phase 1: SQLite
 
@@ -128,11 +128,13 @@ uv run uvicorn app.main:app --reload
 | ------ | -------- |
 | Personas | `GET/POST /personas`, generate, chat, message delete/resend |
 | Populations | CRUD, generate, members, duplicate |
-| Runs | CRUD, `POST /runs/{id}/start` (202 + job), attempt delete, post-hoc interviews |
+| Runs | CRUD, `POST /runs/{id}/start` (202 + job), attempt delete, post-hoc interviews (`/attempts/.../interview`) |
 | Messages | Budskapsbibliotek, summarize-url, generate-variants |
 | Catalog | `GET/PUT /catalog/{key}` |
 | Jobs | `POST/GET /jobs`, `GET /jobs/{id}` |
 | Reports | `POST /reports` (202), `GET /reports/{id}/html` |
+
+Personas also expose library chat delete/resend (`DELETE …/messages`, `POST …/messages/{id}/resend`). Full interview/branch/quality runbook: [runs-interviews-and-quality.md](runs-interviews-and-quality.md).
 
 ### Background jobs
 
@@ -166,6 +168,8 @@ Uses in-memory SQLite; no network required. Tests set a dummy `DEEPSEEK_API_KEY`
 | App exits immediately on boot | Missing/empty `DEEPSEEK_API_KEY` |
 | CORS errors from Vite | `ALLOWED_ORIGINS` missing the browser origin |
 | Start returns 400 about OASIS | `SIMULATION_ENGINE=oasis` without `uv sync --extra oasis` or without DeepSeek key mirroring |
+| Start returns 400 about missing message | Injection `message_id` not in budskapsbibliotek — fix before start (bodies are frozen then) |
+| Post-hoc interview 409 / tick errors | Run still simulating, or `through_tick_index` out of range — see [interview runbook](runs-interviews-and-quality.md) |
 | Benchmark exits about API key | Missing/placeholder `DEEPSEEK_API_KEY` in `backend/.env` |
 | Benchmark `OasisUnavailable` | Run `uv sync --extra oasis`; confirm camel-oasis import works |
 | Benchmark JSON ok but UI unchanged | Script does not persist attempts — check `data/benchmark_*.json`, not the körning detail page |
