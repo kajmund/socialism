@@ -30,4 +30,6 @@ Du kan också använda snabbläge om du vill hoppa över den stegvisa guiden.
 ## Relaterade guider
 
 - [Översikt av ytorna](oversikt.md)
+- [Konfigurera en dag i tidslinjen](konfigurera-dag-i-tidslinjen.md)
 - [Starta en simulering](starta-simulering.md)
+- [Hantera budskap](hantera-budskap.md)

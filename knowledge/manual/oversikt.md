@@ -28,5 +28,7 @@ Rapporter öppnas från en körnings resultat när en rapport har skapats.
 
 ## Relaterade guider
 
+- [Hantera körningar](hantera-korningar.md)
 - [Skapa en ny körning](skapa-korning.md)
 - [Starta en simulering](starta-simulering.md)
+- [Använda simulatorn](anvanda-simulatorn.md)
