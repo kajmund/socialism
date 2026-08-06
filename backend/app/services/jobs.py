@@ -416,9 +416,11 @@ async def _run_report_generate(job_id: str) -> None:
         # Build bundles while session is open, then release before long LLM work.
         bundles = await build_bundles(session, sources)
         out_dir = Path(ARTIFACT_ROOT) / report_id
-        from app.services.prompt_store import require_active_prompts
+        from app.services.prompt_catalog import ConfigurationLanguage
+        from app.services.prompt_store import require_prompts_for_language
 
-        prompts = await require_active_prompts(session)
+        report_lang: ConfigurationLanguage = "en" if locale == "en" else "sv"
+        prompts = await require_prompts_for_language(session, report_lang)
 
     try:
         html_path, slots_path, _slots = await generate_report_html(
