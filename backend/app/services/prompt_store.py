@@ -31,22 +31,51 @@ async def get_active_configuration(session: AsyncSession) -> Configuration | Non
     return result.scalar_one_or_none()
 
 
+def _require_prompt_map(
+    row: Configuration,
+    *,
+    context: str,
+) -> dict[str, str]:
+    language: ConfigurationLanguage = row.language  # type: ignore[assignment]
+    prompts = normalize_prompts(dict(row.prompts or {}), language=language, fill_missing=False)
+    missing = [k for k in PROMPT_KEYS if not str(prompts.get(k, "")).strip()]
+    if missing:
+        raise MissingActiveConfigurationError(
+            f"{context} '{row.name}' (id={row.id}) is missing prompts: "
+            + ", ".join(missing[:8])
+            + ("…" if len(missing) > 8 else "")
+        )
+    return prompts
+
+
 async def require_active_prompts(session: AsyncSession) -> dict[str, str]:
     row = await get_active_configuration(session)
     if row is None:
         raise MissingActiveConfigurationError(
             "No active prompt configuration. Activate one under Konfigurationer."
         )
-    language: ConfigurationLanguage = row.language  # type: ignore[assignment]
-    prompts = normalize_prompts(dict(row.prompts or {}), language=language, fill_missing=False)
-    missing = [k for k in PROMPT_KEYS if not str(prompts.get(k, "")).strip()]
-    if missing:
+    return _require_prompt_map(row, context="Active configuration")
+
+
+async def require_prompts_for_language(
+    session: AsyncSession,
+    language: ConfigurationLanguage,
+) -> dict[str, str]:
+    """Load prompts for a language, independent of which config is globally active."""
+    stmt = (
+        select(Configuration)
+        .where(Configuration.language == language)
+        .order_by(Configuration.id.asc())
+        .limit(1)
+    )
+    result = await session.execute(stmt)
+    row = result.scalar_one_or_none()
+    if row is None:
         raise MissingActiveConfigurationError(
-            f"Active configuration '{row.name}' (id={row.id}) is missing prompts: "
-            + ", ".join(missing[:8])
-            + ("…" if len(missing) > 8 else "")
+            f"No prompt configuration for language '{language}'. "
+            "Create one under Konfigurationer."
         )
-    return prompts
+    return _require_prompt_map(row, context=f"Configuration for '{language}'")
 
 
 async def ensure_default_configurations(session: AsyncSession) -> int:
@@ -138,5 +167,6 @@ __all__ = [
     "get_active_configuration",
     "render_prompt",
     "require_active_prompts",
+    "require_prompts_for_language",
     "set_active_configuration",
 ]
