@@ -1,0 +1,495 @@
+"""Template-based snabbrapport: SSR + deterministic metrics, no narrative LLM."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from html import escape
+from typing import Any, Literal
+
+from app.config import settings
+from app.services.report.bundles import RunBundle, is_ab_comparison
+from app.services.report.classify import BundleClassification
+from app.services.report.locale import ReportLocale, display_style_label
+from app.services.report.metrics import ReportMetrics, pct
+from app.services.ssr import ANCHOR_SET_VERSION
+
+# Hardcoded thresholds (not config) until calibration shows need to tweak often.
+_POS_STRONG = 0.50
+_POS_MIXED = 0.30
+_CRIT_WEAK = 0.50
+_TOPIC_DRIFT = 0.10
+# Relative difference bands (A/B positive-share and style avg-likes / top score).
+_DIFF_CLEAR = 0.08
+_DIFF_WEAK = 0.03
+
+_PROVOCATIVE = "Provocerande / konfronterande"
+
+DiffBand = Literal["clear", "weak", "none"]
+
+
+def _diff_band(diff: float) -> DiffBand:
+    """Bucket a relative difference into clear / weak / no meaningful gap."""
+    if diff >= _DIFF_CLEAR:
+        return "clear"
+    if diff >= _DIFF_WEAK:
+        return "weak"
+    return "none"
+
+
+def _band_label(band: DiffBand, *, locale: ReportLocale) -> str:
+    if locale == "en":
+        if band == "clear":
+            return "Clear difference"
+        if band == "weak":
+            return "Weak difference"
+        return "No meaningful difference"
+    if band == "clear":
+        return "Tydlig skillnad"
+    if band == "weak":
+        return "Svag skillnad"
+    return "Ingen meningsfull skillnad"
+
+
+@dataclass
+class QuickVerdict:
+    key: str
+    label: str
+    detail: str
+    positive_share: float
+    critical_share: float
+    threshold_note: str
+
+
+def _positive_share(tone: dict[str, float], *, locale: ReportLocale) -> float:
+    if locale == "en":
+        return tone.get("Somewhat positive", 0.0) + tone.get("Strongly positive", 0.0)
+    return tone.get("Något positiv", 0.0) + tone.get("Starkt positiv", 0.0)
+
+
+def _critical_share(tone: dict[str, float], *, locale: ReportLocale) -> float:
+    if locale == "en":
+        return tone.get("Somewhat negative", 0.0) + tone.get("Strongly negative", 0.0)
+    return tone.get("Något negativ", 0.0) + tone.get("Starkt negativ", 0.0)
+
+
+def _injection_likes(bundle: RunBundle) -> int:
+    """Likes on posts whose content overlaps an injection text (best-effort)."""
+    if not bundle.injection_texts:
+        return sum(
+            int(p.get("num_likes") or p.get("likes") or 0)
+            for p in bundle.posts
+            if p.get("role") == "injector" or p.get("is_injection")
+        )
+    total = 0
+    needles = [t[:80].lower() for t in bundle.injection_texts if t.strip()]
+    for p in bundle.posts:
+        content = str(p.get("content") or p.get("text") or "").lower()
+        likes = int(p.get("num_likes") or p.get("likes") or 0)
+        if any(n and n in content for n in needles):
+            total += likes
+            continue
+        # Injector-authored posts count as injection surface.
+        uid = p.get("user_id")
+        for a in bundle.agents:
+            if a.get("index") == uid and a.get("role") == "injector":
+                total += likes
+                break
+    return total
+
+
+def _topic_share_by_day_half(bundle: RunBundle, classification: BundleClassification) -> dict[str, Any]:
+    """Approximate day-1 vs later topic share for injected topic (top pack)."""
+    packs = classification.topic_packs
+    if not packs or not bundle.posts:
+        return {"day1": None, "later": None, "flag": False, "top_topic": None}
+    top = packs[0].label
+    keywords = [k.lower() for k in packs[0].keywords if k] or [top.lower()]
+    n = len(bundle.posts)
+    mid = max(1, n // 3)  # first third ≈ day 1 when ticks~3
+
+    def share(posts: list[dict[str, Any]]) -> float:
+        if not posts:
+            return 0.0
+        hits = 0
+        for p in posts:
+            text = str(p.get("content") or p.get("text") or "").lower()
+            if any(k in text for k in keywords):
+                hits += 1
+        return hits / len(posts)
+
+    day1 = share(bundle.posts[:mid])
+    later = share(bundle.posts[mid:])
+    flag = day1 > 0 and later < _TOPIC_DRIFT and later < day1
+    return {"day1": day1, "later": later, "flag": flag, "top_topic": top}
+
+
+def decide_verdict(
+    metrics: ReportMetrics,
+    bundles: list[RunBundle],
+    *,
+    locale: ReportLocale,
+) -> QuickVerdict:
+    tone = metrics.aggregate.tone_shares
+    pos = _positive_share(tone, locale=locale)
+    crit = _critical_share(tone, locale=locale)
+    inj_likes = sum(_injection_likes(b) for b in bundles)
+
+    if locale == "en":
+        if inj_likes <= 0:
+            return QuickVerdict(
+                key="zero",
+                label="Zero result",
+                detail="Injected messages received no likes.",
+                positive_share=pos,
+                critical_share=crit,
+                threshold_note="Triggered by 0 likes on injected message.",
+            )
+        if pos >= _POS_STRONG:
+            return QuickVerdict(
+                key="strong",
+                label="Strong reception",
+                detail=f"Positive tone share {pct(pos)} (≥ {pct(_POS_STRONG)}).",
+                positive_share=pos,
+                critical_share=crit,
+                threshold_note=f"Positive ≥ {pct(_POS_STRONG)}; next band starts below that.",
+            )
+        if pos >= _POS_MIXED:
+            return QuickVerdict(
+                key="mixed",
+                label="Mixed reception",
+                detail=f"Positive tone share {pct(pos)} (between {pct(_POS_MIXED)} and {pct(_POS_STRONG)}).",
+                positive_share=pos,
+                critical_share=crit,
+                threshold_note=(
+                    f"Positive in [{pct(_POS_MIXED)}, {pct(_POS_STRONG)}); "
+                    f"distance to strong band: {pct(_POS_STRONG - pos)}."
+                ),
+            )
+        if crit >= _CRIT_WEAK:
+            return QuickVerdict(
+                key="weak",
+                label="Weak reception",
+                detail=f"Positive {pct(pos)} and critical {pct(crit)} (≥ {pct(_CRIT_WEAK)}).",
+                positive_share=pos,
+                critical_share=crit,
+                threshold_note=f"Positive < {pct(_POS_MIXED)} and critical ≥ {pct(_CRIT_WEAK)}.",
+            )
+        return QuickVerdict(
+            key="mixed",
+            label="Mixed reception",
+            detail=f"Positive {pct(pos)}, critical {pct(crit)} — no strong band triggered.",
+            positive_share=pos,
+            critical_share=crit,
+            threshold_note="Default mixed when no strong/weak band matched.",
+        )
+
+    if inj_likes <= 0:
+        return QuickVerdict(
+            key="zero",
+            label="Nollresultat",
+            detail="Injicerat budskap fick inga likes.",
+            positive_share=pos,
+            critical_share=crit,
+            threshold_note="Triggas av 0 likes på injicerat budskap.",
+        )
+    if pos >= _POS_STRONG:
+        return QuickVerdict(
+            key="strong",
+            label="Starkt mottagande",
+            detail=f"Positiv tonandel {pct(pos)} (≥ {pct(_POS_STRONG)}).",
+            positive_share=pos,
+            critical_share=crit,
+            threshold_note=f"Positiv ≥ {pct(_POS_STRONG)}; nästa band börjar under det.",
+        )
+    if pos >= _POS_MIXED:
+        return QuickVerdict(
+            key="mixed",
+            label="Blandat mottagande",
+            detail=f"Positiv tonandel {pct(pos)} (mellan {pct(_POS_MIXED)} och {pct(_POS_STRONG)}).",
+            positive_share=pos,
+            critical_share=crit,
+            threshold_note=(
+                f"Positiv i [{pct(_POS_MIXED)}, {pct(_POS_STRONG)}); "
+                f"avstånd till starkt band: {pct(_POS_STRONG - pos)}."
+            ),
+        )
+    if crit >= _CRIT_WEAK:
+        return QuickVerdict(
+            key="weak",
+            label="Svagt mottagande",
+            detail=f"Positiv {pct(pos)} och kritisk {pct(crit)} (≥ {pct(_CRIT_WEAK)}).",
+            positive_share=pos,
+            critical_share=crit,
+            threshold_note=f"Positiv < {pct(_POS_MIXED)} och kritisk ≥ {pct(_CRIT_WEAK)}.",
+        )
+    return QuickVerdict(
+        key="mixed",
+        label="Blandat mottagande",
+        detail=f"Positiv {pct(pos)}, kritisk {pct(crit)} — inget starkt band triggades.",
+        positive_share=pos,
+        critical_share=crit,
+        threshold_note="Standard blandat när varken starkt eller svagt band matchade.",
+    )
+
+
+def _ab_diff_html(
+    metrics: ReportMetrics,
+    *,
+    locale: ReportLocale,
+) -> str:
+    if len(metrics.bundles) < 2:
+        return ""
+    shares = [
+        (_positive_share(m.tone_shares, locale=locale), m.label) for m in metrics.bundles
+    ]
+    shares.sort(key=lambda x: x[0], reverse=True)
+    best_pos, best_label = shares[0]
+    worst_pos, worst_label = shares[-1]
+    diff = best_pos - worst_pos
+    band = _diff_band(diff)
+    label = _band_label(band, locale=locale)
+    if locale == "en":
+        return (
+            f"<p><strong>{label}</strong> — {escape(best_label)} leads "
+            f"{escape(worst_label)} by {pct(diff)} positive SSR "
+            f"({pct(best_pos)} vs {pct(worst_pos)}).</p>"
+        )
+    return (
+        f"<p><strong>{label}</strong> — {escape(best_label)} leder "
+        f"{escape(worst_label)} med {pct(diff)} positiv SSR "
+        f"({pct(best_pos)} vs {pct(worst_pos)}).</p>"
+    )
+
+
+def _style_relative_diff(top: float, bottom: float) -> float:
+    """Relative gap vs top score — same scale as A/B share diffs for bucketing."""
+    if top <= 0 and bottom <= 0:
+        return 0.0
+    return (top - bottom) / max(top, 1e-9)
+
+
+def _style_html(metrics: ReportMetrics, *, locale: ReportLocale) -> str:
+    styles = metrics.aggregate.style_avg_likes
+    if not styles:
+        return "<p>—</p>"
+    ranked = [(s, a) for s, a in styles if s != "Oklassad"]
+    if not ranked:
+        ranked = list(styles)
+    # Bucket top vs runner-up (not top vs last) — 9.0 vs 8.9 is noise even if
+    # some other style sits at 0.
+    winner_s, winner_a = ranked[0]
+    second_s, second_a = ranked[1] if len(ranked) > 1 else (winner_s, winner_a)
+    win = display_style_label(winner_s, locale)
+    second = display_style_label(second_s, locale)
+    rel = _style_relative_diff(winner_a, second_a)
+    band = _diff_band(rel)
+    band_lbl = _band_label(band, locale=locale)
+    parts = []
+    if locale == "en":
+        if band == "none":
+            parts.append(
+                f"<p><strong>{band_lbl}</strong> — {escape(win)} ({winner_a:.1f} avg likes) "
+                f"and {escape(second)} ({second_a:.1f}) are within noise "
+                f"(gap {rel:.0%} of top; need ≥{_DIFF_WEAK:.0%} for a weak signal).</p>"
+            )
+        elif band == "weak":
+            parts.append(
+                f"<p><strong>{band_lbl}</strong> — {escape(win)} slightly ahead of "
+                f"{escape(second)} ({winner_a:.1f} vs {second_a:.1f} avg likes).</p>"
+            )
+        else:
+            parts.append(
+                f"<p><strong>{band_lbl}</strong> — <strong>Winning style:</strong> "
+                f"{escape(win)} ({winner_a:.1f} avg likes). "
+                f"<strong>Next:</strong> {escape(second)} ({second_a:.1f}).</p>"
+            )
+        if any(s == _PROVOCATIVE and a <= 0 for s, a in ranked):
+            parts.append(
+                "<p>Provocative/confrontational style got 0 avg likes "
+                "(confirmed pilot pattern).</p>"
+            )
+    else:
+        if band == "none":
+            parts.append(
+                f"<p><strong>{band_lbl}</strong> — {escape(win)} ({winner_a:.1f} snittlikes) "
+                f"och {escape(second)} ({second_a:.1f}) ligger inom brus "
+                f"(gap {rel:.0%} av toppen; ≥{_DIFF_WEAK:.0%} krävs för svag signal).</p>"
+            )
+        elif band == "weak":
+            parts.append(
+                f"<p><strong>{band_lbl}</strong> — {escape(win)} något före "
+                f"{escape(second)} ({winner_a:.1f} vs {second_a:.1f} snittlikes).</p>"
+            )
+        else:
+            parts.append(
+                f"<p><strong>{band_lbl}</strong> — <strong>Vinnande stil:</strong> "
+                f"{escape(win)} ({winner_a:.1f} snittlikes). "
+                f"<strong>Näst:</strong> {escape(second)} ({second_a:.1f}).</p>"
+            )
+        if any(s == _PROVOCATIVE and a <= 0 for s, a in ranked):
+            parts.append(
+                "<p>Provocerande/konfronterande stil fick 0 snittlikes "
+                "(bekräftat mönster i pilotdata).</p>"
+            )
+    return "".join(parts)
+
+
+def build_quick_slots(
+    *,
+    title: str,
+    bundles: list[RunBundle],
+    classifications: list[BundleClassification],
+    metrics: ReportMetrics,
+    locale: ReportLocale,
+    timing: dict[str, Any],
+) -> dict[str, str]:
+    verdict = decide_verdict(metrics, bundles, locale=locale)
+    drift_bits = [
+        _topic_share_by_day_half(b, c)
+        for b, c in zip(bundles, classifications, strict=True)
+    ]
+    any_drift = any(d["flag"] for d in drift_bits)
+    ab = is_ab_comparison(bundles) or len(bundles) > 1
+
+    tone_rows = "".join(
+        f"<tr><td>{escape(k)}</td><td>{pct(v)}</td></tr>"
+        for k, v in metrics.aggregate.tone_shares.items()
+    )
+    style_rows = "".join(
+        f"<tr><td>{escape(display_style_label(s, locale))}</td>"
+        f"<td>{a:.2f}</td></tr>"
+        for s, a in metrics.aggregate.style_avg_likes
+    )
+
+    if locale == "en":
+        drift_html = (
+            "<p><strong>Topic drift:</strong> injected topic fell below 10% "
+            "after day 1 — it disappeared from the debate.</p>"
+            if any_drift
+            else "<p><strong>Topic drift:</strong> no clear drop-off after day 1.</p>"
+        )
+        page_title = title.strip() or "Quick report"
+        eyebrow = "Quick report — SSR + rules"
+        tech_title = "Technical appendix"
+    else:
+        drift_html = (
+            "<p><strong>Ämnesdrift:</strong> injicerat ämne under 10 % efter dag 1 "
+            "— försvann ur debatten.</p>"
+            if any_drift
+            else "<p><strong>Ämnesdrift:</strong> ingen tydlig nedgång efter dag 1.</p>"
+        )
+        page_title = title.strip() or "Snabbrapport"
+        eyebrow = "Snabbrapport — SSR + regler"
+        tech_title = "Tekniskt stycke"
+
+    ab_html = _ab_diff_html(metrics, locale=locale) if ab else ""
+    style_html = _style_html(metrics, locale=locale)
+
+    tech_html = (
+        f"<details class=\"tech\"><summary>{escape(tech_title)}</summary>"
+        f"<p>{escape(verdict.threshold_note)}</p>"
+        f"<p>embedding_model={escape(settings.embedding_model)} · "
+        f"anchor_set={escape(ANCHOR_SET_VERSION)} · "
+        f"llm={timing.get('classify_llm_seconds', '—')}s · "
+        f"embed={timing.get('embed_seconds', '—')}s · "
+        f"total={timing.get('total_seconds', '—')}s</p>"
+        f"<h4>{'SSR tone' if locale == 'en' else 'SSR-ton'}</h4>"
+        f"<table><thead><tr><th>Level</th><th>%</th></tr></thead>"
+        f"<tbody>{tone_rows}</tbody></table>"
+        f"<h4>{'Style avg likes' if locale == 'en' else 'Stil snittlikes'}</h4>"
+        f"<table><thead><tr><th>Style</th><th>avg</th></tr></thead>"
+        f"<tbody>{style_rows}</tbody></table>"
+        f"<h4>{'Per run sample sizes' if locale == 'en' else 'Sampelstorlek per körning'}</h4>"
+        "<ul>"
+        + "".join(
+            f"<li>{escape(b.label)}: n={len(c.sample_texts)}, "
+            f"posts={len(b.posts)}, comments={len(b.comments)}</li>"
+            for b, c in zip(bundles, classifications, strict=True)
+        )
+        + "</ul></details>"
+    )
+
+    verdict_class = {
+        "strong": "v-strong",
+        "mixed": "v-mixed",
+        "weak": "v-weak",
+        "zero": "v-zero",
+    }.get(verdict.key, "v-mixed")
+
+    return {
+        "page_title": page_title,
+        "eyebrow": eyebrow,
+        "verdict_class": verdict_class,
+        "verdict_label": verdict.label,
+        "verdict_detail": verdict.detail,
+        "drift_html": drift_html,
+        "ab_html": ab_html or (
+            f"<p>{'Single run — no A/B comparison.' if locale == 'en' else 'En körning — ingen A/B-jämförelse.'}</p>"
+        ),
+        "style_html": style_html,
+        "tech_html": tech_html,
+        "meta_runs": ", ".join(b.label for b in bundles),
+    }
+
+
+def render_quick_html(slots: dict[str, str], *, locale: ReportLocale) -> str:
+    lang = "en" if locale == "en" else "sv"
+    if locale == "en":
+        h_drift = "Topic drift"
+        h_ab = "A/B comparison"
+        h_style = "Style impact"
+    else:
+        h_drift = "Ämnesdrift"
+        h_ab = "A/B-jämförelse"
+        h_style = "Stilgenomslag"
+    return f"""<!DOCTYPE html>
+<html lang="{lang}">
+<head>
+<meta charset="utf-8"/>
+<title>{escape(slots.get("page_title", "Snabbrapport"))}</title>
+<style>
+body{{font-family:Georgia,serif;background:#F7F3EA;color:#1A1814;margin:0;padding:2rem;}}
+.wrap{{max-width:720px;margin:0 auto;}}
+.eyebrow{{font-size:.85rem;letter-spacing:.04em;text-transform:uppercase;color:#6B6253;}}
+h1{{font-size:1.75rem;margin:.35rem 0 1.25rem;}}
+.verdict{{border:1px solid #D8CFC0;padding:1.25rem 1.5rem;margin:1rem 0;background:#FFFCF6;}}
+.v-strong{{border-left:6px solid #5F7A4C;}}
+.v-mixed{{border-left:6px solid #D8A14A;}}
+.v-weak{{border-left:6px solid #B0563F;}}
+.v-zero{{border-left:6px solid #6B6253;}}
+.verdict h2{{margin:0 0 .35rem;font-size:1.35rem;}}
+section{{margin:1.75rem 0;}}
+section h3{{font-size:1.05rem;margin:0 0 .5rem;border-bottom:1px solid #D8CFC0;padding-bottom:.35rem;}}
+.tech{{margin-top:2.5rem;font-size:.9rem;color:#3A342C;}}
+.tech summary{{cursor:pointer;font-weight:600;}}
+table{{border-collapse:collapse;width:100%;margin:.5rem 0 1rem;}}
+td,th{{border-bottom:1px solid #E5DDD0;padding:.35rem .5rem;text-align:left;}}
+.meta{{color:#6B6253;font-size:.9rem;margin-top:2rem;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">{escape(slots.get("eyebrow", ""))}</div>
+  <h1>{escape(slots.get("page_title", ""))}</h1>
+  <div class="verdict {escape(slots.get("verdict_class", "v-mixed"))}">
+    <h2>{escape(slots.get("verdict_label", ""))}</h2>
+    <p>{escape(slots.get("verdict_detail", ""))}</p>
+  </div>
+  <section>
+    <h3>{h_drift}</h3>
+    {slots.get("drift_html", "")}
+  </section>
+  <section>
+    <h3>{h_ab}</h3>
+    {slots.get("ab_html", "")}
+  </section>
+  <section>
+    <h3>{h_style}</h3>
+    {slots.get("style_html", "")}
+  </section>
+  {slots.get("tech_html", "")}
+  <p class="meta">{escape(slots.get("meta_runs", ""))}</p>
+</div>
+</body>
+</html>
+"""

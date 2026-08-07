@@ -122,9 +122,11 @@ async def test_create_report_and_generate(client, tmp_path, monkeypatch):
         _TopicItem,
         _TopicPackModel,
         _TopicPacksResponse,
-        _ToneBatchResponse,
-        _ToneItem,
     )
+    from app.services.ssr import set_embedder
+
+    async def mock_embed(texts: list[str]) -> list[list[float]]:
+        return [[float((hash(t) + i) % 7) for i in range(8)] for t in texts]
 
     async def mock_llm(messages: list[dict[str, str]], response_model: type[Any]) -> Any:
         name = response_model.__name__
@@ -138,14 +140,6 @@ async def test_create_report_and_generate(client, tmp_path, monkeypatch):
             return _TopicBatchResponse(
                 items=[_TopicItem(index=i, topic="Äldreomsorg") for i in range(n)]
             )
-        if name == "_ToneBatchResponse":
-            user = messages[-1]["content"]
-            n = sum(1 for line in user.splitlines() if line[:1].isdigit())
-            system = next((m["content"] for m in messages if m.get("role") == "system"), "")
-            tone = "Constructive" if "Allowed values" in system else "Konstruktiv"
-            return _ToneBatchResponse(
-                items=[_ToneItem(index=i, tone=tone) for i in range(n)]
-            )
         if name == "SlotBatchResponse":
             content = messages[-1]["content"] if messages else ""
             slots: dict[str, str] = {}
@@ -157,6 +151,7 @@ async def test_create_report_and_generate(client, tmp_path, monkeypatch):
         raise AssertionError(f"Unexpected model {response_model}")
 
     set_structured_completer(mock_llm)
+    set_embedder(mock_embed)
     monkeypatch.chdir(tmp_path)
     run_id, attempt_id = await _seed_run_with_attempt(client)
 
@@ -207,6 +202,7 @@ async def test_create_report_and_generate(client, tmp_path, monkeypatch):
         )
     finally:
         set_structured_completer(None)
+        set_embedder(None)
 
 
 @pytest.mark.asyncio
@@ -220,9 +216,11 @@ async def test_create_english_report_locale(client, tmp_path, monkeypatch):
         _TopicItem,
         _TopicPackModel,
         _TopicPacksResponse,
-        _ToneBatchResponse,
-        _ToneItem,
     )
+    from app.services.ssr import set_embedder
+
+    async def mock_embed(texts: list[str]) -> list[list[float]]:
+        return [[float((hash(t) + i) % 7) for i in range(8)] for t in texts]
 
     async def mock_llm(messages: list[dict[str, str]], response_model: type[Any]) -> Any:
         name = response_model.__name__
@@ -240,13 +238,6 @@ async def test_create_english_report_locale(client, tmp_path, monkeypatch):
             return _TopicBatchResponse(
                 items=[_TopicItem(index=i, topic=topic) for i in range(n)]
             )
-        if name == "_ToneBatchResponse":
-            user = messages[-1]["content"]
-            n = sum(1 for line in user.splitlines() if line[:1].isdigit())
-            tone = "Constructive" if english else "Konstruktiv"
-            return _ToneBatchResponse(
-                items=[_ToneItem(index=i, tone=tone) for i in range(n)]
-            )
         if name == "SlotBatchResponse":
             content = messages[-1]["content"] if messages else ""
             slots: dict[str, str] = {}
@@ -258,6 +249,7 @@ async def test_create_english_report_locale(client, tmp_path, monkeypatch):
         raise AssertionError(f"Unexpected model {response_model}")
 
     set_structured_completer(mock_llm)
+    set_embedder(mock_embed)
     monkeypatch.chdir(tmp_path)
     run_id, attempt_id = await _seed_run_with_attempt(client)
 
@@ -299,6 +291,8 @@ async def test_create_english_report_locale(client, tmp_path, monkeypatch):
         assert b"How the test worked" in html.content
     finally:
         set_structured_completer(None)
+        set_embedder(None)
+
 
 @pytest.mark.asyncio
 async def test_create_report_missing_attempt(client):

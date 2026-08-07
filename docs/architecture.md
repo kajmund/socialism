@@ -37,6 +37,7 @@ flowchart LR
 | Backend | Python 3.12+ · FastAPI · SQLAlchemy · Alembic · pydantic-settings |
 | Database | SQLite via `aiosqlite` (`backend/data/`) |
 | LLM | DeepSeek (`DEEPSEEK_API_KEY` required at startup) |
+| Embeddings (SSR) | OpenAI `text-embedding-3-large` (`OPENAI_API_KEY` required) |
 | Simulation | `SIMULATION_ENGINE=none` (default) or `oasis` (optional extra) |
 | Auth | Not wired — Supabase Auth planned later |
 | Hosting | Railway (frontend + backend services) |
