@@ -131,7 +131,8 @@ uv run uvicorn app.main:app --reload
 | Runs | CRUD, `POST /runs/{id}/start` (202 + job), attempt delete, post-hoc interviews (`/attempts/.../interview`) |
 | Messages | Budskapsbibliotek, summarize-url, generate-variants |
 | Catalog | `GET/PUT /catalog/{key}` |
-| Jobs | `POST/GET /jobs`, `GET /jobs/{id}` |
+| Jobs | `POST/GET /jobs`, `GET /jobs/{id}`, `WS /ws/jobs` |
+| Chat | `WS /ws/chat` (streaming library + run interview) |
 | Reports | `POST /reports` (202), `GET /reports/{id}/html` |
 
 Personas also expose library chat delete/resend (`DELETE …/messages`, `POST …/messages/{id}/resend`). Full interview/branch/quality runbook: [runs-interviews-and-quality.md](runs-interviews-and-quality.md).
@@ -141,8 +142,9 @@ Personas also expose library chat delete/resend (`DELETE …/messages`, `POST �
 Kinds: `population_generate`, `run_simulate`, `report_generate`.
 
 - Created by population generate, run start, and report create.
-- Polled via `/jobs` (admin UI at `/jobs`).
+- Admin UI subscribes to `WS /ws/jobs` for live updates (REST `GET /jobs` remains for one-shot reads).
 - On backend startup, interrupted in-flight jobs are marked failed (skipped if DB not migrated yet).
+
 
 ### Reports
 

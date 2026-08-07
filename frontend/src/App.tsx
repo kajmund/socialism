@@ -1,7 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom"
 import { ConfigureRunPage } from "@/pages/ConfigureRunPage"
 import { ConfigurationEditorPage } from "@/pages/ConfigurationEditorPage"
-import { ConfigurationPage } from "@/pages/ConfigurationPage"
 import { ConfigurationsPage } from "@/pages/ConfigurationsPage"
 import { DashboardPage } from "@/pages/DashboardPage"
 import { JobsPage } from "@/pages/JobsPage"
@@ -39,8 +38,8 @@ export default function App() {
       <Route path="/configurations" element={<ConfigurationsPage />} />
       <Route path="/configurations/new" element={<ConfigurationEditorPage />} />
       <Route path="/configurations/:id/edit" element={<ConfigurationEditorPage />} />
+      <Route path="/config" element={<Navigate to="/configurations" replace />} />
 
-      <Route path="/config" element={<ConfigurationPage />} />
       <Route path="/jobs" element={<JobsPage />} />
       <Route path="/reports/:id" element={<ReportPage />} />
 

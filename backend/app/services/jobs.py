@@ -23,6 +23,7 @@ from app.schemas.domain import (
     ReportGenerateJobRequest,
     RunSimulateJobRequest,
 )
+from app.realtime.hub import job_hub
 from app.serializers import utcnow
 from app.services import population_generate as gen
 from app.services.oasis_run import (
@@ -97,6 +98,13 @@ def serialize_job(job: Job) -> JobOut:
     )
 
 
+async def publish_job(job: Job) -> None:
+    """Push a job.updated event to connected WebSocket clients."""
+    await job_hub.publish(
+        {"type": "job.updated", "job": serialize_job(job).model_dump(mode="json")}
+    )
+
+
 async def create_job(session: AsyncSession, body: JobCreate) -> Job:
     if body.kind == "population_generate":
         # Validate shape early so the API fails before the worker starts.
@@ -131,6 +139,7 @@ async def create_job(session: AsyncSession, body: JobCreate) -> Job:
     session.add(job)
     await session.commit()
     await session.refresh(job)
+    await publish_job(job)
     return job
 
 
@@ -157,6 +166,8 @@ async def _mark_job_running(job_id: str) -> str | None:
         job.started_at = utcnow()
         job.updated_at = utcnow()
         await session.commit()
+        await session.refresh(job)
+        await publish_job(job)
         return job.kind
 
 
@@ -213,6 +224,8 @@ async def _fail(session: AsyncSession, job_id: str, message: str) -> None:
     job.finished_at = utcnow()
     job.updated_at = utcnow()
     await session.commit()
+    await session.refresh(job)
+    await publish_job(job)
 
 
 async def _succeed(session: AsyncSession, job_id: str, result: dict) -> None:
@@ -225,6 +238,8 @@ async def _succeed(session: AsyncSession, job_id: str, result: dict) -> None:
     job.finished_at = utcnow()
     job.updated_at = utcnow()
     await session.commit()
+    await session.refresh(job)
+    await publish_job(job)
 
 
 async def _run_population_generate(job_id: str) -> None:

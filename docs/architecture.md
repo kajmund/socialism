@@ -89,6 +89,8 @@ Registered in `backend/app/main.py`:
 | Messages | `/messages` | Budskapsbibliotek + URL summarize + variant generation |
 | Catalog | `/catalog` | Editable grunddata lists |
 | Jobs | `/jobs` | Create/list/get background jobs |
+| Jobs WS | `WS /ws/jobs` | Snapshot + live `job.updated` fan-out (admin UI) |
+| Chat WS | `WS /ws/chat` | Streaming library / run-interview chat |
 | Reports | `/reports` | Queue report, list, get, `GET /reports/{id}/html` |
 
 Interactive OpenAPI: `http://localhost:8000/docs`.
@@ -117,9 +119,9 @@ Interrupted jobs are marked failed on backend startup (after migrations exist).
 | ---- | ----- | ----- |
 | Persona generate | `POST /personas/generate` | DeepSeek or weighted stub sampling (`PERSONA_GENERATOR`) |
 | Persona anecdote | persona / population gen | Short `anekdot` (≤20 words, non-political); see runbook |
-| Library chat | `/personas/{id}/chat` | `PersonaMessage` with `run_id = null`; delete/clear/resend |
+| Library chat | `WS /ws/chat` (REST `POST /personas/{id}/chat` still) | Streamed tokens; `PersonaMessage` with `run_id = null`; delete/clear/resend via REST |
 | Planned tick interviews | tick `interviews[]` | OASIS `ManualAction(INTERVIEW)` after reaction rounds |
-| Post-hoc run interview | `/runs/.../interview` | Scoped by attempt/variant/`through_tick_index`; feed cutoff via `run_tick_context` |
+| Post-hoc run interview | `WS /ws/chat` scope `run_interview` (REST still) | Scoped by attempt/variant/`through_tick_index`; feed cutoff via `run_tick_context` |
 | Message variants / URL | `/messages/*` | Budskapsverkstad helpers |
 | Report narrative | report job | Deterministic metrics + LLM narrative/classification |
 
