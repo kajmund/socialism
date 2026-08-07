@@ -463,9 +463,16 @@ export const en: LocalizedTree<SvMessages> = {
       reportCompareTitle: "Comparison report ({count} runs)",
       reportError: "Could not order report",
       reportConfirmDesc:
-        "Generation takes about 10 minutes. You can leave the page and follow status under Reports.",
+        "Choose a report mode. You can leave the page and follow status under Reports.",
+      reportConfirmDescFull:
+        "Full report takes several minutes (LLM narrative + SSR). You can leave the page.",
+      reportConfirmDescQuick:
+        "Quick report usually takes a few seconds (embeddings + templates, no DeepSeek).",
       reportConfirmOne: "1 run will be analyzed and compiled into a report.",
       reportConfirmMany: "{count} runs will be compared in a shared report.",
+      reportModeLabel: "Report mode",
+      reportModeFull: "Full report",
+      reportModeQuick: "Quick report",
       startGeneration: "Start generation",
       deleteTitle: "Delete simulation result?",
       deleteDescription:

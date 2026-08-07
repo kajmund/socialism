@@ -1,5 +1,9 @@
 # Manual update log
 
+## 2026-08-07
+
+* **Rapporter**: Beställa/läsa rapport beskriver Snabbrapport vs Full rapport (SSR-mall vs längre hybridrapport).
+
 ## 2026-08-06
 
 * **Jobs**: Clarified that Bakgrundsjobb updates live when status changes (no polling wording).

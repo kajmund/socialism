@@ -18,7 +18,7 @@ Placeholders in templates:
   {angle_instruction}, {context_block}, {source_material}
   {day}, {tick_number}
   {display}, {type_label}  — injector
-  {pack_list}, {other}, {quoted}, {sharp_tone}
+  {pack_list}, {other}
   $num_followers, $posts, … — OASIS string.Template variables
 """
 
@@ -767,21 +767,45 @@ Answer in English. Fill each slot per the instruction — no preamble outside sl
     _f(
         "report.classify.tones.system",
         "report",
-        "Klassificering — ton per text",
-        "Classification — tone per text",
-        "Platshållare: {quoted}, {sharp_tone}",
-        "Placeholders: {quoted}, {sharp_tone}",
+        "Klassificering — tonbedömning (fritext)",
+        "Classification — tone judgment (free text)",
+        "",
+        "",
         (
-            "Klassificera varje svensk kommentar/inlägg efter ton. "
-            "Tillåtna värden: {quoted}. "
-            "Sarkasm, valfläsk-misstro och skarp kritik = {sharp_tone}. "
-            "Returnera index 0..n-1 för batchen."
+            "Bedöm tonen i varje svensk kommentar/inlägg med 1–2 korta meningar fritext "
+            "(hur positiv/negativ/kritisk/hoppfull texten är mot budskapet). "
+            "Använd INTE fasta kategori-etiketter. "
+            "Sarkasm, valfläsk-misstro och skarp kritik ska beskrivas som negativ/kritisk. "
+            "Returnera index 0..n-1 och fältet judgment för varje rad i batchen."
         ),
         (
-            "Classify each comment/post by tone. "
-            "Allowed values: {quoted}. "
-            "Sarcasm, campaign distrust, and sharp criticism = {sharp_tone}. "
-            "Return index 0..n-1 for the batch."
+            "Judge the tone of each comment/post in 1–2 short free-text sentences "
+            "(how positive/negative/critical/hopeful the text is toward the message). "
+            "Do NOT use fixed category labels. "
+            "Sarcasm, campaign distrust, and sharp criticism should be described as negative/critical. "
+            "Return index 0..n-1 and a judgment field for each row in the batch."
+        ),
+    ),
+    _f(
+        "report.classify.styles.system",
+        "report",
+        "Klassificering — stilbedömning (fritext)",
+        "Classification — style judgment (free text)",
+        "",
+        "",
+        (
+            "Beskriv kommunikationsstilen i varje svensk kommentar/inlägg med 1–2 korta "
+            "meningar fritext (t.ex. sarkastisk+konkret, uppgiven+metafor, fakta/auktoritet, "
+            "personlig berättelse, optimistisk/lösning, provocerande). "
+            "Använd INTE fasta kategori-etiketter. "
+            "Returnera index 0..n-1 och fältet judgment för varje rad i batchen."
+        ),
+        (
+            "Describe the communication style of each comment/post in 1–2 short free-text "
+            "sentences (e.g. sarcastic+concrete, resigned+metaphor, facts/authority, "
+            "personal story, optimistic/solution, provocative). "
+            "Do NOT use fixed category labels. "
+            "Return index 0..n-1 and a judgment field for each row in the batch."
         ),
     ),
 ]
@@ -801,6 +825,30 @@ def default_prompts(language: ConfigurationLanguage) -> dict[str, str]:
     return out
 
 
+def _is_obsolete_forced_label_tone_prompt(text: str) -> bool:
+    """Pre-SSR tone prompts forced category labels via {quoted}/{sharp_tone}."""
+    return (
+        "{quoted}" in text
+        or "{sharp_tone}" in text
+        or "Tillåtna värden:" in text
+        or "Allowed values:" in text
+    )
+
+
+def refresh_ssr_classify_prompts(
+    prompts: dict[str, str],
+    *,
+    language: ConfigurationLanguage,
+) -> dict[str, str]:
+    """Replace obsolete forced-label tone prompts with free-text SSR defaults."""
+    defaults = default_prompts(language)
+    out = dict(prompts)
+    tone = out.get("report.classify.tones.system", "")
+    if tone and _is_obsolete_forced_label_tone_prompt(tone):
+        out["report.classify.tones.system"] = defaults["report.classify.tones.system"]
+    return out
+
+
 def normalize_prompts(
     raw: dict[str, str] | None,
     *,
@@ -815,7 +863,8 @@ def normalize_prompts(
                 stripped = value.strip()
                 if stripped:
                     base[key] = stripped
-    return {k: base[k] for k in PROMPT_KEYS}
+    complete = {k: base[k] for k in PROMPT_KEYS}
+    return refresh_ssr_classify_prompts(complete, language=language)
 
 
 def render_prompt(prompts: dict[str, str], key: str, **kwargs: object) -> str:

@@ -15,7 +15,8 @@ This file is the source of truth for any coding agent (Claude Code, Cursor, Code
 - **Migrations:** SQLAlchemy models + Alembic from the backend
 - **Auth (later):** Supabase Auth (not required for phase 1 admin CRUD)
 - **Hosting:** Railway (backend service + frontend service)
-- **LLM + embeddings:** DeepSeek (OpenAI-compatible SDK; embeddings later)
+- **LLM:** DeepSeek via OpenAI-compatible SDK
+- **Embeddings (SSR):** OpenAI `text-embedding-3-large` (separate `OPENAI_API_KEY`)
 
 Stack is locked unless explicitly changed. Phase 1 deliberately uses SQLite before Supabase — don't reintroduce Postgres/Auth/LLM deps until that phase.
 

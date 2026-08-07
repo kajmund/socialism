@@ -461,9 +461,16 @@ export const sv = {
       reportCompareTitle: "Jämförelserapport ({count} körningar)",
       reportError: "Kunde inte beställa rapport",
       reportConfirmDesc:
-        "Genereringen tar cirka 10 minuter. Du kan lämna sidan och följa status under Rapporter.",
+        "Välj rapportläge. Du kan lämna sidan och följa status under Rapporter.",
+      reportConfirmDescFull:
+        "Full rapport tar flera minuter (LLM-narrativ + SSR). Du kan lämna sidan.",
+      reportConfirmDescQuick:
+        "Snabbrapport tar vanligtvis några sekunder (embeddings + mallar, ingen DeepSeek).",
       reportConfirmOne: "1 körning ska analyseras och sammanställas till rapport.",
       reportConfirmMany: "{count} körningar ska jämföras i en gemensam rapport.",
+      reportModeLabel: "Rapportläge",
+      reportModeFull: "Full rapport",
+      reportModeQuick: "Snabbrapport",
       startGeneration: "Starta generering",
       deleteTitle: "Radera simuleringsresultat?",
       deleteDescription:

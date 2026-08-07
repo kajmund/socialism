@@ -55,7 +55,7 @@ make install
 
 # 2) Backend env + DB
 cd backend
-cp .env.example .env          # DEEPSEEK_API_KEY is required at startup
+cp .env.example .env          # DEEPSEEK_API_KEY + OPENAI_API_KEY required at startup
 uv run alembic upgrade head
 uv run python -m app.seed
 cd ..
@@ -101,6 +101,7 @@ uv run uvicorn app.main:app --reload
 Useful env knobs (see `backend/.env.example`):
 
 - `DEEPSEEK_API_KEY` — **required** at startup (no silent LLM fallback)
+- `OPENAI_API_KEY` — **required** at startup (embeddings for SSR reports)
 - `PERSONA_GENERATOR=deepseek|stub` — DeepSeek vs offline persona sampling (key still required)
 - `SIMULATION_ENGINE=none|oasis` — empty attempt vs optional OASIS spike (`uv sync --extra oasis`)
 
