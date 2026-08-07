@@ -10,12 +10,15 @@ import {
   type PromptCatalog,
   type PromptField,
 } from "@/api/configurations"
+import { CatalogEditor } from "@/components/config/CatalogEditor"
 import { AdminShell } from "@/components/layout/AdminShell"
 import { AdminButton } from "@/components/ui/admin-button"
 import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
 import { ApiError } from "@/lib/api"
 
 type Translate = (key: MessageKey, params?: TranslateParams) => string
+
+type EditorTopTab = "prompts" | "grunddata"
 
 function languageLabel(language: ConfigurationLanguage, t: Translate): string {
   switch (language) {
@@ -60,6 +63,7 @@ export function ConfigurationEditorPage() {
   const [prompts, setPrompts] = useState<Record<string, string>>({})
   const [catalog, setCatalog] = useState<PromptCatalog | null>(null)
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null)
+  const [topTab, setTopTab] = useState<EditorTopTab>("prompts")
   const [rowReady, setRowReady] = useState(!isEdit)
   const [catalogLoading, setCatalogLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -163,8 +167,7 @@ export function ConfigurationEditorPage() {
     })
   }
 
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault()
+  async function saveConfiguration() {
     const trimmedName = name.trim()
     if (!trimmedName) {
       setError(t("configurations.editor.nameRequired"))
@@ -180,20 +183,26 @@ export function ConfigurationEditorPage() {
           prompts,
           is_active: isActive,
         })
+        navigate("/configurations")
       } else {
-        await createConfiguration({
+        const created = await createConfiguration({
           name: trimmedName,
           language,
           prompts,
           is_active: isActive,
         })
+        navigate(`/configurations/${created.id}/edit`)
       }
-      navigate("/configurations")
     } catch (err: unknown) {
       setError(err instanceof ApiError ? err.message : t("common.saveError"))
     } finally {
       setSaving(false)
     }
+  }
+
+  function onSubmit(event: FormEvent) {
+    event.preventDefault()
+    void saveConfiguration()
   }
 
   return (
@@ -226,7 +235,7 @@ export function ConfigurationEditorPage() {
         {error && <p className="text-destructive">{error}</p>}
 
         {!loading && catalog && (
-          <form className="mt-6 space-y-6" onSubmit={onSubmit}>
+          <div className="mt-6 space-y-6">
             <div className="grid max-w-2xl gap-5">
               <label className="block space-y-1.5">
                 <span className="text-sm font-medium">{t("configurations.editor.nameLabel")}</span>
@@ -267,76 +276,139 @@ export function ConfigurationEditorPage() {
                 />
                 {t("configurations.editor.activeLabel")}
               </label>
-            </div>
 
-            {sections.length > 0 && activeSection ? (
-              <div>
-                <div
-                  role="tablist"
-                  aria-label={t("configurations.editor.tablistAria")}
-                  className="mb-3 flex flex-wrap gap-1 border-b border-[color:var(--border-hairline)]"
+              <div className="flex flex-wrap gap-3">
+                <AdminButton
+                  type="button"
+                  variant="primary"
+                  disabled={saving}
+                  onClick={() => void saveConfiguration()}
                 >
-                  {sections.map((section) => {
-                    const selected = section.id === activeSection.id
-                    return (
-                      <button
-                        key={section.id}
-                        type="button"
-                        role="tab"
-                        id={`prompt-tab-${section.id}`}
-                        aria-selected={selected}
-                        aria-controls={`prompt-panel-${section.id}`}
-                        tabIndex={selected ? 0 : -1}
-                        className={
-                          selected
-                            ? "-mb-px border-b-2 border-db-ink-950 px-3 py-2 text-sm font-medium text-[color:var(--text-body)]"
-                            : "-mb-px border-b-2 border-transparent px-3 py-2 text-sm text-muted-foreground hover:text-[color:var(--text-body)]"
-                        }
-                        onClick={() => setActiveSectionId(section.id)}
-                      >
-                        {section.label}
-                      </button>
-                    )
-                  })}
-                </div>
-
-                <div
-                  role="tabpanel"
-                  id={`prompt-panel-${activeSection.id}`}
-                  aria-labelledby={`prompt-tab-${activeSection.id}`}
-                  className="space-y-5"
+                  {saving ? t("common.saving") : t("common.save")}
+                </AdminButton>
+                <AdminButton
+                  type="button"
+                  variant="secondary"
+                  disabled={saving}
+                  onClick={() => navigate("/configurations")}
                 >
-                  {activeSection.fields.map((field) => (
-                    <label key={field.key} className="block space-y-1.5">
-                      <span className="text-sm font-medium">{field.label}</span>
-                      {field.hint ? (
-                        <span className="block text-xs text-muted-foreground">{field.hint}</span>
-                      ) : null}
-                      <textarea
-                        className="min-h-28 w-full rounded-md border border-[color:var(--border-hairline)] bg-db-ink-0 px-3 py-2 font-mono text-sm"
-                        value={prompts[field.key] ?? ""}
-                        onChange={(e) => setPromptValue(field.key, e.target.value)}
-                      />
-                    </label>
-                  ))}
-                </div>
+                  {t("common.cancel")}
+                </AdminButton>
               </div>
-            ) : null}
-
-            <div className="flex flex-wrap gap-3 border-t border-[color:var(--border-hairline)] pt-6">
-              <AdminButton type="submit" variant="primary" disabled={saving}>
-                {saving ? t("common.saving") : t("common.save")}
-              </AdminButton>
-              <AdminButton
-                type="button"
-                variant="secondary"
-                disabled={saving}
-                onClick={() => navigate("/configurations")}
-              >
-                {t("common.cancel")}
-              </AdminButton>
             </div>
-          </form>
+
+            <div
+              role="tablist"
+              aria-label={t("configurations.editor.topTablistAria")}
+              className="flex flex-wrap gap-1 border-b border-[color:var(--border-hairline)]"
+            >
+              {(
+                [
+                  ["prompts", "configurations.editor.tabPrompts"],
+                  ["grunddata", "configurations.editor.tabGrunddata"],
+                ] as const
+              ).map(([id, labelKey]) => {
+                const selected = topTab === id
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    role="tab"
+                    id={`config-top-tab-${id}`}
+                    aria-selected={selected}
+                    aria-controls={`config-top-panel-${id}`}
+                    tabIndex={selected ? 0 : -1}
+                    className={
+                      selected
+                        ? "-mb-px border-b-2 border-db-ink-950 px-3 py-2 text-sm font-medium text-[color:var(--text-body)]"
+                        : "-mb-px border-b-2 border-transparent px-3 py-2 text-sm text-muted-foreground hover:text-[color:var(--text-body)]"
+                    }
+                    onClick={() => setTopTab(id)}
+                  >
+                    {t(labelKey)}
+                  </button>
+                )
+              })}
+            </div>
+
+            {topTab === "prompts" ? (
+              <form
+                id="config-top-panel-prompts"
+                role="tabpanel"
+                aria-labelledby="config-top-tab-prompts"
+                className="space-y-6"
+                onSubmit={onSubmit}
+              >
+                {sections.length > 0 && activeSection ? (
+                  <div>
+                    <div
+                      role="tablist"
+                      aria-label={t("configurations.editor.tablistAria")}
+                      className="mb-3 flex flex-wrap gap-1 border-b border-[color:var(--border-hairline)]"
+                    >
+                      {sections.map((section) => {
+                        const selected = section.id === activeSection.id
+                        return (
+                          <button
+                            key={section.id}
+                            type="button"
+                            role="tab"
+                            id={`prompt-tab-${section.id}`}
+                            aria-selected={selected}
+                            aria-controls={`prompt-panel-${section.id}`}
+                            tabIndex={selected ? 0 : -1}
+                            className={
+                              selected
+                                ? "-mb-px border-b-2 border-db-ink-950 px-3 py-2 text-sm font-medium text-[color:var(--text-body)]"
+                                : "-mb-px border-b-2 border-transparent px-3 py-2 text-sm text-muted-foreground hover:text-[color:var(--text-body)]"
+                            }
+                            onClick={() => setActiveSectionId(section.id)}
+                          >
+                            {section.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+
+                    <div
+                      role="tabpanel"
+                      id={`prompt-panel-${activeSection.id}`}
+                      aria-labelledby={`prompt-tab-${activeSection.id}`}
+                      className="space-y-5"
+                    >
+                      {activeSection.fields.map((field) => (
+                        <label key={field.key} className="block space-y-1.5">
+                          <span className="text-sm font-medium">{field.label}</span>
+                          {field.hint ? (
+                            <span className="block text-xs text-muted-foreground">
+                              {field.hint}
+                            </span>
+                          ) : null}
+                          <textarea
+                            className="min-h-28 w-full rounded-md border border-[color:var(--border-hairline)] bg-db-ink-0 px-3 py-2 font-mono text-sm"
+                            value={prompts[field.key] ?? ""}
+                            onChange={(e) => setPromptValue(field.key, e.target.value)}
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </form>
+            ) : (
+              <div
+                id="config-top-panel-grunddata"
+                role="tabpanel"
+                aria-labelledby="config-top-tab-grunddata"
+              >
+                {isEdit && Number.isFinite(numericId) ? (
+                  <CatalogEditor configurationId={numericId} />
+                ) : (
+                  <p className="muted">{t("configurations.editor.grunddataSaveFirst")}</p>
+                )}
+              </div>
+            )}
+          </div>
         )}
       </div>
     </AdminShell>

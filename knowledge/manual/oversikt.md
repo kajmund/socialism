@@ -21,9 +21,8 @@ Från menyn når du bland annat:
 2. **Personas** — biblioteket av AI-agenter
 3. **Populationer** — grupper av personas
 4. **Budskap** — budskapsbibliotek och verkstad
-5. **Konfigurationer** — sparade promptkonfigurationer med språkval
-6. **Grunddata** — listor som personas bygger på (t.ex. orter)
-7. **Jobb** — bakgrundsjobb (generering, simulering, rapporter)
+5. **Konfigurationer** — prompts och grunddata (kataloglistor) per uppsättning; en aktiv åt gången
+6. **Jobb** — bakgrundsjobb (generering, simulering, rapporter)
 
 Rapporter öppnas från en körnings resultat när en rapport har skapats.
 

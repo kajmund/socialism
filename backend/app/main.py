@@ -15,6 +15,7 @@ from app.api import (
     populations,
     reports,
     runs,
+    ws,
 )
 from app.config import settings
 from app.services import jobs as jobs_service
@@ -57,6 +58,7 @@ def create_app() -> FastAPI:
     app.include_router(catalog.router)
     app.include_router(jobs.router)
     app.include_router(reports.router)
+    app.include_router(ws.router)
     return app
 
 

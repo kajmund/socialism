@@ -14,7 +14,6 @@ export const sv = {
     populations: "Populationer",
     messages: "Budskap",
     configurations: "Konfigurationer",
-    config: "Konfiguration",
     runs: "Körningar",
     jobs: "Bakgrundsjobb",
     activeJobs: "{count} aktiva jobb",
@@ -23,6 +22,12 @@ export const sv = {
     switcherLabel: "Språk",
     sv: "Svenska",
     en: "English",
+  },
+  chat: {
+    typingAria: "Skriver…",
+    sending: "Skickar…",
+    send: "Skicka",
+    notConnected: "Chatten är inte ansluten",
   },
   common: {
     open: "Öppna",
@@ -104,6 +109,7 @@ export const sv = {
     intro: "Generering och andra långa körningar utan tidsbegränsning i webbläsaren.",
     empty: "Inga bakgrundsjobb ännu.",
     loadError: "Kunde inte hämta jobb",
+    reconnecting: "Återansluter till jobbuppdateringar…",
     created: "skapad {when}",
     took: "tog {duration}",
     started: "startad {when}",
@@ -339,7 +345,7 @@ export const sv = {
       senderNoMatch: "Inga träffar för ”{query}”.",
       senderNoOptions: "Inga alternativ.",
       senderEmptyPrefix: "Inga avsändare i grunddata.",
-      senderEmptyLink: "Lägg till under Konfiguration",
+      senderEmptyLink: "Lägg till under Konfigurationer",
       pickPlaceholder: "— Välj —",
     },
     measure: {
@@ -633,7 +639,7 @@ export const sv = {
       step2Kicker: "Steg 2 · Fördelningar",
       step2Title: "Ställ in demografiska fördelningar",
       step2BodyPrefix: "Justera reglagen per dimension. Alternativen kommer från",
-      configLink: "Konfiguration",
+      configLink: "Konfigurationer",
       step2BodySuffix: ". Balansen normaliseras automatiskt till 100%.",
       loadingConfig: "Hämtar konfiguration…",
       step3Kicker: "Steg 3 · Förhandsgranska",
@@ -965,7 +971,7 @@ export const sv = {
     list: {
       title: "Konfigurationer",
       intro:
-        "Sparade promptuppsättningar. Endast en konfiguration kan vara aktiv åt gången — den används av LLM-anrop i backend. Aktiv konfiguration styrs här, inte av språkvalet i menyn.",
+        "Sparade uppsättningar med prompts och grunddata. Endast en konfiguration kan vara aktiv åt gången — den används av LLM-anrop och dropdowns i backend. Aktiv konfiguration styrs här, inte av språkvalet i menyn.",
       searchPlaceholder: "Sök namn…",
       allLanguages: "Alla språk",
       new: "+ Ny konfiguration",
@@ -985,9 +991,9 @@ export const sv = {
       newTitle: "Ny konfiguration",
       editTitle: "Redigera konfiguration",
       newIntro:
-        "Namn, promptspråk och promptfält i flikar. Förifyllt med standardtexter — redigera efter behov.",
+        "Namn, promptspråk, promptfält och grunddata. Spara först för att redigera grunddata. Förifyllt med standardtexter.",
       editIntro:
-        "Ändringar skriver över den befintliga posten. Aktivera för att backend ska använda den (en aktiv åt gången).",
+        "Promptinställningar och grunddata hör till samma konfiguration. Aktivera för att backend ska använda den (en aktiv åt gången).",
       loading: "Hämtar konfiguration…",
       loadError: "Kunde inte hämta konfigurationen",
       nameLabel: "Namn",
@@ -997,12 +1003,17 @@ export const sv = {
         "Språket för prompttexterna — oberoende av språkvalet i menyn.",
       activeLabel: "Aktiv (används av backend; endast en åt gången)",
       nameRequired: "Ange ett namn",
+      topTablistAria: "Konfigurationsdelar",
+      tabPrompts: "Promptinställningar",
+      tabGrunddata: "Grunddata",
       tablistAria: "Promptsektioner",
+      grunddataSaveFirst:
+        "Spara konfigurationen först för att redigera grunddata. Listorna skapas automatiskt vid sparning.",
     },
   },
   config: {
     page: {
-      title: "Konfiguration",
+      title: "Grunddata",
       intro:
         "Grunddata för dropdowns i persona-kompositören och körningar. Distrikt har beskrivning och karta som matas in i LLM-promptar. Ändringar syns nästa gång formuläret laddas.",
       loading: "Hämtar grunddata…",

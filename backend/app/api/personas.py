@@ -24,6 +24,7 @@ from app.schemas.domain import (
     PersonaDetail,
     PersonaGenerateRequest,
     PersonaGenerateResponse,
+    PersonaMessageDeleteResponse,
     PersonaMessageOut,
     PersonaUpdate,
     PopulationRecipe,
@@ -365,12 +366,15 @@ async def clear_messages(
     await session.commit()
 
 
-@router.delete("/{persona_id}/messages/{message_id}", status_code=204)
+@router.delete(
+    "/{persona_id}/messages/{message_id}",
+    response_model=PersonaMessageDeleteResponse,
+)
 async def delete_message(
     persona_id: str,
     message_id: int,
     session: AsyncSession = Depends(get_session),
-) -> None:
+) -> PersonaMessageDeleteResponse:
     await _get_persona(session, persona_id)
     result = await session.execute(
         select(PersonaMessage)
@@ -400,9 +404,11 @@ async def delete_message(
     elif row.role == "assistant" and idx > 0 and rows[idx - 1].role == "user":
         to_delete.insert(0, rows[idx - 1])
 
+    deleted_ids = [msg.id for msg in to_delete]
     for msg in to_delete:
         await session.delete(msg)
     await session.commit()
+    return PersonaMessageDeleteResponse(deleted_ids=deleted_ids)
 
 
 @router.post("/{persona_id}/messages/{message_id}/resend", response_model=PersonaChatResponse)

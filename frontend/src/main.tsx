@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom"
 import App from "@/App"
 import { LocaleProvider } from "@/i18n"
 import { env } from "@/lib/env"
+import { JobsRealtimeProvider } from "@/realtime/JobsRealtimeProvider"
 import "@/index.css"
 import "@/styles/admin-runs.css"
 
@@ -14,7 +15,9 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
       <LocaleProvider>
-        <App />
+        <JobsRealtimeProvider>
+          <App />
+        </JobsRealtimeProvider>
       </LocaleProvider>
     </BrowserRouter>
   </StrictMode>,

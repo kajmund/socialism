@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
 
@@ -149,7 +149,7 @@ class Message(Base):
 
 
 class Configuration(Base):
-    """Named prompt configuration: language + map of prompt key → text."""
+    """Named prompt + grunddata configuration: language, prompts map, catalog lists."""
 
     __tablename__ = "configurations"
 
@@ -170,13 +170,27 @@ class Configuration(Base):
         nullable=False,
     )
 
+    catalog_lists: Mapped[list["CatalogList"]] = relationship(
+        back_populates="configuration",
+        cascade="all, delete-orphan",
+    )
+
 
 class CatalogList(Base):
-    """Editable master-data option lists for persona composer dropdowns."""
+    """Editable master-data option lists scoped to a configuration."""
 
     __tablename__ = "catalog_lists"
+    __table_args__ = (
+        UniqueConstraint("configuration_id", "key", name="uq_catalog_lists_config_key"),
+    )
 
-    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    configuration_id: Mapped[int] = mapped_column(
+        ForeignKey("configurations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    key: Mapped[str] = mapped_column(String(64), nullable=False)
     section: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     items: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
@@ -186,6 +200,8 @@ class CatalogList(Base):
         onupdate=func.now(),
         nullable=False,
     )
+
+    configuration: Mapped["Configuration"] = relationship(back_populates="catalog_lists")
 
 
 class Job(Base):

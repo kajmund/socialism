@@ -1,10 +1,9 @@
-import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import { listJobs, type Job, type JobStatus } from "@/api/jobs"
+import type { Job, JobStatus } from "@/api/jobs"
 import { AdminShell } from "@/components/layout/AdminShell"
 import { Card, CardContent } from "@/components/ui/card"
 import { useLocale, type MessageKey } from "@/i18n"
-import { ApiError } from "@/lib/api"
+import { useJobsRealtime } from "@/realtime/JobsRealtimeProvider"
 
 type Translate = (key: MessageKey, params?: Record<string, string | number>) => string
 
@@ -102,34 +101,10 @@ function progressLabel(job: Job, t: Translate): string {
 
 export function JobsPage() {
   const { t, intl } = useLocale()
-  const [jobs, setJobs] = useState<Job[]>([])
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-    let timer: number | undefined
-
-    async function load() {
-      try {
-        const rows = await listJobs({ limit: 50 })
-        if (cancelled) return
-        setJobs(rows)
-        setError(null)
-        const active = rows.some((j) => j.status === "pending" || j.status === "running")
-        timer = window.setTimeout(load, active ? 2000 : 8000)
-      } catch (err) {
-        if (cancelled) return
-        setError(err instanceof ApiError ? err.message : t("jobs.loadError"))
-        timer = window.setTimeout(load, 8000)
-      }
-    }
-
-    void load()
-    return () => {
-      cancelled = true
-      if (timer != null) window.clearTimeout(timer)
-    }
-  }, [t])
+  const { jobs, connected, status } = useJobsRealtime()
+  const error =
+    status === "closed" && jobs.length === 0 ? t("jobs.loadError") : null
+  const reconnecting = !connected && status !== "open"
 
   return (
     <AdminShell>
@@ -147,6 +122,12 @@ export function JobsPage() {
           </h1>
           <p>{t("jobs.intro")}</p>
         </div>
+
+        {reconnecting && (
+          <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
+            {t("jobs.reconnecting")}
+          </div>
+        )}
 
         {error && (
           <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
