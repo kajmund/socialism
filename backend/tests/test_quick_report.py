@@ -1,0 +1,148 @@
+"""Unit tests for snabbrapport verdict rules."""
+
+from __future__ import annotations
+
+from app.services.report.bundles import RunBundle
+from app.services.report.classify import BundleClassification, TopicPack
+from app.services.report.metrics import BundleMetrics, ReportMetrics, compute_report_metrics
+from app.services.report.quick import (
+    _diff_band,
+    _style_html,
+    _style_relative_diff,
+    decide_verdict,
+)
+from app.services.ssr.anchors import TONE_LABELS_SV
+
+
+def _tone(**overrides: float) -> dict[str, float]:
+    base = {lab: 0.0 for lab in TONE_LABELS_SV}
+    base.update(overrides)
+    return base
+
+
+def _bundle_with_likes(injection_likes: int = 3) -> RunBundle:
+    return RunBundle(
+        label="A",
+        run_id=1,
+        run_name="T",
+        attempt_id="a1",
+        seed="1",
+        engine="none",
+        agents=[
+            {"index": 0, "member_name": "Partikonto", "role": "injector"},
+            {"index": 1, "member_name": "Anna", "role": "population"},
+        ],
+        posts=[
+            {
+                "post_id": 1,
+                "user_id": 0,
+                "content": "Stoppa nedsläckningen av belysning i byarna.",
+                "num_likes": injection_likes,
+            }
+        ],
+        comments=[],
+        ticks_run=3,
+        injection_texts=["Stoppa nedsläckningen av belysning i byarna."],
+    )
+
+
+def test_verdict_strong_when_positive_majority():
+    b = _bundle_with_likes(5)
+    clf = BundleClassification(
+        topic_packs=[TopicPack(label="Belysning", keywords=["belysning"])],
+        topic_shares={"Belysning": 1.0},
+        tone_shares=_tone(**{"Starkt positiv": 0.4, "Något positiv": 0.2, "Neutral": 0.4}),
+        tone_mode="ssr",
+    )
+    m = compute_report_metrics([b], [clf])
+    v = decide_verdict(m, [b], locale="sv")
+    assert v.key == "strong"
+
+
+def test_verdict_zero_when_no_injection_likes():
+    b = _bundle_with_likes(0)
+    clf = BundleClassification(
+        topic_packs=[TopicPack(label="Belysning", keywords=["belysning"])],
+        topic_shares={"Belysning": 1.0},
+        tone_shares=_tone(**{"Starkt positiv": 0.6, "Neutral": 0.4}),
+        tone_mode="ssr",
+    )
+    m = compute_report_metrics([b], [clf])
+    v = decide_verdict(m, [b], locale="sv")
+    assert v.key == "zero"
+
+
+def test_verdict_weak_when_critical_dominates():
+    b = _bundle_with_likes(2)
+    clf = BundleClassification(
+        topic_packs=[TopicPack(label="Belysning", keywords=["belysning"])],
+        topic_shares={"Belysning": 1.0},
+        tone_shares=_tone(
+            **{"Starkt negativ": 0.4, "Något negativ": 0.2, "Starkt positiv": 0.1, "Neutral": 0.3}
+        ),
+        tone_mode="ssr",
+    )
+    m = compute_report_metrics([b], [clf])
+    v = decide_verdict(m, [b], locale="sv")
+    assert v.key == "weak"
+
+
+def test_style_relative_diff_noise_is_none_band():
+    # 9.0 vs 8.9 ≈ 1.1% of top — below weak threshold (3%)
+    assert _style_relative_diff(9.0, 8.9) < 0.03
+    assert _diff_band(_style_relative_diff(9.0, 8.9)) == "none"
+    assert _diff_band(_style_relative_diff(5.0, 4.7)) == "weak"  # 6%
+    assert _diff_band(_style_relative_diff(5.0, 3.0)) == "clear"  # 40%
+
+
+def _metrics_with_styles(styles: list[tuple[str, float]]) -> ReportMetrics:
+    agg = BundleMetrics(
+        label="A",
+        agent_count=1,
+        post_count=1,
+        comment_count=0,
+        ticks_run=1,
+        gini=0.0,
+        zero_like_agents=0,
+        mid_agents=0,
+        top_agents=1,
+        topic_shares={"Belysning": 1.0},
+        tone_shares=_tone(**{"Neutral": 1.0}),
+        style_avg_likes=styles,
+        top_actors=[],
+    )
+    return ReportMetrics(
+        n_runs=1,
+        bundles=[agg],
+        aggregate=agg,
+        cross_table=[],
+        tone_mode="ssr",
+    )
+
+
+def test_style_html_does_not_crown_winner_on_noise():
+    m = _metrics_with_styles(
+        [
+            ("Sarkastisk + konkret kritik", 9.0),
+            ("Fakta + yrkesauktoritet", 8.9),
+            ("Provocerande / konfronterande", 0.0),
+        ]
+    )
+    html = _style_html(m, locale="sv")
+    assert "Ingen meningsfull skillnad" in html
+    assert "Vinnande stil" not in html
+    assert "inom brus" in html
+
+
+def test_style_html_clear_difference_names_winner():
+    m = _metrics_with_styles(
+        [
+            ("Sarkastisk + konkret kritik", 5.0),
+            ("Fakta + yrkesauktoritet", 3.0),
+            ("Provocerande / konfronterande", 0.0),
+        ]
+    )
+    html = _style_html(m, locale="sv")
+    assert "Tydlig skillnad" in html
+    assert "Vinnande stil" in html
+    assert "Näst" in html

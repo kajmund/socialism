@@ -435,14 +435,20 @@ async def _run_report_generate(job_id: str) -> None:
 
         prompts = await require_active_prompts(session)
 
+    mode = "full"
     try:
-        html_path, slots_path, _slots = await generate_report_html(
+        async with factory() as session:
+            report = await session.get(Report, report_id)
+            if report is not None:
+                mode = getattr(report, "mode", None) or "full"
+        html_path, slots_path, _slots, timing = await generate_report_html(
             bundles,
             out_dir=out_dir,
             dry_run=False,
             title=title,
             locale=locale,
             prompts=prompts,
+            mode=mode if mode in ("full", "quick") else "full",
         )
     except Exception as exc:  # noqa: BLE001 — mark report failed
         async with factory() as session:
@@ -476,6 +482,8 @@ async def _run_report_generate(job_id: str) -> None:
                 "html_path": str(html_path),
                 "slots_path": str(slots_path),
                 "sources": len(bundles),
+                "mode": mode,
+                "timing": timing,
             },
         )
 

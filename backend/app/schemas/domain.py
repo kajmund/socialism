@@ -609,6 +609,7 @@ class ReportCreate(BaseModel):
     sources: list[ReportSource] = Field(min_length=1)
     title: str = ""
     locale: Literal["sv", "en"] = "sv"
+    mode: Literal["full", "quick"] = "full"
 
 
 class ReportOut(BaseModel):
@@ -616,6 +617,7 @@ class ReportOut(BaseModel):
     status: ReportStatus
     title: str
     locale: Literal["sv", "en"] = "sv"
+    mode: Literal["full", "quick"] = "full"
     sources: list[ReportSource]
     html_path: str | None = None
     slots_path: str | None = None

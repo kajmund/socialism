@@ -65,9 +65,8 @@ class ReportToolBundle:
                 else ""
             )
             + (
-                "Ämnesandelar bygger på nyckelord från injektioner; "
-                "ton är LLM eller heuristik med Neutral-default; "
-                "stil utan Personlig-default (Oklassad). "
+                "Ämnesandelar bygger på LLM-ämnespack från injektioner; "
+                "ton och stil är SSR (embeddings av reaktionstexter mot ankare). "
                 "Använd endast dessa procenttal — hitta inte på Äldreomsorg/Trafik om de saknas."
             ),
         }

@@ -32,13 +32,39 @@ async def get_active_configuration(session: AsyncSession) -> Configuration | Non
 
 
 async def require_active_prompts(session: AsyncSession) -> dict[str, str]:
+    from app.services.prompt_catalog import (
+        default_prompts,
+        refresh_ssr_classify_prompts,
+    )
+
     row = await get_active_configuration(session)
     if row is None:
         raise MissingActiveConfigurationError(
             "No active prompt configuration. Activate one under Konfigurationer."
         )
     language: ConfigurationLanguage = row.language  # type: ignore[assignment]
-    prompts = normalize_prompts(dict(row.prompts or {}), language=language, fill_missing=False)
+    stored = dict(row.prompts or {})
+    defaults = default_prompts(language)
+    changed = False
+
+    tone_key = "report.classify.tones.system"
+    refreshed = refresh_ssr_classify_prompts(stored, language=language)
+    if refreshed.get(tone_key) != stored.get(tone_key):
+        stored[tone_key] = refreshed[tone_key]
+        changed = True
+
+    style_key = "report.classify.styles.system"
+    if not str(stored.get(style_key, "")).strip():
+        stored[style_key] = defaults[style_key]
+        changed = True
+
+    if changed:
+        row.prompts = stored
+        row.updated_at = utcnow()
+        await session.commit()
+        await session.refresh(row)
+
+    prompts = normalize_prompts(stored, language=language, fill_missing=False)
     missing = [k for k in PROMPT_KEYS if not str(prompts.get(k, "")).strip()]
     if missing:
         raise MissingActiveConfigurationError(
