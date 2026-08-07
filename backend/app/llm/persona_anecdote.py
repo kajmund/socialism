@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import logging
 from random import Random
 
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.llm import complete_structured
@@ -13,7 +15,11 @@ from app.services.district_context import area_block_for_name
 from app.services.prompt_catalog import render_prompt
 from app.services.prompt_store import require_active_prompts
 
+logger = logging.getLogger(__name__)
+
 _MAX_ANECDOTE_WORDS = 20
+_MAX_ATTEMPTS = 3
+_EMPTY_ANECDOTE = "—"
 _POLITICAL_MARKERS = (
     " sympatiserar",
     " röstar ",
@@ -33,7 +39,7 @@ def _field(value: str, fallback: str) -> str:
 
 
 def stub_persona_anecdote(profile: EditablePersona, rng: Random) -> str:
-    """Deterministic anecdote for stub population generation."""
+    """Deterministic anecdote for stub population generation (tests / PERSONA_GENERATOR=stub)."""
     ort = _field(profile.ort, "stan")
     yrke = _field(profile.yrke, "jobbet")
     liv = profile.livssituation.strip()
@@ -78,6 +84,15 @@ def _anecdote_context_lines(profile: EditablePersona) -> str:
     return "\n".join(lines)
 
 
+def _rejection_feedback(detail: str) -> str:
+    return (
+        "Previous attempt was rejected: "
+        f"{detail}. "
+        f"Rewrite as ONE Swedish everyday sentence with at most {_MAX_ANECDOTE_WORDS} words. "
+        "No politics, parties, or voting."
+    )
+
+
 async def llm_persona_anecdote(
     profile: EditablePersona,
     *,
@@ -109,16 +124,36 @@ async def llm_persona_anecdote(
     if area_block.strip():
         local = f"{brief}\n\n{area_block.strip()}"
     system = render_prompt(prompts, "persona.anecdote.system", local_context=local)
-    last_error = ""
-    for _attempt in range(3):
-        result = await complete_structured(
-            [
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-            PersonaAnecdoteOut,
-        )
+
+    messages: list[dict[str, str]] = [
+        {"role": "system", "content": system},
+        {"role": "user", "content": user},
+    ]
+    last_detail = ""
+    for attempt in range(_MAX_ATTEMPTS):
+        try:
+            result = await complete_structured(messages, PersonaAnecdoteOut)
+        except (ValidationError, ValueError, RuntimeError) as exc:
+            # Validation / empty-model failures: retry with feedback. Do not fail
+            # the whole population job for a missing anecdote.
+            last_detail = str(exc)
+            messages.append({"role": "user", "content": _rejection_feedback(last_detail)})
+            continue
+
         if anecdote_is_usable(result.anekdot, profile):
             return result.anekdot
-        last_error = result.anekdot
-    return last_error or stub_persona_anecdote(profile, Random())
+
+        word_count = len(result.anekdot.split())
+        last_detail = (
+            f"anekdot not usable ({word_count} words, or political/party wording): "
+            f"{result.anekdot!r}"
+        )
+        messages.append({"role": "user", "content": _rejection_feedback(last_detail)})
+
+    logger.warning(
+        "Skipping anecdote for %s after %s attempts (%s)",
+        profile.name,
+        _MAX_ATTEMPTS,
+        last_detail,
+    )
+    return _EMPTY_ANECDOTE

@@ -107,7 +107,12 @@ async def ensure_default_configurations(session: AsyncSession) -> int:
 
     if changed:
         await session.commit()
-    return changed
+
+    # Deferred import: catalog_store must not import prompt_store at module load.
+    from app.services.catalog_store import ensure_catalogs_for_all_configurations
+
+    catalog_added = await ensure_catalogs_for_all_configurations(session)
+    return changed + catalog_added
 
 
 async def set_active_configuration(

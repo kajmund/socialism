@@ -12,7 +12,6 @@ from app.database.models import Message, Persona, Population, PopulationMember, 
 from app.database.session import SessionLocal, engine
 from app.schemas.domain import EditablePersona, new_message_id
 from app.serializers import blank_profile, persona_initials
-from app.services.catalog_store import ensure_catalog_defaults
 from app.services.prompt_store import ensure_default_configurations
 
 
@@ -1118,7 +1117,6 @@ async def seed(*, reset: bool = True) -> None:
     _ensure_data_dir()
     _assert_profiles_complete()
     async with SessionLocal() as session:
-        catalog_added = await ensure_catalog_defaults(session)
         config_added = await ensure_default_configurations(session)
 
         if reset:
@@ -1133,7 +1131,11 @@ async def seed(*, reset: bool = True) -> None:
         if existing.scalar_one_or_none() is not None:
             print(
                 "Database already has data; pass reset=True to wipe and reseed."
-                + (f" Catalog: +{catalog_added} lists." if catalog_added else "")
+                + (
+                    f" Configurations/catalog: +{config_added}."
+                    if config_added
+                    else ""
+                )
             )
             return
 
@@ -1229,7 +1231,8 @@ async def seed(*, reset: bool = True) -> None:
         await session.commit()
         print(
             f"Seeded {len(PERSONAS)} personas, {len(POPULATIONS)} populations, "
-            f"{len(RUNS)} runs, {len(MESSAGES)} messages, catalog +{catalog_added} lists."
+            f"{len(RUNS)} runs, {len(MESSAGES)} messages, "
+            f"configurations/catalog +{config_added}."
         )
 
 

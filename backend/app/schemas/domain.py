@@ -29,7 +29,13 @@ class EditablePersona(BaseModel):
 
 
 class PersonaAnecdoteOut(BaseModel):
-    anekdot: str = Field(min_length=8, max_length=220)
+    # ~20 Swedish words ≈ 120–140 chars; keep a hard char cap in the JSON schema
+    # so the model sees a bound (word-count is enforced in the validator).
+    anekdot: str = Field(
+        min_length=8,
+        max_length=140,
+        description="One short Swedish everyday sentence, at most 20 words.",
+    )
 
     @field_validator("anekdot")
     @classmethod
@@ -227,6 +233,10 @@ class PersonaMessageOut(BaseModel):
 class PersonaChatResponse(BaseModel):
     reply: str
     messages: list[PersonaMessageOut]
+
+
+class PersonaMessageDeleteResponse(BaseModel):
+    deleted_ids: list[int]
 
 
 class RunPersonaInterviewRequest(BaseModel):

@@ -1,5 +1,11 @@
 # Manual update log
 
+## 2026-08-06
+
+* **Jobs**: Clarified that Bakgrundsjobb updates live when status changes (no polling wording).
+* **Configurations / grunddata**: Grunddata is per configuration (Promptinställningar + Grunddata tabs); removed standalone Konfiguration nav; active config drives both prompts and catalog lists.
+
+
 ## 2026-08-05
 
 * **Initialization**: Created OKF manual bundle with seed guides for overview, create run, and start simulation.

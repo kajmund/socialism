@@ -1,11 +1,11 @@
-"""Persist and seed catalog lists."""
+"""Persist and seed catalog lists per configuration."""
 
 from __future__ import annotations
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import CatalogList
+from app.database.models import CatalogList, Configuration
 from app.schemas.domain import CatalogItem, GeoBounds
 from app.serializers import utcnow
 from app.services.catalog_defaults import (
@@ -42,9 +42,35 @@ def enrich_ort_items(items: list[CatalogItem]) -> list[CatalogItem]:
     return out
 
 
-async def ensure_catalog_defaults(session: AsyncSession) -> int:
-    """Insert missing catalog keys and upgrade ort item shape. Returns rows added."""
-    result = await session.execute(select(CatalogList))
+async def get_catalog_list(
+    session: AsyncSession,
+    configuration_id: int,
+    key: str,
+) -> CatalogList | None:
+    result = await session.execute(
+        select(CatalogList).where(
+            CatalogList.configuration_id == configuration_id,
+            CatalogList.key == key,
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def list_catalog_lists(
+    session: AsyncSession,
+    configuration_id: int,
+) -> list[CatalogList]:
+    result = await session.execute(
+        select(CatalogList).where(CatalogList.configuration_id == configuration_id)
+    )
+    return list(result.scalars().all())
+
+
+async def ensure_catalog_defaults(session: AsyncSession, configuration_id: int) -> int:
+    """Insert missing catalog keys for one configuration. Returns rows added."""
+    result = await session.execute(
+        select(CatalogList).where(CatalogList.configuration_id == configuration_id)
+    )
     by_key = {row.key: row for row in result.scalars().all()}
     added = 0
     dirty = False
@@ -54,6 +80,7 @@ async def ensure_catalog_defaults(session: AsyncSession) -> int:
         if existing is None:
             session.add(
                 CatalogList(
+                    configuration_id=configuration_id,
                     key=default["key"],
                     section=default["section"],
                     title=default["title"],
@@ -82,3 +109,13 @@ async def ensure_catalog_defaults(session: AsyncSession) -> int:
     if dirty:
         await session.commit()
     return added
+
+
+async def ensure_catalogs_for_all_configurations(session: AsyncSession) -> int:
+    """Seed missing catalog keys for every configuration. Returns total rows added."""
+    result = await session.execute(select(Configuration.id))
+    ids = list(result.scalars().all())
+    total = 0
+    for configuration_id in ids:
+        total += await ensure_catalog_defaults(session, configuration_id)
+    return total
