@@ -50,7 +50,10 @@ async def session():
     session_factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    from app.services.prompt_store import ensure_default_configurations
+
     async with session_factory() as s:
+        await ensure_default_configurations(s)
         yield s
     await engine.dispose()
 

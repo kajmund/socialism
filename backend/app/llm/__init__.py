@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any
 
 from openai import AsyncOpenAI
@@ -15,10 +15,12 @@ from app.schemas.domain import EditablePersona
 ChatMessage = dict[str, str]
 Completer = Callable[[list[ChatMessage], type[Any]], Awaitable[Any]]
 TextCompleter = Callable[[list[ChatMessage]], Awaitable[str]]
+TextStreamer = Callable[[list[ChatMessage]], AsyncIterator[str]]
 
 _client: AsyncOpenAI | None = None
 _structured_completer: Completer | None = None
 _text_completer: TextCompleter | None = None
+_text_streamer: TextStreamer | None = None
 
 
 def get_client() -> AsyncOpenAI:
@@ -47,6 +49,11 @@ def set_structured_completer(completer: Completer | None) -> None:
 def set_text_completer(completer: TextCompleter | None) -> None:
     global _text_completer
     _text_completer = completer
+
+
+def set_text_streamer(streamer: TextStreamer | None) -> None:
+    global _text_streamer
+    _text_streamer = streamer
 
 
 async def complete_structured[T](messages: list[ChatMessage], response_model: type[T]) -> T:
@@ -93,6 +100,35 @@ async def complete_text(messages: list[ChatMessage]) -> str:
     if not content:
         raise RuntimeError("DeepSeek returned empty text response")
     return content.strip()
+
+
+async def stream_text(messages: list[ChatMessage]) -> AsyncIterator[str]:
+    """Yield text deltas from the chat completion stream."""
+    if _text_streamer is not None:
+        async for chunk in _text_streamer(messages):
+            yield chunk
+        return
+
+    # Tests inject set_text_completer without a streamer — emit one chunk.
+    if _text_completer is not None:
+        text = await _text_completer(messages)
+        if text:
+            yield text
+        return
+
+    client = get_client()
+    stream = await client.chat.completions.create(
+        model=settings.deepseek_model,
+        messages=messages,  # type: ignore[arg-type]
+        stream=True,
+    )
+    async for event in stream:
+        choice = event.choices[0] if event.choices else None
+        if choice is None or choice.delta is None:
+            continue
+        piece = choice.delta.content
+        if piece:
+            yield piece
 
 
 ToolsCompleter = Callable[

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
-import { listJobs, type Job, type JobStatus } from "@/api/jobs"
+import type { Job, JobStatus } from "@/api/jobs"
 import { listMessages } from "@/api/messages"
 import { listPersonas } from "@/api/personas"
 import { listPopulations } from "@/api/populations"
@@ -12,12 +12,12 @@ import { formatRunDate } from "@/data/runs"
 import type { RunStatus, RunSummary } from "@/data/runs-types"
 import { useLocale, type MessageKey } from "@/i18n"
 import { ApiError } from "@/lib/api"
+import { useJobsRealtime } from "@/realtime/JobsRealtimeProvider"
 
 type Translate = (key: MessageKey, params?: Record<string, string | number>) => string
 
 type DashboardData = {
   runs: RunSummary[]
-  jobs: Job[]
   personaCount: number
   populationCount: number
   unusedPopulationCount: number
@@ -247,6 +247,7 @@ function OnboardingSteps({ t }: { t: Translate }) {
 
 export function DashboardPage() {
   const { t, intl } = useLocale()
+  const { jobs } = useJobsRealtime()
   const [data, setData] = useState<DashboardData | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -257,9 +258,8 @@ export function DashboardPage() {
 
     async function load() {
       try {
-        const [runs, jobs, personas, populations, messages, reports] = await Promise.all([
+        const [runs, personas, populations, messages, reports] = await Promise.all([
           listRuns(),
-          listJobs({ limit: 20 }),
           listPersonas(),
           listPopulations(),
           listMessages(),
@@ -268,7 +268,6 @@ export function DashboardPage() {
         if (cancelled) return
         setData({
           runs,
-          jobs,
           personaCount: personas.length,
           populationCount: populations.length,
           unusedPopulationCount: populations.filter((p) => p.runs === 0).length,
@@ -277,8 +276,7 @@ export function DashboardPage() {
         })
         setError(null)
         setLoading(false)
-        const active = jobs.some((j) => j.status === "pending" || j.status === "running")
-        timer = window.setTimeout(load, active ? 2500 : 15000)
+        timer = window.setTimeout(load, 15000)
       } catch (err) {
         if (cancelled) return
         setError(err instanceof ApiError ? err.message : t("dashboard.loadError"))
@@ -301,10 +299,10 @@ export function DashboardPage() {
       .slice(0, 5)
   }, [data])
 
-  const activeJobs = useMemo(() => {
-    if (!data) return []
-    return data.jobs.filter((j) => j.status === "pending" || j.status === "running")
-  }, [data])
+  const activeJobs = useMemo(
+    () => jobs.filter((j) => j.status === "pending" || j.status === "running"),
+    [jobs],
+  )
 
   const showOnboarding =
     data != null &&

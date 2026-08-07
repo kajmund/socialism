@@ -16,7 +16,6 @@ export const en: LocalizedTree<SvMessages> = {
     populations: "Populations",
     messages: "Messages",
     configurations: "Configurations",
-    config: "Configuration",
     runs: "Runs",
     jobs: "Background jobs",
     activeJobs: "{count} active jobs",
@@ -25,6 +24,12 @@ export const en: LocalizedTree<SvMessages> = {
     switcherLabel: "Language",
     sv: "Svenska",
     en: "English",
+  },
+  chat: {
+    typingAria: "Typing…",
+    sending: "Sending…",
+    send: "Send",
+    notConnected: "Chat is not connected",
   },
   common: {
     open: "Open",
@@ -106,6 +111,7 @@ export const en: LocalizedTree<SvMessages> = {
     intro: "Generation and other long-running work without browser timeouts.",
     empty: "No background jobs yet.",
     loadError: "Could not load jobs",
+    reconnecting: "Reconnecting to job updates…",
     created: "created {when}",
     took: "took {duration}",
     started: "started {when}",
@@ -341,7 +347,7 @@ export const en: LocalizedTree<SvMessages> = {
       senderNoMatch: "No matches for “{query}”.",
       senderNoOptions: "No options.",
       senderEmptyPrefix: "No senders in catalog.",
-      senderEmptyLink: "Add under Configuration",
+      senderEmptyLink: "Add under Configurations",
       pickPlaceholder: "— Choose —",
     },
     measure: {
@@ -635,7 +641,7 @@ export const en: LocalizedTree<SvMessages> = {
       step2Kicker: "Step 2 · Distributions",
       step2Title: "Set demographic distributions",
       step2BodyPrefix: "Adjust the sliders per dimension. Options come from",
-      configLink: "Configuration",
+      configLink: "Configurations",
       step2BodySuffix: ". Balance is automatically normalized to 100%.",
       loadingConfig: "Loading configuration…",
       step3Kicker: "Step 3 · Preview",
@@ -966,7 +972,7 @@ export const en: LocalizedTree<SvMessages> = {
     list: {
       title: "Configurations",
       intro:
-        "Saved prompt sets. Only one configuration can be active at a time — it is used by backend LLM calls. The active configuration is controlled here, not by the menu language switcher.",
+        "Saved sets of prompts and base data. Only one configuration can be active at a time — it is used by backend LLM calls and dropdowns. The active configuration is controlled here, not by the menu language switcher.",
       searchPlaceholder: "Search name…",
       allLanguages: "All languages",
       new: "+ New configuration",
@@ -986,9 +992,9 @@ export const en: LocalizedTree<SvMessages> = {
       newTitle: "New configuration",
       editTitle: "Edit configuration",
       newIntro:
-        "Name, prompt language, and prompt fields in tabs. Prefilled with defaults — edit as needed.",
+        "Name, prompt language, prompt fields, and base data. Save first to edit base data. Prefilled with defaults.",
       editIntro:
-        "Changes overwrite the existing entry. Activate it for the backend to use it (only one active at a time).",
+        "Prompt settings and base data belong to the same configuration. Activate it for the backend to use it (only one active at a time).",
       loading: "Loading configuration…",
       loadError: "Could not load the configuration",
       nameLabel: "Name",
@@ -998,12 +1004,17 @@ export const en: LocalizedTree<SvMessages> = {
         "Language of the prompt texts — independent of the menu language switcher.",
       activeLabel: "Active (used by backend; only one at a time)",
       nameRequired: "Enter a name",
+      topTablistAria: "Configuration parts",
+      tabPrompts: "Prompt settings",
+      tabGrunddata: "Base data",
       tablistAria: "Prompt sections",
+      grunddataSaveFirst:
+        "Save the configuration first to edit base data. Lists are created automatically on save.",
     },
   },
   config: {
     page: {
-      title: "Configuration",
+      title: "Base data",
       intro:
         "Base data for dropdowns in the persona composer and runs. Districts have a description and a map fed into LLM prompts. Changes appear the next time the form loads.",
       loading: "Loading base data…",

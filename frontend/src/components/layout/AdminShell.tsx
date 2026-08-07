@@ -1,15 +1,15 @@
-import { useEffect, useState, type ReactNode } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
 import { Link, NavLink, useLocation } from "react-router-dom"
-import { listJobs, type Job, type JobStatus } from "@/api/jobs"
+import type { Job, JobStatus } from "@/api/jobs"
 import { useLocale, type Locale, type MessageKey } from "@/i18n"
 import { cn } from "@/lib/utils"
+import { useJobsRealtime } from "@/realtime/JobsRealtimeProvider"
 
 const NAV_ITEMS = [
   { key: "nav.personas" as const, to: "/personas", match: "/personas" },
   { key: "nav.populations" as const, to: "/populations", match: "/populations" },
   { key: "nav.messages" as const, to: "/messages", match: "/messages" },
   { key: "nav.configurations" as const, to: "/configurations", match: "/configurations" },
-  { key: "nav.config" as const, to: "/config", match: "/config" },
   { key: "nav.runs" as const, to: "/runs", match: "/runs" },
   { key: "nav.jobs" as const, to: "/jobs", match: "/jobs" },
 ]
@@ -149,47 +149,29 @@ function LocaleSwitcher({
 export function AdminShell({ children }: AdminShellProps) {
   const { pathname } = useLocation()
   const { locale, setLocale, t } = useLocale()
-  const [activeCount, setActiveCount] = useState(0)
+  const { jobs, activeCount } = useJobsRealtime()
   const [toast, setToast] = useState<ToastState | null>(null)
+  const jobsRef = useRef(jobs)
+  jobsRef.current = jobs
 
   useEffect(() => {
-    let cancelled = false
-    let timer: number | undefined
-
-    async function tick() {
-      try {
-        const rows = await listJobs({ limit: 20 })
-        if (cancelled) return
-        const seen = readSeen()
-        const nextSeen = { ...seen }
-        let notify: ToastState | null = null
-        for (const job of rows) {
-          const prev = seen[job.id]
-          const toastCandidate = toastFromTransition(job, prev, t)
-          if (toastCandidate && !notify) notify = toastCandidate
-          nextSeen[job.id] = job.status
-        }
-        writeSeen(nextSeen)
-        setActiveCount(
-          rows.filter((j) => j.status === "pending" || j.status === "running").length,
-        )
-        if (notify) {
-          setToast(notify)
-          window.setTimeout(() => setToast(null), 6000)
-        }
-        const active = rows.some((j) => j.status === "pending" || j.status === "running")
-        timer = window.setTimeout(tick, active ? 2500 : 10000)
-      } catch {
-        if (!cancelled) timer = window.setTimeout(tick, 10000)
-      }
+    const rows = jobsRef.current
+    const seen = readSeen()
+    const nextSeen = { ...seen }
+    let notify: ToastState | null = null
+    for (const job of rows) {
+      const prev = seen[job.id]
+      const toastCandidate = toastFromTransition(job, prev, t)
+      if (toastCandidate && !notify) notify = toastCandidate
+      nextSeen[job.id] = job.status
     }
-
-    void tick()
-    return () => {
-      cancelled = true
-      if (timer != null) window.clearTimeout(timer)
+    writeSeen(nextSeen)
+    if (notify) {
+      setToast(notify)
+      const hide = window.setTimeout(() => setToast(null), 6000)
+      return () => window.clearTimeout(hide)
     }
-  }, [t])
+  }, [jobs, t])
 
   return (
     <div className="theme-admin">
