@@ -24,6 +24,12 @@ class Settings(BaseSettings):
     # stub = weighted random (tests only); deepseek = call DeepSeek
     persona_generator: PersonaGenerator = "deepseek"
 
+    # OpenAI embeddings for SSR (separate from DeepSeek chat / CAMEL env mirror).
+    openai_api_key: str = ""
+    embedding_model: str = "text-embedding-3-large"
+    embedding_base_url: str = "https://api.openai.com/v1"
+    embedding_timeout_seconds: float = 60.0
+
     # none = status-only start; oasis = live CAMEL OASIS spike (optional dep group)
     simulation_engine: SimulationEngine = "none"
     # Cap overlapping run_simulate background jobs (A/B variants within one job
@@ -48,13 +54,26 @@ class Settings(BaseSettings):
             )
         return key
 
+    @field_validator("openai_api_key")
+    @classmethod
+    def require_openai_api_key(cls, value: str) -> str:
+        key = value.strip()
+        if not key:
+            raise ValueError(
+                "OPENAI_API_KEY is required — set it in backend/.env "
+                "(OpenAI embeddings for SSR; separate from DeepSeek chat)"
+            )
+        return key
+
     def uses_llm_generator(self) -> bool:
         return self.persona_generator == "deepseek"
 
     def apply_oasis_env(self) -> None:
-        """Mirror DeepSeek credentials into env vars CAMEL reads directly."""
-        os.environ.setdefault("OPENAI_API_KEY", self.deepseek_api_key)
-        os.environ.setdefault("OPENAI_COMPATIBLE_API_KEY", self.deepseek_api_key)
+        """Mirror DeepSeek into env vars CAMEL reads (overwrite — not embeddings key)."""
+        # Force DeepSeek for OASIS even when OPENAI_API_KEY is a real OpenAI key
+        # used by settings.openai_api_key / the SSR embeddings client.
+        os.environ["OPENAI_API_KEY"] = self.deepseek_api_key
+        os.environ["OPENAI_COMPATIBLE_API_KEY"] = self.deepseek_api_key
 
 
 settings = Settings()

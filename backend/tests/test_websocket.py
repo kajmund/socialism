@@ -6,6 +6,7 @@ import asyncio
 import os
 
 os.environ.setdefault("DEEPSEEK_API_KEY", "test-key-not-real")
+os.environ.setdefault("OPENAI_API_KEY", "test-openai-key-not-real")
 
 from collections.abc import AsyncIterator
 

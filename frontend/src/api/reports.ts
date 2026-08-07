@@ -10,11 +10,14 @@ export type ReportSource = {
   label?: string
 }
 
+export type ReportMode = "full" | "quick"
+
 export type Report = {
   id: string
   status: ReportStatus
   title: string
   locale: Locale
+  mode: ReportMode
   sources: ReportSource[]
   html_path: string | null
   slots_path: string | null
@@ -29,6 +32,7 @@ export type ReportCreate = {
   sources: Array<{ run_id: number; attempt_id: string }>
   title?: string
   locale?: Locale
+  mode?: ReportMode
 }
 
 export function createReport(body: ReportCreate): Promise<Report> {

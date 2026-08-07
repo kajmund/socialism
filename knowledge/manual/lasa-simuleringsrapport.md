@@ -9,6 +9,8 @@ tags: [rapporter]
 
 När en rapport har genererats öppnas den som en **HTML-sida** i appen. Rapporter beställs från simuleringsresultat — det finns ingen separat rapportlista.
 
+**Snabbrapport** visar en kort verdict, ämnesdrift, stilgenomslag och (vid behov) A/B-jämförelse. Öppna **Tekniskt stycke** längst ner för SSR-fördelningar och tröskelvärden. **Full rapport** har längre narrativa avsnitt och diagram.
+
 ## Steg
 
 1. Nå rapporten via **Bakgrundsjobb** (länk när jobbet är klart) eller notifieringen efter beställning.

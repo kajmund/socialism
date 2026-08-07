@@ -123,25 +123,33 @@ def render_tone_donut(metrics: ReportMetrics, *, locale: ReportLocale = "sv") ->
     m = metrics.aggregate
     if locale == "en":
         colors = {
-            "Critical / resigned": C_ROSE,
-            "Constructive": C_GREEN,
-            "Positive / hopeful": C_AMBER,
-            "Neutral / unclassified": C_MUTED,
+            "Strongly negative": C_ROSE,
+            "Somewhat negative": "#C47A5A",
+            "Neutral": C_MUTED,
+            "Somewhat positive": C_GREEN,
+            "Strongly positive": C_AMBER,
         }
         title = "Debate tone"
-        sub = "Classified per comment (LLM)"
+        sub = "SSR distribution (5-level) — embeddings vs tone anchors"
         center = "tone"
     else:
         colors = {
-            "Kritisk / uppgiven": C_ROSE,
-            "Konstruktiv": C_GREEN,
-            "Positiv / hoppfull": C_AMBER,
-            "Neutral / oklassad": C_MUTED,
+            "Starkt negativ": C_ROSE,
+            "Något negativ": "#C47A5A",
+            "Neutral": C_MUTED,
+            "Något positiv": C_GREEN,
+            "Starkt positiv": C_AMBER,
         }
         title = "Debattens ton"
-        sub = "Klassad per kommentar (LLM)"
+        sub = "SSR-fördelning (5 nivåer) — embeddings mot tonankare"
         center = "ton"
-    shares = [(k, v, colors.get(k, C_MUTED)) for k, v in m.tone_shares.items()]
+    # Stable Likert order left→right on legend when present
+    order = list(colors.keys())
+    ordered_items = [(k, m.tone_shares[k]) for k in order if k in m.tone_shares]
+    ordered_items.extend(
+        (k, v) for k, v in m.tone_shares.items() if k not in colors
+    )
+    shares = [(k, v, colors.get(k, C_MUTED)) for k, v in ordered_items]
     return (
         '<div class="chart-card">'
         f"<h4>{title}</h4>"
@@ -178,10 +186,10 @@ def render_style_hbars(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -
         )
     if locale == "en":
         title = "Average likes per message style"
-        sub = "Keyword match — unmatched text = Unclassified (no Personal default)"
+        sub = "SSR style rating — soft-weighted likes per style"
     else:
         title = "Genomsnittliga likes per budskapsstil"
-        sub = "Nyckelordsmatch — omatchad text = Oklassad (ingen Personlig-default)"
+        sub = "SSR-stilranking — mjuka vikter × likes per stil"
     return (
         '<div class="chart-card">'
         f"<h4>{title}</h4>"
@@ -246,7 +254,7 @@ def render_infographic_grid(metrics: ReportMetrics, *, locale: ReportLocale = "s
             f'<div class="info-kpi-label">of the debate about {escape(top_topic)}</div></div>'
             f"</div>"
             f'<div class="info-card"><div class="info-card-label">Message style</div>'
-            f'<div class="info-card-title">Impact (heuristic)</div>'
+            f'<div class="info-card-title">Impact (SSR)</div>'
             f"{_mini_style_bars(style_rows)}</div></div>"
         )
         tone_rows = "".join(
@@ -287,7 +295,7 @@ def render_infographic_grid(metrics: ReportMetrics, *, locale: ReportLocale = "s
             f'<div class="info-kpi-label">av debatten om {escape(top_topic)}</div></div>'
             f"</div>"
             f'<div class="info-card"><div class="info-card-label">Budskapsstil</div>'
-            f'<div class="info-card-title">Genomslag (heuristik)</div>'
+            f'<div class="info-card-title">Genomslag (SSR)</div>'
             f"{_mini_style_bars(style_rows)}</div></div>"
         )
         tone_rows = "".join(
@@ -399,7 +407,7 @@ def render_appendix_tables(metrics: ReportMetrics, *, locale: ReportLocale = "sv
             '<div class="tech-def"><strong>Gini</strong> — '
             "<span>Inequality in likes (0 = even, 1 = one person takes all).</span></div>"
             '<div class="tech-def"><strong>Message style</strong> — '
-            "<span>Heuristic via keywords, not manual annotation.</span></div>"
+            "<span>SSR semantic similarity to style anchors, not keyword match.</span></div>"
             "</div>"
         )
         table = (
@@ -424,7 +432,7 @@ def render_appendix_tables(metrics: ReportMetrics, *, locale: ReportLocale = "sv
             '<div class="tech-def"><strong>Gini</strong> — '
             "<span>Ojämlikhet i likes (0 = jämnt, 1 = en person tar allt).</span></div>"
             '<div class="tech-def"><strong>Budskapsstil</strong> — '
-            "<span>Heuristik via nyckelord, inte manuell annotering.</span></div>"
+            "<span>SSR semantisk likhet mot stilankare, inte nyckelordsmatch.</span></div>"
             "</div>"
         )
         table = (
