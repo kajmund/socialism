@@ -8,6 +8,7 @@ export type Configuration = {
   name: string
   language: ConfigurationLanguage
   prompts: Record<string, string>
+  ssr_temperature: number
   is_active: boolean
   created_at: string
   updated_at: string
@@ -17,8 +18,11 @@ export type ConfigurationWrite = {
   name: string
   language: ConfigurationLanguage
   prompts?: Record<string, string>
+  ssr_temperature?: number
   is_active?: boolean
 }
+
+export const DEFAULT_SSR_TEMPERATURE = 0.1
 
 export type PromptField = {
   key: string

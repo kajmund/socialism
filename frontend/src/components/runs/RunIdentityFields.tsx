@@ -15,10 +15,6 @@ export type RunIdentityFieldsProps = {
   onPopOpenChange: (open: boolean) => void
   allowPopulationCreatePost: boolean
   onAllowPopulationCreatePostChange: (value: boolean) => void
-  enableWebSearch: boolean
-  onEnableWebSearchChange: (value: boolean) => void
-  enableSympyTools: boolean
-  onEnableSympyToolsChange: (value: boolean) => void
   disabled?: boolean
 }
 
@@ -35,10 +31,6 @@ export function RunIdentityFields({
   onPopOpenChange,
   allowPopulationCreatePost,
   onAllowPopulationCreatePostChange,
-  enableWebSearch,
-  onEnableWebSearchChange,
-  enableSympyTools,
-  onEnableSympyToolsChange,
   disabled = false,
 }: RunIdentityFieldsProps) {
   const { t } = useLocale()
@@ -62,26 +54,6 @@ export function RunIdentityFields({
             onChange={(e) => onAllowPopulationCreatePostChange(e.target.checked)}
           />
           {t("runs.identity.allowCreatePost")}
-        </label>
-        <label className="id-check-row">
-          <input
-            id="run-web-search"
-            type="checkbox"
-            checked={enableWebSearch}
-            disabled={disabled}
-            onChange={(e) => onEnableWebSearchChange(e.target.checked)}
-          />
-          {t("runs.identity.enableWebSearch")}
-        </label>
-        <label className="id-check-row">
-          <input
-            id="run-sympy-tools"
-            type="checkbox"
-            checked={enableSympyTools}
-            disabled={disabled}
-            onChange={(e) => onEnableSympyToolsChange(e.target.checked)}
-          />
-          {t("runs.identity.enableSympyTools")}
         </label>
       </div>
       <div className="id-field">

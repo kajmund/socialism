@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     embedding_model: str = "text-embedding-3-large"
     embedding_base_url: str = "https://api.openai.com/v1"
     embedding_timeout_seconds: float = 60.0
+    # Write-through cache for SSR anchor embeddings (memory + disk).
+    embedding_cache_dir: str = "data/embedding_cache"
 
     # none = status-only start; oasis = live CAMEL OASIS spike (optional dep group)
     simulation_engine: SimulationEngine = "none"

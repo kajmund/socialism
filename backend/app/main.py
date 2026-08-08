@@ -8,10 +8,12 @@ from sqlalchemy.exc import OperationalError, ProgrammingError
 from app.api import (
     catalog,
     configurations,
+    embeddings,
     health,
     jobs,
     messages,
     personas,
+    playground,
     populations,
     reports,
     runs,
@@ -62,6 +64,8 @@ def create_app() -> FastAPI:
     app.include_router(catalog.router)
     app.include_router(jobs.router)
     app.include_router(reports.router)
+    app.include_router(playground.router)
+    app.include_router(embeddings.router)
     app.include_router(ws.router)
     return app
 

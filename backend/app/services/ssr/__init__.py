@@ -13,7 +13,15 @@ from app.services.ssr.anchors import (
     tone_anchors,
     tone_labels,
 )
-from app.services.ssr.embeddings import embed_texts, set_embedder
+from app.services.ssr.embeddings import (
+    cache_get,
+    cache_put,
+    clear_embedding_cache,
+    embed_texts,
+    embed_texts_cached,
+    list_embedding_cache_entries,
+    set_embedder,
+)
 from app.services.ssr.similarity import (
     aggregate_pmfs,
     cosine_similarity,
@@ -27,8 +35,11 @@ __all__ = [
     "AnchorSet",
     "SSRResult",
     "aggregate_pmfs",
+    "clear_embedding_cache",
     "cosine_similarity",
     "embed_texts",
+    "embed_texts_cached",
+    "list_embedding_cache_entries",
     "rate_texts",
     "set_embedder",
     "similarities_to_pmf",
@@ -53,7 +64,11 @@ async def rate_texts(
     *,
     temperature: float = 1.0,
 ) -> SSRResult:
-    """Embed texts + anchors, cosine → soft PMF per text, mean shares."""
+    """Embed texts + anchors, cosine → soft PMF per text, mean shares.
+
+    Anchor embeddings are process-cached by (embedding_model, statement).
+    Reaction texts are never cached (usually unique per run).
+    """
     labels = anchor_set.labels
     empty_shares = {lab: 0.0 for lab in labels}
     if not texts:
@@ -65,10 +80,27 @@ async def rate_texts(
             labels=labels,
         )
 
-    combined = [*texts, *anchor_set.statements]
-    vectors = await embed_texts(combined)
+    statements = list(anchor_set.statements)
+    cached_anchors: list[list[float] | None] = [cache_get(s) for s in statements]
+    missing = [
+        (i, s) for i, (s, vec) in enumerate(zip(statements, cached_anchors, strict=True)) if vec is None
+    ]
+    # Single round-trip: reaction texts + only uncached anchors.
+    to_embed = [*texts, *[s for _, s in missing]]
+    vectors = await embed_texts(to_embed)
     text_vecs = vectors[: len(texts)]
-    anchor_vecs = vectors[len(texts) :]
+    fresh_anchors = vectors[len(texts) :]
+    if len(fresh_anchors) != len(missing):
+        raise RuntimeError(
+            f"embed_texts returned {len(fresh_anchors)} anchor vectors "
+            f"for {len(missing)} misses"
+        )
+    for (idx, statement), vec in zip(missing, fresh_anchors, strict=True):
+        cache_put(statement, vec)
+        cached_anchors[idx] = vec
+    anchor_vecs = [v for v in cached_anchors if v is not None]
+    if len(anchor_vecs) != len(statements):
+        raise RuntimeError("anchor embedding cache stitch incomplete")
 
     per_text: list[dict[str, float]] = []
     pmf_rows: list[list[float]] = []
