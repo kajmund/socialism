@@ -364,7 +364,7 @@ def build_quick_slots(
 
     ab_html = _ab_diff_html(metrics, locale=locale) if ab else ""
     style_html = _style_html(metrics, locale=locale)
-    chart_slots = prefill_quick_chart_slots(metrics, locale=locale, ab=ab)
+    chart_slots = prefill_quick_chart_slots(metrics, bundles, locale=locale, ab=ab)
 
     tech_html = (
         f"<details class=\"tech\"><summary>{escape(tech_title)}</summary>"
@@ -409,6 +409,8 @@ def build_quick_slots(
         ),
         "stats_html": chart_slots["stats_html"],
         "charts_html": chart_slots["charts_html"],
+        "tick_html": chart_slots["tick_html"],
+        "qa_html": chart_slots["qa_html"],
         "style_html": style_html,
         "tech_html": tech_html,
         "meta_runs": ", ".join(b.label for b in bundles),
@@ -420,12 +422,16 @@ def render_quick_html(slots: dict[str, str], *, locale: ReportLocale) -> str:
     if locale == "en":
         h_stats = "Static statistics"
         h_charts = "Charts"
+        h_ticks = "Tick by tick"
+        h_qa = "Questions & answers"
         h_drift = "Topic drift"
         h_ab = "A/B comparison"
         h_style = "Style impact"
     else:
         h_stats = "Statistik"
         h_charts = "Diagram"
+        h_ticks = "Tick för tick"
+        h_qa = "Frågor och svar"
         h_drift = "Ämnesdrift"
         h_ab = "A/B-jämförelse"
         h_style = "Stilgenomslag"
@@ -495,6 +501,23 @@ td,th{{border-bottom:1px solid #E5DDD0;padding:.35rem .5rem;text-align:left;font
 .ag-score-v{{font-weight:700;font-size:1rem;}}
 .ag-score-l{{font-size:.65rem;color:#6B6253;}}
 .ag-quote{{margin-top:6px;font-style:italic;color:#3A342C;font-size:.75rem;}}
+.tick-timeline{{display:flex;flex-direction:column;gap:20px;}}
+.tick-bundle h4{{font-size:.95rem;margin:0 0 8px;}}
+.tick-spark{{margin-bottom:10px;}}
+.tick-spark-title{{font-size:.78rem;color:#6B6253;margin-bottom:6px;}}
+.tick-bars{{display:flex;align-items:flex-end;gap:6px;height:72px;padding:4px 0;border-bottom:1px solid #E5DDD0;}}
+.tick-bar-col{{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:28px;}}
+.tick-bar{{width:100%;max-width:36px;background:#1E3A55;border-radius:4px 4px 0 0;min-height:4px;}}
+.tick-bar-col.tick-silent .tick-bar{{background:#6B6253;opacity:.55;}}
+.tick-bar-lbl{{font-size:.65rem;color:#6B6253;margin-top:4px;}}
+.tick-table td{{font-size:.78rem;vertical-align:top;}}
+.qa-section{{display:flex;flex-direction:column;gap:16px;}}
+.qa-bundle h4{{font-size:.95rem;margin:0 0 8px;}}
+.qa-tick h5{{font-size:.85rem;margin:0 0 6px;color:#3A342C;}}
+.qa-card{{border:1px solid #D8CFC0;border-radius:8px;padding:10px 12px;margin-bottom:8px;background:#FFFCF6;}}
+.qa-agent{{font-weight:700;font-size:.85rem;margin-bottom:4px;}}
+.qa-q,.qa-a{{font-size:.82rem;line-height:1.4;margin-top:4px;}}
+.muted{{color:#6B6253;font-size:.9rem;}}
 </style>
 </head>
 <body>
@@ -512,6 +535,14 @@ td,th{{border-bottom:1px solid #E5DDD0;padding:.35rem .5rem;text-align:left;font
   <section>
     <h3>{h_charts}</h3>
     {slots.get("charts_html", "")}
+  </section>
+  <section>
+    <h3>{h_ticks}</h3>
+    {slots.get("tick_html", "")}
+  </section>
+  <section>
+    <h3>{h_qa}</h3>
+    {slots.get("qa_html", "")}
   </section>
   <section>
     <h3>{h_ab}</h3>

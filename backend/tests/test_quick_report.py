@@ -234,7 +234,31 @@ def test_quick_ab_bars_renders_comparison():
 
 def test_prefill_quick_chart_slots_ab_mode():
     m = _ab_metrics()
-    slots = prefill_quick_chart_slots(m, locale="sv", ab=True)
+    bundles = [
+        RunBundle(
+            label="Version A",
+            run_id=1,
+            run_name="T",
+            attempt_id="a1",
+            seed="1",
+            engine="none",
+            agents=[],
+            ticks_run=1,
+            variant_id="a",
+        ),
+        RunBundle(
+            label="Version B",
+            run_id=1,
+            run_name="T",
+            attempt_id="a1",
+            seed="1",
+            engine="none",
+            agents=[],
+            ticks_run=1,
+            variant_id="b",
+        ),
+    ]
+    slots = prefill_quick_chart_slots(m, bundles, locale="sv", ab=True)
     assert "stats-table" in slots["stats_html"]
     assert "ab-compare" in slots["charts_html"]
     assert "ab-tone-grid" in slots["charts_html"]
