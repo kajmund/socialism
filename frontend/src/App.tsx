@@ -1,18 +1,26 @@
-import { Navigate, Route, Routes } from "react-router-dom"
+import { Navigate, Route, Routes, useParams } from "react-router-dom"
+import { ToolsShell } from "@/components/layout/ToolsShell"
 import { ConfigureRunPage } from "@/pages/ConfigureRunPage"
 import { ConfigurationEditorPage } from "@/pages/ConfigurationEditorPage"
 import { ConfigurationsPage } from "@/pages/ConfigurationsPage"
 import { DashboardPage } from "@/pages/DashboardPage"
+import { EmbeddingCachePage } from "@/pages/EmbeddingCachePage"
 import { JobsPage } from "@/pages/JobsPage"
 import { MessagesPage } from "@/pages/MessagesPage"
 import { MessagesWorkshopPage } from "@/pages/MessagesWorkshopPage"
 import { PersonaComposerPage } from "@/pages/PersonaComposerPage"
 import { PersonasPage } from "@/pages/PersonasPage"
+import { PlaygroundPage } from "@/pages/PlaygroundPage"
 import { PopulationBuilderPage } from "@/pages/PopulationBuilderPage"
 import { PopulationDetailPage } from "@/pages/PopulationDetailPage"
 import { PopulationsPage } from "@/pages/PopulationsPage"
 import { ReportPage } from "@/pages/ReportPage"
 import { RunsPage } from "@/pages/RunsPage"
+
+function RedirectConfigurationEdit() {
+  const { id } = useParams<{ id: string }>()
+  return <Navigate to={`/tools/configurations/${id}/edit`} replace />
+}
 
 export default function App() {
   return (
@@ -35,10 +43,20 @@ export default function App() {
       <Route path="/messages/new" element={<MessagesWorkshopPage />} />
       <Route path="/messages/:id/edit" element={<MessagesWorkshopPage />} />
 
-      <Route path="/configurations" element={<ConfigurationsPage />} />
-      <Route path="/configurations/new" element={<ConfigurationEditorPage />} />
-      <Route path="/configurations/:id/edit" element={<ConfigurationEditorPage />} />
-      <Route path="/config" element={<Navigate to="/configurations" replace />} />
+      <Route path="/tools" element={<ToolsShell />}>
+        <Route index element={<Navigate to="configurations" replace />} />
+        <Route path="configurations" element={<ConfigurationsPage />} />
+        <Route path="configurations/new" element={<ConfigurationEditorPage />} />
+        <Route path="configurations/:id/edit" element={<ConfigurationEditorPage />} />
+        <Route path="playground" element={<PlaygroundPage />} />
+        <Route path="cache" element={<EmbeddingCachePage />} />
+      </Route>
+
+      <Route path="/configurations" element={<Navigate to="/tools/configurations" replace />} />
+      <Route path="/configurations/new" element={<Navigate to="/tools/configurations/new" replace />} />
+      <Route path="/configurations/:id/edit" element={<RedirectConfigurationEdit />} />
+      <Route path="/config" element={<Navigate to="/tools/configurations" replace />} />
+      <Route path="/playground" element={<Navigate to="/tools/playground" replace />} />
 
       <Route path="/jobs" element={<JobsPage />} />
       <Route path="/reports/:id" element={<ReportPage />} />

@@ -1,6 +1,17 @@
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
 
@@ -157,6 +168,8 @@ class Configuration(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     language: Mapped[str] = mapped_column(String(8), nullable=False, index=True)
     prompts: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    # Softmax temperature for report SSR (tone/style). Lower = sharper label shares.
+    ssr_temperature: Mapped[float] = mapped_column(Float, nullable=False, default=0.1)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

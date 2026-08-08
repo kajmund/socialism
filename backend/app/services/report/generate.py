@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from app.config import settings
+from app.schemas.domain import DEFAULT_SSR_TEMPERATURE
 from app.services.report.agent import (
     fill_slot_batch,
     group_questions_into_batches,
@@ -55,6 +56,7 @@ def _ssr_payload(
     bundles: list[RunBundle],
     locale: ReportLocale,
     mode: ReportMode,
+    ssr_temperature: float,
     classify_seconds: float,
     embed_seconds: float,
     total_seconds: float,
@@ -64,6 +66,7 @@ def _ssr_payload(
         "locale": locale,
         "embedding_model": settings.embedding_model,
         "anchor_set_version": ANCHOR_SET_VERSION,
+        "ssr_temperature": ssr_temperature,
         "timestamp": datetime.now(tz=UTC).isoformat(),
         "timing": {
             "classify_llm_seconds": round(classify_seconds, 3),
@@ -144,6 +147,7 @@ async def generate_report_html(
     locale: str = "sv",
     prompts: dict[str, str],
     mode: ReportMode = "full",
+    ssr_temperature: float = DEFAULT_SSR_TEMPERATURE,
 ) -> tuple[Path, Path, dict[str, str], dict[str, Any]]:
     """Write report.html + slots.json (+ ssr.json). Returns paths, slots, timing meta."""
     loc = normalize_locale(locale)
@@ -154,7 +158,11 @@ async def generate_report_html(
     # Full: LLM topic packs + topic classify; tone/style still direct SSR (embeddings only).
     topic_mode = "injection" if mode == "quick" else "llm"
     classifications = await classify_bundles(
-        bundles, locale=loc, prompts=prompts, topic_mode=topic_mode
+        bundles,
+        locale=loc,
+        prompts=prompts,
+        topic_mode=topic_mode,
+        ssr_temperature=ssr_temperature,
     )
     classify_llm_s = sum(c.classify_llm_seconds for c in classifications)
     embed_s = sum(c.embed_seconds for c in classifications)
@@ -229,6 +237,7 @@ async def generate_report_html(
         bundles=bundles,
         locale=loc,
         mode=mode,
+        ssr_temperature=ssr_temperature,
         classify_seconds=classify_llm_s,
         embed_seconds=embed_s,
         total_seconds=float(timing["total_seconds"]),
