@@ -418,7 +418,6 @@ export function PlaygroundPage() {
                 >
                   <option value="sv">{t("playground.localeSv")}</option>
                   <option value="en">{t("playground.localeEn")}</option>
-                  <option value="nb">{t("configurations.language.nb")}</option>
                 </select>
               </label>
               <label className="grid gap-1 text-sm">
@@ -821,7 +820,6 @@ export function PlaygroundPage() {
                 >
                   <option value="sv">{t("playground.localeSv")}</option>
                   <option value="en">{t("playground.localeEn")}</option>
-                  <option value="nb">{t("configurations.language.nb")}</option>
                 </select>
               </label>
               <label className="grid gap-1 text-sm">

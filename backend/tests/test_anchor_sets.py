@@ -21,10 +21,8 @@ async def test_list_anchor_sets_seeded(client):
     res = await client.get("/anchor-sets")
     assert res.status_code == 200
     rows = res.json()
-    assert len(rows) >= 6
+    assert len(rows) >= 4
     assert any(r["kind"] == "tone" and r["locale"] == "sv" for r in rows)
-    assert any(r["kind"] == "tone" and r["locale"] == "nb" for r in rows)
-    assert any(r["kind"] == "style" and r["locale"] == "nb" for r in rows)
 
 
 async def test_create_publish_and_test_anchor_set(client, mock_embedder):
@@ -108,8 +106,6 @@ async def test_configuration_includes_anchor_sets(client):
     assert "anchor_sets" in row
     assert row["anchor_sets"]["sv"]["tone"] > 0
     assert row["anchor_sets"]["sv"]["style"] > 0
-    assert row["anchor_sets"]["nb"]["tone"] > 0
-    assert row["anchor_sets"]["nb"]["style"] > 0
 
 
 async def test_patch_configuration_anchor_sets(client):
