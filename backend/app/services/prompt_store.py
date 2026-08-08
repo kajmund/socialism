@@ -129,6 +129,14 @@ async def ensure_default_configurations(session: AsyncSession) -> int:
     by default; English is inactive until chosen.
     """
     changed = 0
+    from app.services.anchor_store import (
+        backfill_configuration_anchor_sets,
+        default_anchor_refs,
+        ensure_default_anchor_sets,
+    )
+
+    await ensure_default_anchor_sets(session)
+    default_refs = await default_anchor_refs(session)
     for language, name, activate in (
         ("sv", "Standard (svenska)", True),
         ("en", "Standard (English)", False),
@@ -145,6 +153,7 @@ async def ensure_default_configurations(session: AsyncSession) -> int:
                     language=language,
                     prompts=default_prompts(language),  # type: ignore[arg-type]
                     ssr_temperature=DEFAULT_SSR_TEMPERATURE,
+                    anchor_sets=default_refs,
                     is_active=activate,
                     created_at=now,
                     updated_at=now,
@@ -182,11 +191,13 @@ async def ensure_default_configurations(session: AsyncSession) -> int:
     if changed:
         await session.commit()
 
+    backfill_changed = await backfill_configuration_anchor_sets(session)
+
     # Deferred import: catalog_store must not import prompt_store at module load.
     from app.services.catalog_store import ensure_catalogs_for_all_configurations
 
     catalog_added = await ensure_catalogs_for_all_configurations(session)
-    return changed + catalog_added
+    return changed + backfill_changed + catalog_added
 
 
 async def set_active_configuration(

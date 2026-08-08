@@ -433,6 +433,7 @@ async def _run_report_generate(job_id: str) -> None:
         async with factory() as session:
             bundles = await build_bundles(session, sources)
             out_dir = Path(ARTIFACT_ROOT) / report_id
+            from app.services.anchor_store import require_anchor_sets_for_language
             from app.services.prompt_catalog import ConfigurationLanguage
             from app.services.prompt_store import (
                 require_active_ssr_temperature,
@@ -442,6 +443,9 @@ async def _run_report_generate(job_id: str) -> None:
             report_lang: ConfigurationLanguage = "en" if locale == "en" else "sv"
             prompts = await require_prompts_for_language(session, report_lang)
             ssr_temperature = await require_active_ssr_temperature(session)
+            resolved_anchors = await require_anchor_sets_for_language(
+                session, "en" if locale == "en" else "sv"
+            )
 
         async with factory() as session:
             report = await session.get(Report, report_id)
@@ -456,6 +460,7 @@ async def _run_report_generate(job_id: str) -> None:
             prompts=prompts,
             mode=mode if mode in ("full", "quick") else "full",
             ssr_temperature=ssr_temperature,
+            resolved_anchors=resolved_anchors,
         )
     except Exception as exc:  # noqa: BLE001 — mark report failed
         async with factory() as session:
