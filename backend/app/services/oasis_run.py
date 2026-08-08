@@ -558,11 +558,12 @@ async def run_oasis_simulation(
     from oasis import generate_reddit_agent_graph, generate_twitter_agent_graph
 
     from app.services import jobs as jobs_service
-    from app.services.prompt_store import require_active_prompts
+    from app.services.prompt_store import require_prompts_for_language
 
     factory = jobs_service.job_session_factory()
     async with factory() as prompt_session:
-        prompts = await require_active_prompts(prompt_session)
+        # OASIS simulates Swedish political messaging — always Swedish prompts.
+        prompts = await require_prompts_for_language(prompt_session, "sv")
 
     apply_swedish_social_environment_prompts(prompts)
     apply_deepseek_reasoning_patch()

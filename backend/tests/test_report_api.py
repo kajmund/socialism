@@ -295,6 +295,145 @@ async def test_create_english_report_locale(client, tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_report_setup_failure_marks_report_failed(client, tmp_path, monkeypatch):
+    """Pre-generation setup errors must fail the report, not leave it running."""
+    run_id, attempt_id = await _seed_run_with_attempt(client)
+    monkeypatch.chdir(tmp_path)
+
+    async def boom(_session, _sources):
+        raise ValueError("simulated bundle build failure")
+
+    monkeypatch.setattr(
+        "app.services.report.bundles.build_bundles",
+        boom,
+    )
+
+    done = asyncio.Event()
+
+    def hook(job_id: str) -> None:
+        async def _go() -> None:
+            await jobs_service._run_job(job_id)
+            done.set()
+
+        asyncio.create_task(_go())
+
+    jobs_service.set_schedule_hook(hook)
+
+    try:
+        resp = await client.post(
+            "/reports",
+            json={
+                "sources": [{"run_id": run_id, "attempt_id": attempt_id}],
+                "title": "Fail test",
+            },
+        )
+        assert resp.status_code == 202
+        report_id = resp.json()["id"]
+        job_id = resp.json()["job_id"]
+
+        await asyncio.wait_for(done.wait(), timeout=30)
+
+        got = await client.get(f"/reports/{report_id}")
+        assert got.status_code == 200
+        data = got.json()
+        assert data["status"] == "failed", data
+        assert "simulated bundle build failure" in (data.get("error") or "")
+
+        job = await client.get(f"/jobs/{job_id}")
+        assert job.status_code == 200
+        assert job.json()["status"] == "failed"
+    finally:
+        jobs_service.set_schedule_hook(None)
+
+
+@pytest.mark.asyncio
+async def test_english_report_uses_en_prompts_while_sv_active(
+    client, tmp_path, monkeypatch
+):
+    """Report locale must select prompt language, not the globally active config."""
+    from typing import Any
+
+    from app.llm import set_structured_completer
+    from app.services.report.agent import SlotBatchResponse
+    from app.services.report.classify import (
+        _TopicBatchResponse,
+        _TopicItem,
+        _TopicPackModel,
+        _TopicPacksResponse,
+    )
+    from app.services.ssr import set_embedder
+
+    captured_systems: list[str] = []
+
+    async def mock_embed(texts: list[str]) -> list[list[float]]:
+        return [[float((hash(t) + i) % 7) for i in range(8)] for t in texts]
+
+    async def mock_llm(messages: list[dict[str, str]], response_model: type[Any]) -> Any:
+        system = next((m["content"] for m in messages if m.get("role") == "system"), "")
+        if system:
+            captured_systems.append(system)
+        name = response_model.__name__
+        if name == "_TopicPacksResponse":
+            return _TopicPacksResponse(
+                topics=[_TopicPackModel(label="Elder care", keywords=["care"])]
+            )
+        if name == "_TopicBatchResponse":
+            user = messages[-1]["content"]
+            n = sum(1 for line in user.splitlines() if line[:1].isdigit())
+            return _TopicBatchResponse(
+                items=[_TopicItem(index=i, topic="Elder care") for i in range(n)]
+            )
+        if name == "SlotBatchResponse":
+            return SlotBatchResponse(slots={"page_title": "My report"})
+        raise AssertionError(f"Unexpected model {response_model}")
+
+    configs = (await client.get("/configurations")).json()
+    active = [c for c in configs if c["is_active"]]
+    assert len(active) == 1
+    assert active[0]["language"] == "sv"
+
+    set_structured_completer(mock_llm)
+    set_embedder(mock_embed)
+    monkeypatch.chdir(tmp_path)
+    run_id, attempt_id = await _seed_run_with_attempt(client)
+
+    done = asyncio.Event()
+
+    def hook(job_id: str) -> None:
+        async def _go() -> None:
+            await jobs_service._run_job(job_id)
+            done.set()
+
+        asyncio.create_task(_go())
+
+    jobs_service.set_schedule_hook(hook)
+
+    try:
+        resp = await client.post(
+            "/reports",
+            json={
+                "sources": [{"run_id": run_id, "attempt_id": attempt_id}],
+                "title": "English prompts test",
+                "locale": "en",
+            },
+        )
+        assert resp.status_code == 202, resp.text
+        report_id = resp.json()["id"]
+        await asyncio.wait_for(done.wait(), timeout=30)
+
+        got = await client.get(f"/reports/{report_id}")
+        assert got.status_code == 200
+        assert got.json()["status"] == "succeeded"
+
+        assert captured_systems
+        assert any("Answer in English" in s for s in captured_systems)
+        assert not any("Svara på svenska" in s for s in captured_systems)
+    finally:
+        set_structured_completer(None)
+        set_embedder(None)
+
+
+@pytest.mark.asyncio
 async def test_create_report_missing_attempt(client):
     persona = (
         await client.post(

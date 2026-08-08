@@ -428,19 +428,21 @@ async def _run_report_generate(job_id: str) -> None:
         report.updated_at = utcnow()
         await session.commit()
 
-        # Build bundles while session is open, then release before long LLM work.
-        bundles = await build_bundles(session, sources)
-        out_dir = Path(ARTIFACT_ROOT) / report_id
-        from app.services.prompt_store import (
-            require_active_prompts,
-            require_active_ssr_temperature,
-        )
-
-        prompts = await require_active_prompts(session)
-        ssr_temperature = await require_active_ssr_temperature(session)
-
     mode = "full"
     try:
+        async with factory() as session:
+            bundles = await build_bundles(session, sources)
+            out_dir = Path(ARTIFACT_ROOT) / report_id
+            from app.services.prompt_catalog import ConfigurationLanguage
+            from app.services.prompt_store import (
+                require_active_ssr_temperature,
+                require_prompts_for_language,
+            )
+
+            report_lang: ConfigurationLanguage = "en" if locale == "en" else "sv"
+            prompts = await require_prompts_for_language(session, report_lang)
+            ssr_temperature = await require_active_ssr_temperature(session)
+
         async with factory() as session:
             report = await session.get(Report, report_id)
             if report is not None:
