@@ -49,8 +49,16 @@ def _patch_sympy_series_expansion_doc() -> None:
     SymPyToolkit.series_expansion.__doc__ = _SERIES_EXPANSION_DOC
 
 
+def _any_agent_tools(options: OasisRunOptions) -> bool:
+    return (
+        options.enable_search_duckduckgo
+        or options.enable_search_wiki
+        or options.enable_sympy_tools
+    )
+
+
 def population_agent_max_iteration(options: OasisRunOptions) -> int:
-    if options.enable_web_search or options.enable_sympy_tools:
+    if _any_agent_tools(options):
         return _TOOL_MAX_ITERATION
     return 1
 
@@ -100,7 +108,7 @@ def search_wiki(entity: str) -> str:
         if not hits:
             return (
                 f"Ingen Wikipedia-sida för \"{title}\". Använd ett kort "
-                "namn/begrepp, eller search_duckduckgo för nyheter."
+                "namn/begrepp, eller webbsök för nyheter."
             )
         try:
             return wikipedia.summary(hits[0], sentences=5, auto_suggest=False)
@@ -166,8 +174,9 @@ def search_duckduckgo(
 def build_population_extra_tools(options: OasisRunOptions) -> list[Any]:
     """Return CAMEL tools to attach to population agents (empty if all disabled)."""
     tools: list[Any] = []
-    if options.enable_web_search:
+    if options.enable_search_duckduckgo:
         tools.append(search_duckduckgo)
+    if options.enable_search_wiki:
         tools.append(search_wiki)
     if options.enable_sympy_tools:
         from camel.toolkits import SymPyToolkit
@@ -179,7 +188,7 @@ def build_population_extra_tools(options: OasisRunOptions) -> list[Any]:
 
 def population_tool_rules(options: OasisRunOptions) -> str:
     """Swedish guidance appended to population user_char when tools are enabled."""
-    if not options.enable_web_search and not options.enable_sympy_tools:
+    if not _any_agent_tools(options):
         return ""
 
     lines: list[str] = [
@@ -193,12 +202,13 @@ def population_tool_rules(options: OasisRunOptions) -> str:
         "- När du vill ifrågasätta eller bekräfta ett tal någon annan skrivit.",
         "- När du känner dig osäker — sök eller räkna först, reagera sedan.",
     ]
-    if options.enable_web_search:
+    if options.enable_search_wiki:
         lines.append(
             "- Wikipedia (search_wiki): BARA korta namn/begrepp som kan vara "
             "en uppslagssida (t.ex. \"Sverigedemokraterna\", \"visitationszon\", "
             "\"gängkriminalitet\"). Skicka aldrig långa nyhetsfrågor till wiki."
         )
+    if options.enable_search_duckduckgo:
         lines.append(
             "- Webb (search_duckduckgo): aktuella nyheter, åtgärdspaket, "
             "lagförslag och siffror. Sök på det konkreta (plats, lag, årtal) "

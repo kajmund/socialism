@@ -21,7 +21,7 @@ Från menyn når du bland annat:
 2. **Personas** — biblioteket av AI-agenter
 3. **Populationer** — grupper av personas
 4. **Budskap** — budskapsbibliotek och verkstad
-5. **Konfigurationer** — prompts och grunddata (kataloglistor) per uppsättning; en aktiv åt gången
+5. **Verktyg** — konfigurationer (prompts, SSR-temperatur, grunddata), playground och embedding-cache
 6. **Jobb** — bakgrundsjobb (generering, simulering, rapporter)
 
 Rapporter öppnas från en körnings resultat när en rapport har skapats.
@@ -31,3 +31,5 @@ Rapporter öppnas från en körnings resultat när en rapport har skapats.
 - [Hantera körningar](hantera-korningar.md)
 - [Skapa en ny körning](skapa-korning.md)
 - [Starta en simulering](starta-simulering.md)
+- [Använda playground](anvanda-playground.md)
+- [Hantera embedding-cache](hantera-embedding-cache.md)

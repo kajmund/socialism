@@ -19,26 +19,61 @@ _PROMPTS = default_prompts("sv")
 
 def test_parse_oasis_options_tool_defaults():
     opts = parse_oasis_options(None)
-    assert opts.enable_web_search is False
+    assert opts.enable_search_duckduckgo is False
+    assert opts.enable_search_wiki is False
     assert opts.enable_sympy_tools is False
 
 
 def test_parse_oasis_options_tool_flags():
     opts = parse_oasis_options(
         {
+            "enable_search_duckduckgo": True,
+            "enable_search_wiki": True,
+            "enable_sympy_tools": True,
+        }
+    )
+    assert opts.enable_search_duckduckgo is True
+    assert opts.enable_search_wiki is True
+    assert opts.enable_sympy_tools is True
+
+
+def test_parse_oasis_options_legacy_web_search():
+    opts = parse_oasis_options(
+        {
             "enable_web_search": True,
             "enable_sympy_tools": True,
         }
     )
-    assert opts.enable_web_search is True
+    assert opts.enable_search_duckduckgo is True
+    assert opts.enable_search_wiki is True
     assert opts.enable_sympy_tools is True
+    dumped = opts.model_dump()
+    assert "enable_web_search" not in dumped
+
+
+def test_parse_oasis_options_legacy_does_not_override_explicit():
+    opts = parse_oasis_options(
+        {
+            "enable_web_search": True,
+            "enable_search_duckduckgo": False,
+            "enable_search_wiki": True,
+        }
+    )
+    assert opts.enable_search_duckduckgo is False
+    assert opts.enable_search_wiki is True
 
 
 def test_population_agent_max_iteration():
     assert population_agent_max_iteration(OasisRunOptions()) == 1
     assert (
         population_agent_max_iteration(
-            OasisRunOptions(enable_web_search=True)
+            OasisRunOptions(enable_search_duckduckgo=True)
+        )
+        == 5
+    )
+    assert (
+        population_agent_max_iteration(
+            OasisRunOptions(enable_search_wiki=True)
         )
         == 5
     )
@@ -54,13 +89,32 @@ def test_build_population_extra_tools_empty_when_disabled():
     assert build_population_extra_tools(OasisRunOptions()) == []
 
 
-def test_build_population_extra_tools_search():
+def test_build_population_extra_tools_search_both():
     tools = build_population_extra_tools(
-        OasisRunOptions(enable_web_search=True)
+        OasisRunOptions(
+            enable_search_duckduckgo=True,
+            enable_search_wiki=True,
+        )
     )
     assert len(tools) == 2
     names = {tool.__name__ for tool in tools}
     assert names == {"search_duckduckgo", "search_wiki"}
+
+
+def test_build_population_extra_tools_search_wiki_only():
+    tools = build_population_extra_tools(
+        OasisRunOptions(enable_search_wiki=True)
+    )
+    assert len(tools) == 1
+    assert tools[0].__name__ == "search_wiki"
+
+
+def test_build_population_extra_tools_search_ddg_only():
+    tools = build_population_extra_tools(
+        OasisRunOptions(enable_search_duckduckgo=True)
+    )
+    assert len(tools) == 1
+    assert tools[0].__name__ == "search_duckduckgo"
 
 
 def test_build_population_extra_tools_sympy():
@@ -99,7 +153,8 @@ def test_population_tool_rules_in_user_char():
         _member(),
         prompts=_PROMPTS,
         oasis_options=OasisRunOptions(
-            enable_web_search=True,
+            enable_search_duckduckgo=True,
+            enable_search_wiki=True,
             enable_sympy_tools=True,
         ),
     )
@@ -109,6 +164,13 @@ def test_population_tool_rules_in_user_char():
     assert "SymPy" in text
     assert "INNAN du väljer social åtgärd" in text
     assert population_tool_rules(OasisRunOptions()) == ""
+
+
+def test_population_tool_rules_wiki_only():
+    text = population_tool_rules(OasisRunOptions(enable_search_wiki=True))
+    assert "search_wiki" in text
+    assert "search_duckduckgo" not in text
+    assert "SymPy" not in text
 
 
 def test_search_toolkit_runtime_dependencies():
@@ -140,7 +202,7 @@ def test_apply_population_agent_tools_skips_injectors():
         (0, injector_agent),
         (1, population_agent),
     ]
-    options = OasisRunOptions(enable_web_search=True)
+    options = OasisRunOptions(enable_search_duckduckgo=True)
 
     apply_population_agent_tools(agent_graph, {1}, options)
 

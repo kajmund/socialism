@@ -98,9 +98,12 @@ Still hardcoded (next slices): OASIS simulation prompts (intentionally Swedish).
 | `/populations/new`, `/populations/:id/edit` | Population builder |
 | `/messages` | Budskapsbibliotek |
 | `/messages/new`, `/messages/:id/edit` | Budskapsverkstad |
-| `/configurations` | Konfigurationer (namn + språk + prompts + grunddata) |
-| `/configurations/new`, `/configurations/:id/edit` | Skapa/redigera konfiguration (flikar Promptinställningar / Grunddata) |
-| `/config` | Redirect → `/configurations` |
+| `/tools` | Verktyg (flikar: konfigurationer, playground, cache) |
+| `/tools/configurations` | Konfigurationer (namn + språk + prompts + SSR-temperatur + grunddata) |
+| `/tools/configurations/new`, `/tools/configurations/:id/edit` | Skapa/redigera konfiguration |
+| `/tools/playground` | Anchor-/SSR-kalibrering + prompt-iteration |
+| `/tools/cache` | Lista/rensa diskcachade SSR-ankarembeddings |
+| `/configurations`, `/playground`, `/config` | Redirect → `/tools/...` |
 | `/reports/:id` | HTML-rapport |
 
 Home is `/` (dashboard). Unknown routes redirect to `/`.

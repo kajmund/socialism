@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import {
   CONFIGURATION_LANGUAGES,
+  DEFAULT_SSR_TEMPERATURE,
   createConfiguration,
   getConfiguration,
   getPromptCatalog,
@@ -11,7 +12,6 @@ import {
   type PromptField,
 } from "@/api/configurations"
 import { CatalogEditor } from "@/components/config/CatalogEditor"
-import { AdminShell } from "@/components/layout/AdminShell"
 import { AdminButton } from "@/components/ui/admin-button"
 import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
 import { ApiError } from "@/lib/api"
@@ -61,6 +61,7 @@ export function ConfigurationEditorPage() {
   const [language, setLanguage] = useState<ConfigurationLanguage>("sv")
   const [isActive, setIsActive] = useState(false)
   const [prompts, setPrompts] = useState<Record<string, string>>({})
+  const [ssrTemperature, setSsrTemperature] = useState(DEFAULT_SSR_TEMPERATURE)
   const [catalog, setCatalog] = useState<PromptCatalog | null>(null)
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null)
   const [topTab, setTopTab] = useState<EditorTopTab>("prompts")
@@ -92,6 +93,7 @@ export function ConfigurationEditorPage() {
         setName(row.name)
         setLanguage(row.language)
         setIsActive(row.is_active)
+        setSsrTemperature(row.ssr_temperature)
         setError(null)
         setRowReady(true)
       } catch (err: unknown) {
@@ -173,6 +175,10 @@ export function ConfigurationEditorPage() {
       setError(t("configurations.editor.nameRequired"))
       return
     }
+    if (!(ssrTemperature > 0)) {
+      setError(t("configurations.editor.ssrTemperatureInvalid"))
+      return
+    }
     setSaving(true)
     setError(null)
     try {
@@ -181,17 +187,19 @@ export function ConfigurationEditorPage() {
           name: trimmedName,
           language,
           prompts,
+          ssr_temperature: ssrTemperature,
           is_active: isActive,
         })
-        navigate("/configurations")
+        navigate("/tools/configurations")
       } else {
         const created = await createConfiguration({
           name: trimmedName,
           language,
           prompts,
+          ssr_temperature: ssrTemperature,
           is_active: isActive,
         })
-        navigate(`/configurations/${created.id}/edit`)
+        navigate(`/tools/configurations/${created.id}/edit`)
       }
     } catch (err: unknown) {
       setError(err instanceof ApiError ? err.message : t("common.saveError"))
@@ -206,10 +214,9 @@ export function ConfigurationEditorPage() {
   }
 
   return (
-    <AdminShell>
-      <div className="wrap">
+    <>
         <div className="mb-4 text-sm text-muted-foreground">
-          <Link to="/configurations" className="no-underline hover:underline">
+          <Link to="/tools/configurations" className="no-underline hover:underline">
             {t("configurations.list.title")}
           </Link>
           <span className="mx-2">/</span>
@@ -290,7 +297,7 @@ export function ConfigurationEditorPage() {
                   type="button"
                   variant="secondary"
                   disabled={saving}
-                  onClick={() => navigate("/configurations")}
+                  onClick={() => navigate("/tools/configurations")}
                 >
                   {t("common.cancel")}
                 </AdminButton>
@@ -376,6 +383,25 @@ export function ConfigurationEditorPage() {
                       aria-labelledby={`prompt-tab-${activeSection.id}`}
                       className="space-y-5"
                     >
+                      {activeSection.id === "report" ? (
+                        <label className="block space-y-1.5">
+                          <span className="text-sm font-medium">
+                            {t("configurations.editor.ssrTemperatureLabel")}
+                          </span>
+                          <span className="block text-xs text-muted-foreground">
+                            {t("configurations.editor.ssrTemperatureHint")}
+                          </span>
+                          <input
+                            type="number"
+                            min={0.001}
+                            max={10}
+                            step={0.001}
+                            className="w-36 rounded-md border border-[color:var(--border-hairline)] bg-db-ink-0 px-3 py-2 font-mono text-sm"
+                            value={ssrTemperature}
+                            onChange={(e) => setSsrTemperature(Number(e.target.value))}
+                          />
+                        </label>
+                      ) : null}
                       {activeSection.fields.map((field) => (
                         <label key={field.key} className="block space-y-1.5">
                           <span className="text-sm font-medium">{field.label}</span>
@@ -410,7 +436,6 @@ export function ConfigurationEditorPage() {
             )}
           </div>
         )}
-      </div>
-    </AdminShell>
+    </>
   )
 }

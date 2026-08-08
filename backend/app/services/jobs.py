@@ -431,9 +431,13 @@ async def _run_report_generate(job_id: str) -> None:
         # Build bundles while session is open, then release before long LLM work.
         bundles = await build_bundles(session, sources)
         out_dir = Path(ARTIFACT_ROOT) / report_id
-        from app.services.prompt_store import require_active_prompts
+        from app.services.prompt_store import (
+            require_active_prompts,
+            require_active_ssr_temperature,
+        )
 
         prompts = await require_active_prompts(session)
+        ssr_temperature = await require_active_ssr_temperature(session)
 
     mode = "full"
     try:
@@ -449,6 +453,7 @@ async def _run_report_generate(job_id: str) -> None:
             locale=locale,
             prompts=prompts,
             mode=mode if mode in ("full", "quick") else "full",
+            ssr_temperature=ssr_temperature,
         )
     except Exception as exc:  # noqa: BLE001 — mark report failed
         async with factory() as session:

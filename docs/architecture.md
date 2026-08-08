@@ -93,6 +93,9 @@ Registered in `backend/app/main.py`:
 | Jobs WS | `WS /ws/jobs` | Snapshot + live `job.updated` fan-out (admin UI) |
 | Chat WS | `WS /ws/chat` | Streaming library / run-interview chat |
 | Reports | `/reports` | Queue report, list, get, `GET /reports/{id}/html` |
+| Playground | `/playground` | Admin calibration: default anchors, SSR rate/compare, prompt side-by-side, agent tools (web search / SymPy; no persistence) |
+| Embeddings cache | `/embeddings/cache` | List/clear disk-backed SSR anchor embeddings |
+| Configurations | `/configurations` | Prompt maps + `ssr_temperature` (report SSR softmax) + per-config catalog; one active globally |
 
 Interactive OpenAPI: `http://localhost:8000/docs`.
 
@@ -148,7 +151,7 @@ Library chat and post-hoc run interviews share the `persona_messages` table but 
 
 ## Frontend surfaces
 
-Admin UI (Devbrains charcoal + gold): `/runs`, `/personas`, `/populations`, `/messages`, `/config`, `/jobs`, `/reports/:id`.
+Admin UI (Devbrains charcoal + gold): `/runs`, `/personas`, `/populations`, `/messages`, `/tools` (configurations / playground / embedding cache), `/jobs`, `/reports/:id`.
 
 Admin pages call FastAPI via `VITE_API_BASE_URL`. Supabase env placeholders are required at frontend boot but auth is not wired yet (`accessToken()` returns null).
 

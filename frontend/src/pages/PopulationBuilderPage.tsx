@@ -462,7 +462,7 @@ export function PopulationBuilderPage() {
               </h1>
               <p>
                 {t("populations.builder.step2BodyPrefix")}{" "}
-                <Link to="/configurations" style={{ color: "var(--db-gold-700)" }}>
+                <Link to="/tools/configurations" style={{ color: "var(--db-gold-700)" }}>
                   {t("populations.builder.configLink")}
                 </Link>
                 {t("populations.builder.step2BodySuffix")}

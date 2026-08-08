@@ -11,6 +11,7 @@ import {
 import { AdminShell, rememberJobPending } from "@/components/layout/AdminShell"
 import { OasisResultsPanel } from "@/components/runs/OasisResultsPanel"
 import { RunActionCard } from "@/components/runs/RunActionCard"
+import { RunAgentToolsFields } from "@/components/runs/RunAgentToolsFields"
 import { RunCreateWizard } from "@/components/runs/RunCreateWizard"
 import { RunIdentityFields } from "@/components/runs/RunIdentityFields"
 import { RunTimelineSection } from "@/components/runs/RunTimelineSection"
@@ -37,8 +38,26 @@ type RunTab = "config" | "results"
 const DEFAULT_OASIS_OPTIONS: OasisRunOptions = {
   platform: "twitter",
   allow_population_create_post: true,
-  enable_web_search: false,
+  enable_search_duckduckgo: false,
+  enable_search_wiki: false,
   enable_sympy_tools: false,
+}
+
+/** Normalize API/DB payloads that may still carry enable_web_search. */
+function normalizeOasisOptions(
+  raw: (Partial<OasisRunOptions> & { enable_web_search?: boolean }) | null | undefined,
+): OasisRunOptions {
+  const legacyWebSearch = raw?.enable_web_search
+  const rest = { ...(raw ?? {}) }
+  delete rest.enable_web_search
+  const base = { ...DEFAULT_OASIS_OPTIONS, ...rest }
+  if (legacyWebSearch === undefined) return base
+  return {
+    ...base,
+    enable_search_duckduckgo:
+      rest.enable_search_duckduckgo ?? Boolean(legacyWebSearch),
+    enable_search_wiki: rest.enable_search_wiki ?? Boolean(legacyWebSearch),
+  }
 }
 
 function parseTab(raw: string | null): RunTab {
@@ -131,10 +150,7 @@ export function ConfigureRunPage() {
               }
             : null,
         )
-        setOasisOptions({
-          ...DEFAULT_OASIS_OPTIONS,
-          ...(run.oasis_options ?? {}),
-        })
+        setOasisOptions(normalizeOasisOptions(run.oasis_options))
         setRunStatus(run.status)
         setResults(run.results)
         if (defaultedTabForRun.current !== runId) {
@@ -593,20 +609,11 @@ export function ConfigureRunPage() {
                         allow_population_create_post: checked,
                       }))
                     }
-                    enableWebSearch={oasisOptions.enable_web_search}
-                    onEnableWebSearchChange={(checked) =>
-                      setOasisOptions((prev) => ({
-                        ...prev,
-                        enable_web_search: checked,
-                      }))
-                    }
-                    enableSympyTools={oasisOptions.enable_sympy_tools}
-                    onEnableSympyToolsChange={(checked) =>
-                      setOasisOptions((prev) => ({
-                        ...prev,
-                        enable_sympy_tools: checked,
-                      }))
-                    }
+                    disabled={configLocked}
+                  />
+                  <RunAgentToolsFields
+                    options={oasisOptions}
+                    onChange={setOasisOptions}
                     disabled={configLocked}
                   />
                 </div>

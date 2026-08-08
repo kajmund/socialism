@@ -54,6 +54,7 @@ def _serialize(row: Configuration) -> ConfigurationOut:
         name=row.name,
         language=language,
         prompts=prompts,
+        ssr_temperature=float(row.ssr_temperature),
         is_active=bool(row.is_active),
         created_at=_dt(row.created_at),
         updated_at=_dt(row.updated_at),
@@ -160,6 +161,7 @@ async def create_configuration(
         name=body.name,
         language=body.language,
         prompts=prompts,
+        ssr_temperature=body.ssr_temperature,
         is_active=body.is_active,
         created_at=now,
         updated_at=now,
@@ -244,6 +246,8 @@ async def update_configuration(
             language=language,
             fill_missing=True,
         )
+    if "ssr_temperature" in data and data["ssr_temperature"] is not None:
+        row.ssr_temperature = float(data["ssr_temperature"])
     if data.get("is_active") is True:
         await _deactivate_others(session, keep_id=row.id)
         row.is_active = True

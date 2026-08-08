@@ -9,7 +9,7 @@ const NAV_ITEMS = [
   { key: "nav.personas" as const, to: "/personas", match: "/personas" },
   { key: "nav.populations" as const, to: "/populations", match: "/populations" },
   { key: "nav.messages" as const, to: "/messages", match: "/messages" },
-  { key: "nav.configurations" as const, to: "/configurations", match: "/configurations" },
+  { key: "nav.tools" as const, to: "/tools", match: "/tools" },
   { key: "nav.runs" as const, to: "/runs", match: "/runs" },
   { key: "nav.jobs" as const, to: "/jobs", match: "/jobs" },
 ]

@@ -47,7 +47,8 @@ export type OasisPlatform = "twitter" | "reddit"
 export type OasisRunOptions = {
   platform: OasisPlatform
   allow_population_create_post: boolean
-  enable_web_search: boolean
+  enable_search_duckduckgo: boolean
+  enable_search_wiki: boolean
   enable_sympy_tools: boolean
 }
 
