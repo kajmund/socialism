@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from html import escape
 
+from app.services.report.bundles import RunBundle
 from app.services.report.locale import (
     ReportLocale,
     display_style_label,
@@ -11,6 +12,12 @@ from app.services.report.locale import (
     runs_label,
 )
 from app.services.report.metrics import ReportMetrics, confidence_badge, fmt_num, pct
+from app.services.report.tick_report import (
+    InterviewQA,
+    TickStatsRow,
+    build_tick_stats,
+    extract_interview_qa,
+)
 
 # Report chart palette (warm paper-adjacent tones for HTML reports)
 C_PRIMARY = "#1E3A55"
@@ -576,8 +583,145 @@ def render_quick_charts(
     return f'<div class="chart-grid">{"".join(parts)}</div>'
 
 
+def _tick_chart_bars(rows: list[TickStatsRow], *, locale: ReportLocale) -> str:
+    if not rows:
+        return ""
+    max_score = max(r.cumulative_engagement_score for r in rows) or 1
+    bars = []
+    for row in rows:
+        h = max(4, round((row.cumulative_engagement_score / max_score) * 100))
+        silent = " tick-silent" if row.silent else ""
+        label = f"D{row.day}" if locale == "en" else f"D{row.day}"
+        bars.append(
+            f'<div class="tick-bar-col{silent}" title="{escape(row.key)}">'
+            f'<div class="tick-bar" style="height:{h}%"></div>'
+            f'<span class="tick-bar-lbl">{label}</span></div>'
+        )
+    title = "Cumulative engagement score by tick" if locale == "en" else "Kumulativ engagemangspoäng per tick"
+    return f'<div class="tick-spark"><div class="tick-spark-title">{title}</div><div class="tick-bars">{"".join(bars)}</div></div>'
+
+
+def _tick_table_rows(rows: list[TickStatsRow], *, locale: ReportLocale) -> str:
+    html_rows = []
+    for row in rows:
+        meas_bits = []
+        for pt in row.measurement_points:
+            meas_bits.append(f"{escape(str(pt.get('label') or pt.get('id') or ''))}: {escape(str(pt.get('summary') or ''))}")
+        meas_cell = "<br/>".join(meas_bits) if meas_bits else "—"
+        silent = " · tyst" if row.silent and locale == "sv" else (" · silent" if row.silent else "")
+        tick_lbl = (
+            f"Tick {row.tick_index + 1} · day {row.day}{silent}"
+            if locale == "en"
+            else f"Tick {row.tick_index + 1} · dag {row.day}{silent}"
+        )
+        html_rows.append(
+            f"<tr><td>{escape(tick_lbl)}</td>"
+            f"<td>{row.window_posts}</td><td>{row.window_comments}</td>"
+            f"<td>{row.window_likes}</td><td>{row.window_shares}</td><td>{row.window_dislikes}</td>"
+            f"<td>{row.window_engagement_score}</td>"
+            f"<td>{row.cumulative_likes}</td><td>{row.cumulative_engagement_score}</td>"
+            f"<td>{meas_cell}</td></tr>"
+        )
+    return "".join(html_rows)
+
+
+def render_tick_timeline(
+    bundles: list[RunBundle],
+    *,
+    locale: ReportLocale = "sv",
+) -> str:
+    if not bundles:
+        return "<p>—</p>"
+    sections = []
+    for bundle in bundles:
+        rows = build_tick_stats(bundle)
+        if not rows:
+            continue
+        if locale == "en":
+            headers = (
+                "<th>Tick</th><th>Posts</th><th>Comments</th><th>Likes</th>"
+                "<th>Shares</th><th>Dislikes</th><th>Tick score</th>"
+                "<th>Cum. likes</th><th>Cum. score</th><th>Measurements</th>"
+            )
+            head = escape(bundle.label)
+        else:
+            headers = (
+                "<th>Tick</th><th>Inlägg</th><th>Kommentarer</th><th>Likes</th>"
+                "<th>Delningar</th><th>Dislikes</th><th>Tick-poäng</th>"
+                "<th>Kum. likes</th><th>Kum. poäng</th><th>Mätpunkter</th>"
+            )
+            head = escape(bundle.label)
+        sections.append(
+            f'<div class="tick-bundle">'
+            f'<h4>{head}</h4>'
+            f"{_tick_chart_bars(rows, locale=locale)}"
+            f'<table class="data-table tick-table"><thead><tr>{headers}</tr></thead>'
+            f"<tbody>{_tick_table_rows(rows, locale=locale)}</tbody></table></div>"
+        )
+    if not sections:
+        empty = "No tick data in this run." if locale == "en" else "Ingen tick-data i körningen."
+        return f"<p>{empty}</p>"
+    return f'<div class="tick-timeline">{"".join(sections)}</div>'
+
+
+def render_interview_qa_section(
+    bundles: list[RunBundle],
+    *,
+    locale: ReportLocale = "sv",
+) -> str:
+    all_qa: list[tuple[str, list[InterviewQA]]] = []
+    for bundle in bundles:
+        qa = extract_interview_qa(bundle)
+        if qa:
+            all_qa.append((bundle.label, qa))
+    if not all_qa:
+        empty = (
+            "No planned tick interviews in this run."
+            if locale == "en"
+            else "Inga planerade tick-intervjuer i körningen."
+        )
+        return f"<p class=\"muted\">{empty}</p>"
+
+    blocks = []
+    for label, qa_list in all_qa:
+        by_tick: dict[int, list[InterviewQA]] = {}
+        for item in qa_list:
+            by_tick.setdefault(item.tick_index, []).append(item)
+        tick_sections = []
+        for tick_index in sorted(by_tick):
+            items = by_tick[tick_index]
+            day = items[0].day
+            tick_title = (
+                f"After tick {tick_index + 1} · day {day}"
+                if locale == "en"
+                else f"Efter tick {tick_index + 1} · dag {day}"
+            )
+            cards = []
+            for item in items:
+                cards.append(
+                    f'<div class="qa-card">'
+                    f'<div class="qa-agent">{escape(item.agent_name)}</div>'
+                    f'<div class="qa-q"><strong>{"Q" if locale == "en" else "F"}:</strong> {escape(item.question)}</div>'
+                    f'<div class="qa-a"><strong>{"A" if locale == "en" else "S"}:</strong> {escape(item.answer)}</div>'
+                    f"</div>"
+                )
+            tick_sections.append(
+                f'<div class="qa-tick"><h5>{escape(tick_title)}</h5>{"".join(cards)}</div>'
+            )
+        blocks.append(
+            f'<div class="qa-bundle"><h4>{escape(label)}</h4>{"".join(tick_sections)}</div>'
+        )
+    intro = (
+        "Questions configured on the run timeline and answered via OASIS INTERVIEW after each tick's reaction rounds."
+        if locale == "en"
+        else "Frågor konfigurerade på körningens tidslinje — besvarade via OASIS INTERVIEW efter tickens reaktionsronder."
+    )
+    return f'<p class="chart-sub">{intro}</p><div class="qa-section">{"".join(blocks)}</div>'
+
+
 def prefill_quick_chart_slots(
     metrics: ReportMetrics,
+    bundles: list[RunBundle],
     *,
     locale: ReportLocale = "sv",
     ab: bool = False,
@@ -585,6 +729,8 @@ def prefill_quick_chart_slots(
     return {
         "stats_html": render_quick_stats_table(metrics, locale=locale),
         "charts_html": render_quick_charts(metrics, locale=locale, ab=ab),
+        "tick_html": render_tick_timeline(bundles, locale=locale),
+        "qa_html": render_interview_qa_section(bundles, locale=locale),
     }
 
 

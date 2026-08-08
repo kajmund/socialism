@@ -28,6 +28,8 @@ class RunBundle:
     measurements: list[dict[str, Any]] = field(default_factory=list)
     follows: list[dict[str, Any]] = field(default_factory=list)
     action_histogram: list[dict[str, Any]] = field(default_factory=list)
+    trace: list[dict[str, Any]] = field(default_factory=list)
+    tick_markers: list[dict[str, Any]] = field(default_factory=list)
     ticks_run: int = 0
     personas: list[dict[str, Any]] = field(default_factory=list)
     variant_labels: list[str] = field(default_factory=list)
@@ -142,6 +144,10 @@ def _bundle_from_variant(
         follows=[f for f in (variant.get("follows") or []) if isinstance(f, dict)],
         action_histogram=[
             h for h in (variant.get("action_histogram") or []) if isinstance(h, dict)
+        ],
+        trace=[t for t in (variant.get("trace") or []) if isinstance(t, dict)],
+        tick_markers=[
+            m for m in (variant.get("tick_markers") or []) if isinstance(m, dict)
         ],
         ticks_run=int(variant.get("ticks_run") or 0),
         personas=personas,
