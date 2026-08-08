@@ -4,6 +4,11 @@ from __future__ import annotations
 
 from app.services.report.bundles import RunBundle
 from app.services.report.classify import BundleClassification, TopicPack
+from app.services.report.charts import (
+    prefill_quick_chart_slots,
+    render_quick_ab_bars,
+    render_quick_stats_table,
+)
 from app.services.report.metrics import BundleMetrics, ReportMetrics, compute_report_metrics
 from app.services.report.quick import (
     _diff_band,
@@ -106,6 +111,14 @@ def _metrics_with_styles(styles: list[tuple[str, float]]) -> ReportMetrics:
         zero_like_agents=0,
         mid_agents=0,
         top_agents=1,
+        post_likes=0,
+        comment_likes=0,
+        likes_total=0,
+        shares=0,
+        dislikes=0,
+        follow_edges=0,
+        engagement_score=0,
+        injection_likes=0,
         topic_shares={"Belysning": 1.0},
         tone_shares=_tone(**{"Neutral": 1.0}),
         style_avg_likes=styles,
@@ -146,3 +159,82 @@ def test_style_html_clear_difference_names_winner():
     assert "Tydlig skillnad" in html
     assert "Vinnande stil" in html
     assert "Näst" in html
+
+
+def test_quick_stats_table_includes_engagement_columns():
+    b = _bundle_with_likes(4)
+    clf = BundleClassification(
+        topic_packs=[TopicPack(label="Belysning", keywords=["belysning"])],
+        topic_shares={"Belysning": 1.0},
+        tone_shares=_tone(**{"Neutral": 1.0}),
+        tone_mode="ssr",
+    )
+    m = compute_report_metrics([b], [clf])
+    html = render_quick_stats_table(m, locale="sv")
+    assert "Likes totalt" in html or "Likes</th>" in html
+    assert "Inj.likes" in html
+    assert "Delningar" in html
+    assert "4" in html
+
+
+def _ab_metrics() -> ReportMetrics:
+    bundles = [
+        RunBundle(
+            label="Version A",
+            run_id=1,
+            run_name="T",
+            attempt_id="a1",
+            seed="1",
+            engine="none",
+            agents=[{"index": 1, "member_name": "Anna", "role": "population"}],
+            posts=[{"post_id": 1, "user_id": 1, "content": "Bra", "num_likes": 10}],
+            comments=[],
+            ticks_run=3,
+            variant_id="a",
+        ),
+        RunBundle(
+            label="Version B",
+            run_id=1,
+            run_name="T",
+            attempt_id="a1",
+            seed="1",
+            engine="none",
+            agents=[{"index": 1, "member_name": "Anna", "role": "population"}],
+            posts=[{"post_id": 1, "user_id": 1, "content": "Uselt", "num_likes": 3}],
+            comments=[],
+            ticks_run=3,
+            variant_id="b",
+        ),
+    ]
+    clfs = [
+        BundleClassification(
+            topic_packs=[TopicPack(label="T", keywords=["t"])],
+            topic_shares={"T": 1.0},
+            tone_shares=_tone(**{"Starkt positiv": 0.6, "Neutral": 0.4}),
+            tone_mode="ssr",
+        ),
+        BundleClassification(
+            topic_packs=[TopicPack(label="T", keywords=["t"])],
+            topic_shares={"T": 1.0},
+            tone_shares=_tone(**{"Starkt negativ": 0.5, "Neutral": 0.5}),
+            tone_mode="ssr",
+        ),
+    ]
+    return compute_report_metrics(bundles, clfs)
+
+
+def test_quick_ab_bars_renders_comparison():
+    m = _ab_metrics()
+    html = render_quick_ab_bars(m, locale="sv")
+    assert "A/B" in html
+    assert "Version A" in html
+    assert "Version B" in html
+    assert "Likes totalt" in html
+
+
+def test_prefill_quick_chart_slots_ab_mode():
+    m = _ab_metrics()
+    slots = prefill_quick_chart_slots(m, locale="sv", ab=True)
+    assert "stats-table" in slots["stats_html"]
+    assert "ab-compare" in slots["charts_html"]
+    assert "ab-tone-grid" in slots["charts_html"]

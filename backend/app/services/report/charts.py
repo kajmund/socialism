@@ -370,19 +370,31 @@ def render_pop_compare(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -
             agents_l = f"{m.agent_count} agents"
             topic_l = "Dominant topic"
             comments_l = "Comments"
+            likes_l = "Total likes"
+            shares_l = "Shares"
+            inj_l = "Injection likes"
         else:
             agents_l = f"{m.agent_count} agenter"
             topic_l = "Dominerande ämne"
             comments_l = "Kommentarer"
+            likes_l = "Likes totalt"
+            shares_l = "Delningar"
+            inj_l = "Likes injicerat"
         cards.append(
             f'<div class="pop-card">'
             f'<div class="pop-head">{escape(m.label)}'
             f"<small>{agents_l}</small></div>"
             f'<div class="pop-body">'
+            f'<div class="pop-row"><span class="pop-row-l">{likes_l}</span>'
+            f'<span class="pop-row-v">{m.likes_total}</span></div>'
+            f'<div class="pop-row"><span class="pop-row-l">{inj_l}</span>'
+            f'<span class="pop-row-v">{m.injection_likes}</span></div>'
             f'<div class="pop-row"><span class="pop-row-l">Gini</span>'
             f'<span class="pop-row-v">{fmt_num(m.gini)}</span></div>'
             f'<div class="pop-row"><span class="pop-row-l">0 likes</span>'
             f'<span class="pop-row-v">{m.zero_like_agents}</span></div>'
+            f'<div class="pop-row"><span class="pop-row-l">{shares_l}</span>'
+            f'<span class="pop-row-v">{m.shares}</span></div>'
             f'<div class="pop-row"><span class="pop-row-l">{topic_l}</span>'
             f'<span class="pop-row-v">{escape(top_topic)}</span></div>'
             f'<div class="pop-row"><span class="pop-row-l">{comments_l}</span>'
@@ -390,6 +402,190 @@ def render_pop_compare(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -
             f"</div></div>"
         )
     return f'<div class="pop-compare">{"".join(cards)}</div>'
+
+
+def _positive_tone_share(tone: dict[str, float], *, locale: ReportLocale) -> float:
+    if locale == "en":
+        return tone.get("Somewhat positive", 0.0) + tone.get("Strongly positive", 0.0)
+    return tone.get("Något positiv", 0.0) + tone.get("Starkt positiv", 0.0)
+
+
+def _ab_bar_row(
+    label: str,
+    values: list[tuple[str, float | int]],
+    *,
+    locale: ReportLocale,
+) -> str:
+    nums = [float(v) for _, v in values]
+    max_v = max(nums) if nums else 1.0
+    if max_v <= 0:
+        max_v = 1.0
+    colors = (C_PRIMARY, C_ORANGE, C_GREEN, C_ROSE)
+    bars = []
+    for i, (arm, val) in enumerate(values):
+        width = max(2, round((float(val) / max_v) * 100))
+        color = colors[i % len(colors)]
+        bars.append(
+            f'<div class="ab-bar-line">'
+            f'<span class="ab-arm">{escape(arm)}</span>'
+            f'<div class="ab-track"><div class="ab-fill" style="width:{width}%;background:{color}"></div></div>'
+            f'<span class="ab-val">{fmt_num(float(val)) if isinstance(val, float) else val}</span>'
+            f"</div>"
+        )
+    return (
+        f'<div class="ab-metric">'
+        f'<div class="ab-metric-label">{escape(label)}</div>'
+        f'<div class="ab-bars">{"".join(bars)}</div></div>'
+    )
+
+
+def render_quick_stats_table(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -> str:
+    if locale == "en":
+        headers = (
+            "<th>Run</th><th>Posts</th><th>Comments</th><th>Likes</th>"
+            "<th>Post likes</th><th>Comment likes</th><th>Shares</th><th>Dislikes</th>"
+            "<th>Inj. likes</th><th>Follows</th><th>Eng. score</th><th>Gini</th><th>0 likes</th>"
+        )
+    else:
+        headers = (
+            "<th>Körning</th><th>Inlägg</th><th>Kommentarer</th><th>Likes</th>"
+            "<th>Inläggslikes</th><th>Kommentarslikes</th><th>Delningar</th><th>Dislikes</th>"
+            "<th>Inj.likes</th><th>Följningar</th><th>Eng.poäng</th><th>Gini</th><th>0 likes</th>"
+        )
+    rows = []
+    for m in metrics.bundles:
+        rows.append(
+            f"<tr><td>{escape(m.label)}</td>"
+            f"<td>{m.post_count}</td><td>{m.comment_count}</td>"
+            f"<td>{m.likes_total}</td><td>{m.post_likes}</td><td>{m.comment_likes}</td>"
+            f"<td>{m.shares}</td><td>{m.dislikes}</td><td>{m.injection_likes}</td>"
+            f"<td>{m.follow_edges}</td><td>{m.engagement_score}</td>"
+            f"<td>{fmt_num(m.gini)}</td><td>{m.zero_like_agents}</td></tr>"
+        )
+    return (
+        '<div class="chart-card wide">'
+        f'<table class="data-table stats-table"><thead><tr>{headers}</tr></thead>'
+        f"<tbody>{''.join(rows)}</tbody></table></div>"
+    )
+
+
+def render_quick_ab_bars(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -> str:
+    if len(metrics.bundles) < 2:
+        return ""
+    arms = [(m.label, m) for m in metrics.bundles]
+    if locale == "en":
+        metrics_spec: list[tuple[str, str]] = [
+            ("Total likes", "likes_total"),
+            ("Injection likes", "injection_likes"),
+            ("Posts", "post_count"),
+            ("Comments", "comment_count"),
+            ("Shares", "shares"),
+            ("Dislikes", "dislikes"),
+            ("Follow edges", "follow_edges"),
+            ("Engagement score", "engagement_score"),
+            ("Positive SSR tone", "_pos_tone"),
+            ("Gini (inequality)", "gini"),
+            ("Agents with 0 likes", "zero_like_agents"),
+        ]
+        title = "A/B — key metrics compared"
+        sub = "Bar length is relative within each metric (longest arm = 100%)"
+    else:
+        metrics_spec = [
+            ("Likes totalt", "likes_total"),
+            ("Likes på injicerat budskap", "injection_likes"),
+            ("Inlägg", "post_count"),
+            ("Kommentarer", "comment_count"),
+            ("Delningar", "shares"),
+            ("Dislikes", "dislikes"),
+            ("Följkanter", "follow_edges"),
+            ("Engagemangspoäng", "engagement_score"),
+            ("Positiv SSR-ton", "_pos_tone"),
+            ("Gini (ojämlikhet)", "gini"),
+            ("Agenter utan likes", "zero_like_agents"),
+        ]
+        title = "A/B — nyckeltal jämförda"
+        sub = "Stapelns längd är relativ inom varje mått (längsta arm = 100 %)"
+    rows = []
+    for label, key in metrics_spec:
+        vals: list[tuple[str, float | int]] = []
+        for arm_label, m in arms:
+            if key == "_pos_tone":
+                vals.append((arm_label, round(_positive_tone_share(m.tone_shares, locale=locale), 3)))
+            elif key == "gini":
+                vals.append((arm_label, m.gini))
+            else:
+                vals.append((arm_label, int(getattr(m, key))))
+        rows.append(_ab_bar_row(label, vals, locale=locale))
+    return (
+        '<div class="chart-card wide">'
+        f"<h4>{title}</h4>"
+        f'<div class="chart-sub">{sub}</div>'
+        f'<div class="ab-compare">{"".join(rows)}</div></div>'
+    )
+
+
+def render_ab_tone_donuts(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -> str:
+    if len(metrics.bundles) < 2:
+        return ""
+    cards = []
+    for m in metrics.bundles:
+        mini = ReportMetrics(
+            n_runs=1,
+            bundles=[m],
+            aggregate=m,
+            cross_table=[],
+            tone_mode=metrics.tone_mode,
+        )
+        cards.append(
+            f'<div class="ab-tone-card"><div class="ab-tone-head">{escape(m.label)}</div>'
+            f"{render_tone_donut(mini, locale=locale)}</div>"
+        )
+    if locale == "en":
+        title = "SSR tone distribution per arm"
+    else:
+        title = "SSR-tonfördelning per arm"
+    return (
+        '<div class="chart-card wide">'
+        f"<h4>{title}</h4>"
+        f'<div class="ab-tone-grid">{"".join(cards)}</div></div>'
+    )
+
+
+def render_quick_charts(
+    metrics: ReportMetrics,
+    *,
+    locale: ReportLocale = "sv",
+    ab: bool = False,
+) -> str:
+    parts = [
+        render_engagement_donut(metrics, locale=locale),
+        render_tone_donut(metrics, locale=locale),
+        render_topic_donut(metrics, locale=locale),
+        render_style_hbars(metrics, locale=locale),
+    ]
+    if ab:
+        parts.extend(
+            [
+                render_quick_ab_bars(metrics, locale=locale),
+                render_ab_tone_donuts(metrics, locale=locale),
+                render_pop_compare(metrics, locale=locale),
+            ]
+        )
+    else:
+        parts.append(render_agents_html(metrics, locale=locale))
+    return f'<div class="chart-grid">{"".join(parts)}</div>'
+
+
+def prefill_quick_chart_slots(
+    metrics: ReportMetrics,
+    *,
+    locale: ReportLocale = "sv",
+    ab: bool = False,
+) -> dict[str, str]:
+    return {
+        "stats_html": render_quick_stats_table(metrics, locale=locale),
+        "charts_html": render_quick_charts(metrics, locale=locale, ab=ab),
+    }
 
 
 def render_appendix_tables(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -> str:
