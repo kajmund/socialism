@@ -520,6 +520,8 @@ async def test_generate_quick_report_skips_deepseek(tmp_path: Path):
         assert "Statistik" in html or "Static statistics" in html
         assert "chart-grid" in html
         assert "stats-table" in html
+        assert "Simulerat stöd" in html
+        assert "Målgruppsanalys" in html
         assert "tech" in html
         assert slots.get("verdict_label")
         assert timing["classify_llm_seconds"] == 0.0
