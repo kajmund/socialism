@@ -9,7 +9,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.database.models import Population, Run
+from app.database.models import Population, PopulationMember, Run
+from app.services.report.persona_bio import persona_record_from_member
 from app.schemas.domain import Tick
 from app.services.oasis_run import previous_attempts, variant_plans
 
@@ -103,19 +104,24 @@ async def _load_personas(session: AsyncSession, run: Run) -> list[dict[str, Any]
     stmt = (
         select(Population)
         .where(Population.id == run.population_id)
-        .options(selectinload(Population.members))
+        .options(
+            selectinload(Population.members).selectinload(PopulationMember.persona)
+        )
     )
     pop = (await session.execute(stmt)).scalar_one_or_none()
     if pop is not None:
         for m in pop.members:
+            profile_data = m.persona.profile if m.persona else None
             personas.append(
-                {
-                    "name": m.name,
-                    "age": m.age,
-                    "occ": m.occ,
-                    "district": m.district,
-                    "trait": m.trait,
-                }
+                persona_record_from_member(
+                    persona_id=m.persona_id,
+                    name=m.name,
+                    age=m.age,
+                    occ=m.occ,
+                    district=m.district,
+                    trait=m.trait,
+                    profile_data=profile_data if isinstance(profile_data, dict) else None,
+                )
             )
     return personas
 
