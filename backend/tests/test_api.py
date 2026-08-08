@@ -944,6 +944,36 @@ async def test_catalog_scoped_per_configuration(client):
     assert "EndastAktiv" not in [i["label"] for i in runtime2.json()["items"]]
 
 
+async def test_catalog_ort_cleared_description_persists(client):
+    """Clearing an ort description must not be reverted by ensure on GET."""
+    listed = await client.get("/configurations")
+    active = next(c for c in listed.json() if c["is_active"])
+
+    cleared = await client.put(
+        f"/configurations/{active['id']}/catalog/ort",
+        json={
+            "items": [
+                {
+                    "label": "Centrum",
+                    "description": "",
+                    "bounds": {
+                        "south": 58.58,
+                        "west": 16.17,
+                        "north": 58.59,
+                        "east": 16.19,
+                    },
+                }
+            ]
+        },
+    )
+    assert cleared.status_code == 200
+    assert cleared.json()["items"][0]["description"] == ""
+
+    after_get = await client.get(f"/configurations/{active['id']}/catalog/ort")
+    assert after_get.status_code == 200
+    assert after_get.json()["items"][0]["description"] == ""
+
+
 def test_format_area_block_includes_relative_hint():
     from app.schemas.domain import GeoBounds
     from app.services.district_context import DistrictContext, format_area_block

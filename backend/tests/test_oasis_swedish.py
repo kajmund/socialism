@@ -1,6 +1,11 @@
 import asyncio
 
+import pytest
+
+from app.services.prompt_catalog import default_prompts
 from app.services.oasis_swedish import (
+    _env_prompt_state,
+    apply_swedish_social_environment_prompts,
     enrich_feed_posts,
     set_oasis_user_display_names,
 )
@@ -63,3 +68,22 @@ async def test_display_names_are_isolated_across_concurrent_tasks():
     )
     assert a == "Version A sender"
     assert b == "Version B sender"
+
+
+async def test_env_prompts_are_isolated_across_concurrent_tasks():
+    """Concurrent OASIS jobs must not clobber feed env templates."""
+    pytest.importorskip("oasis")
+
+    async def empty_posts_for(marker: str) -> str:
+        prompts = dict(default_prompts("sv"))
+        prompts["oasis.env.empty_posts"] = marker
+        apply_swedish_social_environment_prompts(prompts)
+        await asyncio.sleep(0.01)
+        return _env_prompt_state().empty_posts
+
+    a, b = await asyncio.gather(
+        empty_posts_for("EMPTY-A"),
+        empty_posts_for("EMPTY-B"),
+    )
+    assert a == "EMPTY-A"
+    assert b == "EMPTY-B"
