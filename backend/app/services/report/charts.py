@@ -12,6 +12,9 @@ from app.services.report.locale import (
     runs_label,
 )
 from app.services.report.metrics import ReportMetrics, confidence_badge, fmt_num, pct
+from app.services.report.recommendation import QuickRecommendation
+from app.services.report.segment_analysis import AudienceSegmentSummary, build_audience_summaries
+from app.services.report.classify import BundleClassification
 from app.services.report.tick_report import (
     InterviewQA,
     TickStatsRow,
@@ -719,18 +722,123 @@ def render_interview_qa_section(
     return f'<p class="chart-sub">{intro}</p><div class="qa-section">{"".join(blocks)}</div>'
 
 
+def render_recommendation_block(
+    rec: QuickRecommendation,
+    *,
+    locale: ReportLocale = "sv",
+) -> str:
+    if locale == "en":
+        h_str, h_risk, h_imp, h_traj = "Strengths", "Risks", "Suggested improvements", "Trajectory"
+    else:
+        h_str, h_risk, h_imp, h_traj = "Styrkor", "Risker", "Rekommenderade förbättringar", "Utveckling"
+    parts = [f'<p class="rec-headline"><strong>{escape(rec.headline)}</strong></p>']
+    if rec.strengths:
+        items = "".join(f"<li>{escape(s)}</li>" for s in rec.strengths)
+        parts.append(f"<p class=\"rec-sub\"><strong>{h_str}:</strong></p><ul class=\"rec-list\">{items}</ul>")
+    if rec.risks:
+        items = "".join(f"<li>{escape(r)}</li>" for r in rec.risks)
+        parts.append(f"<p class=\"rec-sub\"><strong>{h_risk}:</strong></p><ul class=\"rec-list\">{items}</ul>")
+    if rec.improvements:
+        items = "".join(f"<li>{escape(i)}</li>" for i in rec.improvements)
+        parts.append(f"<p class=\"rec-sub\"><strong>{h_imp}:</strong></p><ul class=\"rec-list\">{items}</ul>")
+    if rec.trajectory:
+        parts.append(f"<p class=\"rec-traj\"><strong>{h_traj}:</strong> {escape(rec.trajectory)}</p>")
+    return f'<div class="recommendation-block">{"".join(parts)}</div>'
+
+
+def render_audience_section(
+    bundles: list[RunBundle],
+    classifications: list[BundleClassification],
+    *,
+    locale: ReportLocale = "sv",
+) -> str:
+    if not bundles:
+        return "<p>—</p>"
+    intro = (
+        "Target-group view from persona bio (life situation, district, leaning) "
+        "× SSR on reactions and planned tick interviews."
+        if locale == "en"
+        else "Målgruppsvy från persona-bio (livssituation, ort, lutning) "
+        "× SSR på reaktioner och planerade tick-intervjuer."
+    )
+    blocks: list[str] = []
+    for bundle, clf in zip(bundles, classifications, strict=True):
+        summaries = build_audience_summaries(bundle, clf, locale=locale)
+        if not summaries:
+            continue
+        rows_html: list[str] = []
+        for seg in summaries:
+            tone = seg.tone
+            if tone and not tone.too_few:
+                pos = pct(tone.positive_share)
+                crit = pct(tone.critical_share)
+                stat = (
+                    f"SSR +{pos} / −{crit} · {tone.text_count} texts · eng. {tone.engagement_score}"
+                    if locale == "en"
+                    else f"SSR +{pos} / −{crit} · {tone.text_count} texter · eng. {tone.engagement_score}"
+                )
+            elif tone and tone.too_few:
+                stat = "Too few reactions in segment" if locale == "en" else "För få reaktioner i segmentet"
+            else:
+                stat = "Interviews only" if locale == "en" else "Endast intervjuer"
+            theme_lbl = ""
+            if seg.themes:
+                theme_lbl = (
+                    f'<span class="aud-themes">{escape(", ".join(seg.themes))}</span>'
+                )
+            iv_html = ""
+            if seg.interviews:
+                iv_bits = []
+                for iv in seg.interviews[:2]:
+                    iv_bits.append(
+                        f'<div class="aud-iv"><span class="aud-iv-agent">{escape(iv.agent_name)}:</span> '
+                        f"{escape(iv.answer[:160])}</div>"
+                    )
+                iv_html = "".join(iv_bits)
+            rows_html.append(
+                f'<div class="aud-seg">'
+                f'<div class="aud-seg-head">'
+                f'<span class="aud-dim">{escape(seg.dimension_label)}</span> '
+                f'<strong>{escape(seg.label)}</strong></div>'
+                f'<div class="aud-stat">{escape(stat)}{theme_lbl}</div>{iv_html}</div>'
+            )
+        if rows_html:
+            blocks.append(
+                f'<div class="aud-bundle"><h4>{escape(bundle.label)}</h4>{"".join(rows_html)}</div>'
+            )
+    if not blocks:
+        empty = (
+            "No segment data — ensure personas have bio fields and reactions/interviews exist."
+            if locale == "en"
+            else "Ingen segmentdata — personas behöver bio-fält och reaktioner/intervjuer i körningen."
+        )
+        return f'<p class="muted">{empty}</p>'
+    return f'<p class="chart-sub">{intro}</p><div class="audience-section">{"".join(blocks)}</div>'
+
+
 def prefill_quick_chart_slots(
     metrics: ReportMetrics,
     bundles: list[RunBundle],
+    classifications: list[BundleClassification] | None = None,
     *,
     locale: ReportLocale = "sv",
     ab: bool = False,
+    recommendation: QuickRecommendation | None = None,
 ) -> dict[str, str]:
+    clfs = classifications or []
+    aud_html = (
+        render_audience_section(bundles, clfs, locale=locale)
+        if clfs and len(clfs) == len(bundles)
+        else ""
+    )
+    rec_html = render_recommendation_block(recommendation, locale=locale) if recommendation else ""
     return {
         "stats_html": render_quick_stats_table(metrics, locale=locale),
         "charts_html": render_quick_charts(metrics, locale=locale, ab=ab),
         "tick_html": render_tick_timeline(bundles, locale=locale),
         "qa_html": render_interview_qa_section(bundles, locale=locale),
+        "audience_html": aud_html,
+        "recommendation_html": rec_html,
     }
 
 
