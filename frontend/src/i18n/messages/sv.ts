@@ -1145,6 +1145,10 @@ export const sv = {
     locale: "Ankarspråk",
     localeSv: "Svenska",
     localeEn: "English",
+    librarySetLabel: "Biblioteksankare",
+    librarySetDefault: "Inbyggda defaults",
+    librarySetEdit: "Redigera i biblioteket",
+    compareLibraryTone: "Tonankare från biblioteket: {name} (väljs under Anchor-kalibrering).",
     temperature: "Temperatur",
     temperatureHint:
       "Lägre värde skärper fördelningen (softmax). 1,0 ger ofta nästan jämna andelar när cosine-värdena ligger nära varandra.",

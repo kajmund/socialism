@@ -364,7 +364,7 @@ ConfigurationLanguage = Literal["sv", "en", "nb"]
 DEFAULT_SSR_TEMPERATURE = 0.1
 
 AnchorKind = Literal["tone", "style"]
-AnchorLocale = Literal["sv", "en"]
+AnchorLocale = Literal["sv", "en", "nb"]
 AnchorStatus = Literal["draft", "published"]
 
 
@@ -376,6 +376,7 @@ class ConfigurationAnchorRef(BaseModel):
 class ConfigurationAnchorSets(BaseModel):
     sv: ConfigurationAnchorRef
     en: ConfigurationAnchorRef
+    nb: ConfigurationAnchorRef
 
 
 class ConfigurationOut(BaseModel):

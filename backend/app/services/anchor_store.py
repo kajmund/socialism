@@ -11,14 +11,18 @@ from app.database.models import Configuration, SsrAnchorCalibrationItem, SsrAnch
 from app.services.report.locale import ReportLocale, normalize_locale
 from app.services.ssr.anchors import (
     STYLE_ANCHORS_EN,
+    STYLE_ANCHORS_NB,
     STYLE_ANCHORS_SV,
     TONE_ANCHORS_EN,
+    TONE_ANCHORS_NB,
     TONE_ANCHORS_SV,
     AnchorSet,
 )
 
 AnchorKind = Literal["tone", "style"]
-AnchorLocale = Literal["sv", "en"]
+AnchorLocale = Literal["sv", "en", "nb"]
+
+ANCHOR_LOCALES: tuple[AnchorLocale, ...] = ("sv", "en", "nb")
 AnchorStatus = Literal["draft", "published"]
 
 
@@ -54,9 +58,16 @@ def row_to_anchor_set(row: SsrAnchorSet) -> AnchorSet:
 def default_anchor_sets_payload() -> list[dict]:
     """Seed rows mirroring app.services.ssr.anchors v1."""
     rows: list[dict] = []
-    for anchor in (TONE_ANCHORS_SV, TONE_ANCHORS_EN, STYLE_ANCHORS_SV, STYLE_ANCHORS_EN):
+    for anchor in (
+        TONE_ANCHORS_SV,
+        TONE_ANCHORS_EN,
+        TONE_ANCHORS_NB,
+        STYLE_ANCHORS_SV,
+        STYLE_ANCHORS_EN,
+        STYLE_ANCHORS_NB,
+    ):
         kind: AnchorKind = "tone" if anchor.name.startswith("tone_") else "style"
-        locale: AnchorLocale = "en" if anchor.name.endswith("_en") else "sv"
+        locale: AnchorLocale = anchor.name.rsplit("_", 1)[-1]  # type: ignore[assignment]
         rows.append(
             {
                 "name": anchor.name,
@@ -85,14 +96,16 @@ async def _published_by_kind_locale(
 
 
 async def ensure_default_anchor_sets(session: AsyncSession) -> int:
-    """Seed v1 anchor sets from code constants if the library is empty."""
-    count = await session.scalar(select(SsrAnchorSet.id).limit(1))
-    if count is not None:
-        return 0
+    """Seed missing v1 anchor sets from code constants."""
     from app.serializers import utcnow
 
+    published = await _published_by_kind_locale(session)
+    added = 0
     now = utcnow()
     for payload in default_anchor_sets_payload():
+        key = (payload["kind"], payload["locale"])
+        if key in published:
+            continue
         session.add(
             SsrAnchorSet(
                 **payload,
@@ -100,14 +113,16 @@ async def ensure_default_anchor_sets(session: AsyncSession) -> int:
                 updated_at=now,
             )
         )
-    await session.commit()
-    return len(default_anchor_sets_payload())
+        added += 1
+    if added:
+        await session.commit()
+    return added
 
 
 async def default_anchor_refs(session: AsyncSession) -> dict[str, AnchorRef]:
     published = await _published_by_kind_locale(session)
     refs: dict[str, AnchorRef] = {}
-    for loc in ("sv", "en"):
+    for loc in ANCHOR_LOCALES:
         tone = published.get(("tone", loc))
         style = published.get(("style", loc))
         if tone is None or style is None:
@@ -125,9 +140,13 @@ async def backfill_configuration_anchor_sets(session: AsyncSession) -> int:
     changed = 0
     for row in result.scalars().all():
         current = dict(row.anchor_sets or {})
-        if current.get("sv") and current.get("en"):
+        if all(_has_locale_refs(current, loc) for loc in ANCHOR_LOCALES):
             continue
-        row.anchor_sets = refs
+        merged = {loc: dict(refs[loc]) for loc in ANCHOR_LOCALES}
+        for loc in ANCHOR_LOCALES:
+            if current.get(loc):
+                merged[loc] = current[loc]
+        row.anchor_sets = merged
         from app.serializers import utcnow
 
         row.updated_at = utcnow()
@@ -141,10 +160,19 @@ def configuration_anchor_sets_out(raw: dict | None) -> dict[str, dict[str, int]]
     refs = dict(raw or {})
     sv = refs.get("sv") if isinstance(refs.get("sv"), dict) else {}
     en = refs.get("en") if isinstance(refs.get("en"), dict) else {}
+    nb = refs.get("nb") if isinstance(refs.get("nb"), dict) else {}
     return {
         "sv": {"tone": int(sv.get("tone") or 0), "style": int(sv.get("style") or 0)},
         "en": {"tone": int(en.get("tone") or 0), "style": int(en.get("style") or 0)},
+        "nb": {"tone": int(nb.get("tone") or 0), "style": int(nb.get("style") or 0)},
     }
+
+
+def _has_locale_refs(current: dict, loc: str) -> bool:
+    block = current.get(loc)
+    if not isinstance(block, dict):
+        return False
+    return int(block.get("tone") or 0) > 0 and int(block.get("style") or 0) > 0
 
 
 async def get_anchor_set_row(session: AsyncSession, anchor_set_id: int) -> SsrAnchorSet | None:
@@ -158,7 +186,7 @@ async def require_anchor_set_row(session: AsyncSession, anchor_set_id: int) -> S
     return row
 
 
-def _validate_anchor_row(row: SsrAnchorSet, *, kind: AnchorKind, locale: ReportLocale) -> None:
+def _validate_anchor_row(row: SsrAnchorSet, *, kind: AnchorKind, locale: AnchorLocale) -> None:
     if row.status != "published":
         raise AnchorResolutionError(
             f"SSR anchor set '{row.name}' (id={row.id}) is not published"
@@ -177,7 +205,7 @@ async def validate_configuration_anchor_refs(
     session: AsyncSession,
     refs: dict[str, dict[str, int]],
 ) -> None:
-    for loc in ("sv", "en"):
+    for loc in ANCHOR_LOCALES:
         block = refs.get(loc)
         if not isinstance(block, dict):
             raise ValueError(f"anchor_sets[{loc!r}] is required")
@@ -186,7 +214,7 @@ async def validate_configuration_anchor_refs(
             if anchor_id <= 0:
                 raise ValueError(f"anchor_sets[{loc!r}].{kind} must be a positive id")
             row = await require_anchor_set_row(session, anchor_id)
-            _validate_anchor_row(row, kind=kind, locale=loc)  # type: ignore[arg-type]
+            _validate_anchor_row(row, kind=kind, locale=loc)
 
 
 async def resolve_anchor_set_for_config(
@@ -266,8 +294,8 @@ def validate_anchor_payload(
         raise ValueError("tone anchor sets must have exactly 5 labels")
     if kind == "style" and len(labels) != 6:
         raise ValueError("style anchor sets must have exactly 6 labels")
-    if locale not in ("sv", "en"):
-        raise ValueError("locale must be sv or en")
+    if locale not in ANCHOR_LOCALES:
+        raise ValueError("locale must be sv, en, or nb")
 
 
 async def calibration_items(
@@ -283,6 +311,7 @@ async def calibration_items(
 
 
 __all__ = [
+    "ANCHOR_LOCALES",
     "AnchorKind",
     "AnchorLocale",
     "AnchorRef",
