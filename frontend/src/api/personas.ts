@@ -109,8 +109,10 @@ export function clearPersonaMessages(id: string, mode: ChatMode): Promise<void> 
 export function deletePersonaMessage(
   id: string,
   messageId: number,
-): Promise<void> {
-  return api.delete(`/personas/${id}/messages/${messageId}`)
+): Promise<{ deleted_ids: number[] }> {
+  return api.delete<{ deleted_ids: number[] }>(
+    `/personas/${id}/messages/${messageId}`,
+  )
 }
 
 export function resendPersonaMessage(

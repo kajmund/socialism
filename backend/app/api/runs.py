@@ -13,6 +13,7 @@ from app.llm.chat import build_run_interview_prompt, reply_as_persona
 from app.services.prompt_store import require_active_prompts
 from app.schemas.domain import (
     JobCreate,
+    OasisRunOptions,
     PersonaChatResponse,
     PersonaMessageOut,
     RunCreate,
@@ -60,8 +61,10 @@ def _branch_payload(branch) -> dict | None:
 
 def _oasis_options_payload(options) -> dict:
     if options is None:
-        return {}
-    return options.model_dump() if hasattr(options, "model_dump") else dict(options)
+        return OasisRunOptions().model_dump()
+    if isinstance(options, OasisRunOptions):
+        return options.model_dump()
+    return OasisRunOptions.model_validate(options).model_dump()
 
 
 async def _snapshot_message_bodies(session: AsyncSession, run: Run) -> None:

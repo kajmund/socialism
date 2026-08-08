@@ -48,7 +48,7 @@ export const api = {
   patch<T>(path: string, body?: unknown): Promise<T> {
     return call<T>(path, { method: "PATCH", body })
   },
-  delete(path: string): Promise<void> {
-    return call<void>(path, { method: "DELETE" })
+  delete<T = void>(path: string): Promise<T> {
+    return call<T>(path, { method: "DELETE" })
   },
 }

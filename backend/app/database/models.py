@@ -1,6 +1,17 @@
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
 
@@ -149,7 +160,7 @@ class Message(Base):
 
 
 class Configuration(Base):
-    """Named prompt configuration: language + map of prompt key → text."""
+    """Named prompt + grunddata configuration: language, prompts map, catalog lists."""
 
     __tablename__ = "configurations"
 
@@ -157,6 +168,8 @@ class Configuration(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     language: Mapped[str] = mapped_column(String(8), nullable=False, index=True)
     prompts: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    # Softmax temperature for report SSR (tone/style). Lower = sharper label shares.
+    ssr_temperature: Mapped[float] = mapped_column(Float, nullable=False, default=0.1)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -170,13 +183,27 @@ class Configuration(Base):
         nullable=False,
     )
 
+    catalog_lists: Mapped[list["CatalogList"]] = relationship(
+        back_populates="configuration",
+        cascade="all, delete-orphan",
+    )
+
 
 class CatalogList(Base):
-    """Editable master-data option lists for persona composer dropdowns."""
+    """Editable master-data option lists scoped to a configuration."""
 
     __tablename__ = "catalog_lists"
+    __table_args__ = (
+        UniqueConstraint("configuration_id", "key", name="uq_catalog_lists_config_key"),
+    )
 
-    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    configuration_id: Mapped[int] = mapped_column(
+        ForeignKey("configurations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    key: Mapped[str] = mapped_column(String(64), nullable=False)
     section: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     items: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
@@ -186,6 +213,8 @@ class CatalogList(Base):
         onupdate=func.now(),
         nullable=False,
     )
+
+    configuration: Mapped["Configuration"] = relationship(back_populates="catalog_lists")
 
 
 class Job(Base):
@@ -224,6 +253,7 @@ class Report(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending", index=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     locale: Mapped[str] = mapped_column(String(8), nullable=False, default="sv")
+    mode: Mapped[str] = mapped_column(String(16), nullable=False, default="full")
     sources: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     html_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     slots_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)

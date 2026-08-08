@@ -94,6 +94,72 @@ async def test_llm_persona_anecdote_uses_structured_completer(monkeypatch):
     assert "Centrum" in text
 
 
+@pytest.mark.asyncio
+async def test_llm_persona_anecdote_retries_on_validation_error():
+    from app.llm import set_structured_completer
+    from app.schemas.domain import PersonaAnecdoteOut
+    from pydantic import ValidationError
+
+    attempts = {"n": 0}
+
+    async def stub(messages, response_model):
+        attempts["n"] += 1
+        if attempts["n"] == 1:
+            raise ValidationError.from_exception_data(
+                "PersonaAnecdoteOut",
+                [
+                    {
+                        "type": "value_error",
+                        "loc": ("anekdot",),
+                        "input": "too long",
+                        "ctx": {"error": ValueError("anekdot exceeds 20 words")},
+                    }
+                ],
+            )
+        # Retry feedback should have been appended.
+        assert any("exceeds 20 words" in m["content"] for m in messages)
+        return PersonaAnecdoteOut(
+            anekdot="Igår mötte jag en kollega vid affären i Centrum."
+        )
+
+    set_structured_completer(stub)
+    try:
+        text = await llm_persona_anecdote(_profile(), prompts=default_prompts("sv"))
+    finally:
+        set_structured_completer(None)
+
+    assert attempts["n"] == 2
+    assert "Centrum" in text
+    assert len(text.split()) <= 20
+
+
+@pytest.mark.asyncio
+async def test_llm_persona_anecdote_skips_after_retries():
+    from app.llm import set_structured_completer
+    from pydantic import ValidationError
+
+    async def stub(messages, response_model):
+        raise ValidationError.from_exception_data(
+            "PersonaAnecdoteOut",
+            [
+                {
+                    "type": "value_error",
+                    "loc": ("anekdot",),
+                    "input": "too long",
+                    "ctx": {"error": ValueError("anekdot exceeds 20 words")},
+                }
+            ],
+        )
+
+    set_structured_completer(stub)
+    try:
+        text = await llm_persona_anecdote(_profile(), prompts=default_prompts("sv"))
+    finally:
+        set_structured_completer(None)
+
+    assert text == "—"
+
+
 def test_sample_slot_does_not_assign_anekdot():
     recipe = PopulationRecipe(
         size=1,

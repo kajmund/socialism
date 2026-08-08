@@ -29,7 +29,13 @@ class EditablePersona(BaseModel):
 
 
 class PersonaAnecdoteOut(BaseModel):
-    anekdot: str = Field(min_length=8, max_length=220)
+    # ~20 Swedish words ≈ 120–140 chars; keep a hard char cap in the JSON schema
+    # so the model sees a bound (word-count is enforced in the validator).
+    anekdot: str = Field(
+        min_length=8,
+        max_length=140,
+        description="One short Swedish everyday sentence, at most 20 words.",
+    )
 
     @field_validator("anekdot")
     @classmethod
@@ -229,6 +235,10 @@ class PersonaChatResponse(BaseModel):
     messages: list[PersonaMessageOut]
 
 
+class PersonaMessageDeleteResponse(BaseModel):
+    deleted_ids: list[int]
+
+
 class RunPersonaInterviewRequest(BaseModel):
     through_tick_index: int = Field(ge=0)
     message: str = Field(min_length=1)
@@ -350,11 +360,16 @@ def new_message_id() -> str:
 ConfigurationLanguage = Literal["sv", "en", "nb"]
 
 
+# Default matches playground calibration default (sharper than Softmax T=1.0).
+DEFAULT_SSR_TEMPERATURE = 0.1
+
+
 class ConfigurationOut(BaseModel):
     id: int
     name: str
     language: ConfigurationLanguage
     prompts: dict[str, str]
+    ssr_temperature: float
     is_active: bool
     created_at: str
     updated_at: str
@@ -364,6 +379,7 @@ class ConfigurationCreate(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     language: ConfigurationLanguage
     prompts: dict[str, str] = Field(default_factory=dict)
+    ssr_temperature: float = Field(default=DEFAULT_SSR_TEMPERATURE, gt=0, le=10)
     is_active: bool = False
 
     @field_validator("name", mode="before")
@@ -376,6 +392,7 @@ class ConfigurationUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=255)
     language: ConfigurationLanguage | None = None
     prompts: dict[str, str] | None = None
+    ssr_temperature: float | None = Field(default=None, gt=0, le=10)
     is_active: bool | None = None
 
     @field_validator("name", mode="before")
@@ -436,8 +453,26 @@ class OasisRunOptions(BaseModel):
 
     platform: OasisPlatform = "twitter"
     allow_population_create_post: bool = True
-    enable_web_search: bool = False
+    enable_search_duckduckgo: bool = False
+    enable_search_wiki: bool = False
     enable_sympy_tools: bool = False
+
+    @model_validator(mode="before")
+    @classmethod
+    def expand_legacy_web_search(cls, data: Any) -> Any:
+        """Map deprecated enable_web_search → both search flags when unset."""
+        if not isinstance(data, dict):
+            return data
+        out = dict(data)
+        legacy = out.pop("enable_web_search", None)
+        if legacy is None:
+            return out
+        enabled = bool(legacy)
+        if "enable_search_duckduckgo" not in out:
+            out["enable_search_duckduckgo"] = enabled
+        if "enable_search_wiki" not in out:
+            out["enable_search_wiki"] = enabled
+        return out
 
 
 class RunSummary(BaseModel):
@@ -599,6 +634,7 @@ class ReportCreate(BaseModel):
     sources: list[ReportSource] = Field(min_length=1)
     title: str = ""
     locale: Literal["sv", "en"] = "sv"
+    mode: Literal["full", "quick"] = "full"
 
 
 class ReportOut(BaseModel):
@@ -606,6 +642,7 @@ class ReportOut(BaseModel):
     status: ReportStatus
     title: str
     locale: Literal["sv", "en"] = "sv"
+    mode: Literal["full", "quick"] = "full"
     sources: list[ReportSource]
     html_path: str | None = None
     slots_path: str | None = None

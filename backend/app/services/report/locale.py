@@ -7,6 +7,7 @@ from typing import Literal
 
 from app.services.report.bundles import RunBundle, is_ab_comparison
 from app.services.report.render import ASSETS_DIR
+from app.services.ssr.anchors import TONE_LABELS_EN, TONE_LABELS_SV
 
 ReportLocale = Literal["sv", "en"]
 
@@ -67,19 +68,8 @@ def other_topic_label(locale: ReportLocale) -> str:
 
 
 def tone_labels(locale: ReportLocale) -> tuple[str, ...]:
-    if locale == "en":
-        return (
-            "Critical / resigned",
-            "Constructive",
-            "Positive / hopeful",
-            "Neutral / unclassified",
-        )
-    return (
-        "Kritisk / uppgiven",
-        "Konstruktiv",
-        "Positiv / hoppfull",
-        "Neutral / oklassad",
-    )
+    """Five-level SSR tone scale (Semantic Similarity Rating)."""
+    return TONE_LABELS_EN if locale == "en" else TONE_LABELS_SV
 
 
 def meta_topics_fallback(locale: ReportLocale) -> str:
@@ -88,7 +78,7 @@ def meta_topics_fallback(locale: ReportLocale) -> str:
     return "Se ämnesfördelning i rapporten"
 
 
-# Internal style keys stay Swedish (keyword heuristics); display may be English.
+# Internal style keys stay Swedish (SSR anchor labels); display may be English.
 _STYLE_LABEL_EN: dict[str, str] = {
     "Sarkastisk + konkret kritik": "Sarcastic + concrete criticism",
     "Uppgiven + vardagsmetafor": "Resigned + everyday metaphor",
@@ -205,7 +195,7 @@ def _narrative_defaults_sv(
             )
         ),
         "info_conc_1_html": "<strong>Engagemang koncentrerat</strong> — få röster bar majoriteten av likes.",
-        "info_conc_2_html": "<strong>Ton och ämne</strong> — klassade med LLM per kommentar.",
+        "info_conc_2_html": "<strong>Ton och ämne</strong> — ton via SSR; ämne via LLM.",
         "info_conc_3_html": "<strong>Begränsning</strong> — för få körningar för formell statistik.",
         "sec01_intro": (
             "Vi använde ett simuleringsverktyg där AI-agenter debatterar som vanliga medborgare "
@@ -239,7 +229,9 @@ def _narrative_defaults_sv(
             "<h3>Gini för likes</h3>"
             "<p>Högre värde betyder starkare koncentration.</p></div>"
         ),
-        "sec03_intro": "Vi grupperade texter efter kommunikationsstil och jämförde snittlikes.",
+        "sec03_intro": (
+            "Vi bedömde kommunikationsstil semantiskt (SSR) och jämförde snittlikes."
+        ),
         "sec03_findings_html": (
             '<div class="fc pos"><h3>Konkret kritik</h3>'
             "<p>Texter med siffror och skarp iakttagelse tenderar att få mer stöd.</p></div>"
@@ -347,7 +339,7 @@ def _narrative_defaults_en(
             )
         ),
         "info_conc_1_html": "<strong>Concentrated engagement</strong> — a few voices carried most likes.",
-        "info_conc_2_html": "<strong>Tone and topic</strong> — classified with an LLM per comment.",
+        "info_conc_2_html": "<strong>Tone and topic</strong> — tone via SSR; topic via LLM.",
         "info_conc_3_html": "<strong>Limitation</strong> — too few runs for formal statistics.",
         "sec01_intro": (
             "We used a simulation tool where AI agents debate like ordinary citizens "
@@ -381,7 +373,9 @@ def _narrative_defaults_en(
             "<h3>Gini for likes</h3>"
             "<p>Higher values mean stronger concentration.</p></div>"
         ),
-        "sec03_intro": "We grouped texts by communication style and compared average likes.",
+        "sec03_intro": (
+            "We scored communication style semantically (SSR) and compared average likes."
+        ),
         "sec03_findings_html": (
             '<div class="fc pos"><h3>Concrete criticism</h3>'
             "<p>Texts with numbers and sharp observation tend to get more support.</p></div>"

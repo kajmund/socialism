@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useState } from "react"
 import {
   blankCatalogItem,
-  listCatalog,
   SECTION_ORDER,
-  updateCatalogList,
   type CatalogItem,
   type CatalogList,
   type CatalogSection,
 } from "@/api/catalog"
+import {
+  listConfigurationCatalog,
+  updateConfigurationCatalogList,
+} from "@/api/configurations"
 import { DistrictMapModal } from "@/components/config/DistrictMapModal"
 import { DistrictMapPreview } from "@/components/config/DistrictMapPreview"
-import { AdminShell } from "@/components/layout/AdminShell"
 import { AdminButton } from "@/components/ui/admin-button"
 import { Card, CardContent } from "@/components/ui/card"
 import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
@@ -314,7 +315,11 @@ function DistrictListEditor({
   )
 }
 
-export function ConfigurationPage() {
+type CatalogEditorProps = {
+  configurationId: number
+}
+
+export function CatalogEditor({ configurationId }: CatalogEditorProps) {
   const { t } = useLocale()
   const [lists, setLists] = useState<CatalogList[]>([])
   const [drafts, setDrafts] = useState<DraftMap>({})
@@ -330,7 +335,7 @@ export function ConfigurationPage() {
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    listCatalog()
+    listConfigurationCatalog(configurationId)
       .then((data) => {
         if (cancelled) return
         setLists(data)
@@ -354,13 +359,12 @@ export function ConfigurationPage() {
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [configurationId, t])
 
   useEffect(() => {
     if (!toast) return
-    const t = window.setTimeout(() => setToast(null), 2800)
-    return () => window.clearTimeout(t)
+    const timer = window.setTimeout(() => setToast(null), 2800)
+    return () => window.clearTimeout(timer)
   }, [toast])
 
   const bySection = useMemo(() => {
@@ -414,7 +418,11 @@ export function ConfigurationPage() {
     const draft = drafts[key] ?? []
     setSavingKey(key)
     try {
-      const updated = await updateCatalogList(key, draft)
+      const updated = await updateConfigurationCatalogList(
+        configurationId,
+        key,
+        draft,
+      )
       setLists((prev) => prev.map((list) => (list.key === key ? updated : list)))
       setDrafts((prev) => ({
         ...prev,
@@ -438,141 +446,135 @@ export function ConfigurationPage() {
       ? !sameItems(activeDraft, activeList.items)
       : false
 
+  if (loading) {
+    return <p className="muted">{t("config.page.loading")}</p>
+  }
+  if (error) {
+    return <p className="text-destructive">{error}</p>
+  }
+
   return (
-    <AdminShell>
-      <div className="wrap">
-        <div className="head-row">
-          <div>
-            <h1>{t("config.page.title")}</h1>
-            <p className="muted">{t("config.page.intro")}</p>
-          </div>
-        </div>
-
-        {loading && <p className="muted">{t("config.page.loading")}</p>}
-        {error && <p className="text-destructive">{error}</p>}
-
-        {!loading && !error && (
-          <div>
-            <div
-              role="tablist"
-              aria-label={t("config.page.tablistAria")}
-              className="mb-3 flex flex-wrap gap-1 border-b border-[color:var(--border-hairline)]"
+    <div>
+      <div
+        role="tablist"
+        aria-label={t("config.page.tablistAria")}
+        className="mb-3 flex flex-wrap gap-1 border-b border-[color:var(--border-hairline)]"
+      >
+        {visibleSections.map((section) => {
+          const selected = section === activeSection
+          return (
+            <button
+              key={section}
+              type="button"
+              role="tab"
+              id={`config-tab-${section}`}
+              aria-selected={selected}
+              aria-controls={`config-panel-${section}`}
+              tabIndex={selected ? 0 : -1}
+              className={
+                selected
+                  ? "-mb-px border-b-2 border-db-ink-950 px-3 py-2 text-sm font-medium text-[color:var(--text-body)]"
+                  : "-mb-px border-b-2 border-transparent px-3 py-2 text-sm text-muted-foreground hover:text-[color:var(--text-body)]"
+              }
+              onClick={() => {
+                setActiveSection(section)
+                const first = bySection.get(section)?.[0]
+                setActiveListKey(first?.key ?? null)
+              }}
             >
-              {visibleSections.map((section) => {
-                const selected = section === activeSection
-                return (
-                  <button
-                    key={section}
-                    type="button"
-                    role="tab"
-                    id={`config-tab-${section}`}
-                    aria-selected={selected}
-                    aria-controls={`config-panel-${section}`}
-                    tabIndex={selected ? 0 : -1}
-                    className={
-                      selected
-                        ? "-mb-px border-b-2 border-db-ink-950 px-3 py-2 text-sm font-medium text-[color:var(--text-body)]"
-                        : "-mb-px border-b-2 border-transparent px-3 py-2 text-sm text-muted-foreground hover:text-[color:var(--text-body)]"
-                    }
-                    onClick={() => {
-                      setActiveSection(section)
-                      const first = bySection.get(section)?.[0]
-                      setActiveListKey(first?.key ?? null)
-                    }}
-                  >
-                    {sectionLabel(section, t)}
-                  </button>
-                )
-              })}
-            </div>
+              {sectionLabel(section, t)}
+            </button>
+          )
+        })}
+      </div>
 
-            <div
-              role="tabpanel"
-              id={`config-panel-${activeSection}`}
-              aria-labelledby={`config-tab-${activeSection}`}
-            >
-              {sectionLists.length > 0 && (
-                <div
-                  role="tablist"
-                  aria-label={t("config.page.listTablistAria", { section: sectionLabel(activeSection, t) })}
-                  className="mb-5 flex flex-wrap gap-2"
+      <div
+        role="tabpanel"
+        id={`config-panel-${activeSection}`}
+        aria-labelledby={`config-tab-${activeSection}`}
+      >
+        {sectionLists.length > 0 && (
+          <div
+            role="tablist"
+            aria-label={t("config.page.listTablistAria", {
+              section: sectionLabel(activeSection, t),
+            })}
+            className="mb-5 flex flex-wrap gap-2"
+          >
+            {sectionLists.map((list) => {
+              const selected = list.key === activeList?.key
+              const dirty = !sameItems(
+                drafts[list.key] ?? list.items,
+                list.items,
+              )
+              return (
+                <button
+                  key={list.key}
+                  type="button"
+                  role="tab"
+                  id={`config-list-tab-${list.key}`}
+                  aria-selected={selected}
+                  aria-controls={`config-list-panel-${list.key}`}
+                  tabIndex={selected ? 0 : -1}
+                  className={
+                    selected
+                      ? "inline-flex items-center gap-1.5 rounded-md bg-db-ink-950 px-3 py-1.5 text-sm text-db-ink-0"
+                      : "inline-flex items-center gap-1.5 rounded-md border border-[color:var(--border-hairline)] bg-db-ink-0 px-3 py-1.5 text-sm text-muted-foreground hover:text-[color:var(--text-body)]"
+                  }
+                  onClick={() => setActiveListKey(list.key)}
                 >
-                  {sectionLists.map((list) => {
-                    const selected = list.key === activeList?.key
-                    const dirty = !sameItems(
-                      drafts[list.key] ?? list.items,
-                      list.items,
-                    )
-                    return (
-                      <button
-                        key={list.key}
-                        type="button"
-                        role="tab"
-                        id={`config-list-tab-${list.key}`}
-                        aria-selected={selected}
-                        aria-controls={`config-list-panel-${list.key}`}
-                        tabIndex={selected ? 0 : -1}
-                        className={
-                          selected
-                            ? "inline-flex items-center gap-1.5 rounded-md bg-db-ink-950 px-3 py-1.5 text-sm text-db-ink-0"
-                            : "inline-flex items-center gap-1.5 rounded-md border border-[color:var(--border-hairline)] bg-db-ink-0 px-3 py-1.5 text-sm text-muted-foreground hover:text-[color:var(--text-body)]"
-                        }
-                        onClick={() => setActiveListKey(list.key)}
-                      >
-                        {list.title}
-                        {dirty && (
-                          <span
-                            className={
-                              selected
-                                ? "h-1.5 w-1.5 rounded-full bg-db-gold-500"
-                                : "h-1.5 w-1.5 rounded-full bg-db-ink-950"
-                            }
-                            title={t("config.page.unsavedChanges")}
-                            aria-label={t("config.page.unsavedChanges")}
-                          />
-                        )}
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-
-              {activeList && activeDraft && (
-                <div
-                  role="tabpanel"
-                  id={`config-list-panel-${activeList.key}`}
-                  aria-labelledby={`config-list-tab-${activeList.key}`}
-                >
-                  {activeList.key === "ort" ? (
-                    <DistrictListEditor
-                      list={activeList}
-                      draft={activeDraft}
-                      dirty={activeDirty}
-                      saving={savingKey === activeList.key}
-                      onChange={(items) => setDraft(activeList.key, items)}
-                      onSave={() => void saveList(activeList.key)}
-                    />
-                  ) : (
-                    <LabelListEditor
-                      list={activeList}
-                      draft={activeDraft}
-                      dirty={activeDirty}
-                      saving={savingKey === activeList.key}
-                      onChange={(items) => setDraft(activeList.key, items)}
-                      onSave={() => void saveList(activeList.key)}
+                  {list.title}
+                  {dirty && (
+                    <span
+                      className={
+                        selected
+                          ? "h-1.5 w-1.5 rounded-full bg-db-gold-500"
+                          : "h-1.5 w-1.5 rounded-full bg-db-ink-950"
+                      }
+                      title={t("config.page.unsavedChanges")}
+                      aria-label={t("config.page.unsavedChanges")}
                     />
                   )}
-                </div>
-              )}
-            </div>
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {activeList && activeDraft && (
+          <div
+            role="tabpanel"
+            id={`config-list-panel-${activeList.key}`}
+            aria-labelledby={`config-list-tab-${activeList.key}`}
+          >
+            {activeList.key === "ort" ? (
+              <DistrictListEditor
+                list={activeList}
+                draft={activeDraft}
+                dirty={activeDirty}
+                saving={savingKey === activeList.key}
+                onChange={(items) => setDraft(activeList.key, items)}
+                onSave={() => void saveList(activeList.key)}
+              />
+            ) : (
+              <LabelListEditor
+                list={activeList}
+                draft={activeDraft}
+                dirty={activeDirty}
+                saving={savingKey === activeList.key}
+                onChange={(items) => setDraft(activeList.key, items)}
+                onSave={() => void saveList(activeList.key)}
+              />
+            )}
           </div>
         )}
       </div>
+
       {toast && (
         <div className="fixed bottom-6 right-6 z-50 rounded-md bg-db-ink-950 px-4 py-2 text-sm text-db-ink-0">
           {toast}
         </div>
       )}
-    </AdminShell>
+    </div>
   )
 }

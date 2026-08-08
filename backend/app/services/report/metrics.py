@@ -8,17 +8,21 @@ from typing import Any
 
 from app.services.report.bundles import RunBundle
 from app.services.report.classify import BundleClassification, TONE_LABELS
+from app.services.ssr import STYLE_LABELS, STYLE_UNCLASSIFIED
 
-STYLE_KEYWORDS: dict[str, tuple[str, ...]] = {
-    "Sarkastisk + konkret kritik": ("statistik", "%", "siffra", "visar att", "ironiskt"),
-    "Uppgiven + vardagsmetafor": ("som att", "läckande", "hink", "uppgiven", "trött"),
-    "Fakta + yrkesauktoritet": ("enligt", "källa", "forskning", "rapport", "data"),
-    "Personlig + hjärtlig berättelse": ("min mamma", "jag själv", "känner", "hjärta"),
-    "Optimistisk / lösningsfokuserad": ("lösning", "tillsammans", "framåt", "möjligt"),
-    "Provocerande / konfronterande": ("skäms", "lögn", "idiot", "korkat", "absolut noll"),
-}
-
-STYLE_UNCLASSIFIED = "Oklassad"
+# Re-export for callers/tests that imported from metrics.
+__all__ = [
+    "STYLE_LABELS",
+    "STYLE_UNCLASSIFIED",
+    "BundleMetrics",
+    "ReportMetrics",
+    "compute_bundle_metrics",
+    "compute_report_metrics",
+    "confidence_badge",
+    "fmt_num",
+    "pct",
+    "population_agent_ids",
+]
 
 
 @dataclass
@@ -45,7 +49,7 @@ class ReportMetrics:
     bundles: list[BundleMetrics]
     aggregate: BundleMetrics
     cross_table: list[dict[str, Any]]
-    tone_mode: str = "llm"
+    tone_mode: str = "ssr"
 
 
 def _likes(item: dict[str, Any]) -> int:
@@ -100,25 +104,8 @@ def _gini(values: list[float]) -> float:
     return max(0.0, min(1.0, (2 * cum) / (n * total) - (n + 1) / n))
 
 
-def _style_avg_likes(bundle: RunBundle) -> list[tuple[str, float]]:
-    buckets: dict[str, list[float]] = {k: [] for k in STYLE_KEYWORDS}
-    buckets[STYLE_UNCLASSIFIED] = []
-    for item in [*bundle.posts, *bundle.comments]:
-        text = str(item.get("content") or item.get("text") or "").lower()
-        likes = float(_likes(item))
-        matched = False
-        for style, keys in STYLE_KEYWORDS.items():
-            if any(k in text for k in keys):
-                buckets[style].append(likes)
-                matched = True
-                break
-        if not matched:
-            buckets[STYLE_UNCLASSIFIED].append(likes)
-    scored = [
-        (style, (sum(vals) / len(vals)) if vals else 0.0) for style, vals in buckets.items()
-    ]
-    scored.sort(key=lambda x: x[1], reverse=True)
-    return scored
+def _empty_style_avg() -> list[tuple[str, float]]:
+    return [(lab, 0.0) for lab in [*STYLE_LABELS, STYLE_UNCLASSIFIED]]
 
 
 def _top_actors(bundle: RunBundle, *, limit: int = 4) -> list[dict[str, Any]]:
@@ -182,7 +169,8 @@ def _empty_classification() -> BundleClassification:
     return BundleClassification(
         topic_shares={"Övrigt": 1.0},
         tone_shares={lab: 0.0 for lab in TONE_LABELS},
-        tone_mode="llm",
+        tone_mode="ssr",
+        style_avg_likes=_empty_style_avg(),
     )
 
 
@@ -194,6 +182,7 @@ def compute_bundle_metrics(
     top, mid, zero, gini = _engagement_tiers(bundle)
     pop_ids = population_agent_ids(bundle)
     n_agents = len(pop_ids) or (top + mid + zero)
+    style = clf.style_avg_likes or _empty_style_avg()
     return BundleMetrics(
         label=bundle.label,
         agent_count=n_agents,
@@ -206,7 +195,7 @@ def compute_bundle_metrics(
         top_agents=top,
         topic_shares=dict(clf.topic_shares),
         tone_shares=dict(clf.tone_shares),
-        style_avg_likes=_style_avg_likes(bundle),
+        style_avg_likes=list(style),
         top_actors=_top_actors(bundle),
     )
 
@@ -219,7 +208,7 @@ def compute_report_metrics(
         raise ValueError("classifications length must match bundles")
     clfs = classifications or [_empty_classification() for _ in bundles]
     per = [compute_bundle_metrics(b, c) for b, c in zip(bundles, clfs, strict=True)]
-    tone_mode = "llm"
+    tone_mode = clfs[0].tone_mode if clfs else "ssr"
 
     if len(per) == 1:
         agg = per[0]

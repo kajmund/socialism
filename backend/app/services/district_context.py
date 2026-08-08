@@ -7,10 +7,13 @@ from math import atan2, cos, degrees, radians, sin, sqrt
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import CatalogList
 from app.schemas.domain import GeoBounds
 from app.services.catalog_items import coerce_catalog_items
-from app.services.catalog_store import ensure_catalog_defaults
+from app.services.catalog_store import ensure_catalog_defaults, get_catalog_list
+from app.services.prompt_store import (
+    MissingActiveConfigurationError,
+    get_active_configuration,
+)
 
 
 @dataclass(frozen=True)
@@ -73,8 +76,13 @@ def _cardinal(from_lat: float, from_lng: float, to_lat: float, to_lng: float) ->
 
 
 async def list_district_contexts(session: AsyncSession) -> list[DistrictContext]:
-    await ensure_catalog_defaults(session)
-    row = await session.get(CatalogList, "ort")
+    active = await get_active_configuration(session)
+    if active is None:
+        raise MissingActiveConfigurationError(
+            "No active prompt configuration. Activate one under Konfigurationer."
+        )
+    await ensure_catalog_defaults(session, active.id)
+    row = await get_catalog_list(session, active.id, "ort")
     if row is None:
         return []
     return [

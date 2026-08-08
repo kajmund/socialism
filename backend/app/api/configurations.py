@@ -1,4 +1,4 @@
-"""Named prompt configurations (language + map of prompt key → text)."""
+"""Named configurations: prompts map + scoped grunddata catalog lists."""
 
 from __future__ import annotations
 
@@ -8,17 +8,27 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import Configuration
+from app.database.models import CatalogList, Configuration
 from app.database.session import get_session
 from app.schemas.domain import (
+    CatalogListOut,
+    CatalogListUpdate,
     ConfigurationCreate,
     ConfigurationLanguage,
     ConfigurationOut,
     ConfigurationUpdate,
     PromptCatalogOut,
     PromptFieldOut,
+    format_date,
 )
 from app.serializers import utcnow
+from app.services.catalog_defaults import SECTION_ORDER
+from app.services.catalog_items import catalog_items_as_json, coerce_catalog_items
+from app.services.catalog_store import (
+    ensure_catalog_defaults,
+    get_catalog_list,
+    list_catalog_lists,
+)
 from app.services.prompt_catalog import (
     PROMPT_FIELDS,
     PROMPT_SECTIONS,
@@ -44,6 +54,7 @@ def _serialize(row: Configuration) -> ConfigurationOut:
         name=row.name,
         language=language,
         prompts=prompts,
+        ssr_temperature=float(row.ssr_temperature),
         is_active=bool(row.is_active),
         created_at=_dt(row.created_at),
         updated_at=_dt(row.updated_at),
@@ -69,6 +80,24 @@ async def _deactivate_others(
     result = await session.execute(stmt)
     for row in result.scalars().all():
         row.is_active = False
+
+
+def _serialize_catalog(row: CatalogList) -> CatalogListOut:
+    return CatalogListOut(
+        key=row.key,
+        section=row.section,  # type: ignore[arg-type]
+        title=row.title,
+        items=coerce_catalog_items(row.items),
+        updated_at=format_date(row.updated_at) if row.updated_at else "",
+    )
+
+
+def _catalog_sort_key(row: CatalogList) -> tuple[int, str]:
+    try:
+        section_idx = SECTION_ORDER.index(row.section)
+    except ValueError:
+        section_idx = len(SECTION_ORDER)
+    return (section_idx, row.title)
 
 
 @router.get("/catalog", response_model=PromptCatalogOut)
@@ -132,6 +161,7 @@ async def create_configuration(
         name=body.name,
         language=body.language,
         prompts=prompts,
+        ssr_temperature=body.ssr_temperature,
         is_active=body.is_active,
         created_at=now,
         updated_at=now,
@@ -139,7 +169,62 @@ async def create_configuration(
     session.add(row)
     await session.commit()
     await session.refresh(row)
+    await ensure_catalog_defaults(session, row.id)
     return _serialize(row)
+
+
+@router.get(
+    "/{configuration_id}/catalog",
+    response_model=list[CatalogListOut],
+)
+async def list_configuration_catalog(
+    configuration_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> list[CatalogListOut]:
+    await _get_configuration(session, configuration_id)
+    await ensure_catalog_defaults(session, configuration_id)
+    rows = await list_catalog_lists(session, configuration_id)
+    rows.sort(key=_catalog_sort_key)
+    return [_serialize_catalog(row) for row in rows]
+
+
+@router.get(
+    "/{configuration_id}/catalog/{key}",
+    response_model=CatalogListOut,
+)
+async def get_configuration_catalog_list(
+    configuration_id: int,
+    key: str,
+    session: AsyncSession = Depends(get_session),
+) -> CatalogListOut:
+    await _get_configuration(session, configuration_id)
+    await ensure_catalog_defaults(session, configuration_id)
+    row = await get_catalog_list(session, configuration_id, key)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Catalog list not found")
+    return _serialize_catalog(row)
+
+
+@router.put(
+    "/{configuration_id}/catalog/{key}",
+    response_model=CatalogListOut,
+)
+async def update_configuration_catalog_list(
+    configuration_id: int,
+    key: str,
+    body: CatalogListUpdate,
+    session: AsyncSession = Depends(get_session),
+) -> CatalogListOut:
+    await _get_configuration(session, configuration_id)
+    await ensure_catalog_defaults(session, configuration_id)
+    row = await get_catalog_list(session, configuration_id, key)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Catalog list not found")
+    row.items = catalog_items_as_json(body.items)
+    row.updated_at = utcnow()
+    await session.commit()
+    await session.refresh(row)
+    return _serialize_catalog(row)
 
 
 @router.patch("/{configuration_id}", response_model=ConfigurationOut)
@@ -161,6 +246,8 @@ async def update_configuration(
             language=language,
             fill_missing=True,
         )
+    if "ssr_temperature" in data and data["ssr_temperature"] is not None:
+        row.ssr_temperature = float(data["ssr_temperature"])
     if data.get("is_active") is True:
         await _deactivate_others(session, keep_id=row.id)
         row.is_active = True

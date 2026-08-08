@@ -520,6 +520,10 @@ async def _make_generated_batch(
         )
         personas.append(persona)
         warnings.extend(slot_warnings)
+        if persona.profile.anekdot.strip() in ("", "—"):
+            warnings.append(
+                f"Anekdot saknas för {persona.name} (LLM-svar ogiltigt efter retries)."
+            )
         previous_personas.append(
             f"{persona.name} | yrke: {persona.occ} | röst: {persona.trait[:80]}"
         )

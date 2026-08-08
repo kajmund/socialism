@@ -37,6 +37,7 @@ flowchart LR
 | Backend | Python 3.12+ · FastAPI · SQLAlchemy · Alembic · pydantic-settings |
 | Database | SQLite via `aiosqlite` (`backend/data/`) |
 | LLM | DeepSeek (`DEEPSEEK_API_KEY` required at startup) |
+| Embeddings (SSR) | OpenAI `text-embedding-3-large` (`OPENAI_API_KEY` required) |
 | Simulation | `SIMULATION_ENGINE=none` (default) or `oasis` (optional extra) |
 | Auth | Not wired — Supabase Auth planned later |
 | Hosting | Railway (frontend + backend services) |
@@ -89,7 +90,12 @@ Registered in `backend/app/main.py`:
 | Messages | `/messages` | Budskapsbibliotek + URL summarize + variant generation |
 | Catalog | `/catalog` | Editable grunddata lists |
 | Jobs | `/jobs` | Create/list/get background jobs |
+| Jobs WS | `WS /ws/jobs` | Snapshot + live `job.updated` fan-out (admin UI) |
+| Chat WS | `WS /ws/chat` | Streaming library / run-interview chat |
 | Reports | `/reports` | Queue report, list, get, `GET /reports/{id}/html` |
+| Playground | `/playground` | Admin calibration: default anchors, SSR rate/compare, prompt side-by-side, agent tools (web search / SymPy; no persistence) |
+| Embeddings cache | `/embeddings/cache` | List/clear disk-backed SSR anchor embeddings |
+| Configurations | `/configurations` | Prompt maps + `ssr_temperature` (report SSR softmax) + per-config catalog; one active globally |
 
 Interactive OpenAPI: `http://localhost:8000/docs`.
 
@@ -117,9 +123,9 @@ Interrupted jobs are marked failed on backend startup (after migrations exist).
 | ---- | ----- | ----- |
 | Persona generate | `POST /personas/generate` | DeepSeek or weighted stub sampling (`PERSONA_GENERATOR`) |
 | Persona anecdote | persona / population gen | Short `anekdot` (≤20 words, non-political); see runbook |
-| Library chat | `/personas/{id}/chat` | `PersonaMessage` with `run_id = null`; delete/clear/resend |
+| Library chat | `WS /ws/chat` (REST `POST /personas/{id}/chat` still) | Streamed tokens; `PersonaMessage` with `run_id = null`; delete/clear/resend via REST |
 | Planned tick interviews | tick `interviews[]` | OASIS `ManualAction(INTERVIEW)` after reaction rounds |
-| Post-hoc run interview | `/runs/.../interview` | Scoped by attempt/variant/`through_tick_index`; feed cutoff via `run_tick_context` |
+| Post-hoc run interview | `WS /ws/chat` scope `run_interview` (REST still) | Scoped by attempt/variant/`through_tick_index`; feed cutoff via `run_tick_context` |
 | Message variants / URL | `/messages/*` | Budskapsverkstad helpers |
 | Report narrative | report job | Deterministic metrics + LLM narrative/classification |
 
@@ -145,7 +151,7 @@ Library chat and post-hoc run interviews share the `persona_messages` table but 
 
 ## Frontend surfaces
 
-Admin UI (Devbrains charcoal + gold): `/runs`, `/personas`, `/populations`, `/messages`, `/config`, `/jobs`, `/reports/:id`.
+Admin UI (Devbrains charcoal + gold): `/runs`, `/personas`, `/populations`, `/messages`, `/tools` (configurations / playground / embedding cache), `/jobs`, `/reports/:id`.
 
 Admin pages call FastAPI via `VITE_API_BASE_URL`. Supabase env placeholders are required at frontend boot but auth is not wired yet (`accessToken()` returns null).
 

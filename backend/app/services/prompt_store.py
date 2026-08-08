@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Configuration
+from app.schemas.domain import DEFAULT_SSR_TEMPERATURE
 from app.serializers import utcnow
 from app.services.prompt_catalog import (
     PROMPT_KEYS,
@@ -49,11 +50,38 @@ def _require_prompt_map(
 
 
 async def require_active_prompts(session: AsyncSession) -> dict[str, str]:
+    from app.services.prompt_catalog import (
+        default_prompts,
+        refresh_ssr_classify_prompts,
+    )
+
     row = await get_active_configuration(session)
     if row is None:
         raise MissingActiveConfigurationError(
             "No active prompt configuration. Activate one under Konfigurationer."
         )
+    language: ConfigurationLanguage = row.language  # type: ignore[assignment]
+    stored = dict(row.prompts or {})
+    defaults = default_prompts(language)
+    changed = False
+
+    tone_key = "report.classify.tones.system"
+    refreshed = refresh_ssr_classify_prompts(stored, language=language)
+    if refreshed.get(tone_key) != stored.get(tone_key):
+        stored[tone_key] = refreshed[tone_key]
+        changed = True
+
+    style_key = "report.classify.styles.system"
+    if not str(stored.get(style_key, "")).strip():
+        stored[style_key] = defaults[style_key]
+        changed = True
+
+    if changed:
+        row.prompts = stored
+        row.updated_at = utcnow()
+        await session.commit()
+        await session.refresh(row)
+
     return _require_prompt_map(row, context="Active configuration")
 
 
@@ -78,6 +106,22 @@ async def require_prompts_for_language(
     return _require_prompt_map(row, context=f"Configuration for '{language}'")
 
 
+async def require_active_ssr_temperature(session: AsyncSession) -> float:
+    """SSR softmax temperature from the active configuration (fail loud if missing)."""
+    row = await get_active_configuration(session)
+    if row is None:
+        raise MissingActiveConfigurationError(
+            "No active prompt configuration. Activate one under Konfigurationer."
+        )
+    temp = float(row.ssr_temperature)
+    if temp <= 0.0:
+        raise MissingActiveConfigurationError(
+            f"Active configuration '{row.name}' (id={row.id}) has invalid "
+            f"ssr_temperature={temp!r} (must be > 0)"
+        )
+    return temp
+
+
 async def ensure_default_configurations(session: AsyncSession) -> int:
     """Seed Standard configs for sv/en and backfill incomplete prompt maps.
 
@@ -100,6 +144,7 @@ async def ensure_default_configurations(session: AsyncSession) -> int:
                     name=name,
                     language=language,
                     prompts=default_prompts(language),  # type: ignore[arg-type]
+                    ssr_temperature=DEFAULT_SSR_TEMPERATURE,
                     is_active=activate,
                     created_at=now,
                     updated_at=now,
@@ -136,7 +181,12 @@ async def ensure_default_configurations(session: AsyncSession) -> int:
 
     if changed:
         await session.commit()
-    return changed
+
+    # Deferred import: catalog_store must not import prompt_store at module load.
+    from app.services.catalog_store import ensure_catalogs_for_all_configurations
+
+    catalog_added = await ensure_catalogs_for_all_configurations(session)
+    return changed + catalog_added
 
 
 async def set_active_configuration(
@@ -167,6 +217,7 @@ __all__ = [
     "get_active_configuration",
     "render_prompt",
     "require_active_prompts",
+    "require_active_ssr_temperature",
     "require_prompts_for_language",
     "set_active_configuration",
 ]

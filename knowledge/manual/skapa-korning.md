@@ -17,9 +17,10 @@ En **körning** beskriver scenariot du vill testa: vilken population som deltar,
 4. Välj eventuellt en **gren** efter en delad stam:
    - **A/B** — två formuleringar av budskapet
    - **Stimulus/kontroll** — en variant med stimulus, en utan injektion
-5. Granska sammanfattningen och spara.
+5. Välj **agentverktyg** (valfritt): webbsök (DuckDuckGo och/eller Wikipedia), matematik (SymPy), eller **Välj alla**. Inget verktyg krävs.
+6. Granska sammanfattningen och spara.
 
-Du kan också använda snabbläge om du vill hoppa över den stegvisa guiden.
+Du kan också använda snabbläge om du vill hoppa över den stegvisa guiden — där finns samma verktygsval under grunduppgifterna.
 
 ## Obs
 

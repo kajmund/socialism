@@ -383,7 +383,10 @@ async def test_persona_generate_and_chat(client):
     msg_id = chat2.json()["messages"][0]["id"]
 
     deleted = await client.delete(f"/personas/{persona_id}/messages/{msg_id}")
-    assert deleted.status_code == 204
+    assert deleted.status_code == 200
+    deleted_ids = deleted.json()["deleted_ids"]
+    assert msg_id in deleted_ids
+    assert len(deleted_ids) == 2  # user + paired assistant
     remaining = await client.get(f"/personas/{persona_id}/messages", params={"mode": "interview"})
     assert remaining.json() == []
 
@@ -898,6 +901,77 @@ async def test_catalog_lists(client):
         json={"items": [{"label": "x"}]},
     )
     assert missing.status_code == 404
+
+
+async def test_catalog_scoped_per_configuration(client):
+    listed = await client.get("/configurations")
+    assert listed.status_code == 200
+    configs = listed.json()
+    assert len(configs) >= 2
+    active = next(c for c in configs if c["is_active"])
+    other = next(c for c in configs if not c["is_active"])
+
+    scoped_a = await client.get(f"/configurations/{active['id']}/catalog")
+    assert scoped_a.status_code == 200
+    assert len(scoped_a.json()) >= 13
+
+    # Edit active config's parti list via scoped API.
+    put_a = await client.put(
+        f"/configurations/{active['id']}/catalog/parti",
+        json={"items": [{"label": "EndastAktiv"}]},
+    )
+    assert put_a.status_code == 200
+    assert [i["label"] for i in put_a.json()["items"]] == ["EndastAktiv"]
+
+    # Other config keeps its own defaults.
+    scoped_b = await client.get(f"/configurations/{other['id']}/catalog/parti")
+    assert scoped_b.status_code == 200
+    labels_b = [i["label"] for i in scoped_b.json()["items"]]
+    assert "EndastAktiv" not in labels_b
+    assert "Socialdemokraterna" in labels_b
+
+    # Runtime /catalog mirrors the active configuration.
+    runtime = await client.get("/catalog/parti")
+    assert runtime.status_code == 200
+    assert [i["label"] for i in runtime.json()["items"]] == ["EndastAktiv"]
+
+    # Activating the other config switches /catalog.
+    activated = await client.post(f"/configurations/{other['id']}/activate")
+    assert activated.status_code == 200
+    runtime2 = await client.get("/catalog/parti")
+    assert runtime2.status_code == 200
+    assert "Socialdemokraterna" in [i["label"] for i in runtime2.json()["items"]]
+    assert "EndastAktiv" not in [i["label"] for i in runtime2.json()["items"]]
+
+
+async def test_catalog_ort_cleared_description_persists(client):
+    """Clearing an ort description must not be reverted by ensure on GET."""
+    listed = await client.get("/configurations")
+    active = next(c for c in listed.json() if c["is_active"])
+
+    cleared = await client.put(
+        f"/configurations/{active['id']}/catalog/ort",
+        json={
+            "items": [
+                {
+                    "label": "Centrum",
+                    "description": "",
+                    "bounds": {
+                        "south": 58.58,
+                        "west": 16.17,
+                        "north": 58.59,
+                        "east": 16.19,
+                    },
+                }
+            ]
+        },
+    )
+    assert cleared.status_code == 200
+    assert cleared.json()["items"][0]["description"] == ""
+
+    after_get = await client.get(f"/configurations/{active['id']}/catalog/ort")
+    assert after_get.status_code == 200
+    assert after_get.json()["items"][0]["description"] == ""
 
 
 def test_format_area_block_includes_relative_hint():

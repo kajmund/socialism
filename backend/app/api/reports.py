@@ -32,12 +32,17 @@ from app.services.report.locale import (
 router = APIRouter(prefix="/reports", tags=["reports"])
 
 
+def _normalize_mode(value: str | None) -> str:
+    return "quick" if value == "quick" else "full"
+
+
 def _serialize(report: Report) -> ReportOut:
     return ReportOut(
         id=report.id,
         status=report.status,  # type: ignore[arg-type]
         title=report.title,
         locale=normalize_locale(getattr(report, "locale", None)),
+        mode=_normalize_mode(getattr(report, "mode", None)),  # type: ignore[arg-type]
         sources=list(report.sources or []),
         html_path=report.html_path,
         slots_path=report.slots_path,
@@ -103,11 +108,13 @@ async def create_report(
             n_sources=len(sources),
         )
 
+    mode = _normalize_mode(body.mode)
     report = Report(
         id=report_id,
         status="pending",
         title=title,
         locale=locale,
+        mode=mode,
         sources=sources,
         html_path=None,
         slots_path=None,

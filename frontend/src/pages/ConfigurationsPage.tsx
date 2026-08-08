@@ -7,7 +7,6 @@ import {
   type Configuration,
   type ConfigurationLanguage,
 } from "@/api/configurations"
-import { AdminShell } from "@/components/layout/AdminShell"
 import { Card, CardContent } from "@/components/ui/card"
 import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
 import { ApiError } from "@/lib/api"
@@ -72,7 +71,7 @@ function ConfigCard({ config, onDelete, onActivate }: ConfigCardProps) {
             </div>
           ) : (
             <div className="card-actions">
-              <Link className="primary" to={`/configurations/${config.id}/edit`}>
+              <Link className="primary" to={`/tools/configurations/${config.id}/edit`}>
                 {t("configurations.list.edit")}
               </Link>
               {!config.is_active ? (
@@ -164,73 +163,69 @@ export function ConfigurationsPage() {
   }
 
   return (
-    <AdminShell>
-      <div className="wrap">
-        <div className="head-row">
-          <div>
-            <h1>{t("configurations.list.title")}</h1>
-            <p className="muted">{t("configurations.list.intro")}</p>
-          </div>
-        </div>
+    <>
+      <div className="mb-4">
+        <h2 className="text-lg font-medium">{t("configurations.list.title")}</h2>
+        <p className="muted">{t("configurations.list.intro")}</p>
+      </div>
 
-        <div className="controls-row">
-          <div className="controls-left">
-            <input
-              className="dsearch"
-              placeholder={t("configurations.list.searchPlaceholder")}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            <select
-              className="dsel"
-              value={languageFilter}
-              onChange={(e) =>
-                setLanguageFilter(e.target.value as "" | ConfigurationLanguage)
-              }
-            >
-              <option value="">{t("configurations.list.allLanguages")}</option>
-              <option value="sv">{t("configurations.language.sv")}</option>
-              <option value="en">{t("configurations.language.en")}</option>
-              <option value="nb">{t("configurations.language.nb")}</option>
-            </select>
-          </div>
-          <Link
-            to="/configurations/new"
-            className="admin-cta inline-flex h-9 shrink-0 items-center rounded-md bg-db-black px-4 text-sm text-db-ink-0 no-underline hover:bg-db-ink-800"
+      <div className="controls-row">
+        <div className="controls-left">
+          <input
+            className="dsearch"
+            placeholder={t("configurations.list.searchPlaceholder")}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <select
+            className="dsel"
+            value={languageFilter}
+            onChange={(e) =>
+              setLanguageFilter(e.target.value as "" | ConfigurationLanguage)
+            }
           >
-            {t("configurations.list.new")}
+            <option value="">{t("configurations.list.allLanguages")}</option>
+            <option value="sv">{t("configurations.language.sv")}</option>
+            <option value="en">{t("configurations.language.en")}</option>
+            <option value="nb">{t("configurations.language.nb")}</option>
+          </select>
+        </div>
+        <Link
+          to="/tools/configurations/new"
+          className="admin-cta inline-flex h-9 shrink-0 items-center rounded-md bg-db-black px-4 text-sm text-db-ink-0 no-underline hover:bg-db-ink-800"
+        >
+          {t("configurations.list.new")}
+        </Link>
+      </div>
+
+      {loading && <p className="muted">{t("configurations.list.loading")}</p>}
+      {error && <p className="text-destructive">{error}</p>}
+      {!loading && !error && filtered.length === 0 && (
+        <div className="empty-state">
+          <p>{t("configurations.list.empty")}</p>
+          <Link
+            to="/tools/configurations/new"
+            className="admin-cta inline-flex h-9 items-center rounded-md bg-db-black px-4 text-sm text-db-ink-0 no-underline hover:bg-db-ink-800"
+          >
+            {t("configurations.list.createFirst")}
           </Link>
         </div>
-
-        {loading && <p className="muted">{t("configurations.list.loading")}</p>}
-        {error && <p className="text-destructive">{error}</p>}
-        {!loading && !error && filtered.length === 0 && (
-          <div className="empty-state">
-            <p>{t("configurations.list.empty")}</p>
-            <Link
-              to="/configurations/new"
-              className="admin-cta inline-flex h-9 items-center rounded-md bg-db-black px-4 text-sm text-db-ink-0 no-underline hover:bg-db-ink-800"
-            >
-              {t("configurations.list.createFirst")}
-            </Link>
-          </div>
-        )}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((config) => (
-            <ConfigCard
-              key={config.id}
-              config={config}
-              onDelete={onDelete}
-              onActivate={onActivate}
-            />
-          ))}
-        </div>
+      )}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {filtered.map((config) => (
+          <ConfigCard
+            key={config.id}
+            config={config}
+            onDelete={onDelete}
+            onActivate={onActivate}
+          />
+        ))}
       </div>
       {toast && (
         <div className="fixed bottom-6 right-6 z-50 rounded-md bg-db-ink-950 px-4 py-2 text-sm text-db-ink-0">
           {toast}
         </div>
       )}
-    </AdminShell>
+    </>
   )
 }
