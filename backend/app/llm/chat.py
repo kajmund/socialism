@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from app.llm import complete_text
+from collections.abc import AsyncIterator
+
+from app.llm import complete_text, stream_text
 from app.locality import load_norrkoping_brief
 from app.schemas.domain import ChatMode, EditablePersona
 from app.services.prompt_catalog import render_prompt
@@ -94,7 +96,7 @@ def build_run_interview_prompt(
     )
 
 
-async def reply_as_persona(
+def _chat_messages(
     profile: EditablePersona,
     mode: ChatMode,
     history: list[tuple[str, str]],
@@ -104,7 +106,7 @@ async def reply_as_persona(
     area_block: str = "",
     simulation_context: str = "",
     system_prompt: str | None = None,
-) -> str:
+) -> list[dict[str, str]]:
     content = system_prompt or build_chat_system_prompt(
         profile,
         mode,
@@ -121,4 +123,53 @@ async def reply_as_persona(
     for role, content_row in history:
         messages.append({"role": role, "content": content_row})
     messages.append({"role": "user", "content": user_message})
+    return messages
+
+
+async def reply_as_persona(
+    profile: EditablePersona,
+    mode: ChatMode,
+    history: list[tuple[str, str]],
+    user_message: str,
+    *,
+    prompts: dict[str, str],
+    area_block: str = "",
+    simulation_context: str = "",
+    system_prompt: str | None = None,
+) -> str:
+    messages = _chat_messages(
+        profile,
+        mode,
+        history,
+        user_message,
+        prompts=prompts,
+        area_block=area_block,
+        simulation_context=simulation_context,
+        system_prompt=system_prompt,
+    )
     return await complete_text(messages)
+
+
+async def stream_reply_as_persona(
+    profile: EditablePersona,
+    mode: ChatMode,
+    history: list[tuple[str, str]],
+    user_message: str,
+    *,
+    prompts: dict[str, str],
+    area_block: str = "",
+    simulation_context: str = "",
+    system_prompt: str | None = None,
+) -> AsyncIterator[str]:
+    messages = _chat_messages(
+        profile,
+        mode,
+        history,
+        user_message,
+        prompts=prompts,
+        area_block=area_block,
+        simulation_context=simulation_context,
+        system_prompt=system_prompt,
+    )
+    async for chunk in stream_text(messages):
+        yield chunk

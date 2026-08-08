@@ -1,5 +1,7 @@
 import asyncio
 
+import pytest
+
 from app.services.prompt_catalog import default_prompts
 from app.services.oasis_swedish import (
     _env_prompt_state,
@@ -70,6 +72,7 @@ async def test_display_names_are_isolated_across_concurrent_tasks():
 
 async def test_env_prompts_are_isolated_across_concurrent_tasks():
     """Concurrent OASIS jobs must not clobber feed env templates."""
+    pytest.importorskip("oasis")
 
     async def empty_posts_for(marker: str) -> str:
         prompts = dict(default_prompts("sv"))

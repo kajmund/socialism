@@ -197,7 +197,7 @@ export function CatalogSenderEmptyHint() {
   return (
     <>
       {t("runs.tick.senderEmptyPrefix")}{" "}
-      <Link to="/config">{t("runs.tick.senderEmptyLink")}</Link>
+      <Link to="/tools/configurations">{t("runs.tick.senderEmptyLink")}</Link>
     </>
   )
 }

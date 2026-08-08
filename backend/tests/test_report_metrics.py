@@ -22,8 +22,7 @@ from app.services.report.classify import (
     _TopicItem,
     _TopicPackModel,
     _TopicPacksResponse,
-    _ToneBatchResponse,
-    _ToneItem,
+    classify_styles,
     classify_topics,
     classify_tones,
     derive_topic_packs,
@@ -34,6 +33,8 @@ from app.services.report.metrics import STYLE_UNCLASSIFIED, compute_report_metri
 from app.services.report.render import apply_slots
 from app.services.report.sanitize import sanitize_slot_output
 from app.services.report.tools import ReportToolBundle, call_tool
+from app.services.ssr import STYLE_LABELS, set_embedder
+from app.services.ssr.anchors import TONE_LABELS_EN, TONE_LABELS_SV
 
 _PROMPTS = default_prompts("sv")
 _PROMPTS_EN = default_prompts("en")
@@ -112,23 +113,28 @@ def _bundle(
 def _clf_for(bundle: RunBundle) -> BundleClassification:
     """Deterministic classification for metrics tests (no LLM)."""
     packs = [TopicPack(label="Belysning", keywords=["belysning"])]
-    n = sum(
-        1
-        for p in [*bundle.posts, *bundle.comments]
-        if p.get("content") or p.get("text")
-    )
-    n = max(n, 1)
+    tone_shares = {lab: 0.2 for lab in TONE_LABELS_SV}
+    style_avg = [(lab, 1.0 if i == 0 else 0.0) for i, lab in enumerate(STYLE_LABELS)]
+    style_avg.append((STYLE_UNCLASSIFIED, 0.0))
     return BundleClassification(
         topic_packs=packs,
         topic_shares={"Belysning": 0.75, "Övrigt": 0.25},
-        tone_shares={
-            "Kritisk / uppgiven": 0.25,
-            "Konstruktiv": 0.25,
-            "Positiv / hoppfull": 0.25,
-            "Neutral / oklassad": 0.25,
-        },
-        tone_mode="llm",
+        tone_shares=tone_shares,
+        tone_mode="ssr",
+        style_avg_likes=style_avg,
     )
+
+
+async def _fake_embed(texts: list[str]) -> list[list[float]]:
+    """Deterministic embeddings: one-hot-ish vectors by text hash."""
+    out: list[list[float]] = []
+    for t in texts:
+        # 8-D stable pseudo-vector from content
+        v = [0.0] * 8
+        v[hash(t) % 8] = 1.0
+        v[(hash(t) // 8) % 8] = 0.5
+        out.append(v)
+    return out
 
 
 async def _mock_classify_llm(messages: list[dict[str, str]], response_model: type[Any]) -> Any:
@@ -162,26 +168,6 @@ async def _mock_classify_llm(messages: list[dict[str, str]], response_model: typ
         return _TopicBatchResponse(
             items=[_TopicItem(index=i, topic=primary if i % 2 == 0 else other) for i in range(n)]
         )
-    if name == "_ToneBatchResponse":
-        user = messages[-1]["content"]
-        n = sum(1 for line in user.splitlines() if line[:1].isdigit())
-        if english:
-            tones = [
-                "Critical / resigned",
-                "Constructive",
-                "Positive / hopeful",
-                "Neutral / unclassified",
-            ]
-        else:
-            tones = [
-                "Kritisk / uppgiven",
-                "Konstruktiv",
-                "Positiv / hoppfull",
-                "Neutral / oklassad",
-            ]
-        return _ToneBatchResponse(
-            items=[_ToneItem(index=i, tone=tones[i % 4]) for i in range(n)]
-        )
     if name == "SlotBatchResponse":
         content = messages[-1]["content"] if messages else ""
         slots: dict[str, str] = {}
@@ -196,6 +182,7 @@ async def _mock_classify_llm(messages: list[dict[str, str]], response_model: typ
 @pytest.mark.asyncio
 async def test_derive_and_classify_via_mocked_llm():
     set_structured_completer(_mock_classify_llm)
+    set_embedder(_fake_embed)
     try:
         packs = await derive_topic_packs(
             [
@@ -213,38 +200,47 @@ async def test_derive_and_classify_via_mocked_llm():
         topic_shares = await classify_topics(texts, packs, prompts=_PROMPTS)
         assert "Belysning" in topic_shares
         assert "Övrigt" in topic_shares
-        tone_shares, mode = await classify_tones(texts, prompts=_PROMPTS)
-        assert mode == "llm"
-        assert tone_shares["Kritisk / uppgiven"] > 0
+        tone_shares, mode, rated, _pmfs, _embed_s = await classify_tones(texts)
+        assert mode == "ssr"
+        assert rated == [t[:200] for t in texts]  # direct embed of reaction texts
+        assert set(tone_shares) == set(TONE_LABELS_SV)
+        assert sum(tone_shares.values()) == pytest.approx(1.0)
     finally:
         set_structured_completer(None)
+        set_embedder(None)
 
 
-def test_style_unclassified_not_personal_default():
-    b = _bundle(
-        comments=[
-            {
-                "comment_id": 1,
-                "post_id": 1,
-                "user_id": 2,
-                "content": "Lamporna i Klocket är släckta varje kväll.",
-                "num_likes": 11,
-            }
-        ],
-        posts=[
-            {
-                "post_id": 1,
-                "user_id": 0,
-                "content": "Vägbelysning i byarna.",
-                "num_likes": 0,
-            }
-        ],
-    )
-    m = compute_report_metrics([b], [_clf_for(b)])
+@pytest.mark.asyncio
+async def test_classify_styles_embeds_reaction_texts_directly():
+    set_embedder(_fake_embed)
+    try:
+        texts = [
+            "Ironiskt med statistik som visar att det är skandal.",
+            "Skäms ni — idiotiskt lögnaktigt absolut noll!",
+        ]
+        likes = [10, 0]
+        style_avg, rated, pmfs, _embed_s = await classify_styles(texts, likes)
+        assert rated[0].startswith("Ironiskt")
+        assert len(pmfs) == 2
+        by_style = dict(style_avg)
+        assert "Sarkastisk + konkret kritik" in by_style
+        assert "Provocerande / konfronterande" in by_style
+    finally:
+        set_embedder(None)
+
+
+def test_style_avg_comes_from_classification():
+    b = _bundle()
+    clf = _clf_for(b)
+    clf.style_avg_likes = [
+        ("Sarkastisk + konkret kritik", 5.0),
+        ("Personlig + hjärtlig berättelse", 0.0),
+        (STYLE_UNCLASSIFIED, 0.0),
+    ]
+    m = compute_report_metrics([b], [clf])
     by_style = dict(m.aggregate.style_avg_likes)
-    assert by_style.get(STYLE_UNCLASSIFIED, 0) > 0
-    personal = by_style.get("Personlig + hjärtlig berättelse", 0)
-    assert personal == 0.0
+    assert by_style["Sarkastisk + konkret kritik"] == 5.0
+    assert by_style.get("Personlig + hjärtlig berättelse", 0) == 0.0
 
 
 def test_population_excludes_injectors():
@@ -260,8 +256,8 @@ def test_compute_metrics_single_bundle():
     assert m.aggregate.agent_count >= 1
     assert m.aggregate.post_count == 2
     assert "Belysning" in m.aggregate.topic_shares or "Övrigt" in m.aggregate.topic_shares
-    assert "Neutral / oklassad" in m.aggregate.tone_shares
-    assert m.tone_mode == "llm"
+    assert "Neutral" in m.aggregate.tone_shares
+    assert m.tone_mode == "ssr"
     assert m.cross_table[0]["label"] == "A"
 
 
@@ -286,7 +282,7 @@ def test_chart_slots_contain_donut_and_hbars():
     ]
     charts = render_sec02_charts(metrics)
     assert "Engagemang" in charts
-    assert "LLM" in charts or "Klassad" in charts
+    assert "SSR" in charts or "ton" in charts.lower()
 
 
 def test_sanitize_strips_fences_and_chatter():
@@ -450,8 +446,9 @@ async def test_fill_narrative_slots_batches_in_parallel():
 @pytest.mark.asyncio
 async def test_generate_report_with_mocked_llm(tmp_path: Path):
     set_structured_completer(_mock_classify_llm)
+    set_embedder(_fake_embed)
     try:
-        html_path, slots_path, slots = await generate_report_html(
+        html_path, slots_path, slots, timing = await generate_report_html(
             [_bundle()],
             out_dir=tmp_path / "rpt",
             dry_run=False,
@@ -461,6 +458,8 @@ async def test_generate_report_with_mocked_llm(tmp_path: Path):
         )
         assert html_path.is_file()
         assert slots_path.is_file()
+        assert (tmp_path / "rpt" / "report.ssr.json").is_file()
+        assert "embed_seconds" in timing
         html = html_path.read_text(encoding="utf-8")
         assert 'lang="sv"' in html
         assert "Opinionssimulator" in html or "Simuleringsrapport" in html or "Test" in html
@@ -470,13 +469,15 @@ async def test_generate_report_with_mocked_llm(tmp_path: Path):
         assert "Belysning" in slots.get("meta_topics", "")
     finally:
         set_structured_completer(None)
+        set_embedder(None)
 
 
 @pytest.mark.asyncio
 async def test_generate_english_report_with_mocked_llm(tmp_path: Path):
     set_structured_completer(_mock_classify_llm)
+    set_embedder(_fake_embed)
     try:
-        html_path, _slots_path, slots = await generate_report_html(
+        html_path, _slots_path, slots, _timing = await generate_report_html(
             [_bundle()],
             out_dir=tmp_path / "rpt_en",
             dry_run=False,
@@ -491,15 +492,47 @@ async def test_generate_english_report_with_mocked_llm(tmp_path: Path):
         assert "Metod" not in html
         assert "Lighting" in slots.get("meta_topics", "")
         assert "1 run" in slots.get("meta_tests", "")
+        assert set(TONE_LABELS_EN)  # locale anchors exist
     finally:
         set_structured_completer(None)
+        set_embedder(None)
+
+
+@pytest.mark.asyncio
+async def test_generate_quick_report_skips_deepseek(tmp_path: Path):
+    async def _no_llm(_messages, _model):
+        raise AssertionError("quick report must not call DeepSeek")
+
+    set_structured_completer(_no_llm)
+    set_embedder(_fake_embed)
+    try:
+        html_path, _slots_path, slots, timing = await generate_report_html(
+            [_bundle()],
+            out_dir=tmp_path / "rpt_quick",
+            dry_run=False,
+            title="Snabb",
+            mode="quick",
+            prompts=_PROMPTS,
+        )
+        html = html_path.read_text(encoding="utf-8")
+        assert "Snabbrapport" in html or "Snabb" in html
+        assert "verdict" in html or "mottagande" in html.lower() or "Nollresultat" in html
+        assert "tech" in html
+        assert slots.get("verdict_label")
+        assert timing["classify_llm_seconds"] == 0.0
+        assert timing["embed_seconds"] >= 0.0
+        assert (tmp_path / "rpt_quick" / "report.ssr.json").is_file()
+    finally:
+        set_structured_completer(None)
+        set_embedder(None)
 
 
 @pytest.mark.asyncio
 async def test_generate_report_dry_run_skips_narrative_but_classifies(tmp_path: Path):
     set_structured_completer(_mock_classify_llm)
+    set_embedder(_fake_embed)
     try:
-        _html_path, _slots_path, slots = await generate_report_html(
+        _html_path, _slots_path, slots, _timing = await generate_report_html(
             [_bundle()],
             out_dir=tmp_path / "rpt_dry",
             dry_run=True,
@@ -511,14 +544,16 @@ async def test_generate_report_dry_run_skips_narrative_but_classifies(tmp_path: 
         assert slots["page_title"]
     finally:
         set_structured_completer(None)
+        set_embedder(None)
 
 
 @pytest.mark.asyncio
 async def test_generate_report_escapes_hostile_title(tmp_path: Path):
     set_structured_completer(_mock_classify_llm)
+    set_embedder(_fake_embed)
     try:
         hostile = '</title><script>alert("xss")</script><title>'
-        html_path, _slots_path, slots = await generate_report_html(
+        html_path, _slots_path, slots, _timing = await generate_report_html(
             [_bundle(label="Run <img src=x onerror=alert(1)>")],
             out_dir=tmp_path / "rpt_xss",
             dry_run=True,
@@ -533,3 +568,4 @@ async def test_generate_report_escapes_hostile_title(tmp_path: Path):
         assert "&lt;img src=x onerror=alert(1)&gt;" in html
     finally:
         set_structured_completer(None)
+        set_embedder(None)

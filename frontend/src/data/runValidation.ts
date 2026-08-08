@@ -99,9 +99,9 @@ export function validateRunConfig(
   return { ok: errors.length === 0, errors }
 }
 
-export type RunWizardStep = 1 | 2 | 3
+export type RunWizardStep = 1 | 2 | 3 | 4
 
-/** Per-step validation for the create wizard — step 3 has no "next" gate. */
+/** Per-step validation for the create wizard — steps 3–4 have no "next" gate. */
 export function validateRunWizardStep(
   step: RunWizardStep,
   input: {
@@ -174,5 +174,6 @@ export function validateRunWizardStep(
     return { ok: errors.length === 0, errors }
   }
 
+  // Step 3 (tools) and 4 (review): no gate — tools are optional.
   return { ok: true, errors: [] }
 }

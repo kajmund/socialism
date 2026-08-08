@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react"
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { createPortal } from "react-dom"
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import {
@@ -21,6 +21,12 @@ import {
   type ChatMode,
   type PersonaMessage,
 } from "@/api/personas"
+import { ChatMessageActions } from "@/components/chat/ChatMessageActions"
+import { MessengerChat } from "@/components/chat/MessengerChat"
+import {
+  doneToPersonaMessages,
+  useChatSocket,
+} from "@/components/chat/useChatSocket"
 import { AdminShell } from "@/components/layout/AdminShell"
 import { PersonaAnekdotEditor, PersonaAnekdotPresentation } from "@/components/personas/PersonaAnekdot"
 import { AdminButton } from "@/components/ui/admin-button"
@@ -228,51 +234,6 @@ type EditorProps = {
   deleting?: boolean
 }
 
-function ChatMessageActions({
-  message,
-  chatBusy,
-  t,
-  onDelete,
-  onResend,
-}: {
-  message: PersonaMessage
-  chatBusy: boolean
-  t: Translate
-  onDelete: (messageId: number) => void
-  onResend: (messageId: number) => void
-}) {
-  const resendLabel =
-    message.role === "user"
-      ? t("personas.composer.resendMessage")
-      : t("personas.composer.regenerateAnswer")
-  const deleteLabel = t("personas.composer.deleteMessage")
-
-  return (
-    <div className="chat-msg-actions">
-      <button
-        type="button"
-        className="chat-msg-resend"
-        title={resendLabel}
-        disabled={chatBusy}
-        onClick={() => onResend(message.id)}
-        aria-label={resendLabel}
-      >
-        ↻
-      </button>
-      <button
-        type="button"
-        className="chat-msg-delete"
-        title={deleteLabel}
-        disabled={chatBusy}
-        onClick={() => onDelete(message.id)}
-        aria-label={deleteLabel}
-      >
-        ×
-      </button>
-    </div>
-  )
-}
-
 function Editor({
   persona,
   personaId,
@@ -299,22 +260,54 @@ function Editor({
     valdeltagande: true,
   })
   const [messages, setMessages] = useState<PersonaMessage[]>([])
+  const [optimisticUser, setOptimisticUser] = useState<string | null>(null)
   const [draft, setDraft] = useState("")
-  const [chatBusy, setChatBusy] = useState(false)
+  const [restBusy, setRestBusy] = useState(false)
   const [confirmClearInterview, setConfirmClearInterview] = useState(false)
   const [confirmDeleteMessageId, setConfirmDeleteMessageId] = useState<number | null>(
     null,
   )
+  const chatHello = useMemo(
+    () =>
+      personaId
+        ? ({ scope: "library" as const, persona_id: personaId, mode: icMode })
+        : null,
+    [personaId, icMode],
+  )
+
+  const {
+    ready: chatReady,
+    busy: socketBusy,
+    typing: chatTyping,
+    streamText,
+    send: socketSend,
+  } = useChatSocket({
+    hello: chatHello,
+    onDone: (rows) => {
+      setMessages(doneToPersonaMessages(rows, icMode))
+      setOptimisticUser(null)
+    },
+    onError: (detail) => {
+      setOptimisticUser(null)
+      onToast(detail || t("personas.composer.sendError"))
+    },
+  })
+
+  const chatBusy = restBusy || socketBusy
 
   useEffect(() => {
     if (!personaId) {
       setMessages([])
+      setOptimisticUser(null)
       return
     }
     let cancelled = false
     listPersonaMessages(personaId, icMode)
       .then((rows) => {
-        if (!cancelled) setMessages(rows)
+        if (!cancelled) {
+          setMessages(rows)
+          setOptimisticUser(null)
+        }
       })
       .catch((err: unknown) => {
         if (!cancelled) {
@@ -328,25 +321,22 @@ function Editor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [personaId, icMode])
 
-  async function sendMessage(text: string) {
+  function sendMessage(text: string) {
     const trimmed = text.trim()
     if (!trimmed || !personaId || chatBusy) return
-    setChatBusy(true)
-    try {
-      const result = await chatWithPersona(personaId, { mode: icMode, message: trimmed })
-      setMessages(result.messages)
-      setDraft("")
-    } catch (err) {
-      onToast(err instanceof ApiError ? err.message : t("personas.composer.sendError"))
-    } finally {
-      setChatBusy(false)
+    setOptimisticUser(trimmed)
+    setDraft("")
+    if (!socketSend(trimmed)) {
+      setOptimisticUser(null)
+      setDraft(trimmed)
+      onToast(t("chat.notConnected"))
     }
   }
 
   async function regenerate() {
     if (!personaId || chatBusy) return
     const lastUser = [...messages].reverse().find((m) => m.role === "user")
-    setChatBusy(true)
+    setRestBusy(true)
     try {
       await clearPersonaMessages(personaId, icMode)
       if (lastUser) {
@@ -358,20 +348,22 @@ function Editor({
       } else {
         setMessages([])
       }
+      setOptimisticUser(null)
     } catch (err) {
       onToast(err instanceof ApiError ? err.message : t("personas.composer.regenerateError"))
     } finally {
-      setChatBusy(false)
+      setRestBusy(false)
     }
   }
 
   async function confirmClearInterviewAction() {
     if (!personaId || chatBusy || messages.length === 0) return
-    setChatBusy(true)
+    setRestBusy(true)
     try {
       await clearPersonaMessages(personaId, icMode)
       setMessages([])
       setDraft("")
+      setOptimisticUser(null)
       setConfirmClearInterview(false)
     } catch (err) {
       onToast(
@@ -382,7 +374,7 @@ function Editor({
             : t("personas.composer.clearChatError"),
       )
     } finally {
-      setChatBusy(false)
+      setRestBusy(false)
     }
   }
 
@@ -401,15 +393,41 @@ function Editor({
 
   async function confirmDeleteMessageAction() {
     if (!personaId || chatBusy || confirmDeleteMessageId == null) return
-    setChatBusy(true)
+    const targetId = confirmDeleteMessageId
+    setRestBusy(true)
     try {
-      await deletePersonaMessage(personaId, confirmDeleteMessageId)
-      setMessages((prev) => prev.filter((m) => m.id !== confirmDeleteMessageId))
+      const result = await deletePersonaMessage(personaId, targetId)
+      const removed = new Set(result.deleted_ids)
+      setMessages((prev) => prev.filter((m) => !removed.has(m.id)))
       setConfirmDeleteMessageId(null)
     } catch (err) {
-      onToast(err instanceof ApiError ? err.message : t("personas.composer.deleteMessageError"))
+      // Paired delete already removed this id server-side while the bubble lingered.
+      if (err instanceof ApiError && err.status === 404) {
+        setMessages((prev) => {
+          const idx = prev.findIndex((m) => m.id === targetId)
+          if (idx < 0) return prev
+          const target = prev[idx]!
+          const drop = new Set<number>([targetId])
+          if (target.role === "user" && prev[idx + 1]?.role === "assistant") {
+            drop.add(prev[idx + 1]!.id)
+          } else if (target.role === "assistant" && idx > 0 && prev[idx - 1]?.role === "user") {
+            drop.add(prev[idx - 1]!.id)
+          }
+          return prev.filter((m) => !drop.has(m.id))
+        })
+        setConfirmDeleteMessageId(null)
+        try {
+          setMessages(await listPersonaMessages(personaId, icMode))
+        } catch {
+          // local heal above is enough
+        }
+      } else {
+        onToast(
+          err instanceof ApiError ? err.message : t("personas.composer.deleteMessageError"),
+        )
+      }
     } finally {
-      setChatBusy(false)
+      setRestBusy(false)
     }
   }
 
@@ -417,14 +435,15 @@ function Editor({
 
   async function resendMessage(messageId: number) {
     if (!personaId || chatBusy) return
-    setChatBusy(true)
+    setRestBusy(true)
     try {
       const result = await resendPersonaMessage(personaId, messageId)
       setMessages(result.messages)
+      setOptimisticUser(null)
     } catch (err) {
       onToast(err instanceof ApiError ? err.message : t("personas.composer.resendError"))
     } finally {
-      setChatBusy(false)
+      setRestBusy(false)
     }
   }
 
@@ -673,59 +692,42 @@ function Editor({
               ↻ {t("personas.composer.regenerateAnswer")}
             </AdminButton>
           </div>
-          <div className="chat-msgs">
-            {!personaId && (
-              <div className="bub them">{t("personas.composer.saveToInterviewChat")}</div>
-            )}
-            {personaId && messages.length === 0 && (
-              <div className="bub them">{t("personas.composer.askToStart")}</div>
-            )}
-            {messages.map((m) => (
-              <div
-                key={m.id}
-                className={"chat-msg-row " + (m.role === "assistant" ? "them" : "me")}
-              >
-                <div className={"bub " + (m.role === "assistant" ? "them" : "me")}>
-                  {m.content}
-                </div>
-                {personaId ? (
-                  <ChatMessageActions
-                    message={m}
-                    chatBusy={chatBusy}
-                    t={t}
-                    onDelete={setConfirmDeleteMessageId}
-                    onResend={(messageId) => void resendMessage(messageId)}
-                  />
-                ) : null}
+          <MessengerChat
+            messages={messages}
+            optimisticUser={optimisticUser}
+            typing={chatTyping}
+            streamText={streamText}
+            draft={draft}
+            onDraftChange={setDraft}
+            onSend={() => sendMessage(draft)}
+            busy={chatBusy}
+            ready={chatReady}
+            disabled={!personaId}
+            placeholder={
+              personaId
+                ? t("personas.composer.messagePlaceholder")
+                : t("personas.composer.savePersonaFirst")
+            }
+            empty={
+              <div className="bub them">
+                {!personaId
+                  ? t("personas.composer.saveToInterviewChat")
+                  : t("personas.composer.askToStart")}
               </div>
-            ))}
-          </div>
-          <div className="chat-input">
-            <input
-              placeholder={
-                personaId
-                  ? t("personas.composer.messagePlaceholder")
-                  : t("personas.composer.savePersonaFirst")
-              }
-              value={draft}
-              disabled={!personaId || chatBusy}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault()
-                  void sendMessage(draft)
-                }
-              }}
-            />
-            <AdminButton
-              variant="primary"
-              size="sm"
-              disabled={!personaId || chatBusy || !draft.trim()}
-              onClick={() => void sendMessage(draft)}
-            >
-              {chatBusy ? "…" : t("personas.composer.send")}
-            </AdminButton>
-          </div>
+            }
+            renderActions={
+              personaId
+                ? (m) => (
+                    <ChatMessageActions
+                      message={m}
+                      busy={chatBusy}
+                      onDelete={setConfirmDeleteMessageId}
+                      onResend={(messageId) => void resendMessage(messageId)}
+                    />
+                  )
+                : undefined
+            }
+          />
         </div>
       </div>
       {mode === "work" && <Drawer persona={persona} t={t} />}
@@ -819,70 +821,40 @@ function Editor({
               </AdminButton>
             ) : null}
           </div>
-          <div className="p-transcript">
-            {!personaId && (
-              <p>
-                <i>{t("personas.composer.saveToInterviewPresent")}</i>
-              </p>
-            )}
-            {personaId && messages.length === 0 && (
-              <p>
-                <i>{t("personas.composer.noInterviewYet")}</i>
-              </p>
-            )}
-            {messages.map((m) => (
-              <div key={m.id} className="p-transcript-msg">
-                <p className="p-transcript-body">
-                  {m.role === "assistant" ? (
-                    <>
-                      <b>{persona.initials}:</b> {m.content}
-                    </>
-                  ) : (
-                    <>
-                      <b style={{ color: "var(--db-gold-700)" }}>
-                        {t("personas.composer.youLabel")}:
-                      </b>{" "}
-                      <i>{m.content}</i>
-                    </>
-                  )}
-                </p>
-                {personaId ? (
-                  <ChatMessageActions
-                    message={m}
-                    chatBusy={chatBusy}
-                    t={t}
-                    onDelete={setConfirmDeleteMessageId}
-                    onResend={(messageId) => void resendMessage(messageId)}
-                  />
-                ) : null}
+          <MessengerChat
+            messages={messages}
+            optimisticUser={optimisticUser}
+            typing={chatTyping}
+            streamText={streamText}
+            draft={draft}
+            onDraftChange={setDraft}
+            onSend={() => sendMessage(draft)}
+            busy={chatBusy}
+            ready={chatReady}
+            disabled={!personaId}
+            placeholder={t("personas.composer.askPersonaPlaceholder", {
+              name: persona.name,
+            })}
+            empty={
+              <div className="bub them">
+                {!personaId
+                  ? t("personas.composer.saveToInterviewPresent")
+                  : t("personas.composer.noInterviewYet")}
               </div>
-            ))}
-          </div>
-          <div
-            className="chat-input"
-            style={{ borderTop: "1px solid var(--border-hairline)", paddingTop: 16, marginTop: 4 }}
-          >
-            <input
-              placeholder={t("personas.composer.askPersonaPlaceholder", { name: persona.name })}
-              value={draft}
-              disabled={!personaId || chatBusy}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault()
-                  void sendMessage(draft)
-                }
-              }}
-            />
-            <AdminButton
-              variant="primary"
-              size="sm"
-              disabled={!personaId || chatBusy || !draft.trim()}
-              onClick={() => void sendMessage(draft)}
-            >
-              {chatBusy ? "…" : t("personas.composer.send")}
-            </AdminButton>
-          </div>
+            }
+            renderActions={
+              personaId
+                ? (m) => (
+                    <ChatMessageActions
+                      message={m}
+                      busy={chatBusy}
+                      onDelete={setConfirmDeleteMessageId}
+                      onResend={(messageId) => void resendMessage(messageId)}
+                    />
+                  )
+                : undefined
+            }
+          />
         </div>
       </div>
 

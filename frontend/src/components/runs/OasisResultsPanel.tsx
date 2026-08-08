@@ -2684,6 +2684,7 @@ type ReportConfirmState = {
   sources: Array<{ run_id: number; attempt_id: string }>
   title?: string
   labels: string[]
+  mode: "full" | "quick"
 }
 
 type DeleteConfirmState = {
@@ -2764,6 +2765,7 @@ export function OasisResultsPanel({
   async function orderSources(
     sources: Array<{ run_id: number; attempt_id: string }>,
     title?: string,
+    mode: "full" | "quick" = "full",
   ) {
     if (!runId) return
     setOrderError(null)
@@ -2772,26 +2774,8 @@ export function OasisResultsPanel({
       for (const s of sources) next.add(s.attempt_id)
       return next
     })
-    const report = await createReport({ sources, title, locale })
+    const report = await createReport({ sources, title, locale, mode })
     navigate(`/reports/${report.id}`)
-  }
-
-  async function handleOrderOne(attemptId: string) {
-    if (!runId) return
-    if (busyAttemptIds.has(attemptId) || orderingId != null || compareBusy) return
-    setOrderingId(attemptId)
-    try {
-      await orderSources([{ run_id: runId, attempt_id: attemptId }])
-    } catch (err) {
-      setBusyAttemptIds((prev) => {
-        const next = new Set(prev)
-        next.delete(attemptId)
-        return next
-      })
-      setOrderError(err instanceof ApiError ? err.message : t("runs.results.reportError"))
-    } finally {
-      setOrderingId(null)
-    }
   }
 
   function attemptLabel(attemptId: string): string {
@@ -2804,6 +2788,7 @@ export function OasisResultsPanel({
     setReportConfirm({
       sources: [{ run_id: runId, attempt_id: attemptId }],
       labels: [attemptLabel(attemptId)],
+      mode: "quick",
     })
   }
 
@@ -2817,32 +2802,34 @@ export function OasisResultsPanel({
           ? t("runs.results.reportCompareTitle", { count: selected.size })
           : undefined,
       labels: ids.map(attemptLabel),
+      mode: "quick",
     })
   }
 
   async function confirmReportOrder() {
     if (!reportConfirm) return
-    const { sources, title } = reportConfirm
+    const { sources, title, mode } = reportConfirm
     setReportConfirm(null)
+    const ids = sources.map((s) => s.attempt_id)
     if (sources.length === 1) {
-      await handleOrderOne(sources[0]!.attempt_id)
+      setOrderingId(ids[0]!)
     } else {
       setCompareBusy(true)
-      const ids = sources.map((s) => s.attempt_id)
-      try {
-        await orderSources(sources, title)
-      } catch (err) {
-        setBusyAttemptIds((prev) => {
-          const next = new Set(prev)
-          for (const id of ids) next.delete(id)
-          return next
-        })
-        setOrderError(
-          err instanceof ApiError ? err.message : t("runs.results.reportError"),
-        )
-      } finally {
-        setCompareBusy(false)
-      }
+    }
+    try {
+      await orderSources(sources, title, mode)
+    } catch (err) {
+      setBusyAttemptIds((prev) => {
+        const next = new Set(prev)
+        for (const id of ids) next.delete(id)
+        return next
+      })
+      setOrderError(
+        err instanceof ApiError ? err.message : t("runs.results.reportError"),
+      )
+    } finally {
+      setOrderingId(null)
+      setCompareBusy(false)
     }
   }
 
@@ -2958,7 +2945,11 @@ export function OasisResultsPanel({
               })
             : t("runs.results.reportOrder")
         }
-        description={t("runs.results.reportConfirmDesc")}
+        description={
+          reportConfirm?.mode === "quick"
+            ? t("runs.results.reportConfirmDescQuick")
+            : t("runs.results.reportConfirmDescFull")
+        }
         onClose={() => setReportConfirm(null)}
       >
         {reportConfirm ? (
@@ -2977,6 +2968,39 @@ export function OasisResultsPanel({
                 </li>
               ))}
             </ul>
+            <fieldset className="space-y-2">
+              <legend className="text-sm font-medium text-foreground">
+                {t("runs.results.reportModeLabel")}
+              </legend>
+              <label className="flex cursor-pointer items-start gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="report-mode"
+                  className="mt-1"
+                  checked={reportConfirm.mode === "quick"}
+                  onChange={() =>
+                    setReportConfirm((prev) =>
+                      prev ? { ...prev, mode: "quick" } : prev,
+                    )
+                  }
+                />
+                <span>{t("runs.results.reportModeQuick")}</span>
+              </label>
+              <label className="flex cursor-pointer items-start gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="report-mode"
+                  className="mt-1"
+                  checked={reportConfirm.mode === "full"}
+                  onChange={() =>
+                    setReportConfirm((prev) =>
+                      prev ? { ...prev, mode: "full" } : prev,
+                    )
+                  }
+                />
+                <span>{t("runs.results.reportModeFull")}</span>
+              </label>
+            </fieldset>
             <div className="flex flex-wrap justify-end gap-2">
               <button
                 type="button"

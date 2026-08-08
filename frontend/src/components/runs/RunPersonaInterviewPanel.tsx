@@ -3,9 +3,10 @@ import { createPortal } from "react-dom"
 import {
   clearRunPersonaInterview,
   listRunPersonaInterviewMessages,
-  runPersonaInterview,
   type RunInterviewMessage,
 } from "@/api/runs"
+import { MessengerChat } from "@/components/chat/MessengerChat"
+import { useChatSocket } from "@/components/chat/useChatSocket"
 import { AdminButton } from "@/components/ui/admin-button"
 import { ApiError } from "@/lib/api"
 import type { OasisVariantResult } from "@/data/runs-types"
@@ -42,8 +43,9 @@ function InterviewBody({
 
   const [personaId, setPersonaId] = useState("")
   const [messages, setMessages] = useState<RunInterviewMessage[]>([])
+  const [optimisticUser, setOptimisticUser] = useState<string | null>(null)
   const [draft, setDraft] = useState("")
-  const [busy, setBusy] = useState(false)
+  const [restBusy, setRestBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -61,6 +63,54 @@ function InterviewBody({
     })
   }, [populationAgents, initialPersonaId])
 
+  const chatHello = useMemo(
+    () =>
+      personaId && markers.length > 0
+        ? {
+            scope: "run_interview" as const,
+            run_id: runId,
+            attempt_id: attemptId,
+            variant_id: variant.id,
+            persona_id: personaId,
+            through_tick_index: tickIndex,
+          }
+        : null,
+    [personaId, markers.length, runId, attemptId, variant.id, tickIndex],
+  )
+
+  const {
+    ready: chatReady,
+    busy: socketBusy,
+    typing: chatTyping,
+    streamText,
+    send: socketSend,
+  } = useChatSocket({
+    hello: chatHello,
+    onDone: (rows) => {
+      setMessages(
+        rows.map((m) => ({
+          id: m.id,
+          mode: "interview" as const,
+          role: m.role,
+          content: m.content,
+          created_at: m.created_at ?? "",
+          run_id: runId,
+          attempt_id: attemptId,
+          variant_id: variant.id,
+          through_tick_index: tickIndex,
+        })),
+      )
+      setOptimisticUser(null)
+      setError(null)
+    },
+    onError: (detail) => {
+      setOptimisticUser(null)
+      setError(detail || t("runs.interview.sendError"))
+    },
+  })
+
+  const busy = restBusy || socketBusy
+
   const loadMessages = useCallback(async () => {
     if (!personaId || markers.length === 0) {
       setMessages([])
@@ -76,6 +126,7 @@ function InterviewBody({
         tickIndex,
       )
       setMessages(rows)
+      setOptimisticUser(null)
     } catch (err) {
       setMessages([])
       setError(err instanceof ApiError ? err.message : t("runs.interview.loadError"))
@@ -86,31 +137,22 @@ function InterviewBody({
     void loadMessages()
   }, [loadMessages])
 
-  async function send() {
+  function send() {
     const trimmed = draft.trim()
     if (!trimmed || !personaId || busy) return
-    setBusy(true)
     setError(null)
-    try {
-      const result = await runPersonaInterview(
-        runId,
-        attemptId,
-        variant.id,
-        personaId,
-        { through_tick_index: tickIndex, message: trimmed },
-      )
-      setMessages(result.messages)
-      setDraft("")
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : t("runs.interview.sendError"))
-    } finally {
-      setBusy(false)
+    setOptimisticUser(trimmed)
+    setDraft("")
+    if (!socketSend(trimmed)) {
+      setOptimisticUser(null)
+      setDraft(trimmed)
+      setError(t("chat.notConnected"))
     }
   }
 
   async function clearThread() {
     if (!personaId || busy) return
-    setBusy(true)
+    setRestBusy(true)
     setError(null)
     try {
       await clearRunPersonaInterview(
@@ -121,10 +163,11 @@ function InterviewBody({
         tickIndex,
       )
       setMessages([])
+      setOptimisticUser(null)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("runs.interview.clearError"))
     } finally {
-      setBusy(false)
+      setRestBusy(false)
     }
   }
 
@@ -187,69 +230,39 @@ function InterviewBody({
         ) : null}
       </div>
 
-      <div className="mb-3 max-h-64 space-y-2 overflow-y-auto rounded border border-[color:var(--border-hairline)] bg-black/10 p-3">
-        {messages.length === 0 ? (
-          <p className="text-xs text-muted-foreground">
-            {t("runs.interview.empty")}
-          </p>
-        ) : (
-          messages.map((m) => (
-            <div
-              key={m.id}
-              className={
-                m.role === "user"
-                  ? "text-sm text-foreground"
-                  : "text-sm text-muted-foreground"
-              }
-            >
-              <span className="mr-2 text-xs font-medium uppercase tracking-wide opacity-70">
-                {m.role === "user"
-                  ? t("runs.interview.roleUser")
-                  : t("runs.interview.rolePersona")}
-              </span>
-              {m.content}
-            </div>
-          ))
-        )}
-      </div>
-
       {error ? (
         <p className="mb-2 text-xs text-destructive" role="alert">
           {error}
         </p>
       ) : null}
 
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <textarea
-          className="min-h-[4rem] flex-1 rounded border border-[color:var(--border-hairline)] bg-transparent px-2 py-1.5 text-sm"
-          placeholder={t("runs.interview.placeholder")}
-          value={draft}
-          disabled={busy}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault()
-              void send()
-            }
-          }}
-        />
-        <div className="flex flex-col gap-2">
-          <AdminButton
-            type="button"
-            disabled={busy || !draft.trim()}
-            onClick={() => void send()}
-          >
-            {t("runs.interview.send")}
-          </AdminButton>
-          <AdminButton
-            type="button"
-            variant="secondary"
-            disabled={busy || messages.length === 0}
-            onClick={() => void clearThread()}
-          >
-            {t("runs.interview.clear")}
-          </AdminButton>
-        </div>
+      <MessengerChat
+        className="rounded border border-[color:var(--border-hairline)]"
+        messagesClassName="max-h-72"
+        messages={messages}
+        optimisticUser={optimisticUser}
+        typing={chatTyping}
+        streamText={streamText}
+        draft={draft}
+        onDraftChange={setDraft}
+        onSend={() => send()}
+        busy={busy}
+        ready={chatReady}
+        placeholder={t("runs.interview.placeholder")}
+        empty={
+          <p className="text-xs text-muted-foreground">{t("runs.interview.empty")}</p>
+        }
+      />
+
+      <div className="mt-2 flex justify-end">
+        <AdminButton
+          type="button"
+          variant="secondary"
+          disabled={busy || messages.length === 0}
+          onClick={() => void clearThread()}
+        >
+          {t("runs.interview.clear")}
+        </AdminButton>
       </div>
     </div>
   )

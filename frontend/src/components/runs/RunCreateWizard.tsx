@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { Link } from "react-router-dom"
 import { RunActionCard } from "@/components/runs/RunActionCard"
+import { RunAgentToolsFields } from "@/components/runs/RunAgentToolsFields"
 import { RunIdentityFields } from "@/components/runs/RunIdentityFields"
 import { RunTimelineSection } from "@/components/runs/RunTimelineSection"
 import { AdminButton } from "@/components/ui/admin-button"
@@ -62,6 +63,7 @@ export function RunCreateWizard(props: RunCreateWizardProps) {
   const stepTitles = [
     t("runs.wizard.stepGrund"),
     t("runs.wizard.stepTimeline"),
+    t("runs.wizard.stepTools"),
     t("runs.wizard.stepReview"),
   ] as const
 
@@ -71,7 +73,7 @@ export function RunCreateWizard(props: RunCreateWizardProps) {
   }
 
   function next() {
-    const check = validateRunWizardStep(cur as 1 | 2 | 3, {
+    const check = validateRunWizardStep(cur as 1 | 2 | 3 | 4, {
       name: props.name,
       populationId: props.popId,
       populationSize: props.population.size,
@@ -98,7 +100,7 @@ export function RunCreateWizard(props: RunCreateWizardProps) {
           <p>{t("runs.wizard.intro")}</p>
         </div>
         <div className="head-row-aside">
-          {cur === 3 && (
+          {cur === 4 && (
             <RunActionCard
               layout="bar"
               platform={props.oasisOptions.platform}
@@ -128,7 +130,7 @@ export function RunCreateWizard(props: RunCreateWizardProps) {
         </div>
       </div>
 
-      <div className="stepper stepper-3">
+      <div className="stepper stepper-4">
         {stepTitles.map((title, i) => {
           const n = i + 1
           const cls =
@@ -200,20 +202,6 @@ export function RunCreateWizard(props: RunCreateWizardProps) {
                       allow_population_create_post: checked,
                     })
                   }
-                  enableWebSearch={props.oasisOptions.enable_web_search}
-                  onEnableWebSearchChange={(checked) =>
-                    props.onOasisOptionsChange({
-                      ...props.oasisOptions,
-                      enable_web_search: checked,
-                    })
-                  }
-                  enableSympyTools={props.oasisOptions.enable_sympy_tools}
-                  onEnableSympyToolsChange={(checked) =>
-                    props.onOasisOptionsChange({
-                      ...props.oasisOptions,
-                      enable_sympy_tools: checked,
-                    })
-                  }
                 />
               </div>
             </CardContent>
@@ -273,6 +261,35 @@ export function RunCreateWizard(props: RunCreateWizardProps) {
             </h1>
             <p>{t("runs.wizard.body3")}</p>
           </div>
+          <Card className="id-card mb-9 gap-0 overflow-visible py-0 ring-1 ring-border">
+            <CardContent className="px-0">
+              <div className="id-grid">
+                <RunAgentToolsFields
+                  options={props.oasisOptions}
+                  onChange={props.onOasisOptionsChange}
+                  disabled={props.disabled}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      )}
+
+      {cur === 4 && (
+        <section>
+          <div className="section-head">
+            <span className="kicker">{t("runs.wizard.kicker4")}</span>
+            <h1
+              style={{
+                font: "var(--text-h1)",
+                fontFamily: "'Bai Jamjuree', sans-serif",
+                fontWeight: 400,
+              }}
+            >
+              {t("runs.wizard.heading4")}
+            </h1>
+            <p>{t("runs.wizard.body4")}</p>
+          </div>
         </section>
       )}
 
@@ -280,7 +297,7 @@ export function RunCreateWizard(props: RunCreateWizardProps) {
         <AdminButton variant="secondary" disabled={cur === 1} onClick={back}>
           {t("common.back")}
         </AdminButton>
-        {cur !== 3 && (
+        {cur !== 4 && (
           <AdminButton variant="primary" onClick={next}>
             {t("common.next")}
           </AdminButton>

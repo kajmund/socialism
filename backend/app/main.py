@@ -8,13 +8,16 @@ from sqlalchemy.exc import OperationalError, ProgrammingError
 from app.api import (
     catalog,
     configurations,
+    embeddings,
     health,
     jobs,
     messages,
     personas,
+    playground,
     populations,
     reports,
     runs,
+    ws,
 )
 from app.config import settings
 from app.services import jobs as jobs_service
@@ -26,6 +29,8 @@ logger = logging.getLogger(__name__)
 async def lifespan(_app: FastAPI):
     if not settings.deepseek_api_key.strip():
         raise RuntimeError("DEEPSEEK_API_KEY is required")
+    if not settings.openai_api_key.strip():
+        raise RuntimeError("OPENAI_API_KEY is required (embeddings / SSR)")
     settings.apply_oasis_env()
     factory = jobs_service.job_session_factory()
     try:
@@ -40,6 +45,8 @@ async def lifespan(_app: FastAPI):
 def create_app() -> FastAPI:
     if not settings.deepseek_api_key.strip():
         raise RuntimeError("DEEPSEEK_API_KEY is required")
+    if not settings.openai_api_key.strip():
+        raise RuntimeError("OPENAI_API_KEY is required (embeddings / SSR)")
     app = FastAPI(title="Opinionssimulator", version="0.1.0", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
@@ -57,6 +64,9 @@ def create_app() -> FastAPI:
     app.include_router(catalog.router)
     app.include_router(jobs.router)
     app.include_router(reports.router)
+    app.include_router(playground.router)
+    app.include_router(embeddings.router)
+    app.include_router(ws.router)
     return app
 
 

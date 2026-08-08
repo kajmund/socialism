@@ -23,6 +23,7 @@ from app.schemas.domain import (
     ReportGenerateJobRequest,
     RunSimulateJobRequest,
 )
+from app.realtime.hub import job_hub
 from app.serializers import utcnow
 from app.services import population_generate as gen
 from app.services.oasis_run import (
@@ -97,6 +98,13 @@ def serialize_job(job: Job) -> JobOut:
     )
 
 
+async def publish_job(job: Job) -> None:
+    """Push a job.updated event to connected WebSocket clients."""
+    await job_hub.publish(
+        {"type": "job.updated", "job": serialize_job(job).model_dump(mode="json")}
+    )
+
+
 async def create_job(session: AsyncSession, body: JobCreate) -> Job:
     if body.kind == "population_generate":
         # Validate shape early so the API fails before the worker starts.
@@ -131,6 +139,7 @@ async def create_job(session: AsyncSession, body: JobCreate) -> Job:
     session.add(job)
     await session.commit()
     await session.refresh(job)
+    await publish_job(job)
     return job
 
 
@@ -157,6 +166,8 @@ async def _mark_job_running(job_id: str) -> str | None:
         job.started_at = utcnow()
         job.updated_at = utcnow()
         await session.commit()
+        await session.refresh(job)
+        await publish_job(job)
         return job.kind
 
 
@@ -213,6 +224,8 @@ async def _fail(session: AsyncSession, job_id: str, message: str) -> None:
     job.finished_at = utcnow()
     job.updated_at = utcnow()
     await session.commit()
+    await session.refresh(job)
+    await publish_job(job)
 
 
 async def _succeed(session: AsyncSession, job_id: str, result: dict) -> None:
@@ -225,6 +238,8 @@ async def _succeed(session: AsyncSession, job_id: str, result: dict) -> None:
     job.finished_at = utcnow()
     job.updated_at = utcnow()
     await session.commit()
+    await session.refresh(job)
+    await publish_job(job)
 
 
 async def _run_population_generate(job_id: str) -> None:
@@ -413,21 +428,34 @@ async def _run_report_generate(job_id: str) -> None:
         report.updated_at = utcnow()
         await session.commit()
 
-        # Build bundles while session is open, then release before long LLM work.
-        bundles = await build_bundles(session, sources)
-        out_dir = Path(ARTIFACT_ROOT) / report_id
-        from app.services.prompt_store import require_active_prompts
-
-        prompts = await require_active_prompts(session)
-
+    mode = "full"
     try:
-        html_path, slots_path, _slots = await generate_report_html(
+        async with factory() as session:
+            bundles = await build_bundles(session, sources)
+            out_dir = Path(ARTIFACT_ROOT) / report_id
+            from app.services.prompt_catalog import ConfigurationLanguage
+            from app.services.prompt_store import (
+                require_active_ssr_temperature,
+                require_prompts_for_language,
+            )
+
+            report_lang: ConfigurationLanguage = "en" if locale == "en" else "sv"
+            prompts = await require_prompts_for_language(session, report_lang)
+            ssr_temperature = await require_active_ssr_temperature(session)
+
+        async with factory() as session:
+            report = await session.get(Report, report_id)
+            if report is not None:
+                mode = getattr(report, "mode", None) or "full"
+        html_path, slots_path, _slots, timing = await generate_report_html(
             bundles,
             out_dir=out_dir,
             dry_run=False,
             title=title,
             locale=locale,
             prompts=prompts,
+            mode=mode if mode in ("full", "quick") else "full",
+            ssr_temperature=ssr_temperature,
         )
     except Exception as exc:  # noqa: BLE001 — mark report failed
         async with factory() as session:
@@ -461,6 +489,8 @@ async def _run_report_generate(job_id: str) -> None:
                 "html_path": str(html_path),
                 "slots_path": str(slots_path),
                 "sources": len(bundles),
+                "mode": mode,
+                "timing": timing,
             },
         )
 

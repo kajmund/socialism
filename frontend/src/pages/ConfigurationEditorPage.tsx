@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import {
   CONFIGURATION_LANGUAGES,
+  DEFAULT_SSR_TEMPERATURE,
   createConfiguration,
   getConfiguration,
   getPromptCatalog,
@@ -10,12 +11,14 @@ import {
   type PromptCatalog,
   type PromptField,
 } from "@/api/configurations"
-import { AdminShell } from "@/components/layout/AdminShell"
+import { CatalogEditor } from "@/components/config/CatalogEditor"
 import { AdminButton } from "@/components/ui/admin-button"
 import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
 import { ApiError } from "@/lib/api"
 
 type Translate = (key: MessageKey, params?: TranslateParams) => string
+
+type EditorTopTab = "prompts" | "grunddata"
 
 function languageLabel(language: ConfigurationLanguage, t: Translate): string {
   switch (language) {
@@ -58,8 +61,10 @@ export function ConfigurationEditorPage() {
   const [language, setLanguage] = useState<ConfigurationLanguage>("sv")
   const [isActive, setIsActive] = useState(false)
   const [prompts, setPrompts] = useState<Record<string, string>>({})
+  const [ssrTemperature, setSsrTemperature] = useState(DEFAULT_SSR_TEMPERATURE)
   const [catalog, setCatalog] = useState<PromptCatalog | null>(null)
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null)
+  const [topTab, setTopTab] = useState<EditorTopTab>("prompts")
   const [rowReady, setRowReady] = useState(!isEdit)
   const [catalogLoading, setCatalogLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -88,6 +93,7 @@ export function ConfigurationEditorPage() {
         setName(row.name)
         setLanguage(row.language)
         setIsActive(row.is_active)
+        setSsrTemperature(row.ssr_temperature)
         setError(null)
         setRowReady(true)
       } catch (err: unknown) {
@@ -163,11 +169,14 @@ export function ConfigurationEditorPage() {
     })
   }
 
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault()
+  async function saveConfiguration() {
     const trimmedName = name.trim()
     if (!trimmedName) {
       setError(t("configurations.editor.nameRequired"))
+      return
+    }
+    if (!(ssrTemperature > 0)) {
+      setError(t("configurations.editor.ssrTemperatureInvalid"))
       return
     }
     setSaving(true)
@@ -178,17 +187,20 @@ export function ConfigurationEditorPage() {
           name: trimmedName,
           language,
           prompts,
+          ssr_temperature: ssrTemperature,
           is_active: isActive,
         })
+        navigate("/tools/configurations")
       } else {
-        await createConfiguration({
+        const created = await createConfiguration({
           name: trimmedName,
           language,
           prompts,
+          ssr_temperature: ssrTemperature,
           is_active: isActive,
         })
+        navigate(`/tools/configurations/${created.id}/edit`)
       }
-      navigate("/configurations")
     } catch (err: unknown) {
       setError(err instanceof ApiError ? err.message : t("common.saveError"))
     } finally {
@@ -196,11 +208,15 @@ export function ConfigurationEditorPage() {
     }
   }
 
+  function onSubmit(event: FormEvent) {
+    event.preventDefault()
+    void saveConfiguration()
+  }
+
   return (
-    <AdminShell>
-      <div className="wrap">
+    <>
         <div className="mb-4 text-sm text-muted-foreground">
-          <Link to="/configurations" className="no-underline hover:underline">
+          <Link to="/tools/configurations" className="no-underline hover:underline">
             {t("configurations.list.title")}
           </Link>
           <span className="mx-2">/</span>
@@ -226,7 +242,7 @@ export function ConfigurationEditorPage() {
         {error && <p className="text-destructive">{error}</p>}
 
         {!loading && catalog && (
-          <form className="mt-6 space-y-6" onSubmit={onSubmit}>
+          <div className="mt-6 space-y-6">
             <div className="grid max-w-2xl gap-5">
               <label className="block space-y-1.5">
                 <span className="text-sm font-medium">{t("configurations.editor.nameLabel")}</span>
@@ -267,78 +283,159 @@ export function ConfigurationEditorPage() {
                 />
                 {t("configurations.editor.activeLabel")}
               </label>
-            </div>
 
-            {sections.length > 0 && activeSection ? (
-              <div>
-                <div
-                  role="tablist"
-                  aria-label={t("configurations.editor.tablistAria")}
-                  className="mb-3 flex flex-wrap gap-1 border-b border-[color:var(--border-hairline)]"
+              <div className="flex flex-wrap gap-3">
+                <AdminButton
+                  type="button"
+                  variant="primary"
+                  disabled={saving}
+                  onClick={() => void saveConfiguration()}
                 >
-                  {sections.map((section) => {
-                    const selected = section.id === activeSection.id
-                    return (
-                      <button
-                        key={section.id}
-                        type="button"
-                        role="tab"
-                        id={`prompt-tab-${section.id}`}
-                        aria-selected={selected}
-                        aria-controls={`prompt-panel-${section.id}`}
-                        tabIndex={selected ? 0 : -1}
-                        className={
-                          selected
-                            ? "-mb-px border-b-2 border-db-ink-950 px-3 py-2 text-sm font-medium text-[color:var(--text-body)]"
-                            : "-mb-px border-b-2 border-transparent px-3 py-2 text-sm text-muted-foreground hover:text-[color:var(--text-body)]"
-                        }
-                        onClick={() => setActiveSectionId(section.id)}
-                      >
-                        {section.label}
-                      </button>
-                    )
-                  })}
-                </div>
-
-                <div
-                  role="tabpanel"
-                  id={`prompt-panel-${activeSection.id}`}
-                  aria-labelledby={`prompt-tab-${activeSection.id}`}
-                  className="space-y-5"
+                  {saving ? t("common.saving") : t("common.save")}
+                </AdminButton>
+                <AdminButton
+                  type="button"
+                  variant="secondary"
+                  disabled={saving}
+                  onClick={() => navigate("/tools/configurations")}
                 >
-                  {activeSection.fields.map((field) => (
-                    <label key={field.key} className="block space-y-1.5">
-                      <span className="text-sm font-medium">{field.label}</span>
-                      {field.hint ? (
-                        <span className="block text-xs text-muted-foreground">{field.hint}</span>
-                      ) : null}
-                      <textarea
-                        className="min-h-28 w-full rounded-md border border-[color:var(--border-hairline)] bg-db-ink-0 px-3 py-2 font-mono text-sm"
-                        value={prompts[field.key] ?? ""}
-                        onChange={(e) => setPromptValue(field.key, e.target.value)}
-                      />
-                    </label>
-                  ))}
-                </div>
+                  {t("common.cancel")}
+                </AdminButton>
               </div>
-            ) : null}
-
-            <div className="flex flex-wrap gap-3 border-t border-[color:var(--border-hairline)] pt-6">
-              <AdminButton type="submit" variant="primary" disabled={saving}>
-                {saving ? t("common.saving") : t("common.save")}
-              </AdminButton>
-              <AdminButton
-                type="button"
-                variant="secondary"
-                disabled={saving}
-                onClick={() => navigate("/configurations")}
-              >
-                {t("common.cancel")}
-              </AdminButton>
             </div>
-          </form>
+
+            <div
+              role="tablist"
+              aria-label={t("configurations.editor.topTablistAria")}
+              className="flex flex-wrap gap-1 border-b border-[color:var(--border-hairline)]"
+            >
+              {(
+                [
+                  ["prompts", "configurations.editor.tabPrompts"],
+                  ["grunddata", "configurations.editor.tabGrunddata"],
+                ] as const
+              ).map(([id, labelKey]) => {
+                const selected = topTab === id
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    role="tab"
+                    id={`config-top-tab-${id}`}
+                    aria-selected={selected}
+                    aria-controls={`config-top-panel-${id}`}
+                    tabIndex={selected ? 0 : -1}
+                    className={
+                      selected
+                        ? "-mb-px border-b-2 border-db-ink-950 px-3 py-2 text-sm font-medium text-[color:var(--text-body)]"
+                        : "-mb-px border-b-2 border-transparent px-3 py-2 text-sm text-muted-foreground hover:text-[color:var(--text-body)]"
+                    }
+                    onClick={() => setTopTab(id)}
+                  >
+                    {t(labelKey)}
+                  </button>
+                )
+              })}
+            </div>
+
+            {topTab === "prompts" ? (
+              <form
+                id="config-top-panel-prompts"
+                role="tabpanel"
+                aria-labelledby="config-top-tab-prompts"
+                className="space-y-6"
+                onSubmit={onSubmit}
+              >
+                {sections.length > 0 && activeSection ? (
+                  <div>
+                    <div
+                      role="tablist"
+                      aria-label={t("configurations.editor.tablistAria")}
+                      className="mb-3 flex flex-wrap gap-1 border-b border-[color:var(--border-hairline)]"
+                    >
+                      {sections.map((section) => {
+                        const selected = section.id === activeSection.id
+                        return (
+                          <button
+                            key={section.id}
+                            type="button"
+                            role="tab"
+                            id={`prompt-tab-${section.id}`}
+                            aria-selected={selected}
+                            aria-controls={`prompt-panel-${section.id}`}
+                            tabIndex={selected ? 0 : -1}
+                            className={
+                              selected
+                                ? "-mb-px border-b-2 border-db-ink-950 px-3 py-2 text-sm font-medium text-[color:var(--text-body)]"
+                                : "-mb-px border-b-2 border-transparent px-3 py-2 text-sm text-muted-foreground hover:text-[color:var(--text-body)]"
+                            }
+                            onClick={() => setActiveSectionId(section.id)}
+                          >
+                            {section.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+
+                    <div
+                      role="tabpanel"
+                      id={`prompt-panel-${activeSection.id}`}
+                      aria-labelledby={`prompt-tab-${activeSection.id}`}
+                      className="space-y-5"
+                    >
+                      {activeSection.id === "report" ? (
+                        <label className="block space-y-1.5">
+                          <span className="text-sm font-medium">
+                            {t("configurations.editor.ssrTemperatureLabel")}
+                          </span>
+                          <span className="block text-xs text-muted-foreground">
+                            {t("configurations.editor.ssrTemperatureHint")}
+                          </span>
+                          <input
+                            type="number"
+                            min={0.001}
+                            max={10}
+                            step={0.001}
+                            className="w-36 rounded-md border border-[color:var(--border-hairline)] bg-db-ink-0 px-3 py-2 font-mono text-sm"
+                            value={ssrTemperature}
+                            onChange={(e) => setSsrTemperature(Number(e.target.value))}
+                          />
+                        </label>
+                      ) : null}
+                      {activeSection.fields.map((field) => (
+                        <label key={field.key} className="block space-y-1.5">
+                          <span className="text-sm font-medium">{field.label}</span>
+                          {field.hint ? (
+                            <span className="block text-xs text-muted-foreground">
+                              {field.hint}
+                            </span>
+                          ) : null}
+                          <textarea
+                            className="min-h-28 w-full rounded-md border border-[color:var(--border-hairline)] bg-db-ink-0 px-3 py-2 font-mono text-sm"
+                            value={prompts[field.key] ?? ""}
+                            onChange={(e) => setPromptValue(field.key, e.target.value)}
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </form>
+            ) : (
+              <div
+                id="config-top-panel-grunddata"
+                role="tabpanel"
+                aria-labelledby="config-top-tab-grunddata"
+              >
+                {isEdit && Number.isFinite(numericId) ? (
+                  <CatalogEditor configurationId={numericId} />
+                ) : (
+                  <p className="muted">{t("configurations.editor.grunddataSaveFirst")}</p>
+                )}
+              </div>
+            )}
+          </div>
         )}
-      </div>
-    </AdminShell>
+    </>
   )
 }

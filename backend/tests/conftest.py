@@ -1,7 +1,9 @@
 import os
+import tempfile
 
-# Required before importing app.config — Settings fails without a key.
+# Required before importing app.config — Settings fails without keys.
 os.environ.setdefault("DEEPSEEK_API_KEY", "test-key-not-real")
+os.environ.setdefault("OPENAI_API_KEY", "test-openai-key-not-real")
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -11,17 +13,26 @@ from sqlalchemy.pool import StaticPool
 from app.config import settings
 from app.database.base import Base
 from app.database.session import get_session
-from app.llm import set_structured_completer, set_text_completer
+from app.llm import set_structured_completer, set_text_completer, set_text_streamer
 from app.main import create_app
 from app.services import jobs as jobs_service
 from app.services.population_generate import clear_generations
+from app.services.ssr import clear_embedding_cache, set_embedder
+
+# Isolate disk cache from developer machine data/.
+_EMBED_CACHE_ROOT = tempfile.mkdtemp(prefix="ssr-embed-cache-")
+settings.embedding_cache_dir = _EMBED_CACHE_ROOT
 
 
 @pytest.fixture(autouse=True)
 def _reset_llm_completers():
+    clear_embedding_cache()
     yield
     set_structured_completer(None)
     set_text_completer(None)
+    set_text_streamer(None)
+    set_embedder(None)
+    clear_embedding_cache()
 
 
 @pytest.fixture
@@ -29,6 +40,7 @@ async def client():
     clear_generations()
     settings.persona_generator = "stub"
     settings.deepseek_api_key = "test-key-not-real"
+    settings.openai_api_key = "test-openai-key-not-real"
     settings.simulation_engine = "none"
 
     async def _mock_text(_messages: list[dict[str, str]]) -> str:

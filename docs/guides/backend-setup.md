@@ -26,6 +26,10 @@ cp .env.example .env
 | `DEEPSEEK_MODEL` | no | `deepseek-chat` | |
 | `DEEPSEEK_BASE_URL` | no | `https://api.deepseek.com` | |
 | `DEEPSEEK_TIMEOUT_SECONDS` | no | `60` | HTTP timeout for DeepSeek calls (hangs reports if too low/high) |
+| `OPENAI_API_KEY` | **yes** | — | OpenAI embeddings for SSR reports (separate from DeepSeek) |
+| `EMBEDDING_MODEL` | no | `text-embedding-3-large` | |
+| `EMBEDDING_BASE_URL` | no | `https://api.openai.com/v1` | |
+| `EMBEDDING_TIMEOUT_SECONDS` | no | `60` | |
 | `PERSONA_GENERATOR` | no | `deepseek` | `stub` = weighted random for offline persona *sampling* in tests only |
 | `SIMULATION_ENGINE` | no | `none` | `none` = empty attempt on start; `oasis` = live CAMEL OASIS |
 | `MAX_CONCURRENT_SIMULATION_JOBS` | no | `2` | Cap overlapping `run_simulate` jobs (1–32). A/B variants inside one job still run in parallel |
@@ -40,6 +44,10 @@ DEEPSEEK_API_KEY=sk-...
 DEEPSEEK_MODEL=deepseek-chat
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_TIMEOUT_SECONDS=60
+OPENAI_API_KEY=sk-...
+EMBEDDING_MODEL=text-embedding-3-large
+EMBEDDING_BASE_URL=https://api.openai.com/v1
+EMBEDDING_TIMEOUT_SECONDS=60
 PERSONA_GENERATOR=deepseek
 SIMULATION_ENGINE=none
 MAX_CONCURRENT_SIMULATION_JOBS=2
@@ -48,6 +56,7 @@ MAX_CONCURRENT_SIMULATION_JOBS=2
 Constraints:
 
 - `DEEPSEEK_API_KEY` is required at startup even when `PERSONA_GENERATOR=stub`. There is no keyword/heuristic LLM fallback for chat or reports.
+- `OPENAI_API_KEY` is required for Semantic Similarity Rating (report tone/style). The SSR embeddings client reads `settings.openai_api_key` explicitly — not the process env after OASIS mirrors DeepSeek into `OPENAI_API_KEY`.
 - Settings live only in `app/config.py` — do not call `os.getenv` / `load_dotenv` in app code.
 
 ## Optional: OASIS simulation
@@ -131,7 +140,8 @@ uv run uvicorn app.main:app --reload
 | Runs | CRUD, `POST /runs/{id}/start` (202 + job), attempt delete, post-hoc interviews (`/attempts/.../interview`) |
 | Messages | Budskapsbibliotek, summarize-url, generate-variants |
 | Catalog | `GET/PUT /catalog/{key}` |
-| Jobs | `POST/GET /jobs`, `GET /jobs/{id}` |
+| Jobs | `POST/GET /jobs`, `GET /jobs/{id}`, `WS /ws/jobs` |
+| Chat | `WS /ws/chat` (streaming library + run interview) |
 | Reports | `POST /reports` (202), `GET /reports/{id}/html` |
 
 Personas also expose library chat delete/resend (`DELETE …/messages`, `POST …/messages/{id}/resend`). Full interview/branch/quality runbook: [runs-interviews-and-quality.md](runs-interviews-and-quality.md).
@@ -141,8 +151,9 @@ Personas also expose library chat delete/resend (`DELETE …/messages`, `POST �
 Kinds: `population_generate`, `run_simulate`, `report_generate`.
 
 - Created by population generate, run start, and report create.
-- Polled via `/jobs` (admin UI at `/jobs`).
+- Admin UI subscribes to `WS /ws/jobs` for live updates (REST `GET /jobs` remains for one-shot reads).
 - On backend startup, interrupted in-flight jobs are marked failed (skipped if DB not migrated yet).
+
 
 ### Reports
 

@@ -1,3 +1,4 @@
+import type { CatalogItem, CatalogList } from "@/api/catalog"
 import { api } from "@/lib/api"
 
 export type ConfigurationLanguage = "sv" | "en" | "nb"
@@ -7,6 +8,7 @@ export type Configuration = {
   name: string
   language: ConfigurationLanguage
   prompts: Record<string, string>
+  ssr_temperature: number
   is_active: boolean
   created_at: string
   updated_at: string
@@ -16,8 +18,11 @@ export type ConfigurationWrite = {
   name: string
   language: ConfigurationLanguage
   prompts?: Record<string, string>
+  ssr_temperature?: number
   is_active?: boolean
 }
+
+export const DEFAULT_SSR_TEMPERATURE = 0.1
 
 export type PromptField = {
   key: string
@@ -67,4 +72,21 @@ export function activateConfiguration(id: number): Promise<Configuration> {
 
 export function deleteConfiguration(id: number): Promise<void> {
   return api.delete(`/configurations/${id}`)
+}
+
+export function listConfigurationCatalog(
+  configurationId: number,
+): Promise<CatalogList[]> {
+  return api.get<CatalogList[]>(`/configurations/${configurationId}/catalog`)
+}
+
+export function updateConfigurationCatalogList(
+  configurationId: number,
+  key: string,
+  items: CatalogItem[],
+): Promise<CatalogList> {
+  return api.put<CatalogList>(
+    `/configurations/${configurationId}/catalog/${key}`,
+    { items },
+  )
 }
