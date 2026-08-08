@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils"
 
 const TOOL_TABS: { key: MessageKey; to: string; end?: boolean }[] = [
   { key: "tools.tabConfigurations", to: "/tools/configurations" },
+  { key: "tools.tabAnchorSets", to: "/tools/anchor-sets" },
   { key: "tools.tabPlayground", to: "/tools/playground", end: true },
   { key: "tools.tabCache", to: "/tools/cache", end: true },
 ]

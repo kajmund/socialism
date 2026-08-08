@@ -8,6 +8,8 @@ from app.database.models import (
     Population,
     PopulationMember,
     Run,
+    SsrAnchorCalibrationItem,
+    SsrAnchorSet,
 )
 
 __all__ = [
@@ -20,4 +22,6 @@ __all__ = [
     "Population",
     "PopulationMember",
     "Run",
+    "SsrAnchorCalibrationItem",
+    "SsrAnchorSet",
 ]
