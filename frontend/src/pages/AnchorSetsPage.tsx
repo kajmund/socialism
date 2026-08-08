@@ -123,6 +123,7 @@ export function AnchorSetsPage() {
           <option value="">{t("anchorSets.list.allLocales")}</option>
           <option value="sv">{t("configurations.language.sv")}</option>
           <option value="en">{t("configurations.language.en")}</option>
+          <option value="nb">{t("configurations.language.nb")}</option>
         </select>
       </div>
 

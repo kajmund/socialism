@@ -260,6 +260,7 @@ export function AnchorSetEditorPage() {
                   >
                     <option value="sv">{t("configurations.language.sv")}</option>
                     <option value="en">{t("configurations.language.en")}</option>
+                    <option value="nb">{t("configurations.language.nb")}</option>
                   </select>
                 </label>
                 <label className="block space-y-1">

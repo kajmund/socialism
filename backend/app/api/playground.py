@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import Configuration
 from app.database.session import get_session
 from app.llm import complete_text
-from app.services.anchor_store import ensure_default_anchor_sets, row_to_anchor_set
+from app.services.anchor_store import ANCHOR_LOCALES, ensure_default_anchor_sets, row_to_anchor_set
 from app.services.playground import (
     compare_ssr_lexicon,
     default_anchor_set,
@@ -24,7 +24,7 @@ from app.services.ssr import ANCHOR_SET_VERSION, style_anchors, tone_anchors
 router = APIRouter(prefix="/playground", tags=["playground"])
 
 Dimension = Literal["tone", "style"]
-Locale = Literal["sv", "en"]
+Locale = Literal["sv", "en", "nb"]
 
 
 class AnchorSetOut(BaseModel):
@@ -109,7 +109,7 @@ async def get_anchors(session: AsyncSession = Depends(get_session)) -> AnchorsOu
             tone[row.locale] = payload
         if row.kind == "style" and row.locale not in style:
             style[row.locale] = payload
-    for loc in ("sv", "en"):
+    for loc in ANCHOR_LOCALES:
         if loc not in tone:
             raise HTTPException(
                 status_code=500,

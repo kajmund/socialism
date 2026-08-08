@@ -1,7 +1,7 @@
 import { api } from "@/lib/api"
 
 export type AnchorKind = "tone" | "style"
-export type AnchorLocale = "sv" | "en"
+export type AnchorLocale = "sv" | "en" | "nb"
 export type AnchorStatus = "draft" | "published"
 
 export type SsrAnchorSet = {
@@ -43,6 +43,7 @@ export type ConfigurationAnchorRef = {
 export type ConfigurationAnchorSets = {
   sv: ConfigurationAnchorRef
   en: ConfigurationAnchorRef
+  nb: ConfigurationAnchorRef
 }
 
 export type AnchorTestRequest = {

@@ -1144,6 +1144,10 @@ export const en: LocalizedTree<SvMessages> = {
     locale: "Anchor language",
     localeSv: "Swedish",
     localeEn: "English",
+    librarySetLabel: "Library anchor set",
+    librarySetDefault: "Built-in defaults",
+    librarySetEdit: "Edit in library",
+    compareLibraryTone: "Tone anchors from library: {name} (selected under Anchor calibration).",
     temperature: "Temperature",
     temperatureHint:
       "Lower values sharpen the distribution (softmax). 1.0 often yields near-even shares when cosine scores are close.",

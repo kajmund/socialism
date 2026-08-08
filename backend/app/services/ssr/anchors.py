@@ -36,6 +36,14 @@ TONE_LABELS_EN: tuple[str, ...] = (
     "Strongly positive",
 )
 
+TONE_LABELS_NB: tuple[str, ...] = (
+    "Sterkt negativ",
+    "Noe negativ",
+    "Nøytral",
+    "Noe positiv",
+    "Sterkt positiv",
+)
+
 
 @dataclass(frozen=True)
 class AnchorSet:
@@ -79,6 +87,19 @@ TONE_ANCHORS_EN = AnchorSet(
     ),
 )
 
+TONE_ANCHORS_NB = AnchorSet(
+    name="tone_nb",
+    version=ANCHOR_SET_VERSION,
+    labels=TONE_LABELS_NB,
+    statements=(
+        "Teksten uttrykker sterkt negativ, kritisk eller resignert holdning til budskapet.",
+        "Teksten heller mot negativ eller skeptisk tone, men uten total avvisning.",
+        "Teksten er nøytral, usikker eller mangler tydelig vurdering av budskapet.",
+        "Teksten heller mot positiv, konstruktiv eller håpefull tone.",
+        "Teksten uttrykker sterkt positiv, støttende eller entusiastisk mottakelse.",
+    ),
+)
+
 STYLE_ANCHORS_SV = AnchorSet(
     name="style_sv",
     version=ANCHOR_SET_VERSION,
@@ -107,13 +128,35 @@ STYLE_ANCHORS_EN = AnchorSet(
     ),
 )
 
+STYLE_ANCHORS_NB = AnchorSet(
+    name="style_nb",
+    version=ANCHOR_SET_VERSION,
+    labels=STYLE_LABELS,
+    statements=(
+        "Sarkastisk eller ironisk tone med konkret kritikk, ofte med tall eller skarp observasjon.",
+        "Resignert eller trett tone med hverdagsmetaforer om hvordan ting lekker eller ikke fungerer.",
+        "Faktadrevet og autoritetsbasert stil som viser til kilder, forskning eller data.",
+        "Personlig og hjertelig fortelling med egne erfaringer eller følelser.",
+        "Optimistisk og løsningsfokusert stil som peker fremover og mot felles løsninger.",
+        "Provoserende eller konfronterende språk som anklager, skammer ut eller eskalerer konflikten.",
+    ),
+)
+
 
 def tone_anchors(*, locale: str = "sv") -> AnchorSet:
-    return TONE_ANCHORS_EN if locale == "en" else TONE_ANCHORS_SV
+    if locale == "en":
+        return TONE_ANCHORS_EN
+    if locale == "nb":
+        return TONE_ANCHORS_NB
+    return TONE_ANCHORS_SV
 
 
 def style_anchors(*, locale: str = "sv") -> AnchorSet:
-    return STYLE_ANCHORS_EN if locale == "en" else STYLE_ANCHORS_SV
+    if locale == "en":
+        return STYLE_ANCHORS_EN
+    if locale == "nb":
+        return STYLE_ANCHORS_NB
+    return STYLE_ANCHORS_SV
 
 
 def tone_labels(*, locale: str = "sv") -> tuple[str, ...]:
