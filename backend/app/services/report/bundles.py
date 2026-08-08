@@ -26,6 +26,8 @@ class RunBundle:
     posts: list[dict[str, Any]] = field(default_factory=list)
     comments: list[dict[str, Any]] = field(default_factory=list)
     measurements: list[dict[str, Any]] = field(default_factory=list)
+    follows: list[dict[str, Any]] = field(default_factory=list)
+    action_histogram: list[dict[str, Any]] = field(default_factory=list)
     ticks_run: int = 0
     personas: list[dict[str, Any]] = field(default_factory=list)
     variant_labels: list[str] = field(default_factory=list)
@@ -137,6 +139,10 @@ def _bundle_from_variant(
         posts=[p for p in (variant.get("posts") or []) if isinstance(p, dict)],
         comments=[c for c in (variant.get("comments") or []) if isinstance(c, dict)],
         measurements=[m for m in (variant.get("measurements") or []) if isinstance(m, dict)],
+        follows=[f for f in (variant.get("follows") or []) if isinstance(f, dict)],
+        action_histogram=[
+            h for h in (variant.get("action_histogram") or []) if isinstance(h, dict)
+        ],
         ticks_run=int(variant.get("ticks_run") or 0),
         personas=personas,
         variant_labels=[variant_label],

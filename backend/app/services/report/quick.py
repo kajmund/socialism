@@ -8,9 +8,10 @@ from typing import Any, Literal
 
 from app.config import settings
 from app.services.report.bundles import RunBundle, is_ab_comparison
+from app.services.report.charts import prefill_quick_chart_slots
 from app.services.report.classify import BundleClassification
 from app.services.report.locale import ReportLocale, display_style_label
-from app.services.report.metrics import ReportMetrics, pct
+from app.services.report.metrics import ReportMetrics, injection_likes, pct
 from app.services.ssr import ANCHOR_SET_VERSION
 
 # Hardcoded thresholds (not config) until calibration shows need to tweak often.
@@ -73,28 +74,7 @@ def _critical_share(tone: dict[str, float], *, locale: ReportLocale) -> float:
 
 
 def _injection_likes(bundle: RunBundle) -> int:
-    """Likes on posts whose content overlaps an injection text (best-effort)."""
-    if not bundle.injection_texts:
-        return sum(
-            int(p.get("num_likes") or p.get("likes") or 0)
-            for p in bundle.posts
-            if p.get("role") == "injector" or p.get("is_injection")
-        )
-    total = 0
-    needles = [t[:80].lower() for t in bundle.injection_texts if t.strip()]
-    for p in bundle.posts:
-        content = str(p.get("content") or p.get("text") or "").lower()
-        likes = int(p.get("num_likes") or p.get("likes") or 0)
-        if any(n and n in content for n in needles):
-            total += likes
-            continue
-        # Injector-authored posts count as injection surface.
-        uid = p.get("user_id")
-        for a in bundle.agents:
-            if a.get("index") == uid and a.get("role") == "injector":
-                total += likes
-                break
-    return total
+    return injection_likes(bundle)
 
 
 def _topic_share_by_day_half(bundle: RunBundle, classification: BundleClassification) -> dict[str, Any]:
@@ -384,6 +364,7 @@ def build_quick_slots(
 
     ab_html = _ab_diff_html(metrics, locale=locale) if ab else ""
     style_html = _style_html(metrics, locale=locale)
+    chart_slots = prefill_quick_chart_slots(metrics, locale=locale, ab=ab)
 
     tech_html = (
         f"<details class=\"tech\"><summary>{escape(tech_title)}</summary>"
@@ -426,6 +407,8 @@ def build_quick_slots(
         "ab_html": ab_html or (
             f"<p>{'Single run — no A/B comparison.' if locale == 'en' else 'En körning — ingen A/B-jämförelse.'}</p>"
         ),
+        "stats_html": chart_slots["stats_html"],
+        "charts_html": chart_slots["charts_html"],
         "style_html": style_html,
         "tech_html": tech_html,
         "meta_runs": ", ".join(b.label for b in bundles),
@@ -435,10 +418,14 @@ def build_quick_slots(
 def render_quick_html(slots: dict[str, str], *, locale: ReportLocale) -> str:
     lang = "en" if locale == "en" else "sv"
     if locale == "en":
+        h_stats = "Static statistics"
+        h_charts = "Charts"
         h_drift = "Topic drift"
         h_ab = "A/B comparison"
         h_style = "Style impact"
     else:
+        h_stats = "Statistik"
+        h_charts = "Diagram"
         h_drift = "Ämnesdrift"
         h_ab = "A/B-jämförelse"
         h_style = "Stilgenomslag"
@@ -449,7 +436,7 @@ def render_quick_html(slots: dict[str, str], *, locale: ReportLocale) -> str:
 <title>{escape(slots.get("page_title", "Snabbrapport"))}</title>
 <style>
 body{{font-family:Georgia,serif;background:#F7F3EA;color:#1A1814;margin:0;padding:2rem;}}
-.wrap{{max-width:720px;margin:0 auto;}}
+.wrap{{max-width:960px;margin:0 auto;}}
 .eyebrow{{font-size:.85rem;letter-spacing:.04em;text-transform:uppercase;color:#6B6253;}}
 h1{{font-size:1.75rem;margin:.35rem 0 1.25rem;}}
 .verdict{{border:1px solid #D8CFC0;padding:1.25rem 1.5rem;margin:1rem 0;background:#FFFCF6;}}
@@ -463,8 +450,51 @@ section h3{{font-size:1.05rem;margin:0 0 .5rem;border-bottom:1px solid #D8CFC0;p
 .tech{{margin-top:2.5rem;font-size:.9rem;color:#3A342C;}}
 .tech summary{{cursor:pointer;font-weight:600;}}
 table{{border-collapse:collapse;width:100%;margin:.5rem 0 1rem;}}
-td,th{{border-bottom:1px solid #E5DDD0;padding:.35rem .5rem;text-align:left;}}
+td,th{{border-bottom:1px solid #E5DDD0;padding:.35rem .5rem;text-align:left;font-size:.85rem;}}
 .meta{{color:#6B6253;font-size:.9rem;margin-top:2rem;}}
+.chart-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:.75rem;}}
+.chart-card{{background:#FFFCF6;border:1px solid #D8CFC0;border-radius:8px;padding:14px 16px;}}
+.chart-card.wide{{grid-column:1/-1;}}
+.chart-card h4{{font-size:.95rem;font-weight:700;margin:0 0 4px;}}
+.chart-sub{{font-size:.8rem;color:#6B6253;margin-bottom:10px;}}
+.donut-wrap{{display:flex;gap:12px;align-items:center;flex-wrap:wrap;}}
+.donut{{width:88px;height:88px;border-radius:50%;position:relative;flex-shrink:0;}}
+.donut-hole{{position:absolute;inset:18%;background:#FFFCF6;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;text-transform:uppercase;color:#6B6253;}}
+.legend{{font-size:.75rem;line-height:1.35;}}
+.leg-item{{display:flex;align-items:center;gap:6px;margin-bottom:3px;}}
+.leg-dot{{width:8px;height:8px;border-radius:50%;flex-shrink:0;}}
+.hbar-chart{{display:flex;flex-direction:column;gap:8px;}}
+.hbar-row{{display:flex;align-items:center;gap:8px;font-size:.8rem;}}
+.hbar-lbl{{flex:0 0 120px;line-height:1.2;}}
+.hbar-track{{flex:1;height:22px;background:#EDE6DA;border-radius:4px;overflow:hidden;}}
+.hbar-fill{{height:100%;display:flex;align-items:center;padding:0 6px;font-size:.7rem;font-weight:700;color:#fff;min-width:2px;}}
+.hbar-val{{min-width:28px;text-align:right;font-weight:700;}}
+.stats-table th{{white-space:nowrap;}}
+.ab-compare{{display:flex;flex-direction:column;gap:12px;}}
+.ab-metric-label{{font-size:.82rem;font-weight:700;margin-bottom:4px;color:#3A342C;}}
+.ab-bar-line{{display:grid;grid-template-columns:minmax(80px,1fr) 1fr auto;gap:8px;align-items:center;margin-bottom:4px;font-size:.78rem;}}
+.ab-arm{{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#6B6253;}}
+.ab-track{{height:18px;background:#EDE6DA;border-radius:4px;overflow:hidden;}}
+.ab-fill{{height:100%;border-radius:4px;min-width:2px;}}
+.ab-val{{font-weight:700;min-width:32px;text-align:right;}}
+.ab-tone-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;}}
+.ab-tone-head{{font-weight:700;font-size:.85rem;margin-bottom:6px;}}
+.pop-compare{{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:8px;}}
+.pop-card{{border:1px solid #D8CFC0;border-radius:8px;overflow:hidden;background:#fff;}}
+.pop-head{{background:#EDE6DA;padding:8px 10px;font-weight:700;font-size:.85rem;}}
+.pop-head small{{display:block;font-weight:400;color:#6B6253;font-size:.75rem;}}
+.pop-body{{padding:8px 10px;font-size:.8rem;}}
+.pop-row{{display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid #F0EBE2;}}
+.pop-row-l{{color:#6B6253;}}
+.pop-row-v{{font-weight:700;}}
+.agents-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;}}
+.agent-card{{border:1px solid #D8CFC0;border-radius:8px;padding:10px;font-size:.8rem;background:#fff;}}
+.ag-name{{font-weight:700;}}
+.ag-title{{color:#6B6253;font-size:.75rem;margin-bottom:6px;}}
+.ag-scores{{display:flex;gap:8px;}}
+.ag-score-v{{font-weight:700;font-size:1rem;}}
+.ag-score-l{{font-size:.65rem;color:#6B6253;}}
+.ag-quote{{margin-top:6px;font-style:italic;color:#3A342C;font-size:.75rem;}}
 </style>
 </head>
 <body>
@@ -476,12 +506,20 @@ td,th{{border-bottom:1px solid #E5DDD0;padding:.35rem .5rem;text-align:left;}}
     <p>{escape(slots.get("verdict_detail", ""))}</p>
   </div>
   <section>
-    <h3>{h_drift}</h3>
-    {slots.get("drift_html", "")}
+    <h3>{h_stats}</h3>
+    {slots.get("stats_html", "")}
+  </section>
+  <section>
+    <h3>{h_charts}</h3>
+    {slots.get("charts_html", "")}
   </section>
   <section>
     <h3>{h_ab}</h3>
     {slots.get("ab_html", "")}
+  </section>
+  <section>
+    <h3>{h_drift}</h3>
+    {slots.get("drift_html", "")}
   </section>
   <section>
     <h3>{h_style}</h3>
