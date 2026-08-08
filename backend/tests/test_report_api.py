@@ -206,6 +206,58 @@ async def test_create_report_and_generate(client, tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_report_setup_failure_marks_report_failed(client, tmp_path, monkeypatch):
+    """Pre-generation setup errors must fail the report, not leave it running."""
+    run_id, attempt_id = await _seed_run_with_attempt(client)
+    monkeypatch.chdir(tmp_path)
+
+    async def boom(_session, _sources):
+        raise ValueError("simulated bundle build failure")
+
+    monkeypatch.setattr(
+        "app.services.report.bundles.build_bundles",
+        boom,
+    )
+
+    done = asyncio.Event()
+
+    def hook(job_id: str) -> None:
+        async def _go() -> None:
+            await jobs_service._run_job(job_id)
+            done.set()
+
+        asyncio.create_task(_go())
+
+    jobs_service.set_schedule_hook(hook)
+
+    try:
+        resp = await client.post(
+            "/reports",
+            json={
+                "sources": [{"run_id": run_id, "attempt_id": attempt_id}],
+                "title": "Fail test",
+            },
+        )
+        assert resp.status_code == 202
+        report_id = resp.json()["id"]
+        job_id = resp.json()["job_id"]
+
+        await asyncio.wait_for(done.wait(), timeout=30)
+
+        got = await client.get(f"/reports/{report_id}")
+        assert got.status_code == 200
+        data = got.json()
+        assert data["status"] == "failed", data
+        assert "simulated bundle build failure" in (data.get("error") or "")
+
+        job = await client.get(f"/jobs/{job_id}")
+        assert job.status_code == 200
+        assert job.json()["status"] == "failed"
+    finally:
+        jobs_service.set_schedule_hook(None)
+
+
+@pytest.mark.asyncio
 async def test_create_english_report_locale(client, tmp_path, monkeypatch):
     from typing import Any
 

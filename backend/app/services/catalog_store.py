@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import CatalogList, Configuration
@@ -77,6 +78,8 @@ async def ensure_catalog_defaults(session: AsyncSession, configuration_id: int) 
     for default in CATALOG_DEFAULTS:
         existing = by_key.get(default["key"])
         default_items = coerce_catalog_items(list(default["items"]))
+        if default["key"] == "ort":
+            default_items = enrich_ort_items(default_items)
         if existing is None:
             session.add(
                 CatalogList(
@@ -97,17 +100,17 @@ async def ensure_catalog_defaults(session: AsyncSession, configuration_id: int) 
             existing.section = default["section"]
             dirty = True
 
-        coerced = coerce_catalog_items(existing.items)
         raw_was_legacy = any(isinstance(x, str) for x in (existing.items or []))
-        if default["key"] == "ort":
-            coerced = enrich_ort_items(coerced)
-        new_json = catalog_items_as_json(coerced)
-        if raw_was_legacy or new_json != existing.items:
-            existing.items = new_json
+        if raw_was_legacy:
+            coerced = coerce_catalog_items(existing.items)
+            existing.items = catalog_items_as_json(coerced)
             dirty = True
 
     if dirty:
-        await session.commit()
+        try:
+            await session.commit()
+        except IntegrityError:
+            await session.rollback()
     return added
 
 
