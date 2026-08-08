@@ -1,6 +1,6 @@
 import { api } from "@/lib/api"
 
-export type PlaygroundLocale = "sv" | "en" | "nb"
+export type PlaygroundLocale = "sv" | "en"
 export type PlaygroundDimension = "tone" | "style"
 
 export type AnchorSet = {
@@ -20,7 +20,6 @@ export type RateRequest = {
   texts: string[]
   dimension?: PlaygroundDimension
   locale?: PlaygroundLocale
-  anchor_set_id?: number
   labels?: string[]
   statements?: string[]
   temperature?: number
@@ -47,7 +46,6 @@ export type RateResponse = {
 export type CompareRequest = {
   texts: string[]
   locale?: PlaygroundLocale
-  anchor_set_id?: number
   labels?: string[]
   statements?: string[]
   temperature?: number

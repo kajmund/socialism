@@ -28,7 +28,6 @@ type EditorTopTab = "prompts" | "ssr" | "grunddata"
 const EMPTY_ANCHOR_REFS: ConfigurationAnchorSets = {
   sv: { tone: 0, style: 0 },
   en: { tone: 0, style: 0 },
-  nb: { tone: 0, style: 0 },
 }
 
 function languageLabel(language: ConfigurationLanguage, t: Translate): string {
@@ -238,11 +237,11 @@ export function ConfigurationEditorPage() {
     }
   }
 
-  function anchorOptions(kind: "tone" | "style", loc: "sv" | "en" | "nb") {
+  function anchorOptions(kind: "tone" | "style", loc: "sv" | "en") {
     return libraryAnchors.filter((row) => row.kind === kind && row.locale === loc)
   }
 
-  function setAnchorRef(loc: "sv" | "en" | "nb", kind: "tone" | "style", id: number) {
+  function setAnchorRef(loc: "sv" | "en", kind: "tone" | "style", id: number) {
     setAnchorSets((prev) => ({
       ...prev,
       [loc]: { ...prev[loc], [kind]: id },
@@ -469,7 +468,7 @@ export function ConfigurationEditorPage() {
                   />
                 </label>
 
-                {(["sv", "en", "nb"] as const).map((loc) => (
+                {(["sv", "en"] as const).map((loc) => (
                   <fieldset key={loc} className="space-y-3 rounded border p-4">
                     <legend className="px-1 text-sm font-medium">
                       {languageLabel(loc, t)}

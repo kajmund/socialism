@@ -55,9 +55,7 @@ async def test_get_anchors(client):
     assert data["version"]
     assert len(data["tone"]["sv"]["labels"]) == 5
     assert len(data["tone"]["sv"]["statements"]) == 5
-    assert len(data["tone"]["nb"]["labels"]) == 5
     assert len(data["style"]["en"]["labels"]) == 6
-    assert len(data["style"]["nb"]["statements"]) == 6
 
 
 @pytest.mark.asyncio
