@@ -70,7 +70,8 @@ def test_parse_oasis_options_defaults():
     opts = parse_oasis_options(None)
     assert opts.allow_population_create_post is True
     assert opts.platform == "twitter"
-    assert opts.enable_web_search is False
+    assert opts.enable_search_duckduckgo is False
+    assert opts.enable_search_wiki is False
     assert opts.enable_sympy_tools is False
     opts2 = parse_oasis_options(
         {
@@ -81,7 +82,8 @@ def test_parse_oasis_options_defaults():
     )
     assert opts2.allow_population_create_post is False
     assert opts2.platform == "reddit"
-    assert opts2.enable_web_search is True
+    assert opts2.enable_search_duckduckgo is True
+    assert opts2.enable_search_wiki is True
 
 
 def test_user_char_reflects_create_post_flag():

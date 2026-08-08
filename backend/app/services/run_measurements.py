@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import re
 from collections import Counter
 from typing import Any
 
 from app.schemas.domain import Tick
+from app.services.sentiment_lexicon import sentiment_shares, tokens
 
 MEASUREMENT_LABELS: dict[str, str] = {
     "opinion_snapshot": "Opinionsmätning",
@@ -16,81 +16,9 @@ MEASUREMENT_LABELS: dict[str, str] = {
     "engagement_decay": "Engagemangsavklingning",
 }
 
-_POS = {
-    "bra",
-    "bättre",
-    "positiv",
-    "glädje",
-    "stödjer",
-    "håller",
-    "viktigt",
-    "tack",
-    "hopp",
-    "stark",
-    "rätt",
-    "bra!",
-}
-_NEG = {
-    "dåligt",
-    "sämre",
-    "negativ",
-    "arg",
-    "sorgligt",
-    "fel",
-    "skandal",
-    "rasar",
-    "uselt",
-    "hatar",
-    "stopp",
-    "nej",
-}
-_STOP = {
-    "och",
-    "att",
-    "det",
-    "som",
-    "en",
-    "ett",
-    "på",
-    "är",
-    "av",
-    "för",
-    "med",
-    "till",
-    "den",
-    "de",
-    "i",
-    "om",
-    "har",
-    "inte",
-    "jag",
-    "vi",
-    "du",
-    "ni",
-    "han",
-    "hon",
-    "eller",
-    "men",
-    "så",
-    "var",
-    "när",
-    "från",
-    "ska",
-    "kan",
-    "man",
-    "sig",
-    "the",
-    "a",
-    "an",
-}
-
 
 def _tokens(text: str) -> list[str]:
-    return [
-        t
-        for t in re.findall(r"[A-Za-zÅÄÖåäö]{3,}", (text or "").casefold())
-        if t not in _STOP
-    ]
+    return tokens(text)
 
 
 def _post_text(post: dict[str, Any]) -> str:
@@ -131,23 +59,7 @@ def _engagement(posts: list[dict[str, Any]], comments: list[dict[str, Any]]) -> 
 
 
 def _sentiment(texts: list[str]) -> dict[str, float]:
-    pos = neg = neu = 0
-    for text in texts:
-        toks = set(_tokens(text))
-        p = len(toks & _POS)
-        n = len(toks & _NEG)
-        if p > n:
-            pos += 1
-        elif n > p:
-            neg += 1
-        else:
-            neu += 1
-    total = max(pos + neg + neu, 1)
-    return {
-        "positive": round(pos / total, 3),
-        "neutral": round(neu / total, 3),
-        "negative": round(neg / total, 3),
-    }
+    return sentiment_shares(texts)
 
 
 def _top_phrases(texts: list[str], *, limit: int = 5) -> list[dict[str, Any]]:

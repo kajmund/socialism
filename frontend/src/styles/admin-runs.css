@@ -460,6 +460,7 @@ textarea.p-field-ctl{min-height:4.5rem;resize:vertical;line-height:1.35;padding:
 .wrap{max-width:1180px;margin:0 auto;padding:36px 40px 70px}
 .stepper{display:grid;grid-template-columns:repeat(5,1fr);border:1px solid var(--border-hairline);border-radius:var(--radius-md);overflow:hidden;margin-bottom:32px}
 .stepper.stepper-3{grid-template-columns:repeat(3,1fr)}
+.stepper.stepper-4{grid-template-columns:repeat(4,1fr)}
 .step-pill{padding:13px 14px;border-right:1px solid var(--border-hairline);display:flex;align-items:center;gap:10px;cursor:not-allowed;color:var(--db-ink-400)}
 .step-pill:last-child{border-right:none}
 .step-pill.reachable{cursor:pointer;color:var(--text-muted)}
