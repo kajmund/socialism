@@ -428,15 +428,16 @@ async def _run_report_generate(job_id: str) -> None:
         report.updated_at = utcnow()
         await session.commit()
 
-        # Build bundles while session is open, then release before long LLM work.
-        bundles = await build_bundles(session, sources)
-        out_dir = Path(ARTIFACT_ROOT) / report_id
-        from app.services.prompt_store import require_active_prompts
-
-        prompts = await require_active_prompts(session)
-
     mode = "full"
     try:
+        # Build bundles while session is open, then release before long LLM work.
+        async with factory() as session:
+            bundles = await build_bundles(session, sources)
+            out_dir = Path(ARTIFACT_ROOT) / report_id
+            from app.services.prompt_store import require_active_prompts
+
+            prompts = await require_active_prompts(session)
+
         async with factory() as session:
             report = await session.get(Report, report_id)
             if report is not None:
