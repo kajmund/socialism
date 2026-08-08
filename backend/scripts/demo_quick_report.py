@@ -31,11 +31,38 @@ def _ab_bundles() -> list[RunBundle]:
     )
     agents = [
         {"index": 0, "member_name": "Partikonto", "role": "injector"},
-        {"index": 1, "member_name": "Anna Lind", "role": "population"},
-        {"index": 2, "member_name": "Bo Nilsson", "role": "population"},
-        {"index": 3, "member_name": "Cecilia Ek", "role": "population"},
-        {"index": 4, "member_name": "David Holm", "role": "population"},
-        {"index": 5, "member_name": "Eva Strand", "role": "population"},
+        {"index": 1, "member_name": "Anna Lind", "persona_id": "p-anna", "role": "population"},
+        {"index": 2, "member_name": "Bo Nilsson", "persona_id": "p-bo", "role": "population"},
+        {"index": 3, "member_name": "Cecilia Ek", "persona_id": "p-cec", "role": "population"},
+        {"index": 4, "member_name": "David Holm", "persona_id": "p-dav", "role": "population"},
+        {"index": 5, "member_name": "Eva Strand", "persona_id": "p-eva", "role": "population"},
+    ]
+    personas = [
+        {
+            "persona_id": "p-anna",
+            "name": "Anna Lind",
+            "bio": {"livssituation": "Sambo, barn", "ort": "Centrum", "lutning": "Vänster"},
+        },
+        {
+            "persona_id": "p-bo",
+            "name": "Bo Nilsson",
+            "bio": {"livssituation": "Ensamhushåll", "ort": "Hageby", "lutning": "Center"},
+        },
+        {
+            "persona_id": "p-cec",
+            "name": "Cecilia Ek",
+            "bio": {"livssituation": "Gift, vuxna barn", "ort": "Lindö", "lutning": "Höger"},
+        },
+        {
+            "persona_id": "p-dav",
+            "name": "David Holm",
+            "bio": {"livssituation": "Sambo, inga barn", "ort": "Centrum", "lutning": "Vänster"},
+        },
+        {
+            "persona_id": "p-eva",
+            "name": "Eva Strand",
+            "bio": {"livssituation": "Sambo, barn", "ort": "Hageby", "lutning": "Center"},
+        },
     ]
     base = dict(
         run_id=42,
@@ -44,6 +71,7 @@ def _ab_bundles() -> list[RunBundle]:
         seed="demo",
         engine="oasis",
         agents=agents,
+        personas=personas,
         ticks_run=3,
         injection_texts=[injection],
         follows=[
@@ -72,6 +100,12 @@ def _ab_bundles() -> list[RunBundle]:
                     "created_at": 6,
                     "action": "interview",
                     "info": '{"prompt": "Vad tycker du om förslaget om belysning?", "response": "Bra och konkret — känns tryggt för oss på landsbygden."}',
+                },
+                {
+                    "user_id": 5,
+                    "created_at": 7,
+                    "action": "interview",
+                    "info": '{"prompt": "Hur ser du på finansieringen?", "response": "Bra idé men jag vill se tydligare hur det ska betalas."}',
                 },
             ],
             posts=[

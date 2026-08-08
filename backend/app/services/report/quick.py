@@ -12,6 +12,8 @@ from app.services.report.charts import prefill_quick_chart_slots
 from app.services.report.classify import BundleClassification
 from app.services.report.locale import ReportLocale, display_style_label
 from app.services.report.metrics import ReportMetrics, injection_likes, pct
+from app.services.report.recommendation import build_recommendation
+from app.services.report.segment_analysis import build_audience_summaries
 from app.services.ssr import ANCHOR_SET_VERSION
 
 # Hardcoded thresholds (not config) until calibration shows need to tweak often.
@@ -364,7 +366,22 @@ def build_quick_slots(
 
     ab_html = _ab_diff_html(metrics, locale=locale) if ab else ""
     style_html = _style_html(metrics, locale=locale)
-    chart_slots = prefill_quick_chart_slots(metrics, bundles, locale=locale, ab=ab)
+    audience = [
+        seg
+        for b, c in zip(bundles, classifications, strict=True)
+        for seg in build_audience_summaries(b, c, locale=locale)
+    ]
+    recommendation = build_recommendation(
+        metrics, bundles, classifications, audience, locale=locale
+    )
+    chart_slots = prefill_quick_chart_slots(
+        metrics,
+        bundles,
+        classifications,
+        locale=locale,
+        ab=ab,
+        recommendation=recommendation,
+    )
 
     tech_html = (
         f"<details class=\"tech\"><summary>{escape(tech_title)}</summary>"
@@ -411,6 +428,8 @@ def build_quick_slots(
         "charts_html": chart_slots["charts_html"],
         "tick_html": chart_slots["tick_html"],
         "qa_html": chart_slots["qa_html"],
+        "audience_html": chart_slots.get("audience_html", ""),
+        "recommendation_html": chart_slots.get("recommendation_html", ""),
         "style_html": style_html,
         "tech_html": tech_html,
         "meta_runs": ", ".join(b.label for b in bundles),
@@ -424,6 +443,7 @@ def render_quick_html(slots: dict[str, str], *, locale: ReportLocale) -> str:
         h_charts = "Charts"
         h_ticks = "Tick by tick"
         h_qa = "Questions & answers"
+        h_audience = "Target groups"
         h_drift = "Topic drift"
         h_ab = "A/B comparison"
         h_style = "Style impact"
@@ -432,6 +452,7 @@ def render_quick_html(slots: dict[str, str], *, locale: ReportLocale) -> str:
         h_charts = "Diagram"
         h_ticks = "Tick för tick"
         h_qa = "Frågor och svar"
+        h_audience = "Målgruppsanalys"
         h_drift = "Ämnesdrift"
         h_ab = "A/B-jämförelse"
         h_style = "Stilgenomslag"
@@ -517,6 +538,20 @@ td,th{{border-bottom:1px solid #E5DDD0;padding:.35rem .5rem;text-align:left;font
 .qa-card{{border:1px solid #D8CFC0;border-radius:8px;padding:10px 12px;margin-bottom:8px;background:#FFFCF6;}}
 .qa-agent{{font-weight:700;font-size:.85rem;margin-bottom:4px;}}
 .qa-q,.qa-a{{font-size:.82rem;line-height:1.4;margin-top:4px;}}
+.recommendation-block{{border:1px solid #D8CFC0;border-radius:8px;padding:12px 14px;margin:0 0 1rem;background:#FFFCF6;}}
+.rec-headline{{font-size:1.05rem;margin:0 0 .5rem;}}
+.rec-sub{{margin:.35rem 0 .15rem;font-size:.85rem;}}
+.rec-list{{margin:0 0 .5rem 1.1rem;font-size:.82rem;line-height:1.4;}}
+.rec-traj{{font-size:.82rem;color:#3A342C;margin:.35rem 0 0;}}
+.audience-section{{display:flex;flex-direction:column;gap:16px;}}
+.aud-bundle h4{{font-size:.95rem;margin:0 0 8px;}}
+.aud-seg{{border:1px solid #E5DDD0;border-radius:6px;padding:8px 10px;margin-bottom:8px;background:#fff;}}
+.aud-seg-head{{font-size:.85rem;margin-bottom:4px;}}
+.aud-dim{{color:#6B6253;font-size:.78rem;}}
+.aud-stat{{font-size:.78rem;color:#3A342C;margin-bottom:4px;}}
+.aud-themes{{display:block;color:#6B6253;margin-top:2px;}}
+.aud-iv{{font-size:.78rem;color:#3A342C;font-style:italic;margin-top:4px;}}
+.aud-iv-agent{{font-weight:700;font-style:normal;}}
 .muted{{color:#6B6253;font-size:.9rem;}}
 </style>
 </head>
@@ -524,6 +559,7 @@ td,th{{border-bottom:1px solid #E5DDD0;padding:.35rem .5rem;text-align:left;font
 <div class="wrap">
   <div class="eyebrow">{escape(slots.get("eyebrow", ""))}</div>
   <h1>{escape(slots.get("page_title", ""))}</h1>
+  {slots.get("recommendation_html", "")}
   <div class="verdict {escape(slots.get("verdict_class", "v-mixed"))}">
     <h2>{escape(slots.get("verdict_label", ""))}</h2>
     <p>{escape(slots.get("verdict_detail", ""))}</p>
@@ -543,6 +579,10 @@ td,th{{border-bottom:1px solid #E5DDD0;padding:.35rem .5rem;text-align:left;font
   <section>
     <h3>{h_qa}</h3>
     {slots.get("qa_html", "")}
+  </section>
+  <section>
+    <h3>{h_audience}</h3>
+    {slots.get("audience_html", "")}
   </section>
   <section>
     <h3>{h_ab}</h3>
