@@ -1113,12 +1113,31 @@ export const en: LocalizedTree<SvMessages> = {
   },
   playground: {
     title: "Playground",
-    subtitle: "Calibrate anchors, compare SSR, try prompt variants, and test agent tools.",
+    subtitle:
+      "Calibrate anchors, compare SSR, try prompt variants, test image reactions, and agent tools.",
     tablistAria: "Playground modes",
     tabAnchors: "Anchor calibration",
     tabPrompts: "Prompt iteration",
     tabCompare: "SSR vs keywords",
+    tabImage: "Image test",
     tabTools: "Agent tools",
+    image: {
+      intro:
+        "Pick a persona, upload an image, and get a short reaction with SSR tone and style — no simulation run.",
+      loadingPersonas: "Loading personas…",
+      noPersonas: "No personas in the library. Create a persona first.",
+      noPersona: "Select a persona.",
+      noImage: "Upload an image (JPEG, PNG, WebP, or GIF).",
+      persona: "Persona",
+      upload: "Image",
+      previewAlt: "Preview of uploaded image",
+      selectedHint: "The reaction is written as {name}.",
+      run: "Run image test",
+      elapsed: "Finished in {ms} ms",
+      descriptionHeading: "Image description (vision)",
+      reactionHeading: "Persona reaction",
+      lexiconLabel: "Keyword lexicon: {label}",
+    },
     tools: {
       intro:
         "Run the same web and SymPy tools OASIS agents can get — without a full simulation.",
