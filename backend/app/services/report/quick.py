@@ -546,18 +546,33 @@ td,th{{border-bottom:1px solid #E5DDD0;padding:.35rem .5rem;text-align:left;font
 .rec-sub{{margin:.35rem 0 .15rem;font-size:.85rem;}}
 .rec-list{{margin:0 0 .5rem 1.1rem;font-size:.82rem;line-height:1.4;}}
 .rec-traj{{font-size:.82rem;color:#3A342C;margin:.35rem 0 0;}}
-.audience-section{{display:flex;flex-direction:column;gap:16px;}}
-.aud-bundle h4{{font-size:.95rem;margin:0 0 8px;}}
-.aud-seg{{border:1px solid #E5DDD0;border-radius:6px;padding:8px 10px;margin-bottom:8px;background:#fff;}}
-.aud-seg-head{{font-size:.85rem;margin-bottom:4px;}}
-.aud-dim{{color:#6B6253;font-size:.78rem;}}
-.aud-stat{{font-size:.78rem;color:#3A342C;margin-bottom:4px;}}
-.aud-themes{{display:block;color:#6B6253;margin-top:2px;}}
-.aud-iv-caption{{font-size:.72rem;color:#6B6253;margin:6px 0 4px;font-style:italic;}}
-.aud-iv{{border-left:3px solid #D8CFC0;padding:6px 0 6px 10px;margin-bottom:6px;}}
-.aud-iv-meta{{font-size:.75rem;font-weight:700;color:#3A342C;margin-bottom:2px;}}
-.aud-iv-a{{font-size:.78rem;color:#3A342C;line-height:1.35;}}
-.aud-iv-agent{{font-weight:700;font-style:normal;}}
+.audience-section{{display:flex;flex-direction:column;gap:24px;}}
+.aud-bundle-title{{font-size:1rem;margin:0 0 12px;border-bottom:1px solid #D8CFC0;padding-bottom:6px;}}
+.aud-reports{{display:flex;flex-direction:column;gap:20px;}}
+.aud-report{{border:1px solid #D8CFC0;border-radius:10px;padding:16px 18px;background:#FFFCF6;}}
+.aud-report-head{{margin:0 0 8px;}}
+.aud-report-head h4{{display:inline;font-size:1.05rem;margin:0;}}
+.aud-dim{{color:#6B6253;font-size:.78rem;display:block;margin-bottom:2px;}}
+.aud-narrative{{font-size:.88rem;line-height:1.5;color:#3A342C;margin:0 0 12px;}}
+.aud-kpi-row{{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;}}
+.aud-kpi{{flex:1;min-width:72px;border:1px solid #E5DDD0;border-radius:6px;padding:8px 10px;background:#fff;text-align:center;}}
+.aud-kpi strong{{display:block;font-size:1.1rem;color:#1E3A55;}}
+.aud-kpi span{{font-size:.68rem;color:#6B6253;}}
+.aud-chart-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:12px;}}
+.aud-chart-card{{border:1px solid #E5DDD0;border-radius:8px;padding:10px 12px;background:#fff;}}
+.aud-chart-title{{font-size:.78rem;font-weight:700;color:#3A342C;margin-bottom:8px;}}
+.aud-eng-chart{{display:flex;flex-direction:column;gap:6px;}}
+.aud-eng-row{{display:grid;grid-template-columns:88px 1fr 32px;gap:6px;align-items:center;font-size:.75rem;}}
+.aud-eng-lbl{{color:#6B6253;line-height:1.2;}}
+.aud-eng-track{{height:16px;background:#EDE6DA;border-radius:4px;overflow:hidden;}}
+.aud-eng-fill{{height:100%;border-radius:4px;min-width:2px;}}
+.aud-eng-val{{font-weight:700;text-align:right;}}
+.aud-samples{{margin-bottom:12px;}}
+.aud-quote{{margin:6px 0 0;padding:8px 10px;border-left:3px solid #D8CFC0;background:#fff;font-size:.78rem;font-style:italic;color:#3A342C;}}
+.aud-qa-block{{margin-top:8px;}}
+.aud-qa-card{{border:1px solid #E5DDD0;border-radius:8px;padding:10px 12px;margin-top:8px;background:#fff;}}
+.aud-qa-meta{{font-size:.75rem;font-weight:700;color:#6B6253;margin-bottom:4px;}}
+.aud-qa-q,.aud-qa-a{{font-size:.82rem;line-height:1.45;margin-top:4px;}}
 .audience-takeaway p{{font-size:.88rem;line-height:1.45;margin:0 0 .65rem;color:#3A342C;}}
 .audience-takeaway p:last-child{{margin-bottom:0;}}
 .muted{{color:#6B6253;font-size:.9rem;}}

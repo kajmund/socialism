@@ -1,4 +1,4 @@
-"""Målgruppsanalys: bio segments × SSR + interview themes (rule-based, no LLM)."""
+"""Målgruppsanalys: bio segments × tone + interview themes (rule-based, no LLM)."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from app.services.report.bundles import RunBundle
 from app.services.report.classify import BundleClassification, _keywords_from_text
 from app.services.report.locale import ReportLocale
+from app.services.report.metrics import pct
 from app.services.report.persona_bio import build_agent_bio_by_index, segment_value
 from app.services.report.segment_ssr import (
     SegmentToneRow,
@@ -31,10 +32,24 @@ _THEME_PATTERNS: dict[str, tuple[str, ...]] = {
     "konkret": (r"konkret", r"specifik", r"exempel", r"concrete", r"specific"),
 }
 
-MAX_INTERVIEWS_SHOWN = 3
+_THEME_LABELS_SV: dict[str, str] = {
+    "finansiering": "Finansiering",
+    "trygghet": "Trygghet",
+    "vaghet": "Vaghet",
+    "konkret": "Konkret innehåll",
+}
+
+_THEME_LABELS_EN: dict[str, str] = {
+    "finansiering": "Financing",
+    "trygghet": "Safety",
+    "vaghet": "Vagueness",
+    "konkret": "Concrete detail",
+}
+
+MAX_INTERVIEWS_SHOWN = 8
 _INSIGHT_THEMES = frozenset({"finansiering", "vaghet", "konkret"})
-# Interview quotes render under this dimension only — avoids duplicate quotes on ort/lutning rows.
-INTERVIEW_QUOTE_DIMENSION = "livssituation"
+
+_DIMENSION_ORDER = ("livssituation", "ort", "lutning")
 
 
 @dataclass
@@ -57,6 +72,8 @@ class AudienceSegmentSummary:
     interviews: list[SegmentInterviewSnippet] = field(default_factory=list)
     interview_total: int = 0
     themes: list[str] = field(default_factory=list)
+    theme_counts: dict[str, int] = field(default_factory=dict)
+    narrative: str = ""
 
 
 def detect_themes(text: str) -> list[str]:
@@ -66,6 +83,11 @@ def detect_themes(text: str) -> list[str]:
         if any(re.search(p, low) for p in patterns):
             hits.append(name)
     return hits
+
+
+def theme_display_label(key: str, *, locale: ReportLocale) -> str:
+    labels = _THEME_LABELS_EN if locale == "en" else _THEME_LABELS_SV
+    return labels.get(key, key)
 
 
 def _injection_keywords(bundle: RunBundle) -> list[str]:
@@ -145,23 +167,101 @@ def interview_section_caption(total: int, shown: int, *, locale: ReportLocale) -
         return ""
     if shown >= total:
         if locale == "en":
-            return f"Survey answers (all {total})"
-        return f"Enkätsvar (alla {total})"
+            return f"Survey Q&A ({total} answers)"
+        return f"Enkätfrågor och svar ({total} svar)"
     if locale == "en":
-        return f"Survey answers (showing {shown} most relevant of {total})"
-    return f"Enkätsvar (visar {shown} mest relevanta av {total})"
+        return f"Survey Q&A (showing {shown} of {total}, ranked by relevance)"
+    return f"Enkätfrågor och svar (visar {shown} av {total}, rankade efter relevans)"
 
 
 def interview_quote_label(snippet: SegmentInterviewSnippet, *, locale: ReportLocale) -> str:
     if locale == "en":
-        return (
-            f"After day {snippet.day} — "
-            f"{snippet.agent_name} (survey)"
-        )
-    return (
-        f"Efter dag {snippet.day} — "
-        f"{snippet.agent_name} (enkät)"
-    )
+        return f"Day {snippet.day} — {snippet.agent_name}"
+    return f"Dag {snippet.day} — {snippet.agent_name}"
+
+
+def build_segment_narrative(
+    seg: AudienceSegmentSummary,
+    *,
+    locale: ReportLocale,
+) -> str:
+    tone = seg.tone
+    parts: list[str] = []
+    if tone and not tone.too_few:
+        pos = pct(tone.positive_share)
+        crit = pct(tone.critical_share)
+        if locale == "en":
+            if tone.positive_share >= 0.45:
+                parts.append(
+                    f"In simulation this group was mostly positive ({pos} positive tone, {crit} critical)."
+                )
+            elif tone.critical_share >= 0.45:
+                parts.append(
+                    f"This group was critical ({crit} critical tone, {pos} positive)."
+                )
+            else:
+                parts.append(
+                    f"Reception was mixed ({pos} positive, {crit} critical tone in posts and comments)."
+                )
+            parts.append(
+                f"{tone.agent_count} participants wrote {tone.post_count} posts and "
+                f"{tone.comment_count} comments ({tone.likes_total} likes, "
+                f"{tone.shares_total} shares, engagement score {tone.engagement_score})."
+            )
+        else:
+            if tone.positive_share >= 0.45:
+                parts.append(
+                    f"I simuleringen var gruppen övervägande positiv "
+                    f"({pos} positiv ton, {crit} kritisk)."
+                )
+            elif tone.critical_share >= 0.45:
+                parts.append(
+                    f"Gruppen var kritisk ({crit} kritisk ton, {pos} positiv)."
+                )
+            else:
+                parts.append(
+                    f"Mottagandet var blandat ({pos} positiv, {crit} kritisk ton "
+                    f"i inlägg och kommentarer)."
+                )
+            parts.append(
+                f"{tone.agent_count} deltagare skrev {tone.post_count} inlägg och "
+                f"{tone.comment_count} kommentarer ({tone.likes_total} likes, "
+                f"{tone.shares_total} delningar, engagemangspoäng {tone.engagement_score})."
+            )
+    elif tone and tone.too_few:
+        if locale == "en":
+            parts.append(
+                "Too few posts and comments to estimate tone reliably in this segment."
+            )
+        else:
+            parts.append(
+                "För få inlägg och kommentarer för att beräkna tonen säkert i segmentet."
+            )
+        if tone.agent_count:
+            if locale == "en":
+                parts.append(f"{tone.agent_count} participants matched this segment.")
+            else:
+                parts.append(f"{tone.agent_count} deltagare matchade segmentet.")
+    if seg.themes:
+        theme_names = ", ".join(theme_display_label(t, locale=locale) for t in seg.themes)
+        if locale == "en":
+            parts.append(f"Recurring themes: {theme_names}.")
+        else:
+            parts.append(f"Återkommande teman: {theme_names}.")
+    if seg.interview_total:
+        if locale == "en":
+            parts.append(
+                f"{seg.interview_total} planned survey answers from participants in this group."
+            )
+        else:
+            parts.append(
+                f"{seg.interview_total} planerade enkätsvar från deltagare i gruppen."
+            )
+    if not parts:
+        if locale == "en":
+            return "No data for this segment in the run."
+        return "Ingen data för detta segment i körningen."
+    return " ".join(parts)
 
 
 def _interviews_for_segment(
@@ -190,6 +290,21 @@ def _interviews_for_segment(
     return out
 
 
+def _theme_counts_for_segment(tone: SegmentToneRow | None) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    if not tone:
+        return counts
+    for text in tone.sample_texts:
+        for theme in detect_themes(text):
+            counts[theme] = counts.get(theme, 0) + 1
+    return counts
+
+
+def _segment_sort_key(dim: str, val: str) -> tuple[int, str, str]:
+    order = _DIMENSION_ORDER.index(dim) if dim in _DIMENSION_ORDER else 99
+    return (order, dim, val)
+
+
 def build_audience_summaries(
     bundle: RunBundle,
     classification: BundleClassification,
@@ -205,41 +320,33 @@ def build_audience_summaries(
         bio = build_agent_bio_by_index(bundle).get(item.user_id)
         if not bio:
             continue
-        for dim in ("livssituation", "ort", "lutning"):
+        for dim in _DIMENSION_ORDER:
             val = segment_value(bio, dim)
             if val:
                 keys.add((dim, val))
 
     summaries: list[AudienceSegmentSummary] = []
-    for dim, val in sorted(keys):
+    for dim, val in sorted(keys, key=lambda k: _segment_sort_key(k[0], k[1])):
         tone = by_key.get((dim, val))
         interviews_all = _interviews_for_segment(bundle, dimension=dim, value=val)
-        if dim == INTERVIEW_QUOTE_DIMENSION:
-            interviews = rank_interviews_for_display(interviews_all, bundle)
-            interview_total = len(interviews_all)
-        else:
-            interviews = []
-            interview_total = 0
-        theme_set: set[str] = set()
+        interviews = rank_interviews_for_display(interviews_all, bundle)
+        interview_total = len(interviews_all)
+        theme_counts = _theme_counts_for_segment(tone)
+        theme_set: set[str] = set(theme_counts)
         for iv in interviews_all:
             theme_set.update(iv.themes)
         if tone and tone.too_few and not interviews_all:
             continue
-        if (
-            dim != INTERVIEW_QUOTE_DIMENSION
-            and interviews_all
-            and (tone is None or tone.too_few)
-        ):
-            continue
-        summaries.append(
-            AudienceSegmentSummary(
-                dimension=dim,
-                dimension_label=segment_dimension_label(dim, locale=locale),
-                label=val,
-                tone=tone,
-                interviews=interviews,
-                interview_total=interview_total,
-                themes=sorted(theme_set),
-            )
+        summary = AudienceSegmentSummary(
+            dimension=dim,
+            dimension_label=segment_dimension_label(dim, locale=locale),
+            label=val,
+            tone=tone,
+            interviews=interviews,
+            interview_total=interview_total,
+            themes=sorted(theme_set),
+            theme_counts=theme_counts,
         )
+        summary.narrative = build_segment_narrative(summary, locale=locale)
+        summaries.append(summary)
     return summaries
