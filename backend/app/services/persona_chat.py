@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -23,6 +24,37 @@ class ChatTurnError(Exception):
         super().__init__(detail)
         self.detail = detail
         self.status_code = status_code
+
+
+_chat_locks: dict[str, asyncio.Lock] = {}
+_chat_locks_guard = asyncio.Lock()
+
+
+async def _chat_turn_lock(key: str) -> asyncio.Lock:
+    async with _chat_locks_guard:
+        lock = _chat_locks.get(key)
+        if lock is None:
+            lock = asyncio.Lock()
+            _chat_locks[key] = lock
+        return lock
+
+
+def _library_lock_key(persona_id: str, mode: ChatMode) -> str:
+    return f"library:{persona_id}:{mode}"
+
+
+def _interview_lock_key(
+    *,
+    persona_id: str,
+    run_id: int,
+    attempt_id: str,
+    variant_id: str,
+    through_tick_index: int,
+) -> str:
+    return (
+        f"interview:{persona_id}:{run_id}:{attempt_id}:"
+        f"{variant_id}:{through_tick_index}"
+    )
 
 
 def serialize_persona_message(row: PersonaMessage) -> PersonaMessageOut:
@@ -133,61 +165,65 @@ async def stream_library_chat_turn(
     message: str,
 ) -> AsyncIterator[str | PersonaChatResponse]:
     """Yield token strings, then a final PersonaChatResponse."""
-    persona = await session.get(Persona, persona_id)
-    if persona is None:
-        raise ChatTurnError("Persona not found", status_code=404)
+    lock = await _chat_turn_lock(_library_lock_key(persona_id, mode))
+    async with lock:
+        persona = await session.get(Persona, persona_id)
+        if persona is None:
+            raise ChatTurnError("Persona not found", status_code=404)
 
-    profile = profile_from_dict(persona.profile, persona.name)
-    history_rows = await session.execute(
-        select(PersonaMessage)
-        .where(*library_chat_filter(persona_id, mode))
-        .order_by(PersonaMessage.id.asc())
-    )
-    history = [(row.role, row.content) for row in history_rows.scalars().all()]
-    area_block = await area_block_for_name(session, profile.ort or persona.district)
-    prompts = await require_active_prompts(session)
+        profile = profile_from_dict(persona.profile, persona.name)
+        history_rows = await session.execute(
+            select(PersonaMessage)
+            .where(*library_chat_filter(persona_id, mode))
+            .order_by(PersonaMessage.id.asc())
+        )
+        history = [(row.role, row.content) for row in history_rows.scalars().all()]
+        area_block = await area_block_for_name(session, profile.ort or persona.district)
+        prompts = await require_active_prompts(session)
 
-    parts: list[str] = []
-    async for chunk in stream_reply_as_persona(
-        profile,
-        mode,
-        history,
-        message,
-        prompts=prompts,
-        area_block=area_block,
-    ):
-        parts.append(chunk)
-        yield chunk
+        user_row = PersonaMessage(
+            persona_id=persona_id,
+            mode=mode,
+            role="user",
+            content=message,
+            created_at=utcnow(),
+        )
+        session.add(user_row)
+        await session.commit()
 
-    reply = "".join(parts).strip()
-    if not reply:
-        raise ChatTurnError("Empty reply from model", status_code=502)
+        parts: list[str] = []
+        async for chunk in stream_reply_as_persona(
+            profile,
+            mode,
+            history,
+            message,
+            prompts=prompts,
+            area_block=area_block,
+        ):
+            parts.append(chunk)
+            yield chunk
 
-    user_row = PersonaMessage(
-        persona_id=persona_id,
-        mode=mode,
-        role="user",
-        content=message,
-        created_at=utcnow(),
-    )
-    assistant_row = PersonaMessage(
-        persona_id=persona_id,
-        mode=mode,
-        role="assistant",
-        content=reply,
-        created_at=utcnow(),
-    )
-    session.add(user_row)
-    session.add(assistant_row)
-    await session.commit()
+        reply = "".join(parts).strip()
+        if not reply:
+            raise ChatTurnError("Empty reply from model", status_code=502)
 
-    all_rows = await session.execute(
-        select(PersonaMessage)
-        .where(*library_chat_filter(persona_id, mode))
-        .order_by(PersonaMessage.id.asc())
-    )
-    messages = [serialize_persona_message(row) for row in all_rows.scalars().all()]
-    yield PersonaChatResponse(reply=reply, messages=messages)
+        assistant_row = PersonaMessage(
+            persona_id=persona_id,
+            mode=mode,
+            role="assistant",
+            content=reply,
+            created_at=utcnow(),
+        )
+        session.add(assistant_row)
+        await session.commit()
+
+        all_rows = await session.execute(
+            select(PersonaMessage)
+            .where(*library_chat_filter(persona_id, mode))
+            .order_by(PersonaMessage.id.asc())
+        )
+        messages = [serialize_persona_message(row) for row in all_rows.scalars().all()]
+        yield PersonaChatResponse(reply=reply, messages=messages)
 
 
 async def stream_run_interview_turn(
@@ -200,115 +236,127 @@ async def stream_run_interview_turn(
     through_tick_index: int,
     message: str,
 ) -> AsyncIterator[str | PersonaChatResponse]:
-    run = await session.get(Run, run_id)
-    if run is None:
-        raise ChatTurnError("Run not found", status_code=404)
-    persona = await session.get(Persona, persona_id)
-    if persona is None:
-        raise ChatTurnError("Persona not found", status_code=404)
-
-    variant = _find_attempt_variant(
-        run.results if isinstance(run.results, dict) else None,
-        attempt_id,
-        variant_id,
+    lock = await _chat_turn_lock(
+        _interview_lock_key(
+            persona_id=persona_id,
+            run_id=run_id,
+            attempt_id=attempt_id,
+            variant_id=variant_id,
+            through_tick_index=through_tick_index,
+        )
     )
-    validate_interview_variant(
-        run,
-        variant,
-        persona_id=persona_id,
-        through_tick_index=through_tick_index,
-    )
+    async with lock:
+        run = await session.get(Run, run_id)
+        if run is None:
+            raise ChatTurnError("Run not found", status_code=404)
+        persona = await session.get(Persona, persona_id)
+        if persona is None:
+            raise ChatTurnError("Persona not found", status_code=404)
 
-    try:
-        feed_context, meta = build_persona_feed_context(
+        variant = _find_attempt_variant(
+            run.results if isinstance(run.results, dict) else None,
+            attempt_id,
+            variant_id,
+        )
+        validate_interview_variant(
+            run,
             variant,
             persona_id=persona_id,
             through_tick_index=through_tick_index,
         )
-    except ValueError as exc:
-        raise ChatTurnError(str(exc)) from exc
 
-    profile = profile_from_dict(persona.profile, persona.name)
-    area_block = await area_block_for_name(session, profile.ort or persona.district)
-    prompts = await require_active_prompts(session)
-    system_prompt = build_run_interview_prompt(
-        profile,
-        feed_context,
-        prompts=prompts,
-        day=int(meta["day"]),
-        tick_index=int(meta["tick_index"]),
-        area_block=area_block,
-    )
-
-    history_rows = await session.execute(
-        select(PersonaMessage)
-        .where(
-            *run_interview_filter(
+        try:
+            feed_context, meta = build_persona_feed_context(
+                variant,
                 persona_id=persona_id,
-                run_id=run_id,
-                attempt_id=attempt_id,
-                variant_id=variant_id,
                 through_tick_index=through_tick_index,
             )
+        except ValueError as exc:
+            raise ChatTurnError(str(exc)) from exc
+
+        profile = profile_from_dict(persona.profile, persona.name)
+        area_block = await area_block_for_name(session, profile.ort or persona.district)
+        prompts = await require_active_prompts(session)
+        system_prompt = build_run_interview_prompt(
+            profile,
+            feed_context,
+            prompts=prompts,
+            day=int(meta["day"]),
+            tick_index=int(meta["tick_index"]),
+            area_block=area_block,
         )
-        .order_by(PersonaMessage.id.asc())
-    )
-    history = [(row.role, row.content) for row in history_rows.scalars().all()]
 
-    parts: list[str] = []
-    async for chunk in stream_reply_as_persona(
-        profile,
-        "interview",
-        history,
-        message,
-        prompts=prompts,
-        system_prompt=system_prompt,
-    ):
-        parts.append(chunk)
-        yield chunk
-
-    reply = "".join(parts).strip()
-    if not reply:
-        raise ChatTurnError("Empty reply from model", status_code=502)
-
-    user_row = PersonaMessage(
-        persona_id=persona_id,
-        mode="interview",
-        role="user",
-        content=message,
-        created_at=utcnow(),
-        run_id=run_id,
-        attempt_id=attempt_id,
-        variant_id=variant_id,
-        through_tick_index=through_tick_index,
-    )
-    assistant_row = PersonaMessage(
-        persona_id=persona_id,
-        mode="interview",
-        role="assistant",
-        content=reply,
-        created_at=utcnow(),
-        run_id=run_id,
-        attempt_id=attempt_id,
-        variant_id=variant_id,
-        through_tick_index=through_tick_index,
-    )
-    session.add(user_row)
-    session.add(assistant_row)
-    await session.commit()
-
-    all_rows = await session.execute(
-        select(PersonaMessage)
-        .where(
-            *run_interview_filter(
-                persona_id=persona_id,
-                run_id=run_id,
-                attempt_id=attempt_id,
-                variant_id=variant_id,
-                through_tick_index=through_tick_index,
+        history_rows = await session.execute(
+            select(PersonaMessage)
+            .where(
+                *run_interview_filter(
+                    persona_id=persona_id,
+                    run_id=run_id,
+                    attempt_id=attempt_id,
+                    variant_id=variant_id,
+                    through_tick_index=through_tick_index,
+                )
             )
+            .order_by(PersonaMessage.id.asc())
         )
-        .order_by(PersonaMessage.id.asc())
-    )
-    messages = [serialize_persona_message(row) for row in all_rows.scalars().all()]
-    yield PersonaChatResponse(reply=reply, messages=messages)
+        history = [(row.role, row.content) for row in history_rows.scalars().all()]
+
+        user_row = PersonaMessage(
+            persona_id=persona_id,
+            mode="interview",
+            role="user",
+            content=message,
+            created_at=utcnow(),
+            run_id=run_id,
+            attempt_id=attempt_id,
+            variant_id=variant_id,
+            through_tick_index=through_tick_index,
+        )
+        session.add(user_row)
+        await session.commit()
+
+        parts: list[str] = []
+        async for chunk in stream_reply_as_persona(
+            profile,
+            "interview",
+            history,
+            message,
+            prompts=prompts,
+            system_prompt=system_prompt,
+        ):
+            parts.append(chunk)
+            yield chunk
+
+        reply = "".join(parts).strip()
+        if not reply:
+            raise ChatTurnError("Empty reply from model", status_code=502)
+
+        assistant_row = PersonaMessage(
+            persona_id=persona_id,
+            mode="interview",
+            role="assistant",
+            content=reply,
+            created_at=utcnow(),
+            run_id=run_id,
+            attempt_id=attempt_id,
+            variant_id=variant_id,
+            through_tick_index=through_tick_index,
+        )
+        session.add(assistant_row)
+        await session.commit()
+
+        all_rows = await session.execute(
+            select(PersonaMessage)
+            .where(
+                *run_interview_filter(
+                    persona_id=persona_id,
+                    run_id=run_id,
+                    attempt_id=attempt_id,
+                    variant_id=variant_id,
+                    through_tick_index=through_tick_index,
+                )
+            )
+            .order_by(PersonaMessage.id.asc())
+        )
+        messages = [serialize_persona_message(row) for row in all_rows.scalars().all()]
+        yield PersonaChatResponse(reply=reply, messages=messages)

@@ -153,3 +153,29 @@ async def test_embedding_cache_api_list_and_clear(client):
     finally:
         set_embedder(None)
         clear_embedding_cache()
+
+
+def test_cache_put_survives_concurrent_writes():
+    """Parallel cache_put for the same key must not raise FileNotFoundError."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    from app.services.ssr.embeddings import cache_put
+
+    clear_embedding_cache()
+    text = "Concurrent anchor write stress"
+    vec = [0.2] * 16
+    errors: list[str] = []
+
+    def _write() -> None:
+        try:
+            cache_put(text, vec)
+        except Exception as exc:
+            errors.append(f"{type(exc).__name__}: {exc}")
+
+    with ThreadPoolExecutor(max_workers=50) as pool:
+        futures = [pool.submit(_write) for _ in range(50)]
+        for future in as_completed(futures):
+            future.result()
+
+    assert errors == []
+    assert cache_get(text) == vec
