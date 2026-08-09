@@ -172,7 +172,7 @@ def test_quick_stats_table_includes_engagement_columns():
     m = compute_report_metrics([b], [clf])
     html = render_quick_stats_table(m, locale="sv")
     assert "Likes totalt" in html or "Likes</th>" in html
-    assert "Inj.likes" in html
+    assert "Likes testbudskap" in html
     assert "Delningar" in html
     assert "4" in html
 

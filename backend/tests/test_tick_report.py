@@ -89,6 +89,6 @@ def test_render_tick_and_qa_html():
     tick_html = render_tick_timeline([bundle], locale="sv")
     qa_html = render_interview_qa_section([bundle], locale="sv")
     assert "tick-timeline" in tick_html
-    assert "Tick 1" in tick_html
+    assert "Dag 1" in tick_html
     assert "qa-section" in qa_html
-    assert "Frågor konfigurerade" in qa_html or "F:" in qa_html
+    assert "Planerade frågor" in qa_html or "F:" in qa_html
