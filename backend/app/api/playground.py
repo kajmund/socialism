@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import Configuration
 from app.database.session import get_session
 from app.llm import complete_text
+from app.services.anchor_store import ensure_default_anchor_sets, row_to_anchor_set
 from app.services.playground import (
     compare_ssr_lexicon,
     default_anchor_set,
@@ -43,6 +44,7 @@ class RateRequest(BaseModel):
     texts: list[str] = Field(min_length=1)
     dimension: Dimension = "tone"
     locale: Locale = "sv"
+    anchor_set_id: int | None = None
     labels: list[str] | None = None
     statements: list[str] | None = None
     temperature: float = Field(default=1.0, gt=0)
@@ -52,6 +54,7 @@ class RateRequest(BaseModel):
 class CompareRequest(BaseModel):
     texts: list[str] = Field(min_length=1)
     locale: Locale = "sv"
+    anchor_set_id: int | None = None
     labels: list[str] | None = None
     statements: list[str] | None = None
     temperature: float = Field(default=1.0, gt=0)
@@ -87,25 +90,71 @@ def _anchor_out(anchor) -> AnchorSetOut:
 
 
 @router.get("/anchors", response_model=AnchorsOut)
-async def get_anchors() -> AnchorsOut:
-    return AnchorsOut(
-        version=ANCHOR_SET_VERSION,
-        tone={
-            "sv": _anchor_out(tone_anchors(locale="sv")),
-            "en": _anchor_out(tone_anchors(locale="en")),
-        },
-        style={
-            "sv": _anchor_out(style_anchors(locale="sv")),
-            "en": _anchor_out(style_anchors(locale="en")),
-        },
-    )
+async def get_anchors(session: AsyncSession = Depends(get_session)) -> AnchorsOut:
+    await ensure_default_anchor_sets(session)
+    from sqlalchemy import select
+
+    from app.database.models import SsrAnchorSet
+
+    stmt = select(SsrAnchorSet).where(SsrAnchorSet.status == "published")
+    result = await session.execute(stmt)
+    rows = list(result.scalars().all())
+    tone: dict[str, AnchorSetOut] = {}
+    style: dict[str, AnchorSetOut] = {}
+    for row in rows:
+        out = _anchor_out(row_to_anchor_set(row))
+        out_dict = out.model_dump()
+        payload = AnchorSetOut(**out_dict)
+        if row.kind == "tone" and row.locale not in tone:
+            tone[row.locale] = payload
+        if row.kind == "style" and row.locale not in style:
+            style[row.locale] = payload
+    for loc in ("sv", "en"):
+        if loc not in tone:
+            raise HTTPException(
+                status_code=500,
+                detail=f"No published tone anchor set for locale '{loc}'",
+            )
+        if loc not in style:
+            raise HTTPException(
+                status_code=500,
+                detail=f"No published style anchor set for locale '{loc}'",
+            )
+    version = rows[0].version if rows else ANCHOR_SET_VERSION
+    return AnchorsOut(version=version, tone=tone, style=style)  # type: ignore[arg-type]
 
 
 @router.post("/ssr/rate")
-async def post_ssr_rate(body: RateRequest) -> dict:
+async def post_ssr_rate(
+    body: RateRequest,
+    session: AsyncSession = Depends(get_session),
+) -> dict:
     texts = [t.strip() for t in body.texts if t.strip()]
     if not texts:
         raise HTTPException(status_code=400, detail="texts must contain non-empty strings")
+
+    labels = body.labels
+    statements = body.statements
+    if body.anchor_set_id is not None:
+        from app.services.anchor_store import get_anchor_set_row, row_to_anchor_set
+
+        row = await get_anchor_set_row(session, body.anchor_set_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="Anchor set not found")
+        anchor = row_to_anchor_set(row)
+        labels = list(anchor.labels)
+        statements = list(anchor.statements)
+        if row.kind != body.dimension:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Anchor set {body.anchor_set_id} is kind={row.kind!r}, not {body.dimension!r}",
+            )
+        if row.locale != body.locale:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Anchor set locale {row.locale!r} does not match request locale {body.locale!r}",
+            )
+
     human = body.human_labels
     if human is not None:
         if len(human) != len(body.texts):
@@ -136,8 +185,8 @@ async def post_ssr_rate(body: RateRequest) -> dict:
             texts,
             dimension=body.dimension,
             locale=body.locale,
-            labels=body.labels,
-            statements=body.statements,
+            labels=labels,
+            statements=statements,
             temperature=body.temperature,
             human_labels=human,
         )
@@ -146,16 +195,30 @@ async def post_ssr_rate(body: RateRequest) -> dict:
 
 
 @router.post("/ssr/compare")
-async def post_ssr_compare(body: CompareRequest) -> dict:
+async def post_ssr_compare(
+    body: CompareRequest,
+    session: AsyncSession = Depends(get_session),
+) -> dict:
     texts = [t.strip() for t in body.texts if t.strip()]
     if not texts:
         raise HTTPException(status_code=400, detail="texts must contain non-empty strings")
+    labels = body.labels
+    statements = body.statements
+    if body.anchor_set_id is not None:
+        from app.services.anchor_store import require_anchor_set_row, row_to_anchor_set
+
+        row = await require_anchor_set_row(session, body.anchor_set_id)
+        if row.kind != "tone":
+            raise HTTPException(status_code=400, detail="Compare requires a tone anchor set")
+        anchor = row_to_anchor_set(row)
+        labels = list(anchor.labels)
+        statements = list(anchor.statements)
     try:
         return await compare_ssr_lexicon(
             texts,
             locale=body.locale,
-            labels=body.labels,
-            statements=body.statements,
+            labels=labels,
+            statements=statements,
             temperature=body.temperature,
         )
     except ValueError as exc:

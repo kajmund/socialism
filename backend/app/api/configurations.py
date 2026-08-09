@@ -13,6 +13,7 @@ from app.database.session import get_session
 from app.schemas.domain import (
     CatalogListOut,
     CatalogListUpdate,
+    ConfigurationAnchorSets,
     ConfigurationCreate,
     ConfigurationLanguage,
     ConfigurationOut,
@@ -35,6 +36,13 @@ from app.services.prompt_catalog import (
     default_prompts,
     normalize_prompts,
 )
+from app.services.anchor_store import (
+    backfill_configuration_anchor_sets,
+    configuration_anchor_sets_out,
+    default_anchor_refs,
+    ensure_default_anchor_sets,
+    validate_configuration_anchor_refs,
+)
 from app.services.prompt_store import ensure_default_configurations, set_active_configuration
 
 router = APIRouter(prefix="/configurations", tags=["configurations"])
@@ -55,6 +63,9 @@ def _serialize(row: Configuration) -> ConfigurationOut:
         language=language,
         prompts=prompts,
         ssr_temperature=float(row.ssr_temperature),
+        anchor_sets=ConfigurationAnchorSets.model_validate(
+            configuration_anchor_sets_out(row.anchor_sets)
+        ),
         is_active=bool(row.is_active),
         created_at=_dt(row.created_at),
         updated_at=_dt(row.updated_at),
@@ -132,6 +143,8 @@ async def list_configurations(
     session: AsyncSession = Depends(get_session),
 ) -> list[ConfigurationOut]:
     await ensure_default_configurations(session)
+    await ensure_default_anchor_sets(session)
+    await backfill_configuration_anchor_sets(session)
     stmt = select(Configuration).order_by(
         Configuration.is_active.desc(),
         Configuration.updated_at.desc(),
@@ -154,6 +167,16 @@ async def create_configuration(
     session: AsyncSession = Depends(get_session),
 ) -> ConfigurationOut:
     prompts = normalize_prompts(body.prompts, language=body.language, fill_missing=True)
+    await ensure_default_anchor_sets(session)
+    anchor_refs = (
+        body.anchor_sets.model_dump()
+        if body.anchor_sets is not None
+        else await default_anchor_refs(session)
+    )
+    try:
+        await validate_configuration_anchor_refs(session, anchor_refs)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     now = utcnow()
     if body.is_active:
         await _deactivate_others(session, keep_id=None)
@@ -162,6 +185,7 @@ async def create_configuration(
         language=body.language,
         prompts=prompts,
         ssr_temperature=body.ssr_temperature,
+        anchor_sets=anchor_refs,
         is_active=body.is_active,
         created_at=now,
         updated_at=now,
@@ -248,6 +272,15 @@ async def update_configuration(
         )
     if "ssr_temperature" in data and data["ssr_temperature"] is not None:
         row.ssr_temperature = float(data["ssr_temperature"])
+    if "anchor_sets" in data and data["anchor_sets"] is not None:
+        refs = data["anchor_sets"]
+        if hasattr(refs, "model_dump"):
+            refs = refs.model_dump()
+        try:
+            await validate_configuration_anchor_refs(session, refs)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        row.anchor_sets = refs
     if data.get("is_active") is True:
         await _deactivate_others(session, keep_id=row.id)
         row.is_active = True

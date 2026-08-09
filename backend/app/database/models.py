@@ -170,6 +170,8 @@ class Configuration(Base):
     prompts: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     # Softmax temperature for report SSR (tone/style). Lower = sharper label shares.
     ssr_temperature: Mapped[float] = mapped_column(Float, nullable=False, default=0.1)
+    # Per-locale tone/style anchor set ids: {"sv": {"tone": 1, "style": 2}, "en": {...}}
+    anchor_sets: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -187,6 +189,61 @@ class Configuration(Base):
         back_populates="configuration",
         cascade="all, delete-orphan",
     )
+
+
+class SsrAnchorSet(Base):
+    """Versioned SSR anchor library entry (tone Likert or style categories)."""
+
+    __tablename__ = "ssr_anchor_sets"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    locale: Mapped[str] = mapped_column(String(8), nullable=False, index=True)
+    version: Mapped[str] = mapped_column(String(16), nullable=False, default="v1")
+    labels: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    statements: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="draft", index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    calibration_items: Mapped[list["SsrAnchorCalibrationItem"]] = relationship(
+        back_populates="anchor_set",
+        cascade="all, delete-orphan",
+        order_by="SsrAnchorCalibrationItem.sort_order",
+    )
+
+
+class SsrAnchorCalibrationItem(Base):
+    """Human-labeled sample text for anchor set calibration / test bench."""
+
+    __tablename__ = "ssr_anchor_calibration_items"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    anchor_set_id: Mapped[int] = mapped_column(
+        ForeignKey("ssr_anchor_sets.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    human_label: Mapped[str] = mapped_column(String(64), nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    anchor_set: Mapped["SsrAnchorSet"] = relationship(back_populates="calibration_items")
 
 
 class CatalogList(Base):
