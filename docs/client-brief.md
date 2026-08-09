@@ -4,8 +4,6 @@
 
 **Opinionssimulator** is an internal tool for testing political messaging against populations of AI agents (personas) grounded in local civic context.
 
-Pilot: Norrköping, 2026.
-
 ## What users do
 
 1. Choose or build a **population** (demographic mix of agents)

@@ -9,7 +9,7 @@ from app.services.population_generate import sample_slot, stub_persona
 def _recipe_with_extras() -> PopulationRecipe:
     return PopulationRecipe(
         size=4,
-        locale="norrkoping",
+        locale="local",
         seed=1,
         dist={
             "age": DistGroup(
@@ -74,7 +74,7 @@ def test_stub_persona_applies_ton_and_parti():
 def test_stub_persona_fallback_kon_without_dist_group():
     recipe = PopulationRecipe(
         size=2,
-        locale="norrkoping",
+        locale="local",
         seed=7,
         dist={
             "age": DistGroup(

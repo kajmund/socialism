@@ -122,7 +122,7 @@ class DistGroup(BaseModel):
 class PopulationRecipe(BaseModel):
     size: int = Field(ge=1, le=40)
     dist: dict[str, DistGroup]
-    locale: str = "norrkoping"
+    locale: str = "local"
     seed: int | None = None
 
 

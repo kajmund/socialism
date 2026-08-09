@@ -247,7 +247,7 @@ async def test_start_oasis_without_package_returns_503(client, monkeypatch):
 def _sample_recipe(size: int = 6, seed: int = 42) -> dict:
     return {
         "size": size,
-        "locale": "norrkoping",
+        "locale": "local",
         "seed": seed,
         "dist": {
             "age": {
@@ -693,7 +693,7 @@ async def test_generate_variants_parallel_stub(client):
             "/messages/generate-variants",
             json={
                 "type": "post",
-                "raw_text": "Satsa på skolan i Norrköping",
+                "raw_text": "Satsa på skolan i kommunen",
                 "audience": "föräldrar",
                 "purpose": "bygga auktoritet",
                 "tone": "saklig",
