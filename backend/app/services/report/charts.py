@@ -13,7 +13,12 @@ from app.services.report.locale import (
 )
 from app.services.report.metrics import ReportMetrics, confidence_badge, fmt_num, pct
 from app.services.report.recommendation import QuickRecommendation
-from app.services.report.segment_analysis import AudienceSegmentSummary, build_audience_summaries
+from app.services.report.segment_analysis import (
+    AudienceSegmentSummary,
+    build_audience_summaries,
+    interview_quote_label,
+    interview_section_caption,
+)
 from app.services.report.classify import BundleClassification
 from app.services.report.tick_report import (
     InterviewQA,
@@ -755,11 +760,13 @@ def render_audience_section(
     if not bundles:
         return "<p>—</p>"
     intro = (
-        "Target-group view from persona bio (life situation, district, leaning) "
-        "× SSR on reactions and planned tick interviews."
+        "SSR numbers come from posts and comments in the feed. "
+        "Interview quotes below are planned tick interviews matched to each bio segment — "
+        "ranked by thematic relevance (financing, clarity, injection keywords), not feed order."
         if locale == "en"
-        else "Målgruppsvy från persona-bio (livssituation, ort, lutning) "
-        "× SSR på reaktioner och planerade tick-intervjuer."
+        else "SSR-siffror bygger på inlägg och kommentarer i flödet. "
+        "Intervjucitat nedan kommer från planerade tick-intervjuer kopplade till varje bio-segment — "
+        "rankade efter tematisk relevans (finansiering, tydlighet, injektionsord), inte flödesordning."
     )
     blocks: list[str] = []
     for bundle, clf in zip(bundles, classifications, strict=True):
@@ -773,9 +780,9 @@ def render_audience_section(
                 pos = pct(tone.positive_share)
                 crit = pct(tone.critical_share)
                 stat = (
-                    f"SSR +{pos} / −{crit} · {tone.text_count} texts · eng. {tone.engagement_score}"
+                    f"SSR (feed) +{pos} / −{crit} · {tone.text_count} texts · eng. {tone.engagement_score}"
                     if locale == "en"
-                    else f"SSR +{pos} / −{crit} · {tone.text_count} texter · eng. {tone.engagement_score}"
+                    else f"SSR (flöde) +{pos} / −{crit} · {tone.text_count} texter · eng. {tone.engagement_score}"
                 )
             elif tone and tone.too_few:
                 stat = "Too few reactions in segment" if locale == "en" else "För få reaktioner i segmentet"
@@ -788,11 +795,19 @@ def render_audience_section(
                 )
             iv_html = ""
             if seg.interviews:
-                iv_bits = []
-                for iv in seg.interviews[:2]:
+                shown = len(seg.interviews)
+                total = seg.interview_total or shown
+                caption = interview_section_caption(total, shown, locale=locale)
+                iv_bits = [
+                    f'<div class="aud-iv-caption">{escape(caption)}</div>',
+                ]
+                for iv in seg.interviews:
+                    meta = interview_quote_label(iv, locale=locale)
                     iv_bits.append(
-                        f'<div class="aud-iv"><span class="aud-iv-agent">{escape(iv.agent_name)}:</span> '
-                        f"{escape(iv.answer[:160])}</div>"
+                        f'<div class="aud-iv">'
+                        f'<div class="aud-iv-meta">{escape(meta)}</div>'
+                        f'<div class="aud-iv-a">{escape(iv.answer[:220])}</div>'
+                        f"</div>"
                     )
                 iv_html = "".join(iv_bits)
             rows_html.append(
