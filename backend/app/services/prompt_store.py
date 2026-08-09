@@ -89,21 +89,23 @@ async def require_prompts_for_language(
     session: AsyncSession,
     language: ConfigurationLanguage,
 ) -> dict[str, str]:
-    """Load prompts for a language, independent of which config is globally active."""
-    stmt = (
-        select(Configuration)
-        .where(Configuration.language == language)
-        .order_by(Configuration.id.asc())
-        .limit(1)
-    )
-    result = await session.execute(stmt)
-    row = result.scalar_one_or_none()
+    """Load prompts from the active configuration when its language matches.
+
+    Fails loud if there is no active configuration or it uses another language —
+    never falls back to an inactive config of the requested language.
+    """
+    row = await get_active_configuration(session)
     if row is None:
         raise MissingActiveConfigurationError(
-            f"No prompt configuration for language '{language}'. "
-            "Create one under Konfigurationer."
+            "No active prompt configuration. Activate one under Konfigurationer."
         )
-    return _require_prompt_map(row, context=f"Configuration for '{language}'")
+    if row.language != language:
+        raise MissingActiveConfigurationError(
+            f"Active configuration '{row.name}' (id={row.id}) is language "
+            f"'{row.language}', but '{language}' prompts were required. "
+            f"Activate a {language} configuration under Konfigurationer."
+        )
+    return _require_prompt_map(row, context="Active configuration")
 
 
 async def require_active_ssr_temperature(session: AsyncSession) -> float:

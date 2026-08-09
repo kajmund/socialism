@@ -1,7 +1,7 @@
 """Prompt field registry: keys, UI labels, and default texts per language.
 
 Placeholders in templates:
-  {local_context}  — locality brief (+ optional district block)
+  {local_context}  — district/area block from the active configuration catalog
   {requirements}   — demographic/attribute requirement lines
   {surname_block}  — optional taken-surnames block (may be empty)
   {voice_block}    — optional writing-trait / previous-persona block
@@ -125,7 +125,7 @@ PROMPT_FIELDS: list[PromptFieldDef] = [
         "Persona from recipe — user prompt",
         "Platshållare: {requirements}, {surname_block}, {voice_block}, {free_text}, {field_guide}",
         "Placeholders: {requirements}, {surname_block}, {voice_block}, {free_text}, {field_guide}",
-        """Skapa en trovärdig Norrköpingspersona.
+        """Skapa en trovärdig lokal persona.
 
 Demografiska och attributkrav (följ dessa):
 {requirements}

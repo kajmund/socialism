@@ -4,7 +4,7 @@ import "leaflet/dist/leaflet.css"
 import type { GeoBounds } from "@/api/catalog"
 import { useLocale } from "@/i18n"
 
-const NORRKOPING: L.LatLngExpression = [58.5877, 16.1924]
+const DEFAULT_MAP_CENTER: L.LatLngExpression = [58.5877, 16.1924]
 const DEFAULT_ZOOM = 11
 
 type DistrictMapPreviewProps = {
@@ -30,7 +30,7 @@ export function DistrictMapPreview({
     if (!el) return
 
     const map = L.map(el, {
-      center: NORRKOPING,
+      center: DEFAULT_MAP_CENTER,
       zoom: DEFAULT_ZOOM,
       zoomControl: false,
       attributionControl: false,

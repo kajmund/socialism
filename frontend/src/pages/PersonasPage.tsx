@@ -101,6 +101,19 @@ function DiagramExplainer({ t }: { t: Translate }) {
 
 type SaveStatus = "idle" | "saving" | "saved" | "error"
 
+/** Catalog demografi fields used for list filters + sort. */
+const DEMO_FILTER_KEYS = ["kön", "ort", "yrke", "utbildning", "livssituation"] as const
+type DemoFilterKey = (typeof DEMO_FILTER_KEYS)[number]
+
+type PersonaSort =
+  | "updated"
+  | "name"
+  | "pops"
+  | "age"
+  | DemoFilterKey
+
+const EMPTY_DEMO = "—"
+
 function ensureProfile(persona: LibraryPersona): EditablePersona {
   return persona.profile ?? {
     ...blankEditablePersona(),
@@ -110,6 +123,50 @@ function ensureProfile(persona: LibraryPersona): EditablePersona {
     yrke: persona.occ,
     ort: persona.district,
   }
+}
+
+function personaDemoValue(persona: LibraryPersona, key: DemoFilterKey | "age"): string {
+  const profile = ensureProfile(persona)
+  if (key === "age") return String(persona.age)
+  if (key === "ort") return persona.district || profile.ort || ""
+  if (key === "yrke") return persona.occ || profile.yrke || ""
+  return profile[key] ?? ""
+}
+
+function isEmptyDemo(value: string): boolean {
+  return !value || value === EMPTY_DEMO
+}
+
+function compareDemoStrings(a: string, b: string): number {
+  const aEmpty = isEmptyDemo(a)
+  const bEmpty = isEmptyDemo(b)
+  if (aEmpty && bEmpty) return 0
+  if (aEmpty) return 1
+  if (bEmpty) return -1
+  return a.localeCompare(b, "sv")
+}
+
+function demoFilterOptions(
+  key: DemoFilterKey,
+  personas: LibraryPersona[],
+  fieldOptions: Record<string, string[]>,
+): string[] {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const label of fieldOptions[key] ?? []) {
+    if (isEmptyDemo(label) || seen.has(label)) continue
+    seen.add(label)
+    out.push(label)
+  }
+  const extras: string[] = []
+  for (const persona of personas) {
+    const value = personaDemoValue(persona, key)
+    if (isEmptyDemo(value) || seen.has(value)) continue
+    seen.add(value)
+    extras.push(value)
+  }
+  extras.sort((a, b) => a.localeCompare(b, "sv"))
+  return [...out, ...extras]
 }
 
 function applyProfileField(
@@ -368,7 +425,14 @@ export function PersonasPage() {
   const [query, setQuery] = useState("")
   const [affil, setAffil] = useState("alla")
   const [origin, setOrigin] = useState<"alla" | PersonaOrigin>("alla")
-  const [sort, setSort] = useState<"updated" | "name" | "pops">("updated")
+  const [demoFilters, setDemoFilters] = useState<Record<DemoFilterKey, string>>({
+    kön: "alla",
+    ort: "alla",
+    yrke: "alla",
+    utbildning: "alla",
+    livssituation: "alla",
+  })
+  const [sort, setSort] = useState<PersonaSort>("updated")
   const [popOpenIdx, setPopOpenIdx] = useState(-1)
   const [showDiagram, setShowDiagram] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
@@ -422,6 +486,14 @@ export function PersonasPage() {
     return [...names].sort((a, b) => a.localeCompare(b, "sv"))
   }, [personas])
 
+  const demoOptions = useMemo(() => {
+    const out = {} as Record<DemoFilterKey, string[]>
+    for (const key of DEMO_FILTER_KEYS) {
+      out[key] = demoFilterOptions(key, personas, fieldOptions)
+    }
+    return out
+  }, [personas, fieldOptions])
+
   const list = useMemo(() => {
     let next = personas.filter((p) => {
       const ql = query.toLowerCase()
@@ -429,12 +501,17 @@ export function PersonasPage() {
         !ql ||
         p.name.toLowerCase().includes(ql) ||
         p.district.toLowerCase().includes(ql) ||
-        p.occ.toLowerCase().includes(ql)
+        p.occ.toLowerCase().includes(ql) ||
+        personaDemoValue(p, "kön").toLowerCase().includes(ql)
       const matchAffil =
         affil === "alla" ||
         (affil === "fristaende" ? p.pops.length === 0 : p.pops.includes(affil))
       const matchOrigin = origin === "alla" || p.origin === origin
-      return matchQ && matchAffil && matchOrigin
+      const matchDemo = DEMO_FILTER_KEYS.every((key) => {
+        const selected = demoFilters[key]
+        return selected === "alla" || personaDemoValue(p, key) === selected
+      })
+      return matchQ && matchAffil && matchOrigin && matchDemo
     })
     if (sort === "name") next = [...next].sort((a, b) => a.name.localeCompare(b.name, "sv"))
     if (sort === "pops") next = [...next].sort((a, b) => b.pops.length - a.pops.length)
@@ -443,8 +520,20 @@ export function PersonasPage() {
         (a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime(),
       )
     }
+    if (sort === "age") next = [...next].sort((a, b) => a.age - b.age)
+    if (
+      sort === "kön" ||
+      sort === "ort" ||
+      sort === "yrke" ||
+      sort === "utbildning" ||
+      sort === "livssituation"
+    ) {
+      next = [...next].sort((a, b) =>
+        compareDemoStrings(personaDemoValue(a, sort), personaDemoValue(b, sort)),
+      )
+    }
     return next
-  }, [personas, query, affil, origin, sort])
+  }, [personas, query, affil, origin, demoFilters, sort])
 
   function showToast(message: string) {
     setToast(message)
@@ -607,12 +696,85 @@ export function PersonasPage() {
             </select>
             <select
               className="dsel"
+              value={demoFilters.kön}
+              onChange={(e) => setDemoFilters((prev) => ({ ...prev, kön: e.target.value }))}
+              aria-label={t("personas.fields.gender")}
+            >
+              <option value="alla">{t("personas.list.filterAllGender")}</option>
+              {demoOptions.kön.map((label) => (
+                <option key={label} value={label}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <select
+              className="dsel"
+              value={demoFilters.ort}
+              onChange={(e) => setDemoFilters((prev) => ({ ...prev, ort: e.target.value }))}
+              aria-label={t("personas.fields.district")}
+            >
+              <option value="alla">{t("personas.list.filterAllDistrict")}</option>
+              {demoOptions.ort.map((label) => (
+                <option key={label} value={label}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <select
+              className="dsel"
+              value={demoFilters.yrke}
+              onChange={(e) => setDemoFilters((prev) => ({ ...prev, yrke: e.target.value }))}
+              aria-label={t("personas.fields.occupation")}
+            >
+              <option value="alla">{t("personas.list.filterAllOccupation")}</option>
+              {demoOptions.yrke.map((label) => (
+                <option key={label} value={label}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <select
+              className="dsel"
+              value={demoFilters.utbildning}
+              onChange={(e) => setDemoFilters((prev) => ({ ...prev, utbildning: e.target.value }))}
+              aria-label={t("personas.fields.education")}
+            >
+              <option value="alla">{t("personas.list.filterAllEducation")}</option>
+              {demoOptions.utbildning.map((label) => (
+                <option key={label} value={label}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <select
+              className="dsel"
+              value={demoFilters.livssituation}
+              onChange={(e) =>
+                setDemoFilters((prev) => ({ ...prev, livssituation: e.target.value }))
+              }
+              aria-label={t("personas.fields.lifeSituation")}
+            >
+              <option value="alla">{t("personas.list.filterAllLifeSituation")}</option>
+              {demoOptions.livssituation.map((label) => (
+                <option key={label} value={label}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <select
+              className="dsel"
               value={sort}
-              onChange={(e) => setSort(e.target.value as "updated" | "name" | "pops")}
+              onChange={(e) => setSort(e.target.value as PersonaSort)}
             >
               <option value="updated">{t("personas.list.sortUpdated")}</option>
               <option value="name">{t("personas.list.sortName")}</option>
               <option value="pops">{t("personas.list.sortPops")}</option>
+              <option value="age">{t("personas.list.sortAge")}</option>
+              <option value="kön">{t("personas.list.sortGender")}</option>
+              <option value="ort">{t("personas.list.sortDistrict")}</option>
+              <option value="yrke">{t("personas.list.sortOccupation")}</option>
+              <option value="utbildning">{t("personas.list.sortEducation")}</option>
+              <option value="livssituation">{t("personas.list.sortLifeSituation")}</option>
             </select>
           </div>
           <Link

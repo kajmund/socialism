@@ -52,7 +52,7 @@ async def test_tools_run_api_mocked(client):
             "/playground/tools/run",
             json={
                 "tool_name": "search_duckduckgo",
-                "arguments": {"query": "norrköping", "number_of_result_pages": 3},
+                "arguments": {"query": "kommunen", "number_of_result_pages": 3},
             },
         )
     assert res.status_code == 200, res.text

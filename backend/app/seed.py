@@ -75,7 +75,7 @@ def _recipe(
         "size": size,
         "entryMode": "manual",
         "freeText": "",
-        "locale": "norrkoping",
+        "locale": "local",
         "seed": seed,
         "dist": {
             "age": {
@@ -171,7 +171,7 @@ PERSONAS: list[dict] = [
             medievanor="Lokal nyhetskälla",
             parti="Socialdemokraterna",
             valdeltagande="Röstar alltid",
-            anekdot="Igår mötte jag en gammal kollega från Vrinnevi i Distrikt A.",
+            anekdot="Igår mötte jag en gammal kollega från vårdcentralen i Distrikt A.",
         ),
     },
     {
@@ -744,9 +744,9 @@ MESSAGES: list[dict] = [
         "type": "post",
         "title": "Trygghet i vardagen",
         "body": (
-            "Trygghet börjar i vardagen — i Norrköping och i hela Sverige. "
+            "Trygghet börjar i vardagen — i kommunen och i hela Sverige. "
             "Vi investerar i äldreomsorg nära dig, med fler undersköterskor "
-            "och kortare väntetider på Vrinnevi."
+            "och kortare väntetider på akuten."
         ),
         "source_url": None,
         "metadata": {"variant": "narrative", "sender": "Socialdemokraterna"},
@@ -783,7 +783,7 @@ MESSAGES: list[dict] = [
         "title": "Reklampost — lokal räckvidd",
         "body": (
             "Har du väntat för länge på vård? Vi hör dig. Följ vår kampanj "
-            "för mer personal i Norrköping — och dela vidare till någon som berörs."
+            "för mer personal i kommunen — och dela vidare till någon som berörs."
         ),
         "source_url": None,
         "metadata": {"variant": "narrative", "sender": "@partihandle"},
@@ -794,7 +794,7 @@ MESSAGES: list[dict] = [
         "type": "news",
         "title": "Kommunen planerar ny vårdcentral",
         "body": (
-            "Norrköpings kommun utreder en ny vårdcentral i södra stadsdelarna. "
+            "Kommunen utreder en ny vårdcentral i södra stadsdelarna. "
             "Beslut väntas under hösten enligt lokalnyheterna."
         ),
         "source_url": "https://example.com/nyheter/vardcentral",
@@ -823,7 +823,7 @@ RUNS: list[dict] = [
                         type="party_post",
                         sender="Socialdemokraterna",
                         text=(
-                            "Trygghet börjar i vardagen — i Norrköping och i hela Sverige. "
+                            "Trygghet börjar i vardagen — i kommunen och i hela Sverige. "
                             "Vi investerar i äldreomsorg nära dig."
                         ),
                         message_id=MSG_TRYGGHET,
