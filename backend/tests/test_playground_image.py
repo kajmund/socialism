@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from app.llm import set_text_completer
-from app.llm.vision import set_vision_completer
+from app.llm.vision import VisionRequest, set_vision_completer
 from app.services.ssr import set_embedder, tone_anchors
 
 
@@ -39,6 +39,16 @@ def _tone_fake_embed():
 
 
 @pytest.mark.asyncio
+async def test_get_image_models(client):
+    res = await client.get("/playground/image/models")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["defaults"]["vision_provider"] == "openai"
+    assert any(p["id"] == "openai" and p["available"] for p in data["vision_providers"])
+    assert len(data["reaction_models"]) >= 2
+
+
+@pytest.mark.asyncio
 async def test_image_react_success(client):
     create = await client.post(
         "/personas",
@@ -54,7 +64,9 @@ async def test_image_react_success(client):
     assert create.status_code == 201
     persona_id = create.json()["id"]
 
-    async def _mock_vision(_messages: list[dict[str, object]], _mime: str) -> str:
+    async def _mock_vision(request: VisionRequest) -> str:
+        assert request.provider == "openai"
+        assert request.model == "gpt-4o-mini"
         return "En politisk affisch med text om skolan."
 
     async def _mock_text(_messages: list[dict[str, str]]) -> str:
@@ -66,19 +78,55 @@ async def test_image_react_success(client):
 
     res = await client.post(
         "/playground/image/react",
-        data={"persona_id": persona_id, "locale": "sv", "temperature": "0.1"},
+        data={
+            "persona_id": persona_id,
+            "locale": "sv",
+            "temperature": "0.1",
+            "vision_provider": "openai",
+            "vision_model": "gpt-4o-mini",
+            "reaction_model": "deepseek-chat",
+        },
         files={"image": ("test.png", _TINY_PNG, "image/png")},
     )
     assert res.status_code == 200
     data = res.json()
     assert data["persona_id"] == persona_id
     assert data["persona_name"] == "Bildtest Persona"
+    assert data["vision_provider"] == "openai"
+    assert data["vision_model"] == "gpt-4o-mini"
+    assert data["reaction_model"] == "deepseek-chat"
     assert "skolan" in data["image_description"]
     assert "hoppfullt" in data["reaction"]
     assert data["ssr"]["tone"]["predicted_label"]
     assert data["ssr"]["style"]["predicted_label"]
     assert data["lexicon_label"] in {"positive", "negative", "neutral"}
     assert data["elapsed_ms"] >= 0
+
+
+@pytest.mark.asyncio
+async def test_image_react_invalid_vision_model(client):
+    create = await client.post(
+        "/personas",
+        json={
+            "name": "P",
+            "age": 30,
+            "occ": "X",
+            "district": "Centrum",
+            "quote": "Q",
+            "origin": "manuell",
+        },
+    )
+    persona_id = create.json()["id"]
+    res = await client.post(
+        "/playground/image/react",
+        data={
+            "persona_id": persona_id,
+            "vision_provider": "openai",
+            "vision_model": "not-a-real-model",
+        },
+        files={"image": ("test.png", _TINY_PNG, "image/png")},
+    )
+    assert res.status_code == 400
 
 
 @pytest.mark.asyncio

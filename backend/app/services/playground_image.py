@@ -9,10 +9,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Persona
 from app.llm.chat import reply_as_persona
-from app.llm.vision import complete_vision_text
+from app.llm.vision import VisionRequest, complete_vision_text
 from app.serializers import profile_from_dict
 from app.services.district_context import area_block_for_name
 from app.services.playground import rate_case
+from app.services.playground_image_models import (
+    resolve_reaction_model,
+    resolve_vision_selection,
+)
 from app.services.prompt_store import require_active_prompts
 from app.services.sentiment_lexicon import classify_text
 
@@ -80,14 +84,24 @@ async def react_to_image(
     content_type: str,
     locale: Locale = "sv",
     temperature: float = 0.1,
+    vision_provider: str | None = None,
+    vision_model: str | None = None,
+    reaction_model: str | None = None,
 ) -> dict:
     started = time.perf_counter()
     mime = validate_image(content_type=content_type, size_bytes=len(image_bytes))
+    provider, vision_model_id = resolve_vision_selection(
+        provider=vision_provider,
+        model=vision_model,
+    )
+    reaction_model_id = resolve_reaction_model(reaction_model)
 
     description = await complete_vision_text(
         image_bytes=image_bytes,
         content_type=mime,
         prompt=_describe_prompt(locale),
+        provider=provider,
+        model=vision_model_id,
     )
     profile = profile_from_dict(persona.profile, persona.name)
     area_block = await area_block_for_name(session, profile.ort or persona.district)
@@ -99,6 +113,7 @@ async def react_to_image(
         _reaction_user_message(description, locale=locale),
         prompts=prompts,
         area_block=area_block,
+        model=reaction_model_id,
     )
 
     tone_result, style_result = await _rate_both(
@@ -115,6 +130,9 @@ async def react_to_image(
         "lexicon_label": classify_text(reaction),
         "locale": locale,
         "temperature": temperature,
+        "vision_provider": provider,
+        "vision_model": vision_model_id,
+        "reaction_model": reaction_model_id,
         "ssr": {
             "tone": _ssr_slice(tone_result),
             "style": _ssr_slice(style_result),

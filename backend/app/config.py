@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     # OpenAI vision for playground image understanding (same API key as embeddings).
     vision_model: str = "gpt-4o-mini"
     vision_timeout_seconds: float = 60.0
+    # Optional playground vision providers (validated when selected in UI).
+    google_api_key: str = ""
+    google_vision_base_url: str = "https://generativelanguage.googleapis.com/v1beta"
+    ollama_api_key: str = ""
+    ollama_base_url: str = "https://ollama.com"
     # Write-through cache for SSR anchor embeddings (memory + disk).
     embedding_cache_dir: str = "data/embedding_cache"
 

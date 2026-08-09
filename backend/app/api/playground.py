@@ -19,6 +19,7 @@ from app.services.playground import (
 )
 from app.services.playground_tools import list_tool_catalog, run_agent_tool
 from app.services.playground_image import react_to_image
+from app.services.playground_image_models import image_model_catalog
 from app.services.ssr import ANCHOR_SET_VERSION, style_anchors, tone_anchors
 
 router = APIRouter(prefix="/playground", tags=["playground"])
@@ -280,8 +281,16 @@ class ImageReactOut(BaseModel):
     lexicon_label: str
     locale: Locale
     temperature: float
+    vision_provider: str
+    vision_model: str
+    reaction_model: str
     ssr: dict[str, Any]
     elapsed_ms: float
+
+
+@router.get("/image/models")
+async def get_image_models() -> dict[str, Any]:
+    return image_model_catalog()
 
 
 @router.post("/image/react", response_model=ImageReactOut)
@@ -289,6 +298,9 @@ async def post_image_react(
     persona_id: str = Form(...),
     locale: Locale = Form(default="sv"),
     temperature: float = Form(default=0.1),
+    vision_provider: str | None = Form(default=None),
+    vision_model: str | None = Form(default=None),
+    reaction_model: str | None = Form(default=None),
     image: UploadFile = File(...),
     session: AsyncSession = Depends(get_session),
 ) -> ImageReactOut:
@@ -306,6 +318,9 @@ async def post_image_react(
             content_type=image.content_type or "",
             locale=locale,
             temperature=temperature,
+            vision_provider=vision_provider,
+            vision_model=vision_model,
+            reaction_model=reaction_model,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
