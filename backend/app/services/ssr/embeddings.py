@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import threading
+import uuid
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from pathlib import Path
@@ -143,7 +144,8 @@ def cache_put(text: str, vector: list[float]) -> None:
     }
     path = _entry_path(model, norm)
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(".tmp")
+    # Unique temp path so parallel writers for the same key cannot clobber each other.
+    tmp = path.with_name(f"{path.stem}.{uuid.uuid4().hex}.tmp")
     tmp.write_text(json.dumps(entry, ensure_ascii=False), encoding="utf-8")
     tmp.replace(path)
     with _lock:
