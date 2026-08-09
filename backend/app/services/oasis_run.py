@@ -234,7 +234,8 @@ def variant_plans(run: Run) -> list[tuple[str, str, list[Tick]]]:
         return [("main", "Huvudtidslinje", main)]
 
     if isinstance(branch, dict):
-        after = int(branch.get("afterIndex") or 0)
+        raw_after = branch.get("afterIndex", 0)
+        after = int(raw_after) if raw_after is not None else 0
         a_raw = branch.get("a") or []
         b_raw = branch.get("b") or []
     else:

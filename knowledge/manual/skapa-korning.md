@@ -13,8 +13,8 @@ En **körning** beskriver scenariot du vill testa: vilken population som deltar,
 
 1. Öppna **Körningar** och välj att skapa ny.
 2. Fyll i **grunduppgifter**: namn, population och startdatum.
-3. Bygg **tidslinjen**: lägg till dagar/tick, injektioner (text eller budskap från biblioteket) och antal reaktionsrundor.
-4. Välj eventuellt en **gren** efter en delad stam:
+3. Bygg **tidslinjen**: lägg till dagar/tick, injektioner (text eller budskap från biblioteket) och antal reaktionsrundor. Du kan välja **Starta A/B från början** direkt — då jämförs två versioner utan delad stam.
+4. Eller förgrena **efter en delad stam** via knappen på en dag:
    - **A/B** — två formuleringar av budskapet
    - **Stimulus/kontroll** — en variant med stimulus, en utan injektion
 5. Välj **agentverktyg** (valfritt): webbsök (DuckDuckGo och/eller Wikipedia), matematik (SymPy), eller **Välj alla**. Inget verktyg krävs.
