@@ -7,12 +7,17 @@ from app.services.report.classify import BundleClassification, TopicPack
 from app.services.report.metrics import compute_report_metrics
 from app.services.report.recommendation import build_recommendation
 from app.services.report.segment_analysis import (
+    SegmentArmSummary,
     SegmentInterviewSnippet,
+    AudienceSegmentSummary,
+    build_audience_comparisons,
     build_audience_summaries,
+    build_segment_diff_summary,
     detect_themes,
     interview_relevance,
     rank_interviews_for_display,
 )
+from app.services.report.segment_ssr import SegmentToneRow
 from app.services.report.charts import render_audience_section
 from app.services.report.segment_ssr import build_segment_tone_rows
 from app.services.ssr.anchors import TONE_LABELS_SV
@@ -280,3 +285,148 @@ def test_render_audience_section_includes_mini_reports():
     assert "aud-narrative" in html
     assert "aud-eng-chart" in html
     assert "Enkätfrågor" in html or "enkät" in html.lower()
+
+
+def _ab_bundles() -> tuple[RunBundle, RunBundle]:
+    base = _bundle_with_bio()
+    bundle_a = RunBundle(
+        **{
+            **base.__dict__,
+            "label": "Test — Version A",
+            "variant_id": "a",
+            "injection_texts": ["Belysning A"],
+        }
+    )
+    bundle_b = RunBundle(
+        **{
+            **base.__dict__,
+            "label": "Test — Version B",
+            "variant_id": "b",
+            "injection_texts": ["Belysning B"],
+        }
+    )
+    return bundle_a, bundle_b
+
+
+def test_audience_comparisons_group_by_segment_not_version():
+    bundle_a, bundle_b = _ab_bundles()
+    clf_a = BundleClassification(
+        topic_packs=[TopicPack(label="Belysning", keywords=["belysning"])],
+        topic_shares={"Belysning": 1.0},
+        tone_shares={lab: 0.2 for lab in TONE_LABELS_SV},
+        tone_mode="ssr",
+        tone_rated_texts=[
+            "Bra förslag om trygg belysning.",
+            "Vem ska betala? Finansieringen är oklar.",
+        ],
+        tone_pmfs=[_tone_pmf(0.8, neg=0.05), _tone_pmf(0.1, neg=0.6)],
+        sample_user_ids=[1, 2],
+    )
+    clf_b = BundleClassification(
+        topic_packs=[TopicPack(label="Belysning", keywords=["belysning"])],
+        topic_shares={"Belysning": 1.0},
+        tone_shares={lab: 0.2 for lab in TONE_LABELS_SV},
+        tone_mode="ssr",
+        tone_rated_texts=[
+            "Bra förslag om trygg belysning.",
+            "Vem ska betala? Finansieringen är oklar.",
+        ],
+        tone_pmfs=[_tone_pmf(0.2, neg=0.5), _tone_pmf(0.75, neg=0.1)],
+        sample_user_ids=[1, 2],
+    )
+    comparisons = build_audience_comparisons(
+        [bundle_a, bundle_b], [clf_a, clf_b], locale="sv"
+    )
+    sambo = next(c for c in comparisons if c.label == "Sambo, barn")
+    assert len(sambo.arms) == 2
+    assert sambo.arms[0].arm_label == "Version A"
+    assert sambo.arms[1].arm_label == "Version B"
+    assert sambo.arms[0].summary is not None
+    assert sambo.arms[1].summary is not None
+
+
+def test_render_audience_ab_shows_side_by_side_arms():
+    bundle_a, bundle_b = _ab_bundles()
+    clf_a = BundleClassification(
+        topic_packs=[TopicPack(label="Belysning", keywords=["belysning"])],
+        topic_shares={"Belysning": 1.0},
+        tone_shares={lab: 0.2 for lab in TONE_LABELS_SV},
+        tone_mode="ssr",
+        tone_rated_texts=[
+            "Bra förslag om trygg belysning.",
+            "Vem ska betala? Finansieringen är oklar.",
+        ],
+        tone_pmfs=[_tone_pmf(0.8, neg=0.05), _tone_pmf(0.1, neg=0.6)],
+        sample_user_ids=[1, 2],
+    )
+    clf_b = BundleClassification(
+        topic_packs=[TopicPack(label="Belysning", keywords=["belysning"])],
+        topic_shares={"Belysning": 1.0},
+        tone_shares={lab: 0.2 for lab in TONE_LABELS_SV},
+        tone_mode="ssr",
+        tone_rated_texts=[
+            "Bra förslag om trygg belysning.",
+            "Vem ska betala? Finansieringen är oklar.",
+        ],
+        tone_pmfs=[_tone_pmf(0.2, neg=0.5), _tone_pmf(0.75, neg=0.1)],
+        sample_user_ids=[1, 2],
+    )
+    html = render_audience_section([bundle_a, bundle_b], [clf_a, clf_b], locale="sv")
+    assert "aud-compare" in html
+    assert "aud-arm-grid" in html
+    assert "aud-ab-diff" in html
+    assert "aud-ab-legend" in html
+    assert "Version A" in html
+    assert "Version B" in html
+    assert html.count("aud-bundle-title") == 0
+
+
+def test_segment_diff_summary_includes_engagement_and_critical_tone():
+    tone_a = SegmentToneRow(
+        dimension="livssituation",
+        label="Sambo, barn",
+        text_count=2,
+        agent_count=1,
+        positive_share=0.5,
+        critical_share=0.1,
+        engagement_score=12,
+        too_few=False,
+    )
+    tone_b = SegmentToneRow(
+        dimension="livssituation",
+        label="Sambo, barn",
+        text_count=2,
+        agent_count=1,
+        positive_share=0.3,
+        critical_share=0.35,
+        engagement_score=4,
+        too_few=False,
+    )
+    arms = [
+        SegmentArmSummary(
+            arm_label="Version A",
+            summary=AudienceSegmentSummary(
+                dimension="livssituation",
+                dimension_label="Livssituation",
+                label="Sambo, barn",
+                tone=tone_a,
+            ),
+        ),
+        SegmentArmSummary(
+            arm_label="Version B",
+            summary=AudienceSegmentSummary(
+                dimension="livssituation",
+                dimension_label="Livssituation",
+                label="Sambo, barn",
+                tone=tone_b,
+            ),
+        ),
+    ]
+    diff = build_segment_diff_summary(arms, locale="sv")
+    assert "50% positiv" in diff
+    assert "10% kritisk" in diff
+    assert "engagemang 12" in diff
+    assert "35% kritisk" in diff
+    assert "engagemang 4" in diff
+    assert "mer kritisk" in diff
+    assert "högre engagemang" in diff

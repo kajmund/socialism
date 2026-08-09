@@ -576,6 +576,15 @@ td,th{{border-bottom:1px solid #E5DDD0;padding:.35rem .5rem;text-align:left;font
 .aud-qa-q,.aud-qa-a{{font-size:.82rem;line-height:1.45;margin-top:4px;}}
 .audience-takeaway p{{font-size:.88rem;line-height:1.45;margin:0 0 .65rem;color:#3A342C;}}
 .audience-takeaway p:last-child{{margin-bottom:0;}}
+.aud-ab-legend{{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:16px;padding:10px 12px;border:1px solid #D8CFC0;border-radius:8px;background:#FFFCF6;}}
+.aud-ab-legend-lbl{{font-size:.78rem;font-weight:700;color:#3A342C;}}
+.aud-ab-chip{{font-size:.78rem;padding:4px 10px;border-radius:999px;background:#1E3A55;color:#fff;font-weight:600;}}
+.aud-ab-diff{{font-size:.85rem;font-weight:600;color:#1E3A55;margin:0 0 12px;padding:8px 10px;border-radius:6px;background:#EDE6DA;line-height:1.4;}}
+.aud-arm-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;}}
+.aud-arm-panel{{border:1px solid #E5DDD0;border-radius:8px;padding:12px 14px;background:#fff;}}
+.aud-arm-panel.aud-arm-empty{{background:#FAF7F2;}}
+.aud-arm-head{{font-size:.88rem;font-weight:700;color:#1E3A55;margin:0 0 10px;padding-bottom:6px;border-bottom:1px solid #E5DDD0;}}
+.aud-compare .aud-narrative{{font-size:.82rem;}}
 .muted{{color:#6B6253;font-size:.9rem;}}
 </style>
 </head>
