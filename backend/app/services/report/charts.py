@@ -13,10 +13,13 @@ from app.services.report.locale import (
 )
 from app.services.report.metrics import ReportMetrics, confidence_badge, fmt_num, pct
 from app.services.report.recommendation import QuickRecommendation
-from app.services.report.audience_takeaway import build_audience_takeaways
+from app.services.report.audience_takeaway import build_audience_takeaways, short_bundle_arm_label
 from app.services.report.persona_bio import build_agent_bio_by_index, persona_profile_line
 from app.services.report.segment_analysis import (
+    AudienceSegmentComparison,
     AudienceSegmentSummary,
+    SegmentArmSummary,
+    build_audience_comparisons,
     build_audience_summaries,
     interview_quote_label,
     interview_respondent_label,
@@ -928,7 +931,37 @@ def _segment_sample_quotes(texts: list[str], *, locale: ReportLocale) -> str:
     )
 
 
-def _render_segment_report(seg: AudienceSegmentSummary, *, locale: ReportLocale) -> str:
+def _segment_kpi_html(tone: SegmentToneRow | None, *, locale: ReportLocale) -> str:
+    if not tone:
+        return ""
+    if locale == "en":
+        return (
+            f'<div class="aud-kpi-row">'
+            f'<div class="aud-kpi"><strong>{tone.agent_count}</strong>'
+            f"<span>participants</span></div>"
+            f'<div class="aud-kpi"><strong>{tone.text_count}</strong>'
+            f"<span>rated texts</span></div>"
+            f'<div class="aud-kpi"><strong>{pct(tone.positive_share)}</strong>'
+            f"<span>positive</span></div>"
+            f'<div class="aud-kpi"><strong>{pct(tone.critical_share)}</strong>'
+            f"<span>critical</span></div>"
+            f"</div>"
+        )
+    return (
+        f'<div class="aud-kpi-row">'
+        f'<div class="aud-kpi"><strong>{tone.agent_count}</strong>'
+        f"<span>deltagare</span></div>"
+        f'<div class="aud-kpi"><strong>{tone.text_count}</strong>'
+        f"<span>analyserade texter</span></div>"
+        f'<div class="aud-kpi"><strong>{pct(tone.positive_share)}</strong>'
+        f"<span>positiv ton</span></div>"
+        f'<div class="aud-kpi"><strong>{pct(tone.critical_share)}</strong>'
+        f"<span>kritisk ton</span></div>"
+        f"</div>"
+    )
+
+
+def _segment_charts_html(seg: AudienceSegmentSummary, *, locale: ReportLocale) -> str:
     tone = seg.tone
     charts: list[str] = []
     if tone and tone.tone_shares and not tone.too_few:
@@ -938,72 +971,146 @@ def _render_segment_report(seg: AudienceSegmentSummary, *, locale: ReportLocale)
     theme_chart = _segment_theme_bars(seg.theme_counts, locale=locale)
     if theme_chart:
         charts.append(theme_chart)
+    if not charts:
+        return ""
+    return f'<div class="aud-chart-grid">{"".join(charts)}</div>'
 
-    kpi_html = ""
-    if tone:
-        if locale == "en":
-            kpi_html = (
-                f'<div class="aud-kpi-row">'
-                f'<div class="aud-kpi"><strong>{tone.agent_count}</strong>'
-                f"<span>participants</span></div>"
-                f'<div class="aud-kpi"><strong>{tone.text_count}</strong>'
-                f"<span>rated texts</span></div>"
-                f'<div class="aud-kpi"><strong>{pct(tone.positive_share)}</strong>'
-                f"<span>positive</span></div>"
-                f'<div class="aud-kpi"><strong>{pct(tone.critical_share)}</strong>'
-                f"<span>critical</span></div>"
-                f"</div>"
-            )
-        else:
-            kpi_html = (
-                f'<div class="aud-kpi-row">'
-                f'<div class="aud-kpi"><strong>{tone.agent_count}</strong>'
-                f"<span>deltagare</span></div>"
-                f'<div class="aud-kpi"><strong>{tone.text_count}</strong>'
-                f"<span>analyserade texter</span></div>"
-                f'<div class="aud-kpi"><strong>{pct(tone.positive_share)}</strong>'
-                f"<span>positiv ton</span></div>"
-                f'<div class="aud-kpi"><strong>{pct(tone.critical_share)}</strong>'
-                f"<span>kritisk ton</span></div>"
-                f"</div>"
-            )
 
-    iv_html = ""
-    if seg.interviews or seg.interview_total:
-        shown = len(seg.interviews)
-        total = seg.interview_total or shown
-        caption = interview_section_caption(total, shown, locale=locale)
-        cards = []
-        for iv in seg.interviews:
-            meta = interview_respondent_label(iv, locale=locale)
-            q_lbl = "Q" if locale == "en" else "F"
-            a_lbl = "A" if locale == "en" else "S"
-            cards.append(
-                f'<div class="aud-qa-card">'
-                f'<div class="aud-qa-meta">{escape(meta)}</div>'
-                f'<div class="aud-qa-q"><strong>{q_lbl}:</strong> {escape(iv.question)}</div>'
-                f'<div class="aud-qa-a"><strong>{a_lbl}:</strong> {escape(iv.answer)}</div>'
-                f"</div>"
-            )
-        iv_html = (
-            f'<div class="aud-qa-block">'
-            f'<div class="aud-chart-title">{escape(caption)}</div>'
-            f'{"".join(cards)}</div>'
+def _segment_interviews_html(seg: AudienceSegmentSummary, *, locale: ReportLocale) -> str:
+    if not seg.interviews and not seg.interview_total:
+        return ""
+    shown = len(seg.interviews)
+    total = seg.interview_total or shown
+    caption = interview_section_caption(total, shown, locale=locale)
+    cards = []
+    for iv in seg.interviews:
+        meta = interview_respondent_label(iv, locale=locale)
+        q_lbl = "Q" if locale == "en" else "F"
+        a_lbl = "A" if locale == "en" else "S"
+        cards.append(
+            f'<div class="aud-qa-card">'
+            f'<div class="aud-qa-meta">{escape(meta)}</div>'
+            f'<div class="aud-qa-q"><strong>{q_lbl}:</strong> {escape(iv.question)}</div>'
+            f'<div class="aud-qa-a"><strong>{a_lbl}:</strong> {escape(iv.answer)}</div>'
+            f"</div>"
         )
+    return (
+        f'<div class="aud-qa-block">'
+        f'<div class="aud-chart-title">{escape(caption)}</div>'
+        f'{"".join(cards)}</div>'
+    )
 
+
+def _render_segment_body(seg: AudienceSegmentSummary, *, locale: ReportLocale) -> str:
+    tone = seg.tone
     samples = _segment_sample_quotes(tone.sample_texts if tone else [], locale=locale)
+    return (
+        f'<p class="aud-narrative">{escape(seg.narrative)}</p>'
+        f"{_segment_kpi_html(tone, locale=locale)}"
+        f"{_segment_charts_html(seg, locale=locale)}"
+        f"{samples}"
+        f"{_segment_interviews_html(seg, locale=locale)}"
+    )
 
+
+def _render_segment_arm_panel(arm: SegmentArmSummary, *, locale: ReportLocale) -> str:
+    seg = arm.summary
+    if not seg or not (
+        seg.interviews
+        or seg.interview_total
+        or (seg.tone and (not seg.tone.too_few or seg.tone.agent_count))
+    ):
+        empty = (
+            "No data for this version in the segment."
+            if locale == "en"
+            else "Ingen data för denna version i segmentet."
+        )
+        return (
+            f'<div class="aud-arm-panel aud-arm-empty">'
+            f'<div class="aud-arm-head">{escape(arm.arm_label)}</div>'
+            f'<p class="muted">{empty}</p></div>'
+        )
+    return (
+        f'<div class="aud-arm-panel">'
+        f'<div class="aud-arm-head">{escape(arm.arm_label)}</div>'
+        f"{_render_segment_body(seg, locale=locale)}"
+        f"</div>"
+    )
+
+
+def _render_segment_comparison(comp: AudienceSegmentComparison, *, locale: ReportLocale) -> str:
+    panels = "".join(_render_segment_arm_panel(arm, locale=locale) for arm in comp.arms)
+    return (
+        f'<article class="aud-report aud-compare">'
+        f'<header class="aud-report-head">'
+        f'<span class="aud-dim">{escape(comp.dimension_label)}</span> '
+        f'<h4>{escape(comp.label)}</h4>'
+        f"</header>"
+        f'<p class="aud-ab-diff">{escape(comp.diff_summary)}</p>'
+        f'<div class="aud-arm-grid">{panels}</div>'
+        f"</article>"
+    )
+
+
+def _render_ab_legend(bundles: list[RunBundle], *, locale: ReportLocale) -> str:
+    chips = []
+    for bundle in bundles:
+        arm = short_bundle_arm_label(bundle)
+        hint = ""
+        if bundle.injection_texts:
+            snippet = str(bundle.injection_texts[0]).strip()
+            if len(snippet) > 120:
+                snippet = snippet[:117] + "…"
+            hint = f' title="{escape(snippet)}"'
+        chips.append(f'<span class="aud-ab-chip"{hint}>{escape(arm)}</span>')
+    if locale == "en":
+        label = "Compared versions"
+    else:
+        label = "Jämförda versioner"
+    return f'<div class="aud-ab-legend"><span class="aud-ab-legend-lbl">{label}:</span>{"".join(chips)}</div>'
+
+
+def _render_audience_single_version(
+    bundles: list[RunBundle],
+    classifications: list[BundleClassification],
+    *,
+    locale: ReportLocale,
+) -> str:
+    blocks: list[str] = []
+    for bundle, clf in zip(bundles, classifications, strict=True):
+        summaries = build_audience_summaries(bundle, clf, locale=locale)
+        if not summaries:
+            continue
+        reports = "".join(_render_segment_report(seg, locale=locale) for seg in summaries)
+        blocks.append(
+            f'<div class="aud-bundle">'
+            f'<h3 class="aud-bundle-title">{escape(bundle.label)}</h3>'
+            f'<div class="aud-reports">{reports}</div></div>'
+        )
+    return "".join(blocks)
+
+
+def _render_audience_ab_comparison(
+    bundles: list[RunBundle],
+    classifications: list[BundleClassification],
+    *,
+    locale: ReportLocale,
+) -> str:
+    comparisons = build_audience_comparisons(bundles, classifications, locale=locale)
+    if not comparisons:
+        return ""
+    reports = "".join(_render_segment_comparison(comp, locale=locale) for comp in comparisons)
+    return f'{_render_ab_legend(bundles, locale=locale)}<div class="aud-reports">{reports}</div>'
+
+
+def _render_segment_report(seg: AudienceSegmentSummary, *, locale: ReportLocale) -> str:
     return (
         f'<article class="aud-report">'
         f'<header class="aud-report-head">'
         f'<span class="aud-dim">{escape(seg.dimension_label)}</span> '
         f'<h4>{escape(seg.label)}</h4>'
         f"</header>"
-        f'<p class="aud-narrative">{escape(seg.narrative)}</p>'
-        f"{kpi_html}"
-        f'<div class="aud-chart-grid">{"".join(charts)}</div>'
-        f"{samples}"
-        f"{iv_html}"
+        f"{_render_segment_body(seg, locale=locale)}"
         f"</article>"
     )
 
@@ -1016,32 +1123,33 @@ def render_audience_section(
 ) -> str:
     if not bundles:
         return "<p>—</p>"
-    intro = (
-        "Each card is a mini-report for one target group: tone, activity, themes, "
-        "sample reactions from the feed, and survey Q&A (rule-based, no narrative AI)."
-        if locale == "en"
-        else "Varje kort är en egen mini-rapport per målgrupp: ton, aktivitet, teman, "
-        "exempel från flödet och enkätfrågor med svar (regelbaserat, ingen narrativ AI)."
-    )
-    blocks: list[str] = []
-    for bundle, clf in zip(bundles, classifications, strict=True):
-        summaries = build_audience_summaries(bundle, clf, locale=locale)
-        if not summaries:
-            continue
-        reports = "".join(_render_segment_report(seg, locale=locale) for seg in summaries)
-        blocks.append(
-            f'<div class="aud-bundle">'
-            f'<h3 class="aud-bundle-title">{escape(bundle.label)}</h3>'
-            f'<div class="aud-reports">{reports}</div></div>'
+    ab = len(bundles) > 1
+    if ab:
+        intro = (
+            "Each card compares the same target group across versions — tone, activity, "
+            "themes, and survey Q&A side by side (rule-based, no narrative AI)."
+            if locale == "en"
+            else "Varje kort jämför samma målgrupp mellan versionerna — ton, aktivitet, "
+            "teman och enkätfrågor med svar sida vid sida (regelbaserat, ingen narrativ AI)."
         )
-    if not blocks:
+        body = _render_audience_ab_comparison(bundles, classifications, locale=locale)
+    else:
+        intro = (
+            "Each card is a mini-report for one target group: tone, activity, themes, "
+            "sample reactions from the feed, and survey Q&A (rule-based, no narrative AI)."
+            if locale == "en"
+            else "Varje kort är en egen mini-rapport per målgrupp: ton, aktivitet, teman, "
+            "exempel från flödet och enkätfrågor med svar (regelbaserat, ingen narrativ AI)."
+        )
+        body = _render_audience_single_version(bundles, classifications, locale=locale)
+    if not body:
         empty = (
             "No segment data — ensure personas have bio fields and reactions/interviews exist."
             if locale == "en"
             else "Ingen segmentdata — personas behöver bio-fält och reaktioner/intervjuer i körningen."
         )
         return f'<p class="muted">{empty}</p>'
-    return f'<p class="chart-sub">{intro}</p><div class="audience-section">{"".join(blocks)}</div>'
+    return f'<p class="chart-sub">{intro}</p><div class="audience-section">{body}</div>'
 
 
 def prefill_quick_chart_slots(

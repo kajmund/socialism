@@ -8,6 +8,7 @@ from app.services.report.metrics import compute_report_metrics
 from app.services.report.recommendation import build_recommendation
 from app.services.report.segment_analysis import (
     SegmentInterviewSnippet,
+    build_audience_comparisons,
     build_audience_summaries,
     detect_themes,
     interview_relevance,
@@ -280,3 +281,97 @@ def test_render_audience_section_includes_mini_reports():
     assert "aud-narrative" in html
     assert "aud-eng-chart" in html
     assert "Enkätfrågor" in html or "enkät" in html.lower()
+
+
+def _ab_bundles() -> tuple[RunBundle, RunBundle]:
+    base = _bundle_with_bio()
+    bundle_a = RunBundle(
+        **{
+            **base.__dict__,
+            "label": "Test — Version A",
+            "variant_id": "a",
+            "injection_texts": ["Belysning A"],
+        }
+    )
+    bundle_b = RunBundle(
+        **{
+            **base.__dict__,
+            "label": "Test — Version B",
+            "variant_id": "b",
+            "injection_texts": ["Belysning B"],
+        }
+    )
+    return bundle_a, bundle_b
+
+
+def test_audience_comparisons_group_by_segment_not_version():
+    bundle_a, bundle_b = _ab_bundles()
+    clf_a = BundleClassification(
+        topic_packs=[TopicPack(label="Belysning", keywords=["belysning"])],
+        topic_shares={"Belysning": 1.0},
+        tone_shares={lab: 0.2 for lab in TONE_LABELS_SV},
+        tone_mode="ssr",
+        tone_rated_texts=[
+            "Bra förslag om trygg belysning.",
+            "Vem ska betala? Finansieringen är oklar.",
+        ],
+        tone_pmfs=[_tone_pmf(0.8, neg=0.05), _tone_pmf(0.1, neg=0.6)],
+        sample_user_ids=[1, 2],
+    )
+    clf_b = BundleClassification(
+        topic_packs=[TopicPack(label="Belysning", keywords=["belysning"])],
+        topic_shares={"Belysning": 1.0},
+        tone_shares={lab: 0.2 for lab in TONE_LABELS_SV},
+        tone_mode="ssr",
+        tone_rated_texts=[
+            "Bra förslag om trygg belysning.",
+            "Vem ska betala? Finansieringen är oklar.",
+        ],
+        tone_pmfs=[_tone_pmf(0.2, neg=0.5), _tone_pmf(0.75, neg=0.1)],
+        sample_user_ids=[1, 2],
+    )
+    comparisons = build_audience_comparisons(
+        [bundle_a, bundle_b], [clf_a, clf_b], locale="sv"
+    )
+    sambo = next(c for c in comparisons if c.label == "Sambo, barn")
+    assert len(sambo.arms) == 2
+    assert sambo.arms[0].arm_label == "Version A"
+    assert sambo.arms[1].arm_label == "Version B"
+    assert sambo.arms[0].summary is not None
+    assert sambo.arms[1].summary is not None
+
+
+def test_render_audience_ab_shows_side_by_side_arms():
+    bundle_a, bundle_b = _ab_bundles()
+    clf_a = BundleClassification(
+        topic_packs=[TopicPack(label="Belysning", keywords=["belysning"])],
+        topic_shares={"Belysning": 1.0},
+        tone_shares={lab: 0.2 for lab in TONE_LABELS_SV},
+        tone_mode="ssr",
+        tone_rated_texts=[
+            "Bra förslag om trygg belysning.",
+            "Vem ska betala? Finansieringen är oklar.",
+        ],
+        tone_pmfs=[_tone_pmf(0.8, neg=0.05), _tone_pmf(0.1, neg=0.6)],
+        sample_user_ids=[1, 2],
+    )
+    clf_b = BundleClassification(
+        topic_packs=[TopicPack(label="Belysning", keywords=["belysning"])],
+        topic_shares={"Belysning": 1.0},
+        tone_shares={lab: 0.2 for lab in TONE_LABELS_SV},
+        tone_mode="ssr",
+        tone_rated_texts=[
+            "Bra förslag om trygg belysning.",
+            "Vem ska betala? Finansieringen är oklar.",
+        ],
+        tone_pmfs=[_tone_pmf(0.2, neg=0.5), _tone_pmf(0.75, neg=0.1)],
+        sample_user_ids=[1, 2],
+    )
+    html = render_audience_section([bundle_a, bundle_b], [clf_a, clf_b], locale="sv")
+    assert "aud-compare" in html
+    assert "aud-arm-grid" in html
+    assert "aud-ab-diff" in html
+    assert "aud-ab-legend" in html
+    assert "Version A" in html
+    assert "Version B" in html
+    assert html.count("aud-bundle-title") == 0
