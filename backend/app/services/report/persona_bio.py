@@ -30,6 +30,9 @@ BIO_KEYS: tuple[str, ...] = (
 # Tier-1 segments for snabbrapport målgruppsanalys (later cards).
 PRIMARY_SEGMENT_KEYS: tuple[str, ...] = ("livssituation", "ort", "lutning")
 
+# Extended keys for rule-based audience takeaway (snabbrapport summary).
+SUMMARY_SEGMENT_KEYS: tuple[str, ...] = ("livssituation", "yrke", "kön", "age_band")
+
 
 def normalize_bio_value(value: Any) -> str:
     text = str(value or "").strip()
@@ -123,3 +126,28 @@ def build_agent_bio_by_index(bundle: RunBundle) -> dict[int, dict[str, str]]:
 
 def segment_value(bio: dict[str, str], key: str) -> str:
     return normalize_bio_value(bio.get(key))
+
+
+def parse_bio_age(bio: dict[str, str]) -> int | None:
+    raw = normalize_bio_value(bio.get("age"))
+    if not raw:
+        return None
+    try:
+        return int(float(raw))
+    except ValueError:
+        return None
+
+
+def age_band_label(bio: dict[str, str], *, locale: str = "sv") -> str:
+    age = parse_bio_age(bio)
+    if age is None:
+        return ""
+    if locale == "en":
+        return "Over 40" if age >= 40 else "Under 40"
+    return "Över 40" if age >= 40 else "Under 40"
+
+
+def segment_key_value(bio: dict[str, str], key: str, *, locale: str = "sv") -> str:
+    if key == "age_band":
+        return age_band_label(bio, locale=locale)
+    return segment_value(bio, key)
