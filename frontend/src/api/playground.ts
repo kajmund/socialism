@@ -160,6 +160,29 @@ export type PlaygroundImageSsrSlice = {
   pmf: Record<string, number>
 }
 
+export type PlaygroundImageModelOption = {
+  id: string
+  label: string
+}
+
+export type PlaygroundVisionProvider = {
+  id: "openai" | "google" | "ollama"
+  label: string
+  available: boolean
+  unavailable_reason: string | null
+  models: PlaygroundImageModelOption[]
+}
+
+export type PlaygroundImageModelsResponse = {
+  defaults: {
+    vision_provider: PlaygroundVisionProvider["id"]
+    vision_model: string
+    reaction_model: string
+  }
+  vision_providers: PlaygroundVisionProvider[]
+  reaction_models: PlaygroundImageModelOption[]
+}
+
 export type PlaygroundImageReactResponse = {
   persona_id: string
   persona_name: string
@@ -168,11 +191,18 @@ export type PlaygroundImageReactResponse = {
   lexicon_label: string
   locale: PlaygroundLocale
   temperature: number
+  vision_provider: string
+  vision_model: string
+  reaction_model: string
   ssr: {
     tone: PlaygroundImageSsrSlice
     style: PlaygroundImageSsrSlice
   }
   elapsed_ms: number
+}
+
+export function getPlaygroundImageModels(): Promise<PlaygroundImageModelsResponse> {
+  return api.get<PlaygroundImageModelsResponse>("/playground/image/models")
 }
 
 export function reactPlaygroundImage(

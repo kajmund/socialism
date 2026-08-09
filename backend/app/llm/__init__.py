@@ -87,13 +87,13 @@ async def complete_structured[T](messages: list[ChatMessage], response_model: ty
     return response_model.model_validate_json(content)  # type: ignore[attr-defined, no-any-return]
 
 
-async def complete_text(messages: list[ChatMessage]) -> str:
+async def complete_text(messages: list[ChatMessage], *, model: str | None = None) -> str:
     if _text_completer is not None:
         return await _text_completer(messages)
 
     client = get_client()
     completion = await client.chat.completions.create(
-        model=settings.deepseek_model,
+        model=model or settings.deepseek_model,
         messages=messages,  # type: ignore[arg-type]
     )
     content = completion.choices[0].message.content
