@@ -9,7 +9,11 @@ from app.services.report.bundles import RunBundle
 from app.services.report.classify import BundleClassification, _keywords_from_text
 from app.services.report.locale import ReportLocale
 from app.services.report.metrics import pct
-from app.services.report.persona_bio import build_agent_bio_by_index, segment_value
+from app.services.report.persona_bio import (
+    build_agent_bio_by_index,
+    persona_profile_line,
+    segment_value,
+)
 from app.services.report.segment_ssr import (
     SegmentToneRow,
     build_segment_tone_rows,
@@ -61,6 +65,7 @@ class SegmentInterviewSnippet:
     day: int = 1
     themes: list[str] = field(default_factory=list)
     relevance_score: int = 0
+    profile_line: str = ""
 
 
 @dataclass
@@ -148,6 +153,7 @@ def rank_interviews_for_display(
                     day=item.day,
                     themes=item.themes,
                     relevance_score=rel,
+                    profile_line=item.profile_line,
                 ),
             )
         )
@@ -174,10 +180,18 @@ def interview_section_caption(total: int, shown: int, *, locale: ReportLocale) -
     return f"Enkätfrågor och svar (visar {shown} av {total}, rankade efter relevans)"
 
 
-def interview_quote_label(snippet: SegmentInterviewSnippet, *, locale: ReportLocale) -> str:
+def interview_respondent_label(snippet: SegmentInterviewSnippet, *, locale: ReportLocale) -> str:
     if locale == "en":
-        return f"Day {snippet.day} — {snippet.agent_name}"
-    return f"Dag {snippet.day} — {snippet.agent_name}"
+        day_l = f"Day {snippet.day}"
+    else:
+        day_l = f"Dag {snippet.day}"
+    if snippet.profile_line:
+        return f"{day_l} — {snippet.agent_name} ({snippet.profile_line})"
+    return f"{day_l} — {snippet.agent_name}"
+
+
+def interview_quote_label(snippet: SegmentInterviewSnippet, *, locale: ReportLocale) -> str:
+    return interview_respondent_label(snippet, locale=locale)
 
 
 def build_segment_narrative(
@@ -269,6 +283,7 @@ def _interviews_for_segment(
     *,
     dimension: str,
     value: str,
+    locale: ReportLocale = "sv",
 ) -> list[SegmentInterviewSnippet]:
     agent_bio = build_agent_bio_by_index(bundle)
     out: list[SegmentInterviewSnippet] = []
@@ -277,6 +292,13 @@ def _interviews_for_segment(
         if not bio or segment_value(bio, dimension) != value:
             continue
         combined = f"{item.question} {item.answer}"
+        profile = ""
+        if bio:
+            profile = persona_profile_line(
+                bio,
+                locale=locale,
+                exclude_dimension=dimension,
+            )
         out.append(
             SegmentInterviewSnippet(
                 agent_name=item.agent_name,
@@ -285,6 +307,7 @@ def _interviews_for_segment(
                 tick_index=item.tick_index,
                 day=item.day,
                 themes=detect_themes(combined),
+                profile_line=profile,
             )
         )
     return out
@@ -328,7 +351,9 @@ def build_audience_summaries(
     summaries: list[AudienceSegmentSummary] = []
     for dim, val in sorted(keys, key=lambda k: _segment_sort_key(k[0], k[1])):
         tone = by_key.get((dim, val))
-        interviews_all = _interviews_for_segment(bundle, dimension=dim, value=val)
+        interviews_all = _interviews_for_segment(
+            bundle, dimension=dim, value=val, locale=locale
+        )
         interviews = rank_interviews_for_display(interviews_all, bundle)
         interview_total = len(interviews_all)
         theme_counts = _theme_counts_for_segment(tone)

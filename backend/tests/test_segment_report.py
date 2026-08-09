@@ -49,7 +49,14 @@ def _bundle_with_bio() -> RunBundle:
             {
                 "persona_id": "p2",
                 "name": "Bo",
-                "bio": {"livssituation": "Ensamhushåll", "ort": "Hageby", "lutning": "Höger"},
+                "bio": {
+                    "livssituation": "Ensamhushåll",
+                    "ort": "Hageby",
+                    "lutning": "Höger",
+                    "yrke": "Elektriker",
+                    "kön": "Man",
+                    "age": "55",
+                },
             },
         ],
         posts=[
@@ -204,6 +211,38 @@ def test_audience_summary_tracks_interview_total():
     )
     assert fam.interview_total == 2
     assert len(fam.interviews) <= 3
+
+
+def test_interviews_include_respondent_profile():
+    bundle = _bundle_with_bio()
+    bundle.trace.append(
+        {
+            "user_id": 2,
+            "created_at": 3,
+            "action": "interview",
+            "info": '{"prompt": "Vad tycker du om belysning?", "response": "Bra idé men finansieringen måste förklaras."}',
+        }
+    )
+    clf = BundleClassification(
+        topic_packs=[TopicPack(label="Belysning", keywords=["belysning"])],
+        topic_shares={"Belysning": 1.0},
+        tone_shares={lab: 0.2 for lab in TONE_LABELS_SV},
+        tone_mode="ssr",
+        tone_rated_texts=["Bra", "Finansiering oklar"],
+        tone_pmfs=[_tone_pmf(0.6), _tone_pmf(0.2, neg=0.5)],
+        sample_user_ids=[1, 2],
+    )
+    ensam = next(
+        s
+        for s in build_audience_summaries(bundle, clf, locale="sv")
+        if s.label == "Ensamhushåll"
+    )
+    assert ensam.interviews
+    assert "Elektriker" in ensam.interviews[0].profile_line
+    assert "ensamhushåll" not in ensam.interviews[0].profile_line.casefold()
+    html = render_audience_section([bundle], [clf], locale="sv")
+    assert "Elektriker" in html
+    assert "qa-profile" in html or "55 år" in html
 
 
 def test_interviews_shown_on_segments_with_matching_personas():

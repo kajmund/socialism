@@ -539,7 +539,8 @@ td,th{{border-bottom:1px solid #E5DDD0;padding:.35rem .5rem;text-align:left;font
 .qa-bundle h4{{font-size:.95rem;margin:0 0 8px;}}
 .qa-tick h5{{font-size:.85rem;margin:0 0 6px;color:#3A342C;}}
 .qa-card{{border:1px solid #D8CFC0;border-radius:8px;padding:10px 12px;margin-bottom:8px;background:#FFFCF6;}}
-.qa-agent{{font-weight:700;font-size:.85rem;margin-bottom:4px;}}
+.qa-agent{{font-weight:700;font-size:.85rem;margin-bottom:2px;}}
+.qa-profile{{font-size:.75rem;color:#6B6253;margin-bottom:6px;line-height:1.35;}}
 .qa-q,.qa-a{{font-size:.82rem;line-height:1.4;margin-top:4px;}}
 .recommendation-block{{border:1px solid #D8CFC0;border-radius:8px;padding:12px 14px;margin:0 0 1rem;background:#FFFCF6;}}
 .rec-headline{{font-size:1.05rem;margin:0 0 .5rem;}}

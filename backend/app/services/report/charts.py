@@ -14,10 +14,12 @@ from app.services.report.locale import (
 from app.services.report.metrics import ReportMetrics, confidence_badge, fmt_num, pct
 from app.services.report.recommendation import QuickRecommendation
 from app.services.report.audience_takeaway import build_audience_takeaways
+from app.services.report.persona_bio import build_agent_bio_by_index, persona_profile_line
 from app.services.report.segment_analysis import (
     AudienceSegmentSummary,
     build_audience_summaries,
     interview_quote_label,
+    interview_respondent_label,
     interview_section_caption,
     theme_display_label,
 )
@@ -684,16 +686,44 @@ def render_tick_timeline(
     return f'<div class="tick-timeline">{"".join(sections)}</div>'
 
 
+def _qa_card_html(
+    item: InterviewQA,
+    bundle: RunBundle,
+    *,
+    locale: ReportLocale,
+    exclude_dimension: str | None = None,
+) -> str:
+    bio = build_agent_bio_by_index(bundle).get(item.user_id)
+    profile = (
+        persona_profile_line(bio, locale=locale, exclude_dimension=exclude_dimension)
+        if bio
+        else ""
+    )
+    q_lbl = "Q" if locale == "en" else "F"
+    a_lbl = "A" if locale == "en" else "S"
+    profile_html = (
+        f'<div class="qa-profile">{escape(profile)}</div>' if profile else ""
+    )
+    return (
+        f'<div class="qa-card">'
+        f'<div class="qa-agent">{escape(item.agent_name)}</div>'
+        f"{profile_html}"
+        f'<div class="qa-q"><strong>{q_lbl}:</strong> {escape(item.question)}</div>'
+        f'<div class="qa-a"><strong>{a_lbl}:</strong> {escape(item.answer)}</div>'
+        f"</div>"
+    )
+
+
 def render_interview_qa_section(
     bundles: list[RunBundle],
     *,
     locale: ReportLocale = "sv",
 ) -> str:
-    all_qa: list[tuple[str, list[InterviewQA]]] = []
+    all_qa: list[tuple[str, RunBundle, list[InterviewQA]]] = []
     for bundle in bundles:
         qa = extract_interview_qa(bundle)
         if qa:
-            all_qa.append((bundle.label, qa))
+            all_qa.append((bundle.label, bundle, qa))
     if not all_qa:
         empty = (
             "No planned survey questions in this run."
@@ -703,7 +733,7 @@ def render_interview_qa_section(
         return f"<p class=\"muted\">{empty}</p>"
 
     blocks = []
-    for label, qa_list in all_qa:
+    for label, bundle, qa_list in all_qa:
         by_tick: dict[int, list[InterviewQA]] = {}
         for item in qa_list:
             by_tick.setdefault(item.tick_index, []).append(item)
@@ -716,15 +746,9 @@ def render_interview_qa_section(
                 if locale == "en"
                 else f"Efter dag {day}"
             )
-            cards = []
-            for item in items:
-                cards.append(
-                    f'<div class="qa-card">'
-                    f'<div class="qa-agent">{escape(item.agent_name)}</div>'
-                    f'<div class="qa-q"><strong>{"Q" if locale == "en" else "F"}:</strong> {escape(item.question)}</div>'
-                    f'<div class="qa-a"><strong>{"A" if locale == "en" else "S"}:</strong> {escape(item.answer)}</div>'
-                    f"</div>"
-                )
+            cards = [
+                _qa_card_html(item, bundle, locale=locale) for item in items
+            ]
             tick_sections.append(
                 f'<div class="qa-tick"><h5>{escape(day_title)}</h5>{"".join(cards)}</div>'
             )
@@ -951,7 +975,7 @@ def _render_segment_report(seg: AudienceSegmentSummary, *, locale: ReportLocale)
         caption = interview_section_caption(total, shown, locale=locale)
         cards = []
         for iv in seg.interviews:
-            meta = interview_quote_label(iv, locale=locale)
+            meta = interview_respondent_label(iv, locale=locale)
             q_lbl = "Q" if locale == "en" else "F"
             a_lbl = "A" if locale == "en" else "S"
             cards.append(
