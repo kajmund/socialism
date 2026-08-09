@@ -6,7 +6,12 @@ from app.services.report.bundles import RunBundle
 from app.services.report.classify import BundleClassification, TopicPack
 from app.services.report.metrics import compute_report_metrics
 from app.services.report.recommendation import build_recommendation
-from app.services.report.segment_analysis import build_audience_summaries, detect_themes
+from app.services.report.segment_analysis import (
+    build_audience_summaries,
+    detect_themes,
+    interview_relevance,
+    rank_interviews_for_display,
+)
 from app.services.report.segment_ssr import build_segment_tone_rows
 from app.services.ssr.anchors import TONE_LABELS_SV
 
@@ -138,3 +143,64 @@ def test_build_recommendation_produces_score_and_action():
     assert 0 <= rec.score <= 100
     assert "Rekommendation" in rec.action or "rekommendation" in rec.action.lower()
     assert rec.headline.startswith("Simulerat stöd")
+
+
+def test_rank_interviews_prefers_financing_and_insight_themes():
+    from app.services.report.segment_analysis import SegmentInterviewSnippet
+
+    bundle = RunBundle(
+        label="T",
+        run_id=1,
+        run_name="T",
+        attempt_id="a",
+        seed=None,
+        engine=None,
+        injection_texts=["Socialdemokraterna vill stoppa nedsläckningen av belysning"],
+    )
+    generic = SegmentInterviewSnippet(
+        agent_name="A",
+        question="Tycker du om förslaget?",
+        answer="Ja, fine.",
+        tick_index=0,
+        themes=[],
+    )
+    insightful = SegmentInterviewSnippet(
+        agent_name="B",
+        question="Finansiering?",
+        answer="Bra idé men finansieringen måste förklaras tydligare med konkret budget.",
+        tick_index=1,
+        themes=["finansiering", "konkret", "vaghet"],
+    )
+    ranked = rank_interviews_for_display([generic, insightful], bundle)
+    assert ranked[0].agent_name == "B"
+    assert interview_relevance(insightful, injection_keywords=["belysning"]) > interview_relevance(
+        generic, injection_keywords=["belysning"]
+    )
+
+
+def test_audience_summary_tracks_interview_total():
+    bundle = _bundle_with_bio()
+    bundle.trace.append(
+        {
+            "user_id": 1,
+            "created_at": 5,
+            "action": "interview",
+            "info": '{"prompt": "Finansiering?", "response": "Vill se tydlig budget och finansiering."}',
+        }
+    )
+    clf = BundleClassification(
+        topic_packs=[TopicPack(label="Belysning", keywords=["belysning"])],
+        topic_shares={"Belysning": 1.0},
+        tone_shares={lab: 0.2 for lab in TONE_LABELS_SV},
+        tone_mode="ssr",
+        tone_rated_texts=["a"],
+        tone_pmfs=[_tone_pmf(0.5)],
+        sample_user_ids=[1],
+    )
+    fam = next(
+        s
+        for s in build_audience_summaries(bundle, clf, locale="sv")
+        if s.label == "Sambo, barn"
+    )
+    assert fam.interview_total == 2
+    assert len(fam.interviews) <= 3

@@ -550,7 +550,10 @@ td,th{{border-bottom:1px solid #E5DDD0;padding:.35rem .5rem;text-align:left;font
 .aud-dim{{color:#6B6253;font-size:.78rem;}}
 .aud-stat{{font-size:.78rem;color:#3A342C;margin-bottom:4px;}}
 .aud-themes{{display:block;color:#6B6253;margin-top:2px;}}
-.aud-iv{{font-size:.78rem;color:#3A342C;font-style:italic;margin-top:4px;}}
+.aud-iv-caption{{font-size:.72rem;color:#6B6253;margin:6px 0 4px;font-style:italic;}}
+.aud-iv{{border-left:3px solid #D8CFC0;padding:6px 0 6px 10px;margin-bottom:6px;}}
+.aud-iv-meta{{font-size:.75rem;font-weight:700;color:#3A342C;margin-bottom:2px;}}
+.aud-iv-a{{font-size:.78rem;color:#3A342C;line-height:1.35;}}
 .aud-iv-agent{{font-weight:700;font-style:normal;}}
 .muted{{color:#6B6253;font-size:.9rem;}}
 </style>
