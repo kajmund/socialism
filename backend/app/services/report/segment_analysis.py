@@ -412,38 +412,118 @@ def _positive_tone_for_summary(summary: AudienceSegmentSummary | None) -> float 
     return summary.tone.positive_share
 
 
+def _critical_tone_for_summary(summary: AudienceSegmentSummary | None) -> float | None:
+    if not summary or not summary.tone or summary.tone.too_few:
+        return None
+    return summary.tone.critical_share
+
+
+def _engagement_for_summary(summary: AudienceSegmentSummary | None) -> int | None:
+    if not summary or not summary.tone:
+        return None
+    return summary.tone.engagement_score
+
+
+def _format_arm_diff_line(
+    arm_label: str,
+    *,
+    positive: float | None,
+    critical: float | None,
+    engagement: int | None,
+    locale: ReportLocale,
+) -> str:
+    bits: list[str] = []
+    if positive is not None:
+        bits.append(
+            f"{pct(positive)} {'positive' if locale == 'en' else 'positiv'}"
+        )
+    if critical is not None:
+        bits.append(
+            f"{pct(critical)} {'critical' if locale == 'en' else 'kritisk'}"
+        )
+    if engagement is not None:
+        bits.append(
+            f"{'engagement' if locale == 'en' else 'engagemang'} {engagement}"
+        )
+    if not bits:
+        return ""
+    return f"{arm_label}: {' · '.join(bits)}"
+
+
 def build_segment_diff_summary(
     arms: list[SegmentArmSummary],
     *,
     locale: ReportLocale,
 ) -> str:
-    scored: list[tuple[str, float]] = []
+    arm_lines: list[str] = []
+    positive_scored: list[tuple[str, float]] = []
+    critical_scored: list[tuple[str, float]] = []
+    engagement_scored: list[tuple[str, int]] = []
+
     for arm in arms:
         pos = _positive_tone_for_summary(arm.summary)
+        crit = _critical_tone_for_summary(arm.summary)
+        eng = _engagement_for_summary(arm.summary)
+        line = _format_arm_diff_line(
+            arm.arm_label,
+            positive=pos,
+            critical=crit,
+            engagement=eng,
+            locale=locale,
+        )
+        if line:
+            arm_lines.append(line)
         if pos is not None:
-            scored.append((arm.arm_label, pos))
-    if not scored:
-        if locale == "en":
-            return "Not enough posts and comments to compare tone between versions in this segment."
-        return "För få inlägg och kommentarer för att jämföra ton mellan versionerna i segmentet."
+            positive_scored.append((arm.arm_label, pos))
+        if crit is not None:
+            critical_scored.append((arm.arm_label, crit))
+        if eng is not None:
+            engagement_scored.append((arm.arm_label, eng))
 
-    parts = [
-        f"{arm}: {pct(pos)} {'positive' if locale == 'en' else 'positiv'}" for arm, pos in scored
-    ]
-    if len(scored) >= 2:
-        scored_sorted = sorted(scored, key=lambda row: row[1], reverse=True)
-        best_label, best_pos = scored_sorted[0]
-        worst_label, worst_pos = scored_sorted[-1]
-        gap = best_pos - worst_pos
-        if gap >= 0.08:
-            if locale == "en":
-                parts.append(f"{best_label} leads by {pct(gap)}")
+    if not arm_lines:
+        if locale == "en":
+            return "Not enough data to compare versions in this segment."
+        return "För lite data för att jämföra versionerna i segmentet."
+
+    parts = list(arm_lines)
+    if len(arms) >= 2:
+        if len(positive_scored) >= 2:
+            ordered = sorted(positive_scored, key=lambda row: row[1], reverse=True)
+            best_label, best_pos = ordered[0]
+            worst_label, worst_pos = ordered[-1]
+            gap = best_pos - worst_pos
+            if gap >= 0.08:
+                if locale == "en":
+                    parts.append(f"{best_label} leads on positive tone (+{pct(gap)})")
+                else:
+                    parts.append(f"{best_label} leder i positiv ton (+{pct(gap)})")
+            elif locale == "en":
+                parts.append("Versions are close on positive tone")
             else:
-                parts.append(f"{best_label} leder med {pct(gap)}")
-        elif locale == "en":
-            parts.append("Versions are close on positive tone")
-        else:
-            parts.append("Versionerna ligger nära varandra i positiv ton")
+                parts.append("Versionerna ligger nära varandra i positiv ton")
+        if len(critical_scored) >= 2:
+            ordered = sorted(critical_scored, key=lambda row: row[1], reverse=True)
+            crit_label, crit_val = ordered[0]
+            other_val = ordered[-1][1]
+            gap = crit_val - other_val
+            if gap >= 0.08:
+                if locale == "en":
+                    parts.append(f"{crit_label} more critical (+{pct(gap)})")
+                else:
+                    parts.append(f"{crit_label} mer kritisk (+{pct(gap)})")
+        if len(engagement_scored) >= 2:
+            ordered = sorted(engagement_scored, key=lambda row: row[1], reverse=True)
+            eng_label, eng_val = ordered[0]
+            other_eng = ordered[-1][1]
+            if eng_val > other_eng:
+                if locale == "en":
+                    parts.append(
+                        f"{eng_label} higher engagement ({eng_val} vs {other_eng})"
+                    )
+                else:
+                    parts.append(
+                        f"{eng_label} högre engagemang ({eng_val} vs {other_eng})"
+                    )
     return " · ".join(parts)
 
 
