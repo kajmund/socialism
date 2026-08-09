@@ -13,6 +13,7 @@ from app.services.report.segment_analysis import (
     interview_relevance,
     rank_interviews_for_display,
 )
+from app.services.report.charts import render_audience_section
 from app.services.report.segment_ssr import build_segment_tone_rows
 from app.services.ssr.anchors import TONE_LABELS_SV
 
@@ -205,7 +206,7 @@ def test_audience_summary_tracks_interview_total():
     assert len(fam.interviews) <= 3
 
 
-def test_interview_quotes_only_on_livssituation_rows():
+def test_interviews_shown_on_segments_with_matching_personas():
     bundle = _bundle_with_bio()
     clf = BundleClassification(
         topic_packs=[TopicPack(label="Belysning", keywords=["belysning"])],
@@ -217,8 +218,26 @@ def test_interview_quotes_only_on_livssituation_rows():
         sample_user_ids=[1, 2],
     )
     summaries = build_audience_summaries(bundle, clf, locale="sv")
-    for seg in summaries:
-        if seg.dimension != "livssituation":
-            assert not seg.interviews
-            assert seg.interview_total == 0
-    assert any(s.dimension == "livssituation" and s.interviews for s in summaries)
+    liv = next(s for s in summaries if s.dimension == "livssituation" and s.label == "Sambo, barn")
+    assert liv.interviews
+    assert liv.narrative
+    assert liv.tone is not None
+    assert liv.tone.tone_shares
+
+
+def test_render_audience_section_includes_mini_reports():
+    bundle = _bundle_with_bio()
+    clf = BundleClassification(
+        topic_packs=[TopicPack(label="Belysning", keywords=["belysning"])],
+        topic_shares={"Belysning": 1.0},
+        tone_shares={lab: 0.2 for lab in TONE_LABELS_SV},
+        tone_mode="ssr",
+        tone_rated_texts=["Bra", "Finansiering oklar"],
+        tone_pmfs=[_tone_pmf(0.6), _tone_pmf(0.2, neg=0.5)],
+        sample_user_ids=[1, 2],
+    )
+    html = render_audience_section([bundle], [clf], locale="sv")
+    assert "aud-report" in html
+    assert "aud-narrative" in html
+    assert "aud-eng-chart" in html
+    assert "Enkätfrågor" in html or "enkät" in html.lower()

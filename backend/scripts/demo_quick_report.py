@@ -142,6 +142,18 @@ def _ab_bundles() -> list[RunBundle]:
                     "action": "interview",
                     "info": '{"prompt": "Hur ser du på finansieringen?", "response": "Bra idé men jag vill se tydligare hur det ska betalas."}',
                 },
+                {
+                    "user_id": 1,
+                    "created_at": 8,
+                    "action": "interview",
+                    "info": '{"prompt": "Skulle detta påverka er vardag?", "response": "Ja, tryggare promenader kvällstid med barnen."}',
+                },
+                {
+                    "user_id": 3,
+                    "created_at": 9,
+                    "action": "interview",
+                    "info": '{"prompt": "Vad är viktigast i budskapet?", "response": "Att det känns konkret och inte bara valfläsk."}',
+                },
             ],
             posts=[
                 {

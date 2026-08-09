@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from app.services.report.bundles import RunBundle
 from app.services.report.classify import BundleClassification
@@ -17,6 +17,27 @@ from app.services.report.persona_bio import (
 MIN_SEGMENT_TEXTS = 2
 
 
+def _activity_for_agents(
+    bundle: RunBundle,
+    agent_ids: frozenset[int],
+) -> tuple[int, int, int, int]:
+    """Posts, comments, likes, shares for agents in segment."""
+    ids = set(agent_ids)
+    posts = comments = likes = shares = 0
+    for post in bundle.posts:
+        if int(post.get("user_id") or -1) not in ids:
+            continue
+        posts += 1
+        likes += int(post.get("num_likes") or 0)
+        shares += int(post.get("num_shares") or 0)
+    for comment in bundle.comments:
+        if int(comment.get("user_id") or -1) not in ids:
+            continue
+        comments += 1
+        likes += int(comment.get("num_likes") or 0)
+    return posts, comments, likes, shares
+
+
 @dataclass
 class SegmentToneRow:
     dimension: str
@@ -28,6 +49,12 @@ class SegmentToneRow:
     engagement_score: int
     too_few: bool
     agent_ids: frozenset[int] = frozenset()
+    tone_shares: dict[str, float] = field(default_factory=dict)
+    post_count: int = 0
+    comment_count: int = 0
+    likes_total: int = 0
+    shares_total: int = 0
+    sample_texts: list[str] = field(default_factory=list)
 
 
 def _positive_share(tone: dict[str, float], *, locale: ReportLocale) -> float:
@@ -106,8 +133,9 @@ def build_segment_tone_rows(
     by_dim_val_pmfs: dict[tuple[str, str], list[dict[str, float]]] = {}
     by_dim_val_agents: dict[tuple[str, str], set[int]] = {}
     by_dim_val_engagement: dict[tuple[str, str], int] = {}
+    by_dim_val_texts: dict[tuple[str, str], list[str]] = {}
 
-    for pmf, uid in zip(pmfs, user_ids, strict=True):
+    for pmf, uid, text in zip(pmfs, user_ids, rated, strict=True):
         bio = agent_bio.get(uid)
         if not bio:
             continue
@@ -118,6 +146,7 @@ def build_segment_tone_rows(
             key = (dim, val)
             by_dim_val_pmfs.setdefault(key, []).append(pmf)
             by_dim_val_agents.setdefault(key, set()).add(uid)
+            by_dim_val_texts.setdefault(key, []).append(text)
 
     for uid, bio in agent_bio.items():
         for dim in segment_keys:
@@ -133,17 +162,25 @@ def build_segment_tone_rows(
     for (dim, val), seg_pmfs in sorted(by_dim_val_pmfs.items()):
         count = len(seg_pmfs)
         tone = _mean_pmf_dicts(seg_pmfs, labels)
+        agents = frozenset(by_dim_val_agents.get((dim, val), set()))
+        post_n, comment_n, likes_n, shares_n = _activity_for_agents(bundle, agents)
         rows.append(
             SegmentToneRow(
                 dimension=dim,
                 label=val,
                 text_count=count,
-                agent_count=len(by_dim_val_agents.get((dim, val), set())),
+                agent_count=len(agents),
                 positive_share=_positive_share(tone, locale=locale),
                 critical_share=_critical_share(tone, locale=locale),
                 engagement_score=by_dim_val_engagement.get((dim, val), 0),
                 too_few=count < MIN_SEGMENT_TEXTS,
-                agent_ids=frozenset(by_dim_val_agents.get((dim, val), set())),
+                agent_ids=agents,
+                tone_shares=tone,
+                post_count=post_n,
+                comment_count=comment_n,
+                likes_total=likes_n,
+                shares_total=shares_n,
+                sample_texts=list(by_dim_val_texts.get((dim, val), [])),
             )
         )
     return rows

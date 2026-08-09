@@ -19,7 +19,9 @@ from app.services.report.segment_analysis import (
     build_audience_summaries,
     interview_quote_label,
     interview_section_caption,
+    theme_display_label,
 )
+from app.services.report.segment_ssr import SegmentToneRow
 from app.services.report.classify import BundleClassification
 from app.services.report.tick_report import (
     InterviewQA,
@@ -786,6 +788,202 @@ def render_audience_takeaway_section(
     return f'<p class="chart-sub">{intro}</p><div class="audience-takeaway">{body}</div>'
 
 
+def _segment_tone_donut(tone_shares: dict[str, float], *, locale: ReportLocale) -> str:
+    if not tone_shares:
+        return "<p>—</p>"
+    if locale == "en":
+        colors = {
+            "Strongly negative": C_ROSE,
+            "Somewhat negative": "#C47A5A",
+            "Neutral": C_MUTED,
+            "Somewhat positive": C_GREEN,
+            "Strongly positive": C_AMBER,
+        }
+        order = list(colors.keys())
+        center = "tone"
+        title = "Tone in this group"
+    else:
+        colors = {
+            "Starkt negativ": C_ROSE,
+            "Något negativ": "#C47A5A",
+            "Neutral": C_MUTED,
+            "Något positiv": C_GREEN,
+            "Starkt positiv": C_AMBER,
+        }
+        order = list(colors.keys())
+        center = "ton"
+        title = "Ton i gruppen"
+    ordered = [(k, tone_shares[k]) for k in order if k in tone_shares]
+    ordered.extend((k, v) for k, v in tone_shares.items() if k not in colors)
+    shares = [(k, v, colors.get(k, C_MUTED)) for k, v in ordered if v > 0]
+    if not shares:
+        return "<p>—</p>"
+    return (
+        f'<div class="aud-chart-card">'
+        f'<div class="aud-chart-title">{title}</div>'
+        f"{_donut(shares, center)}"
+        f"</div>"
+    )
+
+
+def _segment_engagement_bars(tone: SegmentToneRow, *, locale: ReportLocale) -> str:
+    if locale == "en":
+        specs = [
+            ("Posts", tone.post_count),
+            ("Comments", tone.comment_count),
+            ("Likes", tone.likes_total),
+            ("Shares", tone.shares_total),
+            ("Engagement", tone.engagement_score),
+        ]
+        title = "Activity in this group"
+    else:
+        specs = [
+            ("Inlägg", tone.post_count),
+            ("Kommentarer", tone.comment_count),
+            ("Likes", tone.likes_total),
+            ("Delningar", tone.shares_total),
+            ("Engagemang", tone.engagement_score),
+        ]
+        title = "Aktivitet i gruppen"
+    max_v = max((v for _, v in specs), default=1) or 1
+    rows = []
+    palette = (C_PRIMARY, C_PRIMARY_2, C_GREEN, C_ORANGE, C_AMBER)
+    for i, (label, val) in enumerate(specs):
+        width = max(2, round((val / max_v) * 100)) if val > 0 else 2
+        color = palette[i % len(palette)]
+        rows.append(
+            f'<div class="aud-eng-row">'
+            f'<span class="aud-eng-lbl">{escape(label)}</span>'
+            f'<div class="aud-eng-track"><div class="aud-eng-fill" '
+            f'style="width:{width}%;background:{color}"></div></div>'
+            f'<span class="aud-eng-val">{val}</span></div>'
+        )
+    return (
+        f'<div class="aud-chart-card">'
+        f'<div class="aud-chart-title">{title}</div>'
+        f'<div class="aud-eng-chart">{"".join(rows)}</div></div>'
+    )
+
+
+def _segment_theme_bars(theme_counts: dict[str, int], *, locale: ReportLocale) -> str:
+    if not theme_counts:
+        return ""
+    title = "Themes in text" if locale == "en" else "Teman i text"
+    ordered = sorted(theme_counts.items(), key=lambda x: x[1], reverse=True)
+    max_v = max(v for _, v in ordered) or 1
+    rows = []
+    for i, (key, count) in enumerate(ordered):
+        label = theme_display_label(key, locale=locale)
+        width = max(2, round((count / max_v) * 100))
+        color = _TOPIC_PALETTE[i % len(_TOPIC_PALETTE)]
+        rows.append(
+            f'<div class="aud-eng-row">'
+            f'<span class="aud-eng-lbl">{escape(label)}</span>'
+            f'<div class="aud-eng-track"><div class="aud-eng-fill" '
+            f'style="width:{width}%;background:{color}"></div></div>'
+            f'<span class="aud-eng-val">{count}</span></div>'
+        )
+    return (
+        f'<div class="aud-chart-card">'
+        f'<div class="aud-chart-title">{title}</div>'
+        f'<div class="aud-eng-chart">{"".join(rows)}</div></div>'
+    )
+
+
+def _segment_sample_quotes(texts: list[str], *, locale: ReportLocale) -> str:
+    if not texts:
+        return ""
+    title = "Sample reactions" if locale == "en" else "Exempel från flödet"
+    bits = []
+    for text in texts[:4]:
+        snippet = escape(str(text)[:180])
+        bits.append(f'<blockquote class="aud-quote">{snippet}</blockquote>')
+    return (
+        f'<div class="aud-samples">'
+        f'<div class="aud-chart-title">{title}</div>{"".join(bits)}</div>'
+    )
+
+
+def _render_segment_report(seg: AudienceSegmentSummary, *, locale: ReportLocale) -> str:
+    tone = seg.tone
+    charts: list[str] = []
+    if tone and tone.tone_shares and not tone.too_few:
+        charts.append(_segment_tone_donut(tone.tone_shares, locale=locale))
+    if tone:
+        charts.append(_segment_engagement_bars(tone, locale=locale))
+    theme_chart = _segment_theme_bars(seg.theme_counts, locale=locale)
+    if theme_chart:
+        charts.append(theme_chart)
+
+    kpi_html = ""
+    if tone:
+        if locale == "en":
+            kpi_html = (
+                f'<div class="aud-kpi-row">'
+                f'<div class="aud-kpi"><strong>{tone.agent_count}</strong>'
+                f"<span>participants</span></div>"
+                f'<div class="aud-kpi"><strong>{tone.text_count}</strong>'
+                f"<span>rated texts</span></div>"
+                f'<div class="aud-kpi"><strong>{pct(tone.positive_share)}</strong>'
+                f"<span>positive</span></div>"
+                f'<div class="aud-kpi"><strong>{pct(tone.critical_share)}</strong>'
+                f"<span>critical</span></div>"
+                f"</div>"
+            )
+        else:
+            kpi_html = (
+                f'<div class="aud-kpi-row">'
+                f'<div class="aud-kpi"><strong>{tone.agent_count}</strong>'
+                f"<span>deltagare</span></div>"
+                f'<div class="aud-kpi"><strong>{tone.text_count}</strong>'
+                f"<span>analyserade texter</span></div>"
+                f'<div class="aud-kpi"><strong>{pct(tone.positive_share)}</strong>'
+                f"<span>positiv ton</span></div>"
+                f'<div class="aud-kpi"><strong>{pct(tone.critical_share)}</strong>'
+                f"<span>kritisk ton</span></div>"
+                f"</div>"
+            )
+
+    iv_html = ""
+    if seg.interviews or seg.interview_total:
+        shown = len(seg.interviews)
+        total = seg.interview_total or shown
+        caption = interview_section_caption(total, shown, locale=locale)
+        cards = []
+        for iv in seg.interviews:
+            meta = interview_quote_label(iv, locale=locale)
+            q_lbl = "Q" if locale == "en" else "F"
+            a_lbl = "A" if locale == "en" else "S"
+            cards.append(
+                f'<div class="aud-qa-card">'
+                f'<div class="aud-qa-meta">{escape(meta)}</div>'
+                f'<div class="aud-qa-q"><strong>{q_lbl}:</strong> {escape(iv.question)}</div>'
+                f'<div class="aud-qa-a"><strong>{a_lbl}:</strong> {escape(iv.answer)}</div>'
+                f"</div>"
+            )
+        iv_html = (
+            f'<div class="aud-qa-block">'
+            f'<div class="aud-chart-title">{escape(caption)}</div>'
+            f'{"".join(cards)}</div>'
+        )
+
+    samples = _segment_sample_quotes(tone.sample_texts if tone else [], locale=locale)
+
+    return (
+        f'<article class="aud-report">'
+        f'<header class="aud-report-head">'
+        f'<span class="aud-dim">{escape(seg.dimension_label)}</span> '
+        f'<h4>{escape(seg.label)}</h4>'
+        f"</header>"
+        f'<p class="aud-narrative">{escape(seg.narrative)}</p>'
+        f"{kpi_html}"
+        f'<div class="aud-chart-grid">{"".join(charts)}</div>'
+        f"{samples}"
+        f"{iv_html}"
+        f"</article>"
+    )
+
+
 def render_audience_section(
     bundles: list[RunBundle],
     classifications: list[BundleClassification],
@@ -795,69 +993,23 @@ def render_audience_section(
     if not bundles:
         return "<p>—</p>"
     intro = (
-        "Tone figures come from posts and comments in the debate feed. "
-        "Interview quotes appear under life situation only (ranked by relevance). "
-        "District and political leaning rows show tone only; theme tags may reflect survey answers."
+        "Each card is a mini-report for one target group: tone, activity, themes, "
+        "sample reactions from the feed, and survey Q&A (rule-based, no narrative AI)."
         if locale == "en"
-        else "Tonsiffror bygger på inlägg och kommentarer i debattflödet. "
-        "Intervjusvar visas endast under livssituation (rankade efter relevans). "
-        "Ort- och lutningsrader visar ton; temataggar kan spegla enkätsvar."
+        else "Varje kort är en egen mini-rapport per målgrupp: ton, aktivitet, teman, "
+        "exempel från flödet och enkätfrågor med svar (regelbaserat, ingen narrativ AI)."
     )
     blocks: list[str] = []
     for bundle, clf in zip(bundles, classifications, strict=True):
         summaries = build_audience_summaries(bundle, clf, locale=locale)
         if not summaries:
             continue
-        rows_html: list[str] = []
-        for seg in summaries:
-            tone = seg.tone
-            if tone and not tone.too_few:
-                pos = pct(tone.positive_share)
-                crit = pct(tone.critical_share)
-                stat = (
-                    f"Tone in debate +{pos} / −{crit} · {tone.text_count} texts · "
-                    f"eng. {tone.engagement_score}"
-                    if locale == "en"
-                    else f"Ton i debatten +{pos} / −{crit} · {tone.text_count} texter · "
-                    f"eng. {tone.engagement_score}"
-                )
-            elif tone and tone.too_few:
-                stat = "Too few reactions in segment" if locale == "en" else "För få reaktioner i segmentet"
-            else:
-                stat = "Interviews only" if locale == "en" else "Endast intervjuer"
-            theme_lbl = ""
-            if seg.themes:
-                theme_lbl = (
-                    f'<span class="aud-themes">{escape(", ".join(seg.themes))}</span>'
-                )
-            iv_html = ""
-            if seg.interviews:
-                shown = len(seg.interviews)
-                total = seg.interview_total or shown
-                caption = interview_section_caption(total, shown, locale=locale)
-                iv_bits = [
-                    f'<div class="aud-iv-caption">{escape(caption)}</div>',
-                ]
-                for iv in seg.interviews:
-                    meta = interview_quote_label(iv, locale=locale)
-                    iv_bits.append(
-                        f'<div class="aud-iv">'
-                        f'<div class="aud-iv-meta">{escape(meta)}</div>'
-                        f'<div class="aud-iv-a">{escape(iv.answer[:220])}</div>'
-                        f"</div>"
-                    )
-                iv_html = "".join(iv_bits)
-            rows_html.append(
-                f'<div class="aud-seg">'
-                f'<div class="aud-seg-head">'
-                f'<span class="aud-dim">{escape(seg.dimension_label)}</span> '
-                f'<strong>{escape(seg.label)}</strong></div>'
-                f'<div class="aud-stat">{escape(stat)}{theme_lbl}</div>{iv_html}</div>'
-            )
-        if rows_html:
-            blocks.append(
-                f'<div class="aud-bundle"><h4>{escape(bundle.label)}</h4>{"".join(rows_html)}</div>'
-            )
+        reports = "".join(_render_segment_report(seg, locale=locale) for seg in summaries)
+        blocks.append(
+            f'<div class="aud-bundle">'
+            f'<h3 class="aud-bundle-title">{escape(bundle.label)}</h3>'
+            f'<div class="aud-reports">{reports}</div></div>'
+        )
     if not blocks:
         empty = (
             "No segment data — ensure personas have bio fields and reactions/interviews exist."
