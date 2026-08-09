@@ -121,10 +121,10 @@ def render_topic_donut(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -
     top = ordered[0][0] if ordered else "—"
     if locale == "en":
         title = "What was discussed?"
-        sub = "Topic distribution in text (keywords from injections)"
+        sub = "Topic distribution in text (keywords from test messages)"
     else:
         title = "Vad diskuterades?"
-        sub = "Ämnesfördelning i text (nyckelord från injektioner)"
+        sub = "Ämnesfördelning i text (nyckelord från testbudskap)"
     return (
         '<div class="chart-card">'
         f"<h4>{title}</h4>"
@@ -145,7 +145,7 @@ def render_tone_donut(metrics: ReportMetrics, *, locale: ReportLocale = "sv") ->
             "Strongly positive": C_AMBER,
         }
         title = "Debate tone"
-        sub = "SSR distribution (5-level) — embeddings vs tone anchors"
+        sub = "Five-level tone distribution in posts and comments"
         center = "tone"
     else:
         colors = {
@@ -156,7 +156,7 @@ def render_tone_donut(metrics: ReportMetrics, *, locale: ReportLocale = "sv") ->
             "Starkt positiv": C_AMBER,
         }
         title = "Debattens ton"
-        sub = "SSR-fördelning (5 nivåer) — embeddings mot tonankare"
+        sub = "Tonfördelning (5 nivåer) i inlägg och kommentarer"
         center = "ton"
     # Stable Likert order left→right on legend when present
     order = list(colors.keys())
@@ -201,10 +201,10 @@ def render_style_hbars(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -
         )
     if locale == "en":
         title = "Average likes per message style"
-        sub = "SSR style rating — soft-weighted likes per style"
+        sub = "Weighted average likes per communication style"
     else:
         title = "Genomsnittliga likes per budskapsstil"
-        sub = "SSR-stilranking — mjuka vikter × likes per stil"
+        sub = "Genomslag per stil — viktat snitt av likes"
     return (
         '<div class="chart-card">'
         f"<h4>{title}</h4>"
@@ -253,14 +253,15 @@ def render_infographic_grid(metrics: ReportMetrics, *, locale: ReportLocale = "s
             f'<div class="pyr-mid">{m.mid_agents}<span>Participated</span></div>'
             f'<div class="pyr-base">{m.zero_like_agents}<span>Scrolled past</span></div>'
             f"</div>"
-            f'<p class="chart-sub">of {m.agent_count} simulated citizens · Gini {fmt_num(m.gini)}</p>'
+            f'<p class="chart-sub">of {m.agent_count} simulated citizens · '
+            f"inequality {fmt_num(m.gini)}</p>"
             f"</div>"
         )
         avg_note = f"avg across {n} tests" if n > 1 else "in this run"
         kpis = (
             f'<div class="info-col"><div class="info-kpi-row">'
             f'<div class="info-kpi red"><div class="info-kpi-num">{m.zero_like_agents}</div>'
-            f'<div class="info-kpi-label">agents with no likes'
+            f'<div class="info-kpi-label">participants with no likes'
             f"<span>{avg_note}</span>"
             f"</div></div>"
             f'<div class="info-kpi blue"><div class="info-kpi-num">{fmt_num(top_style[1])}</div>'
@@ -269,7 +270,7 @@ def render_infographic_grid(metrics: ReportMetrics, *, locale: ReportLocale = "s
             f'<div class="info-kpi-label">of the debate about {escape(top_topic)}</div></div>'
             f"</div>"
             f'<div class="info-card"><div class="info-card-label">Message style</div>'
-            f'<div class="info-card-title">Impact (SSR)</div>'
+            f'<div class="info-card-title">Impact by style</div>'
             f"{_mini_style_bars(style_rows)}</div></div>"
         )
         tone_rows = "".join(
@@ -282,7 +283,7 @@ def render_infographic_grid(metrics: ReportMetrics, *, locale: ReportLocale = "s
             f'<div class="info-card-title">What was the tone?</div>{tone_rows}</div>'
             f'<div class="info-card"><div class="info-card-label">Volume</div>'
             f'<div class="info-card-title">{m.post_count} posts · {m.comment_count} comments</div>'
-            f'<p class="chart-sub">{runs_label(n, locale)} · up to {m.ticks_run} ticks</p>'
+            f'<p class="chart-sub">{runs_label(n, locale)} · up to {m.ticks_run} simulation days</p>'
             f"</div></div>"
         )
     else:
@@ -295,13 +296,14 @@ def render_infographic_grid(metrics: ReportMetrics, *, locale: ReportLocale = "s
             f'<div class="pyr-mid">{m.mid_agents}<span>Deltog</span></div>'
             f'<div class="pyr-base">{m.zero_like_agents}<span>Scrollade förbi</span></div>'
             f"</div>"
-            f'<p class="chart-sub">av {m.agent_count} simulerade medborgare · Gini {fmt_num(m.gini)}</p>'
+            f'<p class="chart-sub">av {m.agent_count} simulerade medborgare · '
+            f"ojämlikhet {fmt_num(m.gini)}</p>"
             f"</div>"
         )
         kpis = (
             f'<div class="info-col"><div class="info-kpi-row">'
             f'<div class="info-kpi red"><div class="info-kpi-num">{m.zero_like_agents}</div>'
-            f'<div class="info-kpi-label">agenter utan likes'
+            f'<div class="info-kpi-label">deltagare utan likes'
             f"<span>{'snitt över ' + str(n) + ' tester' if n > 1 else 'i denna körning'}</span>"
             f"</div></div>"
             f'<div class="info-kpi blue"><div class="info-kpi-num">{fmt_num(top_style[1])}</div>'
@@ -310,7 +312,7 @@ def render_infographic_grid(metrics: ReportMetrics, *, locale: ReportLocale = "s
             f'<div class="info-kpi-label">av debatten om {escape(top_topic)}</div></div>'
             f"</div>"
             f'<div class="info-card"><div class="info-card-label">Budskapsstil</div>'
-            f'<div class="info-card-title">Genomslag (SSR)</div>'
+            f'<div class="info-card-title">Genomslag per stil</div>'
             f"{_mini_style_bars(style_rows)}</div></div>"
         )
         tone_rows = "".join(
@@ -323,7 +325,7 @@ def render_infographic_grid(metrics: ReportMetrics, *, locale: ReportLocale = "s
             f'<div class="info-card-title">Hur var tonen?</div>{tone_rows}</div>'
             f'<div class="info-card"><div class="info-card-label">Volym</div>'
             f'<div class="info-card-title">{m.post_count} inlägg · {m.comment_count} kommentarer</div>'
-            f'<p class="chart-sub">{runs_label(n, locale)} · upp till {m.ticks_run} ticks</p>'
+            f'<p class="chart-sub">{runs_label(n, locale)} · upp till {m.ticks_run} simuleringsdagar</p>'
             f"</div></div>"
         )
     return pyramid + kpis + tone_card
@@ -382,19 +384,19 @@ def render_pop_compare(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -
     for m in metrics.bundles:
         top_topic = max(m.topic_shares, key=m.topic_shares.get) if m.topic_shares else "—"
         if locale == "en":
-            agents_l = f"{m.agent_count} agents"
+            agents_l = f"{m.agent_count} participants"
             topic_l = "Dominant topic"
             comments_l = "Comments"
             likes_l = "Total likes"
             shares_l = "Shares"
-            inj_l = "Injection likes"
+            inj_l = "Likes on test message"
         else:
-            agents_l = f"{m.agent_count} agenter"
+            agents_l = f"{m.agent_count} deltagare"
             topic_l = "Dominerande ämne"
             comments_l = "Kommentarer"
             likes_l = "Likes totalt"
             shares_l = "Delningar"
-            inj_l = "Likes injicerat"
+            inj_l = "Likes på testbudskap"
         cards.append(
             f'<div class="pop-card">'
             f'<div class="pop-head">{escape(m.label)}'
@@ -404,7 +406,8 @@ def render_pop_compare(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -
             f'<span class="pop-row-v">{m.likes_total}</span></div>'
             f'<div class="pop-row"><span class="pop-row-l">{inj_l}</span>'
             f'<span class="pop-row-v">{m.injection_likes}</span></div>'
-            f'<div class="pop-row"><span class="pop-row-l">Gini</span>'
+            f'<div class="pop-row"><span class="pop-row-l">'
+            f'{"Inequality" if locale == "en" else "Ojämlikhet"}</span>'
             f'<span class="pop-row-v">{fmt_num(m.gini)}</span></div>'
             f'<div class="pop-row"><span class="pop-row-l">0 likes</span>'
             f'<span class="pop-row-v">{m.zero_like_agents}</span></div>'
@@ -459,13 +462,15 @@ def render_quick_stats_table(metrics: ReportMetrics, *, locale: ReportLocale = "
         headers = (
             "<th>Run</th><th>Posts</th><th>Comments</th><th>Likes</th>"
             "<th>Post likes</th><th>Comment likes</th><th>Shares</th><th>Dislikes</th>"
-            "<th>Inj. likes</th><th>Follows</th><th>Eng. score</th><th>Gini</th><th>0 likes</th>"
+            "<th>Test msg. likes</th><th>Follows</th><th>Eng. score</th>"
+            "<th>Inequality</th><th>0 likes</th>"
         )
     else:
         headers = (
             "<th>Körning</th><th>Inlägg</th><th>Kommentarer</th><th>Likes</th>"
             "<th>Inläggslikes</th><th>Kommentarslikes</th><th>Delningar</th><th>Dislikes</th>"
-            "<th>Inj.likes</th><th>Följningar</th><th>Eng.poäng</th><th>Gini</th><th>0 likes</th>"
+            "<th>Likes testbudskap</th><th>Följningar</th><th>Eng.poäng</th>"
+            "<th>Ojämlikhet</th><th>0 likes</th>"
         )
     rows = []
     for m in metrics.bundles:
@@ -491,32 +496,32 @@ def render_quick_ab_bars(metrics: ReportMetrics, *, locale: ReportLocale = "sv")
     if locale == "en":
         metrics_spec: list[tuple[str, str]] = [
             ("Total likes", "likes_total"),
-            ("Injection likes", "injection_likes"),
+            ("Test message likes", "injection_likes"),
             ("Posts", "post_count"),
             ("Comments", "comment_count"),
             ("Shares", "shares"),
             ("Dislikes", "dislikes"),
             ("Follow edges", "follow_edges"),
             ("Engagement score", "engagement_score"),
-            ("Positive SSR tone", "_pos_tone"),
-            ("Gini (inequality)", "gini"),
-            ("Agents with 0 likes", "zero_like_agents"),
+            ("Positive tone", "_pos_tone"),
+            ("Inequality in likes", "gini"),
+            ("Participants with 0 likes", "zero_like_agents"),
         ]
         title = "A/B — key metrics compared"
         sub = "Bar length is relative within each metric (longest arm = 100%)"
     else:
         metrics_spec = [
             ("Likes totalt", "likes_total"),
-            ("Likes på injicerat budskap", "injection_likes"),
+            ("Likes på testbudskap", "injection_likes"),
             ("Inlägg", "post_count"),
             ("Kommentarer", "comment_count"),
             ("Delningar", "shares"),
             ("Dislikes", "dislikes"),
             ("Följkanter", "follow_edges"),
             ("Engagemangspoäng", "engagement_score"),
-            ("Positiv SSR-ton", "_pos_tone"),
-            ("Gini (ojämlikhet)", "gini"),
-            ("Agenter utan likes", "zero_like_agents"),
+            ("Positiv ton", "_pos_tone"),
+            ("Ojämlikhet i likes", "gini"),
+            ("Deltagare utan likes", "zero_like_agents"),
         ]
         title = "A/B — nyckeltal jämförda"
         sub = "Stapelns längd är relativ inom varje mått (längsta arm = 100 %)"
@@ -556,9 +561,9 @@ def render_ab_tone_donuts(metrics: ReportMetrics, *, locale: ReportLocale = "sv"
             f"{render_tone_donut(mini, locale=locale)}</div>"
         )
     if locale == "en":
-        title = "SSR tone distribution per arm"
+        title = "Tone distribution per version"
     else:
-        title = "SSR-tonfördelning per arm"
+        title = "Tonfördelning per version"
     return (
         '<div class="chart-card wide">'
         f"<h4>{title}</h4>"
@@ -599,13 +604,17 @@ def _tick_chart_bars(rows: list[TickStatsRow], *, locale: ReportLocale) -> str:
     for row in rows:
         h = max(4, round((row.cumulative_engagement_score / max_score) * 100))
         silent = " tick-silent" if row.silent else ""
-        label = f"D{row.day}" if locale == "en" else f"D{row.day}"
+        label = f"Day {row.day}" if locale == "en" else f"Dag {row.day}"
         bars.append(
             f'<div class="tick-bar-col{silent}" title="{escape(row.key)}">'
             f'<div class="tick-bar" style="height:{h}%"></div>'
             f'<span class="tick-bar-lbl">{label}</span></div>'
         )
-    title = "Cumulative engagement score by tick" if locale == "en" else "Kumulativ engagemangspoäng per tick"
+    title = (
+        "Cumulative engagement score by day"
+        if locale == "en"
+        else "Kumulativ engagemangspoäng per dag"
+    )
     return f'<div class="tick-spark"><div class="tick-spark-title">{title}</div><div class="tick-bars">{"".join(bars)}</div></div>'
 
 
@@ -616,14 +625,14 @@ def _tick_table_rows(rows: list[TickStatsRow], *, locale: ReportLocale) -> str:
         for pt in row.measurement_points:
             meas_bits.append(f"{escape(str(pt.get('label') or pt.get('id') or ''))}: {escape(str(pt.get('summary') or ''))}")
         meas_cell = "<br/>".join(meas_bits) if meas_bits else "—"
-        silent = " · tyst" if row.silent and locale == "sv" else (" · silent" if row.silent else "")
-        tick_lbl = (
-            f"Tick {row.tick_index + 1} · day {row.day}{silent}"
+        silent = " · tyst dag" if row.silent and locale == "sv" else (" · silent day" if row.silent else "")
+        day_lbl = (
+            f"Day {row.day}{silent}"
             if locale == "en"
-            else f"Tick {row.tick_index + 1} · dag {row.day}{silent}"
+            else f"Dag {row.day}{silent}"
         )
         html_rows.append(
-            f"<tr><td>{escape(tick_lbl)}</td>"
+            f"<tr><td>{escape(day_lbl)}</td>"
             f"<td>{row.window_posts}</td><td>{row.window_comments}</td>"
             f"<td>{row.window_likes}</td><td>{row.window_shares}</td><td>{row.window_dislikes}</td>"
             f"<td>{row.window_engagement_score}</td>"
@@ -647,15 +656,15 @@ def render_tick_timeline(
             continue
         if locale == "en":
             headers = (
-                "<th>Tick</th><th>Posts</th><th>Comments</th><th>Likes</th>"
-                "<th>Shares</th><th>Dislikes</th><th>Tick score</th>"
+                "<th>Day</th><th>Posts</th><th>Comments</th><th>Likes</th>"
+                "<th>Shares</th><th>Dislikes</th><th>Day score</th>"
                 "<th>Cum. likes</th><th>Cum. score</th><th>Measurements</th>"
             )
             head = escape(bundle.label)
         else:
             headers = (
-                "<th>Tick</th><th>Inlägg</th><th>Kommentarer</th><th>Likes</th>"
-                "<th>Delningar</th><th>Dislikes</th><th>Tick-poäng</th>"
+                "<th>Dag</th><th>Inlägg</th><th>Kommentarer</th><th>Likes</th>"
+                "<th>Delningar</th><th>Dislikes</th><th>Dagspoäng</th>"
                 "<th>Kum. likes</th><th>Kum. poäng</th><th>Mätpunkter</th>"
             )
             head = escape(bundle.label)
@@ -667,7 +676,7 @@ def render_tick_timeline(
             f"<tbody>{_tick_table_rows(rows, locale=locale)}</tbody></table></div>"
         )
     if not sections:
-        empty = "No tick data in this run." if locale == "en" else "Ingen tick-data i körningen."
+        empty = "No day-by-day data in this run." if locale == "en" else "Ingen dag-för-dag-data i körningen."
         return f"<p>{empty}</p>"
     return f'<div class="tick-timeline">{"".join(sections)}</div>'
 
@@ -684,9 +693,9 @@ def render_interview_qa_section(
             all_qa.append((bundle.label, qa))
     if not all_qa:
         empty = (
-            "No planned tick interviews in this run."
+            "No planned survey questions in this run."
             if locale == "en"
-            else "Inga planerade tick-intervjuer i körningen."
+            else "Inga planerade enkätfrågor i körningen."
         )
         return f"<p class=\"muted\">{empty}</p>"
 
@@ -699,10 +708,10 @@ def render_interview_qa_section(
         for tick_index in sorted(by_tick):
             items = by_tick[tick_index]
             day = items[0].day
-            tick_title = (
-                f"After tick {tick_index + 1} · day {day}"
+            day_title = (
+                f"After day {day}"
                 if locale == "en"
-                else f"Efter tick {tick_index + 1} · dag {day}"
+                else f"Efter dag {day}"
             )
             cards = []
             for item in items:
@@ -714,15 +723,15 @@ def render_interview_qa_section(
                     f"</div>"
                 )
             tick_sections.append(
-                f'<div class="qa-tick"><h5>{escape(tick_title)}</h5>{"".join(cards)}</div>'
+                f'<div class="qa-tick"><h5>{escape(day_title)}</h5>{"".join(cards)}</div>'
             )
         blocks.append(
             f'<div class="qa-bundle"><h4>{escape(label)}</h4>{"".join(tick_sections)}</div>'
         )
     intro = (
-        "Questions configured on the run timeline and answered via OASIS INTERVIEW after each tick's reaction rounds."
+        "Planned questions after each simulation day, answered by selected participants."
         if locale == "en"
-        else "Frågor konfigurerade på körningens tidslinje — besvarade via OASIS INTERVIEW efter tickens reaktionsronder."
+        else "Planerade frågor efter varje simuleringsdag — besvarade av utvalda deltagare."
     )
     return f'<p class="chart-sub">{intro}</p><div class="qa-section">{"".join(blocks)}</div>'
 
@@ -760,13 +769,13 @@ def render_audience_section(
     if not bundles:
         return "<p>—</p>"
     intro = (
-        "SSR numbers come from posts and comments in the feed. "
+        "Tone figures come from posts and comments in the debate feed. "
         "Interview quotes appear under life situation only (ranked by relevance). "
-        "District and leaning rows show SSR; theme tags may reflect interview topics."
+        "District and political leaning rows show tone only; theme tags may reflect survey answers."
         if locale == "en"
-        else "SSR-siffror bygger på inlägg och kommentarer i flödet. "
-        "Intervjucitat visas endast under livssituation (rankade efter relevans). "
-        "Ort- och lutningsrader visar SSR; temataggar kan spegla intervjuteman."
+        else "Tonsiffror bygger på inlägg och kommentarer i debattflödet. "
+        "Intervjusvar visas endast under livssituation (rankade efter relevans). "
+        "Ort- och lutningsrader visar ton; temataggar kan spegla enkätsvar."
     )
     blocks: list[str] = []
     for bundle, clf in zip(bundles, classifications, strict=True):
@@ -780,9 +789,11 @@ def render_audience_section(
                 pos = pct(tone.positive_share)
                 crit = pct(tone.critical_share)
                 stat = (
-                    f"SSR (feed) +{pos} / −{crit} · {tone.text_count} texts · eng. {tone.engagement_score}"
+                    f"Tone in debate +{pos} / −{crit} · {tone.text_count} texts · "
+                    f"eng. {tone.engagement_score}"
                     if locale == "en"
-                    else f"SSR (flöde) +{pos} / −{crit} · {tone.text_count} texter · eng. {tone.engagement_score}"
+                    else f"Ton i debatten +{pos} / −{crit} · {tone.text_count} texter · "
+                    f"eng. {tone.engagement_score}"
                 )
             elif tone and tone.too_few:
                 stat = "Too few reactions in segment" if locale == "en" else "För få reaktioner i segmentet"
@@ -869,16 +880,16 @@ def render_appendix_tables(metrics: ReportMetrics, *, locale: ReportLocale = "sv
             '<div class="app-card"><h4>Glossary</h4>'
             '<div class="tech-def"><strong>Agent</strong> — '
             "<span>AI-simulated citizen with occupation, age, and personality.</span></div>"
-            '<div class="tech-def"><strong>Gini</strong> — '
-            "<span>Inequality in likes (0 = even, 1 = one person takes all).</span></div>"
+            '<div class="tech-def"><strong>Inequality (Gini)</strong> — '
+            "<span>How unevenly likes are distributed (0 = even, 1 = one person takes all).</span></div>"
             '<div class="tech-def"><strong>Message style</strong> — '
-            "<span>SSR semantic similarity to style anchors, not keyword match.</span></div>"
+            "<span>Semantic similarity to style reference texts, not keyword match.</span></div>"
             "</div>"
         )
         table = (
             '<div class="app-card"><h4>Comparison</h4>'
             '<table class="data-table"><thead><tr>'
-            "<th>Run</th><th>Gini</th><th>0 likes</th><th>Agents</th><th>Topic</th>"
+            "<th>Run</th><th>Inequality</th><th>0 likes</th><th>Participants</th><th>Topic</th>"
             f"</tr></thead><tbody>{rows}</tbody></table></div>"
         )
         limits = (
@@ -894,16 +905,16 @@ def render_appendix_tables(metrics: ReportMetrics, *, locale: ReportLocale = "sv
             '<div class="app-card"><h4>Ordlista</h4>'
             '<div class="tech-def"><strong>Agent</strong> — '
             "<span>AI-simulerad medborgare med yrke, ålder och personlighet.</span></div>"
-            '<div class="tech-def"><strong>Gini</strong> — '
-            "<span>Ojämlikhet i likes (0 = jämnt, 1 = en person tar allt).</span></div>"
+            '<div class="tech-def"><strong>Ojämlikhet (Gini)</strong> — '
+            "<span>Hur ojämnt likes fördelas (0 = jämnt, 1 = en person tar allt).</span></div>"
             '<div class="tech-def"><strong>Budskapsstil</strong> — '
-            "<span>SSR semantisk likhet mot stilankare, inte nyckelordsmatch.</span></div>"
+            "<span>Semantisk likhet mot stilreferenser, inte nyckelordsmatch.</span></div>"
             "</div>"
         )
         table = (
             '<div class="app-card"><h4>Jämförelse</h4>'
             '<table class="data-table"><thead><tr>'
-            "<th>Körning</th><th>Gini</th><th>0 likes</th><th>Agenter</th><th>Ämne</th>"
+            "<th>Körning</th><th>Ojämlikhet</th><th>0 likes</th><th>Deltagare</th><th>Ämne</th>"
             f"</tr></thead><tbody>{rows}</tbody></table></div>"
         )
         limits = (

@@ -36,20 +36,20 @@ def _trajectory_note(bundle: RunBundle, *, locale: ReportLocale) -> str:
     last = rows[-1].window_engagement_score
     if last > first * 1.1:
         return (
-            "Simulated trajectory: engagement rose over the tick window."
+            "Simulated trajectory: engagement rose over the simulation period."
             if locale == "en"
-            else "Simulerad utveckling: engagemang ökade över tick-fönstret."
+            else "Simulerad utveckling: engagemang ökade under simuleringsperioden."
         )
     if last < first * 0.7:
         return (
-            "Simulated trajectory: engagement cooled after the initial tick."
+            "Simulated trajectory: engagement cooled after the first day."
             if locale == "en"
-            else "Simulerad utveckling: engagemang avkylades efter första ticken."
+            else "Simulerad utveckling: engagemang avkylades efter första dagen."
         )
     return (
-        "Simulated trajectory: engagement stayed relatively stable across ticks."
+        "Simulated trajectory: engagement stayed relatively stable across days."
         if locale == "en"
-        else "Simulerad utveckling: engagemang höll sig relativt stabilt över tickarna."
+        else "Simulerad utveckling: engagemang höll sig relativt stabilt under perioden."
     )
 
 
@@ -122,15 +122,15 @@ def build_recommendation(
 
     if metrics.aggregate.injection_likes > 0:
         strengths.append(
-            "Injected message received engagement in the simulation."
+            "The test message received engagement in the simulation."
             if locale == "en"
-            else "Injicerat budskap fick engagemang i simuleringen."
+            else "Testbudskapet fick engagemang i simuleringen."
         )
     if _positive_share(metrics.aggregate.tone_shares, locale=locale) >= 0.35:
         strengths.append(
-            f"Positive SSR tone share {pct(_positive_share(metrics.aggregate.tone_shares, locale=locale))}."
+            f"Positive tone share {pct(_positive_share(metrics.aggregate.tone_shares, locale=locale))}."
             if locale == "en"
-            else f"Positiv SSR-ton {pct(_positive_share(metrics.aggregate.tone_shares, locale=locale))}."
+            else f"Positiv ton {pct(_positive_share(metrics.aggregate.tone_shares, locale=locale))}."
         )
     if metrics.aggregate.style_avg_likes:
         top_style, top_avg = max(
@@ -147,9 +147,9 @@ def build_recommendation(
 
     if _critical_share(metrics.aggregate.tone_shares, locale=locale) >= 0.45:
         risks.append(
-            f"Critical SSR tone share {pct(_critical_share(metrics.aggregate.tone_shares, locale=locale))}."
+            f"Critical tone share {pct(_critical_share(metrics.aggregate.tone_shares, locale=locale))}."
             if locale == "en"
-            else f"Kritisk SSR-ton {pct(_critical_share(metrics.aggregate.tone_shares, locale=locale))}."
+            else f"Kritisk ton {pct(_critical_share(metrics.aggregate.tone_shares, locale=locale))}."
         )
 
     any_drift = False
@@ -162,9 +162,9 @@ def build_recommendation(
         )
     if any_drift:
         risks.append(
-            "Injected topic faded from the debate after day 1."
+            "The test topic faded from the debate after day 1."
             if locale == "en"
-            else "Injicerat ämne försvann ur debatten efter dag 1."
+            else "Testämnet försvann ur debatten efter dag 1."
         )
 
     theme_hits: set[str] = set()
@@ -199,9 +199,9 @@ def build_recommendation(
     for seg in audience:
         if seg.tone and not seg.tone.too_few and seg.tone.positive_share >= 0.4:
             strengths.append(
-                f"{seg.dimension_label} «{seg.label}»: positive ({pct(seg.tone.positive_share)} SSR)."
+                f"{seg.dimension_label} «{seg.label}»: positive tone ({pct(seg.tone.positive_share)})."
                 if locale == "en"
-                else f"{seg.dimension_label} «{seg.label}»: positiva ({pct(seg.tone.positive_share)} SSR)."
+                else f"{seg.dimension_label} «{seg.label}»: positiv ton ({pct(seg.tone.positive_share)})."
             )
         if seg.tone and not seg.tone.too_few and seg.tone.critical_share >= 0.5:
             risks.append(

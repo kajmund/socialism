@@ -145,22 +145,22 @@ def interview_section_caption(total: int, shown: int, *, locale: ReportLocale) -
         return ""
     if shown >= total:
         if locale == "en":
-            return f"Tick interview quotes (all {total})"
-        return f"Tick-intervjucitat (alla {total})"
+            return f"Survey answers (all {total})"
+        return f"Enkätsvar (alla {total})"
     if locale == "en":
-        return f"Tick interview quotes (showing {shown} most relevant of {total})"
-    return f"Tick-intervjucitat (visar {shown} mest relevanta av {total})"
+        return f"Survey answers (showing {shown} most relevant of {total})"
+    return f"Enkätsvar (visar {shown} mest relevanta av {total})"
 
 
 def interview_quote_label(snippet: SegmentInterviewSnippet, *, locale: ReportLocale) -> str:
     if locale == "en":
         return (
-            f"After tick {snippet.tick_index + 1} · day {snippet.day} — "
-            f"{snippet.agent_name} (interview)"
+            f"After day {snippet.day} — "
+            f"{snippet.agent_name} (survey)"
         )
     return (
-        f"Efter tick {snippet.tick_index + 1} · dag {snippet.day} — "
-        f"{snippet.agent_name} (intervju)"
+        f"Efter dag {snippet.day} — "
+        f"{snippet.agent_name} (enkät)"
     )
 
 

@@ -121,10 +121,10 @@ def decide_verdict(
             return QuickVerdict(
                 key="zero",
                 label="Zero result",
-                detail="Injected messages received no likes.",
+                detail="The test message received no likes.",
                 positive_share=pos,
                 critical_share=crit,
-                threshold_note="Triggered by 0 likes on injected message.",
+                threshold_note="Triggered by 0 likes on the test message.",
             )
         if pos >= _POS_STRONG:
             return QuickVerdict(
@@ -169,10 +169,10 @@ def decide_verdict(
         return QuickVerdict(
             key="zero",
             label="Nollresultat",
-            detail="Injicerat budskap fick inga likes.",
+            detail="Testbudskapet fick inga likes.",
             positive_share=pos,
             critical_share=crit,
-            threshold_note="Triggas av 0 likes på injicerat budskap.",
+            threshold_note="Triggas av 0 likes på testbudskapet.",
         )
     if pos >= _POS_STRONG:
         return QuickVerdict(
@@ -233,12 +233,12 @@ def _ab_diff_html(
     if locale == "en":
         return (
             f"<p><strong>{label}</strong> — {escape(best_label)} leads "
-            f"{escape(worst_label)} by {pct(diff)} positive SSR "
+            f"{escape(worst_label)} by {pct(diff)} positive tone "
             f"({pct(best_pos)} vs {pct(worst_pos)}).</p>"
         )
     return (
         f"<p><strong>{label}</strong> — {escape(best_label)} leder "
-        f"{escape(worst_label)} med {pct(diff)} positiv SSR "
+        f"{escape(worst_label)} med {pct(diff)} positiv ton "
         f"({pct(best_pos)} vs {pct(worst_pos)}).</p>"
     )
 
@@ -345,23 +345,23 @@ def build_quick_slots(
 
     if locale == "en":
         drift_html = (
-            "<p><strong>Topic drift:</strong> injected topic fell below 10% "
+            "<p><strong>Topic drift:</strong> the test topic fell below 10% "
             "after day 1 — it disappeared from the debate.</p>"
             if any_drift
             else "<p><strong>Topic drift:</strong> no clear drop-off after day 1.</p>"
         )
         page_title = title.strip() or "Quick report"
-        eyebrow = "Quick report — SSR + rules"
+        eyebrow = "Quick report — automated analysis"
         tech_title = "Technical appendix"
     else:
         drift_html = (
-            "<p><strong>Ämnesdrift:</strong> injicerat ämne under 10 % efter dag 1 "
+            "<p><strong>Ämnesdrift:</strong> testämnet under 10 % efter dag 1 "
             "— försvann ur debatten.</p>"
             if any_drift
             else "<p><strong>Ämnesdrift:</strong> ingen tydlig nedgång efter dag 1.</p>"
         )
         page_title = title.strip() or "Snabbrapport"
-        eyebrow = "Snabbrapport — SSR + regler"
+        eyebrow = "Snabbrapport — automatisk analys"
         tech_title = "Tekniskt stycke"
 
     ab_html = _ab_diff_html(metrics, locale=locale) if ab else ""
@@ -391,7 +391,7 @@ def build_quick_slots(
         f"llm={timing.get('classify_llm_seconds', '—')}s · "
         f"embed={timing.get('embed_seconds', '—')}s · "
         f"total={timing.get('total_seconds', '—')}s</p>"
-        f"<h4>{'SSR tone' if locale == 'en' else 'SSR-ton'}</h4>"
+        f"<h4>{'Tone distribution' if locale == 'en' else 'Tonfördelning'}</h4>"
         f"<table><thead><tr><th>Level</th><th>%</th></tr></thead>"
         f"<tbody>{tone_rows}</tbody></table>"
         f"<h4>{'Style avg likes' if locale == 'en' else 'Stil snittlikes'}</h4>"
@@ -441,7 +441,7 @@ def render_quick_html(slots: dict[str, str], *, locale: ReportLocale) -> str:
     if locale == "en":
         h_stats = "Static statistics"
         h_charts = "Charts"
-        h_ticks = "Tick by tick"
+        h_ticks = "Day by day"
         h_qa = "Questions & answers"
         h_audience = "Target groups"
         h_drift = "Topic drift"
@@ -450,7 +450,7 @@ def render_quick_html(slots: dict[str, str], *, locale: ReportLocale) -> str:
     else:
         h_stats = "Statistik"
         h_charts = "Diagram"
-        h_ticks = "Tick för tick"
+        h_ticks = "Dag för dag"
         h_qa = "Frågor och svar"
         h_audience = "Målgruppsanalys"
         h_drift = "Ämnesdrift"
