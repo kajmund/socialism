@@ -151,3 +151,52 @@ def segment_key_value(bio: dict[str, str], key: str, *, locale: str = "sv") -> s
     if key == "age_band":
         return age_band_label(bio, locale=locale)
     return segment_value(bio, key)
+
+
+def persona_profile_line(
+    bio: dict[str, str],
+    *,
+    locale: str = "sv",
+    exclude_dimension: str | None = None,
+) -> str:
+    """Readable bio summary for interview attribution (excludes the segment card dimension)."""
+    parts: list[str] = []
+
+    def include(key: str) -> bool:
+        if exclude_dimension is None:
+            return True
+        if exclude_dimension == key:
+            return False
+        if exclude_dimension == "age_band" and key == "age":
+            return False
+        return True
+
+    if include("yrke"):
+        yrke = segment_value(bio, "yrke")
+        if yrke:
+            parts.append(yrke)
+    if include("age"):
+        age = parse_bio_age(bio)
+        if age is not None:
+            parts.append(f"{age} år" if locale == "sv" else f"{age} years")
+    if include("kön"):
+        kon = segment_value(bio, "kön")
+        if kon:
+            parts.append(kon.casefold() if locale == "sv" else kon.lower())
+    if include("livssituation"):
+        liv = segment_value(bio, "livssituation")
+        if liv:
+            parts.append(liv)
+    if include("ort"):
+        ort = segment_value(bio, "ort")
+        if ort:
+            parts.append(ort)
+    if include("lutning"):
+        lut = segment_value(bio, "lutning")
+        if lut:
+            if locale == "en":
+                parts.append(f"leaning {lut}")
+            else:
+                parts.append(f"lutning {lut.casefold()}")
+
+    return " · ".join(parts)
