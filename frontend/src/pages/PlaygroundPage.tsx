@@ -19,12 +19,13 @@ import {
   type RateResponse,
 } from "@/api/playground"
 import { PlaygroundToolsPanel } from "@/components/playground/PlaygroundToolsPanel"
+import { PlaygroundImagePanel } from "@/components/playground/PlaygroundImagePanel"
 import { Button } from "@/components/ui/button"
 import { useLocale } from "@/i18n"
 import { ApiError } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
-type TabId = "anchors" | "prompts" | "compare" | "tools"
+type TabId = "anchors" | "prompts" | "compare" | "tools" | "image"
 
 type VarRow = { key: string; value: string }
 
@@ -278,10 +279,12 @@ export function PlaygroundPage() {
       | "playground.tabPrompts"
       | "playground.tabCompare"
       | "playground.tabTools"
+      | "playground.tabImage"
   }[] = [
     { id: "anchors", labelKey: "playground.tabAnchors" },
     { id: "prompts", labelKey: "playground.tabPrompts" },
     { id: "compare", labelKey: "playground.tabCompare" },
+    { id: "image", labelKey: "playground.tabImage" },
     { id: "tools", labelKey: "playground.tabTools" },
   ]
 
@@ -811,6 +814,8 @@ export function PlaygroundPage() {
         ) : null}
 
         {tab === "tools" ? <PlaygroundToolsPanel /> : null}
+
+        {tab === "image" ? <PlaygroundImagePanel /> : null}
     </div>
   )
 }

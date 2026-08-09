@@ -1114,12 +1114,30 @@ export const sv = {
   playground: {
     title: "Playground",
     subtitle:
-      "Kalibrera anchors, jämför SSR, prova promptvarianter och testa agentverktyg.",
+      "Kalibrera anchors, jämför SSR, prova promptvarianter, testa bildreaktioner och agentverktyg.",
     tablistAria: "Playground-lägen",
     tabAnchors: "Anchor-kalibrering",
     tabPrompts: "Prompt-iteration",
     tabCompare: "SSR vs nyckelord",
+    tabImage: "Bildtest",
     tabTools: "Agentverktyg",
+    image: {
+      intro:
+        "Välj en persona, ladda upp en bild och få tillbaka en kort reaktion med SSR-ton och -stil — utan körning.",
+      loadingPersonas: "Hämtar personas…",
+      noPersonas: "Inga personas i biblioteket. Skapa en persona först.",
+      noPersona: "Välj en persona.",
+      noImage: "Ladda upp en bild (JPEG, PNG, WebP eller GIF).",
+      persona: "Persona",
+      upload: "Bild",
+      previewAlt: "Förhandsvisning av uppladdad bild",
+      selectedHint: "Reaktionen skrivs som {name}.",
+      run: "Kör bildtest",
+      elapsed: "Klart på {ms} ms",
+      descriptionHeading: "Bildbeskrivning (vision)",
+      reactionHeading: "Personas reaktion",
+      lexiconLabel: "Nyckelordslexikon: {label}",
+    },
     tools: {
       intro:
         "Kör samma webb- och SymPy-verktyg som OASIS-agenter kan få — utan en full simulering.",

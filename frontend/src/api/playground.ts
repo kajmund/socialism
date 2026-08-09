@@ -150,3 +150,35 @@ export function getPlaygroundToolsCatalog(): Promise<ToolCatalogResponse> {
 export function runPlaygroundTool(body: ToolRunRequest): Promise<ToolRunResponse> {
   return api.post<ToolRunResponse>("/playground/tools/run", body)
 }
+
+export type PlaygroundImageSsrSlice = {
+  anchor_set_name: string
+  anchor_set_version: string
+  labels: string[]
+  shares: Record<string, number>
+  predicted_label: string
+  pmf: Record<string, number>
+}
+
+export type PlaygroundImageReactResponse = {
+  persona_id: string
+  persona_name: string
+  image_description: string
+  reaction: string
+  lexicon_label: string
+  locale: PlaygroundLocale
+  temperature: number
+  ssr: {
+    tone: PlaygroundImageSsrSlice
+    style: PlaygroundImageSsrSlice
+  }
+  elapsed_ms: number
+}
+
+export function reactPlaygroundImage(
+  form: FormData,
+): Promise<PlaygroundImageReactResponse> {
+  return api.postForm<PlaygroundImageReactResponse>("/playground/image/react", form, {
+    timeoutMs: 120_000,
+  })
+}
