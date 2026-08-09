@@ -28,7 +28,7 @@ from app.services.prompt_store import ensure_default_configurations
 def _sample_recipe(*, size: int = 2, seed: int = 1) -> dict:
     return {
         "size": size,
-        "locale": "norrkoping",
+        "locale": "local",
         "seed": seed,
         "dist": {
             "age": {

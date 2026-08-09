@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.llm import generate_editable_persona
 from app.llm.persona_anecdote import llm_persona_anecdote
-from app.locality import load_norrkoping_brief
 from app.schemas.domain import EditablePersona, GeneratedPersonaOut
 from app.serializers import persona_initials
 from app.services.district_context import area_block_for_name
@@ -52,10 +51,8 @@ def profile_to_generated(profile: EditablePersona, slot: SlotPlan | None = None)
 
 
 def _local_context(area_block: str = "") -> str:
-    brief = load_norrkoping_brief()
-    if area_block.strip():
-        return f"{brief}\n\n{area_block.strip()}"
-    return brief
+    """Local grounding from the active configuration's ort catalog only."""
+    return area_block.strip()
 
 
 _PROFILE_FIELD_LABELS: dict[str, str] = {

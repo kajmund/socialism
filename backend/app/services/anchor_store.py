@@ -219,22 +219,28 @@ async def require_anchor_sets_for_language(
     session: AsyncSession,
     language: ReportLocale,
 ) -> ResolvedReportAnchors:
-    """Resolve tone/style AnchorSets from the config row for ``language``."""
+    """Resolve tone/style AnchorSets from the active configuration.
+
+    Requires the active configuration's language to match ``language``.
+    Never falls back to an inactive config of that language.
+    """
     from app.services.prompt_catalog import ConfigurationLanguage
-    from app.services.prompt_store import require_prompts_for_language
+    from app.services.prompt_store import (
+        MissingActiveConfigurationError,
+        get_active_configuration,
+        require_prompts_for_language,
+    )
 
     lang: ConfigurationLanguage = "en" if language == "en" else "sv"
-    await require_prompts_for_language(session, lang)
-    stmt = (
-        select(Configuration)
-        .where(Configuration.language == lang)
-        .order_by(Configuration.id.asc())
-        .limit(1)
-    )
-    result = await session.execute(stmt)
-    row = result.scalar_one_or_none()
+    try:
+        await require_prompts_for_language(session, lang)
+    except MissingActiveConfigurationError as exc:
+        raise AnchorResolutionError(str(exc)) from exc
+    row = await get_active_configuration(session)
     if row is None:
-        raise AnchorResolutionError(f"No configuration for language '{lang}'")
+        raise AnchorResolutionError(
+            "No active prompt configuration. Activate one under Konfigurationer."
+        )
     tone_row, tone_set = await resolve_anchor_set_for_config(
         session, configuration=row, locale=language, kind="tone"
     )

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Opinionssimulator is an internal tool for testing political messaging against AI agent populations grounded in local civic context (pilot: Norrköping 2026). Swedish UI by default.
+Opinionssimulator is an internal tool for testing political messaging against AI agent populations grounded in local civic context. Swedish UI by default.
 
 This document describes the **current phase 1** system: FastAPI + React SPA + SQLite, optional OASIS multi-agent simulation, and hybrid HTML reports. It is verified against the codebase — not a future-state sketch.
 

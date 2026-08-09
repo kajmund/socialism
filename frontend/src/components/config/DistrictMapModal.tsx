@@ -6,7 +6,7 @@ import type { CatalogItem, GeoBounds } from "@/api/catalog"
 import { AdminButton } from "@/components/ui/admin-button"
 import { useLocale } from "@/i18n"
 
-const NORRKOPING: L.LatLngExpression = [58.5877, 16.1924]
+const DEFAULT_MAP_CENTER: L.LatLngExpression = [58.5877, 16.1924]
 const DEFAULT_ZOOM = 12
 
 type DistrictMapModalProps = {
@@ -94,7 +94,7 @@ export function DistrictMapModal({
     if (!el) return
 
     const map = L.map(el, {
-      center: NORRKOPING,
+      center: DEFAULT_MAP_CENTER,
       zoom: DEFAULT_ZOOM,
       boxZoom: false,
     })
@@ -328,7 +328,7 @@ export function DistrictMapModal({
         fittedRef.current = true
       }
     } else if (!district.bounds && !fittedRef.current) {
-      map.setView(NORRKOPING, DEFAULT_ZOOM, { animate: false })
+      map.setView(DEFAULT_MAP_CENTER, DEFAULT_ZOOM, { animate: false })
       fittedRef.current = true
     }
   }, [open, district.bounds, district.label, others, drawing, t])

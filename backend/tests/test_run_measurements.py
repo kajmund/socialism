@@ -53,7 +53,7 @@ def test_build_measurements_splits_feed_and_districts():
         {
             "post_id": 1,
             "user_id": 0,
-            "content": "Bra förslag på Vrinnevi sjukhuset",
+            "content": "Bra förslag på akutsjukhuset",
             "num_likes": 3,
             "num_shares": 1,
         },
@@ -67,7 +67,7 @@ def test_build_measurements_splits_feed_and_districts():
         {
             "post_id": 3,
             "user_id": 0,
-            "content": "Vrinnevi igen — hopp för äldreomsorg",
+            "content": "Akuten igen — hopp för äldreomsorg",
             "num_likes": 5,
             "num_shares": 2,
         },
