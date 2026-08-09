@@ -14,6 +14,7 @@ from app.services.report.persona_bio import (
     persona_profile_line,
     segment_value,
 )
+from app.services.report.audience_takeaway import short_bundle_arm_label
 from app.services.report.segment_ssr import (
     SegmentToneRow,
     build_segment_tone_rows,
@@ -79,6 +80,21 @@ class AudienceSegmentSummary:
     themes: list[str] = field(default_factory=list)
     theme_counts: dict[str, int] = field(default_factory=dict)
     narrative: str = ""
+
+
+@dataclass
+class SegmentArmSummary:
+    arm_label: str
+    summary: AudienceSegmentSummary | None = None
+
+
+@dataclass
+class AudienceSegmentComparison:
+    dimension: str
+    dimension_label: str
+    label: str
+    arms: list[SegmentArmSummary]
+    diff_summary: str = ""
 
 
 def detect_themes(text: str) -> list[str]:
@@ -375,3 +391,100 @@ def build_audience_summaries(
         summary.narrative = build_segment_narrative(summary, locale=locale)
         summaries.append(summary)
     return summaries
+
+
+def _segment_has_data(summary: AudienceSegmentSummary | None) -> bool:
+    if not summary:
+        return False
+    if summary.interviews or summary.interview_total:
+        return True
+    tone = summary.tone
+    if tone and not tone.too_few:
+        return True
+    if tone and tone.agent_count:
+        return True
+    return False
+
+
+def _positive_tone_for_summary(summary: AudienceSegmentSummary | None) -> float | None:
+    if not summary or not summary.tone or summary.tone.too_few:
+        return None
+    return summary.tone.positive_share
+
+
+def build_segment_diff_summary(
+    arms: list[SegmentArmSummary],
+    *,
+    locale: ReportLocale,
+) -> str:
+    scored: list[tuple[str, float]] = []
+    for arm in arms:
+        pos = _positive_tone_for_summary(arm.summary)
+        if pos is not None:
+            scored.append((arm.arm_label, pos))
+    if not scored:
+        if locale == "en":
+            return "Not enough posts and comments to compare tone between versions in this segment."
+        return "För få inlägg och kommentarer för att jämföra ton mellan versionerna i segmentet."
+
+    parts = [
+        f"{arm}: {pct(pos)} {'positive' if locale == 'en' else 'positiv'}" for arm, pos in scored
+    ]
+    if len(scored) >= 2:
+        scored_sorted = sorted(scored, key=lambda row: row[1], reverse=True)
+        best_label, best_pos = scored_sorted[0]
+        worst_label, worst_pos = scored_sorted[-1]
+        gap = best_pos - worst_pos
+        if gap >= 0.08:
+            if locale == "en":
+                parts.append(f"{best_label} leads by {pct(gap)}")
+            else:
+                parts.append(f"{best_label} leder med {pct(gap)}")
+        elif locale == "en":
+            parts.append("Versions are close on positive tone")
+        else:
+            parts.append("Versionerna ligger nära varandra i positiv ton")
+    return " · ".join(parts)
+
+
+def build_audience_comparisons(
+    bundles: list[RunBundle],
+    classifications: list[BundleClassification],
+    *,
+    locale: ReportLocale = "sv",
+) -> list[AudienceSegmentComparison]:
+    per_bundle: list[list[AudienceSegmentSummary]] = [
+        build_audience_summaries(bundle, clf, locale=locale)
+        for bundle, clf in zip(bundles, classifications, strict=True)
+    ]
+    by_key: dict[tuple[str, str], dict[str, AudienceSegmentSummary]] = {}
+    for bundle, summaries in zip(bundles, per_bundle, strict=True):
+        arm = short_bundle_arm_label(bundle)
+        for seg in summaries:
+            key = (seg.dimension, seg.label)
+            by_key.setdefault(key, {})[arm] = seg
+
+    keys = sorted(by_key.keys(), key=lambda k: _segment_sort_key(k[0], k[1]))
+    comparisons: list[AudienceSegmentComparison] = []
+    arm_order = [short_bundle_arm_label(b) for b in bundles]
+
+    for dim, val in keys:
+        seg_map = by_key[(dim, val)]
+        arms = [
+            SegmentArmSummary(arm_label=arm, summary=seg_map.get(arm))
+            for arm in arm_order
+        ]
+        if not any(_segment_has_data(arm.summary) for arm in arms):
+            continue
+        dimension_label = segment_dimension_label(dim, locale=locale)
+        diff = build_segment_diff_summary(arms, locale=locale)
+        comparisons.append(
+            AudienceSegmentComparison(
+                dimension=dim,
+                dimension_label=dimension_label,
+                label=val,
+                arms=arms,
+                diff_summary=diff,
+            )
+        )
+    return comparisons
