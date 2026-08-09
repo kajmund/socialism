@@ -11,6 +11,11 @@ import {
   type PromptCatalog,
   type PromptField,
 } from "@/api/configurations"
+import {
+  listAnchorSets,
+  type ConfigurationAnchorSets,
+  type SsrAnchorSet,
+} from "@/api/anchorSets"
 import { CatalogEditor } from "@/components/config/CatalogEditor"
 import { AdminButton } from "@/components/ui/admin-button"
 import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
@@ -18,7 +23,12 @@ import { ApiError } from "@/lib/api"
 
 type Translate = (key: MessageKey, params?: TranslateParams) => string
 
-type EditorTopTab = "prompts" | "grunddata"
+type EditorTopTab = "prompts" | "ssr" | "grunddata"
+
+const EMPTY_ANCHOR_REFS: ConfigurationAnchorSets = {
+  sv: { tone: 0, style: 0 },
+  en: { tone: 0, style: 0 },
+}
 
 function languageLabel(language: ConfigurationLanguage, t: Translate): string {
   switch (language) {
@@ -62,6 +72,8 @@ export function ConfigurationEditorPage() {
   const [isActive, setIsActive] = useState(false)
   const [prompts, setPrompts] = useState<Record<string, string>>({})
   const [ssrTemperature, setSsrTemperature] = useState(DEFAULT_SSR_TEMPERATURE)
+  const [anchorSets, setAnchorSets] = useState<ConfigurationAnchorSets>(EMPTY_ANCHOR_REFS)
+  const [libraryAnchors, setLibraryAnchors] = useState<SsrAnchorSet[]>([])
   const [catalog, setCatalog] = useState<PromptCatalog | null>(null)
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null)
   const [topTab, setTopTab] = useState<EditorTopTab>("prompts")
@@ -94,6 +106,7 @@ export function ConfigurationEditorPage() {
         setLanguage(row.language)
         setIsActive(row.is_active)
         setSsrTemperature(row.ssr_temperature)
+        setAnchorSets(row.anchor_sets)
         setError(null)
         setRowReady(true)
       } catch (err: unknown) {
@@ -108,6 +121,20 @@ export function ConfigurationEditorPage() {
       cancelled = true
     }
   }, [isEdit, numericId, t])
+
+  useEffect(() => {
+    let cancelled = false
+    listAnchorSets({ status: "published" })
+      .then((rows) => {
+        if (!cancelled) setLibraryAnchors(rows)
+      })
+      .catch(() => {
+        if (!cancelled) setLibraryAnchors([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     if (!rowReady) return
@@ -188,6 +215,7 @@ export function ConfigurationEditorPage() {
           language,
           prompts,
           ssr_temperature: ssrTemperature,
+          anchor_sets: anchorSets,
           is_active: isActive,
         })
         navigate("/tools/configurations")
@@ -197,6 +225,7 @@ export function ConfigurationEditorPage() {
           language,
           prompts,
           ssr_temperature: ssrTemperature,
+          anchor_sets: anchorSets,
           is_active: isActive,
         })
         navigate(`/tools/configurations/${created.id}/edit`)
@@ -206,6 +235,17 @@ export function ConfigurationEditorPage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  function anchorOptions(kind: "tone" | "style", loc: "sv" | "en") {
+    return libraryAnchors.filter((row) => row.kind === kind && row.locale === loc)
+  }
+
+  function setAnchorRef(loc: "sv" | "en", kind: "tone" | "style", id: number) {
+    setAnchorSets((prev) => ({
+      ...prev,
+      [loc]: { ...prev[loc], [kind]: id },
+    }))
   }
 
   function onSubmit(event: FormEvent) {
@@ -312,6 +352,7 @@ export function ConfigurationEditorPage() {
               {(
                 [
                   ["prompts", "configurations.editor.tabPrompts"],
+                  ["ssr", "configurations.editor.tabSsr"],
                   ["grunddata", "configurations.editor.tabGrunddata"],
                 ] as const
               ).map(([id, labelKey]) => {
@@ -383,25 +424,6 @@ export function ConfigurationEditorPage() {
                       aria-labelledby={`prompt-tab-${activeSection.id}`}
                       className="space-y-5"
                     >
-                      {activeSection.id === "report" ? (
-                        <label className="block space-y-1.5">
-                          <span className="text-sm font-medium">
-                            {t("configurations.editor.ssrTemperatureLabel")}
-                          </span>
-                          <span className="block text-xs text-muted-foreground">
-                            {t("configurations.editor.ssrTemperatureHint")}
-                          </span>
-                          <input
-                            type="number"
-                            min={0.001}
-                            max={10}
-                            step={0.001}
-                            className="w-36 rounded-md border border-[color:var(--border-hairline)] bg-db-ink-0 px-3 py-2 font-mono text-sm"
-                            value={ssrTemperature}
-                            onChange={(e) => setSsrTemperature(Number(e.target.value))}
-                          />
-                        </label>
-                      ) : null}
                       {activeSection.fields.map((field) => (
                         <label key={field.key} className="block space-y-1.5">
                           <span className="text-sm font-medium">{field.label}</span>
@@ -421,6 +443,76 @@ export function ConfigurationEditorPage() {
                   </div>
                 ) : null}
               </form>
+            ) : topTab === "ssr" ? (
+              <div
+                id="config-top-panel-ssr"
+                role="tabpanel"
+                aria-labelledby="config-top-tab-ssr"
+                className="max-w-2xl space-y-6"
+              >
+                <label className="block space-y-1.5">
+                  <span className="text-sm font-medium">
+                    {t("configurations.editor.ssrTemperatureLabel")}
+                  </span>
+                  <span className="block text-xs text-muted-foreground">
+                    {t("configurations.editor.ssrTemperatureHint")}
+                  </span>
+                  <input
+                    type="number"
+                    min={0.001}
+                    max={10}
+                    step={0.001}
+                    className="w-36 rounded-md border border-[color:var(--border-hairline)] bg-db-ink-0 px-3 py-2 font-mono text-sm"
+                    value={ssrTemperature}
+                    onChange={(e) => setSsrTemperature(Number(e.target.value))}
+                  />
+                </label>
+
+                {(["sv", "en"] as const).map((loc) => (
+                  <fieldset key={loc} className="space-y-3 rounded border p-4">
+                    <legend className="px-1 text-sm font-medium">
+                      {languageLabel(loc, t)}
+                    </legend>
+                    <label className="block space-y-1">
+                      <span className="text-sm">{t("anchorSets.kindTone")}</span>
+                      <select
+                        className="dsel w-full"
+                        value={anchorSets[loc].tone || ""}
+                        onChange={(e) => setAnchorRef(loc, "tone", Number(e.target.value))}
+                      >
+                        <option value="">{t("configurations.editor.anchorPlaceholder")}</option>
+                        {anchorOptions("tone", loc).map((row) => (
+                          <option key={row.id} value={row.id}>
+                            {row.name} (v{row.version})
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="block space-y-1">
+                      <span className="text-sm">{t("anchorSets.kindStyle")}</span>
+                      <select
+                        className="dsel w-full"
+                        value={anchorSets[loc].style || ""}
+                        onChange={(e) => setAnchorRef(loc, "style", Number(e.target.value))}
+                      >
+                        <option value="">{t("configurations.editor.anchorPlaceholder")}</option>
+                        {anchorOptions("style", loc).map((row) => (
+                          <option key={row.id} value={row.id}>
+                            {row.name} (v{row.version})
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </fieldset>
+                ))}
+
+                <p className="text-xs text-muted-foreground">
+                  {t("configurations.editor.anchorHint")}{" "}
+                  <Link to="/tools/anchor-sets" className="underline">
+                    {t("anchorSets.list.title")}
+                  </Link>
+                </p>
+              </div>
             ) : (
               <div
                 id="config-top-panel-grunddata"
