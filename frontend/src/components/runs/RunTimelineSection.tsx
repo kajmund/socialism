@@ -14,6 +14,7 @@ export type RunTimelineSectionProps = {
   onMoveMain: (index: number, direction: number) => void
   onAddMain: () => void
   onStartBranch: (index: number) => void
+  onStartAbFromBeginning?: () => void
   onStartStimulusControlBranch?: (index: number) => void
   onClearBranch: () => void
   onUpdateBranchTick: (side: "a" | "b", index: number, tick: Tick) => void
@@ -36,6 +37,7 @@ export function RunTimelineSection({
   onMoveMain,
   onAddMain,
   onStartBranch,
+  onStartAbFromBeginning,
   onStartStimulusControlBranch,
   onClearBranch,
   onUpdateBranchTick,
@@ -46,24 +48,41 @@ export function RunTimelineSection({
   hideKicker = false,
 }: RunTimelineSectionProps) {
   const { t } = useLocale()
+  const fromStart = branch?.afterIndex === -1
 
   return (
     <div className="tl-section">
       {!hideKicker ? <span className="tl-kicker">{t("runs.timeline.kicker")}</span> : null}
-      <TickColumn
-        ticks={activeMain}
-        openKey={openKey}
-        setOpenKey={onOpenKeyChange}
-        updateTick={onUpdateMain}
-        removeTick={onRemoveMain}
-        moveTick={onMoveMain}
-        addTick={branch || disabled ? () => undefined : onAddMain}
-        onBranch={onStartBranch}
-        onStimulusControl={onStartStimulusControlBranch}
-        branchable={!branch && !disabled}
-        showAdd={!branch && !disabled}
-        populationId={population.id}
-      />
+      {!branch && !disabled && onStartAbFromBeginning ? (
+        <div className="tl-ab-start">
+          <button
+            type="button"
+            className="tl-ab-start-btn"
+            onClick={onStartAbFromBeginning}
+          >
+            {t("runs.timeline.startAbFromBeginning")}
+          </button>
+          <span className="tl-ab-start-hint">
+            {t("runs.timeline.startAbFromBeginningHint")}
+          </span>
+        </div>
+      ) : null}
+      {!fromStart ? (
+        <TickColumn
+          ticks={activeMain}
+          openKey={openKey}
+          setOpenKey={onOpenKeyChange}
+          updateTick={onUpdateMain}
+          removeTick={onRemoveMain}
+          moveTick={onMoveMain}
+          addTick={branch || disabled ? () => undefined : onAddMain}
+          onBranch={onStartBranch}
+          onStimulusControl={onStartStimulusControlBranch}
+          branchable={!branch && !disabled}
+          showAdd={!branch && !disabled}
+          populationId={population.id}
+        />
+      ) : null}
 
       {branch && (
         <>
@@ -71,14 +90,20 @@ export function RunTimelineSection({
             <div className="fork-line" />
             <div className="fork-bar">
               <span className="t">
-                {t("runs.timeline.splitAt", {
-                  day: mainTicks[branch.afterIndex].day,
-                })}
+                {fromStart
+                  ? t("runs.timeline.splitFromStart")
+                  : t("runs.timeline.splitAt", {
+                      day: mainTicks[branch.afterIndex]?.day ?? "?",
+                    })}
               </span>
               <span className="s">
                 {branch.mode === "stimulus_control"
                   ? t("runs.timeline.splitStimulus", { name: population.name })
-                  : t("runs.timeline.splitAb", { name: population.name })}
+                  : fromStart
+                    ? t("runs.timeline.splitAbFromStart", {
+                        name: population.name,
+                      })
+                    : t("runs.timeline.splitAb", { name: population.name })}
               </span>
               {!disabled ? (
                 <button type="button" onClick={onClearBranch}>

@@ -54,7 +54,9 @@ export function validateRunConfig(
   if (!input.startDate.trim()) {
     errors.push(t("runs.validation.startDateRequired"))
   }
-  if (input.mainTicks.length === 0) {
+  const branch = input.branch
+  const fromStart = branch?.afterIndex === -1
+  if (input.mainTicks.length === 0 && !fromStart) {
     errors.push(t("runs.validation.timelineEmpty"))
   }
 
@@ -67,9 +69,11 @@ export function validateRunConfig(
     )
   })
 
-  const branch = input.branch
   if (branch) {
-    if (branch.afterIndex < 0 || branch.afterIndex >= input.mainTicks.length) {
+    const splitOk =
+      branch.afterIndex === -1 ||
+      (branch.afterIndex >= 0 && branch.afterIndex < input.mainTicks.length)
+    if (!splitOk) {
       errors.push(t("runs.validation.splitOutOfRange"))
     }
     if (branch.a.length === 0) {
@@ -132,7 +136,9 @@ export function validateRunWizardStep(
   }
 
   if (step === 2) {
-    if (input.mainTicks.length === 0) {
+    const branch = input.branch
+    const fromStart = branch?.afterIndex === -1
+    if (input.mainTicks.length === 0 && !fromStart) {
       errors.push(t("runs.validation.timelineEmpty"))
     }
     input.mainTicks.forEach((tick, i) => {
@@ -143,9 +149,11 @@ export function validateRunWizardStep(
         t,
       )
     })
-    const branch = input.branch
     if (branch) {
-      if (branch.afterIndex < 0 || branch.afterIndex >= input.mainTicks.length) {
+      const splitOk =
+        branch.afterIndex === -1 ||
+        (branch.afterIndex >= 0 && branch.afterIndex < input.mainTicks.length)
+      if (!splitOk) {
         errors.push(t("runs.validation.splitOutOfRange"))
       }
       if (branch.a.length === 0) {

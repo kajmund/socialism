@@ -202,7 +202,7 @@ async def test_derive_and_classify_via_mocked_llm():
         assert "Övrigt" in topic_shares
         tone_shares, mode, rated, _pmfs, _embed_s = await classify_tones(texts)
         assert mode == "ssr"
-        assert rated == [t[:200] for t in texts]  # direct embed of reaction texts
+        assert rated == texts  # full texts kept for quotes; embed path may clip
         assert set(tone_shares) == set(TONE_LABELS_SV)
         assert sum(tone_shares.values()) == pytest.approx(1.0)
     finally:
@@ -359,6 +359,29 @@ def test_sanitize_html_slot_hygiene():
         "diskussion om trygghet och belysning över hela Sverige med många detaljer.",
     )
     assert len(lbl) <= 48
+
+
+def test_opinion_leaders_use_persona_profile_line_not_name():
+    b = _bundle(agents=1)
+    b.agents = [
+        {"index": 0, "persona_id": "p1", "member_name": "Anna", "role": "population"}
+    ]
+    b.personas = [
+        {
+            "persona_id": "p1",
+            "name": "Anna",
+            "bio": {
+                "yrke": "Butiksbiträde",
+                "age": "29",
+                "ort": "Hageby",
+                "lutning": "Höger",
+            },
+        }
+    ]
+    m = compute_report_metrics([b], [_clf_for(b)])
+    html = render_agents_html(m, locale="sv")
+    assert "Butiksbiträde · 29 år · Hageby · lutning höger" in html
+    assert "Anna" not in html
 
 
 def test_tools_describe_runs():

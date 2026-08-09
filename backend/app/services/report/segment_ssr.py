@@ -10,8 +10,8 @@ from app.services.report.locale import ReportLocale, tone_labels
 from app.services.report.persona_bio import (
     PRIMARY_SEGMENT_KEYS,
     build_agent_bio_by_index,
+    persona_profile_line,
     segment_key_value,
-    segment_value,
 )
 
 MIN_SEGMENT_TEXTS = 2
@@ -38,6 +38,38 @@ def _activity_for_agents(
     return posts, comments, likes, shares
 
 
+def _argmax_tone_label(pmf: dict[str, float]) -> str:
+    if not pmf:
+        return ""
+    return max(pmf.items(), key=lambda item: item[1])[0]
+
+
+def _agent_name_by_index(bundle: RunBundle) -> dict[int, str]:
+    out: dict[int, str] = {}
+    for agent in bundle.agents:
+        if str(agent.get("role") or "") == "injector":
+            continue
+        try:
+            idx = int(agent.get("index"))
+        except (TypeError, ValueError):
+            continue
+        name = str(agent.get("member_name") or agent.get("name") or "").strip()
+        if name:
+            out[idx] = name
+    return out
+
+
+@dataclass(frozen=True)
+class SegmentSample:
+    """One SSR-rated reaction attributed to a persona, for quote rendering."""
+
+    text: str
+    user_id: int
+    tone_label: str
+    agent_name: str = ""
+    profile_line: str = ""
+
+
 @dataclass
 class SegmentToneRow:
     dimension: str
@@ -55,6 +87,7 @@ class SegmentToneRow:
     likes_total: int = 0
     shares_total: int = 0
     sample_texts: list[str] = field(default_factory=list)
+    sample_items: list[SegmentSample] = field(default_factory=list)
 
 
 def _positive_share(tone: dict[str, float], *, locale: ReportLocale) -> float:
@@ -124,21 +157,26 @@ def build_segment_tone_rows(
 ) -> list[SegmentToneRow]:
     labels = list(tone_labels(locale))
     agent_bio = build_agent_bio_by_index(bundle)
-    rated = classification.tone_rated_texts
+    agent_names = _agent_name_by_index(bundle)
+    # Prefer full sample_texts for quotes; tone_rated_texts may be clipped for embedding.
     pmfs = classification.tone_pmfs
     user_ids = classification.sample_user_ids
-    if len(rated) != len(pmfs) or len(rated) != len(user_ids):
+    texts = classification.sample_texts
+    if len(texts) != len(pmfs) or len(texts) != len(user_ids):
+        texts = classification.tone_rated_texts
+    if len(texts) != len(pmfs) or len(texts) != len(user_ids):
         return []
 
     by_dim_val_pmfs: dict[tuple[str, str], list[dict[str, float]]] = {}
     by_dim_val_agents: dict[tuple[str, str], set[int]] = {}
     by_dim_val_engagement: dict[tuple[str, str], int] = {}
-    by_dim_val_texts: dict[tuple[str, str], list[str]] = {}
+    by_dim_val_samples: dict[tuple[str, str], list[SegmentSample]] = {}
 
-    for pmf, uid, text in zip(pmfs, user_ids, rated, strict=True):
+    for pmf, uid, text in zip(pmfs, user_ids, texts, strict=True):
         bio = agent_bio.get(uid)
         if not bio:
             continue
+        tone_label = _argmax_tone_label(pmf)
         for dim in segment_keys:
             val = segment_key_value(bio, dim, locale=locale)
             if not val:
@@ -146,7 +184,19 @@ def build_segment_tone_rows(
             key = (dim, val)
             by_dim_val_pmfs.setdefault(key, []).append(pmf)
             by_dim_val_agents.setdefault(key, set()).add(uid)
-            by_dim_val_texts.setdefault(key, []).append(text)
+            by_dim_val_samples.setdefault(key, []).append(
+                SegmentSample(
+                    text=text,
+                    user_id=uid,
+                    tone_label=tone_label,
+                    agent_name=agent_names.get(uid, ""),
+                    profile_line=persona_profile_line(
+                        bio,
+                        locale=locale,
+                        exclude_dimension=dim,
+                    ),
+                )
+            )
 
     for uid, bio in agent_bio.items():
         for dim in segment_keys:
@@ -164,6 +214,7 @@ def build_segment_tone_rows(
         tone = _mean_pmf_dicts(seg_pmfs, labels)
         agents = frozenset(by_dim_val_agents.get((dim, val), set()))
         post_n, comment_n, likes_n, shares_n = _activity_for_agents(bundle, agents)
+        samples = list(by_dim_val_samples.get((dim, val), []))
         rows.append(
             SegmentToneRow(
                 dimension=dim,
@@ -180,7 +231,8 @@ def build_segment_tone_rows(
                 comment_count=comment_n,
                 likes_total=likes_n,
                 shares_total=shares_n,
-                sample_texts=list(by_dim_val_texts.get((dim, val), [])),
+                sample_texts=[s.text for s in samples],
+                sample_items=samples,
             )
         )
     return rows

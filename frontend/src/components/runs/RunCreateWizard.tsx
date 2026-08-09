@@ -37,6 +37,7 @@ export type RunCreateWizardProps = {
   onMoveMain: (index: number, direction: number) => void
   onAddMain: () => void
   onStartBranch: (index: number) => void
+  onStartAbFromBeginning?: () => void
   onStartStimulusControlBranch?: (index: number) => void
   onClearBranch: () => void
   onUpdateBranchTick: (side: "a" | "b", index: number, tick: Tick) => void
@@ -236,6 +237,7 @@ export function RunCreateWizard(props: RunCreateWizardProps) {
             onMoveMain={props.onMoveMain}
             onAddMain={props.onAddMain}
             onStartBranch={props.onStartBranch}
+            onStartAbFromBeginning={props.onStartAbFromBeginning}
             onStartStimulusControlBranch={props.onStartStimulusControlBranch}
             onClearBranch={() => props.onClearBranch()}
             onUpdateBranchTick={props.onUpdateBranchTick}
