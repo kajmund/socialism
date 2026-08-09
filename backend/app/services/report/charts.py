@@ -761,12 +761,12 @@ def render_audience_section(
         return "<p>—</p>"
     intro = (
         "SSR numbers come from posts and comments in the feed. "
-        "Interview quotes below are planned tick interviews matched to each bio segment — "
-        "ranked by thematic relevance (financing, clarity, injection keywords), not feed order."
+        "Interview quotes appear under life situation only (ranked by relevance). "
+        "District and leaning rows show SSR; theme tags may reflect interview topics."
         if locale == "en"
         else "SSR-siffror bygger på inlägg och kommentarer i flödet. "
-        "Intervjucitat nedan kommer från planerade tick-intervjuer kopplade till varje bio-segment — "
-        "rankade efter tematisk relevans (finansiering, tydlighet, injektionsord), inte flödesordning."
+        "Intervjucitat visas endast under livssituation (rankade efter relevans). "
+        "Ort- och lutningsrader visar SSR; temataggar kan spegla intervjuteman."
     )
     blocks: list[str] = []
     for bundle, clf in zip(bundles, classifications, strict=True):

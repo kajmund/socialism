@@ -7,6 +7,7 @@ from app.services.report.classify import BundleClassification, TopicPack
 from app.services.report.metrics import compute_report_metrics
 from app.services.report.recommendation import build_recommendation
 from app.services.report.segment_analysis import (
+    SegmentInterviewSnippet,
     build_audience_summaries,
     detect_themes,
     interview_relevance,
@@ -146,8 +147,6 @@ def test_build_recommendation_produces_score_and_action():
 
 
 def test_rank_interviews_prefers_financing_and_insight_themes():
-    from app.services.report.segment_analysis import SegmentInterviewSnippet
-
     bundle = RunBundle(
         label="T",
         run_id=1,
@@ -204,3 +203,22 @@ def test_audience_summary_tracks_interview_total():
     )
     assert fam.interview_total == 2
     assert len(fam.interviews) <= 3
+
+
+def test_interview_quotes_only_on_livssituation_rows():
+    bundle = _bundle_with_bio()
+    clf = BundleClassification(
+        topic_packs=[TopicPack(label="Belysning", keywords=["belysning"])],
+        topic_shares={"Belysning": 1.0},
+        tone_shares={lab: 0.2 for lab in TONE_LABELS_SV},
+        tone_mode="ssr",
+        tone_rated_texts=["Bra", "Finansiering oklar"],
+        tone_pmfs=[_tone_pmf(0.6), _tone_pmf(0.2, neg=0.5)],
+        sample_user_ids=[1, 2],
+    )
+    summaries = build_audience_summaries(bundle, clf, locale="sv")
+    for seg in summaries:
+        if seg.dimension != "livssituation":
+            assert not seg.interviews
+            assert seg.interview_total == 0
+    assert any(s.dimension == "livssituation" and s.interviews for s in summaries)

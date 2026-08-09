@@ -33,6 +33,8 @@ _THEME_PATTERNS: dict[str, tuple[str, ...]] = {
 
 MAX_INTERVIEWS_SHOWN = 3
 _INSIGHT_THEMES = frozenset({"finansiering", "vaghet", "konkret"})
+# Interview quotes render under this dimension only — avoids duplicate quotes on ort/lutning rows.
+INTERVIEW_QUOTE_DIMENSION = "livssituation"
 
 
 @dataclass
@@ -212,11 +214,22 @@ def build_audience_summaries(
     for dim, val in sorted(keys):
         tone = by_key.get((dim, val))
         interviews_all = _interviews_for_segment(bundle, dimension=dim, value=val)
-        interviews = rank_interviews_for_display(interviews_all, bundle)
+        if dim == INTERVIEW_QUOTE_DIMENSION:
+            interviews = rank_interviews_for_display(interviews_all, bundle)
+            interview_total = len(interviews_all)
+        else:
+            interviews = []
+            interview_total = 0
         theme_set: set[str] = set()
         for iv in interviews_all:
             theme_set.update(iv.themes)
         if tone and tone.too_few and not interviews_all:
+            continue
+        if (
+            dim != INTERVIEW_QUOTE_DIMENSION
+            and interviews_all
+            and (tone is None or tone.too_few)
+        ):
             continue
         summaries.append(
             AudienceSegmentSummary(
@@ -225,7 +238,7 @@ def build_audience_summaries(
                 label=val,
                 tone=tone,
                 interviews=interviews,
-                interview_total=len(interviews_all),
+                interview_total=interview_total,
                 themes=sorted(theme_set),
             )
         )
