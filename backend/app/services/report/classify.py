@@ -373,12 +373,13 @@ async def classify_tones(
     if not texts:
         return empty, "ssr", [], [], 0.0
 
-    rated = _clip_for_embed(texts)
+    # Clip only for the embedding API; keep full texts for report quotes.
+    embed_texts = _clip_for_embed(texts)
     t0 = time.perf_counter()
     anchors = tone_anchor_set or tone_anchors(locale=locale)
-    result = await rate_texts(rated, anchors, temperature=temperature)
+    result = await rate_texts(embed_texts, anchors, temperature=temperature)
     embed_s = time.perf_counter() - t0
-    return result.shares, "ssr", rated, result.per_text_pmfs, embed_s
+    return result.shares, "ssr", list(texts), result.per_text_pmfs, embed_s
 
 
 async def classify_styles(
@@ -402,13 +403,13 @@ async def classify_styles(
     if len(likes) != len(texts):
         raise ValueError("likes length must match texts")
 
-    rated = _clip_for_embed(texts)
+    embed_texts = _clip_for_embed(texts)
     t0 = time.perf_counter()
     anchors = style_anchor_set or style_anchors(locale=locale)
-    result = await rate_texts(rated, anchors, temperature=temperature)
+    result = await rate_texts(embed_texts, anchors, temperature=temperature)
     embed_s = time.perf_counter() - t0
     style_avg = _style_avg_from_pmfs(likes, result.per_text_pmfs)
-    return style_avg, rated, result.per_text_pmfs, embed_s
+    return style_avg, list(texts), result.per_text_pmfs, embed_s
 
 
 async def classify_bundle(

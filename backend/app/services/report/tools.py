@@ -7,7 +7,12 @@ from collections.abc import Callable
 from typing import Any
 
 from app.services.report.bundles import RunBundle, is_ab_comparison
-from app.services.report.metrics import ReportMetrics, compute_report_metrics, pct
+from app.services.report.metrics import (
+    ReportMetrics,
+    compute_report_metrics,
+    pct,
+    tone_shares_sorted,
+)
 
 ToolHandler = Callable[..., Any]
 
@@ -49,7 +54,8 @@ class ReportToolBundle:
                     k: pct(v) for k, v in self.metrics.aggregate.topic_shares.items()
                 },
                 "tone_shares": {
-                    k: pct(v) for k, v in self.metrics.aggregate.tone_shares.items()
+                    k: pct(v)
+                    for k, v in tone_shares_sorted(self.metrics.aggregate.tone_shares)
                 },
                 "style_avg_likes": [
                     {"style": s, "avg_likes": a}
@@ -97,7 +103,12 @@ class ReportToolBundle:
     def compare_tone(self) -> dict[str, Any]:
         return {
             "per_run": [
-                {"label": m.label, "shares": {k: pct(v) for k, v in m.tone_shares.items()}}
+                {
+                    "label": m.label,
+                    "shares": {
+                        k: pct(v) for k, v in tone_shares_sorted(m.tone_shares)
+                    },
+                }
                 for m in self.metrics.bundles
             ]
         }

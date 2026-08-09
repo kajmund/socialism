@@ -11,7 +11,13 @@ from app.services.report.locale import (
     other_topic_label,
     runs_label,
 )
-from app.services.report.metrics import ReportMetrics, confidence_badge, fmt_num, pct
+from app.services.report.metrics import (
+    ReportMetrics,
+    confidence_badge,
+    fmt_num,
+    pct,
+    tone_shares_sorted,
+)
 from app.services.report.recommendation import QuickRecommendation
 from app.services.report.audience_takeaway import build_audience_takeaways, short_bundle_arm_label
 from app.services.report.persona_bio import build_agent_bio_by_index, persona_profile_line
@@ -26,7 +32,7 @@ from app.services.report.segment_analysis import (
     interview_section_caption,
     theme_display_label,
 )
-from app.services.report.segment_ssr import SegmentToneRow
+from app.services.report.segment_ssr import SegmentSample, SegmentToneRow
 from app.services.report.classify import BundleClassification
 from app.services.report.tick_report import (
     InterviewQA,
@@ -97,6 +103,7 @@ def _donut(shares: list[tuple[str, float, str]], center: str) -> str:
 def render_engagement_donut(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -> str:
     m = metrics.aggregate
     total = max(1, m.top_agents + m.mid_agents + m.zero_like_agents)
+    engaged_share = (m.top_agents + m.mid_agents) / total
     if locale == "en":
         shares = [
             ("Top engaged", m.top_agents / total, C_PRIMARY),
@@ -104,7 +111,10 @@ def render_engagement_donut(metrics: ReportMetrics, *, locale: ReportLocale = "s
             ("No likes at all", m.zero_like_agents / total, C_SOFT),
         ]
         title = "Engagement in the debate"
-        sub = f"Of {m.agent_count} simulated citizens"
+        sub = (
+            f"Of {m.agent_count} simulated citizens · "
+            f"{m.zero_like_agents} with no likes"
+        )
     else:
         shares = [
             ("Toppengagerade", m.top_agents / total, C_PRIMARY),
@@ -112,12 +122,16 @@ def render_engagement_donut(metrics: ReportMetrics, *, locale: ReportLocale = "s
             ("Inga likes alls", m.zero_like_agents / total, C_SOFT),
         ]
         title = "Engagemang i debatten"
-        sub = f"Av {m.agent_count} simulerade medborgare"
+        sub = (
+            f"Av {m.agent_count} simulerade medborgare · "
+            f"{m.zero_like_agents} utan likes"
+        )
+    # Center = share with any likes (not zero-like count — that read as “broken” when 0).
     return (
         '<div class="chart-card">'
         f"<h4>{title}</h4>"
         f'<div class="chart-sub">{sub}</div>'
-        f"{_donut(shares, str(m.zero_like_agents))}"
+        f"{_donut(shares, pct(engaged_share))}"
         "</div>"
     )
 
@@ -166,12 +180,7 @@ def render_tone_donut(metrics: ReportMetrics, *, locale: ReportLocale = "sv") ->
         title = "Debattens ton"
         sub = "Tonfördelning (5 nivåer) i inlägg och kommentarer"
         center = "ton"
-    # Stable Likert order left→right on legend when present
-    order = list(colors.keys())
-    ordered_items = [(k, m.tone_shares[k]) for k in order if k in m.tone_shares]
-    ordered_items.extend(
-        (k, v) for k, v in m.tone_shares.items() if k not in colors
-    )
+    ordered_items = tone_shares_sorted(m.tone_shares)
     shares = [(k, v, colors.get(k, C_MUTED)) for k, v in ordered_items]
     return (
         '<div class="chart-card">'
@@ -283,7 +292,7 @@ def render_infographic_grid(metrics: ReportMetrics, *, locale: ReportLocale = "s
         )
         tone_rows = "".join(
             f"<div class=\"tone-row\"><span>{escape(k)}</span><strong>{pct(v)}</strong></div>"
-            for k, v in m.tone_shares.items()
+            for k, v in tone_shares_sorted(m.tone_shares)
         )
         tone_card = (
             f'<div class="info-col">'
@@ -325,7 +334,7 @@ def render_infographic_grid(metrics: ReportMetrics, *, locale: ReportLocale = "s
         )
         tone_rows = "".join(
             f"<div class=\"tone-row\"><span>{escape(k)}</span><strong>{pct(v)}</strong></div>"
-            for k, v in m.tone_shares.items()
+            for k, v in tone_shares_sorted(m.tone_shares)
         )
         tone_card = (
             f'<div class="info-col">'
@@ -355,7 +364,10 @@ def render_agents_html(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -
     cards = []
     for i, actor in enumerate(metrics.aggregate.top_actors):
         warn = " ag-warn" if i == len(metrics.aggregate.top_actors) - 1 else ""
-        quote = escape(str(actor.get("sample") or "")[:160])
+        quote = escape(str(actor.get("sample") or ""))
+        bio = actor.get("bio") if isinstance(actor.get("bio"), dict) else {}
+        profile = persona_profile_line(bio, locale=locale) if bio else ""
+        label = profile or str(actor.get("name") or "")
         if locale == "en":
             role = "Opinion voice"
             likes_l = "likes/post"
@@ -370,7 +382,7 @@ def render_agents_html(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -
             empty = '<p class="sec-intro">Inga tydliga opinionsledare i datan.</p>'
         cards.append(
             f'<div class="agent-card{warn}">'
-            f'<div class="ag-name">{escape(str(actor["name"]))}</div>'
+            f'<div class="ag-name">{escape(label)}</div>'
             f'<div class="ag-title">{role}</div>'
             f'<div class="ag-scores">'
             f'<div class="ag-score"><div class="ag-score-v">{fmt_num(actor["likes_per_item"])}</div>'
@@ -467,33 +479,54 @@ def _ab_bar_row(
 
 def render_quick_stats_table(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -> str:
     if locale == "en":
-        headers = (
+        volume_title = "Volume"
+        reach_title = "Reach & distribution"
+        volume_headers = (
             "<th>Run</th><th>Posts</th><th>Comments</th><th>Likes</th>"
             "<th>Post likes</th><th>Comment likes</th><th>Shares</th><th>Dislikes</th>"
-            "<th>Test msg. likes</th><th>Follows</th><th>Eng. score</th>"
-            "<th>Inequality</th><th>0 likes</th>"
+        )
+        reach_headers = (
+            "<th>Run</th><th>Test msg. likes</th><th>Follows</th>"
+            "<th>Eng. score</th><th>Inequality</th><th>0 likes</th>"
         )
     else:
-        headers = (
+        volume_title = "Volym"
+        reach_title = "Räckvidd & fördelning"
+        volume_headers = (
             "<th>Körning</th><th>Inlägg</th><th>Kommentarer</th><th>Likes</th>"
             "<th>Inläggslikes</th><th>Kommentarslikes</th><th>Delningar</th><th>Dislikes</th>"
-            "<th>Likes testbudskap</th><th>Följningar</th><th>Eng.poäng</th>"
-            "<th>Ojämlikhet</th><th>0 likes</th>"
         )
-    rows = []
+        reach_headers = (
+            "<th>Körning</th><th>Likes testbudskap</th><th>Följningar</th>"
+            "<th>Eng.poäng</th><th>Ojämlikhet</th><th>0 likes</th>"
+        )
+    volume_rows: list[str] = []
+    reach_rows: list[str] = []
     for m in metrics.bundles:
-        rows.append(
-            f"<tr><td>{escape(m.label)}</td>"
+        label = escape(m.label)
+        volume_rows.append(
+            f"<tr><td>{label}</td>"
             f"<td>{m.post_count}</td><td>{m.comment_count}</td>"
             f"<td>{m.likes_total}</td><td>{m.post_likes}</td><td>{m.comment_likes}</td>"
-            f"<td>{m.shares}</td><td>{m.dislikes}</td><td>{m.injection_likes}</td>"
-            f"<td>{m.follow_edges}</td><td>{m.engagement_score}</td>"
+            f"<td>{m.shares}</td><td>{m.dislikes}</td></tr>"
+        )
+        reach_rows.append(
+            f"<tr><td>{label}</td>"
+            f"<td>{m.injection_likes}</td><td>{m.follow_edges}</td>"
+            f"<td>{m.engagement_score}</td>"
             f"<td>{fmt_num(m.gini)}</td><td>{m.zero_like_agents}</td></tr>"
         )
     return (
-        '<div class="chart-card wide">'
-        f'<table class="data-table stats-table"><thead><tr>{headers}</tr></thead>'
-        f"<tbody>{''.join(rows)}</tbody></table></div>"
+        '<div class="stats-tables">'
+        '<div class="chart-card">'
+        f'<div class="chart-sub">{volume_title}</div>'
+        f'<table class="data-table stats-table"><thead><tr>{volume_headers}</tr></thead>'
+        f"<tbody>{''.join(volume_rows)}</tbody></table></div>"
+        '<div class="chart-card">'
+        f'<div class="chart-sub">{reach_title}</div>'
+        f'<table class="data-table stats-table"><thead><tr>{reach_headers}</tr></thead>'
+        f"<tbody>{''.join(reach_rows)}</tbody></table></div>"
+        "</div>"
     )
 
 
@@ -704,13 +737,10 @@ def _qa_card_html(
     )
     q_lbl = "Q" if locale == "en" else "F"
     a_lbl = "A" if locale == "en" else "S"
-    profile_html = (
-        f'<div class="qa-profile">{escape(profile)}</div>' if profile else ""
-    )
+    label = profile or item.agent_name
     return (
         f'<div class="qa-card">'
-        f'<div class="qa-agent">{escape(item.agent_name)}</div>'
-        f"{profile_html}"
+        f'<div class="qa-agent">{escape(label)}</div>'
         f'<div class="qa-q"><strong>{q_lbl}:</strong> {escape(item.question)}</div>'
         f'<div class="qa-a"><strong>{a_lbl}:</strong> {escape(item.answer)}</div>'
         f"</div>"
@@ -826,7 +856,6 @@ def _segment_tone_donut(tone_shares: dict[str, float], *, locale: ReportLocale) 
             "Somewhat positive": C_GREEN,
             "Strongly positive": C_AMBER,
         }
-        order = list(colors.keys())
         center = "tone"
         title = "Tone in this group"
     else:
@@ -837,11 +866,9 @@ def _segment_tone_donut(tone_shares: dict[str, float], *, locale: ReportLocale) 
             "Något positiv": C_GREEN,
             "Starkt positiv": C_AMBER,
         }
-        order = list(colors.keys())
         center = "ton"
         title = "Ton i gruppen"
-    ordered = [(k, tone_shares[k]) for k in order if k in tone_shares]
-    ordered.extend((k, v) for k, v in tone_shares.items() if k not in colors)
+    ordered = tone_shares_sorted(tone_shares)
     shares = [(k, v, colors.get(k, C_MUTED)) for k, v in ordered if v > 0]
     if not shares:
         return "<p>—</p>"
@@ -917,17 +944,81 @@ def _segment_theme_bars(theme_counts: dict[str, int], *, locale: ReportLocale) -
     )
 
 
-def _segment_sample_quotes(texts: list[str], *, locale: ReportLocale) -> str:
-    if not texts:
+_MAX_QUOTES_PER_TONE = 2
+_TOP_TONE_GROUPS = 3
+
+
+def _top_tone_labels(
+    by_tone: dict[str, list[SegmentSample]],
+    tone_shares: dict[str, float] | None,
+    *,
+    limit: int = _TOP_TONE_GROUPS,
+) -> set[str]:
+    """Pick the largest tone groups (by share, else by sample count)."""
+    if not by_tone:
+        return set()
+    if tone_shares:
+        ranked = sorted(
+            by_tone.keys(),
+            key=lambda lab: (float(tone_shares.get(lab) or 0.0), len(by_tone[lab])),
+            reverse=True,
+        )
+    else:
+        ranked = sorted(by_tone.keys(), key=lambda lab: len(by_tone[lab]), reverse=True)
+    return set(ranked[:limit])
+
+
+def _segment_sample_quotes(
+    samples: list[SegmentSample],
+    *,
+    locale: ReportLocale,
+    tone_shares: dict[str, float] | None = None,
+) -> str:
+    if not samples:
         return ""
     title = "Sample reactions" if locale == "en" else "Exempel från flödet"
-    bits = []
-    for text in texts[:4]:
-        snippet = escape(str(text)[:180])
-        bits.append(f'<blockquote class="aud-quote">{snippet}</blockquote>')
+    by_tone: dict[str, list[SegmentSample]] = {}
+    for sample in samples:
+        label = sample.tone_label or ("Unclassified" if locale == "en" else "Oklassad")
+        by_tone.setdefault(label, []).append(sample)
+
+    keep = _top_tone_labels(by_tone, tone_shares)
+    by_tone = {lab: items for lab, items in by_tone.items() if lab in keep}
+
+    if tone_shares:
+        ordered = [
+            lab
+            for lab, _share in tone_shares_sorted(
+                {lab: float(tone_shares.get(lab) or 0.0) for lab in by_tone}
+            )
+        ]
+    else:
+        ordered = sorted(by_tone.keys(), key=lambda lab: (-len(by_tone[lab]), lab))
+
+    groups: list[str] = []
+    for tone_lab in ordered:
+        items = by_tone[tone_lab][:_MAX_QUOTES_PER_TONE]
+        share = float((tone_shares or {}).get(tone_lab) or 0.0)
+        heading = f"{tone_lab} ({pct(share)})" if tone_shares else tone_lab
+        quotes: list[str] = []
+        for item in items:
+            body = escape(str(item.text))
+            meta = item.profile_line or item.agent_name
+            meta_html = (
+                f'<div class="aud-quote-meta">{escape(meta)}</div>' if meta else ""
+            )
+            quotes.append(
+                f'<blockquote class="aud-quote">{meta_html}'
+                f'<div class="aud-quote-text">{body}</div></blockquote>'
+            )
+        groups.append(
+            f'<div class="aud-tone-group">'
+            f'<div class="aud-tone-label">{escape(heading)}</div>'
+            f'{"".join(quotes)}</div>'
+        )
     return (
         f'<div class="aud-samples">'
-        f'<div class="aud-chart-title">{title}</div>{"".join(bits)}</div>'
+        f'<div class="aud-chart-title">{title}</div>{"".join(groups)}</div>'
     )
 
 
@@ -1003,7 +1094,11 @@ def _segment_interviews_html(seg: AudienceSegmentSummary, *, locale: ReportLocal
 
 def _render_segment_body(seg: AudienceSegmentSummary, *, locale: ReportLocale) -> str:
     tone = seg.tone
-    samples = _segment_sample_quotes(tone.sample_texts if tone else [], locale=locale)
+    samples = _segment_sample_quotes(
+        tone.sample_items if tone else [],
+        locale=locale,
+        tone_shares=tone.tone_shares if tone else None,
+    )
     return (
         f'<p class="aud-narrative">{escape(seg.narrative)}</p>'
         f"{_segment_kpi_html(tone, locale=locale)}"

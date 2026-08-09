@@ -11,7 +11,7 @@ from app.services.report.bundles import RunBundle, is_ab_comparison
 from app.services.report.charts import prefill_quick_chart_slots
 from app.services.report.classify import BundleClassification
 from app.services.report.locale import ReportLocale, display_style_label
-from app.services.report.metrics import ReportMetrics, injection_likes, pct
+from app.services.report.metrics import ReportMetrics, injection_likes, pct, tone_shares_sorted
 from app.services.report.recommendation import build_recommendation
 from app.services.report.segment_analysis import build_audience_summaries
 from app.services.ssr import ANCHOR_SET_VERSION
@@ -335,7 +335,7 @@ def build_quick_slots(
 
     tone_rows = "".join(
         f"<tr><td>{escape(k)}</td><td>{pct(v)}</td></tr>"
-        for k, v in metrics.aggregate.tone_shares.items()
+        for k, v in tone_shares_sorted(metrics.aggregate.tone_shares)
     )
     style_rows = "".join(
         f"<tr><td>{escape(display_style_label(s, locale))}</td>"
@@ -466,7 +466,7 @@ def render_quick_html(slots: dict[str, str], *, locale: ReportLocale) -> str:
 <title>{escape(slots.get("page_title", "Snabbrapport"))}</title>
 <style>
 body{{font-family:Georgia,serif;background:#F7F3EA;color:#1A1814;margin:0;padding:2rem;}}
-.wrap{{max-width:960px;margin:0 auto;}}
+.wrap{{max-width:960px;margin:0 auto;overflow-x:clip;}}
 .eyebrow{{font-size:.85rem;letter-spacing:.04em;text-transform:uppercase;color:#6B6253;}}
 h1{{font-size:1.75rem;margin:.35rem 0 1.25rem;}}
 .verdict{{border:1px solid #D8CFC0;padding:1.25rem 1.5rem;margin:1rem 0;background:#FFFCF6;}}
@@ -475,7 +475,7 @@ h1{{font-size:1.75rem;margin:.35rem 0 1.25rem;}}
 .v-weak{{border-left:6px solid #B0563F;}}
 .v-zero{{border-left:6px solid #6B6253;}}
 .verdict h2{{margin:0 0 .35rem;font-size:1.35rem;}}
-section{{margin:1.75rem 0;}}
+section{{margin:1.75rem 0;min-width:0;}}
 section h3{{font-size:1.05rem;margin:0 0 .5rem;border-bottom:1px solid #D8CFC0;padding-bottom:.35rem;}}
 .tech{{margin-top:2.5rem;font-size:.9rem;color:#3A342C;}}
 .tech summary{{cursor:pointer;font-weight:600;}}
@@ -483,10 +483,14 @@ table{{border-collapse:collapse;width:100%;margin:.5rem 0 1rem;}}
 td,th{{border-bottom:1px solid #E5DDD0;padding:.35rem .5rem;text-align:left;font-size:.85rem;}}
 .meta{{color:#6B6253;font-size:.9rem;margin-top:2rem;}}
 .chart-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:.75rem;}}
-.chart-card{{background:#FFFCF6;border:1px solid #D8CFC0;border-radius:8px;padding:14px 16px;}}
+.chart-card{{background:#FFFCF6;border:1px solid #D8CFC0;border-radius:8px;padding:14px 16px;max-width:100%;box-sizing:border-box;}}
 .chart-card.wide{{grid-column:1/-1;}}
 .chart-card h4{{font-size:.95rem;font-weight:700;margin:0 0 4px;}}
 .chart-sub{{font-size:.8rem;color:#6B6253;margin-bottom:10px;}}
+.stats-tables{{display:flex;flex-direction:column;gap:12px;}}
+.stats-tables .chart-card{{break-inside:avoid;}}
+.stats-table{{width:100%;margin:0;table-layout:fixed;}}
+.stats-table th,.stats-table td{{font-size:.78rem;word-break:break-word;}}
 .donut-wrap{{display:flex;gap:12px;align-items:center;flex-wrap:wrap;}}
 .donut{{width:88px;height:88px;border-radius:50%;position:relative;flex-shrink:0;}}
 .donut-hole{{position:absolute;inset:18%;background:#FFFCF6;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;text-transform:uppercase;color:#6B6253;}}
@@ -499,7 +503,10 @@ td,th{{border-bottom:1px solid #E5DDD0;padding:.35rem .5rem;text-align:left;font
 .hbar-track{{flex:1;height:22px;background:#EDE6DA;border-radius:4px;overflow:hidden;}}
 .hbar-fill{{height:100%;display:flex;align-items:center;padding:0 6px;font-size:.7rem;font-weight:700;color:#fff;min-width:2px;}}
 .hbar-val{{min-width:28px;text-align:right;font-weight:700;}}
-.stats-table th{{white-space:nowrap;}}
+@media print{{
+.wrap{{max-width:none;overflow:visible;}}
+.stats-tables{{gap:10px;}}
+}}
 .ab-compare{{display:flex;flex-direction:column;gap:12px;}}
 .ab-metric-label{{font-size:.82rem;font-weight:700;margin-bottom:4px;color:#3A342C;}}
 .ab-bar-line{{display:grid;grid-template-columns:minmax(80px,1fr) 1fr auto;gap:8px;align-items:center;margin-bottom:4px;font-size:.78rem;}}
@@ -519,7 +526,7 @@ td,th{{border-bottom:1px solid #E5DDD0;padding:.35rem .5rem;text-align:left;font
 .pop-row-v{{font-weight:700;}}
 .agents-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;}}
 .agent-card{{border:1px solid #D8CFC0;border-radius:8px;padding:10px;font-size:.8rem;background:#fff;}}
-.ag-name{{font-weight:700;}}
+.ag-name{{font-weight:700;font-size:.78rem;line-height:1.35;}}
 .ag-title{{color:#6B6253;font-size:.75rem;margin-bottom:6px;}}
 .ag-scores{{display:flex;gap:8px;}}
 .ag-score-v{{font-weight:700;font-size:1rem;}}
@@ -569,7 +576,11 @@ td,th{{border-bottom:1px solid #E5DDD0;padding:.35rem .5rem;text-align:left;font
 .aud-eng-fill{{height:100%;border-radius:4px;min-width:2px;}}
 .aud-eng-val{{font-weight:700;text-align:right;}}
 .aud-samples{{margin-bottom:12px;}}
-.aud-quote{{margin:6px 0 0;padding:8px 10px;border-left:3px solid #D8CFC0;background:#fff;font-size:.78rem;font-style:italic;color:#3A342C;}}
+.aud-tone-group + .aud-tone-group{{margin-top:10px;}}
+.aud-tone-label{{font-size:.72rem;font-weight:700;color:#1E3A55;margin:0 0 4px;}}
+.aud-quote{{margin:6px 0 0;padding:8px 10px;border-left:3px solid #D8CFC0;background:#fff;font-size:.78rem;color:#3A342C;}}
+.aud-quote-meta{{font-style:normal;font-size:.72rem;font-weight:600;color:#6B6253;margin-bottom:4px;line-height:1.35;}}
+.aud-quote-text{{font-style:italic;white-space:pre-wrap;overflow-wrap:anywhere;}}
 .aud-qa-block{{margin-top:8px;}}
 .aud-qa-card{{border:1px solid #E5DDD0;border-radius:8px;padding:10px 12px;margin-top:8px;background:#fff;}}
 .aud-qa-meta{{font-size:.75rem;font-weight:700;color:#6B6253;margin-bottom:4px;}}

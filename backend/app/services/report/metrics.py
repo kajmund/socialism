@@ -8,6 +8,7 @@ from typing import Any
 
 from app.services.report.bundles import RunBundle
 from app.services.report.classify import BundleClassification, TONE_LABELS
+from app.services.report.persona_bio import build_agent_bio_by_index
 from app.services.ssr import STYLE_LABELS, STYLE_UNCLASSIFIED
 
 # Re-export for callers/tests that imported from metrics.
@@ -161,6 +162,7 @@ def _post_comment_engagement(bundle: RunBundle) -> dict[str, int]:
 
 def _top_actors(bundle: RunBundle, *, limit: int = 4) -> list[dict[str, Any]]:
     pop_ids = population_agent_ids(bundle)
+    agent_bio = build_agent_bio_by_index(bundle)
     by_user: dict[int, dict[str, Any]] = defaultdict(
         lambda: {"likes": 0, "items": 0, "sample": ""}
     )
@@ -175,15 +177,17 @@ def _top_actors(bundle: RunBundle, *, limit: int = 4) -> list[dict[str, Any]]:
         row["items"] += 1
         text = str(item.get("content") or item.get("text") or "").strip()
         if text and (not row["sample"] or len(text) < len(str(row["sample"]))):
-            row["sample"] = text[:180]
+            row["sample"] = text
 
     actors: list[dict[str, Any]] = []
     for uid, row in by_user.items():
         items = max(1, int(row["items"]))
+        bio = agent_bio.get(uid) or {}
         actors.append(
             {
                 "user_id": uid,
                 "name": _agent_name(bundle, uid),
+                "bio": dict(bio),
                 "likes_total": int(row["likes"]),
                 "likes_per_item": round(float(row["likes"]) / items, 2),
                 "items": items,
@@ -360,6 +364,11 @@ def confidence_badge(n_runs: int, *, all_agree: bool = True) -> str:
 
 def pct(value: float) -> str:
     return f"{round(value * 100)}%"
+
+
+def tone_shares_sorted(tone_shares: dict[str, float]) -> list[tuple[str, float]]:
+    """Tone labels ordered by share descending (then label for stability)."""
+    return sorted(tone_shares.items(), key=lambda kv: (-kv[1], kv[0]))
 
 
 def fmt_num(value: float) -> str:

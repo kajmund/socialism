@@ -17,8 +17,9 @@ from app.services.report.segment_analysis import (
     interview_relevance,
     rank_interviews_for_display,
 )
-from app.services.report.segment_ssr import SegmentToneRow
-from app.services.report.charts import render_audience_section
+from app.services.report.segment_ssr import SegmentSample, SegmentToneRow
+from app.services.report.charts import _top_tone_labels, render_audience_section
+from app.services.report.metrics import tone_shares_sorted
 from app.services.report.segment_ssr import build_segment_tone_rows
 from app.services.ssr.anchors import TONE_LABELS_SV
 
@@ -114,6 +115,90 @@ def test_build_segment_tone_rows_groups_by_livssituation():
     assert "Sambo, barn" in by_label
     assert "Ensamhushåll" in by_label
     assert by_label["Sambo, barn"].positive_share > by_label["Ensamhushåll"].positive_share
+    pos_sample = by_label["Sambo, barn"].sample_items[0]
+    assert pos_sample.tone_label in TONE_LABELS_SV
+    assert "positiv" in pos_sample.tone_label.casefold() or pos_sample.tone_label == "Neutral"
+    assert pos_sample.profile_line == "Centrum · lutning vänster"
+    crit = by_label["Ensamhushåll"].sample_items[0]
+    assert crit.profile_line == "Elektriker · 55 år · Hageby · lutning höger"
+
+
+def test_render_audience_quotes_grouped_by_tone_with_persona_summary():
+    bundle = _bundle_with_bio()
+    # Second Bo text so Ensamhushåll clears too_few and shows quote groups.
+    bundle.posts.append(
+        {
+            "post_id": 3,
+            "user_id": 2,
+            "content": "Skattepengar ska inte slösas på belysning.",
+            "num_likes": 1,
+        }
+    )
+    clf = BundleClassification(
+        topic_packs=[TopicPack(label="Belysning", keywords=["belysning"])],
+        topic_shares={"Belysning": 1.0},
+        tone_shares={lab: 0.2 for lab in TONE_LABELS_SV},
+        tone_mode="ssr",
+        tone_rated_texts=[
+            "Bra förslag om trygg belysning.",
+            "Vem ska betala? Finansieringen är oklar.",
+            "Skattepengar ska inte slösas på belysning.",
+        ],
+        tone_pmfs=[
+            _tone_pmf(0.7, neg=0.1),
+            _tone_pmf(0.1, neg=0.6),
+            _tone_pmf(0.05, neg=0.7),
+        ],
+        sample_user_ids=[1, 2, 2],
+    )
+    html = render_audience_section([bundle], [clf], locale="sv")
+    assert "Exempel från flödet" in html
+    assert "aud-tone-group" in html
+    assert "aud-tone-label" in html
+    assert "aud-quote-meta" in html
+    assert "Elektriker · 55 år · Hageby · lutning höger" in html
+    assert "Centrum · lutning vänster" in html
+    assert "Anna — " not in html
+    assert "Bo — " not in html
+    assert "Något negativ (" in html or "Starkt negativ (" in html
+    assert "Något positiv (" in html or "Starkt positiv (" in html
+    assert "%" in html
+
+
+def test_top_tone_labels_keeps_three_largest_by_share():
+    by_tone = {
+        lab: [SegmentSample(text=lab, user_id=1, tone_label=lab)]
+        for lab in TONE_LABELS_SV
+    }
+    shares = {
+        "Starkt negativ": 0.05,
+        "Något negativ": 0.25,
+        "Neutral": 0.35,
+        "Något positiv": 0.25,
+        "Starkt positiv": 0.10,
+    }
+    assert _top_tone_labels(by_tone, shares) == {
+        "Neutral",
+        "Något negativ",
+        "Något positiv",
+    }
+
+
+def test_tone_shares_sorted_by_percent_descending():
+    shares = {
+        "Starkt negativ": 0.05,
+        "Något negativ": 0.25,
+        "Neutral": 0.35,
+        "Något positiv": 0.25,
+        "Starkt positiv": 0.10,
+    }
+    assert [lab for lab, _ in tone_shares_sorted(shares)] == [
+        "Neutral",
+        "Något negativ",
+        "Något positiv",
+        "Starkt positiv",
+        "Starkt negativ",
+    ]
 
 
 def test_detect_themes_finds_financing():
@@ -243,11 +328,10 @@ def test_interviews_include_respondent_profile():
         if s.label == "Ensamhushåll"
     )
     assert ensam.interviews
-    assert "Elektriker" in ensam.interviews[0].profile_line
-    assert "ensamhushåll" not in ensam.interviews[0].profile_line.casefold()
+    assert ensam.interviews[0].profile_line == "Elektriker · 55 år · Hageby · lutning höger"
     html = render_audience_section([bundle], [clf], locale="sv")
-    assert "Elektriker" in html
-    assert "qa-profile" in html or "55 år" in html
+    assert "Elektriker · 55 år · Hageby · lutning höger" in html
+    assert "Dag 1 — Elektriker · 55 år · Hageby · lutning höger" in html
 
 
 def test_interviews_shown_on_segments_with_matching_personas():

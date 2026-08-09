@@ -227,7 +227,7 @@ export const sv = {
       kicker2: "Steg 2 · Tidslinje",
       heading2: "Bygg scenario och budskap",
       body2:
-        "Klicka på en dag för att konfigurera budskap i en dialog. Valfritt: dela tidslinjen i version A och B för A/B-test.",
+        "Starta A/B från början, eller klicka på en dag för att konfigurera budskap. Valfritt: förgrena efter en delad stam.",
       kicker3: "Steg 3 · Verktyg",
       heading3: "Agentverktyg",
       body3:
@@ -267,11 +267,17 @@ export const sv = {
     },
     timeline: {
       kicker: "Tick-tidslinje",
+      startAbFromBeginning: "Starta A/B från början",
+      startAbFromBeginningHint:
+        "Två versioner utan delad stam — jämför formuleringar från dag 1.",
+      splitFromStart: "A/B från start",
       splitAt: "Delningspunkt vid dag {day}",
       splitStimulus:
         "Med stimulus (A) vs kontroll utan injektion (B). Samma population ({name}) fram till denna punkt.",
       splitAb:
         "Version A och B delar population ({name}) fram till denna punkt.",
+      splitAbFromStart:
+        "Version A och B körs parallellt från start med population ({name}).",
       removeBranch: "Ta bort gren",
       stimulusA: "Med stimulus",
       controlB: "Kontroll (ingen injektion)",
