@@ -17,7 +17,7 @@ from app.services.population_generate import (
 def _minimal_recipe(size: int, *, seed: int = 42) -> PopulationRecipe:
     return PopulationRecipe(
         size=size,
-        locale="norrkoping",
+        locale="local",
         seed=seed,
         dist={
             "age": DistGroup(label="Ålder", rows=[DistRow(k="medel", l="Medel", v=100)]),

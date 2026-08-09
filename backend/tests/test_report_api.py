@@ -253,6 +253,11 @@ async def test_create_english_report_locale(client, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     run_id, attempt_id = await _seed_run_with_attempt(client)
 
+    configs = (await client.get("/configurations")).json()
+    en_cfg = next(c for c in configs if c["language"] == "en")
+    activated = await client.post(f"/configurations/{en_cfg['id']}/activate")
+    assert activated.status_code == 200
+
     done = asyncio.Event()
 
     def hook(job_id: str) -> None:
@@ -347,10 +352,68 @@ async def test_report_setup_failure_marks_report_failed(client, tmp_path, monkey
 
 
 @pytest.mark.asyncio
-async def test_english_report_uses_en_prompts_while_sv_active(
+async def test_english_report_fails_while_sv_active(client, tmp_path, monkeypatch):
+    """English reports require an active en configuration — no silent inactive fallback."""
+    from typing import Any
+
+    from app.llm import set_structured_completer
+    from app.services.ssr import set_embedder
+
+    async def mock_embed(texts: list[str]) -> list[list[float]]:
+        return [[float((hash(t) + i) % 7) for i in range(8)] for t in texts]
+
+    async def mock_llm(messages: list[dict[str, str]], response_model: type[Any]) -> Any:
+        raise AssertionError("LLM must not run when active language mismatches report locale")
+
+    configs = (await client.get("/configurations")).json()
+    active = [c for c in configs if c["is_active"]]
+    assert len(active) == 1
+    assert active[0]["language"] == "sv"
+
+    set_structured_completer(mock_llm)
+    set_embedder(mock_embed)
+    monkeypatch.chdir(tmp_path)
+    run_id, attempt_id = await _seed_run_with_attempt(client)
+
+    done = asyncio.Event()
+
+    def hook(job_id: str) -> None:
+        async def _go() -> None:
+            await jobs_service._run_job(job_id)
+            done.set()
+
+        asyncio.create_task(_go())
+
+    jobs_service.set_schedule_hook(hook)
+
+    try:
+        resp = await client.post(
+            "/reports",
+            json={
+                "sources": [{"run_id": run_id, "attempt_id": attempt_id}],
+                "title": "English prompts test",
+                "locale": "en",
+            },
+        )
+        assert resp.status_code == 202, resp.text
+        report_id = resp.json()["id"]
+        await asyncio.wait_for(done.wait(), timeout=30)
+
+        got = await client.get(f"/reports/{report_id}")
+        assert got.status_code == 200
+        data = got.json()
+        assert data["status"] == "failed"
+        assert "language" in (data.get("error") or "").lower() or "en" in (data.get("error") or "")
+    finally:
+        set_structured_completer(None)
+        set_embedder(None)
+
+
+@pytest.mark.asyncio
+async def test_english_report_uses_en_prompts_when_en_active(
     client, tmp_path, monkeypatch
 ):
-    """Report locale must select prompt language, not the globally active config."""
+    """With en active, English report locale uses that configuration's prompts."""
     from typing import Any
 
     from app.llm import set_structured_completer
@@ -388,9 +451,9 @@ async def test_english_report_uses_en_prompts_while_sv_active(
         raise AssertionError(f"Unexpected model {response_model}")
 
     configs = (await client.get("/configurations")).json()
-    active = [c for c in configs if c["is_active"]]
-    assert len(active) == 1
-    assert active[0]["language"] == "sv"
+    en_cfg = next(c for c in configs if c["language"] == "en")
+    activated = await client.post(f"/configurations/{en_cfg['id']}/activate")
+    assert activated.status_code == 200
 
     set_structured_completer(mock_llm)
     set_embedder(mock_embed)

@@ -25,7 +25,7 @@ class CatalogDefault(TypedDict):
     items: list[CatalogItemDict]
 
 
-# Approximate Norrköping footprints for relative geography + heatmap scaffolding.
+# Approximate district footprints for relative geography + heatmap scaffolding.
 _ORT_ITEMS: list[CatalogItemDict] = [
     {
         "label": "Distrikt A",
@@ -252,7 +252,7 @@ CATALOG_DEFAULTS: list[CatalogDefault] = [
             "Moderaterna",
             "Centerpartiet",
             "Lokalnyheterna",
-            "Norrköpings Tidningar",
+            "Lokaltidningen",
             "@partihandle",
         ),
     },

@@ -272,7 +272,7 @@ export function PopulationBuilderPage() {
     return {
       size: effectiveSize,
       dist,
-      locale: "norrkoping",
+      locale: "local",
     }
   }
 

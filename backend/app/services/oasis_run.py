@@ -559,12 +559,27 @@ async def run_oasis_simulation(
     from oasis import generate_reddit_agent_graph, generate_twitter_agent_graph
 
     from app.services import jobs as jobs_service
-    from app.services.prompt_store import require_prompts_for_language
+    from app.services.prompt_store import (
+        MissingActiveConfigurationError,
+        get_active_configuration,
+        require_active_prompts,
+    )
 
     factory = jobs_service.job_session_factory()
     async with factory() as prompt_session:
-        # OASIS simulates Swedish political messaging — always Swedish prompts.
-        prompts = await require_prompts_for_language(prompt_session, "sv")
+        # OASIS simulates Swedish political messaging — active config must be sv.
+        active = await get_active_configuration(prompt_session)
+        if active is None:
+            raise MissingActiveConfigurationError(
+                "No active prompt configuration. Activate one under Konfigurationer."
+            )
+        if active.language != "sv":
+            raise MissingActiveConfigurationError(
+                f"Active configuration '{active.name}' (id={active.id}) is language "
+                f"'{active.language}', but OASIS requires Swedish (sv). "
+                "Activate a sv configuration under Konfigurationer."
+            )
+        prompts = await require_active_prompts(prompt_session)
 
     apply_swedish_social_environment_prompts(prompts)
     apply_deepseek_reasoning_patch()

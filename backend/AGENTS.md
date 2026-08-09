@@ -38,7 +38,6 @@ backend/
 │   ├── api/             # Routers: personas, populations, runs, messages, configurations, catalog, jobs, reports, playground, health, ws
 │   ├── database/        # SQLAlchemy models, async session, base
 │   ├── llm/             # DeepSeek client, persona gen, interview chat
-│   ├── locality/        # Norrköping brief for grounded prompts
 │   ├── schemas/         # Pydantic request/response models
 │   ├── services/        # Population generate, OASIS körning spike, catalogs
 │   └── seed.py          # Load demo data into SQLite
