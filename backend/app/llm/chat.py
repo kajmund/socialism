@@ -136,6 +136,7 @@ async def reply_as_persona(
     area_block: str = "",
     simulation_context: str = "",
     system_prompt: str | None = None,
+    model: str | None = None,
 ) -> str:
     messages = _chat_messages(
         profile,
@@ -147,7 +148,7 @@ async def reply_as_persona(
         simulation_context=simulation_context,
         system_prompt=system_prompt,
     )
-    return await complete_text(messages)
+    return await complete_text(messages, model=model)
 
 
 async def stream_reply_as_persona(

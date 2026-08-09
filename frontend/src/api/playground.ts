@@ -150,3 +150,65 @@ export function getPlaygroundToolsCatalog(): Promise<ToolCatalogResponse> {
 export function runPlaygroundTool(body: ToolRunRequest): Promise<ToolRunResponse> {
   return api.post<ToolRunResponse>("/playground/tools/run", body)
 }
+
+export type PlaygroundImageSsrSlice = {
+  anchor_set_name: string
+  anchor_set_version: string
+  labels: string[]
+  shares: Record<string, number>
+  predicted_label: string
+  pmf: Record<string, number>
+}
+
+export type PlaygroundImageModelOption = {
+  id: string
+  label: string
+}
+
+export type PlaygroundVisionProvider = {
+  id: "openai" | "google" | "ollama"
+  label: string
+  available: boolean
+  unavailable_reason: string | null
+  models: PlaygroundImageModelOption[]
+}
+
+export type PlaygroundImageModelsResponse = {
+  defaults: {
+    vision_provider: PlaygroundVisionProvider["id"]
+    vision_model: string
+    reaction_model: string
+  }
+  vision_providers: PlaygroundVisionProvider[]
+  reaction_models: PlaygroundImageModelOption[]
+}
+
+export type PlaygroundImageReactResponse = {
+  persona_id: string
+  persona_name: string
+  image_description: string
+  reaction: string
+  lexicon_label: string
+  locale: PlaygroundLocale
+  temperature: number
+  vision_provider: string
+  vision_model: string
+  reaction_model: string
+  ssr: {
+    tone: PlaygroundImageSsrSlice
+    style: PlaygroundImageSsrSlice
+  }
+  elapsed_ms: number
+}
+
+export function getPlaygroundImageModels(): Promise<PlaygroundImageModelsResponse> {
+  return api.get<PlaygroundImageModelsResponse>("/playground/image/models")
+}
+
+export function reactPlaygroundImage(
+  form: FormData,
+): Promise<PlaygroundImageReactResponse> {
+  return api.postForm<PlaygroundImageReactResponse>("/playground/image/react", form, {
+    timeoutMs: 120_000,
+  })
+}

@@ -79,7 +79,7 @@ CRUD for personas, populations (members + recipe/fingerprint), runs (timeline JS
 
 **Reports:** `POST /reports` with `{ sources: [{ run_id, attempt_id }], title?, locale?, mode? }` queues `report_generate` (202). `locale` is `"sv"` (default) or `"en"`. `mode` is `"full"` (default) or `"quick"`. Tone/style always via SSR (OpenAI embeddings of reaction texts vs anchors — no DeepSeek). Full: also LLM topic packs + narrative. Quick: injection-keyword topics + SSR + threshold templates (no DeepSeek). Requires `DEEPSEEK_API_KEY` and `OPENAI_API_KEY` at startup. Artifacts under `data/reports/{id}/` (`report.html`, `report.slots.json`, `report.ssr.json`). Fetch via `GET /reports/{id}/html`. OASIS simulation prompts stay Swedish regardless of report locale. Anchor embeddings are write-through cached (memory + `data/embedding_cache/`) by `(embedding_model, statement)` in `app/services/ssr/embeddings.py`; reaction texts are not cached. Admin: `GET/DELETE /embeddings/cache`.
 
-**Playground:** `GET /playground/anchors`, `POST /playground/ssr/rate`, `POST /playground/ssr/compare`, `POST /playground/prompts/run` — ephemeral calibration against hardcoded default anchors / configuration prompts. No draft/publish or production snapshot in this slice.
+**Playground:** `GET /playground/anchors`, `POST /playground/ssr/rate`, `POST /playground/ssr/compare`, `POST /playground/prompts/run`, `GET /playground/image/models`, `POST /playground/image/react` (multipart: persona + image + optional vision/reaction model picks → vision description, in-character reaction, SSR tone/style) — ephemeral calibration; no persistence. Vision providers: OpenAI (default), optional Google (`GOOGLE_API_KEY`) and Ollama Cloud (`OLLAMA_API_KEY`).
 
 ## Tests
 
