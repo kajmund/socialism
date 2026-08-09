@@ -159,7 +159,7 @@ def persona_profile_line(
     locale: str = "sv",
     exclude_dimension: str | None = None,
 ) -> str:
-    """Readable bio summary for interview attribution (excludes the segment card dimension)."""
+    """Attribution line: yrke · age · ort · lutning (optional exclude for segment cards)."""
     parts: list[str] = []
 
     def include(key: str) -> bool:
@@ -179,14 +179,6 @@ def persona_profile_line(
         age = parse_bio_age(bio)
         if age is not None:
             parts.append(f"{age} år" if locale == "sv" else f"{age} years")
-    if include("kön"):
-        kon = segment_value(bio, "kön")
-        if kon:
-            parts.append(kon.casefold() if locale == "sv" else kon.lower())
-    if include("livssituation"):
-        liv = segment_value(bio, "livssituation")
-        if liv:
-            parts.append(liv)
     if include("ort"):
         ort = segment_value(bio, "ort")
         if ort:

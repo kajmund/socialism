@@ -201,9 +201,8 @@ def interview_respondent_label(snippet: SegmentInterviewSnippet, *, locale: Repo
         day_l = f"Day {snippet.day}"
     else:
         day_l = f"Dag {snippet.day}"
-    if snippet.profile_line:
-        return f"{day_l} — {snippet.agent_name} ({snippet.profile_line})"
-    return f"{day_l} — {snippet.agent_name}"
+    who = snippet.profile_line or snippet.agent_name
+    return f"{day_l} — {who}"
 
 
 def interview_quote_label(snippet: SegmentInterviewSnippet, *, locale: ReportLocale) -> str:

@@ -229,7 +229,7 @@ export const en: LocalizedTree<SvMessages> = {
       kicker2: "Step 2 · Timeline",
       heading2: "Build scenario and messages",
       body2:
-        "Click a day to configure messages in a dialog. Optional: split the timeline into versions A and B for A/B testing.",
+        "Start A/B from the beginning, or click a day to configure messages. Optional: branch after a shared stem.",
       kicker3: "Step 3 · Tools",
       heading3: "Agent tools",
       body3:
@@ -269,11 +269,17 @@ export const en: LocalizedTree<SvMessages> = {
     },
     timeline: {
       kicker: "Tick timeline",
+      startAbFromBeginning: "Start A/B from the beginning",
+      startAbFromBeginningHint:
+        "Two versions with no shared stem — compare formulations from day 1.",
+      splitFromStart: "A/B from the start",
       splitAt: "Split point at day {day}",
       splitStimulus:
         "With stimulus (A) vs control without injection (B). Same population ({name}) up to this point.",
       splitAb:
         "Versions A and B share population ({name}) up to this point.",
+      splitAbFromStart:
+        "Versions A and B run in parallel from the start with population ({name}).",
       removeBranch: "Remove branch",
       stimulusA: "With stimulus",
       controlB: "Control (no injection)",

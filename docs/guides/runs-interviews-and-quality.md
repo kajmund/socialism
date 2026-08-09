@@ -108,7 +108,7 @@ Resend rules:
 | Mode | Variant ids | Labels | Tick composition |
 | ---- | ----------- | ------ | ---------------- |
 | *(no branch)* | `main` | Huvudtidslinje | `main_ticks` |
-| `ab` | `a`, `b` | Version A / Version B | stem `main[:afterIndex+1]` + branch ticks |
+| `ab` | `a`, `b` | Version A / Version B | stem `main[:afterIndex+1]` + branch ticks (`afterIndex: -1` = no stem, A/B from day 1) |
 | `stimulus_control` | `a`, `b` | Med stimulus / Kontroll (ingen injektion) | same stem+branch split; **labels only** change on the backend |
 
 Important: the backend does **not** strip injections from control ticks. The admin UI builds control via `makeStimulusControlBranch` — B ticks are silent copies (`silent: true`, `injections: []`). API clients must do the same if they want a real control arm.
