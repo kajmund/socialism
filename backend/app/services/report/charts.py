@@ -13,6 +13,7 @@ from app.services.report.locale import (
 )
 from app.services.report.metrics import ReportMetrics, confidence_badge, fmt_num, pct
 from app.services.report.recommendation import QuickRecommendation
+from app.services.report.audience_takeaway import build_audience_takeaways
 from app.services.report.segment_analysis import (
     AudienceSegmentSummary,
     build_audience_summaries,
@@ -760,6 +761,31 @@ def render_recommendation_block(
     return f'<div class="recommendation-block">{"".join(parts)}</div>'
 
 
+def render_audience_takeaway_section(
+    bundles: list[RunBundle],
+    classifications: list[BundleClassification],
+    *,
+    locale: ReportLocale = "sv",
+) -> str:
+    if not bundles or not classifications:
+        return ""
+    lines = build_audience_takeaways(bundles, classifications, locale=locale)
+    if not lines:
+        empty = (
+            "Not enough segment data for a summary — add bio fields and reactions."
+            if locale == "en"
+            else "För lite segmentdata för en sammanfattning — personas behöver bio-fält och reaktioner."
+        )
+        return f'<p class="muted">{empty}</p>'
+    intro = (
+        "Rule-based summary from tone in posts and comments per segment (no narrative AI)."
+        if locale == "en"
+        else "Regelbaserad sammanfattning utifrån ton i inlägg och kommentarer per segment (ingen narrativ AI)."
+    )
+    body = "".join(f"<p>{escape(line)}</p>" for line in lines)
+    return f'<p class="chart-sub">{intro}</p><div class="audience-takeaway">{body}</div>'
+
+
 def render_audience_section(
     bundles: list[RunBundle],
     classifications: list[BundleClassification],
@@ -858,12 +884,18 @@ def prefill_quick_chart_slots(
         else ""
     )
     rec_html = render_recommendation_block(recommendation, locale=locale) if recommendation else ""
+    takeaway_html = (
+        render_audience_takeaway_section(bundles, clfs, locale=locale)
+        if clfs and len(clfs) == len(bundles)
+        else ""
+    )
     return {
         "stats_html": render_quick_stats_table(metrics, locale=locale),
         "charts_html": render_quick_charts(metrics, locale=locale, ab=ab),
         "tick_html": render_tick_timeline(bundles, locale=locale),
         "qa_html": render_interview_qa_section(bundles, locale=locale),
         "audience_html": aud_html,
+        "takeaway_html": takeaway_html,
         "recommendation_html": rec_html,
     }
 

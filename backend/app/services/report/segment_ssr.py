@@ -10,6 +10,7 @@ from app.services.report.locale import ReportLocale, tone_labels
 from app.services.report.persona_bio import (
     PRIMARY_SEGMENT_KEYS,
     build_agent_bio_by_index,
+    segment_key_value,
     segment_value,
 )
 
@@ -26,6 +27,7 @@ class SegmentToneRow:
     critical_share: float
     engagement_score: int
     too_few: bool
+    agent_ids: frozenset[int] = frozenset()
 
 
 def _positive_share(tone: dict[str, float], *, locale: ReportLocale) -> float:
@@ -72,11 +74,17 @@ def segment_dimension_label(key: str, *, locale: ReportLocale) -> str:
             "livssituation": "Life situation",
             "ort": "District",
             "lutning": "Political leaning",
+            "yrke": "Occupation",
+            "kön": "Gender",
+            "age_band": "Age",
         }.get(key, key)
     return {
         "livssituation": "Livssituation",
         "ort": "Ort",
         "lutning": "Politisk lutning",
+        "yrke": "Yrke",
+        "kön": "Kön",
+        "age_band": "Ålder",
     }.get(key, key)
 
 
@@ -85,6 +93,7 @@ def build_segment_tone_rows(
     classification: BundleClassification,
     *,
     locale: ReportLocale = "sv",
+    segment_keys: tuple[str, ...] = PRIMARY_SEGMENT_KEYS,
 ) -> list[SegmentToneRow]:
     labels = list(tone_labels(locale))
     agent_bio = build_agent_bio_by_index(bundle)
@@ -102,8 +111,8 @@ def build_segment_tone_rows(
         bio = agent_bio.get(uid)
         if not bio:
             continue
-        for dim in PRIMARY_SEGMENT_KEYS:
-            val = segment_value(bio, dim)
+        for dim in segment_keys:
+            val = segment_key_value(bio, dim, locale=locale)
             if not val:
                 continue
             key = (dim, val)
@@ -111,8 +120,8 @@ def build_segment_tone_rows(
             by_dim_val_agents.setdefault(key, set()).add(uid)
 
     for uid, bio in agent_bio.items():
-        for dim in PRIMARY_SEGMENT_KEYS:
-            val = segment_value(bio, dim)
+        for dim in segment_keys:
+            val = segment_key_value(bio, dim, locale=locale)
             if not val:
                 continue
             key = (dim, val)
@@ -134,6 +143,7 @@ def build_segment_tone_rows(
                 critical_share=_critical_share(tone, locale=locale),
                 engagement_score=by_dim_val_engagement.get((dim, val), 0),
                 too_few=count < MIN_SEGMENT_TEXTS,
+                agent_ids=frozenset(by_dim_val_agents.get((dim, val), set())),
             )
         )
     return rows

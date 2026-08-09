@@ -429,6 +429,7 @@ def build_quick_slots(
         "tick_html": chart_slots["tick_html"],
         "qa_html": chart_slots["qa_html"],
         "audience_html": chart_slots.get("audience_html", ""),
+        "takeaway_html": chart_slots.get("takeaway_html", ""),
         "recommendation_html": chart_slots.get("recommendation_html", ""),
         "style_html": style_html,
         "tech_html": tech_html,
@@ -444,6 +445,7 @@ def render_quick_html(slots: dict[str, str], *, locale: ReportLocale) -> str:
         h_ticks = "Day by day"
         h_qa = "Questions & answers"
         h_audience = "Target groups"
+        h_takeaway = "Audience summary"
         h_drift = "Topic drift"
         h_ab = "A/B comparison"
         h_style = "Style impact"
@@ -453,6 +455,7 @@ def render_quick_html(slots: dict[str, str], *, locale: ReportLocale) -> str:
         h_ticks = "Dag för dag"
         h_qa = "Frågor och svar"
         h_audience = "Målgruppsanalys"
+        h_takeaway = "Sammanfattning målgrupper"
         h_drift = "Ämnesdrift"
         h_ab = "A/B-jämförelse"
         h_style = "Stilgenomslag"
@@ -555,6 +558,8 @@ td,th{{border-bottom:1px solid #E5DDD0;padding:.35rem .5rem;text-align:left;font
 .aud-iv-meta{{font-size:.75rem;font-weight:700;color:#3A342C;margin-bottom:2px;}}
 .aud-iv-a{{font-size:.78rem;color:#3A342C;line-height:1.35;}}
 .aud-iv-agent{{font-weight:700;font-style:normal;}}
+.audience-takeaway p{{font-size:.88rem;line-height:1.45;margin:0 0 .65rem;color:#3A342C;}}
+.audience-takeaway p:last-child{{margin-bottom:0;}}
 .muted{{color:#6B6253;font-size:.9rem;}}
 </style>
 </head>
@@ -582,6 +587,10 @@ td,th{{border-bottom:1px solid #E5DDD0;padding:.35rem .5rem;text-align:left;font
   <section>
     <h3>{h_qa}</h3>
     {slots.get("qa_html", "")}
+  </section>
+  <section>
+    <h3>{h_takeaway}</h3>
+    {slots.get("takeaway_html", "")}
   </section>
   <section>
     <h3>{h_audience}</h3>
