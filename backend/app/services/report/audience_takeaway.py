@@ -26,14 +26,17 @@ def _usable(rows: list[SegmentToneRow]) -> list[SegmentToneRow]:
     return [r for r in rows if not r.too_few]
 
 
-def _short_bundle_name(bundle: RunBundle) -> str:
-    if bundle.variant_id:
-        return bundle.variant_id.upper()
+def short_bundle_arm_label(bundle: RunBundle) -> str:
     label = bundle.label.strip()
     if "—" in label:
         tail = label.rsplit("—", 1)[-1].strip()
         if tail:
             return tail
+    if bundle.variant_id:
+        vid = bundle.variant_id.strip()
+        if len(vid) == 1:
+            return f"Version {vid.upper()}"
+        return vid
     return label or "Budskapet"
 
 
@@ -189,7 +192,7 @@ def build_bundle_takeaway(
     if not worst and not best:
         return None
 
-    name = _short_bundle_name(bundle)
+    name = short_bundle_arm_label(bundle)
     parts: list[str] = []
 
     if locale == "en":
@@ -250,7 +253,7 @@ def build_audience_takeaways(
         gender_line = _gender_sentence(gender_rows, locale=locale)
         if gender_line:
             if len(bundles) > 1:
-                paragraphs.append(f"{_short_bundle_name(bundle)}: {gender_line}")
+                paragraphs.append(f"{short_bundle_arm_label(bundle)}: {gender_line}")
             else:
                 paragraphs.append(gender_line)
 
