@@ -5,11 +5,11 @@ from __future__ import annotations
 import asyncio
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import Configuration
+from app.database.models import Configuration, Persona
 from app.database.session import get_session
 from app.llm import complete_text
 from app.services.anchor_store import ensure_default_anchor_sets, row_to_anchor_set
@@ -19,6 +19,8 @@ from app.services.playground import (
     rate_case,
 )
 from app.services.playground_tools import list_tool_catalog, run_agent_tool
+from app.services.playground_image import react_to_image
+from app.services.playground_image_models import image_model_catalog
 from app.services.ssr import ANCHOR_SET_VERSION, style_anchors, tone_anchors
 
 router = APIRouter(prefix="/playground", tags=["playground"])
@@ -332,3 +334,57 @@ async def post_tools_run(body: ToolRunRequest) -> ToolRunOut:
         error=out["error"],
         elapsed_ms=float(out["elapsed_ms"]),
     )
+
+
+class ImageReactOut(BaseModel):
+    persona_id: str
+    persona_name: str
+    image_description: str
+    reaction: str
+    lexicon_label: str
+    locale: Locale
+    temperature: float
+    vision_provider: str
+    vision_model: str
+    reaction_model: str
+    ssr: dict[str, Any]
+    elapsed_ms: float
+
+
+@router.get("/image/models")
+async def get_image_models() -> dict[str, Any]:
+    return image_model_catalog()
+
+
+@router.post("/image/react", response_model=ImageReactOut)
+async def post_image_react(
+    persona_id: str = Form(...),
+    locale: Locale = Form(default="sv"),
+    temperature: float = Form(default=0.1),
+    vision_provider: str | None = Form(default=None),
+    vision_model: str | None = Form(default=None),
+    reaction_model: str | None = Form(default=None),
+    image: UploadFile = File(...),
+    session: AsyncSession = Depends(get_session),
+) -> ImageReactOut:
+    if temperature <= 0:
+        raise HTTPException(status_code=400, detail="temperature must be greater than 0")
+    persona = await session.get(Persona, persona_id)
+    if persona is None:
+        raise HTTPException(status_code=404, detail="Persona not found")
+    image_bytes = await image.read()
+    try:
+        result = await react_to_image(
+            session,
+            persona=persona,
+            image_bytes=image_bytes,
+            content_type=image.content_type or "",
+            locale=locale,
+            temperature=temperature,
+            vision_provider=vision_provider,
+            vision_model=vision_model,
+            reaction_model=reaction_model,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return ImageReactOut(**result)
