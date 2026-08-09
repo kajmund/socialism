@@ -36,11 +36,20 @@ class BundleMetrics:
     zero_like_agents: int
     mid_agents: int
     top_agents: int
+    post_likes: int
+    comment_likes: int
+    likes_total: int
+    shares: int
+    dislikes: int
+    follow_edges: int
+    engagement_score: int
+    injection_likes: int
     topic_shares: dict[str, float]
     tone_shares: dict[str, float]
     style_avg_likes: list[tuple[str, float]]
     top_actors: list[dict[str, Any]]
     topic_by_tick: list[dict[str, Any]] = field(default_factory=list)
+    action_histogram: list[dict[str, str | int]] = field(default_factory=list)
 
 
 @dataclass
@@ -106,6 +115,48 @@ def _gini(values: list[float]) -> float:
 
 def _empty_style_avg() -> list[tuple[str, float]]:
     return [(lab, 0.0) for lab in [*STYLE_LABELS, STYLE_UNCLASSIFIED]]
+
+
+def injection_likes(bundle: RunBundle) -> int:
+    """Likes on posts whose content overlaps an injection text (best-effort)."""
+    if not bundle.injection_texts:
+        return sum(
+            int(p.get("num_likes") or p.get("likes") or 0)
+            for p in bundle.posts
+            if p.get("role") == "injector" or p.get("is_injection")
+        )
+    total = 0
+    needles = [t[:80].lower() for t in bundle.injection_texts if t.strip()]
+    for p in bundle.posts:
+        content = str(p.get("content") or p.get("text") or "").lower()
+        likes = _likes(p)
+        if any(n and n in content for n in needles):
+            total += likes
+            continue
+        uid = p.get("user_id")
+        for a in bundle.agents:
+            if a.get("index") == uid and a.get("role") == "injector":
+                total += likes
+                break
+    return total
+
+
+def _post_comment_engagement(bundle: RunBundle) -> dict[str, int]:
+    post_likes = sum(_likes(p) for p in bundle.posts)
+    comment_likes = sum(_likes(c) for c in bundle.comments)
+    shares = sum(int(p.get("num_shares") or 0) for p in bundle.posts)
+    dislikes = sum(int(p.get("num_dislikes") or 0) for p in bundle.posts)
+    dislikes += sum(int(c.get("num_dislikes") or 0) for c in bundle.comments)
+    likes_total = post_likes + comment_likes
+    score = likes_total + 2 * len(bundle.comments) + 3 * shares
+    return {
+        "post_likes": post_likes,
+        "comment_likes": comment_likes,
+        "likes_total": likes_total,
+        "shares": shares,
+        "dislikes": dislikes,
+        "engagement_score": score,
+    }
 
 
 def _top_actors(bundle: RunBundle, *, limit: int = 4) -> list[dict[str, Any]]:
@@ -183,6 +234,12 @@ def compute_bundle_metrics(
     pop_ids = population_agent_ids(bundle)
     n_agents = len(pop_ids) or (top + mid + zero)
     style = clf.style_avg_likes or _empty_style_avg()
+    eng = _post_comment_engagement(bundle)
+    hist = [
+        {"action": str(h.get("action") or ""), "count": int(h.get("count") or 0)}
+        for h in bundle.action_histogram
+        if h.get("action")
+    ]
     return BundleMetrics(
         label=bundle.label,
         agent_count=n_agents,
@@ -193,10 +250,19 @@ def compute_bundle_metrics(
         zero_like_agents=zero,
         mid_agents=mid,
         top_agents=top,
+        post_likes=eng["post_likes"],
+        comment_likes=eng["comment_likes"],
+        likes_total=eng["likes_total"],
+        shares=eng["shares"],
+        dislikes=eng["dislikes"],
+        follow_edges=len(bundle.follows),
+        engagement_score=eng["engagement_score"],
+        injection_likes=injection_likes(bundle),
         topic_shares=dict(clf.topic_shares),
         tone_shares=dict(clf.tone_shares),
         style_avg_likes=list(style),
         top_actors=_top_actors(bundle),
+        action_histogram=hist,
     )
 
 
@@ -240,10 +306,19 @@ def compute_report_metrics(
             zero_like_agents=round(sum(m.zero_like_agents for m in per) / n),
             mid_agents=round(sum(m.mid_agents for m in per) / n),
             top_agents=round(sum(m.top_agents for m in per) / n),
+            post_likes=sum(m.post_likes for m in per),
+            comment_likes=sum(m.comment_likes for m in per),
+            likes_total=sum(m.likes_total for m in per),
+            shares=sum(m.shares for m in per),
+            dislikes=sum(m.dislikes for m in per),
+            follow_edges=sum(m.follow_edges for m in per),
+            engagement_score=sum(m.engagement_score for m in per),
+            injection_likes=sum(m.injection_likes for m in per),
             topic_shares={k: topic[k] / n for k in topic},
             tone_shares={k: tone[k] / n for k in tone},
             style_avg_likes=style_avg,
             top_actors=per[0].top_actors,
+            action_histogram=per[0].action_histogram,
         )
 
     cross = [
@@ -254,6 +329,14 @@ def compute_report_metrics(
             "agents": m.agent_count,
             "posts": m.post_count,
             "comments": m.comment_count,
+            "likes_total": m.likes_total,
+            "post_likes": m.post_likes,
+            "comment_likes": m.comment_likes,
+            "shares": m.shares,
+            "dislikes": m.dislikes,
+            "follow_edges": m.follow_edges,
+            "engagement_score": m.engagement_score,
+            "injection_likes": m.injection_likes,
             "top_topic": max(m.topic_shares, key=m.topic_shares.get) if m.topic_shares else "—",
         }
         for m in per

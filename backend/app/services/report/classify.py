@@ -111,6 +111,7 @@ class BundleClassification:
     embed_seconds: float = 0.0
     sample_texts: list[str] = field(default_factory=list)
     sample_likes: list[int] = field(default_factory=list)
+    sample_user_ids: list[int] = field(default_factory=list)
     # Texts that were embedded for SSR (reaction snippets, not LLM judgments).
     tone_rated_texts: list[str] = field(default_factory=list)
     style_rated_texts: list[str] = field(default_factory=list)
@@ -142,22 +143,33 @@ def _item_likes(item: dict) -> int:
     return 0
 
 
-def _texts_for_classify(
+def _samples_for_classify(
     bundle: RunBundle, *, limit: int = _MAX_CLASSIFY_TEXTS
-) -> tuple[list[str], list[int]]:
+) -> tuple[list[str], list[int], list[int]]:
     """Prefer higher-engagement posts/comments; cap count for cost/latency."""
-    scored: list[tuple[int, str]] = []
+    scored: list[tuple[int, str, int]] = []
     for p in bundle.posts:
         c = p.get("content") or p.get("text") or ""
         if c:
-            scored.append((_item_likes(p), str(c)))
+            scored.append((_item_likes(p), str(c), int(p.get("user_id") or -1)))
     for c in bundle.comments:
         t = c.get("content") or c.get("text") or ""
         if t:
-            scored.append((_item_likes(c), str(t)))
+            scored.append((_item_likes(c), str(t), int(c.get("user_id") or -1)))
     scored.sort(key=lambda x: x[0], reverse=True)
     top = scored[:limit]
-    return [text for _, text in top], [likes for likes, _ in top]
+    return (
+        [text for _, text, _ in top],
+        [likes for likes, _, _ in top],
+        [uid for _, _, uid in top],
+    )
+
+
+def _texts_for_classify(
+    bundle: RunBundle, *, limit: int = _MAX_CLASSIFY_TEXTS
+) -> tuple[list[str], list[int]]:
+    texts, likes, _uids = _samples_for_classify(bundle, limit=limit)
+    return texts, likes
 
 
 def _share_counts(labels: list[str], allowed: list[str]) -> dict[str, float]:
@@ -409,7 +421,7 @@ async def classify_bundle(
     tone_anchor_set: AnchorSet | None = None,
     style_anchor_set: AnchorSet | None = None,
 ) -> BundleClassification:
-    texts, likes = _texts_for_classify(bundle)
+    texts, likes, user_ids = _samples_for_classify(bundle)
     t_llm = 0.0
     t_embed = 0.0
 
@@ -456,6 +468,7 @@ async def classify_bundle(
         embed_seconds=t_embed,
         sample_texts=texts,
         sample_likes=likes,
+        sample_user_ids=user_ids,
         tone_rated_texts=tone_rated,
         style_rated_texts=style_rated,
     )
