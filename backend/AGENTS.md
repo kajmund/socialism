@@ -80,6 +80,8 @@ CRUD for personas, populations (members + recipe/fingerprint), runs (timeline JS
 
 **Playground:** `GET /playground/anchors`, `POST /playground/ssr/rate`, `POST /playground/ssr/compare`, `POST /playground/prompts/run`, `GET /playground/image/models`, `POST /playground/image/react` (multipart: persona + image + optional vision/reaction model picks → vision description, in-character reaction, SSR tone/style) — ephemeral calibration; no persistence. Vision providers: OpenAI (default), optional Google (`GOOGLE_API_KEY`) and Ollama Cloud (`OLLAMA_API_KEY`).
 
+**Message images:** `POST /messages/images/upload` (SHA256 cache + vision caption), `GET/PATCH/DELETE /messages/images/cache[/{sha256}]`, `GET …/file` — disk under `data/image_cache/`. Messages may reference `metadata.image_sha256` with optional body (image-only posts). Run start composes frozen injection text from body + cached caption.
+
 ## Tests
 
 - **Prefer unit over integration.** Mock at the service boundary.
