@@ -38,16 +38,7 @@ def validate_image(*, content_type: str | None, size_bytes: int) -> str:
     return mime
 
 
-def _describe_prompt(locale: Locale) -> str:
-    if locale == "en":
-        return (
-            "Describe this image briefly and neutrally in English (max 3 sentences). "
-            "Focus on message, visible text, people, and symbols relevant to political communication."
-        )
-    return (
-        "Beskriv bilden kort och neutralt på svenska (max 3 meningar). "
-        "Fokusera på budskap, synlig text, personer och symboler relevanta för politisk kommunikation."
-    )
+from app.services.image_caption import rich_caption_prompt
 
 
 def _reaction_user_message(description: str, *, locale: Locale) -> str:
@@ -99,7 +90,7 @@ async def react_to_image(
     description = await complete_vision_text(
         image_bytes=image_bytes,
         content_type=mime,
-        prompt=_describe_prompt(locale),
+        prompt=rich_caption_prompt(locale),
         provider=provider,
         model=vision_model_id,
     )

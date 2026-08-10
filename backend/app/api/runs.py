@@ -70,8 +70,11 @@ def _oasis_options_payload(options) -> dict:
     return OasisRunOptions.model_validate(options).model_dump()
 
 
+from app.api.message_images import resolve_message_feed_body
+
+
 async def _snapshot_message_bodies(session: AsyncSession, run: Run) -> None:
-    """Freeze library Message.body into Injection.text before a run starts."""
+    """Freeze library Message body + image caption into Injection.text before start."""
 
     def collect_ids(ticks: list[Any]) -> set[str]:
         ids: set[str] = set()
@@ -110,7 +113,14 @@ async def _snapshot_message_bodies(session: AsyncSession, run: Run) -> None:
                     continue
                 mid = inj.get("message_id")
                 if mid and mid in by_id:
-                    inj["text"] = by_id[mid].body
+                    msg = by_id[mid]
+                    try:
+                        inj["text"] = resolve_message_feed_body(
+                            body=str(msg.body or ""),
+                            metadata=dict(msg.metadata_ or {}),
+                        )
+                    except ValueError as exc:
+                        raise HTTPException(status_code=400, detail=str(exc)) from exc
         return out
 
     run.main_ticks = apply(run.main_ticks or [])

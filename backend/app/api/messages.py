@@ -27,19 +27,32 @@ from app.schemas.domain import (
     new_message_id,
 )
 from app.serializers import utcnow
+from app.api.message_images import router as message_images_router
+from app.api.message_images import message_image_sha256
+from app.services.image_cache import get_entry
 from app.services.prompt_store import require_active_prompts
 
 router = APIRouter(prefix="/messages", tags=["messages"])
+router.include_router(message_images_router)
 
 
 def _serialize(row: Message) -> MessageOut:
+    meta = dict(row.metadata_ or {})
+    digest = message_image_sha256(meta)
+    caption: str | None = None
+    if digest:
+        entry = get_entry(digest)
+        if entry is not None:
+            caption = str(entry.get("caption") or "") or None
     return MessageOut(
         id=row.id,
         type=row.type,  # type: ignore[arg-type]
         title=row.title,
         body=row.body,
         source_url=row.source_url,
-        metadata=dict(row.metadata_ or {}),
+        metadata=meta,
+        image_sha256=digest,
+        image_caption=caption,
         created_at=format_date(row.created_at) if row.created_at else "",
     )
 
@@ -114,13 +127,20 @@ async def create_message(
     message_id = body.id or new_message_id()
     if await session.get(Message, message_id) is not None:
         raise HTTPException(status_code=409, detail="Message id already exists")
+    metadata = dict(body.metadata or {})
+    digest = message_image_sha256(metadata)
+    if digest and get_entry(digest) is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Image cache entry {digest!r} not found — upload the image first",
+        )
     row = Message(
         id=message_id,
         type=body.type,
         title=body.title,
         body=body.body,
         source_url=(normalize_url(body.source_url) if body.source_url else None),
-        metadata_=dict(body.metadata or {}),
+        metadata_=metadata,
         created_at=utcnow(),
     )
     session.add(row)
@@ -146,7 +166,21 @@ async def update_message(
     if "source_url" in data:
         row.source_url = normalize_url(data["source_url"]) if data["source_url"] else None
     if "metadata" in data and data["metadata"] is not None:
-        row.metadata_ = dict(data["metadata"])
+        merged = dict(row.metadata_ or {})
+        merged.update(dict(data["metadata"]))
+        digest = message_image_sha256(merged)
+        if digest and get_entry(digest) is None:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Image cache entry {digest!r} not found — upload the image first",
+            )
+        row.metadata_ = merged
+    meta = dict(row.metadata_ or {})
+    if not str(row.body or "").strip() and not message_image_sha256(meta):
+        raise HTTPException(
+            status_code=422,
+            detail="body or metadata.image_sha256 is required",
+        )
     await session.commit()
     await session.refresh(row)
     return _serialize(row)

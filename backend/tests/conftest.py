@@ -18,16 +18,20 @@ from app.llm.vision import set_vision_completer
 from app.main import create_app
 from app.services import jobs as jobs_service
 from app.services.population_generate import clear_generations
+from app.services.image_cache import clear_image_cache
 from app.services.ssr import clear_embedding_cache, set_embedder
 
 # Isolate disk cache from developer machine data/.
 _EMBED_CACHE_ROOT = tempfile.mkdtemp(prefix="ssr-embed-cache-")
 settings.embedding_cache_dir = _EMBED_CACHE_ROOT
+_IMAGE_CACHE_ROOT = tempfile.mkdtemp(prefix="image-cache-")
+settings.image_cache_dir = _IMAGE_CACHE_ROOT
 
 
 @pytest.fixture(autouse=True)
 def _reset_llm_completers():
     clear_embedding_cache()
+    clear_image_cache()
     yield
     set_structured_completer(None)
     set_text_completer(None)
@@ -35,6 +39,7 @@ def _reset_llm_completers():
     set_vision_completer(None)
     set_embedder(None)
     clear_embedding_cache()
+    clear_image_cache()
 
 
 @pytest.fixture

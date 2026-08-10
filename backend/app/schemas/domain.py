@@ -305,7 +305,24 @@ class MessageOut(BaseModel):
     body: str
     source_url: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
+    image_sha256: str | None = None
+    image_caption: str | None = None
     created_at: str
+
+
+def _message_image_sha256(metadata: dict[str, Any] | None) -> str | None:
+    if not metadata:
+        return None
+    raw = metadata.get("image_sha256")
+    if isinstance(raw, str) and raw.strip():
+        return raw.strip().lower()
+    return None
+
+
+def _strip_optional_text(value: object) -> object:
+    if not isinstance(value, str):
+        return value
+    return value.strip()
 
 
 def _strip_required_text(value: object) -> object:
@@ -321,28 +338,48 @@ class MessageCreate(BaseModel):
     id: str | None = None
     type: MessageType
     title: str = Field(min_length=1, max_length=255)
-    body: str = Field(min_length=1)
+    body: str = ""
     source_url: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
-    @field_validator("title", "body", mode="before")
+    @field_validator("title", mode="before")
     @classmethod
-    def strip_title_body(cls, value: object) -> object:
+    def strip_title(cls, value: object) -> object:
         return _strip_required_text(value)
+
+    @field_validator("body", mode="before")
+    @classmethod
+    def strip_body(cls, value: object) -> object:
+        return _strip_optional_text(value)
+
+    @model_validator(mode="after")
+    def require_content(self) -> "MessageCreate":
+        body_ok = bool(self.body.strip())
+        digest = _message_image_sha256(self.metadata)
+        if not body_ok and not digest:
+            raise ValueError("body or metadata.image_sha256 is required")
+        return self
 
 class MessageUpdate(BaseModel):
     type: MessageType | None = None
     title: str | None = Field(default=None, min_length=1, max_length=255)
-    body: str | None = Field(default=None, min_length=1)
+    body: str | None = None
     source_url: str | None = None
     metadata: dict[str, Any] | None = None
 
-    @field_validator("title", "body", mode="before")
+    @field_validator("title", mode="before")
     @classmethod
-    def strip_title_body(cls, value: object) -> object:
+    def strip_title(cls, value: object) -> object:
         if value is None:
             return None
         return _strip_required_text(value)
+
+    @field_validator("body", mode="before")
+    @classmethod
+    def strip_body(cls, value: object) -> object:
+        if value is None:
+            return None
+        return _strip_optional_text(value)
 
 
 class SummarizeUrlRequest(BaseModel):
