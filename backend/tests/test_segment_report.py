@@ -240,8 +240,8 @@ def test_build_recommendation_produces_score_and_action():
     audience = build_audience_summaries(bundle, clf, locale="sv")
     rec = build_recommendation(metrics, [bundle], [clf], audience, locale="sv")
     assert 0 <= rec.score <= 100
-    assert "publicera" in rec.action or "justera" in rec.action or "ompröva" in rec.action
-    assert rec.headline.startswith("Slutsats:")
+    assert rec.recommended_arm is None or rec.action
+    assert "betyg" in rec.summary.lower() or "simulering" in rec.summary.lower()
 
 
 def test_rank_interviews_prefers_financing_and_insight_themes():

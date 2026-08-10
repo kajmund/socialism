@@ -2,6 +2,7 @@
 
 ## 2026-08-10
 
+* **Rapporter**: Snabbrapporten har tydligare rekommendationsblock, färre fotnoter och enklare språk utan tekniska förkortningar i operatörstexten.
 * **Körningar**: Ny guide för reaktionsmodellen — stratifierat urval per rond, passiv vs engagerad, kommentarsregler och nollställning vid nytt budskag.
 
 ## 2026-08-09
@@ -16,7 +17,7 @@
 * **Verktyg**: Konfigurationer, playground och embedding-cache samlade under menyn Verktyg; guide för att rensa cache.
 * **Playground**: Flik för att testa agentverktyg (webbsök / SymPy) utan full simulering.
 * **Körningar**: Agentverktyg väljs granulärt (DuckDuckGo / Wikipedia / SymPy) med eget wizardsteg och Välj alla.
-* **Rapporter**: Snabbrapporten har Slutsats (A/B-rekommendation, mottagande, styrkor/risker) och stjärnfotnoter per avsnitt istället för ordlista längst ner.
+* **Rapporter**: Snabbrapporten har tydligare rekommendationsblock, färre fotnoter och enklare språk utan tekniska förkortningar i operatörstexten.
 
 ## 2026-08-06
 
