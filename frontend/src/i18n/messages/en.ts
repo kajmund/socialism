@@ -46,6 +46,9 @@ export const en: LocalizedTree<SvMessages> = {
     sendError: "Could not send message",
     clearError: "Could not clear chat",
     panelAria: "Help chat",
+    scbPopulationToggle: "Use SCB for population weights",
+    scbPopulationToggleHint:
+      "Check before asking for age/sex weights for a municipality. SCB for other demographic questions is always available.",
     views: {
       dashboard: "Dashboard",
       runsList: "Runs — list",

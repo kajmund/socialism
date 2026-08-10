@@ -44,6 +44,9 @@ export const sv = {
     sendError: "Kunde inte skicka meddelandet",
     clearError: "Kunde inte rensa chatten",
     panelAria: "Hjälpchatt",
+    scbPopulationToggle: "Använd SCB för populationsvikter",
+    scbPopulationToggleHint:
+      "Kryssa i innan du frågar om ålder/kön-vikter mot en kommun. SCB för övriga demografifrågor är alltid tillgängligt.",
     views: {
       dashboard: "Startsida",
       runsList: "Körningar — lista",

@@ -7,6 +7,7 @@ External connectors for Opinionssimulator — MCP servers and shared OKF helpers
 ```text
 integrations/
 ├── okf/           # OKF manual loader + search (used by MCP and backend help chat)
+├── scb/           # SCB PxWebApi 2 client + tools (MCP + in-app help chat)
 └── mcp/           # MCP stdio server for Cursor and other MCP clients
 ```
 
@@ -41,9 +42,13 @@ cd integrations/mcp && uv sync
 | `okf_search` | Search operator manuals by query |
 | `okf_get_guide` | Fetch one guide by slug (filename without `.md`) |
 | `ask_help` | Answer a help question with OKF context + DeepSeek |
+| `scb_search_tables` | Search SCB Statistikdatabasen tables (PxWebApi 2) |
+| `scb_get_table_meta` | Variable codes/labels for one SCB table |
+| `scb_query` | Fetch SCB table data (JSON-stat2) |
+| `scb_population_dist` | Age/sex recipe weights for one municipality |
 | `list_runs` | List körningar (requires API URL) |
 | `get_run` | Fetch one körning (requires API URL) |
 
 ## In-app help chat
 
-The admin UI includes a floating help chatbot on **every page** (same WebSocket streaming as persona chat). It uses OKF manuals plus **read-only** live data (library counts, open entity, injected current view). It never writes to the database.
+The admin UI includes a floating help chatbot on **every page**. It uses OKF manuals plus read-only live data. **SCB PxWebApi 2** is always available for demographic Q&A (`scb_search_tables`, `scb_get_table_meta`, `scb_query`). **`scb_population_dist`** (population recipe weights) requires the operator to check **Use SCB for population weights** first.
