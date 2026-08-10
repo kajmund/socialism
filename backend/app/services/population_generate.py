@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import secrets
 from dataclasses import dataclass, field
 from random import Random
@@ -12,8 +13,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database.models import Persona
+from app.llm.persona_anecdote import llm_persona_anecdote, stub_persona_anecdote
 from app.llm.persona_gen import SlotPlan, apply_slot_to_profile, llm_persona_from_slot
-from app.llm.persona_anecdote import stub_persona_anecdote
 from app.schemas.domain import (
     DistGroup,
     EditablePersona,
@@ -34,6 +35,7 @@ from app.services.persona_catalog import (
     TRAIT_BY_LEAN,
     WRITING_TRAITS,
 )
+from app.services.prompt_store import require_active_prompts
 
 LibraryPersonaRow = tuple[str, int, str, str, str]
 
@@ -464,6 +466,84 @@ def library_candidate(
     )
 
 
+def _assign_unique_names(
+    slots: list[SlotPlan],
+    rng: Random,
+    used_surnames: set[str],
+    *,
+    used_full_names: set[str] | None = None,
+) -> tuple[list[str], list[str]]:
+    """Pre-assign catalog names; resolve full-name and surname clashes."""
+    names: list[str] = []
+    warnings: list[str] = []
+    full_names = used_full_names if used_full_names is not None else set()
+    for slot in slots:
+        kon = slot.profile_fields.get("kön") or _KON_FEMALE
+        name: str | None = None
+        for _attempt in range(24):
+            first = _first_name_for_kon(kon, rng)
+            last, forced = _pick_stub_surname(rng, used_surnames)
+            candidate = f"{first} {last}"
+            if candidate.casefold() in full_names:
+                continue
+            sur = surname_from_name(last)
+            if sur:
+                used_surnames.add(sur)
+            if forced:
+                warnings.append(
+                    f"Efternamn «{last}» återanvänds ({len(LASTN)} unika i katalogen)"
+                )
+            name = candidate
+            break
+        if name is None:
+            first = _first_name_for_kon(kon, rng)
+            last, _forced = _pick_stub_surname(rng, used_surnames)
+            sur = surname_from_name(last)
+            if sur:
+                used_surnames.add(sur)
+            n = 2
+            base = f"{first} {last}"
+            name = base
+            while name.casefold() in full_names:
+                name = f"{base} ({n})"
+                n += 1
+            warnings.append(f"Namn «{base}» disambiguerades till «{name}»")
+        full_names.add(name.casefold())
+        names.append(name)
+    return names, warnings
+
+
+def _sibling_persona_lines(
+    names: list[str],
+    slots: list[SlotPlan],
+    writing_traits: list[str],
+) -> tuple[str, ...]:
+    return tuple(
+        f"{name} | yrke: {slot.occ} | röst: {voice[:80]}"
+        for name, slot, voice in zip(names, slots, writing_traits, strict=True)
+    )
+
+
+async def _load_existing_persona_name_sets(
+    session: AsyncSession | None,
+) -> tuple[set[str], set[str]]:
+    """Return (full_names_casefold, surnames_casefold) already in the library."""
+    if session is None:
+        return set(), set()
+    result = await session.execute(select(Persona.name))
+    full: set[str] = set()
+    surnames: set[str] = set()
+    for name in result.scalars().all():
+        if not name or not str(name).strip():
+            continue
+        text = str(name).strip()
+        full.add(text.casefold())
+        sur = surname_from_name(text)
+        if sur:
+            surnames.add(sur)
+    return full, surnames
+
+
 async def _make_generated_batch(
     recipe: PopulationRecipe,
     rng: Random,
@@ -476,27 +556,41 @@ async def _make_generated_batch(
         return [], []
     warnings: list[str] = []
     surnames = used_surnames if used_surnames is not None else set()
+    existing_full, existing_surnames = await _load_existing_persona_name_sets(session)
+    surnames |= existing_surnames
+    used_full = set(existing_full)
 
     if settings.persona_generator == "stub":
         slots = [sample_slot(recipe, rng) for _ in range(count)]
         writing_traits = _writing_traits_for_slots(slots, rng)
+        names, name_warnings = _assign_unique_names(
+            slots,
+            rng,
+            surnames,
+            used_full_names=used_full,
+        )
+        warnings.extend(name_warnings)
         personas: list[GeneratedPersonaOut] = []
-        for slot, voice in zip(slots, writing_traits, strict=True):
-            prior = set(surnames)
+        for slot, voice, name in zip(slots, writing_traits, names, strict=True):
             persona = stub_persona(
                 recipe,
                 rng,
-                used_surnames=surnames,
+                used_surnames=None,
                 slot=slot,
                 writing_trait=voice,
             )
+            # Keep pre-assigned unique name (stub_persona picks its own otherwise).
+            persona = GeneratedPersonaOut(
+                **{
+                    **persona.model_dump(),
+                    "name": name,
+                    "initials": persona_initials(name),
+                    "profile": persona.profile.model_copy(
+                        update={"name": name, "initials": persona_initials(name)}
+                    ),
+                }
+            )
             personas.append(persona)
-            sur = surname_from_name(persona.name)
-            if sur and sur in prior:
-                warnings.append(
-                    f"Stub: efternamn «{persona.name.split()[-1]}» kolliderar "
-                    f"({len(LASTN)} unika i katalogen)"
-                )
         return personas, warnings
 
     if not settings.uses_llm_generator():
@@ -506,67 +600,70 @@ async def _make_generated_batch(
         )
     slots = [sample_slot(recipe, rng) for _ in range(count)]
     writing_traits = _writing_traits_for_slots(slots, rng)
-    personas: list[GeneratedPersonaOut] = []
-    previous_personas: list[str] = []
-    previous_anecdotes: list[str] = []
-    for slot, voice in zip(slots, writing_traits, strict=True):
-        persona, slot_warnings = await _llm_persona_unique_surname(
-            slot,
-            session=session,
-            used_surnames=surnames,
-            writing_trait=voice,
-            previous_personas=tuple(previous_personas),
-            previous_anecdotes=tuple(previous_anecdotes),
-        )
-        personas.append(persona)
-        warnings.extend(slot_warnings)
-        if persona.profile.anekdot.strip() in ("", "—"):
-            warnings.append(
-                f"Anekdot saknas för {persona.name} (LLM-svar ogiltigt efter retries)."
+    names, name_warnings = _assign_unique_names(
+        slots,
+        rng,
+        surnames,
+        used_full_names=used_full,
+    )
+    warnings.extend(name_warnings)
+    sibling_lines = _sibling_persona_lines(names, slots, writing_traits)
+    prompts = await require_active_prompts(session) if session is not None else None
+    concurrency = settings.persona_generate_concurrency
+    sem = asyncio.Semaphore(concurrency)
+
+    async def _profile_one(index: int) -> GeneratedPersonaOut:
+        others = tuple(line for i, line in enumerate(sibling_lines) if i != index)
+        async with sem:
+            return await llm_persona_from_slot(
+                slots[index],
+                session=session,
+                fixed_name=names[index],
+                writing_trait=writing_traits[index],
+                previous_personas=others,
+                prompts=prompts,
+                include_anecdote=False,
             )
-        previous_personas.append(
-            f"{persona.name} | yrke: {persona.occ} | röst: {persona.trait[:80]}"
-        )
-        if persona.profile.anekdot.strip() not in ("", "—"):
-            previous_anecdotes.append(persona.profile.anekdot.strip())
+
+    personas = list(await asyncio.gather(*[_profile_one(i) for i in range(count)]))
+
+    previous_anecdotes: list[str] = []
+    for wave_start in range(0, count, concurrency):
+        wave_indices = list(range(wave_start, min(wave_start + concurrency, count)))
+        wave_prev = tuple(previous_anecdotes)
+
+        async def _anecdote_one(
+            index: int,
+            prev: tuple[str, ...] = wave_prev,
+        ) -> tuple[int, str]:
+            async with sem:
+                text = await llm_persona_anecdote(
+                    personas[index].profile,
+                    session=session,
+                    previous_anecdotes=prev,
+                    prompts=prompts,
+                )
+                return index, text
+
+        wave_results = await asyncio.gather(*[_anecdote_one(i) for i in wave_indices])
+        for index, text in sorted(wave_results, key=lambda item: item[0]):
+            personas[index].profile.anekdot = text
+            personas[index] = GeneratedPersonaOut(
+                **{
+                    **personas[index].model_dump(),
+                    "profile": personas[index].profile,
+                }
+            )
+            cleaned = text.strip()
+            if cleaned in ("", "—"):
+                warnings.append(
+                    f"Anekdot saknas för {personas[index].name} "
+                    "(LLM-svar ogiltigt efter retries)."
+                )
+            else:
+                previous_anecdotes.append(cleaned)
+
     return personas, warnings
-
-
-async def _llm_persona_unique_surname(
-    slot: SlotPlan,
-    *,
-    session: AsyncSession | None,
-    used_surnames: set[str],
-    writing_trait: str | None = None,
-    previous_personas: tuple[str, ...] = (),
-    previous_anecdotes: tuple[str, ...] = (),
-) -> tuple[GeneratedPersonaOut, list[str]]:
-    warnings: list[str] = []
-    persona: GeneratedPersonaOut | None = None
-    for _attempt in range(3):
-        persona = await llm_persona_from_slot(
-            slot,
-            session=session,
-            taken_surnames=frozenset(used_surnames),
-            writing_trait=writing_trait,
-            previous_personas=previous_personas,
-            previous_anecdotes=previous_anecdotes,
-        )
-        sur = surname_from_name(persona.name)
-        if not sur or sur not in used_surnames:
-            if sur:
-                used_surnames.add(sur)
-            return persona, warnings
-    assert persona is not None
-    sur = surname_from_name(persona.name)
-    if sur and sur in used_surnames:
-        last = persona.name.split()[-1] if persona.name.split() else persona.name
-        warnings.append(
-            f"Efternamn «{last}» kolliderar efter 3 försök: {persona.name!r}"
-        )
-    if sur:
-        used_surnames.add(sur)
-    return persona, warnings
 
 
 async def run_generate(

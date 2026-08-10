@@ -50,6 +50,18 @@ export function getReport(id: string): Promise<Report> {
   return api.get<Report>(`/reports/${id}`)
 }
 
+export function deleteReport(id: string): Promise<void> {
+  return api.delete(`/reports/${id}`)
+}
+
+export type ReportBulkDeleteResult = {
+  deleted_ids: string[]
+}
+
+export function bulkDeleteReports(ids: string[]): Promise<ReportBulkDeleteResult> {
+  return api.post<ReportBulkDeleteResult>("/reports/bulk-delete", { ids })
+}
+
 export function reportHtmlUrl(id: string): string {
   const base = env.apiBaseUrl.replace(/\/$/, "")
   return `${base}/reports/${id}/html`

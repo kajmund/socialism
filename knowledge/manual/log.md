@@ -8,9 +8,13 @@
 * **Hjälp**: Ny guide för in-app hjälpchatten (Hjälp-knappen i adminytan). Assistenten kan slå upp offentlig demografisk statistik från SCB.
 * **Rapporter**: Snabbrapporten har tydligare rekommendationsblock, färre fotnoter och enklare språk utan tekniska förkortningar i operatörstexten.
 * **Körningar**: Ny guide för reaktionsmodellen — stratifierat urval per rond, passiv vs engagerad, kommentarsregler och nollställning vid nytt budskag.
+* **Populationer**: Personas i en population kan visas som rutnät eller lista.
 
 ## 2026-08-09
 
+* **Rapporter**: Ny menyflik **Rapporter** med lista över alla beställda rapporter; guide för att hantera listan.
+* **Rapporter**: Rapporter kan tas bort från listan och rapportsidan.
+* **Rapporter**: Flera rapporter kan markeras och tas bort samtidigt.
 * **Personas**: Biblioteket kan filtreras och sorteras på demografiska fält (kön, distrikt, yrke, utbildning, livssituation; sortering även på ålder).
 
 ## 2026-08-07
