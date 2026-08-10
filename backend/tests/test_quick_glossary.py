@@ -40,23 +40,19 @@ def _bundle_with_likes(injection_likes: int = 3, label: str = "A") -> RunBundle:
 
 def test_footnote_uses_asterisks():
     with FootnoteContext("sv") as tracker:
-        html = footnote("likes-total")
+        html = footnote("likes-injection")
         assert html == '<span class="fn">*</span>'
         block = tracker.render_block()
-        assert "Likes totalt" in block
-        assert 'class="fn-block"' in block
+        assert "Likes på testbudskap" in block
+        assert "SSR" not in block
 
 
-def test_footnote_reuses_same_marker_for_repeat_entry():
+def test_unknown_footnote_returns_empty():
     with FootnoteContext("sv"):
-        first = footnote("likes-total")
-        second = footnote("likes-total")
-        third = footnote("engagement-score")
-        assert first == second == '<span class="fn">*</span>'
-        assert third == '<span class="fn">**</span>'
+        assert footnote("does-not-exist") == ""
 
 
-def test_quick_stats_table_includes_section_footnotes():
+def test_quick_stats_table_has_few_footnotes():
     bundle = _bundle_with_likes(4)
     clf = BundleClassification(
         topic_packs=[TopicPack(label="Belysning", keywords=["belysning"])],
@@ -67,12 +63,12 @@ def test_quick_stats_table_includes_section_footnotes():
     metrics = compute_report_metrics([bundle], [clf])
     with FootnoteContext("sv") as tracker:
         html = render_quick_stats_table(metrics, locale="sv") + tracker.render_block()
-    assert '<span class="fn">*</span>' in html
-    assert "Engagemangspoäng" in html
-    assert "ordlistan längst ner" not in html
+    assert html.count('<span class="fn">') <= 2
+    assert "×" not in html
+    assert "SSR" not in html
 
 
-def test_render_quick_html_uses_slutsats_not_verdict():
+def test_render_quick_html_recommendation_section():
     bundle = _bundle_with_likes(5)
     clf = BundleClassification(
         topic_packs=[TopicPack(label="Belysning", keywords=["belysning"])],
@@ -93,17 +89,16 @@ def test_render_quick_html_uses_slutsats_not_verdict():
         timing={"total_seconds": 0.1, "embed_seconds": 0.1},
     )
     html = render_quick_html(slots, locale="sv")
-    assert "Slutsats:" in html
+    assert "Rekommendation" in html
     assert 'class="conclusion"' in html
+    assert "Publicera" in html or "publicera" in html
     assert "Starkt mottagande" not in html
-    assert 'class="verdict"' not in html
-    assert 'class="glossary"' not in html
-    assert "Ordlista" not in html
+    assert "SSR" not in html
 
 
 def test_ab_recommendation_names_winning_version():
-    bundle_a = _bundle_with_likes(10, label="Version A")
-    bundle_b = _bundle_with_likes(2, label="Version B")
+    bundle_a = _bundle_with_likes(10, label="Demo — Version A")
+    bundle_b = _bundle_with_likes(2, label="Demo — Version B")
     bundle_a = RunBundle(**{**bundle_a.__dict__, "variant_id": "a"})
     bundle_b = RunBundle(**{**bundle_b.__dict__, "variant_id": "b"})
     clf_a = BundleClassification(
@@ -132,7 +127,6 @@ def test_ab_recommendation_names_winning_version():
         audience=[],
         locale="sv",
     )
-    assert rec.recommended_label == "Version A"
-    assert "Version A rekommenderas" in rec.headline
-    assert "Version A:" in rec.comparison_line
-    assert "Version B:" in rec.comparison_line
+    assert rec.recommended_arm == "Version A"
+    assert len(rec.ab_rows) == 2
+    assert any(row.is_winner and row.arm == "Version A" for row in rec.ab_rows)

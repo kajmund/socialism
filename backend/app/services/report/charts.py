@@ -114,8 +114,7 @@ def render_engagement_donut(metrics: ReportMetrics, *, locale: ReportLocale = "s
         title = "Engagement in the debate"
         sub = (
             f"Of {m.agent_count} simulated citizens · "
-            f"{m.zero_like_agents} with no likes{footnote('zero-likes')}. "
-            f"Likes received on each agent's own posts/comments{footnote('agent-likes')}."
+            f"{m.zero_like_agents} with no likes."
         )
     else:
         shares = [
@@ -126,8 +125,7 @@ def render_engagement_donut(metrics: ReportMetrics, *, locale: ReportLocale = "s
         title = "Engagemang i debatten"
         sub = (
             f"Av {m.agent_count} simulerade medborgare · "
-            f"{m.zero_like_agents} utan likes{footnote('zero-likes')}. "
-            f"Likes mottagna på agentens egna inlägg/kommentarer{footnote('agent-likes')}."
+            f"{m.zero_like_agents} utan likes."
         )
     # Center = share with any likes (not zero-like count — that read as “broken” when 0).
     return (
@@ -146,10 +144,10 @@ def render_topic_donut(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -
     top = ordered[0][0] if ordered else "—"
     if locale == "en":
         title = "What was discussed?"
-        sub = f"Keyword topic shares from test messages{footnote('topic-share')}"
+        sub = "Keyword shares from the test messages."
     else:
         title = "Vad diskuterades?"
-        sub = f"Ämnesandelar via nyckelord från testbudskap{footnote('topic-share')}"
+        sub = "Ämnesandelar utifrån testbudskapet."
     return (
         '<div class="chart-card">'
         f"<h4>{title}</h4>"
@@ -170,10 +168,7 @@ def render_tone_donut(metrics: ReportMetrics, *, locale: ReportLocale = "sv") ->
             "Strongly positive": C_AMBER,
         }
         title = "Debate tone"
-        sub = (
-            f"SSR tone in top-liked reaction texts{footnote('positive-tone')}"
-            f" ({footnote('ssr')})"
-        )
+        sub = "Tone in the most liked posts and comments."
         center = "tone"
     else:
         colors = {
@@ -184,10 +179,7 @@ def render_tone_donut(metrics: ReportMetrics, *, locale: ReportLocale = "sv") ->
             "Starkt positiv": C_AMBER,
         }
         title = "Debattens ton"
-        sub = (
-            f"SSR-ton i mest gillade reaktionstexter{footnote('positive-tone')}"
-            f" ({footnote('ssr')})"
-        )
+        sub = "Ton i de mest gillade inläggen och kommentarerna."
         center = "ton"
     ordered_items = tone_shares_sorted(m.tone_shares)
     shares = [(k, v, colors.get(k, C_MUTED)) for k, v in ordered_items]
@@ -227,10 +219,10 @@ def render_style_hbars(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -
         )
     if locale == "en":
         title = "Average likes per message style"
-        sub = f"SSR-weighted average likes per style{footnote('style-likes')}"
+        sub = "Which styles drew the most likes."
     else:
         title = "Genomsnittliga likes per budskapsstil"
-        sub = f"Viktat snittlikes per stil (SSR){footnote('style-likes')}"
+        sub = "Vilka stilar som drog flest likes."
     return (
         '<div class="chart-card">'
         f"<h4>{title}</h4>"
@@ -382,7 +374,6 @@ def render_agents_html(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -
         total_l = "totalt"
         items_l = "inlägg + komm."
         empty = '<p class="sec-intro">Inga tydliga opinionsledare i datan.</p>'
-    fn = footnote("agent-likes")
     cards = []
     for i, actor in enumerate(metrics.aggregate.top_actors):
         warn = " ag-warn" if i == len(metrics.aggregate.top_actors) - 1 else ""
@@ -396,9 +387,9 @@ def render_agents_html(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -
             f'<div class="ag-title">{role}</div>'
             f'<div class="ag-scores">'
             f'<div class="ag-score"><div class="ag-score-v">{fmt_num(actor["likes_per_item"])}</div>'
-            f'<div class="ag-score-l">{likes_l}{fn}</div></div>'
+            f'<div class="ag-score-l">{likes_l}</div></div>'
             f'<div class="ag-score"><div class="ag-score-v">{actor["likes_total"]}</div>'
-            f'<div class="ag-score-l">{total_l}{fn}</div></div>'
+            f'<div class="ag-score-l">{total_l}</div></div>'
             f'<div class="ag-score"><div class="ag-score-v">{actor["items"]}</div>'
             f'<div class="ag-score-l">{items_l}</div></div></div>'
             f'{f"<div class=\"ag-quote\">“{quote}”</div>" if quote else ""}'
@@ -417,20 +408,18 @@ def render_pop_compare(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -
             agents_l = f"{m.agent_count} participants"
             topic_l = "Dominant topic"
             comments_l = "Comments"
-            likes_l = f"Total likes{footnote('likes-total')}"
-            shares_l = f"Shares{footnote('shares-dislikes')}"
-            inj_l = f"Likes on test message{footnote('likes-injection')}"
+            likes_l = "Total likes"
+            shares_l = "Shares"
+            inj_l = "Likes on test message"
         else:
             agents_l = f"{m.agent_count} deltagare"
             topic_l = "Dominerande ämne"
             comments_l = "Kommentarer"
-            likes_l = f"Likes totalt{footnote('likes-total')}"
-            shares_l = f"Delningar{footnote('shares-dislikes')}"
-            inj_l = f"Likes på testbudskap{footnote('likes-injection')}"
-        gini_l = (
-            f'{"Inequality" if locale == "en" else "Ojämlikhet"}{footnote("gini")}'
-        )
-        zero_l = f"0 likes{footnote('zero-likes')}"
+            likes_l = "Likes totalt"
+            shares_l = "Delningar"
+            inj_l = "Likes på testbudskap"
+        gini_l = "Inequality" if locale == "en" else "Ojämlikhet"
+        zero_l = "0 likes"
         cards.append(
             f'<div class="pop-card">'
             f'<div class="pop-head">{escape(m.label)}'
@@ -492,37 +481,33 @@ def _ab_bar_row(
 
 
 def render_quick_stats_table(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -> str:
-    fn_likes = footnote("likes-total")
     fn_inj = footnote("likes-injection")
     fn_eng = footnote("engagement-score")
-    fn_gini = footnote("gini")
-    fn_zero = footnote("zero-likes")
-    fn_shares = footnote("shares-dislikes")
     if locale == "en":
         volume_title = "Volume"
         reach_title = "Reach & distribution"
         volume_headers = (
             "<th>Run</th><th>Posts</th><th>Comments</th>"
-            f"<th>Likes{fn_likes}</th><th>Post likes</th><th>Comment likes</th>"
-            f"<th>Shares{fn_shares}</th><th>Dislikes</th>"
+            "<th>Likes</th><th>Post likes</th><th>Comment likes</th>"
+            "<th>Shares</th><th>Dislikes</th>"
         )
         reach_headers = (
             f"<th>Run</th><th>Test msg. likes{fn_inj}</th><th>Follows</th>"
-            f"<th>Eng. score{fn_eng}</th><th>Inequality{fn_gini}</th>"
-            f"<th>0 likes{fn_zero}</th>"
+            f"<th>Eng. score{fn_eng}</th><th>Inequality</th>"
+            "<th>0 likes</th>"
         )
     else:
         volume_title = "Volym"
         reach_title = "Räckvidd & fördelning"
         volume_headers = (
             "<th>Körning</th><th>Inlägg</th><th>Kommentarer</th>"
-            f"<th>Likes{fn_likes}</th><th>Inläggslikes</th><th>Kommentarslikes</th>"
-            f"<th>Delningar{fn_shares}</th><th>Dislikes</th>"
+            "<th>Likes</th><th>Inläggslikes</th><th>Kommentarslikes</th>"
+            "<th>Delningar</th><th>Dislikes</th>"
         )
         reach_headers = (
             f"<th>Körning</th><th>Likes testbudskap{fn_inj}</th><th>Följningar</th>"
-            f"<th>Eng.poäng{fn_eng}</th><th>Ojämlikhet{fn_gini}</th>"
-            f"<th>0 likes{fn_zero}</th>"
+            f"<th>Eng.poäng{fn_eng}</th><th>Ojämlikhet</th>"
+            "<th>0 likes</th>"
         )
     volume_rows: list[str] = []
     reach_rows: list[str] = []
@@ -560,17 +545,17 @@ def render_quick_ab_bars(metrics: ReportMetrics, *, locale: ReportLocale = "sv")
     arms = [(m.label, m) for m in metrics.bundles]
     if locale == "en":
         metrics_spec: list[tuple[str, str]] = [
-            (f"Total likes{footnote('likes-total')}", "likes_total"),
-            (f"Test message likes{footnote('likes-injection')}", "injection_likes"),
+            ("Total likes", "likes_total"),
+            ("Test message likes", "injection_likes"),
             ("Posts", "post_count"),
             ("Comments", "comment_count"),
-            (f"Shares{footnote('shares-dislikes')}", "shares"),
+            ("Shares", "shares"),
             ("Dislikes", "dislikes"),
             ("Follow edges", "follow_edges"),
-            (f"Engagement score{footnote('engagement-score')}", "engagement_score"),
-            (f"Positive tone{footnote('positive-tone')}", "_pos_tone"),
-            (f"Inequality in likes{footnote('gini')}", "gini"),
-            (f"Participants with 0 likes{footnote('zero-likes')}", "zero_like_agents"),
+            ("Engagement score", "engagement_score"),
+            ("Positive tone", "_pos_tone"),
+            ("Inequality in likes", "gini"),
+            ("Participants with 0 likes", "zero_like_agents"),
         ]
         title = "A/B — key metrics compared"
         sub = (
@@ -579,17 +564,17 @@ def render_quick_ab_bars(metrics: ReportMetrics, *, locale: ReportLocale = "sv")
         )
     else:
         metrics_spec = [
-            (f"Likes totalt{footnote('likes-total')}", "likes_total"),
-            (f"Likes på testbudskap{footnote('likes-injection')}", "injection_likes"),
+            ("Likes totalt", "likes_total"),
+            ("Likes på testbudskap", "injection_likes"),
             ("Inlägg", "post_count"),
             ("Kommentarer", "comment_count"),
-            (f"Delningar{footnote('shares-dislikes')}", "shares"),
+            ("Delningar", "shares"),
             ("Dislikes", "dislikes"),
             ("Följkanter", "follow_edges"),
-            (f"Engagemangspoäng{footnote('engagement-score')}", "engagement_score"),
-            (f"Positiv ton{footnote('positive-tone')}", "_pos_tone"),
-            (f"Ojämlikhet i likes{footnote('gini')}", "gini"),
-            (f"Deltagare utan likes{footnote('zero-likes')}", "zero_like_agents"),
+            ("Engagemangspoäng", "engagement_score"),
+            ("Positiv ton", "_pos_tone"),
+            ("Ojämlikhet i likes", "gini"),
+            ("Deltagare utan likes", "zero_like_agents"),
         ]
         title = "A/B — nyckeltal jämförda"
         sub = (
@@ -681,9 +666,7 @@ def _tick_chart_bars(rows: list[TickStatsRow], *, locale: ReportLocale) -> str:
             f'<div class="tick-bar" style="height:{h}%"></div>'
             f'<span class="tick-bar-lbl">{label}</span></div>'
         )
-    title = f"Cumulative engagement score by day{footnote('engagement-score')}"
-    if locale != "en":
-        title = f"Kumulativ engagemangspoäng per dag{footnote('engagement-score')}"
+    title = "Cumulative engagement by day" if locale == "en" else "Kumulativt engagemang per dag"
     return f'<div class="tick-spark"><div class="tick-spark-title">{title}</div><div class="tick-bars">{"".join(bars)}</div></div>'
 
 
@@ -726,21 +709,17 @@ def render_tick_timeline(
         if locale == "en":
             headers = (
                 "<th>Day</th><th>Posts</th><th>Comments</th>"
-                f"<th>Likes{footnote('likes-total')}</th>"
-                f"<th>Shares</th><th>Dislikes</th>"
-                f"<th>Day score{footnote('engagement-score')}</th>"
-                f"<th>Cum. likes{footnote('likes-total')}</th>"
-                f"<th>Cum. score{footnote('engagement-score')}</th><th>Measurements</th>"
+                "<th>Likes</th><th>Shares</th><th>Dislikes</th>"
+                "<th>Day score</th><th>Cum. likes</th>"
+                "<th>Cum. score</th><th>Measurements</th>"
             )
             head = escape(bundle.label)
         else:
             headers = (
                 "<th>Dag</th><th>Inlägg</th><th>Kommentarer</th>"
-                f"<th>Likes{footnote('likes-total')}</th>"
-                f"<th>Delningar</th><th>Dislikes</th>"
-                f"<th>Dagspoäng{footnote('engagement-score')}</th>"
-                f"<th>Kum. likes{footnote('likes-total')}</th>"
-                f"<th>Kum. poäng{footnote('engagement-score')}</th><th>Mätpunkter</th>"
+                "<th>Likes</th><th>Delningar</th><th>Dislikes</th>"
+                "<th>Dagspoäng</th><th>Kum. likes</th>"
+                "<th>Kum. poäng</th><th>Mätpunkter</th>"
             )
             head = escape(bundle.label)
         sections.append(
@@ -836,59 +815,74 @@ def render_recommendation_block(
     locale: ReportLocale = "sv",
 ) -> str:
     if locale == "en":
-        title = "Conclusion"
-        h_str, h_risk, h_imp, h_traj = "Strengths", "Risks", "Suggested improvements", "Trajectory"
-        h_reception = "Reception"
-        h_compare = "A/B comparison"
+        h_rec = "Recommendation"
+        h_str, h_risk = "Strengths", "Watch out"
+        h_next = "Next step"
+        score_lbl = "Simulated score"
+        score_note = "not voter support"
+        pos_lbl, likes_lbl = "Positive tone", "Likes on test message"
     else:
-        title = "Slutsats"
-        h_str, h_risk, h_imp, h_traj = "Styrkor", "Risker", "Rekommenderade förbättringar", "Utveckling"
-        h_reception = "Mottagande"
-        h_compare = "A/B-jämförelse"
-    with FootnoteContext(locale) as tracker:
-        parts = [
-            f'<section class="conclusion">'
-            f"<h3>{escape(title)}</h3>"
-            f'<p class="rec-headline"><strong>{escape(rec.headline)}'
-            f'{footnote("simulated-support")}</strong></p>'
-        ]
-        if rec.comparison_line:
-            parts.append(
-                f'<p class="rec-compare"><strong>{h_compare}:</strong> '
-                f"{escape(rec.comparison_line)}</p>"
+        h_rec = "Rekommendation"
+        h_str, h_risk = "Det som fungerar", "Det som biter tillbaka"
+        h_next = "Nästa steg"
+        score_lbl = "Simulerat betyg"
+        score_note = "inte väljarstöd"
+        pos_lbl, likes_lbl = "Positiv ton", "Likes på testbudskap"
+
+    parts = [
+        '<section class="conclusion">',
+        f'<p class="rec-eyebrow">{escape(h_rec)}</p>',
+    ]
+    if rec.recommended_arm:
+        parts.append(f'<h2 class="rec-arm">{escape(rec.recommended_arm)}</h2>')
+    parts.append(f'<p class="rec-action">{escape(rec.action)}</p>')
+    parts.append(
+        f'<p class="rec-score">{escape(score_lbl)} <strong>{rec.score}/100</strong> '
+        f'<span class="rec-note">({escape(score_note)})</span></p>'
+    )
+    if rec.summary:
+        parts.append(f'<p class="rec-summary">{escape(rec.summary)}</p>')
+
+    if rec.ab_rows:
+        head_pos = escape(pos_lbl)
+        head_likes = escape(likes_lbl)
+        rows = []
+        for row in rec.ab_rows:
+            win = ' class="rec-ab-win"' if row.is_winner else ""
+            rows.append(
+                f"<tr{win}><td>{escape(row.arm)}</td>"
+                f"<td>{escape(row.positive)}</td>"
+                f"<td>{escape(row.likes)}</td></tr>"
             )
-        if rec.reception_line:
-            parts.append(
-                f'<p class="rec-reception"><strong>{h_reception}:</strong> '
-                f"{escape(rec.reception_line)} "
-                f'{footnote("positive-tone")}{footnote("likes-injection")}</p>'
-            )
+        parts.append(
+            '<table class="rec-ab-table">'
+            f"<thead><tr><th></th><th>{head_pos}</th><th>{head_likes}</th></tr></thead>"
+            f"<tbody>{''.join(rows)}</tbody></table>"
+        )
+
+    if rec.strengths or rec.risks:
+        parts.append('<div class="rec-columns">')
         if rec.strengths:
             items = "".join(f"<li>{escape(s)}</li>" for s in rec.strengths)
             parts.append(
-                f"<p class=\"rec-sub\"><strong>{h_str}:</strong></p>"
-                f"<ul class=\"rec-list\">{items}</ul>"
+                f'<div class="rec-col"><p class="rec-sub"><strong>{h_str}</strong></p>'
+                f'<ul class="rec-list">{items}</ul></div>'
             )
         if rec.risks:
             items = "".join(f"<li>{escape(r)}</li>" for r in rec.risks)
             parts.append(
-                f"<p class=\"rec-sub\"><strong>{h_risk}:</strong></p>"
-                f"<ul class=\"rec-list\">{items}</ul>"
+                f'<div class="rec-col"><p class="rec-sub"><strong>{h_risk}</strong></p>'
+                f'<ul class="rec-list">{items}</ul></div>'
             )
-        if rec.improvements:
-            items = "".join(f"<li>{escape(i)}</li>" for i in rec.improvements)
-            parts.append(
-                f"<p class=\"rec-sub\"><strong>{h_imp}:</strong></p>"
-                f"<ul class=\"rec-list\">{items}</ul>"
-            )
-        if rec.trajectory:
-            parts.append(
-                f"<p class=\"rec-traj\"><strong>{h_traj}:</strong> "
-                f"{escape(rec.trajectory)}</p>"
-            )
-        parts.append(tracker.render_block())
-        parts.append("</section>")
-        return "".join(parts)
+        parts.append("</div>")
+
+    if rec.improvements:
+        parts.append(
+            f'<p class="rec-next"><strong>{h_next}:</strong> '
+            f"{escape(rec.improvements[0])}</p>"
+        )
+    parts.append("</section>")
+    return "".join(parts)
 
 
 def render_audience_takeaway_section(
@@ -956,8 +950,8 @@ def _segment_engagement_bars(tone: SegmentToneRow, *, locale: ReportLocale) -> s
         specs = [
             ("Posts", tone.post_count),
             ("Comments", tone.comment_count),
-            (f"Likes{footnote('likes-total')}", tone.likes_total),
-            (f"Shares{footnote('shares-dislikes')}", tone.shares_total),
+            ("Likes", tone.likes_total),
+            ("Shares", tone.shares_total),
             (f"Segment score{footnote('segment-score')}", tone.engagement_score),
         ]
         title = "Activity in this group"
@@ -965,8 +959,8 @@ def _segment_engagement_bars(tone: SegmentToneRow, *, locale: ReportLocale) -> s
         specs = [
             ("Inlägg", tone.post_count),
             ("Kommentarer", tone.comment_count),
-            (f"Likes{footnote('likes-total')}", tone.likes_total),
-            (f"Delningar{footnote('shares-dislikes')}", tone.shares_total),
+            ("Likes", tone.likes_total),
+            ("Delningar", tone.shares_total),
             (f"Segmentpoäng{footnote('segment-score')}", tone.engagement_score),
         ]
         title = "Aktivitet i gruppen"
@@ -1104,9 +1098,9 @@ def _segment_kpi_html(tone: SegmentToneRow | None, *, locale: ReportLocale) -> s
             f'<div class="aud-kpi"><strong>{tone.text_count}</strong>'
             f"<span>rated texts</span></div>"
             f'<div class="aud-kpi"><strong>{pct(tone.positive_share)}</strong>'
-            f"<span>positive{footnote('positive-tone')}</span></div>"
+            f"<span>positive</span></div>"
             f'<div class="aud-kpi"><strong>{pct(tone.critical_share)}</strong>'
-            f"<span>critical{footnote('positive-tone')}</span></div>"
+            f"<span>critical</span></div>"
             f"</div>"
         )
     return (
@@ -1116,9 +1110,9 @@ def _segment_kpi_html(tone: SegmentToneRow | None, *, locale: ReportLocale) -> s
         f'<div class="aud-kpi"><strong>{tone.text_count}</strong>'
         f"<span>analyserade texter</span></div>"
         f'<div class="aud-kpi"><strong>{pct(tone.positive_share)}</strong>'
-        f"<span>positiv ton{footnote('positive-tone')}</span></div>"
+        f"<span>positiv ton</span></div>"
         f'<div class="aud-kpi"><strong>{pct(tone.critical_share)}</strong>'
-        f"<span>kritisk ton{footnote('positive-tone')}</span></div>"
+        f"<span>kritisk ton</span></div>"
         f"</div>"
     )
 
@@ -1334,13 +1328,14 @@ def prefill_quick_chart_slots(
         stats_html = render_quick_stats_table(metrics, locale=locale)
         stats_html += stats_tracker.render_block()
 
-    with FootnoteContext(locale) as charts_tracker:
+    if ab:
+        with FootnoteContext(locale) as charts_tracker:
+            charts_html = render_quick_charts(metrics, locale=locale, ab=ab)
+            charts_html += charts_tracker.render_block()
+    else:
         charts_html = render_quick_charts(metrics, locale=locale, ab=ab)
-        charts_html += charts_tracker.render_block()
 
-    with FootnoteContext(locale) as tick_tracker:
-        tick_html = render_tick_timeline(bundles, locale=locale)
-        tick_html += tick_tracker.render_block()
+    tick_html = render_tick_timeline(bundles, locale=locale)
 
     qa_html = render_interview_qa_section(bundles, locale=locale)
     takeaway_html = (
