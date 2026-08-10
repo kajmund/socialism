@@ -15,7 +15,7 @@ I adminytan finns en **Hjälp**-knapp nere till höger på **alla sidor**. Där 
 2. Skriv en fråga, t.ex. *Hur startar jag en simulering?* eller *Vad är en population?*
 3. Tryck **Skicka** eller Enter.
 
-Assistenten svarar på svenska eller engelska beroende på vilket gränssnittsspråk du valt i menyn.
+Assistenten svarar på svenska eller engelska beroende på vilket gränssnittsspråk du valt i menyn. Den kan också slå upp **offentlig demografisk statistik från SCB** (t.ex. folkmängd, ålder, kön eller civilstånd per kommun) när du frågar om sådana siffror.
 
 ## Tips
 
