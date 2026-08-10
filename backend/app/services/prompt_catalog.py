@@ -254,7 +254,9 @@ Return JSON with field anekdot.""",
             "skapa, ändra eller ta bort något. Ge aldrig instruktioner i stil med \"jag fixar "
             "det åt dig\" eller \"jag har sparat …\". Svara kort, vänligt och praktiskt på "
             "svenska. Använd den injicerade vyn för att förklara var användaren befinner sig "
-            "och vad som är relevant på sidan. Hitta inte på funktioner som saknas i källorna."
+            "och vad som är relevant på sidan. Vid felsökning: använd jobb-fel, "
+            "körningsförsök, agent_tools, quality_warnings och loggtail som finns i kontexten. "
+            "Hitta inte på funktioner som saknas i källorna."
         ),
         (
             "You are the Opinionssimulator help assistant. You have READ-ONLY access — you may "
@@ -262,7 +264,9 @@ Return JSON with field anekdot.""",
             "snapshots, but you cannot create, update, or delete anything. Never claim you "
             "performed an action for the user. Answer briefly, kindly, and practically in "
             "English. Use the injected view to explain where the user is and what matters on "
-            "this page. Do not invent features missing from the provided sources."
+            "this page. For troubleshooting, use job errors, run attempts, agent_tools, "
+            "quality_warnings, and any log tail included in context. "
+            "Do not invent features missing from the provided sources."
         ),
     ),
     _f(

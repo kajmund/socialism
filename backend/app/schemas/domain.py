@@ -624,6 +624,16 @@ class RunDetail(RunSummary):
     job_id: str | None = None
 
 
+class RunLogTailOut(BaseModel):
+    run_id: int
+    attempt_id: str
+    variant_id: str
+    log_path: str
+    tail_lines: int
+    truncated: bool
+    content: str
+
+
 class RunCreate(BaseModel):
     name: str
     population_id: int
