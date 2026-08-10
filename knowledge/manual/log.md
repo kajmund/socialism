@@ -1,5 +1,9 @@
 # Manual update log
 
+## 2026-08-10
+
+* **Körningar**: Ny guide för reaktionsmodellen — stratifierat urval per rond, passiv vs engagerad, kommentarsregler och nollställning vid nytt budskag.
+
 ## 2026-08-07
 
 * **Playground**: Ny guide för att kalibrera anchors, jämföra SSR mot nyckelord och iterera prompter från konfigurationer.
