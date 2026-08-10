@@ -42,6 +42,7 @@ export const en: LocalizedTree<SvMessages> = {
       "Hi! I can explain runs, personas, populations, messages, and more — from the manual and what you have open right now. I can only read, not change anything.",
     clear: "Clear chat",
     loadError: "Could not load chat history",
+    backendUnavailable: "Backend unreachable — start the API on port 8000 (make backend)",
     sendError: "Could not send message",
     clearError: "Could not clear chat",
     panelAria: "Help chat",

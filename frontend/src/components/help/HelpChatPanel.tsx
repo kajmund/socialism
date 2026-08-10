@@ -4,7 +4,7 @@ import { MessengerChat } from "@/components/chat/MessengerChat"
 import { useChatSocket } from "@/components/chat/useChatSocket"
 import { AdminButton } from "@/components/ui/admin-button"
 import { useLocale } from "@/i18n"
-import { getHelpSessionId } from "@/lib/helpSession"
+import { ApiError } from "@/lib/api"
 import { useHelpView } from "@/lib/helpView"
 
 type HelpChatPanelProps = {
@@ -63,20 +63,27 @@ export function HelpChatPanel({ sessionId, onClose }: HelpChatPanelProps) {
 
   const chatBusy = restBusy || socketBusy
 
-  useEffect(() => {
-    let cancelled = false
-    setLoadError(null)
-    listHelpMessages(sessionId)
-      .then((rows) => {
-        if (!cancelled) setMessages(rows)
-      })
-      .catch(() => {
-        if (!cancelled) setLoadError(t("help.loadError"))
-      })
-    return () => {
-      cancelled = true
+  const loadHistory = useCallback(async () => {
+    try {
+      const rows = await listHelpMessages(sessionId)
+      setMessages(rows)
+      setLoadError(null)
+    } catch (err) {
+      if (err instanceof ApiError && err.isNetworkError) {
+        setLoadError(t("help.backendUnavailable"))
+        return
+      }
+      setLoadError(t("help.loadError"))
     }
   }, [sessionId, t])
+
+  useEffect(() => {
+    void loadHistory()
+  }, [loadHistory])
+
+  useEffect(() => {
+    if (chatReady) void loadHistory()
+  }, [chatReady, loadHistory])
 
   const sendMessage = useCallback(() => {
     const trimmed = draft.trim()

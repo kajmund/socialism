@@ -31,6 +31,7 @@ Required vars (validated in `src/lib/env.ts` — fail fast at boot):
 | Variable | Purpose |
 | -------- | ------- |
 | `VITE_API_BASE_URL` | FastAPI base URL (e.g. `http://localhost:8000`) |
+| `VITE_DEV_PROXY` | Set `true` locally so HTTP + WS go through the Vite dev proxy (same origin). Avoids CORS when Vite picks another port (5174, …). Requires backend on `:8000`. Leave unset/false in production builds. |
 | `VITE_SUPABASE_URL` | Placeholder for future Auth — required string today |
 | `VITE_SUPABASE_ANON_KEY` | Placeholder for future Auth — required string today |
 

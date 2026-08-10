@@ -40,6 +40,7 @@ export const sv = {
       "Hej! Jag kan förklara hur du skapar körningar, personas, populationer, budskap och mer — utifrån manualen och det du har öppet just nu. Jag kan bara läsa, inte ändra något.",
     clear: "Rensa chatt",
     loadError: "Kunde inte hämta chatthistorik",
+    backendUnavailable: "Backend nås inte — kör API på port 8000 (make backend)",
     sendError: "Kunde inte skicka meddelandet",
     clearError: "Kunde inte rensa chatten",
     panelAria: "Hjälpchatt",
