@@ -14,6 +14,7 @@ from app.services.report.locale import ReportLocale, display_style_label
 from app.services.report.metrics import ReportMetrics, injection_likes, pct, tone_shares_sorted
 from app.services.report.recommendation import build_recommendation
 from app.services.report.segment_analysis import build_audience_summaries
+from app.services.report.quick_glossary import footnote, render_quick_glossary
 from app.services.ssr import ANCHOR_SET_VERSION
 
 # Hardcoded thresholds (not config) until calibration shows need to tweak often.
@@ -234,11 +235,13 @@ def _ab_diff_html(
         return (
             f"<p><strong>{label}</strong> — {escape(best_label)} leads "
             f"{escape(worst_label)} by {pct(diff)} positive tone "
+            f"{footnote('positive-tone')} "
             f"({pct(best_pos)} vs {pct(worst_pos)}).</p>"
         )
     return (
         f"<p><strong>{label}</strong> — {escape(best_label)} leder "
         f"{escape(worst_label)} med {pct(diff)} positiv ton "
+        f"{footnote('positive-tone')} "
         f"({pct(best_pos)} vs {pct(worst_pos)}).</p>"
     )
 
@@ -293,7 +296,8 @@ def _style_html(metrics: ReportMetrics, *, locale: ReportLocale) -> str:
     else:
         if band == "none":
             parts.append(
-                f"<p><strong>{band_lbl}</strong> — {escape(win)} ({winner_a:.1f} snittlikes) "
+                f"<p><strong>{band_lbl}</strong> — {escape(win)} ({winner_a:.1f} snittlikes"
+                f"{footnote('style-likes')}) "
                 f"och {escape(second)} ({second_a:.1f}) ligger inom brus "
                 f"(gap {rel:.0%} av toppen; ≥{_DIFF_WEAK:.0%} krävs för svag signal).</p>"
             )
@@ -346,9 +350,13 @@ def build_quick_slots(
     if locale == "en":
         drift_html = (
             "<p><strong>Topic drift:</strong> the test topic fell below 10% "
-            "after day 1 — it disappeared from the debate.</p>"
+            "after day 1 — it disappeared from the debate."
+            f"{footnote('topic-drift')}</p>"
             if any_drift
-            else "<p><strong>Topic drift:</strong> no clear drop-off after day 1.</p>"
+            else (
+                "<p><strong>Topic drift:</strong> no clear drop-off after day 1."
+                f"{footnote('topic-drift')}</p>"
+            )
         )
         page_title = title.strip() or "Quick report"
         eyebrow = "Quick report — automated analysis"
@@ -356,9 +364,13 @@ def build_quick_slots(
     else:
         drift_html = (
             "<p><strong>Ämnesdrift:</strong> testämnet under 10 % efter dag 1 "
-            "— försvann ur debatten.</p>"
+            "— försvann ur debatten."
+            f"{footnote('topic-drift')}</p>"
             if any_drift
-            else "<p><strong>Ämnesdrift:</strong> ingen tydlig nedgång efter dag 1.</p>"
+            else (
+                "<p><strong>Ämnesdrift:</strong> ingen tydlig nedgång efter dag 1."
+                f"{footnote('topic-drift')}</p>"
+            )
         )
         page_title = title.strip() or "Snabbrapport"
         eyebrow = "Snabbrapport — automatisk analys"
@@ -414,12 +426,20 @@ def build_quick_slots(
         "zero": "v-zero",
     }.get(verdict.key, "v-mixed")
 
+    fn_tone = footnote("positive-tone")
+    fn_inj = footnote("likes-injection")
+    verdict_detail_html = (
+        f"{escape(verdict.detail)} "
+        f"<span class=\"verdict-fn\">({fn_tone}"
+        f"{f', {fn_inj}' if verdict.key == 'zero' else ''})</span>"
+    )
+
     return {
         "page_title": page_title,
         "eyebrow": eyebrow,
         "verdict_class": verdict_class,
         "verdict_label": verdict.label,
-        "verdict_detail": verdict.detail,
+        "verdict_detail_html": verdict_detail_html,
         "drift_html": drift_html,
         "ab_html": ab_html or (
             f"<p>{'Single run — no A/B comparison.' if locale == 'en' else 'En körning — ingen A/B-jämförelse.'}</p>"
@@ -433,6 +453,7 @@ def build_quick_slots(
         "recommendation_html": chart_slots.get("recommendation_html", ""),
         "style_html": style_html,
         "tech_html": tech_html,
+        "glossary_html": render_quick_glossary(locale=locale),
         "meta_runs": ", ".join(b.label for b in bundles),
     }
 
@@ -449,6 +470,7 @@ def render_quick_html(slots: dict[str, str], *, locale: ReportLocale) -> str:
         h_drift = "Topic drift"
         h_ab = "A/B comparison"
         h_style = "Style impact"
+        h_glossary = "Glossary"
     else:
         h_stats = "Statistik"
         h_charts = "Diagram"
@@ -459,6 +481,7 @@ def render_quick_html(slots: dict[str, str], *, locale: ReportLocale) -> str:
         h_drift = "Ämnesdrift"
         h_ab = "A/B-jämförelse"
         h_style = "Stilgenomslag"
+        h_glossary = "Ordlista"
     return f"""<!DOCTYPE html>
 <html lang="{lang}">
 <head>
@@ -597,6 +620,14 @@ td,th{{border-bottom:1px solid #E5DDD0;padding:.35rem .5rem;text-align:left;font
 .aud-arm-head{{font-size:.88rem;font-weight:700;color:#1E3A55;margin:0 0 10px;padding-bottom:6px;border-bottom:1px solid #E5DDD0;}}
 .aud-compare .aud-narrative{{font-size:.82rem;}}
 .muted{{color:#6B6253;font-size:.9rem;}}
+.fn a{{color:#1E3A55;text-decoration:none;font-weight:700;}}
+.fn a:hover{{text-decoration:underline;}}
+.glossary-hint{{font-size:.78rem;color:#6B6253;margin:.35rem 0 0;}}
+.glossary{{margin:2rem 0 1rem;padding-top:1.25rem;border-top:1px solid #D8CFC0;}}
+.glossary h3{{font-size:1.05rem;margin:0 0 .75rem;}}
+.gloss-item{{font-size:.82rem;line-height:1.45;margin:0 0 .55rem;color:#3A342C;}}
+.gloss-n{{color:#6B6253;font-weight:700;}}
+.verdict-fn{{font-size:.85rem;color:#6B6253;}}
 </style>
 </head>
 <body>
@@ -606,7 +637,7 @@ td,th{{border-bottom:1px solid #E5DDD0;padding:.35rem .5rem;text-align:left;font
   {slots.get("recommendation_html", "")}
   <div class="verdict {escape(slots.get("verdict_class", "v-mixed"))}">
     <h2>{escape(slots.get("verdict_label", ""))}</h2>
-    <p>{escape(slots.get("verdict_detail", ""))}</p>
+    <p>{slots.get("verdict_detail_html", "")}</p>
   </div>
   <section>
     <h3>{h_stats}</h3>
@@ -645,6 +676,7 @@ td,th{{border-bottom:1px solid #E5DDD0;padding:.35rem .5rem;text-align:left;font
     {slots.get("style_html", "")}
   </section>
   {slots.get("tech_html", "")}
+  {slots.get("glossary_html", "")}
   <p class="meta">{escape(slots.get("meta_runs", ""))}</p>
 </div>
 </body>
