@@ -16,6 +16,7 @@ import {
   type MessageVariantKey,
 } from "@/api/messages"
 import { AdminShell } from "@/components/layout/AdminShell"
+import { CachedImagePickerModal } from "@/components/messages/CachedImagePickerModal"
 import { MessageVariantsModal } from "@/components/messages/MessageVariantsModal"
 import { AdminButton } from "@/components/ui/admin-button"
 import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
@@ -80,6 +81,7 @@ export function MessagesWorkshopPage() {
   const [captionBaseline, setCaptionBaseline] = useState("")
   const [cacheEntries, setCacheEntries] = useState<ImageCacheEntry[]>([])
   const [uploadingImage, setUploadingImage] = useState(false)
+  const [imagePickerOpen, setImagePickerOpen] = useState(false)
 
   const [audience, setAudience] = useState("")
   const [purpose, setPurpose] = useState("")
@@ -464,44 +466,15 @@ export function MessagesWorkshopPage() {
                 </div>
 
                 {cacheEntries.length > 0 ? (
-                  <div className="field">
-                    <p className="mb-2 text-sm font-medium">{t("messages.workshop.imagePickCached")}</p>
-                    <div
-                      role="listbox"
-                      aria-label={t("messages.workshop.imagePickCached")}
-                      className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4"
+                  <div>
+                    <AdminButton
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setImagePickerOpen(true)}
                     >
-                      {cacheEntries.map((row) => {
-                        const selected = imageSha256 === row.sha256
-                        return (
-                          <button
-                            key={row.sha256}
-                            type="button"
-                            role="option"
-                            aria-selected={selected}
-                            aria-label={t("messages.workshop.imagePickOption", {
-                              caption: row.caption.slice(0, 80),
-                            })}
-                            className={`overflow-hidden rounded border text-left transition-colors ${
-                              selected
-                                ? "border-db-ink-950 ring-2 ring-db-ink-950"
-                                : "border-[color:var(--border-hairline)] hover:border-db-ink-950"
-                            }`}
-                            onClick={() => applyCacheEntry(row)}
-                          >
-                            <img
-                              src={cachedImageUrl(row.sha256)}
-                              alt=""
-                              className="aspect-[4/3] w-full object-cover"
-                              loading="lazy"
-                            />
-                            <span className="line-clamp-2 px-2 py-1.5 text-xs text-muted-foreground">
-                              {row.caption}
-                            </span>
-                          </button>
-                        )
-                      })}
-                    </div>
+                      {t("messages.workshop.imagePickOpenButton")}
+                    </AdminButton>
                   </div>
                 ) : null}
 
@@ -617,6 +590,14 @@ export function MessagesWorkshopPage() {
           </div>
         )}
       </div>
+
+      <CachedImagePickerModal
+        open={imagePickerOpen}
+        entries={cacheEntries}
+        selectedSha256={imageSha256}
+        onSelect={applyCacheEntry}
+        onClose={() => setImagePickerOpen(false)}
+      />
 
       <MessageVariantsModal
         open={variantsOpen}

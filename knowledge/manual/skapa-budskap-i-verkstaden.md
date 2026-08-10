@@ -31,7 +31,7 @@ Du kan **redigera caption** i verkstaden. Ändringen sparas i cachen och gäller
 
 ### Välja befintlig bild
 
-Om bilden redan finns i cachen visas **miniatyrer** under uppladdningsfältet. Klicka på en miniatyr för att välja bild och ladda caption. Vald bild markeras med ram.
+Om bilden redan finns i cachen: välj **Välj cachad bild…** — en modal med **miniatyrer** öppnas. Klicka på en bild för att välja den och ladda caption.
 
 ## Steg — endast text
 
