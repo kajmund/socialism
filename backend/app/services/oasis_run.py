@@ -28,6 +28,20 @@ from app.services.district_context import format_area_block, list_district_conte
 from app.services.lexical_convergence import analyze_lexical_convergence
 from app.services.oasis_agent_tools import apply_population_agent_tools
 from app.services.oasis_deepseek_reasoning import apply_deepseek_reasoning_patch
+from app.services.oasis_engagement import (
+    StimulusEngagement,
+    build_agent_strata_from_members,
+    comment_ids_from_trace,
+    comment_post_ids,
+    injector_post_ids_after,
+    make_round_rng,
+    max_post_id as _engagement_max_post_id,
+    read_trace_since,
+    sample_fraction,
+    stratified_agent_sample,
+    sync_create_comment_tool,
+    trace_row_count,
+)
 from app.services.oasis_clock import OasisScenarioClock
 from app.services.oasis_profiles import (
     build_run_profiles,
@@ -643,6 +657,18 @@ async def run_oasis_simulation(
 
     apply_population_agent_tools(agent_graph, population_indices, options)
 
+    injector_indices = {
+        i for i, p in enumerate(profiles) if p.role == "injector"
+    }
+    agent_strata = build_agent_strata_from_members(members, population_indices)
+    engagement = StimulusEngagement()
+    comment_tools: dict[int, Any] = {}
+    for agent_id in population_indices:
+        agent = agent_graph.get_agent(agent_id)
+        tool = agent._internal_tools.get("create_comment")
+        if tool is not None:
+            comment_tools[agent_id] = tool
+
     ticks_run = 0
     tick_markers: list[dict[str, Any]] = []
     prev_end = -1
@@ -655,6 +681,7 @@ async def run_oasis_simulation(
                 scenario_clock.set_day_index(max(0, tick.day - 1))
             time_start = prev_end + 1
             if not tick.silent:
+                max_post_before = _engagement_max_post_id(db_path)
                 inject_actions: dict[Any, list[Any]] = {}
                 for injection in tick.injections:
                     if not injection_has_content(injection):
@@ -674,17 +701,44 @@ async def run_oasis_simulation(
                     )
                 if inject_actions:
                     await env.step(inject_actions)
+                    new_posts = injector_post_ids_after(
+                        db_path,
+                        injector_indices=injector_indices,
+                        after_post_id=max_post_before,
+                    )
+                    if new_posts:
+                        engagement.reset_for_stimulus(new_posts)
 
             rounds = max(1, tick.rounds)
             set_oasis_tool_trace_tick(tick_index)
-            for _ in range(rounds):
-                llm_actions = {
-                    agent: LLMAction()
-                    for agent_id, agent in env.agent_graph.get_agents()
-                    if agent_id in population_indices
-                }
-                if llm_actions:
-                    await env.step(llm_actions)
+            for round_index in range(rounds):
+                eligible = engagement.eligible_agents(population_indices)
+                selected = stratified_agent_sample(
+                    eligible,
+                    strata=agent_strata,
+                    fraction=sample_fraction(round_index),
+                    rng=make_round_rng(seed, tick_index, round_index),
+                )
+                if not selected:
+                    continue
+                trace_before = trace_row_count(db_path)
+                llm_actions: dict[Any, Any] = {}
+                for agent_id in selected:
+                    agent = env.agent_graph.get_agent(agent_id)
+                    sync_create_comment_tool(
+                        agent,
+                        allow=engagement.may_comment(agent_id),
+                        stored_tool=comment_tools.get(agent_id),
+                    )
+                    llm_actions[agent] = LLMAction()
+                await env.step(llm_actions)
+                new_trace = read_trace_since(db_path, trace_before)
+                comment_map = comment_post_ids(
+                    db_path, comment_ids_from_trace(new_trace)
+                )
+                engagement.record_trace_rows(
+                    new_trace, comment_to_post=comment_map
+                )
 
             # Planned interviews after reactions — agent has no future-tick context.
             interview_actions: dict[Any, list[Any]] = {}
