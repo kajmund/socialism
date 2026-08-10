@@ -967,6 +967,7 @@ export const sv = {
       imageCacheHit: "Bilden fanns redan i cachen — caption hämtades.",
       imageCaptionReady: "Caption genererad och cachad.",
       imagePickCached: "Välj cachad bild",
+      imagePickOption: "Välj bild: {caption}",
       imagePickPlaceholder: "— välj —",
       imagePreviewAlt: "Förhandsvisning av budskapsbild",
       captionLabel: "Bildcaption (delas mellan inlägg)",

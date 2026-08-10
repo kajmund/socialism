@@ -465,26 +465,43 @@ export function MessagesWorkshopPage() {
 
                 {cacheEntries.length > 0 ? (
                   <div className="field">
-                    <label htmlFor="cached-image-pick">{t("messages.workshop.imagePickCached")}</label>
-                    <select
-                      id="cached-image-pick"
-                      className="w-full"
-                      value={imageSha256 ?? ""}
-                      onChange={(e) => {
-                        const sha = e.target.value
-                        if (!sha) return
-                        const entry = cacheEntries.find((row) => row.sha256 === sha)
-                        if (entry) applyCacheEntry(entry)
-                      }}
+                    <p className="mb-2 text-sm font-medium">{t("messages.workshop.imagePickCached")}</p>
+                    <div
+                      role="listbox"
+                      aria-label={t("messages.workshop.imagePickCached")}
+                      className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4"
                     >
-                      <option value="">{t("messages.workshop.imagePickPlaceholder")}</option>
-                      {cacheEntries.map((row) => (
-                        <option key={row.sha256} value={row.sha256}>
-                          {row.sha256.slice(0, 12)}… — {row.caption.slice(0, 48)}
-                          {row.caption.length > 48 ? "…" : ""}
-                        </option>
-                      ))}
-                    </select>
+                      {cacheEntries.map((row) => {
+                        const selected = imageSha256 === row.sha256
+                        return (
+                          <button
+                            key={row.sha256}
+                            type="button"
+                            role="option"
+                            aria-selected={selected}
+                            aria-label={t("messages.workshop.imagePickOption", {
+                              caption: row.caption.slice(0, 80),
+                            })}
+                            className={`overflow-hidden rounded border text-left transition-colors ${
+                              selected
+                                ? "border-db-ink-950 ring-2 ring-db-ink-950"
+                                : "border-[color:var(--border-hairline)] hover:border-db-ink-950"
+                            }`}
+                            onClick={() => applyCacheEntry(row)}
+                          >
+                            <img
+                              src={cachedImageUrl(row.sha256)}
+                              alt=""
+                              className="aspect-[4/3] w-full object-cover"
+                              loading="lazy"
+                            />
+                            <span className="line-clamp-2 px-2 py-1.5 text-xs text-muted-foreground">
+                              {row.caption}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
                 ) : null}
 
