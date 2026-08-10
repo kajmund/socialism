@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { createPortal } from "react-dom"
 import { HelpChatPanel } from "@/components/help/HelpChatPanel"
 import { useLocale } from "@/i18n"
 import { getHelpSessionId } from "@/lib/helpSession"
@@ -30,10 +31,10 @@ export function HelpChatWidget() {
   const [open, setOpen] = useState(false)
   const sessionId = getHelpSessionId()
 
-  return (
-    <div className="theme-admin help-chat-launcher">
+  return createPortal(
+    <div className="help-chat-launcher">
       {open ? (
-        <div id="help-chat-panel" className="help-chat-shell" role="presentation">
+        <div id="help-chat-panel" className="help-chat-shell theme-admin" role="presentation">
           <HelpChatPanel sessionId={sessionId} onClose={() => setOpen(false)} />
         </div>
       ) : null}
@@ -47,6 +48,7 @@ export function HelpChatWidget() {
       >
         {open ? <CloseIcon /> : <HelpIcon />}
       </button>
-    </div>
+    </div>,
+    document.body,
   )
 }
