@@ -14,7 +14,7 @@ from app.services.report.locale import ReportLocale, display_style_label
 from app.services.report.metrics import ReportMetrics, injection_likes, pct, tone_shares_sorted
 from app.services.report.recommendation import build_recommendation
 from app.services.report.segment_analysis import build_audience_summaries
-from app.services.report.quick_glossary import footnote, render_quick_glossary
+from app.services.report.quick_glossary import FootnoteContext, footnote
 from app.services.ssr import ANCHOR_SET_VERSION
 
 # Hardcoded thresholds (not config) until calibration shows need to tweak often.
@@ -329,7 +329,6 @@ def build_quick_slots(
     locale: ReportLocale,
     timing: dict[str, Any],
 ) -> dict[str, str]:
-    verdict = decide_verdict(metrics, bundles, locale=locale)
     drift_bits = [
         _topic_share_by_day_half(b, c)
         for b, c in zip(bundles, classifications, strict=True)
@@ -347,37 +346,46 @@ def build_quick_slots(
         for s, a in metrics.aggregate.style_avg_likes
     )
 
-    if locale == "en":
-        drift_html = (
-            "<p><strong>Topic drift:</strong> the test topic fell below 10% "
-            "after day 1 — it disappeared from the debate."
-            f"{footnote('topic-drift')}</p>"
-            if any_drift
-            else (
-                "<p><strong>Topic drift:</strong> no clear drop-off after day 1."
+    with FootnoteContext(locale) as tracker:
+        if locale == "en":
+            drift_body = (
+                "<p><strong>Topic drift:</strong> the test topic fell below 10% "
+                "after day 1 — it disappeared from the debate."
                 f"{footnote('topic-drift')}</p>"
+                if any_drift
+                else (
+                    "<p><strong>Topic drift:</strong> no clear drop-off after day 1."
+                    f"{footnote('topic-drift')}</p>"
+                )
             )
-        )
+        else:
+            drift_body = (
+                "<p><strong>Ämnesdrift:</strong> testämnet under 10 % efter dag 1 "
+                "— försvann ur debatten."
+                f"{footnote('topic-drift')}</p>"
+                if any_drift
+                else (
+                    "<p><strong>Ämnesdrift:</strong> ingen tydlig nedgång efter dag 1."
+                    f"{footnote('topic-drift')}</p>"
+                )
+            )
+        drift_html = drift_body + tracker.render_block()
+
+    if locale == "en":
         page_title = title.strip() or "Quick report"
         eyebrow = "Quick report — automated analysis"
         tech_title = "Technical appendix"
     else:
-        drift_html = (
-            "<p><strong>Ämnesdrift:</strong> testämnet under 10 % efter dag 1 "
-            "— försvann ur debatten."
-            f"{footnote('topic-drift')}</p>"
-            if any_drift
-            else (
-                "<p><strong>Ämnesdrift:</strong> ingen tydlig nedgång efter dag 1."
-                f"{footnote('topic-drift')}</p>"
-            )
-        )
         page_title = title.strip() or "Snabbrapport"
         eyebrow = "Snabbrapport — automatisk analys"
         tech_title = "Tekniskt stycke"
 
-    ab_html = _ab_diff_html(metrics, locale=locale) if ab else ""
-    style_html = _style_html(metrics, locale=locale)
+    with FootnoteContext(locale) as ab_tracker:
+        ab_body = _ab_diff_html(metrics, locale=locale) if ab else ""
+        ab_html = ab_body + ab_tracker.render_block() if ab_body else ""
+
+    with FootnoteContext(locale) as style_tracker:
+        style_html = _style_html(metrics, locale=locale) + style_tracker.render_block()
     audience = [
         seg
         for b, c in zip(bundles, classifications, strict=True)
@@ -397,7 +405,7 @@ def build_quick_slots(
 
     tech_html = (
         f"<details class=\"tech\"><summary>{escape(tech_title)}</summary>"
-        f"<p>{escape(verdict.threshold_note)}</p>"
+        f"<p>{escape(decide_verdict(metrics, bundles, locale=locale).threshold_note)}</p>"
         f"<p>embedding_model={escape(settings.embedding_model)} · "
         f"anchor_set={escape(ANCHOR_SET_VERSION)} · "
         f"llm={timing.get('classify_llm_seconds', '—')}s · "
@@ -419,27 +427,9 @@ def build_quick_slots(
         + "</ul></details>"
     )
 
-    verdict_class = {
-        "strong": "v-strong",
-        "mixed": "v-mixed",
-        "weak": "v-weak",
-        "zero": "v-zero",
-    }.get(verdict.key, "v-mixed")
-
-    fn_tone = footnote("positive-tone")
-    fn_inj = footnote("likes-injection")
-    verdict_detail_html = (
-        f"{escape(verdict.detail)} "
-        f"<span class=\"verdict-fn\">({fn_tone}"
-        f"{f', {fn_inj}' if verdict.key == 'zero' else ''})</span>"
-    )
-
     return {
         "page_title": page_title,
         "eyebrow": eyebrow,
-        "verdict_class": verdict_class,
-        "verdict_label": verdict.label,
-        "verdict_detail_html": verdict_detail_html,
         "drift_html": drift_html,
         "ab_html": ab_html or (
             f"<p>{'Single run — no A/B comparison.' if locale == 'en' else 'En körning — ingen A/B-jämförelse.'}</p>"
@@ -453,7 +443,6 @@ def build_quick_slots(
         "recommendation_html": chart_slots.get("recommendation_html", ""),
         "style_html": style_html,
         "tech_html": tech_html,
-        "glossary_html": render_quick_glossary(locale=locale),
         "meta_runs": ", ".join(b.label for b in bundles),
     }
 
@@ -470,7 +459,6 @@ def render_quick_html(slots: dict[str, str], *, locale: ReportLocale) -> str:
         h_drift = "Topic drift"
         h_ab = "A/B comparison"
         h_style = "Style impact"
-        h_glossary = "Glossary"
     else:
         h_stats = "Statistik"
         h_charts = "Diagram"
@@ -481,7 +469,6 @@ def render_quick_html(slots: dict[str, str], *, locale: ReportLocale) -> str:
         h_drift = "Ämnesdrift"
         h_ab = "A/B-jämförelse"
         h_style = "Stilgenomslag"
-        h_glossary = "Ordlista"
     return f"""<!DOCTYPE html>
 <html lang="{lang}">
 <head>
@@ -492,12 +479,8 @@ body{{font-family:Georgia,serif;background:#F7F3EA;color:#1A1814;margin:0;paddin
 .wrap{{max-width:960px;margin:0 auto;overflow-x:clip;}}
 .eyebrow{{font-size:.85rem;letter-spacing:.04em;text-transform:uppercase;color:#6B6253;}}
 h1{{font-size:1.75rem;margin:.35rem 0 1.25rem;}}
-.verdict{{border:1px solid #D8CFC0;padding:1.25rem 1.5rem;margin:1rem 0;background:#FFFCF6;}}
-.v-strong{{border-left:6px solid #5F7A4C;}}
-.v-mixed{{border-left:6px solid #D8A14A;}}
-.v-weak{{border-left:6px solid #B0563F;}}
-.v-zero{{border-left:6px solid #6B6253;}}
-.verdict h2{{margin:0 0 .35rem;font-size:1.35rem;}}
+.conclusion{{border:1px solid #D8CFC0;padding:1.25rem 1.5rem;margin:1rem 0 1.75rem;background:#FFFCF6;border-left:6px solid #1E3A55;border-radius:0 8px 8px 0;}}
+.conclusion h3{{margin:0 0 .75rem;border-bottom:none;padding-bottom:0;}}
 section{{margin:1.75rem 0;min-width:0;}}
 section h3{{font-size:1.05rem;margin:0 0 .5rem;border-bottom:1px solid #D8CFC0;padding-bottom:.35rem;}}
 .tech{{margin-top:2.5rem;font-size:.9rem;color:#3A342C;}}
@@ -572,8 +555,8 @@ td,th{{border-bottom:1px solid #E5DDD0;padding:.35rem .5rem;text-align:left;font
 .qa-agent{{font-weight:700;font-size:.85rem;margin-bottom:2px;}}
 .qa-profile{{font-size:.75rem;color:#6B6253;margin-bottom:6px;line-height:1.35;}}
 .qa-q,.qa-a{{font-size:.82rem;line-height:1.4;margin-top:4px;}}
-.recommendation-block{{border:1px solid #D8CFC0;border-radius:8px;padding:12px 14px;margin:0 0 1rem;background:#FFFCF6;}}
 .rec-headline{{font-size:1.05rem;margin:0 0 .5rem;}}
+.rec-compare,.rec-reception{{font-size:.85rem;margin:.35rem 0;line-height:1.45;}}
 .rec-sub{{margin:.35rem 0 .15rem;font-size:.85rem;}}
 .rec-list{{margin:0 0 .5rem 1.1rem;font-size:.82rem;line-height:1.4;}}
 .rec-traj{{font-size:.82rem;color:#3A342C;margin:.35rem 0 0;}}
@@ -620,14 +603,10 @@ td,th{{border-bottom:1px solid #E5DDD0;padding:.35rem .5rem;text-align:left;font
 .aud-arm-head{{font-size:.88rem;font-weight:700;color:#1E3A55;margin:0 0 10px;padding-bottom:6px;border-bottom:1px solid #E5DDD0;}}
 .aud-compare .aud-narrative{{font-size:.82rem;}}
 .muted{{color:#6B6253;font-size:.9rem;}}
-.fn a{{color:#1E3A55;text-decoration:none;font-weight:700;}}
-.fn a:hover{{text-decoration:underline;}}
-.glossary-hint{{font-size:.78rem;color:#6B6253;margin:.35rem 0 0;}}
-.glossary{{margin:2rem 0 1rem;padding-top:1.25rem;border-top:1px solid #D8CFC0;}}
-.glossary h3{{font-size:1.05rem;margin:0 0 .75rem;}}
-.gloss-item{{font-size:.82rem;line-height:1.45;margin:0 0 .55rem;color:#3A342C;}}
-.gloss-n{{color:#6B6253;font-weight:700;}}
-.verdict-fn{{font-size:.85rem;color:#6B6253;}}
+.fn{{color:#1E3A55;font-weight:700;font-size:.85em;}}
+.fn-block{{font-size:.78rem;color:#6B6253;margin:.65rem 0 0;padding-top:.45rem;border-top:1px solid #E5DDD0;line-height:1.45;}}
+.fn-item{{margin:.25rem 0 0;}}
+.fn-mark{{font-weight:700;}}
 </style>
 </head>
 <body>
@@ -635,10 +614,6 @@ td,th{{border-bottom:1px solid #E5DDD0;padding:.35rem .5rem;text-align:left;font
   <div class="eyebrow">{escape(slots.get("eyebrow", ""))}</div>
   <h1>{escape(slots.get("page_title", ""))}</h1>
   {slots.get("recommendation_html", "")}
-  <div class="verdict {escape(slots.get("verdict_class", "v-mixed"))}">
-    <h2>{escape(slots.get("verdict_label", ""))}</h2>
-    <p>{slots.get("verdict_detail_html", "")}</p>
-  </div>
   <section>
     <h3>{h_stats}</h3>
     {slots.get("stats_html", "")}
@@ -676,7 +651,6 @@ td,th{{border-bottom:1px solid #E5DDD0;padding:.35rem .5rem;text-align:left;font
     {slots.get("style_html", "")}
   </section>
   {slots.get("tech_html", "")}
-  {slots.get("glossary_html", "")}
   <p class="meta">{escape(slots.get("meta_runs", ""))}</p>
 </div>
 </body>

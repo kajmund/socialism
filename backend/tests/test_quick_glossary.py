@@ -1,4 +1,4 @@
-"""Tests for snabbrapport footnotes and glossary."""
+"""Tests for snabbrapport footnotes and per-section definitions."""
 
 from __future__ import annotations
 
@@ -7,13 +7,14 @@ from app.services.report.classify import BundleClassification, TopicPack
 from app.services.report.charts import render_quick_stats_table
 from app.services.report.metrics import compute_report_metrics
 from app.services.report.quick import build_quick_slots, render_quick_html
-from app.services.report.quick_glossary import footnote, render_quick_glossary
+from app.services.report.quick_glossary import FootnoteContext, footnote
+from app.services.report.recommendation import build_recommendation
 from app.services.ssr.anchors import TONE_LABELS_SV
 
 
-def _bundle_with_likes(injection_likes: int = 3) -> RunBundle:
+def _bundle_with_likes(injection_likes: int = 3, label: str = "A") -> RunBundle:
     return RunBundle(
-        label="A",
+        label=label,
         run_id=1,
         run_name="T",
         attempt_id="a1",
@@ -37,22 +38,25 @@ def _bundle_with_likes(injection_likes: int = 3) -> RunBundle:
     )
 
 
-def test_footnote_links_to_glossary_entry():
-    html = footnote("likes-total")
-    assert 'href="#fn-likes-total"' in html
-    assert "<sup" in html
+def test_footnote_uses_asterisks():
+    with FootnoteContext("sv") as tracker:
+        html = footnote("likes-total")
+        assert html == '<span class="fn">*</span>'
+        block = tracker.render_block()
+        assert "Likes totalt" in block
+        assert 'class="fn-block"' in block
 
 
-def test_render_quick_glossary_sv_contains_key_terms():
-    html = render_quick_glossary(locale="sv")
-    assert 'id="ordlista"' in html
-    assert "Likes totalt" in html
-    assert "Engagemangspoäng" in html
-    assert "Simulerat ≠ verkligt" in html
-    assert 'id="fn-likes-total"' in html
+def test_footnote_reuses_same_marker_for_repeat_entry():
+    with FootnoteContext("sv"):
+        first = footnote("likes-total")
+        second = footnote("likes-total")
+        third = footnote("engagement-score")
+        assert first == second == '<span class="fn">*</span>'
+        assert third == '<span class="fn">**</span>'
 
 
-def test_quick_stats_table_includes_footnotes():
+def test_quick_stats_table_includes_section_footnotes():
     bundle = _bundle_with_likes(4)
     clf = BundleClassification(
         topic_packs=[TopicPack(label="Belysning", keywords=["belysning"])],
@@ -61,13 +65,14 @@ def test_quick_stats_table_includes_footnotes():
         tone_mode="ssr",
     )
     metrics = compute_report_metrics([bundle], [clf])
-    html = render_quick_stats_table(metrics, locale="sv")
-    assert 'href="#fn-likes-total"' in html
-    assert 'href="#fn-engagement-score"' in html
-    assert "ordlistan längst ner" in html
+    with FootnoteContext("sv") as tracker:
+        html = render_quick_stats_table(metrics, locale="sv") + tracker.render_block()
+    assert '<span class="fn">*</span>' in html
+    assert "Engagemangspoäng" in html
+    assert "ordlistan längst ner" not in html
 
 
-def test_render_quick_html_includes_glossary_section():
+def test_render_quick_html_uses_slutsats_not_verdict():
     bundle = _bundle_with_likes(5)
     clf = BundleClassification(
         topic_packs=[TopicPack(label="Belysning", keywords=["belysning"])],
@@ -88,7 +93,46 @@ def test_render_quick_html_includes_glossary_section():
         timing={"total_seconds": 0.1, "embed_seconds": 0.1},
     )
     html = render_quick_html(slots, locale="sv")
-    assert 'class="glossary"' in html
-    assert "Ordlista" in html
-    assert 'href="#fn-positive-tone"' in html
-    assert "verdict_detail_html" not in html
+    assert "Slutsats:" in html
+    assert 'class="conclusion"' in html
+    assert "Starkt mottagande" not in html
+    assert 'class="verdict"' not in html
+    assert 'class="glossary"' not in html
+    assert "Ordlista" not in html
+
+
+def test_ab_recommendation_names_winning_version():
+    bundle_a = _bundle_with_likes(10, label="Version A")
+    bundle_b = _bundle_with_likes(2, label="Version B")
+    bundle_a = RunBundle(**{**bundle_a.__dict__, "variant_id": "a"})
+    bundle_b = RunBundle(**{**bundle_b.__dict__, "variant_id": "b"})
+    clf_a = BundleClassification(
+        topic_packs=[TopicPack(label="Belysning", keywords=["belysning"])],
+        topic_shares={"Belysning": 1.0},
+        tone_shares={
+            **{lab: 0.0 for lab in TONE_LABELS_SV},
+            **{"Starkt positiv": 0.6, "Neutral": 0.4},
+        },
+        tone_mode="ssr",
+    )
+    clf_b = BundleClassification(
+        topic_packs=[TopicPack(label="Belysning", keywords=["belysning"])],
+        topic_shares={"Belysning": 1.0},
+        tone_shares={
+            **{lab: 0.0 for lab in TONE_LABELS_SV},
+            **{"Starkt negativ": 0.5, "Neutral": 0.5},
+        },
+        tone_mode="ssr",
+    )
+    metrics = compute_report_metrics([bundle_a, bundle_b], [clf_a, clf_b])
+    rec = build_recommendation(
+        metrics,
+        [bundle_a, bundle_b],
+        [clf_a, clf_b],
+        audience=[],
+        locale="sv",
+    )
+    assert rec.recommended_label == "Version A"
+    assert "Version A rekommenderas" in rec.headline
+    assert "Version A:" in rec.comparison_line
+    assert "Version B:" in rec.comparison_line
