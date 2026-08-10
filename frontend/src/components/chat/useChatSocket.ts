@@ -12,6 +12,7 @@ export type ChatHello =
       persona_id: string
       through_tick_index: number
     }
+  | { scope: "help"; session_id: string; locale: "sv" | "en" }
 
 export type ChatDoneMessage = {
   id: number
@@ -31,6 +32,9 @@ function helloKey(hello: ChatHello | null): string {
   if (!hello) return ""
   if (hello.scope === "library") {
     return `library:${hello.persona_id}:${hello.mode}`
+  }
+  if (hello.scope === "help") {
+    return `help:${hello.session_id}:${hello.locale}`
   }
   return [
     "run",

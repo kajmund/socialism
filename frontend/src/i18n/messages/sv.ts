@@ -29,6 +29,20 @@ export const sv = {
     send: "Skicka",
     notConnected: "Chatten är inte ansluten",
   },
+  help: {
+    openFab: "Hjälp",
+    closeFab: "Stäng hjälp",
+    title: "Hjälpassistent",
+    subtitle: "Fråga hur Opinionssimulator fungerar",
+    placeholder: "T.ex. Hur startar jag en simulering?",
+    empty:
+      "Hej! Jag kan förklara hur du skapar körningar, personas, populationer, budskap och mer — utifrån användarmanualen.",
+    clear: "Rensa chatt",
+    loadError: "Kunde inte hämta chatthistorik",
+    sendError: "Kunde inte skicka meddelandet",
+    clearError: "Kunde inte rensa chatten",
+    panelAria: "Hjälpchatt",
+  },
   common: {
     open: "Öppna",
     openArrow: "Öppna →",
