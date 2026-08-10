@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     # Cap overlapping run_simulate background jobs (A/B variants within one job
     # still run concurrently; this limits distinct körningar fighting for the API).
     max_concurrent_simulation_jobs: int = Field(default=2, ge=1, le=32)
+    # Max concurrent LLM calls when generating personas in one population batch.
+    # 1 = serial (debug); higher values overlap profile/anecdote waves.
+    persona_generate_concurrency: int = Field(default=8, ge=1, le=32)
 
     @field_validator("allowed_origins", mode="before")
     @classmethod

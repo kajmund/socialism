@@ -18,6 +18,7 @@ import { PopulationBuilderPage } from "@/pages/PopulationBuilderPage"
 import { PopulationDetailPage } from "@/pages/PopulationDetailPage"
 import { PopulationsPage } from "@/pages/PopulationsPage"
 import { ReportPage } from "@/pages/ReportPage"
+import { ReportsPage } from "@/pages/ReportsPage"
 import { RunsPage } from "@/pages/RunsPage"
 
 function RedirectConfigurationEdit() {
@@ -69,6 +70,7 @@ export default function App() {
         <Route path="/playground" element={<Navigate to="/tools/playground" replace />} />
 
         <Route path="/jobs" element={<JobsPage />} />
+        <Route path="/reports" element={<ReportsPage />} />
         <Route path="/reports/:id" element={<ReportPage />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />

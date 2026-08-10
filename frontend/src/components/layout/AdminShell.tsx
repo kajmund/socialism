@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { key: "nav.messages" as const, to: "/messages", match: "/messages" },
   { key: "nav.tools" as const, to: "/tools", match: "/tools" },
   { key: "nav.runs" as const, to: "/runs", match: "/runs" },
+  { key: "nav.reports" as const, to: "/reports", match: "/reports" },
   { key: "nav.jobs" as const, to: "/jobs", match: "/jobs" },
 ]
 

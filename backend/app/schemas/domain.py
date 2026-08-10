@@ -829,6 +829,14 @@ class ReportOut(BaseModel):
     updated_at: str
 
 
+class ReportBulkDelete(BaseModel):
+    ids: list[str] = Field(min_length=1, max_length=100)
+
+
+class ReportBulkDeleteResult(BaseModel):
+    deleted_ids: list[str]
+
+
 class JobCreate(BaseModel):
     kind: JobKind
     label: str = ""

@@ -82,8 +82,8 @@ PROMPT_FIELDS: list[PromptFieldDef] = [
         "Lista över profilfält som modellen ska fylla i.",
         "List of profile fields the model should fill in.",
         """Fält att fylla i (svenska strängar, korta och konkreta):
-- name: för- och efternamn (svenskt eller vanligt i Sverige; matcha kön)
-- initials: två bokstäver
+- name: för- och efternamn (svenskt eller vanligt i Sverige; matcha kön). Om prompten anger ett fast namn: använd exakt det.
+- initials: två bokstäver (matcha det fasta namnet om sådant anges)
 - age: ålder som sträng (siffra)
 - kön: Kvinna, Man eller Icke-binär
 - ort: stadsdel/ort
@@ -91,8 +91,8 @@ PROMPT_FIELDS: list[PromptFieldDef] = [
 - utbildning, livssituation, lutning, sakfragor, fortroende, ton, sprak, medievanor, parti, valdeltagande
 (Lämna anekdot som "—" — genereras separat.)""",
         """Fields to fill (English strings, short and concrete):
-- name: first and last name
-- initials: two letters
+- name: first and last name. If the prompt specifies a fixed name, use it exactly.
+- initials: two letters (match the fixed name when given)
 - age: age as a string (digits)
 - kön: Woman, Man, or Non-binary
 - ort: district/place
@@ -123,8 +123,10 @@ PROMPT_FIELDS: list[PromptFieldDef] = [
         "persona",
         "Persona från recept — användarprompt",
         "Persona from recipe — user prompt",
-        "Platshållare: {requirements}, {surname_block}, {voice_block}, {free_text}, {field_guide}",
-        "Placeholders: {requirements}, {surname_block}, {voice_block}, {free_text}, {field_guide}",
+        "Platshållare: {requirements}, {surname_block}, {voice_block}, {free_text}, {field_guide}. "
+        "surname_block kan innehålla fast namn eller förbjudna efternamn.",
+        "Placeholders: {requirements}, {surname_block}, {voice_block}, {free_text}, {field_guide}. "
+        "surname_block may contain a fixed name or forbidden surnames.",
         """Skapa en trovärdig lokal persona.
 
 Demografiska och attributkrav (följ dessa):

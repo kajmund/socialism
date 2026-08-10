@@ -1023,6 +1023,7 @@ async def test_population_generate_job_creates_population(client):
     payload = got.json()
     assert payload["status"] == "succeeded"
     assert payload["result"]["member_count"] == 4
+    assert payload["result"]["name"] == "Jobb-pop A"
     pop_id = payload["result"]["population_id"]
     assert isinstance(pop_id, int)
 
@@ -1034,6 +1035,47 @@ async def test_population_generate_job_creates_population(client):
     listed = await client.get("/jobs")
     assert listed.status_code == 200
     assert any(j["id"] == job_id for j in listed.json())
+
+
+async def test_population_generate_job_resolves_duplicate_population_name(client):
+    from app.services import jobs as jobs_service
+
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+
+    first = await client.post(
+        "/jobs",
+        json={
+            "kind": "population_generate",
+            "label": "Ny population",
+            "request": {
+                "name": "Ny population",
+                "recipe": _sample_recipe(size=2, seed=1),
+            },
+        },
+    )
+    assert first.status_code == 202
+    await jobs_service._run_job(first.json()["id"])
+    first_result = (await client.get(f"/jobs/{first.json()['id']}")).json()
+    assert first_result["status"] == "succeeded"
+    assert first_result["result"]["name"] == "Ny population"
+
+    second = await client.post(
+        "/jobs",
+        json={
+            "kind": "population_generate",
+            "label": "Ny population",
+            "request": {
+                "name": "Ny population",
+                "recipe": _sample_recipe(size=2, seed=2),
+            },
+        },
+    )
+    assert second.status_code == 202
+    await jobs_service._run_job(second.json()["id"])
+    second_result = (await client.get(f"/jobs/{second.json()['id']}")).json()
+    assert second_result["status"] == "succeeded"
+    assert second_result["result"]["name"] == "Ny population (2)"
+    assert second_result["result"]["population_id"] != first_result["result"]["population_id"]
 
 
 async def test_population_generate_job_fails_missing_population(client):

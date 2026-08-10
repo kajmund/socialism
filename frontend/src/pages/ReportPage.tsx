@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
-import { Link, useParams } from "react-router-dom"
-import { getReport, getReportHtml, type Report } from "@/api/reports"
+import { Link, useNavigate, useParams } from "react-router-dom"
+import { deleteReport, getReport, getReportHtml, type Report } from "@/api/reports"
 import { AdminShell } from "@/components/layout/AdminShell"
 import { Card, CardContent } from "@/components/ui/card"
 import { useLocale, type MessageKey } from "@/i18n"
@@ -39,11 +39,14 @@ function formatReportDuration(
 
 export function ReportPage() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const { t } = useLocale()
   const [report, setReport] = useState<Report | null>(null)
   const [html, setHtml] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [htmlError, setHtmlError] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -109,6 +112,19 @@ export function ReportPage() {
     window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
   }
 
+  async function handleDelete() {
+    if (!id || deleting) return
+    setDeleting(true)
+    try {
+      await deleteReport(id)
+      navigate("/reports")
+    } catch (err) {
+      setDeleting(false)
+      setConfirmDelete(false)
+      setError(err instanceof ApiError ? err.message : t("common.deleteError"))
+    }
+  }
+
   const duration = report ? formatReportDuration(report, t) : null
 
   return (
@@ -126,11 +142,46 @@ export function ReportPage() {
             {report?.title || t("reports.titleFallback")}
           </h1>
           <p>
-            <Link to="/jobs">{t("reports.backToJobs")}</Link>
+            <Link to="/reports">{t("reports.backToList")}</Link>
             {report ? ` · ${t(STATUS_KEY[report.status])}` : null}
             {duration ? ` · ${t("reports.took", { duration })}` : null}
           </p>
         </div>
+
+        {report ? (
+          confirmDelete ? (
+            <div
+              className="confirm-row mb-4"
+              style={{ display: "flex", gap: 8, flexWrap: "wrap" }}
+            >
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() => setConfirmDelete(false)}
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                type="button"
+                className="yes"
+                disabled={deleting}
+                onClick={() => void handleDelete()}
+              >
+                {t("common.deleteConfirm")}
+              </button>
+            </div>
+          ) : (
+            <div className="mb-4">
+              <button
+                type="button"
+                className="danger"
+                onClick={() => setConfirmDelete(true)}
+              >
+                {t("common.delete")}
+              </button>
+            </div>
+          )
+        ) : null}
 
         {error ? (
           <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
