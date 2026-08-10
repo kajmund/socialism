@@ -171,7 +171,7 @@ def test_quick_stats_table_includes_engagement_columns():
     )
     m = compute_report_metrics([b], [clf])
     html = render_quick_stats_table(m, locale="sv")
-    assert 'href="#fn-likes-total"' in html
+    assert '<span class="fn">*</span>' in html
     assert "Likes testbudskap" in html
     assert "Delningar" in html
     assert "4" in html
@@ -229,7 +229,7 @@ def test_quick_ab_bars_renders_comparison():
     assert "A/B" in html
     assert "Version A" in html
     assert "Version B" in html
-    assert 'href="#fn-likes-total"' in html
+    assert '<span class="fn">*</span>' in html
 
 
 def test_prefill_quick_chart_slots_ab_mode():
