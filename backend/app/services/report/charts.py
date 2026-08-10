@@ -972,7 +972,7 @@ def _segment_engagement_bars(tone: SegmentToneRow, *, locale: ReportLocale) -> s
         color = palette[i % len(palette)]
         rows.append(
             f'<div class="aud-eng-row">'
-            f'<span class="aud-eng-lbl">{escape(label)}</span>'
+            f'<span class="aud-eng-lbl">{label}</span>'
             f'<div class="aud-eng-track"><div class="aud-eng-fill" '
             f'style="width:{width}%;background:{color}"></div></div>'
             f'<span class="aud-eng-val">{val}</span></div>'
