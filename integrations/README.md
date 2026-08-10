@@ -46,4 +46,4 @@ cd integrations/mcp && uv sync
 
 ## In-app help chat
 
-The admin UI includes a floating help chatbot (same WebSocket streaming as persona chat). It uses the same OKF corpus and DeepSeek via `POST/GET /help` and WebSocket scope `help`.
+The admin UI includes a floating help chatbot on **every page** (same WebSocket streaming as persona chat). It uses OKF manuals plus **read-only** live data (library counts, open entity, injected current view). It never writes to the database.

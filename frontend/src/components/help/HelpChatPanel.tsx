@@ -5,6 +5,7 @@ import { useChatSocket } from "@/components/chat/useChatSocket"
 import { AdminButton } from "@/components/ui/admin-button"
 import { useLocale } from "@/i18n"
 import { getHelpSessionId } from "@/lib/helpSession"
+import { useHelpView } from "@/lib/helpView"
 
 type HelpChatPanelProps = {
   sessionId: string
@@ -24,6 +25,7 @@ function doneToHelpMessages(
 
 export function HelpChatPanel({ sessionId, onClose }: HelpChatPanelProps) {
   const { t, locale } = useLocale()
+  const view = useHelpView()
   const [messages, setMessages] = useState<HelpMessage[]>([])
   const [draft, setDraft] = useState("")
   const [optimisticUser, setOptimisticUser] = useState<string | null>(null)
@@ -33,10 +35,12 @@ export function HelpChatPanel({ sessionId, onClose }: HelpChatPanelProps) {
   const chatHello = useMemo(
     () =>
       sessionId
-        ? ({ scope: "help" as const, session_id: sessionId, locale })
+        ? ({ scope: "help" as const, session_id: sessionId, locale, view })
         : null,
-    [sessionId, locale],
+    [sessionId, locale, view],
   )
+
+  const sendExtras = useCallback(() => ({ view }), [view])
 
   const {
     ready: chatReady,
@@ -46,6 +50,7 @@ export function HelpChatPanel({ sessionId, onClose }: HelpChatPanelProps) {
     send: socketSend,
   } = useChatSocket({
     hello: chatHello,
+    sendExtras,
     onDone: (rows) => {
       setMessages(doneToHelpMessages(rows))
       setOptimisticUser(null)
@@ -107,7 +112,9 @@ export function HelpChatPanel({ sessionId, onClose }: HelpChatPanelProps) {
       <div className="help-chat-panel-header">
         <div>
           <div className="help-chat-panel-title">{t("help.title")}</div>
-          <div className="help-chat-panel-sub">{t("help.subtitle")}</div>
+          <div className="help-chat-panel-sub">
+            {t("help.currentView", { view: view.label })}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <AdminButton

@@ -9,7 +9,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field, ValidationError
 
 from app.realtime.hub import job_hub
-from app.schemas.domain import ChatMode, HelpChatResponse, PersonaChatResponse
+from app.schemas.domain import ChatMode, HelpChatResponse, HelpViewContext, PersonaChatResponse
 from app.services import jobs as jobs_service
 from app.services.help_chat import ChatTurnError as HelpChatTurnError
 from app.services.help_chat import stream_help_chat_turn
@@ -46,11 +46,13 @@ class HelpHello(BaseModel):
     scope: Literal["help"]
     session_id: str = Field(min_length=1, max_length=64)
     locale: Literal["sv", "en"] = "sv"
+    view: HelpViewContext | None = None
 
 
 class ChatSend(BaseModel):
     type: Literal["send"]
     message: str = Field(min_length=1)
+    view: HelpViewContext | None = None
 
 
 async def _send_error(websocket: WebSocket, detail: str) -> None:
@@ -136,11 +138,13 @@ async def chat_websocket(websocket: WebSocket) -> None:
                 async with factory() as session:
                     if isinstance(hello, HelpHello):
                         done_help: HelpChatResponse | None = None
+                        turn_view = send.view if send.view is not None else hello.view
                         stream = stream_help_chat_turn(
                             session,
                             session_id=hello.session_id,
                             locale=hello.locale,
                             message=send.message,
+                            view=turn_view,
                         )
                         async for item in stream:
                             if isinstance(item, HelpChatResponse):

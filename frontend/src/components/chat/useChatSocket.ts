@@ -12,7 +12,15 @@ export type ChatHello =
       persona_id: string
       through_tick_index: number
     }
-  | { scope: "help"; session_id: string; locale: "sv" | "en" }
+  | { scope: "help"; session_id: string; locale: "sv" | "en"; view: HelpViewPayload }
+
+export type HelpViewPayload = {
+  path: string
+  view_key: string
+  label: string
+  params: Record<string, string>
+  search: Record<string, string>
+}
 
 export type ChatDoneMessage = {
   id: number
@@ -24,6 +32,7 @@ export type ChatDoneMessage = {
 
 type UseChatSocketOptions = {
   hello: ChatHello | null
+  sendExtras?: () => Record<string, unknown>
   onDone: (messages: ChatDoneMessage[]) => void
   onError: (detail: string) => void
 }
@@ -34,7 +43,13 @@ function helloKey(hello: ChatHello | null): string {
     return `library:${hello.persona_id}:${hello.mode}`
   }
   if (hello.scope === "help") {
-    return `help:${hello.session_id}:${hello.locale}`
+    const viewKey = [
+      hello.view.path,
+      hello.view.view_key,
+      JSON.stringify(hello.view.params),
+      JSON.stringify(hello.view.search),
+    ].join("|")
+    return `help:${hello.session_id}:${hello.locale}:${viewKey}`
   }
   return [
     "run",
@@ -66,7 +81,7 @@ function asDoneMessages(raw: unknown): ChatDoneMessage[] {
   return out
 }
 
-export function useChatSocket({ hello, onDone, onError }: UseChatSocketOptions) {
+export function useChatSocket({ hello, sendExtras, onDone, onError }: UseChatSocketOptions) {
   const [ready, setReady] = useState(false)
   const [busy, setBusy] = useState(false)
   const [typing, setTyping] = useState(false)
@@ -76,6 +91,8 @@ export function useChatSocket({ hello, onDone, onError }: UseChatSocketOptions) 
   onDoneRef.current = onDone
   const onErrorRef = useRef(onError)
   onErrorRef.current = onError
+  const sendExtrasRef = useRef(sendExtras)
+  sendExtrasRef.current = sendExtras
   const key = helloKey(hello)
 
   useEffect(() => {
@@ -155,7 +172,8 @@ export function useChatSocket({ hello, onDone, onError }: UseChatSocketOptions) 
       setBusy(true)
       setTyping(true)
       setStreamText(null)
-      sendRef.current({ type: "send", message: trimmed })
+      const extras = sendExtrasRef.current?.() ?? {}
+      sendRef.current({ type: "send", message: trimmed, ...extras })
       return true
     },
     [hello, busy, ready],
