@@ -968,6 +968,7 @@ export const en: LocalizedTree<SvMessages> = {
       imageCacheHit: "Image already in cache — caption loaded.",
       imageCaptionReady: "Caption generated and cached.",
       imagePickCached: "Pick cached image",
+      imagePickOption: "Select image: {caption}",
       imagePickPlaceholder: "— select —",
       imagePreviewAlt: "Message image preview",
       captionLabel: "Image caption (shared across messages)",
