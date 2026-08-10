@@ -49,6 +49,7 @@ Guider för dig som använder Opinionssimulator i webbläsaren. Teknisk setup oc
 
 # Rapporter
 
+* [Hantera rapporter](hantera-rapporter.md) — Lista och öppna beställda rapporter
 * [Beställa en rapport](bestalla-rapport.md) — Sammanfattning eller jämförelse från resultat
 * [Läsa simuleringsrapport](lasa-simuleringsrapport.md) — Öppna och läsa HTML-rapporten
 

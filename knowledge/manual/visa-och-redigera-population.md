@@ -17,7 +17,8 @@ På **populationsdetaljsidan** ser du vilka personas som ingår, hur populatione
 4. **Duplicera** skapar en kopia av hela populationen.
 5. **Redigera recept** öppnar byggaren för att ändra fördelningar och generera om.
 6. Välj **+ Lägg till från bibliotek** för att söka i persona-biblioteket och lägga till medlemmar.
-7. Per medlem:
+7. Växla mellan **Rutnät** och **Lista** för hur medlemmarna visas.
+8. Per medlem:
    - **Öppna** går till persona-kompositören.
    - **Ta bort** tar bort personan från populationen (personan finns kvar i biblioteket).
 

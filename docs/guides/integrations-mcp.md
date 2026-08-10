@@ -10,7 +10,7 @@ Operator manuals in [`knowledge/manual/`](../knowledge/manual/) are loaded by `i
 - **View injection:** each message sends `{ path, view_key, label, params, search }` from the current route
 - **Backend:** `GET/DELETE /help/messages`, `POST /help/chat`, WebSocket `/ws/chat` with `{ scope: "help", session_id, locale, view }`
 - **Read sources:** OKF manuals + read-only DB snapshots (`help_read_context.py`) — personas, runs, populations, messages, configurations, anchor sets, reports, jobs
-- **SCB tools:** always on for lookup (`scb_search_tables`, `scb_get_table_meta`, `scb_query`). **`scb_population_dist`** only when the user checks **Use SCB for population weights** (`ground_population` on each message)
+- **SCB tools:** always on (`scb_search_tables`, `scb_get_table_meta`, `scb_query`, `scb_population_dist`)
 - **Write policy:** help assistant is read-only; only chat transcript rows are persisted
 
 ## MCP server (Cursor)

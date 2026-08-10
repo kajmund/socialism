@@ -22,14 +22,17 @@ Från menyn når du bland annat:
 3. **Populationer** — grupper av personas
 4. **Budskap** — budskapsbibliotek och verkstad
 5. **Verktyg** — konfigurationer (prompts, SSR-temperatur, grunddata), playground och embedding-cache
-6. **Jobb** — bakgrundsjobb (generering, simulering, rapporter)
+6. **Rapporter** — alla beställda simuleringsrapporter
+7. **Återkoppling** — buggar, idéer och åsikter sparade från hjälpchatten
+8. **Jobb** — bakgrundsjobb (generering, simulering, rapporter)
 
-Rapporter öppnas från en körnings resultat när en rapport har skapats.
+Rapporter beställs från en körnings resultat och listas under **Rapporter**.
 
 ## Relaterade guider
 
 - [Hantera körningar](hantera-korningar.md)
 - [Skapa en ny körning](skapa-korning.md)
 - [Starta en simulering](starta-simulering.md)
+- [Använda hjälpchatten](anvanda-hjalpchatten.md)
 - [Använda playground](anvanda-playground.md)
 - [Hantera embedding-cache](hantera-embedding-cache.md)

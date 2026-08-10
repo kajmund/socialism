@@ -49,36 +49,25 @@ def _require_prompt_map(
     return prompts
 
 
-async def require_active_prompts(session: AsyncSession) -> dict[str, str]:
-    from app.services.prompt_catalog import (
-        default_prompts,
-        refresh_ssr_classify_prompts,
-    )
+def _merge_missing_catalog_prompts(row: Configuration) -> bool:
+    """Persist new catalog keys into a stored config. Returns True if row changed."""
+    language: ConfigurationLanguage = row.language  # type: ignore[assignment]
+    before = dict(row.prompts or {})
+    merged = normalize_prompts(before, language=language, fill_missing=True)
+    if merged == before:
+        return False
+    row.prompts = merged
+    row.updated_at = utcnow()
+    return True
 
+
+async def require_active_prompts(session: AsyncSession) -> dict[str, str]:
     row = await get_active_configuration(session)
     if row is None:
         raise MissingActiveConfigurationError(
             "No active prompt configuration. Activate one under Konfigurationer."
         )
-    language: ConfigurationLanguage = row.language  # type: ignore[assignment]
-    stored = dict(row.prompts or {})
-    defaults = default_prompts(language)
-    changed = False
-
-    tone_key = "report.classify.tones.system"
-    refreshed = refresh_ssr_classify_prompts(stored, language=language)
-    if refreshed.get(tone_key) != stored.get(tone_key):
-        stored[tone_key] = refreshed[tone_key]
-        changed = True
-
-    style_key = "report.classify.styles.system"
-    if not str(stored.get(style_key, "")).strip():
-        stored[style_key] = defaults[style_key]
-        changed = True
-
-    if changed:
-        row.prompts = stored
-        row.updated_at = utcnow()
+    if _merge_missing_catalog_prompts(row):
         await session.commit()
         await session.refresh(row)
 
@@ -93,6 +82,7 @@ async def require_prompts_for_language(
 
     Fails loud if there is no active configuration or it uses another language —
     never falls back to an inactive config of the requested language.
+    Missing catalog keys are backfilled from defaults and persisted.
     """
     row = await get_active_configuration(session)
     if row is None:
@@ -105,8 +95,10 @@ async def require_prompts_for_language(
             f"'{row.language}', but '{language}' prompts were required. "
             f"Activate a {language} configuration under Konfigurationer."
         )
+    if _merge_missing_catalog_prompts(row):
+        await session.commit()
+        await session.refresh(row)
     return _require_prompt_map(row, context="Active configuration")
-
 
 async def require_active_ssr_temperature(session: AsyncSession) -> float:
     """SSR softmax temperature from the active configuration (fail loud if missing)."""

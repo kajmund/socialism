@@ -107,10 +107,12 @@ async def llm_persona_from_slot(
     *,
     session: AsyncSession | None = None,
     taken_surnames: frozenset[str] | None = None,
+    fixed_name: str | None = None,
     writing_trait: str | None = None,
     previous_personas: tuple[str, ...] = (),
     previous_anecdotes: tuple[str, ...] = (),
     prompts: dict[str, str] | None = None,
+    include_anecdote: bool = True,
 ) -> GeneratedPersonaOut:
     if prompts is None:
         if session is None:
@@ -121,7 +123,12 @@ async def llm_persona_from_slot(
         area_block = await area_block_for_name(session, slot.district)
     requirements = "\n".join(_slot_requirement_lines(slot))
     surname_block = ""
-    if taken_surnames:
+    locked = (fixed_name or "").strip()
+    if locked:
+        surname_block = (
+            f"\nNamn (använd exakt detta för- och efternamn, ändra inte): {locked}\n"
+        )
+    elif taken_surnames:
         listed = ", ".join(sorted(taken_surnames))
         surname_block = (
             f"\nEfternamn som redan används i populationen (välj ett annat): {listed}\n"
@@ -161,14 +168,20 @@ async def llm_persona_from_slot(
         ]
     )
     apply_slot_to_profile(profile, slot)
+    if locked:
+        profile.name = locked
+        profile.initials = persona_initials(locked)
     if writing_trait:
         profile.ton = writing_trait
-    profile.anekdot = await llm_persona_anecdote(
-        profile,
-        session=session,
-        previous_anecdotes=previous_anecdotes,
-        prompts=prompts,
-    )
+    if include_anecdote:
+        profile.anekdot = await llm_persona_anecdote(
+            profile,
+            session=session,
+            previous_anecdotes=previous_anecdotes,
+            prompts=prompts,
+        )
+    else:
+        profile.anekdot = "—"
     generated = profile_to_generated(profile, slot)
     if writing_trait:
         return GeneratedPersonaOut(

@@ -1,4 +1,4 @@
-"""In-process WebSocket fan-out for background job updates."""
+"""In-process WebSocket fan-out for admin realtime channels."""
 
 from __future__ import annotations
 
@@ -12,10 +12,11 @@ from starlette.websockets import WebSocketDisconnect, WebSocketState
 logger = logging.getLogger(__name__)
 
 
-class JobHub:
-    """Broadcast job events to all connected admin sockets."""
+class EventHub:
+    """Broadcast JSON events to all connected sockets on one channel."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, name: str) -> None:
+        self._name = name
         self._sockets: set[WebSocket] = set()
         self._lock = asyncio.Lock()
 
@@ -40,7 +41,7 @@ class JobHub:
             try:
                 await ws.send_json(event)
             except (WebSocketDisconnect, RuntimeError) as exc:
-                logger.debug("Dropping job WS client after send error: %s", exc)
+                logger.debug("Dropping %s WS client after send error: %s", self._name, exc)
                 dead.append(ws)
         if dead:
             async with self._lock:
@@ -48,4 +49,8 @@ class JobHub:
                     self._sockets.discard(ws)
 
 
-job_hub = JobHub()
+# Back-compat alias used by jobs.
+JobHub = EventHub
+
+job_hub = EventHub(name="jobs")
+report_hub = EventHub(name="reports")

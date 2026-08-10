@@ -4,7 +4,6 @@ import type { Job, JobStatus } from "@/api/jobs"
 import { listMessages } from "@/api/messages"
 import { listPersonas } from "@/api/personas"
 import { listPopulations } from "@/api/populations"
-import { listReports, type Report } from "@/api/reports"
 import { listRuns } from "@/api/runs"
 import { AdminShell } from "@/components/layout/AdminShell"
 import { Card, CardContent } from "@/components/ui/card"
@@ -13,6 +12,7 @@ import type { RunStatus, RunSummary } from "@/data/runs-types"
 import { useLocale, type MessageKey } from "@/i18n"
 import { ApiError } from "@/lib/api"
 import { useJobsRealtime } from "@/realtime/JobsRealtimeProvider"
+import { useReportsRealtime } from "@/realtime/ReportsRealtimeProvider"
 
 type Translate = (key: MessageKey, params?: Record<string, string | number>) => string
 
@@ -22,7 +22,6 @@ type DashboardData = {
   populationCount: number
   unusedPopulationCount: number
   messageCount: number
-  reports: Report[]
 }
 
 function formatWhen(iso: string | null | undefined, intl: string, emDash: string): string {
@@ -248,6 +247,11 @@ function OnboardingSteps({ t }: { t: Translate }) {
 export function DashboardPage() {
   const { t, intl } = useLocale()
   const { jobs } = useJobsRealtime()
+  const { reports: liveReports } = useReportsRealtime()
+  const recentReports = useMemo(
+    () => liveReports.filter((r) => r.status === "succeeded").slice(0, 5),
+    [liveReports],
+  )
   const [data, setData] = useState<DashboardData | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -258,12 +262,11 @@ export function DashboardPage() {
 
     async function load() {
       try {
-        const [runs, personas, populations, messages, reports] = await Promise.all([
+        const [runs, personas, populations, messages] = await Promise.all([
           listRuns(),
           listPersonas(),
           listPopulations(),
           listMessages(),
-          listReports({ status: "succeeded", limit: 5 }),
         ])
         if (cancelled) return
         setData({
@@ -272,7 +275,6 @@ export function DashboardPage() {
           populationCount: populations.length,
           unusedPopulationCount: populations.filter((p) => p.runs === 0).length,
           messageCount: messages.length,
-          reports,
         })
         setError(null)
         setLoading(false)
@@ -571,13 +573,13 @@ export function DashboardPage() {
               >
                 {t("dashboard.recentReports")}
               </h2>
-              {!data?.reports.length ? (
+              {!recentReports.length ? (
                 <div className="no-match" style={{ textAlign: "left" }}>
                   {t("dashboard.recentReportsEmpty")}
                 </div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  {data.reports.map((report) => (
+                  {recentReports.map((report) => (
                     <Card key={report.id} className="gap-0 py-3 ring-1 ring-border">
                       <CardContent className="px-4">
                         <div

@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 
 import pytest
 
+from app.database.models import Report
+from app.serializers import utcnow
 from app.services import jobs as jobs_service
+from app.services.report import ARTIFACT_ROOT
 
 
 async def _seed_run_with_attempt(client) -> tuple[int, str]:
@@ -544,3 +548,88 @@ async def test_create_report_missing_attempt(client):
         json={"sources": [{"run_id": run["id"], "attempt_id": "missing"}]},
     )
     assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_delete_report_removes_row_and_artifacts(client, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    report_id = "rpt_delete_me"
+    artifact_dir = Path(ARTIFACT_ROOT) / report_id
+    artifact_dir.mkdir(parents=True)
+    (artifact_dir / "report.html").write_text("<html>bye</html>", encoding="utf-8")
+
+    factory = jobs_service.job_session_factory()
+    async with factory() as session:
+        session.add(
+            Report(
+                id=report_id,
+                status="succeeded",
+                title="Att ta bort",
+                locale="sv",
+                mode="quick",
+                sources=[],
+                html_path=str(artifact_dir / "report.html"),
+                slots_path=None,
+                job_id=None,
+                error=None,
+                created_at=utcnow(),
+                updated_at=utcnow(),
+            )
+        )
+        await session.commit()
+
+    listed = await client.get("/reports")
+    assert listed.status_code == 200
+    assert any(r["id"] == report_id for r in listed.json())
+
+    deleted = await client.delete(f"/reports/{report_id}")
+    assert deleted.status_code == 204
+    assert not artifact_dir.exists()
+
+    missing = await client.get(f"/reports/{report_id}")
+    assert missing.status_code == 404
+
+    again = await client.delete(f"/reports/{report_id}")
+    assert again.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_bulk_delete_reports(client, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    ids = ["rpt_bulk_a", "rpt_bulk_b", "rpt_bulk_missing"]
+    factory = jobs_service.job_session_factory()
+    async with factory() as session:
+        for report_id in ids[:2]:
+            artifact_dir = Path(ARTIFACT_ROOT) / report_id
+            artifact_dir.mkdir(parents=True)
+            (artifact_dir / "report.html").write_text("<html/>", encoding="utf-8")
+            session.add(
+                Report(
+                    id=report_id,
+                    status="succeeded",
+                    title=report_id,
+                    locale="sv",
+                    mode="quick",
+                    sources=[],
+                    html_path=str(artifact_dir / "report.html"),
+                    slots_path=None,
+                    job_id=None,
+                    error=None,
+                    created_at=utcnow(),
+                    updated_at=utcnow(),
+                )
+            )
+        await session.commit()
+
+    resp = await client.post("/reports/bulk-delete", json={"ids": ids})
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert set(body["deleted_ids"]) == {"rpt_bulk_a", "rpt_bulk_b"}
+    assert not (Path(ARTIFACT_ROOT) / "rpt_bulk_a").exists()
+    assert not (Path(ARTIFACT_ROOT) / "rpt_bulk_b").exists()
+
+    empty = await client.post(
+        "/reports/bulk-delete",
+        json={"ids": ["rpt_bulk_missing", "rpt_never"]},
+    )
+    assert empty.status_code == 404

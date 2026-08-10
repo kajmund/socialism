@@ -18,13 +18,14 @@ Från simuleringsresultat kan du beställa en **HTML-rapport** som sammanfattar 
    - **Snabbrapport** — snabb mallbaserad sammanfattning (verdict, ämnesdrift, stil, A/B) via embeddings. Ingen AI-prosa. Passar när du vill iterera över budskapsvarianter.
    - **Full rapport** — längre hybridrapport med diagram och AI-skriven prosa. Tar flera minuter.
 5. Bekräfta att genereringen ska starta.
-6. Rapporten skapas som ett bakgrundsjobb — följ status under **Bakgrundsjobb** eller vänta på notifieringen.
-7. När rapporten är klar öppnas den automatiskt, eller nå den via länken i jobblistan.
+6. Rapporten skapas som ett bakgrundsjobb — följ status under **Rapporter**, **Bakgrundsjobb** eller vänta på notifieringen.
+7. När rapporten är klar öppnas den automatiskt, eller nå den via **Rapporter** i huvudmenyn.
 
 Se [Läsa simuleringsrapport](lasa-simuleringsrapport.md) för hur du läser den färdiga rapporten. För snabbrapportens tekniska detaljer, öppna **Tekniskt stycke** längst ner i rapporten.
 
 ## Relaterade guider
 
+- [Hantera rapporter](hantera-rapporter.md)
 - [Läsa simuleringsresultat](lasa-simuleringsresultat.md)
 - [Läsa simuleringsrapport](lasa-simuleringsrapport.md)
 - [Följa bakgrundsjobb](folja-bakgrundsjobb.md)

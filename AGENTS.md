@@ -59,7 +59,9 @@ OKF MCP (later): `npx -y @mfdaves/okf-mcp@0.3.3 --project ./okf.project.yaml mcp
 
 ## Frontend visual system
 
-- **Admin surfaces** (Personas, Populationer, Körningar, …): Devbrains charcoal + gold — Tailwind tokens in `frontend/src/index.css` + shadcn. Dense run-config chrome lives in `frontend/src/styles/admin-runs.css`.
+- **Visual source of truth:** [`frontend/mockup/extracted/`](frontend/mockup/extracted/) (HTML/CSS/JSX mockup + Devbrains tokens under `_ds/`). Match that look and density for **all admin pages and reports** — do not invent a parallel visual language.
+- **Admin surfaces** (Personas, Populationer, Körningar, Jobs, Tools, …): Devbrains charcoal + gold — Tailwind tokens in `frontend/src/index.css` + shadcn, aligned with the mockup. Dense run-config chrome lives in `frontend/src/styles/admin-runs.css`.
+- **Reports** (HTML under `/reports/:id` and backend-generated `report.html`): same visual system as the mockup/admin chrome (typography, charcoal/gold, spacing, hierarchy) — not a generic document stylesheet.
 
 ## Frontend i18n (mandatory)
 
@@ -97,6 +99,8 @@ Per-stack specifics live in `backend/AGENTS.md` and `frontend/AGENTS.md`.
 A single settings module is the source of truth for environment per service (`backend/app/config.py`, `frontend/src/lib/env.ts`). Do not call `os.getenv` / read `process.env` directly in app code. Do not call `load_dotenv` anywhere. If a third-party SDK reads env vars directly, mirror them in the settings module — don't sprinkle `setdefault` elsewhere.
 
 Fail fast on startup if required config is missing. No silent fallbacks that hide real config errors.
+
+**LLM prompts live in the database**, not in application code. Runtime prompt text comes from the active configuration (`prompts` map). See [backend/AGENTS.md](backend/AGENTS.md) → **Prompts (database, not code)**.
 
 ## No fallbacks
 

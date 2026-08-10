@@ -8,6 +8,7 @@ import { ConfigurationEditorPage } from "@/pages/ConfigurationEditorPage"
 import { ConfigurationsPage } from "@/pages/ConfigurationsPage"
 import { DashboardPage } from "@/pages/DashboardPage"
 import { EmbeddingCachePage } from "@/pages/EmbeddingCachePage"
+import { FeedbackPage } from "@/pages/FeedbackPage"
 import { JobsPage } from "@/pages/JobsPage"
 import { MessagesPage } from "@/pages/MessagesPage"
 import { MessagesWorkshopPage } from "@/pages/MessagesWorkshopPage"
@@ -18,6 +19,7 @@ import { PopulationBuilderPage } from "@/pages/PopulationBuilderPage"
 import { PopulationDetailPage } from "@/pages/PopulationDetailPage"
 import { PopulationsPage } from "@/pages/PopulationsPage"
 import { ReportPage } from "@/pages/ReportPage"
+import { ReportsPage } from "@/pages/ReportsPage"
 import { RunsPage } from "@/pages/RunsPage"
 
 function RedirectConfigurationEdit() {
@@ -69,6 +71,8 @@ export default function App() {
         <Route path="/playground" element={<Navigate to="/tools/playground" replace />} />
 
         <Route path="/jobs" element={<JobsPage />} />
+        <Route path="/feedback" element={<FeedbackPage />} />
+        <Route path="/reports" element={<ReportsPage />} />
         <Route path="/reports/:id" element={<ReportPage />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />

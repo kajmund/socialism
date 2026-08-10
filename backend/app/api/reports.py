@@ -2,18 +2,21 @@
 
 from __future__ import annotations
 
+import logging
 import secrets
+import shutil
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import HTMLResponse
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Report, Run
 from app.database.session import get_session
 from app.schemas.domain import (
     JobCreate,
+    ReportBulkDelete,
+    ReportBulkDeleteResult,
     ReportCreate,
     ReportGenerateJobRequest,
     ReportOut,
@@ -28,6 +31,14 @@ from app.services.report.locale import (
     download_filename,
     normalize_locale,
 )
+from app.services.report_realtime import (
+    list_reports as list_report_rows,
+    publish_report,
+    publish_reports_deleted,
+    serialize_report,
+)
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -37,21 +48,7 @@ def _normalize_mode(value: str | None) -> str:
 
 
 def _serialize(report: Report) -> ReportOut:
-    return ReportOut(
-        id=report.id,
-        status=report.status,  # type: ignore[arg-type]
-        title=report.title,
-        locale=normalize_locale(getattr(report, "locale", None)),
-        mode=_normalize_mode(getattr(report, "mode", None)),  # type: ignore[arg-type]
-        sources=list(report.sources or []),
-        html_path=report.html_path,
-        slots_path=report.slots_path,
-        job_id=report.job_id,
-        error=report.error,
-        created_at=report.created_at.isoformat() if report.created_at else "",
-        finished_at=report.finished_at.isoformat() if report.finished_at else None,
-        updated_at=report.updated_at.isoformat() if report.updated_at else "",
-    )
+    return serialize_report(report)
 
 
 async def _validate_sources(session: AsyncSession, body: ReportCreate) -> list[dict]:
@@ -146,6 +143,7 @@ async def create_report(
     report.updated_at = utcnow()
     await session.commit()
     await session.refresh(report)
+    await publish_report(report)
 
     jobs_service.enqueue_job(job.id)
     response.status_code = 202
@@ -158,11 +156,47 @@ async def list_reports(
     limit: int = Query(default=50, ge=1, le=100),
     session: AsyncSession = Depends(get_session),
 ) -> list[ReportOut]:
-    stmt = select(Report).order_by(Report.created_at.desc()).limit(limit)
-    if status is not None:
-        stmt = stmt.where(Report.status == status)
-    rows = list((await session.execute(stmt)).scalars().all())
+    rows = await list_report_rows(session, status=status, limit=limit)
     return [_serialize(r) for r in rows]
+
+
+def _remove_report_artifacts(report_id: str) -> None:
+    path = Path(ARTIFACT_ROOT) / report_id
+    if path.is_dir():
+        shutil.rmtree(path)
+        logger.info("Removed report artifacts at %s", path)
+
+
+async def _delete_reports_by_ids(
+    session: AsyncSession,
+    ids: list[str],
+) -> list[str]:
+    """Delete existing reports by id. Returns ids that were removed."""
+    unique = list(dict.fromkeys(ids))
+    deleted: list[str] = []
+    for report_id in unique:
+        report = await session.get(Report, report_id)
+        if report is None:
+            continue
+        await session.delete(report)
+        deleted.append(report_id)
+    if deleted:
+        await session.commit()
+        for report_id in deleted:
+            _remove_report_artifacts(report_id)
+        await publish_reports_deleted(deleted)
+    return deleted
+
+
+@router.post("/bulk-delete", response_model=ReportBulkDeleteResult)
+async def bulk_delete_reports(
+    body: ReportBulkDelete,
+    session: AsyncSession = Depends(get_session),
+) -> ReportBulkDeleteResult:
+    deleted_ids = await _delete_reports_by_ids(session, body.ids)
+    if not deleted_ids:
+        raise HTTPException(status_code=404, detail="No matching reports")
+    return ReportBulkDeleteResult(deleted_ids=deleted_ids)
 
 
 @router.get("/{report_id}", response_model=ReportOut)
@@ -174,6 +208,17 @@ async def get_report(
     if report is None:
         raise HTTPException(status_code=404, detail="Report not found")
     return _serialize(report)
+
+
+@router.delete("/{report_id}", status_code=204)
+async def delete_report(
+    report_id: str,
+    session: AsyncSession = Depends(get_session),
+) -> Response:
+    deleted = await _delete_reports_by_ids(session, [report_id])
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Report not found")
+    return Response(status_code=204)
 
 
 @router.get("/{report_id}/html", response_class=HTMLResponse)
