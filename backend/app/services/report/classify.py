@@ -25,6 +25,7 @@ from app.services.report.locale import (
 )
 from app.schemas.domain import DEFAULT_SSR_TEMPERATURE
 from app.services.ssr import (
+    AnchorSet,
     STYLE_LABELS,
     STYLE_UNCLASSIFIED,
     rate_texts,
@@ -110,6 +111,7 @@ class BundleClassification:
     embed_seconds: float = 0.0
     sample_texts: list[str] = field(default_factory=list)
     sample_likes: list[int] = field(default_factory=list)
+    sample_user_ids: list[int] = field(default_factory=list)
     # Texts that were embedded for SSR (reaction snippets, not LLM judgments).
     tone_rated_texts: list[str] = field(default_factory=list)
     style_rated_texts: list[str] = field(default_factory=list)
@@ -141,22 +143,33 @@ def _item_likes(item: dict) -> int:
     return 0
 
 
-def _texts_for_classify(
+def _samples_for_classify(
     bundle: RunBundle, *, limit: int = _MAX_CLASSIFY_TEXTS
-) -> tuple[list[str], list[int]]:
+) -> tuple[list[str], list[int], list[int]]:
     """Prefer higher-engagement posts/comments; cap count for cost/latency."""
-    scored: list[tuple[int, str]] = []
+    scored: list[tuple[int, str, int]] = []
     for p in bundle.posts:
         c = p.get("content") or p.get("text") or ""
         if c:
-            scored.append((_item_likes(p), str(c)))
+            scored.append((_item_likes(p), str(c), int(p.get("user_id") or -1)))
     for c in bundle.comments:
         t = c.get("content") or c.get("text") or ""
         if t:
-            scored.append((_item_likes(c), str(t)))
+            scored.append((_item_likes(c), str(t), int(c.get("user_id") or -1)))
     scored.sort(key=lambda x: x[0], reverse=True)
     top = scored[:limit]
-    return [text for _, text in top], [likes for likes, _ in top]
+    return (
+        [text for _, text, _ in top],
+        [likes for likes, _, _ in top],
+        [uid for _, _, uid in top],
+    )
+
+
+def _texts_for_classify(
+    bundle: RunBundle, *, limit: int = _MAX_CLASSIFY_TEXTS
+) -> tuple[list[str], list[int]]:
+    texts, likes, _uids = _samples_for_classify(bundle, limit=limit)
+    return texts, likes
 
 
 def _share_counts(labels: list[str], allowed: list[str]) -> dict[str, float]:
@@ -347,6 +360,7 @@ async def classify_tones(
     locale: ReportLocale = "sv",
     prompts: dict[str, str] | None = None,
     temperature: float = DEFAULT_SSR_TEMPERATURE,
+    tone_anchor_set: AnchorSet | None = None,
 ) -> tuple[dict[str, float], ToneMode, list[str], list[dict[str, float]], float]:
     """SSR tone: embed reaction texts directly against 5 Likert anchors.
 
@@ -359,13 +373,13 @@ async def classify_tones(
     if not texts:
         return empty, "ssr", [], [], 0.0
 
-    rated = _clip_for_embed(texts)
+    # Clip only for the embedding API; keep full texts for report quotes.
+    embed_texts = _clip_for_embed(texts)
     t0 = time.perf_counter()
-    result = await rate_texts(
-        rated, tone_anchors(locale=locale), temperature=temperature
-    )
+    anchors = tone_anchor_set or tone_anchors(locale=locale)
+    result = await rate_texts(embed_texts, anchors, temperature=temperature)
     embed_s = time.perf_counter() - t0
-    return result.shares, "ssr", rated, result.per_text_pmfs, embed_s
+    return result.shares, "ssr", list(texts), result.per_text_pmfs, embed_s
 
 
 async def classify_styles(
@@ -375,6 +389,7 @@ async def classify_styles(
     locale: ReportLocale = "sv",
     prompts: dict[str, str] | None = None,
     temperature: float = DEFAULT_SSR_TEMPERATURE,
+    style_anchor_set: AnchorSet | None = None,
 ) -> tuple[list[tuple[str, float]], list[str], list[dict[str, float]], float]:
     """SSR style: embed reaction texts directly → soft-weighted avg likes."""
     del prompts
@@ -388,14 +403,13 @@ async def classify_styles(
     if len(likes) != len(texts):
         raise ValueError("likes length must match texts")
 
-    rated = _clip_for_embed(texts)
+    embed_texts = _clip_for_embed(texts)
     t0 = time.perf_counter()
-    result = await rate_texts(
-        rated, style_anchors(locale=locale), temperature=temperature
-    )
+    anchors = style_anchor_set or style_anchors(locale=locale)
+    result = await rate_texts(embed_texts, anchors, temperature=temperature)
     embed_s = time.perf_counter() - t0
     style_avg = _style_avg_from_pmfs(likes, result.per_text_pmfs)
-    return style_avg, rated, result.per_text_pmfs, embed_s
+    return style_avg, list(texts), result.per_text_pmfs, embed_s
 
 
 async def classify_bundle(
@@ -405,8 +419,10 @@ async def classify_bundle(
     prompts: dict[str, str],
     topic_mode: TopicMode = "llm",
     ssr_temperature: float = DEFAULT_SSR_TEMPERATURE,
+    tone_anchor_set: AnchorSet | None = None,
+    style_anchor_set: AnchorSet | None = None,
 ) -> BundleClassification:
-    texts, likes = _texts_for_classify(bundle)
+    texts, likes, user_ids = _samples_for_classify(bundle)
     t_llm = 0.0
     t_embed = 0.0
 
@@ -424,12 +440,19 @@ async def classify_bundle(
         t_llm += time.perf_counter() - t0
 
     tone_shares, tone_mode, tone_rated, tone_pmfs, tone_embed = await classify_tones(
-        texts, locale=locale, temperature=ssr_temperature
+        texts,
+        locale=locale,
+        temperature=ssr_temperature,
+        tone_anchor_set=tone_anchor_set,
     )
     t_embed += tone_embed
 
     style_avg, style_rated, style_pmfs, style_embed = await classify_styles(
-        texts, likes, locale=locale, temperature=ssr_temperature
+        texts,
+        likes,
+        locale=locale,
+        temperature=ssr_temperature,
+        style_anchor_set=style_anchor_set,
     )
     t_embed += style_embed
 
@@ -446,6 +469,7 @@ async def classify_bundle(
         embed_seconds=t_embed,
         sample_texts=texts,
         sample_likes=likes,
+        sample_user_ids=user_ids,
         tone_rated_texts=tone_rated,
         style_rated_texts=style_rated,
     )
@@ -458,6 +482,8 @@ async def classify_bundles(
     prompts: dict[str, str],
     topic_mode: TopicMode = "llm",
     ssr_temperature: float = DEFAULT_SSR_TEMPERATURE,
+    tone_anchor_set: AnchorSet | None = None,
+    style_anchor_set: AnchorSet | None = None,
 ) -> list[BundleClassification]:
     return [
         await classify_bundle(
@@ -466,6 +492,8 @@ async def classify_bundles(
             prompts=prompts,
             topic_mode=topic_mode,
             ssr_temperature=ssr_temperature,
+            tone_anchor_set=tone_anchor_set,
+            style_anchor_set=style_anchor_set,
         )
         for b in bundles
     ]

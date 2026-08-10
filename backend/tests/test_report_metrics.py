@@ -202,7 +202,7 @@ async def test_derive_and_classify_via_mocked_llm():
         assert "Övrigt" in topic_shares
         tone_shares, mode, rated, _pmfs, _embed_s = await classify_tones(texts)
         assert mode == "ssr"
-        assert rated == [t[:200] for t in texts]  # direct embed of reaction texts
+        assert rated == texts  # full texts kept for quotes; embed path may clip
         assert set(tone_shares) == set(TONE_LABELS_SV)
         assert sum(tone_shares.values()) == pytest.approx(1.0)
     finally:
@@ -361,6 +361,29 @@ def test_sanitize_html_slot_hygiene():
     assert len(lbl) <= 48
 
 
+def test_opinion_leaders_use_persona_profile_line_not_name():
+    b = _bundle(agents=1)
+    b.agents = [
+        {"index": 0, "persona_id": "p1", "member_name": "Anna", "role": "population"}
+    ]
+    b.personas = [
+        {
+            "persona_id": "p1",
+            "name": "Anna",
+            "bio": {
+                "yrke": "Butiksbiträde",
+                "age": "29",
+                "ort": "Hageby",
+                "lutning": "Höger",
+            },
+        }
+    ]
+    m = compute_report_metrics([b], [_clf_for(b)])
+    html = render_agents_html(m, locale="sv")
+    assert "Butiksbiträde · 29 år · Hageby · lutning höger" in html
+    assert "Anna" not in html
+
+
 def test_tools_describe_runs():
     b = _bundle()
     tools = ReportToolBundle([b], compute_report_metrics([b], [_clf_for(b)]))
@@ -517,6 +540,11 @@ async def test_generate_quick_report_skips_deepseek(tmp_path: Path):
         html = html_path.read_text(encoding="utf-8")
         assert "Snabbrapport" in html or "Snabb" in html
         assert "verdict" in html or "mottagande" in html.lower() or "Nollresultat" in html
+        assert "Statistik" in html or "Static statistics" in html
+        assert "chart-grid" in html
+        assert "stats-table" in html
+        assert "Simulerat stöd" in html
+        assert "Målgruppsanalys" in html
         assert "tech" in html
         assert slots.get("verdict_label")
         assert timing["classify_llm_seconds"] == 0.0

@@ -9,7 +9,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.database.models import Population, Run
+from app.database.models import Population, PopulationMember, Run
+from app.services.report.persona_bio import persona_record_from_member
 from app.schemas.domain import Tick
 from app.services.oasis_run import previous_attempts, variant_plans
 
@@ -26,6 +27,10 @@ class RunBundle:
     posts: list[dict[str, Any]] = field(default_factory=list)
     comments: list[dict[str, Any]] = field(default_factory=list)
     measurements: list[dict[str, Any]] = field(default_factory=list)
+    follows: list[dict[str, Any]] = field(default_factory=list)
+    action_histogram: list[dict[str, Any]] = field(default_factory=list)
+    trace: list[dict[str, Any]] = field(default_factory=list)
+    tick_markers: list[dict[str, Any]] = field(default_factory=list)
     ticks_run: int = 0
     personas: list[dict[str, Any]] = field(default_factory=list)
     variant_labels: list[str] = field(default_factory=list)
@@ -99,19 +104,24 @@ async def _load_personas(session: AsyncSession, run: Run) -> list[dict[str, Any]
     stmt = (
         select(Population)
         .where(Population.id == run.population_id)
-        .options(selectinload(Population.members))
+        .options(
+            selectinload(Population.members).selectinload(PopulationMember.persona)
+        )
     )
     pop = (await session.execute(stmt)).scalar_one_or_none()
     if pop is not None:
         for m in pop.members:
+            profile_data = m.persona.profile if m.persona else None
             personas.append(
-                {
-                    "name": m.name,
-                    "age": m.age,
-                    "occ": m.occ,
-                    "district": m.district,
-                    "trait": m.trait,
-                }
+                persona_record_from_member(
+                    persona_id=m.persona_id,
+                    name=m.name,
+                    age=m.age,
+                    occ=m.occ,
+                    district=m.district,
+                    trait=m.trait,
+                    profile_data=profile_data if isinstance(profile_data, dict) else None,
+                )
             )
     return personas
 
@@ -137,6 +147,14 @@ def _bundle_from_variant(
         posts=[p for p in (variant.get("posts") or []) if isinstance(p, dict)],
         comments=[c for c in (variant.get("comments") or []) if isinstance(c, dict)],
         measurements=[m for m in (variant.get("measurements") or []) if isinstance(m, dict)],
+        follows=[f for f in (variant.get("follows") or []) if isinstance(f, dict)],
+        action_histogram=[
+            h for h in (variant.get("action_histogram") or []) if isinstance(h, dict)
+        ],
+        trace=[t for t in (variant.get("trace") or []) if isinstance(t, dict)],
+        tick_markers=[
+            m for m in (variant.get("tick_markers") or []) if isinstance(m, dict)
+        ],
         ticks_run=int(variant.get("ticks_run") or 0),
         personas=personas,
         variant_labels=[variant_label],

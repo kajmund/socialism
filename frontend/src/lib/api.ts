@@ -38,9 +38,16 @@ export const api = {
   post<T>(
     path: string,
     body?: unknown,
-    options?: Pick<HttpRequestOptions, "timeoutMs">,
+    options?: Pick<HttpRequestOptions, "timeoutMs" | "jsonBody">,
   ): Promise<T> {
     return call<T>(path, { method: "POST", body, ...options })
+  },
+  postForm<T>(
+    path: string,
+    form: FormData,
+    options?: Pick<HttpRequestOptions, "timeoutMs">,
+  ): Promise<T> {
+    return call<T>(path, { method: "POST", body: form, jsonBody: false, ...options })
   },
   put<T>(path: string, body?: unknown): Promise<T> {
     return call<T>(path, { method: "PUT", body })

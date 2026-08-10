@@ -17,6 +17,7 @@ import { RunIdentityFields } from "@/components/runs/RunIdentityFields"
 import { RunTimelineSection } from "@/components/runs/RunTimelineSection"
 import { Card, CardContent } from "@/components/ui/card"
 import {
+  makeAbBranchFromStart,
   makeStimulusControlBranch,
   makeTick,
   normalizeTicks,
@@ -245,6 +246,21 @@ export function ConfigureRunPage() {
     setBranch({ afterIndex: i, mode: "ab", a: [makeTick(nextDay)], b: [makeTick(nextDay)] })
   }
 
+  function startAbFromBeginning() {
+    const next = makeAbBranchFromStart(mainTicks)
+    setMainTicks(next.mainTicks)
+    setBranch(next.branch)
+    const first = next.branch.a[0]
+    if (first) setOpenKey(first.key)
+  }
+
+  function clearBranch() {
+    if (branch?.afterIndex === -1 && mainTicks.length === 0 && branch.a.length > 0) {
+      setMainTicks(branch.a)
+    }
+    setBranch(null)
+  }
+
   function startStimulusControlBranch(i: number) {
     setBranch(makeStimulusControlBranch(mainTicks, i))
   }
@@ -276,7 +292,9 @@ export function ConfigureRunPage() {
     if (!branch) return
     const lastDay = branch[side].length
       ? branch[side][branch[side].length - 1].day
-      : mainTicks[branch.afterIndex].day + 1
+      : branch.afterIndex === -1
+        ? 0
+        : mainTicks[branch.afterIndex].day
     const tick = makeTick(lastDay + 1)
     setBranch({ ...branch, [side]: [...branch[side], tick] })
     setOpenKey(tick.key)
@@ -402,9 +420,14 @@ export function ConfigureRunPage() {
     }
   }
 
-  const activeMain = branch ? mainTicks.slice(0, branch.afterIndex + 1) : mainTicks
-  const tickCount =
-    mainTicks.length + (branch ? branch.a.length + branch.b.length : 0)
+  const activeMain = branch
+    ? mainTicks.slice(0, Math.max(0, branch.afterIndex + 1))
+    : mainTicks
+  const tickCount = branch
+    ? (branch.afterIndex === -1 ? 0 : branch.afterIndex + 1) +
+      branch.a.length +
+      branch.b.length
+    : mainTicks.length
   const variantCount = branch ? 2 : 1
   const configLocked = runStatus === "running" || pendingAction !== null
   const pendingMessage =
@@ -424,8 +447,9 @@ export function ConfigureRunPage() {
     onMoveMain: moveMain,
     onAddMain: addMain,
     onStartBranch: startBranch,
+    onStartAbFromBeginning: startAbFromBeginning,
     onStartStimulusControlBranch: startStimulusControlBranch,
-    onClearBranch: () => setBranch(null),
+    onClearBranch: clearBranch,
     onUpdateBranchTick: updateBranchTick,
     onRemoveBranchTick: removeBranchTick,
     onMoveBranchTick: moveBranchTick,

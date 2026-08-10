@@ -36,6 +36,7 @@ from app.services.report.render import (
     list_slots_in_template,
     load_template,
 )
+from app.services.anchor_store import ResolvedReportAnchors
 from app.services.report.sanitize import sanitize_slot_output
 from app.services.report.tools import ReportToolBundle
 from app.services.ssr import ANCHOR_SET_VERSION
@@ -60,12 +61,26 @@ def _ssr_payload(
     classify_seconds: float,
     embed_seconds: float,
     total_seconds: float,
+    resolved_anchors: ResolvedReportAnchors | None = None,
 ) -> dict[str, Any]:
+    tone_meta = {}
+    style_meta = {}
+    if resolved_anchors is not None:
+        tone_meta = {
+            "tone_anchor_set_id": resolved_anchors["tone_id"],
+            "tone_anchor_set_version": resolved_anchors["tone_version"],
+        }
+        style_meta = {
+            "style_anchor_set_id": resolved_anchors["style_id"],
+            "style_anchor_set_version": resolved_anchors["style_version"],
+        }
     return {
         "mode": mode,
         "locale": locale,
         "embedding_model": settings.embedding_model,
         "anchor_set_version": ANCHOR_SET_VERSION,
+        **tone_meta,
+        **style_meta,
         "ssr_temperature": ssr_temperature,
         "timestamp": datetime.now(tz=UTC).isoformat(),
         "timing": {
@@ -148,6 +163,7 @@ async def generate_report_html(
     prompts: dict[str, str],
     mode: ReportMode = "full",
     ssr_temperature: float = DEFAULT_SSR_TEMPERATURE,
+    resolved_anchors: ResolvedReportAnchors | None = None,
 ) -> tuple[Path, Path, dict[str, str], dict[str, Any]]:
     """Write report.html + slots.json (+ ssr.json). Returns paths, slots, timing meta."""
     loc = normalize_locale(locale)
@@ -163,6 +179,8 @@ async def generate_report_html(
         prompts=prompts,
         topic_mode=topic_mode,
         ssr_temperature=ssr_temperature,
+        tone_anchor_set=resolved_anchors["tone"] if resolved_anchors else None,
+        style_anchor_set=resolved_anchors["style"] if resolved_anchors else None,
     )
     classify_llm_s = sum(c.classify_llm_seconds for c in classifications)
     embed_s = sum(c.embed_seconds for c in classifications)
@@ -241,6 +259,7 @@ async def generate_report_html(
         classify_seconds=classify_llm_s,
         embed_seconds=embed_s,
         total_seconds=float(timing["total_seconds"]),
+        resolved_anchors=resolved_anchors,
     )
     html_path.write_text(html, encoding="utf-8")
     slots_path.write_text(

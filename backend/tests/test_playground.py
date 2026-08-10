@@ -59,6 +59,28 @@ async def test_get_anchors(client):
 
 
 @pytest.mark.asyncio
+async def test_ssr_rate_with_anchor_set_id(client):
+    listed = await client.get("/anchor-sets?status=published&kind=tone&locale=sv")
+    assert listed.status_code == 200
+    anchor_id = listed.json()[0]["id"]
+    set_embedder(_tone_fake_embed(0))
+    res = await client.post(
+        "/playground/ssr/rate",
+        json={
+            "texts": ["Mycket kritisk hållning."],
+            "dimension": "tone",
+            "locale": "sv",
+            "anchor_set_id": anchor_id,
+            "temperature": 0.1,
+        },
+    )
+    assert res.status_code == 200, res.text
+    data = res.json()
+    assert data["per_text"]
+    assert data["labels"]
+
+
+@pytest.mark.asyncio
 async def test_ssr_rate_with_human_labels(client):
     set_embedder(_tone_fake_embed(0))
     labels = list(tone_anchors(locale="sv").labels)

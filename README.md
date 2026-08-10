@@ -1,6 +1,6 @@
 # Opinionssimulator
 
-Internal tool for testing political messaging (A/B or stimulus/control) against AI agent populations grounded in local civic context. Swedish UI. Pilot: Norrköping 2026.
+Internal tool for testing political messaging (A/B or stimulus/control) against AI agent populations grounded in local civic context. Swedish UI.
 
 ## What you can do
 

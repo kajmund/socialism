@@ -40,7 +40,7 @@ def test_stub_persona_anecdote_is_short_and_grounded():
 def test_stub_persona_includes_anekdot():
     recipe = PopulationRecipe(
         size=1,
-        locale="norrkoping",
+        locale="local",
         seed=1,
         dist={
             "age": DistGroup(label="Ålder", rows=[DistRow(k="medel", l="Medel", v=100)]),
@@ -163,7 +163,7 @@ async def test_llm_persona_anecdote_skips_after_retries():
 def test_sample_slot_does_not_assign_anekdot():
     recipe = PopulationRecipe(
         size=1,
-        locale="norrkoping",
+        locale="local",
         seed=1,
         dist={
             "age": DistGroup(label="Ålder", rows=[DistRow(k="medel", l="Medel", v=100)]),
