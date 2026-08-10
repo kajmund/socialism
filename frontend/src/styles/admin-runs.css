@@ -685,3 +685,7 @@ table.lt.pol .lock.on{background:var(--db-gold-700);border-color:var(--db-gold-7
 .help-chat-panel .chat-input{border-top:1px solid var(--border-hairline);background:var(--db-ink-0)}
 .help-chat-panel-close{width:28px;height:28px;border:0;border-radius:999px;background:transparent;color:var(--text-muted);cursor:pointer;display:grid;place-items:center;font-size:14px;line-height:1}
 .help-chat-panel-close:hover{background:var(--db-ink-100);color:var(--text-body)}
+.help-chat-scb-toggle{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border-hairline);background:var(--db-ink-0);font-size:12px;line-height:1.4;color:var(--text-body);cursor:pointer}
+.help-chat-scb-toggle input{margin-top:2px;accent-color:var(--db-gold-500);flex-shrink:0}
+.help-chat-scb-toggle-label{display:block;font-weight:600}
+.help-chat-scb-toggle-hint{display:block;margin-top:2px;color:var(--text-muted);font-size:11px;line-height:1.35}

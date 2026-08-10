@@ -45,9 +45,10 @@ cd integrations/mcp && uv sync
 | `scb_search_tables` | Search SCB Statistikdatabasen tables (PxWebApi 2) |
 | `scb_get_table_meta` | Variable codes/labels for one SCB table |
 | `scb_query` | Fetch SCB table data (JSON-stat2) |
+| `scb_population_dist` | Age/sex recipe weights for one municipality |
 | `list_runs` | List körningar (requires API URL) |
 | `get_run` | Fetch one körning (requires API URL) |
 
 ## In-app help chat
 
-The admin UI includes a floating help chatbot on **every page** (same WebSocket streaming as persona chat). It uses OKF manuals plus **read-only** live data (library counts, open entity, injected current view). It can also call **SCB PxWebApi 2** tools for public demographic statistics (folkmängd, ålder, kön, civilstånd per kommun). It never writes to the database.
+The admin UI includes a floating help chatbot on **every page** (same WebSocket streaming as persona chat). It uses OKF manuals plus **read-only** live data (library counts, open entity, injected current view). **SCB PxWebApi 2** is available only when the operator explicitly enables **Include SCB statistics** in the help panel (off by default). It never writes to the database.

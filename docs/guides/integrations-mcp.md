@@ -10,7 +10,7 @@ Operator manuals in [`knowledge/manual/`](../knowledge/manual/) are loaded by `i
 - **View injection:** each message sends `{ path, view_key, label, params, search }` from the current route
 - **Backend:** `GET/DELETE /help/messages`, `POST /help/chat`, WebSocket `/ws/chat` with `{ scope: "help", session_id, locale, view }`
 - **Read sources:** OKF manuals + read-only DB snapshots (`help_read_context.py`) — personas, runs, populations, messages, configurations, anchor sets, reports, jobs
-- **SCB tools:** `scb_search_tables`, `scb_get_table_meta`, `scb_query` via `integrations/scb/` (public PxWebApi 2, no API key)
+- **SCB tools:** optional — only when the user enables **Include SCB statistics** in the help panel (`use_scb` on each message). Tools: `scb_search_tables`, `scb_get_table_meta`, `scb_query`, `scb_population_dist` via `integrations/scb/`
 - **Write policy:** help assistant is read-only; only chat transcript rows are persisted
 
 ## MCP server (Cursor)
