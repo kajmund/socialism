@@ -44,9 +44,9 @@ export const sv = {
     sendError: "Kunde inte skicka meddelandet",
     clearError: "Kunde inte rensa chatten",
     panelAria: "Hjälpchatt",
-    scbToggle: "Inkludera SCB-statistik",
-    scbToggleHint:
-      "Aktivera för att hämta offentlig demografisk data från Statistikmyndigheten (folkmängd, ålder, kön m.m.). Av som standard.",
+    scbPopulationToggle: "Använd SCB för populationsvikter",
+    scbPopulationToggleHint:
+      "Kryssa i innan du frågar om ålder/kön-vikter mot en kommun. SCB för övriga demografifrågor är alltid tillgängligt.",
     views: {
       dashboard: "Startsida",
       runsList: "Körningar — lista",

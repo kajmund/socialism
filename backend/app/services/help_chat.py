@@ -16,7 +16,7 @@ from app.schemas.domain import HelpChatResponse, HelpMessageOut, HelpViewContext
 from app.serializers import format_date
 from app.services.help_read_context import build_help_context
 from app.services.prompt_catalog import ConfigurationLanguage, default_prompts, render_prompt
-from app.services.scb_tools import SCB_TOOL_SPECS, run_scb_tool
+from app.services.scb_tools import help_scb_tool_specs, run_scb_tool
 
 _MAX_TOOL_ROUNDS = 5
 
@@ -71,14 +71,18 @@ async def _build_system_prompt(
     locale: ConfigurationLanguage,
     query: str,
     view: HelpViewContext | None,
-    use_scb: bool = False,
+    ground_population: bool = False,
 ) -> str:
     prompts = default_prompts(locale)
-    base = render_prompt(prompts, "help.system")
-    if use_scb:
-        base = f"{base}\n\n{render_prompt(prompts, 'help.system.scb')}"
+    parts = [
+        render_prompt(prompts, "help.system"),
+        render_prompt(prompts, "help.system.scb"),
+    ]
+    if ground_population:
+        parts.append(render_prompt(prompts, "help.system.scb_population"))
     context = await build_help_context(session, view=view, query=query)
-    return f"{base}\n\n{context}"
+    parts.append(context)
+    return "\n\n".join(parts)
 
 
 def _history_rows(rows: list[HelpMessage]) -> list[dict[str, str]]:
@@ -106,10 +110,15 @@ def _assistant_message_dict(message: object) -> dict[str, object]:
     return payload
 
 
-async def _run_scb_tool_loop(messages: list[dict[str, object]]) -> list[dict[str, object]]:
+async def _run_scb_tool_loop(
+    messages: list[dict[str, object]],
+    *,
+    allow_population_dist: bool,
+) -> list[dict[str, object]]:
+    tools = help_scb_tool_specs(allow_population_dist=allow_population_dist)
     working = list(messages)
     for _ in range(_MAX_TOOL_ROUNDS):
-        message = await complete_with_tools(working, SCB_TOOL_SPECS)
+        message = await complete_with_tools(working, tools)
         working.append(_assistant_message_dict(message))
         tool_calls = getattr(message, "tool_calls", None)
         if not tool_calls:
@@ -122,7 +131,11 @@ async def _run_scb_tool_loop(messages: list[dict[str, object]]) -> list[dict[str
             except json.JSONDecodeError:
                 arguments = {}
             try:
-                result = await run_scb_tool(name, arguments)
+                result = await run_scb_tool(
+                    name,
+                    arguments,
+                    allow_population_dist=allow_population_dist,
+                )
             except (httpx.HTTPError, ValueError, RuntimeError) as exc:
                 result = f"SCB tool error ({name}): {exc}"
             working.append(
@@ -148,7 +161,7 @@ async def stream_help_chat_turn(
     locale: ConfigurationLanguage,
     message: str,
     view: HelpViewContext | None = None,
-    use_scb: bool = False,
+    ground_population: bool = False,
 ) -> AsyncIterator[str | HelpChatResponse]:
     lock = await _help_turn_lock(session_id)
     async with lock:
@@ -169,7 +182,7 @@ async def stream_help_chat_turn(
             locale=locale,
             query=message,
             view=view,
-            use_scb=use_scb,
+            ground_population=ground_population,
         )
         messages = [
             {"role": "system", "content": system_prompt},
@@ -177,7 +190,10 @@ async def stream_help_chat_turn(
             {"role": "user", "content": message},
         ]
 
-        working = await _run_scb_tool_loop(messages) if use_scb else messages
+        working = await _run_scb_tool_loop(
+            messages,
+            allow_population_dist=ground_population,
+        )
         last = working[-1]
         prebuilt_reply = ""
         if last.get("role") == "assistant" and last.get("content"):

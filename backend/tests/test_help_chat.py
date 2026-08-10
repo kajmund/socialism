@@ -133,14 +133,14 @@ def test_help_chat_websocket_streams(help_client):
             elif event["type"] == "error":
                 pytest.fail(event["detail"])
 
-        assert tokens == ["Mockat ", "hjälpssvar."]
+        assert tokens == ["Mockat hjälpssvar."]
         assert done is not None
         assert done["reply"] == "Mockat hjälpssvar."
         assert len(done["messages"]) >= 2
-        assert tools_calls["count"] == 0
+        assert tools_calls["count"] >= 1
 
 
-def test_help_chat_websocket_scb_tools_when_enabled(help_client):
+def test_help_chat_websocket_ground_population(help_client):
     client, _loop, _factory, tools_calls = help_client
     session_id = "test-help-scb-session"
     view = {
@@ -168,7 +168,7 @@ def test_help_chat_websocket_scb_tools_when_enabled(help_client):
                 "type": "send",
                 "message": "Grounda ålder för Uppsala",
                 "view": view,
-                "use_scb": True,
+                "ground_population": True,
             }
         )
         assert ws.receive_json() == {"type": "typing", "on": True}

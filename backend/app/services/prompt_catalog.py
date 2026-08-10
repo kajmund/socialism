@@ -272,23 +272,41 @@ Return JSON with field anekdot.""",
     _f(
         "help.system.scb",
         "chat",
-        "Hjälp — SCB-tillägg",
-        "Help — SCB add-on",
-        "Extra instruktioner när användaren aktiverat SCB i hjälpchatten.",
-        "Extra instructions when the user enabled SCB in the help chat.",
+        "Hjälp — SCB (alltid)",
+        "Help — SCB (always on)",
+        "SCB-verktyg för demografifrågor i hjälpchatten.",
+        "SCB tools for demographic questions in the help chat.",
         (
-            "Användaren har aktiverat SCB-läge. Du får anropa SCB-verktygen "
-            "(scb_search_tables, scb_get_table_meta, scb_query, scb_population_dist) för "
-            "offentlig demografisk statistik. För att föreslå populationsvikter (ålder, kön) "
-            "mot en kommun: använd scb_population_dist. Förklara resultatet och hur vikterna "
-            "kan fyllas i i population builder — du kan inte spara receptet åt användaren."
+            "Du har tillgång till SCB Statistikdatabasen via scb_search_tables, "
+            "scb_get_table_meta och scb_query för offentlig demografisk statistik "
+            "(folkmängd, ålder, kön, civilstånd per kommun m.m.). Använd dem när "
+            "frågan handlar om sådana siffror."
         ),
         (
-            "The user enabled SCB mode. You may call SCB tools (scb_search_tables, "
-            "scb_get_table_meta, scb_query, scb_population_dist) for public demographic "
-            "statistics. To suggest population weights (age, sex) for a municipality, use "
-            "scb_population_dist. Explain the result and how to enter weights in the "
-            "population builder — you cannot save the recipe for the user."
+            "You can use SCB Statistikdatabasen via scb_search_tables, scb_get_table_meta, "
+            "and scb_query for public demographic statistics (population, age, sex, civil "
+            "status by municipality, etc.). Use them when the question is about such figures."
+        ),
+    ),
+    _f(
+        "help.system.scb_population",
+        "chat",
+        "Hjälp — SCB populationsvikter",
+        "Help — SCB population weights",
+        "Extra instruktioner när användaren uttryckligen valt SCB för populationsgrounding.",
+        "Extra instructions when the user explicitly opted in to SCB population grounding.",
+        (
+            "Användaren har kryssat i att SCB ska användas för populationsvikter. Du får "
+            "anropa scb_population_dist för att föreslå ålder- och könsfördelning mot en "
+            "kommun. Förklara resultatet och hur vikterna fylls i i population builder — "
+            "du kan inte spara receptet åt användaren. Anropa inte scb_population_dist "
+            "om användaren inte bett om populationsgrounding."
+        ),
+        (
+            "The user checked 'Use SCB for population weights'. You may call scb_population_dist "
+            "to suggest age and sex distribution weights for a municipality. Explain how to "
+            "enter the weights in the population builder — you cannot save the recipe. Do not "
+            "call scb_population_dist unless the user asked for population grounding."
         ),
     ),
     _f(

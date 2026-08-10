@@ -53,7 +53,7 @@ class ChatSend(BaseModel):
     type: Literal["send"]
     message: str = Field(min_length=1)
     view: HelpViewContext | None = None
-    use_scb: bool = False
+    ground_population: bool = False
 
 
 async def _send_error(websocket: WebSocket, detail: str) -> None:
@@ -146,7 +146,7 @@ async def chat_websocket(websocket: WebSocket) -> None:
                             locale=hello.locale,
                             message=send.message,
                             view=turn_view,
-                            use_scb=send.use_scb,
+                            ground_population=send.ground_population,
                         )
                         async for item in stream:
                             if isinstance(item, HelpChatResponse):

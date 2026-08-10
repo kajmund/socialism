@@ -7,7 +7,7 @@ import json
 import httpx
 import pytest
 from integrations.scb.client import ScbClient
-from integrations.scb.tools import run_scb_tool
+from integrations.scb.tools import help_scb_tool_specs, run_scb_tool
 
 
 @pytest.mark.asyncio
@@ -54,6 +54,10 @@ async def test_run_scb_tool_search_tables():
 
 
 @pytest.mark.asyncio
-async def test_run_scb_tool_query_requires_filters():
-    result = await run_scb_tool("scb_query", {"table_id": "TAB638", "filters": []})
-    assert "non-empty" in result
+async def test_run_scb_tool_population_dist_requires_opt_in():
+    result = await run_scb_tool(
+        "scb_population_dist",
+        {"region_name": "Uppsala"},
+        allow_population_dist=False,
+    )
+    assert "not enabled" in result

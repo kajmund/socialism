@@ -5,7 +5,7 @@ import { useChatSocket } from "@/components/chat/useChatSocket"
 import { AdminButton } from "@/components/ui/admin-button"
 import { useLocale } from "@/i18n"
 import { ApiError } from "@/lib/api"
-import { getHelpUseScb, setHelpUseScb } from "@/lib/helpScb"
+import { getHelpGroundPopulation, setHelpGroundPopulation } from "@/lib/helpScb"
 import { useHelpView } from "@/lib/helpView"
 
 type HelpChatPanelProps = {
@@ -32,7 +32,7 @@ export function HelpChatPanel({ sessionId, onClose }: HelpChatPanelProps) {
   const [optimisticUser, setOptimisticUser] = useState<string | null>(null)
   const [restBusy, setRestBusy] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [useScb, setUseScb] = useState(() => getHelpUseScb())
+  const [groundPopulation, setGroundPopulation] = useState(() => getHelpGroundPopulation())
 
   const chatHello = useMemo(
     () =>
@@ -42,7 +42,10 @@ export function HelpChatPanel({ sessionId, onClose }: HelpChatPanelProps) {
     [sessionId, locale, view],
   )
 
-  const sendExtras = useCallback(() => ({ view, use_scb: useScb }), [view, useScb])
+  const sendExtras = useCallback(
+    () => ({ view, ground_population: groundPopulation }),
+    [view, groundPopulation],
+  )
 
   const {
     ready: chatReady,
@@ -148,17 +151,17 @@ export function HelpChatPanel({ sessionId, onClose }: HelpChatPanelProps) {
       <label className="help-chat-scb-toggle">
         <input
           type="checkbox"
-          checked={useScb}
+          checked={groundPopulation}
           onChange={(event) => {
             const next = event.target.checked
-            setUseScb(next)
-            setHelpUseScb(next)
+            setGroundPopulation(next)
+            setHelpGroundPopulation(next)
           }}
           disabled={chatBusy}
         />
         <span>
-          <span className="help-chat-scb-toggle-label">{t("help.scbToggle")}</span>
-          <span className="help-chat-scb-toggle-hint">{t("help.scbToggleHint")}</span>
+          <span className="help-chat-scb-toggle-label">{t("help.scbPopulationToggle")}</span>
+          <span className="help-chat-scb-toggle-hint">{t("help.scbPopulationToggleHint")}</span>
         </span>
       </label>
       <MessengerChat

@@ -8,7 +8,7 @@ from typing import Any
 from integrations.scb.client import ScbClient, VariableSelection
 from integrations.scb.distributions import fetch_population_distribution, find_region_code
 
-SCB_TOOL_SPECS: list[dict[str, Any]] = [
+SCB_LOOKUP_TOOL_SPECS: list[dict[str, Any]] = [
     {
         "type": "function",
         "function": {
@@ -87,35 +87,48 @@ SCB_TOOL_SPECS: list[dict[str, Any]] = [
             },
         },
     },
-    {
-        "type": "function",
-        "function": {
-            "name": "scb_population_dist",
-            "description": (
-                "Build Opinionssimulator population recipe weights (age + kön) from SCB "
-                "folkmängd for one municipality. Pass region_code (kommunkod, e.g. 0380) "
-                "or region_name (e.g. Uppsala)."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "region_code": {
-                        "type": "string",
-                        "description": "Kommunkod, e.g. 0380 for Uppsala.",
-                    },
-                    "region_name": {
-                        "type": "string",
-                        "description": "Kommunnamn if code is unknown, e.g. Uppsala.",
-                    },
-                    "year": {
-                        "type": "string",
-                        "default": "2024",
-                    },
+]
+
+SCB_POPULATION_DIST_TOOL_SPEC: dict[str, Any] = {
+    "type": "function",
+    "function": {
+        "name": "scb_population_dist",
+        "description": (
+            "Build Opinionssimulator population recipe weights (age + kön) from SCB "
+            "folkmängd for one municipality. Pass region_code (kommunkod, e.g. 0380) "
+            "or region_name (e.g. Uppsala)."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "region_code": {
+                    "type": "string",
+                    "description": "Kommunkod, e.g. 0380 for Uppsala.",
+                },
+                "region_name": {
+                    "type": "string",
+                    "description": "Kommunnamn if code is unknown, e.g. Uppsala.",
+                },
+                "year": {
+                    "type": "string",
+                    "default": "2024",
                 },
             },
         },
     },
+}
+
+SCB_TOOL_SPECS: list[dict[str, Any]] = [
+    *SCB_LOOKUP_TOOL_SPECS,
+    SCB_POPULATION_DIST_TOOL_SPEC,
 ]
+
+
+def help_scb_tool_specs(*, allow_population_dist: bool) -> list[dict[str, Any]]:
+    specs = list(SCB_LOOKUP_TOOL_SPECS)
+    if allow_population_dist:
+        specs.append(SCB_POPULATION_DIST_TOOL_SPEC)
+    return specs
 
 
 def _compact_json(payload: object, *, limit: int = 120_000) -> str:
@@ -130,8 +143,15 @@ async def run_scb_tool(
     arguments: dict[str, Any],
     *,
     client: ScbClient | None = None,
+    allow_population_dist: bool = True,
 ) -> str:
     scb = client or ScbClient()
+
+    if name == "scb_population_dist" and not allow_population_dist:
+        return (
+            "scb_population_dist is not enabled for this message — the user must check "
+            "'Use SCB for population weights' in the help chat first."
+        )
 
     if name == "scb_search_tables":
         query = str(arguments.get("query", "")).strip()
