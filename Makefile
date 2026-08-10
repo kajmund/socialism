@@ -10,6 +10,7 @@ help:
 	@echo "  make frontend            Start Vite dev server on :5173"
 	@echo "  make install             Install backend + frontend deps"
 	@echo "  make knowledge-validate  Validate OKF manual bundle"
+	@echo "  make knowledge-mcp       Run OKF MCP server (stdio)"
 
 backend:
 	cd backend && uv run uvicorn app.main:app --reload
@@ -29,3 +30,6 @@ install:
 
 knowledge-validate:
 	npx -y $(OKF_MCP_PKG) --project ./okf.project.yaml validate
+
+knowledge-mcp:
+	cd integrations/mcp && uv run python server.py

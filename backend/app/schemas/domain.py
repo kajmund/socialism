@@ -213,6 +213,38 @@ ChatMode = Literal["interview", "character"]
 ChatRole = Literal["user", "assistant"]
 
 
+HelpLocale = Literal["sv", "en"]
+HelpRole = Literal["user", "assistant"]
+
+
+class HelpViewContext(BaseModel):
+    path: str = Field(max_length=512)
+    view_key: str = Field(max_length=64)
+    label: str = Field(max_length=255)
+    params: dict[str, str] = Field(default_factory=dict)
+    search: dict[str, str] = Field(default_factory=dict)
+
+
+class HelpChatRequest(BaseModel):
+    session_id: str = Field(min_length=1, max_length=64)
+    locale: HelpLocale = "sv"
+    message: str = Field(min_length=1)
+    view: HelpViewContext | None = None
+    ground_population: bool = False
+
+
+class HelpMessageOut(BaseModel):
+    id: int
+    role: HelpRole
+    content: str
+    created_at: str
+
+
+class HelpChatResponse(BaseModel):
+    reply: str
+    messages: list[HelpMessageOut]
+
+
 class PersonaChatRequest(BaseModel):
     mode: ChatMode = "interview"
     message: str = Field(min_length=1)
@@ -628,6 +660,16 @@ class RunDetail(RunSummary):
     oasis_options: OasisRunOptions = Field(default_factory=OasisRunOptions)
     results: dict[str, Any] | None = None
     job_id: str | None = None
+
+
+class RunLogTailOut(BaseModel):
+    run_id: int
+    attempt_id: str
+    variant_id: str
+    log_path: str
+    tail_lines: int
+    truncated: bool
+    content: str
 
 
 class RunCreate(BaseModel):

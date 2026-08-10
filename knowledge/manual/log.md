@@ -5,6 +5,8 @@
 * **Budskap**: Verkstaden stödjer endast text, endast bild och bild + text; bilder cachas med SHA256 och vision-caption som delas mellan inlägg.
 * **Budskap**: Miniatyrer vid val av cachad bild i verkstaden.
 * **Cache**: Guide utökad med bild-cache — miniatyrer, enskild borttagning och koppling till budskap.
+* **Hjälp**: Ny guide för in-app hjälpchatten (Hjälp-knappen i adminytan). Assistenten kan slå upp offentlig demografisk statistik från SCB.
+* **Rapporter**: Snabbrapporten har tydligare rekommendationsblock, färre fotnoter och enklare språk utan tekniska förkortningar i operatörstexten.
 * **Körningar**: Ny guide för reaktionsmodellen — stratifierat urval per rond, passiv vs engagerad, kommentarsregler och nollställning vid nytt budskag.
 
 ## 2026-08-09
@@ -19,7 +21,7 @@
 * **Verktyg**: Konfigurationer, playground och embedding-cache samlade under menyn Verktyg; guide för att rensa cache.
 * **Playground**: Flik för att testa agentverktyg (webbsök / SymPy) utan full simulering.
 * **Körningar**: Agentverktyg väljs granulärt (DuckDuckGo / Wikipedia / SymPy) med eget wizardsteg och Välj alla.
-* **Rapporter**: Beställa/läsa rapport beskriver Snabbrapport vs Full rapport (SSR-mall vs längre hybridrapport).
+* **Rapporter**: Snabbrapporten har tydligare rekommendationsblock, färre fotnoter och enklare språk utan tekniska förkortningar i operatörstexten.
 
 ## 2026-08-06
 

@@ -240,8 +240,8 @@ def test_build_recommendation_produces_score_and_action():
     audience = build_audience_summaries(bundle, clf, locale="sv")
     rec = build_recommendation(metrics, [bundle], [clf], audience, locale="sv")
     assert 0 <= rec.score <= 100
-    assert "Rekommendation" in rec.action or "rekommendation" in rec.action.lower()
-    assert rec.headline.startswith("Simulerat stöd")
+    assert rec.recommended_arm is None or rec.action
+    assert "betyg" in rec.summary.lower() or "simulering" in rec.summary.lower()
 
 
 def test_rank_interviews_prefers_financing_and_insight_themes():
@@ -390,6 +390,117 @@ def _ab_bundles() -> tuple[RunBundle, RunBundle]:
         }
     )
     return bundle_a, bundle_b
+
+
+def test_audience_summaries_sorted_by_positive_tone_desc():
+    bundle = _bundle_with_bio()
+    bundle.posts.append(
+        {
+            "post_id": 3,
+            "user_id": 1,
+            "content": "Trygg belysning är viktigt för barnfamiljer.",
+            "num_likes": 2,
+        }
+    )
+    bundle.posts.append(
+        {
+            "post_id": 4,
+            "user_id": 2,
+            "content": "Skattepengar ska inte slösas på belysning.",
+            "num_likes": 1,
+        }
+    )
+    clf = BundleClassification(
+        topic_packs=[TopicPack(label="Belysning", keywords=["belysning"])],
+        topic_shares={"Belysning": 1.0},
+        tone_shares={lab: 0.2 for lab in TONE_LABELS_SV},
+        tone_mode="ssr",
+        tone_rated_texts=[
+            "Bra förslag om trygg belysning.",
+            "Trygg belysning är viktigt för barnfamiljer.",
+            "Vem ska betala? Finansieringen är oklar.",
+            "Skattepengar ska inte slösas på belysning.",
+        ],
+        tone_pmfs=[
+            _tone_pmf(0.8, neg=0.05),
+            _tone_pmf(0.75, neg=0.1),
+            _tone_pmf(0.1, neg=0.6),
+            _tone_pmf(0.15, neg=0.55),
+        ],
+        sample_user_ids=[1, 1, 2, 2],
+    )
+    summaries = build_audience_summaries(bundle, clf, locale="sv")
+    labels = [s.label for s in summaries if s.tone and not s.tone.too_few]
+    assert labels.index("Sambo, barn") < labels.index("Ensamhushåll")
+
+
+def test_audience_comparisons_sorted_by_positive_tone_desc():
+    bundle_a, bundle_b = _ab_bundles()
+    for bundle in (bundle_a, bundle_b):
+        bundle.posts.extend(
+            [
+                {
+                    "post_id": 10 + bundle.run_id,
+                    "user_id": 1,
+                    "content": "Trygg belysning är viktigt för barnfamiljer.",
+                    "num_likes": 2,
+                },
+                {
+                    "post_id": 20 + bundle.run_id,
+                    "user_id": 2,
+                    "content": "Skattepengar ska inte slösas på belysning.",
+                    "num_likes": 1,
+                },
+            ]
+        )
+    texts = [
+        "Bra förslag om trygg belysning.",
+        "Trygg belysning är viktigt för barnfamiljer.",
+        "Vem ska betala? Finansieringen är oklar.",
+        "Skattepengar ska inte slösas på belysning.",
+    ]
+    pmfs = [
+        _tone_pmf(0.8, neg=0.05),
+        _tone_pmf(0.75, neg=0.1),
+        _tone_pmf(0.1, neg=0.6),
+        _tone_pmf(0.15, neg=0.55),
+    ]
+    uids = [1, 1, 2, 2]
+    clf_a = BundleClassification(
+        topic_packs=[TopicPack(label="Belysning", keywords=["belysning"])],
+        topic_shares={"Belysning": 1.0},
+        tone_shares={lab: 0.2 for lab in TONE_LABELS_SV},
+        tone_mode="ssr",
+        tone_rated_texts=texts,
+        tone_pmfs=pmfs,
+        sample_user_ids=uids,
+    )
+    clf_b = BundleClassification(
+        topic_packs=[TopicPack(label="Belysning", keywords=["belysning"])],
+        topic_shares={"Belysning": 1.0},
+        tone_shares={lab: 0.2 for lab in TONE_LABELS_SV},
+        tone_mode="ssr",
+        tone_rated_texts=texts,
+        tone_pmfs=[
+            _tone_pmf(0.2, neg=0.5),
+            _tone_pmf(0.25, neg=0.45),
+            _tone_pmf(0.75, neg=0.1),
+            _tone_pmf(0.7, neg=0.15),
+        ],
+        sample_user_ids=uids,
+    )
+    comparisons = build_audience_comparisons(
+        [bundle_a, bundle_b], [clf_a, clf_b], locale="sv"
+    )
+    labels = [
+        c.label
+        for c in comparisons
+        if any(
+            arm.summary and arm.summary.tone and not arm.summary.tone.too_few
+            for arm in c.arms
+        )
+    ]
+    assert labels.index("Sambo, barn") < labels.index("Ensamhushåll")
 
 
 def test_audience_comparisons_group_by_segment_not_version():

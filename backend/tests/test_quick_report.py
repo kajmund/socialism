@@ -10,6 +10,7 @@ from app.services.report.charts import (
     render_quick_stats_table,
 )
 from app.services.report.metrics import BundleMetrics, ReportMetrics, compute_report_metrics
+from app.services.report.quick_glossary import FootnoteContext
 from app.services.report.quick import (
     _diff_band,
     _style_html,
@@ -170,8 +171,9 @@ def test_quick_stats_table_includes_engagement_columns():
         tone_mode="ssr",
     )
     m = compute_report_metrics([b], [clf])
-    html = render_quick_stats_table(m, locale="sv")
-    assert "Likes totalt" in html or "Likes</th>" in html
+    with FootnoteContext("sv"):
+        html = render_quick_stats_table(m, locale="sv")
+    assert '<span class="fn">*</span>' in html
     assert "Likes testbudskap" in html
     assert "Delningar" in html
     assert "4" in html
@@ -225,11 +227,12 @@ def _ab_metrics() -> ReportMetrics:
 
 def test_quick_ab_bars_renders_comparison():
     m = _ab_metrics()
-    html = render_quick_ab_bars(m, locale="sv")
+    with FootnoteContext("sv"):
+        html = render_quick_ab_bars(m, locale="sv")
     assert "A/B" in html
     assert "Version A" in html
     assert "Version B" in html
-    assert "Likes totalt" in html
+    assert '<span class="fn">*</span>' in html
 
 
 def test_prefill_quick_chart_slots_ab_mode():

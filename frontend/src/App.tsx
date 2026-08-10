@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes, useParams } from "react-router-dom"
+import { HelpChatWidget } from "@/components/help/HelpChatWidget"
 import { ToolsShell } from "@/components/layout/ToolsShell"
 import { AnchorSetEditorPage } from "@/pages/AnchorSetEditorPage"
 import { AnchorSetsPage } from "@/pages/AnchorSetsPage"
@@ -26,47 +27,53 @@ function RedirectConfigurationEdit() {
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/" element={<DashboardPage />} />
-      <Route path="/runs" element={<RunsPage />} />
-      <Route path="/runs/new" element={<ConfigureRunPage />} />
-      <Route path="/runs/:id/edit" element={<ConfigureRunPage />} />
+    <>
+      <Routes>
+        <Route path="/" element={<DashboardPage />} />
+        <Route path="/runs" element={<RunsPage />} />
+        <Route path="/runs/new" element={<ConfigureRunPage />} />
+        <Route path="/runs/:id/edit" element={<ConfigureRunPage />} />
 
-      <Route path="/personas" element={<PersonasPage />} />
-      <Route path="/personas/new" element={<PersonaComposerPage />} />
-      <Route path="/personas/:id" element={<PersonaComposerPage />} />
+        <Route path="/personas" element={<PersonasPage />} />
+        <Route path="/personas/new" element={<PersonaComposerPage />} />
+        <Route path="/personas/:id" element={<PersonaComposerPage />} />
 
-      <Route path="/populations" element={<PopulationsPage />} />
-      <Route path="/populations/new" element={<PopulationBuilderPage />} />
-      <Route path="/populations/:id" element={<PopulationDetailPage />} />
-      <Route path="/populations/:id/edit" element={<PopulationBuilderPage />} />
+        <Route path="/populations" element={<PopulationsPage />} />
+        <Route path="/populations/new" element={<PopulationBuilderPage />} />
+        <Route path="/populations/:id" element={<PopulationDetailPage />} />
+        <Route path="/populations/:id/edit" element={<PopulationBuilderPage />} />
 
-      <Route path="/messages" element={<MessagesPage />} />
-      <Route path="/messages/new" element={<MessagesWorkshopPage />} />
-      <Route path="/messages/:id/edit" element={<MessagesWorkshopPage />} />
+        <Route path="/messages" element={<MessagesPage />} />
+        <Route path="/messages/new" element={<MessagesWorkshopPage />} />
+        <Route path="/messages/:id/edit" element={<MessagesWorkshopPage />} />
 
-      <Route path="/tools" element={<ToolsShell />}>
-        <Route index element={<Navigate to="configurations" replace />} />
-        <Route path="configurations" element={<ConfigurationsPage />} />
-        <Route path="configurations/new" element={<ConfigurationEditorPage />} />
-        <Route path="configurations/:id/edit" element={<ConfigurationEditorPage />} />
-        <Route path="anchor-sets" element={<AnchorSetsPage />} />
-        <Route path="anchor-sets/new" element={<AnchorSetEditorPage />} />
-        <Route path="anchor-sets/:id/edit" element={<AnchorSetEditorPage />} />
-        <Route path="playground" element={<PlaygroundPage />} />
-        <Route path="cache" element={<EmbeddingCachePage />} />
-      </Route>
+        <Route path="/tools" element={<ToolsShell />}>
+          <Route index element={<Navigate to="configurations" replace />} />
+          <Route path="configurations" element={<ConfigurationsPage />} />
+          <Route path="configurations/new" element={<ConfigurationEditorPage />} />
+          <Route path="configurations/:id/edit" element={<ConfigurationEditorPage />} />
+          <Route path="anchor-sets" element={<AnchorSetsPage />} />
+          <Route path="anchor-sets/new" element={<AnchorSetEditorPage />} />
+          <Route path="anchor-sets/:id/edit" element={<AnchorSetEditorPage />} />
+          <Route path="playground" element={<PlaygroundPage />} />
+          <Route path="cache" element={<EmbeddingCachePage />} />
+        </Route>
 
-      <Route path="/configurations" element={<Navigate to="/tools/configurations" replace />} />
-      <Route path="/configurations/new" element={<Navigate to="/tools/configurations/new" replace />} />
-      <Route path="/configurations/:id/edit" element={<RedirectConfigurationEdit />} />
-      <Route path="/config" element={<Navigate to="/tools/configurations" replace />} />
-      <Route path="/playground" element={<Navigate to="/tools/playground" replace />} />
+        <Route path="/configurations" element={<Navigate to="/tools/configurations" replace />} />
+        <Route
+          path="/configurations/new"
+          element={<Navigate to="/tools/configurations/new" replace />}
+        />
+        <Route path="/configurations/:id/edit" element={<RedirectConfigurationEdit />} />
+        <Route path="/config" element={<Navigate to="/tools/configurations" replace />} />
+        <Route path="/playground" element={<Navigate to="/tools/playground" replace />} />
 
-      <Route path="/jobs" element={<JobsPage />} />
-      <Route path="/reports/:id" element={<ReportPage />} />
+        <Route path="/jobs" element={<JobsPage />} />
+        <Route path="/reports/:id" element={<ReportPage />} />
 
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <HelpChatWidget />
+    </>
   )
 }
