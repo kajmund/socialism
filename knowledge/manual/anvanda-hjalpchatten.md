@@ -15,17 +15,17 @@ I adminytan finns en **Hjälp**-knapp nere till höger på **alla sidor**. Där 
 2. Skriv en fråga, t.ex. *Hur startar jag en simulering?* eller *Vad är en population?*
 3. Tryck **Skicka** eller Enter.
 
-Assistenten svarar på svenska eller engelska beroende på vilket gränssnittsspråk du valt i menyn. Den kan hämta **offentlig demografisk statistik från SCB** (folkmängd, ålder, kön m.m.) när du frågar om sådana siffror.
+Assistenten svarar på svenska eller engelska beroende på vilket gränssnittsspråk du valt i menyn. Den kan hämta **offentlig demografisk statistik från SCB** (folkmängd, ålder, kön, civilstånd per kommun m.m.) när du frågar om sådana siffror — inklusive förslag på ålder- och könsfördelning mot en kommun om du bygger en population. Assistenten kan **inte** spara receptet åt dig; du fyller i vikterna själv i population builder.
 
-## Populationsvikter från SCB (valfritt)
+## Spara buggar, idéer och åsikter
 
-Kryssa i **Använd SCB för populationsvikter** innan du skickar frågan om du vill att assistenten ska föreslå ålder- och könsfördelning mot en kommun (t.ex. för population builder). Utan kryss svarar den fortfarande på demografifrågor via SCB, men föreslår inte färdiga receptvikter.
+Om du beskriver en **bugg**, en **idé** eller en **åsikt** om produkten kan assistenten spara den i **Återkoppling** (menyfliken). Där kan teamet sätta status till *pågår*, *klar* eller *arkivera*. Assistenten kan också **läsa** befintliga poster, men ändrar inte status själv.
 
 ## Tips
 
 - Fråga gärna om **var** du hittar en funktion (Körningar, Personas, Verktyg, …) och **vad** stegen är.
 - Använd **Rensa chatt** om du vill börja om utan gammal historik.
-- Assistenten kan **läsa** manualen och appdata men **kan inte skapa, ändra eller ta bort** något åt dig.
+- Assistenten kan **läsa** manualen och appdata och **spara återkoppling**, men kan inte skapa eller ändra körningar, populationer eller annat åt dig.
 - Rubriken visar **vilken vy** du befinner dig på och uppdateras när du navigerar.
 
 ## Relaterade guider

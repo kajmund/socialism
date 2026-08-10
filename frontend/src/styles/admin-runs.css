@@ -369,8 +369,13 @@ textarea.p-field-ctl{min-height:4.5rem;resize:vertical;line-height:1.35;padding:
 .affil-pop{position:absolute;background:var(--db-ink-950);color:var(--db-ink-0);border-radius:var(--radius-md);padding:10px 14px;font-size:0.75rem;box-shadow:var(--shadow-lg);z-index:5;min-width:170px;margin-top:6px}
 .empty-state{max-width:480px;margin:80px auto;text-align:center;padding:48px 40px;background:var(--db-ink-0);border:1px solid var(--border-hairline);border-radius:var(--radius-lg)}
 .no-match{grid-column:1/-1;color:var(--text-muted);font:var(--text-body-sm);padding:30px 0;text-align:center}
-.p-list{display:flex;flex-direction:column;gap:2px}
+.p-list{display:flex;flex-direction:column;gap:2px;width:100%}
 .p-row{display:grid;grid-template-columns:200px 1fr 140px 90px 90px 100px;align-items:center;gap:16px;padding:12px 4px;border-bottom:1px solid var(--border-hairline);cursor:default;text-decoration:none;color:inherit}
+/* Population members: 4 columns stretched across the content width */
+.population-member-list .p-row{
+  width:100%;
+  grid-template-columns:minmax(180px,1.2fr) minmax(0,2.5fr) minmax(160px,1.4fr) auto;
+}
 .p-row:hover{background:var(--db-ink-100);color:inherit}
 .p-row .nm2{font-weight:600;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .p-row .quote2{font-size:12.5px;font-style:italic;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -415,6 +420,7 @@ textarea.p-field-ctl{min-height:4.5rem;resize:vertical;line-height:1.35;padding:
 
 /* from Population-detalj.html */
 .wrap{max-width:1240px;margin:0 auto;padding:36px 40px 70px}
+.wrap.wrap-full{max-width:none;width:100%;box-sizing:border-box}
 .crumb{font:var(--text-body-sm);color:var(--text-muted);margin-bottom:10px}
 .crumb .crumb .head-row{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:8px;flex-wrap:wrap}
 .head-met.head-meta b{color:var(--text-body);font-weight:600}
@@ -609,6 +615,17 @@ table.lt.pol .lock.on{background:var(--db-gold-700);border-color:var(--db-gold-7
 .p-transcript-msg{display:flex;align-items:flex-start;gap:8px;margin:0 0 12px}
 .p-transcript-msg .p-transcript-body{flex:1;min-width:0;font:var(--text-body-sm);line-height:1.65;color:var(--text-body);margin:0}
 .bub{max-width:78%;padding:9px 14px;line-height:1.45;word-wrap:break-word}
+.bub p{margin:0}
+.bub p+p,.bub p+ul,.bub ul+p,.bub .chat-md-h+p,.bub p+.chat-md-h,.bub hr+p,.bub p+hr,.bub .chat-md-h+ul,.bub ul+.chat-md-h{margin-top:6px}
+.bub strong{font-weight:600}
+.bub em{font-style:italic}
+.bub ul{margin:6px 0 0;padding-left:1.15em;list-style:disc}
+.bub li{margin:2px 0}
+.bub .chat-md-h{margin:0;font-weight:600;line-height:1.3}
+.bub .chat-md-h1{font-size:1.12em}
+.bub .chat-md-h2{font-size:1.08em}
+.bub .chat-md-h3,.bub .chat-md-h4{font-size:1.02em}
+.bub hr{border:none;border-top:1px solid color-mix(in srgb,currentColor 22%,transparent);margin:8px 0}
 .bub.them{background:var(--db-ink-100);border-radius:18px 18px 18px 6px}
 .bub.me{background:var(--db-ink-950);color:var(--db-ink-0);border-radius:18px 18px 6px 18px}
 .bub.typing-bub{min-width:52px;padding:12px 16px}
@@ -685,7 +702,3 @@ table.lt.pol .lock.on{background:var(--db-gold-700);border-color:var(--db-gold-7
 .help-chat-panel .chat-input{border-top:1px solid var(--border-hairline);background:var(--db-ink-0)}
 .help-chat-panel-close{width:28px;height:28px;border:0;border-radius:999px;background:transparent;color:var(--text-muted);cursor:pointer;display:grid;place-items:center;font-size:14px;line-height:1}
 .help-chat-panel-close:hover{background:var(--db-ink-100);color:var(--text-body)}
-.help-chat-scb-toggle{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border-hairline);background:var(--db-ink-0);font-size:12px;line-height:1.4;color:var(--text-body);cursor:pointer}
-.help-chat-scb-toggle input{margin-top:2px;accent-color:var(--db-gold-500);flex-shrink:0}
-.help-chat-scb-toggle-label{display:block;font-weight:600}
-.help-chat-scb-toggle-hint{display:block;margin-top:2px;color:var(--text-muted);font-size:11px;line-height:1.35}

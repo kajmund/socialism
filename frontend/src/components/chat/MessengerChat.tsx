@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react"
+import { ChatMarkdown } from "@/components/chat/ChatMarkdown"
 import { TypingIndicator } from "@/components/chat/TypingIndicator"
 import { AdminButton } from "@/components/ui/admin-button"
 import { useLocale } from "@/i18n"
@@ -81,20 +82,24 @@ export function MessengerChat({
             className={"chat-msg-row " + (m.role === "assistant" ? "them" : "me")}
           >
             <div className={"bub " + (m.role === "assistant" ? "them" : "me")}>
-              {m.content}
+              <ChatMarkdown text={m.content} />
             </div>
             {renderActions ? renderActions(m) : null}
           </div>
         ))}
         {optimisticUser ? (
           <div className="chat-msg-row me">
-            <div className="bub me">{optimisticUser}</div>
+            <div className="bub me">
+              <ChatMarkdown text={optimisticUser} />
+            </div>
           </div>
         ) : null}
         {typing ? <TypingIndicator /> : null}
         {streamText != null ? (
           <div className="chat-msg-row them">
-            <div className="bub them chat-stream-cursor">{streamText}</div>
+            <div className="bub them chat-stream-cursor">
+              <ChatMarkdown text={streamText} />
+            </div>
           </div>
         ) : null}
       </div>

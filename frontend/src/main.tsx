@@ -5,6 +5,7 @@ import App from "@/App"
 import { LocaleProvider } from "@/i18n"
 import { env } from "@/lib/env"
 import { JobsRealtimeProvider } from "@/realtime/JobsRealtimeProvider"
+import { ReportsRealtimeProvider } from "@/realtime/ReportsRealtimeProvider"
 import "@/index.css"
 import "@/styles/admin-runs.css"
 
@@ -16,7 +17,9 @@ createRoot(document.getElementById("root")!).render(
     <BrowserRouter>
       <LocaleProvider>
         <JobsRealtimeProvider>
-          <App />
+          <ReportsRealtimeProvider>
+            <App />
+          </ReportsRealtimeProvider>
         </JobsRealtimeProvider>
       </LocaleProvider>
     </BrowserRouter>

@@ -9,7 +9,8 @@ import {
 import { createPortal } from "react-dom"
 import { FileText, Files, Loader2, Network, Wrench } from "lucide-react"
 import { useNavigate } from "react-router-dom"
-import { createReport, listReports } from "@/api/reports"
+import { createReport } from "@/api/reports"
+import { useReportsRealtime } from "@/realtime/ReportsRealtimeProvider"
 import { PersonaProfileModal } from "@/components/personas/PersonaProfileModal"
 import {
   agentToolHistogram,
@@ -2702,12 +2703,12 @@ export function OasisResultsPanel({
 }: Props) {
   const { intl, locale, t } = useLocale()
   const navigate = useNavigate()
+  const { reports } = useReportsRealtime()
   const attempts = normalizeRunAttempts(results, t)
   const attemptIds = useMemo(() => attempts.map((a) => a.id), [results])
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [orderingId, setOrderingId] = useState<string | null>(null)
   const [compareBusy, setCompareBusy] = useState(false)
-  const [busyAttemptIds, setBusyAttemptIds] = useState<Set<string>>(new Set())
   const [orderError, setOrderError] = useState<string | null>(null)
   const [reportConfirm, setReportConfirm] = useState<ReportConfirmState | null>(
     null,
@@ -2717,46 +2718,24 @@ export function OasisResultsPanel({
   )
   const [expandedAttemptId, setExpandedAttemptId] = useState<string | null>(null)
 
+  const busyAttemptIds = useMemo(() => {
+    const next = new Set<string>()
+    if (runId == null) return next
+    for (const r of reports) {
+      if (r.status !== "pending" && r.status !== "running") continue
+      for (const s of r.sources) {
+        if (s.run_id === runId) next.add(s.attempt_id)
+      }
+    }
+    return next
+  }, [reports, runId])
+
   useEffect(() => {
     setExpandedAttemptId((prev) => {
       if (prev && attemptIds.includes(prev)) return prev
       return attemptIds[0] ?? null
     })
   }, [attemptIds])
-
-  useEffect(() => {
-    if (runId == null) return
-    let cancelled = false
-    let timer: number | undefined
-
-    async function refreshBusy() {
-      try {
-        const reports = await listReports({ limit: 50 })
-        if (cancelled) return
-        const active = reports.filter(
-          (r) =>
-            (r.status === "pending" || r.status === "running") &&
-            r.sources.some((s) => s.run_id === runId),
-        )
-        const next = new Set<string>()
-        for (const r of active) {
-          for (const s of r.sources) {
-            if (s.run_id === runId) next.add(s.attempt_id)
-          }
-        }
-        setBusyAttemptIds(next)
-        timer = window.setTimeout(refreshBusy, active.length > 0 ? 2000 : 8000)
-      } catch {
-        if (!cancelled) timer = window.setTimeout(refreshBusy, 8000)
-      }
-    }
-
-    void refreshBusy()
-    return () => {
-      cancelled = true
-      if (timer != null) window.clearTimeout(timer)
-    }
-  }, [runId])
 
   function toggleAttemptExpand(attemptId: string) {
     setExpandedAttemptId((prev) => (prev === attemptId ? null : attemptId))
@@ -2769,11 +2748,6 @@ export function OasisResultsPanel({
   ) {
     if (!runId) return
     setOrderError(null)
-    setBusyAttemptIds((prev) => {
-      const next = new Set(prev)
-      for (const s of sources) next.add(s.attempt_id)
-      return next
-    })
     const report = await createReport({ sources, title, locale, mode })
     navigate(`/reports/${report.id}`)
   }
@@ -2810,20 +2784,14 @@ export function OasisResultsPanel({
     if (!reportConfirm) return
     const { sources, title, mode } = reportConfirm
     setReportConfirm(null)
-    const ids = sources.map((s) => s.attempt_id)
     if (sources.length === 1) {
-      setOrderingId(ids[0]!)
+      setOrderingId(sources[0]!.attempt_id)
     } else {
       setCompareBusy(true)
     }
     try {
       await orderSources(sources, title, mode)
     } catch (err) {
-      setBusyAttemptIds((prev) => {
-        const next = new Set(prev)
-        for (const id of ids) next.delete(id)
-        return next
-      })
       setOrderError(
         err instanceof ApiError ? err.message : t("runs.results.reportError"),
       )

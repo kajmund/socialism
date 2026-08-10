@@ -11,6 +11,8 @@ from app.schemas.domain import PopulationMemberCreate, PopulationRecipe
 from app.serializers import slug_id, utcnow
 from app.services import population_generate as gen
 
+_DEFAULT_POPULATION_NAME = "Namnlös population"
+
 
 def member_row(population_id: int, body: PopulationMemberCreate) -> PopulationMember:
     return PopulationMember(
@@ -90,19 +92,38 @@ async def members_from_generation(
     return members, stored.fingerprint, stored.recipe.model_dump()
 
 
+async def allocate_unique_population_name(
+    session: AsyncSession,
+    desired: str,
+    *,
+    exclude_id: int | None = None,
+) -> str:
+    """Return desired name, or «Name (2)», «Name (3)», … if taken."""
+    base = desired.strip() or _DEFAULT_POPULATION_NAME
+    candidate = base
+    n = 2
+    while True:
+        stmt = select(Population.id).where(Population.name == candidate)
+        if exclude_id is not None:
+            stmt = stmt.where(Population.id != exclude_id)
+        taken = (await session.execute(stmt)).scalar_one_or_none()
+        if taken is None:
+            return candidate
+        candidate = f"{base} ({n})"
+        n += 1
+
+
 async def create_population_from_generation(
     session: AsyncSession,
     *,
     name: str,
     generation_id: str,
 ) -> Population:
-    clash = await session.execute(select(Population).where(Population.name == name))
-    if clash.scalar_one_or_none() is not None:
-        raise ValueError("Population name already exists")
+    unique_name = await allocate_unique_population_name(session, name)
 
     members, fingerprint, recipe = await members_from_generation(session, generation_id)
     population = Population(
-        name=name,
+        name=unique_name,
         size=len(members),
         versions=1,
         fingerprint=fingerprint,
@@ -136,12 +157,11 @@ async def update_population_from_generation(
         raise ValueError("Population not found")
 
     if name != population.name:
-        clash = await session.execute(
-            select(Population).where(Population.name == name, Population.id != population_id)
+        population.name = await allocate_unique_population_name(
+            session,
+            name,
+            exclude_id=population_id,
         )
-        if clash.scalar_one_or_none() is not None:
-            raise ValueError("Population name already exists")
-        population.name = name
 
     members, fingerprint, recipe_dump = await members_from_generation(session, generation_id)
     for existing_member in list(population.members):

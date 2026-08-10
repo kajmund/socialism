@@ -54,7 +54,7 @@ frontend/
 │   ├── App.tsx            # Router
 │   ├── main.tsx
 │   └── index.css          # Tailwind + Devbrains tokens
-├── mockup/                # Historical HTML mockup (zip + optional extract)
+├── mockup/                # Visual source of truth (Socialism.zip + extracted/)
 ├── index.html
 ├── vite.config.ts
 ├── tsconfig.json
@@ -91,6 +91,9 @@ Still hardcoded (next slices): OASIS simulation prompts (intentionally Swedish).
 | `/runs` | Körningar list |
 | `/runs/new`, `/runs/:id/edit` | Körning (wizard / quick + Resultat) |
 | `/jobs` | Bakgrundsjobb (population, simulering, report) |
+| `/feedback` | Återkoppling (buggar/idéer/åsikter från hjälpchatten) |
+| `/reports` | Rapportlista |
+| `/reports/:id` | HTML-rapport |
 | `/personas` | Persona library (grid/list) |
 | `/personas/new`, `/personas/:id` | Persona-kompositör (+ chat) |
 | `/populations` | Population list |
@@ -104,13 +107,12 @@ Still hardcoded (next slices): OASIS simulation prompts (intentionally Swedish).
 | `/tools/playground` | Anchor-/SSR-kalibrering + prompt-iteration |
 | `/tools/cache` | Lista/rensa diskcachade SSR-ankarembeddings |
 | `/configurations`, `/playground`, `/config` | Redirect → `/tools/...` |
-| `/reports/:id` | HTML-rapport |
-
 Home is `/` (dashboard). Unknown routes redirect to `/`.
 
 ## Themes
 
-- **Admin theme:** Devbrains charcoal + gold. Dense run-config chrome lives in `src/styles/admin-runs.css` under `.theme-admin`. Use Tailwind + shadcn for new admin chrome where practical.
+- **Visual source of truth:** `mockup/extracted/` (pages, `styles.css`, `app.jsx`, Devbrains `_ds/` tokens). New or changed UI — including the report viewer and any report chrome — must follow that style, not a separate aesthetic.
+- **Admin theme:** Devbrains charcoal + gold. Dense run-config chrome lives in `src/styles/admin-runs.css` under `.theme-admin`. Use Tailwind + shadcn for new admin chrome where practical, matching the mockup.
 
 ## Code style (frontend-specific)
 
@@ -118,6 +120,10 @@ Home is `/` (dashboard). Unknown routes redirect to `/`.
 - **Small, composable functions and components** over clever abstractions. Three similar lines > a premature generic.
 - **One component = one file.** Components stay small enough to fit on one screen.
 - **Tailwind classes inline** for admin.
+- **Async by default.** Run everything that can be async asynchronously — do not block the UI on work that can finish in the background or in parallel.
+  - Prefer backend **jobs** (`POST /jobs`, kind like `population_generate` / `run_simulate` / `report_generate`) over long synchronous API calls; navigate to `/jobs` or subscribe to job updates instead of awaiting heavy work in the page request.
+  - When loading independent data, use `Promise.all` (or equivalent) — do not `await` A then B then C if they do not depend on each other.
+  - Keep handlers non-blocking: kick off work, show pending/toast state, let the user continue; only serialize steps that truly need prior results.
 
 ## Configuration
 

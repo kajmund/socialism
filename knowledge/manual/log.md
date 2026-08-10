@@ -2,15 +2,22 @@
 
 ## 2026-08-10
 
+* **Återkoppling**: Ny menyflik där buggar, idéer och åsikter från hjälpchatten samlas; status kan sättas till pågår, klar eller arkiverad.
+* **Hjälp**: Assistenten kan spara och läsa återkoppling (inte ändra status).
+* **Hjälp**: SCB-statistik (inkl. kommunfördelning) är alltid tillgänglig i hjälpchatten; kryssrutan för populationsvikter är borttagen.
 * **Budskap**: Verkstaden stödjer endast text, endast bild och bild + text; bilder cachas med SHA256 och vision-caption som delas mellan inlägg.
 * **Budskap**: Miniatyrer vid val av cachad bild i verkstaden.
 * **Cache**: Guide utökad med bild-cache — miniatyrer, enskild borttagning och koppling till budskap.
 * **Hjälp**: Ny guide för in-app hjälpchatten (Hjälp-knappen i adminytan). Assistenten kan slå upp offentlig demografisk statistik från SCB.
 * **Rapporter**: Snabbrapporten har tydligare rekommendationsblock, färre fotnoter och enklare språk utan tekniska förkortningar i operatörstexten.
 * **Körningar**: Ny guide för reaktionsmodellen — stratifierat urval per rond, passiv vs engagerad, kommentarsregler och nollställning vid nytt budskag.
+* **Populationer**: Personas i en population kan visas som rutnät eller lista.
 
 ## 2026-08-09
 
+* **Rapporter**: Ny menyflik **Rapporter** med lista över alla beställda rapporter; guide för att hantera listan.
+* **Rapporter**: Rapporter kan tas bort från listan och rapportsidan.
+* **Rapporter**: Flera rapporter kan markeras och tas bort samtidigt.
 * **Personas**: Biblioteket kan filtreras och sorteras på demografiska fält (kön, distrikt, yrke, utbildning, livssituation; sortering även på ålder).
 
 ## 2026-08-07

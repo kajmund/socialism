@@ -5,6 +5,7 @@ import {
   duplicatePopulation,
   getPopulation,
   removePopulationMember,
+  type DistRow,
   type PopulationDetail,
 } from "@/api/populations"
 import { AdminShell } from "@/components/layout/AdminShell"
@@ -26,7 +27,8 @@ function fpSectionLabels(t: Translate): [string, string, string] {
   ]
 }
 
-function fpLegendLabels(t: Translate): [string, string, string][] {
+/** Fallback when recipe.dist is missing (legacy populations). */
+function fpLegendFallback(t: Translate): string[][] {
   return [
     [
       t("populations.detail.legendYoung"),
@@ -40,10 +42,30 @@ function fpLegendLabels(t: Translate): [string, string, string][] {
     ],
     [
       t("populations.detail.legendCentrum"),
-      t("populations.detail.legendDistrictA"),
       t("populations.detail.legendOther"),
     ],
   ]
+}
+
+const FP_RECIPE_KEYS = ["age", "leaning", "district"] as const
+
+/** Full recipe rows for a fingerprint section — not the compressed 3-bucket summary. */
+function recipeRowsForFpSection(
+  recipe: Record<string, unknown>,
+  sectionIndex: number,
+): DistRow[] | null {
+  const key = FP_RECIPE_KEYS[sectionIndex]
+  if (!key) return null
+  const dist = (recipe as { dist?: Record<string, { rows?: DistRow[] }> }).dist
+  const rows = dist?.[key]?.rows
+  if (!Array.isArray(rows) || rows.length === 0) return null
+  return rows.filter(
+    (row): row is DistRow =>
+      !!row &&
+      typeof row.l === "string" &&
+      row.l.trim() !== "" &&
+      typeof row.v === "number",
+  )
 }
 
 export function PopulationDetailPage() {
@@ -57,11 +79,30 @@ export function PopulationDetailPage() {
   const [notFound, setNotFound] = useState(false)
   const [members, setMembers] = useState<PopulationMember[]>([])
   const [showAdd, setShowAdd] = useState(false)
+  const [memberView, setMemberView] = useState<"grid" | "lista">("grid")
   const [toast, setToast] = useState<string | null>(null)
 
   function showToast(message: string) {
     setToast(message)
     window.setTimeout(() => setToast(null), 2400)
+  }
+
+  function handleRemoveMember(populationIdForRemove: number, member: PopulationMember) {
+    if (member.member_id == null) {
+      showToast(t("populations.detail.removeMissingId"))
+      return
+    }
+    const memberId = member.member_id
+    void removePopulationMember(populationIdForRemove, memberId)
+      .then(() => {
+        setMembers((prev) => prev.filter((m) => m.member_id !== memberId))
+        setPop((prev) =>
+          prev ? { ...prev, size: Math.max(0, prev.size - 1) } : prev,
+        )
+      })
+      .catch((err: unknown) =>
+        showToast(err instanceof ApiError ? err.message : t("common.deleteError")),
+      )
   }
 
   useEffect(() => {
@@ -95,7 +136,7 @@ export function PopulationDetailPage() {
   if (loading) {
     return (
       <AdminShell>
-        <div className="wrap">
+        <div className="wrap wrap-full">
           <div className="no-match">{t("populations.detail.loading")}</div>
         </div>
       </AdminShell>
@@ -106,11 +147,11 @@ export function PopulationDetailPage() {
 
   const excludeNames = members.map((m) => m.name)
   const sectionLabels = fpSectionLabels(t)
-  const legendLabels = fpLegendLabels(t)
+  const legendFallback = fpLegendFallback(t)
 
   return (
     <AdminShell>
-      <div className="wrap">
+      <div className="wrap wrap-full">
         <div className="crumb">
           <Link to="/populations">{t("populations.detail.back")}</Link>
         </div>
@@ -178,46 +219,81 @@ export function PopulationDetailPage() {
         </div>
 
         <div className="fp-section">
-          {sectionLabels.map((label, i) => (
-            <Card
-              className="fp-card gap-0 py-4 ring-1 ring-border"
-              key={label}
-              style={{ gridColumn: "span 2" }}
-            >
-              <CardContent className="px-5">
-                <h4>{label}</h4>
-                <div className="fp-bar">
-                  {(pop.fp[i] ?? [0, 0, 0]).map((v, j) => (
-                    <span
-                      key={j}
-                      style={{ width: v + "%", background: FP_COLORS[j] }}
-                    />
-                  ))}
-                </div>
-                <div className="fp-legend">
-                  {legendLabels[i].map((l, j) => (
-                    <div className="row" key={l}>
-                      <div className="dot" style={{ background: FP_COLORS[j] }} />
-                      {l} — {pop.fp[i]?.[j] ?? 0}%
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          {sectionLabels.map((label, i) => {
+            const recipeRows = recipeRowsForFpSection(pop.recipe, i)
+            const values = recipeRows
+              ? recipeRows.map((r) => r.v)
+              : (pop.fp[i] ?? [0, 0, 0])
+            const labels = recipeRows
+              ? recipeRows.map((r) => r.l)
+              : (legendFallback[i] ?? [])
+            return (
+              <Card
+                className="fp-card gap-0 py-4 ring-1 ring-border"
+                key={label}
+                style={{ gridColumn: "span 2" }}
+              >
+                <CardContent className="px-5">
+                  <h4>{label}</h4>
+                  <div className="fp-bar">
+                    {values.map((v, j) => (
+                      <span
+                        key={j}
+                        style={{
+                          width: v + "%",
+                          background: FP_COLORS[j % FP_COLORS.length],
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <div className="fp-legend">
+                    {labels.map((l, j) => (
+                      <div className="row" key={`${i}-${j}-${l}`}>
+                        <div
+                          className="dot"
+                          style={{ background: FP_COLORS[j % FP_COLORS.length] }}
+                        />
+                        {l} — {values[j] ?? 0}%
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
         </div>
 
         <div className="section-title">
           <h2>{t("populations.detail.membersTitle")}</h2>
-          <button
-            type="button"
-            className="add-lib-toggle"
-            onClick={() => setShowAdd((v) => !v)}
-          >
-            {showAdd
-              ? t("populations.detail.hideLibrary")
-              : t("populations.detail.showLibrary")}
-          </button>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            {members.length > 0 ? (
+              <div className="view-toggle">
+                <button
+                  type="button"
+                  className={memberView === "grid" ? "on" : ""}
+                  onClick={() => setMemberView("grid")}
+                >
+                  {t("populations.detail.gridView")}
+                </button>
+                <button
+                  type="button"
+                  className={memberView === "lista" ? "on" : ""}
+                  onClick={() => setMemberView("lista")}
+                >
+                  {t("populations.detail.listView")}
+                </button>
+              </div>
+            ) : null}
+            <button
+              type="button"
+              className="add-lib-toggle"
+              onClick={() => setShowAdd((v) => !v)}
+            >
+              {showAdd
+                ? t("populations.detail.hideLibrary")
+                : t("populations.detail.showLibrary")}
+            </button>
+          </div>
         </div>
 
         {showAdd && (
@@ -252,7 +328,7 @@ export function PopulationDetailPage() {
           <div className="no-match" style={{ textAlign: "left", padding: "20px 0" }}>
             {t("populations.detail.emptyMembers")}
           </div>
-        ) : (
+        ) : memberView === "grid" ? (
           <div className="p-grid">
             {members.map((p) => (
               <div className="pcard" key={p.member_id ?? `${p.name}-${p.id ?? "x"}`}>
@@ -275,35 +351,55 @@ export function PopulationDetailPage() {
                       <button
                         type="button"
                         className="danger"
-                        onClick={() => {
-                          if (p.member_id == null) {
-                            showToast(t("populations.detail.removeMissingId"))
-                            return
-                          }
-                          const memberId = p.member_id
-                          void removePopulationMember(pop.id, memberId)
-                            .then(() => {
-                              setMembers((prev) =>
-                                prev.filter((m) => m.member_id !== memberId),
-                              )
-                              setPop((prev) =>
-                                prev ? { ...prev, size: Math.max(0, prev.size - 1) } : prev,
-                              )
-                            })
-                            .catch((err: unknown) =>
-                              showToast(
-                                err instanceof ApiError
-                                  ? err.message
-                                  : t("common.deleteError"),
-                              ),
-                            )
-                        }}
+                        onClick={() => handleRemoveMember(pop.id, p)}
                       >
                         {t("populations.detail.remove")}
                       </button>
                     </div>
                   </CardContent>
                 </Card>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="p-list population-member-list">
+            {members.map((p) => (
+              <div
+                className="p-row"
+                key={p.member_id ?? `${p.name}-${p.id ?? "x"}`}
+              >
+                <Link
+                  to={p.id ? `/personas/${p.id}` : "/personas"}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    minWidth: 0,
+                    color: "inherit",
+                    textDecoration: "none",
+                  }}
+                >
+                  <div className="av" style={{ width: 28, height: 28, fontSize: 11 }}>
+                    {p.initials}
+                  </div>
+                  <div className="nm2">{p.name}</div>
+                </Link>
+                <div className="quote2">{p.trait || t("common.emDash")}</div>
+                <div className="meta">
+                  {p.age} · {p.occ} · {p.district}
+                </div>
+                <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                  <Link to={p.id ? `/personas/${p.id}` : "/personas"}>
+                    {t("common.open")}
+                  </Link>
+                  <button
+                    type="button"
+                    className="danger"
+                    onClick={() => handleRemoveMember(pop.id, p)}
+                  >
+                    {t("populations.detail.remove")}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
