@@ -6,6 +6,7 @@ import pytest
 
 from app.llm import set_text_completer
 from app.llm.vision import VisionRequest, set_vision_completer
+from app.services.playground_image import MAX_IMAGE_BYTES
 from app.services.ssr import set_embedder, tone_anchors
 
 
@@ -137,6 +138,30 @@ async def test_image_react_unknown_persona(client):
         files={"image": ("test.png", _TINY_PNG, "image/png")},
     )
     assert res.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_image_react_rejects_oversized_upload(client):
+    create = await client.post(
+        "/personas",
+        json={
+            "name": "P",
+            "age": 30,
+            "occ": "X",
+            "district": "Centrum",
+            "quote": "Q",
+            "origin": "manuell",
+        },
+    )
+    persona_id = create.json()["id"]
+    oversized = _TINY_PNG + b"\x00" * (MAX_IMAGE_BYTES - len(_TINY_PNG) + 1)
+    res = await client.post(
+        "/playground/image/react",
+        data={"persona_id": persona_id},
+        files={"image": ("big.png", oversized, "image/png")},
+    )
+    assert res.status_code == 400
+    assert "MB limit" in res.json()["detail"]
 
 
 @pytest.mark.asyncio
