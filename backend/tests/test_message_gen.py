@@ -18,7 +18,7 @@ def test_extract_prefers_article_and_meta():
       <head>
         <title>Sidtitel | Nyhetssajt</title>
         <meta property="og:title" content="Rätt rubrik om vård" />
-        <meta property="og:description" content="Ingress om vårdcentralen i Norrköping." />
+        <meta property="og:description" content="Ingress om vårdcentralen i kommunen." />
         <meta name="description" content="Fallback beskrivning" />
       </head>
       <body>

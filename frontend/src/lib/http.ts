@@ -22,6 +22,7 @@ export type HttpRequestOptions = {
   signal?: AbortSignal
   timeoutMs?: number
   token?: string | null
+  jsonBody?: boolean
 }
 
 export async function httpRequest<T>(
@@ -45,7 +46,8 @@ export async function httpRequest<T>(
   }
 
   const reqHeaders: Record<string, string> = { Accept: "application/json", ...headers }
-  if (body !== undefined) reqHeaders["Content-Type"] = "application/json"
+  const useJson = body !== undefined && options.jsonBody !== false && !(body instanceof FormData)
+  if (useJson) reqHeaders["Content-Type"] = "application/json"
   if (token) reqHeaders.Authorization = `Bearer ${token}`
 
   let response: Response
@@ -53,7 +55,7 @@ export async function httpRequest<T>(
     response = await fetch(url, {
       method,
       headers: reqHeaders,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : useJson ? JSON.stringify(body) : (body as BodyInit),
       signal: controller.signal,
     })
   } catch (err) {

@@ -14,6 +14,7 @@ from app.config import settings
 from app.database.base import Base
 from app.database.session import get_session
 from app.llm import set_structured_completer, set_text_completer, set_text_streamer
+from app.llm.vision import set_vision_completer
 from app.main import create_app
 from app.services import jobs as jobs_service
 from app.services.population_generate import clear_generations
@@ -31,6 +32,7 @@ def _reset_llm_completers():
     set_structured_completer(None)
     set_text_completer(None)
     set_text_streamer(None)
+    set_vision_completer(None)
     set_embedder(None)
     clear_embedding_cache()
 
@@ -58,10 +60,16 @@ async def client():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
+    from app.services.anchor_store import (
+        backfill_configuration_anchor_sets,
+        ensure_default_anchor_sets,
+    )
     from app.services.prompt_store import ensure_default_configurations
 
     async with session_factory() as seed_session:
+        await ensure_default_anchor_sets(seed_session)
         await ensure_default_configurations(seed_session)
+        await backfill_configuration_anchor_sets(seed_session)
 
     jobs_service.set_job_session_factory(session_factory)
     jobs_service.set_schedule_hook(None)

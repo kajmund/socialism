@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import OperationalError, ProgrammingError
 
 from app.api import (
+    anchor_sets,
     catalog,
     configurations,
     embeddings,
@@ -60,6 +61,7 @@ def create_app() -> FastAPI:
     app.include_router(populations.router)
     app.include_router(runs.router)
     app.include_router(messages.router)
+    app.include_router(anchor_sets.router)
     app.include_router(configurations.router)
     app.include_router(catalog.router)
     app.include_router(jobs.router)

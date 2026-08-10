@@ -122,7 +122,7 @@ class DistGroup(BaseModel):
 class PopulationRecipe(BaseModel):
     size: int = Field(ge=1, le=40)
     dist: dict[str, DistGroup]
-    locale: str = "norrkoping"
+    locale: str = "local"
     seed: int | None = None
 
 
@@ -363,6 +363,20 @@ ConfigurationLanguage = Literal["sv", "en", "nb"]
 # Default matches playground calibration default (sharper than Softmax T=1.0).
 DEFAULT_SSR_TEMPERATURE = 0.1
 
+AnchorKind = Literal["tone", "style"]
+AnchorLocale = Literal["sv", "en"]
+AnchorStatus = Literal["draft", "published"]
+
+
+class ConfigurationAnchorRef(BaseModel):
+    tone: int = Field(gt=0)
+    style: int = Field(gt=0)
+
+
+class ConfigurationAnchorSets(BaseModel):
+    sv: ConfigurationAnchorRef
+    en: ConfigurationAnchorRef
+
 
 class ConfigurationOut(BaseModel):
     id: int
@@ -370,6 +384,7 @@ class ConfigurationOut(BaseModel):
     language: ConfigurationLanguage
     prompts: dict[str, str]
     ssr_temperature: float
+    anchor_sets: ConfigurationAnchorSets
     is_active: bool
     created_at: str
     updated_at: str
@@ -380,6 +395,7 @@ class ConfigurationCreate(BaseModel):
     language: ConfigurationLanguage
     prompts: dict[str, str] = Field(default_factory=dict)
     ssr_temperature: float = Field(default=DEFAULT_SSR_TEMPERATURE, gt=0, le=10)
+    anchor_sets: ConfigurationAnchorSets | None = None
     is_active: bool = False
 
     @field_validator("name", mode="before")
@@ -393,6 +409,7 @@ class ConfigurationUpdate(BaseModel):
     language: ConfigurationLanguage | None = None
     prompts: dict[str, str] | None = None
     ssr_temperature: float | None = Field(default=None, gt=0, le=10)
+    anchor_sets: ConfigurationAnchorSets | None = None
     is_active: bool | None = None
 
     @field_validator("name", mode="before")
@@ -409,6 +426,86 @@ class PromptFieldOut(BaseModel):
     label: str
     hint: str
     default: str
+
+
+class SsrAnchorSetOut(BaseModel):
+    id: int
+    name: str
+    kind: AnchorKind
+    locale: AnchorLocale
+    version: str
+    labels: list[str]
+    statements: list[str]
+    status: AnchorStatus
+    created_at: str
+    updated_at: str
+
+
+class SsrAnchorSetCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    kind: AnchorKind
+    locale: AnchorLocale
+    version: str = Field(default="v1", min_length=1, max_length=16)
+    labels: list[str] = Field(min_length=1)
+    statements: list[str] = Field(min_length=1)
+    status: AnchorStatus = "draft"
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def strip_name(cls, value: object) -> object:
+        return _strip_required_text(value)
+
+
+class SsrAnchorSetUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    version: str | None = Field(default=None, min_length=1, max_length=16)
+    labels: list[str] | None = None
+    statements: list[str] | None = None
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def strip_name(cls, value: object) -> object:
+        if value is None:
+            return None
+        return _strip_required_text(value)
+
+
+class SsrAnchorCalibrationItemOut(BaseModel):
+    id: int
+    text: str
+    human_label: str
+    sort_order: int
+    created_at: str
+
+
+class SsrAnchorCalibrationItemCreate(BaseModel):
+    text: str = Field(min_length=1)
+    human_label: str = Field(min_length=1, max_length=64)
+    sort_order: int = 0
+
+    @field_validator("text", "human_label", mode="before")
+    @classmethod
+    def strip_text(cls, value: object) -> object:
+        return _strip_required_text(value)
+
+
+class SsrAnchorCalibrationItemUpdate(BaseModel):
+    text: str | None = Field(default=None, min_length=1)
+    human_label: str | None = Field(default=None, min_length=1, max_length=64)
+    sort_order: int | None = None
+
+    @field_validator("text", "human_label", mode="before")
+    @classmethod
+    def strip_optional(cls, value: object) -> object:
+        if value is None:
+            return None
+        return _strip_required_text(value)
+
+
+class SsrAnchorTestRequest(BaseModel):
+    texts: list[str] = Field(min_length=1)
+    temperature: float = Field(default=DEFAULT_SSR_TEMPERATURE, gt=0, le=10)
+    use_calibration: bool = False
 
 
 class PromptCatalogOut(BaseModel):

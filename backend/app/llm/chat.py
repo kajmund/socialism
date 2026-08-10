@@ -5,7 +5,6 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 
 from app.llm import complete_text, stream_text
-from app.locality import load_norrkoping_brief
 from app.schemas.domain import ChatMode, EditablePersona
 from app.services.prompt_catalog import render_prompt
 
@@ -42,10 +41,7 @@ def build_chat_system_prompt(
     area_block: str = "",
     simulation_context: str = "",
 ) -> str:
-    brief = load_norrkoping_brief()
-    local = brief
-    if area_block.strip():
-        local = f"{brief}\n\n{area_block.strip()}"
+    local = area_block.strip()
     persona_block = _persona_block(profile)
     if mode == "interview":
         mode_rules = render_prompt(prompts, "chat.mode.interview")
@@ -55,9 +51,9 @@ def build_chat_system_prompt(
         mode_rules,
         "",
         f"Din persona:\n{persona_block}",
-        "",
-        f"Lokal kontext:\n{local}",
     ]
+    if local:
+        parts.extend(["", f"Lokal kontext:\n{local}"])
     if simulation_context.strip():
         parts.extend(
             [
@@ -136,6 +132,7 @@ async def reply_as_persona(
     area_block: str = "",
     simulation_context: str = "",
     system_prompt: str | None = None,
+    model: str | None = None,
 ) -> str:
     messages = _chat_messages(
         profile,
@@ -147,7 +144,7 @@ async def reply_as_persona(
         simulation_context=simulation_context,
         system_prompt=system_prompt,
     )
-    return await complete_text(messages)
+    return await complete_text(messages, model=model)
 
 
 async def stream_reply_as_persona(

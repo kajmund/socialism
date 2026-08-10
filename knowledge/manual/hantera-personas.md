@@ -13,9 +13,9 @@ tags: [personas]
 
 1. Öppna **Personas** i menyn.
 2. Välj **Hur funkar det?** om du vill se hur personas hänger ihop med populationer.
-3. Sök på namn, ort eller yrke.
-4. Filtrera efter **populationstillhörighet** (fristående eller specifik population) och **ursprung** (manuell, från beskrivning, från demografi, genererad via population).
-5. Sortera efter senast uppdaterad, namn eller antal populationer.
+3. Sök på namn, ort, yrke eller kön.
+4. Filtrera efter **populationstillhörighet** (fristående eller specifik population), **ursprung** (manuell, från beskrivning, från demografi, genererad via population) och **demografi** (kön, distrikt, yrke, utbildning, livssituation).
+5. Sortera efter senast uppdaterad, namn, antal populationer eller demografiska fält (ålder, kön, distrikt, yrke, utbildning, livssituation).
 6. Växla mellan **Rutnät** och **Lista**.
 7. I rutnätsvyn kan du **redigera fält direkt** på kortet — ändringar sparas automatiskt.
 8. Välj **Öppna** för att gå till den fullständiga redigeraren.

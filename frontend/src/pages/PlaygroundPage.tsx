@@ -1,4 +1,9 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { Link } from "react-router-dom"
+import {
+  listAnchorSets,
+  type SsrAnchorSet,
+} from "@/api/anchorSets"
 import {
   getConfiguration,
   getPromptCatalog,
@@ -19,12 +24,13 @@ import {
   type RateResponse,
 } from "@/api/playground"
 import { PlaygroundToolsPanel } from "@/components/playground/PlaygroundToolsPanel"
+import { PlaygroundImagePanel } from "@/components/playground/PlaygroundImagePanel"
 import { Button } from "@/components/ui/button"
 import { useLocale } from "@/i18n"
 import { ApiError } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
-type TabId = "anchors" | "prompts" | "compare" | "tools"
+type TabId = "anchors" | "prompts" | "compare" | "tools" | "image"
 
 type VarRow = { key: string; value: string }
 
@@ -55,6 +61,10 @@ function pct(rate: number): string {
   return String(Math.round(rate * 1000) / 10)
 }
 
+function anchorSnapshot(labels: string[], statements: string[]): string {
+  return JSON.stringify({ labels, statements })
+}
+
 export function PlaygroundPage() {
   const { t } = useLocale()
   const [tab, setTab] = useState<TabId>("anchors")
@@ -73,6 +83,21 @@ export function PlaygroundPage() {
   const [rateResult, setRateResult] = useState<RateResponse | null>(null)
   const [compareResult, setCompareResult] = useState<CompareResponse | null>(null)
   const [lastTemperature, setLastTemperature] = useState<number | null>(null)
+  const [librarySets, setLibrarySets] = useState<SsrAnchorSet[]>([])
+  const [librarySetId, setLibrarySetId] = useState<number | "">("")
+  const libraryBaselineRef = useRef<string>("")
+
+  const libraryOptions = useMemo(
+    () =>
+      librarySets.filter(
+        (row) => row.kind === dimension && row.locale === anchorLocale && row.status === "published",
+      ),
+    [librarySets, dimension, anchorLocale],
+  )
+
+  const librarySnapshotClean =
+    librarySetId !== "" &&
+    libraryBaselineRef.current === anchorSnapshot(labels, statements)
 
   const [configs, setConfigs] = useState<Configuration[]>([])
   const [catalog, setCatalog] = useState<PromptCatalog | null>(null)
@@ -90,13 +115,15 @@ export function PlaygroundPage() {
     let cancelled = false
     ;(async () => {
       try {
-        const [anchors, configList, promptCatalog] = await Promise.all([
+        const [anchors, configList, promptCatalog, publishedSets] = await Promise.all([
           getPlaygroundAnchors(),
           listConfigurations(),
           getPromptCatalog({ label_locale: "sv" }),
+          listAnchorSets({ status: "published" }),
         ])
         if (cancelled) return
         setAnchorsPayload(anchors)
+        setLibrarySets(publishedSets)
         setConfigs(configList)
         setCatalog(promptCatalog)
         const active = configList.find((c) => c.is_active) ?? configList[0]
@@ -111,11 +138,38 @@ export function PlaygroundPage() {
   }, [])
 
   useEffect(() => {
+    setLibrarySetId("")
+    libraryBaselineRef.current = ""
+  }, [dimension, anchorLocale])
+
+  useEffect(() => {
     if (!anchorsPayload) return
     const set = anchorsPayload[dimension][anchorLocale]
     setLabels([...set.labels])
     setStatements([...set.statements])
   }, [anchorsPayload, dimension, anchorLocale])
+
+  function applyLibrarySet(id: number) {
+    const row = librarySets.find((r) => r.id === id)
+    if (!row) return
+    setLibrarySetId(id)
+    setLabels([...row.labels])
+    setStatements([...row.statements])
+    libraryBaselineRef.current = anchorSnapshot(row.labels, row.statements)
+  }
+
+  function clearLibrarySelection() {
+    setLibrarySetId("")
+    libraryBaselineRef.current = ""
+    resetAnchors()
+  }
+
+  useEffect(() => {
+    if (librarySetId === "") return
+    if (librarySnapshotClean) return
+    setLibrarySetId("")
+    libraryBaselineRef.current = ""
+  }, [labels, statements, librarySetId, librarySnapshotClean])
 
   useEffect(() => {
     setHumanLabels((prev) => {
@@ -168,6 +222,7 @@ export function PlaygroundPage() {
     const set = anchorsPayload[dimension][anchorLocale]
     setLabels([...set.labels])
     setStatements([...set.statements])
+    libraryBaselineRef.current = ""
   }
 
   async function onRunRate() {
@@ -191,8 +246,9 @@ export function PlaygroundPage() {
         texts: textLines,
         dimension,
         locale: anchorLocale,
-        labels,
-        statements,
+        anchor_set_id: librarySnapshotClean ? librarySetId : undefined,
+        labels: librarySnapshotClean ? undefined : labels,
+        statements: librarySnapshotClean ? undefined : statements,
         temperature,
         human_labels: useHumanLabels ? humanLabels : undefined,
       })
@@ -219,10 +275,15 @@ export function PlaygroundPage() {
     setBusy(true)
     try {
       const toneSet = anchorsPayload?.tone[anchorLocale]
-      const useEditedTone = dimension === "tone" && labels.length > 0
+      const useEditedTone = dimension === "tone" && labels.length > 0 && !librarySnapshotClean
+      const toneLibraryId =
+        dimension === "tone" && librarySnapshotClean && librarySetId !== ""
+          ? librarySetId
+          : undefined
       const result = await comparePlaygroundSsr({
         texts: textLines,
         locale: anchorLocale,
+        anchor_set_id: toneLibraryId,
         labels: useEditedTone ? labels : toneSet?.labels,
         statements: useEditedTone ? statements : toneSet?.statements,
         temperature,
@@ -278,10 +339,12 @@ export function PlaygroundPage() {
       | "playground.tabPrompts"
       | "playground.tabCompare"
       | "playground.tabTools"
+      | "playground.tabImage"
   }[] = [
     { id: "anchors", labelKey: "playground.tabAnchors" },
     { id: "prompts", labelKey: "playground.tabPrompts" },
     { id: "compare", labelKey: "playground.tabCompare" },
+    { id: "image", labelKey: "playground.tabImage" },
     { id: "tools", labelKey: "playground.tabTools" },
   ]
 
@@ -360,6 +423,38 @@ export function PlaygroundPage() {
                   <option value="en">{t("playground.localeEn")}</option>
                 </select>
               </label>
+              <label className="grid gap-1 text-sm">
+                <span>{t("playground.librarySetLabel")}</span>
+                <select
+                  className="min-w-[14rem] rounded border border-[color:var(--border-hairline)] bg-transparent px-2 py-1.5"
+                  value={librarySetId === "" ? "" : String(librarySetId)}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    if (value === "") {
+                      clearLibrarySelection()
+                    } else {
+                      applyLibrarySet(Number(value))
+                    }
+                  }}
+                >
+                  <option value="">{t("playground.librarySetDefault")}</option>
+                  {libraryOptions.map((row) => (
+                    <option key={row.id} value={row.id}>
+                      {row.name} ({row.version})
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {librarySetId !== "" && librarySnapshotClean ? (
+                <div className="flex items-end">
+                  <Link
+                    to={`/tools/anchor-sets/${librarySetId}/edit`}
+                    className="text-sm text-[color:var(--accent-gold)] hover:underline"
+                  >
+                    {t("playground.librarySetEdit")}
+                  </Link>
+                </div>
+              ) : null}
               <label className="grid gap-1 text-sm">
                 <span>{t("playground.temperature")}</span>
                 <input
@@ -711,6 +806,13 @@ export function PlaygroundPage() {
             className="space-y-6"
           >
             <p className="text-sm text-muted-foreground">{t("playground.compareHint")}</p>
+            {librarySnapshotClean && librarySetId !== "" ? (
+              <p className="text-sm text-muted-foreground">
+                {t("playground.compareLibraryTone", {
+                  name: librarySets.find((row) => row.id === librarySetId)?.name ?? "",
+                })}
+              </p>
+            ) : null}
             <div className="flex flex-wrap gap-4">
               <label className="grid gap-1 text-sm">
                 <span>{t("playground.locale")}</span>
@@ -811,6 +913,8 @@ export function PlaygroundPage() {
         ) : null}
 
         {tab === "tools" ? <PlaygroundToolsPanel /> : null}
+
+        {tab === "image" ? <PlaygroundImagePanel /> : null}
     </div>
   )
 }

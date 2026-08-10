@@ -72,6 +72,36 @@ export function makeStimulusControlBranch(
   return { afterIndex, mode: "stimulus_control", a: aTicks, b: bTicks }
 }
 
+/**
+ * A/B with no shared stem (`afterIndex: -1`).
+ * Existing main ticks become Version A; B is a clone. Empty main → day 1 on both.
+ */
+export function makeAbBranchFromStart(mainTicks: Tick[]): {
+  branch: BranchState
+  mainTicks: Tick[]
+} {
+  if (mainTicks.length === 0) {
+    return {
+      branch: {
+        afterIndex: -1,
+        mode: "ab",
+        a: [makeTick(1)],
+        b: [makeTick(1)],
+      },
+      mainTicks: [],
+    }
+  }
+  return {
+    branch: {
+      afterIndex: -1,
+      mode: "ab",
+      a: mainTicks.map(cloneTick),
+      b: mainTicks.map(cloneTick),
+    },
+    mainTicks: [],
+  }
+}
+
 export function makeTick(day: number): Tick {
   return {
     key: "t" + Math.random().toString(36).slice(2, 8),

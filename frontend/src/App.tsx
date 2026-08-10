@@ -1,5 +1,7 @@
 import { Navigate, Route, Routes, useParams } from "react-router-dom"
 import { ToolsShell } from "@/components/layout/ToolsShell"
+import { AnchorSetEditorPage } from "@/pages/AnchorSetEditorPage"
+import { AnchorSetsPage } from "@/pages/AnchorSetsPage"
 import { ConfigureRunPage } from "@/pages/ConfigureRunPage"
 import { ConfigurationEditorPage } from "@/pages/ConfigurationEditorPage"
 import { ConfigurationsPage } from "@/pages/ConfigurationsPage"
@@ -48,6 +50,9 @@ export default function App() {
         <Route path="configurations" element={<ConfigurationsPage />} />
         <Route path="configurations/new" element={<ConfigurationEditorPage />} />
         <Route path="configurations/:id/edit" element={<ConfigurationEditorPage />} />
+        <Route path="anchor-sets" element={<AnchorSetsPage />} />
+        <Route path="anchor-sets/new" element={<AnchorSetEditorPage />} />
+        <Route path="anchor-sets/:id/edit" element={<AnchorSetEditorPage />} />
         <Route path="playground" element={<PlaygroundPage />} />
         <Route path="cache" element={<EmbeddingCachePage />} />
       </Route>

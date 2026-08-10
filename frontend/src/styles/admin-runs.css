@@ -269,6 +269,10 @@
 
 .add-tick-btn{display:flex;align-items:center;gap:10px;padding:13px 16px;border:1.5px dashed var(--border-hairline);border-radius:var(--radius-md);background:transparent;cursor:pointer;color:var(--text-muted);font-size:13.5px;font-weight:600;width:100%;margin-top:2px}
 .add-tick-btn:hover{border-color:var(--db-ink-950);color:var(--text-body)}
+.tl-ab-start{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin:0 0 14px;padding:12px 14px;border:1px solid var(--border-hairline);border-radius:var(--radius-md);background:var(--db-gold-100)}
+.tl-ab-start-btn{height:32px;padding:0 12px;border:1px solid var(--db-gold-700);border-radius:var(--radius-sm);background:var(--db-ink-0);cursor:pointer;font-size:13px;font-weight:700;color:var(--db-gold-700)}
+.tl-ab-start-btn:hover{background:var(--db-gold-700);color:var(--db-ink-0)}
+.tl-ab-start-hint{font-size:12.5px;color:var(--text-muted);line-height:1.35}
 
 .branch-cta{margin-top:8px;text-align:right}
 .branch-link{font-size:12px;font-weight:600;color:var(--db-gold-700);background:none;border:none;cursor:pointer;padding:4px 2px}

@@ -9,7 +9,6 @@ from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.llm import complete_structured
-from app.locality import load_norrkoping_brief
 from app.schemas.domain import EditablePersona, PersonaAnecdoteOut
 from app.services.district_context import area_block_for_name
 from app.services.prompt_catalog import render_prompt
@@ -107,7 +106,6 @@ async def llm_persona_anecdote(
     area_block = ""
     if session is not None:
         area_block = await area_block_for_name(session, profile.ort)
-    brief = load_norrkoping_brief()
     prev_block = ""
     if previous_anecdotes:
         listed = "\n".join(f"  * {a}" for a in previous_anecdotes[-10:])
@@ -120,10 +118,11 @@ async def llm_persona_anecdote(
         persona_block=_anecdote_context_lines(profile),
         prev_block=prev_block,
     )
-    local = brief
-    if area_block.strip():
-        local = f"{brief}\n\n{area_block.strip()}"
-    system = render_prompt(prompts, "persona.anecdote.system", local_context=local)
+    system = render_prompt(
+        prompts,
+        "persona.anecdote.system",
+        local_context=area_block.strip(),
+    )
 
     messages: list[dict[str, str]] = [
         {"role": "system", "content": system},
