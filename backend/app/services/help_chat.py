@@ -10,9 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import HelpMessage
 from app.llm import stream_text
-from app.schemas.domain import HelpChatResponse, HelpMessageOut
+from app.schemas.domain import HelpChatResponse, HelpMessageOut, HelpViewContext
 from app.serializers import format_date
-from app.services.okf_corpus import manual_context
+from app.services.help_read_context import build_help_context
 from app.services.prompt_catalog import ConfigurationLanguage, default_prompts, render_prompt
 
 
@@ -60,11 +60,17 @@ async def clear_help_messages(session: AsyncSession, session_id: str) -> None:
     await session.commit()
 
 
-def _build_system_prompt(*, locale: ConfigurationLanguage, query: str) -> str:
+async def _build_system_prompt(
+    session: AsyncSession,
+    *,
+    locale: ConfigurationLanguage,
+    query: str,
+    view: HelpViewContext | None,
+) -> str:
     prompts = default_prompts(locale)
     base = render_prompt(prompts, "help.system")
-    context = manual_context(query)
-    return f"{base}\n\n# Manual (OKF)\n\n{context}"
+    context = await build_help_context(session, view=view, query=query)
+    return f"{base}\n\n{context}"
 
 
 def _history_rows(rows: list[HelpMessage]) -> list[dict[str, str]]:
@@ -77,6 +83,7 @@ async def stream_help_chat_turn(
     session_id: str,
     locale: ConfigurationLanguage,
     message: str,
+    view: HelpViewContext | None = None,
 ) -> AsyncIterator[str | HelpChatResponse]:
     lock = await _help_turn_lock(session_id)
     async with lock:
@@ -92,7 +99,12 @@ async def stream_help_chat_turn(
         await session.commit()
         await session.refresh(user_row)
 
-        system_prompt = _build_system_prompt(locale=locale, query=message)
+        system_prompt = await _build_system_prompt(
+            session,
+            locale=locale,
+            query=message,
+            view=view,
+        )
         messages = [
             {"role": "system", "content": system_prompt},
             *_history_rows(prior),

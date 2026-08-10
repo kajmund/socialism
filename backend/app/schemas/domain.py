@@ -217,10 +217,19 @@ HelpLocale = Literal["sv", "en"]
 HelpRole = Literal["user", "assistant"]
 
 
+class HelpViewContext(BaseModel):
+    path: str = Field(max_length=512)
+    view_key: str = Field(max_length=64)
+    label: str = Field(max_length=255)
+    params: dict[str, str] = Field(default_factory=dict)
+    search: dict[str, str] = Field(default_factory=dict)
+
+
 class HelpChatRequest(BaseModel):
     session_id: str = Field(min_length=1, max_length=64)
     locale: HelpLocale = "sv"
     message: str = Field(min_length=1)
+    view: HelpViewContext | None = None
 
 
 class HelpMessageOut(BaseModel):

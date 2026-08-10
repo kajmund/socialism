@@ -84,6 +84,13 @@ def test_search_manual_finds_korning_guide():
 def test_help_chat_websocket_streams(help_client):
     client, _loop, _factory = help_client
     session_id = "test-help-session"
+    view = {
+        "path": "/runs",
+        "view_key": "runs.list",
+        "label": "Körningar — lista",
+        "params": {},
+        "search": {},
+    }
 
     with client.websocket_connect("/ws/chat") as ws:
         ws.send_json(
@@ -92,12 +99,13 @@ def test_help_chat_websocket_streams(help_client):
                 "scope": "help",
                 "session_id": session_id,
                 "locale": "sv",
+                "view": view,
             }
         )
         ready = ws.receive_json()
         assert ready["type"] == "ready"
 
-        ws.send_json({"type": "send", "message": "Hur startar jag en simulering?"})
+        ws.send_json({"type": "send", "message": "Hur startar jag en simulering?", "view": view})
         typing = ws.receive_json()
         assert typing == {"type": "typing", "on": True}
 

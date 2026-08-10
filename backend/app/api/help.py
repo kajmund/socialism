@@ -45,6 +45,7 @@ async def post_help_chat(
             session_id=body.session_id,
             locale=body.locale,
             message=body.message,
+            view=body.view,
         ):
             if isinstance(item, HelpChatResponse):
                 done = item

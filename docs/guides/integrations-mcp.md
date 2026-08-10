@@ -6,10 +6,11 @@ Operator manuals in [`knowledge/manual/`](../knowledge/manual/) are loaded by `i
 
 ## In-app help chat
 
-- **Frontend:** floating **Hjälp** button in `AdminShell` → WebSocket scope `help` + `MessengerChat`
-- **Backend:** `GET/DELETE /help/messages`, `POST /help/chat`, WebSocket `/ws/chat` with `{ scope: "help", session_id, locale }`
-- **Persistence:** `help_messages` table keyed by browser `session_id` (localStorage)
-- **Prompt:** `help.system` in Konfigurationer (defaults seeded via prompt catalog)
+- **Frontend:** floating **Hjälp** button on every page (`App.tsx`) → WebSocket scope `help` + `MessengerChat`
+- **View injection:** each message sends `{ path, view_key, label, params, search }` from the current route
+- **Backend:** `GET/DELETE /help/messages`, `POST /help/chat`, WebSocket `/ws/chat` with `{ scope: "help", session_id, locale, view }`
+- **Read sources:** OKF manuals + read-only DB snapshots (`help_read_context.py`) — personas, runs, populations, messages, configurations, anchor sets, reports, jobs
+- **Write policy:** help assistant is read-only; only chat transcript rows are persisted
 
 ## MCP server (Cursor)
 
