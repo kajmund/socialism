@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "opinionssimulator": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "/absolute/path/to/socialism/integrations/mcp",
+        "python",
+        "server.py"
+      ],
+      "env": {
+        "DEEPSEEK_API_KEY": "your-deepseek-key",
+        "OPINIONSSIMULATOR_API_URL": "http://127.0.0.1:8000"
+      }
+    }
+  }
+}

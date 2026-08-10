@@ -11,6 +11,7 @@ from app.api import (
     configurations,
     embeddings,
     health,
+    help,
     jobs,
     messages,
     personas,
@@ -68,6 +69,7 @@ def create_app() -> FastAPI:
     app.include_router(reports.router)
     app.include_router(playground.router)
     app.include_router(embeddings.router)
+    app.include_router(help.router)
     app.include_router(ws.router)
     return app
 

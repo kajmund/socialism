@@ -9,8 +9,10 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field, ValidationError
 
 from app.realtime.hub import job_hub
-from app.schemas.domain import ChatMode, PersonaChatResponse
+from app.schemas.domain import ChatMode, HelpChatResponse, HelpViewContext, PersonaChatResponse
 from app.services import jobs as jobs_service
+from app.services.help_chat import ChatTurnError as HelpChatTurnError
+from app.services.help_chat import stream_help_chat_turn
 from app.services.persona_chat import (
     ChatTurnError,
     stream_library_chat_turn,
@@ -39,9 +41,19 @@ class RunInterviewHello(BaseModel):
     through_tick_index: int = Field(ge=0)
 
 
+class HelpHello(BaseModel):
+    type: Literal["hello"] = "hello"
+    scope: Literal["help"]
+    session_id: str = Field(min_length=1, max_length=64)
+    locale: Literal["sv", "en"] = "sv"
+    view: HelpViewContext | None = None
+
+
 class ChatSend(BaseModel):
     type: Literal["send"]
     message: str = Field(min_length=1)
+    view: HelpViewContext | None = None
+    ground_population: bool = False
 
 
 async def _send_error(websocket: WebSocket, detail: str) -> None:
@@ -77,7 +89,7 @@ async def jobs_websocket(websocket: WebSocket) -> None:
 @router.websocket("/ws/chat")
 async def chat_websocket(websocket: WebSocket) -> None:
     await websocket.accept()
-    hello: LibraryHello | RunInterviewHello | None = None
+    hello: LibraryHello | RunInterviewHello | HelpHello | None = None
     try:
         raw = await websocket.receive_json()
         if not isinstance(raw, dict):
@@ -90,8 +102,13 @@ async def chat_websocket(websocket: WebSocket) -> None:
                 hello = LibraryHello.model_validate(raw)
             elif scope == "run_interview":
                 hello = RunInterviewHello.model_validate(raw)
+            elif scope == "help":
+                hello = HelpHello.model_validate(raw)
             else:
-                await _send_error(websocket, "hello.scope must be library or run_interview")
+                await _send_error(
+                    websocket,
+                    "hello.scope must be library, run_interview, or help",
+                )
                 await websocket.close(code=1003)
                 return
         except ValidationError as exc:
@@ -120,6 +137,36 @@ async def chat_websocket(websocket: WebSocket) -> None:
                 # Same injectable factory as background jobs so tests share one DB.
                 factory = jobs_service.job_session_factory()
                 async with factory() as session:
+                    if isinstance(hello, HelpHello):
+                        done_help: HelpChatResponse | None = None
+                        turn_view = send.view if send.view is not None else hello.view
+                        stream = stream_help_chat_turn(
+                            session,
+                            session_id=hello.session_id,
+                            locale=hello.locale,
+                            message=send.message,
+                            view=turn_view,
+                            ground_population=send.ground_population,
+                        )
+                        async for item in stream:
+                            if isinstance(item, HelpChatResponse):
+                                done_help = item
+                            else:
+                                await websocket.send_json({"type": "token", "text": item})
+                        if done_help is None:
+                            await _send_error(websocket, "Help chat turn produced no reply")
+                            continue
+                        await websocket.send_json(
+                            {
+                                "type": "done",
+                                "reply": done_help.reply,
+                                "messages": [
+                                    m.model_dump(mode="json") for m in done_help.messages
+                                ],
+                            }
+                        )
+                        continue
+
                     done: PersonaChatResponse | None = None
                     if isinstance(hello, LibraryHello):
                         stream = stream_library_chat_turn(
@@ -156,6 +203,8 @@ async def chat_websocket(websocket: WebSocket) -> None:
                         }
                     )
             except ChatTurnError as exc:
+                await _send_error(websocket, exc.detail)
+            except HelpChatTurnError as exc:
                 await _send_error(websocket, exc.detail)
             except Exception:
                 logger.exception("Chat WebSocket turn failed")

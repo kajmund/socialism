@@ -539,14 +539,13 @@ async def test_generate_quick_report_skips_deepseek(tmp_path: Path):
         )
         html = html_path.read_text(encoding="utf-8")
         assert "Snabbrapport" in html or "Snabb" in html
-        assert "verdict" in html or "mottagande" in html.lower() or "Nollresultat" in html
+        assert "Rekommendation" in html or "Publicera" in html or "publicera" in html
         assert "Statistik" in html or "Static statistics" in html
         assert "chart-grid" in html
         assert "stats-table" in html
-        assert "Simulerat stöd" in html
         assert "Målgruppsanalys" in html
         assert "tech" in html
-        assert slots.get("verdict_label")
+        assert slots.get("recommendation_html")
         assert timing["classify_llm_seconds"] == 0.0
         assert timing["embed_seconds"] >= 0.0
         assert (tmp_path / "rpt_quick" / "report.ssr.json").is_file()

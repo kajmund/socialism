@@ -117,6 +117,22 @@ class Run(Base):
     population: Mapped[Population] = relationship(back_populates="runs")
 
 
+class HelpMessage(Base):
+    """In-app help chat transcript (scoped by browser session id)."""
+
+    __tablename__ = "help_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    session_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    role: Mapped[str] = mapped_column(String(32), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+
 class PersonaMessage(Base):
     __tablename__ = "persona_messages"
 

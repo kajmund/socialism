@@ -7,98 +7,124 @@ from dataclasses import dataclass, field
 from app.services.report.bundles import RunBundle
 from app.services.report.classify import BundleClassification
 from app.services.report.locale import ReportLocale
-from app.services.report.metrics import ReportMetrics, injection_likes, pct
-from app.services.report.segment_analysis import AudienceSegmentSummary, detect_themes
+from app.services.report.metrics import BundleMetrics, ReportMetrics, pct
+from app.services.report.segment_analysis import AudienceSegmentSummary
 from app.services.report.segment_ssr import _critical_share, _positive_share
 from app.services.report.tick_report import build_tick_stats
+
+
+@dataclass
+class AbCompareRow:
+    arm: str
+    positive: str
+    likes: str
+    is_winner: bool
 
 
 @dataclass
 class QuickRecommendation:
     score: int
     action: str
-    headline: str
+    recommended_arm: str | None = None
+    summary: str = ""
+    ab_rows: list[AbCompareRow] = field(default_factory=list)
     strengths: list[str] = field(default_factory=list)
     risks: list[str] = field(default_factory=list)
     improvements: list[str] = field(default_factory=list)
-    trajectory: str = ""
 
 
 def _clamp_score(value: float) -> int:
     return max(0, min(100, int(round(value))))
 
 
-def _trajectory_note(bundle: RunBundle, *, locale: ReportLocale) -> str:
-    rows = build_tick_stats(bundle)
-    if len(rows) < 2:
-        return ""
-    first = rows[0].window_engagement_score
-    last = rows[-1].window_engagement_score
-    if last > first * 1.1:
-        return (
-            "Simulated trajectory: engagement rose over the simulation period."
-            if locale == "en"
-            else "Simulerad utveckling: engagemang ökade under simuleringsperioden."
-        )
-    if last < first * 0.7:
-        return (
-            "Simulated trajectory: engagement cooled after the first day."
-            if locale == "en"
-            else "Simulerad utveckling: engagemang avkylades efter första dagen."
-        )
-    return (
-        "Simulated trajectory: engagement stayed relatively stable across days."
-        if locale == "en"
-        else "Simulerad utveckling: engagemang höll sig relativt stabilt under perioden."
-    )
+def _short_arm_label(label: str) -> str:
+    if " — " in label:
+        tail = label.rsplit(" — ", 1)[-1].strip()
+        if tail:
+            return tail
+    return label
 
 
-def _composite_score(
-    metrics: ReportMetrics,
-    bundles: list[RunBundle],
-    classifications: list[BundleClassification],
-    *,
-    locale: ReportLocale,
-) -> int:
-    from app.services.report.quick import decide_verdict
-
-    verdict = decide_verdict(metrics, bundles, locale=locale)
-    pos = verdict.positive_share
-    crit = verdict.critical_share
-    inj = sum(injection_likes(b) for b in bundles)
-    eng = metrics.aggregate.engagement_score
+def _bundle_score(m: BundleMetrics, *, locale: ReportLocale) -> int:
+    pos = _positive_share(m.tone_shares, locale=locale)
+    crit = _critical_share(m.tone_shares, locale=locale)
+    inj = m.injection_likes
+    eng = m.engagement_score
 
     score = pos * 45.0
     score += max(0.0, 0.35 - crit) * 25.0
     score += min(inj, 20) / 20.0 * 15.0
     score += min(eng, 80) / 80.0 * 15.0
 
-    if verdict.key == "zero":
+    if inj <= 0:
         score = min(score, 15.0)
-    elif verdict.key == "weak":
-        score = min(score, 45.0)
-    elif verdict.key == "strong":
+    elif pos >= 0.45 and crit < 0.45:
         score = max(score, 65.0)
+    elif crit >= 0.45 or pos < 0.25:
+        score = min(score, 45.0)
 
     return _clamp_score(score)
 
 
-def _action_band(score: int, *, locale: ReportLocale) -> tuple[str, str]:
+def _pick_recommended_index(metrics: ReportMetrics, *, locale: ReportLocale) -> int:
+    if len(metrics.bundles) <= 1:
+        return 0
+    scored = [
+        (
+            _bundle_score(m, locale=locale),
+            _positive_share(m.tone_shares, locale=locale),
+            m.injection_likes,
+            idx,
+        )
+        for idx, m in enumerate(metrics.bundles)
+    ]
+    scored.sort(key=lambda row: (row[0], row[1], row[2]), reverse=True)
+    return scored[0][3]
+
+
+def _action_phrase(score: int, *, locale: ReportLocale) -> str:
     if locale == "en":
         if score >= 75:
-            return "publish", "Recommendation: publish."
+            return "Ready to publish"
         if score >= 55:
-            return "adjust", "Recommendation: publish after minor adjustments."
+            return "Publish after minor adjustments"
         if score >= 35:
-            return "revise", "Recommendation: revise before publishing."
-        return "reconsider", "Recommendation: reconsider the message."
+            return "Revise before publishing"
+        return "Reconsider the message"
     if score >= 75:
-        return "publicera", "Rekommendation: publicera."
+        return "Redo att publicera"
     if score >= 55:
-        return "justera", "Rekommendation: publicera efter mindre justeringar."
+        return "Publicera efter mindre justeringar"
     if score >= 35:
-        return "revidera", "Rekommendation: justera innan publicering."
-    return "ompröva", "Rekommendation: ompröva budskapet."
+        return "Justera innan publicering"
+    return "Ompröva budskapet"
+
+
+def _summary(
+    score: int,
+    recommended_arm: str | None,
+    *,
+    locale: ReportLocale,
+) -> str:
+    if locale == "en":
+        if recommended_arm:
+            return (
+                f"{recommended_arm} scored highest in the simulation ({score}/100) "
+                f"and is the best starting point for the next iteration."
+            )
+        return (
+            f"The message scored {score}/100 in the simulation — "
+            f"use the sections below for tone, reach and target groups."
+        )
+    if recommended_arm:
+        return (
+            f"{recommended_arm} fick högst betyg i simuleringen ({score}/100) "
+            f"och är bäst utgångspunkt inför nästa iteration."
+        )
+    return (
+        f"Budskapet fick betyg {score}/100 i simuleringen — "
+        f"se avsnitten nedan för ton, räckvidd och målgrupper."
+    )
 
 
 def build_recommendation(
@@ -109,124 +135,129 @@ def build_recommendation(
     *,
     locale: ReportLocale = "sv",
 ) -> QuickRecommendation:
-    score = _composite_score(metrics, bundles, classifications, locale=locale)
-    _key, action = _action_band(score, locale=locale)
-    if locale == "en":
-        headline = f"Simulated support {score}/100 — {action}"
-    else:
-        headline = f"Simulerat stöd {score}/100 — {action}"
+    rec_idx = _pick_recommended_index(metrics, locale=locale)
+    rec_metrics = metrics.bundles[rec_idx]
+    rec_bundle = bundles[rec_idx] if rec_idx < len(bundles) else bundles[0]
+    rec_clf = classifications[rec_idx] if rec_idx < len(classifications) else classifications[0]
+
+    score = _bundle_score(rec_metrics, locale=locale)
+    action = _action_phrase(score, locale=locale)
+    recommended_arm = (
+        _short_arm_label(rec_metrics.label) if len(metrics.bundles) > 1 else None
+    )
+
+    ab_rows: list[AbCompareRow] = []
+    if len(metrics.bundles) > 1:
+        for idx, m in enumerate(metrics.bundles):
+            ab_rows.append(
+                AbCompareRow(
+                    arm=_short_arm_label(m.label),
+                    positive=pct(_positive_share(m.tone_shares, locale=locale)),
+                    likes=str(m.injection_likes),
+                    is_winner=idx == rec_idx,
+                )
+            )
 
     strengths: list[str] = []
     risks: list[str] = []
     improvements: list[str] = []
 
-    if metrics.aggregate.injection_likes > 0:
+    pos = _positive_share(rec_metrics.tone_shares, locale=locale)
+    crit = _critical_share(rec_metrics.tone_shares, locale=locale)
+
+    if rec_metrics.injection_likes > 0 and pos >= 0.35:
         strengths.append(
-            "The test message received engagement in the simulation."
+            f"Good reception: {pct(pos)} positive tone and engagement on the test message."
             if locale == "en"
-            else "Testbudskapet fick engagemang i simuleringen."
+            else f"Bra mottagande: {pct(pos)} positiv ton och engagemang på testbudskapet."
         )
-    if _positive_share(metrics.aggregate.tone_shares, locale=locale) >= 0.35:
+    elif rec_metrics.injection_likes > 0:
         strengths.append(
-            f"Positive tone share {pct(_positive_share(metrics.aggregate.tone_shares, locale=locale))}."
+            "The test message drew reactions in the simulation."
             if locale == "en"
-            else f"Positiv ton {pct(_positive_share(metrics.aggregate.tone_shares, locale=locale))}."
+            else "Testbudskapet väckte reaktioner i simuleringen."
         )
-    if metrics.aggregate.style_avg_likes:
-        top_style, top_avg = max(
-            ((s, a) for s, a in metrics.aggregate.style_avg_likes if s != "Oklassad"),
-            key=lambda x: x[1],
-            default=("", 0.0),
-        )
-        if top_avg >= 2.0 and top_style:
-            strengths.append(
-                f"Style «{top_style}» averaged {top_avg:.1f} likes."
-                if locale == "en"
-                else f"Stil «{top_style}» snittade {top_avg:.1f} likes."
-            )
 
-    if _critical_share(metrics.aggregate.tone_shares, locale=locale) >= 0.45:
+    if crit >= 0.45:
         risks.append(
-            f"Critical tone share {pct(_critical_share(metrics.aggregate.tone_shares, locale=locale))}."
+            f"Critical tone is high ({pct(crit)}) — expect pushback."
             if locale == "en"
-            else f"Kritisk ton {pct(_critical_share(metrics.aggregate.tone_shares, locale=locale))}."
+            else f"Kritisk ton är hög ({pct(crit)}) — räkna med mothugg."
         )
 
-    any_drift = False
-    if bundles and classifications:
-        from app.services.report.quick import _topic_share_by_day_half
+    from app.services.report.quick import _topic_share_by_day_half
 
-        any_drift = any(
-            _topic_share_by_day_half(b, c)["flag"]
-            for b, c in zip(bundles, classifications, strict=True)
-        )
-    if any_drift:
+    if _topic_share_by_day_half(rec_bundle, rec_clf)["flag"]:
         risks.append(
-            "The test topic faded from the debate after day 1."
+            "The topic faded from the debate after day 1."
             if locale == "en"
-            else "Testämnet försvann ur debatten efter dag 1."
+            else "Ämnet föll bort ur debatten efter dag 1."
         )
+
+    if len(bundles) > 1:
+        from app.services.report.segment_analysis import build_audience_summaries
+
+        rec_audience = build_audience_summaries(rec_bundle, rec_clf, locale=locale)
+    else:
+        rec_audience = audience
 
     theme_hits: set[str] = set()
-    for seg in audience:
+    for seg in rec_audience:
         theme_hits.update(seg.themes)
         for iv in seg.interviews:
             theme_hits.update(iv.themes)
 
     if "finansiering" in theme_hits:
         risks.append(
-            "Financing questions surfaced in segment interviews or reactions."
+            "Financing came up in reactions or interviews."
             if locale == "en"
-            else "Finansieringsfrågan väckte skepsis eller efterfrågan i segment."
+            else "Finansiering lyftes i reaktioner eller intervjuer."
         )
         improvements.append(
-            "Add a concrete financing example in the message."
+            "Add a concrete financing example."
             if locale == "en"
-            else "Lägg till ett konkret exempel på finansiering i budskapet."
+            else "Lägg till ett konkret finansieringsexempel."
         )
-    if "vaghet" in theme_hits:
+    elif "vaghet" in theme_hits:
         risks.append(
-            "Some segments perceived vagueness in the message."
+            "Some groups found the message vague."
             if locale == "en"
-            else "Vissa segment upplevde vaghet i budskapet."
+            else "Vissa grupper upplevde budskapet som vagt."
         )
         improvements.append(
-            "Tighten tone and add a specific example to reduce perceived vagueness."
+            "Sharpen with one local, concrete detail."
             if locale == "en"
-            else "Justera tonläget och lägg till ett konkret exempel för att minska upplevd vaghet."
+            else "Vassa till med en lokalt förankrad detalj."
         )
 
-    for seg in audience:
-        if seg.tone and not seg.tone.too_few and seg.tone.positive_share >= 0.4:
+    for seg in rec_audience:
+        if seg.tone and not seg.tone.too_few and seg.tone.positive_share >= 0.45:
             strengths.append(
-                f"{seg.dimension_label} «{seg.label}»: positive tone ({pct(seg.tone.positive_share)})."
+                f"{seg.label} responded well ({pct(seg.tone.positive_share)} positive)."
                 if locale == "en"
-                else f"{seg.dimension_label} «{seg.label}»: positiv ton ({pct(seg.tone.positive_share)})."
+                else f"{seg.label} svarade väl ({pct(seg.tone.positive_share)} positiv ton)."
             )
         if seg.tone and not seg.tone.too_few and seg.tone.critical_share >= 0.5:
             risks.append(
-                f"{seg.dimension_label} «{seg.label}»: critical tone ({pct(seg.tone.critical_share)})."
+                f"{seg.label} was sceptical ({pct(seg.tone.critical_share)} critical)."
                 if locale == "en"
-                else f"{seg.dimension_label} «{seg.label}»: kritisk ton ({pct(seg.tone.critical_share)})."
+                else f"{seg.label} var skeptisk ({pct(seg.tone.critical_share)} kritisk ton)."
             )
-
-    trajectory = ""
-    if bundles:
-        trajectory = _trajectory_note(bundles[0], locale=locale)
 
     if not improvements and score < 75:
         improvements.append(
-            "Test a sharper concrete detail or local example in the next run."
+            "Test a sharper detail in the next run."
             if locale == "en"
-            else "Testa en vassare konkret detalj eller lokalt exempel i nästa körning."
+            else "Testa en vassare detalj i nästa körning."
         )
 
     return QuickRecommendation(
         score=score,
         action=action,
-        headline=headline,
-        strengths=strengths[:4],
-        risks=risks[:4],
-        improvements=improvements[:3],
-        trajectory=trajectory,
+        recommended_arm=recommended_arm,
+        summary=_summary(score, recommended_arm, locale=locale),
+        ab_rows=ab_rows,
+        strengths=strengths[:2],
+        risks=risks[:2],
+        improvements=improvements[:1],
     )

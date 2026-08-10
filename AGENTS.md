@@ -29,6 +29,7 @@ socialism/
 ├── okf.project.yaml    # OKF project (end-user manuals → MCP later)
 ├── data/               # local corpus + download script (payloads gitignored)
 ├── docs/               # developer specs, briefs, setup, architecture
+├── integrations/       # MCP servers + shared OKF helpers
 ├── knowledge/          # OKF bundles (end-user manuals)
 │   └── manual/         # Swedish operator guides
 ├── backend/            # FastAPI service (see backend/AGENTS.md)
@@ -47,6 +48,7 @@ Keep audiences separate:
 Rules for agents:
 
 - **New user-facing UI flows** → add or update a guide under `knowledge/manual/` (Swedish, no implementation detail) and list it in `knowledge/manual/index.md`.
+- **Snabbrapport layout or metrics** → update the operator guide `knowledge/manual/lasa-simuleringsrapport.md` (and `knowledge/manual/log.md` when the change is user-visible).
 - **Setup, API, architecture, env, troubleshooting for builders** → `docs/` (and service `AGENTS.md` files).
 - Do not duplicate the same guide in both places.
 - Reuse existing manual tags: `korningar`, `personas`, `populationer`, `budskap`, `grunddata`, `jobb`, `rapporter`.
