@@ -130,3 +130,27 @@ def test_ab_recommendation_names_winning_version():
     assert rec.recommended_arm == "Version A"
     assert len(rec.ab_rows) == 2
     assert any(row.is_winner and row.arm == "Version A" for row in rec.ab_rows)
+
+
+def test_segment_engagement_bars_renders_footnote_html():
+    from app.services.report.charts import _segment_engagement_bars
+    from app.services.report.segment_ssr import SegmentToneRow
+
+    tone = SegmentToneRow(
+        dimension="ort",
+        label="Centrum",
+        text_count=5,
+        agent_count=2,
+        positive_share=0.5,
+        critical_share=0.1,
+        engagement_score=12,
+        too_few=False,
+        post_count=3,
+        comment_count=2,
+        likes_total=8,
+        shares_total=1,
+    )
+    with FootnoteContext("sv"):
+        html = _segment_engagement_bars(tone, locale="sv")
+    assert "Segmentpoäng<span class=\"fn\">*</span>" in html
+    assert "&lt;span" not in html
