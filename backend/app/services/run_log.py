@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -10,6 +11,11 @@ from contextvars import ContextVar
 from pathlib import Path
 
 ARTIFACT_ROOT = Path("data/oasis")
+
+_LOG_SEGMENT = re.compile(r"^[a-zA-Z0-9_-]+$")
+_DEFAULT_TAIL_LINES = 200
+_MAX_TAIL_LINES = 500
+_MAX_TAIL_BYTES = 256_000
 
 _log_file: ContextVar[Path | None] = ContextVar("run_log_file", default=None)
 _handler_lock = threading.Lock()
@@ -99,11 +105,76 @@ def capture_run_log(path: Path) -> Iterator[Path]:
         _log_file.reset(token)
 
 
+def validate_log_segment(name: str, value: str) -> str:
+    if not _LOG_SEGMENT.fullmatch(value):
+        raise ValueError(f"Invalid {name}: must be alphanumeric with _ or -")
+    return value
+
+
+def resolve_run_log_path(run_id: int, attempt_id: str, variant_id: str) -> Path:
+    validate_log_segment("attempt_id", attempt_id)
+    validate_log_segment("variant_id", variant_id)
+    path = run_variant_log_path(run_id, attempt_id, variant_id).resolve()
+    root = ARTIFACT_ROOT.resolve()
+    if root not in path.parents and path != root:
+        raise ValueError("Log path escapes artifact root")
+    return path
+
+
+def tail_run_log_file(
+    path: Path,
+    *,
+    lines: int = _DEFAULT_TAIL_LINES,
+    max_bytes: int = _MAX_TAIL_BYTES,
+) -> tuple[str, bool]:
+    """Return the last ``lines`` of a log file and whether the read was byte-truncated."""
+    if lines < 1:
+        raise ValueError("lines must be >= 1")
+    if not path.is_file():
+        raise FileNotFoundError(str(path))
+
+    size = path.stat().st_size
+    truncated = size > max_bytes
+    if truncated:
+        with path.open("rb") as fh:
+            fh.seek(max(0, size - max_bytes))
+            chunk = fh.read()
+        text = chunk.decode("utf-8", errors="replace")
+        if "\n" in text:
+            text = text.split("\n", 1)[1]
+    else:
+        text = path.read_text(encoding="utf-8", errors="replace")
+
+    all_lines = text.splitlines()
+    if len(all_lines) <= lines:
+        return "\n".join(all_lines), truncated
+    return "\n".join(all_lines[-lines:]), truncated
+
+
+def read_run_log_tail(
+    *,
+    run_id: int,
+    attempt_id: str,
+    variant_id: str,
+    lines: int = _DEFAULT_TAIL_LINES,
+) -> tuple[Path, str, bool]:
+    if lines < 1 or lines > _MAX_TAIL_LINES:
+        raise ValueError(f"lines must be between 1 and {_MAX_TAIL_LINES}")
+    path = resolve_run_log_path(run_id, attempt_id, variant_id)
+    content, truncated = tail_run_log_file(path, lines=lines)
+    return path, content, truncated
+
+
 __all__ = [
     "ARTIFACT_ROOT",
+    "_MAX_TAIL_LINES",
     "capture_run_log",
     "ensure_run_log_handler",
+    "read_run_log_tail",
+    "resolve_run_log_path",
     "run_attempt_log_dir",
     "run_variant_log_path",
+    "tail_run_log_file",
+    "validate_log_segment",
     "write_run_log_note",
 ]

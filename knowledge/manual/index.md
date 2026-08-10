@@ -10,6 +10,7 @@ Guider för dig som använder Opinionssimulator i webbläsaren. Teknisk setup oc
 
 * [Översikt av ytorna](oversikt.md) — Var du hittar huvudfunktionerna i admin
 * [Byta gränssnittsspråk](byta-granssnittssprak.md) — Växla mellan svenska och engelska i menyn
+* [Använda hjälpchatten](anvanda-hjalpchatten.md) — Fråga hur appen fungerar i adminytan
 
 # Körningar
 

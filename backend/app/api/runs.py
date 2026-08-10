@@ -18,6 +18,7 @@ from app.schemas.domain import (
     PersonaMessageOut,
     RunCreate,
     RunDetail,
+    RunLogTailOut,
     RunPersonaInterviewRequest,
     RunPopulationOption,
     RunSummary,
@@ -34,6 +35,8 @@ from app.serializers import (
 from app.services import jobs as jobs_service
 from app.services.district_context import area_block_for_name
 from app.services.oasis_run import oasis_installed, previous_attempts, remove_attempt
+from app.services.run_log import read_run_log_tail
+from app.services.run_results import find_attempt, find_variant
 from app.services.run_tick_context import build_persona_feed_context
 
 router = APIRouter(prefix="/runs", tags=["runs"])
@@ -605,6 +608,42 @@ async def clear_run_persona_interview(
     for row in result.scalars().all():
         await session.delete(row)
     await session.commit()
+
+
+@router.get("/{run_id}/logs", response_model=RunLogTailOut)
+async def get_run_log_tail(
+    run_id: int,
+    attempt: str = Query(min_length=1, max_length=64),
+    variant: str = Query(min_length=1, max_length=64),
+    tail: int = Query(default=200, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+) -> RunLogTailOut:
+    run = await _get_run(session, run_id)
+    attempt_row = find_attempt(run.results, attempt)
+    if attempt_row is None:
+        raise HTTPException(status_code=404, detail="Attempt not found")
+    if find_variant(attempt_row, variant) is None:
+        raise HTTPException(status_code=404, detail="Variant not found")
+    try:
+        path, content, truncated = read_run_log_tail(
+            run_id=run_id,
+            attempt_id=attempt,
+            variant_id=variant,
+            lines=tail,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Log file not found") from exc
+    return RunLogTailOut(
+        run_id=run_id,
+        attempt_id=attempt,
+        variant_id=variant,
+        log_path=str(path),
+        tail_lines=tail,
+        truncated=truncated,
+        content=content,
+    )
 
 
 @router.delete("/{run_id}", status_code=204)
