@@ -9,6 +9,7 @@ Guider för dig som använder Opinionssimulator i webbläsaren. Teknisk setup oc
 # Kom igång
 
 * [Översikt av ytorna](oversikt.md) — Var du hittar huvudfunktionerna i admin
+* [Byta gränssnittsspråk](byta-granssnittssprak.md) — Växla mellan svenska och engelska i menyn
 
 # Körningar
 
@@ -38,6 +39,7 @@ Guider för dig som använder Opinionssimulator i webbläsaren. Teknisk setup oc
 # Grunddata och jobb
 
 * [Hantera konfigurationer](hantera-konfigurationer.md) — Prompts och grunddata per konfiguration
+* [Hantera SSR-ankare](hantera-ssr-ankare.md) — Skapa, testa och publicera ton- och stilankare för rapporter
 * [Redigera grunddata](redigera-grunddata.md) — Kataloglistor och distriktskartor under en konfiguration
 * [Använda playground](anvanda-playground.md) — Kalibrera anchors, jämföra SSR och prova promptvarianter
 * [Hantera embedding-cache](hantera-embedding-cache.md) — Visa och rensa cachade SSR-ankarembeddings
