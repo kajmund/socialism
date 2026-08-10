@@ -185,6 +185,20 @@ async def list_tools() -> list[Tool]:
                 "required": ["table_id", "filters"],
             },
         ),
+        Tool(
+            name="scb_population_dist",
+            description=(
+                "Build population recipe weights (age + sex) from SCB folkmängd for one municipality."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "region_code": {"type": "string"},
+                    "region_name": {"type": "string"},
+                    "year": {"type": "string", "default": "2024"},
+                },
+            },
+        ),
     ]
     if API_URL:
         tools.extend(
@@ -240,7 +254,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         answer = await asyncio.to_thread(_ask_help_sync, question, locale)
         return [TextContent(type="text", text=answer)]
 
-    if name in {"scb_search_tables", "scb_get_table_meta", "scb_query"}:
+    if name in {"scb_search_tables", "scb_get_table_meta", "scb_query", "scb_population_dist"}:
         text = await run_scb_tool(name, arguments)
         return [TextContent(type="text", text=text)]
 

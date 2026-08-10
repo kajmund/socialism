@@ -6,6 +6,7 @@ import json
 from typing import Any
 
 from integrations.scb.client import ScbClient, VariableSelection
+from integrations.scb.distributions import fetch_population_distribution, find_region_code
 
 SCB_TOOL_SPECS: list[dict[str, Any]] = [
     {
@@ -83,6 +84,34 @@ SCB_TOOL_SPECS: list[dict[str, Any]] = [
                     },
                 },
                 "required": ["table_id", "filters"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "scb_population_dist",
+            "description": (
+                "Build Opinionssimulator population recipe weights (age + kön) from SCB "
+                "folkmängd for one municipality. Pass region_code (kommunkod, e.g. 0380) "
+                "or region_name (e.g. Uppsala)."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "region_code": {
+                        "type": "string",
+                        "description": "Kommunkod, e.g. 0380 for Uppsala.",
+                    },
+                    "region_name": {
+                        "type": "string",
+                        "description": "Kommunnamn if code is unknown, e.g. Uppsala.",
+                    },
+                    "year": {
+                        "type": "string",
+                        "default": "2024",
+                    },
+                },
             },
         },
     },
@@ -170,5 +199,23 @@ async def run_scb_tool(
             return "filters must include variableCode and valueCodes"
         data = await scb.query(table_id, filters)
         return _compact_json(data)
+
+    if name == "scb_population_dist":
+        region_code = str(arguments.get("region_code", "")).strip()
+        region_name = str(arguments.get("region_name", "")).strip()
+        year = str(arguments.get("year") or "2024").strip()
+        if not region_code and region_name:
+            resolved = await find_region_code(region_name, client=scb)
+            if resolved is None:
+                return f"Could not resolve municipality: {region_name}"
+            region_code = resolved
+        if not region_code:
+            return "region_code or region_name is required"
+        payload = await fetch_population_distribution(
+            region_code,
+            year=year,
+            client=scb,
+        )
+        return _compact_json(payload)
 
     raise ValueError(f"Unknown SCB tool: {name}")

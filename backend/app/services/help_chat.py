@@ -71,9 +71,12 @@ async def _build_system_prompt(
     locale: ConfigurationLanguage,
     query: str,
     view: HelpViewContext | None,
+    use_scb: bool = False,
 ) -> str:
     prompts = default_prompts(locale)
     base = render_prompt(prompts, "help.system")
+    if use_scb:
+        base = f"{base}\n\n{render_prompt(prompts, 'help.system.scb')}"
     context = await build_help_context(session, view=view, query=query)
     return f"{base}\n\n{context}"
 
@@ -145,6 +148,7 @@ async def stream_help_chat_turn(
     locale: ConfigurationLanguage,
     message: str,
     view: HelpViewContext | None = None,
+    use_scb: bool = False,
 ) -> AsyncIterator[str | HelpChatResponse]:
     lock = await _help_turn_lock(session_id)
     async with lock:
@@ -165,6 +169,7 @@ async def stream_help_chat_turn(
             locale=locale,
             query=message,
             view=view,
+            use_scb=use_scb,
         )
         messages = [
             {"role": "system", "content": system_prompt},
@@ -172,7 +177,7 @@ async def stream_help_chat_turn(
             {"role": "user", "content": message},
         ]
 
-        working = await _run_scb_tool_loop(messages)
+        working = await _run_scb_tool_loop(messages) if use_scb else messages
         last = working[-1]
         prebuilt_reply = ""
         if last.get("role") == "assistant" and last.get("content"):

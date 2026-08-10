@@ -46,6 +46,9 @@ export const en: LocalizedTree<SvMessages> = {
     sendError: "Could not send message",
     clearError: "Could not clear chat",
     panelAria: "Help chat",
+    scbToggle: "Include SCB statistics",
+    scbToggleHint:
+      "Enable to fetch public demographic data from Statistics Sweden (population, age, sex, etc.). Off by default.",
     views: {
       dashboard: "Dashboard",
       runsList: "Runs — list",

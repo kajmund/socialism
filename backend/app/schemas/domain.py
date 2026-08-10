@@ -230,6 +230,7 @@ class HelpChatRequest(BaseModel):
     locale: HelpLocale = "sv"
     message: str = Field(min_length=1)
     view: HelpViewContext | None = None
+    use_scb: bool = False
 
 
 class HelpMessageOut(BaseModel):
