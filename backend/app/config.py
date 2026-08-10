@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from typing import Annotated, Literal
 
 from pydantic import Field, field_validator
@@ -39,6 +40,8 @@ class Settings(BaseSettings):
     ollama_base_url: str = "https://ollama.com"
     # Write-through cache for SSR anchor embeddings (memory + disk).
     embedding_cache_dir: str = "data/embedding_cache"
+    # OKF operator manuals for in-app help chat (empty = repo knowledge/manual).
+    okf_manual_dir: str = ""
 
     # none = status-only start; oasis = live CAMEL OASIS spike (optional dep group)
     simulation_engine: SimulationEngine = "none"
@@ -77,6 +80,13 @@ class Settings(BaseSettings):
 
     def uses_llm_generator(self) -> bool:
         return self.persona_generator == "deepseek"
+
+    @property
+    def okf_manual_path(self) -> Path:
+        override = self.okf_manual_dir.strip()
+        if override:
+            return Path(override)
+        return Path(__file__).resolve().parents[2] / "knowledge" / "manual"
 
     def apply_oasis_env(self) -> None:
         """Mirror DeepSeek into env vars CAMEL reads (overwrite — not embeddings key)."""

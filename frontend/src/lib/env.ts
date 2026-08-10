@@ -1,6 +1,6 @@
 /**
  * Env validation. Required vars fail fast at boot.
- * Admin surfaces call the API via VITE_API_BASE_URL.
+ * Admin surfaces call the API via VITE_API_BASE_URL (or Vite dev proxy).
  */
 function required(name: string): string {
   const value = import.meta.env[name]
@@ -21,7 +21,9 @@ function wsBaseFromHttp(apiBaseUrl: string): string {
   return url.toString().replace(/\/$/, "")
 }
 
-const apiBaseUrl = required("VITE_API_BASE_URL")
+const useDevProxy = import.meta.env.VITE_DEV_PROXY === "true"
+const configuredApiBaseUrl = required("VITE_API_BASE_URL")
+const apiBaseUrl = useDevProxy ? window.location.origin : configuredApiBaseUrl
 
 export const env = {
   apiBaseUrl,
