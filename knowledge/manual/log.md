@@ -2,6 +2,7 @@
 
 ## 2026-08-10
 
+* **Hjälp**: Ny guide för in-app hjälpchatten (Hjälp-knappen i adminytan).
 * **Rapporter**: Snabbrapporten har tydligare rekommendationsblock, färre fotnoter och enklare språk utan tekniska förkortningar i operatörstexten.
 * **Körningar**: Ny guide för reaktionsmodellen — stratifierat urval per rond, passiv vs engagerad, kommentarsregler och nollställning vid nytt budskag.
 

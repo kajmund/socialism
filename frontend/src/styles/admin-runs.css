@@ -665,3 +665,13 @@ table.lt.pol .lock.on{background:var(--db-gold-700);border-color:var(--db-gold-7
 .cand-card.is-variant:hover>div{border-color:var(--border-hairline)!important;box-shadow:none}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 [hidden]{display:none!important}
+
+.help-chat-fab{position:fixed;bottom:24px;right:24px;z-index:60}
+.help-chat-shell{position:fixed;bottom:76px;right:24px;width:min(420px,calc(100vw - 32px));height:min(560px,calc(100vh - 120px));z-index:60;background:var(--db-ink-0);border:1px solid var(--border-hairline);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;overflow:hidden}
+.help-chat-panel{display:flex;flex-direction:column;min-height:0;flex:1}
+.help-chat-panel-header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border-hairline);background:var(--db-ink-950);color:var(--db-ink-0)}
+.help-chat-panel-title{font:var(--text-h3);color:var(--db-ink-0)}
+.help-chat-panel-sub{font-size:12px;color:rgba(245,243,238,.75);margin-top:2px}
+.help-chat-panel-error{padding:8px 16px;font-size:12px;color:#b42318;background:#fef3f2;border-bottom:1px solid #fecdca}
+.help-chat-thread{min-height:0}
+.help-chat-empty{padding:20px;font-size:13px;color:var(--text-muted);line-height:1.5}

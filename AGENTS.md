@@ -29,6 +29,7 @@ socialism/
 ├── okf.project.yaml    # OKF project (end-user manuals → MCP later)
 ├── data/               # local corpus + download script (payloads gitignored)
 ├── docs/               # developer specs, briefs, setup, architecture
+├── integrations/       # MCP servers + shared OKF helpers
 ├── knowledge/          # OKF bundles (end-user manuals)
 │   └── manual/         # Swedish operator guides
 ├── backend/            # FastAPI service (see backend/AGENTS.md)

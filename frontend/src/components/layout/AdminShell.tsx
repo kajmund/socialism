@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import { Link, NavLink, useLocation } from "react-router-dom"
 import type { Job, JobStatus } from "@/api/jobs"
+import { HelpChatWidget } from "@/components/help/HelpChatWidget"
 import { useLocale, type Locale, type MessageKey } from "@/i18n"
 import { cn } from "@/lib/utils"
 import { useJobsRealtime } from "@/realtime/JobsRealtimeProvider"
@@ -220,6 +221,7 @@ export function AdminShell({ children }: AdminShellProps) {
         </div>
       </header>
       {children}
+      <HelpChatWidget />
       {toast && (
         <div className="toast" role="status">
           <div className="ck">{toast.kind === "ok" ? "✓" : "!"}</div>

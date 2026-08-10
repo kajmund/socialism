@@ -31,6 +31,20 @@ export const en: LocalizedTree<SvMessages> = {
     send: "Send",
     notConnected: "Chat is not connected",
   },
+  help: {
+    openFab: "Help",
+    closeFab: "Close help",
+    title: "Help assistant",
+    subtitle: "Ask how Opinionssimulator works",
+    placeholder: "E.g. How do I start a simulation?",
+    empty:
+      "Hi! I can explain runs, personas, populations, messages, and more — based on the operator manual.",
+    clear: "Clear chat",
+    loadError: "Could not load chat history",
+    sendError: "Could not send message",
+    clearError: "Could not clear chat",
+    panelAria: "Help chat",
+  },
   common: {
     open: "Open",
     openArrow: "Open →",

@@ -213,6 +213,28 @@ ChatMode = Literal["interview", "character"]
 ChatRole = Literal["user", "assistant"]
 
 
+HelpLocale = Literal["sv", "en"]
+HelpRole = Literal["user", "assistant"]
+
+
+class HelpChatRequest(BaseModel):
+    session_id: str = Field(min_length=1, max_length=64)
+    locale: HelpLocale = "sv"
+    message: str = Field(min_length=1)
+
+
+class HelpMessageOut(BaseModel):
+    id: int
+    role: HelpRole
+    content: str
+    created_at: str
+
+
+class HelpChatResponse(BaseModel):
+    reply: str
+    messages: list[HelpMessageOut]
+
+
 class PersonaChatRequest(BaseModel):
     mode: ChatMode = "interview"
     message: str = Field(min_length=1)
