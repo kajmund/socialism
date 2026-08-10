@@ -30,7 +30,7 @@ export const sv = {
     notConnected: "Chatten är inte ansluten",
   },
   help: {
-    openFab: "Hjälp",
+    openFab: "Öppna hjälp",
     closeFab: "Stäng hjälp",
     title: "Hjälpassistent",
     subtitle: "Fråga hur Opinionssimulator fungerar",

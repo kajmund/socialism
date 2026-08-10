@@ -116,18 +116,23 @@ export function HelpChatPanel({ sessionId, onClose }: HelpChatPanelProps) {
             {t("help.currentView", { view: view.label })}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 shrink-0">
           <AdminButton
-            variant="ghost"
+            variant="secondary"
             size="sm"
             disabled={chatBusy || messages.length === 0}
             onClick={() => void handleClear()}
           >
             {t("help.clear")}
           </AdminButton>
-          <AdminButton variant="ghost" size="sm" onClick={onClose} aria-label={t("common.close")}>
+          <button
+            type="button"
+            className="help-chat-panel-close"
+            onClick={onClose}
+            aria-label={t("common.close")}
+          >
             ✕
-          </AdminButton>
+          </button>
         </div>
       </div>
       {loadError ? <div className="help-chat-panel-error">{loadError}</div> : null}
