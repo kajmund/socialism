@@ -32,7 +32,7 @@ export const en: LocalizedTree<SvMessages> = {
     notConnected: "Chat is not connected",
   },
   help: {
-    openFab: "Help",
+    openFab: "Open help",
     closeFab: "Close help",
     title: "Help assistant",
     subtitle: "Ask how Opinionssimulator works",
