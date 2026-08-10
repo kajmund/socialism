@@ -87,3 +87,31 @@ async def test_require_prompts_for_language_prefers_active_not_oldest(
     await set_active_configuration(session, custom.id)
     prompts = await require_prompts_for_language(session, "sv")
     assert prompts["oasis.env.empty_posts"] == "CUSTOM_ACTIVE_SV_MARKER"
+
+
+async def test_require_active_prompts_backfills_missing_help_keys(
+    session: AsyncSession,
+):
+    """Configs created before help.* keys existed should get catalog defaults."""
+    result = await session.execute(
+        select(Configuration).where(Configuration.is_active.is_(True))
+    )
+    row = result.scalar_one()
+    stored = dict(row.prompts or {})
+    for key in (
+        "help.system",
+        "help.system.scb",
+        "help.system.scb_population",
+        "help.system.feedback",
+    ):
+        stored.pop(key, None)
+    row.prompts = stored
+    await session.commit()
+
+    prompts = await require_active_prompts(session)
+    assert prompts["help.system"].strip()
+    assert prompts["help.system.feedback"].strip()
+
+    await session.refresh(row)
+    assert "help.system" in (row.prompts or {})
+    assert "help.system.feedback" in (row.prompts or {})

@@ -91,6 +91,7 @@ Still hardcoded (next slices): OASIS simulation prompts (intentionally Swedish).
 | `/runs` | Körningar list |
 | `/runs/new`, `/runs/:id/edit` | Körning (wizard / quick + Resultat) |
 | `/jobs` | Bakgrundsjobb (population, simulering, report) |
+| `/feedback` | Återkoppling (buggar/idéer/åsikter från hjälpchatten) |
 | `/reports` | Rapportlista |
 | `/reports/:id` | HTML-rapport |
 | `/personas` | Persona library (grid/list) |

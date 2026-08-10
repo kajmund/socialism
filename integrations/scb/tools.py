@@ -8,6 +8,9 @@ from typing import Any
 from integrations.scb.client import ScbClient, VariableSelection
 from integrations.scb.distributions import fetch_population_distribution, find_region_code
 
+# Full code maps only for small dimensions; large ones get code_count (+ optional filter).
+_META_FULL_CODES_MAX = 40
+
 SCB_LOOKUP_TOOL_SPECS: list[dict[str, Any]] = [
     {
         "type": "function",
@@ -41,7 +44,9 @@ SCB_LOOKUP_TOOL_SPECS: list[dict[str, Any]] = [
             "name": "scb_get_table_meta",
             "description": (
                 "Fetch variable codes and category labels for an SCB table "
-                "(use before scb_query to pick valid valueCodes)."
+                "(use before scb_query to pick valid valueCodes). "
+                "Pass variable (e.g. Civilstand) to get full codes for one dimension; "
+                "without it, large dimensions return code_count only."
             ),
             "parameters": {
                 "type": "object",
@@ -49,7 +54,14 @@ SCB_LOOKUP_TOOL_SPECS: list[dict[str, Any]] = [
                     "table_id": {
                         "type": "string",
                         "description": "Table id, e.g. TAB638.",
-                    }
+                    },
+                    "variable": {
+                        "type": "string",
+                        "description": (
+                            "Optional dimension id (e.g. Civilstand, Region, Alder). "
+                            "When set, return full codes for that variable only."
+                        ),
+                    },
                 },
                 "required": ["table_id"],
             },
@@ -94,9 +106,9 @@ SCB_POPULATION_DIST_TOOL_SPEC: dict[str, Any] = {
     "function": {
         "name": "scb_population_dist",
         "description": (
-            "Build Opinionssimulator population recipe weights (age + kön) from SCB "
-            "folkmängd for one municipality. Pass region_code (kommunkod, e.g. 0380) "
-            "or region_name (e.g. Uppsala)."
+            "Municipality population distribution from SCB folkmängd (age + kön weights, "
+            "plus civilstånd). Prefer this for questions like how a kommun is distributed. "
+            "Pass region_code (kommunkod, e.g. 0380) or region_name (e.g. Uppsala)."
         ),
         "parameters": {
             "type": "object",
@@ -124,11 +136,10 @@ SCB_TOOL_SPECS: list[dict[str, Any]] = [
 ]
 
 
-def help_scb_tool_specs(*, allow_population_dist: bool) -> list[dict[str, Any]]:
-    specs = list(SCB_LOOKUP_TOOL_SPECS)
-    if allow_population_dist:
-        specs.append(SCB_POPULATION_DIST_TOOL_SPEC)
-    return specs
+def help_scb_tool_specs(*, allow_population_dist: bool = True) -> list[dict[str, Any]]:
+    """Tools for in-app help chat. Population dist is always available for demographic Q&A."""
+    del allow_population_dist  # kept for call-site compat; toggle only affects prompts
+    return list(SCB_TOOL_SPECS)
 
 
 def _compact_json(payload: object, *, limit: int = 120_000) -> str:
@@ -138,6 +149,71 @@ def _compact_json(payload: object, *, limit: int = 120_000) -> str:
     return text[: limit - 20] + "\n… (truncated)"
 
 
+def _dimension_summary(dim: dict[str, Any], *, include_codes: bool) -> dict[str, Any]:
+    category = dim.get("category") or {}
+    labels = category.get("label") or {}
+    if not isinstance(labels, dict):
+        labels = {}
+    out: dict[str, Any] = {
+        "label": dim.get("label"),
+        "code_count": len(labels),
+    }
+    if include_codes:
+        out["codes"] = labels
+    return out
+
+
+def _summarize_table_meta(
+    meta: dict[str, Any],
+    *,
+    table_id: str,
+    variable: str | None,
+) -> dict[str, Any] | str:
+    dimensions = meta.get("dimension") or {}
+    if not isinstance(dimensions, dict):
+        dimensions = {}
+
+    if variable:
+        dim = dimensions.get(variable)
+        if dim is None:
+            available = sorted(dimensions.keys())
+            return (
+                f"variable {variable!r} not found on {table_id}. "
+                f"Available: {', '.join(available) if available else '(none)'}"
+            )
+        return {
+            "id": table_id,
+            "label": meta.get("label"),
+            "updated": meta.get("updated"),
+            "variable": variable,
+            "variables": {
+                variable: _dimension_summary(dim, include_codes=True),
+            },
+        }
+
+    variables: dict[str, Any] = {}
+    for dim_id, dim in dimensions.items():
+        if not isinstance(dim, dict):
+            continue
+        category = dim.get("category") or {}
+        labels = category.get("label") or {}
+        code_count = len(labels) if isinstance(labels, dict) else 0
+        variables[dim_id] = _dimension_summary(
+            dim,
+            include_codes=code_count <= _META_FULL_CODES_MAX,
+        )
+    return {
+        "id": table_id,
+        "label": meta.get("label"),
+        "updated": meta.get("updated"),
+        "variables": variables,
+        "hint": (
+            "Large dimensions omit codes — pass variable=<id> to fetch full codes "
+            "for one dimension."
+        ),
+    }
+
+
 async def run_scb_tool(
     name: str,
     arguments: dict[str, Any],
@@ -145,13 +221,8 @@ async def run_scb_tool(
     client: ScbClient | None = None,
     allow_population_dist: bool = True,
 ) -> str:
+    del allow_population_dist  # always allowed; kept for call-site compat
     scb = client or ScbClient()
-
-    if name == "scb_population_dist" and not allow_population_dist:
-        return (
-            "scb_population_dist is not enabled for this message — the user must check "
-            "'Use SCB for population weights' in the help chat first."
-        )
 
     if name == "scb_search_tables":
         query = str(arguments.get("query", "")).strip()
@@ -176,20 +247,16 @@ async def run_scb_tool(
         table_id = str(arguments.get("table_id", "")).strip()
         if not table_id:
             return "table_id is required"
+        variable_raw = arguments.get("variable")
+        variable = str(variable_raw).strip() if variable_raw else ""
         meta = await scb.get_table_meta(table_id)
-        summary: dict[str, Any] = {
-            "id": table_id,
-            "label": meta.get("label"),
-            "updated": meta.get("updated"),
-            "variables": {},
-        }
-        for dim_id, dim in (meta.get("dimension") or {}).items():
-            category = dim.get("category") or {}
-            labels = category.get("label") or {}
-            summary["variables"][dim_id] = {
-                "label": dim.get("label"),
-                "codes": labels,
-            }
+        summary = _summarize_table_meta(
+            meta,
+            table_id=table_id,
+            variable=variable or None,
+        )
+        if isinstance(summary, str):
+            return summary
         return _compact_json(summary)
 
     if name == "scb_query":

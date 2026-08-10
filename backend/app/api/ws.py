@@ -8,7 +8,7 @@ from typing import Literal
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field, ValidationError
 
-from app.realtime.hub import job_hub
+from app.realtime.hub import job_hub, report_hub
 from app.schemas.domain import ChatMode, HelpChatResponse, HelpViewContext, PersonaChatResponse
 from app.services import jobs as jobs_service
 from app.services.help_chat import ChatTurnError as HelpChatTurnError
@@ -18,6 +18,7 @@ from app.services.persona_chat import (
     stream_library_chat_turn,
     stream_run_interview_turn,
 )
+from app.services.report_realtime import list_reports, serialize_report
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +85,30 @@ async def jobs_websocket(websocket: WebSocket) -> None:
         pass
     finally:
         await job_hub.unsubscribe(websocket)
+
+
+@router.websocket("/ws/reports")
+async def reports_websocket(websocket: WebSocket) -> None:
+    await websocket.accept()
+    await report_hub.subscribe(websocket)
+    try:
+        factory = jobs_service.job_session_factory()
+        async with factory() as session:
+            rows = await list_reports(session, limit=50)
+            await websocket.send_json(
+                {
+                    "type": "reports.snapshot",
+                    "reports": [
+                        serialize_report(row).model_dump(mode="json") for row in rows
+                    ],
+                }
+            )
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        pass
+    finally:
+        await report_hub.unsubscribe(websocket)
 
 
 @router.websocket("/ws/chat")

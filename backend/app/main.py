@@ -10,6 +10,7 @@ from app.api import (
     catalog,
     configurations,
     embeddings,
+    feedback,
     health,
     help,
     jobs,
@@ -69,6 +70,7 @@ def create_app() -> FastAPI:
     app.include_router(reports.router)
     app.include_router(playground.router)
     app.include_router(embeddings.router)
+    app.include_router(feedback.router)
     app.include_router(help.router)
     app.include_router(ws.router)
     return app

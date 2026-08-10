@@ -245,6 +245,40 @@ class HelpChatResponse(BaseModel):
     messages: list[HelpMessageOut]
 
 
+FeedbackKind = Literal["bug", "idea", "opinion"]
+FeedbackStatus = Literal["open", "in_progress", "done", "archived"]
+FeedbackSource = Literal["help", "admin"]
+
+
+class FeedbackItemOut(BaseModel):
+    id: int
+    kind: FeedbackKind
+    title: str
+    body: str
+    status: FeedbackStatus
+    source: FeedbackSource
+    session_id: str | None = None
+    view_path: str | None = None
+    created_at: str
+    updated_at: str
+
+
+class FeedbackItemCreate(BaseModel):
+    kind: FeedbackKind
+    title: str = Field(min_length=1, max_length=255)
+    body: str = ""
+    source: FeedbackSource = "admin"
+    session_id: str | None = Field(default=None, max_length=64)
+    view_path: str | None = Field(default=None, max_length=512)
+
+
+class FeedbackItemUpdate(BaseModel):
+    kind: FeedbackKind | None = None
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    body: str | None = None
+    status: FeedbackStatus | None = None
+
+
 class PersonaChatRequest(BaseModel):
     mode: ChatMode = "interview"
     message: str = Field(min_length=1)

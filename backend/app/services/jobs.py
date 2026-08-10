@@ -26,6 +26,7 @@ from app.schemas.domain import (
 from app.realtime.hub import job_hub
 from app.serializers import utcnow
 from app.services import population_generate as gen
+from app.services.report_realtime import publish_report
 from app.services.oasis_run import (
     OasisUnavailable,
     attempt_all_failed,
@@ -428,6 +429,7 @@ async def _run_report_generate(job_id: str) -> None:
         report.status = "running"
         report.updated_at = utcnow()
         await session.commit()
+        await publish_report(report)
 
     mode = "full"
     try:
@@ -472,6 +474,7 @@ async def _run_report_generate(job_id: str) -> None:
                 report.finished_at = utcnow()
                 report.updated_at = utcnow()
                 await session.commit()
+                await publish_report(report)
             await _fail(session, job_id, str(exc) or exc.__class__.__name__)
         return
 
@@ -487,6 +490,7 @@ async def _run_report_generate(job_id: str) -> None:
         report.finished_at = utcnow()
         report.updated_at = utcnow()
         await session.commit()
+        await publish_report(report)
         await _succeed(
             session,
             job_id,
@@ -563,6 +567,7 @@ async def fail_interrupted_jobs(
             )
             run.status = "failed"
             run.updated_at = now
+    failed_reports: list[Report] = []
     for report_id in report_ids:
         report = await session.get(Report, report_id)
         if report is None or report.status not in {"pending", "running"}:
@@ -571,7 +576,10 @@ async def fail_interrupted_jobs(
         report.error = message
         report.finished_at = now
         report.updated_at = now
+        failed_reports.append(report)
     await session.commit()
+    for report in failed_reports:
+        await publish_report(report)
     return int(result.rowcount or 0)
 
 

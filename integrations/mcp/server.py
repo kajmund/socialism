@@ -149,12 +149,17 @@ async def list_tools() -> list[Tool]:
         Tool(
             name="scb_get_table_meta",
             description=(
-                "Fetch variables and category codes for an SCB table (call before scb_query)."
+                "Fetch variables and category codes for an SCB table (call before scb_query). "
+                "Pass variable to get full codes for one dimension; large dims omit codes otherwise."
             ),
             inputSchema={
                 "type": "object",
                 "properties": {
                     "table_id": {"type": "string", "description": "e.g. TAB638"},
+                    "variable": {
+                        "type": "string",
+                        "description": "Optional dimension id, e.g. Civilstand",
+                    },
                 },
                 "required": ["table_id"],
             },
