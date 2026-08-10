@@ -539,7 +539,7 @@ async def test_generate_quick_report_skips_deepseek(tmp_path: Path):
         )
         html = html_path.read_text(encoding="utf-8")
         assert "Snabbrapport" in html or "Snabb" in html
-        assert "Slutsats:" in html or "Simulerat stöd" in html
+        assert "Rekommendation" in html or "Publicera" in html or "publicera" in html
         assert "Statistik" in html or "Static statistics" in html
         assert "chart-grid" in html
         assert "stats-table" in html

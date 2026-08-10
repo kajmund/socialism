@@ -12,9 +12,8 @@ from app.services.report.charts import prefill_quick_chart_slots
 from app.services.report.classify import BundleClassification
 from app.services.report.locale import ReportLocale, display_style_label
 from app.services.report.metrics import ReportMetrics, injection_likes, pct, tone_shares_sorted
-from app.services.report.recommendation import build_recommendation
+from app.services.report.recommendation import build_recommendation, _short_arm_label
 from app.services.report.segment_analysis import build_audience_summaries
-from app.services.report.quick_glossary import FootnoteContext, footnote
 from app.services.ssr import ANCHOR_SET_VERSION
 
 # Hardcoded thresholds (not config) until calibration shows need to tweak often.
@@ -228,20 +227,20 @@ def _ab_diff_html(
     shares.sort(key=lambda x: x[0], reverse=True)
     best_pos, best_label = shares[0]
     worst_pos, worst_label = shares[-1]
+    best_short = _short_arm_label(best_label)
+    worst_short = _short_arm_label(worst_label)
     diff = best_pos - worst_pos
     band = _diff_band(diff)
     label = _band_label(band, locale=locale)
     if locale == "en":
         return (
-            f"<p><strong>{label}</strong> — {escape(best_label)} leads "
-            f"{escape(worst_label)} by {pct(diff)} positive tone "
-            f"{footnote('positive-tone')} "
+            f"<p><strong>{label}</strong> — {escape(best_short)} leads "
+            f"{escape(worst_short)} by {pct(diff)} positive tone "
             f"({pct(best_pos)} vs {pct(worst_pos)}).</p>"
         )
     return (
-        f"<p><strong>{label}</strong> — {escape(best_label)} leder "
-        f"{escape(worst_label)} med {pct(diff)} positiv ton "
-        f"{footnote('positive-tone')} "
+        f"<p><strong>{label}</strong> — {escape(best_short)} leder "
+        f"{escape(worst_short)} med {pct(diff)} positiv ton "
         f"({pct(best_pos)} vs {pct(worst_pos)}).</p>"
     )
 
@@ -296,8 +295,7 @@ def _style_html(metrics: ReportMetrics, *, locale: ReportLocale) -> str:
     else:
         if band == "none":
             parts.append(
-                f"<p><strong>{band_lbl}</strong> — {escape(win)} ({winner_a:.1f} snittlikes"
-                f"{footnote('style-likes')}) "
+                f"<p><strong>{band_lbl}</strong> — {escape(win)} ({winner_a:.1f} snittlikes) "
                 f"och {escape(second)} ({second_a:.1f}) ligger inom brus "
                 f"(gap {rel:.0%} av toppen; ≥{_DIFF_WEAK:.0%} krävs för svag signal).</p>"
             )
@@ -346,30 +344,20 @@ def build_quick_slots(
         for s, a in metrics.aggregate.style_avg_likes
     )
 
-    with FootnoteContext(locale) as tracker:
-        if locale == "en":
-            drift_body = (
-                "<p><strong>Topic drift:</strong> the test topic fell below 10% "
-                "after day 1 — it disappeared from the debate."
-                f"{footnote('topic-drift')}</p>"
-                if any_drift
-                else (
-                    "<p><strong>Topic drift:</strong> no clear drop-off after day 1."
-                    f"{footnote('topic-drift')}</p>"
-                )
-            )
-        else:
-            drift_body = (
-                "<p><strong>Ämnesdrift:</strong> testämnet under 10 % efter dag 1 "
-                "— försvann ur debatten."
-                f"{footnote('topic-drift')}</p>"
-                if any_drift
-                else (
-                    "<p><strong>Ämnesdrift:</strong> ingen tydlig nedgång efter dag 1."
-                    f"{footnote('topic-drift')}</p>"
-                )
-            )
-        drift_html = drift_body + tracker.render_block()
+    if locale == "en":
+        drift_html = (
+            "<p><strong>Topic drift:</strong> the test topic fell below 10% "
+            "after day 1 — it disappeared from the debate.</p>"
+            if any_drift
+            else "<p><strong>Topic drift:</strong> no clear drop-off after day 1.</p>"
+        )
+    else:
+        drift_html = (
+            "<p><strong>Ämnesdrift:</strong> testämnet under 10 % efter dag 1 "
+            "— försvann ur debatten.</p>"
+            if any_drift
+            else "<p><strong>Ämnesdrift:</strong> ingen tydlig nedgång efter dag 1.</p>"
+        )
 
     if locale == "en":
         page_title = title.strip() or "Quick report"
@@ -380,12 +368,8 @@ def build_quick_slots(
         eyebrow = "Snabbrapport — automatisk analys"
         tech_title = "Tekniskt stycke"
 
-    with FootnoteContext(locale) as ab_tracker:
-        ab_body = _ab_diff_html(metrics, locale=locale) if ab else ""
-        ab_html = ab_body + ab_tracker.render_block() if ab_body else ""
-
-    with FootnoteContext(locale) as style_tracker:
-        style_html = _style_html(metrics, locale=locale) + style_tracker.render_block()
+    ab_html = _ab_diff_html(metrics, locale=locale) if ab else ""
+    style_html = _style_html(metrics, locale=locale)
     audience = [
         seg
         for b, c in zip(bundles, classifications, strict=True)
@@ -479,8 +463,23 @@ body{{font-family:Georgia,serif;background:#F7F3EA;color:#1A1814;margin:0;paddin
 .wrap{{max-width:960px;margin:0 auto;overflow-x:clip;}}
 .eyebrow{{font-size:.85rem;letter-spacing:.04em;text-transform:uppercase;color:#6B6253;}}
 h1{{font-size:1.75rem;margin:.35rem 0 1.25rem;}}
-.conclusion{{border:1px solid #D8CFC0;padding:1.25rem 1.5rem;margin:1rem 0 1.75rem;background:#FFFCF6;border-left:6px solid #1E3A55;border-radius:0 8px 8px 0;}}
-.conclusion h3{{margin:0 0 .75rem;border-bottom:none;padding-bottom:0;}}
+.conclusion{{border:1px solid #D8CFC0;padding:1.5rem 1.75rem;margin:0 0 2rem;background:#FFFCF6;border-left:6px solid #1E3A55;border-radius:0 10px 10px 0;}}
+.rec-eyebrow{{font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:#6B6253;margin:0 0 .35rem;}}
+.rec-arm{{font-size:1.65rem;margin:0 0 .25rem;color:#1E3A55;line-height:1.2;}}
+.rec-action{{font-size:1.1rem;margin:0 0 .75rem;color:#1A1814;font-weight:600;}}
+.rec-score{{font-size:.88rem;margin:0 0 .75rem;color:#3A342C;}}
+.rec-score strong{{color:#1E3A55;}}
+.rec-note{{color:#6B6253;font-weight:400;}}
+.rec-summary{{font-size:.9rem;line-height:1.5;margin:0 0 1rem;color:#3A342C;}}
+.rec-ab-table{{width:100%;margin:0 0 1rem;border-collapse:collapse;font-size:.85rem;}}
+.rec-ab-table th,.rec-ab-table td{{border-bottom:1px solid #E5DDD0;padding:.4rem .5rem;text-align:left;}}
+.rec-ab-table th{{color:#6B6253;font-weight:600;font-size:.78rem;}}
+.rec-ab-win{{background:#EDE6DA;font-weight:600;}}
+.rec-columns{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin:.75rem 0;}}
+.rec-col{{font-size:.85rem;}}
+.rec-sub{{margin:0 0 .35rem;font-size:.85rem;}}
+.rec-list{{margin:0 0 0 1.1rem;padding:0;font-size:.82rem;line-height:1.45;}}
+.rec-next{{font-size:.85rem;margin:.75rem 0 0;padding-top:.65rem;border-top:1px solid #E5DDD0;color:#3A342C;}}
 section{{margin:1.75rem 0;min-width:0;}}
 section h3{{font-size:1.05rem;margin:0 0 .5rem;border-bottom:1px solid #D8CFC0;padding-bottom:.35rem;}}
 .tech{{margin-top:2.5rem;font-size:.9rem;color:#3A342C;}}
@@ -556,10 +555,6 @@ td,th{{border-bottom:1px solid #E5DDD0;padding:.35rem .5rem;text-align:left;font
 .qa-profile{{font-size:.75rem;color:#6B6253;margin-bottom:6px;line-height:1.35;}}
 .qa-q,.qa-a{{font-size:.82rem;line-height:1.4;margin-top:4px;}}
 .rec-headline{{font-size:1.05rem;margin:0 0 .5rem;}}
-.rec-compare,.rec-reception{{font-size:.85rem;margin:.35rem 0;line-height:1.45;}}
-.rec-sub{{margin:.35rem 0 .15rem;font-size:.85rem;}}
-.rec-list{{margin:0 0 .5rem 1.1rem;font-size:.82rem;line-height:1.4;}}
-.rec-traj{{font-size:.82rem;color:#3A342C;margin:.35rem 0 0;}}
 .audience-section{{display:flex;flex-direction:column;gap:24px;}}
 .aud-bundle-title{{font-size:1rem;margin:0 0 12px;border-bottom:1px solid #D8CFC0;padding-bottom:6px;}}
 .aud-reports{{display:flex;flex-direction:column;gap:20px;}}
