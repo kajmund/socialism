@@ -16,6 +16,7 @@ Guider för dig som använder Opinionssimulator i webbläsaren. Teknisk setup oc
 * [Skapa en ny körning](skapa-korning.md) — Grunduppgifter, tidslinje och gren
 * [Konfigurera en dag i tidslinjen](konfigurera-dag-i-tidslinjen.md) — Injektioner, ronder och intervjuer per dag
 * [Starta en simulering](starta-simulering.md) — Starta en sparad körning och följ jobbet
+* [Reaktionsmodell i simuleringen](reaktionsmodell-i-simulering.md) — Vem reagerar, vem får kommentera och när nollställs reglerna
 * [Läsa simuleringsresultat](lasa-simuleringsresultat.md) — Flöde, agenter och jämförelser
 
 # Personas
