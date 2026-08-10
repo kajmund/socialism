@@ -19,7 +19,7 @@ from app.services.playground import (
     rate_case,
 )
 from app.services.playground_tools import list_tool_catalog, run_agent_tool
-from app.services.playground_image import react_to_image
+from app.services.playground_image import MAX_IMAGE_BYTES, react_to_image
 from app.services.playground_image_models import image_model_catalog
 from app.services.ssr import ANCHOR_SET_VERSION, style_anchors, tone_anchors
 
@@ -372,7 +372,12 @@ async def post_image_react(
     persona = await session.get(Persona, persona_id)
     if persona is None:
         raise HTTPException(status_code=404, detail="Persona not found")
-    image_bytes = await image.read()
+    # Cap read before buffering — validate_image runs after read; unbounded read()
+    # would allow multi‑GB uploads to exhaust worker memory.
+    image_bytes = await image.read(MAX_IMAGE_BYTES + 1)
+    if len(image_bytes) > MAX_IMAGE_BYTES:
+        mb = MAX_IMAGE_BYTES // (1024 * 1024)
+        raise HTTPException(status_code=400, detail=f"Image exceeds {mb} MB limit")
     try:
         result = await react_to_image(
             session,

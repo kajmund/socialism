@@ -34,5 +34,4 @@ Du kan också **ändra ordning** på dagar, **lägga till** eller **ta bort** da
 ## Relaterade guider
 
 - [Skapa en ny körning](skapa-korning.md)
-- [Reaktionsmodell i simuleringen](reaktionsmodell-i-simulering.md)
 - [Hantera budskap](hantera-budskap.md)

@@ -1,9 +1,5 @@
 # Manual update log
 
-## 2026-08-10
-
-* **Körningar**: Ny guide för reaktionsmodellen — stratifierat urval per rond, passiv vs engagerad, kommentarsregler och nollställning vid nytt budskag.
-
 ## 2026-08-09
 
 * **Personas**: Biblioteket kan filtreras och sorteras på demografiska fält (kön, distrikt, yrke, utbildning, livssituation; sortering även på ålder).
