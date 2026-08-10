@@ -16,7 +16,7 @@
 * **Verktyg**: Konfigurationer, playground och embedding-cache samlade under menyn Verktyg; guide för att rensa cache.
 * **Playground**: Flik för att testa agentverktyg (webbsök / SymPy) utan full simulering.
 * **Körningar**: Agentverktyg väljs granulärt (DuckDuckGo / Wikipedia / SymPy) med eget wizardsteg och Välj alla.
-* **Rapporter**: Beställa/läsa rapport beskriver Snabbrapport vs Full rapport (SSR-mall vs längre hybridrapport).
+* **Rapporter**: Snabbrapporten har Slutsats (A/B-rekommendation, mottagande, styrkor/risker) och stjärnfotnoter per avsnitt istället för ordlista längst ner.
 
 ## 2026-08-06
 

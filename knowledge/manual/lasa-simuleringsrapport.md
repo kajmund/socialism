@@ -9,7 +9,7 @@ tags: [rapporter]
 
 När en rapport har genererats öppnas den som en **HTML-sida** i appen. Rapporter beställs från simuleringsresultat — det finns ingen separat rapportlista.
 
-**Snabbrapport** visar en kort verdict, ämnesdrift, stilgenomslag och (vid behov) A/B-jämförelse. Öppna **Tekniskt stycke** längst ner för SSR-fördelningar och tröskelvärden. **Full rapport** har längre narrativa avsnitt och diagram.
+**Snabbrapport** börjar med **Slutsats**: vilken version som rekommenderas (vid A/B), om budskapet bör publiceras eller justeras, simulerat stöd (0–100), mottagande och korta styrkor/risker. Därefter följer statistik, diagram, dag-för-dag, målgrupper och vid behov A/B-jämförelse. Förklaringar till stjärnmarkörer (`*`, `**`, …) står direkt under respektive avsnitt — du behöver inte bläddra till slutet. Öppna **Tekniskt stycke** längst ner för SSR-fördelningar och tröskelvärden. **Full rapport** har längre narrativa avsnitt och diagram.
 
 ## Steg
 

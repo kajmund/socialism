@@ -18,7 +18,7 @@ from app.services.report.metrics import (
     pct,
     tone_shares_sorted,
 )
-from app.services.report.quick_glossary import footnote, glossary_hint
+from app.services.report.quick_glossary import FootnoteContext, footnote
 from app.services.report.recommendation import QuickRecommendation
 from app.services.report.audience_takeaway import build_audience_takeaways, short_bundle_arm_label
 from app.services.report.persona_bio import build_agent_bio_by_index, persona_profile_line
@@ -550,7 +550,6 @@ def render_quick_stats_table(metrics: ReportMetrics, *, locale: ReportLocale = "
         f'<div class="chart-sub">{reach_title}</div>'
         f'<table class="data-table stats-table"><thead><tr>{reach_headers}</tr></thead>'
         f"<tbody>{''.join(reach_rows)}</tbody></table></div>"
-        f"{glossary_hint(locale=locale)}"
         "</div>"
     )
 
@@ -754,8 +753,7 @@ def render_tick_timeline(
     if not sections:
         empty = "No day-by-day data in this run." if locale == "en" else "Ingen dag-för-dag-data i körningen."
         return f"<p>{empty}</p>"
-    hint = glossary_hint(locale=locale)
-    return f'<div class="tick-timeline">{"".join(sections)}{hint}</div>'
+    return f'<div class="tick-timeline">{"".join(sections)}</div>'
 
 
 def _qa_card_html(
@@ -838,25 +836,59 @@ def render_recommendation_block(
     locale: ReportLocale = "sv",
 ) -> str:
     if locale == "en":
+        title = "Conclusion"
         h_str, h_risk, h_imp, h_traj = "Strengths", "Risks", "Suggested improvements", "Trajectory"
+        h_reception = "Reception"
+        h_compare = "A/B comparison"
     else:
+        title = "Slutsats"
         h_str, h_risk, h_imp, h_traj = "Styrkor", "Risker", "Rekommenderade förbättringar", "Utveckling"
-    parts = [
-        f'<p class="rec-headline"><strong>{escape(rec.headline)}'
-        f'{footnote("simulated-support")}</strong></p>'
-    ]
-    if rec.strengths:
-        items = "".join(f"<li>{escape(s)}</li>" for s in rec.strengths)
-        parts.append(f"<p class=\"rec-sub\"><strong>{h_str}:</strong></p><ul class=\"rec-list\">{items}</ul>")
-    if rec.risks:
-        items = "".join(f"<li>{escape(r)}</li>" for r in rec.risks)
-        parts.append(f"<p class=\"rec-sub\"><strong>{h_risk}:</strong></p><ul class=\"rec-list\">{items}</ul>")
-    if rec.improvements:
-        items = "".join(f"<li>{escape(i)}</li>" for i in rec.improvements)
-        parts.append(f"<p class=\"rec-sub\"><strong>{h_imp}:</strong></p><ul class=\"rec-list\">{items}</ul>")
-    if rec.trajectory:
-        parts.append(f"<p class=\"rec-traj\"><strong>{h_traj}:</strong> {escape(rec.trajectory)}</p>")
-    return f'<div class="recommendation-block">{"".join(parts)}</div>'
+        h_reception = "Mottagande"
+        h_compare = "A/B-jämförelse"
+    with FootnoteContext(locale) as tracker:
+        parts = [
+            f'<section class="conclusion">'
+            f"<h3>{escape(title)}</h3>"
+            f'<p class="rec-headline"><strong>{escape(rec.headline)}'
+            f'{footnote("simulated-support")}</strong></p>'
+        ]
+        if rec.comparison_line:
+            parts.append(
+                f'<p class="rec-compare"><strong>{h_compare}:</strong> '
+                f"{escape(rec.comparison_line)}</p>"
+            )
+        if rec.reception_line:
+            parts.append(
+                f'<p class="rec-reception"><strong>{h_reception}:</strong> '
+                f"{escape(rec.reception_line)} "
+                f'{footnote("positive-tone")}{footnote("likes-injection")}</p>'
+            )
+        if rec.strengths:
+            items = "".join(f"<li>{escape(s)}</li>" for s in rec.strengths)
+            parts.append(
+                f"<p class=\"rec-sub\"><strong>{h_str}:</strong></p>"
+                f"<ul class=\"rec-list\">{items}</ul>"
+            )
+        if rec.risks:
+            items = "".join(f"<li>{escape(r)}</li>" for r in rec.risks)
+            parts.append(
+                f"<p class=\"rec-sub\"><strong>{h_risk}:</strong></p>"
+                f"<ul class=\"rec-list\">{items}</ul>"
+            )
+        if rec.improvements:
+            items = "".join(f"<li>{escape(i)}</li>" for i in rec.improvements)
+            parts.append(
+                f"<p class=\"rec-sub\"><strong>{h_imp}:</strong></p>"
+                f"<ul class=\"rec-list\">{items}</ul>"
+            )
+        if rec.trajectory:
+            parts.append(
+                f"<p class=\"rec-traj\"><strong>{h_traj}:</strong> "
+                f"{escape(rec.trajectory)}</p>"
+            )
+        parts.append(tracker.render_block())
+        parts.append("</section>")
+        return "".join(parts)
 
 
 def render_audience_takeaway_section(
@@ -1296,22 +1328,38 @@ def prefill_quick_chart_slots(
     recommendation: QuickRecommendation | None = None,
 ) -> dict[str, str]:
     clfs = classifications or []
-    aud_html = (
-        render_audience_section(bundles, clfs, locale=locale)
-        if clfs and len(clfs) == len(bundles)
-        else ""
-    )
     rec_html = render_recommendation_block(recommendation, locale=locale) if recommendation else ""
+
+    with FootnoteContext(locale) as stats_tracker:
+        stats_html = render_quick_stats_table(metrics, locale=locale)
+        stats_html += stats_tracker.render_block()
+
+    with FootnoteContext(locale) as charts_tracker:
+        charts_html = render_quick_charts(metrics, locale=locale, ab=ab)
+        charts_html += charts_tracker.render_block()
+
+    with FootnoteContext(locale) as tick_tracker:
+        tick_html = render_tick_timeline(bundles, locale=locale)
+        tick_html += tick_tracker.render_block()
+
+    qa_html = render_interview_qa_section(bundles, locale=locale)
     takeaway_html = (
         render_audience_takeaway_section(bundles, clfs, locale=locale)
         if clfs and len(clfs) == len(bundles)
         else ""
     )
+    if clfs and len(clfs) == len(bundles):
+        with FootnoteContext(locale) as aud_tracker:
+            aud_html = render_audience_section(bundles, clfs, locale=locale)
+            aud_html += aud_tracker.render_block()
+    else:
+        aud_html = ""
+
     return {
-        "stats_html": render_quick_stats_table(metrics, locale=locale),
-        "charts_html": render_quick_charts(metrics, locale=locale, ab=ab),
-        "tick_html": render_tick_timeline(bundles, locale=locale),
-        "qa_html": render_interview_qa_section(bundles, locale=locale),
+        "stats_html": stats_html,
+        "charts_html": charts_html,
+        "tick_html": tick_html,
+        "qa_html": qa_html,
         "audience_html": aud_html,
         "takeaway_html": takeaway_html,
         "recommendation_html": rec_html,
