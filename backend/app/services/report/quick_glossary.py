@@ -1,11 +1,17 @@
-"""Numbered footnotes and glossary for snabbrapport HTML."""
+"""Asterisk footnotes and per-section definitions for snabbrapport HTML."""
 
 from __future__ import annotations
 
+import contextvars
 from dataclasses import dataclass
 from html import escape
 
 from app.services.report.locale import ReportLocale
+
+_CURRENT: contextvars.ContextVar[FootnoteTracker | None] = contextvars.ContextVar(
+    "quick_footnote_tracker",
+    default=None,
+)
 
 
 @dataclass(frozen=True)
@@ -229,37 +235,69 @@ ENTRIES: tuple[GlossaryEntry, ...] = (
     ),
 )
 
-_INDEX: dict[str, int] = {entry.id: idx + 1 for idx, entry in enumerate(ENTRIES)}
+_ENTRY_BY_ID: dict[str, GlossaryEntry] = {entry.id: entry for entry in ENTRIES}
+
+
+class FootnoteTracker:
+    """Collects asterisk markers and renders definitions for one report section."""
+
+    def __init__(self, locale: ReportLocale) -> None:
+        self.locale = locale
+        self._used: list[str] = []
+
+    def mark(self, entry_id: str) -> str:
+        entry = _ENTRY_BY_ID.get(entry_id)
+        if entry is None:
+            msg = f"Unknown glossary entry: {entry_id}"
+            raise KeyError(msg)
+        if entry_id not in self._used:
+            self._used.append(entry_id)
+        stars = "*" * (self._used.index(entry_id) + 1)
+        return f'<span class="fn">{stars}</span>'
+
+    def render_block(self) -> str:
+        if not self._used:
+            return ""
+        items: list[str] = []
+        for idx, entry_id in enumerate(self._used):
+            entry = _ENTRY_BY_ID[entry_id]
+            term = entry.term_en if self.locale == "en" else entry.term_sv
+            body = entry.body_en if self.locale == "en" else entry.body_sv
+            stars = "*" * (idx + 1)
+            items.append(
+                f'<p class="fn-item">'
+                f'<span class="fn-mark">{stars}</span> '
+                f"<strong>{escape(term)}</strong> — "
+                f"<span>{escape(body)}</span></p>"
+            )
+        return f'<div class="fn-block">{"".join(items)}</div>'
+
+
+class FootnoteContext:
+    """Activate a section-local footnote tracker for nested render helpers."""
+
+    def __init__(self, locale: ReportLocale) -> None:
+        self.tracker = FootnoteTracker(locale)
+        self._token: contextvars.Token[FootnoteTracker | None] | None = None
+
+    def __enter__(self) -> FootnoteTracker:
+        self._token = _CURRENT.set(self.tracker)
+        return self.tracker
+
+    def __exit__(self, *_exc: object) -> None:
+        if self._token is not None:
+            _CURRENT.reset(self._token)
 
 
 def footnote(entry_id: str) -> str:
-    """Superscript link to a glossary entry."""
-    number = _INDEX[entry_id]
-    return f'<sup class="fn"><a href="#fn-{entry_id}">{number}</a></sup>'
+    """Inline asterisk marker using the active section tracker."""
+    tracker = _CURRENT.get()
+    if tracker is None:
+        tracker = FootnoteTracker("sv")
+    return tracker.mark(entry_id)
 
 
-def glossary_hint(*, locale: ReportLocale) -> str:
-    if locale == "en":
-        return '<p class="glossary-hint">Numbered markers refer to the glossary at the end.</p>'
-    return '<p class="glossary-hint">Numrerade markörer förklaras i ordlistan längst ner.</p>'
-
-
-def render_quick_glossary(*, locale: ReportLocale) -> str:
-    title = "Glossary" if locale == "en" else "Ordlista"
-    items: list[str] = []
-    for entry in ENTRIES:
-        term = entry.term_en if locale == "en" else entry.term_sv
-        body = entry.body_en if locale == "en" else entry.body_sv
-        number = _INDEX[entry.id]
-        items.append(
-            f'<div class="gloss-item" id="fn-{entry.id}">'
-            f'<span class="gloss-n">{number}.</span> '
-            f"<strong>{escape(term)}</strong> — "
-            f"<span>{escape(body)}</span></div>"
-        )
-    return (
-        f'<section class="glossary" id="ordlista">'
-        f"<h3>{escape(title)}</h3>"
-        f'{"".join(items)}'
-        f"</section>"
-    )
+def render_section_html(body_html: str, *, locale: ReportLocale) -> str:
+    """Wrap body rendering in a footnote context and append definitions."""
+    with FootnoteContext(locale) as tracker:
+        return body_html + tracker.render_block()
