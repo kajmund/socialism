@@ -17,7 +17,7 @@ os.environ.setdefault("OPENAI_API_KEY", "test-openai-key-not-real")
 from app.config import settings
 from app.database.base import Base
 from app.database.session import get_session
-from app.llm import set_text_completer, set_text_streamer
+from app.llm import set_text_completer, set_text_streamer, set_tools_completer
 from app.main import create_app
 from app.services import jobs as jobs_service
 from app.services.help_chat import list_help_messages, stream_help_chat_turn
@@ -36,8 +36,16 @@ def help_client():
         for piece in ("Mockat ", "hjälpssvar."):
             yield piece
 
+    class _MockToolMessage:
+        content = "Mockat hjälpssvar."
+        tool_calls = None
+
+    async def _mock_tools(_messages: list[dict[str, object]], _tools: list | None = None):
+        return _MockToolMessage()
+
     set_text_completer(_mock_text)
     set_text_streamer(_mock_stream)
+    set_tools_completer(_mock_tools)
 
     engine = create_async_engine(
         "sqlite+aiosqlite://",
@@ -71,6 +79,7 @@ def help_client():
     jobs_service.set_job_session_factory(None)
     set_text_completer(None)
     set_text_streamer(None)
+    set_tools_completer(None)
     loop.run_until_complete(engine.dispose())
     loop.close()
 
@@ -121,7 +130,7 @@ def test_help_chat_websocket_streams(help_client):
             elif event["type"] == "error":
                 pytest.fail(event["detail"])
 
-        assert tokens == ["Mockat ", "hjälpssvar."]
+        assert tokens == ["Mockat hjälpssvar."]
         assert done is not None
         assert done["reply"] == "Mockat hjälpssvar."
         assert len(done["messages"]) >= 2

@@ -7,6 +7,7 @@ External connectors for Opinionssimulator — MCP servers and shared OKF helpers
 ```text
 integrations/
 ├── okf/           # OKF manual loader + search (used by MCP and backend help chat)
+├── scb/           # SCB PxWebApi 2 client + tools (MCP + in-app help chat)
 └── mcp/           # MCP stdio server for Cursor and other MCP clients
 ```
 
@@ -41,9 +42,12 @@ cd integrations/mcp && uv sync
 | `okf_search` | Search operator manuals by query |
 | `okf_get_guide` | Fetch one guide by slug (filename without `.md`) |
 | `ask_help` | Answer a help question with OKF context + DeepSeek |
+| `scb_search_tables` | Search SCB Statistikdatabasen tables (PxWebApi 2) |
+| `scb_get_table_meta` | Variable codes/labels for one SCB table |
+| `scb_query` | Fetch SCB table data (JSON-stat2) |
 | `list_runs` | List körningar (requires API URL) |
 | `get_run` | Fetch one körning (requires API URL) |
 
 ## In-app help chat
 
-The admin UI includes a floating help chatbot on **every page** (same WebSocket streaming as persona chat). It uses OKF manuals plus **read-only** live data (library counts, open entity, injected current view). It never writes to the database.
+The admin UI includes a floating help chatbot on **every page** (same WebSocket streaming as persona chat). It uses OKF manuals plus **read-only** live data (library counts, open entity, injected current view). It can also call **SCB PxWebApi 2** tools for public demographic statistics (folkmängd, ålder, kön, civilstånd per kommun). It never writes to the database.
