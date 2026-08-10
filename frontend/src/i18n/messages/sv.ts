@@ -967,6 +967,11 @@ export const sv = {
       imageCacheHit: "Bilden fanns redan i cachen — caption hämtades.",
       imageCaptionReady: "Caption genererad och cachad.",
       imagePickCached: "Välj cachad bild",
+      imagePickOpenButton: "Välj cachad bild…",
+      imagePickModalTitle: "Välj cachad bild",
+      imagePickModalIntro:
+        "Klicka på en miniatyr. Caption delas mellan alla inlägg som använder samma bild.",
+      imagePickModalEmpty: "Inga cachade bilder ännu — ladda upp en fil först.",
       imagePickOption: "Välj bild: {caption}",
       imagePickPlaceholder: "— välj —",
       imagePreviewAlt: "Förhandsvisning av budskapsbild",
