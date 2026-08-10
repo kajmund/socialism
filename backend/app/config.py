@@ -40,6 +40,8 @@ class Settings(BaseSettings):
     ollama_base_url: str = "https://ollama.com"
     # Write-through cache for SSR anchor embeddings (memory + disk).
     embedding_cache_dir: str = "data/embedding_cache"
+    # Budskap image bytes + vision captions keyed by SHA256.
+    image_cache_dir: str = "data/image_cache"
     # OKF operator manuals for in-app help chat (empty = repo knowledge/manual).
     okf_manual_dir: str = ""
 

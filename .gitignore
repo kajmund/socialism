@@ -36,6 +36,7 @@ pnpm-debug.log*
 /backend/data/oasis/
 /backend/data/reports/
 /backend/data/embedding_cache/
+/backend/data/image_cache/
 
 # Mockup extract (keep the zip; extracted HTML is local reference only)
 /frontend/mockup/extracted/
