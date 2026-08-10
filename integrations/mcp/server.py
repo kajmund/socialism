@@ -20,6 +20,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from integrations.okf.corpus import format_context, load_guides, search_guides
+from integrations.scb.tools import run_scb_tool
 
 MANUAL_ROOT = Path(
     os.environ.get("OKF_MANUAL_ROOT", str(_REPO_ROOT / "knowledge" / "manual"))
@@ -125,6 +126,79 @@ async def list_tools() -> list[Tool]:
                 "required": ["question"],
             },
         ),
+        Tool(
+            name="scb_search_tables",
+            description=(
+                "Search SCB Statistikdatabasen (PxWebApi 2) for tables. "
+                "Use Swedish keywords (folkmängd, kön, ålder, kommun, civilstånd)."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string"},
+                    "page_size": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 50,
+                        "default": 10,
+                    },
+                },
+                "required": ["query"],
+            },
+        ),
+        Tool(
+            name="scb_get_table_meta",
+            description=(
+                "Fetch variables and category codes for an SCB table (call before scb_query)."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "table_id": {"type": "string", "description": "e.g. TAB638"},
+                },
+                "required": ["table_id"],
+            },
+        ),
+        Tool(
+            name="scb_query",
+            description="Fetch SCB table data as JSON-stat2 via PxWebApi 2 POST selection.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "table_id": {"type": "string"},
+                    "filters": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "variableCode": {"type": "string"},
+                                "valueCodes": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                },
+                                "codelist": {"type": "string"},
+                            },
+                            "required": ["variableCode", "valueCodes"],
+                        },
+                    },
+                },
+                "required": ["table_id", "filters"],
+            },
+        ),
+        Tool(
+            name="scb_population_dist",
+            description=(
+                "Build population recipe weights (age + sex) from SCB folkmängd for one municipality."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "region_code": {"type": "string"},
+                    "region_name": {"type": "string"},
+                    "year": {"type": "string", "default": "2024"},
+                },
+            },
+        ),
     ]
     if API_URL:
         tools.extend(
@@ -179,6 +253,10 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         locale = str(arguments.get("locale") or "sv")
         answer = await asyncio.to_thread(_ask_help_sync, question, locale)
         return [TextContent(type="text", text=answer)]
+
+    if name in {"scb_search_tables", "scb_get_table_meta", "scb_query", "scb_population_dist"}:
+        text = await run_scb_tool(name, arguments)
+        return [TextContent(type="text", text=text)]
 
     if name == "list_runs":
         data = await _api_get("/runs")

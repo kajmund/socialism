@@ -3,17 +3,22 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from collections.abc import AsyncIterator
 
+import httpx
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import HelpMessage
-from app.llm import stream_text
+from app.llm import complete_with_tools, stream_text
 from app.schemas.domain import HelpChatResponse, HelpMessageOut, HelpViewContext
 from app.serializers import format_date
 from app.services.help_read_context import build_help_context
 from app.services.prompt_catalog import ConfigurationLanguage, default_prompts, render_prompt
+from app.services.scb_tools import help_scb_tool_specs, run_scb_tool
+
+_MAX_TOOL_ROUNDS = 5
 
 
 class ChatTurnError(Exception):
@@ -66,15 +71,87 @@ async def _build_system_prompt(
     locale: ConfigurationLanguage,
     query: str,
     view: HelpViewContext | None,
+    ground_population: bool = False,
 ) -> str:
     prompts = default_prompts(locale)
-    base = render_prompt(prompts, "help.system")
+    parts = [
+        render_prompt(prompts, "help.system"),
+        render_prompt(prompts, "help.system.scb"),
+    ]
+    if ground_population:
+        parts.append(render_prompt(prompts, "help.system.scb_population"))
     context = await build_help_context(session, view=view, query=query)
-    return f"{base}\n\n{context}"
+    parts.append(context)
+    return "\n\n".join(parts)
 
 
 def _history_rows(rows: list[HelpMessage]) -> list[dict[str, str]]:
     return [{"role": row.role, "content": row.content} for row in rows]
+
+
+def _assistant_message_dict(message: object) -> dict[str, object]:
+    tool_calls = getattr(message, "tool_calls", None)
+    payload: dict[str, object] = {
+        "role": "assistant",
+        "content": getattr(message, "content", None) or "",
+    }
+    if tool_calls:
+        payload["tool_calls"] = [
+            {
+                "id": call.id,
+                "type": "function",
+                "function": {
+                    "name": call.function.name,
+                    "arguments": call.function.arguments,
+                },
+            }
+            for call in tool_calls
+        ]
+    return payload
+
+
+async def _run_scb_tool_loop(
+    messages: list[dict[str, object]],
+    *,
+    allow_population_dist: bool,
+) -> list[dict[str, object]]:
+    tools = help_scb_tool_specs(allow_population_dist=allow_population_dist)
+    working = list(messages)
+    for _ in range(_MAX_TOOL_ROUNDS):
+        message = await complete_with_tools(working, tools)
+        working.append(_assistant_message_dict(message))
+        tool_calls = getattr(message, "tool_calls", None)
+        if not tool_calls:
+            return working
+        for call in tool_calls:
+            name = call.function.name
+            raw_args = call.function.arguments or "{}"
+            try:
+                arguments = json.loads(raw_args)
+            except json.JSONDecodeError:
+                arguments = {}
+            try:
+                result = await run_scb_tool(
+                    name,
+                    arguments,
+                    allow_population_dist=allow_population_dist,
+                )
+            except (httpx.HTTPError, ValueError, RuntimeError) as exc:
+                result = f"SCB tool error ({name}): {exc}"
+            working.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": call.id,
+                    "content": result,
+                }
+            )
+    return working
+
+
+def _emit_text_chunks(text: str, *, chunk_size: int = 24) -> list[str]:
+    if not text:
+        return []
+    return [text[i : i + chunk_size] for i in range(0, len(text), chunk_size)]
 
 
 async def stream_help_chat_turn(
@@ -84,6 +161,7 @@ async def stream_help_chat_turn(
     locale: ConfigurationLanguage,
     message: str,
     view: HelpViewContext | None = None,
+    ground_population: bool = False,
 ) -> AsyncIterator[str | HelpChatResponse]:
     lock = await _help_turn_lock(session_id)
     async with lock:
@@ -104,6 +182,7 @@ async def stream_help_chat_turn(
             locale=locale,
             query=message,
             view=view,
+            ground_population=ground_population,
         )
         messages = [
             {"role": "system", "content": system_prompt},
@@ -111,10 +190,24 @@ async def stream_help_chat_turn(
             {"role": "user", "content": message},
         ]
 
+        working = await _run_scb_tool_loop(
+            messages,
+            allow_population_dist=ground_population,
+        )
+        last = working[-1]
+        prebuilt_reply = ""
+        if last.get("role") == "assistant" and last.get("content"):
+            prebuilt_reply = str(last["content"]).strip()
+
         chunks: list[str] = []
-        async for piece in stream_text(messages):
-            chunks.append(piece)
-            yield piece
+        if prebuilt_reply:
+            for piece in _emit_text_chunks(prebuilt_reply):
+                chunks.append(piece)
+                yield piece
+        else:
+            async for piece in stream_text(working):
+                chunks.append(piece)
+                yield piece
         reply = "".join(chunks).strip()
         if not reply:
             raise ChatTurnError("Help chat produced an empty reply")

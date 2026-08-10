@@ -17,7 +17,7 @@ os.environ.setdefault("OPENAI_API_KEY", "test-openai-key-not-real")
 from app.config import settings
 from app.database.base import Base
 from app.database.session import get_session
-from app.llm import set_text_completer, set_text_streamer
+from app.llm import set_text_completer, set_text_streamer, set_tools_completer
 from app.main import create_app
 from app.services import jobs as jobs_service
 from app.services.help_chat import list_help_messages, stream_help_chat_turn
@@ -36,8 +36,19 @@ def help_client():
         for piece in ("Mockat ", "hjälpssvar."):
             yield piece
 
+    class _MockToolMessage:
+        content = "Mockat hjälpssvar."
+        tool_calls = None
+
+    tools_calls = {"count": 0}
+
+    async def _mock_tools(_messages: list[dict[str, object]], _tools: list | None = None):
+        tools_calls["count"] += 1
+        return _MockToolMessage()
+
     set_text_completer(_mock_text)
     set_text_streamer(_mock_stream)
+    set_tools_completer(_mock_tools)
 
     engine = create_async_engine(
         "sqlite+aiosqlite://",
@@ -66,11 +77,12 @@ def help_client():
     app.dependency_overrides[get_session] = override_get_session
 
     with TestClient(app) as client:
-        yield client, loop, session_factory
+        yield client, loop, session_factory, tools_calls
 
     jobs_service.set_job_session_factory(None)
     set_text_completer(None)
     set_text_streamer(None)
+    set_tools_completer(None)
     loop.run_until_complete(engine.dispose())
     loop.close()
 
@@ -82,7 +94,7 @@ def test_search_manual_finds_korning_guide():
 
 
 def test_help_chat_websocket_streams(help_client):
-    client, _loop, _factory = help_client
+    client, _loop, _factory, tools_calls = help_client
     session_id = "test-help-session"
     view = {
         "path": "/runs",
@@ -121,14 +133,61 @@ def test_help_chat_websocket_streams(help_client):
             elif event["type"] == "error":
                 pytest.fail(event["detail"])
 
-        assert tokens == ["Mockat ", "hjälpssvar."]
+        assert tokens == ["Mockat hjälpssvar."]
         assert done is not None
         assert done["reply"] == "Mockat hjälpssvar."
         assert len(done["messages"]) >= 2
+        assert tools_calls["count"] >= 1
+
+
+def test_help_chat_websocket_ground_population(help_client):
+    client, _loop, _factory, tools_calls = help_client
+    session_id = "test-help-scb-session"
+    view = {
+        "path": "/populations/new",
+        "view_key": "populations.new",
+        "label": "Population — ny",
+        "params": {},
+        "search": {},
+    }
+
+    with client.websocket_connect("/ws/chat") as ws:
+        ws.send_json(
+            {
+                "type": "hello",
+                "scope": "help",
+                "session_id": session_id,
+                "locale": "sv",
+                "view": view,
+            }
+        )
+        assert ws.receive_json()["type"] == "ready"
+
+        ws.send_json(
+            {
+                "type": "send",
+                "message": "Grounda ålder för Uppsala",
+                "view": view,
+                "ground_population": True,
+            }
+        )
+        assert ws.receive_json() == {"type": "typing", "on": True}
+
+        done = None
+        for _ in range(10):
+            event = ws.receive_json()
+            if event["type"] == "done":
+                done = event
+                break
+            if event["type"] == "error":
+                pytest.fail(event["detail"])
+
+        assert done is not None
+        assert tools_calls["count"] >= 1
 
 
 def test_help_messages_rest(help_client):
-    client, loop, factory = help_client
+    client, loop, factory, _tools_calls = help_client
     session_id = "rest-help-session"
 
     async def _run_turn() -> None:

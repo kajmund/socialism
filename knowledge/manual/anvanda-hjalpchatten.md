@@ -15,7 +15,11 @@ I adminytan finns en **Hjälp**-knapp nere till höger på **alla sidor**. Där 
 2. Skriv en fråga, t.ex. *Hur startar jag en simulering?* eller *Vad är en population?*
 3. Tryck **Skicka** eller Enter.
 
-Assistenten svarar på svenska eller engelska beroende på vilket gränssnittsspråk du valt i menyn.
+Assistenten svarar på svenska eller engelska beroende på vilket gränssnittsspråk du valt i menyn. Den kan hämta **offentlig demografisk statistik från SCB** (folkmängd, ålder, kön m.m.) när du frågar om sådana siffror.
+
+## Populationsvikter från SCB (valfritt)
+
+Kryssa i **Använd SCB för populationsvikter** innan du skickar frågan om du vill att assistenten ska föreslå ålder- och könsfördelning mot en kommun (t.ex. för population builder). Utan kryss svarar den fortfarande på demografifrågor via SCB, men föreslår inte färdiga receptvikter.
 
 ## Tips
 
