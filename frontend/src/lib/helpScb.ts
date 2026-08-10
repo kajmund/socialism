@@ -1,6 +1,6 @@
-const STORAGE_KEY = "opinionssimulator.helpUseScb"
+const STORAGE_KEY = "opinionssimulator.helpGroundPopulation"
 
-export function getHelpUseScb(): boolean {
+export function getHelpGroundPopulation(): boolean {
   try {
     return localStorage.getItem(STORAGE_KEY) === "1"
   } catch {
@@ -8,7 +8,7 @@ export function getHelpUseScb(): boolean {
   }
 }
 
-export function setHelpUseScb(enabled: boolean): void {
+export function setHelpGroundPopulation(enabled: boolean): void {
   try {
     localStorage.setItem(STORAGE_KEY, enabled ? "1" : "0")
   } catch {
