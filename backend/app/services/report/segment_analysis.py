@@ -338,9 +338,36 @@ def _theme_counts_for_segment(tone: SegmentToneRow | None) -> dict[str, int]:
     return counts
 
 
-def _segment_sort_key(dim: str, val: str) -> tuple[int, str, str]:
-    order = _DIMENSION_ORDER.index(dim) if dim in _DIMENSION_ORDER else 99
-    return (order, dim, val)
+def _positive_tone_for_summary(summary: AudienceSegmentSummary | None) -> float | None:
+    if not summary or not summary.tone or summary.tone.too_few:
+        return None
+    return summary.tone.positive_share
+
+
+def _audience_summary_sort_key(summary: AudienceSegmentSummary) -> tuple[float, int, str, str]:
+    """Most positive target groups first; stable tie-break by dimension then label."""
+    positive = _positive_tone_for_summary(summary)
+    rank = -positive if positive is not None else 1.0
+    dim_order = (
+        _DIMENSION_ORDER.index(summary.dimension)
+        if summary.dimension in _DIMENSION_ORDER
+        else 99
+    )
+    return (rank, dim_order, summary.dimension, summary.label)
+
+
+def _audience_comparison_sort_key(comp: AudienceSegmentComparison) -> tuple[float, int, str, str]:
+    """Sort A/B segment cards by mean positive tone across arms with data."""
+    shares = [
+        s
+        for arm in comp.arms
+        if (s := _positive_tone_for_summary(arm.summary)) is not None
+    ]
+    rank = -(sum(shares) / len(shares)) if shares else 1.0
+    dim_order = (
+        _DIMENSION_ORDER.index(comp.dimension) if comp.dimension in _DIMENSION_ORDER else 99
+    )
+    return (rank, dim_order, comp.dimension, comp.label)
 
 
 def build_audience_summaries(
@@ -364,7 +391,7 @@ def build_audience_summaries(
                 keys.add((dim, val))
 
     summaries: list[AudienceSegmentSummary] = []
-    for dim, val in sorted(keys, key=lambda k: _segment_sort_key(k[0], k[1])):
+    for dim, val in keys:
         tone = by_key.get((dim, val))
         interviews_all = _interviews_for_segment(
             bundle, dimension=dim, value=val, locale=locale
@@ -389,6 +416,7 @@ def build_audience_summaries(
         )
         summary.narrative = build_segment_narrative(summary, locale=locale)
         summaries.append(summary)
+    summaries.sort(key=_audience_summary_sort_key)
     return summaries
 
 
@@ -403,12 +431,6 @@ def _segment_has_data(summary: AudienceSegmentSummary | None) -> bool:
     if tone and tone.agent_count:
         return True
     return False
-
-
-def _positive_tone_for_summary(summary: AudienceSegmentSummary | None) -> float | None:
-    if not summary or not summary.tone or summary.tone.too_few:
-        return None
-    return summary.tone.positive_share
 
 
 def _critical_tone_for_summary(summary: AudienceSegmentSummary | None) -> float | None:
@@ -543,11 +565,10 @@ def build_audience_comparisons(
             key = (seg.dimension, seg.label)
             by_key.setdefault(key, {})[arm] = seg
 
-    keys = sorted(by_key.keys(), key=lambda k: _segment_sort_key(k[0], k[1]))
     comparisons: list[AudienceSegmentComparison] = []
     arm_order = [short_bundle_arm_label(b) for b in bundles]
 
-    for dim, val in keys:
+    for dim, val in by_key:
         seg_map = by_key[(dim, val)]
         arms = [
             SegmentArmSummary(arm_label=arm, summary=seg_map.get(arm))
@@ -566,4 +587,5 @@ def build_audience_comparisons(
                 diff_summary=diff,
             )
         )
+    comparisons.sort(key=_audience_comparison_sort_key)
     return comparisons
