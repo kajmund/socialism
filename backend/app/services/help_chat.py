@@ -14,11 +14,33 @@ from app.database.models import HelpMessage
 from app.llm import complete_with_tools, stream_text
 from app.schemas.domain import HelpChatResponse, HelpMessageOut, HelpViewContext
 from app.serializers import format_date
+from app.services.feedback_tools import help_feedback_tool_specs, run_feedback_tool
 from app.services.help_read_context import build_help_context
 from app.services.prompt_catalog import ConfigurationLanguage, default_prompts, render_prompt
 from app.services.scb_tools import help_scb_tool_specs, run_scb_tool
 
+_FEEDBACK_TOOL_NAMES = frozenset({"feedback_create", "feedback_list", "feedback_get"})
+_SCB_TOOL_NAMES = frozenset(
+    {
+        "scb_search_tables",
+        "scb_get_table_meta",
+        "scb_query",
+        "scb_population_dist",
+    }
+)
+
 _MAX_TOOL_ROUNDS = 5
+
+# Model sometimes dumps fake tool XML / protocol markup into assistant content.
+_LEAKED_TOOL_MARKERS = (
+    "DSML",
+    "<invoke",
+    "</invoke>",
+    "<tool_call",
+    "</tool_call>",
+    "tool_calls",
+    "｜DSML｜",
+)
 
 
 class ChatTurnError(Exception):
@@ -26,6 +48,17 @@ class ChatTurnError(Exception):
         super().__init__(detail)
         self.detail = detail
         self.status_code = status_code
+
+
+def looks_like_leaked_tool_markup(text: str) -> bool:
+    """True when content looks like protocol/tool XML rather than a user-facing reply."""
+    if not text or not text.strip():
+        return False
+    lowered = text.lower()
+    for marker in _LEAKED_TOOL_MARKERS:
+        if marker.lower() in lowered:
+            return True
+    return False
 
 
 _help_locks: dict[str, asyncio.Lock] = {}
@@ -73,13 +106,13 @@ async def _build_system_prompt(
     view: HelpViewContext | None,
     ground_population: bool = False,
 ) -> str:
+    del ground_population  # legacy WS/REST flag; SCB dist is always available
     prompts = default_prompts(locale)
     parts = [
         render_prompt(prompts, "help.system"),
         render_prompt(prompts, "help.system.scb"),
+        render_prompt(prompts, "help.system.feedback"),
     ]
-    if ground_population:
-        parts.append(render_prompt(prompts, "help.system.scb_population"))
     context = await build_help_context(session, view=view, query=query)
     parts.append(context)
     return "\n\n".join(parts)
@@ -110,12 +143,15 @@ def _assistant_message_dict(message: object) -> dict[str, object]:
     return payload
 
 
-async def _run_scb_tool_loop(
+async def _run_help_tool_loop(
+    session: AsyncSession,
     messages: list[dict[str, object]],
     *,
-    allow_population_dist: bool,
+    help_session_id: str,
+    view: HelpViewContext | None,
 ) -> list[dict[str, object]]:
-    tools = help_scb_tool_specs(allow_population_dist=allow_population_dist)
+    tools = [*help_scb_tool_specs(), *help_feedback_tool_specs()]
+    view_path = view.path if view is not None else None
     working = list(messages)
     for _ in range(_MAX_TOOL_ROUNDS):
         message = await complete_with_tools(working, tools)
@@ -131,13 +167,20 @@ async def _run_scb_tool_loop(
             except json.JSONDecodeError:
                 arguments = {}
             try:
-                result = await run_scb_tool(
-                    name,
-                    arguments,
-                    allow_population_dist=allow_population_dist,
-                )
+                if name in _FEEDBACK_TOOL_NAMES:
+                    result = await run_feedback_tool(
+                        session,
+                        name,
+                        arguments,
+                        help_session_id=help_session_id,
+                        view_path=view_path,
+                    )
+                elif name in _SCB_TOOL_NAMES:
+                    result = await run_scb_tool(name, arguments)
+                else:
+                    result = f"Unknown tool: {name}"
             except (httpx.HTTPError, ValueError, RuntimeError) as exc:
-                result = f"SCB tool error ({name}): {exc}"
+                result = f"Tool error ({name}): {exc}"
             working.append(
                 {
                     "role": "tool",
@@ -190,14 +233,18 @@ async def stream_help_chat_turn(
             {"role": "user", "content": message},
         ]
 
-        working = await _run_scb_tool_loop(
+        working = await _run_help_tool_loop(
+            session,
             messages,
-            allow_population_dist=ground_population,
+            help_session_id=session_id,
+            view=view,
         )
         last = working[-1]
         prebuilt_reply = ""
         if last.get("role") == "assistant" and last.get("content"):
-            prebuilt_reply = str(last["content"]).strip()
+            candidate = str(last["content"]).strip()
+            if candidate and not looks_like_leaked_tool_markup(candidate):
+                prebuilt_reply = candidate
 
         chunks: list[str] = []
         if prebuilt_reply:
@@ -211,6 +258,10 @@ async def stream_help_chat_turn(
         reply = "".join(chunks).strip()
         if not reply:
             raise ChatTurnError("Help chat produced an empty reply")
+        if looks_like_leaked_tool_markup(reply):
+            raise ChatTurnError(
+                "Help chat produced an invalid reply (tool protocol leaked into text)"
+            )
 
         assistant_row = HelpMessage(session_id=session_id, role="assistant", content=reply)
         session.add(assistant_row)

@@ -152,6 +152,69 @@ def test_jobs_websocket_snapshot_and_update(ws_client):
         assert "succeeded" in statuses
 
 
+def test_reports_websocket_snapshot_update_and_delete(ws_client):
+    from app.database.models import Report
+    from app.serializers import utcnow
+    from app.services.report_realtime import publish_report
+
+    client, loop = ws_client
+
+    async def _seed_report() -> str:
+        factory = jobs_service.job_session_factory()
+        async with factory() as session:
+            report = Report(
+                id="rpt_ws_test",
+                status="pending",
+                title="WS report",
+                locale="sv",
+                mode="quick",
+                sources=[],
+                html_path=None,
+                slots_path=None,
+                job_id=None,
+                error=None,
+                created_at=utcnow(),
+                updated_at=utcnow(),
+            )
+            session.add(report)
+            await session.commit()
+            await session.refresh(report)
+            await publish_report(report)
+            return report.id
+
+    with client.websocket_connect("/ws/reports") as ws:
+        snap = ws.receive_json()
+        assert snap["type"] == "reports.snapshot"
+        assert snap["reports"] == []
+
+        report_id = loop.run_until_complete(_seed_report())
+        created_event = ws.receive_json()
+        assert created_event["type"] == "report.updated"
+        assert created_event["report"]["id"] == report_id
+        assert created_event["report"]["status"] == "pending"
+
+        async def _mark_running() -> None:
+            factory = jobs_service.job_session_factory()
+            async with factory() as session:
+                report = await session.get(Report, report_id)
+                assert report is not None
+                report.status = "running"
+                report.updated_at = utcnow()
+                await session.commit()
+                await publish_report(report)
+
+        loop.run_until_complete(_mark_running())
+        running_event = ws.receive_json()
+        assert running_event["type"] == "report.updated"
+        assert running_event["report"]["status"] == "running"
+
+        deleted = client.delete(f"/reports/{report_id}")
+        assert deleted.status_code == 204
+        deleted_event = ws.receive_json()
+        assert deleted_event["type"] == "report.deleted"
+        assert deleted_event["ids"] == [report_id]
+
+
 def test_chat_websocket_streams_tokens(ws_client):
     client, _loop = ws_client
     generated = client.post(

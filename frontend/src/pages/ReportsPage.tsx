@@ -3,7 +3,6 @@ import { Link } from "react-router-dom"
 import {
   bulkDeleteReports,
   deleteReport,
-  listReports,
   type Report,
   type ReportStatus,
 } from "@/api/reports"
@@ -11,6 +10,7 @@ import { AdminShell } from "@/components/layout/AdminShell"
 import { Card, CardContent } from "@/components/ui/card"
 import { useLocale, type MessageKey } from "@/i18n"
 import { ApiError } from "@/lib/api"
+import { useReportsRealtime } from "@/realtime/ReportsRealtimeProvider"
 
 type Translate = (key: MessageKey, params?: Record<string, string | number>) => string
 
@@ -85,52 +85,29 @@ function sourcesLabel(report: Report, t: Translate): string {
 
 export function ReportsPage() {
   const { t, intl } = useLocale()
-  const [reports, setReports] = useState<Report[]>([])
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { reports, connected, status: wsStatus } = useReportsRealtime()
   const [selected, setSelected] = useState<Set<string>>(() => new Set())
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [confirmBulk, setConfirmBulk] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
 
+  const loading = wsStatus === "connecting" && reports.length === 0
+  const error =
+    !connected && wsStatus === "closed" && reports.length === 0
+      ? t("reports.list.loadError")
+      : null
+
   useEffect(() => {
-    let cancelled = false
-    let timer: number | undefined
-
-    async function load() {
-      try {
-        const rows = await listReports({ limit: 100 })
-        if (cancelled) return
-        setReports(rows)
-        setSelected((prev) => {
-          const ids = new Set(rows.map((r) => r.id))
-          const next = new Set<string>()
-          for (const id of prev) {
-            if (ids.has(id)) next.add(id)
-          }
-          return next
-        })
-        setError(null)
-        setLoading(false)
-        const busy = rows.some((r) => r.status === "pending" || r.status === "running")
-        if (busy) {
-          timer = window.setTimeout(load, 2500)
-        }
-      } catch (err) {
-        if (cancelled) return
-        setError(err instanceof ApiError ? err.message : t("reports.list.loadError"))
-        setLoading(false)
-        timer = window.setTimeout(load, 5000)
+    setSelected((prev) => {
+      const ids = new Set(reports.map((r) => r.id))
+      const next = new Set<string>()
+      for (const id of prev) {
+        if (ids.has(id)) next.add(id)
       }
-    }
-
-    void load()
-    return () => {
-      cancelled = true
-      if (timer != null) window.clearTimeout(timer)
-    }
-  }, [t])
+      return next
+    })
+  }, [reports])
 
   const allSelected = useMemo(
     () => reports.length > 0 && reports.every((r) => selected.has(r.id)),
@@ -166,7 +143,6 @@ export function ReportsPage() {
     setDeleting(true)
     try {
       await deleteReport(id)
-      setReports((prev) => prev.filter((r) => r.id !== id))
       setSelected((prev) => {
         const next = new Set(prev)
         next.delete(id)
@@ -187,8 +163,6 @@ export function ReportsPage() {
     setDeleting(true)
     try {
       const result = await bulkDeleteReports(ids)
-      const gone = new Set(result.deleted_ids)
-      setReports((prev) => prev.filter((r) => !gone.has(r.id)))
       setSelected(new Set())
       setConfirmBulk(false)
       showToast(t("reports.list.deletedMany", { count: result.deleted_ids.length }))

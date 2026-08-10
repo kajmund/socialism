@@ -20,9 +20,24 @@ from app.database.session import get_session
 from app.llm import set_text_completer, set_text_streamer, set_tools_completer
 from app.main import create_app
 from app.services import jobs as jobs_service
-from app.services.help_chat import list_help_messages, stream_help_chat_turn
+from app.services.help_chat import (
+    ChatTurnError,
+    list_help_messages,
+    looks_like_leaked_tool_markup,
+    stream_help_chat_turn,
+)
 from app.services.okf_corpus import search_manual
 from app.services.prompt_store import ensure_default_configurations
+
+
+def test_looks_like_leaked_tool_markup_detects_dsml_and_invoke():
+    assert looks_like_leaked_tool_markup(
+        "Låt mig hämta metadata.\n\n<invoke name=\"scb_get_table_meta\">"
+    )
+    assert looks_like_leaked_tool_markup("… DSML tool_calls …")
+    assert not looks_like_leaked_tool_markup(
+        "Norrköping har ungefär lika många kvinnor och män enligt SCB."
+    )
 
 
 @pytest.fixture
@@ -140,52 +155,6 @@ def test_help_chat_websocket_streams(help_client):
         assert tools_calls["count"] >= 1
 
 
-def test_help_chat_websocket_ground_population(help_client):
-    client, _loop, _factory, tools_calls = help_client
-    session_id = "test-help-scb-session"
-    view = {
-        "path": "/populations/new",
-        "view_key": "populations.new",
-        "label": "Population — ny",
-        "params": {},
-        "search": {},
-    }
-
-    with client.websocket_connect("/ws/chat") as ws:
-        ws.send_json(
-            {
-                "type": "hello",
-                "scope": "help",
-                "session_id": session_id,
-                "locale": "sv",
-                "view": view,
-            }
-        )
-        assert ws.receive_json()["type"] == "ready"
-
-        ws.send_json(
-            {
-                "type": "send",
-                "message": "Grounda ålder för Uppsala",
-                "view": view,
-                "ground_population": True,
-            }
-        )
-        assert ws.receive_json() == {"type": "typing", "on": True}
-
-        done = None
-        for _ in range(10):
-            event = ws.receive_json()
-            if event["type"] == "done":
-                done = event
-                break
-            if event["type"] == "error":
-                pytest.fail(event["detail"])
-
-        assert done is not None
-        assert tools_calls["count"] >= 1
-
-
 def test_help_messages_rest(help_client):
     client, loop, factory, _tools_calls = help_client
     session_id = "rest-help-session"
@@ -217,3 +186,106 @@ def test_help_messages_rest(help_client):
             return await list_help_messages(session, session_id)
 
     assert loop.run_until_complete(_list_empty()) == []
+
+
+def test_help_chat_rejects_leaked_tool_markup_as_final_reply(help_client):
+    _client, loop, factory, _tools_calls = help_client
+    session_id = "leak-help-session"
+    leaked = (
+        "Jag måste få rätt variabelnamn.\n"
+        '<invoke name="scb_get_table_meta">'
+        '<parameter name="table_id">TAB6570</parameter>'
+        "</invoke>"
+    )
+
+    class _LeakedToolMessage:
+        content = leaked
+        tool_calls = None
+
+    async def _leaked_tools(_messages: list[dict[str, object]], _tools: list | None = None):
+        return _LeakedToolMessage()
+
+    async def _leaked_stream(_messages: list[dict[str, str]]):
+        yield leaked
+
+    set_tools_completer(_leaked_tools)
+    set_text_streamer(_leaked_stream)
+
+    async def _run() -> None:
+        async with factory() as session:
+            with pytest.raises(ChatTurnError, match="invalid reply"):
+                async for _ in stream_help_chat_turn(
+                    session,
+                    session_id=session_id,
+                    locale="sv",
+                    message="hur är norrköping fördelat enligt scb?",
+                ):
+                    pass
+
+    try:
+        loop.run_until_complete(_run())
+    finally:
+        # fixture teardown also clears injectors; restore safe defaults for later tests
+        async def _mock_tools(_messages: list[dict[str, object]], _tools: list | None = None):
+            class _Ok:
+                content = "Mockat hjälpssvar."
+                tool_calls = None
+
+            return _Ok()
+
+        async def _mock_stream(_messages: list[dict[str, str]]):
+            yield "Mockat hjälpssvar."
+
+        set_tools_completer(_mock_tools)
+        set_text_streamer(_mock_stream)
+
+
+def test_help_chat_streams_clean_reply_when_tool_turn_leaked(help_client):
+    _client, loop, factory, _tools_calls = help_client
+    session_id = "leak-recover-session"
+
+    class _LeakedToolMessage:
+        content = 'Låt mig kolla.\n<invoke name="scb_population_dist"></invoke>'
+        tool_calls = None
+
+    async def _leaked_tools(_messages: list[dict[str, object]], _tools: list | None = None):
+        return _LeakedToolMessage()
+
+    async def _clean_stream(_messages: list[dict[str, str]]):
+        yield "Norrköping: ungefär 50/50 kön enligt SCB."
+
+    set_tools_completer(_leaked_tools)
+    set_text_streamer(_clean_stream)
+
+    async def _run() -> str:
+        reply = ""
+        async with factory() as session:
+            async for item in stream_help_chat_turn(
+                session,
+                session_id=session_id,
+                locale="sv",
+                message="hur är norrköping fördelat?",
+            ):
+                if isinstance(item, str):
+                    reply += item
+                else:
+                    reply = item.reply
+        return reply
+
+    try:
+        reply = loop.run_until_complete(_run())
+        assert "Norrköping" in reply
+        assert "<invoke" not in reply
+    finally:
+        async def _mock_tools(_messages: list[dict[str, object]], _tools: list | None = None):
+            class _Ok:
+                content = "Mockat hjälpssvar."
+                tool_calls = None
+
+            return _Ok()
+
+        async def _mock_stream(_messages: list[dict[str, str]]):
+            yield "Mockat hjälpssvar."
+
+        set_tools_completer(_mock_tools)
+        set_text_streamer(_mock_stream)

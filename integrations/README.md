@@ -51,4 +51,4 @@ cd integrations/mcp && uv sync
 
 ## In-app help chat
 
-The admin UI includes a floating help chatbot on **every page**. It uses OKF manuals plus read-only live data. **SCB PxWebApi 2** is always available for demographic Q&A (`scb_search_tables`, `scb_get_table_meta`, `scb_query`). **`scb_population_dist`** (population recipe weights) requires the operator to check **Use SCB for population weights** first.
+The admin UI includes a floating help chatbot on **every page**. It uses OKF manuals plus read-only live data. **SCB PxWebApi 2** is always available for demographic Q&A (`scb_search_tables`, `scb_get_table_meta`, `scb_query`, `scb_population_dist`).

@@ -2,6 +2,9 @@
 
 ## 2026-08-10
 
+* **Återkoppling**: Ny menyflik där buggar, idéer och åsikter från hjälpchatten samlas; status kan sättas till pågår, klar eller arkiverad.
+* **Hjälp**: Assistenten kan spara och läsa återkoppling (inte ändra status).
+* **Hjälp**: SCB-statistik (inkl. kommunfördelning) är alltid tillgänglig i hjälpchatten; kryssrutan för populationsvikter är borttagen.
 * **Budskap**: Verkstaden stödjer endast text, endast bild och bild + text; bilder cachas med SHA256 och vision-caption som delas mellan inlägg.
 * **Budskap**: Miniatyrer vid val av cachad bild i verkstaden.
 * **Cache**: Guide utökad med bild-cache — miniatyrer, enskild borttagning och koppling till budskap.

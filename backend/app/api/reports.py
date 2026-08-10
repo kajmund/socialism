@@ -9,7 +9,6 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import HTMLResponse
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Report, Run
@@ -32,6 +31,12 @@ from app.services.report.locale import (
     download_filename,
     normalize_locale,
 )
+from app.services.report_realtime import (
+    list_reports as list_report_rows,
+    publish_report,
+    publish_reports_deleted,
+    serialize_report,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,21 +48,7 @@ def _normalize_mode(value: str | None) -> str:
 
 
 def _serialize(report: Report) -> ReportOut:
-    return ReportOut(
-        id=report.id,
-        status=report.status,  # type: ignore[arg-type]
-        title=report.title,
-        locale=normalize_locale(getattr(report, "locale", None)),
-        mode=_normalize_mode(getattr(report, "mode", None)),  # type: ignore[arg-type]
-        sources=list(report.sources or []),
-        html_path=report.html_path,
-        slots_path=report.slots_path,
-        job_id=report.job_id,
-        error=report.error,
-        created_at=report.created_at.isoformat() if report.created_at else "",
-        finished_at=report.finished_at.isoformat() if report.finished_at else None,
-        updated_at=report.updated_at.isoformat() if report.updated_at else "",
-    )
+    return serialize_report(report)
 
 
 async def _validate_sources(session: AsyncSession, body: ReportCreate) -> list[dict]:
@@ -152,6 +143,7 @@ async def create_report(
     report.updated_at = utcnow()
     await session.commit()
     await session.refresh(report)
+    await publish_report(report)
 
     jobs_service.enqueue_job(job.id)
     response.status_code = 202
@@ -164,10 +156,7 @@ async def list_reports(
     limit: int = Query(default=50, ge=1, le=100),
     session: AsyncSession = Depends(get_session),
 ) -> list[ReportOut]:
-    stmt = select(Report).order_by(Report.created_at.desc()).limit(limit)
-    if status is not None:
-        stmt = stmt.where(Report.status == status)
-    rows = list((await session.execute(stmt)).scalars().all())
+    rows = await list_report_rows(session, status=status, limit=limit)
     return [_serialize(r) for r in rows]
 
 
@@ -195,6 +184,7 @@ async def _delete_reports_by_ids(
         await session.commit()
         for report_id in deleted:
             _remove_report_artifacts(report_id)
+        await publish_reports_deleted(deleted)
     return deleted
 
 

@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
-import { deleteReport, getReport, getReportHtml, type Report } from "@/api/reports"
+import { deleteReport, getReportHtml, type Report } from "@/api/reports"
 import { AdminShell } from "@/components/layout/AdminShell"
 import { Card, CardContent } from "@/components/ui/card"
 import { useLocale, type MessageKey } from "@/i18n"
 import { ApiError } from "@/lib/api"
+import { useReportsRealtime } from "@/realtime/ReportsRealtimeProvider"
 
 const STATUS_KEY: Record<Report["status"], MessageKey> = {
   pending: "reports.status.pending",
@@ -41,40 +42,21 @@ export function ReportPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { t } = useLocale()
-  const [report, setReport] = useState<Report | null>(null)
+  const { reports, status: wsStatus, connected } = useReportsRealtime()
+  const report = id ? reports.find((r) => r.id === id) ?? null : null
   const [html, setHtml] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
   const [htmlError, setHtmlError] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
-  useEffect(() => {
-    if (!id) return
-    let cancelled = false
-    let timer: number | undefined
-
-    async function load() {
-      try {
-        const row = await getReport(id!)
-        if (cancelled) return
-        setReport(row)
-        setError(null)
-        if (row.status === "pending" || row.status === "running") {
-          timer = window.setTimeout(load, 2000)
-        }
-      } catch (err) {
-        if (cancelled) return
-        setError(err instanceof ApiError ? err.message : t("reports.loadError"))
-        timer = window.setTimeout(load, 5000)
-      }
-    }
-
-    void load()
-    return () => {
-      cancelled = true
-      if (timer != null) window.clearTimeout(timer)
-    }
-  }, [id, t])
+  const error =
+    actionError ??
+    (id && report == null && !connected && wsStatus === "closed"
+      ? t("reports.loadError")
+      : id && report == null && wsStatus === "open"
+        ? t("reports.loadError")
+        : null)
 
   useEffect(() => {
     if (!report || report.status !== "succeeded") {
@@ -121,7 +103,7 @@ export function ReportPage() {
     } catch (err) {
       setDeleting(false)
       setConfirmDelete(false)
-      setError(err instanceof ApiError ? err.message : t("common.deleteError"))
+      setActionError(err instanceof ApiError ? err.message : t("common.deleteError"))
     }
   }
 

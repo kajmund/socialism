@@ -101,6 +101,7 @@ const VIEW_MATCHES: ViewMatch[] = [
   },
   { test: (p) => p === "/tools", key: "help.views.tools", viewKey: "tools.home" },
   { test: (p) => p === "/jobs", key: "help.views.jobs", viewKey: "jobs.list" },
+  { test: (p) => p === "/feedback", key: "help.views.feedback", viewKey: "feedback.list" },
   {
     test: (p) => /^\/reports\/[^/]+$/.test(p),
     key: "help.views.report",
