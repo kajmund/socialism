@@ -174,6 +174,52 @@ async def test_publish_requires_acknowledgement_for_low_accuracy(client, monkeyp
     assert ok.json()["calibration_publish_override"] is True
 
 
+async def test_publish_blocks_accuracy_below_40_even_with_acknowledge(client, monkeypatch):
+    create = await client.post(
+        "/anchor-sets",
+        json={
+            "name": "very_low_acc",
+            "kind": "tone",
+            "locale": "sv",
+            "labels": [
+                "Starkt negativ",
+                "Något negativ",
+                "Neutral",
+                "Något positiv",
+                "Starkt positiv",
+            ],
+            "statements": ["a", "b", "c", "d", "e"],
+        },
+    )
+    anchor_id = create.json()["id"]
+    labels = create.json()["labels"]
+    await _seed_calibration(client, anchor_id, labels)
+
+    async def _fake_run(session, row, *, temperature, persist=True):
+        return {
+            "macro_accuracy": 0.10,
+            "missing_labels": [],
+            "calibration_count": MIN_CALIBRATION_ITEMS,
+        }
+
+    monkeypatch.setattr(
+        "app.services.anchor_calibration.run_calibration_test",
+        _fake_run,
+    )
+
+    blocked = await client.post(f"/anchor-sets/{anchor_id}/publish", json={})
+    assert blocked.status_code == 400
+    assert blocked.json()["detail"]["code"] == "accuracy_too_low"
+    assert blocked.json()["detail"]["requires_acknowledgement"] is False
+
+    still_blocked = await client.post(
+        f"/anchor-sets/{anchor_id}/publish",
+        json={"acknowledge_warnings": True},
+    )
+    assert still_blocked.status_code == 400
+    assert still_blocked.json()["detail"]["code"] == "accuracy_too_low"
+
+
 async def test_calibration_and_test_with_human_labels(client, calibration_embedder):
     labels = [
         "Starkt negativ",
