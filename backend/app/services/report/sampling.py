@@ -114,6 +114,28 @@ def _cap_round_robin(
     return selected
 
 
+def collect_all_reactions_for_ssr(bundle: RunBundle) -> SamplingResult:
+    """Return every eligible reaction text (no stratified cap)."""
+    rows = _collect_reactions(bundle)
+    agent_count = len({row.user_id for row in rows})
+    meta = {
+        "method": "all",
+        "version": SAMPLING_VERSION,
+        "max_texts": None,
+        "max_per_agent": None,
+        "seed": None,
+        "eligible_count": len(rows),
+        "selected_count": len(rows),
+        "agent_count": agent_count,
+    }
+    return SamplingResult(
+        texts=[row.text for row in rows],
+        likes=[row.likes for row in rows],
+        user_ids=[row.user_id for row in rows],
+        meta=meta,
+    )
+
+
 def sample_reactions_for_ssr(
     bundle: RunBundle,
     *,

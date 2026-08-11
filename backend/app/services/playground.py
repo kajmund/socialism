@@ -88,6 +88,7 @@ async def rate_case(
     temperature: float,
     human_labels: list[str] | None,
     anchor_vectors: list[list[float]] | None = None,
+    embed_texts: list[str] | None = None,
 ) -> dict:
     anchor_set = resolve_anchor_set(
         dimension=dimension,
@@ -98,8 +99,12 @@ async def rate_case(
     if human_labels is not None and len(human_labels) != len(texts):
         raise ValueError("human_labels must match texts length")
 
+    to_embed = embed_texts if embed_texts is not None else texts
+    if len(to_embed) != len(texts):
+        raise ValueError("embed_texts must match texts length")
+
     result = await rate_texts(
-        texts,
+        to_embed,
         anchor_set,
         temperature=temperature,
         anchor_vectors=anchor_vectors,
