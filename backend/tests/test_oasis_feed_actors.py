@@ -54,6 +54,31 @@ def _make_db(path: Path) -> None:
             comment_id INTEGER,
             created_at TEXT
         );
+        CREATE TABLE follow (
+            follow_id INTEGER PRIMARY KEY,
+            follower_id INTEGER,
+            followee_id INTEGER,
+            created_at TEXT
+        );
+        CREATE TABLE mute (
+            mute_id INTEGER PRIMARY KEY,
+            muter_id INTEGER,
+            mutee_id INTEGER,
+            created_at TEXT
+        );
+        CREATE TABLE report (
+            report_id INTEGER PRIMARY KEY,
+            user_id INTEGER,
+            post_id INTEGER,
+            report_reason TEXT,
+            created_at TEXT
+        );
+        CREATE TABLE trace (
+            user_id INTEGER,
+            created_at TEXT,
+            action TEXT,
+            info TEXT
+        );
         INSERT INTO post VALUES (1, 0, NULL, 'Original', NULL, 't', 2, 1, 1);
         INSERT INTO post VALUES (2, 3, 1, 'Original', '', 't', 0, 0, 0);
         INSERT INTO post VALUES (3, 4, 1, 'Original', 'Citat', 't', 0, 0, 0);
