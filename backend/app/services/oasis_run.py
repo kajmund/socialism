@@ -9,7 +9,7 @@ import argparse
 import asyncio
 import logging
 import secrets
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -43,9 +43,8 @@ from app.services.oasis_profiles import (
     build_run_profiles,
     injection_has_content,
     injector_key,
-    write_reddit_profile_json,
-    write_twitter_profile_csv,
 )
+from app.services.simulation.platforms import get_platform_driver
 from app.services.oasis_swedish import (
     apply_swedish_social_environment_prompts,
     set_oasis_user_display_names,
@@ -272,34 +271,6 @@ def _read_oasis_results(db_path: Path) -> dict[str, Any]:
     return read_oasis_results(db_path)
 
 
-def _make_reddit_env(agent_graph: Any, db_path: Path, sim_start: date) -> Any:
-    """Build OasisEnv with Reddit recsys + discrete scenario clock."""
-    import oasis
-    from oasis.environment.env import OasisEnv
-    from oasis.social_platform.channel import Channel
-    from oasis.social_platform.platform import Platform
-
-    channel = Channel()
-    clock = OasisScenarioClock(sim_start)
-    sim_start_dt = datetime.combine(sim_start, datetime.min.time())
-    platform = Platform(
-        db_path=str(db_path),
-        channel=channel,
-        sandbox_clock=clock,
-        start_time=sim_start_dt,
-        recsys_type="reddit",
-        allow_self_rating=True,
-        show_score=True,
-        max_rec_post_len=100,
-        refresh_rec_post_count=5,
-    )
-    return OasisEnv(
-        agent_graph=agent_graph,
-        platform=platform,
-        database_path=str(db_path),
-    )
-
-
 async def run_oasis_simulation(
     *,
     run_id: int,
@@ -324,11 +295,9 @@ async def run_oasis_simulation(
     settings.apply_oasis_env()
 
     # Deferred: camel-oasis is an optional extra and may not be installed.
-    import oasis
     from camel.models import ModelFactory
     from camel.types import ModelPlatformType
     from oasis import ActionType, LLMAction, ManualAction
-    from oasis import generate_reddit_agent_graph, generate_twitter_agent_graph
 
     from app.services import jobs as jobs_service
     from app.services.prompt_store import (
@@ -379,15 +348,6 @@ async def run_oasis_simulation(
             raise OasisUnavailable("Population has no members to simulate")
 
         art = _artifact_dir(run_id, variant_id)
-        profile_csv: str | None = None
-        profile_json: str | None = None
-        if platform == "reddit":
-            profile_path = write_reddit_profile_json(profiles, art / "profiles.json")
-            profile_json = str(profile_path)
-        else:
-            profile_path = write_twitter_profile_csv(profiles, art / "profiles.csv")
-            profile_csv = str(profile_path)
-
         db_path = art / "simulation.db"
         if db_path.exists():
             db_path.unlink()
@@ -408,28 +368,20 @@ async def run_oasis_simulation(
         ]
 
         sim_start = simulation_start or DEFAULT_SIMULATION_START
-        scenario_clock: OasisScenarioClock | None = None
-
-        if platform == "reddit":
-            agent_graph = await generate_reddit_agent_graph(
-                profile_path=str(profile_path),
-                model=model,
-                available_actions=available_actions,
-            )
-            env = _make_reddit_env(agent_graph, db_path, sim_start)
-            if isinstance(env.platform.sandbox_clock, OasisScenarioClock):
-                scenario_clock = env.platform.sandbox_clock
-        else:
-            agent_graph = await generate_twitter_agent_graph(
-                profile_path=str(profile_path),
-                model=model,
-                available_actions=available_actions,
-            )
-            env = oasis.make(
-                agent_graph=agent_graph,
-                platform=oasis.DefaultPlatformType.TWITTER,
-                database_path=str(db_path),
-            )
+        driver = get_platform_driver(platform)
+        setup = await driver.setup(
+            profiles=profiles,
+            art=art,
+            db_path=db_path,
+            model=model,
+            available_actions=available_actions,
+            sim_start=sim_start,
+        )
+        env = setup.env
+        agent_graph = setup.agent_graph
+        scenario_clock = setup.scenario_clock
+        profile_csv = setup.profile_csv
+        profile_json = setup.profile_json
 
         apply_population_agent_tools(agent_graph, population_indices, options)
 

@@ -17,7 +17,7 @@ simulate_run() / jobs                    ← product orchestration (stable)
             ├── simulation/llm_runtime.py        ← Fas A+D ✓
             ├── simulation/agent_tool_policy.py  ← Fas D ✓
             ├── simulation/artifact/               ← Fas C ✓
-            ├── simulation/platforms/              ← Fas E (planned)
+            ├── simulation/platforms/              ← Fas E ✓
             └── oasis_swedish.py                   ← Swedish env prompts (DB-driven, keep)
 ```
 
@@ -38,7 +38,7 @@ There are **no documented extension hooks** for LLM tool recording or per-round 
 | **B** | `simulation/action_catalog.py` — ActionType names, trace strings, engagement classes, social vs external tools | Done |
 | **A + D** | Unified LLM runtime (DeepSeek + tool trace) + `CamelCommentToolPolicy`; per-run `camel_llm_runtime()` with refcount restore | Done |
 | **C** | `simulation/artifact/` — all `simulation.db` SQL behind typed reader | Done |
-| **E** | `PlatformDriver` (Twitter/Reddit), MBTI fix, optional Reddit smoke | Planned |
+| **E** | `PlatformDriver` (Twitter/Reddit), optional MBTI from persona profile, Reddit smoke | Done |
 | **F** | Stratified sampling by district + lean_key | Deferred (separate small task) |
 
 ### Fas B — action catalog
@@ -86,9 +86,13 @@ There are **no documented extension hooks** for LLM tool recording or per-round 
 
 ### Fas E — platform drivers
 
-- Extract Twitter vs Reddit branching from `run_oasis_simulation()` into `simulation/platforms/`.
-- Fix hardcoded Reddit `"mbti": "ISFJ"` in profile JSON (derive from persona or omit if optional).
-- Add optional `@pytest.mark.smoke` Reddit variant.
+**Module:** `backend/app/services/simulation/platforms/`
+
+- `registry.get_platform_driver(platform)` — returns `TwitterPlatformDriver` or `RedditPlatformDriver`.
+- Each driver owns profile format (CSV vs JSON), agent graph generation, and `OasisEnv` construction.
+- `run_oasis_simulation()` delegates setup to the driver — no inline `if platform == "reddit"` branching.
+- Reddit profile JSON omits `mbti` unless the persona profile includes `mbti` (no hardcoded `"ISFJ"`).
+- Manual Reddit smoke: `tests/smoke/test_oasis_simulation_smoke_reddit.py` (`pytest -m smoke`).
 
 ## camel-oasis upgrade checklist
 
@@ -107,7 +111,8 @@ uv run pytest tests/test_action_catalog.py \
   tests/test_artifact_reader.py \
   tests/test_oasis_actions_readback.py \
   tests/test_oasis_engagement.py \
-  tests/test_oasis_swedish.py \
+  tests/test_platform_drivers.py \
+  tests/test_oasis_profiles.py \
   tests/test_oasis_tool_trace.py \
   tests/test_llm_runtime.py \
   tests/test_agent_tool_policy.py \
