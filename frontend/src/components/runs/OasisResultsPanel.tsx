@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom"
 import { createReport } from "@/api/reports"
 import { useReportsRealtime } from "@/realtime/ReportsRealtimeProvider"
 import { PersonaProfileModal } from "@/components/personas/PersonaProfileModal"
+import { RunAnchorPoolPanel } from "@/components/runs/RunAnchorPoolPanel"
 import {
   agentToolHistogram,
   agentToolsForAuthor,
@@ -1219,6 +1220,7 @@ function VariantBlock({
   onOpenNetwork,
   runId,
   attemptId,
+  anchorPoolFooter,
 }: {
   variant: OasisVariantResult
   expanded: boolean
@@ -1226,6 +1228,7 @@ function VariantBlock({
   onOpenNetwork: () => void
   runId?: number
   attemptId?: string
+  anchorPoolFooter?: ReactNode
 }) {
   const { t } = useLocale()
   const hasNetwork = variantHasNetworkActivity(variant)
@@ -1273,6 +1276,7 @@ function VariantBlock({
       {expanded ? (
         <div className="border-t border-border/60 px-3 py-3">
           <VariantBody variant={variant} runId={runId} attemptId={attemptId} />
+          {anchorPoolFooter}
         </div>
       ) : null}
     </div>
@@ -2415,6 +2419,7 @@ function AttemptBlock({
   ordering,
   branchMode,
   runId,
+  runStatus,
 }: {
   attempt: OasisAttemptResult
   index: number
@@ -2429,6 +2434,7 @@ function AttemptBlock({
   ordering?: boolean
   branchMode?: BranchMode | null
   runId?: number
+  runStatus?: string
 }) {
   const { intl, t } = useLocale()
   const variants = attempt.variants ?? []
@@ -2619,11 +2625,20 @@ function AttemptBlock({
           ) : null}
 
           {single ? (
-            <VariantBody
-              variant={variants[0]}
-              runId={runId}
-              attemptId={attempt.id}
-            />
+            <>
+              <VariantBody
+                variant={variants[0]}
+                runId={runId}
+                attemptId={attempt.id}
+              />
+              {runStatus === "done" && runId && variants[0] ? (
+                <RunAnchorPoolPanel
+                  runId={runId}
+                  attemptId={attempt.id}
+                  variantId={variants[0].id}
+                />
+              ) : null}
+            </>
           ) : (
             <div className="flex flex-col gap-2">
               {variants.map((variant) => (
@@ -2635,6 +2650,15 @@ function AttemptBlock({
                   onOpenNetwork={() => setNetworkModalVariant(variant)}
                   runId={runId}
                   attemptId={attempt.id}
+                  anchorPoolFooter={
+                    runStatus === "done" && runId && expandedVariantId === variant.id ? (
+                      <RunAnchorPoolPanel
+                        runId={runId}
+                        attemptId={attempt.id}
+                        variantId={variant.id}
+                      />
+                    ) : null
+                  }
                 />
               ))}
             </div>
@@ -2895,6 +2919,7 @@ export function OasisResultsPanel({
             ordering={attemptBusy}
             branchMode={branchMode}
             runId={runId}
+            runStatus={status}
           />
         )
       })}

@@ -125,3 +125,24 @@ export function testAnchorSet(
 ): Promise<AnchorTestResponse> {
   return api.post<AnchorTestResponse>(`/anchor-sets/${anchorSetId}/test`, body)
 }
+
+export type SsrAnchorPoolItem = {
+  id: number
+  anchor_set_id: number
+  label: string
+  text: string
+  source_type: "comment" | "tick_interview" | "posthoc_interview"
+  source_run_id: number | null
+  source_attempt_id: string | null
+  source_variant_id: string | null
+  source_ref: Record<string, unknown>
+  created_at: string
+}
+
+export function listPoolItems(anchorSetId: number): Promise<SsrAnchorPoolItem[]> {
+  return api.get<SsrAnchorPoolItem[]>(`/anchor-sets/${anchorSetId}/pool`)
+}
+
+export function deleteAnchorPoolItem(anchorSetId: number, itemId: number): Promise<void> {
+  return api.delete(`/anchor-sets/${anchorSetId}/pool/${itemId}`)
+}
