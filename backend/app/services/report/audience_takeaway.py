@@ -15,11 +15,7 @@ from app.services.report.persona_bio import (
     segment_value,
 )
 from app.services.report.segment_ssr import SegmentToneRow, build_segment_tone_rows
-
-_POSITIVE_STRONG = 0.40
-_POSITIVE_WEAK = 0.28
-_CRITICAL_HIGH = 0.42
-_GENDER_GAP = 0.08
+from app.services.report.thresholds import ReportThresholds, default_report_thresholds
 
 
 def _usable(rows: list[SegmentToneRow]) -> list[SegmentToneRow]:
@@ -95,7 +91,12 @@ def _rich_segment_label(
     return ", ".join(parts)
 
 
-def _pick_worst_livssituation(rows: list[SegmentToneRow]) -> SegmentToneRow | None:
+def _pick_worst_livssituation(
+    rows: list[SegmentToneRow],
+    *,
+    thresholds: ReportThresholds,
+) -> SegmentToneRow | None:
+    takeaway = thresholds.takeaway
     candidates = _usable([r for r in rows if r.dimension == "livssituation"])
     if not candidates:
         return None
@@ -104,7 +105,10 @@ def _pick_worst_livssituation(rows: list[SegmentToneRow]) -> SegmentToneRow | No
         key=lambda r: (r.positive_share - r.critical_share, r.positive_share),
     )
     worst = ranked[0]
-    if worst.positive_share <= _POSITIVE_WEAK or worst.critical_share >= _CRITICAL_HIGH:
+    if (
+        worst.positive_share <= takeaway.positive_weak
+        or worst.critical_share >= takeaway.critical_high
+    ):
         return worst
     return None
 
@@ -112,8 +116,10 @@ def _pick_worst_livssituation(rows: list[SegmentToneRow]) -> SegmentToneRow | No
 def _pick_best_highlight(
     rows: list[SegmentToneRow],
     *,
+    thresholds: ReportThresholds,
     worst: SegmentToneRow | None = None,
 ) -> SegmentToneRow | None:
+    takeaway = thresholds.takeaway
     candidates = _usable([r for r in rows if r.dimension in {"livssituation", "yrke"}])
     if not candidates:
         return None
@@ -123,16 +129,24 @@ def _pick_best_highlight(
         reverse=True,
     )
     best = ranked[0]
-    if best.positive_share >= _POSITIVE_STRONG:
+    if best.positive_share >= takeaway.positive_strong:
         return best
     if worst and worst.label != best.label:
         gap = best.positive_share - worst.positive_share
-        if gap >= 0.12 and best.positive_share >= _POSITIVE_WEAK:
+        if (
+            gap >= takeaway.segment_contrast_gap
+            and best.positive_share >= takeaway.positive_weak
+        ):
             return best
     return None
 
 
-def _gender_sentence(rows: list[SegmentToneRow], *, locale: ReportLocale) -> str | None:
+def _gender_sentence(
+    rows: list[SegmentToneRow],
+    *,
+    locale: ReportLocale,
+    gender_gap: float,
+) -> str | None:
     by_gender: dict[str, SegmentToneRow] = {}
     for row in _usable([r for r in rows if r.dimension == "kön"]):
         key = _normalize_gender(row.label)
@@ -143,7 +157,8 @@ def _gender_sentence(rows: list[SegmentToneRow], *, locale: ReportLocale) -> str
     f = by_gender["kvinna"]
     m = by_gender["man"]
     diff = f.positive_share - m.positive_share
-    if abs(diff) < _GENDER_GAP:
+    # Same semantic as diff.clear — "similar response" below threshold.
+    if abs(diff) < gender_gap:
         if locale == "en":
             return (
                 f"Women and men responded similarly "
@@ -179,7 +194,9 @@ def build_bundle_takeaway(
     classification: BundleClassification,
     *,
     locale: ReportLocale = "sv",
+    thresholds: ReportThresholds | None = None,
 ) -> str | None:
+    t = thresholds if thresholds is not None else default_report_thresholds()
     rows = build_segment_tone_rows(
         bundle,
         classification,
@@ -187,8 +204,8 @@ def build_bundle_takeaway(
         segment_keys=SUMMARY_SEGMENT_KEYS,
     )
     agent_bio = build_agent_bio_by_index(bundle)
-    worst = _pick_worst_livssituation(rows)
-    best = _pick_best_highlight(rows, worst=worst)
+    worst = _pick_worst_livssituation(rows, thresholds=t)
+    best = _pick_best_highlight(rows, thresholds=t, worst=worst)
     if not worst and not best:
         return None
 
@@ -238,10 +255,12 @@ def build_audience_takeaways(
     classifications: list[BundleClassification],
     *,
     locale: ReportLocale = "sv",
+    thresholds: ReportThresholds | None = None,
 ) -> list[str]:
+    t = thresholds if thresholds is not None else default_report_thresholds()
     paragraphs: list[str] = []
     for bundle, clf in zip(bundles, classifications, strict=True):
-        line = build_bundle_takeaway(bundle, clf, locale=locale)
+        line = build_bundle_takeaway(bundle, clf, locale=locale, thresholds=t)
         if line:
             paragraphs.append(line)
         gender_rows = build_segment_tone_rows(
@@ -250,7 +269,11 @@ def build_audience_takeaways(
             locale=locale,
             segment_keys=("kön",),
         )
-        gender_line = _gender_sentence(gender_rows, locale=locale)
+        gender_line = _gender_sentence(
+            gender_rows,
+            locale=locale,
+            gender_gap=t.diff.clear,
+        )
         if gender_line:
             if len(bundles) > 1:
                 paragraphs.append(f"{short_bundle_arm_label(bundle)}: {gender_line}")
