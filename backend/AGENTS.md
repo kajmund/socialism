@@ -96,6 +96,7 @@ CRUD for personas, populations (members + recipe/fingerprint), runs (timeline JS
 - **Prefer unit over integration.** Mock at the service boundary.
 - Fast suite uses in-memory SQLite and must stay green with no network.
 - Integration tests (when added) go behind `@pytest.mark.integration`.
+- Manual OASIS smoke (live camel-oasis + DeepSeek): `@pytest.mark.smoke` under `tests/smoke/`; run with `uv run pytest -m smoke` or `scripts/run_simulation_smoke.py` after `uv sync --extra oasis`. Default pytest excludes smoke (`addopts` in `pyproject.toml`).
 - Tests live under `tests/` mirroring the area under test.
 - Profile CSV mapping for OASIS is unit-tested without importing `camel-oasis`.
 
