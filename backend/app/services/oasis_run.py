@@ -9,8 +9,6 @@ import argparse
 import asyncio
 import logging
 import secrets
-import sqlite3
-from collections import Counter
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
@@ -58,6 +56,11 @@ from app.services.oasis_tool_trace import (
     set_oasis_tool_trace_tick,
 )
 from app.services.simulation.agent_tool_policy import CamelCommentToolPolicy
+from app.services.simulation.artifact.reader import (
+    OasisArtifactReader,
+    created_at_to_sort_key,
+    read_oasis_results,
+)
 from app.services.simulation.llm_runtime import camel_llm_runtime
 from app.services.run_log import (
     capture_run_log,
@@ -133,26 +136,8 @@ def _parse_simulation_start(raw: str | None) -> date:
 
 
 def _created_at_to_sort_key(value: Any) -> int | None:
-    """Normalize OASIS created_at (timestep int or ISO datetime) to a sortable int."""
-    if value is None:
-        return None
-    if isinstance(value, (int, float)):
-        return int(value)
-    text = str(value).strip()
-    if not text:
-        return None
-    if "-" not in text and "T" not in text and ":" not in text:
-        try:
-            return int(float(text))
-        except ValueError:
-            return None
-    try:
-        # OASIS often stores "YYYY-MM-DD HH:MM:SS.ffffff"
-        normalized = text.replace(" ", "T", 1)
-        dt = datetime.fromisoformat(normalized)
-        return int(dt.timestamp() * 1000)
-    except ValueError:
-        return None
+    """Backward-compatible alias — prefer simulation.artifact.created_at_to_sort_key."""
+    return created_at_to_sort_key(value)
 
 
 def _artifact_dir(run_id: int, variant_id: str = "main") -> Path:
@@ -251,30 +236,8 @@ def previous_attempts(results: dict[str, Any] | None) -> list[dict[str, Any]]:
 
 
 def _max_event_time(db_path: Path) -> int:
-    """Highest created_at seen in OASIS artifact (trace/post), or -1.
-
-    Twitter uses integer timesteps; Reddit uses datetime strings → epoch ms.
-    """
-    if not db_path.exists():
-        return -1
-    conn = sqlite3.connect(db_path)
-    try:
-        times: list[int] = []
-        for sql in (
-            "SELECT created_at FROM trace",
-            "SELECT created_at FROM post",
-        ):
-            try:
-                rows = conn.execute(sql).fetchall()
-            except sqlite3.OperationalError:
-                continue
-            for row in rows:
-                key = _created_at_to_sort_key(row[0] if row else None)
-                if key is not None:
-                    times.append(key)
-        return max(times) if times else -1
-    finally:
-        conn.close()
+    """Highest created_at seen in OASIS artifact (trace/post), or -1."""
+    return OasisArtifactReader(db_path).max_event_time()
 
 
 def _injection_body(injection: Injection) -> str:
@@ -304,144 +267,10 @@ async def _prepare_injection_content(injection: Injection) -> str:
     return _injection_body(injection)
 
 
-def _table_rows(
-    conn: sqlite3.Connection, sql: str
-) -> list[dict[str, Any]]:
-    try:
-        return [dict(row) for row in conn.execute(sql)]
-    except sqlite3.OperationalError:
-        return []
-
-
-def _action_histogram(trace: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    counts: Counter[str] = Counter()
-    for row in trace:
-        action = str(row.get("action") or "").strip()
-        if action:
-            counts[action] += 1
-    return [{"action": a, "count": c} for a, c in counts.most_common()]
-
-
 def _read_oasis_results(db_path: Path) -> dict[str, Any]:
-    if not db_path.exists():
-        return {
-            "posts": [],
-            "comments": [],
-            "follows": [],
-            "mutes": [],
-            "reports": [],
-            "trace": [],
-            "action_histogram": [],
-        }
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    try:
-        posts = _table_rows(
-            conn,
-            "SELECT post_id, user_id, original_post_id, content, "
-            "quote_content, num_likes, num_dislikes, num_shares, "
-            "created_at FROM post ORDER BY post_id",
-        )
-        comments = _table_rows(
-            conn,
-            "SELECT comment_id, post_id, user_id, content, "
-            "num_likes, num_dislikes, created_at FROM comment "
-            "ORDER BY comment_id",
-        )
+    """Backward-compatible alias — prefer OasisArtifactReader.export_variant_payload()."""
+    return read_oasis_results(db_path)
 
-        likes_by_post: dict[int, list[int]] = {}
-        for row in _table_rows(
-            conn, "SELECT user_id, post_id FROM like ORDER BY like_id"
-        ):
-            likes_by_post.setdefault(int(row["post_id"]), []).append(
-                int(row["user_id"])
-            )
-
-        dislikes_by_post: dict[int, list[int]] = {}
-        for row in _table_rows(
-            conn, "SELECT user_id, post_id FROM dislike ORDER BY dislike_id"
-        ):
-            dislikes_by_post.setdefault(int(row["post_id"]), []).append(
-                int(row["user_id"])
-            )
-
-        comment_likes_by_id: dict[int, list[int]] = {}
-        for row in _table_rows(
-            conn,
-            "SELECT user_id, comment_id FROM comment_like "
-            "ORDER BY comment_like_id",
-        ):
-            comment_likes_by_id.setdefault(int(row["comment_id"]), []).append(
-                int(row["user_id"])
-            )
-
-        comment_dislikes_by_id: dict[int, list[int]] = {}
-        for row in _table_rows(
-            conn,
-            "SELECT user_id, comment_id FROM comment_dislike "
-            "ORDER BY comment_dislike_id",
-        ):
-            comment_dislikes_by_id.setdefault(
-                int(row["comment_id"]), []
-            ).append(int(row["user_id"]))
-
-        # Shares = reposts + quotes (rows that point at an original post).
-        shares_by_post: dict[int, list[dict[str, Any]]] = {}
-        for post in posts:
-            original_id = post.get("original_post_id")
-            if original_id is None:
-                continue
-            quote = (post.get("quote_content") or "").strip()
-            shares_by_post.setdefault(int(original_id), []).append(
-                {
-                    "user_id": int(post["user_id"]),
-                    "kind": "quote" if quote else "repost",
-                    "share_post_id": int(post["post_id"]),
-                }
-            )
-
-        for post in posts:
-            pid = int(post["post_id"])
-            post["liked_by"] = likes_by_post.get(pid, [])
-            post["disliked_by"] = dislikes_by_post.get(pid, [])
-            post["shared_by"] = shares_by_post.get(pid, [])
-
-        for comment in comments:
-            cid = int(comment["comment_id"])
-            comment["liked_by"] = comment_likes_by_id.get(cid, [])
-            comment["disliked_by"] = comment_dislikes_by_id.get(cid, [])
-
-        follows = _table_rows(
-            conn,
-            "SELECT follow_id, follower_id, followee_id, created_at FROM follow "
-            "ORDER BY follow_id",
-        )
-        mutes = _table_rows(
-            conn,
-            "SELECT mute_id, muter_id, mutee_id, created_at FROM mute "
-            "ORDER BY mute_id",
-        )
-        reports = _table_rows(
-            conn,
-            "SELECT report_id, user_id, post_id, report_reason, created_at "
-            "FROM report ORDER BY report_id",
-        )
-        trace = _table_rows(
-            conn,
-            "SELECT user_id, created_at, action, info FROM trace "
-            "ORDER BY created_at, user_id",
-        )
-    finally:
-        conn.close()
-    return {
-        "posts": posts,
-        "comments": comments,
-        "follows": follows,
-        "mutes": mutes,
-        "reports": reports,
-        "trace": trace,
-        "action_histogram": _action_histogram(trace),
-    }
 
 def _make_reddit_env(agent_graph: Any, db_path: Path, sim_start: date) -> Any:
     """Build OasisEnv with Reddit recsys + discrete scenario clock."""

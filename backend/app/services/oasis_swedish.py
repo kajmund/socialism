@@ -9,11 +9,13 @@ Call only when the oasis extra is installed.
 from __future__ import annotations
 
 import json
-import sqlite3
 from contextvars import ContextVar
+from pathlib import Path
 from dataclasses import dataclass
 from string import Template
 from typing import Any
+
+from app.services.simulation.artifact.reader import OasisArtifactReader
 
 from app.services.prompt_catalog import render_prompt
 
@@ -126,19 +128,8 @@ def _ensure_social_environment_patched() -> None:
 
         state = _env_prompt_state()
         agent_id = self.action.agent_id
-        try:
-            db_path = get_db_path()
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT num_followers FROM user WHERE agent_id = ?",
-                (agent_id,),
-            )
-            result = cursor.fetchone()
-            num_followers = result[0] if result else 0
-            conn.close()
-        except Exception:
-            num_followers = 0
+        reader = OasisArtifactReader(Path(get_db_path()))
+        num_followers = reader.user_follower_count(agent_id)
         return state.followers_env_template.substitute(num_followers=num_followers)
 
     async def get_follows_env_sv(self) -> str:
@@ -146,19 +137,8 @@ def _ensure_social_environment_patched() -> None:
 
         state = _env_prompt_state()
         agent_id = self.action.agent_id
-        try:
-            db_path = get_db_path()
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT num_followings FROM user WHERE agent_id = ?",
-                (agent_id,),
-            )
-            result = cursor.fetchone()
-            num_followings = result[0] if result else 0
-            conn.close()
-        except Exception:
-            num_followings = 0
+        reader = OasisArtifactReader(Path(get_db_path()))
+        num_followings = reader.user_following_count(agent_id)
         return state.follows_env_template.substitute(num_follows=num_followings)
 
     async def get_posts_env_sv(self):
