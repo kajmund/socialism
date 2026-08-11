@@ -21,6 +21,9 @@ async def test_oasis_simulation_smoke(
     smoke_deepseek_key: str,
     smoke_session,
 ) -> None:
+    # Mutates process-global settings (not restored). Safe for opt-in smoke runs
+    # excluded from default pytest; avoid combining `-m smoke` with other markers
+    # in the same pytest invocation if you rely on prior settings values.
     settings.deepseek_api_key = smoke_deepseek_key
     settings.simulation_engine = "oasis"
     settings.apply_oasis_env()
