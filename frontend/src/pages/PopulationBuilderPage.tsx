@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react"
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { listCatalog, type CatalogList } from "@/api/catalog"
 import { createJob } from "@/api/jobs"
-import { getPopulation, type DistRow, type PopulationRecipe } from "@/api/populations"
+import { type DistRow, type PopulationRecipe } from "@/api/populations"
 import { AdminShell, rememberJobPending } from "@/components/layout/AdminShell"
 import { AddFromLibraryPanel } from "@/components/populations/AddFromLibraryPanel"
 import { AdminButton } from "@/components/ui/admin-button"
@@ -55,14 +55,6 @@ const CATALOG_DIST_MAP: {
   { catalogKey: "sprak", groupKey: "sprak", fallbackKey: "populations.builder.distLanguage" },
   { catalogKey: "medievanor", groupKey: "media", fallbackKey: "populations.builder.distMedia" },
 ]
-
-function mergeMissingDist(base: DistState, extras: DistState): DistState {
-  const next: DistState = { ...base }
-  for (const [key, group] of Object.entries(extras)) {
-    if (!(key in next)) next[key] = group
-  }
-  return next
-}
 
 function buildAgeGroup(t: Translator): DistGroupData {
   return {
@@ -193,14 +185,10 @@ function PrevGroup({ group }: { group: DistGroupData }) {
 
 export function PopulationBuilderPage() {
   const { t } = useLocale()
-  const { id } = useParams()
-  const [params] = useSearchParams()
   const navigate = useNavigate()
-  const editId = id && id !== "new" ? Number(id) : null
-  const isEditRecipe = !!editId || params.get("edit") === "1"
 
-  const [cur, setCur] = useState(isEditRecipe ? 2 : 1)
-  const [maxReached, setMaxReached] = useState(isEditRecipe ? 3 : 1)
+  const [cur, setCur] = useState(1)
+  const [maxReached, setMaxReached] = useState(1)
   const [popName, setPopName] = useState(() => t("populations.builder.defaultName"))
   const [popSize, setPopSize] = useState(12)
   const [dist, setDist] = useState<DistState>(() => ({
@@ -225,9 +213,7 @@ export function PopulationBuilderPage() {
     listCatalog()
       .then((lists) => {
         if (cancelled) return
-        const fromCatalog = distFromCatalog(lists, t)
-        if (!editId) setDist(fromCatalog)
-        else setDist((prev) => mergeMissingDist(prev, fromCatalog))
+        setDist(distFromCatalog(lists, t))
         setCatalogReady(true)
       })
       .catch((err: unknown) => {
@@ -241,32 +227,7 @@ export function PopulationBuilderPage() {
     return () => {
       cancelled = true
     }
-  }, [editId, t])
-
-  useEffect(() => {
-    if (!editId) return
-    let cancelled = false
-    getPopulation(editId)
-      .then((pop) => {
-        if (cancelled) return
-        setPopName(pop.name)
-        setPopSize(pop.size || pop.members.length || 12)
-        if (pop.recipe && typeof pop.recipe === "object" && "dist" in pop.recipe) {
-          const recipeDist = pop.recipe.dist as DistState
-          setDist((prev) => mergeMissingDist(recipeDist, prev))
-        }
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setLoadError(
-            err instanceof ApiError ? err.message : t("populations.builder.loadPopulationError"),
-          )
-        }
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [editId, t])
+  }, [t])
 
   function buildRecipe(): PopulationRecipe {
     return {
@@ -317,7 +278,6 @@ export function PopulationBuilderPage() {
         request: {
           name,
           recipe: buildRecipe(),
-          population_id: editId,
           include_persona_ids: selectedIds,
         },
       })
@@ -394,19 +354,6 @@ export function PopulationBuilderPage() {
             )
           })}
         </div>
-
-        {isEditRecipe && (
-          <div
-            style={{
-              font: "var(--text-body-sm)",
-              color: "var(--db-gold-700)",
-              marginBottom: 20,
-              marginTop: -16,
-            }}
-          >
-            {t("populations.builder.editBanner", { name: popName })}
-          </div>
-        )}
 
         {cur === 1 && (
           <section>

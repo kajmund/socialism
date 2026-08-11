@@ -42,6 +42,7 @@ def profile_to_generated(profile: EditablePersona, slot: SlotPlan | None = None)
         district=profile.ort or (slot.district if slot else "—"),
         occ_key=slot.occ_key if slot else "",
         district_key=slot.district_key if slot else "",
+        age_bucket=slot.age_bucket if slot else "",
         lean=lean,
         lean_label=slot.lean_label if slot else LEAN_LABEL.get(lean, lean),
         trait=trait,

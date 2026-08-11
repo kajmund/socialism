@@ -748,6 +748,12 @@ export const en: LocalizedTree<SvMessages> = {
       legendRight: "Right",
       legendCentrum: "Centre",
       legendOther: "Other",
+      achievedTitle: "Actual composition",
+      targetTitle: "Recipe at generation (target)",
+      qaTitle: "Deviation from recipe",
+      targetDiff: "achieved {achieved}%, Δ {delta} pp",
+      fingerprintInferred:
+        "Fingerprint was recomputed from existing members. Leaning may be missing until the population is regenerated — leaning deviation warnings are hidden meanwhile.",
     },
     builder: {
       stepStart: "Start",

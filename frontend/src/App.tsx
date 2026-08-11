@@ -22,6 +22,11 @@ import { ReportPage } from "@/pages/ReportPage"
 import { ReportsPage } from "@/pages/ReportsPage"
 import { RunsPage } from "@/pages/RunsPage"
 
+function RedirectPopulationEdit() {
+  const { id } = useParams<{ id: string }>()
+  return <Navigate to={`/populations/${id}`} replace />
+}
+
 function RedirectConfigurationEdit() {
   const { id } = useParams<{ id: string }>()
   return <Navigate to={`/tools/configurations/${id}/edit`} replace />
@@ -43,7 +48,7 @@ export default function App() {
         <Route path="/populations" element={<PopulationsPage />} />
         <Route path="/populations/new" element={<PopulationBuilderPage />} />
         <Route path="/populations/:id" element={<PopulationDetailPage />} />
-        <Route path="/populations/:id/edit" element={<PopulationBuilderPage />} />
+        <Route path="/populations/:id/edit" element={<RedirectPopulationEdit />} />
 
         <Route path="/messages" element={<MessagesPage />} />
         <Route path="/messages/new" element={<MessagesWorkshopPage />} />

@@ -5,9 +5,26 @@ import type {
   PopulationSummary,
 } from "@/data/library-types"
 
+export type PopulationDistQaRow = {
+  k: string
+  l: string
+  target_v: number
+  achieved_v: number
+}
+
+export type PopulationDistQaGroup = {
+  key: string
+  label: string
+  rows: PopulationDistQaRow[]
+}
+
 export type PopulationDetail = PopulationSummary & {
   recipe: Record<string, unknown>
   members: PopulationMember[]
+  target_fp: number[][]
+  qa_warnings: string[]
+  dist_qa: PopulationDistQaGroup[]
+  fingerprint_inferred: boolean
 }
 
 export type DistRow = { k: string; l: string; v: number }

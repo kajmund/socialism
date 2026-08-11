@@ -22,6 +22,8 @@ Med **populationsbyggaren** skapar du en ny population steg för steg: namn och 
 
 Vid redigering av recept sparas genereringen som en **ny version** av populationen.
 
+**Obs:** Recept på en befintlig population kan inte längre redigeras i efterhand. Skapa en ny population om du vill prova andra fördelningar.
+
 ## Relaterade guider
 
 - [Hantera populationer](hantera-populationer.md)
