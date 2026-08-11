@@ -7,6 +7,8 @@ import {
   publishAnchorSet,
   type AnchorKind,
   type AnchorLocale,
+  type AnchorPublishGateDetail,
+  type AnchorValidationStatus,
   type SsrAnchorSet,
 } from "@/api/anchorSets"
 import { AdminButton } from "@/components/ui/admin-button"
@@ -24,6 +26,32 @@ function statusLabel(status: SsrAnchorSet["status"], t: Translate): string {
   return status === "published"
     ? t("anchorSets.statusPublished")
     : t("anchorSets.statusDraft")
+}
+
+function validationLabel(status: AnchorValidationStatus, t: Translate): string {
+  switch (status) {
+    case "ok":
+      return t("anchorSets.validation.ok")
+    case "stale":
+      return t("anchorSets.validation.stale")
+    case "low":
+      return t("anchorSets.validation.low")
+    case "untested":
+      return t("anchorSets.validation.untested")
+    default: {
+      const _exhaustive: never = status
+      return _exhaustive
+    }
+  }
+}
+
+function isPublishGateDetail(body: unknown): body is AnchorPublishGateDetail {
+  return (
+    typeof body === "object" &&
+    body !== null &&
+    "code" in body &&
+    "requires_acknowledgement" in body
+  )
 }
 
 export function AnchorSetsPage() {
@@ -69,6 +97,28 @@ export function AnchorSetsPage() {
       setRows((prev) => prev.map((r) => (r.id === id ? updated : r)))
       setToast(t("anchorSets.list.published"))
     } catch (err: unknown) {
+      if (err instanceof ApiError && err.status === 409 && isPublishGateDetail(err.body)) {
+        const gate = err.body
+        const pct =
+          gate.accuracy != null ? Math.round(gate.accuracy * 1000) / 10 : null
+        const confirmed = window.confirm(
+          t("anchorSets.list.publishConfirm", {
+            detail: gate.detail,
+            pct: pct != null ? String(pct) : "—",
+            missing: gate.missing_labels.join(", ") || "—",
+          }),
+        )
+        if (!confirmed) return
+        try {
+          const updated = await publishAnchorSet(id, { acknowledge_warnings: true })
+          setRows((prev) => prev.map((r) => (r.id === id ? updated : r)))
+          setToast(t("anchorSets.list.publishedWithOverride"))
+          return
+        } catch (retryErr: unknown) {
+          setError(retryErr instanceof ApiError ? retryErr.message : t("common.saveError"))
+          return
+        }
+      }
       setError(err instanceof ApiError ? err.message : t("common.saveError"))
     }
   }
@@ -150,8 +200,23 @@ export function AnchorSetsPage() {
                       {statusLabel(row.status, t)}
                     </span>
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    {t("anchorSets.list.labelCount", { count: row.labels.length })}
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <span>{t("anchorSets.list.labelCount", { count: row.labels.length })}</span>
+                    <span>·</span>
+                    <span>{t("anchorSets.list.calibrationCount", { count: row.calibration_item_count })}</span>
+                    {row.calibration_accuracy != null ? (
+                      <>
+                        <span>·</span>
+                        <span>
+                          {t("anchorSets.list.macroAccuracy", {
+                            pct: Math.round(row.calibration_accuracy * 1000) / 10,
+                          })}
+                        </span>
+                      </>
+                    ) : null}
+                    <span className="rounded-full border px-2 py-0.5 text-[10px]">
+                      {validationLabel(row.validation_status, t)}
+                    </span>
                   </div>
                   <div className="flex flex-wrap gap-2 pt-2">
                     <Link className="primary text-sm" to={`/tools/anchor-sets/${row.id}/edit`}>

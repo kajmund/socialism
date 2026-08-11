@@ -16,6 +16,8 @@ from app.schemas.domain import (
     SsrAnchorCalibrationItemUpdate,
     SsrAnchorPoolItemCreate,
     SsrAnchorPoolItemOut,
+    SsrAnchorPublishGateDetail,
+    SsrAnchorPublishRequest,
     SsrAnchorSetCreate,
     SsrAnchorSetOut,
     SsrAnchorSetUpdate,
@@ -23,6 +25,15 @@ from app.schemas.domain import (
     format_date,
 )
 from app.serializers import utcnow
+from app.services.anchor_calibration import (
+    PublishGateError,
+    assert_publish_allowed,
+    calibration_validation_status,
+    clear_calibration_results,
+    finalize_publish_calibration,
+    run_calibration_test,
+    validation_snapshot,
+)
 from app.services.anchor_pool import (
     AnchorPoolError,
     add_pool_item,
@@ -37,6 +48,7 @@ from app.services.anchor_store import (
     validate_anchor_payload,
 )
 from app.services.playground import rate_case
+from app.services.prompt_store import get_active_configuration
 from app.services.ssr import rate_texts
 
 router = APIRouter(prefix="/anchor-sets", tags=["anchor-sets"])
@@ -48,7 +60,12 @@ def _dt(value: datetime | None) -> str:
     return value.isoformat()
 
 
-def _serialize(row: SsrAnchorSet) -> SsrAnchorSetOut:
+async def _serialize(
+    session: AsyncSession,
+    row: SsrAnchorSet,
+) -> SsrAnchorSetOut:
+    items = await calibration_items(session, row.id)
+    count = len(items)
     return SsrAnchorSetOut(
         id=row.id,
         name=row.name,
@@ -59,8 +76,37 @@ def _serialize(row: SsrAnchorSet) -> SsrAnchorSetOut:
         statements=[str(x) for x in (row.statements or [])],
         status=row.status,  # type: ignore[arg-type]
         pool_revision=int(row.pool_revision or 0),
+        calibration_accuracy=row.calibration_accuracy,
+        calibration_tested_at=_dt(row.calibration_tested_at) or None,
+        calibration_pool_revision=row.calibration_pool_revision,
+        calibration_n_at_test=row.calibration_n_at_test,
+        calibration_publish_override=bool(row.calibration_publish_override),
+        calibration_item_count=count,
+        validation_status=calibration_validation_status(row, calibration_count=count),
         created_at=_dt(row.created_at),
         updated_at=_dt(row.updated_at),
+    )
+
+
+async def _active_ssr_temperature(session: AsyncSession) -> float:
+    config = await get_active_configuration(session)
+    if config is None:
+        return 0.1
+    return float(config.ssr_temperature)
+
+
+def _publish_gate_http(exc: PublishGateError) -> HTTPException:
+    status = 409 if exc.requires_acknowledgement else 400
+    return HTTPException(
+        status_code=status,
+        detail=SsrAnchorPublishGateDetail(
+            code=exc.code,
+            detail=str(exc),
+            accuracy=exc.accuracy,
+            missing_labels=exc.missing_labels,
+            calibration_count=exc.calibration_count,
+            requires_acknowledgement=exc.requires_acknowledgement,
+        ).model_dump(),
     )
 
 
@@ -134,7 +180,7 @@ async def list_anchor_sets(
     if status is not None:
         stmt = stmt.where(SsrAnchorSet.status == status)
     result = await session.execute(stmt)
-    return [_serialize(row) for row in result.scalars().all()]
+    return [await _serialize(session, row) for row in result.scalars().all()]
 
 
 @router.get("/{anchor_set_id}", response_model=SsrAnchorSetOut)
@@ -142,7 +188,7 @@ async def get_anchor_set(
     anchor_set_id: int,
     session: AsyncSession = Depends(get_session),
 ) -> SsrAnchorSetOut:
-    return _serialize(await _get_row(session, anchor_set_id))
+    return await _serialize(session, await _get_row(session, anchor_set_id))
 
 
 @router.post("", response_model=SsrAnchorSetOut, status_code=201)
@@ -174,7 +220,7 @@ async def create_anchor_set(
     session.add(row)
     await session.commit()
     await session.refresh(row)
-    return _serialize(row)
+    return await _serialize(session, row)
 
 
 @router.patch("/{anchor_set_id}", response_model=SsrAnchorSetOut)
@@ -207,12 +253,13 @@ async def update_anchor_set(
     row.updated_at = utcnow()
     await session.commit()
     await session.refresh(row)
-    return _serialize(row)
+    return await _serialize(session, row)
 
 
 @router.post("/{anchor_set_id}/publish", response_model=SsrAnchorSetOut)
 async def publish_anchor_set(
     anchor_set_id: int,
+    body: SsrAnchorPublishRequest | None = None,
     session: AsyncSession = Depends(get_session),
 ) -> SsrAnchorSetOut:
     row = await _get_row(session, anchor_set_id)
@@ -225,11 +272,52 @@ async def publish_anchor_set(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    acknowledge = bool(body.acknowledge_warnings) if body is not None else False
+    temperature = await _active_ssr_temperature(session)
+    try:
+        await assert_publish_allowed(
+            session,
+            row,
+            temperature=temperature,
+            acknowledge_warnings=acknowledge,
+        )
+    except PublishGateError as exc:
+        raise _publish_gate_http(exc) from exc
+
+    await finalize_publish_calibration(
+        session,
+        row,
+        temperature=temperature,
+        acknowledge_warnings=acknowledge,
+    )
     row.status = "published"
     row.updated_at = utcnow()
     await session.commit()
     await session.refresh(row)
-    return _serialize(row)
+    return await _serialize(session, row)
+
+
+@router.post("/{anchor_set_id}/calibration/run")
+async def run_anchor_calibration(
+    anchor_set_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Run calibration test against centroid anchors and persist metrics."""
+    row = await _get_row(session, anchor_set_id)
+    temperature = await _active_ssr_temperature(session)
+    try:
+        result = await run_calibration_test(
+            session,
+            row,
+            temperature=temperature,
+            persist=True,
+        )
+    except PublishGateError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    row.updated_at = utcnow()
+    await session.commit()
+    return result
 
 
 @router.post("/{anchor_set_id}/duplicate", response_model=SsrAnchorSetOut, status_code=201)
@@ -264,7 +352,7 @@ async def duplicate_anchor_set(
         )
     await session.commit()
     await session.refresh(row)
-    return _serialize(row)
+    return await _serialize(session, row)
 
 
 @router.delete("/{anchor_set_id}", status_code=204)
@@ -316,6 +404,8 @@ async def create_calibration_item(
         created_at=utcnow(),
     )
     session.add(item)
+    clear_calibration_results(row)
+    row.updated_at = utcnow()
     await session.commit()
     await session.refresh(item)
     return _serialize_calibration(item)
@@ -345,6 +435,8 @@ async def update_calibration_item(
             )
     for key, value in data.items():
         setattr(item, key, value)
+    clear_calibration_results(row)
+    row.updated_at = utcnow()
     await session.commit()
     await session.refresh(item)
     return _serialize_calibration(item)
@@ -360,7 +452,10 @@ async def delete_calibration_item(
     item = await session.get(SsrAnchorCalibrationItem, item_id)
     if item is None or item.anchor_set_id != anchor_set_id:
         raise HTTPException(status_code=404, detail="Calibration item not found")
+    row = await _get_row(session, anchor_set_id)
     await session.delete(item)
+    clear_calibration_results(row)
+    row.updated_at = utcnow()
     await session.commit()
 
 
@@ -386,7 +481,7 @@ async def test_anchor_set(
     anchor = row_to_anchor_set(row)
     anchor_vectors = await centroid_vectors_for_set(session, row)
     if human_labels is not None:
-        return await rate_case(
+        result = await rate_case(
             texts,
             dimension=row.kind,  # type: ignore[arg-type]
             locale=row.locale,
@@ -394,7 +489,9 @@ async def test_anchor_set(
             statements=list(anchor.statements),
             temperature=body.temperature,
             human_labels=human_labels,
+            anchor_vectors=anchor_vectors,
         )
+        return result
 
     result = await rate_texts(
         texts,

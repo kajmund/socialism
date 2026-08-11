@@ -31,6 +31,82 @@ _PROVOCATIVE = "Provocerande / konfronterande"
 DiffBand = Literal["clear", "weak", "none"]
 
 
+def _validation_issue_lines(
+    validation: dict[str, Any] | None,
+    *,
+    locale: ReportLocale,
+) -> list[str]:
+    if not validation:
+        return []
+    lines: list[str] = []
+    for key in ("tone", "style"):
+        block = validation.get(key)
+        if not isinstance(block, dict):
+            continue
+        status = str(block.get("validation_status") or "")
+        if status not in ("untested", "stale", "low"):
+            continue
+        name = str(block.get("name") or key)
+        accuracy = block.get("accuracy")
+        acc_txt = ""
+        if isinstance(accuracy, (int, float)):
+            acc_txt = f" ({accuracy:.0%})" if locale == "en" else f" ({accuracy:.0%})"
+        if locale == "en":
+            kind = "Tone" if key == "tone" else "Style"
+            if status == "untested":
+                lines.append(f"{kind} anchors «{name}» have not been calibration-tested.")
+            elif status == "stale":
+                lines.append(
+                    f"{kind} anchors «{name}» are stale (pool or corpus changed since last test)."
+                )
+            else:
+                lines.append(
+                    f"{kind} anchors «{name}» have low macro-accuracy{acc_txt} (<55%)."
+                )
+        else:
+            kind = "Ton" if key == "tone" else "Stil"
+            if status == "untested":
+                lines.append(f"{kind}ankare «{name}» har inte kalibreringstestats.")
+            elif status == "stale":
+                lines.append(
+                    f"{kind}ankare «{name}» är inaktuella (pool eller korpus ändrad sedan senaste test)."
+                )
+            else:
+                lines.append(
+                    f"{kind}ankare «{name}» har låg macro-träffsäkerhet{acc_txt} (<55%)."
+                )
+    return lines
+
+
+def build_anchor_validation_html(
+    validation: dict[str, Any] | None,
+    *,
+    locale: ReportLocale,
+) -> str:
+    lines = _validation_issue_lines(validation, locale=locale)
+    if not lines:
+        return ""
+    if locale == "en":
+        title = "SSR anchor validation warning"
+        intro = (
+            "Tone and style shares below rely on anchors that are untested, stale, "
+            "or below the calibration accuracy target. Treat percentages as indicative, not ground truth."
+        )
+    else:
+        title = "Varning: SSR-ankarkalibrering"
+        intro = (
+            "Ton- och stilandelar nedan bygger på ankare som är otestade, inaktuella "
+            "eller under kalibreringsmålet. Behandla procenten som vägledande, inte som sanning."
+        )
+    items = "".join(f"<li>{escape(line)}</li>" for line in lines)
+    return (
+        f'<div class="ag-warn ssr-validation-warning" role="note">'
+        f"<p><strong>{escape(title)}</strong> — {escape(intro)}</p>"
+        f"<ul>{items}</ul>"
+        f"</div>"
+    )
+
+
 def _diff_band(diff: float) -> DiffBand:
     """Bucket a relative difference into clear / weak / no meaningful gap."""
     if diff >= _DIFF_CLEAR:
@@ -327,6 +403,7 @@ def build_quick_slots(
     metrics: ReportMetrics,
     locale: ReportLocale,
     timing: dict[str, Any],
+    anchor_validation: dict[str, Any] | None = None,
 ) -> dict[str, str]:
     drift_bits = [
         _topic_share_by_day_half(b, c)
@@ -415,6 +492,7 @@ def build_quick_slots(
     return {
         "page_title": page_title,
         "eyebrow": eyebrow,
+        "validation_html": build_anchor_validation_html(anchor_validation, locale=locale),
         "drift_html": drift_html,
         "ab_html": ab_html or (
             f"<p>{'Single run — no A/B comparison.' if locale == 'en' else 'En körning — ingen A/B-jämförelse.'}</p>"
@@ -471,6 +549,7 @@ def render_quick_html(slots: dict[str, str], *, locale: ReportLocale) -> str:
 <div class="wrap">
   <div class="eyebrow">{escape(slots.get("eyebrow", ""))}</div>
   <h1>{escape(slots.get("page_title", ""))}</h1>
+  {slots.get("validation_html", "")}
   {slots.get("recommendation_html", "")}
   <section>
     <h3>{h_stats}</h3>

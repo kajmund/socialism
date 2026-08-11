@@ -4,6 +4,8 @@ export type AnchorKind = "tone" | "style"
 export type AnchorLocale = "sv" | "en"
 export type AnchorStatus = "draft" | "published"
 
+export type AnchorValidationStatus = "untested" | "ok" | "stale" | "low"
+
 export type SsrAnchorSet = {
   id: number
   name: string
@@ -13,8 +15,25 @@ export type SsrAnchorSet = {
   labels: string[]
   statements: string[]
   status: AnchorStatus
+  pool_revision: number
+  calibration_accuracy: number | null
+  calibration_tested_at: string | null
+  calibration_pool_revision: number | null
+  calibration_n_at_test: number | null
+  calibration_publish_override: boolean
+  calibration_item_count: number
+  validation_status: AnchorValidationStatus
   created_at: string
   updated_at: string
+}
+
+export type AnchorPublishGateDetail = {
+  code: string
+  detail: string
+  accuracy: number | null
+  missing_labels: string[]
+  calibration_count: number
+  requires_acknowledgement: boolean
 }
 
 export type SsrAnchorSetWrite = {
@@ -66,6 +85,7 @@ export type AnchorTestResponse = {
   per_text: AnchorTestPerText[]
   human_labels?: string[]
   accuracy?: number
+  macro_accuracy?: number
   confusion?: Record<string, Record<string, number>>
 }
 
@@ -92,8 +112,15 @@ export function updateAnchorSet(
   return api.patch<SsrAnchorSet>(`/anchor-sets/${id}`, body)
 }
 
-export function publishAnchorSet(id: number): Promise<SsrAnchorSet> {
-  return api.post<SsrAnchorSet>(`/anchor-sets/${id}/publish`, {})
+export function publishAnchorSet(
+  id: number,
+  body: { acknowledge_warnings?: boolean } = {},
+): Promise<SsrAnchorSet> {
+  return api.post<SsrAnchorSet>(`/anchor-sets/${id}/publish`, body)
+}
+
+export function runAnchorCalibration(anchorSetId: number): Promise<AnchorTestResponse> {
+  return api.post<AnchorTestResponse>(`/anchor-sets/${anchorSetId}/calibration/run`, {})
 }
 
 export function duplicateAnchorSet(id: number): Promise<SsrAnchorSet> {

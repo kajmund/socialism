@@ -32,6 +32,7 @@ def _ssr_payload(
     embed_seconds: float,
     total_seconds: float,
     resolved_anchors: ResolvedReportAnchors | None = None,
+    anchor_validation: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     tone_meta = {}
     style_meta = {}
@@ -54,6 +55,7 @@ def _ssr_payload(
         **tone_meta,
         **style_meta,
         "ssr_temperature": ssr_temperature,
+        "anchor_validation": anchor_validation or {},
         "timestamp": datetime.now(tz=UTC).isoformat(),
         "timing": {
             "classify_llm_seconds": round(classify_seconds, 3),
@@ -93,6 +95,7 @@ async def generate_report_html(
     locale: str = "sv",
     ssr_temperature: float = DEFAULT_SSR_TEMPERATURE,
     resolved_anchors: ResolvedReportAnchors | None = None,
+    anchor_validation: dict[str, Any] | None = None,
 ) -> tuple[Path, Path, dict[str, str], dict[str, Any]]:
     """Write report.html + slots.json (+ ssr.json). Returns paths, slots, timing meta."""
     loc = normalize_locale(locale)
@@ -132,6 +135,7 @@ async def generate_report_html(
         metrics=metrics,
         locale=loc,
         timing=timing,
+        anchor_validation=anchor_validation,
     )
     html = render_quick_html(slots, locale=loc)
     timing["total_seconds"] = round(time.perf_counter() - t0, 3)
@@ -148,6 +152,7 @@ async def generate_report_html(
         embed_seconds=embed_s,
         total_seconds=float(timing["total_seconds"]),
         resolved_anchors=resolved_anchors,
+        anchor_validation=anchor_validation,
     )
     html_path.write_text(html, encoding="utf-8")
     slots_path.write_text(
