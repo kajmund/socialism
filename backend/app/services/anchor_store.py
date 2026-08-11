@@ -42,6 +42,8 @@ class ResolvedReportAnchors(TypedDict):
     style_vectors: list[list[float]]
     tone_pool_revision: int
     style_pool_revision: int
+    tone_row: SsrAnchorSet
+    style_row: SsrAnchorSet
 
 
 def row_to_anchor_set(row: SsrAnchorSet) -> AnchorSet:
@@ -264,6 +266,8 @@ async def require_anchor_sets_for_language(
         "style_vectors": style_vectors,
         "tone_pool_revision": int(tone_row.pool_revision or 0),
         "style_pool_revision": int(style_row.pool_revision or 0),
+        "tone_row": tone_row,
+        "style_row": style_row,
     }
 
 

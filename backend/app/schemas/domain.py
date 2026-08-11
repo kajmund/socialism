@@ -564,8 +564,28 @@ class SsrAnchorSetOut(BaseModel):
     statements: list[str]
     status: AnchorStatus
     pool_revision: int = 0
+    calibration_accuracy: float | None = None
+    calibration_tested_at: str | None = None
+    calibration_pool_revision: int | None = None
+    calibration_n_at_test: int | None = None
+    calibration_publish_override: bool = False
+    calibration_item_count: int = 0
+    validation_status: Literal["untested", "ok", "stale", "low"] = "untested"
     created_at: str
     updated_at: str
+
+
+class SsrAnchorPublishRequest(BaseModel):
+    acknowledge_warnings: bool = False
+
+
+class SsrAnchorPublishGateDetail(BaseModel):
+    code: str
+    detail: str
+    accuracy: float | None = None
+    missing_labels: list[str] = Field(default_factory=list)
+    calibration_count: int = 0
+    requires_acknowledgement: bool = False
 
 
 class SsrAnchorSetCreate(BaseModel):
