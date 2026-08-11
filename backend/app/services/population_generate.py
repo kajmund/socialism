@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import secrets
-from dataclasses import dataclass, field
 from random import Random
 
 from fastapi import HTTPException
@@ -35,11 +34,27 @@ from app.services.persona_catalog import (
     TRAIT_BY_LEAN,
     WRITING_TRAITS,
 )
+from app.services.population_fingerprint import (
+    compare_target_vs_achieved,
+    compare_target_vs_candidates,
+    fingerprint_from_candidates,
+    fingerprint_from_dist,
+    infer_slots_from_profile,
+    slots_from_persona,
+)
+from app.services.population_generation_store import (
+    StoredGeneration,
+    clear_generations,
+    get_generation,
+    pop_generation,
+    put_generation,
+)
 from app.services.prompt_store import require_active_prompts
 
 LibraryPersonaRow = tuple[str, int, str, str, str]
 
 # Re-export for older imports
+
 __all__ = [
     "DISTRICT_LABEL",
     "JOB_BY_CAT",
@@ -55,33 +70,8 @@ __all__ = [
     "load_library_personas",
     "run_generate",
     "sample_slot",
+    "StoredGeneration",
 ]
-
-
-@dataclass
-class StoredGeneration:
-    recipe: PopulationRecipe
-    fingerprint: list[list[int]]
-    candidates: list[GenerationCandidate] = field(default_factory=list)
-
-
-_GENERATIONS: dict[str, StoredGeneration] = {}
-
-
-def clear_generations() -> None:
-    _GENERATIONS.clear()
-
-
-def get_generation(generation_id: str) -> StoredGeneration | None:
-    return _GENERATIONS.get(generation_id)
-
-
-def pop_generation(generation_id: str) -> StoredGeneration | None:
-    return _GENERATIONS.pop(generation_id, None)
-
-
-def put_generation(generation_id: str, stored: StoredGeneration) -> None:
-    _GENERATIONS[generation_id] = stored
 
 
 async def load_library_personas(
@@ -108,25 +98,6 @@ async def load_library_personas(
     return library
 
 
-def fingerprint_from_dist(dist: dict[str, DistGroup]) -> list[list[int]]:
-    age_group = dist.get("age")
-    age = [r.v for r in age_group.rows] if age_group else [33, 34, 33]
-
-    lean_group = dist.get("leaning")
-    lean_rows = lean_group.rows if lean_group else []
-    left = sum(r.v for r in lean_rows if _lean_bucket(r) == "left")
-    mid = sum(r.v for r in lean_rows if _lean_bucket(r) == "mid")
-    right = sum(r.v for r in lean_rows if _lean_bucket(r) == "right")
-    lean = [left, mid, right]
-
-    district_group = dist.get("district")
-    d_rows = district_group.rows if district_group else []
-    centrum = sum(r.v for r in d_rows if _is_centrum_row(r))
-    ovriga = sum(r.v for r in d_rows if _is_ovriga_row(r))
-    middle = max(0, 100 - centrum - ovriga)
-    return [age, lean, [centrum, middle, ovriga]]
-
-
 def _norm_token(value: str) -> str:
     return (
         value.lower()
@@ -136,33 +107,6 @@ def _norm_token(value: str) -> str:
         .replace(" ", "_")
         .replace("-", "_")
     )
-
-
-def _lean_bucket(row) -> str:
-    """Map a leaning row to left/mid/right for the 3-bucket fingerprint."""
-    key = _norm_token(row.k)
-    label = _norm_token(row.l)
-    # Legacy recipe keys
-    if key in {"vanster", "mvanster"} or "vanster" in label:
-        return "left"
-    if key in {"mhoger", "hoger"} or "hoger" in label:
-        return "right"
-    if key == "mitt" or label == "mitt":
-        return "mid"
-    # "mitt-vanster" / "mitt_vanster" already caught by vanster; mitt-höger by hoger
-    return "mid"
-
-
-def _is_centrum_row(row) -> bool:
-    key = _norm_token(row.k)
-    label = _norm_token(row.l)
-    return key == "centrum" or label == "centrum"
-
-
-def _is_ovriga_row(row) -> bool:
-    key = _norm_token(row.k)
-    label = _norm_token(row.l)
-    return key in {"ovriga", "ovrig"} or label in {"ovriga", "ovrig"}
 
 
 def _weighted_pick(rng: Random, rows: list) -> str:
@@ -420,6 +364,7 @@ def stub_persona(
         district=slot.district,
         occ_key=slot.occ_key,
         district_key=slot.district_key,
+        age_bucket=slot.age_bucket,
         lean=slot.lean,
         lean_label=slot.lean_label,
         trait=trait,
@@ -673,12 +618,15 @@ async def run_generate(
     session: AsyncSession | None = None,
 ) -> PopulationGenerateResponse:
     """library_personas: id -> (name, age, occ, district, quote)."""
+    if session is None:
+        raise ValueError("session is required for population generation staging")
+
     recipe = body.recipe
     rng = Random(recipe.seed if recipe.seed is not None else secrets.randbits(32))
 
     existing = list(body.existing)
     if not existing and body.generation_id:
-        stored = get_generation(body.generation_id)
+        stored = await get_generation(session, body.generation_id)
         if stored is not None:
             existing = list(stored.candidates)
 
@@ -766,15 +714,25 @@ async def run_generate(
             )
 
     generation_id = body.generation_id or f"gen_{secrets.token_hex(8)}"
-    fingerprint = fingerprint_from_dist(recipe.dist)
-    put_generation(
+    target_fingerprint = fingerprint_from_dist(recipe.dist)
+    achieved_fingerprint = fingerprint_from_candidates(candidates, recipe.dist)
+    qa_warnings = compare_target_vs_candidates(recipe.dist, candidates)
+    await put_generation(
+        session,
         generation_id,
-        StoredGeneration(recipe=recipe, fingerprint=fingerprint, candidates=candidates),
+        StoredGeneration(
+            recipe=recipe,
+            fingerprint=achieved_fingerprint,
+            candidates=candidates,
+            qa_warnings=qa_warnings,
+        ),
     )
     gen_warnings = list(dict.fromkeys(gen_warnings + validate_surname_uniqueness(candidates)))
     return PopulationGenerateResponse(
         generation_id=generation_id,
-        fingerprint=fingerprint,
+        fingerprint=achieved_fingerprint,
         candidates=candidates,
         warnings=gen_warnings,
+        qa_warnings=qa_warnings,
+        target_fingerprint=target_fingerprint,
     )

@@ -50,6 +50,12 @@ class Population(Base):
     size: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     versions: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     fingerprint: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    fingerprint_inferred: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="0",
+    )
     recipe: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -85,9 +91,31 @@ class PopulationMember(Base):
     occ: Mapped[str] = mapped_column(String(255), nullable=False)
     district: Mapped[str] = mapped_column(String(255), nullable=False)
     trait: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    age_bucket: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    lean_key: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    district_key: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     population: Mapped[Population] = relationship(back_populates="members")
     persona: Mapped[Persona | None] = relationship(back_populates="memberships")
+
+
+class PopulationGeneration(Base):
+    __tablename__ = "population_generations"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    recipe: Mapped[dict] = mapped_column(JSON, nullable=False)
+    fingerprint: Mapped[list] = mapped_column(JSON, nullable=False)
+    candidates: Mapped[list] = mapped_column(JSON, nullable=False)
+    qa_warnings: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    consumed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
 
 
 class Run(Base):

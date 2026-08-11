@@ -694,7 +694,7 @@ export const sv = {
   populations: {
     list: {
       title: "Populationer",
-      intro: "Sparade demografiska recept och deras genererade personas.",
+      intro: "Sparade demografiska recept och deras faktiska personas.",
       searchPlaceholder: "Sök på namn...",
       sortUpdated: "Sortera: Senast uppdaterad",
       sortSize: "Sortera: Flest personas",
@@ -746,6 +746,12 @@ export const sv = {
       legendRight: "Höger",
       legendCentrum: "Centrum",
       legendOther: "Övriga",
+      achievedTitle: "Faktisk sammansättning",
+      targetTitle: "Recept vid generering (mål)",
+      qaTitle: "Avvikelse mot recept",
+      targetDiff: "utfall {achieved} %, Δ {delta} pp",
+      fingerprintInferred:
+        "Fingeravtrycket beräknades om från befintliga medlemmar. Lutning kan saknas tills populationen regenereras — avvikelsevarningar för lutning visas inte under tiden.",
     },
     builder: {
       stepStart: "Starta",
