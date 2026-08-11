@@ -6,6 +6,7 @@ import {
   deleteCalibrationItem,
   getAnchorSet,
   listCalibrationItems,
+  runAnchorCalibration,
   testAnchorSet,
   updateAnchorSet,
   type AnchorKind,
@@ -60,6 +61,11 @@ export function AnchorSetEditorPage() {
   const [labels, setLabels] = useState<string[]>(defaultLabels("tone"))
   const [statements, setStatements] = useState<string[]>(defaultStatements("tone"))
   const [status, setStatus] = useState<"draft" | "published">("draft")
+  const [validationStatus, setValidationStatus] = useState<
+    "untested" | "ok" | "stale" | "low"
+  >("untested")
+  const [storedMacroAccuracy, setStoredMacroAccuracy] = useState<number | null>(null)
+  const [calibrationItemCount, setCalibrationItemCount] = useState(0)
   const [calibration, setCalibration] = useState<SsrAnchorCalibrationItem[]>([])
   const [testTexts, setTestTexts] = useState("")
   const [testResult, setTestResult] = useState<AnchorTestResponse | null>(null)
@@ -83,6 +89,9 @@ export function AnchorSetEditorPage() {
         setLabels(row.labels)
         setStatements(row.statements)
         setStatus(row.status)
+        setValidationStatus(row.validation_status)
+        setStoredMacroAccuracy(row.calibration_accuracy)
+        setCalibrationItemCount(row.calibration_item_count)
         setCalibration(items)
         if (row.labels[0]) setNewCalLabel(row.labels[0])
       })
@@ -153,6 +162,21 @@ export function AnchorSetEditorPage() {
     setCalibration((prev) => prev.filter((i) => i.id !== itemId))
   }
 
+  async function persistCalibrationRun() {
+    if (!isEdit) return
+    setError(null)
+    try {
+      const result = await runAnchorCalibration(numericId)
+      setTestResult(result)
+      const refreshed = await getAnchorSet(numericId)
+      setValidationStatus(refreshed.validation_status)
+      setStoredMacroAccuracy(refreshed.calibration_accuracy)
+      setCalibrationItemCount(refreshed.calibration_item_count)
+    } catch (err: unknown) {
+      setError(err instanceof ApiError ? err.message : t("anchorSets.test.error"))
+    }
+  }
+
   async function runTest(useCalibration: boolean) {
     if (!isEdit) return
     setError(null)
@@ -190,6 +214,18 @@ export function AnchorSetEditorPage() {
             {isEdit ? t("anchorSets.editor.editTitle") : t("anchorSets.editor.newTitle")}
           </h1>
           <p className="muted">{t("anchorSets.editor.intro")}</p>
+          {isEdit ? (
+            <p className="text-xs text-muted-foreground">
+              {t("anchorSets.editor.validationSummary", {
+                count: calibrationItemCount,
+                status: t(`anchorSets.validation.${validationStatus}`),
+                pct:
+                  storedMacroAccuracy != null
+                    ? String(Math.round(storedMacroAccuracy * 1000) / 10)
+                    : "—",
+              })}
+            </p>
+          ) : null}
         </div>
       </div>
 
@@ -368,6 +404,11 @@ export function AnchorSetEditorPage() {
                   </AdminButton>
                 </div>
               </div>
+              <div className="flex flex-wrap gap-2">
+                <AdminButton type="button" variant="secondary" onClick={() => void persistCalibrationRun()}>
+                  {t("anchorSets.calibration.runPersist")}
+                </AdminButton>
+              </div>
             </div>
           ) : null}
 
@@ -390,6 +431,13 @@ export function AnchorSetEditorPage() {
               </div>
               {testResult ? (
                 <div className="space-y-3 text-sm">
+                  {typeof testResult.macro_accuracy === "number" ? (
+                    <p>
+                      {t("anchorSets.test.macroAccuracy", {
+                        pct: Math.round(testResult.macro_accuracy * 1000) / 10,
+                      })}
+                    </p>
+                  ) : null}
                   {typeof testResult.accuracy === "number" ? (
                     <p>
                       {t("anchorSets.test.accuracy", {

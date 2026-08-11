@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
+from app.services.ssr.accuracy import macro_accuracy
 from app.services.sentiment_lexicon import LexiconLabel, classify_text, sentiment_shares
 from app.services.ssr import AnchorSet, rate_texts, style_anchors, tone_anchors
 
@@ -121,6 +122,7 @@ async def rate_case(
         total = max(len(texts), 1)
         out["human_labels"] = human_labels
         out["accuracy"] = round(hits / total, 4)
+        out["macro_accuracy"] = round(macro_accuracy(predicted, human_labels), 4)
         out["confusion"] = confusion_counts(predicted, human_labels)
     return out
 
