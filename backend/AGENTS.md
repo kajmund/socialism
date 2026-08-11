@@ -97,6 +97,7 @@ CRUD for personas, populations (members + recipe/fingerprint), runs (timeline JS
 - Fast suite uses in-memory SQLite and must stay green with no network.
 - Integration tests (when added) go behind `@pytest.mark.integration`.
 - Manual OASIS smoke (live camel-oasis + DeepSeek): `@pytest.mark.smoke` under `tests/smoke/`; run with `uv run pytest -m smoke` or `scripts/run_simulation_smoke.py` after `uv sync --extra oasis`. Default pytest excludes smoke (`addopts` in `pyproject.toml`).
+- OASIS action vocabulary: single source in `app/services/simulation/action_catalog.py` — see [simulation-engine-layers.md](../docs/guides/simulation-engine-layers.md) for adapter phases and camel-oasis upgrade checklist.
 - Tests live under `tests/` mirroring the area under test.
 - Profile CSV mapping for OASIS is unit-tested without importing `camel-oasis`.
 
