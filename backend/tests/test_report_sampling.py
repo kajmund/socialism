@@ -169,6 +169,8 @@ async def test_generate_report_writes_sampling_block(tmp_path):
         assert doc["recommendation"]["score"] >= 0
         assert doc["recommendation"]["action"]
         assert doc["recommendation"]["verdict_key"]
+        assert doc["report_thresholds"]["verdict"]["pos_strong"] == 0.50
+        assert doc["report_thresholds"]["recommendation"]["score_triggers"]["strong_pos"] == 0.45
         html = (tmp_path / "rpt" / "report.html").read_text(encoding="utf-8")
         assert "SSR-sampling" in html or "SSR sampling" in html
     finally:

@@ -1,7 +1,7 @@
 """report_verdict_calibrations — operator judgment per report.
 
-Revision ID: 022_report_verdict_calibrations
-Revises: 021_ssr_anchor_calibration_meta
+Revision ID: 023_report_verdict_calibrations
+Revises: 022_configuration_report_thresholds
 Create Date: 2026-08-11
 """
 
@@ -12,8 +12,8 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "022_report_verdict_calibrations"
-down_revision: Union[str, Sequence[str], None] = "021_ssr_anchor_calibration_meta"
+revision: str = "023_report_verdict_calibrations"
+down_revision: Union[str, Sequence[str], None] = "022_configuration_report_thresholds"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

@@ -4,6 +4,8 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.services.report.thresholds import ReportThresholds
+
 PersonaOrigin = Literal["manuell", "beskrivning", "demografi", "population"]
 
 
@@ -510,6 +512,7 @@ class ConfigurationOut(BaseModel):
     language: ConfigurationLanguage
     prompts: dict[str, str]
     ssr_temperature: float
+    report_thresholds: ReportThresholds
     anchor_sets: ConfigurationAnchorSets
     is_active: bool
     created_at: str
@@ -521,6 +524,7 @@ class ConfigurationCreate(BaseModel):
     language: ConfigurationLanguage
     prompts: dict[str, str] = Field(default_factory=dict)
     ssr_temperature: float = Field(default=DEFAULT_SSR_TEMPERATURE, gt=0, le=10)
+    report_thresholds: ReportThresholds | None = None
     anchor_sets: ConfigurationAnchorSets | None = None
     is_active: bool = False
 
@@ -535,6 +539,7 @@ class ConfigurationUpdate(BaseModel):
     language: ConfigurationLanguage | None = None
     prompts: dict[str, str] | None = None
     ssr_temperature: float | None = Field(default=None, gt=0, le=10)
+    report_thresholds: ReportThresholds | None = None
     anchor_sets: ConfigurationAnchorSets | None = None
     is_active: bool | None = None
 

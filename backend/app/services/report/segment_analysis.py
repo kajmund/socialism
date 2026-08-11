@@ -9,6 +9,7 @@ from app.services.report.bundles import RunBundle
 from app.services.report.classify import BundleClassification, _keywords_from_text
 from app.services.report.locale import ReportLocale
 from app.services.report.metrics import pct
+from app.services.report.thresholds import default_report_thresholds
 from app.services.report.persona_bio import (
     build_agent_bio_by_index,
     persona_profile_line,
@@ -475,7 +476,13 @@ def build_segment_diff_summary(
     arms: list[SegmentArmSummary],
     *,
     locale: ReportLocale,
+    diff_clear: float | None = None,
 ) -> str:
+    clear_gap = (
+        diff_clear
+        if diff_clear is not None
+        else default_report_thresholds().diff.clear
+    )
     arm_lines: list[str] = []
     positive_scored: list[tuple[str, float]] = []
     critical_scored: list[tuple[str, float]] = []
@@ -513,7 +520,7 @@ def build_segment_diff_summary(
             best_label, best_pos = ordered[0]
             worst_label, worst_pos = ordered[-1]
             gap = best_pos - worst_pos
-            if gap >= 0.08:
+            if gap >= clear_gap:
                 if locale == "en":
                     parts.append(f"{best_label} leads on positive tone (+{pct(gap)})")
                 else:
@@ -527,7 +534,7 @@ def build_segment_diff_summary(
             crit_label, crit_val = ordered[0]
             other_val = ordered[-1][1]
             gap = crit_val - other_val
-            if gap >= 0.08:
+            if gap >= clear_gap:
                 if locale == "en":
                     parts.append(f"{crit_label} more critical (+{pct(gap)})")
                 else:
@@ -553,6 +560,7 @@ def build_audience_comparisons(
     classifications: list[BundleClassification],
     *,
     locale: ReportLocale = "sv",
+    diff_clear: float | None = None,
 ) -> list[AudienceSegmentComparison]:
     per_bundle: list[list[AudienceSegmentSummary]] = [
         build_audience_summaries(bundle, clf, locale=locale)
@@ -577,7 +585,7 @@ def build_audience_comparisons(
         if not any(_segment_has_data(arm.summary) for arm in arms):
             continue
         dimension_label = segment_dimension_label(dim, locale=locale)
-        diff = build_segment_diff_summary(arms, locale=locale)
+        diff = build_segment_diff_summary(arms, locale=locale, diff_clear=diff_clear)
         comparisons.append(
             AudienceSegmentComparison(
                 dimension=dim,
