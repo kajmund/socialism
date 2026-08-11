@@ -348,74 +348,74 @@ def _ab_diff_html(
 
 
 def _style_relative_diff(top: float, bottom: float) -> float:
-    """Relative gap vs top score — same scale as A/B share diffs for bucketing."""
+    """Relative gap vs top share — same scale as A/B share diffs for bucketing."""
     if top <= 0 and bottom <= 0:
         return 0.0
     return (top - bottom) / max(top, 1e-9)
 
 
 def _style_html(metrics: ReportMetrics, *, locale: ReportLocale) -> str:
-    styles = metrics.aggregate.style_avg_likes
+    styles = metrics.aggregate.style_shares
     if not styles:
         return "<p>—</p>"
     ranked = [(s, a) for s, a in styles if s != "Oklassad"]
     if not ranked:
         ranked = list(styles)
-    # Bucket top vs runner-up (not top vs last) — 9.0 vs 8.9 is noise even if
+    # Bucket top vs runner-up (not top vs last) — 41% vs 40% is noise even if
     # some other style sits at 0.
-    winner_s, winner_a = ranked[0]
-    second_s, second_a = ranked[1] if len(ranked) > 1 else (winner_s, winner_a)
+    winner_s, winner_share = ranked[0]
+    second_s, second_share = ranked[1] if len(ranked) > 1 else (winner_s, winner_share)
     win = display_style_label(winner_s, locale)
     second = display_style_label(second_s, locale)
-    rel = _style_relative_diff(winner_a, second_a)
+    rel = _style_relative_diff(winner_share, second_share)
     band = _diff_band(rel)
     band_lbl = _band_label(band, locale=locale)
     parts = []
     if locale == "en":
         if band == "none":
             parts.append(
-                f"<p><strong>{band_lbl}</strong> — {escape(win)} ({winner_a:.1f} avg likes) "
-                f"and {escape(second)} ({second_a:.1f}) are within noise "
-                f"(gap {rel:.0%} of top; need ≥{_DIFF_WEAK:.0%} for a weak signal).</p>"
+                f"<p><strong>{band_lbl}</strong> — {escape(win)} ({pct(winner_share)} of reactions) "
+                f"and {escape(second)} ({pct(second_share)}) are within noise "
+                f"(gap {pct(rel)} of top; need ≥{pct(_DIFF_WEAK)} for a weak signal).</p>"
             )
         elif band == "weak":
             parts.append(
                 f"<p><strong>{band_lbl}</strong> — {escape(win)} slightly ahead of "
-                f"{escape(second)} ({winner_a:.1f} vs {second_a:.1f} avg likes).</p>"
+                f"{escape(second)} ({pct(winner_share)} vs {pct(second_share)} of reactions).</p>"
             )
         else:
             parts.append(
-                f"<p><strong>{band_lbl}</strong> — <strong>Winning style:</strong> "
-                f"{escape(win)} ({winner_a:.1f} avg likes). "
-                f"<strong>Next:</strong> {escape(second)} ({second_a:.1f}).</p>"
+                f"<p><strong>{band_lbl}</strong> — <strong>Most common style:</strong> "
+                f"{escape(win)} ({pct(winner_share)} of reactions). "
+                f"<strong>Next:</strong> {escape(second)} ({pct(second_share)}).</p>"
             )
         if any(s == _PROVOCATIVE and a <= 0 for s, a in ranked):
             parts.append(
-                "<p>Provocative/confrontational style got 0 avg likes "
-                "(confirmed pilot pattern).</p>"
+                "<p>No rated reaction matched the provocative/confrontational style "
+                "in this report — absence of the style, not a measured reception.</p>"
             )
     else:
         if band == "none":
             parts.append(
-                f"<p><strong>{band_lbl}</strong> — {escape(win)} ({winner_a:.1f} snittlikes) "
-                f"och {escape(second)} ({second_a:.1f}) ligger inom brus "
-                f"(gap {rel:.0%} av toppen; ≥{_DIFF_WEAK:.0%} krävs för svag signal).</p>"
+                f"<p><strong>{band_lbl}</strong> — {escape(win)} ({pct(winner_share)} av reaktionerna) "
+                f"och {escape(second)} ({pct(second_share)}) ligger inom brus "
+                f"(gap {pct(rel)} av toppen; ≥{pct(_DIFF_WEAK)} krävs för svag signal).</p>"
             )
         elif band == "weak":
             parts.append(
                 f"<p><strong>{band_lbl}</strong> — {escape(win)} något före "
-                f"{escape(second)} ({winner_a:.1f} vs {second_a:.1f} snittlikes).</p>"
+                f"{escape(second)} ({pct(winner_share)} mot {pct(second_share)} av reaktionerna).</p>"
             )
         else:
             parts.append(
-                f"<p><strong>{band_lbl}</strong> — <strong>Vinnande stil:</strong> "
-                f"{escape(win)} ({winner_a:.1f} snittlikes). "
-                f"<strong>Näst:</strong> {escape(second)} ({second_a:.1f}).</p>"
+                f"<p><strong>{band_lbl}</strong> — <strong>Vanligaste stilen:</strong> "
+                f"{escape(win)} ({pct(winner_share)} av reaktionerna). "
+                f"<strong>Näst:</strong> {escape(second)} ({pct(second_share)}).</p>"
             )
         if any(s == _PROVOCATIVE and a <= 0 for s, a in ranked):
             parts.append(
-                "<p>Provocerande/konfronterande stil fick 0 snittlikes "
-                "(bekräftat mönster i pilotdata).</p>"
+                "<p>Ingen klassad reaktion liknade provocerande/konfronterande stil "
+                "i denna rapport — stilen saknas i underlaget, det är inte ett mätt mottagande.</p>"
             )
     return "".join(parts)
 
@@ -443,8 +443,8 @@ def build_quick_slots(
     )
     style_rows = "".join(
         f"<tr><td>{escape(display_style_label(s, locale))}</td>"
-        f"<td>{a:.2f}</td></tr>"
-        for s, a in metrics.aggregate.style_avg_likes
+        f"<td>{pct(share)}</td></tr>"
+        for s, share in metrics.aggregate.style_shares
     )
 
     if locale == "en":
@@ -502,8 +502,8 @@ def build_quick_slots(
         f"<h4>{'Tone distribution' if locale == 'en' else 'Tonfördelning'}</h4>"
         f"<table><thead><tr><th>Level</th><th>%</th></tr></thead>"
         f"<tbody>{tone_rows}</tbody></table>"
-        f"<h4>{'Style (SSR mean)' if locale == 'en' else 'Stil (SSR-genomsnitt)'}</h4>"
-        f"<table><thead><tr><th>Style</th><th>score</th></tr></thead>"
+        f"<h4>{'Style (share of reactions)' if locale == 'en' else 'Stil (andel av reaktionerna)'}</h4>"
+        f"<table><thead><tr><th>Style</th><th>%</th></tr></thead>"
         f"<tbody>{style_rows}</tbody></table>"
         f"<h4>{'SSR sampling' if locale == 'en' else 'SSR-sampling'}</h4>"
         "<ul>"

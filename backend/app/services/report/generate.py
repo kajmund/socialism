@@ -72,8 +72,8 @@ def _ssr_payload(
                 "attempt_id": b.attempt_id,
                 "tone_shares": c.tone_shares,
                 "tone_mode": c.tone_mode,
-                "style_avg_likes": [
-                    {"style": s, "avg_likes": a} for s, a in c.style_avg_likes
+                "style_shares": [
+                    {"style": s, "share": share} for s, share in c.style_shares
                 ],
                 "tone_pmfs": c.tone_pmfs,
                 "style_pmfs": c.style_pmfs,
