@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import sqlite3
+from dataclasses import dataclass
 from pathlib import Path
 
 from app.services.oasis_engagement import (
     StimulusEngagement,
+    build_agent_strata_from_members,
     comment_ids_from_trace,
     comment_post_ids,
     injector_post_ids_after,
@@ -17,6 +19,13 @@ from app.services.oasis_engagement import (
     stratified_agent_sample,
     trace_row_count,
 )
+
+
+@dataclass
+class _MemberStub:
+    district: str = ""
+    district_key: str | None = None
+    lean_key: str | None = None
 
 
 def test_sample_fraction_first_vs_later():
@@ -34,6 +43,55 @@ def test_stratified_sample_covers_strata():
     )
     assert picked
     assert {strata[i] for i in picked} == {"A", "B", "C"}
+
+
+def test_build_agent_strata_composite_when_all_lean_known():
+    members = [
+        _MemberStub(district="Distrikt A", district_key="a", lean_key="vanster"),
+        _MemberStub(district="Distrikt B", district_key="b", lean_key="mitt"),
+        _MemberStub(district="Distrikt A", district_key="a", lean_key="hoger"),
+    ]
+    strata = build_agent_strata_from_members(members, {2, 3, 4})
+    assert strata == {
+        2: "a|vanster",
+        3: "b|mitt",
+        4: "a|hoger",
+    }
+
+
+def test_build_agent_strata_district_only_when_any_lean_missing():
+    members = [
+        _MemberStub(district="Distrikt A", district_key="a", lean_key="vanster"),
+        _MemberStub(district="Distrikt B", district_key="b", lean_key=None),
+    ]
+    strata = build_agent_strata_from_members(members, {1, 2})
+    assert strata == {1: "a", 2: "b"}
+
+
+def test_build_agent_strata_uses_district_key_over_label():
+    members = [
+        _MemberStub(district="Visningsnamn", district_key="centrum", lean_key="mitt"),
+    ]
+    strata = build_agent_strata_from_members(members, {0})
+    assert strata[0] == "centrum|mitt"
+
+
+def test_stratified_sample_covers_composite_strata():
+    eligible = {0, 1, 2, 3, 4, 5}
+    strata = {
+        0: "a|vanster",
+        1: "a|vanster",
+        2: "a|mitt",
+        3: "a|mitt",
+        4: "b|vanster",
+        5: "b|vanster",
+    }
+    rng = make_round_rng("composite", 0, 0)
+    picked = stratified_agent_sample(
+        eligible, strata=strata, fraction=0.5, rng=rng
+    )
+    assert picked
+    assert {strata[i] for i in picked} == {"a|vanster", "a|mitt", "b|vanster"}
 
 
 def test_engagement_passive_excludes_from_eligible():
