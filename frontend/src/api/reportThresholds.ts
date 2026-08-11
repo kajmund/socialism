@@ -46,6 +46,13 @@ export type NarrativeThresholds = {
   segment_crit: number
 }
 
+export type TakeawayThresholds = {
+  positive_strong: number
+  positive_weak: number
+  critical_high: number
+  segment_contrast_gap: number
+}
+
 export type RecommendationThresholds = {
   score_weights: ScoreWeights
   score_caps: ScoreCaps
@@ -58,6 +65,7 @@ export type ReportThresholds = {
   verdict: VerdictThresholds
   diff: DiffThresholds
   topic_drift: number
+  takeaway: TakeawayThresholds
   recommendation: RecommendationThresholds
 }
 
@@ -72,6 +80,12 @@ export const DEFAULT_REPORT_THRESHOLDS: ReportThresholds = {
     weak: 0.03,
   },
   topic_drift: 0.1,
+  takeaway: {
+    positive_strong: 0.4,
+    positive_weak: 0.28,
+    critical_high: 0.42,
+    segment_contrast_gap: 0.12,
+  },
   recommendation: {
     score_weights: {
       positive: 45,
@@ -110,20 +124,59 @@ export function cloneReportThresholds(thresholds: ReportThresholds): ReportThres
   return structuredClone(thresholds)
 }
 
+/** Merge API payload with defaults (e.g. new takeaway keys on older stored configs). */
+export function mergeReportThresholds(
+  raw: Partial<ReportThresholds> | ReportThresholds,
+): ReportThresholds {
+  const base = DEFAULT_REPORT_THRESHOLDS
+  return {
+    verdict: { ...base.verdict, ...raw.verdict },
+    diff: { ...base.diff, ...raw.diff },
+    topic_drift: raw.topic_drift ?? base.topic_drift,
+    takeaway: { ...base.takeaway, ...raw.takeaway },
+    recommendation: {
+      score_weights: {
+        ...base.recommendation.score_weights,
+        ...raw.recommendation?.score_weights,
+      },
+      score_caps: {
+        ...base.recommendation.score_caps,
+        ...raw.recommendation?.score_caps,
+      },
+      score_triggers: {
+        ...base.recommendation.score_triggers,
+        ...raw.recommendation?.score_triggers,
+      },
+      action_bands: {
+        ...base.recommendation.action_bands,
+        ...raw.recommendation?.action_bands,
+      },
+      narrative: {
+        ...base.recommendation.narrative,
+        ...raw.recommendation?.narrative,
+      },
+    },
+  }
+}
+
 export type ReportThresholdValidationKey =
   | "configurations.editor.reportThresholds.validation.verdictOrder"
   | "configurations.editor.reportThresholds.validation.diffOrder"
+  | "configurations.editor.reportThresholds.validation.takeawayOrder"
   | "configurations.editor.reportThresholds.validation.actionBandsOrder"
 
 export function reportThresholdValidationKey(
   thresholds: ReportThresholds,
 ): ReportThresholdValidationKey | null {
-  const { verdict, diff, recommendation } = thresholds
+  const { verdict, diff, takeaway, recommendation } = thresholds
   if (verdict.pos_mixed >= verdict.pos_strong) {
     return "configurations.editor.reportThresholds.validation.verdictOrder"
   }
   if (diff.weak >= diff.clear) {
     return "configurations.editor.reportThresholds.validation.diffOrder"
+  }
+  if (takeaway.positive_weak >= takeaway.positive_strong) {
+    return "configurations.editor.reportThresholds.validation.takeawayOrder"
   }
   const bands = recommendation.action_bands
   if (!(bands.revise < bands.minor_adjust && bands.minor_adjust < bands.ready)) {

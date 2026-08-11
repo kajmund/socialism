@@ -15,7 +15,7 @@ I **Konfigurationer** sparar du kompletta uppsättningar av **prompttexter** (pe
 2. I listan syns **namn**, **promptspråk** och om posten är **Aktiv**.
 3. Skapa nytt med **+ Ny konfiguration** — promptfälten fylls i med standardtexter.
 4. Ge konfigurationen ett **Namn**, välj **Promptspråk** och redigera under fliken **Promptinställningar** (t.ex. Persona, Chat & intervju).
-5. Under fliken **SSR-ankare**: **SSR-temperatur** (lägre = skarpare ton/stil-fördelning; kalibrera gärna i Playground först), val av ton-/stilankare, och **Rapporttrösklar** (hur slutsats och rekommendation tolkas). Standardtrösklar räcker oftast — ändringar gäller bara **nya** rapporter; befintliga behåller trösklarna från när de genererades.
+5. Under fliken **SSR-ankare**: **SSR-temperatur** (lägre = skarpare ton/stil-fördelning; kalibrera gärna i Playground först), val av ton-/stilankare, och **Rapporttrösklar** (hur slutsats och rekommendation tolkas). Standardtrösklar räcker oftast — ändringar gäller bara **nya** rapporter; befintliga behåller trösklarna från när de genererades. Under **Avancerat** finns även trösklar för **målgruppssammanfattning** (korta takeaway-stycken) — separata från rekommendationens narrativa triggare.
 6. **Spara** — du landar i redigeringsläget där fliken **Grunddata** blir tillgänglig.
 7. Under **Grunddata** redigerar du kataloglistor för just den här konfigurationen.
 8. Markera **Aktiv** om den ska användas direkt, eller aktivera senare från listan. När du aktiverar en post blir övriga inaktiva.

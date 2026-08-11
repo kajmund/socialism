@@ -22,6 +22,10 @@ def test_default_thresholds_match_legacy_constants():
     assert t.diff.clear == 0.08
     assert t.diff.weak == 0.03
     assert t.topic_drift == 0.10
+    assert t.takeaway.positive_strong == 0.40
+    assert t.takeaway.positive_weak == 0.28
+    assert t.takeaway.critical_high == 0.42
+    assert t.takeaway.segment_contrast_gap == 0.12
     assert t.recommendation.score_triggers.strong_pos == 0.45
     assert t.recommendation.action_bands.ready == 75
 
@@ -44,6 +48,20 @@ def test_invalid_verdict_order_rejected():
 def test_invalid_diff_order_rejected():
     with pytest.raises(ValidationError):
         ReportThresholds.model_validate({"diff": {"clear": 0.03, "weak": 0.08}})
+
+
+def test_invalid_takeaway_order_rejected():
+    with pytest.raises(ValidationError):
+        ReportThresholds.model_validate(
+            {
+                "takeaway": {
+                    "positive_strong": 0.28,
+                    "positive_weak": 0.40,
+                    "critical_high": 0.42,
+                    "segment_contrast_gap": 0.12,
+                },
+            }
+        )
 
 
 def test_invalid_action_bands_rejected():
