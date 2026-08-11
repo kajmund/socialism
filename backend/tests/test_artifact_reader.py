@@ -159,6 +159,15 @@ def test_user_follow_counts(tmp_path: Path):
     assert reader.user_following_count(3) == 4
 
 
+def test_user_follow_counts_degrade_when_user_table_missing(tmp_path: Path):
+    db_path = tmp_path / "simulation.db"
+    sqlite3.connect(db_path).close()
+
+    reader = OasisArtifactReader(db_path)
+    assert reader.user_follower_count(1) == 0
+    assert reader.user_following_count(1) == 0
+
+
 def test_max_event_time_iso_datetime(tmp_path: Path):
     db_path = tmp_path / "simulation.db"
     conn = sqlite3.connect(db_path)

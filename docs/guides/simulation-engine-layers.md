@@ -75,6 +75,7 @@ There are **no documented extension hooks** for LLM tool recording or per-round 
 - `reader.py` — `OasisArtifactReader`: export payload, mid-run engagement queries, follower/following counts, `max_event_time`.
 - `assert_export_schema()` fails loud when export tables are missing (upgrade drift).
 - Mid-run queries tolerate missing tables during early ticks (`OperationalError` → empty/0).
+- Follower/following counts for Swedish env prompts also degrade to `0` on `OperationalError` (cosmetic text during live sim — not export integrity).
 - `oasis_run.py`, `oasis_engagement.py`, and `oasis_swedish.py` delegate here — no new raw SQL elsewhere.
 
 **When camel-oasis schema changes:**
