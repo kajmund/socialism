@@ -51,7 +51,7 @@ def _validation_issue_lines(
         accuracy = block.get("accuracy")
         acc_txt = ""
         if isinstance(accuracy, (int, float)):
-            acc_txt = f" ({accuracy:.0%})" if locale == "en" else f" ({accuracy:.0%})"
+            acc_txt = f" ({pct(accuracy)})"
         if locale == "en":
             kind = "Tone" if key == "tone" else "Style"
             if status == "untested":
