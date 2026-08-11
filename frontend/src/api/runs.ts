@@ -84,6 +84,55 @@ export async function deleteRunResultAttempt(
   return getRun(runId)
 }
 
+export type RunTaggableTextRow = {
+  source_type: "comment" | "tick_interview" | "posthoc_interview"
+  source_ref: Record<string, unknown>
+  text: string
+  meta: Record<string, unknown>
+  tone_labels: string[]
+  style_labels: string[]
+}
+
+export type RunTaggableTextsResponse = {
+  run_id: number
+  attempt_id: string
+  variant_id: string
+  anchor_context: {
+    locale: string
+    tone: { id: number; name: string; kind: string; labels: string[]; pool_revision: number }
+    style: { id: number; name: string; kind: string; labels: string[]; pool_revision: number }
+  }
+  rows: RunTaggableTextRow[]
+}
+
+export function fetchRunTaggableTexts(
+  runId: number,
+  params: { attemptId: string; variantId: string; locale: string },
+): Promise<RunTaggableTextsResponse> {
+  return api.get<RunTaggableTextsResponse>(`/runs/${runId}/taggable-texts`, {
+    attempt_id: params.attemptId,
+    variant_id: params.variantId,
+    locale: params.locale,
+  })
+}
+
+export function addRunAnchorPoolItems(
+  runId: number,
+  body: {
+    text: string
+    source_type: RunTaggableTextRow["source_type"]
+    source_ref: Record<string, unknown>
+    attempt_id: string
+    variant_id: string
+    tone_label?: string | null
+    style_label?: string | null
+    add_to_calibration?: boolean
+    locale?: string
+  },
+): Promise<{ created: Array<{ kind: string; id: number; label: string }> }> {
+  return api.post(`/runs/${runId}/anchor-pool`, body)
+}
+
 export type RunInterviewMessage = {
   id: number
   mode: "interview" | "character"

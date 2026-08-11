@@ -86,6 +86,7 @@ async def rate_case(
     statements: list[str] | None,
     temperature: float,
     human_labels: list[str] | None,
+    anchor_vectors: list[list[float]] | None = None,
 ) -> dict:
     anchor_set = resolve_anchor_set(
         dimension=dimension,
@@ -96,7 +97,12 @@ async def rate_case(
     if human_labels is not None and len(human_labels) != len(texts):
         raise ValueError("human_labels must match texts length")
 
-    result = await rate_texts(texts, anchor_set, temperature=temperature)
+    result = await rate_texts(
+        texts,
+        anchor_set,
+        temperature=temperature,
+        anchor_vectors=anchor_vectors,
+    )
     predicted = [argmax_label(pmf) for pmf in result.per_text_pmfs]
     per_text = [
         {"text": text, "pmf": pmf, "predicted_label": pred}
@@ -126,6 +132,7 @@ async def compare_ssr_lexicon(
     labels: list[str] | None,
     statements: list[str] | None,
     temperature: float,
+    anchor_vectors: list[list[float]] | None = None,
 ) -> dict:
     anchor_set = resolve_anchor_set(
         dimension="tone",
@@ -133,7 +140,12 @@ async def compare_ssr_lexicon(
         labels=labels,
         statements=statements,
     )
-    result = await rate_texts(texts, anchor_set, temperature=temperature)
+    result = await rate_texts(
+        texts,
+        anchor_set,
+        temperature=temperature,
+        anchor_vectors=anchor_vectors,
+    )
     rows = []
     matches = 0
     for text, pmf in zip(texts, result.per_text_pmfs, strict=True):

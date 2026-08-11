@@ -39,10 +39,12 @@ def _ssr_payload(
         tone_meta = {
             "tone_anchor_set_id": resolved_anchors["tone_id"],
             "tone_anchor_set_version": resolved_anchors["tone_version"],
+            "tone_pool_revision": resolved_anchors["tone_pool_revision"],
         }
         style_meta = {
             "style_anchor_set_id": resolved_anchors["style_id"],
             "style_anchor_set_version": resolved_anchors["style_version"],
+            "style_pool_revision": resolved_anchors["style_pool_revision"],
         }
     return {
         "mode": "quick",
@@ -103,6 +105,8 @@ async def generate_report_html(
         ssr_temperature=ssr_temperature,
         tone_anchor_set=resolved_anchors["tone"] if resolved_anchors else None,
         style_anchor_set=resolved_anchors["style"] if resolved_anchors else None,
+        tone_anchor_vectors=resolved_anchors["tone_vectors"] if resolved_anchors else None,
+        style_anchor_vectors=resolved_anchors["style_vectors"] if resolved_anchors else None,
     )
     classify_llm_s = sum(c.classify_llm_seconds for c in classifications)
     embed_s = sum(c.embed_seconds for c in classifications)
