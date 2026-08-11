@@ -1,5 +1,6 @@
 import type { CatalogItem, CatalogList } from "@/api/catalog"
 import type { ConfigurationAnchorSets } from "@/api/anchorSets"
+import type { ReportThresholds } from "@/api/reportThresholds"
 import { api } from "@/lib/api"
 
 export type ConfigurationLanguage = "sv" | "en" | "nb"
@@ -10,6 +11,7 @@ export type Configuration = {
   language: ConfigurationLanguage
   prompts: Record<string, string>
   ssr_temperature: number
+  report_thresholds: ReportThresholds
   anchor_sets: ConfigurationAnchorSets
   is_active: boolean
   created_at: string
@@ -21,6 +23,7 @@ export type ConfigurationWrite = {
   language: ConfigurationLanguage
   prompts?: Record<string, string>
   ssr_temperature?: number
+  report_thresholds?: ReportThresholds
   anchor_sets?: ConfigurationAnchorSets
   is_active?: boolean
 }
