@@ -18,6 +18,7 @@ from app.services.image_cache import (
     list_entries,
     update_caption,
 )
+from app.services.playground_image import MAX_IMAGE_BYTES
 
 router = APIRouter(prefix="/images", tags=["messages"])
 
@@ -80,7 +81,12 @@ async def upload_image(
     vision_provider: str | None = Form(default=None),
     vision_model: str | None = Form(default=None),
 ) -> ImageUploadOut:
-    raw = await image.read()
+    # Cap read before buffering — validate_image runs after read; unbounded read()
+    # would allow multi‑GB uploads to exhaust worker memory.
+    raw = await image.read(MAX_IMAGE_BYTES + 1)
+    if len(raw) > MAX_IMAGE_BYTES:
+        mb = MAX_IMAGE_BYTES // (1024 * 1024)
+        raise HTTPException(status_code=400, detail=f"Image exceeds {mb} MB limit")
     try:
         entry, cache_hit = await ensure_cached_image(
             raw,
