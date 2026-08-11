@@ -9,7 +9,13 @@ from sqlalchemy.orm import selectinload
 from app.database.models import Persona, Population, PopulationMember
 from app.schemas.domain import PopulationMemberCreate, PopulationRecipe
 from app.serializers import slug_id, utcnow
-from app.services import population_generate as gen
+from app.services.population_fingerprint import (
+    compare_target_vs_achieved,
+    fingerprint_from_members,
+    infer_slots_from_profile,
+    slots_from_persona,
+)
+from app.services.population_generation_store import get_generation, pop_generation
 
 _DEFAULT_POPULATION_NAME = "Namnlös population"
 
@@ -24,7 +30,48 @@ def member_row(population_id: int, body: PopulationMemberCreate) -> PopulationMe
         occ=body.occ,
         district=body.district,
         trait=body.trait,
+        age_bucket=body.age_bucket,
+        lean_key=body.lean_key,
+        district_key=body.district_key,
     )
+
+
+def _member_create_from_candidate(
+    candidate,
+    *,
+    persona_id: str | None,
+    recipe_dist: dict,
+) -> PopulationMemberCreate:
+    persona = candidate.persona
+    slots = slots_from_persona(persona)
+    if candidate.source == "library" and persona_id:
+        inferred = infer_slots_from_profile(
+            age=persona.age,
+            district=persona.district,
+            profile=persona.profile.model_dump(),
+            dist=recipe_dist,
+        )
+        slots = inferred
+    return PopulationMemberCreate(
+        persona_id=persona_id,
+        name=persona.name,
+        initials=persona.initials,
+        age=persona.age,
+        occ=persona.occ,
+        district=persona.district,
+        trait=persona.trait,
+        age_bucket=slots.age_bucket,
+        lean_key=slots.lean_key,
+        district_key=slots.district_key,
+    )
+
+
+async def reconcile_population_metadata(population: Population) -> list[str]:
+    dist = (population.recipe or {}).get("dist") or {}
+    members = list(population.members)
+    population.fingerprint = fingerprint_from_members(members, dist)
+    population.size = len(members)
+    return compare_target_vs_achieved(dist, members)
 
 
 async def members_from_generation(
@@ -33,13 +80,14 @@ async def members_from_generation(
     keep_keys: list[str] | None = None,
     extra_members: list[PopulationMemberCreate] | None = None,
 ) -> tuple[list[PopulationMemberCreate], list[list[int]], dict]:
-    stored = gen.get_generation(generation_id)
+    stored = await get_generation(session, generation_id)
     if stored is None:
         raise ValueError("Generation not found or expired")
 
     keep = set(keep_keys) if keep_keys is not None else None
     members: list[PopulationMemberCreate] = []
     seen_persona_ids: set[str] = set()
+    recipe_dist = stored.recipe.dist
 
     for candidate in stored.candidates:
         if keep is not None and candidate.key not in keep:
@@ -71,14 +119,10 @@ async def members_from_generation(
         if persona_id:
             seen_persona_ids.add(persona_id)
         members.append(
-            PopulationMemberCreate(
+            _member_create_from_candidate(
+                candidate,
                 persona_id=persona_id,
-                name=persona.name,
-                initials=persona.initials,
-                age=persona.age,
-                occ=persona.occ,
-                district=persona.district,
-                trait=persona.trait,
+                recipe_dist=recipe_dist,
             )
         )
 
@@ -127,6 +171,7 @@ async def create_population_from_generation(
         size=len(members),
         versions=1,
         fingerprint=fingerprint,
+        fingerprint_inferred=False,
         recipe=recipe,
         updated_at=utcnow(),
     )
@@ -135,7 +180,7 @@ async def create_population_from_generation(
     for member in members:
         session.add(member_row(population.id, member))
     await session.flush()
-    gen.pop_generation(generation_id)
+    await pop_generation(session, generation_id)
     return population
 
 
@@ -171,9 +216,11 @@ async def update_population_from_generation(
         session.add(member_row(population.id, member))
     population.size = len(members)
     population.fingerprint = fingerprint
+    population.fingerprint_inferred = False
     population.recipe = recipe.model_dump() if recipe is not None else recipe_dump
     population.versions += 1
     population.updated_at = utcnow()
     await session.flush()
-    gen.pop_generation(generation_id)
+    await pop_generation(session, generation_id)
     return population
+

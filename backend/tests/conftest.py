@@ -17,7 +17,6 @@ from app.llm import set_structured_completer, set_text_completer, set_text_strea
 from app.llm.vision import set_vision_completer
 from app.main import create_app
 from app.services import jobs as jobs_service
-from app.services.population_generate import clear_generations
 from app.services.image_cache import clear_image_cache
 from app.services.ssr import clear_embedding_cache, set_embedder
 
@@ -44,7 +43,6 @@ def _reset_llm_completers():
 
 @pytest.fixture
 async def client():
-    clear_generations()
     settings.persona_generator = "stub"
     settings.deepseek_api_key = "test-key-not-real"
     settings.openai_api_key = "test-openai-key-not-real"

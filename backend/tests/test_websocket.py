@@ -21,7 +21,6 @@ from app.database.session import get_session
 from app.llm import set_text_completer, set_text_streamer
 from app.main import create_app
 from app.services import jobs as jobs_service
-from app.services.population_generate import clear_generations
 from app.services.prompt_store import ensure_default_configurations
 
 
@@ -62,7 +61,6 @@ def _sample_recipe(*, size: int = 2, seed: int = 1) -> dict:
 
 @pytest.fixture
 def ws_client():
-    clear_generations()
     settings.persona_generator = "stub"
     settings.deepseek_api_key = "test-key-not-real"
     settings.simulation_engine = "none"

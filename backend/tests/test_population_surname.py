@@ -3,6 +3,10 @@
 from random import Random
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import StaticPool
+
+from app.database.base import Base
 
 from app.llm.persona_gen import SlotPlan
 from app.schemas.domain import (
@@ -46,6 +50,21 @@ def stub_generator(monkeypatch):
     monkeypatch.setattr(gen.settings, "persona_generator", "stub")
 
 
+@pytest.fixture
+async def gen_session():
+    engine = create_async_engine(
+        "sqlite+aiosqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+    async with factory() as session:
+        yield session
+    await engine.dispose()
+
+
 def test_surname_from_name_uses_last_token():
     assert surname_from_name("Anna Lindqvist") == "lindqvist"
     assert surname_from_name("Erik") == "erik"
@@ -64,10 +83,10 @@ def test_stub_persona_avoids_surname_reuse_within_batch():
 
 
 @pytest.mark.asyncio
-async def test_run_generate_size_13_resolves_names_when_catalog_exhausted(stub_generator):
+async def test_run_generate_size_13_resolves_names_when_catalog_exhausted(stub_generator, gen_session):
     recipe = _minimal_recipe(13)
     body = PopulationGenerateRequest(recipe=recipe, mode="replace")
-    response = await gen.run_generate(body, library_personas={})
+    response = await gen.run_generate(body, library_personas={}, session=gen_session)
     names = [c.persona.name for c in response.candidates]
     assert len(names) == len(set(n.casefold() for n in names))
     surnames = [surname_from_name(n) for n in names]
@@ -80,10 +99,10 @@ async def test_run_generate_size_13_resolves_names_when_catalog_exhausted(stub_g
 
 
 @pytest.mark.asyncio
-async def test_run_generate_size_5_has_no_surname_warnings(stub_generator):
+async def test_run_generate_size_5_has_no_surname_warnings(stub_generator, gen_session):
     recipe = _minimal_recipe(5)
     body = PopulationGenerateRequest(recipe=recipe, mode="replace")
-    response = await gen.run_generate(body, library_personas={})
+    response = await gen.run_generate(body, library_personas={}, session=gen_session)
     assert len(response.candidates) == 5
     surnames = [surname_from_name(c.persona.name) for c in response.candidates]
     assert len(surnames) == len(set(surnames))
@@ -160,7 +179,7 @@ def test_assign_unique_names_avoids_surname_collisions():
 
 
 @pytest.mark.asyncio
-async def test_llm_batch_uses_preassigned_names_and_waves(monkeypatch):
+async def test_llm_batch_uses_preassigned_names_and_waves(monkeypatch, gen_session):
     monkeypatch.setattr(gen.settings, "persona_generator", "deepseek")
     monkeypatch.setattr(gen.settings, "persona_generate_concurrency", 2)
 
@@ -226,7 +245,7 @@ async def test_llm_batch_uses_preassigned_names_and_waves(monkeypatch):
 
     recipe = _minimal_recipe(4, seed=7)
     body = PopulationGenerateRequest(recipe=recipe, mode="replace")
-    response = await gen.run_generate(body, library_personas={})
+    response = await gen.run_generate(body, library_personas={}, session=gen_session)
     assert len(response.candidates) == 4
     names = [c.persona.name for c in response.candidates]
     assert len(names) == len(set(names))

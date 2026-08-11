@@ -106,6 +106,9 @@ class PopulationMemberCreate(BaseModel):
     occ: str
     district: str
     trait: str = ""
+    age_bucket: str | None = None
+    lean_key: str | None = None
+    district_key: str | None = None
 
 
 class DistRow(BaseModel):
@@ -134,6 +137,7 @@ class GeneratedPersonaOut(BaseModel):
     district: str
     occ_key: str = ""
     district_key: str = ""
+    age_bucket: str = ""
     lean: str = "mitt"
     lean_label: str = "Mitt"
     trait: str = ""
@@ -162,6 +166,21 @@ class PopulationGenerateResponse(BaseModel):
     fingerprint: list[list[int]]
     candidates: list[GenerationCandidate]
     warnings: list[str] = Field(default_factory=list)
+    qa_warnings: list[str] = Field(default_factory=list)
+    target_fingerprint: list[list[int]] = Field(default_factory=list)
+
+
+class PopulationDistQaRow(BaseModel):
+    k: str
+    l: str
+    target_v: int
+    achieved_v: int
+
+
+class PopulationDistQaGroup(BaseModel):
+    key: str
+    label: str
+    rows: list[PopulationDistQaRow]
 
 
 class PopulationSummary(BaseModel):
@@ -177,6 +196,10 @@ class PopulationSummary(BaseModel):
 class PopulationDetail(PopulationSummary):
     recipe: dict[str, Any] = Field(default_factory=dict)
     members: list[PopulationMemberOut] = Field(default_factory=list)
+    target_fp: list[list[int]] = Field(default_factory=list)
+    qa_warnings: list[str] = Field(default_factory=list)
+    dist_qa: list[PopulationDistQaGroup] = Field(default_factory=list)
+    fingerprint_inferred: bool = False
 
 
 class PopulationCreate(BaseModel):

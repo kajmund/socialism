@@ -94,7 +94,6 @@ function PopCard({ pop, intl, t, onDelete, onDup }: PopCardProps) {
               <button type="button" onClick={() => onDup(pop.id, pop.name)}>
                 {t("common.duplicate")}
               </button>
-              <Link to={`/populations/${pop.id}/edit`}>{t("common.editRecipe")}</Link>
               <button type="button" className="danger" onClick={() => setConfirming(true)}>
                 {t("common.delete")}
               </button>
