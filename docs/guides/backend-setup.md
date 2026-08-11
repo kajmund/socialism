@@ -75,6 +75,23 @@ Then `POST /runs/{id}/start` queues `run_simulate` and runs the full population 
 
 CLI smoke (persists attempt on the körning): `uv run python -m app.services.oasis_run --run-id N`.
 
+### Simulation smoke harness (manual)
+
+End-to-end check against **live** camel-oasis + DeepSeek before a release or after upgrading camel-oasis. Not run in default CI.
+
+```bash
+cd backend
+uv sync --extra oasis
+# DEEPSEEK_API_KEY must be a real key in backend/.env or the environment
+uv run pytest -m smoke
+# or:
+uv run python scripts/run_simulation_smoke.py
+```
+
+Fixture: self-contained 5-persona population, 2 ticks (tick 2 reaction-only), 1 party-post injection on Twitter. Asserts attempt shape, readback (posts/trace/histogram), and no variant error — not LLM-specific engagement transitions (those stay in unit tests).
+
+Default `uv run pytest` excludes smoke via `addopts = "-m 'not smoke'"` in `pyproject.toml`.
+
 ### Benchmark DeepSeek models
 
 Compare wall time and OASIS output metrics across model IDs for the **same** run config (default: `deepseek-reasoner` vs `deepseek-chat`):
