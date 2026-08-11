@@ -67,60 +67,10 @@ from app.services.run_log import (
     write_run_log_note,
 )
 from app.services.run_measurements import build_measurements
+from app.services.simulation.action_catalog import population_action_names
 
 ARTIFACT_ROOT = Path("data/oasis")
 DEFAULT_SIMULATION_START = date(2026, 8, 1)
-
-# Twitter population actions as names (no camel-oasis import required for tests).
-_TWITTER_POPULATION_ACTIONS: tuple[str, ...] = (
-    "LIKE_POST",
-    "DISLIKE_POST",
-    "UNLIKE_POST",
-    "UNDO_DISLIKE_POST",
-    "CREATE_COMMENT",
-    "LIKE_COMMENT",
-    "DISLIKE_COMMENT",
-    "UNLIKE_COMMENT",
-    "UNDO_DISLIKE_COMMENT",
-    "REPOST",
-    "QUOTE_POST",
-    "FOLLOW",
-    "UNFOLLOW",
-    "MUTE",
-    "UNMUTE",
-    "SEARCH_USER",
-    "SEARCH_POSTS",
-    "REPORT_POST",
-    "TREND",
-    "DO_NOTHING",
-    "REFRESH",
-)
-
-# Reddit: no REPOST / QUOTE_POST.
-_REDDIT_POPULATION_ACTIONS: tuple[str, ...] = (
-    "LIKE_POST",
-    "DISLIKE_POST",
-    "UNLIKE_POST",
-    "UNDO_DISLIKE_POST",
-    "CREATE_COMMENT",
-    "LIKE_COMMENT",
-    "DISLIKE_COMMENT",
-    "UNLIKE_COMMENT",
-    "UNDO_DISLIKE_COMMENT",
-    "FOLLOW",
-    "UNFOLLOW",
-    "MUTE",
-    "UNMUTE",
-    "SEARCH_USER",
-    "SEARCH_POSTS",
-    "REPORT_POST",
-    "TREND",
-    "DO_NOTHING",
-    "REFRESH",
-)
-
-# Back-compat alias for older imports / tests.
-_BASE_POPULATION_ACTIONS = _TWITTER_POPULATION_ACTIONS
 
 
 class OasisUnavailable(RuntimeError):
@@ -137,26 +87,6 @@ def oasis_installed() -> bool:
 
 def parse_oasis_options(raw: dict | None) -> OasisRunOptions:
     return OasisRunOptions.model_validate(raw or {})
-
-
-def population_action_names(
-    *,
-    allow_population_create_post: bool = False,
-    platform: OasisPlatform = "twitter",
-) -> list[str]:
-    """Return ActionType names available to population agents.
-
-    INTERVIEW is intentionally omitted — interviews use ManualAction only.
-    """
-    base = (
-        _REDDIT_POPULATION_ACTIONS
-        if platform == "reddit"
-        else _TWITTER_POPULATION_ACTIONS
-    )
-    names = list(base)
-    if allow_population_create_post:
-        names.insert(0, "CREATE_POST")
-    return names
 
 
 def resolve_tick_interviews(
