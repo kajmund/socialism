@@ -74,3 +74,34 @@ export async function getReportHtml(id: string): Promise<string> {
   }
   return body
 }
+
+export type RecommendationSnapshot = {
+  score: number
+  action: string
+  recommended_arm: string | null
+  verdict_key: string
+}
+
+export type VerdictCalibration = {
+  report_id: string
+  matches: boolean | null
+  note: string | null
+  recommendation: RecommendationSnapshot | null
+  updated_at: string | null
+}
+
+export type VerdictCalibrationWrite = {
+  matches: boolean
+  note?: string | null
+}
+
+export function getVerdictCalibration(reportId: string): Promise<VerdictCalibration> {
+  return api.get<VerdictCalibration>(`/reports/${reportId}/verdict-calibration`)
+}
+
+export function saveVerdictCalibration(
+  reportId: string,
+  body: VerdictCalibrationWrite,
+): Promise<VerdictCalibration> {
+  return api.post<VerdictCalibration>(`/reports/${reportId}/verdict-calibration`, body)
+}
