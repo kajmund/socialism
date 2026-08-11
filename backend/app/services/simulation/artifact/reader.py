@@ -284,6 +284,7 @@ class OasisArtifactReader:
             conn.close()
 
     def user_follower_count(self, agent_id: int) -> int:
+        """Follower count for Swedish env prompt text (cosmetic, not export data)."""
         conn = self._connect()
         try:
             row = conn.execute(
@@ -291,14 +292,15 @@ class OasisArtifactReader:
                 (agent_id,),
             ).fetchone()
             return int(row[0]) if row and row[0] is not None else 0
-        except sqlite3.OperationalError as exc:
-            raise OasisArtifactError(
-                f"user table missing or unreadable in {self._db_path}"
-            ) from exc
+        except sqlite3.OperationalError:
+            # Live sim: user table may be unreadable early in a tick (lock/migration).
+            # Degrade to 0 rather than abort an expensive LLM run for prompt garnish.
+            return 0
         finally:
             conn.close()
 
     def user_following_count(self, agent_id: int) -> int:
+        """Following count for Swedish env prompt text (cosmetic, not export data)."""
         conn = self._connect()
         try:
             row = conn.execute(
@@ -306,10 +308,8 @@ class OasisArtifactReader:
                 (agent_id,),
             ).fetchone()
             return int(row[0]) if row and row[0] is not None else 0
-        except sqlite3.OperationalError as exc:
-            raise OasisArtifactError(
-                f"user table missing or unreadable in {self._db_path}"
-            ) from exc
+        except sqlite3.OperationalError:
+            return 0
         finally:
             conn.close()
 
