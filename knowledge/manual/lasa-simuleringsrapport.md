@@ -9,7 +9,7 @@ tags: [rapporter]
 
 När en rapport har genererats öppnas den som en **HTML-sida** i appen. Alla rapporter finns under menyn **Rapporter**. Nya rapporter beställs från simuleringsresultat.
 
-Rapporten börjar med **Slutsats**: vilken version som rekommenderas (vid A/B), om budskapet bör publiceras eller justeras, simulerat stöd (0–100), mottagande och korta styrkor/risker. Därefter följer statistik, diagram, dag-för-dag, målgrupper och vid behov A/B-jämförelse. Förklaringar till stjärnmarkörer (`*`, `**`, …) står direkt under respektive avsnitt — du behöver inte bläddra till slutet. Öppna **Tekniskt stycke** längst ner för SSR-fördelningar, **sampling** (hur reaktionstexter valts för ton/stil) och tröskelvärden.
+Rapporten börjar med **Slutsats**: vilken version som rekommenderas (vid A/B), om budskapet bör publiceras eller justeras, simulerat stöd (0–100), mottagande och korta styrkor/risker. Därefter följer statistik, diagram, dag-för-dag, målgrupper och vid behov A/B-jämförelse. Förklaringar till stjärnmarkörer (`*`, `**`, …) står direkt under respektive avsnitt — du behöver inte bläddra till slutet. Öppna **Tekniskt stycke** längst ner för SSR-fördelningar, **sampling** (hur reaktionstexter valts för ton/stil), tröskelvärden och vilken konfiguration som gällde. Trösklarna kommer från aktiv konfiguration och sparas i `report.ssr.json` per rapport.
 
 ## Steg
 

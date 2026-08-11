@@ -14,6 +14,7 @@ async def test_list_configurations_includes_ssr_temperature(client):
     rows = res.json()
     assert rows
     assert rows[0]["ssr_temperature"] == DEFAULT_SSR_TEMPERATURE
+    assert rows[0]["report_thresholds"]["verdict"]["pos_strong"] == 0.50
 
 
 @pytest.mark.asyncio

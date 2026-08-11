@@ -16,16 +16,8 @@ from app.services.report.recommendation import build_recommendation, _short_arm_
 from app.services.report.render import REPORT_FONTS_HREF, inject_report_theme
 from app.services.report.segment_analysis import build_audience_summaries
 from app.services.report.sampling import SAMPLING_METHOD
+from app.services.report.thresholds import ReportThresholds, default_report_thresholds
 from app.services.ssr import ANCHOR_SET_VERSION
-
-# Hardcoded thresholds (not config) until calibration shows need to tweak often.
-_POS_STRONG = 0.50
-_POS_MIXED = 0.30
-_CRIT_WEAK = 0.50
-_TOPIC_DRIFT = 0.10
-# Relative difference bands (A/B positive-share and style avg-likes / top score).
-_DIFF_CLEAR = 0.08
-_DIFF_WEAK = 0.03
 
 _PROVOCATIVE = "Provocerande / konfronterande"
 
@@ -132,11 +124,11 @@ def build_anchor_validation_html(
     )
 
 
-def _diff_band(diff: float) -> DiffBand:
+def _diff_band(diff: float, thresholds: ReportThresholds) -> DiffBand:
     """Bucket a relative difference into clear / weak / no meaningful gap."""
-    if diff >= _DIFF_CLEAR:
+    if diff >= thresholds.diff.clear:
         return "clear"
-    if diff >= _DIFF_WEAK:
+    if diff >= thresholds.diff.weak:
         return "weak"
     return "none"
 
@@ -181,7 +173,11 @@ def _injection_likes(bundle: RunBundle) -> int:
     return injection_likes(bundle)
 
 
-def _topic_share_by_day_half(bundle: RunBundle, classification: BundleClassification) -> dict[str, Any]:
+def _topic_share_by_day_half(
+    bundle: RunBundle,
+    classification: BundleClassification,
+    thresholds: ReportThresholds,
+) -> dict[str, Any]:
     """Approximate day-1 vs later topic share for injected topic (top pack)."""
     packs = classification.topic_packs
     if not packs or not bundle.posts:
@@ -203,7 +199,7 @@ def _topic_share_by_day_half(bundle: RunBundle, classification: BundleClassifica
 
     day1 = share(bundle.posts[:mid])
     later = share(bundle.posts[mid:])
-    flag = day1 > 0 and later < _TOPIC_DRIFT and later < day1
+    flag = day1 > 0 and later < thresholds.topic_drift and later < day1
     return {"day1": day1, "later": later, "flag": flag, "top_topic": top}
 
 
@@ -212,7 +208,10 @@ def decide_verdict(
     bundles: list[RunBundle],
     *,
     locale: ReportLocale,
+    thresholds: ReportThresholds | None = None,
 ) -> QuickVerdict:
+    t = thresholds if thresholds is not None else default_report_thresholds()
+    v = t.verdict
     tone = metrics.aggregate.tone_shares
     pos = _positive_share(tone, locale=locale)
     crit = _critical_share(tone, locale=locale)
@@ -228,35 +227,35 @@ def decide_verdict(
                 critical_share=crit,
                 threshold_note="Triggered by 0 likes on the test message.",
             )
-        if pos >= _POS_STRONG:
+        if pos >= v.pos_strong:
             return QuickVerdict(
                 key="strong",
                 label="Strong reception",
-                detail=f"Positive tone share {pct(pos)} (≥ {pct(_POS_STRONG)}).",
+                detail=f"Positive tone share {pct(pos)} (≥ {pct(v.pos_strong)}).",
                 positive_share=pos,
                 critical_share=crit,
-                threshold_note=f"Positive ≥ {pct(_POS_STRONG)}; next band starts below that.",
+                threshold_note=f"Positive ≥ {pct(v.pos_strong)}; next band starts below that.",
             )
-        if pos >= _POS_MIXED:
+        if pos >= v.pos_mixed:
             return QuickVerdict(
                 key="mixed",
                 label="Mixed reception",
-                detail=f"Positive tone share {pct(pos)} (between {pct(_POS_MIXED)} and {pct(_POS_STRONG)}).",
+                detail=f"Positive tone share {pct(pos)} (between {pct(v.pos_mixed)} and {pct(v.pos_strong)}).",
                 positive_share=pos,
                 critical_share=crit,
                 threshold_note=(
-                    f"Positive in [{pct(_POS_MIXED)}, {pct(_POS_STRONG)}); "
-                    f"distance to strong band: {pct(_POS_STRONG - pos)}."
+                    f"Positive in [{pct(v.pos_mixed)}, {pct(v.pos_strong)}); "
+                    f"distance to strong band: {pct(v.pos_strong - pos)}."
                 ),
             )
-        if crit >= _CRIT_WEAK:
+        if crit >= v.crit_weak:
             return QuickVerdict(
                 key="weak",
                 label="Weak reception",
-                detail=f"Positive {pct(pos)} and critical {pct(crit)} (≥ {pct(_CRIT_WEAK)}).",
+                detail=f"Positive {pct(pos)} and critical {pct(crit)} (≥ {pct(v.crit_weak)}).",
                 positive_share=pos,
                 critical_share=crit,
-                threshold_note=f"Positive < {pct(_POS_MIXED)} and critical ≥ {pct(_CRIT_WEAK)}.",
+                threshold_note=f"Positive < {pct(v.pos_mixed)} and critical ≥ {pct(v.crit_weak)}.",
             )
         return QuickVerdict(
             key="mixed",
@@ -276,35 +275,35 @@ def decide_verdict(
             critical_share=crit,
             threshold_note="Triggas av 0 likes på testbudskapet.",
         )
-    if pos >= _POS_STRONG:
+    if pos >= v.pos_strong:
         return QuickVerdict(
             key="strong",
             label="Starkt mottagande",
-            detail=f"Positiv tonandel {pct(pos)} (≥ {pct(_POS_STRONG)}).",
+            detail=f"Positiv tonandel {pct(pos)} (≥ {pct(v.pos_strong)}).",
             positive_share=pos,
             critical_share=crit,
-            threshold_note=f"Positiv ≥ {pct(_POS_STRONG)}; nästa band börjar under det.",
+            threshold_note=f"Positiv ≥ {pct(v.pos_strong)}; nästa band börjar under det.",
         )
-    if pos >= _POS_MIXED:
+    if pos >= v.pos_mixed:
         return QuickVerdict(
             key="mixed",
             label="Blandat mottagande",
-            detail=f"Positiv tonandel {pct(pos)} (mellan {pct(_POS_MIXED)} och {pct(_POS_STRONG)}).",
+            detail=f"Positiv tonandel {pct(pos)} (mellan {pct(v.pos_mixed)} och {pct(v.pos_strong)}).",
             positive_share=pos,
             critical_share=crit,
             threshold_note=(
-                f"Positiv i [{pct(_POS_MIXED)}, {pct(_POS_STRONG)}); "
-                f"avstånd till starkt band: {pct(_POS_STRONG - pos)}."
+                f"Positiv i [{pct(v.pos_mixed)}, {pct(v.pos_strong)}); "
+                f"avstånd till starkt band: {pct(v.pos_strong - pos)}."
             ),
         )
-    if crit >= _CRIT_WEAK:
+    if crit >= v.crit_weak:
         return QuickVerdict(
             key="weak",
             label="Svagt mottagande",
-            detail=f"Positiv {pct(pos)} och kritisk {pct(crit)} (≥ {pct(_CRIT_WEAK)}).",
+            detail=f"Positiv {pct(pos)} och kritisk {pct(crit)} (≥ {pct(v.crit_weak)}).",
             positive_share=pos,
             critical_share=crit,
-            threshold_note=f"Positiv < {pct(_POS_MIXED)} och kritisk ≥ {pct(_CRIT_WEAK)}.",
+            threshold_note=f"Positiv < {pct(v.pos_mixed)} och kritisk ≥ {pct(v.crit_weak)}.",
         )
     return QuickVerdict(
         key="mixed",
@@ -320,6 +319,7 @@ def _ab_diff_html(
     metrics: ReportMetrics,
     *,
     locale: ReportLocale,
+    thresholds: ReportThresholds,
 ) -> str:
     if len(metrics.bundles) < 2:
         return ""
@@ -332,7 +332,7 @@ def _ab_diff_html(
     best_short = _short_arm_label(best_label)
     worst_short = _short_arm_label(worst_label)
     diff = best_pos - worst_pos
-    band = _diff_band(diff)
+    band = _diff_band(diff, thresholds)
     label = _band_label(band, locale=locale)
     if locale == "en":
         return (
@@ -354,7 +354,12 @@ def _style_relative_diff(top: float, bottom: float) -> float:
     return (top - bottom) / max(top, 1e-9)
 
 
-def _style_html(metrics: ReportMetrics, *, locale: ReportLocale) -> str:
+def _style_html(
+    metrics: ReportMetrics,
+    *,
+    locale: ReportLocale,
+    thresholds: ReportThresholds,
+) -> str:
     styles = metrics.aggregate.style_avg_likes
     if not styles:
         return "<p>—</p>"
@@ -368,15 +373,16 @@ def _style_html(metrics: ReportMetrics, *, locale: ReportLocale) -> str:
     win = display_style_label(winner_s, locale)
     second = display_style_label(second_s, locale)
     rel = _style_relative_diff(winner_a, second_a)
-    band = _diff_band(rel)
+    band = _diff_band(rel, thresholds)
     band_lbl = _band_label(band, locale=locale)
+    diff_weak = thresholds.diff.weak
     parts = []
     if locale == "en":
         if band == "none":
             parts.append(
                 f"<p><strong>{band_lbl}</strong> — {escape(win)} ({winner_a:.1f} avg likes) "
                 f"and {escape(second)} ({second_a:.1f}) are within noise "
-                f"(gap {rel:.0%} of top; need ≥{_DIFF_WEAK:.0%} for a weak signal).</p>"
+                f"(gap {rel:.0%} of top; need ≥{diff_weak:.0%} for a weak signal).</p>"
             )
         elif band == "weak":
             parts.append(
@@ -399,7 +405,7 @@ def _style_html(metrics: ReportMetrics, *, locale: ReportLocale) -> str:
             parts.append(
                 f"<p><strong>{band_lbl}</strong> — {escape(win)} ({winner_a:.1f} snittlikes) "
                 f"och {escape(second)} ({second_a:.1f}) ligger inom brus "
-                f"(gap {rel:.0%} av toppen; ≥{_DIFF_WEAK:.0%} krävs för svag signal).</p>"
+                f"(gap {rel:.0%} av toppen; ≥{diff_weak:.0%} krävs för svag signal).</p>"
             )
         elif band == "weak":
             parts.append(
@@ -429,13 +435,16 @@ def build_quick_slots(
     locale: ReportLocale,
     timing: dict[str, Any],
     anchor_validation: dict[str, Any] | None = None,
+    thresholds: ReportThresholds | None = None,
 ) -> dict[str, str]:
+    t = thresholds if thresholds is not None else default_report_thresholds()
     drift_bits = [
-        _topic_share_by_day_half(b, c)
+        _topic_share_by_day_half(b, c, t)
         for b, c in zip(bundles, classifications, strict=True)
     ]
     any_drift = any(d["flag"] for d in drift_bits)
     ab = is_ab_comparison(bundles) or len(bundles) > 1
+    drift_pct = pct(t.topic_drift)
 
     tone_rows = "".join(
         f"<tr><td>{escape(k)}</td><td>{pct(v)}</td></tr>"
@@ -449,14 +458,14 @@ def build_quick_slots(
 
     if locale == "en":
         drift_html = (
-            "<p><strong>Topic drift:</strong> the test topic fell below 10% "
+            f"<p><strong>Topic drift:</strong> the test topic fell below {drift_pct} "
             "after day 1 — it disappeared from the debate.</p>"
             if any_drift
             else "<p><strong>Topic drift:</strong> no clear drop-off after day 1.</p>"
         )
     else:
         drift_html = (
-            "<p><strong>Ämnesdrift:</strong> testämnet under 10 % efter dag 1 "
+            f"<p><strong>Ämnesdrift:</strong> testämnet under {drift_pct} efter dag 1 "
             "— försvann ur debatten.</p>"
             if any_drift
             else "<p><strong>Ämnesdrift:</strong> ingen tydlig nedgång efter dag 1.</p>"
@@ -471,15 +480,15 @@ def build_quick_slots(
         eyebrow = "Snabbrapport — automatisk analys"
         tech_title = "Tekniskt stycke"
 
-    ab_html = _ab_diff_html(metrics, locale=locale) if ab else ""
-    style_html = _style_html(metrics, locale=locale)
+    ab_html = _ab_diff_html(metrics, locale=locale, thresholds=t) if ab else ""
+    style_html = _style_html(metrics, locale=locale, thresholds=t)
     audience = [
         seg
         for b, c in zip(bundles, classifications, strict=True)
         for seg in build_audience_summaries(b, c, locale=locale)
     ]
     recommendation = build_recommendation(
-        metrics, bundles, classifications, audience, locale=locale
+        metrics, bundles, classifications, audience, locale=locale, thresholds=t
     )
     chart_slots = prefill_quick_chart_slots(
         metrics,
@@ -488,11 +497,12 @@ def build_quick_slots(
         locale=locale,
         ab=ab,
         recommendation=recommendation,
+        diff_clear=t.diff.clear,
     )
 
     tech_html = (
         f"<details class=\"tech\"><summary>{escape(tech_title)}</summary>"
-        f"<p>{escape(decide_verdict(metrics, bundles, locale=locale).threshold_note)}</p>"
+        f"<p>{escape(decide_verdict(metrics, bundles, locale=locale, thresholds=t).threshold_note)}</p>"
         f"<p>embedding_model={escape(settings.embedding_model)} · "
         f"anchor_set={escape(ANCHOR_SET_VERSION)} · "
         f"sampling={escape(SAMPLING_METHOD)} · "
