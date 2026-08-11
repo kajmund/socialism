@@ -560,6 +560,7 @@ def build_audience_comparisons(
     classifications: list[BundleClassification],
     *,
     locale: ReportLocale = "sv",
+    diff_clear: float | None = None,
 ) -> list[AudienceSegmentComparison]:
     per_bundle: list[list[AudienceSegmentSummary]] = [
         build_audience_summaries(bundle, clf, locale=locale)
@@ -584,7 +585,7 @@ def build_audience_comparisons(
         if not any(_segment_has_data(arm.summary) for arm in arms):
             continue
         dimension_label = segment_dimension_label(dim, locale=locale)
-        diff = build_segment_diff_summary(arms, locale=locale)
+        diff = build_segment_diff_summary(arms, locale=locale, diff_clear=diff_clear)
         comparisons.append(
             AudienceSegmentComparison(
                 dimension=dim,
