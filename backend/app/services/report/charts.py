@@ -964,7 +964,7 @@ def _segment_kpi_html(tone: SegmentToneRow | None, *, locale: ReportLocale) -> s
         return (
             f'<div class="aud-kpi-row">'
             f'<div class="aud-kpi"><strong>{tone.agent_count}</strong>'
-            f"<span>participants</span></div>"
+            f"<span>participants with rated text</span></div>"
             f'<div class="aud-kpi"><strong>{tone.text_count}</strong>'
             f"<span>rated texts</span></div>"
             f'<div class="aud-kpi"><strong>{pct(tone.positive_share)}</strong>'
@@ -976,7 +976,7 @@ def _segment_kpi_html(tone: SegmentToneRow | None, *, locale: ReportLocale) -> s
     return (
         f'<div class="aud-kpi-row">'
         f'<div class="aud-kpi"><strong>{tone.agent_count}</strong>'
-        f"<span>deltagare</span></div>"
+        f"<span>deltagare med klassad text</span></div>"
         f'<div class="aud-kpi"><strong>{tone.text_count}</strong>'
         f"<span>analyserade texter</span></div>"
         f'<div class="aud-kpi"><strong>{pct(tone.positive_share)}</strong>'
