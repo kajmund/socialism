@@ -10,35 +10,7 @@ import json
 from contextvars import ContextVar
 from typing import Any
 
-# OASIS social ActionType tool names — external CAMEL tools use other names.
-_SOCIAL_TOOL_NAMES = frozenset(
-    name.lower()
-    for name in (
-        "LIKE_POST",
-        "DISLIKE_POST",
-        "UNLIKE_POST",
-        "UNDO_DISLIKE_POST",
-        "CREATE_POST",
-        "CREATE_COMMENT",
-        "LIKE_COMMENT",
-        "DISLIKE_COMMENT",
-        "UNLIKE_COMMENT",
-        "UNDO_DISLIKE_COMMENT",
-        "REPOST",
-        "QUOTE_POST",
-        "FOLLOW",
-        "UNFOLLOW",
-        "MUTE",
-        "UNMUTE",
-        "SEARCH_USER",
-        "SEARCH_POSTS",
-        "REPORT_POST",
-        "TREND",
-        "DO_NOTHING",
-        "REFRESH",
-        "INTERVIEW",
-    )
-)
+from app.services.simulation.action_catalog import is_external_tool as _catalog_is_external
 
 _TRACE: ContextVar[list[dict[str, Any]] | None] = ContextVar(
     "oasis_tool_trace", default=None
@@ -98,7 +70,7 @@ def _agent_index(agent: Any) -> int | None:
 
 
 def is_external_tool(tool_name: str) -> bool:
-    return tool_name.strip().lower() not in _SOCIAL_TOOL_NAMES
+    return _catalog_is_external(tool_name)
 
 
 def apply_oasis_tool_trace_patch() -> None:
