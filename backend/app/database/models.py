@@ -247,6 +247,8 @@ class SsrAnchorSet(Base):
     labels: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     statements: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="draft", index=True)
+    # Bumped on append/remove to ssr_anchor_pool_items; invalidates centroid cache.
+    pool_revision: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -263,6 +265,11 @@ class SsrAnchorSet(Base):
         back_populates="anchor_set",
         cascade="all, delete-orphan",
         order_by="SsrAnchorCalibrationItem.sort_order",
+    )
+    pool_items: Mapped[list["SsrAnchorPoolItem"]] = relationship(
+        back_populates="anchor_set",
+        cascade="all, delete-orphan",
+        order_by="SsrAnchorPoolItem.id",
     )
 
 
@@ -287,6 +294,45 @@ class SsrAnchorCalibrationItem(Base):
     )
 
     anchor_set: Mapped["SsrAnchorSet"] = relationship(back_populates="calibration_items")
+
+
+class SsrAnchorPoolItem(Base):
+    """Simulated-language anchor example appended to a published anchor set."""
+
+    __tablename__ = "ssr_anchor_pool_items"
+    __table_args__ = (
+        UniqueConstraint(
+            "anchor_set_id",
+            "label",
+            "text",
+            name="uq_ssr_anchor_pool_set_label_text",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    anchor_set_id: Mapped[int] = mapped_column(
+        ForeignKey("ssr_anchor_sets.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    label: Mapped[str] = mapped_column(String(64), nullable=False)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    source_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    source_run_id: Mapped[int | None] = mapped_column(
+        ForeignKey("runs.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    source_attempt_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    source_variant_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    source_ref: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    anchor_set: Mapped["SsrAnchorSet"] = relationship(back_populates="pool_items")
 
 
 class CatalogList(Base):

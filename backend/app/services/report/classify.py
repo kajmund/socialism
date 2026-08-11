@@ -241,6 +241,7 @@ def _style_avg_from_pmfs(
 
 
 def _clip_for_embed(texts: list[str]) -> list[str]:
+    # Pool anchors embed full text; reaction snippets stay clipped for report SSR.
     return [t[:_TEXT_CHARS] if t.strip() else " " for t in texts]
 
 
@@ -250,6 +251,7 @@ async def classify_tones(
     locale: ReportLocale = "sv",
     temperature: float = DEFAULT_SSR_TEMPERATURE,
     tone_anchor_set: AnchorSet | None = None,
+    tone_anchor_vectors: list[list[float]] | None = None,
 ) -> tuple[dict[str, float], ToneMode, list[str], list[dict[str, float]], float]:
     """SSR tone: embed reaction texts directly against 5 Likert anchors.
 
@@ -261,10 +263,16 @@ async def classify_tones(
         return empty, "ssr", [], [], 0.0
 
     # Clip only for the embedding API; keep full texts for report quotes.
+    # Pool anchors use full text at embed time; reaction snippets stay clipped here.
     embed_texts = _clip_for_embed(texts)
     t0 = time.perf_counter()
     anchors = tone_anchor_set or tone_anchors(locale=locale)
-    result = await rate_texts(embed_texts, anchors, temperature=temperature)
+    result = await rate_texts(
+        embed_texts,
+        anchors,
+        temperature=temperature,
+        anchor_vectors=tone_anchor_vectors,
+    )
     embed_s = time.perf_counter() - t0
     return result.shares, "ssr", list(texts), result.per_text_pmfs, embed_s
 
@@ -276,6 +284,7 @@ async def classify_styles(
     locale: ReportLocale = "sv",
     temperature: float = DEFAULT_SSR_TEMPERATURE,
     style_anchor_set: AnchorSet | None = None,
+    style_anchor_vectors: list[list[float]] | None = None,
 ) -> tuple[list[tuple[str, float]], list[str], list[dict[str, float]], float]:
     """SSR style: embed reaction texts directly → soft-weighted avg likes."""
     if not texts:
@@ -291,7 +300,12 @@ async def classify_styles(
     embed_texts = _clip_for_embed(texts)
     t0 = time.perf_counter()
     anchors = style_anchor_set or style_anchors(locale=locale)
-    result = await rate_texts(embed_texts, anchors, temperature=temperature)
+    result = await rate_texts(
+        embed_texts,
+        anchors,
+        temperature=temperature,
+        anchor_vectors=style_anchor_vectors,
+    )
     embed_s = time.perf_counter() - t0
     style_avg = _style_avg_from_pmfs(likes, result.per_text_pmfs)
     return style_avg, list(texts), result.per_text_pmfs, embed_s
@@ -304,6 +318,8 @@ async def classify_bundle(
     ssr_temperature: float = DEFAULT_SSR_TEMPERATURE,
     tone_anchor_set: AnchorSet | None = None,
     style_anchor_set: AnchorSet | None = None,
+    tone_anchor_vectors: list[list[float]] | None = None,
+    style_anchor_vectors: list[list[float]] | None = None,
 ) -> BundleClassification:
     texts, likes, user_ids = _samples_for_classify(bundle)
 
@@ -315,6 +331,7 @@ async def classify_bundle(
         locale=locale,
         temperature=ssr_temperature,
         tone_anchor_set=tone_anchor_set,
+        tone_anchor_vectors=tone_anchor_vectors,
     )
 
     style_avg, style_rated, style_pmfs, style_embed = await classify_styles(
@@ -323,6 +340,7 @@ async def classify_bundle(
         locale=locale,
         temperature=ssr_temperature,
         style_anchor_set=style_anchor_set,
+        style_anchor_vectors=style_anchor_vectors,
     )
 
     return BundleClassification(
@@ -351,6 +369,8 @@ async def classify_bundles(
     ssr_temperature: float = DEFAULT_SSR_TEMPERATURE,
     tone_anchor_set: AnchorSet | None = None,
     style_anchor_set: AnchorSet | None = None,
+    tone_anchor_vectors: list[list[float]] | None = None,
+    style_anchor_vectors: list[list[float]] | None = None,
 ) -> list[BundleClassification]:
     return [
         await classify_bundle(
@@ -359,6 +379,8 @@ async def classify_bundles(
             ssr_temperature=ssr_temperature,
             tone_anchor_set=tone_anchor_set,
             style_anchor_set=style_anchor_set,
+            tone_anchor_vectors=tone_anchor_vectors,
+            style_anchor_vectors=style_anchor_vectors,
         )
         for b in bundles
     ]

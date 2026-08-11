@@ -16,12 +16,14 @@ from app.schemas.domain import (
     OasisRunOptions,
     PersonaChatResponse,
     PersonaMessageOut,
+    RunAnchorPoolAddRequest,
     RunCreate,
     RunDetail,
     RunLogTailOut,
     RunPersonaInterviewRequest,
     RunPopulationOption,
     RunSummary,
+    RunTaggableTextsOut,
     RunUpdate,
     format_date,
 )
@@ -33,6 +35,14 @@ from app.serializers import (
     utcnow,
 )
 from app.services import jobs as jobs_service
+from app.services.anchor_pool import (
+    AnchorPoolError,
+    active_anchor_context,
+    add_pool_item,
+    list_tagger_texts,
+    resolve_active_anchor_set_ids,
+)
+from app.services.anchor_store import AnchorResolutionError
 from app.services.district_context import area_block_for_name
 from app.services.oasis_run import oasis_installed, previous_attempts, remove_attempt
 from app.services.run_log import read_run_log_tail
@@ -618,6 +628,82 @@ async def clear_run_persona_interview(
     for row in result.scalars().all():
         await session.delete(row)
     await session.commit()
+
+
+@router.get("/{run_id}/taggable-texts", response_model=RunTaggableTextsOut)
+async def get_run_taggable_texts(
+    run_id: int,
+    attempt_id: str = Query(min_length=1),
+    variant_id: str = Query(min_length=1),
+    locale: str = Query(default="sv", pattern="^(sv|en)$"),
+    session: AsyncSession = Depends(get_session),
+) -> RunTaggableTextsOut:
+    """Comments and interview answers from a finished attempt for SSR pool tagging."""
+    await _get_run(session, run_id)
+    try:
+        payload = await list_tagger_texts(
+            session,
+            run_id=run_id,
+            attempt_id=attempt_id,
+            variant_id=variant_id,
+            locale=locale,  # type: ignore[arg-type]
+        )
+    except AnchorPoolError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except AnchorResolutionError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return RunTaggableTextsOut.model_validate(payload)
+
+
+@router.post("/{run_id}/anchor-pool", status_code=201)
+async def add_run_anchor_pool_items(
+    run_id: int,
+    body: RunAnchorPoolAddRequest,
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Tag a simulation text as tone/style pool anchor(s) on the active configuration's sets."""
+    await _get_run(session, run_id)
+    try:
+        refs = await resolve_active_anchor_set_ids(session, body.locale)
+    except AnchorResolutionError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    created: list[dict] = []
+    try:
+        if body.tone_label:
+            item = await add_pool_item(
+                session,
+                anchor_set_id=refs["tone"],
+                label=body.tone_label,
+                text=body.text,
+                source_type=body.source_type,
+                source_run_id=run_id,
+                source_attempt_id=body.attempt_id,
+                source_variant_id=body.variant_id,
+                source_ref=body.source_ref,
+                add_to_calibration=body.add_to_calibration,
+            )
+            created.append({"kind": "tone", "id": item.id, "label": item.label})
+        if body.style_label:
+            item = await add_pool_item(
+                session,
+                anchor_set_id=refs["style"],
+                label=body.style_label,
+                text=body.text,
+                source_type=body.source_type,
+                source_run_id=run_id,
+                source_attempt_id=body.attempt_id,
+                source_variant_id=body.variant_id,
+                source_ref=body.source_ref,
+                add_to_calibration=body.add_to_calibration,
+            )
+            created.append({"kind": "style", "id": item.id, "label": item.label})
+    except AnchorPoolError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    await session.commit()
+    ctx = await active_anchor_context(session, body.locale)  # type: ignore[arg-type]
+    return {"created": created, "anchor_context": ctx}
 
 
 @router.get("/{run_id}/logs", response_model=RunLogTailOut)

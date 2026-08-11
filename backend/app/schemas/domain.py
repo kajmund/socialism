@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any, Literal, Self
 from uuid import uuid4
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -540,6 +540,7 @@ class SsrAnchorSetOut(BaseModel):
     labels: list[str]
     statements: list[str]
     status: AnchorStatus
+    pool_revision: int = 0
     created_at: str
     updated_at: str
 
@@ -609,6 +610,78 @@ class SsrAnchorTestRequest(BaseModel):
     texts: list[str] = Field(min_length=1)
     temperature: float = Field(default=DEFAULT_SSR_TEMPERATURE, gt=0, le=10)
     use_calibration: bool = False
+
+
+AnchorPoolSourceType = Literal["comment", "tick_interview", "posthoc_interview"]
+
+
+class SsrAnchorPoolItemOut(BaseModel):
+    id: int
+    anchor_set_id: int
+    label: str
+    text: str
+    source_type: AnchorPoolSourceType
+    source_run_id: int | None
+    source_attempt_id: str | None
+    source_variant_id: str | None
+    source_ref: dict[str, Any]
+    created_at: str
+
+
+class SsrAnchorPoolItemCreate(BaseModel):
+    label: str = Field(min_length=1, max_length=64)
+    text: str = Field(min_length=1)
+    source_type: AnchorPoolSourceType
+    source_run_id: int | None = None
+    source_attempt_id: str | None = None
+    source_variant_id: str | None = None
+    source_ref: dict[str, Any] = Field(default_factory=dict)
+    add_to_calibration: bool = False
+
+    @field_validator("label", "text", mode="before")
+    @classmethod
+    def strip_fields(cls, value: object) -> object:
+        return _strip_required_text(value)
+
+
+class RunAnchorPoolAddRequest(BaseModel):
+    text: str = Field(min_length=1)
+    source_type: AnchorPoolSourceType
+    source_ref: dict[str, Any] = Field(default_factory=dict)
+    attempt_id: str = Field(min_length=1)
+    variant_id: str = Field(min_length=1)
+    tone_label: str | None = Field(default=None, max_length=64)
+    style_label: str | None = Field(default=None, max_length=64)
+    add_to_calibration: bool = False
+    locale: Literal["sv", "en"] = "sv"
+
+    @field_validator("text", mode="before")
+    @classmethod
+    def strip_text(cls, value: object) -> object:
+        return _strip_required_text(value)
+
+    @model_validator(mode="after")
+    def require_at_least_one_label(self) -> Self:
+        if not self.tone_label and not self.style_label:
+            raise ValueError("At least one of tone_label or style_label is required")
+        return self
+
+
+class RunTaggableTextRowOut(BaseModel):
+    source_type: AnchorPoolSourceType
+    source_ref: dict[str, Any]
+    text: str
+    meta: dict[str, Any]
+    tone_labels: list[str]
+    style_labels: list[str]
+
+
+class RunTaggableTextsOut(BaseModel):
+    run_id: int
+    attempt_id: str
+    variant_id: str
+    anchor_context: dict[str, Any]
+    rows: list[RunTaggableTextRowOut]
 
 
 class PromptCatalogOut(BaseModel):

@@ -8,12 +8,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import Configuration, SsrAnchorCalibrationItem, SsrAnchorSet
+from app.database.models import Configuration, SsrAnchorCalibrationItem, SsrAnchorPoolItem, SsrAnchorSet
 from app.database.session import get_session
 from app.schemas.domain import (
     SsrAnchorCalibrationItemCreate,
     SsrAnchorCalibrationItemOut,
     SsrAnchorCalibrationItemUpdate,
+    SsrAnchorPoolItemCreate,
+    SsrAnchorPoolItemOut,
     SsrAnchorSetCreate,
     SsrAnchorSetOut,
     SsrAnchorSetUpdate,
@@ -21,6 +23,13 @@ from app.schemas.domain import (
     format_date,
 )
 from app.serializers import utcnow
+from app.services.anchor_pool import (
+    AnchorPoolError,
+    add_pool_item,
+    centroid_vectors_for_set,
+    pool_items_for_set,
+    remove_pool_item,
+)
 from app.services.anchor_store import (
     calibration_items,
     ensure_default_anchor_sets,
@@ -49,8 +58,24 @@ def _serialize(row: SsrAnchorSet) -> SsrAnchorSetOut:
         labels=[str(x) for x in (row.labels or [])],
         statements=[str(x) for x in (row.statements or [])],
         status=row.status,  # type: ignore[arg-type]
+        pool_revision=int(row.pool_revision or 0),
         created_at=_dt(row.created_at),
         updated_at=_dt(row.updated_at),
+    )
+
+
+def _serialize_pool_item(row: SsrAnchorPoolItem) -> SsrAnchorPoolItemOut:
+    return SsrAnchorPoolItemOut(
+        id=row.id,
+        anchor_set_id=row.anchor_set_id,
+        label=row.label,
+        text=row.text,
+        source_type=row.source_type,  # type: ignore[arg-type]
+        source_run_id=row.source_run_id,
+        source_attempt_id=row.source_attempt_id,
+        source_variant_id=row.source_variant_id,
+        source_ref=dict(row.source_ref or {}),
+        created_at=_dt(row.created_at),
     )
 
 
@@ -359,6 +384,7 @@ async def test_anchor_set(
         human_labels = [i.human_label for i in items]
 
     anchor = row_to_anchor_set(row)
+    anchor_vectors = await centroid_vectors_for_set(session, row)
     if human_labels is not None:
         return await rate_case(
             texts,
@@ -370,7 +396,12 @@ async def test_anchor_set(
             human_labels=human_labels,
         )
 
-    result = await rate_texts(texts, anchor, temperature=body.temperature)
+    result = await rate_texts(
+        texts,
+        anchor,
+        temperature=body.temperature,
+        anchor_vectors=anchor_vectors,
+    )
     per_text = [
         {
             "text": text,
@@ -387,3 +418,58 @@ async def test_anchor_set(
         "shares": result.shares,
         "per_text": per_text,
     }
+
+
+@router.get("/{anchor_set_id}/pool", response_model=list[SsrAnchorPoolItemOut])
+async def list_pool_items(
+    anchor_set_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> list[SsrAnchorPoolItemOut]:
+    """List pool items. Published sets allow append/remove on the pool only."""
+    await _get_row(session, anchor_set_id)
+    rows = await pool_items_for_set(session, anchor_set_id)
+    return [_serialize_pool_item(r) for r in rows]
+
+
+@router.post(
+    "/{anchor_set_id}/pool",
+    response_model=SsrAnchorPoolItemOut,
+    status_code=201,
+)
+async def create_pool_item(
+    anchor_set_id: int,
+    body: SsrAnchorPoolItemCreate,
+    session: AsyncSession = Depends(get_session),
+) -> SsrAnchorPoolItemOut:
+    """Append a pool anchor. Live immediately on published sets (base statements stay locked)."""
+    try:
+        item = await add_pool_item(
+            session,
+            anchor_set_id=anchor_set_id,
+            label=body.label,
+            text=body.text,
+            source_type=body.source_type,
+            source_run_id=body.source_run_id,
+            source_attempt_id=body.source_attempt_id,
+            source_variant_id=body.source_variant_id,
+            source_ref=body.source_ref,
+            add_to_calibration=body.add_to_calibration,
+        )
+    except AnchorPoolError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    await session.commit()
+    await session.refresh(item)
+    return _serialize_pool_item(item)
+
+
+@router.delete("/{anchor_set_id}/pool/{item_id}", status_code=204)
+async def delete_pool_item(
+    anchor_set_id: int,
+    item_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> None:
+    try:
+        await remove_pool_item(session, anchor_set_id=anchor_set_id, item_id=item_id)
+    except AnchorPoolError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    await session.commit()

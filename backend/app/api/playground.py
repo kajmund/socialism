@@ -138,6 +138,7 @@ async def post_ssr_rate(
     labels = body.labels
     statements = body.statements
     if body.anchor_set_id is not None:
+        from app.services.anchor_pool import centroid_vectors_for_set
         from app.services.anchor_store import get_anchor_set_row, row_to_anchor_set
 
         row = await get_anchor_set_row(session, body.anchor_set_id)
@@ -146,6 +147,7 @@ async def post_ssr_rate(
         anchor = row_to_anchor_set(row)
         labels = list(anchor.labels)
         statements = list(anchor.statements)
+        anchor_vectors = await centroid_vectors_for_set(session, row)
         if row.kind != body.dimension:
             raise HTTPException(
                 status_code=400,
@@ -156,6 +158,8 @@ async def post_ssr_rate(
                 status_code=400,
                 detail=f"Anchor set locale {row.locale!r} does not match request locale {body.locale!r}",
             )
+    else:
+        anchor_vectors = None
 
     human = body.human_labels
     if human is not None:
@@ -191,6 +195,7 @@ async def post_ssr_rate(
             statements=statements,
             temperature=body.temperature,
             human_labels=human,
+            anchor_vectors=anchor_vectors,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -207,6 +212,7 @@ async def post_ssr_compare(
     labels = body.labels
     statements = body.statements
     if body.anchor_set_id is not None:
+        from app.services.anchor_pool import centroid_vectors_for_set
         from app.services.anchor_store import require_anchor_set_row, row_to_anchor_set
 
         row = await require_anchor_set_row(session, body.anchor_set_id)
@@ -215,6 +221,9 @@ async def post_ssr_compare(
         anchor = row_to_anchor_set(row)
         labels = list(anchor.labels)
         statements = list(anchor.statements)
+        anchor_vectors = await centroid_vectors_for_set(session, row)
+    else:
+        anchor_vectors = None
     try:
         return await compare_ssr_lexicon(
             texts,
@@ -222,6 +231,7 @@ async def post_ssr_compare(
             labels=labels,
             statements=statements,
             temperature=body.temperature,
+            anchor_vectors=anchor_vectors,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
