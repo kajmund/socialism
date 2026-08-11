@@ -1427,7 +1427,7 @@ export const en: LocalizedTree<SvMessages> = {
     list: {
       title: "SSR anchors",
       intro:
-        "Library of versioned tone and style anchor sets for reports. Publish a set before selecting it in a configuration. Test against sample comments or a calibration corpus.",
+        "Library of versioned tone and style anchor sets for reports. Publishing requires at least eight calibration rows and acceptable macro-accuracy (≥55%, or explicit acknowledgement when warned).",
       new: "+ New anchor set",
       loading: "Loading anchor sets…",
       loadError: "Could not load anchor sets",
@@ -1435,17 +1435,30 @@ export const en: LocalizedTree<SvMessages> = {
       allKinds: "All kinds",
       allLocales: "All locales",
       labelCount: "{count} labels",
+      calibrationCount: "{count} calibration rows",
+      macroAccuracy: "Macro accuracy: {pct}%",
       edit: "Edit",
       publish: "Publish",
       duplicate: "Duplicate",
       published: "Anchor set published",
       duplicated: "Anchor set duplicated",
+      publishedWithOverride: "Anchor set published with calibration warning",
+      publishConfirm:
+        "Calibration is below target ({detail}). Macro accuracy: {pct}%. Missing labels: {missing}. Publish anyway?",
       deleted: "Anchor set deleted",
+    },
+    validation: {
+      ok: "Calibrated",
+      stale: "Stale",
+      low: "Low accuracy",
+      untested: "Untested",
     },
     editor: {
       newTitle: "New anchor set",
       editTitle: "Edit anchor set",
-      intro: "Label + anchor statement per row. Drafts are editable; published sets must be duplicated to change.",
+      intro: "Label + anchor statement per row. Drafts are editable; duplicate published sets to change base rows. Pool items on published sets can be edited live.",
+      validationSummary:
+        "Calibration: {count} rows · status {status} · latest macro accuracy {pct}%",
       loading: "Loading anchor set…",
       loadError: "Could not load the anchor set",
       nameLabel: "Name",
@@ -1461,16 +1474,19 @@ export const en: LocalizedTree<SvMessages> = {
       tabTest: "Test",
     },
     calibration: {
-      intro: "Manually labeled sample comments — used for accuracy in the test tab.",
+      intro:
+        "Manually labeled sample comments — at least eight rows are required to publish. Run a saved calibration test after edits or pool changes.",
       textPlaceholder: "Comment to classify…",
       add: "Add",
+      runPersist: "Run and save calibration test",
     },
     test: {
       intro: "Paste comments (one per line) or run against the calibration corpus.",
       textsPlaceholder: "One comment per line…",
       run: "Run SSR test",
       runCalibration: "Test calibration",
-      accuracy: "Accuracy vs manual labels: {pct}%",
+      accuracy: "Top-1 accuracy vs manual labels: {pct}%",
+      macroAccuracy: "Macro accuracy per label: {pct}%",
       error: "Test failed",
     },
   },

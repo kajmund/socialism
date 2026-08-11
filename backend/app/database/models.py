@@ -277,6 +277,18 @@ class SsrAnchorSet(Base):
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="draft", index=True)
     # Bumped on append/remove to ssr_anchor_pool_items; invalidates centroid cache.
     pool_revision: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    calibration_accuracy: Mapped[float | None] = mapped_column(Float, nullable=True)
+    calibration_tested_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    calibration_pool_revision: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    calibration_n_at_test: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    calibration_publish_override: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

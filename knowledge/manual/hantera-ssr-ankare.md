@@ -30,12 +30,15 @@ tags: [grunddata]
 
 ## Publicera och hantera versioner
 
-1. När du är nöjd: gå tillbaka till listan och välj **Publicera** på utkastet.
-2. **Publicerade** ankare kan inte redigeras — de är låsta. Välj **Duplicera** för att skapa ett nytt utkast baserat på en publicerad version.
-3. **Ta bort** går bara för utkast.
-4. Endast **publicerade** ankare kan väljas i en konfiguration.
+1. Lägg till **minst åtta** kalibreringsrader på fliken Kalibrering och kör **Kör och spara kalibreringstest** (macro-träff per etikett, mål ≥55 %).
+2. När du är nöjd: gå tillbaka till listan och välj **Publicera** på utkastet. Publicering blockeras om kalibreringen är otillräcklig — du kan bekräfta och publicera ändå vid varning (t.ex. låg träff eller saknade etiketter).
+3. **Publicerade** ankare kan inte redigeras — basraderna (etikett + ankartext) är låsta. Välj **Duplicera** för att skapa ett nytt utkast baserat på en publicerad version.
+4. **Ta bort** går bara för utkast.
+5. Endast **publicerade** ankare kan väljas i en konfiguration.
 
-**Pool på publicerade set:** du kan lägga till och ta bort **simulerade exempel** (pool) direkt på publicerade ankare — de gäller omedelbart för nya rapporter. Själva basraderna (etikett + ankartext) förblir låsta; duplicera setet om du vill ändra dem.
+**Pool på publicerade set:** du kan lägga till och ta bort **simulerade exempel** (pool) direkt på publicerade ankare — de gäller omedelbart för nya rapporter och markerar kalibreringen som **inaktuell** tills du kör om testet. Själva basraderna (etikett + ankartext) förblir låsta; duplicera setet om du vill ändra dem.
+
+**Rapporter:** om aktiva ankare är otestade, inaktuella eller under tröskeln visas en varning högst upp i snabbrapporten (rapporten genereras ändå).
 
 ## Koppla till konfiguration
 

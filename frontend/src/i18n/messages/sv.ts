@@ -1427,7 +1427,7 @@ export const sv = {
     list: {
       title: "SSR-ankare",
       intro:
-        "Bibliotek med versionerade ton- och stilankare för rapporter. Publicera ett set innan det väljs i en konfiguration. Testa mot exempelkommentarer eller kalibreringskorpus.",
+        "Bibliotek med versionerade ton- och stilankare för rapporter. Publicera kräver minst åtta kalibreringsrader och godkänd macro-träffsäkerhet (≥55 %, eller explicit bekräftelse vid varning).",
       new: "+ Nytt ankare",
       loading: "Hämtar ankare…",
       loadError: "Kunde inte hämta ankare",
@@ -1435,17 +1435,30 @@ export const sv = {
       allKinds: "Alla typer",
       allLocales: "Alla språk",
       labelCount: "{count} etiketter",
+      calibrationCount: "{count} kalibreringsrader",
+      macroAccuracy: "Macro-träff: {pct}%",
       edit: "Redigera",
       publish: "Publicera",
       duplicate: "Duplicera",
       published: "Ankaret publicerades",
       duplicated: "Ankaret duplicerades",
+      publishedWithOverride: "Ankaret publicerades med kalibreringsvarning",
+      publishConfirm:
+        "Kalibreringen når inte målet ({detail}). Macro-träff: {pct}%. Saknade etiketter: {missing}. Publicera ändå?",
       deleted: "Ankaret togs bort",
+    },
+    validation: {
+      ok: "Kalibrerad",
+      stale: "Inaktuell",
+      low: "Låg träff",
+      untested: "Otestad",
     },
     editor: {
       newTitle: "Nytt ankare",
       editTitle: "Redigera ankare",
-      intro: "Etikett + ankartext per rad. Utkast kan redigeras; publicerade set dupliceras för ändring.",
+      intro: "Etikett + ankartext per rad. Utkast kan redigeras; publicerade set dupliceras för ändring av basrader. Pool på publicerade set kan ändras direkt.",
+      validationSummary:
+        "Kalibrering: {count} rader · status {status} · senaste macro-träff {pct}%",
       loading: "Hämtar ankare…",
       loadError: "Kunde inte hämta ankaret",
       nameLabel: "Namn",
@@ -1461,16 +1474,19 @@ export const sv = {
       tabTest: "Test",
     },
     calibration: {
-      intro: "Manuellt klassificerade exempelkommentarer — används för träffsäkerhet i testfliken.",
+      intro:
+        "Manuellt klassificerade exempelkommentarer — minst åtta rader krävs för publicering. Kör sparat kalibreringstest efter ändringar eller pool-tillägg.",
       textPlaceholder: "Kommentar att klassificera…",
       add: "Lägg till",
+      runPersist: "Kör och spara kalibreringstest",
     },
     test: {
       intro: "Klistra in kommentarer (en per rad) eller kör mot kalibreringskorpusen.",
       textsPlaceholder: "En kommentar per rad…",
       run: "Kör SSR-test",
       runCalibration: "Testa kalibrering",
-      accuracy: "Träffsäkerhet mot manuella etiketter: {pct}%",
+      accuracy: "Top-1-träff mot manuella etiketter: {pct}%",
+      macroAccuracy: "Macro-träff per etikett: {pct}%",
       error: "Testet misslyckades",
     },
   },
