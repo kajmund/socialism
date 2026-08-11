@@ -41,7 +41,7 @@ OASIS_ACTION_SPECS: tuple[OasisActionSpec, ...] = (
         "create_post",
         twitter=True,
         reddit=True,
-        population=True,
+        population=False,
         create_post_optional=True,
     ),
     OasisActionSpec("LIKE_POST", "like_post", True, True, True, engagement=EngagementKind.POST_ENGAGE),

@@ -14,8 +14,8 @@ Keep **camel-oasis as the only simulation backend** (no alternate engine protoco
 simulate_run() / jobs                    ← product orchestration (stable)
     └── run_oasis_simulation()           ← tick loop, measurements
             ├── simulation/action_catalog.py     ← Fas B ✓
-            ├── simulation/llm_runtime.py        ← Fas A (planned)
-            ├── simulation/agent_tool_policy.py  ← Fas D (planned, same PR as A)
+            ├── simulation/llm_runtime.py        ← Fas A+D ✓
+            ├── simulation/agent_tool_policy.py  ← Fas D ✓
             ├── simulation/artifact/               ← Fas C (planned)
             ├── simulation/platforms/              ← Fas E (planned)
             └── oasis_swedish.py                   ← Swedish env prompts (DB-driven, keep)
@@ -36,7 +36,7 @@ There are **no documented extension hooks** for LLM tool recording or per-round 
 | Phase | Scope | Status |
 | ----- | ----- | ------ |
 | **B** | `simulation/action_catalog.py` — ActionType names, trace strings, engagement classes, social vs external tools | Done |
-| **A + D** | Unified LLM runtime (DeepSeek + tool trace) + `AgentToolPolicy` for comment gating; per-run context manager restore | Planned |
+| **A + D** | Unified LLM runtime (DeepSeek + tool trace) + `CamelCommentToolPolicy`; per-run `camel_llm_runtime()` with refcount restore | Done |
 | **C** | `simulation/artifact/` — all `simulation.db` SQL behind typed reader | Planned |
 | **E** | `PlatformDriver` (Twitter/Reddit), MBTI fix, optional Reddit smoke | Planned |
 | **F** | Stratified sampling by district + lean_key | Deferred (separate small task) |
@@ -58,13 +58,14 @@ There are **no documented extension hooks** for LLM tool recording or per-round 
 3. Run `uv run pytest tests/test_action_catalog.py tests/test_oasis_actions_readback.py`.
 4. Re-run smoke if behaviour changes: `uv run pytest -m smoke` (requires `uv sync --extra oasis` + real `DEEPSEEK_API_KEY`).
 
-### Fas A + D — LLM runtime + tool policy (next)
+### Fas A + D — LLM runtime + comment tool policy
 
-- Merge `oasis_deepseek_reasoning.py` and tool-trace wrapping into one `llm_runtime.py`.
-- Replace process-global `_PATCHED` with `with camel_llm_runtime():` per variant run (restore on exit).
-- Wrap `sync_create_comment_tool` / `_internal_tools` in `AgentToolPolicy` — tick loop depends on protocol, not CAMEL class shape.
+- **`simulation/llm_runtime.py`** — `camel_llm_runtime()` context manager applies combined DeepSeek reasoning + external-tool trace patches; reference counting supports concurrent A/B variants; restores CAMEL originals when the last scope exits.
+- **`simulation/agent_tool_policy.py`** — `CamelCommentToolPolicy` gates `create_comment` via `_internal_tools`; tick loop uses the policy instead of direct CAMEL access.
+- **`oasis_deepseek_reasoning.py`** — thin backward-compatible re-export shim (deprecated `apply_deepseek_reasoning_patch()` context manager).
+- **`oasis_tool_trace.py`** — trace buffer ContextVars only; patching moved to `llm_runtime`.
 
-**Patch order (must stay):** DeepSeek reasoning → tool trace wrap → (optional external tools).
+**Patch order (encoded in llm_runtime):** DeepSeek `_record_tool_calling` replacement → external-tool trace append on the same hook.
 
 ### Fas C — artifact store
 
@@ -96,6 +97,8 @@ uv run pytest tests/test_action_catalog.py \
   tests/test_oasis_engagement.py \
   tests/test_oasis_swedish.py \
   tests/test_oasis_tool_trace.py \
+  tests/test_llm_runtime.py \
+  tests/test_agent_tool_policy.py \
   tests/test_oasis_deepseek_reasoning.py
 ```
 
@@ -115,7 +118,7 @@ Requires real `DEEPSEEK_API_KEY`. Asserts: attempt saved, 2 ticks, posts + trace
 | Layer | What to verify |
 | ----- | -------------- |
 | **Action catalog** | `ActionType` enum still matches our `enum_name` strings; trace.action strings unchanged |
-| **LLM runtime (A)** | DeepSeek tool loops still carry `reasoning_content`; external tool trace still records |
+| **LLM runtime (A+D)** | DeepSeek tool loops still carry `reasoning_content`; external tool trace still records; patches restore after run |
 | **Tool policy (D)** | Comment gating still works (`create_comment` removed until engagement) |
 | **Swedish env** | Feed templates render; follower/follow counts SQL columns still exist |
 | **Artifact reader (C)** | All tables in `_read_oasis_results` still present; column names unchanged |

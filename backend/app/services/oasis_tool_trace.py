@@ -17,7 +17,6 @@ _TRACE: ContextVar[list[dict[str, Any]] | None] = ContextVar(
 )
 _TICK_INDEX: ContextVar[int] = ContextVar("oasis_tool_tick", default=0)
 _SEQUENCE: ContextVar[int] = ContextVar("oasis_tool_seq", default=0)
-_PATCHED = False
 
 
 def clear_oasis_tool_trace() -> None:
@@ -72,54 +71,3 @@ def _agent_index(agent: Any) -> int | None:
 def is_external_tool(tool_name: str) -> bool:
     return _catalog_is_external(tool_name)
 
-
-def apply_oasis_tool_trace_patch() -> None:
-    """Wrap ChatAgent._record_tool_calling to log non-social toolkit usage."""
-    global _PATCHED
-    if _PATCHED:
-        return
-
-    from camel.agents.chat_agent import ChatAgent
-
-    orig_record = ChatAgent._record_tool_calling
-
-    def record_tool_calling(
-        self,
-        func_name: str,
-        args: dict[str, Any],
-        result: Any,
-        tool_call_id: str,
-        mask_output: bool = False,
-    ):
-        record = orig_record(
-            self,
-            func_name,
-            args,
-            result,
-            tool_call_id,
-            mask_output=mask_output,
-        )
-        if not is_external_tool(func_name):
-            return record
-
-        trace = _TRACE.get()
-        if trace is None:
-            return record
-
-        seq = _SEQUENCE.get() + 1
-        _SEQUENCE.set(seq)
-        agent_index = _agent_index(self)
-        trace.append(
-            {
-                "user_id": agent_index if agent_index is not None else -1,
-                "tick_index": _TICK_INDEX.get(),
-                "sequence": seq,
-                "tool_name": func_name,
-                "args": _safe_args(args),
-                "result_preview": _preview(result),
-            }
-        )
-        return record
-
-    ChatAgent._record_tool_calling = record_tool_calling
-    _PATCHED = True
