@@ -751,7 +751,7 @@ export const sv = {
       qaTitle: "Avvikelse mot recept",
       targetDiff: "utfall {achieved} %, Δ {delta} pp",
       fingerprintInferred:
-        "Fingeravtrycket beräknades om från befintliga medlemmar (inga slot-nycklar sparades vid skapande).",
+        "Fingeravtrycket beräknades om från befintliga medlemmar. Lutning kan saknas tills populationen regenereras — avvikelsevarningar för lutning visas inte under tiden.",
     },
     builder: {
       stepStart: "Starta",

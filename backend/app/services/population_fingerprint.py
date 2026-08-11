@@ -84,6 +84,22 @@ def infer_lean_key(lutning_label: str, group: DistGroup | dict | None) -> str:
     return _match_row_key(lutning_label, rows, fallback_key="mitt")
 
 
+def infer_lean_key_optional(
+    lutning_label: str,
+    group: DistGroup | dict | None,
+) -> str | None:
+    """Return None when lutning is unknown — do not silently default to mitt."""
+    if not lutning_label.strip():
+        return None
+    return infer_lean_key(lutning_label, group)
+
+
+def lutning_from_profile(profile: dict | None) -> str:
+    if not profile:
+        return ""
+    return str(profile.get("lutning") or profile.get("leaning") or "")
+
+
 def _rows_from_group(group: DistGroup | dict | None) -> list[DistRow] | None:
     if group is None:
         return None
@@ -138,7 +154,7 @@ def slots_from_persona(persona: GeneratedPersonaOut) -> MemberSlots:
 
 def slots_from_member(member: PopulationMember | _SlotSource) -> MemberSlots:
     age_bucket = member.age_bucket or infer_age_bucket(member.age)
-    lean_key = member.lean_key or "mitt"
+    lean_key = member.lean_key
     district_key = member.district_key or infer_district_key(
         member.district,
         None,
@@ -157,14 +173,13 @@ def infer_slots_from_profile(
     profile: dict | None,
     dist: dict[str, DistGroup | dict],
 ) -> MemberSlots:
-    lutning = ""
+    lutning = lutning_from_profile(profile)
     ort = district
     if profile:
-        lutning = str(profile.get("lutning") or profile.get("leaning") or "")
         ort = str(profile.get("ort") or profile.get("district") or district)
     return MemberSlots(
         age_bucket=infer_age_bucket(age),
-        lean_key=infer_lean_key(lutning, dist.get("leaning")),
+        lean_key=infer_lean_key_optional(lutning, dist.get("leaning")),
         district_key=infer_district_key(ort, dist.get("district")),
     )
 
@@ -229,27 +244,32 @@ def fingerprint_from_slot_rows(
 
     lean_rows = _rows_from_group(dist.get("leaning")) or []
     lean_row_counts = {row.k: 0 for row in lean_rows}
-    for slots in normalized:
+    lean_known = [slots for slots in normalized if slots.lean_key]
+    lean_total = len(lean_known)
+    for slots in lean_known:
         key = slots.lean_key or "mitt"
         if key not in lean_row_counts and lean_row_counts:
             key = next(iter(lean_row_counts))
         lean_row_counts[key] = lean_row_counts.get(key, 0) + 1
 
-    left = mid = right = 0
-    for row in lean_rows:
-        count = lean_row_counts.get(row.k, 0)
-        bucket = _lean_bucket(row)
-        if bucket == "left":
-            left += count
-        elif bucket == "right":
-            right += count
-        else:
-            mid += count
-    lean = [
-        round(100 * left / total),
-        round(100 * mid / total),
-        round(100 * right / total),
-    ]
+    if lean_total == 0:
+        lean = [0, 0, 0]
+    else:
+        left = mid = right = 0
+        for row in lean_rows:
+            count = lean_row_counts.get(row.k, 0)
+            bucket = _lean_bucket(row)
+            if bucket == "left":
+                left += count
+            elif bucket == "right":
+                right += count
+            else:
+                mid += count
+        lean = [
+            round(100 * left / lean_total),
+            round(100 * mid / lean_total),
+            round(100 * right / lean_total),
+        ]
 
     district_rows = _rows_from_group(dist.get("district")) or []
     district_counts = {row.k: 0 for row in district_rows}
@@ -324,6 +344,8 @@ def compare_target_vs_candidates(
 def compare_target_vs_achieved(
     dist: dict[str, DistGroup | dict],
     members: list[PopulationMember | _SlotSource],
+    *,
+    fingerprint_inferred: bool = False,
 ) -> list[str]:
     if not members:
         return []
@@ -335,12 +357,28 @@ def compare_target_vs_achieved(
         ("leaning", "lean_key", "Lutning"),
         ("district", "district_key", "Ort"),
     )
+    lean_known = sum(1 for member in members if slots_from_member(member).lean_key)
     for group_key, slot_field, label in checks:
+        if group_key == "leaning" and (
+            fingerprint_inferred or lean_known < total
+        ):
+            continue
         rows = _rows_from_group(dist.get(group_key)) or []
         if not rows:
             continue
         counts = {row.k: 0 for row in rows}
-        for member in members:
+        scoped_members = members
+        scoped_total = total
+        if group_key == "leaning":
+            scoped_members = [
+                member
+                for member in members
+                if slots_from_member(member).lean_key
+            ]
+            scoped_total = len(scoped_members)
+            if scoped_total == 0:
+                continue
+        for member in scoped_members:
             slots = slots_from_member(member)
             value = getattr(slots, slot_field) or ""
             key = str(value)
@@ -349,7 +387,7 @@ def compare_target_vs_achieved(
             counts[key] = counts.get(key, 0) + 1
         for row in rows:
             target = row.v
-            achieved = round(100 * counts.get(row.k, 0) / total)
+            achieved = round(100 * counts.get(row.k, 0) / scoped_total)
             delta = abs(achieved - target)
             if delta > QA_THRESHOLD_PP:
                 warnings.append(
@@ -361,6 +399,8 @@ def compare_target_vs_achieved(
 def dist_qa_rows(
     dist: dict[str, DistGroup | dict],
     members: list[PopulationMember | _SlotSource],
+    *,
+    fingerprint_inferred: bool = False,
 ) -> list[dict]:
     if not members:
         return []
@@ -372,13 +412,29 @@ def dist_qa_rows(
         ("leaning", "lean_key"),
         ("district", "district_key"),
     )
+    lean_known = sum(1 for member in members if slots_from_member(member).lean_key)
     for group_key, slot_field in checks:
+        if group_key == "leaning" and (
+            fingerprint_inferred or lean_known < total
+        ):
+            continue
         group = dist.get(group_key)
         rows = _rows_from_group(group) or []
         if not rows:
             continue
         counts = {row.k: 0 for row in rows}
-        for member in members:
+        scoped_members = members
+        scoped_total = total
+        if group_key == "leaning":
+            scoped_members = [
+                member
+                for member in members
+                if slots_from_member(member).lean_key
+            ]
+            scoped_total = len(scoped_members)
+            if scoped_total == 0:
+                continue
+        for member in scoped_members:
             slots = slots_from_member(member)
             key = getattr(slots, slot_field) or ""
             if key not in counts and counts:
@@ -394,7 +450,7 @@ def dist_qa_rows(
                         "k": row.k,
                         "l": row.l,
                         "target_v": row.v,
-                        "achieved_v": round(100 * counts.get(row.k, 0) / total),
+                        "achieved_v": round(100 * counts.get(row.k, 0) / scoped_total),
                     }
                     for row in rows
                 ],

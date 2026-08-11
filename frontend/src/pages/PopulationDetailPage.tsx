@@ -253,6 +253,14 @@ export function PopulationDetailPage() {
         </h2>
         <div className="fp-section">
           {sectionLabels.map((label, i) => {
+            const groupKey = FP_GROUP_KEYS[i]
+            if (
+              pop.fingerprint_inferred &&
+              groupKey === "leaning" &&
+              !pop.dist_qa.some((g) => g.key === "leaning")
+            ) {
+              return null
+            }
             const achieved = achievedValuesForSection(pop, i)
             const labels = achieved.labels.length > 0 ? achieved.labels : (legendFallback[i] ?? [])
             const values = achieved.values
@@ -297,6 +305,14 @@ export function PopulationDetailPage() {
         </h2>
         <div className="fp-section">
           {sectionLabels.map((label, i) => {
+            const groupKey = FP_GROUP_KEYS[i]
+            if (
+              pop.fingerprint_inferred &&
+              groupKey === "leaning" &&
+              !pop.dist_qa.some((g) => g.key === "leaning")
+            ) {
+              return null
+            }
             const target = targetValuesForSection(pop, i)
             const achieved = achievedValuesForSection(pop, i)
             const labels = target.labels.length > 0 ? target.labels : (legendFallback[i] ?? [])

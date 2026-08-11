@@ -132,14 +132,28 @@ def serialize_population_detail(
     recipe = population.recipe or {}
     dist = recipe.get("dist") or {}
     target_fp = fingerprint_from_dist(dist) if dist else []
-    qa_warnings = compare_target_vs_achieved(dist, members) if members else []
+    qa_warnings = (
+        compare_target_vs_achieved(
+            dist,
+            members,
+            fingerprint_inferred=bool(population.fingerprint_inferred),
+        )
+        if members
+        else []
+    )
     return PopulationDetail(
         **summary.model_dump(),
         recipe=recipe,
         members=[serialize_member(m) for m in members],
         target_fp=target_fp,
         qa_warnings=qa_warnings,
-        dist_qa=_serialize_dist_qa(dist_qa_rows(dist, members)),
+        dist_qa=_serialize_dist_qa(
+            dist_qa_rows(
+                dist,
+                members,
+                fingerprint_inferred=bool(population.fingerprint_inferred),
+            )
+        ),
         fingerprint_inferred=bool(population.fingerprint_inferred),
     )
 
