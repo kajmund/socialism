@@ -27,7 +27,6 @@ from app.serializers import utcnow
 from app.services.district_context import format_area_block, list_district_contexts
 from app.services.lexical_convergence import analyze_lexical_convergence
 from app.services.oasis_agent_tools import apply_population_agent_tools
-from app.services.oasis_deepseek_reasoning import apply_deepseek_reasoning_patch
 from app.services.oasis_engagement import (
     StimulusEngagement,
     build_agent_strata_from_members,
@@ -39,7 +38,6 @@ from app.services.oasis_engagement import (
     read_trace_since,
     sample_fraction,
     stratified_agent_sample,
-    sync_create_comment_tool,
     trace_row_count,
 )
 from app.services.oasis_clock import OasisScenarioClock
@@ -55,11 +53,12 @@ from app.services.oasis_swedish import (
     set_oasis_user_display_names,
 )
 from app.services.oasis_tool_trace import (
-    apply_oasis_tool_trace_patch,
     clear_oasis_tool_trace,
     drain_oasis_tool_trace,
     set_oasis_tool_trace_tick,
 )
+from app.services.simulation.agent_tool_policy import CamelCommentToolPolicy
+from app.services.simulation.llm_runtime import camel_llm_runtime
 from app.services.run_log import (
     capture_run_log,
     run_attempt_log_dir,
@@ -526,233 +525,231 @@ async def run_oasis_simulation(
         prompts = await require_active_prompts(prompt_session)
 
     apply_swedish_social_environment_prompts(prompts)
-    apply_deepseek_reasoning_patch()
-    apply_oasis_tool_trace_patch()
-    clear_oasis_tool_trace()
-    # All configured ticks run: silent = no injection that day, population still reacts.
-    active_ticks = list(ticks)
-    profiles, key_to_index = build_run_profiles(
-        members,
-        active_ticks,
-        prompts=prompts,
-        area_blocks=area_blocks,
-        allow_create_post=allow_create,
-        platform=platform,
-        oasis_options=options,
-    )
-    # OASIS feed only exposes user_id; map to member names for correct attribution.
-    set_oasis_user_display_names(
-        {i: p.member_name for i, p in enumerate(profiles)}
-    )
-    population_indices = {i for i, p in enumerate(profiles) if p.role == "population"}
-    if not population_indices:
-        raise OasisUnavailable("Population has no members to simulate")
 
-    art = _artifact_dir(run_id, variant_id)
-    profile_csv: str | None = None
-    profile_json: str | None = None
-    if platform == "reddit":
-        profile_path = write_reddit_profile_json(profiles, art / "profiles.json")
-        profile_json = str(profile_path)
-    else:
-        profile_path = write_twitter_profile_csv(profiles, art / "profiles.csv")
-        profile_csv = str(profile_path)
-
-    db_path = art / "simulation.db"
-    if db_path.exists():
-        db_path.unlink()
-
-    model = ModelFactory.create(
-        model_platform=ModelPlatformType.OPENAI_COMPATIBLE_MODEL,
-        model_type=settings.deepseek_model,
-        url=settings.deepseek_base_url,
-        api_key=settings.deepseek_api_key,
-    )
-
-    available_actions = [
-        ActionType[name]
-        for name in population_action_names(
-            allow_population_create_post=allow_create,
+    with camel_llm_runtime():
+        clear_oasis_tool_trace()
+        # All configured ticks run: silent = no injection that day, population still reacts.
+        active_ticks = list(ticks)
+        profiles, key_to_index = build_run_profiles(
+            members,
+            active_ticks,
+            prompts=prompts,
+            area_blocks=area_blocks,
+            allow_create_post=allow_create,
             platform=platform,
+            oasis_options=options,
         )
-    ]
-
-    sim_start = simulation_start or DEFAULT_SIMULATION_START
-    scenario_clock: OasisScenarioClock | None = None
-
-    if platform == "reddit":
-        agent_graph = await generate_reddit_agent_graph(
-            profile_path=str(profile_path),
-            model=model,
-            available_actions=available_actions,
+        # OASIS feed only exposes user_id; map to member names for correct attribution.
+        set_oasis_user_display_names(
+            {i: p.member_name for i, p in enumerate(profiles)}
         )
-        env = _make_reddit_env(agent_graph, db_path, sim_start)
-        if isinstance(env.platform.sandbox_clock, OasisScenarioClock):
-            scenario_clock = env.platform.sandbox_clock
-    else:
-        agent_graph = await generate_twitter_agent_graph(
-            profile_path=str(profile_path),
-            model=model,
-            available_actions=available_actions,
+        population_indices = {
+            i for i, p in enumerate(profiles) if p.role == "population"
+        }
+        if not population_indices:
+            raise OasisUnavailable("Population has no members to simulate")
+
+        art = _artifact_dir(run_id, variant_id)
+        profile_csv: str | None = None
+        profile_json: str | None = None
+        if platform == "reddit":
+            profile_path = write_reddit_profile_json(profiles, art / "profiles.json")
+            profile_json = str(profile_path)
+        else:
+            profile_path = write_twitter_profile_csv(profiles, art / "profiles.csv")
+            profile_csv = str(profile_path)
+
+        db_path = art / "simulation.db"
+        if db_path.exists():
+            db_path.unlink()
+
+        model = ModelFactory.create(
+            model_platform=ModelPlatformType.OPENAI_COMPATIBLE_MODEL,
+            model_type=settings.deepseek_model,
+            url=settings.deepseek_base_url,
+            api_key=settings.deepseek_api_key,
         )
-        env = oasis.make(
-            agent_graph=agent_graph,
-            platform=oasis.DefaultPlatformType.TWITTER,
-            database_path=str(db_path),
-        )
 
-    apply_population_agent_tools(agent_graph, population_indices, options)
+        available_actions = [
+            ActionType[name]
+            for name in population_action_names(
+                allow_population_create_post=allow_create,
+                platform=platform,
+            )
+        ]
 
-    injector_indices = {
-        i for i, p in enumerate(profiles) if p.role == "injector"
-    }
-    agent_strata = build_agent_strata_from_members(members, population_indices)
-    engagement = StimulusEngagement()
-    comment_tools: dict[int, Any] = {}
-    for agent_id in population_indices:
-        agent = agent_graph.get_agent(agent_id)
-        tool = agent._internal_tools.get("create_comment")
-        if tool is not None:
-            comment_tools[agent_id] = tool
+        sim_start = simulation_start or DEFAULT_SIMULATION_START
+        scenario_clock: OasisScenarioClock | None = None
 
-    ticks_run = 0
-    tick_markers: list[dict[str, Any]] = []
-    prev_end = -1
+        if platform == "reddit":
+            agent_graph = await generate_reddit_agent_graph(
+                profile_path=str(profile_path),
+                model=model,
+                available_actions=available_actions,
+            )
+            env = _make_reddit_env(agent_graph, db_path, sim_start)
+            if isinstance(env.platform.sandbox_clock, OasisScenarioClock):
+                scenario_clock = env.platform.sandbox_clock
+        else:
+            agent_graph = await generate_twitter_agent_graph(
+                profile_path=str(profile_path),
+                model=model,
+                available_actions=available_actions,
+            )
+            env = oasis.make(
+                agent_graph=agent_graph,
+                platform=oasis.DefaultPlatformType.TWITTER,
+                database_path=str(db_path),
+            )
 
-    try:
-        await env.reset()
+        apply_population_agent_tools(agent_graph, population_indices, options)
 
-        for tick_index, tick in enumerate(active_ticks):
-            if scenario_clock is not None:
-                scenario_clock.set_day_index(max(0, tick.day - 1))
-            time_start = prev_end + 1
-            if not tick.silent:
-                max_post_before = _engagement_max_post_id(db_path)
-                inject_actions: dict[Any, list[Any]] = {}
-                for injection in tick.injections:
-                    if not injection_has_content(injection):
+        injector_indices = {
+            i for i, p in enumerate(profiles) if p.role == "injector"
+        }
+        agent_strata = build_agent_strata_from_members(members, population_indices)
+        engagement = StimulusEngagement()
+        comment_policy = CamelCommentToolPolicy()
+        comment_policy.register_population_agents(agent_graph, population_indices)
+
+        ticks_run = 0
+        tick_markers: list[dict[str, Any]] = []
+        prev_end = -1
+
+        try:
+            await env.reset()
+
+            for tick_index, tick in enumerate(active_ticks):
+                if scenario_clock is not None:
+                    scenario_clock.set_day_index(max(0, tick.day - 1))
+                time_start = prev_end + 1
+                if not tick.silent:
+                    max_post_before = _engagement_max_post_id(db_path)
+                    inject_actions: dict[Any, list[Any]] = {}
+                    for injection in tick.injections:
+                        if not injection_has_content(injection):
+                            continue
+                        content = await _prepare_injection_content(injection)
+                        if not content:
+                            continue
+                        idx = key_to_index.get(injector_key(injection))
+                        if idx is None:
+                            continue
+                        agent = env.agent_graph.get_agent(idx)
+                        inject_actions.setdefault(agent, []).append(
+                            ManualAction(
+                                action_type=ActionType.CREATE_POST,
+                                action_args={"content": content},
+                            )
+                        )
+                    if inject_actions:
+                        await env.step(inject_actions)
+                        new_posts = injector_post_ids_after(
+                            db_path,
+                            injector_indices=injector_indices,
+                            after_post_id=max_post_before,
+                        )
+                        if new_posts:
+                            engagement.reset_for_stimulus(new_posts)
+
+                rounds = max(1, tick.rounds)
+                set_oasis_tool_trace_tick(tick_index)
+                for round_index in range(rounds):
+                    eligible = engagement.eligible_agents(population_indices)
+                    selected = stratified_agent_sample(
+                        eligible,
+                        strata=agent_strata,
+                        fraction=sample_fraction(round_index),
+                        rng=make_round_rng(seed, tick_index, round_index),
+                    )
+                    if not selected:
                         continue
-                    content = await _prepare_injection_content(injection)
-                    if not content:
-                        continue
-                    idx = key_to_index.get(injector_key(injection))
-                    if idx is None:
-                        continue
-                    agent = env.agent_graph.get_agent(idx)
-                    inject_actions.setdefault(agent, []).append(
+                    trace_before = trace_row_count(db_path)
+                    llm_actions: dict[Any, Any] = {}
+                    for agent_id in selected:
+                        agent = env.agent_graph.get_agent(agent_id)
+                        comment_policy.set_comment_allowed(
+                            agent,
+                            agent_id,
+                            allowed=engagement.may_comment(agent_id),
+                        )
+                        llm_actions[agent] = LLMAction()
+                    await env.step(llm_actions)
+                    new_trace = read_trace_since(db_path, trace_before)
+                    comment_map = comment_post_ids(
+                        db_path, comment_ids_from_trace(new_trace)
+                    )
+                    engagement.record_trace_rows(
+                        new_trace, comment_to_post=comment_map
+                    )
+
+                # Planned interviews after reactions — agent has no future-tick context.
+                interview_actions: dict[Any, list[Any]] = {}
+                for agent_idx, prompt in resolve_tick_interviews(
+                    tick.interviews, profiles
+                ):
+                    agent = env.agent_graph.get_agent(agent_idx)
+                    interview_actions.setdefault(agent, []).append(
                         ManualAction(
-                            action_type=ActionType.CREATE_POST,
-                            action_args={"content": content},
+                            action_type=ActionType.INTERVIEW,
+                            action_args={"prompt": prompt},
                         )
                     )
-                if inject_actions:
-                    await env.step(inject_actions)
-                    new_posts = injector_post_ids_after(
-                        db_path,
-                        injector_indices=injector_indices,
-                        after_post_id=max_post_before,
-                    )
-                    if new_posts:
-                        engagement.reset_for_stimulus(new_posts)
+                if interview_actions:
+                    await env.step(interview_actions)
 
-            rounds = max(1, tick.rounds)
-            set_oasis_tool_trace_tick(tick_index)
-            for round_index in range(rounds):
-                eligible = engagement.eligible_agents(population_indices)
-                selected = stratified_agent_sample(
-                    eligible,
-                    strata=agent_strata,
-                    fraction=sample_fraction(round_index),
-                    rng=make_round_rng(seed, tick_index, round_index),
+                end = _max_event_time(db_path)
+                time_end = end if end >= time_start else time_start - 1
+                tick_markers.append(
+                    {
+                        "tick_index": tick_index,
+                        "day": tick.day,
+                        "silent": tick.silent,
+                        "key": tick.key,
+                        "rounds": tick.rounds,
+                        "time_start": time_start,
+                        "time_end": time_end,
+                    }
                 )
-                if not selected:
-                    continue
-                trace_before = trace_row_count(db_path)
-                llm_actions: dict[Any, Any] = {}
-                for agent_id in selected:
-                    agent = env.agent_graph.get_agent(agent_id)
-                    sync_create_comment_tool(
-                        agent,
-                        allow=engagement.may_comment(agent_id),
-                        stored_tool=comment_tools.get(agent_id),
-                    )
-                    llm_actions[agent] = LLMAction()
-                await env.step(llm_actions)
-                new_trace = read_trace_since(db_path, trace_before)
-                comment_map = comment_post_ids(
-                    db_path, comment_ids_from_trace(new_trace)
-                )
-                engagement.record_trace_rows(
-                    new_trace, comment_to_post=comment_map
-                )
+                prev_end = max(prev_end, end)
+                ticks_run += 1
+        finally:
+            await env.close()
 
-            # Planned interviews after reactions — agent has no future-tick context.
-            interview_actions: dict[Any, list[Any]] = {}
-            for agent_idx, prompt in resolve_tick_interviews(
-                tick.interviews, profiles
-            ):
-                agent = env.agent_graph.get_agent(agent_idx)
-                interview_actions.setdefault(agent, []).append(
-                    ManualAction(
-                        action_type=ActionType.INTERVIEW,
-                        action_args={"prompt": prompt},
-                    )
-                )
-            if interview_actions:
-                await env.step(interview_actions)
-
-            end = _max_event_time(db_path)
-            time_end = end if end >= time_start else time_start - 1
-            tick_markers.append(
+        feed = _read_oasis_results(db_path)
+        agent_tools = drain_oasis_tool_trace()
+        return {
+            "engine": "oasis",
+            "seed": seed,
+            "platform": platform,
+            "agents": [
                 {
-                    "tick_index": tick_index,
-                    "day": tick.day,
-                    "silent": tick.silent,
-                    "key": tick.key,
-                    "rounds": tick.rounds,
-                    "time_start": time_start,
-                    "time_end": time_end,
+                    "index": i,
+                    "username": p.username,
+                    "member_name": p.member_name,
+                    "persona_id": p.persona_id,
+                    "role": p.role,
                 }
-            )
-            prev_end = max(prev_end, end)
-            ticks_run += 1
-    finally:
-        await env.close()
-
-    feed = _read_oasis_results(db_path)
-    agent_tools = drain_oasis_tool_trace()
-    return {
-        "engine": "oasis",
-        "seed": seed,
-        "platform": platform,
-        "agents": [
-            {
-                "index": i,
-                "username": p.username,
-                "member_name": p.member_name,
-                "persona_id": p.persona_id,
-                "role": p.role,
-            }
-            for i, p in enumerate(profiles)
-        ],
-        "ticks_run": ticks_run,
-        "tick_markers": tick_markers,
-        "agent_count": len(profiles),
-        "configured_ticks": len(active_ticks),
-        "posts": feed["posts"],
-        "comments": feed["comments"],
-        "follows": feed["follows"],
-        "mutes": feed["mutes"],
-        "reports": feed["reports"],
-        "trace": feed["trace"],
-        "action_histogram": feed["action_histogram"],
-        "agent_tools": agent_tools,
-        "artifact_db": str(db_path),
-        "profile_path": str(profile_path),
-        "profile_csv": profile_csv,
-        "profile_json": profile_json,
-        "oasis_options": options.model_dump(),
-    }
+                for i, p in enumerate(profiles)
+            ],
+            "ticks_run": ticks_run,
+            "tick_markers": tick_markers,
+            "agent_count": len(profiles),
+            "configured_ticks": len(active_ticks),
+            "posts": feed["posts"],
+            "comments": feed["comments"],
+            "follows": feed["follows"],
+            "mutes": feed["mutes"],
+            "reports": feed["reports"],
+            "trace": feed["trace"],
+            "action_histogram": feed["action_histogram"],
+            "agent_tools": agent_tools,
+            "artifact_db": str(db_path),
+            "profile_path": str(profile_path),
+            "profile_csv": profile_csv,
+            "profile_json": profile_json,
+            "oasis_options": options.model_dump(),
+        }
 
 
 def build_empty_attempt(
