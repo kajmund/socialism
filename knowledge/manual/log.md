@@ -10,6 +10,8 @@
 * **Rapporter**: Full rapport (LLM-narrativ) är borttagen — bara snabbrapporten finns kvar.
 * **Rapporter**: SSR-sampling för ton/stil är stratifierad per agent (max 2 texter/agent, 16 totalt) — inte längre top-by-likes. Tekniskt stycke och `report.ssr.json` loggar sampling-metod.
 * **Playground**: Under Anchor-kalibrering kan reaktioner laddas från en klar körning med samma urval som rapport-SSR; valfritt klipp till 200 tecken och aktiv konfigurations SSR-temperatur vid rating.
+* **Rapporter**: Stildiagrammet heter nu **Andel reaktioner per budskapsstil** och visar procent av de klassade reaktionerna — tidigare rubrik ("Genomsnittliga likes per budskapsstil") beskrev inte vad som mättes. `0 %` betyder att stilen saknas i underlaget, inte att den fick noll gehör.
+* **Rapporter**: Engagemangsringen och antalet medborgare i rubriken använder samma nämnare, och underrubriken visar hur många institutionella konton som räknats bort.
 
 ## 2026-08-10
 
