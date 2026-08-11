@@ -16,7 +16,7 @@ simulate_run() / jobs                    ← product orchestration (stable)
             ├── simulation/action_catalog.py     ← Fas B ✓
             ├── simulation/llm_runtime.py        ← Fas A+D ✓
             ├── simulation/agent_tool_policy.py  ← Fas D ✓
-            ├── simulation/artifact/               ← Fas C (planned)
+            ├── simulation/artifact/               ← Fas C ✓
             ├── simulation/platforms/              ← Fas E (planned)
             └── oasis_swedish.py                   ← Swedish env prompts (DB-driven, keep)
 ```
@@ -37,7 +37,7 @@ There are **no documented extension hooks** for LLM tool recording or per-round 
 | ----- | ----- | ------ |
 | **B** | `simulation/action_catalog.py` — ActionType names, trace strings, engagement classes, social vs external tools | Done |
 | **A + D** | Unified LLM runtime (DeepSeek + tool trace) + `CamelCommentToolPolicy`; per-run `camel_llm_runtime()` with refcount restore | Done |
-| **C** | `simulation/artifact/` — all `simulation.db` SQL behind typed reader | Planned |
+| **C** | `simulation/artifact/` — all `simulation.db` SQL behind typed reader | Done |
 | **E** | `PlatformDriver` (Twitter/Reddit), MBTI fix, optional Reddit smoke | Planned |
 | **F** | Stratified sampling by district + lean_key | Deferred (separate small task) |
 
@@ -69,9 +69,20 @@ There are **no documented extension hooks** for LLM tool recording or per-round 
 
 ### Fas C — artifact store
 
-- Move `_read_oasis_results`, engagement mid-run SQL, and follower/follows reads into `simulation/artifact/reader.py`.
-- Pin `SCHEMA_VERSION` to camel-oasis release; fail loud on missing tables/columns.
-- Smoke harness asserts against reader models.
+**Module:** `backend/app/services/simulation/artifact/`
+
+- `schema.py` — `SCHEMA_VERSION` pinned to camel-oasis release; `EXPORT_TABLES` for post-run readback.
+- `reader.py` — `OasisArtifactReader`: export payload, mid-run engagement queries, follower/following counts, `max_event_time`.
+- `assert_export_schema()` fails loud when export tables are missing (upgrade drift).
+- Mid-run queries tolerate missing tables during early ticks (`OperationalError` → empty/0).
+- Follower/following counts for Swedish env prompts also degrade to `0` on `OperationalError` (cosmetic text during live sim — not export integrity).
+- `oasis_run.py`, `oasis_engagement.py`, and `oasis_swedish.py` delegate here — no new raw SQL elsewhere.
+
+**When camel-oasis schema changes:**
+
+1. Bump `SCHEMA_VERSION` in `schema.py`.
+2. Adjust reader SQL if column/table names changed.
+3. Run `uv run pytest tests/test_artifact_reader.py tests/test_oasis_actions_readback.py tests/test_oasis_engagement.py`.
 
 ### Fas E — platform drivers
 
@@ -93,6 +104,7 @@ Use this after bumping the `oasis` extra in `pyproject.toml` or when simulation 
 ```bash
 cd backend
 uv run pytest tests/test_action_catalog.py \
+  tests/test_artifact_reader.py \
   tests/test_oasis_actions_readback.py \
   tests/test_oasis_engagement.py \
   tests/test_oasis_swedish.py \
@@ -139,6 +151,6 @@ Requires real `DEEPSEEK_API_KEY`. Asserts: attempt saved, 2 ticks, posts + trace
 ## Anti-patterns
 
 - **Do not** add new action name lists outside `action_catalog.py`.
-- **Do not** add new raw SQL against `simulation.db` outside the artifact module (once Fas C lands).
+- **Do not** add new raw SQL against `simulation.db` outside `simulation/artifact/`.
 - **Do not** add process-global monkeypatches without per-run restore (target state after Fas A).
 - **Do not** implement fallback simulation engines or silent degradation — fail loud per root [AGENTS.md](../../AGENTS.md).
