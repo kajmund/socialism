@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from html import escape
 
 from app.services.report.bundles import RunBundle
@@ -93,7 +94,8 @@ def _donut(shares: list[tuple[str, float, str]], center: str) -> str:
 
 def render_engagement_donut(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -> str:
     m = metrics.aggregate
-    total = max(1, m.top_agents + m.mid_agents + m.zero_like_agents)
+    # Same denominator as the agent count in the caption — the tiers sum to it.
+    total = max(1, m.agent_count)
     engaged_share = (m.top_agents + m.mid_agents) / total
     if locale == "en":
         shares = [
@@ -102,8 +104,14 @@ def render_engagement_donut(metrics: ReportMetrics, *, locale: ReportLocale = "s
             ("No likes at all", m.zero_like_agents / total, C_SOFT),
         ]
         title = "Engagement in the debate"
+        account_word = "account" if m.injector_count == 1 else "accounts"
+        institutional = (
+            f" (excl. {m.injector_count} institutional {account_word})"
+            if m.injector_count
+            else ""
+        )
         sub = (
-            f"Of {m.agent_count} simulated citizens · "
+            f"Of {m.agent_count} simulated citizens{institutional} · "
             f"{m.zero_like_agents} with no likes."
         )
     else:
@@ -113,8 +121,14 @@ def render_engagement_donut(metrics: ReportMetrics, *, locale: ReportLocale = "s
             ("Inga likes alls", m.zero_like_agents / total, C_SOFT),
         ]
         title = "Engagemang i debatten"
+        account_word = (
+            "institutionellt konto" if m.injector_count == 1 else "institutionella konton"
+        )
+        institutional = (
+            f" (exkl. {m.injector_count} {account_word})" if m.injector_count else ""
+        )
         sub = (
-            f"Av {m.agent_count} simulerade medborgare · "
+            f"Av {m.agent_count} simulerade medborgare{institutional} · "
             f"{m.zero_like_agents} utan likes."
         )
     # Center = share with any likes (not zero-like count — that read as “broken” when 0).
@@ -183,29 +197,31 @@ def render_tone_donut(metrics: ReportMetrics, *, locale: ReportLocale = "sv") ->
 
 
 def render_style_hbars(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -> str:
-    styles = metrics.aggregate.style_avg_likes
+    styles = metrics.aggregate.style_shares
     max_v = max((v for _, v in styles), default=1.0) or 1.0
     palette = [C_PRIMARY, C_PRIMARY_2, C_GREEN, C_ORANGE, C_MUTED, C_ROSE]
     rows = []
-    for i, (label, avg) in enumerate(styles):
-        width = max(2, round((avg / max_v) * 100)) if avg > 0 else 2
+    for i, (label, share) in enumerate(styles):
+        width = max(2, round((share / max_v) * 100)) if share > 0 else 2
         color = palette[i % len(palette)]
-        zero_cls = " hb-zero" if avg <= 0 else ""
+        zero_cls = " hb-zero" if share <= 0 else ""
         shown = display_style_label(label, locale)
+        # A stub-width bar cannot fit its own label — the value sits to the right.
+        in_bar = pct(share) if share > 0 else ""
         rows.append(
             f'<div class="hbar-row">'
             f'<div class="hbar-lbl">{escape(shown)}</div>'
             f'<div class="hbar-track"><div class="hbar-fill{zero_cls}" '
             f'style="width:{width}%;background:{color};color:{_on_fill_color(color)}">'
-            f"{fmt_num(avg)}</div></div>"
-            f'<div class="hbar-val">{fmt_num(avg)}</div></div>'
+            f"{in_bar}</div></div>"
+            f'<div class="hbar-val">{pct(share)}</div></div>'
         )
     if locale == "en":
-        title = "Average likes per message style"
-        sub = "Which styles drew the most likes."
+        title = "Share of reactions per message style"
+        sub = "How the rated reactions distribute across styles — not likes."
     else:
-        title = "Genomsnittliga likes per budskapsstil"
-        sub = "Vilka stilar som drog flest likes."
+        title = "Andel reaktioner per budskapsstil"
+        sub = "Hur de klassade reaktionerna fördelar sig över stilar — inte likes."
     return (
         '<div class="chart-card">'
         f"<h4>{title}</h4>"
@@ -308,7 +324,7 @@ def _ab_bar_row(
     label: str,
     values: list[tuple[str, float | int]],
     *,
-    locale: ReportLocale,
+    fmt: Callable[[float], str] = fmt_num,
 ) -> str:
     nums = [float(v) for _, v in values]
     max_v = max(nums) if nums else 1.0
@@ -323,7 +339,7 @@ def _ab_bar_row(
             f'<div class="ab-bar-line">'
             f'<span class="ab-arm">{escape(arm)}</span>'
             f'<div class="ab-track"><div class="ab-fill" style="width:{width}%;background:{color}"></div></div>'
-            f'<span class="ab-val">{fmt_num(float(val)) if isinstance(val, float) else val}</span>'
+            f'<span class="ab-val">{fmt(float(val))}</span>'
             f"</div>"
         )
     return (
@@ -439,12 +455,13 @@ def render_quick_ab_bars(metrics: ReportMetrics, *, locale: ReportLocale = "sv")
         vals: list[tuple[str, float | int]] = []
         for arm_label, m in arms:
             if key == "_pos_tone":
-                vals.append((arm_label, round(_positive_tone_share(m.tone_shares, locale=locale), 3)))
+                vals.append((arm_label, _positive_tone_share(m.tone_shares, locale=locale)))
             elif key == "gini":
                 vals.append((arm_label, m.gini))
             else:
                 vals.append((arm_label, int(getattr(m, key))))
-        rows.append(_ab_bar_row(label, vals, locale=locale))
+        # Tone is a share everywhere else in the report — show it as a percentage here too.
+        rows.append(_ab_bar_row(label, vals, fmt=pct if key == "_pos_tone" else fmt_num))
     return (
         '<div class="chart-card wide">'
         f"<h4>{title}</h4>"

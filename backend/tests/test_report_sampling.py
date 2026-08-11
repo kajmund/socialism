@@ -9,7 +9,7 @@ import pytest
 from app.services.report.bundles import RunBundle
 from app.services.report.classify import (
     BundleClassification,
-    _style_avg_from_pmfs,
+    _style_shares_from_pmfs,
     classify_bundle,
 )
 from app.services.report.generate import generate_report_html
@@ -121,16 +121,28 @@ def test_collect_all_reactions_for_ssr():
     assert result.meta["selected_count"] == 2
 
 
-def test_style_avg_uses_unit_weights_not_likes():
+def test_style_shares_split_across_rated_texts():
     pmf_a = {lab: 0.0 for lab in STYLE_LABELS}
     pmf_a[STYLE_LABELS[0]] = 1.0
     pmf_b = {lab: 0.0 for lab in STYLE_LABELS}
     pmf_b[STYLE_LABELS[1]] = 1.0
-    mixed = _style_avg_from_pmfs([pmf_a, pmf_b])
-    by_style = dict(mixed)
-    assert by_style[STYLE_LABELS[0]] == pytest.approx(1.0)
-    assert by_style[STYLE_LABELS[1]] == pytest.approx(1.0)
-    assert dict(_style_avg_from_pmfs([pmf_a, pmf_a, pmf_a]))[STYLE_LABELS[0]] == pytest.approx(1.0)
+    by_style = dict(_style_shares_from_pmfs([pmf_a, pmf_b]))
+    assert by_style[STYLE_LABELS[0]] == pytest.approx(0.5)
+    assert by_style[STYLE_LABELS[1]] == pytest.approx(0.5)
+    assert sum(by_style.values()) == pytest.approx(1.0)
+    only_a = dict(_style_shares_from_pmfs([pmf_a, pmf_a, pmf_a]))
+    assert only_a[STYLE_LABELS[0]] == pytest.approx(1.0)
+    assert only_a[STYLE_LABELS[1]] == pytest.approx(0.0)
+
+
+def test_style_shares_reflect_soft_mass_not_presence():
+    """A style with a sliver of mass must not read the same as a dominant one."""
+    pmf = {lab: 0.0 for lab in STYLE_LABELS}
+    pmf[STYLE_LABELS[0]] = 0.9
+    pmf[STYLE_LABELS[1]] = 0.1
+    by_style = dict(_style_shares_from_pmfs([pmf]))
+    assert by_style[STYLE_LABELS[0]] == pytest.approx(0.9)
+    assert by_style[STYLE_LABELS[1]] == pytest.approx(0.1)
 
 
 @pytest.mark.asyncio

@@ -8,7 +8,11 @@ import pytest
 
 from app.llm import set_structured_completer
 from app.services.report.bundles import RunBundle
-from app.services.report.charts import render_agents_html, render_quick_charts
+from app.services.report.charts import (
+    render_agents_html,
+    render_engagement_donut,
+    render_quick_charts,
+)
 from app.services.report.classify import (
     BundleClassification,
     TopicPack,
@@ -97,14 +101,14 @@ def _clf_for(bundle: RunBundle) -> BundleClassification:
     """Deterministic classification for metrics tests (no LLM)."""
     packs = [TopicPack(label="Belysning", keywords=["belysning"])]
     tone_shares = {lab: 0.2 for lab in TONE_LABELS_SV}
-    style_avg = [(lab, 1.0 if i == 0 else 0.0) for i, lab in enumerate(STYLE_LABELS)]
-    style_avg.append((STYLE_UNCLASSIFIED, 0.0))
+    style_shares = [(lab, 1.0 if i == 0 else 0.0) for i, lab in enumerate(STYLE_LABELS)]
+    style_shares.append((STYLE_UNCLASSIFIED, 0.0))
     return BundleClassification(
         topic_packs=packs,
         topic_shares={"Belysning": 0.75, "Övrigt": 0.25},
         tone_shares=tone_shares,
         tone_mode="ssr",
-        style_avg_likes=style_avg,
+        style_shares=style_shares,
     )
 
 
@@ -165,28 +169,28 @@ async def test_classify_styles_embeds_reaction_texts_directly():
             "Ironiskt med statistik som visar att det är skandal.",
             "Skäms ni — idiotiskt lögnaktigt absolut noll!",
         ]
-        likes = [10, 0]
-        style_avg, rated, pmfs, _embed_s = await classify_styles(texts, likes)
+        style_shares, rated, pmfs, _embed_s = await classify_styles(texts)
         assert rated[0].startswith("Ironiskt")
         assert len(pmfs) == 2
-        by_style = dict(style_avg)
+        by_style = dict(style_shares)
         assert "Sarkastisk + konkret kritik" in by_style
         assert "Provocerande / konfronterande" in by_style
+        assert sum(by_style.values()) == pytest.approx(1.0)
     finally:
         set_embedder(None)
 
 
-def test_style_avg_comes_from_classification():
+def test_style_shares_come_from_classification():
     b = _bundle()
     clf = _clf_for(b)
-    clf.style_avg_likes = [
-        ("Sarkastisk + konkret kritik", 5.0),
+    clf.style_shares = [
+        ("Sarkastisk + konkret kritik", 0.6),
         ("Personlig + hjärtlig berättelse", 0.0),
-        (STYLE_UNCLASSIFIED, 0.0),
+        (STYLE_UNCLASSIFIED, 0.4),
     ]
     m = compute_report_metrics([b], [clf])
-    by_style = dict(m.aggregate.style_avg_likes)
-    assert by_style["Sarkastisk + konkret kritik"] == 5.0
+    by_style = dict(m.aggregate.style_shares)
+    assert by_style["Sarkastisk + konkret kritik"] == 0.6
     assert by_style.get("Personlig + hjärtlig berättelse", 0) == 0.0
 
 
@@ -214,6 +218,28 @@ def test_compute_metrics_two_bundles():
     assert m.n_runs == 2
     assert len(m.bundles) == 2
     assert len(m.cross_table) == 2
+
+
+def test_aggregate_engagement_tiers_sum_to_agent_count():
+    """Donut segments and the printed agent count must share one denominator."""
+    bundles = [
+        _bundle(label="Cynisk", agents=5),
+        _bundle(label="Balanserad", agents=5),
+        _bundle(label="Realistisk", agents=4),
+    ]
+    m = compute_report_metrics(bundles, [_clf_for(b) for b in bundles])
+    agg = m.aggregate
+    assert agg.top_agents + agg.mid_agents + agg.zero_like_agents == agg.agent_count
+
+
+def test_engagement_donut_caption_matches_tiers():
+    bundles = [_bundle(label="A", agents=5, include_injector=True)]
+    metrics = compute_report_metrics(bundles, [_clf_for(b) for b in bundles])
+    agg = metrics.aggregate
+    html = render_engagement_donut(metrics, locale="sv")
+    assert f"Av {agg.agent_count} simulerade medborgare" in html
+    assert agg.injector_count == 1
+    assert "exkl. 1 institutionellt konto" in html
 
 
 def test_quick_charts_contain_donut_and_hbars():
