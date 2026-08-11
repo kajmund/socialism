@@ -2685,7 +2685,6 @@ type ReportConfirmState = {
   sources: Array<{ run_id: number; attempt_id: string }>
   title?: string
   labels: string[]
-  mode: "full" | "quick"
 }
 
 type DeleteConfirmState = {
@@ -2744,11 +2743,10 @@ export function OasisResultsPanel({
   async function orderSources(
     sources: Array<{ run_id: number; attempt_id: string }>,
     title?: string,
-    mode: "full" | "quick" = "full",
   ) {
     if (!runId) return
     setOrderError(null)
-    const report = await createReport({ sources, title, locale, mode })
+    const report = await createReport({ sources, title, locale })
     navigate(`/reports/${report.id}`)
   }
 
@@ -2762,7 +2760,6 @@ export function OasisResultsPanel({
     setReportConfirm({
       sources: [{ run_id: runId, attempt_id: attemptId }],
       labels: [attemptLabel(attemptId)],
-      mode: "quick",
     })
   }
 
@@ -2776,13 +2773,12 @@ export function OasisResultsPanel({
           ? t("runs.results.reportCompareTitle", { count: selected.size })
           : undefined,
       labels: ids.map(attemptLabel),
-      mode: "quick",
     })
   }
 
   async function confirmReportOrder() {
     if (!reportConfirm) return
-    const { sources, title, mode } = reportConfirm
+    const { sources, title } = reportConfirm
     setReportConfirm(null)
     if (sources.length === 1) {
       setOrderingId(sources[0]!.attempt_id)
@@ -2790,7 +2786,7 @@ export function OasisResultsPanel({
       setCompareBusy(true)
     }
     try {
-      await orderSources(sources, title, mode)
+      await orderSources(sources, title)
     } catch (err) {
       setOrderError(
         err instanceof ApiError ? err.message : t("runs.results.reportError"),
@@ -2913,11 +2909,7 @@ export function OasisResultsPanel({
               })
             : t("runs.results.reportOrder")
         }
-        description={
-          reportConfirm?.mode === "quick"
-            ? t("runs.results.reportConfirmDescQuick")
-            : t("runs.results.reportConfirmDescFull")
-        }
+        description={t("runs.results.reportConfirmDesc")}
         onClose={() => setReportConfirm(null)}
       >
         {reportConfirm ? (
@@ -2936,39 +2928,6 @@ export function OasisResultsPanel({
                 </li>
               ))}
             </ul>
-            <fieldset className="space-y-2">
-              <legend className="text-sm font-medium text-foreground">
-                {t("runs.results.reportModeLabel")}
-              </legend>
-              <label className="flex cursor-pointer items-start gap-2 text-sm">
-                <input
-                  type="radio"
-                  name="report-mode"
-                  className="mt-1"
-                  checked={reportConfirm.mode === "quick"}
-                  onChange={() =>
-                    setReportConfirm((prev) =>
-                      prev ? { ...prev, mode: "quick" } : prev,
-                    )
-                  }
-                />
-                <span>{t("runs.results.reportModeQuick")}</span>
-              </label>
-              <label className="flex cursor-pointer items-start gap-2 text-sm">
-                <input
-                  type="radio"
-                  name="report-mode"
-                  className="mt-1"
-                  checked={reportConfirm.mode === "full"}
-                  onChange={() =>
-                    setReportConfirm((prev) =>
-                      prev ? { ...prev, mode: "full" } : prev,
-                    )
-                  }
-                />
-                <span>{t("runs.results.reportModeFull")}</span>
-              </label>
-            </fieldset>
             <div className="flex flex-wrap justify-end gap-2">
               <button
                 type="button"

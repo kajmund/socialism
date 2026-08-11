@@ -19,7 +19,6 @@ __all__ = [
     "ReportMetrics",
     "compute_bundle_metrics",
     "compute_report_metrics",
-    "confidence_badge",
     "fmt_num",
     "pct",
     "population_agent_ids",
@@ -352,14 +351,6 @@ def compute_report_metrics(
         cross_table=cross,
         tone_mode=tone_mode,
     )
-
-
-def confidence_badge(n_runs: int, *, all_agree: bool = True) -> str:
-    if n_runs <= 1:
-        return "observation"
-    if all_agree:
-        return "confirmed"
-    return "indicated"
 
 
 def pct(value: float) -> str:

@@ -1,56 +1,24 @@
-"""Apply @@SLOT_name@@ replacements on report HTML templates."""
+"""Shared report HTML assets (theme CSS for iframe embedding)."""
 
 from __future__ import annotations
 
-import re
-from html import escape
 from pathlib import Path
-from typing import Any
-
-_SLOT_RE = re.compile(r"@@SLOT_([a-z0-9_]+)@@")
 
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
+THEME_CSS_MARKER = "/*@@REPORT_THEME_CSS@@*/"
+REPORT_FONTS_HREF = (
+    "https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@400"
+    "&family=JetBrains+Mono:wght@400;500"
+    "&family=Poppins:wght@400;500;600;700&display=swap"
+)
 
 
-def list_slots_in_template(html: str) -> list[str]:
-    return sorted(set(_SLOT_RE.findall(html)))
+def load_report_theme_css() -> str:
+    return (ASSETS_DIR / "report_theme.css").read_text(encoding="utf-8")
 
 
-def apply_slots(html: str, slots: dict[str, Any], *, strict: bool = False) -> str:
-    """Substitute slots. Non-`*_html` values are HTML-escaped; `*_html` stay raw."""
-
-    def repl(m: re.Match[str]) -> str:
-        key = m.group(1)
-        if key not in slots:
-            if strict:
-                raise KeyError(f"Saknar slot: {key}")
-            return ""
-        val = slots[key]
-        if val is None:
-            return ""
-        text = str(val)
-        if key.endswith("_html"):
-            return text
-        return escape(text)
-
-    return _SLOT_RE.sub(repl, html)
-
-
-def load_template(path: Path | None = None) -> str:
-    p = path or (ASSETS_DIR / "report_template.html")
-    return p.read_text(encoding="utf-8")
-
-
-def dry_run_defaults(
-    slots: list[str],
-    *,
-    locale: str = "sv",
-) -> dict[str, str]:
-    out: dict[str, str] = {}
-    for s in slots:
-        if s.endswith("_html"):
-            label = "Placeholder" if locale == "en" else "Platshållare"
-            out[s] = f'<p class="sec-intro"><em>{label} ({s}).</em></p>'
-        else:
-            out[s] = f"… ({s})"
-    return out
+def inject_report_theme(html: str) -> str:
+    """Inline shared Devbrains report CSS (iframe cannot see SPA styles)."""
+    if THEME_CSS_MARKER not in html:
+        return html
+    return html.replace(THEME_CSS_MARKER, load_report_theme_css())

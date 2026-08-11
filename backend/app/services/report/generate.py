@@ -1,54 +1,25 @@
-"""Orchestrate hybrid report generation: metrics charts + LLM narrative."""
+"""Orchestrate snabbrapport generation: injection topics + SSR embeddings."""
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 from app.config import settings
 from app.schemas.domain import DEFAULT_SSR_TEMPERATURE
-from app.services.report.agent import (
-    fill_slot_batch,
-    group_questions_into_batches,
-    metrics_digest,
-)
-from app.services.report.bundles import RunBundle, is_ab_comparison
-from app.services.report.charts import prefill_chart_slots
-from app.services.report.classify import BundleClassification, classify_bundles, meta_topics_line
-from app.services.report.locale import (
-    ReportLocale,
-    ab_meta_tests,
-    narrative_defaults,
-    normalize_locale,
-    questions_path,
-    template_path,
-)
+from app.services.anchor_store import ResolvedReportAnchors
+from app.services.report.bundles import RunBundle
+from app.services.report.classify import BundleClassification, classify_bundles
+from app.services.report.locale import ReportLocale, normalize_locale
 from app.services.report.metrics import compute_report_metrics
 from app.services.report.quick import build_quick_slots, render_quick_html
-from app.services.report.render import (
-    apply_slots,
-    dry_run_defaults,
-    list_slots_in_template,
-    load_template,
-)
-from app.services.anchor_store import ResolvedReportAnchors
-from app.services.report.sanitize import sanitize_slot_output
-from app.services.report.tools import ReportToolBundle
 from app.services.ssr import ANCHOR_SET_VERSION
 
 logger = logging.getLogger(__name__)
-
-ReportMode = Literal["full", "quick"]
-
-
-def _load_questions(locale: ReportLocale) -> list[dict[str, Any]]:
-    data = json.loads(questions_path(locale).read_text(encoding="utf-8"))
-    return list(data.get("questions") or [])
 
 
 def _ssr_payload(
@@ -56,7 +27,6 @@ def _ssr_payload(
     classifications: list[BundleClassification],
     bundles: list[RunBundle],
     locale: ReportLocale,
-    mode: ReportMode,
     ssr_temperature: float,
     classify_seconds: float,
     embed_seconds: float,
@@ -75,7 +45,7 @@ def _ssr_payload(
             "style_anchor_set_version": resolved_anchors["style_version"],
         }
     return {
-        "mode": mode,
+        "mode": "quick",
         "locale": locale,
         "embedding_model": settings.embedding_model,
         "anchor_set_version": ANCHOR_SET_VERSION,
@@ -113,55 +83,12 @@ def _ssr_payload(
     }
 
 
-async def fill_narrative_slots(
-    *,
-    tools: ReportToolBundle,
-    questions: list[dict[str, Any]],
-    dry_run: bool,
-    locale: ReportLocale,
-    prompts: dict[str, str],
-) -> dict[str, str]:
-    if dry_run:
-        return {}
-
-    digest = metrics_digest(tools, locale=locale)
-    multi = tools.metrics.n_runs > 1
-    batches = group_questions_into_batches(questions)
-    if not batches:
-        return {}
-
-    results = await asyncio.gather(
-        *[
-            fill_slot_batch(
-                digest=digest,
-                multi=multi,
-                batch_name=name,
-                items=items,
-                locale=locale,
-                prompts=prompts,
-            )
-            for name, items in batches
-        ]
-    )
-
-    out: dict[str, str] = {}
-    for batch_map in results:
-        for slot, raw in batch_map.items():
-            cleaned = sanitize_slot_output(slot, raw)
-            if cleaned:
-                out[slot] = cleaned
-    return out
-
-
 async def generate_report_html(
     bundles: list[RunBundle],
     *,
     out_dir: Path,
-    dry_run: bool = False,
     title: str = "",
     locale: str = "sv",
-    prompts: dict[str, str],
-    mode: ReportMode = "full",
     ssr_temperature: float = DEFAULT_SSR_TEMPERATURE,
     resolved_anchors: ResolvedReportAnchors | None = None,
 ) -> tuple[Path, Path, dict[str, str], dict[str, Any]]:
@@ -170,14 +97,9 @@ async def generate_report_html(
     out_dir.mkdir(parents=True, exist_ok=True)
     t0 = time.perf_counter()
 
-    # Quick: no DeepSeek — SSR embeds reactions directly; topics from injection keywords.
-    # Full: LLM topic packs + topic classify; tone/style still direct SSR (embeddings only).
-    topic_mode = "injection" if mode == "quick" else "llm"
     classifications = await classify_bundles(
         bundles,
         locale=loc,
-        prompts=prompts,
-        topic_mode=topic_mode,
         ssr_temperature=ssr_temperature,
         tone_anchor_set=resolved_anchors["tone"] if resolved_anchors else None,
         style_anchor_set=resolved_anchors["style"] if resolved_anchors else None,
@@ -185,8 +107,7 @@ async def generate_report_html(
     classify_llm_s = sum(c.classify_llm_seconds for c in classifications)
     embed_s = sum(c.embed_seconds for c in classifications)
     logger.info(
-        "report classify timing mode=%s llm=%.2fs embed=%.2fs bundles=%d",
-        mode,
+        "report classify timing mode=quick llm=%.2fs embed=%.2fs bundles=%d",
         classify_llm_s,
         embed_s,
         len(bundles),
@@ -200,52 +121,16 @@ async def generate_report_html(
         "total_seconds": round(total_s, 3),
     }
 
-    if mode == "quick":
-        slots = build_quick_slots(
-            title=title,
-            bundles=bundles,
-            classifications=classifications,
-            metrics=metrics,
-            locale=loc,
-            timing=timing,
-        )
-        html = render_quick_html(slots, locale=loc)
-    else:
-        chart_slots = prefill_chart_slots(metrics, locale=loc)
-        tools = ReportToolBundle(bundles, metrics)
-        questions = _load_questions(loc)
-
-        template = load_template(template_path(loc))
-        needed = list_slots_in_template(template)
-        slots = dry_run_defaults(needed, locale=loc)
-        slots.update(narrative_defaults(chart_slots, bundles, loc))
-        slots.update(chart_slots)
-        slots["meta_topics"] = meta_topics_line(classifications, locale=loc)
-        if is_ab_comparison(bundles):
-            slots["meta_tests"] = ab_meta_tests(loc)
-        slots["meta_date"] = datetime.now(tz=UTC).date().isoformat()
-        if title.strip():
-            slots["page_title"] = title.strip()
-
-        narrative = await fill_narrative_slots(
-            tools=tools,
-            questions=questions,
-            dry_run=dry_run,
-            locale=loc,
-            prompts=prompts,
-        )
-        for k, v in narrative.items():
-            if v:
-                slots[k] = v
-
-        # Ensure chart slots never overwritten by empty LLM
-        slots.update(chart_slots)
-        slots["meta_topics"] = meta_topics_line(classifications, locale=loc)
-        if is_ab_comparison(bundles):
-            slots["meta_tests"] = ab_meta_tests(loc)
-        slots["meta_date"] = datetime.now(tz=UTC).date().isoformat()
-        html = apply_slots(template, slots)
-        timing["total_seconds"] = round(time.perf_counter() - t0, 3)
+    slots = build_quick_slots(
+        title=title,
+        bundles=bundles,
+        classifications=classifications,
+        metrics=metrics,
+        locale=loc,
+        timing=timing,
+    )
+    html = render_quick_html(slots, locale=loc)
+    timing["total_seconds"] = round(time.perf_counter() - t0, 3)
 
     html_path = out_dir / "report.html"
     slots_path = out_dir / "report.slots.json"
@@ -254,7 +139,6 @@ async def generate_report_html(
         classifications=classifications,
         bundles=bundles,
         locale=loc,
-        mode=mode,
         ssr_temperature=ssr_temperature,
         classify_seconds=classify_llm_s,
         embed_seconds=embed_s,
@@ -267,7 +151,7 @@ async def generate_report_html(
             {
                 "title": title,
                 "locale": loc,
-                "mode": mode,
+                "mode": "quick",
                 "sources": [
                     {"run_id": b.run_id, "attempt_id": b.attempt_id, "label": b.label}
                     for b in bundles

@@ -225,21 +225,19 @@ async def require_anchor_sets_for_language(
     Never falls back to an inactive config of that language.
     """
     from app.services.prompt_catalog import ConfigurationLanguage
-    from app.services.prompt_store import (
-        MissingActiveConfigurationError,
-        get_active_configuration,
-        require_prompts_for_language,
-    )
+    from app.services.prompt_store import get_active_configuration
 
     lang: ConfigurationLanguage = "en" if language == "en" else "sv"
-    try:
-        await require_prompts_for_language(session, lang)
-    except MissingActiveConfigurationError as exc:
-        raise AnchorResolutionError(str(exc)) from exc
     row = await get_active_configuration(session)
     if row is None:
         raise AnchorResolutionError(
             "No active prompt configuration. Activate one under Konfigurationer."
+        )
+    if row.language != lang:
+        raise AnchorResolutionError(
+            f"Active configuration '{row.name}' (id={row.id}) is language "
+            f"'{row.language}', but '{lang}' anchors were required. "
+            f"Activate a {lang} configuration under Konfigurationer."
         )
     tone_row, tone_set = await resolve_anchor_set_for_config(
         session, configuration=row, locale=language, kind="tone"

@@ -157,7 +157,7 @@ Kinds: `population_generate`, `run_simulate`, `report_generate`.
 
 ### Reports
 
-`POST /reports` with `{ "sources": [{ "run_id": 1, "attempt_id": "..." }], "title": "..." }` queues generation. Hybrid HTML = deterministic metrics/charts + LLM narrative. Artifacts under `backend/data/reports/{id}/`.
+`POST /reports` with `{ "sources": [{ "run_id": 1, "attempt_id": "..." }], "title": "..." }` queues generation. HTML = deterministic metrics/charts + SSR tone/style (embeddings) + threshold templates. Artifacts under `backend/data/reports/{id}/`.
 
 ## Imports (`from app...`)
 

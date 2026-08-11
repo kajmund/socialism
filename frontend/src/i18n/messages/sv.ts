@@ -10,6 +10,8 @@ export const sv = {
   },
   nav: {
     ariaMain: "Huvudmeny",
+    openMenu: "Öppna meny",
+    closeMenu: "Stäng meny",
     personas: "Personas",
     populations: "Populationer",
     messages: "Budskap",
@@ -564,16 +566,9 @@ export const sv = {
       reportCompareTitle: "Jämförelserapport ({count} körningar)",
       reportError: "Kunde inte beställa rapport",
       reportConfirmDesc:
-        "Välj rapportläge. Du kan lämna sidan och följa status under Rapporter.",
-      reportConfirmDescFull:
-        "Full rapport tar flera minuter (LLM-narrativ + SSR). Du kan lämna sidan.",
-      reportConfirmDescQuick:
-        "Snabbrapport tar vanligtvis några sekunder (embeddings + mallar, ingen DeepSeek).",
+        "Rapporten tar vanligtvis några sekunder. Du kan lämna sidan och följa status under Rapporter.",
       reportConfirmOne: "1 körning ska analyseras och sammanställas till rapport.",
       reportConfirmMany: "{count} körningar ska jämföras i en gemensam rapport.",
-      reportModeLabel: "Rapportläge",
-      reportModeFull: "Full rapport",
-      reportModeQuick: "Snabbrapport",
       startGeneration: "Starta generering",
       deleteTitle: "Radera simuleringsresultat?",
       deleteDescription:
@@ -1123,8 +1118,8 @@ export const sv = {
       loadError: "Kunde inte hämta rapporter",
       open: "Öppna rapport →",
       created: "skapad {when}",
-      modeFull: "Full rapport",
       modeQuick: "Snabbrapport",
+      modeFullLegacy: "Full rapport (äldre)",
       sourcesOne: "1 källa",
       sourcesMany: "{count} källor",
       deleted: "Rapporten borttagen",

@@ -1,4 +1,4 @@
-"""HTML simulation report generation (hybrid metrics + LLM narrative)."""
+"""HTML snabbrapport generation (injection topics + SSR embeddings)."""
 
 from __future__ import annotations
 

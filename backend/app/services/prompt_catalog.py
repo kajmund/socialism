@@ -781,136 +781,6 @@ HOW YOU WRITE COMMENTS:
             "React authentically to political messages from your background."
         ),
     ),
-    _f(
-        "report.narrative.system_meta",
-        "report",
-        "Rapport — systemprompt (jämförelse)",
-        "Report — system prompt (comparison)",
-        "När rapporten jämför flera källor / A/B.",
-        "When the report compares multiple sources / A/B.",
-        """Du är samhällsvetare som jämför simulerade politiska diskussioner.
-När källorna är Version A och Version B (A/B-test av budskap): jämför ALLTID A mot B
-uttryckligen — vad skiljde i engagemang, ton, ämne och stil? Vilken arm fungerade bättre och varför?
-När det är flera oberoende körningar: rapportera alltid hur många körningar ett fynd bygger på.
-Ett mönster i en arm/körning = observation. I båda/alla = tendens, inte bevis.
-Svara på svenska. Fyll varje slot enligt instruktionen — ingen inledning utanför slotvärdena.""",
-        """You are a social scientist comparing simulated political discussions.
-When the sources are Version A and Version B (A/B message test): ALWAYS compare A vs B
-explicitly — what differed in engagement, tone, topic, and style? Which arm worked better and why?
-When there are several independent runs: always report how many runs a finding rests on.
-A pattern in one arm/run = observation. In both/all = tendency, not proof.
-Answer in English. Fill each slot per the instruction — no preamble outside slot values.""",
-    ),
-    _f(
-        "report.narrative.system_single",
-        "report",
-        "Rapport — systemprompt (enskild)",
-        "Report — system prompt (single)",
-        "När rapporten analyserar en källa.",
-        "When the report analyzes a single source.",
-        """Du är samhällsvetare som analyserar EN simulerad politisk diskussion.
-Var ärlig om osäkerhet. En körning ger observationer, inte bevis.
-Svara på svenska. Fyll varje slot enligt instruktionen — ingen inledning utanför slotvärdena.""",
-        """You are a social scientist analyzing ONE simulated political discussion.
-Be honest about uncertainty. One run yields observations, not proof.
-Answer in English. Fill each slot per the instruction — no preamble outside slot values.""",
-    ),
-    _f(
-        "report.fill_slots.intro",
-        "report",
-        "Rapport — slotfyllnad (intro)",
-        "Report — slot fill intro",
-        "Inledning innan slotlistan i batch-anropet.",
-        "Intro before the slot list in batch calls.",
-        "Fyll följande slots. Nycklar i slots måste vara exakt dessa namn:\n",
-        "Fill the following slots. Keys in slots must be exactly these names:\n",
-    ),
-    _f(
-        "report.classify.topic_packs.system",
-        "report",
-        "Klassificering — härled ämnen",
-        "Classification — derive topics",
-        "Systemprompt för att skapa ämnespaket från injektioner.",
-        "System prompt for deriving topic packs from injections.",
-        (
-            "Du härleder ämnesetiketter för en svensk politisk debattsimulering. "
-            "Returnera 2–4 ämnen med korta svenska etiketter som fångar "
-            "injektionernas innehåll. Undvik generiska partinamn ensamma. "
-            "keywords är valfria hjälpord (behövs inte för klassning)."
-        ),
-        (
-            "You derive topic labels for a political debate simulation. "
-            "Return 2–4 topics with short English labels that capture "
-            "the injection content. Avoid generic party names alone. "
-            "keywords are optional helper words (not required for classification)."
-        ),
-    ),
-    _f(
-        "report.classify.topics.system",
-        "report",
-        "Klassificering — ämne per text",
-        "Classification — topic per text",
-        "Platshållare: {pack_list}, {other}",
-        "Placeholders: {pack_list}, {other}",
-        (
-            "Klassificera varje svensk kommentar/inlägg efter ämne. "
-            "Tillåtna värden: {pack_list}, eller '{other}'. "
-            "Välj efter mening och kontext — inte enbart nyckelord. "
-            "Sarkasm och omskrivningar räknas till det ämne de egentligen handlar om. "
-            "Returnera index 0..n-1 för batchen."
-        ),
-        (
-            "Classify each comment/post by topic. "
-            "Allowed values: {pack_list}, or '{other}'. "
-            "Choose by meaning and context — not keywords alone. "
-            "Sarcasm and paraphrase count toward the topic they really address. "
-            "Return index 0..n-1 for the batch."
-        ),
-    ),
-    _f(
-        "report.classify.tones.system",
-        "report",
-        "Klassificering — tonbedömning (fritext)",
-        "Classification — tone judgment (free text)",
-        "",
-        "",
-        (
-            "Bedöm tonen i varje svensk kommentar/inlägg med 1–2 korta meningar fritext "
-            "(hur positiv/negativ/kritisk/hoppfull texten är mot budskapet). "
-            "Använd INTE fasta kategori-etiketter. "
-            "Sarkasm, valfläsk-misstro och skarp kritik ska beskrivas som negativ/kritisk. "
-            "Returnera index 0..n-1 och fältet judgment för varje rad i batchen."
-        ),
-        (
-            "Judge the tone of each comment/post in 1–2 short free-text sentences "
-            "(how positive/negative/critical/hopeful the text is toward the message). "
-            "Do NOT use fixed category labels. "
-            "Sarcasm, campaign distrust, and sharp criticism should be described as negative/critical. "
-            "Return index 0..n-1 and a judgment field for each row in the batch."
-        ),
-    ),
-    _f(
-        "report.classify.styles.system",
-        "report",
-        "Klassificering — stilbedömning (fritext)",
-        "Classification — style judgment (free text)",
-        "",
-        "",
-        (
-            "Beskriv kommunikationsstilen i varje svensk kommentar/inlägg med 1–2 korta "
-            "meningar fritext (t.ex. sarkastisk+konkret, uppgiven+metafor, fakta/auktoritet, "
-            "personlig berättelse, optimistisk/lösning, provocerande). "
-            "Använd INTE fasta kategori-etiketter. "
-            "Returnera index 0..n-1 och fältet judgment för varje rad i batchen."
-        ),
-        (
-            "Describe the communication style of each comment/post in 1–2 short free-text "
-            "sentences (e.g. sarcastic+concrete, resigned+metaphor, facts/authority, "
-            "personal story, optimistic/solution, provocative). "
-            "Do NOT use fixed category labels. "
-            "Return index 0..n-1 and a judgment field for each row in the batch."
-        ),
-    ),
 ]
 
 PROMPT_KEYS: tuple[str, ...] = tuple(f["key"] for f in PROMPT_FIELDS)
@@ -928,30 +798,6 @@ def default_prompts(language: ConfigurationLanguage) -> dict[str, str]:
     return out
 
 
-def _is_obsolete_forced_label_tone_prompt(text: str) -> bool:
-    """Pre-SSR tone prompts forced category labels via {quoted}/{sharp_tone}."""
-    return (
-        "{quoted}" in text
-        or "{sharp_tone}" in text
-        or "Tillåtna värden:" in text
-        or "Allowed values:" in text
-    )
-
-
-def refresh_ssr_classify_prompts(
-    prompts: dict[str, str],
-    *,
-    language: ConfigurationLanguage,
-) -> dict[str, str]:
-    """Replace obsolete forced-label tone prompts with free-text SSR defaults."""
-    defaults = default_prompts(language)
-    out = dict(prompts)
-    tone = out.get("report.classify.tones.system", "")
-    if tone and _is_obsolete_forced_label_tone_prompt(tone):
-        out["report.classify.tones.system"] = defaults["report.classify.tones.system"]
-    return out
-
-
 def normalize_prompts(
     raw: dict[str, str] | None,
     *,
@@ -966,8 +812,7 @@ def normalize_prompts(
                 stripped = value.strip()
                 if stripped:
                     base[key] = stripped
-    complete = {k: base[k] for k in PROMPT_KEYS}
-    return refresh_ssr_classify_prompts(complete, language=language)
+    return {k: base[k] for k in PROMPT_KEYS}
 
 
 def render_prompt(prompts: dict[str, str], key: str, **kwargs: object) -> str:

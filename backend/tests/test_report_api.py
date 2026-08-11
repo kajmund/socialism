@@ -117,42 +117,14 @@ async def _seed_run_with_attempt(client) -> tuple[int, str]:
 
 @pytest.mark.asyncio
 async def test_create_report_and_generate(client, tmp_path, monkeypatch):
-    from typing import Any
-
     from app.llm import set_structured_completer
-    from app.services.report.agent import SlotBatchResponse
-    from app.services.report.classify import (
-        _TopicBatchResponse,
-        _TopicItem,
-        _TopicPackModel,
-        _TopicPacksResponse,
-    )
     from app.services.ssr import set_embedder
 
     async def mock_embed(texts: list[str]) -> list[list[float]]:
         return [[float((hash(t) + i) % 7) for i in range(8)] for t in texts]
 
-    async def mock_llm(messages: list[dict[str, str]], response_model: type[Any]) -> Any:
-        name = response_model.__name__
-        if name == "_TopicPacksResponse":
-            return _TopicPacksResponse(
-                topics=[_TopicPackModel(label="Äldreomsorg", keywords=["äldreomsorg"])]
-            )
-        if name == "_TopicBatchResponse":
-            user = messages[-1]["content"]
-            n = sum(1 for line in user.splitlines() if line[:1].isdigit())
-            return _TopicBatchResponse(
-                items=[_TopicItem(index=i, topic="Äldreomsorg") for i in range(n)]
-            )
-        if name == "SlotBatchResponse":
-            content = messages[-1]["content"] if messages else ""
-            slots: dict[str, str] = {}
-            for line in content.splitlines():
-                if line.startswith("- **") and "**:" in line:
-                    slot = line.split("**")[1]
-                    slots[slot] = f"text för {slot}"
-            return SlotBatchResponse(slots=slots)
-        raise AssertionError(f"Unexpected model {response_model}")
+    async def mock_llm(_messages, _response_model):
+        raise AssertionError("quick report must not call DeepSeek")
 
     set_structured_completer(mock_llm)
     set_embedder(mock_embed)
@@ -183,6 +155,7 @@ async def test_create_report_and_generate(client, tmp_path, monkeypatch):
         body = resp.json()
         assert body["status"] == "pending"
         assert body["locale"] == "sv"
+        assert body["mode"] == "quick"
         assert body["job_id"]
         report_id = body["id"]
 
@@ -194,6 +167,7 @@ async def test_create_report_and_generate(client, tmp_path, monkeypatch):
         assert data["status"] == "succeeded"
         assert data["html_path"]
         assert data["locale"] == "sv"
+        assert data["mode"] == "quick"
 
         html = await client.get(f"/reports/{report_id}/html")
         assert html.status_code == 200
@@ -201,8 +175,8 @@ async def test_create_report_and_generate(client, tmp_path, monkeypatch):
         assert "rapport.html" in html.headers.get("content-disposition", "")
         assert (
             b"donut" in html.content
-            or b"info-kpi" in html.content
-            or b"pyramid" in html.content
+            or b"stats-table" in html.content
+            or b"chart-grid" in html.content
         )
     finally:
         set_structured_completer(None)
@@ -211,46 +185,14 @@ async def test_create_report_and_generate(client, tmp_path, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_create_english_report_locale(client, tmp_path, monkeypatch):
-    from typing import Any
-
     from app.llm import set_structured_completer
-    from app.services.report.agent import SlotBatchResponse
-    from app.services.report.classify import (
-        _TopicBatchResponse,
-        _TopicItem,
-        _TopicPackModel,
-        _TopicPacksResponse,
-    )
     from app.services.ssr import set_embedder
 
     async def mock_embed(texts: list[str]) -> list[list[float]]:
         return [[float((hash(t) + i) % 7) for i in range(8)] for t in texts]
 
-    async def mock_llm(messages: list[dict[str, str]], response_model: type[Any]) -> Any:
-        name = response_model.__name__
-        system = next((m["content"] for m in messages if m.get("role") == "system"), "")
-        english = "Answer in English" in system or "Classify each" in system or "You derive" in system
-        if name == "_TopicPacksResponse":
-            label = "Elder care" if english else "Äldreomsorg"
-            return _TopicPacksResponse(
-                topics=[_TopicPackModel(label=label, keywords=["care"])]
-            )
-        if name == "_TopicBatchResponse":
-            user = messages[-1]["content"]
-            n = sum(1 for line in user.splitlines() if line[:1].isdigit())
-            topic = "Elder care" if english else "Äldreomsorg"
-            return _TopicBatchResponse(
-                items=[_TopicItem(index=i, topic=topic) for i in range(n)]
-            )
-        if name == "SlotBatchResponse":
-            content = messages[-1]["content"] if messages else ""
-            slots: dict[str, str] = {}
-            for line in content.splitlines():
-                if line.startswith("- **") and "**:" in line:
-                    slot = line.split("**")[1]
-                    slots[slot] = f"text for {slot}"
-            return SlotBatchResponse(slots=slots)
-        raise AssertionError(f"Unexpected model {response_model}")
+    async def mock_llm(_messages, _response_model):
+        raise AssertionError("quick report must not call DeepSeek")
 
     set_structured_completer(mock_llm)
     set_embedder(mock_embed)
@@ -285,6 +227,7 @@ async def test_create_english_report_locale(client, tmp_path, monkeypatch):
         assert resp.status_code == 202, resp.text
         body = resp.json()
         assert body["locale"] == "en"
+        assert body["mode"] == "quick"
         report_id = body["id"]
 
         await asyncio.wait_for(done.wait(), timeout=30)
@@ -297,7 +240,7 @@ async def test_create_english_report_locale(client, tmp_path, monkeypatch):
         assert html.status_code == 200
         assert "report.html" in html.headers.get("content-disposition", "")
         assert b'lang="en"' in html.content
-        assert b"How the test worked" in html.content
+        assert b"Quick report" in html.content
     finally:
         set_structured_completer(None)
         set_embedder(None)
@@ -357,16 +300,14 @@ async def test_report_setup_failure_marks_report_failed(client, tmp_path, monkey
 
 @pytest.mark.asyncio
 async def test_english_report_fails_while_sv_active(client, tmp_path, monkeypatch):
-    """English reports require an active en configuration — no silent inactive fallback."""
-    from typing import Any
-
+    """English reports require an active en configuration for anchors — no silent fallback."""
     from app.llm import set_structured_completer
     from app.services.ssr import set_embedder
 
     async def mock_embed(texts: list[str]) -> list[list[float]]:
         return [[float((hash(t) + i) % 7) for i in range(8)] for t in texts]
 
-    async def mock_llm(messages: list[dict[str, str]], response_model: type[Any]) -> Any:
+    async def mock_llm(_messages, _response_model):
         raise AssertionError("LLM must not run when active language mismatches report locale")
 
     configs = (await client.get("/configurations")).json()
@@ -395,7 +336,7 @@ async def test_english_report_fails_while_sv_active(client, tmp_path, monkeypatc
             "/reports",
             json={
                 "sources": [{"run_id": run_id, "attempt_id": attempt_id}],
-                "title": "English prompts test",
+                "title": "English anchors test",
                 "locale": "en",
             },
         )
@@ -414,45 +355,16 @@ async def test_english_report_fails_while_sv_active(client, tmp_path, monkeypatc
 
 
 @pytest.mark.asyncio
-async def test_english_report_uses_en_prompts_when_en_active(
-    client, tmp_path, monkeypatch
-):
-    """With en active, English report locale uses that configuration's prompts."""
-    from typing import Any
-
+async def test_english_report_succeeds_when_en_active(client, tmp_path, monkeypatch):
+    """With en active, English report locale resolves anchors and generates snabbrapport."""
     from app.llm import set_structured_completer
-    from app.services.report.agent import SlotBatchResponse
-    from app.services.report.classify import (
-        _TopicBatchResponse,
-        _TopicItem,
-        _TopicPackModel,
-        _TopicPacksResponse,
-    )
     from app.services.ssr import set_embedder
-
-    captured_systems: list[str] = []
 
     async def mock_embed(texts: list[str]) -> list[list[float]]:
         return [[float((hash(t) + i) % 7) for i in range(8)] for t in texts]
 
-    async def mock_llm(messages: list[dict[str, str]], response_model: type[Any]) -> Any:
-        system = next((m["content"] for m in messages if m.get("role") == "system"), "")
-        if system:
-            captured_systems.append(system)
-        name = response_model.__name__
-        if name == "_TopicPacksResponse":
-            return _TopicPacksResponse(
-                topics=[_TopicPackModel(label="Elder care", keywords=["care"])]
-            )
-        if name == "_TopicBatchResponse":
-            user = messages[-1]["content"]
-            n = sum(1 for line in user.splitlines() if line[:1].isdigit())
-            return _TopicBatchResponse(
-                items=[_TopicItem(index=i, topic="Elder care") for i in range(n)]
-            )
-        if name == "SlotBatchResponse":
-            return SlotBatchResponse(slots={"page_title": "My report"})
-        raise AssertionError(f"Unexpected model {response_model}")
+    async def mock_llm(_messages, _response_model):
+        raise AssertionError("quick report must not call DeepSeek")
 
     configs = (await client.get("/configurations")).json()
     en_cfg = next(c for c in configs if c["language"] == "en")
@@ -480,7 +392,7 @@ async def test_english_report_uses_en_prompts_when_en_active(
             "/reports",
             json={
                 "sources": [{"run_id": run_id, "attempt_id": attempt_id}],
-                "title": "English prompts test",
+                "title": "English anchors test",
                 "locale": "en",
             },
         )
@@ -491,10 +403,7 @@ async def test_english_report_uses_en_prompts_when_en_active(
         got = await client.get(f"/reports/{report_id}")
         assert got.status_code == 200
         assert got.json()["status"] == "succeeded"
-
-        assert captured_systems
-        assert any("Answer in English" in s for s in captured_systems)
-        assert not any("Svara på svenska" in s for s in captured_systems)
+        assert got.json()["mode"] == "quick"
     finally:
         set_structured_completer(None)
         set_embedder(None)

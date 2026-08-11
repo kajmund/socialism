@@ -55,17 +55,65 @@
 .theme-admin .p-row:hover {
   color: inherit;
 }
-/* Top nav sits on charcoal — keep links light regardless of page link color */
-.theme-admin .admin-topnav a.admin-topnav-brand,
-.theme-admin .admin-topnav a.admin-topnav-link {
-  color: rgba(255, 255, 255, 0.75);
+/* Top nav — Devbrains-style translucent dark bar (see AdminShell) */
+.theme-admin .admin-topnav {
+  background: rgba(0, 0, 0, 0.54);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
-.theme-admin .admin-topnav a.admin-topnav-brand:hover,
-.theme-admin .admin-topnav a.admin-topnav-link:hover {
+.theme-admin .admin-topnav a.admin-topnav-brand {
   color: #ffffff;
+}
+.theme-admin .admin-topnav a.admin-topnav-brand:hover {
+  color: #ffffff;
+  opacity: 0.9;
+}
+.theme-admin .admin-topnav-burger {
+  color: #fbd37b;
+  background: transparent;
+  border: 0;
+  padding: 8px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+.theme-admin .admin-topnav-burger:hover {
+  color: #f3ce73;
+}
+/* Opened menu must stay legible over page content — keep it opaque */
+.theme-admin .admin-topnav-panel {
+  background: #000000;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+.theme-admin .admin-topnav a.admin-topnav-link {
+  color: #ffffff;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.theme-admin .admin-topnav a.admin-topnav-link:hover {
+  color: #fbd37b;
 }
 .theme-admin .admin-topnav a.admin-topnav-link.is-active {
-  color: #ffffff;
+  color: #fbd37b;
+}
+/* Inline row (desktop) */
+.theme-admin .admin-topnav a.admin-topnav-link-inline {
+  font-size: 0.875rem;
+  padding-bottom: 3px;
+  border-bottom: 2px solid transparent;
+}
+.theme-admin .admin-topnav a.admin-topnav-link-inline.is-active {
+  border-bottom-color: #fbd37b;
+}
+/* Stacked panel (mobile menu) */
+.theme-admin .admin-topnav a.admin-topnav-link-panel {
+  font-size: 1.15rem;
+  padding: 0.55rem 0;
 }
 .theme-admin .mono { font-family: "JetBrains Mono", ui-monospace, Menlo, monospace; }
 

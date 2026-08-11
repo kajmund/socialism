@@ -127,7 +127,7 @@ Interrupted jobs are marked failed on backend startup (after migrations exist).
 | Planned tick interviews | tick `interviews[]` | OASIS `ManualAction(INTERVIEW)` after reaction rounds |
 | Post-hoc run interview | `WS /ws/chat` scope `run_interview` (REST still) | Scoped by attempt/variant/`through_tick_index`; feed cutoff via `run_tick_context` |
 | Message variants / URL | `/messages/*` | Budskapsverkstad helpers |
-| Report narrative | report job | Deterministic metrics + LLM narrative/classification |
+| Report | report job | Deterministic metrics/charts + SSR tone/style (embeddings); no LLM narrative |
 
 `DEEPSEEK_API_KEY` is required even when `PERSONA_GENERATOR=stub` — there is no heuristic LLM fallback for chat/reports.
 

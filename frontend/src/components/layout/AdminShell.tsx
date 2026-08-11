@@ -133,10 +133,10 @@ function LocaleSwitcher({
   t: Translate
 }) {
   return (
-    <label className="flex items-center gap-2 text-xs text-db-ink-0/70">
+    <label className="flex items-center gap-2 text-sm text-white/70">
       <span className="sr-only">{t("locale.switcherLabel")}</span>
       <select
-        className="rounded border border-db-ink-0/25 bg-db-ink-950 px-2 py-1 text-xs text-db-ink-0"
+        className="rounded border border-white/25 bg-black/40 px-3 py-1.5 text-sm text-white"
         value={locale}
         onChange={(e) => setLocale(e.target.value as Locale)}
         aria-label={t("locale.switcherLabel")}
@@ -148,13 +148,109 @@ function LocaleSwitcher({
   )
 }
 
+function NavItems({
+  pathname,
+  activeCount,
+  variant,
+  t,
+  onNavigate,
+}: {
+  pathname: string
+  activeCount: number
+  variant: "inline" | "panel"
+  t: Translate
+  onNavigate?: () => void
+}) {
+  return (
+    <>
+      {NAV_ITEMS.map((link) => {
+        const active = isSectionActive(pathname, link.match)
+        return (
+          <NavLink
+            key={link.to}
+            to={link.to}
+            className={cn(
+              "admin-topnav-link",
+              variant === "inline"
+                ? "admin-topnav-link-inline"
+                : "admin-topnav-link-panel",
+              active && "is-active",
+            )}
+            onClick={onNavigate}
+          >
+            {t(link.key)}
+            {link.to === "/jobs" && activeCount > 0 ? (
+              <span
+                className="inline-grid h-5 min-w-5 place-items-center rounded-full bg-[#fbd37b] px-1.5 text-[11px] font-semibold text-[#1b1e2a]"
+                aria-label={t("nav.activeJobs", { count: activeCount })}
+              >
+                {activeCount}
+              </span>
+            ) : null}
+          </NavLink>
+        )
+      })}
+    </>
+  )
+}
+
+function MenuIcon({ open }: { open: boolean }) {
+  if (open) {
+    return (
+      <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">
+        <path
+          fill="currentColor"
+          d="M6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12 19 6.4 17.6 5 12 10.6z"
+        />
+      </svg>
+    )
+  }
+  return (
+    <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
+      <rect x="4" y="8" width="22" height="2" fill="currentColor" />
+      <rect x="4" y="14" width="22" height="2" fill="currentColor" />
+      <rect x="4" y="20" width="22" height="2" fill="currentColor" />
+    </svg>
+  )
+}
+
 export function AdminShell({ children }: AdminShellProps) {
   const { pathname } = useLocation()
   const { locale, setLocale, t } = useLocale()
   const { jobs, activeCount } = useJobsRealtime()
   const [toast, setToast] = useState<ToastState | null>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
   const jobsRef = useRef(jobs)
   jobsRef.current = jobs
+
+  useEffect(() => {
+    setMenuOpen(false)
+  }, [pathname])
+
+  // Nav is inline from xl up — drop the mobile panel (and its scroll lock) there.
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 1280px)")
+    function sync() {
+      if (desktop.matches) setMenuOpen(false)
+    }
+    sync()
+    desktop.addEventListener("change", sync)
+    return () => desktop.removeEventListener("change", sync)
+  }, [])
+
+  useEffect(() => {
+    if (!menuOpen) return
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setMenuOpen(false)
+    }
+    window.addEventListener("keydown", onKey)
+    const prev = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    return () => {
+      window.removeEventListener("keydown", onKey)
+      document.body.style.overflow = prev
+    }
+  }, [menuOpen])
 
   useEffect(() => {
     const rows = jobsRef.current
@@ -177,50 +273,72 @@ export function AdminShell({ children }: AdminShellProps) {
 
   return (
     <div className="theme-admin">
-      <header className="admin-topnav sticky top-0 z-50 bg-db-ink-950 text-db-ink-0">
-        <div className="mx-auto flex max-w-[1240px] items-center justify-between gap-8 px-10 py-4">
-          <NavLink to="/" className="admin-topnav-brand flex items-center gap-3 no-underline">
+      <header className="admin-topnav relative sticky top-0 z-50 text-white">
+        <div className="mx-auto flex h-[88px] max-w-[1440px] items-center justify-between gap-8 px-6 md:h-[100px] md:px-10 2xl:px-[90px]">
+          <NavLink
+            to="/"
+            className="admin-topnav-brand no-underline"
+            onClick={() => setMenuOpen(false)}
+          >
             <img
               src="/devbrains-logo-white.png"
               alt="Devbrains"
-              className="h-7 w-auto"
+              className="h-10 w-auto md:h-[50px]"
             />
-            <span className="hidden text-sm text-db-ink-0/70 lg:inline">
-              {t("brand.product")}
-            </span>
           </NavLink>
-          <div className="flex items-center gap-6">
-            <nav className="flex items-center gap-7 text-sm" aria-label={t("nav.ariaMain")}>
-              {NAV_ITEMS.map((link) => {
-                const active = isSectionActive(pathname, link.match)
-                return (
-                  <NavLink
-                    key={link.to}
-                    to={link.to}
-                    className={cn(
-                      "admin-topnav-link border-b-2 pb-0.5 no-underline transition-colors",
-                      active
-                        ? "is-active border-db-gold-500 text-db-ink-0"
-                        : "border-transparent text-db-ink-0/75 hover:text-db-ink-0",
-                    )}
-                  >
-                    {t(link.key)}
-                    {link.to === "/jobs" && activeCount > 0 ? (
-                      <span
-                        className="ml-1.5 inline-grid h-4 min-w-4 place-items-center rounded-full bg-db-gold-500 px-1 text-[10px] font-semibold text-db-navy-ink"
-                        aria-label={t("nav.activeJobs", { count: activeCount })}
-                      >
-                        {activeCount}
-                      </span>
-                    ) : null}
-                  </NavLink>
-                )
-              })}
+          <div className="hidden items-center gap-6 xl:flex">
+            <nav className="flex items-center gap-6" aria-label={t("nav.ariaMain")}>
+              <NavItems
+                pathname={pathname}
+                activeCount={activeCount}
+                variant="inline"
+                t={t}
+              />
             </nav>
             <LocaleSwitcher locale={locale} setLocale={setLocale} t={t} />
           </div>
+          <button
+            type="button"
+            className="admin-topnav-burger flex xl:hidden"
+            aria-expanded={menuOpen}
+            aria-controls="admin-main-menu"
+            aria-label={menuOpen ? t("nav.closeMenu") : t("nav.openMenu")}
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            <MenuIcon open={menuOpen} />
+          </button>
         </div>
+        {menuOpen ? (
+          <div
+            id="admin-main-menu"
+            className="admin-topnav-panel absolute inset-x-0 top-full z-50 max-h-[calc(100vh-88px)] overflow-y-auto md:max-h-[calc(100vh-100px)] xl:hidden"
+          >
+            <div className="mx-auto flex max-w-[1440px] flex-col gap-8 px-6 py-10 md:px-10 md:py-12">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#fbd37b]">
+                {t("brand.product")}
+              </p>
+              <nav className="flex flex-col gap-1" aria-label={t("nav.ariaMain")}>
+                <NavItems
+                  pathname={pathname}
+                  activeCount={activeCount}
+                  variant="panel"
+                  t={t}
+                  onNavigate={() => setMenuOpen(false)}
+                />
+              </nav>
+              <LocaleSwitcher locale={locale} setLocale={setLocale} t={t} />
+            </div>
+          </div>
+        ) : null}
       </header>
+      {menuOpen ? (
+        <button
+          type="button"
+          className="fixed inset-0 z-40 bg-black/40 xl:hidden"
+          aria-label={t("nav.closeMenu")}
+          onClick={() => setMenuOpen(false)}
+        />
+      ) : null}
       {children}
       {toast && (
         <div className="toast" role="status">
