@@ -12,11 +12,18 @@ import {
   type PromptField,
 } from "@/api/configurations"
 import {
+  DEFAULT_REPORT_THRESHOLDS,
+  cloneReportThresholds,
+  reportThresholdValidationKey,
+  type ReportThresholds,
+} from "@/api/reportThresholds"
+import {
   listAnchorSets,
   type ConfigurationAnchorSets,
   type SsrAnchorSet,
 } from "@/api/anchorSets"
 import { CatalogEditor } from "@/components/config/CatalogEditor"
+import { ReportThresholdsEditor } from "@/components/config/ReportThresholdsEditor"
 import { AdminButton } from "@/components/ui/admin-button"
 import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
 import { ApiError } from "@/lib/api"
@@ -72,6 +79,9 @@ export function ConfigurationEditorPage() {
   const [isActive, setIsActive] = useState(false)
   const [prompts, setPrompts] = useState<Record<string, string>>({})
   const [ssrTemperature, setSsrTemperature] = useState(DEFAULT_SSR_TEMPERATURE)
+  const [reportThresholds, setReportThresholds] = useState<ReportThresholds>(() =>
+    cloneReportThresholds(DEFAULT_REPORT_THRESHOLDS),
+  )
   const [anchorSets, setAnchorSets] = useState<ConfigurationAnchorSets>(EMPTY_ANCHOR_REFS)
   const [libraryAnchors, setLibraryAnchors] = useState<SsrAnchorSet[]>([])
   const [catalog, setCatalog] = useState<PromptCatalog | null>(null)
@@ -106,6 +116,7 @@ export function ConfigurationEditorPage() {
         setLanguage(row.language)
         setIsActive(row.is_active)
         setSsrTemperature(row.ssr_temperature)
+        setReportThresholds(cloneReportThresholds(row.report_thresholds))
         setAnchorSets(row.anchor_sets)
         setError(null)
         setRowReady(true)
@@ -183,6 +194,8 @@ export function ConfigurationEditorPage() {
 
   const loading = !rowReady || catalogLoading
 
+  const reportThresholdValidation = reportThresholdValidationKey(reportThresholds)
+
   function setPromptValue(key: string, value: string) {
     setPrompts((prev) => {
       const next = { ...prev, [key]: value }
@@ -206,6 +219,11 @@ export function ConfigurationEditorPage() {
       setError(t("configurations.editor.ssrTemperatureInvalid"))
       return
     }
+    const thresholdValidation = reportThresholdValidationKey(reportThresholds)
+    if (thresholdValidation) {
+      setError(t(thresholdValidation))
+      return
+    }
     setSaving(true)
     setError(null)
     try {
@@ -215,6 +233,7 @@ export function ConfigurationEditorPage() {
           language,
           prompts,
           ssr_temperature: ssrTemperature,
+          report_thresholds: reportThresholds,
           anchor_sets: anchorSets,
           is_active: isActive,
         })
@@ -225,6 +244,7 @@ export function ConfigurationEditorPage() {
           language,
           prompts,
           ssr_temperature: ssrTemperature,
+          report_thresholds: reportThresholds,
           anchor_sets: anchorSets,
           is_active: isActive,
         })
@@ -512,6 +532,12 @@ export function ConfigurationEditorPage() {
                     {t("anchorSets.list.title")}
                   </Link>
                 </p>
+
+                <ReportThresholdsEditor
+                  value={reportThresholds}
+                  onChange={setReportThresholds}
+                  validationKey={reportThresholdValidation}
+                />
               </div>
             ) : (
               <div
