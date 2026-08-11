@@ -38,6 +38,10 @@ class ResolvedReportAnchors(TypedDict):
     tone_version: str
     style_id: int
     style_version: str
+    tone_vectors: list[list[float]]
+    style_vectors: list[list[float]]
+    tone_pool_revision: int
+    style_pool_revision: int
 
 
 def row_to_anchor_set(row: SsrAnchorSet) -> AnchorSet:
@@ -245,6 +249,10 @@ async def require_anchor_sets_for_language(
     style_row, style_set = await resolve_anchor_set_for_config(
         session, configuration=row, locale=language, kind="style"
     )
+    from app.services.anchor_pool import centroid_vectors_for_set
+
+    tone_vectors = await centroid_vectors_for_set(session, tone_row)
+    style_vectors = await centroid_vectors_for_set(session, style_row)
     return {
         "tone": tone_set,
         "style": style_set,
@@ -252,6 +260,10 @@ async def require_anchor_sets_for_language(
         "tone_version": tone_row.version,
         "style_id": int(style_row.id),
         "style_version": style_row.version,
+        "tone_vectors": tone_vectors,
+        "style_vectors": style_vectors,
+        "tone_pool_revision": int(tone_row.pool_revision or 0),
+        "style_pool_revision": int(style_row.pool_revision or 0),
     }
 
 

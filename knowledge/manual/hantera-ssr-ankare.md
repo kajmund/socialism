@@ -35,6 +35,8 @@ tags: [grunddata]
 3. **Ta bort** går bara för utkast.
 4. Endast **publicerade** ankare kan väljas i en konfiguration.
 
+**Pool på publicerade set:** du kan lägga till och ta bort **simulerade exempel** (pool) direkt på publicerade ankare — de gäller omedelbart för nya rapporter. Själva basraderna (etikett + ankartext) förblir låsta; duplicera setet om du vill ändra dem.
+
 ## Koppla till konfiguration
 
 1. Öppna **Verktyg** → **Konfigurationer** och redigera den konfiguration du vill använda.
@@ -48,3 +50,4 @@ tags: [grunddata]
 - [Använda playground](anvanda-playground.md)
 - [Hantera embedding-cache](hantera-embedding-cache.md)
 - [Läsa simuleringsrapport](lasa-simuleringsrapport.md)
+- [Lägga till SSR-ankare från körning](lagg-till-ssr-ankare-fran-korning.md)
