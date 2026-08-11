@@ -457,3 +457,28 @@ class Report(Base):
         onupdate=func.now(),
         nullable=False,
     )
+
+
+class ReportVerdictCalibration(Base):
+    """Operator judgment: does the report recommendation match the whole report?"""
+
+    __tablename__ = "report_verdict_calibrations"
+
+    report_id: Mapped[str] = mapped_column(
+        String(64),
+        ForeignKey("reports.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    matches: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )

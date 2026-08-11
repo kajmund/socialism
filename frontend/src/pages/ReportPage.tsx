@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import { deleteReport, getReportHtml, type Report } from "@/api/reports"
+import { ReportVerdictCalibrationPanel } from "@/components/reports/ReportVerdictCalibrationPanel"
 import { AdminShell } from "@/components/layout/AdminShell"
 import { Card, CardContent } from "@/components/ui/card"
 import { useLocale, type MessageKey } from "@/i18n"
@@ -197,6 +198,10 @@ export function ReportPage() {
               {t("reports.openNewTab")}
             </button>
           </div>
+        ) : null}
+
+        {report?.status === "succeeded" && id ? (
+          <ReportVerdictCalibrationPanel reportId={id} />
         ) : null}
 
         {htmlError ? (

@@ -261,3 +261,35 @@ def build_recommendation(
         risks=risks[:2],
         improvements=improvements[:1],
     )
+
+
+def build_recommendation_ssr_block(
+    metrics: ReportMetrics,
+    bundles: list[RunBundle],
+    classifications: list[BundleClassification],
+    *,
+    locale: ReportLocale = "sv",
+) -> dict[str, int | str | None]:
+    """Snapshot for report.ssr.json — avoids parsing recommendation from HTML."""
+    from app.services.report.quick import decide_verdict
+    from app.services.report.segment_analysis import build_audience_summaries
+
+    audience = [
+        seg
+        for b, c in zip(bundles, classifications, strict=True)
+        for seg in build_audience_summaries(b, c, locale=locale)
+    ]
+    rec = build_recommendation(
+        metrics,
+        bundles,
+        classifications,
+        audience,
+        locale=locale,
+    )
+    verdict = decide_verdict(metrics, bundles, locale=locale)
+    return {
+        "score": rec.score,
+        "action": rec.action,
+        "recommended_arm": rec.recommended_arm,
+        "verdict_key": verdict.key,
+    }

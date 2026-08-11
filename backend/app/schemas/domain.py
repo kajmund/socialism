@@ -986,6 +986,26 @@ class ReportBulkDeleteResult(BaseModel):
     deleted_ids: list[str]
 
 
+class RecommendationSnapshot(BaseModel):
+    score: int
+    action: str
+    recommended_arm: str | None = None
+    verdict_key: str
+
+
+class VerdictCalibrationOut(BaseModel):
+    report_id: str
+    matches: bool | None = None
+    note: str | None = None
+    recommendation: RecommendationSnapshot | None = None
+    updated_at: str | None = None
+
+
+class VerdictCalibrationWrite(BaseModel):
+    matches: bool
+    note: str | None = Field(default=None, max_length=2000)
+
+
 class JobCreate(BaseModel):
     kind: JobKind
     label: str = ""
