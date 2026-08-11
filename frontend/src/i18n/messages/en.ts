@@ -1287,6 +1287,19 @@ export const en: LocalizedTree<SvMessages> = {
         triggerWeakPosLabel: "Weak positive (ceiling)",
         triggerCritBaselineLabel: "Critical baseline",
         groupNarrative: "Narrative triggers",
+        groupTakeaway: "Audience takeaway",
+        groupTakeawayHint:
+          "Controls short takeaway paragraphs at the top of the report (e.g. “did not land as well with …”). Does not affect recommendation strengths/risks. Gender comparison uses “Clear difference” above (diff.clear).",
+        takeawayPosStrongLabel: "Landed better (≥)",
+        takeawayPosStrongHint: "Positive share at least this value → segment mentioned as positive reception.",
+        takeawayPosWeakLabel: "Did not land / weak highlight (≤ positive or ≥ critical)",
+        takeawayPosWeakHint:
+          "Positive share at most this value, or critical share at least “High critical” → segment flagged as weak. Must be lower than “Landed better”.",
+        takeawayCritHighLabel: "High critical (≥)",
+        takeawayCritHighHint: "Critical share at least this value → life situation may be flagged as weak.",
+        takeawayContrastGapLabel: "Segment contrast (≥)",
+        takeawayContrastGapHint:
+          "Positive-tone gap between best and worst segment when “Landed better” is not met — percentage points.",
         narrGoodReceptionLabel: "Good reception (positive tone)",
         narrHighCritLabel: "High critical tone",
         narrSegmentPosLabel: "Segment — positive",
@@ -1294,6 +1307,7 @@ export const en: LocalizedTree<SvMessages> = {
         validation: {
           verdictOrder: "“Mixed positive” must be lower than “Strongly positive”.",
           diffOrder: "“Moderate difference” must be lower than “Clear difference”.",
+          takeawayOrder: "“Did not land” must be lower than “Landed better”.",
           actionBandsOrder:
             "Recommendation thresholds must increase: revise < minor adjustments < ready to publish.",
         },

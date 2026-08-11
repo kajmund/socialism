@@ -12,6 +12,7 @@
 * **Playground**: Under Anchor-kalibrering kan reaktioner laddas från en klar körning med samma urval som rapport-SSR; valfritt klipp till 200 tecken och aktiv konfigurations SSR-temperatur vid rating.
 * **Rapporter**: Slutsats-trösklar (mottagande, A/B-skillnad, rekommendation 0–100) ligger i aktiv konfiguration (`report_thresholds`) och sparas i `report.ssr.json` per rapport.
 * **Konfigurationer**: Rapporttrösklar kan redigeras under fliken SSR-ankare (operatörsfält + ihopfällt avancerat). Ändringar gäller nya rapporter.
+* **Konfigurationer**: Målgruppssammanfattning (takeaway-stycken) har egna trösklar under avancerat — separata från slutsats och rekommendation; kön-jämförelse delar «Tydlig skillnad».
 * **Rapporter**: På rapportsidan kan operatören bedöma om slutsatsrekommendationen stämmer med hela rapporten (verdict-kalibrering).
 
 ## 2026-08-10

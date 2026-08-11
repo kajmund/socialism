@@ -233,6 +233,13 @@ export function ReportThresholdsEditor({
     })
   }
 
+  function patchTakeaway(patch: Partial<ReportThresholds["takeaway"]>) {
+    onChange({
+      ...value,
+      takeaway: { ...value.takeaway, ...patch },
+    })
+  }
+
   return (
     <fieldset className="space-y-5 rounded border p-4">
       <legend className="px-1 text-sm font-medium">
@@ -490,6 +497,45 @@ export function ReportThresholdsEditor({
                   label={t("configurations.editor.reportThresholds.triggerCritBaselineLabel")}
                   value={value.recommendation.score_triggers.crit_baseline}
                   onChange={(v) => patchScoreTriggers({ crit_baseline: v })}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium">
+                {t("configurations.editor.reportThresholds.groupTakeaway")}
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                {t("configurations.editor.reportThresholds.groupTakeawayHint")}
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <RatioPercentField
+                  id="rt-takeaway-pos-strong"
+                  label={t("configurations.editor.reportThresholds.takeawayPosStrongLabel")}
+                  hint={t("configurations.editor.reportThresholds.takeawayPosStrongHint")}
+                  value={value.takeaway.positive_strong}
+                  onChange={(v) => patchTakeaway({ positive_strong: v })}
+                />
+                <RatioPercentField
+                  id="rt-takeaway-pos-weak"
+                  label={t("configurations.editor.reportThresholds.takeawayPosWeakLabel")}
+                  hint={t("configurations.editor.reportThresholds.takeawayPosWeakHint")}
+                  value={value.takeaway.positive_weak}
+                  onChange={(v) => patchTakeaway({ positive_weak: v })}
+                />
+                <RatioPercentField
+                  id="rt-takeaway-crit-high"
+                  label={t("configurations.editor.reportThresholds.takeawayCritHighLabel")}
+                  hint={t("configurations.editor.reportThresholds.takeawayCritHighHint")}
+                  value={value.takeaway.critical_high}
+                  onChange={(v) => patchTakeaway({ critical_high: v })}
+                />
+                <PointsField
+                  id="rt-takeaway-contrast-gap"
+                  label={t("configurations.editor.reportThresholds.takeawayContrastGapLabel")}
+                  hint={t("configurations.editor.reportThresholds.takeawayContrastGapHint")}
+                  value={value.takeaway.segment_contrast_gap}
+                  onChange={(v) => patchTakeaway({ segment_contrast_gap: v })}
                 />
               </div>
             </div>
