@@ -41,6 +41,7 @@ class OasisAgentProfile:
     injector_key: str | None = None
     age: int = 30
     kön: str = "—"
+    mbti: str | None = None
 
 
 def _ascii_slug(name: str) -> str:
@@ -267,6 +268,15 @@ def build_user_char(
     return "\n".join(lines)
 
 
+def _mbti_from_persona(member: PopulationMember) -> str | None:
+    if member.persona is None or not member.persona.profile:
+        return None
+    raw = member.persona.profile.get("mbti")
+    if isinstance(raw, str) and raw.strip():
+        return raw.strip().upper()
+    return None
+
+
 def members_to_profiles(
     members: list[PopulationMember],
     *,
@@ -316,6 +326,7 @@ def members_to_profiles(
                 role="population",
                 age=member.age,
                 kön=kön,
+                mbti=_mbti_from_persona(member),
             )
         )
     return out
@@ -372,17 +383,17 @@ def write_reddit_profile_json(profiles: list[OasisAgentProfile], path: Path) -> 
     path.parent.mkdir(parents=True, exist_ok=True)
     rows: list[dict[str, object]] = []
     for profile in profiles:
-        rows.append(
-            {
-                "username": profile.username,
-                "realname": profile.member_name,
-                "bio": profile.description,
-                "persona": profile.user_char,
-                "age": profile.age,
-                "gender": oasis_gender_from_kon(profile.kön),
-                "mbti": "ISFJ",
-                "country": "Sweden",
-            }
-        )
+        row: dict[str, object] = {
+            "username": profile.username,
+            "realname": profile.member_name,
+            "bio": profile.description,
+            "persona": profile.user_char,
+            "age": profile.age,
+            "gender": oasis_gender_from_kon(profile.kön),
+            "country": "Sweden",
+        }
+        if profile.mbti:
+            row["mbti"] = profile.mbti.strip().upper()
+        rows.append(row)
     path.write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
     return path

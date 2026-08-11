@@ -43,7 +43,11 @@ def _tick(
     }
 
 
-async def seed_smoke_run(session: AsyncSession) -> Run:
+async def seed_smoke_run(
+    session: AsyncSession,
+    *,
+    platform: str = "twitter",
+) -> Run:
     """Minimal 5-persona, 2-tick, 1-injection körning for live OASIS smoke."""
     districts = ("Centrum", "Norra", "Södra", "Östra", "Västra")
     pop = Population(
@@ -88,7 +92,10 @@ async def seed_smoke_run(session: AsyncSession) -> Run:
             _tick(key="t2", day=2, text=None),
         ],
         branch=None,
-        oasis_options={"platform": "twitter", "allow_population_create_post": False},
+        oasis_options={
+            "platform": platform,
+            "allow_population_create_post": False,
+        },
     )
     session.add(run)
     await session.commit()

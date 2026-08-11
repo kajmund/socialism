@@ -163,6 +163,7 @@ def test_write_reddit_profile_json_includes_gender_and_persona(tmp_path):
     assert rows[0]["realname"] == "Anna Andersson"
     assert rows[0]["bio"]
     assert "like_post" in rows[0]["persona"]
+    assert "mbti" not in rows[0]
     assert oasis_gender_from_kon("Man") == "male"
     assert oasis_gender_from_kon("Icke-binär") == "nonbinary"
 
