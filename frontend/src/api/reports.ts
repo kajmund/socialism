@@ -10,6 +10,7 @@ export type ReportSource = {
   label?: string
 }
 
+/** Legacy rows may still be `"full"`; new reports are always `"quick"`. */
 export type ReportMode = "full" | "quick"
 
 export type Report = {
@@ -32,7 +33,6 @@ export type ReportCreate = {
   sources: Array<{ run_id: number; attempt_id: string }>
   title?: string
   locale?: Locale
-  mode?: ReportMode
 }
 
 export function createReport(body: ReportCreate): Promise<Report> {

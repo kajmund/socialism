@@ -7,7 +7,6 @@ from pathlib import Path
 
 from app.llm import set_structured_completer
 from app.schemas.domain import Tick
-from app.services.prompt_catalog import default_prompts
 from app.services.report.bundles import RunBundle
 from app.services.report.generate import generate_report_html
 from app.services.run_measurements import build_measurements
@@ -307,10 +306,7 @@ async def main() -> None:
         html_path, _, _, _ = await generate_report_html(
             _ab_bundles(),
             out_dir=out_dir,
-            dry_run=False,
             title="Demo snabbrapport — belysning A/B",
-            mode="quick",
-            prompts=default_prompts("sv"),
             locale="sv",
         )
         print(html_path)
