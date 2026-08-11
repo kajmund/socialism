@@ -16,15 +16,20 @@ import {
   getPlaygroundAnchors,
   ratePlaygroundSsr,
   runPlaygroundPrompt,
+  samplePlaygroundSsrFromRun,
   type AnchorsResponse,
   type CompareResponse,
   type PlaygroundDimension,
   type PlaygroundLocale,
   type PromptRunResponse,
   type RateResponse,
+  type SampleFromRunResponse,
 } from "@/api/playground"
+import { getRun, listRuns, type RunDetail } from "@/api/runs"
+import type { RunSummary } from "@/data/runs-types"
 import { PlaygroundToolsPanel } from "@/components/playground/PlaygroundToolsPanel"
 import { PlaygroundImagePanel } from "@/components/playground/PlaygroundImagePanel"
+import { normalizeRunAttempts } from "@/components/runs/OasisResultsPanel"
 import { Button } from "@/components/ui/button"
 import { useLocale } from "@/i18n"
 import { ApiError } from "@/lib/api"
@@ -109,7 +114,27 @@ export function PlaygroundPage() {
   const [userMessage, setUserMessage] = useState("")
   const [promptResult, setPromptResult] = useState<PromptRunResponse | null>(null)
 
+  const [doneRuns, setDoneRuns] = useState<RunSummary[]>([])
+  const [sampleRunId, setSampleRunId] = useState<number | "">("")
+  const [sampleRunDetail, setSampleRunDetail] = useState<RunDetail | null>(null)
+  const [sampleAttemptId, setSampleAttemptId] = useState<string>("")
+  const [sampleVariantId, setSampleVariantId] = useState<string>("")
+  const [useReportSampling, setUseReportSampling] = useState(true)
+  const [clipForEmbed, setClipForEmbed] = useState(true)
+  const [useConfigTemperature, setUseConfigTemperature] = useState(false)
+  const [samplingResult, setSamplingResult] = useState<SampleFromRunResponse | null>(null)
+
   const textLines = useMemo(() => parseTextLines(textsRaw), [textsRaw])
+
+  const sampleAttempts = useMemo(
+    () => normalizeRunAttempts(sampleRunDetail?.results ?? null, t),
+    [sampleRunDetail, t],
+  )
+
+  const sampleVariants = useMemo(() => {
+    const attempt = sampleAttempts.find((row) => row.id === sampleAttemptId)
+    return attempt?.variants.filter((v) => !v.error) ?? []
+  }, [sampleAttempts, sampleAttemptId])
 
   useEffect(() => {
     let cancelled = false
@@ -136,6 +161,65 @@ export function PlaygroundPage() {
       cancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const rows = await listRuns({ status: "done" })
+        if (cancelled) return
+        setDoneRuns(rows)
+      } catch {
+        if (!cancelled) setDoneRuns([])
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (sampleRunId === "") {
+      setSampleRunDetail(null)
+      setSampleAttemptId("")
+      setSampleVariantId("")
+      setSamplingResult(null)
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const detail = await getRun(sampleRunId)
+        if (cancelled) return
+        setSampleRunDetail(detail)
+        const attempts = normalizeRunAttempts(detail.results, t)
+        const firstAttempt = attempts[0]
+        setSampleAttemptId(firstAttempt?.id ?? "")
+        const variants = firstAttempt?.variants.filter((v) => !v.error) ?? []
+        setSampleVariantId(variants.length === 1 ? (variants[0]?.id ?? "") : "")
+        setSamplingResult(null)
+      } catch (err) {
+        if (!cancelled) setError(errorMessage(err))
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [sampleRunId, t])
+
+  useEffect(() => {
+    if (!sampleAttemptId) {
+      setSampleVariantId("")
+      return
+    }
+    const attempt = sampleAttempts.find((row) => row.id === sampleAttemptId)
+    const variants = attempt?.variants.filter((v) => !v.error) ?? []
+    setSampleVariantId((prev) => {
+      if (variants.some((v) => v.id === prev)) return prev
+      return variants.length === 1 ? (variants[0]?.id ?? "") : ""
+    })
+    setSamplingResult(null)
+  }, [sampleAttemptId, sampleAttempts])
 
   useEffect(() => {
     setLibrarySetId("")
@@ -225,6 +309,35 @@ export function PlaygroundPage() {
     libraryBaselineRef.current = ""
   }
 
+  async function onLoadSampleFromRun() {
+    setError(null)
+    setSamplingResult(null)
+    if (sampleRunId === "" || !sampleAttemptId) {
+      setError(t("playground.reportSamplingMissingRun"))
+      return
+    }
+    if (sampleVariants.length > 1 && !sampleVariantId) {
+      setError(t("playground.reportSamplingMissingVariant"))
+      return
+    }
+    setBusy(true)
+    try {
+      const result = await samplePlaygroundSsrFromRun({
+        run_id: sampleRunId,
+        attempt_id: sampleAttemptId,
+        variant_id: sampleVariantId || null,
+        use_report_sampling: useReportSampling,
+      })
+      setSamplingResult(result)
+      setTextsRaw(result.texts.join("\n"))
+      setRateResult(null)
+    } catch (err) {
+      setError(t("playground.error", { message: errorMessage(err) }))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function onRunRate() {
     setError(null)
     setRateResult(null)
@@ -236,7 +349,7 @@ export function PlaygroundPage() {
       setError(t("playground.humanLabelsRequired"))
       return
     }
-    if (!(temperature > 0)) {
+    if (!(temperature > 0) && !useConfigTemperature) {
       setError(t("playground.temperatureInvalid"))
       return
     }
@@ -251,9 +364,11 @@ export function PlaygroundPage() {
         statements: librarySnapshotClean ? undefined : statements,
         temperature,
         human_labels: useHumanLabels ? humanLabels : undefined,
+        clip_for_embed: clipForEmbed,
+        use_config_temperature: useConfigTemperature,
       })
       setRateResult(result)
-      setLastTemperature(temperature)
+      setLastTemperature(useConfigTemperature ? null : temperature)
     } catch (err) {
       setError(t("playground.error", { message: errorMessage(err) }))
     } finally {
@@ -503,6 +618,110 @@ export function PlaygroundPage() {
               </div>
             </div>
 
+            <div className="rounded border border-[color:var(--border-hairline)] p-4">
+              <h2 className="mb-1 text-base font-medium">{t("playground.reportSamplingHeading")}</h2>
+              <p className="mb-3 text-sm text-muted-foreground">
+                {t("playground.reportSamplingHint")}
+              </p>
+              <div className="flex flex-wrap gap-4">
+                <label className="grid gap-1 text-sm">
+                  <span>{t("playground.reportSamplingRun")}</span>
+                  <select
+                    className="min-w-[14rem] rounded border border-[color:var(--border-hairline)] bg-transparent px-2 py-1.5"
+                    value={sampleRunId === "" ? "" : String(sampleRunId)}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      setSampleRunId(value === "" ? "" : Number(value))
+                    }}
+                  >
+                    <option value="">{t("playground.reportSamplingRunNone")}</option>
+                    {doneRuns.map((run) => (
+                      <option key={run.id} value={run.id}>
+                        {run.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="grid gap-1 text-sm">
+                  <span>{t("playground.reportSamplingAttempt")}</span>
+                  <select
+                    className="min-w-[14rem] rounded border border-[color:var(--border-hairline)] bg-transparent px-2 py-1.5"
+                    value={sampleAttemptId}
+                    disabled={sampleRunId === "" || sampleAttempts.length === 0}
+                    onChange={(e) => setSampleAttemptId(e.target.value)}
+                  >
+                    <option value="">{t("playground.reportSamplingAttemptNone")}</option>
+                    {sampleAttempts.map((attempt) => (
+                      <option key={attempt.id} value={attempt.id}>
+                        {attempt.id}
+                        {attempt.finished_at ? ` (${attempt.finished_at.slice(0, 10)})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {sampleVariants.length > 1 ? (
+                  <label className="grid gap-1 text-sm">
+                    <span>{t("playground.reportSamplingVariant")}</span>
+                    <select
+                      className="min-w-[10rem] rounded border border-[color:var(--border-hairline)] bg-transparent px-2 py-1.5"
+                      value={sampleVariantId}
+                      onChange={(e) => setSampleVariantId(e.target.value)}
+                    >
+                      <option value="">{t("playground.reportSamplingVariantNone")}</option>
+                      {sampleVariants.map((variant) => (
+                        <option key={variant.id} value={variant.id}>
+                          {variant.label || variant.id}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-4">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={useReportSampling}
+                    onChange={(e) => setUseReportSampling(e.target.checked)}
+                  />
+                  {t("playground.reportSamplingUseSampling")}
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={clipForEmbed}
+                    onChange={(e) => setClipForEmbed(e.target.checked)}
+                  />
+                  {t("playground.reportSamplingClipEmbed")}
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={useConfigTemperature}
+                    onChange={(e) => setUseConfigTemperature(e.target.checked)}
+                  />
+                  {t("playground.reportSamplingConfigTemp")}
+                </label>
+              </div>
+              <div className="mt-3">
+                <Button type="button" disabled={busy} variant="outline" onClick={() => void onLoadSampleFromRun()}>
+                  {busy ? t("playground.running") : t("playground.reportSamplingLoad")}
+                </Button>
+              </div>
+              {samplingResult ? (
+                <div className="mt-3 space-y-1 text-sm text-muted-foreground">
+                  <p>{t("playground.reportSamplingLoaded", { label: samplingResult.bundle_label })}</p>
+                  <p>
+                    {t("playground.reportSamplingMeta", {
+                      selected: String(samplingResult.sampling.selected_count ?? samplingResult.texts.length),
+                      eligible: String(samplingResult.sampling.eligible_count ?? "—"),
+                      method: String(samplingResult.sampling.method ?? "—"),
+                    })}
+                  </p>
+                </div>
+              ) : null}
+            </div>
+
             <div>
               <h2 className="mb-1 text-base font-medium">{t("playground.textsHeading")}</h2>
               <p className="mb-2 text-sm text-muted-foreground">{t("playground.textsHint")}</p>
@@ -562,6 +781,10 @@ export function PlaygroundPage() {
                 {lastTemperature != null ? (
                   <p className="text-sm text-muted-foreground">
                     {t("playground.temperatureUsed", { value: String(lastTemperature) })}
+                  </p>
+                ) : useConfigTemperature ? (
+                  <p className="text-sm text-muted-foreground">
+                    {t("playground.reportSamplingConfigTempUsed")}
                   </p>
                 ) : null}
                 {rateResult.accuracy != null ? (
