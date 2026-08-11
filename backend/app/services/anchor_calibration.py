@@ -158,6 +158,8 @@ def publish_needs_acknowledgement(
     accuracy: float,
     missing_labels: list[str],
 ) -> bool:
+    if accuracy < ACCURACY_BLOCK_THRESHOLD:
+        return False
     return bool(missing_labels) or accuracy < ACCURACY_OK_THRESHOLD
 
 
@@ -193,14 +195,15 @@ async def assert_publish_allowed(
     accuracy = float(test_result["macro_accuracy"])
     missing = list(test_result["missing_labels"])
 
-    if accuracy < ACCURACY_BLOCK_THRESHOLD and not acknowledge_warnings:
+    if accuracy < ACCURACY_BLOCK_THRESHOLD:
         raise PublishGateError(
-            f"Macro-accuracy {accuracy:.0%} is below {ACCURACY_BLOCK_THRESHOLD:.0%}",
+            f"Macro-accuracy {accuracy:.0%} is below {ACCURACY_BLOCK_THRESHOLD:.0%} "
+            f"— improve calibration before publishing",
             code="accuracy_too_low",
             accuracy=accuracy,
             missing_labels=missing,
             calibration_count=count,
-            requires_acknowledgement=True,
+            requires_acknowledgement=False,
         )
 
     if publish_needs_acknowledgement(accuracy=accuracy, missing_labels=missing):
@@ -225,13 +228,9 @@ async def finalize_publish_calibration(
     acknowledge_warnings: bool,
 ) -> None:
     await run_calibration_test(session, row, temperature=temperature, persist=True)
-    row.calibration_publish_override = acknowledge_warnings and publish_needs_acknowledgement(
-        accuracy=float(row.calibration_accuracy or 0.0),
-        missing_labels=labels_missing_coverage(
-            await calibration_items(session, row.id),
-            [str(x) for x in (row.labels or [])],
-        ),
-    )
+    # Set only when publish passed via soft-gate acknowledgement (assert_publish_allowed
+    # rejects acknowledge_warnings for accuracy below ACCURACY_BLOCK_THRESHOLD).
+    row.calibration_publish_override = acknowledge_warnings
 
 
 async def anchor_validation_for_report(

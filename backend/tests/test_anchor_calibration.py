@@ -64,6 +64,7 @@ def test_publish_needs_acknowledgement():
     assert publish_needs_acknowledgement(accuracy=0.8, missing_labels=["Neutral"])
     assert not publish_needs_acknowledgement(accuracy=0.8, missing_labels=[])
     assert not publish_needs_acknowledgement(accuracy=0.6, missing_labels=[])
+    assert not publish_needs_acknowledgement(accuracy=0.1, missing_labels=[])
 
 
 def test_labels_missing_coverage():
