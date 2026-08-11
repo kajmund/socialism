@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from app.llm.vision import VisionRequest, set_vision_completer
+from app.services.playground_image import MAX_IMAGE_BYTES
 from app.services.image_cache import (
     clear_image_cache,
     compose_feed_body,
@@ -99,6 +100,17 @@ def test_compose_feed_body_modes():
     assert compose_feed_body(body="", caption="Bara bild") == "Bara bild"
     assert compose_feed_body(body="Hej", caption="Visuellt") == "Hej\n\n[Bild: Visuellt]"
     assert compose_feed_body(body="Hej", caption="") == "Hej"
+
+
+@pytest.mark.asyncio
+async def test_message_image_upload_rejects_oversized(client):
+    oversized = _TINY_PNG + b"\x00" * (MAX_IMAGE_BYTES - len(_TINY_PNG) + 1)
+    res = await client.post(
+        "/messages/images/upload",
+        files={"image": ("big.png", oversized, "image/png")},
+    )
+    assert res.status_code == 400
+    assert "MB limit" in res.json()["detail"]
 
 
 @pytest.mark.asyncio
