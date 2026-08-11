@@ -497,6 +497,7 @@ def build_quick_slots(
         locale=locale,
         ab=ab,
         recommendation=recommendation,
+        diff_clear=t.diff.clear,
     )
 
     tech_html = (

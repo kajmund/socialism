@@ -113,3 +113,60 @@ def test_custom_thresholds_change_recommendation_action():
     )
     assert rec_default.action == "Publicera efter mindre justeringar"
     assert rec_loose.action == "Redo att publicera"
+
+
+def test_build_audience_comparisons_uses_configured_diff_clear():
+    from app.services.report.segment_analysis import (
+        AudienceSegmentSummary,
+        SegmentArmSummary,
+        SegmentToneRow,
+        build_audience_comparisons,
+        build_segment_diff_summary,
+    )
+
+    tone_a = SegmentToneRow(
+        dimension="livssituation",
+        label="Sambo, barn",
+        text_count=2,
+        agent_count=1,
+        positive_share=0.35,
+        critical_share=0.1,
+        engagement_score=12,
+        too_few=False,
+    )
+    tone_b = SegmentToneRow(
+        dimension="livssituation",
+        label="Sambo, barn",
+        text_count=2,
+        agent_count=1,
+        positive_share=0.30,
+        critical_share=0.1,
+        engagement_score=4,
+        too_few=False,
+    )
+    arms = [
+        SegmentArmSummary(
+            arm_label="Version A",
+            summary=AudienceSegmentSummary(
+                dimension="livssituation",
+                dimension_label="Livssituation",
+                label="Sambo, barn",
+                tone=tone_a,
+            ),
+        ),
+        SegmentArmSummary(
+            arm_label="Version B",
+            summary=AudienceSegmentSummary(
+                dimension="livssituation",
+                dimension_label="Livssituation",
+                label="Sambo, barn",
+                tone=tone_b,
+            ),
+        ),
+    ]
+    default_diff = build_segment_diff_summary(arms, locale="sv")
+    assert "nära varandra" in default_diff
+    assert "leder" not in default_diff
+
+    loose_diff = build_segment_diff_summary(arms, locale="sv", diff_clear=0.04)
+    assert "leder" in loose_diff
