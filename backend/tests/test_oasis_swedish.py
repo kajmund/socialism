@@ -87,3 +87,47 @@ async def test_env_prompts_are_isolated_across_concurrent_tasks():
     )
     assert a == "EMPTY-A"
     assert b == "EMPTY-B"
+
+
+async def test_to_text_prompt_gates_followers_and_follows_by_matching_flags():
+    """include_followers/include_follows must gate the matching env section."""
+    pytest.importorskip("oasis")
+    from unittest.mock import AsyncMock, MagicMock
+
+    from oasis.social_agent import agent_environment as mod
+
+    prompts = dict(default_prompts("sv"))
+    prompts["oasis.env.empty_followers"] = "EMPTY_FOLLOWERS"
+    prompts["oasis.env.empty_follows"] = "EMPTY_FOLLOWS"
+    apply_swedish_social_environment_prompts(prompts)
+
+    self = MagicMock()
+    self.get_followers_env = AsyncMock(return_value="FOLLOWERS_LIVE")
+    self.get_follows_env = AsyncMock(return_value="FOLLOWS_LIVE")
+    self.get_posts_env = AsyncMock(return_value="POSTS")
+    self.get_group_env = AsyncMock(return_value="GROUPS")
+
+    prompt = await mod.SocialEnvironment.to_text_prompt(
+        self,
+        include_posts=True,
+        include_followers=False,
+        include_follows=True,
+    )
+    assert "EMPTY_FOLLOWERS" in prompt
+    assert "FOLLOWS_LIVE" in prompt
+    self.get_followers_env.assert_not_called()
+    self.get_follows_env.assert_called_once()
+
+    self.get_followers_env.reset_mock()
+    self.get_follows_env.reset_mock()
+
+    prompt2 = await mod.SocialEnvironment.to_text_prompt(
+        self,
+        include_posts=False,
+        include_followers=True,
+        include_follows=False,
+    )
+    assert "FOLLOWERS_LIVE" in prompt2
+    assert "EMPTY_FOLLOWS" in prompt2
+    self.get_followers_env.assert_called_once()
+    self.get_follows_env.assert_not_called()

@@ -58,8 +58,10 @@ dev = [
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
+addopts = "-m 'not smoke'"
 markers = [
     "integration: hits network or optional heavy deps (skipped in default CI)",
+    "smoke: manual live OASIS simulation against camel-oasis + DeepSeek (opt-in)",
 ]
 
 [tool.ruff]
