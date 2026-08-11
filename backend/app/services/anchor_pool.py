@@ -175,6 +175,7 @@ async def add_pool_item(
     try:
         await session.flush()
     except IntegrityError as exc:
+        await session.rollback()
         raise AnchorPoolError(
             f"Pool already contains this text for label {label!r}"
         ) from exc

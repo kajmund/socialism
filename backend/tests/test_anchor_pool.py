@@ -81,3 +81,87 @@ async def test_duplicate_pool_item_rejected(client, mock_embedder):
     assert first.status_code == 201
     second = await client.post(f"/anchor-sets/{anchor_id}/pool", json=body)
     assert second.status_code == 400
+    other = await client.post(
+        f"/anchor-sets/{anchor_id}/pool",
+        json={**body, "text": "Annan unik pooltext efter dubblett."},
+    )
+    assert other.status_code == 201
+
+
+@pytest.mark.asyncio
+async def test_same_session_recovers_after_duplicate_integrity_error(mock_embedder):
+    """flush() IntegrityError poisons the session until rollback — verify recovery."""
+    from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+    from sqlalchemy.pool import StaticPool
+
+    from app.database.base import Base
+    from app.database.models import SsrAnchorSet
+    from app.services.anchor_pool import AnchorPoolError, add_pool_item
+    from app.services.anchor_store import ensure_default_anchor_sets
+
+    engine = create_async_engine(
+        "sqlite+aiosqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    session_factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+    async with session_factory() as session:
+        await ensure_default_anchor_sets(session)
+        await session.commit()
+
+    async with session_factory() as session:
+        result = await session.execute(
+            select(SsrAnchorSet).where(
+                SsrAnchorSet.status == "published",
+                SsrAnchorSet.kind == "tone",
+            )
+        )
+        row = result.scalars().first()
+        assert row is not None
+        anchor_id = int(row.id)
+
+        await add_pool_item(
+            session,
+            anchor_set_id=anchor_id,
+            label="Neutral",
+            text="Session recovery test text.",
+            source_type="comment",
+            source_run_id=None,
+            source_attempt_id=None,
+            source_variant_id=None,
+            source_ref={"type": "comment", "comment_id": 1},
+        )
+        await session.commit()
+
+        with pytest.raises(AnchorPoolError):
+            await add_pool_item(
+                session,
+                anchor_set_id=anchor_id,
+                label="Neutral",
+                text="Session recovery test text.",
+                source_type="comment",
+                source_run_id=None,
+                source_attempt_id=None,
+                source_variant_id=None,
+                source_ref={"type": "comment", "comment_id": 1},
+            )
+
+        item = await add_pool_item(
+            session,
+            anchor_set_id=anchor_id,
+            label="Neutral",
+            text="Session recovery test text — annan.",
+            source_type="comment",
+            source_run_id=None,
+            source_attempt_id=None,
+            source_variant_id=None,
+            source_ref={"type": "comment", "comment_id": 2},
+        )
+        await session.commit()
+        assert item.id is not None
+
+    await engine.dispose()
