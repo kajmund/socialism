@@ -207,6 +207,11 @@ def _style_avg_from_pmfs(pmfs: list[dict[str, float]]) -> list[tuple[str, float]
     return scored
 
 
+def clip_texts_for_embed(texts: list[str]) -> list[str]:
+    """Clip reaction snippets to the embed limit used in report SSR."""
+    return _clip_for_embed(texts)
+
+
 def _clip_for_embed(texts: list[str]) -> list[str]:
     # Pool anchors embed full text; reaction snippets stay clipped for report SSR.
     return [t[:_TEXT_CHARS] if t.strip() else " " for t in texts]

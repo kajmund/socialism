@@ -21,6 +21,13 @@ from app.services.playground import (
 from app.services.playground_tools import list_tool_catalog, run_agent_tool
 from app.services.playground_image import MAX_IMAGE_BYTES, react_to_image
 from app.services.playground_image_models import image_model_catalog
+from app.services.prompt_store import require_active_ssr_temperature
+from app.services.report.bundles import RunBundle, build_bundles_for_attempt
+from app.services.report.classify import clip_texts_for_embed
+from app.services.report.sampling import (
+    collect_all_reactions_for_ssr,
+    sample_reactions_for_ssr,
+)
 from app.services.ssr import ANCHOR_SET_VERSION, style_anchors, tone_anchors
 
 router = APIRouter(prefix="/playground", tags=["playground"])
@@ -51,6 +58,25 @@ class RateRequest(BaseModel):
     statements: list[str] | None = None
     temperature: float = Field(default=1.0, gt=0)
     human_labels: list[str] | None = None
+    clip_for_embed: bool = False
+    use_config_temperature: bool = False
+
+
+class SampleFromRunRequest(BaseModel):
+    run_id: int
+    attempt_id: str = Field(min_length=1)
+    variant_id: str | None = None
+    use_report_sampling: bool = True
+
+
+class SampleFromRunOut(BaseModel):
+    texts: list[str]
+    likes: list[int]
+    user_ids: list[int]
+    sampling: dict[str, Any]
+    clipped_preview: list[str]
+    variant_id: str | None
+    bundle_label: str
 
 
 class CompareRequest(BaseModel):
@@ -126,6 +152,64 @@ async def get_anchors(session: AsyncSession = Depends(get_session)) -> AnchorsOu
     return AnchorsOut(version=version, tone=tone, style=style)  # type: ignore[arg-type]
 
 
+def _pick_bundle(bundles: list[RunBundle], variant_id: str | None) -> RunBundle:
+    if not bundles:
+        raise HTTPException(status_code=400, detail="Attempt has no simulation data")
+    if variant_id is not None:
+        for bundle in bundles:
+            if bundle.variant_id == variant_id:
+                return bundle
+        ids = [b.variant_id for b in bundles]
+        raise HTTPException(
+            status_code=400,
+            detail=f"Variant {variant_id!r} not found on attempt (available: {ids})",
+        )
+    if len(bundles) > 1:
+        ids = [b.variant_id for b in bundles]
+        raise HTTPException(
+            status_code=400,
+            detail=f"Attempt has multiple variants; pass variant_id (available: {ids})",
+        )
+    return bundles[0]
+
+
+@router.post("/ssr/sample-from-run", response_model=SampleFromRunOut)
+async def post_ssr_sample_from_run(
+    body: SampleFromRunRequest,
+    session: AsyncSession = Depends(get_session),
+) -> SampleFromRunOut:
+    try:
+        bundles = await build_bundles_for_attempt(
+            session,
+            run_id=body.run_id,
+            attempt_id=body.attempt_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    bundle = _pick_bundle(bundles, body.variant_id)
+    if body.use_report_sampling:
+        sampled = sample_reactions_for_ssr(bundle)
+    else:
+        sampled = collect_all_reactions_for_ssr(bundle)
+
+    if not sampled.texts:
+        raise HTTPException(
+            status_code=400,
+            detail="No reaction texts found for this run attempt variant",
+        )
+
+    return SampleFromRunOut(
+        texts=sampled.texts,
+        likes=sampled.likes,
+        user_ids=sampled.user_ids,
+        sampling=sampled.meta,
+        clipped_preview=clip_texts_for_embed(sampled.texts),
+        variant_id=bundle.variant_id,
+        bundle_label=bundle.label,
+    )
+
+
 @router.post("/ssr/rate")
 async def post_ssr_rate(
     body: RateRequest,
@@ -186,6 +270,13 @@ async def post_ssr_rate(
                 status_code=400,
                 detail=f"human_labels not in anchor labels: {bad[0]!r}",
             )
+
+    temperature = body.temperature
+    if body.use_config_temperature:
+        temperature = await require_active_ssr_temperature(session)
+
+    embed_texts = clip_texts_for_embed(texts) if body.clip_for_embed else None
+
     try:
         return await rate_case(
             texts,
@@ -193,9 +284,10 @@ async def post_ssr_rate(
             locale=body.locale,
             labels=labels,
             statements=statements,
-            temperature=body.temperature,
+            temperature=temperature,
             human_labels=human,
             anchor_vectors=anchor_vectors,
+            embed_texts=embed_texts,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
