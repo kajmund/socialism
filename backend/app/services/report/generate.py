@@ -17,6 +17,7 @@ from app.services.report.classify import BundleClassification, classify_bundles
 from app.services.report.locale import ReportLocale, normalize_locale
 from app.services.report.metrics import compute_report_metrics
 from app.services.report.quick import build_quick_slots, render_quick_html
+from app.services.report.recommendation import build_recommendation_ssr_block
 from app.services.report.sampling import SAMPLING_METHOD, SAMPLING_VERSION
 from app.services.ssr import ANCHOR_SET_VERSION
 
@@ -34,6 +35,7 @@ def _ssr_payload(
     total_seconds: float,
     resolved_anchors: ResolvedReportAnchors | None = None,
     anchor_validation: dict[str, Any] | None = None,
+    recommendation: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     tone_meta = {}
     style_meta = {}
@@ -65,6 +67,7 @@ def _ssr_payload(
             "embed_seconds": round(embed_seconds, 3),
             "total_seconds": round(total_seconds, 3),
         },
+        "recommendation": recommendation or {},
         "bundles": [
             {
                 "label": b.label,
@@ -125,6 +128,12 @@ async def generate_report_html(
     )
 
     metrics = compute_report_metrics(bundles, classifications)
+    recommendation_block = build_recommendation_ssr_block(
+        metrics,
+        bundles,
+        classifications,
+        locale=loc,
+    )
     total_s = time.perf_counter() - t0
     timing = {
         "classify_llm_seconds": round(classify_llm_s, 3),
@@ -157,6 +166,7 @@ async def generate_report_html(
         total_seconds=float(timing["total_seconds"]),
         resolved_anchors=resolved_anchors,
         anchor_validation=anchor_validation,
+        recommendation=recommendation_block,
     )
     html_path.write_text(html, encoding="utf-8")
     slots_path.write_text(
