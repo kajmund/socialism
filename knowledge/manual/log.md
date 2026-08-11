@@ -9,6 +9,7 @@
 * **Navigering**: Toppmenyn följer devbrains.se — halvtransparent svart list med logotypen. Navigationslänkarna ligger i en rad på desktop; på liten skärm samlas de under en menyknapp.
 * **Rapporter**: Full rapport (LLM-narrativ) är borttagen — bara snabbrapporten finns kvar.
 * **Rapporter**: SSR-sampling för ton/stil är stratifierad per agent (max 2 texter/agent, 16 totalt) — inte längre top-by-likes. Tekniskt stycke och `report.ssr.json` loggar sampling-metod.
+* **Rapporter**: Slutsats-trösklar (mottagande, A/B-skillnad, rekommendation 0–100) ligger i aktiv konfiguration (`report_thresholds`) och sparas i `report.ssr.json` per rapport.
 
 ## 2026-08-10
 

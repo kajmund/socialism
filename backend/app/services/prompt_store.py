@@ -15,6 +15,12 @@ from app.services.prompt_catalog import (
     normalize_prompts,
     render_prompt,
 )
+from app.services.report.thresholds import (
+    ReportThresholds,
+    default_report_thresholds,
+    normalize_report_thresholds,
+    report_thresholds_to_dict,
+)
 
 
 class MissingActiveConfigurationError(RuntimeError):
@@ -116,6 +122,35 @@ async def require_active_ssr_temperature(session: AsyncSession) -> float:
     return temp
 
 
+async def require_active_report_thresholds(session: AsyncSession) -> ReportThresholds:
+    """Snabbrapport verdict/recommendation thresholds from active configuration."""
+    row = await get_active_configuration(session)
+    if row is None:
+        raise MissingActiveConfigurationError(
+            "No active prompt configuration. Activate one under Konfigurationer."
+        )
+    try:
+        return normalize_report_thresholds(dict(row.report_thresholds or {}))
+    except ValueError as exc:
+        raise MissingActiveConfigurationError(
+            f"Active configuration '{row.name}' (id={row.id}) has invalid "
+            f"report_thresholds: {exc}"
+        ) from exc
+
+
+def _backfill_report_thresholds(row: Configuration) -> bool:
+    raw = dict(row.report_thresholds or {})
+    if raw:
+        try:
+            normalize_report_thresholds(raw)
+            return False
+        except ValueError:
+            pass
+    row.report_thresholds = report_thresholds_to_dict(default_report_thresholds())
+    row.updated_at = utcnow()
+    return True
+
+
 async def ensure_default_configurations(session: AsyncSession) -> int:
     """Seed Standard configs for sv/en and backfill incomplete prompt maps.
 
@@ -147,6 +182,7 @@ async def ensure_default_configurations(session: AsyncSession) -> int:
                     language=language,
                     prompts=default_prompts(language),  # type: ignore[arg-type]
                     ssr_temperature=DEFAULT_SSR_TEMPERATURE,
+                    report_thresholds=report_thresholds_to_dict(default_report_thresholds()),
                     anchor_sets=default_refs,
                     is_active=activate,
                     created_at=now,
@@ -160,6 +196,8 @@ async def ensure_default_configurations(session: AsyncSession) -> int:
             if merged != dict(row.prompts or {}):
                 row.prompts = merged
                 row.updated_at = utcnow()
+                changed += 1
+            if _backfill_report_thresholds(row):
                 changed += 1
 
     # Enforce a single global active configuration.
@@ -222,6 +260,7 @@ __all__ = [
     "get_active_configuration",
     "render_prompt",
     "require_active_prompts",
+    "require_active_report_thresholds",
     "require_active_ssr_temperature",
     "require_prompts_for_language",
     "set_active_configuration",

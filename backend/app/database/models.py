@@ -243,6 +243,8 @@ class Configuration(Base):
     ssr_temperature: Mapped[float] = mapped_column(Float, nullable=False, default=0.1)
     # Per-locale tone/style anchor set ids: {"sv": {"tone": 1, "style": 2}, "en": {...}}
     anchor_sets: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    # Snabbrapport verdict / diff / recommendation thresholds (see report/thresholds.py).
+    report_thresholds: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
