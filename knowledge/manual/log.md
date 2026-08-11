@@ -2,6 +2,7 @@
 
 ## 2026-08-11
 
+* **Populationer**: Fingeravtryck visar faktisk sammansättning (medlemmar), inte slider-mål. Recept är fryst snapshot; **Redigera recept** är borttaget — skapa ny population för annan fördelning.
 * **SSR-ankare**: Från klara körningar kan kommentarer och intervjusvar taggas som pool-ankare (ton/stil) i det aktiva konfigurationens bibliotek — gäller direkt för nya rapporter.
 * **Navigering**: Toppmenyn följer devbrains.se — halvtransparent svart list med logotypen. Navigationslänkarna ligger i en rad på desktop; på liten skärm samlas de under en menyknapp.
 * **Rapporter**: Full rapport (LLM-narrativ) är borttagen — bara snabbrapporten finns kvar.

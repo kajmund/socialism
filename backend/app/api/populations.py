@@ -22,10 +22,13 @@ from app.serializers import (
     utcnow,
 )
 from app.services import population_generate as gen
+from app.services.population_generation_store import pop_generation
 from app.services.population_persist import (
     member_row,
     members_from_generation,
+    reconcile_population_metadata,
 )
+from app.services.population_fingerprint import infer_slots_from_profile
 
 router = APIRouter(prefix="/populations", tags=["populations"])
 
@@ -56,14 +59,37 @@ def _member_from_create(
     return member_row(population_id, body)
 
 
-async def _sync_size(session: AsyncSession, population: Population) -> None:
-    result = await session.execute(
-        select(func.count())
-        .select_from(PopulationMember)
-        .where(PopulationMember.population_id == population.id)
+async def _prepare_member_create(
+    session: AsyncSession,
+    population: Population,
+    body: PopulationMemberCreate,
+) -> PopulationMemberCreate:
+    if body.age_bucket and body.lean_key and body.district_key:
+        return body
+    dist = (population.recipe or {}).get("dist") or {}
+    profile = None
+    if body.persona_id:
+        persona = await session.get(Persona, body.persona_id)
+        if persona is not None:
+            profile = persona.profile
+    inferred = infer_slots_from_profile(
+        age=body.age,
+        district=body.district,
+        profile=profile,
+        dist=dist,
     )
-    population.size = int(result.scalar_one())
-    population.updated_at = utcnow()
+    return PopulationMemberCreate(
+        persona_id=body.persona_id,
+        name=body.name,
+        initials=body.initials,
+        age=body.age,
+        occ=body.occ,
+        district=body.district,
+        trait=body.trait,
+        age_bucket=body.age_bucket or inferred.age_bucket,
+        lean_key=body.lean_key or inferred.lean_key,
+        district_key=body.district_key or inferred.district_key,
+    )
 
 
 async def _members_from_generation(
@@ -109,7 +135,9 @@ async def generate_population(
         library = await gen.load_library_personas(session, ids)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    return await gen.run_generate(body, library, session=session)
+    response = await gen.run_generate(body, library, session=session)
+    await session.commit()
+    return response
 
 
 @router.get("/{population_id}", response_model=PopulationDetail)
@@ -150,6 +178,7 @@ async def create_population(
         size=len(members),
         versions=1,
         fingerprint=fingerprint,
+        fingerprint_inferred=not bool(body.generation_id),
         recipe=recipe,
         updated_at=utcnow(),
     )
@@ -159,7 +188,8 @@ async def create_population(
         session.add(_member_from_create(population.id, member))
     await session.commit()
     if body.generation_id:
-        gen.pop_generation(body.generation_id)
+        await pop_generation(session, body.generation_id)
+        await session.commit()
     population = await _get_population(session, population.id)
     return serialize_population_detail(population, 0, list(population.members))
 
@@ -187,6 +217,12 @@ async def update_population(
         if clash.scalar_one_or_none() is not None:
             raise HTTPException(status_code=409, detail="Population name already exists")
 
+    if not generation_id and ("fingerprint" in data or "recipe" in data):
+        raise HTTPException(
+            status_code=400,
+            detail="Recipe and fingerprint are read-only; regenerate to change them",
+        )
+
     if generation_id:
         extras = (
             [PopulationMemberCreate(**m) for m in members]
@@ -206,6 +242,7 @@ async def update_population(
             session.add(_member_from_create(population.id, member))
         population.size = len(built)
         population.fingerprint = fingerprint
+        population.fingerprint_inferred = False
         population.recipe = recipe
         data.pop("fingerprint", None)
         data.pop("recipe", None)
@@ -214,8 +251,14 @@ async def update_population(
             await session.delete(existing_member)
         await session.flush()
         for member in members:
-            session.add(_member_from_create(population.id, PopulationMemberCreate(**member)))
-        population.size = len(members)
+            prepared = await _prepare_member_create(
+                session,
+                population,
+                PopulationMemberCreate(**member),
+            )
+            session.add(_member_from_create(population.id, prepared))
+        await session.refresh(population, attribute_names=["members"])
+        await reconcile_population_metadata(population)
 
     for key, value in data.items():
         setattr(population, key, value)
@@ -224,7 +267,8 @@ async def update_population(
     population.updated_at = utcnow()
     await session.commit()
     if generation_id:
-        gen.pop_generation(generation_id)
+        await pop_generation(session, generation_id)
+        await session.commit()
     population = await _get_population(session, population_id)
     return serialize_population_detail(
         population,
@@ -270,6 +314,7 @@ async def duplicate_population(
         size=source.size,
         versions=1,
         fingerprint=list(source.fingerprint or []),
+        fingerprint_inferred=source.fingerprint_inferred,
         recipe=dict(source.recipe or {}),
         updated_at=utcnow(),
     )
@@ -286,6 +331,9 @@ async def duplicate_population(
                 occ=member.occ,
                 district=member.district,
                 trait=member.trait,
+                age_bucket=member.age_bucket,
+                lean_key=member.lean_key,
+                district_key=member.district_key,
             )
         )
     await session.commit()
@@ -316,10 +364,14 @@ async def add_member(
         )
         if existing.scalar_one_or_none() is not None:
             raise HTTPException(status_code=409, detail="Persona already in population")
-    member = _member_from_create(population.id, body)
+    prepared = await _prepare_member_create(session, population, body)
+    member = _member_from_create(population.id, prepared)
     session.add(member)
     await session.flush()
-    await _sync_size(session, population)
+    session.expire_all()
+    population = await _get_population(session, population_id)
+    await reconcile_population_metadata(population)
+    population.updated_at = utcnow()
     await session.commit()
     await session.refresh(member)
     return serialize_member(member)
@@ -342,5 +394,9 @@ async def remove_member(
     if member is None:
         raise HTTPException(status_code=404, detail="Member not found")
     await session.delete(member)
-    await _sync_size(session, population)
+    await session.flush()
+    session.expire_all()
+    population = await _get_population(session, population_id)
+    await reconcile_population_metadata(population)
+    population.updated_at = utcnow()
     await session.commit()

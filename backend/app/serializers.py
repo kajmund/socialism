@@ -12,12 +12,19 @@ from app.schemas.domain import (
     OasisRunOptions,
     PersonaDetail,
     PopulationDetail,
+    PopulationDistQaGroup,
+    PopulationDistQaRow,
     PopulationMemberOut,
     PopulationSummary,
     RunDetail,
     RunSummary,
     Tick,
     format_date,
+)
+from app.services.population_fingerprint import (
+    compare_target_vs_achieved,
+    dist_qa_rows,
+    fingerprint_from_dist,
 )
 
 
@@ -95,16 +102,45 @@ def serialize_population_summary(population: Population, run_count: int) -> Popu
     )
 
 
+def _serialize_dist_qa(raw_rows: list[dict]) -> list[PopulationDistQaGroup]:
+    groups: list[PopulationDistQaGroup] = []
+    for group in raw_rows:
+        groups.append(
+            PopulationDistQaGroup(
+                key=str(group["key"]),
+                label=str(group["label"]),
+                rows=[
+                    PopulationDistQaRow(
+                        k=str(row["k"]),
+                        l=str(row["l"]),
+                        target_v=int(row["target_v"]),
+                        achieved_v=int(row["achieved_v"]),
+                    )
+                    for row in group.get("rows") or []
+                ],
+            )
+        )
+    return groups
+
+
 def serialize_population_detail(
     population: Population,
     run_count: int,
     members: list[PopulationMember],
 ) -> PopulationDetail:
     summary = serialize_population_summary(population, run_count)
+    recipe = population.recipe or {}
+    dist = recipe.get("dist") or {}
+    target_fp = fingerprint_from_dist(dist) if dist else []
+    qa_warnings = compare_target_vs_achieved(dist, members) if members else []
     return PopulationDetail(
         **summary.model_dump(),
-        recipe=population.recipe or {},
+        recipe=recipe,
         members=[serialize_member(m) for m in members],
+        target_fp=target_fp,
+        qa_warnings=qa_warnings,
+        dist_qa=_serialize_dist_qa(dist_qa_rows(dist, members)),
+        fingerprint_inferred=bool(population.fingerprint_inferred),
     )
 
 

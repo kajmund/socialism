@@ -5,7 +5,6 @@ import {
   duplicatePopulation,
   getPopulation,
   removePopulationMember,
-  type DistRow,
   type PopulationDetail,
 } from "@/api/populations"
 import { AdminShell } from "@/components/layout/AdminShell"
@@ -47,25 +46,42 @@ function fpLegendFallback(t: Translate): string[][] {
   ]
 }
 
-const FP_RECIPE_KEYS = ["age", "leaning", "district"] as const
+const FP_GROUP_KEYS = ["age", "leaning", "district"] as const
 
-/** Full recipe rows for a fingerprint section — not the compressed 3-bucket summary. */
-function recipeRowsForFpSection(
-  recipe: Record<string, unknown>,
+function achievedValuesForSection(
+  pop: PopulationDetail,
   sectionIndex: number,
-): DistRow[] | null {
-  const key = FP_RECIPE_KEYS[sectionIndex]
-  if (!key) return null
-  const dist = (recipe as { dist?: Record<string, { rows?: DistRow[] }> }).dist
-  const rows = dist?.[key]?.rows
-  if (!Array.isArray(rows) || rows.length === 0) return null
-  return rows.filter(
-    (row): row is DistRow =>
-      !!row &&
-      typeof row.l === "string" &&
-      row.l.trim() !== "" &&
-      typeof row.v === "number",
-  )
+): { labels: string[]; values: number[] } {
+  const groupKey = FP_GROUP_KEYS[sectionIndex]
+  const group = pop.dist_qa.find((g) => g.key === groupKey)
+  if (group && group.rows.length > 0) {
+    return {
+      labels: group.rows.map((r) => r.l),
+      values: group.rows.map((r) => r.achieved_v),
+    }
+  }
+  return {
+    labels: [],
+    values: pop.fp[sectionIndex] ?? [0, 0, 0],
+  }
+}
+
+function targetValuesForSection(
+  pop: PopulationDetail,
+  sectionIndex: number,
+): { labels: string[]; values: number[] } {
+  const groupKey = FP_GROUP_KEYS[sectionIndex]
+  const group = pop.dist_qa.find((g) => g.key === groupKey)
+  if (group && group.rows.length > 0) {
+    return {
+      labels: group.rows.map((r) => r.l),
+      values: group.rows.map((r) => r.target_v),
+    }
+  }
+  return {
+    labels: [],
+    values: pop.target_fp[sectionIndex] ?? [],
+  }
 }
 
 export function PopulationDetailPage() {
@@ -94,11 +110,10 @@ export function PopulationDetailPage() {
     }
     const memberId = member.member_id
     void removePopulationMember(populationIdForRemove, memberId)
-      .then(() => {
-        setMembers((prev) => prev.filter((m) => m.member_id !== memberId))
-        setPop((prev) =>
-          prev ? { ...prev, size: Math.max(0, prev.size - 1) } : prev,
-        )
+      .then(() => getPopulation(populationIdForRemove))
+      .then((data) => {
+        setPop(data)
+        setMembers(data.members)
       })
       .catch((err: unknown) =>
         showToast(err instanceof ApiError ? err.message : t("common.deleteError")),
@@ -187,11 +202,6 @@ export function PopulationDetailPage() {
             >
               {t("common.duplicate")}
             </AdminButton>
-            <Link to={`/populations/${pop.id}/edit`} className="no-underline">
-              <AdminButton variant="primary" size="sm">
-                {t("common.editRecipe")}
-              </AdminButton>
-            </Link>
           </div>
         </div>
         <div className="head-meta">
@@ -218,19 +228,38 @@ export function PopulationDetailPage() {
           )}
         </div>
 
+        {pop.qa_warnings.length > 0 && (
+          <div
+            className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+            role="status"
+          >
+            <strong>{t("populations.detail.qaTitle")}</strong>
+            <ul className="mt-2 list-disc pl-5">
+              {pop.qa_warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {pop.fingerprint_inferred && (
+          <p className="mb-4 text-sm text-[color:var(--text-muted)]">
+            {t("populations.detail.fingerprintInferred")}
+          </p>
+        )}
+
+        <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-[color:var(--text-muted)]">
+          {t("populations.detail.achievedTitle")}
+        </h2>
         <div className="fp-section">
           {sectionLabels.map((label, i) => {
-            const recipeRows = recipeRowsForFpSection(pop.recipe, i)
-            const values = recipeRows
-              ? recipeRows.map((r) => r.v)
-              : (pop.fp[i] ?? [0, 0, 0])
-            const labels = recipeRows
-              ? recipeRows.map((r) => r.l)
-              : (legendFallback[i] ?? [])
+            const achieved = achievedValuesForSection(pop, i)
+            const labels = achieved.labels.length > 0 ? achieved.labels : (legendFallback[i] ?? [])
+            const values = achieved.values
             return (
               <Card
                 className="fp-card gap-0 py-4 ring-1 ring-border"
-                key={label}
+                key={`achieved-${label}`}
                 style={{ gridColumn: "span 2" }}
               >
                 <CardContent className="px-5">
@@ -248,7 +277,7 @@ export function PopulationDetailPage() {
                   </div>
                   <div className="fp-legend">
                     {labels.map((l, j) => (
-                      <div className="row" key={`${i}-${j}-${l}`}>
+                      <div className="row" key={`achieved-${i}-${j}-${l}`}>
                         <div
                           className="dot"
                           style={{ background: FP_COLORS[j % FP_COLORS.length] }}
@@ -256,6 +285,63 @@ export function PopulationDetailPage() {
                         {l} — {values[j] ?? 0}%
                       </div>
                     ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+
+        <h2 className="mb-2 mt-6 text-sm font-medium uppercase tracking-wide text-[color:var(--text-muted)]">
+          {t("populations.detail.targetTitle")}
+        </h2>
+        <div className="fp-section">
+          {sectionLabels.map((label, i) => {
+            const target = targetValuesForSection(pop, i)
+            const achieved = achievedValuesForSection(pop, i)
+            const labels = target.labels.length > 0 ? target.labels : (legendFallback[i] ?? [])
+            const values = target.values.length > 0 ? target.values : (pop.target_fp[i] ?? [])
+            return (
+              <Card
+                className="fp-card gap-0 py-4 ring-1 ring-border opacity-90"
+                key={`target-${label}`}
+                style={{ gridColumn: "span 2" }}
+              >
+                <CardContent className="px-5">
+                  <h4>{label}</h4>
+                  <div className="fp-bar">
+                    {values.map((v, j) => (
+                      <span
+                        key={j}
+                        style={{
+                          width: v + "%",
+                          background: FP_COLORS[j % FP_COLORS.length],
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <div className="fp-legend">
+                    {labels.map((l, j) => {
+                      const achievedV = achieved.values[j]
+                      const targetV = values[j] ?? 0
+                      const delta =
+                        typeof achievedV === "number" ? Math.abs(achievedV - targetV) : 0
+                      return (
+                        <div className="row" key={`target-${i}-${j}-${l}`}>
+                          <div
+                            className="dot"
+                            style={{ background: FP_COLORS[j % FP_COLORS.length] }}
+                          />
+                          {l} — {targetV}%
+                          {typeof achievedV === "number" && delta > 0
+                            ? ` (${t("populations.detail.targetDiff", {
+                                achieved: achievedV,
+                                delta,
+                              })})`
+                            : ""}
+                        </div>
+                      )
+                    })}
                   </div>
                 </CardContent>
               </Card>
@@ -310,11 +396,10 @@ export function PopulationDetailPage() {
                 district: member.district,
                 trait: member.trait,
               })
-                .then((added) => {
-                  setMembers((prev) => [...prev, added])
-                  setPop((prev) =>
-                    prev ? { ...prev, size: prev.size + 1 } : prev,
-                  )
+                .then(() => getPopulation(pop.id))
+                .then((data) => {
+                  setPop(data)
+                  setMembers(data.members)
                   showToast(t("populations.detail.added", { name: p.name, pop: pop.name }))
                 })
                 .catch((err: unknown) =>
