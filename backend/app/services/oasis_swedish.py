@@ -195,14 +195,15 @@ def _ensure_social_environment_patched() -> None:
         include_follows: bool = True,
     ) -> str:
         state = _env_prompt_state()
+        # Match parameter names (upstream camel-oasis swaps include_followers/include_follows).
         followers_env = (
             await self.get_followers_env()
-            if include_follows
+            if include_followers
             else state.empty_followers
         )
         follows_env = (
             await self.get_follows_env()
-            if include_followers
+            if include_follows
             else state.empty_follows
         )
         posts_env = await self.get_posts_env() if include_posts else ""
