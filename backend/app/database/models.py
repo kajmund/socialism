@@ -353,7 +353,7 @@ class Report(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending", index=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     locale: Mapped[str] = mapped_column(String(8), nullable=False, default="sv")
-    mode: Mapped[str] = mapped_column(String(16), nullable=False, default="full")
+    mode: Mapped[str] = mapped_column(String(16), nullable=False, default="quick")
     sources: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     html_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     slots_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)

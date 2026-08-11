@@ -1,4 +1,4 @@
-"""Topic packs (LLM or injection keywords) + tone/style via direct SSR embeddings.
+"""Injection-keyword topics + tone/style via direct SSR embeddings.
 
 Tone and style rate population reaction texts against anchors (OpenAI embeddings).
 No DeepSeek free-text judgments in the SSR path.
@@ -12,18 +12,13 @@ from collections import Counter
 from dataclasses import dataclass, field
 from typing import Literal
 
-from pydantic import BaseModel, Field
-
-from app.llm import complete_structured
-from app.services.prompt_catalog import render_prompt
+from app.schemas.domain import DEFAULT_SSR_TEMPERATURE
 from app.services.report.bundles import RunBundle
 from app.services.report.locale import (
     ReportLocale,
-    meta_topics_fallback,
     other_topic_label,
     tone_labels,
 )
-from app.schemas.domain import DEFAULT_SSR_TEMPERATURE
 from app.services.ssr import (
     AnchorSet,
     STYLE_LABELS,
@@ -34,12 +29,10 @@ from app.services.ssr import (
 )
 
 ToneMode = Literal["ssr"]
-TopicMode = Literal["llm", "injection"]
+TopicMode = Literal["injection"]
 
-# Keep batches small — large structured prompts stall on DeepSeek.
-_CLASSIFY_BATCH_SIZE = 8
 _TEXT_CHARS = 200
-# Cap embed/LLM samples: highest-engagement texts (likes).
+# Cap embed samples: highest-engagement texts (likes).
 _MAX_CLASSIFY_TEXTS = 16
 
 _WORD_RE = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿ0-9%]{3,}")
@@ -103,7 +96,7 @@ class BundleClassification:
     topic_shares: dict[str, float] = field(default_factory=dict)
     tone_shares: dict[str, float] = field(default_factory=dict)
     tone_mode: ToneMode = "ssr"
-    topic_mode: TopicMode = "llm"
+    topic_mode: TopicMode = "injection"
     style_avg_likes: list[tuple[str, float]] = field(default_factory=list)
     tone_pmfs: list[dict[str, float]] = field(default_factory=list)
     style_pmfs: list[dict[str, float]] = field(default_factory=list)
@@ -115,24 +108,6 @@ class BundleClassification:
     # Texts that were embedded for SSR (reaction snippets, not LLM judgments).
     tone_rated_texts: list[str] = field(default_factory=list)
     style_rated_texts: list[str] = field(default_factory=list)
-
-
-class _TopicPackModel(BaseModel):
-    label: str = Field(min_length=1, max_length=60)
-    keywords: list[str] = Field(default_factory=list, max_length=16)
-
-
-class _TopicPacksResponse(BaseModel):
-    topics: list[_TopicPackModel] = Field(min_length=1, max_length=4)
-
-
-class _TopicItem(BaseModel):
-    index: int
-    topic: str
-
-
-class _TopicBatchResponse(BaseModel):
-    items: list[_TopicItem]
 
 
 def _item_likes(item: dict) -> int:
@@ -163,13 +138,6 @@ def _samples_for_classify(
         [likes for likes, _, _ in top],
         [uid for _, _, uid in top],
     )
-
-
-def _texts_for_classify(
-    bundle: RunBundle, *, limit: int = _MAX_CLASSIFY_TEXTS
-) -> tuple[list[str], list[int]]:
-    texts, likes, _uids = _samples_for_classify(bundle, limit=limit)
-    return texts, likes
 
 
 def _share_counts(labels: list[str], allowed: list[str]) -> dict[str, float]:
@@ -242,84 +210,6 @@ def classify_topics_by_keywords(
     return _share_counts(labels, allowed)
 
 
-async def derive_topic_packs(
-    injection_texts: list[str],
-    *,
-    locale: ReportLocale = "sv",
-    prompts: dict[str, str],
-) -> list[TopicPack]:
-    if not injection_texts:
-        return []
-
-    blob = "\n---\n".join(t[:800] for t in injection_texts[:8])
-    system = render_prompt(prompts, "report.classify.topic_packs.system")
-    user = (
-        f"Injection texts:\n{blob}"
-        if locale == "en"
-        else f"Injektionstexter:\n{blob}"
-    )
-    result = await complete_structured(
-        [
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ],
-        _TopicPacksResponse,
-    )
-    packs = [
-        TopicPack(
-            label=t.label.strip(),
-            keywords=[k.strip().lower() for k in t.keywords if k.strip()],
-        )
-        for t in result.topics
-        if t.label.strip()
-    ]
-    if not packs:
-        raise RuntimeError("LLM returned no topic packs for injections")
-    return packs
-
-
-async def classify_topics(
-    texts: list[str],
-    packs: list[TopicPack],
-    *,
-    locale: ReportLocale = "sv",
-    prompts: dict[str, str],
-    batch_size: int = _CLASSIFY_BATCH_SIZE,
-) -> dict[str, float]:
-    other = other_topic_label(locale)
-    allowed = [p.label for p in packs] + [other]
-    if not texts:
-        return {lab: 0.0 for lab in allowed}
-    if not packs:
-        return {other: 1.0}
-
-    allowed_set = set(allowed)
-    labels: list[str] = [""] * len(texts)
-    pack_list = ", ".join(f"'{p.label}'" for p in packs)
-
-    for start in range(0, len(texts), batch_size):
-        chunk = texts[start : start + batch_size]
-        numbered = "\n".join(f"{i}. {t[:_TEXT_CHARS]}" for i, t in enumerate(chunk))
-        system = render_prompt(
-            prompts,
-            "report.classify.topics.system",
-            pack_list=pack_list,
-            other=other,
-        )
-        result = await complete_structured(
-            [
-                {"role": "system", "content": system},
-                {"role": "user", "content": numbered},
-            ],
-            _TopicBatchResponse,
-        )
-        by_idx = {item.index: item.topic for item in result.items}
-        for i in range(len(chunk)):
-            raw = by_idx.get(i, other)
-            labels[start + i] = raw if raw in allowed_set else other
-    return _share_counts(labels, allowed)
-
-
 def _style_avg_from_pmfs(
     likes: list[int],
     pmfs: list[dict[str, float]],
@@ -358,16 +248,13 @@ async def classify_tones(
     texts: list[str],
     *,
     locale: ReportLocale = "sv",
-    prompts: dict[str, str] | None = None,
     temperature: float = DEFAULT_SSR_TEMPERATURE,
     tone_anchor_set: AnchorSet | None = None,
 ) -> tuple[dict[str, float], ToneMode, list[str], list[dict[str, float]], float]:
     """SSR tone: embed reaction texts directly against 5 Likert anchors.
 
-    ``prompts`` kept for call-site compatibility; unused (no LLM in SSR path).
     Returns (tone_shares, mode, rated_texts, per_text_pmfs, embed_seconds).
     """
-    del prompts  # SSR path does not use DeepSeek
     labels_allowed = list(tone_labels(locale))
     empty = {lab: 0.0 for lab in labels_allowed}
     if not texts:
@@ -387,12 +274,10 @@ async def classify_styles(
     likes: list[int],
     *,
     locale: ReportLocale = "sv",
-    prompts: dict[str, str] | None = None,
     temperature: float = DEFAULT_SSR_TEMPERATURE,
     style_anchor_set: AnchorSet | None = None,
 ) -> tuple[list[tuple[str, float]], list[str], list[dict[str, float]], float]:
     """SSR style: embed reaction texts directly → soft-weighted avg likes."""
-    del prompts
     if not texts:
         return (
             [(lab, 0.0) for lab in [*STYLE_LABELS, STYLE_UNCLASSIFIED]],
@@ -416,28 +301,14 @@ async def classify_bundle(
     bundle: RunBundle,
     *,
     locale: ReportLocale = "sv",
-    prompts: dict[str, str],
-    topic_mode: TopicMode = "llm",
     ssr_temperature: float = DEFAULT_SSR_TEMPERATURE,
     tone_anchor_set: AnchorSet | None = None,
     style_anchor_set: AnchorSet | None = None,
 ) -> BundleClassification:
     texts, likes, user_ids = _samples_for_classify(bundle)
-    t_llm = 0.0
-    t_embed = 0.0
 
-    if topic_mode == "injection":
-        packs = topic_packs_from_injections(bundle.injection_texts, locale=locale)
-        topic_shares = classify_topics_by_keywords(texts, packs, locale=locale)
-    else:
-        t0 = time.perf_counter()
-        packs = await derive_topic_packs(
-            bundle.injection_texts, locale=locale, prompts=prompts
-        )
-        topic_shares = await classify_topics(
-            texts, packs, locale=locale, prompts=prompts
-        )
-        t_llm += time.perf_counter() - t0
+    packs = topic_packs_from_injections(bundle.injection_texts, locale=locale)
+    topic_shares = classify_topics_by_keywords(texts, packs, locale=locale)
 
     tone_shares, tone_mode, tone_rated, tone_pmfs, tone_embed = await classify_tones(
         texts,
@@ -445,7 +316,6 @@ async def classify_bundle(
         temperature=ssr_temperature,
         tone_anchor_set=tone_anchor_set,
     )
-    t_embed += tone_embed
 
     style_avg, style_rated, style_pmfs, style_embed = await classify_styles(
         texts,
@@ -454,19 +324,18 @@ async def classify_bundle(
         temperature=ssr_temperature,
         style_anchor_set=style_anchor_set,
     )
-    t_embed += style_embed
 
     return BundleClassification(
         topic_packs=packs,
         topic_shares=topic_shares,
         tone_shares=tone_shares,
         tone_mode=tone_mode,
-        topic_mode=topic_mode,
+        topic_mode="injection",
         style_avg_likes=style_avg,
         tone_pmfs=tone_pmfs,
         style_pmfs=style_pmfs,
-        classify_llm_seconds=t_llm,
-        embed_seconds=t_embed,
+        classify_llm_seconds=0.0,
+        embed_seconds=tone_embed + style_embed,
         sample_texts=texts,
         sample_likes=likes,
         sample_user_ids=user_ids,
@@ -479,8 +348,6 @@ async def classify_bundles(
     bundles: list[RunBundle],
     *,
     locale: ReportLocale = "sv",
-    prompts: dict[str, str],
-    topic_mode: TopicMode = "llm",
     ssr_temperature: float = DEFAULT_SSR_TEMPERATURE,
     tone_anchor_set: AnchorSet | None = None,
     style_anchor_set: AnchorSet | None = None,
@@ -489,31 +356,9 @@ async def classify_bundles(
         await classify_bundle(
             b,
             locale=locale,
-            prompts=prompts,
-            topic_mode=topic_mode,
             ssr_temperature=ssr_temperature,
             tone_anchor_set=tone_anchor_set,
             style_anchor_set=style_anchor_set,
         )
         for b in bundles
     ]
-
-
-def meta_topics_line(
-    classifications: list[BundleClassification],
-    *,
-    locale: ReportLocale = "sv",
-) -> str:
-    other = other_topic_label(locale)
-    labels: list[str] = []
-    seen: set[str] = set()
-    for c in classifications:
-        for pack in c.topic_packs:
-            if pack.label not in seen:
-                seen.add(pack.label)
-                labels.append(pack.label)
-        if other in c.topic_shares and c.topic_shares.get(other, 0) > 0:
-            if other not in seen:
-                seen.add(other)
-                labels.append(other)
-    return "; ".join(labels) if labels else meta_topics_fallback(locale)

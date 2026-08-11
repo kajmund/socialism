@@ -9,11 +9,9 @@ from app.services.report.locale import (
     ReportLocale,
     display_style_label,
     other_topic_label,
-    runs_label,
 )
 from app.services.report.metrics import (
     ReportMetrics,
-    confidence_badge,
     fmt_num,
     pct,
     tone_shares_sorted,
@@ -42,38 +40,30 @@ from app.services.report.tick_report import (
     extract_interview_qa,
 )
 
-# Report chart palette (warm paper-adjacent tones for HTML reports)
-C_PRIMARY = "#1E3A55"
-C_PRIMARY_2 = "#2D5378"
-C_SOFT = "#DDE5EE"
-C_ORANGE = "#C96B3A"
-C_GREEN = "#5F7A4C"
-C_ROSE = "#B0563F"
-C_AMBER = "#D8A14A"
-C_MUTED = "#6B6253"
-C_INK = "#1A1814"
+# Report chart palette (Devbrains charcoal + gold, matches admin)
+C_PRIMARY = "#14161b"
+C_PRIMARY_2 = "#d9a93c"
+C_SOFT = "#fcf1d9"
+C_ORANGE = "#c96b3a"
+C_GREEN = "#3f8f5f"
+C_ROSE = "#c1493f"
+C_AMBER = "#f3ce73"
+C_MUTED = "#565c6b"
+C_INK = "#1b1e26"
 
 _TOPIC_PALETTE = (C_PRIMARY, C_ORANGE, C_PRIMARY_2, C_GREEN, C_AMBER, C_MUTED, C_ROSE)
+_LIGHT_FILLS = frozenset(c.lower() for c in (C_SOFT, C_AMBER, C_PRIMARY_2))
+
+
+def _on_fill_color(bg: str) -> str:
+    """Dark ink on gold/light fills; white on charcoal/saturated bars."""
+    return "#1b1e2a" if bg.lower() in _LIGHT_FILLS else "#ffffff"
 
 
 def _topic_color(label: str, index: int, *, locale: ReportLocale = "sv") -> str:
     if label == other_topic_label(locale):
         return C_MUTED
     return _TOPIC_PALETTE[index % len(_TOPIC_PALETTE)]
-
-
-def _badge_html(kind: str, n: int, locale: ReportLocale) -> str:
-    if locale == "en":
-        if kind == "confirmed":
-            return f'<span class="badge confirmed">Confirmed in all {n} tests</span>'
-        if kind == "indicated":
-            return f'<span class="badge indicated">Tendency in {n} tests</span>'
-        return '<span class="badge single">Observation</span>'
-    if kind == "confirmed":
-        return f'<span class="badge confirmed">Bekräftat i alla {n} tester</span>'
-    if kind == "indicated":
-        return f'<span class="badge indicated">Tendens i {n} tester</span>'
-    return '<span class="badge single">Observation</span>'
 
 
 def _donut(shares: list[tuple[str, float, str]], center: str) -> str:
@@ -192,14 +182,6 @@ def render_tone_donut(metrics: ReportMetrics, *, locale: ReportLocale = "sv") ->
     )
 
 
-def render_sec02_charts(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -> str:
-    return (
-        render_engagement_donut(metrics, locale=locale)
-        + render_topic_donut(metrics, locale=locale)
-        + render_tone_donut(metrics, locale=locale)
-    )
-
-
 def render_style_hbars(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -> str:
     styles = metrics.aggregate.style_avg_likes
     max_v = max((v for _, v in styles), default=1.0) or 1.0
@@ -214,7 +196,8 @@ def render_style_hbars(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -
             f'<div class="hbar-row">'
             f'<div class="hbar-lbl">{escape(shown)}</div>'
             f'<div class="hbar-track"><div class="hbar-fill{zero_cls}" '
-            f'style="width:{width}%;background:{color}">{fmt_num(avg)}</div></div>'
+            f'style="width:{width}%;background:{color};color:{_on_fill_color(color)}">'
+            f"{fmt_num(avg)}</div></div>"
             f'<div class="hbar-val">{fmt_num(avg)}</div></div>'
         )
     if locale == "en":
@@ -229,136 +212,6 @@ def render_style_hbars(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -
         f'<div class="chart-sub">{sub}</div>'
         f'<div class="hbar-chart">{"".join(rows)}</div></div>'
     )
-
-
-def render_topic_race(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -> str:
-    shares = metrics.aggregate.topic_shares
-    rows = []
-    ordered = sorted(shares.items(), key=lambda x: x[1], reverse=True)
-    share_note = "share of matched text" if locale == "en" else "andel av matchad text"
-    for i, (topic, share) in enumerate(ordered):
-        w = max(2, round(share * 100))
-        color = _topic_color(topic, i, locale=locale)
-        rows.append(
-            f'<div class="topic-row">'
-            f'<div class="t-name">{escape(topic)}'
-            f"<small>{share_note}</small></div>"
-            f'<div class="t-track"><div class="t-fill" style="width:{w}%;background:{color}">'
-            f"</div></div>"
-            f'<div class="t-pct">{pct(share)}</div></div>'
-        )
-    return f'<div class="topic-race">{"".join(rows)}</div>'
-
-
-def render_infographic_grid(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -> str:
-    m = metrics.aggregate
-    n = metrics.n_runs
-    top_style = m.style_avg_likes[0] if m.style_avg_likes else ("—", 0.0)
-    top_topic = max(m.topic_shares, key=m.topic_shares.get) if m.topic_shares else "—"
-    top_share = m.topic_shares.get(top_topic, 0.0)
-    top_style_label = display_style_label(top_style[0], locale)
-    style_rows = [
-        (display_style_label(s, locale), a) for s, a in m.style_avg_likes[:5]
-    ]
-
-    if locale == "en":
-        pyramid = (
-            f'<div class="info-card tall">'
-            f'<div class="info-card-label">Who engaged?</div>'
-            f'<div class="info-card-title">Engagement gathered around a few</div>'
-            f'<div class="pyramid">'
-            f'<div class="pyr-top">{m.top_agents}<span>Led</span></div>'
-            f'<div class="pyr-mid">{m.mid_agents}<span>Participated</span></div>'
-            f'<div class="pyr-base">{m.zero_like_agents}<span>Scrolled past</span></div>'
-            f"</div>"
-            f'<p class="chart-sub">of {m.agent_count} simulated citizens · '
-            f"inequality {fmt_num(m.gini)}</p>"
-            f"</div>"
-        )
-        avg_note = f"avg across {n} tests" if n > 1 else "in this run"
-        kpis = (
-            f'<div class="info-col"><div class="info-kpi-row">'
-            f'<div class="info-kpi red"><div class="info-kpi-num">{m.zero_like_agents}</div>'
-            f'<div class="info-kpi-label">participants with no likes'
-            f"<span>{avg_note}</span>"
-            f"</div></div>"
-            f'<div class="info-kpi blue"><div class="info-kpi-num">{fmt_num(top_style[1])}</div>'
-            f'<div class="info-kpi-label">likes/post · {escape(top_style_label)}</div></div>'
-            f'<div class="info-kpi orange"><div class="info-kpi-num">{pct(top_share)}</div>'
-            f'<div class="info-kpi-label">of the debate about {escape(top_topic)}</div></div>'
-            f"</div>"
-            f'<div class="info-card"><div class="info-card-label">Message style</div>'
-            f'<div class="info-card-title">Impact by style</div>'
-            f"{_mini_style_bars(style_rows)}</div></div>"
-        )
-        tone_rows = "".join(
-            f"<div class=\"tone-row\"><span>{escape(k)}</span><strong>{pct(v)}</strong></div>"
-            for k, v in tone_shares_sorted(m.tone_shares)
-        )
-        tone_card = (
-            f'<div class="info-col">'
-            f'<div class="info-card"><div class="info-card-label">Mood</div>'
-            f'<div class="info-card-title">What was the tone?</div>{tone_rows}</div>'
-            f'<div class="info-card"><div class="info-card-label">Volume</div>'
-            f'<div class="info-card-title">{m.post_count} posts · {m.comment_count} comments</div>'
-            f'<p class="chart-sub">{runs_label(n, locale)} · up to {m.ticks_run} simulation days</p>'
-            f"</div></div>"
-        )
-    else:
-        pyramid = (
-            f'<div class="info-card tall">'
-            f'<div class="info-card-label">Vem engagerade sig?</div>'
-            f'<div class="info-card-title">Engagemanget samlades hos ett fåtal</div>'
-            f'<div class="pyramid">'
-            f'<div class="pyr-top">{m.top_agents}<span>Ledde</span></div>'
-            f'<div class="pyr-mid">{m.mid_agents}<span>Deltog</span></div>'
-            f'<div class="pyr-base">{m.zero_like_agents}<span>Scrollade förbi</span></div>'
-            f"</div>"
-            f'<p class="chart-sub">av {m.agent_count} simulerade medborgare · '
-            f"ojämlikhet {fmt_num(m.gini)}</p>"
-            f"</div>"
-        )
-        kpis = (
-            f'<div class="info-col"><div class="info-kpi-row">'
-            f'<div class="info-kpi red"><div class="info-kpi-num">{m.zero_like_agents}</div>'
-            f'<div class="info-kpi-label">deltagare utan likes'
-            f"<span>{'snitt över ' + str(n) + ' tester' if n > 1 else 'i denna körning'}</span>"
-            f"</div></div>"
-            f'<div class="info-kpi blue"><div class="info-kpi-num">{fmt_num(top_style[1])}</div>'
-            f'<div class="info-kpi-label">likes/inlägg · {escape(top_style_label)}</div></div>'
-            f'<div class="info-kpi orange"><div class="info-kpi-num">{pct(top_share)}</div>'
-            f'<div class="info-kpi-label">av debatten om {escape(top_topic)}</div></div>'
-            f"</div>"
-            f'<div class="info-card"><div class="info-card-label">Budskapsstil</div>'
-            f'<div class="info-card-title">Genomslag per stil</div>'
-            f"{_mini_style_bars(style_rows)}</div></div>"
-        )
-        tone_rows = "".join(
-            f"<div class=\"tone-row\"><span>{escape(k)}</span><strong>{pct(v)}</strong></div>"
-            for k, v in tone_shares_sorted(m.tone_shares)
-        )
-        tone_card = (
-            f'<div class="info-col">'
-            f'<div class="info-card"><div class="info-card-label">Stämning</div>'
-            f'<div class="info-card-title">Hur var tonen?</div>{tone_rows}</div>'
-            f'<div class="info-card"><div class="info-card-label">Volym</div>'
-            f'<div class="info-card-title">{m.post_count} inlägg · {m.comment_count} kommentarer</div>'
-            f'<p class="chart-sub">{runs_label(n, locale)} · upp till {m.ticks_run} simuleringsdagar</p>'
-            f"</div></div>"
-        )
-    return pyramid + kpis + tone_card
-
-
-def _mini_style_bars(styles: list[tuple[str, float]]) -> str:
-    max_v = max((v for _, v in styles), default=1.0) or 1.0
-    parts = []
-    for label, avg in styles:
-        w = max(2, round((avg / max_v) * 100)) if avg > 0 else 2
-        parts.append(
-            f'<div class="mini-bar"><span>{escape(label)}</span>'
-            f'<i style="width:{w}%"></i><b>{fmt_num(avg)}</b></div>'
-        )
-    return '<div class="mini-bars">' + "".join(parts) + "</div>"
 
 
 def render_agents_html(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -> str:
@@ -1358,90 +1211,4 @@ def prefill_quick_chart_slots(
         "audience_html": aud_html,
         "takeaway_html": takeaway_html,
         "recommendation_html": rec_html,
-    }
-
-
-def render_appendix_tables(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -> str:
-    rows = "".join(
-        f"<tr><td>{escape(r['label'])}</td><td>{fmt_num(r['gini'])}</td>"
-        f"<td>{r['zero_likes']}</td><td>{r['agents']}</td>"
-        f"<td>{escape(str(r['top_topic']))}</td></tr>"
-        for r in metrics.cross_table
-    )
-    if locale == "en":
-        glossary = (
-            '<div class="app-card"><h4>Glossary</h4>'
-            '<div class="tech-def"><strong>Agent</strong> — '
-            "<span>AI-simulated citizen with occupation, age, and personality.</span></div>"
-            '<div class="tech-def"><strong>Inequality (Gini)</strong> — '
-            "<span>How unevenly likes are distributed (0 = even, 1 = one person takes all).</span></div>"
-            '<div class="tech-def"><strong>Message style</strong> — '
-            "<span>Semantic similarity to style reference texts, not keyword match.</span></div>"
-            "</div>"
-        )
-        table = (
-            '<div class="app-card"><h4>Comparison</h4>'
-            '<table class="data-table"><thead><tr>'
-            "<th>Run</th><th>Inequality</th><th>0 likes</th><th>Participants</th><th>Topic</th>"
-            f"</tr></thead><tbody>{rows}</tbody></table></div>"
-        )
-        limits = (
-            '<div class="app-card"><h4>Limitations</h4>'
-            f'<div class="tech-def"><strong>{runs_label(metrics.n_runs, locale)}</strong> — '
-            "<span>Too few for formal statistics; speak of tendencies.</span></div>"
-            '<div class="tech-def"><strong>Simulated ≠ real</strong> — '
-            "<span>AI agents model behavior; they are not voters.</span></div>"
-            "</div>"
-        )
-    else:
-        glossary = (
-            '<div class="app-card"><h4>Ordlista</h4>'
-            '<div class="tech-def"><strong>Agent</strong> — '
-            "<span>AI-simulerad medborgare med yrke, ålder och personlighet.</span></div>"
-            '<div class="tech-def"><strong>Ojämlikhet (Gini)</strong> — '
-            "<span>Hur ojämnt likes fördelas (0 = jämnt, 1 = en person tar allt).</span></div>"
-            '<div class="tech-def"><strong>Budskapsstil</strong> — '
-            "<span>Semantisk likhet mot stilreferenser, inte nyckelordsmatch.</span></div>"
-            "</div>"
-        )
-        table = (
-            '<div class="app-card"><h4>Jämförelse</h4>'
-            '<table class="data-table"><thead><tr>'
-            "<th>Körning</th><th>Ojämlikhet</th><th>0 likes</th><th>Deltagare</th><th>Ämne</th>"
-            f"</tr></thead><tbody>{rows}</tbody></table></div>"
-        )
-        limits = (
-            '<div class="app-card"><h4>Begränsningar</h4>'
-            f'<div class="tech-def"><strong>{runs_label(metrics.n_runs, locale)}</strong> — '
-            "<span>För få för formell statistik; tala om tendenser.</span></div>"
-            '<div class="tech-def"><strong>Simulerat ≠ verkligt</strong> — '
-            "<span>AI-agenter modellerar beteende, de är inte väljare.</span></div>"
-            "</div>"
-        )
-    return f'<div class="app-grid">{glossary}{table}{limits}</div>'
-
-
-def prefill_chart_slots(
-    metrics: ReportMetrics,
-    *,
-    locale: ReportLocale = "sv",
-) -> dict[str, str]:
-    """Slots filled without LLM."""
-    n = metrics.n_runs
-    m = metrics.aggregate
-    badge = confidence_badge(n)
-    return {
-        "meta_tests": runs_label(n, locale),
-        "infographic_grid_html": render_infographic_grid(metrics, locale=locale),
-        "sec02_charts_html": render_sec02_charts(metrics, locale=locale),
-        "sec03_bars_html": render_style_hbars(metrics, locale=locale),
-        "sec04_topic_race_html": render_topic_race(metrics, locale=locale),
-        "sec05_agents_html": render_agents_html(metrics, locale=locale),
-        "sec06_pop_html": render_pop_compare(metrics, locale=locale),
-        "appendix_grid_html": render_appendix_tables(metrics, locale=locale),
-        "chart_zero_likes": str(m.zero_like_agents),
-        "chart_gini": fmt_num(m.gini),
-        "chart_agent_count": str(m.agent_count),
-        "badge_kind": badge,
-        "badge_html": _badge_html(badge, n, locale),
     }

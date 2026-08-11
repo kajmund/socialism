@@ -12,7 +12,10 @@ from app.services.report.locale import normalize_locale
 
 
 def _normalize_mode(value: str | None) -> str:
-    return "quick" if value == "quick" else "full"
+    """Pass through legacy ``full`` rows; default new/unknown to ``quick``."""
+    if value == "full":
+        return "full"
+    return "quick"
 
 
 def serialize_report(report: Report) -> ReportOut:

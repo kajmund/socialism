@@ -1,5 +1,11 @@
 # Manual update log
 
+## 2026-08-11
+
+* **Navigering**: Toppmenyn följer devbrains.se — halvtransparent svart list med logotypen. Navigationslänkarna ligger i en rad på desktop; på liten skärm samlas de under en menyknapp.
+* **Rapporter**: Full rapport (LLM-narrativ) är borttagen — bara snabbrapporten finns kvar.
+* **Rapporter**: HTML-rapporterna följer samma charcoal/guld-utseende som resten av adminytan.
+
 ## 2026-08-10
 
 * **Återkoppling**: Ny menyflik där buggar, idéer och åsikter från hjälpchatten samlas; status kan sättas till pågår, klar eller arkiverad.

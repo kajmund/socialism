@@ -12,7 +12,7 @@ Under **Rapporter** i huvudmenyn ligger alla beställda simuleringsrapporter —
 ## Steg
 
 1. Öppna **Rapporter** i huvudmenyn.
-2. Listan visar titel, läge (snabb/full), antal källor, tidpunkt och status.
+2. Listan visar titel, läge, antal källor, tidpunkt och status.
 3. Välj **Öppna rapport** på den rad du vill läsa eller följa.
 4. Rapporter som fortfarande **genereras** uppdateras i listan automatiskt.
 5. För att ta bort en rapport: välj **Ta bort** i listan eller på rapportsidan, och bekräfta.
