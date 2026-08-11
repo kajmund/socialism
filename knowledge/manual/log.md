@@ -2,6 +2,7 @@
 
 ## 2026-08-11
 
+* **Körningar**: Reaktionsmodellens stratifierade urval tar hänsyn till både distrikt och lutning när alla medlemmar har känd lutning; annars distrikt-only.
 * **Populationer**: Fingeravtryck visar faktisk sammansättning (medlemmar), inte slider-mål. Recept är fryst snapshot; **Redigera recept** är borttaget — skapa ny population för annan fördelning.
 * **SSR-ankare**: Publicering kräver minst åtta kalibreringsrader och macro-träff ≥55 % (eller explicit bekräftelse vid varning). Pool- eller korpusändring markerar kalibrering som inaktuell. Snabbrapport varnar om otestade/inaktuella ankare.
 * **SSR-ankare**: Från klara körningar kan kommentarer och intervjusvar taggas som pool-ankare (ton/stil) i det aktiva konfigurationens bibliotek — gäller direkt för nya rapporter.

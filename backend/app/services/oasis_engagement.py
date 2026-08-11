@@ -65,18 +65,50 @@ def stratified_agent_sample(
     return chosen
 
 
+def _member_district_stratum(member: Any) -> str:
+    key = (getattr(member, "district_key", None) or "").strip()
+    if key:
+        return key
+    label = (getattr(member, "district", None) or "").strip()
+    return label or "unknown"
+
+
 def build_agent_strata_from_members(
     members: list[Any],
     population_indices: set[int],
 ) -> dict[int, str]:
-    """Stratify population agents by PopulationMember.district."""
-    out: dict[int, str] = {}
+    """Stratify population agents for per-round reaction sampling.
+
+    When every population member has ``lean_key``, uses composite
+    ``district_key|lean_key`` strata so district and leaning spread together.
+    If any member lacks ``lean_key``, falls back to district-only for the
+    whole population (no per-agent ``unknown`` lean bucket).
+    """
     pop_list = sorted(population_indices)
+    pop_members: list[Any | None] = []
+    for pop_pos in range(len(pop_list)):
+        if pop_pos < len(members):
+            pop_members.append(members[pop_pos])
+        else:
+            pop_members.append(None)
+
+    stratify_lean = bool(pop_members) and all(
+        member is not None and getattr(member, "lean_key", None)
+        for member in pop_members
+    )
+
+    out: dict[int, str] = {}
     for pop_pos, agent_id in enumerate(pop_list):
-        district = "unknown"
-        if 0 <= pop_pos < len(members):
-            district = (members[pop_pos].district or "").strip() or "unknown"
-        out[agent_id] = district
+        member = pop_members[pop_pos]
+        if member is None:
+            out[agent_id] = "unknown"
+            continue
+        district = _member_district_stratum(member)
+        if stratify_lean:
+            lean = str(member.lean_key).strip()
+            out[agent_id] = f"{district}|{lean}"
+        else:
+            out[agent_id] = district
     return out
 
 

@@ -39,7 +39,7 @@ There are **no documented extension hooks** for LLM tool recording or per-round 
 | **A + D** | Unified LLM runtime (DeepSeek + tool trace) + `CamelCommentToolPolicy`; per-run `camel_llm_runtime()` with refcount restore | Done |
 | **C** | `simulation/artifact/` — all `simulation.db` SQL behind typed reader | Done |
 | **E** | `PlatformDriver` (Twitter/Reddit), optional MBTI from persona profile, Reddit smoke | Done |
-| **F** | Stratified sampling by district + lean_key | Deferred (separate small task) |
+| **F** | Stratified sampling by `district_key` + `lean_key` (district-only fallback when lean missing) | Done |
 
 ### Fas B — action catalog
 
@@ -93,6 +93,17 @@ There are **no documented extension hooks** for LLM tool recording or per-round 
 - `run_oasis_simulation()` delegates setup to the driver — no inline `if platform == "reddit"` branching.
 - Reddit profile JSON omits `mbti` unless the persona profile includes `mbti` (no hardcoded `"ISFJ"`).
 - Manual Reddit smoke: `tests/smoke/test_oasis_simulation_smoke_reddit.py` (`pytest -m smoke`).
+
+### Fas F — engagement stratification (district + lean)
+
+**Module:** `backend/app/services/oasis_engagement.py` — `build_agent_strata_from_members()`
+
+- When every population member has `lean_key`, strata are composite `district_key|lean_key`.
+- If any member lacks `lean_key`, the whole population uses **district-only** strata for that run (no silent `"mitt"` guess).
+- District stratum uses `district_key` when set, else the display `district` label.
+- `sample_fraction()` and `stratified_agent_sample()` are unchanged — only stratum keys differ.
+
+Operator docs: `knowledge/manual/reaktionsmodell-i-simulering.md`.
 
 ## camel-oasis upgrade checklist
 
