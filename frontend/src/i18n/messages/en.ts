@@ -753,7 +753,7 @@ export const en: LocalizedTree<SvMessages> = {
       qaTitle: "Deviation from recipe",
       targetDiff: "achieved {achieved}%, Δ {delta} pp",
       fingerprintInferred:
-        "Fingerprint was recomputed from existing members (slot keys were not stored at creation).",
+        "Fingerprint was recomputed from existing members. Leaning may be missing until the population is regenerated — leaning deviation warnings are hidden meanwhile.",
     },
     builder: {
       stepStart: "Start",

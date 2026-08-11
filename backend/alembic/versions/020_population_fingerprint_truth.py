@@ -68,7 +68,8 @@ def upgrade() -> None:
         fingerprint_from_slot_rows,
         infer_age_bucket,
         infer_district_key,
-        infer_lean_key,
+        infer_lean_key_optional,
+        lutning_from_profile,
     )
 
     bind = op.get_bind()
@@ -77,7 +78,10 @@ def upgrade() -> None:
     ).fetchall()
     member_rows = bind.execute(
         sa.text(
-            "SELECT id, population_id, age, district FROM population_members ORDER BY id"
+            "SELECT pm.id, pm.population_id, pm.age, pm.district, p.profile AS profile "
+            "FROM population_members pm "
+            "LEFT JOIN personas p ON p.id = pm.persona_id "
+            "ORDER BY pm.id"
         )
     ).fetchall()
 
@@ -99,7 +103,16 @@ def upgrade() -> None:
         for member in members:
             age_bucket = infer_age_bucket(int(member.age))
             district_key = infer_district_key(str(member.district), dist.get("district"))
-            lean_key = infer_lean_key("", dist.get("leaning"))
+            profile_raw = member.profile
+            profile = (
+                json.loads(profile_raw)
+                if isinstance(profile_raw, str)
+                else (profile_raw or {})
+            )
+            lean_key = infer_lean_key_optional(
+                lutning_from_profile(profile),
+                dist.get("leaning"),
+            )
             slot_rows.append(
                 {
                     "age_bucket": age_bucket,

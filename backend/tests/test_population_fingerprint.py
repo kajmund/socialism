@@ -5,7 +5,13 @@ from __future__ import annotations
 import pytest
 
 from app.schemas.domain import DistGroup, DistRow, PopulationRecipe
-from app.services.population_fingerprint import fingerprint_from_dist, infer_age_bucket
+from app.services.population_fingerprint import (
+    fingerprint_from_dist,
+    infer_age_bucket,
+    infer_lean_key_optional,
+    MemberSlots,
+    fingerprint_from_slot_rows,
+)
 
 
 def _sample_recipe(*, size: int = 5, seed: int = 7) -> PopulationRecipe:
@@ -123,6 +129,57 @@ async def test_add_member_recomputes_fingerprint(client):
 
 
 @pytest.mark.asyncio
+async def test_inferred_population_skips_leaning_qa_warnings(client):
+    """Legacy backfill must not emit false leaning deviation warnings."""
+    persona = (
+        await client.post(
+            "/personas",
+            json={
+                "id": "infp1",
+                "name": "Legacy One",
+                "age": 40,
+                "occ": "Lärare",
+                "district": "Centrum",
+                "quote": "Q",
+                "origin": "manuell",
+            },
+        )
+    ).json()
+    recipe = _sample_recipe(size=1).model_dump()
+    create = await client.post(
+        "/populations",
+        json={
+            "name": "Inferred QA pop",
+            "fingerprint": [[100, 0, 0], [100, 0, 0], [100, 0, 0]],
+            "recipe": {
+                "size": 1,
+                "locale": "local",
+                "dist": recipe["dist"],
+            },
+            "members": [
+                {
+                    "persona_id": persona["id"],
+                    "name": persona["name"],
+                    "initials": "LO",
+                    "age": 40,
+                    "occ": "Lärare",
+                    "district": "Centrum",
+                    "trait": "Q",
+                }
+            ],
+        },
+    )
+    assert create.status_code == 201
+    pop_id = create.json()["id"]
+
+    detail = await client.get(f"/populations/{pop_id}")
+    assert detail.status_code == 200
+    body = detail.json()
+    assert body["fingerprint_inferred"] is True
+    assert not any("Lutning" in w for w in body["qa_warnings"])
+
+
+@pytest.mark.asyncio
 async def test_recipe_update_blocked_without_generation(client):
     generated = await client.post(
         "/populations/generate",
@@ -140,3 +197,16 @@ async def test_recipe_update_blocked_without_generation(client):
         json={"recipe": {"size": 3, "dist": {}, "locale": "local"}},
     )
     assert blocked.status_code == 400
+
+
+def test_infer_lean_key_optional_empty_returns_none():
+    assert infer_lean_key_optional("", {"rows": [{"k": "mitt", "l": "Mitt", "v": 100}]}) is None
+
+
+def test_fingerprint_leaning_zeros_without_lean_keys():
+    dist = _sample_recipe(size=1).dist
+    fp = fingerprint_from_slot_rows(
+        [MemberSlots(age_bucket="medel", lean_key=None, district_key="centrum")],
+        dist,
+    )
+    assert fp[1] == [0, 0, 0]
