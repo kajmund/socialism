@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import json
 import random
-import sqlite3
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -17,6 +16,7 @@ from app.services.simulation.action_catalog import (
     passive_trace_actions,
     post_engage_trace_actions,
 )
+from app.services.simulation.artifact.reader import OasisArtifactReader
 
 PASSIVE_ACTIONS = passive_trace_actions()
 POST_ENGAGE_ACTIONS = post_engage_trace_actions()
@@ -173,17 +173,12 @@ def _parse_info(raw: Any) -> dict[str, Any]:
     return parsed if isinstance(parsed, dict) else {}
 
 
+def _reader(db_path: Path) -> OasisArtifactReader:
+    return OasisArtifactReader(db_path)
+
+
 def max_post_id(db_path: Path) -> int:
-    if not db_path.exists():
-        return 0
-    conn = sqlite3.connect(db_path)
-    try:
-        row = conn.execute("SELECT MAX(post_id) FROM post").fetchone()
-        return int(row[0]) if row and row[0] is not None else 0
-    except sqlite3.OperationalError:
-        return 0
-    finally:
-        conn.close()
+    return _reader(db_path).max_post_id()
 
 
 def injector_post_ids_after(
@@ -192,66 +187,22 @@ def injector_post_ids_after(
     injector_indices: set[int],
     after_post_id: int,
 ) -> frozenset[int]:
-    if not db_path.exists() or not injector_indices:
-        return frozenset()
-    conn = sqlite3.connect(db_path)
-    try:
-        placeholders = ",".join("?" for _ in injector_indices)
-        sql = (
-            f"SELECT post_id FROM post WHERE post_id > ? AND user_id IN ({placeholders})"
-        )
-        params: list[Any] = [after_post_id, *sorted(injector_indices)]
-        rows = conn.execute(sql, params).fetchall()
-        return frozenset(int(r[0]) for r in rows)
-    except sqlite3.OperationalError:
-        return frozenset()
-    finally:
-        conn.close()
+    return _reader(db_path).injector_post_ids_after(
+        injector_indices=injector_indices,
+        after_post_id=after_post_id,
+    )
 
 
 def trace_row_count(db_path: Path) -> int:
-    if not db_path.exists():
-        return 0
-    conn = sqlite3.connect(db_path)
-    try:
-        row = conn.execute("SELECT COUNT(*) FROM trace").fetchone()
-        return int(row[0]) if row else 0
-    except sqlite3.OperationalError:
-        return 0
-    finally:
-        conn.close()
+    return _reader(db_path).trace_row_count()
 
 
 def read_trace_since(db_path: Path, after_count: int) -> list[dict[str, Any]]:
-    if not db_path.exists():
-        return []
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    try:
-        rows = conn.execute(
-            "SELECT user_id, action, info FROM trace ORDER BY rowid LIMIT -1 OFFSET ?",
-            (max(0, after_count),),
-        ).fetchall()
-        return [dict(row) for row in rows]
-    except sqlite3.OperationalError:
-        return []
-    finally:
-        conn.close()
+    return _reader(db_path).read_trace_since(after_count)
 
 
 def comment_post_ids(db_path: Path, comment_ids: set[int]) -> dict[int, int]:
-    if not db_path.exists() or not comment_ids:
-        return {}
-    conn = sqlite3.connect(db_path)
-    try:
-        placeholders = ",".join("?" for _ in comment_ids)
-        sql = f"SELECT comment_id, post_id FROM comment WHERE comment_id IN ({placeholders})"
-        rows = conn.execute(sql, sorted(comment_ids)).fetchall()
-        return {int(r[0]): int(r[1]) for r in rows}
-    except sqlite3.OperationalError:
-        return {}
-    finally:
-        conn.close()
+    return _reader(db_path).comment_post_ids(comment_ids)
 
 
 def comment_ids_from_trace(rows: list[dict[str, Any]]) -> set[int]:
