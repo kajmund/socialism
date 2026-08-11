@@ -15,6 +15,7 @@ from app.services.report.metrics import ReportMetrics, injection_likes, pct, ton
 from app.services.report.recommendation import build_recommendation, _short_arm_label
 from app.services.report.render import REPORT_FONTS_HREF, inject_report_theme
 from app.services.report.segment_analysis import build_audience_summaries
+from app.services.report.sampling import SAMPLING_METHOD
 from app.services.ssr import ANCHOR_SET_VERSION
 
 # Hardcoded thresholds (not config) until calibration shows need to tweak often.
@@ -76,6 +77,30 @@ def _validation_issue_lines(
                     f"{kind}ankare «{name}» har låg macro-träffsäkerhet{acc_txt} (<55%)."
                 )
     return lines
+
+
+def _sampling_tech_line(
+    bundle: RunBundle,
+    classification: BundleClassification,
+    *,
+    locale: ReportLocale,
+) -> str:
+    meta = classification.sampling or {}
+    selected = int(meta.get("selected_count") or len(classification.sample_texts))
+    eligible = int(meta.get("eligible_count") or (len(bundle.posts) + len(bundle.comments)))
+    agents = int(meta.get("agent_count") or 0)
+    max_per_agent = int(meta.get("max_per_agent") or 2)
+    if locale == "en":
+        detail = (
+            f"{escape(bundle.label)}: {selected} texts stratified per agent "
+            f"(max {max_per_agent}/agent) from {eligible} reactions across {agents} agents"
+        )
+    else:
+        detail = (
+            f"{escape(bundle.label)}: {selected} texter stratifierat per agent "
+            f"(max {max_per_agent}/agent) ur {eligible} reaktioner från {agents} agenter"
+        )
+    return f"<li>{detail}</li>"
 
 
 def build_anchor_validation_html(
@@ -470,15 +495,23 @@ def build_quick_slots(
         f"<p>{escape(decide_verdict(metrics, bundles, locale=locale).threshold_note)}</p>"
         f"<p>embedding_model={escape(settings.embedding_model)} · "
         f"anchor_set={escape(ANCHOR_SET_VERSION)} · "
+        f"sampling={escape(SAMPLING_METHOD)} · "
         f"llm={timing.get('classify_llm_seconds', '—')}s · "
         f"embed={timing.get('embed_seconds', '—')}s · "
         f"total={timing.get('total_seconds', '—')}s</p>"
         f"<h4>{'Tone distribution' if locale == 'en' else 'Tonfördelning'}</h4>"
         f"<table><thead><tr><th>Level</th><th>%</th></tr></thead>"
         f"<tbody>{tone_rows}</tbody></table>"
-        f"<h4>{'Style avg likes' if locale == 'en' else 'Stil snittlikes'}</h4>"
-        f"<table><thead><tr><th>Style</th><th>avg</th></tr></thead>"
+        f"<h4>{'Style (SSR mean)' if locale == 'en' else 'Stil (SSR-genomsnitt)'}</h4>"
+        f"<table><thead><tr><th>Style</th><th>score</th></tr></thead>"
         f"<tbody>{style_rows}</tbody></table>"
+        f"<h4>{'SSR sampling' if locale == 'en' else 'SSR-sampling'}</h4>"
+        "<ul>"
+        + "".join(
+            _sampling_tech_line(b, c, locale=locale)
+            for b, c in zip(bundles, classifications, strict=True)
+        )
+        + "</ul>"
         f"<h4>{'Per run sample sizes' if locale == 'en' else 'Sampelstorlek per körning'}</h4>"
         "<ul>"
         + "".join(

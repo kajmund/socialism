@@ -17,6 +17,7 @@ from app.services.report.classify import BundleClassification, classify_bundles
 from app.services.report.locale import ReportLocale, normalize_locale
 from app.services.report.metrics import compute_report_metrics
 from app.services.report.quick import build_quick_slots, render_quick_html
+from app.services.report.sampling import SAMPLING_METHOD, SAMPLING_VERSION
 from app.services.ssr import ANCHOR_SET_VERSION
 
 logger = logging.getLogger(__name__)
@@ -56,6 +57,8 @@ def _ssr_payload(
         **style_meta,
         "ssr_temperature": ssr_temperature,
         "anchor_validation": anchor_validation or {},
+        "sampling_method": SAMPLING_METHOD,
+        "sampling_version": SAMPLING_VERSION,
         "timestamp": datetime.now(tz=UTC).isoformat(),
         "timing": {
             "classify_llm_seconds": round(classify_seconds, 3),
@@ -76,6 +79,7 @@ def _ssr_payload(
                 "style_pmfs": c.style_pmfs,
                 "sample_count": len(c.sample_texts),
                 "sample_likes": c.sample_likes,
+                "sampling": c.sampling,
                 "tone_rated_texts": c.tone_rated_texts,
                 "style_rated_texts": c.style_rated_texts,
                 "topic_mode": c.topic_mode,

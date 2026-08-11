@@ -14,6 +14,7 @@ from typing import Literal
 
 from app.schemas.domain import DEFAULT_SSR_TEMPERATURE
 from app.services.report.bundles import RunBundle
+from app.services.report.sampling import sample_reactions_for_ssr
 from app.services.report.locale import (
     ReportLocale,
     other_topic_label,
@@ -32,8 +33,6 @@ ToneMode = Literal["ssr"]
 TopicMode = Literal["injection"]
 
 _TEXT_CHARS = 200
-# Cap embed samples: highest-engagement texts (likes).
-_MAX_CLASSIFY_TEXTS = 16
 
 _WORD_RE = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿ0-9%]{3,}")
 _STOP_SV = frozenset(
@@ -108,36 +107,7 @@ class BundleClassification:
     # Texts that were embedded for SSR (reaction snippets, not LLM judgments).
     tone_rated_texts: list[str] = field(default_factory=list)
     style_rated_texts: list[str] = field(default_factory=list)
-
-
-def _item_likes(item: dict) -> int:
-    for key in ("num_likes", "likes", "like_count"):
-        v = item.get(key)
-        if isinstance(v, (int, float)):
-            return int(v)
-    return 0
-
-
-def _samples_for_classify(
-    bundle: RunBundle, *, limit: int = _MAX_CLASSIFY_TEXTS
-) -> tuple[list[str], list[int], list[int]]:
-    """Prefer higher-engagement posts/comments; cap count for cost/latency."""
-    scored: list[tuple[int, str, int]] = []
-    for p in bundle.posts:
-        c = p.get("content") or p.get("text") or ""
-        if c:
-            scored.append((_item_likes(p), str(c), int(p.get("user_id") or -1)))
-    for c in bundle.comments:
-        t = c.get("content") or c.get("text") or ""
-        if t:
-            scored.append((_item_likes(c), str(t), int(c.get("user_id") or -1)))
-    scored.sort(key=lambda x: x[0], reverse=True)
-    top = scored[:limit]
-    return (
-        [text for _, text, _ in top],
-        [likes for likes, _, _ in top],
-        [uid for _, _, uid in top],
-    )
+    sampling: dict[str, object] = field(default_factory=dict)
 
 
 def _share_counts(labels: list[str], allowed: list[str]) -> dict[str, float]:
@@ -210,26 +180,23 @@ def classify_topics_by_keywords(
     return _share_counts(labels, allowed)
 
 
-def _style_avg_from_pmfs(
-    likes: list[int],
-    pmfs: list[dict[str, float]],
-) -> list[tuple[str, float]]:
-    """Soft-weighted average likes per style from SSR PMFs."""
+def _style_avg_from_pmfs(pmfs: list[dict[str, float]]) -> list[tuple[str, float]]:
+    """Mean SSR style score per label (unit weight per reaction text)."""
     buckets: dict[str, float] = {lab: 0.0 for lab in STYLE_LABELS}
     weights: dict[str, float] = {lab: 0.0 for lab in STYLE_LABELS}
     buckets[STYLE_UNCLASSIFIED] = 0.0
     weights[STYLE_UNCLASSIFIED] = 0.0
 
-    for like, pmf in zip(likes, pmfs, strict=True):
+    for pmf in pmfs:
         total = sum(pmf.values()) or 0.0
         if total <= 0.0:
-            buckets[STYLE_UNCLASSIFIED] += float(like)
+            buckets[STYLE_UNCLASSIFIED] += 1.0
             weights[STYLE_UNCLASSIFIED] += 1.0
             continue
         for lab, p in pmf.items():
             if lab not in buckets:
                 continue
-            buckets[lab] += float(like) * p
+            buckets[lab] += p
             weights[lab] += p
 
     scored = [
@@ -307,7 +274,7 @@ async def classify_styles(
         anchor_vectors=style_anchor_vectors,
     )
     embed_s = time.perf_counter() - t0
-    style_avg = _style_avg_from_pmfs(likes, result.per_text_pmfs)
+    style_avg = _style_avg_from_pmfs(result.per_text_pmfs)
     return style_avg, list(texts), result.per_text_pmfs, embed_s
 
 
@@ -321,7 +288,10 @@ async def classify_bundle(
     tone_anchor_vectors: list[list[float]] | None = None,
     style_anchor_vectors: list[list[float]] | None = None,
 ) -> BundleClassification:
-    texts, likes, user_ids = _samples_for_classify(bundle)
+    sampled = sample_reactions_for_ssr(bundle)
+    texts = sampled.texts
+    likes = sampled.likes
+    user_ids = sampled.user_ids
 
     packs = topic_packs_from_injections(bundle.injection_texts, locale=locale)
     topic_shares = classify_topics_by_keywords(texts, packs, locale=locale)
@@ -359,6 +329,7 @@ async def classify_bundle(
         sample_user_ids=user_ids,
         tone_rated_texts=tone_rated,
         style_rated_texts=style_rated,
+        sampling=dict(sampled.meta),
     )
 
 
