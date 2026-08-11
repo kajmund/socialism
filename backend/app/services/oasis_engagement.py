@@ -270,13 +270,3 @@ def comment_ids_from_trace(rows: list[dict[str, Any]]) -> set[int]:
 def make_round_rng(seed: str, tick_index: int, round_index: int) -> random.Random:
     token = f"{seed}:tick{tick_index}:round{round_index}"
     return random.Random(token)
-
-
-def sync_create_comment_tool(agent: Any, *, allow: bool, stored_tool: Any | None) -> None:
-    """Enable or disable create_comment on a CAMEL SocialAgent."""
-    has = "create_comment" in getattr(agent, "_internal_tools", {})
-    if allow:
-        if not has and stored_tool is not None:
-            agent.add_tool(stored_tool)
-    elif has:
-        agent.remove_tool("create_comment")
