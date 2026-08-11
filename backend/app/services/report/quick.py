@@ -90,15 +90,19 @@ def _sampling_tech_line(
     eligible = int(meta.get("eligible_count") or (len(bundle.posts) + len(bundle.comments)))
     agents = int(meta.get("agent_count") or 0)
     max_per_agent = int(meta.get("max_per_agent") or 2)
+    # "agents" here is the subset that reacted, not the population — say so, since
+    # the engagement chart on the same page counts every citizen.
     if locale == "en":
         detail = (
             f"{escape(bundle.label)}: {selected} texts stratified per agent "
-            f"(max {max_per_agent}/agent) from {eligible} reactions across {agents} agents"
+            f"(max {max_per_agent}/agent) from {eligible} reactions "
+            f"across {agents} agents that reacted"
         )
     else:
         detail = (
             f"{escape(bundle.label)}: {selected} texter stratifierat per agent "
-            f"(max {max_per_agent}/agent) ur {eligible} reaktioner från {agents} agenter"
+            f"(max {max_per_agent}/agent) ur {eligible} reaktioner "
+            f"från {agents} agenter som reagerade"
         )
     return f"<li>{detail}</li>"
 
