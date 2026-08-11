@@ -20,10 +20,13 @@ export type RateRequest = {
   texts: string[]
   dimension?: PlaygroundDimension
   locale?: PlaygroundLocale
+  anchor_set_id?: number
   labels?: string[]
   statements?: string[]
   temperature?: number
   human_labels?: string[]
+  clip_for_embed?: boolean
+  use_config_temperature?: boolean
 }
 
 export type RatePerText = {
@@ -96,6 +99,29 @@ export function getPlaygroundAnchors(): Promise<AnchorsResponse> {
 
 export function ratePlaygroundSsr(body: RateRequest): Promise<RateResponse> {
   return api.post<RateResponse>("/playground/ssr/rate", body)
+}
+
+export type SampleFromRunRequest = {
+  run_id: number
+  attempt_id: string
+  variant_id?: string | null
+  use_report_sampling?: boolean
+}
+
+export type SampleFromRunResponse = {
+  texts: string[]
+  likes: number[]
+  user_ids: number[]
+  sampling: Record<string, unknown>
+  clipped_preview: string[]
+  variant_id: string | null
+  bundle_label: string
+}
+
+export function samplePlaygroundSsrFromRun(
+  body: SampleFromRunRequest,
+): Promise<SampleFromRunResponse> {
+  return api.post<SampleFromRunResponse>("/playground/ssr/sample-from-run", body)
 }
 
 export function comparePlaygroundSsr(body: CompareRequest): Promise<CompareResponse> {

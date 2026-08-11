@@ -101,13 +101,24 @@ def test_sampling_spreads_across_agents_not_top_likes():
     assert result.user_ids.count(1) <= 2
 
 
-def test_sampling_takes_all_when_under_cap():
+def test_sampling_collect_all_when_under_cap():
     reactions = [(1, "a", 0), (2, "b", 1), (3, "c", 2)]
     bundle = _bundle_with_reactions(reactions=reactions)
     result = sample_reactions_for_ssr(bundle)
     assert len(result.texts) == 3
     assert result.meta["selected_count"] == 3
     assert result.meta["eligible_count"] == 3
+
+
+def test_collect_all_reactions_for_ssr():
+    from app.services.report.sampling import collect_all_reactions_for_ssr
+
+    reactions = [(1, "a", 0), (2, "b", 1)]
+    bundle = _bundle_with_reactions(reactions=reactions)
+    result = collect_all_reactions_for_ssr(bundle)
+    assert result.texts == ["a", "b"]
+    assert result.meta["method"] == "all"
+    assert result.meta["selected_count"] == 2
 
 
 def test_style_avg_uses_unit_weights_not_likes():

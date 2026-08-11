@@ -6,8 +6,113 @@ import pytest
 
 from app.llm import set_text_completer
 from app.services.playground import tone_label_to_bucket
+from app.services.report.sampling import SAMPLING_METHOD
 from app.services.sentiment_lexicon import classify_text
 from app.services.ssr import set_embedder, tone_anchors
+
+
+async def _seed_run_with_reactions(client) -> tuple[int, str]:
+    """Minimal done run with posts/comments for playground sampling."""
+    persona = (
+        await client.post(
+            "/personas",
+            json={
+                "id": "pg1",
+                "name": "Playground Persona",
+                "age": 40,
+                "occ": "Lärare",
+                "district": "Centrum",
+                "quote": "Quote",
+                "origin": "manuell",
+            },
+        )
+    ).json()
+    pop = (
+        await client.post(
+            "/populations",
+            json={
+                "name": "Playgroundpop",
+                "fingerprint": [[33, 34, 33], [33, 34, 33], [33, 34, 33]],
+                "recipe": {},
+                "members": [
+                    {
+                        "persona_id": persona["id"],
+                        "name": persona["name"],
+                        "initials": "PG",
+                        "age": 40,
+                        "occ": "Lärare",
+                        "district": "Centrum",
+                        "trait": "Quote",
+                    }
+                ],
+            },
+        )
+    ).json()
+    run = (
+        await client.post(
+            "/runs",
+            json={
+                "name": "Playgroundrun",
+                "population_id": pop["id"],
+                "main_ticks": [],
+            },
+        )
+    ).json()
+    run_id = run["id"]
+
+    from app.services import jobs as jobs_service
+
+    factory = jobs_service.job_session_factory()
+    attempt_id = "att_pg_1"
+    async with factory() as session:
+        from app.database.models import Run
+
+        row = await session.get(Run, run_id)
+        assert row is not None
+        row.results = {
+            "engine": "none",
+            "attempts": [
+                {
+                    "id": attempt_id,
+                    "finished_at": "2026-08-03T12:00:00+00:00",
+                    "seed": "42",
+                    "engine": "none",
+                    "variants": [
+                        {
+                            "id": "main",
+                            "label": "Huvudtidslinje",
+                            "ticks_run": 2,
+                            "agents": [
+                                {"index": 0, "member_name": "Parti", "role": "injector"},
+                                {"index": 1, "member_name": "Anna", "role": "user"},
+                                {"index": 2, "member_name": "Bo", "role": "user"},
+                            ],
+                            "posts": [
+                                {
+                                    "post_id": 1,
+                                    "user_id": 1,
+                                    "content": "Äldreomsorg och hemtjänst.",
+                                    "num_likes": 3,
+                                }
+                            ],
+                            "comments": [
+                                {
+                                    "comment_id": 1,
+                                    "post_id": 1,
+                                    "user_id": 2,
+                                    "content": "Bra förslag om trafik och a-traktor.",
+                                    "num_likes": 1,
+                                }
+                            ],
+                            "measurements": [],
+                        }
+                    ],
+                }
+            ],
+        }
+        row.status = "done"
+        await session.commit()
+    return run_id, attempt_id
 
 
 def test_classify_text_lexicon():
@@ -112,6 +217,124 @@ async def test_ssr_rate_rejects_bad_human_label(client):
         },
     )
     assert res.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_ssr_sample_from_run(client):
+    run_id, attempt_id = await _seed_run_with_reactions(client)
+    res = await client.post(
+        "/playground/ssr/sample-from-run",
+        json={
+            "run_id": run_id,
+            "attempt_id": attempt_id,
+            "use_report_sampling": True,
+        },
+    )
+    assert res.status_code == 200, res.text
+    data = res.json()
+    assert len(data["texts"]) == 2
+    assert data["sampling"]["method"] == SAMPLING_METHOD
+    assert data["sampling"]["eligible_count"] == 2
+    assert len(data["clipped_preview"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_ssr_sample_from_run_all_reactions(client):
+    run_id, attempt_id = await _seed_run_with_reactions(client)
+    res = await client.post(
+        "/playground/ssr/sample-from-run",
+        json={
+            "run_id": run_id,
+            "attempt_id": attempt_id,
+            "use_report_sampling": False,
+        },
+    )
+    assert res.status_code == 200, res.text
+    assert res.json()["sampling"]["method"] == "all"
+
+
+@pytest.mark.asyncio
+async def test_ssr_sample_from_run_no_reactions(client):
+    run_id, attempt_id = await _seed_run_with_reactions(client)
+    from app.services import jobs as jobs_service
+
+    factory = jobs_service.job_session_factory()
+    async with factory() as session:
+        from app.database.models import Run
+
+        row = await session.get(Run, run_id)
+        assert row is not None
+        results = dict(row.results or {})
+        attempts = [dict(a) for a in results.get("attempts") or []]
+        variants = [dict(v) for v in attempts[0].get("variants") or []]
+        variants[0] = {**variants[0], "posts": [], "comments": []}
+        attempts[0] = {**attempts[0], "variants": variants}
+        results["attempts"] = attempts
+        row.results = results
+        await session.commit()
+    res = await client.post(
+        "/playground/ssr/sample-from-run",
+        json={"run_id": run_id, "attempt_id": attempt_id},
+    )
+    assert res.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_ssr_rate_clip_for_embed(client):
+    embedded: list[str] = []
+
+    async def _capture_embed(texts: list[str]) -> list[list[float]]:
+        embedded.extend(texts)
+        return [[1.0, 0.0, 0.0, 0.0, 0.0] for _ in texts]
+
+    long_text = "x" * 250
+    set_embedder(_capture_embed)
+    try:
+        res = await client.post(
+            "/playground/ssr/rate",
+            json={
+                "texts": [long_text],
+                "clip_for_embed": True,
+            },
+        )
+        assert res.status_code == 200, res.text
+        clipped = [text for text in embedded if text.startswith("x")]
+        assert len(clipped) == 1
+        assert len(clipped[0]) == 200
+        assert res.json()["per_text"][0]["text"] == long_text
+    finally:
+        set_embedder(None)
+
+
+@pytest.mark.asyncio
+async def test_ssr_rate_use_config_temperature(client, monkeypatch):
+    configs = (await client.get("/configurations")).json()
+    cfg_id = configs[0]["id"]
+    await client.patch(f"/configurations/{cfg_id}", json={"ssr_temperature": 0.001})
+
+    captured: list[float] = []
+
+    async def _fake_rate_case(*_args, **kwargs):
+        captured.append(float(kwargs["temperature"]))
+        return {
+            "anchor_set_name": "tone",
+            "anchor_set_version": "v1",
+            "labels": list(tone_anchors(locale="sv").labels),
+            "shares": {},
+            "per_text": [],
+        }
+
+    monkeypatch.setattr("app.api.playground.rate_case", _fake_rate_case)
+    res = await client.post(
+        "/playground/ssr/rate",
+        json={
+            "texts": ["test"],
+            "use_config_temperature": True,
+            "temperature": 1.0,
+        },
+    )
+    assert res.status_code == 200, res.text
+    assert captured == [0.001]
 
 
 @pytest.mark.asyncio
