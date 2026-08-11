@@ -12,10 +12,15 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-# OASIS ActionType.value strings in trace.action
-PASSIVE_ACTIONS = frozenset({"do_nothing", "refresh"})
-POST_ENGAGE_ACTIONS = frozenset({"like_post", "dislike_post"})
-COMMENT_ENGAGE_ACTIONS = frozenset({"like_comment", "dislike_comment", "create_comment"})
+from app.services.simulation.action_catalog import (
+    comment_engage_trace_actions,
+    passive_trace_actions,
+    post_engage_trace_actions,
+)
+
+PASSIVE_ACTIONS = passive_trace_actions()
+POST_ENGAGE_ACTIONS = post_engage_trace_actions()
+COMMENT_ENGAGE_ACTIONS = comment_engage_trace_actions()
 
 FIRST_ROUND_SAMPLE_FRACTION = 0.6
 LATER_ROUND_SAMPLE_FRACTION = 0.35
