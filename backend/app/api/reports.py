@@ -43,10 +43,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/reports", tags=["reports"])
 
 
-def _normalize_mode(value: str | None) -> str:
-    return "quick" if value == "quick" else "full"
-
-
 def _serialize(report: Report) -> ReportOut:
     return serialize_report(report)
 
@@ -105,13 +101,12 @@ async def create_report(
             n_sources=len(sources),
         )
 
-    mode = _normalize_mode(body.mode)
     report = Report(
         id=report_id,
         status="pending",
         title=title,
         locale=locale,
-        mode=mode,
+        mode="quick",
         sources=sources,
         html_path=None,
         slots_path=None,

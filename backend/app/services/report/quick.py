@@ -13,6 +13,7 @@ from app.services.report.classify import BundleClassification
 from app.services.report.locale import ReportLocale, display_style_label
 from app.services.report.metrics import ReportMetrics, injection_likes, pct, tone_shares_sorted
 from app.services.report.recommendation import build_recommendation, _short_arm_label
+from app.services.report.render import REPORT_FONTS_HREF, inject_report_theme
 from app.services.report.segment_analysis import build_audience_summaries
 from app.services.ssr import ANCHOR_SET_VERSION
 
@@ -453,155 +454,17 @@ def render_quick_html(slots: dict[str, str], *, locale: ReportLocale) -> str:
         h_drift = "Ämnesdrift"
         h_ab = "A/B-jämförelse"
         h_style = "Stilgenomslag"
-    return f"""<!DOCTYPE html>
+    html = f"""<!DOCTYPE html>
 <html lang="{lang}">
 <head>
 <meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>{escape(slots.get("page_title", "Snabbrapport"))}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="{REPORT_FONTS_HREF}" rel="stylesheet"/>
 <style>
-body{{font-family:Georgia,serif;background:#F7F3EA;color:#1A1814;margin:0;padding:2rem;}}
-.wrap{{max-width:960px;margin:0 auto;overflow-x:clip;}}
-.eyebrow{{font-size:.85rem;letter-spacing:.04em;text-transform:uppercase;color:#6B6253;}}
-h1{{font-size:1.75rem;margin:.35rem 0 1.25rem;}}
-.conclusion{{border:1px solid #D8CFC0;padding:1.5rem 1.75rem;margin:0 0 2rem;background:#FFFCF6;border-left:6px solid #1E3A55;border-radius:0 10px 10px 0;}}
-.rec-eyebrow{{font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:#6B6253;margin:0 0 .35rem;}}
-.rec-arm{{font-size:1.65rem;margin:0 0 .25rem;color:#1E3A55;line-height:1.2;}}
-.rec-action{{font-size:1.1rem;margin:0 0 .75rem;color:#1A1814;font-weight:600;}}
-.rec-score{{font-size:.88rem;margin:0 0 .75rem;color:#3A342C;}}
-.rec-score strong{{color:#1E3A55;}}
-.rec-note{{color:#6B6253;font-weight:400;}}
-.rec-summary{{font-size:.9rem;line-height:1.5;margin:0 0 1rem;color:#3A342C;}}
-.rec-ab-table{{width:100%;margin:0 0 1rem;border-collapse:collapse;font-size:.85rem;}}
-.rec-ab-table th,.rec-ab-table td{{border-bottom:1px solid #E5DDD0;padding:.4rem .5rem;text-align:left;}}
-.rec-ab-table th{{color:#6B6253;font-weight:600;font-size:.78rem;}}
-.rec-ab-win{{background:#EDE6DA;font-weight:600;}}
-.rec-columns{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin:.75rem 0;}}
-.rec-col{{font-size:.85rem;}}
-.rec-sub{{margin:0 0 .35rem;font-size:.85rem;}}
-.rec-list{{margin:0 0 0 1.1rem;padding:0;font-size:.82rem;line-height:1.45;}}
-.rec-next{{font-size:.85rem;margin:.75rem 0 0;padding-top:.65rem;border-top:1px solid #E5DDD0;color:#3A342C;}}
-section{{margin:1.75rem 0;min-width:0;}}
-section h3{{font-size:1.05rem;margin:0 0 .5rem;border-bottom:1px solid #D8CFC0;padding-bottom:.35rem;}}
-.tech{{margin-top:2.5rem;font-size:.9rem;color:#3A342C;}}
-.tech summary{{cursor:pointer;font-weight:600;}}
-table{{border-collapse:collapse;width:100%;margin:.5rem 0 1rem;}}
-td,th{{border-bottom:1px solid #E5DDD0;padding:.35rem .5rem;text-align:left;font-size:.85rem;}}
-.meta{{color:#6B6253;font-size:.9rem;margin-top:2rem;}}
-.chart-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:.75rem;}}
-.chart-card{{background:#FFFCF6;border:1px solid #D8CFC0;border-radius:8px;padding:14px 16px;max-width:100%;box-sizing:border-box;}}
-.chart-card.wide{{grid-column:1/-1;}}
-.chart-card h4{{font-size:.95rem;font-weight:700;margin:0 0 4px;}}
-.chart-sub{{font-size:.8rem;color:#6B6253;margin-bottom:10px;}}
-.stats-tables{{display:flex;flex-direction:column;gap:12px;}}
-.stats-tables .chart-card{{break-inside:avoid;}}
-.stats-table{{width:100%;margin:0;table-layout:fixed;}}
-.stats-table th,.stats-table td{{font-size:.78rem;word-break:break-word;}}
-.donut-wrap{{display:flex;gap:12px;align-items:center;flex-wrap:wrap;}}
-.donut{{width:88px;height:88px;border-radius:50%;position:relative;flex-shrink:0;}}
-.donut-hole{{position:absolute;inset:18%;background:#FFFCF6;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;text-transform:uppercase;color:#6B6253;}}
-.legend{{font-size:.75rem;line-height:1.35;}}
-.leg-item{{display:flex;align-items:center;gap:6px;margin-bottom:3px;}}
-.leg-dot{{width:8px;height:8px;border-radius:50%;flex-shrink:0;}}
-.hbar-chart{{display:flex;flex-direction:column;gap:8px;}}
-.hbar-row{{display:flex;align-items:center;gap:8px;font-size:.8rem;}}
-.hbar-lbl{{flex:0 0 120px;line-height:1.2;}}
-.hbar-track{{flex:1;height:22px;background:#EDE6DA;border-radius:4px;overflow:hidden;}}
-.hbar-fill{{height:100%;display:flex;align-items:center;padding:0 6px;font-size:.7rem;font-weight:700;color:#fff;min-width:2px;}}
-.hbar-val{{min-width:28px;text-align:right;font-weight:700;}}
-@media print{{
-.wrap{{max-width:none;overflow:visible;}}
-.stats-tables{{gap:10px;}}
-}}
-.ab-compare{{display:flex;flex-direction:column;gap:12px;}}
-.ab-metric-label{{font-size:.82rem;font-weight:700;margin-bottom:4px;color:#3A342C;}}
-.ab-bar-line{{display:grid;grid-template-columns:minmax(80px,1fr) 1fr auto;gap:8px;align-items:center;margin-bottom:4px;font-size:.78rem;}}
-.ab-arm{{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#6B6253;}}
-.ab-track{{height:18px;background:#EDE6DA;border-radius:4px;overflow:hidden;}}
-.ab-fill{{height:100%;border-radius:4px;min-width:2px;}}
-.ab-val{{font-weight:700;min-width:32px;text-align:right;}}
-.ab-tone-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;}}
-.ab-tone-head{{font-weight:700;font-size:.85rem;margin-bottom:6px;}}
-.pop-compare{{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:8px;}}
-.pop-card{{border:1px solid #D8CFC0;border-radius:8px;overflow:hidden;background:#fff;}}
-.pop-head{{background:#EDE6DA;padding:8px 10px;font-weight:700;font-size:.85rem;}}
-.pop-head small{{display:block;font-weight:400;color:#6B6253;font-size:.75rem;}}
-.pop-body{{padding:8px 10px;font-size:.8rem;}}
-.pop-row{{display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid #F0EBE2;}}
-.pop-row-l{{color:#6B6253;}}
-.pop-row-v{{font-weight:700;}}
-.agents-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;}}
-.agent-card{{border:1px solid #D8CFC0;border-radius:8px;padding:10px;font-size:.8rem;background:#fff;}}
-.ag-name{{font-weight:700;font-size:.78rem;line-height:1.35;}}
-.ag-title{{color:#6B6253;font-size:.75rem;margin-bottom:6px;}}
-.ag-scores{{display:flex;gap:8px;}}
-.ag-score-v{{font-weight:700;font-size:1rem;}}
-.ag-score-l{{font-size:.65rem;color:#6B6253;}}
-.ag-quote{{margin-top:6px;font-style:italic;color:#3A342C;font-size:.75rem;}}
-.tick-timeline{{display:flex;flex-direction:column;gap:20px;}}
-.tick-bundle h4{{font-size:.95rem;margin:0 0 8px;}}
-.tick-spark{{margin-bottom:10px;}}
-.tick-spark-title{{font-size:.78rem;color:#6B6253;margin-bottom:6px;}}
-.tick-bars{{display:flex;align-items:flex-end;gap:6px;height:72px;padding:4px 0;border-bottom:1px solid #E5DDD0;}}
-.tick-bar-col{{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:28px;}}
-.tick-bar{{width:100%;max-width:36px;background:#1E3A55;border-radius:4px 4px 0 0;min-height:4px;}}
-.tick-bar-col.tick-silent .tick-bar{{background:#6B6253;opacity:.55;}}
-.tick-bar-lbl{{font-size:.65rem;color:#6B6253;margin-top:4px;}}
-.tick-table td{{font-size:.78rem;vertical-align:top;}}
-.qa-section{{display:flex;flex-direction:column;gap:16px;}}
-.qa-bundle h4{{font-size:.95rem;margin:0 0 8px;}}
-.qa-tick h5{{font-size:.85rem;margin:0 0 6px;color:#3A342C;}}
-.qa-card{{border:1px solid #D8CFC0;border-radius:8px;padding:10px 12px;margin-bottom:8px;background:#FFFCF6;}}
-.qa-agent{{font-weight:700;font-size:.85rem;margin-bottom:2px;}}
-.qa-profile{{font-size:.75rem;color:#6B6253;margin-bottom:6px;line-height:1.35;}}
-.qa-q,.qa-a{{font-size:.82rem;line-height:1.4;margin-top:4px;}}
-.rec-headline{{font-size:1.05rem;margin:0 0 .5rem;}}
-.audience-section{{display:flex;flex-direction:column;gap:24px;}}
-.aud-bundle-title{{font-size:1rem;margin:0 0 12px;border-bottom:1px solid #D8CFC0;padding-bottom:6px;}}
-.aud-reports{{display:flex;flex-direction:column;gap:20px;}}
-.aud-report{{border:1px solid #D8CFC0;border-radius:10px;padding:16px 18px;background:#FFFCF6;}}
-.aud-report-head{{margin:0 0 8px;}}
-.aud-report-head h4{{display:inline;font-size:1.05rem;margin:0;}}
-.aud-dim{{color:#6B6253;font-size:.78rem;display:block;margin-bottom:2px;}}
-.aud-narrative{{font-size:.88rem;line-height:1.5;color:#3A342C;margin:0 0 12px;}}
-.aud-kpi-row{{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;}}
-.aud-kpi{{flex:1;min-width:72px;border:1px solid #E5DDD0;border-radius:6px;padding:8px 10px;background:#fff;text-align:center;}}
-.aud-kpi strong{{display:block;font-size:1.1rem;color:#1E3A55;}}
-.aud-kpi span{{font-size:.68rem;color:#6B6253;}}
-.aud-chart-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:12px;}}
-.aud-chart-card{{border:1px solid #E5DDD0;border-radius:8px;padding:10px 12px;background:#fff;}}
-.aud-chart-title{{font-size:.78rem;font-weight:700;color:#3A342C;margin-bottom:8px;}}
-.aud-eng-chart{{display:flex;flex-direction:column;gap:6px;}}
-.aud-eng-row{{display:grid;grid-template-columns:88px 1fr 32px;gap:6px;align-items:center;font-size:.75rem;}}
-.aud-eng-lbl{{color:#6B6253;line-height:1.2;}}
-.aud-eng-track{{height:16px;background:#EDE6DA;border-radius:4px;overflow:hidden;}}
-.aud-eng-fill{{height:100%;border-radius:4px;min-width:2px;}}
-.aud-eng-val{{font-weight:700;text-align:right;}}
-.aud-samples{{margin-bottom:12px;}}
-.aud-tone-group + .aud-tone-group{{margin-top:10px;}}
-.aud-tone-label{{font-size:.72rem;font-weight:700;color:#1E3A55;margin:0 0 4px;}}
-.aud-quote{{margin:6px 0 0;padding:8px 10px;border-left:3px solid #D8CFC0;background:#fff;font-size:.78rem;color:#3A342C;}}
-.aud-quote-meta{{font-style:normal;font-size:.72rem;font-weight:600;color:#6B6253;margin-bottom:4px;line-height:1.35;}}
-.aud-quote-text{{font-style:italic;white-space:pre-wrap;overflow-wrap:anywhere;}}
-.aud-qa-block{{margin-top:8px;}}
-.aud-qa-card{{border:1px solid #E5DDD0;border-radius:8px;padding:10px 12px;margin-top:8px;background:#fff;}}
-.aud-qa-meta{{font-size:.75rem;font-weight:700;color:#6B6253;margin-bottom:4px;}}
-.aud-qa-q,.aud-qa-a{{font-size:.82rem;line-height:1.45;margin-top:4px;}}
-.audience-takeaway p{{font-size:.88rem;line-height:1.45;margin:0 0 .65rem;color:#3A342C;}}
-.audience-takeaway p:last-child{{margin-bottom:0;}}
-.aud-ab-legend{{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:16px;padding:10px 12px;border:1px solid #D8CFC0;border-radius:8px;background:#FFFCF6;}}
-.aud-ab-legend-lbl{{font-size:.78rem;font-weight:700;color:#3A342C;}}
-.aud-ab-chip{{font-size:.78rem;padding:4px 10px;border-radius:999px;background:#1E3A55;color:#fff;font-weight:600;}}
-.aud-ab-diff{{font-size:.85rem;font-weight:600;color:#1E3A55;margin:0 0 12px;padding:8px 10px;border-radius:6px;background:#EDE6DA;line-height:1.4;}}
-.aud-arm-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;}}
-.aud-arm-panel{{border:1px solid #E5DDD0;border-radius:8px;padding:12px 14px;background:#fff;}}
-.aud-arm-panel.aud-arm-empty{{background:#FAF7F2;}}
-.aud-arm-head{{font-size:.88rem;font-weight:700;color:#1E3A55;margin:0 0 10px;padding-bottom:6px;border-bottom:1px solid #E5DDD0;}}
-.aud-compare .aud-narrative{{font-size:.82rem;}}
-.muted{{color:#6B6253;font-size:.9rem;}}
-.fn{{color:#1E3A55;font-weight:700;font-size:.85em;}}
-.fn-block{{font-size:.78rem;color:#6B6253;margin:.65rem 0 0;padding-top:.45rem;border-top:1px solid #E5DDD0;line-height:1.45;}}
-.fn-item{{margin:.25rem 0 0;}}
-.fn-mark{{font-weight:700;}}
+/*@@REPORT_THEME_CSS@@*/
 </style>
 </head>
 <body>
@@ -651,3 +514,4 @@ td,th{{border-bottom:1px solid #E5DDD0;padding:.35rem .5rem;text-align:left;font
 </body>
 </html>
 """
+    return inject_report_theme(html)

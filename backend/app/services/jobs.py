@@ -431,37 +431,23 @@ async def _run_report_generate(job_id: str) -> None:
         await session.commit()
         await publish_report(report)
 
-    mode = "full"
     try:
         async with factory() as session:
             bundles = await build_bundles(session, sources)
             out_dir = Path(ARTIFACT_ROOT) / report_id
             from app.services.anchor_store import require_anchor_sets_for_language
-            from app.services.prompt_catalog import ConfigurationLanguage
-            from app.services.prompt_store import (
-                require_active_ssr_temperature,
-                require_prompts_for_language,
-            )
+            from app.services.prompt_store import require_active_ssr_temperature
 
-            report_lang: ConfigurationLanguage = "en" if locale == "en" else "sv"
-            prompts = await require_prompts_for_language(session, report_lang)
             ssr_temperature = await require_active_ssr_temperature(session)
             resolved_anchors = await require_anchor_sets_for_language(
                 session, "en" if locale == "en" else "sv"
             )
 
-        async with factory() as session:
-            report = await session.get(Report, report_id)
-            if report is not None:
-                mode = getattr(report, "mode", None) or "full"
         html_path, slots_path, _slots, timing = await generate_report_html(
             bundles,
             out_dir=out_dir,
-            dry_run=False,
             title=title,
             locale=locale,
-            prompts=prompts,
-            mode=mode if mode in ("full", "quick") else "full",
             ssr_temperature=ssr_temperature,
             resolved_anchors=resolved_anchors,
         )
@@ -499,7 +485,7 @@ async def _run_report_generate(job_id: str) -> None:
                 "html_path": str(html_path),
                 "slots_path": str(slots_path),
                 "sources": len(bundles),
-                "mode": mode,
+                "mode": "quick",
                 "timing": timing,
             },
         )

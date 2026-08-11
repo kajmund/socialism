@@ -70,7 +70,9 @@ function formatReportDuration(report: Report, t: Translate): string | null {
 }
 
 function modeLabel(mode: Report["mode"], t: Translate): string {
-  return mode === "quick" ? t("reports.list.modeQuick") : t("reports.list.modeFull")
+  return mode === "full"
+    ? t("reports.list.modeFullLegacy")
+    : t("reports.list.modeQuick")
 }
 
 function sourcesLabel(report: Report, t: Translate): string {

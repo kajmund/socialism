@@ -217,7 +217,7 @@ export function ReportPage() {
           <iframe
             title={report?.title || t("reports.iframeTitle")}
             srcDoc={html}
-            className="w-full rounded-md border border-border bg-white"
+            className="w-full rounded-md border border-db-ink-100 bg-white"
             style={{ minHeight: "80vh" }}
             sandbox="allow-same-origin allow-scripts allow-popups"
           />

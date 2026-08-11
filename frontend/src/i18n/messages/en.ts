@@ -12,6 +12,8 @@ export const en: LocalizedTree<SvMessages> = {
   },
   nav: {
     ariaMain: "Main navigation",
+    openMenu: "Open menu",
+    closeMenu: "Close menu",
     personas: "Personas",
     populations: "Populations",
     messages: "Messages",
@@ -566,16 +568,9 @@ export const en: LocalizedTree<SvMessages> = {
       reportCompareTitle: "Comparison report ({count} runs)",
       reportError: "Could not order report",
       reportConfirmDesc:
-        "Choose a report mode. You can leave the page and follow status under Reports.",
-      reportConfirmDescFull:
-        "Full report takes several minutes (LLM narrative + SSR). You can leave the page.",
-      reportConfirmDescQuick:
-        "Quick report usually takes a few seconds (embeddings + templates, no DeepSeek).",
+        "The report usually takes a few seconds. You can leave the page and follow status under Reports.",
       reportConfirmOne: "1 run will be analyzed and compiled into a report.",
       reportConfirmMany: "{count} runs will be compared in a shared report.",
-      reportModeLabel: "Report mode",
-      reportModeFull: "Full report",
-      reportModeQuick: "Quick report",
       startGeneration: "Start generation",
       deleteTitle: "Delete simulation result?",
       deleteDescription:
@@ -1124,8 +1119,8 @@ export const en: LocalizedTree<SvMessages> = {
       loadError: "Could not load reports",
       open: "Open report →",
       created: "created {when}",
-      modeFull: "Full report",
       modeQuick: "Quick report",
+      modeFullLegacy: "Full report (legacy)",
       sourcesOne: "1 source",
       sourcesMany: "{count} sources",
       deleted: "Report deleted",
