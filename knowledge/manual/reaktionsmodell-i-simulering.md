@@ -13,8 +13,10 @@ Reglerna gäller **per budskag** — det vill säga per nytt inlägg som injicer
 
 ## Stratifierat urval per rond
 
-Vid varje **reaktionsrond** inom en dag plockas en delmängd av populationen ut. Urvalet är **stratifierat** så att distrikt, lutning och liknande spridning bevaras — inte en ren slump som råkar utesluta hela områden.
+Vid varje **reaktionsrond** inom en dag plockas en delmängd av populationen ut. Urvalet är **stratifierat** så att distrikt och (när data finns) politisk lutning sprids — inte en ren slump som råkar utesluta hela områden eller en hel lutningsgrupp.
 
+- När **alla** medlemmar har känd lutning (`lean_key`) stratifieras på **distrikt och lutning tillsammans** (varje kombination får chans att synas i urvalet).
+- Om **någon** medlem saknar känd lutning (t.ex. äldre population före regenerering) stratifieras bara på **distrikt** för hela populationen den körningen — systemet gissar inte lutning.
 - Agenter som **inte plockas** den ronden är **inte online** just då. De får inget simulerat steg den ronden.
 - Agenter som **plockas** får välja en social åtgärd utifrån vad de ser i flödet (gilla, ogilla, kommentera, göra inget, m.m.).
 
