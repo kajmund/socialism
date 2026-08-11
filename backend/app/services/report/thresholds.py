@@ -73,6 +73,23 @@ class NarrativeThresholds(BaseModel):
     segment_crit: float = Field(default=0.50, ge=0.0, le=1.0)
 
 
+class TakeawayThresholds(BaseModel):
+    """Rule-based audience takeaway paragraphs (separate from verdict/narrative)."""
+
+    positive_strong: float = Field(default=0.40, ge=0.0, le=1.0)
+    positive_weak: float = Field(default=0.28, ge=0.0, le=1.0)
+    critical_high: float = Field(default=0.42, ge=0.0, le=1.0)
+    segment_contrast_gap: float = Field(default=0.12, ge=0.0, le=1.0)
+
+    @model_validator(mode="after")
+    def _check_order(self) -> TakeawayThresholds:
+        if self.positive_weak >= self.positive_strong:
+            raise ValueError(
+                "takeaway.positive_weak must be < takeaway.positive_strong"
+            )
+        return self
+
+
 class RecommendationThresholds(BaseModel):
     score_weights: ScoreWeights = Field(default_factory=ScoreWeights)
     score_caps: ScoreCaps = Field(default_factory=ScoreCaps)
@@ -85,6 +102,7 @@ class ReportThresholds(BaseModel):
     verdict: VerdictThresholds = Field(default_factory=VerdictThresholds)
     diff: DiffThresholds = Field(default_factory=DiffThresholds)
     topic_drift: float = Field(default=0.10, ge=0.0, le=1.0)
+    takeaway: TakeawayThresholds = Field(default_factory=TakeawayThresholds)
     recommendation: RecommendationThresholds = Field(
         default_factory=RecommendationThresholds
     )

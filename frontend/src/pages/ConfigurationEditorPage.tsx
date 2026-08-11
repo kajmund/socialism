@@ -14,6 +14,7 @@ import {
 import {
   DEFAULT_REPORT_THRESHOLDS,
   cloneReportThresholds,
+  mergeReportThresholds,
   reportThresholdValidationKey,
   type ReportThresholds,
 } from "@/api/reportThresholds"
@@ -116,7 +117,7 @@ export function ConfigurationEditorPage() {
         setLanguage(row.language)
         setIsActive(row.is_active)
         setSsrTemperature(row.ssr_temperature)
-        setReportThresholds(cloneReportThresholds(row.report_thresholds))
+        setReportThresholds(mergeReportThresholds(row.report_thresholds))
         setAnchorSets(row.anchor_sets)
         setError(null)
         setRowReady(true)

@@ -116,3 +116,77 @@ def test_build_audience_takeaways_includes_gender_gap():
     lines = build_audience_takeaways([bundle], [clf], locale="sv")
     assert any("kvinnor" in line.casefold() for line in lines)
     assert any("män" in line.casefold() for line in lines)
+
+
+def test_build_bundle_takeaway_respects_configured_takeaway_thresholds():
+    from app.services.report.thresholds import ReportThresholds
+
+    bundle = _bundle()
+    clf = _classification()
+    strict = ReportThresholds.model_validate(
+        {
+            "takeaway": {
+                "positive_strong": 0.95,
+                "positive_weak": 0.05,
+                "critical_high": 0.99,
+                "segment_contrast_gap": 0.50,
+            },
+        }
+    )
+    assert build_bundle_takeaway(bundle, clf, locale="sv", thresholds=strict) is None
+
+    loose = ReportThresholds.model_validate(
+        {
+            "takeaway": {
+                "positive_strong": 0.10,
+                "positive_weak": 0.05,
+                "critical_high": 0.99,
+                "segment_contrast_gap": 0.01,
+            },
+        }
+    )
+    text = build_bundle_takeaway(bundle, clf, locale="sv", thresholds=loose)
+    assert text is not None
+    assert "landade bättre" in text.casefold()
+    assert "positiv ton" in text.casefold()
+
+
+def test_gender_sentence_uses_diff_clear_not_takeaway():
+    from app.services.report.audience_takeaway import _gender_sentence
+    from app.services.report.segment_ssr import SegmentToneRow
+    from app.services.report.thresholds import ReportThresholds
+
+    rows = [
+        SegmentToneRow(
+            dimension="kön",
+            label="Kvinna",
+            text_count=2,
+            agent_count=1,
+            positive_share=0.50,
+            critical_share=0.10,
+            engagement_score=3,
+            too_few=False,
+            agent_ids=frozenset({1}),
+        ),
+        SegmentToneRow(
+            dimension="kön",
+            label="Man",
+            text_count=2,
+            agent_count=1,
+            positive_share=0.44,
+            critical_share=0.10,
+            engagement_score=2,
+            too_few=False,
+            agent_ids=frozenset({2}),
+        ),
+    ]
+    narrow = ReportThresholds.model_validate({"diff": {"clear": 0.10, "weak": 0.03}})
+    wide = ReportThresholds.model_validate({"diff": {"clear": 0.04, "weak": 0.03}})
+
+    similar = _gender_sentence(rows, locale="sv", gender_gap=narrow.diff.clear)
+    assert similar is not None
+    assert "liknande" in similar.casefold()
+    directional = _gender_sentence(rows, locale="sv", gender_gap=wide.diff.clear)
+    assert directional is not None
+    assert "liknande" not in directional.casefold()
+    assert "kvinnor" in directional.casefold()

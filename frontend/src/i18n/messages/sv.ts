@@ -1286,6 +1286,19 @@ export const sv = {
         triggerWeakPosLabel: "Svag positiv (tak)",
         triggerCritBaselineLabel: "Kritisk baslinje",
         groupNarrative: "Narrativa triggare",
+        groupTakeaway: "Målgruppssammanfattning",
+        groupTakeawayHint:
+          "Styr korta takeaway-stycken överst i rapporten (t.ex. «gick sämre hem hos …»). Påverkar inte rekommendationens styrkor/risker. Kön-jämförelse använder «Tydlig skillnad» ovan (diff.clear).",
+        takeawayPosStrongLabel: "Landade bättre (≥)",
+        takeawayPosStrongHint: "Positiv andel minst detta värde → segment nämns som positivt mottagande.",
+        takeawayPosWeakLabel: "Gick sämre / svag highlight (≤ positiv eller ≥ kritisk)",
+        takeawayPosWeakHint:
+          "Positiv andel högst detta värde, eller kritisk andel minst «Kritisk hög» → segment nämns som svagt mottagande. Måste vara lägre än «Landade bättre».",
+        takeawayCritHighLabel: "Kritisk hög (≥)",
+        takeawayCritHighHint: "Kritisk andel minst detta värde → livssituation kan flaggas som svag.",
+        takeawayContrastGapLabel: "Segmentkontrast (≥)",
+        takeawayContrastGapHint:
+          "Skillnad i positiv ton mellan bästa och sämsta segment när «Landade bättre» inte nås — procentenheter.",
         narrGoodReceptionLabel: "God mottagning (positiv ton)",
         narrHighCritLabel: "Hög kritisk ton",
         narrSegmentPosLabel: "Segment — positiv",
@@ -1293,6 +1306,7 @@ export const sv = {
         validation: {
           verdictOrder: "«Blandat positivt» måste vara lägre än «Starkt positivt».",
           diffOrder: "«Måttlig skillnad» måste vara lägre än «Tydlig skillnad».",
+          takeawayOrder: "«Gick sämre» måste vara lägre än «Landade bättre».",
           actionBandsOrder:
             "Rekommendationsgränserna måste öka: revidera < mindre justeringar < redo att publicera.",
         },
