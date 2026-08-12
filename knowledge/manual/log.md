@@ -1,5 +1,9 @@
 # Manual update log
 
+## 2026-08-12
+
+* **Rapporter**: Spinndoktor (fas 1) — chatt kopplad till en klar rapport med växling Rapport/Spinndoktor i sidhuvudet, valfri rapportcanvas som scrollar till avsnitt, historik per rapport.
+
 ## 2026-08-11
 
 * **Körningar**: Reaktionsmodellens stratifierade urval tar hänsyn till både distrikt och lutning när alla medlemmar har känd lutning; annars distrikt-only.

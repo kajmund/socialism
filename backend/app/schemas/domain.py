@@ -270,6 +270,21 @@ class HelpChatResponse(BaseModel):
     messages: list[HelpMessageOut]
 
 
+SpindoctorRole = Literal["user", "assistant"]
+
+
+class SpindoctorMessageOut(BaseModel):
+    id: int
+    role: SpindoctorRole
+    content: str
+    created_at: str
+
+
+class SpindoctorChatResponse(BaseModel):
+    reply: str
+    messages: list[SpindoctorMessageOut]
+
+
 FeedbackKind = Literal["bug", "idea", "opinion"]
 FeedbackStatus = Literal["open", "in_progress", "done", "archived"]
 FeedbackSource = Literal["help", "admin"]
