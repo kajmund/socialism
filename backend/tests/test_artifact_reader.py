@@ -168,6 +168,22 @@ def test_user_follow_counts_degrade_when_user_table_missing(tmp_path: Path):
     assert reader.user_following_count(1) == 0
 
 
+def test_export_variant_payload_fails_on_column_mismatch(tmp_path: Path):
+    db_path = tmp_path / "simulation.db"
+    conn = sqlite3.connect(db_path)
+    try:
+        _create_export_schema(conn)
+        conn.execute("DROP TABLE post")
+        conn.execute("CREATE TABLE post (id INTEGER PRIMARY KEY, body TEXT)")
+        conn.commit()
+    finally:
+        conn.close()
+
+    reader = OasisArtifactReader(db_path)
+    with pytest.raises(OasisArtifactError, match=SCHEMA_VERSION):
+        reader.export_variant_payload()
+
+
 def test_max_event_time_iso_datetime(tmp_path: Path):
     db_path = tmp_path / "simulation.db"
     conn = sqlite3.connect(db_path)
