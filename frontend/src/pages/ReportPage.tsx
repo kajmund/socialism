@@ -1,12 +1,16 @@
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import { deleteReport, getReportHtml, type Report } from "@/api/reports"
+import { ReportCanvas, type ReportCanvasHandle } from "@/components/reports/ReportCanvas"
 import { ReportVerdictCalibrationPanel } from "@/components/reports/ReportVerdictCalibrationPanel"
+import { SpinndoktorPanel } from "@/components/reports/SpinndoktorPanel"
 import { AdminShell } from "@/components/layout/AdminShell"
 import { Card, CardContent } from "@/components/ui/card"
 import { useLocale, type MessageKey } from "@/i18n"
 import { ApiError } from "@/lib/api"
 import { useReportsRealtime } from "@/realtime/ReportsRealtimeProvider"
+
+type ReportViewMode = "report" | "spinndoctor"
 
 const STATUS_KEY: Record<Report["status"], MessageKey> = {
   pending: "reports.status.pending",
@@ -42,7 +46,7 @@ function formatReportDuration(
 export function ReportPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { t } = useLocale()
+  const { t, locale } = useLocale()
   const { reports, status: wsStatus, connected } = useReportsRealtime()
   const report = id ? reports.find((r) => r.id === id) ?? null : null
   const [html, setHtml] = useState<string | null>(null)
@@ -50,6 +54,12 @@ export function ReportPage() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [viewMode, setViewMode] = useState<ReportViewMode>("report")
+  const [canvasOpen, setCanvasOpen] = useState(false)
+  const canvasRef = useRef<ReportCanvasHandle | null>(null)
+
+  const reportLocale: "sv" | "en" = report?.locale === "en" ? "en" : "sv"
+  const spinndoktorReady = report?.status === "succeeded" && html != null && id != null
 
   const error =
     actionError ??
@@ -87,6 +97,19 @@ export function ReportPage() {
     }
   }, [report, t])
 
+  useEffect(() => {
+    if (viewMode === "report") {
+      setCanvasOpen(false)
+    }
+  }, [viewMode])
+
+  const handleSectionRef = useCallback((sectionId: string) => {
+    setCanvasOpen(true)
+    window.setTimeout(() => {
+      canvasRef.current?.scrollToSection(sectionId)
+    }, 120)
+  }, [])
+
   function openInNewTab() {
     if (!html) return
     const blob = new Blob([html], { type: "text/html;charset=utf-8" })
@@ -112,23 +135,49 @@ export function ReportPage() {
 
   return (
     <AdminShell>
-      <div className="wrap" style={{ maxWidth: 1100 }}>
+      <div className="wrap" style={{ maxWidth: viewMode === "spinndoctor" ? 1400 : 1100 }}>
         <div className="section-head">
           <span className="kicker">{t("reports.kicker")}</span>
-          <h1
-            style={{
-              font: "var(--text-h1)",
-              fontFamily: "'Bai Jamjuree', sans-serif",
-              fontWeight: 400,
-            }}
-          >
-            {report?.title || t("reports.titleFallback")}
-          </h1>
-          <p>
-            <Link to="/reports">{t("reports.backToList")}</Link>
-            {report ? ` · ${t(STATUS_KEY[report.status])}` : null}
-            {duration ? ` · ${t("reports.took", { duration })}` : null}
-          </p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h1
+                style={{
+                  font: "var(--text-h1)",
+                  fontFamily: "'Bai Jamjuree', sans-serif",
+                  fontWeight: 400,
+                }}
+              >
+                {report?.title || t("reports.titleFallback")}
+              </h1>
+              <p>
+                <Link to="/reports">{t("reports.backToList")}</Link>
+                {report ? ` · ${t(STATUS_KEY[report.status])}` : null}
+                {duration ? ` · ${t("reports.took", { duration })}` : null}
+              </p>
+            </div>
+            {spinndoktorReady ? (
+              <div className="spinndoctor-view-toggle" role="tablist" aria-label={t("spinndoctor.title")}>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={viewMode === "report"}
+                  className={viewMode === "report" ? "active" : undefined}
+                  onClick={() => setViewMode("report")}
+                >
+                  {t("spinndoctor.viewReport")}
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={viewMode === "spinndoctor"}
+                  className={viewMode === "spinndoctor" ? "active" : undefined}
+                  onClick={() => setViewMode("spinndoctor")}
+                >
+                  {t("spinndoctor.viewSpinndoktor")}
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
 
         {report ? (
@@ -188,7 +237,7 @@ export function ReportPage() {
           </Card>
         ) : null}
 
-        {report?.status === "succeeded" && html ? (
+        {viewMode === "report" && report?.status === "succeeded" && html ? (
           <div className="mb-4 flex flex-wrap gap-3 text-sm">
             <button
               type="button"
@@ -200,7 +249,7 @@ export function ReportPage() {
           </div>
         ) : null}
 
-        {report?.status === "succeeded" && id ? (
+        {viewMode === "report" && report?.status === "succeeded" && id ? (
           <ReportVerdictCalibrationPanel reportId={id} />
         ) : null}
 
@@ -218,7 +267,7 @@ export function ReportPage() {
           </Card>
         ) : null}
 
-        {html ? (
+        {viewMode === "report" && html ? (
           <iframe
             title={report?.title || t("reports.iframeTitle")}
             srcDoc={html}
@@ -226,6 +275,50 @@ export function ReportPage() {
             style={{ minHeight: "80vh" }}
             sandbox="allow-same-origin allow-scripts allow-popups"
           />
+        ) : null}
+
+        {viewMode === "spinndoctor" && id && html ? (
+          <div className={`spinndoctor-layout${canvasOpen ? " spinndoctor-layout--canvas-open" : ""}`}>
+            <div className="spinndoctor-layout-chat">
+              {spinndoktorReady ? (
+                <>
+                  <div className="spinndoctor-layout-toolbar">
+                    <button
+                      type="button"
+                      className="spinndoctor-canvas-toggle"
+                      aria-expanded={canvasOpen}
+                      aria-controls="spinndoctor-canvas"
+                      onClick={() => setCanvasOpen((open) => !open)}
+                    >
+                      {canvasOpen ? t("spinndoctor.hideCanvas") : t("spinndoctor.toggleCanvas")}
+                    </button>
+                  </div>
+                  <SpinndoktorPanel
+                    reportId={id}
+                    locale={reportLocale}
+                    onSectionRef={handleSectionRef}
+                  />
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">{t("spinndoctor.unavailable")}</p>
+              )}
+            </div>
+            {canvasOpen && html ? (
+              <div className="spinndoctor-layout-canvas" id="spinndoctor-canvas">
+                <ReportCanvas
+                  ref={canvasRef}
+                  html={html}
+                  title={report?.title || t("reports.iframeTitle")}
+                />
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {viewMode === "spinndoctor" && spinndoktorReady && id ? (
+          <div className="mt-4">
+            <ReportVerdictCalibrationPanel reportId={id} />
+          </div>
         ) : null}
       </div>
     </AdminShell>

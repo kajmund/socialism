@@ -9,7 +9,13 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field, ValidationError
 
 from app.realtime.hub import job_hub, report_hub
-from app.schemas.domain import ChatMode, HelpChatResponse, HelpViewContext, PersonaChatResponse
+from app.schemas.domain import (
+    ChatMode,
+    HelpChatResponse,
+    HelpViewContext,
+    PersonaChatResponse,
+    SpindoctorChatResponse,
+)
 from app.services import jobs as jobs_service
 from app.services.help_chat import ChatTurnError as HelpChatTurnError
 from app.services.help_chat import stream_help_chat_turn
@@ -17,6 +23,10 @@ from app.services.persona_chat import (
     ChatTurnError,
     stream_library_chat_turn,
     stream_run_interview_turn,
+)
+from app.services.spindoctor_chat import (
+    SpindoctorChatTurnError,
+    stream_spindoctor_chat_turn,
 )
 from app.services.report_realtime import list_reports, serialize_report
 
@@ -48,6 +58,14 @@ class HelpHello(BaseModel):
     session_id: str = Field(min_length=1, max_length=64)
     locale: Literal["sv", "en"] = "sv"
     view: HelpViewContext | None = None
+
+
+class SpindoctorHello(BaseModel):
+    type: Literal["hello"] = "hello"
+    scope: Literal["spinndoctor"]
+    session_id: str = Field(min_length=1, max_length=64)
+    report_id: str = Field(min_length=1, max_length=64)
+    locale: Literal["sv", "en"] = "sv"
 
 
 class ChatSend(BaseModel):
@@ -114,7 +132,7 @@ async def reports_websocket(websocket: WebSocket) -> None:
 @router.websocket("/ws/chat")
 async def chat_websocket(websocket: WebSocket) -> None:
     await websocket.accept()
-    hello: LibraryHello | RunInterviewHello | HelpHello | None = None
+    hello: LibraryHello | RunInterviewHello | HelpHello | SpindoctorHello | None = None
     try:
         raw = await websocket.receive_json()
         if not isinstance(raw, dict):
@@ -129,10 +147,12 @@ async def chat_websocket(websocket: WebSocket) -> None:
                 hello = RunInterviewHello.model_validate(raw)
             elif scope == "help":
                 hello = HelpHello.model_validate(raw)
+            elif scope == "spinndoctor":
+                hello = SpindoctorHello.model_validate(raw)
             else:
                 await _send_error(
                     websocket,
-                    "hello.scope must be library, run_interview, or help",
+                    "hello.scope must be library, run_interview, help, or spinndoctor",
                 )
                 await websocket.close(code=1003)
                 return
@@ -192,6 +212,35 @@ async def chat_websocket(websocket: WebSocket) -> None:
                         )
                         continue
 
+                    if isinstance(hello, SpindoctorHello):
+                        done_spin: SpindoctorChatResponse | None = None
+                        stream = stream_spindoctor_chat_turn(
+                            session,
+                            report_id=hello.report_id,
+                            locale=hello.locale,
+                            message=send.message,
+                        )
+                        async for item in stream:
+                            if isinstance(item, SpindoctorChatResponse):
+                                done_spin = item
+                            else:
+                                await websocket.send_json({"type": "token", "text": item})
+                        if done_spin is None:
+                            await _send_error(
+                                websocket, "Spinndoktor turn produced no reply"
+                            )
+                            continue
+                        await websocket.send_json(
+                            {
+                                "type": "done",
+                                "reply": done_spin.reply,
+                                "messages": [
+                                    m.model_dump(mode="json") for m in done_spin.messages
+                                ],
+                            }
+                        )
+                        continue
+
                     done: PersonaChatResponse | None = None
                     if isinstance(hello, LibraryHello):
                         stream = stream_library_chat_turn(
@@ -227,9 +276,11 @@ async def chat_websocket(websocket: WebSocket) -> None:
                             ],
                         }
                     )
-            except ChatTurnError as exc:
-                await _send_error(websocket, exc.detail)
             except HelpChatTurnError as exc:
+                await _send_error(websocket, exc.detail)
+            except SpindoctorChatTurnError as exc:
+                await _send_error(websocket, exc.detail)
+            except ChatTurnError as exc:
                 await _send_error(websocket, exc.detail)
             except Exception:
                 logger.exception("Chat WebSocket turn failed")

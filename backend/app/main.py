@@ -20,6 +20,7 @@ from app.api import (
     populations,
     reports,
     runs,
+    spindoctor,
     ws,
 )
 from app.config import settings
@@ -72,6 +73,7 @@ def create_app() -> FastAPI:
     app.include_router(embeddings.router)
     app.include_router(feedback.router)
     app.include_router(help.router)
+    app.include_router(spindoctor.router)
     app.include_router(ws.router)
     return app
 
