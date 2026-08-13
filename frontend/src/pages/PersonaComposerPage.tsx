@@ -176,50 +176,6 @@ function LayerTable({ rows, pol, fieldOptions, t, onChange }: LayerTableProps) {
   )
 }
 
-function Drawer({
-  persona,
-  t,
-}: {
-  persona: EditablePersona
-  t: Translate
-}) {
-  const [open, setOpen] = useState(true)
-  return (
-    <div className={"drawer" + (open ? "" : " collapsed")}>
-      <div className="drawer-head" onClick={() => setOpen(!open)}>
-        <div className="t">{t("personas.composer.promptLive")}</div>
-        <div className="n">
-          {t("personas.composer.tokenCount", {
-            count: 300 + persona.name.length * 3,
-          })}
-        </div>
-      </div>
-      <div className="drawer-body">
-        {t("personas.composer.promptIntro", {
-          name: persona.name,
-          age: persona.age,
-          occupation: persona.yrke,
-          district: persona.ort,
-        })}
-        <br />
-        <b>{t("personas.composer.lockedLabel")}</b>{" "}
-        {t("personas.composer.promptPolitics", {
-          leaning: persona.lutning,
-          party: persona.parti,
-        })}
-        <br />
-        {t("personas.composer.promptTone", { tone: persona.ton })}
-        {persona.anekdot && persona.anekdot !== "—" ? (
-          <>
-            <br />
-            {t("personas.composer.promptAnecdote", { anekdot: persona.anekdot })}
-          </>
-        ) : null}
-      </div>
-    </div>
-  )
-}
-
 type EditorProps = {
   persona: EditablePersona
   personaId: string | null
@@ -497,6 +453,7 @@ function Editor({
 
   return (
     <>
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="topbar">
         <div className="persona-id">
           <div className="avatar">{persona.initials}</div>
@@ -763,7 +720,6 @@ function Editor({
           />
         </div>
       </div>
-      {mode === "work" && <Drawer persona={persona} t={t} />}
 
       <div className={"present" + (mode === "present" ? " show" : "")}>
         <div className="p-portrait-col">
@@ -892,6 +848,7 @@ function Editor({
           />
         </div>
       </div>
+    </div>
 
       <ConfirmModal
         open={confirmClearInterview}
@@ -1137,7 +1094,7 @@ export function PersonaComposerPage() {
   if (loading) {
     return (
       <AdminShell>
-        <div className="shell" style={{ height: "calc(100vh - 57px)" }}>
+        <div className="shell">
           <div className="mainarea">
             <div className="no-match">{t("personas.composer.loadingPersona")}</div>
           </div>
@@ -1148,7 +1105,7 @@ export function PersonaComposerPage() {
 
   return (
     <AdminShell>
-      <div className="shell" style={{ height: "calc(100vh - 57px)" }}>
+      <div className="shell">
         <div className="mainarea">
           {screen === "create" && createStep === "choose" && (
             <div className="create-wrap">

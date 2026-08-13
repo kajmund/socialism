@@ -64,7 +64,7 @@ export function MessengerChat({
   useEffect(() => {
     const el = msgsRef.current
     if (el) el.scrollTop = el.scrollHeight
-  }, [messages, optimisticUser, typing, streamText])
+  }, [messages, optimisticUser, typing, streamText, suggestions])
 
   useEffect(() => {
     if (wasBusyRef.current && !busy && !disabled) {
@@ -106,26 +106,26 @@ export function MessengerChat({
             </div>
           </div>
         ) : null}
+        {suggestions.length > 0 && !busy ? (
+          <div
+            className="chat-suggestions"
+            role="group"
+            aria-label={t("chat.suggestionsAria")}
+          >
+            {suggestions.map((question) => (
+              <button
+                key={question}
+                type="button"
+                className="chat-suggestion"
+                disabled={disabled || !ready}
+                onClick={() => onSuggestion?.(question)}
+              >
+                {question}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
-      {suggestions.length > 0 && !busy ? (
-        <div
-          className="chat-suggestions"
-          role="group"
-          aria-label={t("chat.suggestionsAria")}
-        >
-          {suggestions.map((question) => (
-            <button
-              key={question}
-              type="button"
-              className="chat-suggestion"
-              disabled={disabled || !ready}
-              onClick={() => onSuggestion?.(question)}
-            >
-              {question}
-            </button>
-          ))}
-        </div>
-      ) : null}
       <div className="chat-input">
         <input
           ref={inputRef}
