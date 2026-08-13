@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
-from random import Random
 import secrets
+from random import Random
 
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -11,7 +11,6 @@ from app.database.models import Persona, PersonaMessage, Population, PopulationM
 from app.database.session import get_session
 from app.llm.chat import reply_as_persona
 from app.llm.persona_gen import llm_personas_from_description
-from app.services.prompt_store import require_active_prompts
 from app.schemas.domain import (
     ChatMode,
     DistGroup,
@@ -28,6 +27,7 @@ from app.schemas.domain import (
     PersonaMessageOut,
     PersonaUpdate,
     PopulationRecipe,
+    SuggestedQuestionsResponse,
 )
 from app.serializers import (
     blank_profile,
@@ -40,7 +40,13 @@ from app.serializers import (
     utcnow,
 )
 from app.services.district_context import area_block_for_name
+from app.services.persona_chat import (
+    ChatTurnError,
+    library_follow_up_questions,
+    safe_library_follow_ups,
+)
 from app.services.population_generate import stub_persona
+from app.services.prompt_store import require_active_prompts
 
 router = APIRouter(prefix="/personas", tags=["personas"])
 
@@ -280,6 +286,27 @@ def _library_chat_filter(persona_id: str, mode: ChatMode):
     )
 
 
+@router.get(
+    "/{persona_id}/suggested-questions",
+    response_model=SuggestedQuestionsResponse,
+)
+async def get_suggested_questions(
+    persona_id: str,
+    mode: ChatMode = Query(default="interview"),
+    session: AsyncSession = Depends(get_session),
+) -> SuggestedQuestionsResponse:
+    await _get_persona(session, persona_id)
+    try:
+        questions = await library_follow_up_questions(
+            session,
+            persona_id=persona_id,
+            mode=mode,
+        )
+    except ChatTurnError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+    return SuggestedQuestionsResponse(questions=questions)
+
+
 @router.get("/{persona_id}/messages", response_model=list[PersonaMessageOut])
 async def list_messages(
     persona_id: str,
@@ -348,7 +375,13 @@ async def chat_with_persona(
         .order_by(PersonaMessage.id.asc())
     )
     messages = [_serialize_message(row) for row in all_rows.scalars().all()]
-    return PersonaChatResponse(reply=reply, messages=messages)
+    suggestions = await safe_library_follow_ups(
+        profile,
+        body.mode,
+        [(row.role, row.content) for row in messages],
+        prompts=prompts,
+    )
+    return PersonaChatResponse(reply=reply, messages=messages, suggestions=suggestions)
 
 
 @router.delete("/{persona_id}/messages", status_code=204)
@@ -514,7 +547,13 @@ async def resend_message(
         .order_by(PersonaMessage.id.asc())
     )
     messages = [_serialize_message(row) for row in all_rows.scalars().all()]
-    return PersonaChatResponse(reply=reply, messages=messages)
+    suggestions = await safe_library_follow_ups(
+        profile,
+        mode,
+        [(row.role, row.content) for row in messages],
+        prompts=prompts,
+    )
+    return PersonaChatResponse(reply=reply, messages=messages, suggestions=suggestions)
 
 
 @router.delete("/{persona_id}", status_code=204)

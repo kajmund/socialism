@@ -32,6 +32,7 @@ export const sv = {
     sending: "Skickar…",
     send: "Skicka",
     notConnected: "Chatten är inte ansluten",
+    suggestionsAria: "Föreslagna följdfrågor",
   },
   help: {
     openFab: "Öppna hjälp",
@@ -909,14 +910,6 @@ export const sv = {
       deleteMessage: "Ta bort meddelande",
       lockedRegenerate: "Låst vid regenerering",
       unlockedRegenerate: "Olåst — kan ändras vid regenerering",
-      promptLive: "▾ system_prompt.txt — live",
-      tokenCount: "~{count} tok",
-      promptIntro: "Du är {name}, {age}, {occupation}, boende i {district}...",
-      lockedLabel: "[LÅST]",
-      promptPolitics:
-        "Politisk lutning: {leaning}. Partisympati: {party}...",
-      promptTone: "Ton: {tone}.",
-      promptAnecdote: "Anekdot: {anekdot}",
       fetchChatError: "Kunde inte hämta chatt",
       sendError: "Kunde inte skicka",
       regenerateError: "Kunde inte regenerera",
