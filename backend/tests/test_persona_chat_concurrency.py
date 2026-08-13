@@ -12,7 +12,8 @@ from sqlalchemy.pool import StaticPool
 
 from app.database.base import Base
 from app.database.models import Persona, PersonaMessage
-from app.llm import set_text_streamer
+from app.llm import set_structured_completer, set_text_streamer
+from app.schemas.domain import FollowUpQuestions
 from app.services.persona_chat import stream_library_chat_turn
 from app.services.prompt_store import ensure_default_configurations
 
@@ -60,7 +61,13 @@ async def test_concurrent_library_chat_turns_are_serialized(chat_sessions):
             await release.wait()
         yield f"reply-{current}"
 
+    async def _mock_structured(_messages: list[dict[str, str]], response_model: type):
+        if response_model is FollowUpQuestions:
+            return FollowUpQuestions(questions=["A?", "B?", "C?"])
+        raise RuntimeError(f"Unexpected structured model {response_model}")
+
     set_text_streamer(_slow_stream)
+    set_structured_completer(_mock_structured)
     try:
 
         async def _turn(message: str) -> None:
@@ -94,6 +101,7 @@ async def test_concurrent_library_chat_turns_are_serialized(chat_sessions):
         assert messages[3].content == "reply-2"
     finally:
         set_text_streamer(None)
+        set_structured_completer(None)
 
 
 @pytest.mark.asyncio

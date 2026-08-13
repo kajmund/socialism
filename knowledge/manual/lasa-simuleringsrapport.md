@@ -11,6 +11,12 @@ När en rapport har genererats öppnas den som en **HTML-sida** i appen. Alla ra
 
 Rapporten börjar med **Slutsats**: vilken version som rekommenderas (vid A/B), om budskapet bör publiceras eller justeras, simulerat stöd (0–100), mottagande och korta styrkor/risker. Därefter följer statistik, diagram, dag-för-dag, målgrupper och vid behov A/B-jämförelse. **Målgruppssammanfattning** (regelbaserade stycken om t.ex. livssituation eller kön) styrs av egna trösklar i konfigurationen — inte samma som slutsats eller rekommendation. Förklaringar till stjärnmarkörer (`*`, `**`, …) står direkt under respektive avsnitt — du behöver inte bläddra till slutet. Öppna **Tekniskt stycke** längst ner för SSR-fördelningar, **sampling** (hur reaktionstexter valts för ton/stil), tröskelvärden och vilken konfiguration som gällde. Trösklarna kommer från aktiv konfiguration och sparas i `report.ssr.json` per rapport.
 
+## Så läser du siffrorna
+
+- **Engagemang i debatten** räknar bara simulerade medborgare. Institutionella konton (partikonto, nyhetskanal) står utanför och redovisas separat i underrubriken, så samma körning kan visa fler agenter i simuleringsresultatet än medborgare i rapporten. Ringens tre delar summerar alltid till antalet medborgare i rubriken.
+- **Andel reaktioner per budskapsstil** visar hur de klassade reaktionerna fördelar sig över stilar — det är alltså inte likes per stil. `0 %` betyder att ingen reaktion liknade stilen i underlaget, inte att stilen fick dåligt mottagande.
+- Vid flera körningar visas genomsnitt per körning. Med tre körningar är siffrorna en tendens, inte statistik.
+
 ## Steg
 
 1. Öppna rapporten via **Rapporter** i huvudmenyn, länken i **Bakgrundsjobb**, eller notifieringen efter beställning.

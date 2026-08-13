@@ -23,6 +23,17 @@ def test_chat_prompt_includes_anekdot():
     prompt = build_chat_system_prompt(_profile(), "interview", prompts=_PROMPTS)
     assert "Vardagsdetalj" in prompt
     assert "kaffe på pressbyrån" in prompt
+    assert "Du är Anna" in prompt
+    assert "inte du" in prompt
+    assert "Profil för Anna" in prompt
+
+
+def test_in_character_prompt_locks_everyday_partner():
+    prompt = build_chat_system_prompt(_profile(), "character", prompts=_PROMPTS)
+    assert "IN-CHARACTER" in prompt
+    assert "Du är Anna" in prompt
+    assert "inte en intervjuare" in prompt
+    assert "vardag" in prompt
 
 
 def test_run_interview_prompt_blocks_future_context():
