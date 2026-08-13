@@ -3,6 +3,7 @@
 ## 2026-08-13
 
 * **Personas**: I kompositörens chatt och intervju föreslår assistenten tre knappar efter varje svar (följdfrågor i intervju, vardagsrepliker i in-character) och som start när tråden är tom.
+* **Personas**: Den svarta live-promptlisten under chatten i arbetsläge är borttagen så profil och chatt får mer plats.
 
 ## 2026-08-11
 
