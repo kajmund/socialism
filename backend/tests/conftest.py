@@ -16,6 +16,7 @@ from app.database.session import get_session
 from app.llm import set_structured_completer, set_text_completer, set_text_streamer
 from app.llm.vision import set_vision_completer
 from app.main import create_app
+from app.schemas.domain import FollowUpQuestions
 from app.services import jobs as jobs_service
 from app.services.image_cache import clear_image_cache
 from app.services.ssr import clear_embedding_cache, set_embedder
@@ -51,7 +52,19 @@ async def client():
     async def _mock_text(_messages: list[dict[str, str]]) -> str:
         return "Mockad personasvar för tester."
 
+    async def _mock_structured(_messages: list[dict[str, str]], response_model: type):
+        if response_model is FollowUpQuestions:
+            return FollowUpQuestions(
+                questions=[
+                    "Hur påverkar det din vardag?",
+                    "Vad tänker du om partierna i frågan?",
+                    "Har du ändrat åsikt med åren?",
+                ]
+            )
+        raise RuntimeError(f"Unexpected structured model {response_model}")
+
     set_text_completer(_mock_text)
+    set_structured_completer(_mock_structured)
 
     engine = create_async_engine(
         "sqlite+aiosqlite://",

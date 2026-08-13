@@ -25,6 +25,8 @@ type MessengerChatProps = {
   empty?: ReactNode
   /** Optional actions next to each bubble (delete/resend). */
   renderActions?: (message: MessengerChatMessage) => ReactNode
+  suggestions?: string[]
+  onSuggestion?: (question: string) => void
   className?: string
   messagesClassName?: string
 }
@@ -46,6 +48,8 @@ export function MessengerChat({
   placeholder,
   empty = null,
   renderActions,
+  suggestions = [],
+  onSuggestion,
   className,
   messagesClassName,
 }: MessengerChatProps) {
@@ -103,6 +107,25 @@ export function MessengerChat({
           </div>
         ) : null}
       </div>
+      {suggestions.length > 0 && !busy ? (
+        <div
+          className="chat-suggestions"
+          role="group"
+          aria-label={t("chat.suggestionsAria")}
+        >
+          {suggestions.map((question) => (
+            <button
+              key={question}
+              type="button"
+              className="chat-suggestion"
+              disabled={disabled || !ready}
+              onClick={() => onSuggestion?.(question)}
+            >
+              {question}
+            </button>
+          ))}
+        </div>
+      ) : null}
       <div className="chat-input">
         <input
           ref={inputRef}

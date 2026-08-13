@@ -686,6 +686,11 @@ table.lt.pol .lock.on{background:var(--db-gold-700);border-color:var(--db-gold-7
   30%{transform:translateY(-4px);opacity:1}
 }
 .chat-input{padding:12px 20px;border-top:1px solid var(--border-hairline);display:flex;gap:8px;background:var(--db-ink-0)}
+.chat-suggestions{display:flex;flex-wrap:wrap;gap:8px;padding:10px 20px 2px;background:var(--db-ink-0);border-top:1px solid var(--border-hairline)}
+.chat-suggestion{max-width:100%;text-align:left;font:inherit;font-size:12.5px;line-height:1.35;padding:8px 14px;border:1px solid var(--border-hairline);border-radius:999px;background:transparent;color:var(--text-body);cursor:pointer}
+.chat-suggestion:hover:not(:disabled){border-color:var(--db-gold-700);color:var(--db-gold-700);background:color-mix(in srgb,var(--db-gold-700) 8%,transparent)}
+.chat-suggestion:disabled{opacity:.45;cursor:not-allowed}
+.chat-suggestions + .chat-input{border-top:none;padding-top:8px}
 .chat-input input{flex:1;padding:10px 14px;border:1.5px solid var(--border-hairline);border-radius:22px;background:var(--db-ink-0);font:inherit;font-size:13px}
 .chat-input input:focus{outline:none;border-color:var(--db-ink-400)}
 .chat-stream-cursor::after{content:"▋";margin-left:1px;opacity:.55;animation:chat-cursor-blink 1s step-end infinite}

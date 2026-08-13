@@ -4,9 +4,12 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 
-from app.llm import complete_text, stream_text
-from app.schemas.domain import ChatMode, EditablePersona
+from app.llm import complete_structured, complete_text, stream_text
+from app.schemas.domain import ChatMode, EditablePersona, FollowUpQuestions
 from app.services.prompt_catalog import render_prompt
+
+MAX_FOLLOW_UPS = 3
+MAX_QUESTION_CHARS = 140
 
 
 def _persona_block(profile: EditablePersona) -> str:
@@ -45,12 +48,17 @@ def build_chat_system_prompt(
     persona_block = _persona_block(profile)
     if mode == "interview":
         mode_rules = render_prompt(prompts, "chat.mode.interview")
+        role_lock = render_prompt(prompts, "chat.role_lock", name=profile.name)
     else:
         mode_rules = render_prompt(prompts, "chat.mode.in_character")
+        role_lock = render_prompt(
+            prompts, "chat.role_lock.in_character", name=profile.name
+        )
     parts = [
         mode_rules,
+        role_lock,
         "",
-        f"Din persona:\n{persona_block}",
+        f"Profil för {profile.name} — du är den här personen:\n{persona_block}",
     ]
     if local:
         parts.extend(["", f"Lokal kontext:\n{local}"])
@@ -170,3 +178,85 @@ async def stream_reply_as_persona(
     )
     async for chunk in stream_text(messages):
         yield chunk
+
+
+def normalize_follow_up_questions(raw: list[str]) -> list[str]:
+    """Keep up to three unique, short analyst questions."""
+    out: list[str] = []
+    seen: set[str] = set()
+    for item in raw:
+        text = " ".join(item.split())
+        if not text:
+            continue
+        if len(text) > MAX_QUESTION_CHARS:
+            clipped = text[:MAX_QUESTION_CHARS].rsplit(" ", 1)[0]
+            text = clipped or text[:MAX_QUESTION_CHARS]
+        key = text.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(text)
+        if len(out) >= MAX_FOLLOW_UPS:
+            break
+    return out
+
+
+def format_follow_up_transcript(
+    history: list[tuple[str, str]],
+    *,
+    persona_name: str,
+    user_label: str = "Intervjuare",
+) -> str:
+    if not history:
+        return "(Inget samtal ännu.)"
+    speaker = persona_name.strip() or "Persona"
+    lines: list[str] = []
+    for role, content in history:
+        label = speaker if role == "assistant" else user_label
+        lines.append(f"{label}: {content}")
+    return "\n".join(lines)
+
+
+def _follow_up_prompt_keys(mode: ChatMode) -> tuple[str, str, str]:
+    if mode == "interview":
+        return (
+            "chat.follow_up.questions",
+            "chat.follow_up.voice",
+            "Intervjuare",
+        )
+    return (
+        "chat.follow_up.questions.in_character",
+        "chat.follow_up.voice.in_character",
+        "Samtalspartner",
+    )
+
+
+async def suggest_follow_up_questions(
+    profile: EditablePersona,
+    mode: ChatMode,
+    history: list[tuple[str, str]],
+    *,
+    prompts: dict[str, str],
+) -> list[str]:
+    """LLM-proposed next user messages (Grok-style chips)."""
+    chat_mode = "intervju" if mode == "interview" else "in-character"
+    name = profile.name.strip() or "personan"
+    questions_key, voice_key, user_label = _follow_up_prompt_keys(mode)
+    system = render_prompt(
+        prompts,
+        questions_key,
+        chat_mode=chat_mode,
+        name=name,
+        persona_block=_persona_block(profile),
+        transcript=format_follow_up_transcript(
+            history,
+            persona_name=name,
+            user_label=user_label,
+        ),
+    )
+    voice = render_prompt(prompts, voice_key, name=name)
+    result = await complete_structured(
+        [{"role": "system", "content": f"{system}\n\n{voice}"}],
+        FollowUpQuestions,
+    )
+    return normalize_follow_up_questions(result.questions)

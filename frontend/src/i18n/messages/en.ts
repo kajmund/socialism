@@ -34,6 +34,7 @@ export const en: LocalizedTree<SvMessages> = {
     sending: "Sending…",
     send: "Send",
     notConnected: "Chat is not connected",
+    suggestionsAria: "Suggested follow-up questions",
   },
   help: {
     openFab: "Open help",

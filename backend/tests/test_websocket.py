@@ -18,8 +18,9 @@ from starlette.testclient import TestClient
 from app.config import settings
 from app.database.base import Base
 from app.database.session import get_session
-from app.llm import set_text_completer, set_text_streamer
+from app.llm import set_structured_completer, set_text_completer, set_text_streamer
 from app.main import create_app
+from app.schemas.domain import FollowUpQuestions
 from app.services import jobs as jobs_service
 from app.services.prompt_store import ensure_default_configurations
 
@@ -72,8 +73,16 @@ def ws_client():
         for piece in ("Hej", " från", " stream"):
             yield piece
 
+    async def _mock_structured(_messages: list[dict[str, str]], response_model: type):
+        if response_model is FollowUpQuestions:
+            return FollowUpQuestions(
+                questions=["Vad händer sen?", "Kan du ge ett exempel?", "Hur känner du inför det?"]
+            )
+        raise RuntimeError(f"Unexpected structured model {response_model}")
+
     set_text_completer(_mock_text)
     set_text_streamer(_mock_stream)
+    set_structured_completer(_mock_structured)
 
     engine = create_async_engine(
         "sqlite+aiosqlite://",
@@ -112,6 +121,7 @@ def ws_client():
     jobs_service.set_schedule_hook(None)
     set_text_completer(None)
     set_text_streamer(None)
+    set_structured_completer(None)
     loop.run_until_complete(engine.dispose())
     loop.close()
 
@@ -268,3 +278,11 @@ def test_chat_websocket_streams_tokens(ws_client):
         assert done is not None
         assert done["reply"] == "Hej från stream"
         assert len(done["messages"]) >= 2
+
+        suggestions = ws.receive_json()
+        assert suggestions["type"] == "suggestions"
+        assert suggestions["questions"] == [
+            "Vad händer sen?",
+            "Kan du ge ett exempel?",
+            "Hur känner du inför det?",
+        ]
