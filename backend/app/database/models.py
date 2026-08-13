@@ -243,6 +243,8 @@ class Configuration(Base):
     ssr_temperature: Mapped[float] = mapped_column(Float, nullable=False, default=0.1)
     # Per-locale tone/style anchor set ids: {"sv": {"tone": 1, "style": 2}, "en": {...}}
     anchor_sets: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    # Snabbrapport verdict / diff / recommendation thresholds (see report/thresholds.py).
+    report_thresholds: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -451,6 +453,31 @@ class Report(Base):
         nullable=False,
     )
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+
+class ReportVerdictCalibration(Base):
+    """Operator judgment: does the report recommendation match the whole report?"""
+
+    __tablename__ = "report_verdict_calibrations"
+
+    report_id: Mapped[str] = mapped_column(
+        String(64),
+        ForeignKey("reports.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    matches: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

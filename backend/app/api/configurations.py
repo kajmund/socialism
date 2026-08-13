@@ -44,6 +44,12 @@ from app.services.anchor_store import (
     validate_configuration_anchor_refs,
 )
 from app.services.prompt_store import ensure_default_configurations, set_active_configuration
+from app.services.report.thresholds import (
+    ReportThresholds,
+    default_report_thresholds,
+    normalize_report_thresholds,
+    report_thresholds_to_dict,
+)
 
 router = APIRouter(prefix="/configurations", tags=["configurations"])
 
@@ -63,6 +69,7 @@ def _serialize(row: Configuration) -> ConfigurationOut:
         language=language,
         prompts=prompts,
         ssr_temperature=float(row.ssr_temperature),
+        report_thresholds=normalize_report_thresholds(dict(row.report_thresholds or {})),
         anchor_sets=ConfigurationAnchorSets.model_validate(
             configuration_anchor_sets_out(row.anchor_sets)
         ),
@@ -185,6 +192,11 @@ async def create_configuration(
         language=body.language,
         prompts=prompts,
         ssr_temperature=body.ssr_temperature,
+        report_thresholds=report_thresholds_to_dict(
+            body.report_thresholds
+            if body.report_thresholds is not None
+            else default_report_thresholds()
+        ),
         anchor_sets=anchor_refs,
         is_active=body.is_active,
         created_at=now,
@@ -272,6 +284,10 @@ async def update_configuration(
         )
     if "ssr_temperature" in data and data["ssr_temperature"] is not None:
         row.ssr_temperature = float(data["ssr_temperature"])
+    if "report_thresholds" in data and data["report_thresholds"] is not None:
+        rt = data["report_thresholds"]
+        parsed = rt if isinstance(rt, ReportThresholds) else ReportThresholds.model_validate(rt)
+        row.report_thresholds = report_thresholds_to_dict(parsed)
     if "anchor_sets" in data and data["anchor_sets"] is not None:
         refs = data["anchor_sets"]
         if hasattr(refs, "model_dump"):

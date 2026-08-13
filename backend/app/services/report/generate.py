@@ -17,7 +17,9 @@ from app.services.report.classify import BundleClassification, classify_bundles
 from app.services.report.locale import ReportLocale, normalize_locale
 from app.services.report.metrics import compute_report_metrics
 from app.services.report.quick import build_quick_slots, render_quick_html
+from app.services.report.recommendation import build_recommendation_ssr_block
 from app.services.report.sampling import SAMPLING_METHOD, SAMPLING_VERSION
+from app.services.report.thresholds import ReportThresholds, default_report_thresholds, report_thresholds_to_dict
 from app.services.ssr import ANCHOR_SET_VERSION
 
 logger = logging.getLogger(__name__)
@@ -29,11 +31,13 @@ def _ssr_payload(
     bundles: list[RunBundle],
     locale: ReportLocale,
     ssr_temperature: float,
+    report_thresholds: ReportThresholds,
     classify_seconds: float,
     embed_seconds: float,
     total_seconds: float,
     resolved_anchors: ResolvedReportAnchors | None = None,
     anchor_validation: dict[str, Any] | None = None,
+    recommendation: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     tone_meta = {}
     style_meta = {}
@@ -56,6 +60,7 @@ def _ssr_payload(
         **tone_meta,
         **style_meta,
         "ssr_temperature": ssr_temperature,
+        "report_thresholds": report_thresholds_to_dict(report_thresholds),
         "anchor_validation": anchor_validation or {},
         "sampling_method": SAMPLING_METHOD,
         "sampling_version": SAMPLING_VERSION,
@@ -65,6 +70,7 @@ def _ssr_payload(
             "embed_seconds": round(embed_seconds, 3),
             "total_seconds": round(total_seconds, 3),
         },
+        "recommendation": recommendation or {},
         "bundles": [
             {
                 "label": b.label,
@@ -98,11 +104,13 @@ async def generate_report_html(
     title: str = "",
     locale: str = "sv",
     ssr_temperature: float = DEFAULT_SSR_TEMPERATURE,
+    report_thresholds: ReportThresholds | None = None,
     resolved_anchors: ResolvedReportAnchors | None = None,
     anchor_validation: dict[str, Any] | None = None,
 ) -> tuple[Path, Path, dict[str, str], dict[str, Any]]:
     """Write report.html + slots.json (+ ssr.json). Returns paths, slots, timing meta."""
     loc = normalize_locale(locale)
+    thresholds = report_thresholds if report_thresholds is not None else default_report_thresholds()
     out_dir.mkdir(parents=True, exist_ok=True)
     t0 = time.perf_counter()
 
@@ -125,6 +133,13 @@ async def generate_report_html(
     )
 
     metrics = compute_report_metrics(bundles, classifications)
+    recommendation_block = build_recommendation_ssr_block(
+        metrics,
+        bundles,
+        classifications,
+        locale=loc,
+        thresholds=thresholds,
+    )
     total_s = time.perf_counter() - t0
     timing = {
         "classify_llm_seconds": round(classify_llm_s, 3),
@@ -140,6 +155,7 @@ async def generate_report_html(
         locale=loc,
         timing=timing,
         anchor_validation=anchor_validation,
+        thresholds=thresholds,
     )
     html = render_quick_html(slots, locale=loc)
     timing["total_seconds"] = round(time.perf_counter() - t0, 3)
@@ -152,11 +168,13 @@ async def generate_report_html(
         bundles=bundles,
         locale=loc,
         ssr_temperature=ssr_temperature,
+        report_thresholds=thresholds,
         classify_seconds=classify_llm_s,
         embed_seconds=embed_s,
         total_seconds=float(timing["total_seconds"]),
         resolved_anchors=resolved_anchors,
         anchor_validation=anchor_validation,
+        recommendation=recommendation_block,
     )
     html_path.write_text(html, encoding="utf-8")
     slots_path.write_text(

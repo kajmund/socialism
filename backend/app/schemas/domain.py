@@ -4,6 +4,8 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.services.report.thresholds import ReportThresholds
+
 PersonaOrigin = Literal["manuell", "beskrivning", "demografi", "population"]
 
 
@@ -319,9 +321,25 @@ class PersonaMessageOut(BaseModel):
     through_tick_index: int | None = None
 
 
+class FollowUpQuestions(BaseModel):
+    questions: list[str] = Field(min_length=1, max_length=4)
+
+    @field_validator("questions", mode="before")
+    @classmethod
+    def _cap_questions(cls, value: object) -> object:
+        if isinstance(value, list):
+            return value[:4]
+        return value
+
+
+class SuggestedQuestionsResponse(BaseModel):
+    questions: list[str]
+
+
 class PersonaChatResponse(BaseModel):
     reply: str
     messages: list[PersonaMessageOut]
+    suggestions: list[str] = Field(default_factory=list)
 
 
 class PersonaMessageDeleteResponse(BaseModel):
@@ -510,6 +528,7 @@ class ConfigurationOut(BaseModel):
     language: ConfigurationLanguage
     prompts: dict[str, str]
     ssr_temperature: float
+    report_thresholds: ReportThresholds
     anchor_sets: ConfigurationAnchorSets
     is_active: bool
     created_at: str
@@ -521,6 +540,7 @@ class ConfigurationCreate(BaseModel):
     language: ConfigurationLanguage
     prompts: dict[str, str] = Field(default_factory=dict)
     ssr_temperature: float = Field(default=DEFAULT_SSR_TEMPERATURE, gt=0, le=10)
+    report_thresholds: ReportThresholds | None = None
     anchor_sets: ConfigurationAnchorSets | None = None
     is_active: bool = False
 
@@ -535,6 +555,7 @@ class ConfigurationUpdate(BaseModel):
     language: ConfigurationLanguage | None = None
     prompts: dict[str, str] | None = None
     ssr_temperature: float | None = Field(default=None, gt=0, le=10)
+    report_thresholds: ReportThresholds | None = None
     anchor_sets: ConfigurationAnchorSets | None = None
     is_active: bool | None = None
 
@@ -984,6 +1005,26 @@ class ReportBulkDelete(BaseModel):
 
 class ReportBulkDeleteResult(BaseModel):
     deleted_ids: list[str]
+
+
+class RecommendationSnapshot(BaseModel):
+    score: int
+    action: str
+    recommended_arm: str | None = None
+    verdict_key: str
+
+
+class VerdictCalibrationOut(BaseModel):
+    report_id: str
+    matches: bool | None = None
+    note: str | None = None
+    recommendation: RecommendationSnapshot | None = None
+    updated_at: str | None = None
+
+
+class VerdictCalibrationWrite(BaseModel):
+    matches: bool
+    note: str | None = Field(default=None, max_length=2000)
 
 
 class JobCreate(BaseModel):

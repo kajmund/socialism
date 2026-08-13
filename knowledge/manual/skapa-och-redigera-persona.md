@@ -29,8 +29,9 @@ I **persona-kompositören** bygger du en agents profil och testar den genom chat
 
 1. I chattpanelen växlar du mellan **In-character** (agenten svarar som sig själv) och **Intervju** (du ställer frågor).
 2. Skriv meddelanden och skicka — persona måste vara sparad.
-3. **Rensa** tar bort chatthistoriken efter bekräftelse.
-4. **Regenerera svar** ger ett nytt svar på senaste meddelandet.
+3. Efter varje svar (och när chatten är tom) föreslår assistenten **tre knappar** — följdfrågor i intervju, vardagsrepliker i in-character. Klicka för att skicka.
+4. **Rensa** tar bort chatthistoriken efter bekräftelse.
+5. **Regenerera svar** ger ett nytt svar på senaste meddelandet.
 
 ## Övriga åtgärder
 

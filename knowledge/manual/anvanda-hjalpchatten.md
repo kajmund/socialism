@@ -7,7 +7,7 @@ tags: [grunddata]
 
 # Använda hjälpchatten
 
-I adminytan finns en **Hjälp**-knapp nere till höger på **alla sidor**. Där kan du chatta med en assistent som förklarar hur appen fungerar — utifrån användarmanualen och skrivskyddad live-data (t.ex. antal körningar eller det du har öppet just nu).
+I adminytan finns en **Hjälp**-knapp nere till höger på **alla sidor**. Där kan du chatta med en assistent som förklarar hur appen fungerar — utifrån användarmanualen och skrivskyddad live-data (t.ex. antal körningar, tonetiketter i aktiv konfiguration eller det du har öppet just nu).
 
 ## Öppna chatten
 

@@ -437,9 +437,13 @@ async def _run_report_generate(job_id: str) -> None:
             out_dir = Path(ARTIFACT_ROOT) / report_id
             from app.services.anchor_calibration import anchor_validation_for_report
             from app.services.anchor_store import require_anchor_sets_for_language
-            from app.services.prompt_store import require_active_ssr_temperature
+            from app.services.prompt_store import (
+                require_active_report_thresholds,
+                require_active_ssr_temperature,
+            )
 
             ssr_temperature = await require_active_ssr_temperature(session)
+            report_thresholds = await require_active_report_thresholds(session)
             resolved_anchors = await require_anchor_sets_for_language(
                 session, "en" if locale == "en" else "sv"
             )
@@ -455,6 +459,7 @@ async def _run_report_generate(job_id: str) -> None:
             title=title,
             locale=locale,
             ssr_temperature=ssr_temperature,
+            report_thresholds=report_thresholds,
             resolved_anchors=resolved_anchors,
             anchor_validation=anchor_validation,
         )

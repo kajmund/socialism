@@ -17,7 +17,10 @@ from app.services.report.quick import (
     _style_relative_diff,
     decide_verdict,
 )
+from app.services.report.thresholds import default_report_thresholds
 from app.services.ssr.anchors import TONE_LABELS_SV
+
+_DEFAULT_THRESHOLDS = default_report_thresholds()
 
 
 def _tone(**overrides: float) -> dict[str, float]:
@@ -96,9 +99,9 @@ def test_verdict_weak_when_critical_dominates():
 def test_style_relative_diff_noise_is_none_band():
     # 9.0 vs 8.9 ≈ 1.1% of top — below weak threshold (3%)
     assert _style_relative_diff(9.0, 8.9) < 0.03
-    assert _diff_band(_style_relative_diff(9.0, 8.9)) == "none"
-    assert _diff_band(_style_relative_diff(5.0, 4.7)) == "weak"  # 6%
-    assert _diff_band(_style_relative_diff(5.0, 3.0)) == "clear"  # 40%
+    assert _diff_band(_style_relative_diff(9.0, 8.9), _DEFAULT_THRESHOLDS) == "none"
+    assert _diff_band(_style_relative_diff(5.0, 4.7), _DEFAULT_THRESHOLDS) == "weak"  # 6%
+    assert _diff_band(_style_relative_diff(5.0, 3.0), _DEFAULT_THRESHOLDS) == "clear"  # 40%
 
 
 def _metrics_with_styles(styles: list[tuple[str, float]]) -> ReportMetrics:
@@ -143,7 +146,7 @@ def test_style_html_does_not_crown_winner_on_noise():
             ("Provocerande / konfronterande", 0.0),
         ]
     )
-    html = _style_html(m, locale="sv")
+    html = _style_html(m, locale="sv", thresholds=_DEFAULT_THRESHOLDS)
     assert "Ingen meningsfull skillnad" in html
     assert "Vanligaste stilen" not in html
     assert "inom brus" in html
@@ -157,7 +160,7 @@ def test_style_html_clear_difference_names_most_common_style():
             ("Provocerande / konfronterande", 0.0),
         ]
     )
-    html = _style_html(m, locale="sv")
+    html = _style_html(m, locale="sv", thresholds=_DEFAULT_THRESHOLDS)
     assert "Tydlig skillnad" in html
     assert "Vanligaste stilen" in html
     assert "50 % av reaktionerna" in html or "50% av reaktionerna" in html
