@@ -20,6 +20,8 @@
 * **Konfigurationer**: Rapporttrösklar kan redigeras under fliken SSR-ankare (operatörsfält + ihopfällt avancerat). Ändringar gäller nya rapporter.
 * **Konfigurationer**: Målgruppssammanfattning (takeaway-stycken) har egna trösklar under avancerat — separata från slutsats och rekommendation; kön-jämförelse delar «Tydlig skillnad».
 * **Rapporter**: På rapportsidan kan operatören bedöma om slutsatsrekommendationen stämmer med hela rapporten (verdict-kalibrering).
+* **Rapporter**: Stildiagrammet heter nu **Andel reaktioner per budskapsstil** och visar procent av de klassade reaktionerna — tidigare rubrik ("Genomsnittliga likes per budskapsstil") beskrev inte vad som mättes. `0 %` betyder att stilen saknas i underlaget, inte att den fick noll gehör.
+* **Rapporter**: Engagemangsringen och antalet medborgare i rubriken använder samma nämnare, och underrubriken visar hur många institutionella konton som räknats bort.
 
 ## 2026-08-10
 
