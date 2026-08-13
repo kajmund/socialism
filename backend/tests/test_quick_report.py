@@ -108,6 +108,7 @@ def _metrics_with_styles(styles: list[tuple[str, float]]) -> ReportMetrics:
     agg = BundleMetrics(
         label="A",
         agent_count=1,
+        injector_count=1,
         post_count=1,
         comment_count=0,
         ticks_run=1,
@@ -125,7 +126,7 @@ def _metrics_with_styles(styles: list[tuple[str, float]]) -> ReportMetrics:
         injection_likes=0,
         topic_shares={"Belysning": 1.0},
         tone_shares=_tone(**{"Neutral": 1.0}),
-        style_avg_likes=styles,
+        style_shares=styles,
         top_actors=[],
     )
     return ReportMetrics(
@@ -140,29 +141,43 @@ def _metrics_with_styles(styles: list[tuple[str, float]]) -> ReportMetrics:
 def test_style_html_does_not_crown_winner_on_noise():
     m = _metrics_with_styles(
         [
-            ("Sarkastisk + konkret kritik", 9.0),
-            ("Fakta + yrkesauktoritet", 8.9),
+            ("Sarkastisk + konkret kritik", 0.45),
+            ("Fakta + yrkesauktoritet", 0.445),
             ("Provocerande / konfronterande", 0.0),
         ]
     )
     html = _style_html(m, locale="sv", thresholds=_DEFAULT_THRESHOLDS)
     assert "Ingen meningsfull skillnad" in html
-    assert "Vinnande stil" not in html
+    assert "Vanligaste stilen" not in html
     assert "inom brus" in html
 
 
-def test_style_html_clear_difference_names_winner():
+def test_style_html_clear_difference_names_most_common_style():
     m = _metrics_with_styles(
         [
-            ("Sarkastisk + konkret kritik", 5.0),
-            ("Fakta + yrkesauktoritet", 3.0),
+            ("Sarkastisk + konkret kritik", 0.5),
+            ("Fakta + yrkesauktoritet", 0.3),
             ("Provocerande / konfronterande", 0.0),
         ]
     )
     html = _style_html(m, locale="sv", thresholds=_DEFAULT_THRESHOLDS)
     assert "Tydlig skillnad" in html
-    assert "Vinnande stil" in html
+    assert "Vanligaste stilen" in html
+    assert "50 % av reaktionerna" in html or "50% av reaktionerna" in html
     assert "Näst" in html
+
+
+def test_style_html_reports_absent_style_as_missing_not_as_zero_reception():
+    m = _metrics_with_styles(
+        [
+            ("Sarkastisk + konkret kritik", 0.6),
+            ("Fakta + yrkesauktoritet", 0.4),
+            ("Provocerande / konfronterande", 0.0),
+        ]
+    )
+    html = _style_html(m, locale="sv")
+    assert "stilen saknas i underlaget" in html
+    assert "bekräftat" not in html.lower()
 
 
 def test_quick_stats_table_includes_engagement_columns():

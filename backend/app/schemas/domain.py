@@ -336,9 +336,25 @@ class PersonaMessageOut(BaseModel):
     through_tick_index: int | None = None
 
 
+class FollowUpQuestions(BaseModel):
+    questions: list[str] = Field(min_length=1, max_length=4)
+
+    @field_validator("questions", mode="before")
+    @classmethod
+    def _cap_questions(cls, value: object) -> object:
+        if isinstance(value, list):
+            return value[:4]
+        return value
+
+
+class SuggestedQuestionsResponse(BaseModel):
+    questions: list[str]
+
+
 class PersonaChatResponse(BaseModel):
     reply: str
     messages: list[PersonaMessageOut]
+    suggestions: list[str] = Field(default_factory=list)
 
 
 class PersonaMessageDeleteResponse(BaseModel):

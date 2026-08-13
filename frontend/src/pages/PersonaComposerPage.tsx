@@ -15,6 +15,7 @@ import {
   editableToWrite,
   generatePersonas,
   getPersona,
+  getSuggestedQuestions,
   listPersonaMessages,
   resendPersonaMessage,
   updatePersona,
@@ -175,50 +176,6 @@ function LayerTable({ rows, pol, fieldOptions, t, onChange }: LayerTableProps) {
   )
 }
 
-function Drawer({
-  persona,
-  t,
-}: {
-  persona: EditablePersona
-  t: Translate
-}) {
-  const [open, setOpen] = useState(true)
-  return (
-    <div className={"drawer" + (open ? "" : " collapsed")}>
-      <div className="drawer-head" onClick={() => setOpen(!open)}>
-        <div className="t">{t("personas.composer.promptLive")}</div>
-        <div className="n">
-          {t("personas.composer.tokenCount", {
-            count: 300 + persona.name.length * 3,
-          })}
-        </div>
-      </div>
-      <div className="drawer-body">
-        {t("personas.composer.promptIntro", {
-          name: persona.name,
-          age: persona.age,
-          occupation: persona.yrke,
-          district: persona.ort,
-        })}
-        <br />
-        <b>{t("personas.composer.lockedLabel")}</b>{" "}
-        {t("personas.composer.promptPolitics", {
-          leaning: persona.lutning,
-          party: persona.parti,
-        })}
-        <br />
-        {t("personas.composer.promptTone", { tone: persona.ton })}
-        {persona.anekdot && persona.anekdot !== "—" ? (
-          <>
-            <br />
-            {t("personas.composer.promptAnecdote", { anekdot: persona.anekdot })}
-          </>
-        ) : null}
-      </div>
-    </div>
-  )
-}
-
 type EditorProps = {
   persona: EditablePersona
   personaId: string | null
@@ -263,6 +220,8 @@ function Editor({
   const [optimisticUser, setOptimisticUser] = useState<string | null>(null)
   const [draft, setDraft] = useState("")
   const [restBusy, setRestBusy] = useState(false)
+  const [suggestions, setSuggestions] = useState<string[]>([])
+  const suggestGen = useRef(0)
   const [confirmClearInterview, setConfirmClearInterview] = useState(false)
   const [confirmDeleteMessageId, setConfirmDeleteMessageId] = useState<number | null>(
     null,
@@ -287,6 +246,9 @@ function Editor({
       setMessages(doneToPersonaMessages(rows, icMode))
       setOptimisticUser(null)
     },
+    onSuggestions: (questions) => {
+      setSuggestions(questions)
+    },
     onError: (detail) => {
       setOptimisticUser(null)
       onToast(detail || t("personas.composer.sendError"))
@@ -299,9 +261,11 @@ function Editor({
     if (!personaId) {
       setMessages([])
       setOptimisticUser(null)
+      setSuggestions([])
       return
     }
     let cancelled = false
+    const gen = ++suggestGen.current
     listPersonaMessages(personaId, icMode)
       .then((rows) => {
         if (!cancelled) {
@@ -314,6 +278,17 @@ function Editor({
           onToast(err instanceof ApiError ? err.message : t("personas.composer.fetchChatError"))
         }
       })
+    getSuggestedQuestions(personaId, icMode)
+      .then((res) => {
+        if (!cancelled && gen === suggestGen.current) {
+          setSuggestions(res.questions)
+        }
+      })
+      .catch(() => {
+        if (!cancelled && gen === suggestGen.current) {
+          setSuggestions([])
+        }
+      })
     return () => {
       cancelled = true
     }
@@ -324,6 +299,8 @@ function Editor({
   function sendMessage(text: string) {
     const trimmed = text.trim()
     if (!trimmed || !personaId || chatBusy) return
+    suggestGen.current += 1
+    setSuggestions([])
     setOptimisticUser(trimmed)
     setDraft("")
     if (!socketSend(trimmed)) {
@@ -345,8 +322,10 @@ function Editor({
           message: lastUser.content,
         })
         setMessages(result.messages)
+        setSuggestions(result.suggestions ?? [])
       } else {
         setMessages([])
+        setSuggestions([])
       }
       setOptimisticUser(null)
     } catch (err) {
@@ -365,6 +344,13 @@ function Editor({
       setDraft("")
       setOptimisticUser(null)
       setConfirmClearInterview(false)
+      const gen = ++suggestGen.current
+      try {
+        const res = await getSuggestedQuestions(personaId, icMode)
+        if (gen === suggestGen.current) setSuggestions(res.questions)
+      } catch {
+        if (gen === suggestGen.current) setSuggestions([])
+      }
     } catch (err) {
       onToast(
         err instanceof ApiError
@@ -440,6 +426,7 @@ function Editor({
       const result = await resendPersonaMessage(personaId, messageId)
       setMessages(result.messages)
       setOptimisticUser(null)
+      setSuggestions(result.suggestions ?? [])
     } catch (err) {
       onToast(err instanceof ApiError ? err.message : t("personas.composer.resendError"))
     } finally {
@@ -466,6 +453,7 @@ function Editor({
 
   return (
     <>
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="topbar">
         <div className="persona-id">
           <div className="avatar">{persona.initials}</div>
@@ -703,6 +691,8 @@ function Editor({
             busy={chatBusy}
             ready={chatReady}
             disabled={!personaId}
+            suggestions={suggestions}
+            onSuggestion={sendMessage}
             placeholder={
               personaId
                 ? t("personas.composer.messagePlaceholder")
@@ -730,7 +720,6 @@ function Editor({
           />
         </div>
       </div>
-      {mode === "work" && <Drawer persona={persona} t={t} />}
 
       <div className={"present" + (mode === "present" ? " show" : "")}>
         <div className="p-portrait-col">
@@ -832,6 +821,8 @@ function Editor({
             busy={chatBusy}
             ready={chatReady}
             disabled={!personaId}
+            suggestions={suggestions}
+            onSuggestion={sendMessage}
             placeholder={t("personas.composer.askPersonaPlaceholder", {
               name: persona.name,
             })}
@@ -857,6 +848,7 @@ function Editor({
           />
         </div>
       </div>
+    </div>
 
       <ConfirmModal
         open={confirmClearInterview}
@@ -1102,7 +1094,7 @@ export function PersonaComposerPage() {
   if (loading) {
     return (
       <AdminShell>
-        <div className="shell" style={{ height: "calc(100vh - 57px)" }}>
+        <div className="shell">
           <div className="mainarea">
             <div className="no-match">{t("personas.composer.loadingPersona")}</div>
           </div>
@@ -1113,7 +1105,7 @@ export function PersonaComposerPage() {
 
   return (
     <AdminShell>
-      <div className="shell" style={{ height: "calc(100vh - 57px)" }}>
+      <div className="shell">
         <div className="mainarea">
           {screen === "create" && createStep === "choose" && (
             <div className="create-wrap">

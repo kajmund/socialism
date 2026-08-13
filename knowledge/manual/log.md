@@ -1,11 +1,14 @@
 # Manual update log
 
-## 2026-08-12
+## 2026-08-13
 
+* **Personas**: I kompositörens chatt och intervju föreslår assistenten tre knappar efter varje svar (följdfrågor i intervju, vardagsrepliker i in-character) och som start när tråden är tom.
+* **Personas**: Den svarta live-promptlisten under chatten i arbetsläge är borttagen så profil och chatt får mer plats.
 * **Rapporter**: Spinndoktor (fas 1) — chatt kopplad till en klar rapport med växling Rapport/Spinndoktor i sidhuvudet, valfri rapportcanvas som scrollar till avsnitt, historik per rapport.
 
 ## 2026-08-11
 
+* **Hjälp**: Assistenten får tonetiketter från aktiv konfiguration (grunddata-katalog och SSR ton/stil) och kan lista dem i chatten.
 * **Körningar**: Reaktionsmodellens stratifierade urval tar hänsyn till både distrikt och lutning när alla medlemmar har känd lutning; annars distrikt-only.
 * **Populationer**: Fingeravtryck visar faktisk sammansättning (medlemmar), inte slider-mål. Recept är fryst snapshot; **Redigera recept** är borttaget — skapa ny population för annan fördelning.
 * **SSR-ankare**: Publicering kräver minst åtta kalibreringsrader och macro-träff ≥55 % (eller explicit bekräftelse vid varning). Pool- eller korpusändring markerar kalibrering som inaktuell. Snabbrapport varnar om otestade/inaktuella ankare.
@@ -18,6 +21,8 @@
 * **Konfigurationer**: Rapporttrösklar kan redigeras under fliken SSR-ankare (operatörsfält + ihopfällt avancerat). Ändringar gäller nya rapporter.
 * **Konfigurationer**: Målgruppssammanfattning (takeaway-stycken) har egna trösklar under avancerat — separata från slutsats och rekommendation; kön-jämförelse delar «Tydlig skillnad».
 * **Rapporter**: På rapportsidan kan operatören bedöma om slutsatsrekommendationen stämmer med hela rapporten (verdict-kalibrering).
+* **Rapporter**: Stildiagrammet heter nu **Andel reaktioner per budskapsstil** och visar procent av de klassade reaktionerna — tidigare rubrik ("Genomsnittliga likes per budskapsstil") beskrev inte vad som mättes. `0 %` betyder att stilen saknas i underlaget, inte att den fick noll gehör.
+* **Rapporter**: Engagemangsringen och antalet medborgare i rubriken använder samma nämnare, och underrubriken visar hur många institutionella konton som räknats bort.
 
 ## 2026-08-10
 

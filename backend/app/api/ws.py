@@ -20,6 +20,7 @@ from app.services import jobs as jobs_service
 from app.services.help_chat import ChatTurnError as HelpChatTurnError
 from app.services.help_chat import stream_help_chat_turn
 from app.services.persona_chat import (
+    ChatSuggestions,
     ChatTurnError,
     stream_library_chat_turn,
     stream_run_interview_turn,
@@ -262,20 +263,28 @@ async def chat_websocket(websocket: WebSocket) -> None:
                     async for item in stream:
                         if isinstance(item, PersonaChatResponse):
                             done = item
+                            await websocket.send_json(
+                                {
+                                    "type": "done",
+                                    "reply": done.reply,
+                                    "messages": [
+                                        m.model_dump(mode="json") for m in done.messages
+                                    ],
+                                    "suggestions": done.suggestions,
+                                }
+                            )
+                        elif isinstance(item, ChatSuggestions):
+                            await websocket.send_json(
+                                {
+                                    "type": "suggestions",
+                                    "questions": item.questions,
+                                }
+                            )
                         else:
                             await websocket.send_json({"type": "token", "text": item})
                     if done is None:
                         await _send_error(websocket, "Chat turn produced no reply")
                         continue
-                    await websocket.send_json(
-                        {
-                            "type": "done",
-                            "reply": done.reply,
-                            "messages": [
-                                m.model_dump(mode="json") for m in done.messages
-                            ],
-                        }
-                    )
             except HelpChatTurnError as exc:
                 await _send_error(websocket, exc.detail)
             except SpindoctorChatTurnError as exc:
