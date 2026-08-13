@@ -13,6 +13,12 @@ export type ChatHello =
       through_tick_index: number
     }
   | { scope: "help"; session_id: string; locale: "sv" | "en"; view: HelpViewPayload }
+  | {
+      scope: "spinndoctor"
+      session_id: string
+      report_id: string
+      locale: "sv" | "en"
+    }
 
 export type HelpViewPayload = {
   path: string
@@ -51,6 +57,9 @@ function helloKey(hello: ChatHello | null): string {
       JSON.stringify(hello.view.search),
     ].join("|")
     return `help:${hello.session_id}:${hello.locale}:${viewKey}`
+  }
+  if (hello.scope === "spinndoctor") {
+    return `spinndoctor:${hello.session_id}:${hello.report_id}:${hello.locale}`
   }
   return [
     "run",
