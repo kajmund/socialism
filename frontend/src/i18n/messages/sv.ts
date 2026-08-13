@@ -32,6 +32,7 @@ export const sv = {
     sending: "Skickar…",
     send: "Skicka",
     notConnected: "Chatten är inte ansluten",
+    suggestionsAria: "Föreslagna följdfrågor",
   },
   help: {
     openFab: "Öppna hjälp",

@@ -15,6 +15,7 @@ import {
   editableToWrite,
   generatePersonas,
   getPersona,
+  getSuggestedQuestions,
   listPersonaMessages,
   resendPersonaMessage,
   updatePersona,
@@ -263,6 +264,8 @@ function Editor({
   const [optimisticUser, setOptimisticUser] = useState<string | null>(null)
   const [draft, setDraft] = useState("")
   const [restBusy, setRestBusy] = useState(false)
+  const [suggestions, setSuggestions] = useState<string[]>([])
+  const suggestGen = useRef(0)
   const [confirmClearInterview, setConfirmClearInterview] = useState(false)
   const [confirmDeleteMessageId, setConfirmDeleteMessageId] = useState<number | null>(
     null,
@@ -287,6 +290,9 @@ function Editor({
       setMessages(doneToPersonaMessages(rows, icMode))
       setOptimisticUser(null)
     },
+    onSuggestions: (questions) => {
+      setSuggestions(questions)
+    },
     onError: (detail) => {
       setOptimisticUser(null)
       onToast(detail || t("personas.composer.sendError"))
@@ -299,9 +305,11 @@ function Editor({
     if (!personaId) {
       setMessages([])
       setOptimisticUser(null)
+      setSuggestions([])
       return
     }
     let cancelled = false
+    const gen = ++suggestGen.current
     listPersonaMessages(personaId, icMode)
       .then((rows) => {
         if (!cancelled) {
@@ -314,6 +322,17 @@ function Editor({
           onToast(err instanceof ApiError ? err.message : t("personas.composer.fetchChatError"))
         }
       })
+    getSuggestedQuestions(personaId, icMode)
+      .then((res) => {
+        if (!cancelled && gen === suggestGen.current) {
+          setSuggestions(res.questions)
+        }
+      })
+      .catch(() => {
+        if (!cancelled && gen === suggestGen.current) {
+          setSuggestions([])
+        }
+      })
     return () => {
       cancelled = true
     }
@@ -324,6 +343,8 @@ function Editor({
   function sendMessage(text: string) {
     const trimmed = text.trim()
     if (!trimmed || !personaId || chatBusy) return
+    suggestGen.current += 1
+    setSuggestions([])
     setOptimisticUser(trimmed)
     setDraft("")
     if (!socketSend(trimmed)) {
@@ -345,8 +366,10 @@ function Editor({
           message: lastUser.content,
         })
         setMessages(result.messages)
+        setSuggestions(result.suggestions ?? [])
       } else {
         setMessages([])
+        setSuggestions([])
       }
       setOptimisticUser(null)
     } catch (err) {
@@ -365,6 +388,13 @@ function Editor({
       setDraft("")
       setOptimisticUser(null)
       setConfirmClearInterview(false)
+      const gen = ++suggestGen.current
+      try {
+        const res = await getSuggestedQuestions(personaId, icMode)
+        if (gen === suggestGen.current) setSuggestions(res.questions)
+      } catch {
+        if (gen === suggestGen.current) setSuggestions([])
+      }
     } catch (err) {
       onToast(
         err instanceof ApiError
@@ -440,6 +470,7 @@ function Editor({
       const result = await resendPersonaMessage(personaId, messageId)
       setMessages(result.messages)
       setOptimisticUser(null)
+      setSuggestions(result.suggestions ?? [])
     } catch (err) {
       onToast(err instanceof ApiError ? err.message : t("personas.composer.resendError"))
     } finally {
@@ -703,6 +734,8 @@ function Editor({
             busy={chatBusy}
             ready={chatReady}
             disabled={!personaId}
+            suggestions={suggestions}
+            onSuggestion={sendMessage}
             placeholder={
               personaId
                 ? t("personas.composer.messagePlaceholder")
@@ -832,6 +865,8 @@ function Editor({
             busy={chatBusy}
             ready={chatReady}
             disabled={!personaId}
+            suggestions={suggestions}
+            onSuggestion={sendMessage}
             placeholder={t("personas.composer.askPersonaPlaceholder", {
               name: persona.name,
             })}

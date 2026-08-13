@@ -11,6 +11,7 @@ Placeholders in templates:
   {candidate_index}, {candidate_count}
   {demo_block}     — optional fixed demography block
   {persona_block}  — formatted persona profile lines
+  {chat_mode}, {transcript}, {name}  — follow-up question suggestions / role lock
   {anecdote_context}
   {prev_block}     — previous anecdotes block
   {type_label}     — message type label
@@ -376,6 +377,166 @@ Return JSON with field anekdot.""",
         (
             "Mode: IN-CHARACTER. The user talks to you as in everyday life / a social feed. "
             "Answer in first person, natural speech, briefly. Answer in English."
+        ),
+    ),
+    _f(
+        "chat.role_lock",
+        "chat",
+        "Chat — vem som är vem",
+        "Chat — who is who",
+        "Platshållare: {name}",
+        "Placeholders: {name}",
+        (
+            "Du är {name}. Användarens meddelanden är intervjuaren eller samtalspartnern, inte du. "
+            "Svara bara som {name} i första person. Svara aldrig som intervjuaren, "
+            "och tala inte om {name} i tredje person."
+        ),
+        (
+            "You are {name}. User messages are the interviewer or conversation partner, not you. "
+            "Answer only as {name} in first person. Never answer as the interviewer, "
+            "and do not talk about {name} in the third person."
+        ),
+    ),
+    _f(
+        "chat.role_lock.in_character",
+        "chat",
+        "Chat — vem som är vem (in-character)",
+        "Chat — who is who (in-character)",
+        "Platshållare: {name}",
+        "Placeholders: {name}",
+        (
+            "Du är {name}. Användarens meddelanden är någon i din vardag eller ditt flöde, "
+            "inte en intervjuare och inte du. Svara bara som {name} i första person, "
+            "naturligt talspråk. Svara aldrig som den andra personen, "
+            "och tala inte om {name} i tredje person."
+        ),
+        (
+            "You are {name}. User messages are someone in your everyday life or feed, "
+            "not an interviewer and not you. Answer only as {name} in first person, "
+            "in natural speech. Never answer as the other person, "
+            "and do not talk about {name} in the third person."
+        ),
+    ),
+    _f(
+        "chat.follow_up.questions",
+        "chat",
+        "Chat — föreslagna följdfrågor",
+        "Chat — suggested follow-up questions",
+        "Platshållare: {chat_mode}, {name}, {persona_block}, {transcript}",
+        "Placeholders: {chat_mode}, {name}, {persona_block}, {transcript}",
+        (
+            "Du är en tyst hjälpare — inte personan {name}, inte intervjuaren.\n"
+            "Uppgift: föreslå tre korta nästa frågor som intervjuaren kan klicka på "
+            "och skicka till {name}.\n\n"
+            "Profil för {name} (personan som svarar):\n{persona_block}\n\n"
+            "Samtal hittills. Etiketten Intervjuare = den som frågar. "
+            "Etiketten {name} = personan som svarar:\n{transcript}\n\n"
+            "Regler:\n"
+            "- Exakt tre förslag.\n"
+            "- Varje förslag är en mening intervjuaren skulle skriva till {name}, "
+            "inte ett svar från {name}.\n"
+            "- Intervju: fördjupa profilen (vardag, värderingar, politik, luckor) med tre olika vinklar.\n"
+            "- In-character: naturliga uppföljningar i samtalet från användarens sida.\n"
+            "- Om samtalet är tomt: tre bra startfrågor från intervjuaren utifrån profilen.\n"
+            "- Korta, konkreta, utan numrering eller citationstecken.\n"
+            "- Samma språk som samtalet (svenska om samtalet är tomt).\n"
+            "- Upprepa inte en fråga som redan ställts.\n"
+            "- Använd inte första person som om du vore {name}."
+        ),
+        (
+            "You are a silent helper — not the persona {name}, not the interviewer.\n"
+            "Task: suggest three short next questions the interviewer can tap and send "
+            "to {name}.\n\n"
+            "Profile for {name} (the persona who answers):\n{persona_block}\n\n"
+            "Conversation so far. Label Interviewer = the one asking. "
+            "Label {name} = the persona answering:\n{transcript}\n\n"
+            "Rules:\n"
+            "- Exactly three suggestions.\n"
+            "- Each suggestion is a sentence the interviewer would type to {name}, "
+            "not a reply from {name}.\n"
+            "- Interview: deepen the profile (everyday life, values, politics, gaps) from three angles.\n"
+            "- In-character: natural conversational follow-ups from the user's side.\n"
+            "- If the conversation is empty: three good opening questions from the interviewer.\n"
+            "- Short, concrete, no numbering or quotation marks.\n"
+            "- Same language as the conversation (English if the conversation is empty).\n"
+            "- Do not repeat a question already asked.\n"
+            "- Do not use first person as if you were {name}."
+        ),
+    ),
+    _f(
+        "chat.follow_up.voice",
+        "chat",
+        "Chat — följdfrågor, röstlås",
+        "Chat — follow-up voice lock",
+        "Platshållare: {name}. Läggs sist så modellen inte blandar ihop rollerna.",
+        "Placeholders: {name}. Appended last so the model does not mix up the roles.",
+        (
+            "Påminnelse: du är inte {name}. Förslagen är intervjuarens nästa frågor till {name}. "
+            "De ska vända sig till {name} med du/ni, aldrig låta som {name} som talar."
+        ),
+        (
+            "Reminder: you are not {name}. The suggestions are the interviewer's next questions "
+            "to {name}. They should address {name} as you, never sound like {name} speaking."
+        ),
+    ),
+    _f(
+        "chat.follow_up.questions.in_character",
+        "chat",
+        "Chat — föreslagna repliker (in-character)",
+        "Chat — suggested replies (in-character)",
+        "Platshållare: {name}, {persona_block}, {transcript}",
+        "Placeholders: {name}, {persona_block}, {transcript}",
+        (
+            "Du är en tyst hjälpare — inte personan {name}, inte samtalspartnern.\n"
+            "Uppgift: föreslå tre korta nästa repliker som användaren kan klicka på "
+            "och skicka till {name} i ett vardagligt samtal. Inte intervjufrågor.\n\n"
+            "Profil för {name} (personan som svarar):\n{persona_block}\n\n"
+            "Samtal hittills. Etiketten Samtalspartner = användaren. "
+            "Etiketten {name} = personan som svarar:\n{transcript}\n\n"
+            "Regler:\n"
+            "- Exakt tre förslag.\n"
+            "- Varje förslag är något användaren skulle skriva till {name} som till en bekant, "
+            "inte en analytikerfråga och inte ett svar från {name}.\n"
+            "- Naturligt talspråk, korta, konkreta.\n"
+            "- Utan numrering eller citationstecken.\n"
+            "- Samma språk som samtalet (svenska om samtalet är tomt).\n"
+            "- Upprepa inte en replik som redan skickats.\n"
+            "- Använd inte första person som om du vore {name}."
+        ),
+        (
+            "You are a silent helper — not the persona {name}, not the conversation partner.\n"
+            "Task: suggest three short next lines the user can tap and send to {name} "
+            "in everyday chat. Not interview questions.\n\n"
+            "Profile for {name} (the persona who answers):\n{persona_block}\n\n"
+            "Conversation so far. Label Partner = the user. "
+            "Label {name} = the persona answering:\n{transcript}\n\n"
+            "Rules:\n"
+            "- Exactly three suggestions.\n"
+            "- Each suggestion is something the user would type to {name} as to an acquaintance, "
+            "not an analyst question and not a reply from {name}.\n"
+            "- Natural speech, short, concrete.\n"
+            "- No numbering or quotation marks.\n"
+            "- Same language as the conversation (English if the conversation is empty).\n"
+            "- Do not repeat a line already sent.\n"
+            "- Do not use first person as if you were {name}."
+        ),
+    ),
+    _f(
+        "chat.follow_up.voice.in_character",
+        "chat",
+        "Chat — följdrepliker, röstlås (in-character)",
+        "Chat — follow-up voice lock (in-character)",
+        "Platshållare: {name}. Läggs sist så modellen inte blandar ihop rollerna.",
+        "Placeholders: {name}. Appended last so the model does not mix up the roles.",
+        (
+            "Påminnelse: du är inte {name}. Förslagen är samtalspartnerns nästa repliker "
+            "till {name} i vardagen, inte intervjufrågor. De ska vända sig till {name}, "
+            "aldrig låta som {name} som talar."
+        ),
+        (
+            "Reminder: you are not {name}. The suggestions are the partner's next lines "
+            "to {name} in everyday chat, not interview questions. They should address {name}, "
+            "never sound like {name} speaking."
         ),
     ),
     _f(

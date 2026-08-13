@@ -82,6 +82,12 @@ export type PersonaGenerateRequest = {
   count?: number
 }
 
+export type PersonaChatResponse = {
+  reply: string
+  messages: PersonaMessage[]
+  suggestions?: string[]
+}
+
 export function generatePersonas(
   body: PersonaGenerateRequest,
 ): Promise<{ candidates: EditablePersona[] }> {
@@ -95,10 +101,19 @@ export function listPersonaMessages(
   return api.get<PersonaMessage[]>(`/personas/${id}/messages`, { mode })
 }
 
+export function getSuggestedQuestions(
+  id: string,
+  mode: ChatMode,
+): Promise<{ questions: string[] }> {
+  return api.get<{ questions: string[] }>(`/personas/${id}/suggested-questions`, {
+    mode,
+  })
+}
+
 export function chatWithPersona(
   id: string,
   body: { mode: ChatMode; message: string },
-): Promise<{ reply: string; messages: PersonaMessage[] }> {
+): Promise<PersonaChatResponse> {
   return api.post(`/personas/${id}/chat`, body)
 }
 
@@ -118,6 +133,6 @@ export function deletePersonaMessage(
 export function resendPersonaMessage(
   id: string,
   messageId: number,
-): Promise<{ reply: string; messages: PersonaMessage[] }> {
+): Promise<PersonaChatResponse> {
   return api.post(`/personas/${id}/messages/${messageId}/resend`)
 }

@@ -35,6 +35,7 @@ type UseChatSocketOptions = {
   sendExtras?: () => Record<string, unknown>
   onDone: (messages: ChatDoneMessage[]) => void
   onError: (detail: string) => void
+  onSuggestions?: (questions: string[]) => void
 }
 
 function helloKey(hello: ChatHello | null): string {
@@ -81,7 +82,24 @@ function asDoneMessages(raw: unknown): ChatDoneMessage[] {
   return out
 }
 
-export function useChatSocket({ hello, sendExtras, onDone, onError }: UseChatSocketOptions) {
+function asQuestions(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return []
+  const out: string[] = []
+  for (const item of raw) {
+    if (typeof item !== "string") continue
+    const text = item.trim()
+    if (text) out.push(text)
+  }
+  return out
+}
+
+export function useChatSocket({
+  hello,
+  sendExtras,
+  onDone,
+  onError,
+  onSuggestions,
+}: UseChatSocketOptions) {
   const [ready, setReady] = useState(false)
   const [busy, setBusy] = useState(false)
   const [typing, setTyping] = useState(false)
@@ -91,6 +109,8 @@ export function useChatSocket({ hello, sendExtras, onDone, onError }: UseChatSoc
   onDoneRef.current = onDone
   const onErrorRef = useRef(onError)
   onErrorRef.current = onError
+  const onSuggestionsRef = useRef(onSuggestions)
+  onSuggestionsRef.current = onSuggestions
   const sendExtrasRef = useRef(sendExtras)
   sendExtrasRef.current = sendExtras
   const key = helloKey(hello)
@@ -131,6 +151,11 @@ export function useChatSocket({ hello, sendExtras, onDone, onError }: UseChatSoc
             setBusy(false)
             const rows = asDoneMessages(msg.messages)
             if (rows.length > 0) onDoneRef.current(rows)
+            break
+          }
+          case "suggestions": {
+            const questions = asQuestions(msg.questions)
+            onSuggestionsRef.current?.(questions)
             break
           }
           case "error":
