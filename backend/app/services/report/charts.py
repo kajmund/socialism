@@ -134,7 +134,7 @@ def render_engagement_donut(metrics: ReportMetrics, *, locale: ReportLocale = "s
         )
     # Center = share with any likes (not zero-like count — that read as “broken” when 0).
     return (
-        '<div class="chart-card">'
+        '<div class="chart-card" id="mottagande">'
         f"<h4>{title}</h4>"
         f'<div class="chart-sub">{sub}</div>'
         f"{_donut(shares, pct(engaged_share))}"
@@ -154,7 +154,7 @@ def render_topic_donut(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -
         title = "Vad diskuterades?"
         sub = "Ämnesandelar utifrån testbudskapet."
     return (
-        '<div class="chart-card">'
+        '<div class="chart-card" id="amneskontroll">'
         f"<h4>{title}</h4>"
         f'<div class="chart-sub">{sub}</div>'
         f"{_donut(shares, top[:12])}"
@@ -224,7 +224,7 @@ def render_style_hbars(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -
         title = "Andel reaktioner per budskapsstil"
         sub = "Hur de klassade reaktionerna fördelar sig över stilar — inte likes."
     return (
-        '<div class="chart-card">'
+        '<div class="chart-card" id="budskapsstilar">'
         f"<h4>{title}</h4>"
         f'<div class="chart-sub">{sub}</div>'
         f'<div class="hbar-chart">{"".join(rows)}</div></div>'
@@ -267,7 +267,7 @@ def render_agents_html(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -
         )
     if not cards:
         return empty
-    return '<div class="agents-grid">' + "".join(cards) + "</div>"
+    return '<div class="agents-grid" id="opinionsledare">' + "".join(cards) + "</div>"
 
 
 def render_pop_compare(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -> str:
@@ -701,7 +701,7 @@ def render_recommendation_block(
         pos_lbl, likes_lbl = "Positiv ton", "Likes på testbudskap"
 
     parts = [
-        '<section class="conclusion">',
+        '<section class="conclusion" id="rekommendation">',
         f'<p class="rec-eyebrow">{escape(h_rec)}</p>',
     ]
     if rec.recommended_arm:

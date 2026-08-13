@@ -505,7 +505,7 @@ def build_quick_slots(
     )
 
     tech_html = (
-        f"<details class=\"tech\"><summary>{escape(tech_title)}</summary>"
+        f"<details class=\"tech appendix\" id=\"appendix\"><summary>{escape(tech_title)}</summary>"
         f"<p>{escape(decide_verdict(metrics, bundles, locale=locale, thresholds=t).threshold_note)}</p>"
         f"<p>embedding_model={escape(settings.embedding_model)} · "
         f"anchor_set={escape(ANCHOR_SET_VERSION)} · "
@@ -602,7 +602,7 @@ def render_quick_html(slots: dict[str, str], *, locale: ReportLocale) -> str:
     <h3>{h_stats}</h3>
     {slots.get("stats_html", "")}
   </section>
-  <section>
+  <section id="diagram">
     <h3>{h_charts}</h3>
     {slots.get("charts_html", "")}
   </section>
@@ -618,7 +618,7 @@ def render_quick_html(slots: dict[str, str], *, locale: ReportLocale) -> str:
     <h3>{h_takeaway}</h3>
     {slots.get("takeaway_html", "")}
   </section>
-  <section>
+  <section id="valjargrupper">
     <h3>{h_audience}</h3>
     {slots.get("audience_html", "")}
   </section>
@@ -637,6 +637,14 @@ def render_quick_html(slots: dict[str, str], *, locale: ReportLocale) -> str:
   {slots.get("tech_html", "")}
   <p class="meta">{escape(slots.get("meta_runs", ""))}</p>
 </div>
+<script>
+window.addEventListener("message", function(ev) {{
+  var data = ev.data;
+  if (!data || data.type !== "spinndoctor-scroll" || typeof data.id !== "string") return;
+  var el = document.getElementById(data.id);
+  if (el) el.scrollIntoView({{ behavior: "smooth", block: "start" }});
+}});
+</script>
 </body>
 </html>
 """

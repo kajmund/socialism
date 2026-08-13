@@ -752,3 +752,24 @@ table.lt.pol .lock.on{background:var(--db-gold-700);border-color:var(--db-gold-7
 .help-chat-panel .chat-input{border-top:1px solid var(--border-hairline);background:var(--db-ink-0)}
 .help-chat-panel-close{width:28px;height:28px;border:0;border-radius:999px;background:transparent;color:var(--text-muted);cursor:pointer;display:grid;place-items:center;font-size:14px;line-height:1}
 .help-chat-panel-close:hover{background:var(--db-ink-100);color:var(--text-body)}
+
+.spinndoctor-view-toggle{display:inline-flex;border:1px solid var(--border-hairline);border-radius:999px;overflow:hidden;background:var(--db-ink-0)}
+.spinndoctor-view-toggle button{border:0;background:transparent;padding:8px 14px;font-size:13px;color:var(--text-muted);cursor:pointer;line-height:1.2}
+.spinndoctor-view-toggle button.active{background:var(--db-ink-950);color:var(--db-ink-0)}
+.spinndoctor-view-toggle button:focus-visible{outline:2px solid var(--db-gold-500);outline-offset:-2px}
+.spinndoctor-layout{display:flex;gap:16px;align-items:stretch;min-height:min(78vh,900px)}
+.spinndoctor-layout-chat{flex:1;min-width:0;display:flex;flex-direction:column;min-height:0;border:1px solid var(--border-hairline);border-radius:12px;background:var(--db-ink-0);overflow:hidden}
+.spinndoctor-layout--canvas-open .spinndoctor-layout-chat{flex:0 0 min(420px,42%)}
+.spinndoctor-layout-canvas{flex:1;min-width:0;min-height:0}
+.spinndoctor-layout-toolbar{display:flex;justify-content:flex-end;padding:8px 12px;border-bottom:1px solid var(--border-hairline);background:#fafafa}
+.spinndoctor-canvas-toggle{font-size:12px;color:var(--db-gold-700);background:transparent;border:0;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.spinndoctor-panel{display:flex;flex-direction:column;flex:1;min-height:0;background:var(--db-ink-0)}
+.spinndoctor-panel-header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:12px 14px;border-bottom:1px solid var(--border-hairline)}
+.spinndoctor-panel-title{font-size:14px;font-weight:600;color:var(--text-body)}
+.spinndoctor-panel-sub{font-size:11px;color:var(--text-muted);margin-top:2px;line-height:1.4}
+.spinndoctor-panel-error{padding:8px 14px;font-size:12px;color:#b42318;background:#fef3f2;border-bottom:1px solid #fecdca}
+.spinndoctor-thread{flex:1;min-height:0;background:#fafafa}
+.spinndoctor-empty{padding:18px 16px;font-size:13px;color:var(--text-muted);line-height:1.5}
+.spinndoctor-panel .chat-input{border-top:1px solid var(--border-hairline);background:var(--db-ink-0)}
+.spinndoctor-canvas{display:flex;flex-direction:column;min-height:0;height:100%;border:1px solid var(--border-hairline);border-radius:12px;overflow:hidden;background:#fff}
+.spinndoctor-canvas-frame{width:100%;flex:1;min-height:0;border:0;background:#fff}
