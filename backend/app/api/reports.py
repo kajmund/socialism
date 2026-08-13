@@ -21,6 +21,9 @@ from app.schemas.domain import (
     ReportGenerateJobRequest,
     ReportOut,
     ReportStatus,
+    RecommendationSnapshot,
+    VerdictCalibrationOut,
+    VerdictCalibrationWrite,
 )
 from app.serializers import utcnow
 from app.services import jobs as jobs_service
@@ -30,6 +33,12 @@ from app.services.report.locale import (
     default_report_title,
     download_filename,
     normalize_locale,
+)
+from app.services.report.verdict_calibration import (
+    get_calibration_row,
+    load_recommendation_snapshot,
+    serialize_calibration,
+    upsert_calibration,
 )
 from app.services.report_realtime import (
     list_reports as list_report_rows,
@@ -203,6 +212,63 @@ async def get_report(
     if report is None:
         raise HTTPException(status_code=404, detail="Report not found")
     return _serialize(report)
+
+
+def _require_succeeded_report(report: Report) -> None:
+    if report.status != "succeeded":
+        raise HTTPException(status_code=404, detail="Report not ready")
+
+
+def _recommendation_out(report_id: str) -> RecommendationSnapshot | None:
+    block = load_recommendation_snapshot(report_id)
+    if block is None:
+        return None
+    return RecommendationSnapshot(
+        score=int(block["score"]),
+        action=str(block["action"]),
+        recommended_arm=block.get("recommended_arm") if block.get("recommended_arm") else None,
+        verdict_key=str(block.get("verdict_key") or ""),
+    )
+
+
+@router.get("/{report_id}/verdict-calibration", response_model=VerdictCalibrationOut)
+async def get_verdict_calibration(
+    report_id: str,
+    session: AsyncSession = Depends(get_session),
+) -> VerdictCalibrationOut:
+    report = await session.get(Report, report_id)
+    if report is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+    _require_succeeded_report(report)
+    recommendation = _recommendation_out(report_id)
+    if recommendation is None:
+        raise HTTPException(status_code=404, detail="Report recommendation snapshot missing")
+    row = await get_calibration_row(session, report_id)
+    payload = serialize_calibration(report, row, recommendation.model_dump())
+    return VerdictCalibrationOut(**payload)
+
+
+@router.post("/{report_id}/verdict-calibration", response_model=VerdictCalibrationOut)
+async def post_verdict_calibration(
+    report_id: str,
+    body: VerdictCalibrationWrite,
+    session: AsyncSession = Depends(get_session),
+) -> VerdictCalibrationOut:
+    report = await session.get(Report, report_id)
+    if report is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+    _require_succeeded_report(report)
+    recommendation = _recommendation_out(report_id)
+    if recommendation is None:
+        raise HTTPException(status_code=404, detail="Report recommendation snapshot missing")
+    row = await upsert_calibration(
+        session,
+        report_id=report_id,
+        matches=body.matches,
+        note=body.note,
+    )
+    payload = serialize_calibration(report, row, recommendation.model_dump())
+    return VerdictCalibrationOut(**payload)
 
 
 @router.delete("/{report_id}", status_code=204)

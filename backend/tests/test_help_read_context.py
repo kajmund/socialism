@@ -65,6 +65,10 @@ def test_build_help_context_includes_view_and_snapshot(help_session):
     assert "Live data snapshot" in text
     assert "Manual (OKF)" in text
     assert "Personas:" in text
+    assert "Catalog ton labels (persona voice):" in text
+    assert "Direkt och kort i tonen" in text
+    assert "SSR tone labels:" in text
+    assert "SSR style labels:" in text
 
 
 def test_build_help_context_includes_failed_job_error(help_session):

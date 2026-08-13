@@ -21,6 +21,8 @@ from app.database.models import (
     SsrAnchorSet,
 )
 from app.schemas.domain import HelpViewContext, OasisRunOptions
+from app.services.catalog_items import coerce_catalog_items
+from app.services.catalog_store import get_catalog_list
 from app.services.okf_corpus import manual_context
 from app.services.run_log import read_run_log_tail, tail_run_log_file
 from app.services.run_results import list_attempts
@@ -253,6 +255,54 @@ def _format_run_troubleshooting(run: Run, *, tab: str | None) -> str:
     return "\n".join(sections)
 
 
+def _format_label_list(labels: list[str]) -> str:
+    if not labels:
+        return "(none)"
+    return ", ".join(labels)
+
+
+async def _active_tone_sections(session: AsyncSession, active: Configuration | None) -> list[str]:
+    """Catalog ton + SSR tone/style labels from the active configuration."""
+    if active is None:
+        return [
+            "- Catalog ton labels: (no active configuration)",
+            "- SSR tone labels: (no active configuration)",
+            "- SSR style labels: (no active configuration)",
+        ]
+
+    lines: list[str] = []
+    catalog = await get_catalog_list(session, active.id, "ton")
+    if catalog is None:
+        lines.append("- Catalog ton labels (persona voice): (not seeded)")
+    else:
+        labels = [item.label for item in coerce_catalog_items(catalog.items)]
+        lines.append(f"- Catalog ton labels (persona voice): {_format_label_list(labels)}")
+
+    refs = dict(active.anchor_sets or {})
+    loc = active.language if active.language in {"sv", "en"} else "sv"
+    block = refs.get(loc)
+    if not isinstance(block, dict):
+        lines.append("- SSR tone labels: (not linked on active configuration)")
+        lines.append("- SSR style labels: (not linked on active configuration)")
+        return lines
+
+    for kind, title in (("tone", "SSR tone labels"), ("style", "SSR style labels")):
+        anchor_id = int(block.get(kind) or 0)
+        if anchor_id <= 0:
+            lines.append(f"- {title}: (not linked)")
+            continue
+        row = await session.get(SsrAnchorSet, anchor_id)
+        if row is None:
+            lines.append(f"- {title}: (missing set id={anchor_id})")
+            continue
+        labels = [str(x) for x in (row.labels or [])]
+        lines.append(
+            f"- {title}: {_format_label_list(labels)} "
+            f"(set id={row.id}, name={row.name}, status={row.status})"
+        )
+    return lines
+
+
 async def _load_library_snapshot(session: AsyncSession) -> str:
     persona_count = await session.scalar(select(func.count()).select_from(Persona)) or 0
     population_count = await session.scalar(select(func.count()).select_from(Population)) or 0
@@ -280,6 +330,8 @@ async def _load_library_snapshot(session: AsyncSession) -> str:
     if active is not None:
         active_line = f"{active.name} (id={active.id}, language={active.language})"
 
+    tone_lines = await _active_tone_sections(session, active)
+
     return "\n".join(
         [
             "# Live data snapshot (read-only)",
@@ -291,6 +343,7 @@ async def _load_library_snapshot(session: AsyncSession) -> str:
             f"- SSR anchor sets: {anchor_count}",
             f"- Configurations: {config_count}",
             f"- Active configuration: {active_line}",
+            *tone_lines,
             "- Recent background jobs:",
             *job_lines,
         ]
@@ -391,6 +444,7 @@ async def _load_view_entity(session: AsyncSession, view: HelpViewContext) -> str
         row = await session.get(SsrAnchorSet, int(anchor_id))
         if row is None:
             return f"# Open anchor set\n\nAnchor set `{anchor_id}` was not found."
+        labels = [str(x) for x in (row.labels or [])]
         return "\n".join(
             [
                 "# Open SSR anchor set (read-only)",
@@ -400,6 +454,7 @@ async def _load_view_entity(session: AsyncSession, view: HelpViewContext) -> str
                 f"- locale: {row.locale}",
                 f"- status: {row.status}",
                 f"- version: {row.version}",
+                f"- labels: {_format_label_list(labels)}",
             ]
         )
 

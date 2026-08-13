@@ -34,6 +34,7 @@ from app.services.report.segment_analysis import (
 )
 from app.services.report.segment_ssr import SegmentSample, SegmentToneRow
 from app.services.report.classify import BundleClassification
+from app.services.report.thresholds import ReportThresholds, default_report_thresholds
 from app.services.report.tick_report import (
     InterviewQA,
     TickStatsRow,
@@ -760,10 +761,12 @@ def render_audience_takeaway_section(
     classifications: list[BundleClassification],
     *,
     locale: ReportLocale = "sv",
+    thresholds: ReportThresholds | None = None,
 ) -> str:
     if not bundles or not classifications:
         return ""
-    lines = build_audience_takeaways(bundles, classifications, locale=locale)
+    t = thresholds if thresholds is not None else default_report_thresholds()
+    lines = build_audience_takeaways(bundles, classifications, locale=locale, thresholds=t)
     if not lines:
         empty = (
             "Not enough segment data for a summary — add bio fields and reactions."
@@ -1125,8 +1128,11 @@ def _render_audience_ab_comparison(
     classifications: list[BundleClassification],
     *,
     locale: ReportLocale,
+    diff_clear: float | None = None,
 ) -> str:
-    comparisons = build_audience_comparisons(bundles, classifications, locale=locale)
+    comparisons = build_audience_comparisons(
+        bundles, classifications, locale=locale, diff_clear=diff_clear
+    )
     if not comparisons:
         return ""
     reports = "".join(_render_segment_comparison(comp, locale=locale) for comp in comparisons)
@@ -1150,6 +1156,7 @@ def render_audience_section(
     classifications: list[BundleClassification],
     *,
     locale: ReportLocale = "sv",
+    diff_clear: float | None = None,
 ) -> str:
     if not bundles:
         return "<p>—</p>"
@@ -1162,7 +1169,9 @@ def render_audience_section(
             else "Varje kort jämför samma målgrupp mellan versionerna — ton, aktivitet, "
             "teman och enkätfrågor med svar sida vid sida (regelbaserat, ingen narrativ AI)."
         )
-        body = _render_audience_ab_comparison(bundles, classifications, locale=locale)
+        body = _render_audience_ab_comparison(
+            bundles, classifications, locale=locale, diff_clear=diff_clear
+        )
     else:
         intro = (
             "Each card is a mini-report for one target group: tone, activity, themes, "
@@ -1190,8 +1199,12 @@ def prefill_quick_chart_slots(
     locale: ReportLocale = "sv",
     ab: bool = False,
     recommendation: QuickRecommendation | None = None,
+    diff_clear: float | None = None,
+    thresholds: ReportThresholds | None = None,
 ) -> dict[str, str]:
     clfs = classifications or []
+    t = thresholds if thresholds is not None else default_report_thresholds()
+    clear_gap = diff_clear if diff_clear is not None else t.diff.clear
     rec_html = render_recommendation_block(recommendation, locale=locale) if recommendation else ""
 
     with FootnoteContext(locale) as stats_tracker:
@@ -1209,13 +1222,15 @@ def prefill_quick_chart_slots(
 
     qa_html = render_interview_qa_section(bundles, locale=locale)
     takeaway_html = (
-        render_audience_takeaway_section(bundles, clfs, locale=locale)
+        render_audience_takeaway_section(bundles, clfs, locale=locale, thresholds=t)
         if clfs and len(clfs) == len(bundles)
         else ""
     )
     if clfs and len(clfs) == len(bundles):
         with FootnoteContext(locale) as aud_tracker:
-            aud_html = render_audience_section(bundles, clfs, locale=locale)
+            aud_html = render_audience_section(
+                bundles, clfs, locale=locale, diff_clear=clear_gap
+            )
             aud_html += aud_tracker.render_block()
     else:
         aud_html = ""

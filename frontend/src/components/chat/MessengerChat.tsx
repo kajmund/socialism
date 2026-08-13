@@ -25,6 +25,8 @@ type MessengerChatProps = {
   empty?: ReactNode
   /** Optional actions next to each bubble (delete/resend). */
   renderActions?: (message: MessengerChatMessage) => ReactNode
+  suggestions?: string[]
+  onSuggestion?: (question: string) => void
   className?: string
   messagesClassName?: string
 }
@@ -46,6 +48,8 @@ export function MessengerChat({
   placeholder,
   empty = null,
   renderActions,
+  suggestions = [],
+  onSuggestion,
   className,
   messagesClassName,
 }: MessengerChatProps) {
@@ -60,7 +64,7 @@ export function MessengerChat({
   useEffect(() => {
     const el = msgsRef.current
     if (el) el.scrollTop = el.scrollHeight
-  }, [messages, optimisticUser, typing, streamText])
+  }, [messages, optimisticUser, typing, streamText, suggestions])
 
   useEffect(() => {
     if (wasBusyRef.current && !busy && !disabled) {
@@ -100,6 +104,25 @@ export function MessengerChat({
             <div className="bub them chat-stream-cursor">
               <ChatMarkdown text={streamText} />
             </div>
+          </div>
+        ) : null}
+        {suggestions.length > 0 && !busy ? (
+          <div
+            className="chat-suggestions"
+            role="group"
+            aria-label={t("chat.suggestionsAria")}
+          >
+            {suggestions.map((question) => (
+              <button
+                key={question}
+                type="button"
+                className="chat-suggestion"
+                disabled={disabled || !ready}
+                onClick={() => onSuggestion?.(question)}
+              >
+                {question}
+              </button>
+            ))}
           </div>
         ) : null}
       </div>

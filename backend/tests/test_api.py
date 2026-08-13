@@ -359,6 +359,11 @@ async def test_persona_generate_and_chat(client):
     body = chat.json()
     assert body["reply"]
     assert len(body["messages"]) == 2
+    assert body["suggestions"] == [
+        "Hur påverkar det din vardag?",
+        "Vad tänker du om partierna i frågan?",
+        "Har du ändrat åsikt med åren?",
+    ]
 
     listed = await client.get(f"/personas/{persona_id}/messages", params={"mode": "interview"})
     assert listed.status_code == 200

@@ -43,8 +43,11 @@ class OasisArtifactReader:
             else:
                 rows = conn.execute(sql, params)
             return [dict(row) for row in rows]
-        except sqlite3.OperationalError:
-            return []
+        except sqlite3.OperationalError as exc:
+            raise OasisArtifactError(
+                f"simulation.db schema mismatch (expected camel-oasis {SCHEMA_VERSION}): "
+                f"export query failed: {exc}"
+            ) from exc
 
     def assert_export_schema(self) -> None:
         """Fail loud when export tables are missing (camel-oasis upgrade drift)."""

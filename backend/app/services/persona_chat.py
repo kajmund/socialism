@@ -3,20 +3,33 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import AsyncIterator
+from dataclasses import dataclass
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Persona, PersonaMessage, Run
-from app.llm.chat import build_run_interview_prompt, stream_reply_as_persona
-from app.schemas.domain import ChatMode, PersonaChatResponse, PersonaMessageOut
+from app.llm.chat import (
+    build_run_interview_prompt,
+    stream_reply_as_persona,
+    suggest_follow_up_questions,
+)
+from app.schemas.domain import (
+    ChatMode,
+    EditablePersona,
+    PersonaChatResponse,
+    PersonaMessageOut,
+)
 from app.serializers import format_date, profile_from_dict, utcnow
 from app.services.district_context import area_block_for_name
 from app.services.oasis_run import previous_attempts
 from app.services.prompt_store import require_active_prompts
 from app.services.run_tick_context import build_persona_feed_context
+
+logger = logging.getLogger(__name__)
 
 
 class ChatTurnError(Exception):
@@ -24,6 +37,11 @@ class ChatTurnError(Exception):
         super().__init__(detail)
         self.detail = detail
         self.status_code = status_code
+
+
+@dataclass(frozen=True)
+class ChatSuggestions:
+    questions: list[str]
 
 
 _chat_locks: dict[str, asyncio.Lock] = {}
@@ -163,8 +181,8 @@ async def stream_library_chat_turn(
     persona_id: str,
     mode: ChatMode,
     message: str,
-) -> AsyncIterator[str | PersonaChatResponse]:
-    """Yield token strings, then a final PersonaChatResponse."""
+) -> AsyncIterator[str | PersonaChatResponse | ChatSuggestions]:
+    """Yield token strings, then PersonaChatResponse, then follow-up chips."""
     lock = await _chat_turn_lock(_library_lock_key(persona_id, mode))
     async with lock:
         persona = await session.get(Persona, persona_id)
@@ -224,6 +242,14 @@ async def stream_library_chat_turn(
         )
         messages = [serialize_persona_message(row) for row in all_rows.scalars().all()]
         yield PersonaChatResponse(reply=reply, messages=messages)
+        yield ChatSuggestions(
+            questions=await safe_library_follow_ups(
+                profile,
+                mode,
+                [(row.role, row.content) for row in messages],
+                prompts=prompts,
+            )
+        )
 
 
 async def stream_run_interview_turn(
@@ -360,3 +386,49 @@ async def stream_run_interview_turn(
         )
         messages = [serialize_persona_message(row) for row in all_rows.scalars().all()]
         yield PersonaChatResponse(reply=reply, messages=messages)
+
+
+async def library_follow_up_questions(
+    session: AsyncSession,
+    *,
+    persona_id: str,
+    mode: ChatMode,
+) -> list[str]:
+    """Generate follow-up chips from the current library thread. Fails loud."""
+    persona = await session.get(Persona, persona_id)
+    if persona is None:
+        raise ChatTurnError("Persona not found", status_code=404)
+    profile = profile_from_dict(persona.profile, persona.name)
+    history_rows = await session.execute(
+        select(PersonaMessage)
+        .where(*library_chat_filter(persona_id, mode))
+        .order_by(PersonaMessage.id.asc())
+    )
+    history = [(row.role, row.content) for row in history_rows.scalars().all()]
+    prompts = await require_active_prompts(session)
+    return await suggest_follow_up_questions(
+        profile,
+        mode,
+        history,
+        prompts=prompts,
+    )
+
+
+async def safe_library_follow_ups(
+    profile: EditablePersona,
+    mode: ChatMode,
+    history: list[tuple[str, str]],
+    *,
+    prompts: dict[str, str],
+) -> list[str]:
+    """After a successful reply, omit chips rather than failing the turn."""
+    try:
+        return await suggest_follow_up_questions(
+            profile,
+            mode,
+            history,
+            prompts=prompts,
+        )
+    except Exception:
+        logger.exception("Follow-up suggestion generation failed")
+        return []
