@@ -96,7 +96,7 @@ class BundleClassification:
     tone_shares: dict[str, float] = field(default_factory=dict)
     tone_mode: ToneMode = "ssr"
     topic_mode: TopicMode = "injection"
-    style_avg_likes: list[tuple[str, float]] = field(default_factory=list)
+    style_shares: list[tuple[str, float]] = field(default_factory=list)
     tone_pmfs: list[dict[str, float]] = field(default_factory=list)
     style_pmfs: list[dict[str, float]] = field(default_factory=list)
     classify_llm_seconds: float = 0.0
@@ -180,27 +180,24 @@ def classify_topics_by_keywords(
     return _share_counts(labels, allowed)
 
 
-def _style_avg_from_pmfs(pmfs: list[dict[str, float]]) -> list[tuple[str, float]]:
-    """Mean SSR style score per label (unit weight per reaction text)."""
-    buckets: dict[str, float] = {lab: 0.0 for lab in STYLE_LABELS}
-    weights: dict[str, float] = {lab: 0.0 for lab in STYLE_LABELS}
-    buckets[STYLE_UNCLASSIFIED] = 0.0
-    weights[STYLE_UNCLASSIFIED] = 0.0
+def _style_shares_from_pmfs(pmfs: list[dict[str, float]]) -> list[tuple[str, float]]:
+    """Share of rated reactions per style label (mean SSR mass, unit weight per text)."""
+    buckets: dict[str, float] = {lab: 0.0 for lab in [*STYLE_LABELS, STYLE_UNCLASSIFIED]}
+    rated = 0
 
     for pmf in pmfs:
+        rated += 1
         total = sum(pmf.values()) or 0.0
         if total <= 0.0:
             buckets[STYLE_UNCLASSIFIED] += 1.0
-            weights[STYLE_UNCLASSIFIED] += 1.0
             continue
         for lab, p in pmf.items():
             if lab not in buckets:
                 continue
-            buckets[lab] += p
-            weights[lab] += p
+            buckets[lab] += p / total
 
     scored = [
-        (style, (buckets[style] / weights[style]) if weights[style] > 0 else 0.0)
+        (style, (buckets[style] / rated) if rated > 0 else 0.0)
         for style in [*STYLE_LABELS, STYLE_UNCLASSIFIED]
     ]
     scored.sort(key=lambda x: x[1], reverse=True)
@@ -251,14 +248,13 @@ async def classify_tones(
 
 async def classify_styles(
     texts: list[str],
-    likes: list[int],
     *,
     locale: ReportLocale = "sv",
     temperature: float = DEFAULT_SSR_TEMPERATURE,
     style_anchor_set: AnchorSet | None = None,
     style_anchor_vectors: list[list[float]] | None = None,
 ) -> tuple[list[tuple[str, float]], list[str], list[dict[str, float]], float]:
-    """SSR style: embed reaction texts directly → soft-weighted avg likes."""
+    """SSR style: embed reaction texts directly → share of reactions per style."""
     if not texts:
         return (
             [(lab, 0.0) for lab in [*STYLE_LABELS, STYLE_UNCLASSIFIED]],
@@ -266,8 +262,6 @@ async def classify_styles(
             [],
             0.0,
         )
-    if len(likes) != len(texts):
-        raise ValueError("likes length must match texts")
 
     embed_texts = _clip_for_embed(texts)
     t0 = time.perf_counter()
@@ -279,8 +273,8 @@ async def classify_styles(
         anchor_vectors=style_anchor_vectors,
     )
     embed_s = time.perf_counter() - t0
-    style_avg = _style_avg_from_pmfs(result.per_text_pmfs)
-    return style_avg, list(texts), result.per_text_pmfs, embed_s
+    style_shares = _style_shares_from_pmfs(result.per_text_pmfs)
+    return style_shares, list(texts), result.per_text_pmfs, embed_s
 
 
 async def classify_bundle(
@@ -309,9 +303,8 @@ async def classify_bundle(
         tone_anchor_vectors=tone_anchor_vectors,
     )
 
-    style_avg, style_rated, style_pmfs, style_embed = await classify_styles(
+    style_shares, style_rated, style_pmfs, style_embed = await classify_styles(
         texts,
-        likes,
         locale=locale,
         temperature=ssr_temperature,
         style_anchor_set=style_anchor_set,
@@ -324,7 +317,7 @@ async def classify_bundle(
         tone_shares=tone_shares,
         tone_mode=tone_mode,
         topic_mode="injection",
-        style_avg_likes=style_avg,
+        style_shares=style_shares,
         tone_pmfs=tone_pmfs,
         style_pmfs=style_pmfs,
         classify_llm_seconds=0.0,

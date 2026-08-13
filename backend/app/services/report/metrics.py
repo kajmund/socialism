@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
@@ -29,6 +30,7 @@ __all__ = [
 class BundleMetrics:
     label: str
     agent_count: int
+    injector_count: int
     post_count: int
     comment_count: int
     ticks_run: int
@@ -46,7 +48,7 @@ class BundleMetrics:
     injection_likes: int
     topic_shares: dict[str, float]
     tone_shares: dict[str, float]
-    style_avg_likes: list[tuple[str, float]]
+    style_shares: list[tuple[str, float]]
     top_actors: list[dict[str, Any]]
     topic_by_tick: list[dict[str, Any]] = field(default_factory=list)
     action_histogram: list[dict[str, str | int]] = field(default_factory=list)
@@ -86,6 +88,11 @@ def _agent_name(bundle: RunBundle, user_id: int) -> str:
     return f"agent {user_id}"
 
 
+def injector_count(bundle: RunBundle) -> int:
+    """Institutional accounts (party, news outlet) — not simulated citizens."""
+    return sum(1 for a in bundle.agents if a.get("role") == "injector")
+
+
 def population_agent_ids(bundle: RunBundle) -> set[int]:
     """Indices for population citizens — exclude institutional injectors."""
     ids: set[int] = set()
@@ -113,8 +120,41 @@ def _gini(values: list[float]) -> float:
     return max(0.0, min(1.0, (2 * cum) / (n * total) - (n + 1) / n))
 
 
-def _empty_style_avg() -> list[tuple[str, float]]:
+def _empty_style_shares() -> list[tuple[str, float]]:
     return [(lab, 0.0) for lab in [*STYLE_LABELS, STYLE_UNCLASSIFIED]]
+
+
+def _round_half_up(value: float) -> int:
+    """Counts shown to readers round .5 upwards — round() would round to even."""
+    return math.floor(value + 0.5)
+
+
+def _apportion(values: list[float], total: int) -> list[int]:
+    """Largest-remainder split of `total` across `values` (sum stays exact)."""
+    floors = [math.floor(v) for v in values]
+    order = sorted(range(len(values)), key=lambda i: values[i] - floors[i], reverse=True)
+    for i in order[: total - sum(floors)]:
+        floors[i] += 1
+    return floors
+
+
+def _mean_engagement_tiers(per: list[BundleMetrics]) -> tuple[int, int, int, int]:
+    """Cross-run average population and tier split, with tiers summing to it.
+
+    Rounding each tier on its own let the donut divide by a different number than
+    the agent count printed next to it (17 citizens, 16 in the chart).
+    """
+    n = len(per)
+    agents = _round_half_up(sum(m.agent_count for m in per) / n)
+    top, mid, zero = _apportion(
+        [
+            sum(m.top_agents for m in per) / n,
+            sum(m.mid_agents for m in per) / n,
+            sum(m.zero_like_agents for m in per) / n,
+        ],
+        agents,
+    )
+    return agents, top, mid, zero
 
 
 def injection_likes(bundle: RunBundle) -> int:
@@ -224,7 +264,7 @@ def _empty_classification() -> BundleClassification:
         topic_shares={"Övrigt": 1.0},
         tone_shares={lab: 0.0 for lab in TONE_LABELS},
         tone_mode="ssr",
-        style_avg_likes=_empty_style_avg(),
+        style_shares=_empty_style_shares(),
     )
 
 
@@ -236,7 +276,7 @@ def compute_bundle_metrics(
     top, mid, zero, gini = _engagement_tiers(bundle)
     pop_ids = population_agent_ids(bundle)
     n_agents = len(pop_ids) or (top + mid + zero)
-    style = clf.style_avg_likes or _empty_style_avg()
+    style = clf.style_shares or _empty_style_shares()
     eng = _post_comment_engagement(bundle)
     hist = [
         {"action": str(h.get("action") or ""), "count": int(h.get("count") or 0)}
@@ -246,6 +286,7 @@ def compute_bundle_metrics(
     return BundleMetrics(
         label=bundle.label,
         agent_count=n_agents,
+        injector_count=injector_count(bundle),
         post_count=len(bundle.posts),
         comment_count=len(bundle.comments),
         ticks_run=bundle.ticks_run,
@@ -263,7 +304,7 @@ def compute_bundle_metrics(
         injection_likes=injection_likes(bundle),
         topic_shares=dict(clf.topic_shares),
         tone_shares=dict(clf.tone_shares),
-        style_avg_likes=list(style),
+        style_shares=list(style),
         top_actors=_top_actors(bundle),
         action_histogram=hist,
     )
@@ -292,23 +333,25 @@ def compute_report_metrics(
         n = len(per)
         style_map: dict[str, list[float]] = defaultdict(list)
         for m in per:
-            for style, avg in m.style_avg_likes:
-                style_map[style].append(avg)
-        style_avg = sorted(
+            for style, share in m.style_shares:
+                style_map[style].append(share)
+        style_shares = sorted(
             ((s, sum(vs) / len(vs)) for s, vs in style_map.items()),
             key=lambda x: x[1],
             reverse=True,
         )
+        agents, top, mid, zero = _mean_engagement_tiers(per)
         agg = BundleMetrics(
             label="Alla körningar",
-            agent_count=round(sum(m.agent_count for m in per) / n),
+            agent_count=agents,
+            injector_count=_round_half_up(sum(m.injector_count for m in per) / n),
             post_count=sum(m.post_count for m in per),
             comment_count=sum(m.comment_count for m in per),
             ticks_run=max(m.ticks_run for m in per),
             gini=round(sum(m.gini for m in per) / n, 3),
-            zero_like_agents=round(sum(m.zero_like_agents for m in per) / n),
-            mid_agents=round(sum(m.mid_agents for m in per) / n),
-            top_agents=round(sum(m.top_agents for m in per) / n),
+            zero_like_agents=zero,
+            mid_agents=mid,
+            top_agents=top,
             post_likes=sum(m.post_likes for m in per),
             comment_likes=sum(m.comment_likes for m in per),
             likes_total=sum(m.likes_total for m in per),
@@ -319,7 +362,7 @@ def compute_report_metrics(
             injection_likes=sum(m.injection_likes for m in per),
             topic_shares={k: topic[k] / n for k in topic},
             tone_shares={k: tone[k] / n for k in tone},
-            style_avg_likes=style_avg,
+            style_shares=style_shares,
             top_actors=per[0].top_actors,
             action_histogram=per[0].action_histogram,
         )
