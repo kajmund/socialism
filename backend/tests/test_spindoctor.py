@@ -76,6 +76,72 @@ async def test_spindoctor_messages_rest(client, tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_build_spindoctor_context_includes_style_shares(client, tmp_path, monkeypatch):
+    import json
+    from pathlib import Path
+
+    from app.services.report import ARTIFACT_ROOT
+
+    report_id = await _generate_report(client, tmp_path, monkeypatch)
+    ssr_path = Path(ARTIFACT_ROOT) / report_id / "report.ssr.json"
+    ssr_doc = json.loads(ssr_path.read_text(encoding="utf-8"))
+    bundle = ssr_doc["bundles"][0]
+    top_style = max(bundle["style_shares"], key=lambda row: row["share"])["style"]
+
+    factory = jobs_service.job_session_factory()
+    async with factory() as db:
+        _report, context = await build_spindoctor_context(db, report_id=report_id)
+    assert "budskapsstil" in context
+    assert top_style in context or top_style.replace("_", " ") in context
+
+
+@pytest.mark.asyncio
+async def test_clear_waits_for_in_flight_turn(client, tmp_path, monkeypatch):
+    """Clear must not run until an in-flight turn releases the per-report lock."""
+    report_id = await _generate_report(client, tmp_path, monkeypatch)
+    gate = asyncio.Event()
+    release = asyncio.Event()
+    clear_done = asyncio.Event()
+
+    async def _slow_stream(_messages: list[dict[str, str]]) -> AsyncIterator[str]:
+        gate.set()
+        await release.wait()
+        yield "Svar efter clear-försök."
+
+    clear_done = asyncio.Event()
+
+    set_text_streamer(_slow_stream)
+    try:
+        factory = jobs_service.job_session_factory()
+
+        async def _turn() -> None:
+            async with factory() as db:
+                async for _item in stream_spindoctor_chat_turn(
+                    db,
+                    report_id=report_id,
+                    locale="sv",
+                    message="Fråga under pågående svar",
+                ):
+                    pass
+
+        async def _clear() -> None:
+            async with factory() as db:
+                await clear_spindoctor_messages(db, report_id)
+            clear_done.set()
+
+        turn_task = asyncio.create_task(_turn())
+        await gate.wait()
+        clear_task = asyncio.create_task(_clear())
+        await asyncio.sleep(0.05)
+        assert not clear_done.is_set()
+        release.set()
+        await asyncio.gather(turn_task, clear_task)
+        assert clear_done.is_set()
+    finally:
+        set_text_streamer(None)
+
+
+@pytest.mark.asyncio
 async def test_build_spindoctor_context(client, tmp_path, monkeypatch):
     report_id = await _generate_report(client, tmp_path, monkeypatch)
     factory = jobs_service.job_session_factory()
