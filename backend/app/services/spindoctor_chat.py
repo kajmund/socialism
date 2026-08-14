@@ -59,10 +59,12 @@ async def list_spindoctor_messages(
 
 
 async def clear_spindoctor_messages(session: AsyncSession, report_id: str) -> None:
-    await session.execute(
-        delete(SpindoctorMessage).where(SpindoctorMessage.report_id == report_id)
-    )
-    await session.commit()
+    lock = await _spindoctor_turn_lock(report_id)
+    async with lock:
+        await session.execute(
+            delete(SpindoctorMessage).where(SpindoctorMessage.report_id == report_id)
+        )
+        await session.commit()
 
 
 def _history_rows(rows: list[SpindoctorMessage]) -> list[dict[str, str]]:
