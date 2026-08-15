@@ -264,6 +264,10 @@ function Editor({
       setSuggestions([])
       return
     }
+    if (!chatReady) {
+      setOptimisticUser(null)
+      return
+    }
     let cancelled = false
     const gen = ++suggestGen.current
     listPersonaMessages(personaId, icMode)
@@ -294,7 +298,7 @@ function Editor({
     }
     // intentionally omit onToast/t — parent recreates them each render
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [personaId, icMode])
+  }, [personaId, icMode, chatReady])
 
   function sendMessage(text: string) {
     const trimmed = text.trim()

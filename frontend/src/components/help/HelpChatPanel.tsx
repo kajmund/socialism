@@ -82,7 +82,11 @@ export function HelpChatPanel({ sessionId, onClose }: HelpChatPanelProps) {
   }, [loadHistory])
 
   useEffect(() => {
-    if (chatReady) void loadHistory()
+    if (!chatReady) {
+      setOptimisticUser(null)
+      return
+    }
+    void loadHistory()
   }, [chatReady, loadHistory])
 
   const sendMessage = useCallback(() => {
