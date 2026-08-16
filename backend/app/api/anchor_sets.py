@@ -22,6 +22,8 @@ from app.schemas.domain import (
     SsrAnchorSetOut,
     SsrAnchorSetUpdate,
     SsrAnchorTestRequest,
+    SsrMisclassificationFlagOut,
+    SsrMisclassificationFlagUpdate,
     format_date,
 )
 from app.serializers import utcnow
@@ -46,6 +48,13 @@ from app.services.anchor_store import (
     ensure_default_anchor_sets,
     row_to_anchor_set,
     validate_anchor_payload,
+)
+from app.services.misclassification_flags import (
+    MisclassificationFlagError,
+    dismiss_flag,
+    list_flags,
+    resolve_flag,
+    serialize_flag,
 )
 from app.services.playground import rate_case
 from app.services.prompt_store import get_active_configuration
@@ -570,3 +579,55 @@ async def delete_pool_item(
     except AnchorPoolError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     await session.commit()
+
+
+@router.get(
+    "/{anchor_set_id}/misclassification-flags",
+    response_model=list[SsrMisclassificationFlagOut],
+)
+async def list_misclassification_flags(
+    anchor_set_id: int,
+    status: str = Query(default="open", pattern="^(open|dismissed|resolved)$"),
+    session: AsyncSession = Depends(get_session),
+) -> list[SsrMisclassificationFlagOut]:
+    """List SSR misclassification flags for an anchor set (default: open)."""
+    await _get_row(session, anchor_set_id)
+    rows = await list_flags(
+        session,
+        anchor_set_id=anchor_set_id,
+        status=status,  # type: ignore[arg-type]
+    )
+    return [SsrMisclassificationFlagOut.model_validate(serialize_flag(r)) for r in rows]
+
+
+@router.patch(
+    "/{anchor_set_id}/misclassification-flags/{flag_id}",
+    response_model=SsrMisclassificationFlagOut,
+)
+async def update_misclassification_flag(
+    anchor_set_id: int,
+    flag_id: int,
+    body: SsrMisclassificationFlagUpdate,
+    session: AsyncSession = Depends(get_session),
+) -> SsrMisclassificationFlagOut:
+    """Dismiss a flag, or resolve it by adding expected_label text to the pool."""
+    await _get_row(session, anchor_set_id)
+    try:
+        if body.status == "dismissed":
+            flag = await dismiss_flag(
+                session, anchor_set_id=anchor_set_id, flag_id=flag_id
+            )
+        else:
+            flag = await resolve_flag(
+                session,
+                anchor_set_id=anchor_set_id,
+                flag_id=flag_id,
+                add_to_calibration=body.add_to_calibration,
+            )
+    except MisclassificationFlagError as exc:
+        detail = str(exc)
+        code = 404 if "not found" in detail.lower() else 400
+        raise HTTPException(status_code=code, detail=detail) from exc
+    await session.commit()
+    await session.refresh(flag)
+    return SsrMisclassificationFlagOut.model_validate(serialize_flag(flag))

@@ -1,5 +1,20 @@
 # Manual update log
 
+## 2026-08-16
+
+* **Konfigurationer**: Redigeraren följer mockupen — kompakt sidhuvud (namn, språk, aktiv), sökbar lista för promptfält och vänstermeny för känslighet/rapportgränser.
+* **Körningar**: SSR-ankare läggs till från flödet (sköld och stjärna på kommentarer). Den gamla listan under resultatet är borttagen.
+* **Körningar**: Öppna resultat följer mockupen — tillbaka-länk, försökskort, variantflikar, översiktsrad och jämför-knapp.
+* **Körningar**: Listan följer mockupen — ingress, sök/filter/sortering, A/B-märken och kortlayout.
+* **Admin**: Ny mockup — Rutnät/Lista på Körningar, Konfigurationer, Ankarset, Populationer, Budskap, Jobb, Rapporter, Feedback och Personas.
+* **Konfigurationer**: Flikar uppdelade i Innehåll & ton, Känslighet & rapportgränser, Ankare och Grunddata.
+* **SSR-ankare**: Etikettordlista (delade etiketter per typ/språk), flik Ankarpool och flik Flaggade.
+* **Körningar**: I resultat kan fel SSR-klassificering flaggas; granskas under Flaggade i ankarset.
+
+## 2026-08-14
+
+* **Rapporter**: Verdict-kalibrering är dold på rapportsidan.
+
 ## 2026-08-13
 
 * **Personas**: I kompositörens chatt och intervju föreslår assistenten tre knappar efter varje svar (följdfrågor i intervju, vardagsrepliker i in-character) och som start när tråden är tom.

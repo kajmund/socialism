@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.database.models import Configuration
 from app.schemas.domain import DEFAULT_SSR_TEMPERATURE
 from app.serializers import utcnow
 from app.services.prompt_catalog import (
-    PROMPT_KEYS,
     ConfigurationLanguage,
     default_prompts,
     normalize_prompts,
@@ -38,31 +38,19 @@ async def get_active_configuration(session: AsyncSession) -> Configuration | Non
     return result.scalar_one_or_none()
 
 
-def _require_prompt_map(
-    row: Configuration,
-    *,
-    context: str,
-) -> dict[str, str]:
+def _filled_prompts(row: Configuration) -> dict[str, str]:
     language: ConfigurationLanguage = row.language  # type: ignore[assignment]
-    prompts = normalize_prompts(dict(row.prompts or {}), language=language, fill_missing=False)
-    missing = [k for k in PROMPT_KEYS if not str(prompts.get(k, "")).strip()]
-    if missing:
-        raise MissingActiveConfigurationError(
-            f"{context} '{row.name}' (id={row.id}) is missing prompts: "
-            + ", ".join(missing[:8])
-            + ("…" if len(missing) > 8 else "")
-        )
-    return prompts
+    return normalize_prompts(dict(row.prompts or {}), language=language, fill_missing=True)
 
 
 def _merge_missing_catalog_prompts(row: Configuration) -> bool:
     """Persist new catalog keys into a stored config. Returns True if row changed."""
-    language: ConfigurationLanguage = row.language  # type: ignore[assignment]
     before = dict(row.prompts or {})
-    merged = normalize_prompts(before, language=language, fill_missing=True)
+    merged = _filled_prompts(row)
     if merged == before:
         return False
     row.prompts = merged
+    flag_modified(row, "prompts")
     row.updated_at = utcnow()
     return True
 
@@ -77,7 +65,7 @@ async def require_active_prompts(session: AsyncSession) -> dict[str, str]:
         await session.commit()
         await session.refresh(row)
 
-    return _require_prompt_map(row, context="Active configuration")
+    return _filled_prompts(row)
 
 
 async def require_prompts_for_language(
@@ -104,7 +92,7 @@ async def require_prompts_for_language(
     if _merge_missing_catalog_prompts(row):
         await session.commit()
         await session.refresh(row)
-    return _require_prompt_map(row, context="Active configuration")
+    return _filled_prompts(row)
 
 async def require_active_ssr_temperature(session: AsyncSession) -> float:
     """SSR softmax temperature from the active configuration (fail loud if missing)."""
@@ -195,6 +183,7 @@ async def ensure_default_configurations(session: AsyncSession) -> int:
             merged = normalize_prompts(dict(row.prompts or {}), language=language, fill_missing=True)
             if merged != dict(row.prompts or {}):
                 row.prompts = merged
+                flag_modified(row, "prompts")
                 row.updated_at = utcnow()
                 changed += 1
             if _backfill_report_thresholds(row):

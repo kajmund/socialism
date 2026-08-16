@@ -12,10 +12,11 @@ Längre arbeten — populationsgenerering, simulering och rapportskapande — k�
 ## Steg
 
 1. Öppna **Bakgrundsjobb** i menyn (siffran vid menypunkten visar antal aktiva jobb).
-2. Listan uppdateras automatiskt när jobb ändrar status.
-3. Per jobb ser du typ (**Populationsgenerering**, **Simulering** eller **Rapport**), status, varaktighet och eventuella felmeddelanden.
-4. När ett jobb är klart eller misslyckat: följ länken till population, körning eller rapport.
-5. Vid populationsgenerering kan **varningar** visas om något avvek från receptet.
+2. Växla mellan **Rutnät** och **Lista** om du vill.
+3. Listan uppdateras automatiskt när jobb ändrar status.
+4. Per jobb ser du typ (**Populationsgenerering**, **Simulering** eller **Rapport**), status, varaktighet och eventuella felmeddelanden.
+5. När ett jobb är klart eller misslyckat: följ länken till population, körning eller rapport.
+6. Vid populationsgenerering kan **varningar** visas om något avvek från receptet.
 
 Du kan också nå jobbsidan från notifieringar som dyker upp när ett jobb slutförs.
 

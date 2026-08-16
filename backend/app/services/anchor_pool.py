@@ -21,7 +21,6 @@ from app.services.anchor_store import (
     require_anchor_set_row,
 )
 from app.services.prompt_store import get_active_configuration
-from app.services.report.bundles import build_bundles_for_attempt
 from app.services.report.locale import ReportLocale, normalize_locale
 from app.services.run_results import find_attempt, find_variant
 from app.services.ssr.embeddings import embed_texts_cached
@@ -294,6 +293,7 @@ async def list_tagger_texts(
     attempt_id: str,
     variant_id: str,
     locale: ReportLocale,
+    include_ssr: bool = True,
 ) -> dict[str, Any]:
     from app.database.models import Run
 
@@ -307,16 +307,8 @@ async def list_tagger_texts(
     if variant is None:
         raise AnchorPoolError("Variant not found")
 
-    bundle = None
-    bundles = await build_bundles_for_attempt(
-        session, run_id=run_id, attempt_id=attempt_id
-    )
-    for candidate in bundles:
-        if str(candidate.variant_id or "") == variant_id:
-            bundle = candidate
-            break
-    if bundle is None:
-        raise AnchorPoolError(f"Variant {variant_id!r} not found in attempt")
+    trace = [row for row in (variant.get("trace") or []) if isinstance(row, dict)]
+    agents = [row for row in (variant.get("agents") or []) if isinstance(row, dict)]
     anchor_ctx = await active_anchor_context(session, locale)
     tone_id = anchor_ctx["tone"]["id"]
     style_id = anchor_ctx["style"]["id"]
@@ -355,10 +347,14 @@ async def list_tagger_texts(
                 },
                 "tone_labels": tone_by_ref.get(key, []),
                 "style_labels": style_by_ref.get(key, []),
+                "tone_predicted": None,
+                "style_predicted": None,
+                "tone_pmf": None,
+                "style_pmf": None,
             }
         )
 
-    for row in bundle.trace or []:
+    for row in trace:
         if str(row.get("action") or "").strip().lower() != "interview":
             continue
         info_raw = row.get("info")
@@ -379,7 +375,7 @@ async def list_tagger_texts(
         agent_name = next(
             (
                 str(a.get("member_name") or a.get("username") or "")
-                for a in bundle.agents
+                for a in agents
                 if a.get("index") == user_id
             ),
             "",
@@ -396,6 +392,10 @@ async def list_tagger_texts(
                 },
                 "tone_labels": tone_by_ref.get(key, []),
                 "style_labels": style_by_ref.get(key, []),
+                "tone_predicted": None,
+                "style_predicted": None,
+                "tone_pmf": None,
+                "style_pmf": None,
             }
         )
 
@@ -428,8 +428,15 @@ async def list_tagger_texts(
                 },
                 "tone_labels": tone_by_ref.get(key, []),
                 "style_labels": style_by_ref.get(key, []),
+                "tone_predicted": None,
+                "style_predicted": None,
+                "tone_pmf": None,
+                "style_pmf": None,
             }
         )
+
+    if include_ssr and rows:
+        await _annotate_rows_with_ssr(session, rows, locale=locale)
 
     return {
         "run_id": run_id,
@@ -437,7 +444,65 @@ async def list_tagger_texts(
         "variant_id": variant_id,
         "anchor_context": anchor_ctx,
         "rows": rows,
+        "include_ssr": include_ssr,
     }
+
+
+def _argmax_label(pmf: dict[str, float]) -> str | None:
+    if not pmf:
+        return None
+    return max(pmf.items(), key=lambda kv: kv[1])[0]
+
+
+async def _annotate_rows_with_ssr(
+    session: AsyncSession,
+    rows: list[dict[str, Any]],
+    *,
+    locale: ReportLocale,
+) -> None:
+    """Run SSR on row texts against active config tone/style anchors.
+
+    Requires published anchors on the active config (same as reports). Raises
+    ``AnchorResolutionError`` when config/anchors are missing — no silent skip.
+    """
+    from app.services.anchor_store import require_anchor_sets_for_language
+    from app.services.prompt_store import require_active_ssr_temperature
+    from app.services.report.classify import clip_texts_for_embed
+    from app.services.ssr import rate_texts
+
+    loc = normalize_locale(locale)
+    resolved = await require_anchor_sets_for_language(session, loc)
+    temperature = await require_active_ssr_temperature(session)
+    texts = [str(r["text"]) for r in rows]
+    embed_texts = clip_texts_for_embed(texts)
+
+    tone_result = await rate_texts(
+        embed_texts,
+        resolved["tone"],
+        temperature=temperature,
+        anchor_vectors=resolved["tone_vectors"],
+    )
+    style_result = await rate_texts(
+        embed_texts,
+        resolved["style"],
+        temperature=temperature,
+        anchor_vectors=resolved["style_vectors"],
+    )
+    if len(tone_result.per_text_pmfs) != len(rows) or len(style_result.per_text_pmfs) != len(
+        rows
+    ):
+        raise RuntimeError("SSR returned unexpected PMF count for taggable texts")
+
+    for row, tone_pmf, style_pmf in zip(
+        rows,
+        tone_result.per_text_pmfs,
+        style_result.per_text_pmfs,
+        strict=True,
+    ):
+        row["tone_pmf"] = tone_pmf
+        row["style_pmf"] = style_pmf
+        row["tone_predicted"] = _argmax_label(tone_pmf)
+        row["style_predicted"] = _argmax_label(style_pmf)
 
 
 __all__ = [

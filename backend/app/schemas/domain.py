@@ -527,6 +527,55 @@ AnchorLocale = Literal["sv", "en"]
 AnchorStatus = Literal["draft", "published"]
 
 
+class LabelVocabularyEntry(BaseModel):
+    key: str
+    label: str
+
+
+class LabelVocabularyOut(BaseModel):
+    kind: AnchorKind
+    locale: AnchorLocale
+    entries: list[LabelVocabularyEntry]
+    usage: dict[str, int] = Field(default_factory=dict)
+    updated_at: str
+
+
+class LabelVocabularyRenameOp(BaseModel):
+    key: str = Field(min_length=1)
+    new_label: str = Field(min_length=1, max_length=64)
+
+    @field_validator("key", "new_label", mode="before")
+    @classmethod
+    def strip_required(cls, value: object) -> object:
+        return _strip_required_text(value)
+
+
+class LabelVocabularyAddOp(BaseModel):
+    label: str = Field(min_length=1, max_length=64)
+
+    @field_validator("label", mode="before")
+    @classmethod
+    def strip_required(cls, value: object) -> object:
+        return _strip_required_text(value)
+
+
+class LabelVocabularyRemoveOp(BaseModel):
+    key: str = Field(min_length=1)
+
+    @field_validator("key", mode="before")
+    @classmethod
+    def strip_required(cls, value: object) -> object:
+        return _strip_required_text(value)
+
+
+class LabelVocabularyPatch(BaseModel):
+    """Apply rename / add / remove operations to one vocabulary (kind+locale)."""
+
+    rename: list[LabelVocabularyRenameOp] | None = None
+    add: list[LabelVocabularyAddOp] | None = None
+    remove: list[LabelVocabularyRemoveOp] | None = None
+
+
 class ConfigurationAnchorRef(BaseModel):
     tone: int = Field(gt=0)
     style: int = Field(gt=0)
@@ -753,6 +802,11 @@ class RunTaggableTextRowOut(BaseModel):
     meta: dict[str, Any]
     tone_labels: list[str]
     style_labels: list[str]
+    # SSR argmax vs active config anchors when include_ssr=true; else null.
+    tone_predicted: str | None = None
+    style_predicted: str | None = None
+    tone_pmf: dict[str, float] | None = None
+    style_pmf: dict[str, float] | None = None
 
 
 class RunTaggableTextsOut(BaseModel):
@@ -761,6 +815,57 @@ class RunTaggableTextsOut(BaseModel):
     variant_id: str
     anchor_context: dict[str, Any]
     rows: list[RunTaggableTextRowOut]
+    include_ssr: bool = False
+
+
+MisclassificationKind = Literal["tone", "style"]
+MisclassificationStatus = Literal["open", "dismissed", "resolved"]
+
+
+class SsrMisclassificationFlagOut(BaseModel):
+    id: int
+    anchor_set_id: int
+    kind: MisclassificationKind
+    text: str
+    predicted_label: str
+    expected_label: str
+    source_type: AnchorPoolSourceType
+    source_ref: dict[str, Any]
+    source_run_id: int | None
+    source_attempt_id: str | None
+    source_variant_id: str | None
+    status: MisclassificationStatus
+    pool_item_id: int | None
+    created_at: str
+    resolved_at: str | None = None
+
+
+class RunMisclassificationFlagCreate(BaseModel):
+    text: str = Field(min_length=1)
+    predicted_label: str = Field(min_length=1, max_length=64)
+    expected_label: str = Field(min_length=1, max_length=64)
+    kind: MisclassificationKind
+    source_type: AnchorPoolSourceType
+    source_ref: dict[str, Any] = Field(default_factory=dict)
+    attempt_id: str = Field(min_length=1)
+    variant_id: str = Field(min_length=1)
+    locale: Literal["sv", "en"] = "sv"
+
+    @field_validator("text", "predicted_label", "expected_label", mode="before")
+    @classmethod
+    def strip_fields(cls, value: object) -> object:
+        return _strip_required_text(value)
+
+
+class SsrMisclassificationFlagUpdate(BaseModel):
+    status: Literal["dismissed", "resolved"]
+    add_to_calibration: bool = False
+
+    @model_validator(mode="after")
+    def calibration_only_on_resolve(self) -> Self:
+        if self.status == "dismissed" and self.add_to_calibration:
+            raise ValueError("add_to_calibration is only valid when status is resolved")
+        return self
 
 
 class PromptCatalogOut(BaseModel):

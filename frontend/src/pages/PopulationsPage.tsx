@@ -7,6 +7,7 @@ import {
 } from "@/api/populations"
 import { AdminShell } from "@/components/layout/AdminShell"
 import { Card, CardContent } from "@/components/ui/card"
+import { ViewToggle, type ListViewMode } from "@/components/ui/view-toggle"
 import { FP_COLORS, formatLibraryDate } from "@/data/library"
 import type { PopulationSummary } from "@/data/library-types"
 import { useLocale, type MessageKey } from "@/i18n"
@@ -105,6 +106,59 @@ function PopCard({ pop, intl, t, onDelete, onDup }: PopCardProps) {
   )
 }
 
+function PopListRow({ pop, intl, t, onDelete, onDup }: PopCardProps) {
+  const [confirming, setConfirming] = useState(false)
+  return (
+    <div className="admin-list-row admin-list-pops">
+      <div>
+        <div className="nm">{pop.name}</div>
+        <div className="meta">
+          {t("populations.list.metaLine", {
+            size: pop.size,
+            when: formatLibraryDate(pop.updated, intl),
+          })}
+        </div>
+      </div>
+      <div className="cell">
+        {pop.runs > 0 ? (
+          <>
+            {t("populations.list.usedInPrefix")} {pop.runs} {t("populations.list.usedInSuffix")}
+          </>
+        ) : (
+          t("populations.list.unused")
+        )}
+      </div>
+      <div className="cell">
+        {pop.versions > 1 ? t("common.versions", { count: pop.versions }) : t("common.emDash")}
+      </div>
+      <div className="admin-list-actions">
+        {confirming ? (
+          <>
+            <button type="button" onClick={() => setConfirming(false)}>
+              {t("common.cancel")}
+            </button>
+            <button type="button" className="primary" onClick={() => onDelete(pop.id)}>
+              {t("common.deleteConfirm")}
+            </button>
+          </>
+        ) : (
+          <>
+            <Link className="primary" to={`/populations/${pop.id}`}>
+              {t("common.open")}
+            </Link>
+            <button type="button" onClick={() => onDup(pop.id, pop.name)}>
+              {t("common.duplicate")}
+            </button>
+            <button type="button" onClick={() => setConfirming(true)}>
+              {t("common.delete")}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export function PopulationsPage() {
   const { t, intl } = useLocale()
   const [pops, setPops] = useState<PopulationSummary[]>([])
@@ -112,6 +166,7 @@ export function PopulationsPage() {
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState("")
   const [sort, setSort] = useState<"updated" | "size" | "runs">("updated")
+  const [view, setView] = useState<ListViewMode>("grid")
   const [toast, setToast] = useState<string | null>(null)
 
   useEffect(() => {
@@ -232,16 +287,23 @@ export function PopulationsPage() {
                   <option value="runs">{t("populations.list.sortRuns")}</option>
                 </select>
               </div>
-              <Link
-                to="/populations/new"
-                className="admin-cta inline-flex h-9 items-center rounded-md bg-db-black px-4 text-sm text-db-ink-0 no-underline hover:bg-db-ink-800"
-              >
-                {t("populations.list.newPopulation")}
-              </Link>
+              <div className="controls-right">
+                <ViewToggle value={view} onChange={setView} />
+                <Link
+                  to="/populations/new"
+                  className="admin-cta inline-flex h-9 items-center rounded-md bg-db-black px-4 text-sm text-db-ink-0 no-underline hover:bg-db-ink-800"
+                >
+                  {t("populations.list.newPopulation")}
+                </Link>
+              </div>
             </div>
-            <div className="pop-grid">
-              {list.length ? (
-                list.map((p) => (
+            {list.length === 0 ? (
+              <div className="no-match">
+                {t("populations.list.emptyFilter", { query })}
+              </div>
+            ) : view === "grid" ? (
+              <div className="pop-grid">
+                {list.map((p) => (
                   <PopCard
                     key={p.id}
                     pop={p}
@@ -250,13 +312,22 @@ export function PopulationsPage() {
                     onDelete={handleDelete}
                     onDup={handleDup}
                   />
-                ))
-              ) : (
-                <div className="no-match">
-                  {t("populations.list.emptyFilter", { query })}
-                </div>
-              )}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="admin-list-stack">
+                {list.map((p) => (
+                  <PopListRow
+                    key={p.id}
+                    pop={p}
+                    intl={intl}
+                    t={t}
+                    onDelete={handleDelete}
+                    onDup={handleDup}
+                  />
+                ))}
+              </div>
+            )}
           </>
         ) : (
           <div className="empty-state">

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom"
 import { deleteMessage, listMessages, type Message, type MessageType } from "@/api/messages"
 import { AdminShell } from "@/components/layout/AdminShell"
 import { Card, CardContent } from "@/components/ui/card"
+import { ViewToggle, type ListViewMode } from "@/components/ui/view-toggle"
 import { formatLibraryDate } from "@/data/library"
 import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
 import { ApiError } from "@/lib/api"
@@ -35,12 +36,12 @@ function variantFromMeta(meta: Record<string, unknown>, t: Translate): string | 
   return key ? t(key) : v
 }
 
-type MsgCardProps = {
+type MsgItemProps = {
   msg: Message
   onDelete: (id: string) => void
 }
 
-function MsgCard({ msg, onDelete }: MsgCardProps) {
+function MsgCard({ msg, onDelete }: MsgItemProps) {
   const { t } = useLocale()
   const [confirming, setConfirming] = useState(false)
   const variant = variantFromMeta(msg.metadata, t)
@@ -98,6 +99,48 @@ function MsgCard({ msg, onDelete }: MsgCardProps) {
   )
 }
 
+function MsgListRow({ msg, onDelete }: MsgItemProps) {
+  const { t } = useLocale()
+  const [confirming, setConfirming] = useState(false)
+  const variant = variantFromMeta(msg.metadata, t)
+  return (
+    <div className="admin-list-row admin-list-msgs">
+      <div>
+        <div className="nm">{msg.title}</div>
+        <div className="meta">
+          {t("messages.list.createdOn", { date: formatLibraryDate(msg.created_at) })}
+          {variant ? ` · ${variant}` : ""}
+        </div>
+      </div>
+      <span className="rounded-full border border-[color:var(--border-hairline)] px-2 py-0.5 text-[11px]">
+        {typeLabel(msg.type, t)}
+      </span>
+      <div className="cell line-clamp-2">{msg.body}</div>
+      <div className="admin-list-actions">
+        {confirming ? (
+          <>
+            <button type="button" onClick={() => setConfirming(false)}>
+              {t("common.cancel")}
+            </button>
+            <button type="button" className="primary" onClick={() => onDelete(msg.id)}>
+              {t("common.deleteConfirm")}
+            </button>
+          </>
+        ) : (
+          <>
+            <Link className="primary" to={`/messages/${msg.id}/edit`}>
+              {t("messages.list.edit")}
+            </Link>
+            <button type="button" onClick={() => setConfirming(true)}>
+              {t("common.delete")}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export function MessagesPage() {
   const { t } = useLocale()
   const [messages, setMessages] = useState<Message[]>([])
@@ -105,6 +148,7 @@ export function MessagesPage() {
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState("")
   const [typeFilter, setTypeFilter] = useState<"" | MessageType>("")
+  const [view, setView] = useState<ListViewMode>("grid")
   const [toast, setToast] = useState<string | null>(null)
 
   useEffect(() => {
@@ -184,12 +228,15 @@ export function MessagesPage() {
               <option value="news">{t("messages.list.typeNews")}</option>
             </select>
           </div>
-          <Link
-            to="/messages/new"
-            className="admin-cta inline-flex h-9 shrink-0 items-center rounded-md bg-db-black px-4 text-sm text-db-ink-0 no-underline hover:bg-db-ink-800"
-          >
-            {t("messages.list.newInWorkshop")}
-          </Link>
+          <div className="controls-right">
+            <ViewToggle value={view} onChange={setView} />
+            <Link
+              to="/messages/new"
+              className="admin-cta inline-flex h-9 shrink-0 items-center rounded-md bg-db-black px-4 text-sm text-db-ink-0 no-underline hover:bg-db-ink-800"
+            >
+              {t("messages.list.newInWorkshop")}
+            </Link>
+          </div>
         </div>
 
         {loading && <p className="muted">{t("messages.list.loading")}</p>}
@@ -205,11 +252,21 @@ export function MessagesPage() {
             </Link>
           </div>
         )}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((msg) => (
-            <MsgCard key={msg.id} msg={msg} onDelete={onDelete} />
-          ))}
-        </div>
+        {!loading && !error && filtered.length > 0 ? (
+          view === "grid" ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {filtered.map((msg) => (
+                <MsgCard key={msg.id} msg={msg} onDelete={onDelete} />
+              ))}
+            </div>
+          ) : (
+            <div className="admin-list-stack">
+              {filtered.map((msg) => (
+                <MsgListRow key={msg.id} msg={msg} onDelete={onDelete} />
+              ))}
+            </div>
+          )
+        ) : null}
       </div>
       {toast && (
         <div className="fixed bottom-6 right-6 z-50 rounded-md bg-db-ink-950 px-4 py-2 text-sm text-db-ink-0">

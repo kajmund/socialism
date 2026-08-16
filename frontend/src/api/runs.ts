@@ -91,6 +91,40 @@ export type RunTaggableTextRow = {
   meta: Record<string, unknown>
   tone_labels: string[]
   style_labels: string[]
+  tone_predicted?: string | null
+  style_predicted?: string | null
+  tone_pmf?: Record<string, number> | null
+  style_pmf?: Record<string, number> | null
+}
+
+export type RunMisclassificationFlagCreate = {
+  text: string
+  predicted_label: string
+  expected_label: string
+  kind: "tone" | "style"
+  source_type: RunTaggableTextRow["source_type"]
+  source_ref: Record<string, unknown>
+  attempt_id: string
+  variant_id: string
+  locale?: "sv" | "en"
+}
+
+export type RunMisclassificationFlag = {
+  id: number
+  anchor_set_id: number
+  kind: "tone" | "style"
+  text: string
+  predicted_label: string
+  expected_label: string
+  source_type: RunTaggableTextRow["source_type"]
+  source_ref: Record<string, unknown>
+  source_run_id: number | null
+  source_attempt_id: string | null
+  source_variant_id: string | null
+  status: "open" | "dismissed" | "resolved"
+  pool_item_id: number | null
+  created_at: string
+  resolved_at: string | null
 }
 
 export type RunTaggableTextsResponse = {
@@ -131,6 +165,16 @@ export function addRunAnchorPoolItems(
   },
 ): Promise<{ created: Array<{ kind: string; id: number; label: string }> }> {
   return api.post(`/runs/${runId}/anchor-pool`, body)
+}
+
+export function createRunMisclassificationFlag(
+  runId: number,
+  body: RunMisclassificationFlagCreate,
+): Promise<RunMisclassificationFlag> {
+  return api.post<RunMisclassificationFlag>(
+    `/runs/${runId}/misclassification-flags`,
+    body,
+  )
 }
 
 export type RunInterviewMessage = {

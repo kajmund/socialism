@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import { deleteReport, getReportHtml, type Report } from "@/api/reports"
 import { ReportCanvas, type ReportCanvasHandle } from "@/components/reports/ReportCanvas"
-import { ReportVerdictCalibrationPanel } from "@/components/reports/ReportVerdictCalibrationPanel"
 import { SpinndoktorPanel } from "@/components/reports/SpinndoktorPanel"
 import { AdminShell } from "@/components/layout/AdminShell"
 import { Card, CardContent } from "@/components/ui/card"
@@ -135,7 +134,10 @@ export function ReportPage() {
 
   return (
     <AdminShell>
-      <div className="wrap" style={{ maxWidth: viewMode === "spinndoctor" ? 1400 : 1100 }}>
+      <div
+        className={viewMode === "spinndoctor" ? "wrap spinndoctor-page" : "wrap"}
+        style={{ maxWidth: viewMode === "spinndoctor" ? 1400 : 1100 }}
+      >
         <div className="section-head">
           <span className="kicker">{t("reports.kicker")}</span>
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -249,10 +251,6 @@ export function ReportPage() {
           </div>
         ) : null}
 
-        {viewMode === "report" && report?.status === "succeeded" && id ? (
-          <ReportVerdictCalibrationPanel reportId={id} />
-        ) : null}
-
         {htmlError ? (
           <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
             {htmlError}
@@ -315,11 +313,6 @@ export function ReportPage() {
           </div>
         ) : null}
 
-        {viewMode === "spinndoctor" && spinndoktorReady && id ? (
-          <div className="mt-4">
-            <ReportVerdictCalibrationPanel reportId={id} />
-          </div>
-        ) : null}
       </div>
     </AdminShell>
   )
