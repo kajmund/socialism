@@ -180,7 +180,13 @@ export function useChatSocket({
         }
       },
       onStatus: (status) => {
-        if (status !== "open") setReady(false)
+        if (status !== "open") {
+          setReady(false)
+          // In-flight turns complete on the dead socket; unblock the composer after reconnect.
+          setBusy(false)
+          setTyping(false)
+          setStreamText(null)
+        }
       },
     })
     sendRef.current = conn.send
