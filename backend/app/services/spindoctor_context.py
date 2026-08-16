@@ -17,7 +17,11 @@ from app.services.report.locale import display_style_label, normalize_locale
 from app.services.report.metrics import compute_report_metrics, pct
 from app.services.report.persona_bio import PRIMARY_SEGMENT_KEYS
 from app.services.report.quick import decide_verdict
-from app.services.report.thresholds import default_report_thresholds
+from app.services.report.thresholds import (
+    ReportThresholds,
+    default_report_thresholds,
+    normalize_report_thresholds,
+)
 from app.services.report.verdict_calibration import load_recommendation_snapshot
 from app.services.ssr import STYLE_LABELS
 
@@ -110,10 +114,24 @@ def _engagement_plain(metrics) -> str:
     )
 
 
-def _confidence_notes(metrics, bundles: list[RunBundle], *, locale: str) -> list[str]:
+def _thresholds_from_ssr_doc(ssr_doc: dict[str, Any] | None) -> ReportThresholds:
+    if not ssr_doc:
+        return default_report_thresholds()
+    raw = ssr_doc.get("report_thresholds")
+    if not isinstance(raw, dict):
+        return default_report_thresholds()
+    return normalize_report_thresholds(raw)
+
+
+def _confidence_notes(
+    metrics,
+    bundles: list[RunBundle],
+    *,
+    locale: str,
+    thresholds: ReportThresholds,
+) -> list[str]:
     """Plain-language signal strength — maps to report diff bands, not CSS badges."""
-    t = default_report_thresholds()
-    verdict = decide_verdict(metrics, bundles, locale=locale, thresholds=t)
+    verdict = decide_verdict(metrics, bundles, locale=locale, thresholds=thresholds)
     notes: list[str] = []
     if verdict.threshold_note:
         notes.append(verdict.threshold_note)
@@ -239,6 +257,7 @@ async def build_spindoctor_context(
     bundles = await build_bundles(session, sources)
     metrics = compute_report_metrics(bundles)
     ssr_doc = _load_ssr_json(report_id)
+    report_thresholds = _thresholds_from_ssr_doc(ssr_doc)
     recommendation = load_recommendation_snapshot(report_id)
 
     if locale == "en":
@@ -271,7 +290,9 @@ async def build_spindoctor_context(
             parts.append(f"Version: {recommendation.get('recommended_arm')}")
     parts.append("")
     parts.append("## Signalsstyrka" if locale == "en" else "## Signalsstyrka")
-    parts.extend(_confidence_notes(metrics, bundles, locale=locale))
+    parts.extend(
+        _confidence_notes(metrics, bundles, locale=locale, thresholds=report_thresholds)
+    )
     parts.append("")
     parts.append(_section_ref_catalog(locale=locale))
     parts.append("")
