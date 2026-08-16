@@ -14,7 +14,15 @@ export type MessageKey = {
           : {
               [K3 in keyof SvMessages[K1][K2] & string]: SvMessages[K1][K2][K3] extends Primitive
                 ? `${K1}.${K2}.${K3}`
-                : never
+                : {
+                    [K4 in keyof SvMessages[K1][K2][K3] & string]: SvMessages[K1][K2][K3][K4] extends Primitive
+                      ? `${K1}.${K2}.${K3}.${K4}`
+                      : {
+                          [K5 in keyof SvMessages[K1][K2][K3][K4] & string]: SvMessages[K1][K2][K3][K4][K5] extends Primitive
+                            ? `${K1}.${K2}.${K3}.${K4}.${K5}`
+                            : never
+                        }[keyof SvMessages[K1][K2][K3][K4] & string]
+                  }[keyof SvMessages[K1][K2][K3] & string]
             }[keyof SvMessages[K1][K2] & string]
       }[keyof SvMessages[K1] & string]
 }[keyof SvMessages & string]

@@ -20,7 +20,7 @@ Guider för dig som använder Opinionssimulator i webbläsaren. Teknisk setup oc
 * [Starta en simulering](starta-simulering.md) — Starta en sparad körning och följ jobbet
 * [Reaktionsmodell i simuleringen](reaktionsmodell-i-simulering.md) — Vem reagerar, vem får kommentera och när nollställs reglerna
 * [Läsa simuleringsresultat](lasa-simuleringsresultat.md) — Flöde, agenter och jämförelser
-* [Lägga till SSR-ankare från körning](lagg-till-ssr-ankare-fran-korning.md) — Tagga kommentarer och intervjusvar som ankare
+* [Lägga till SSR-ankare från körning](lagg-till-ssr-ankare-fran-korning.md) — Tagga kommentarer från flödet som ankare
 
 # Personas
 

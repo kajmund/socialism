@@ -14,10 +14,11 @@ I **Budskap** finns biblioteket med texter du kan injicera i simuleringar — pa
 1. Öppna **Budskap** i menyn.
 2. Sök i titel eller brödtext.
 3. Filtrera efter typ: **Alla**, **Post** eller **Nyhet**.
-4. På varje kort ser du typ, eventuell variantetikett (Analytisk, Berättande, Koncis), brödtext och käll-URL om det finns. Budskap med **bild** kan ha tom brödtext — då syns titel och caption från bildcachen i verkstaden vid redigering.
-5. Välj **Redigera** för att öppna verkstaden.
-6. Välj **Ta bort** för att radera budskapet efter bekräftelse.
-7. Skapa nytt med **+ Ny i verkstaden**.
+4. Växla mellan **Rutnät** och **Lista**.
+5. På varje kort ser du typ, eventuell variantetikett (Analytisk, Berättande, Koncis), brödtext och käll-URL om det finns. Budskap med **bild** kan ha tom brödtext — då syns titel och caption från bildcachen i verkstaden vid redigering.
+6. Välj **Redigera** för att öppna verkstaden.
+7. Välj **Ta bort** för att radera budskapet efter bekräftelse.
+8. Skapa nytt med **+ Ny i verkstaden**.
 
 ## Relaterade guider
 

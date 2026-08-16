@@ -1,7 +1,9 @@
+import { useState, type ReactNode } from "react"
 import { Link } from "react-router-dom"
 import type { Job, JobStatus } from "@/api/jobs"
 import { AdminShell } from "@/components/layout/AdminShell"
 import { Card, CardContent } from "@/components/ui/card"
+import { ViewToggle, type ListViewMode } from "@/components/ui/view-toggle"
 import { useLocale, type MessageKey } from "@/i18n"
 import { useJobsRealtime } from "@/realtime/JobsRealtimeProvider"
 
@@ -99,9 +101,198 @@ function progressLabel(job: Job, t: Translate): string {
   }
 }
 
+function jobIds(job: Job) {
+  const popId = job.result?.population_id
+  const runId =
+    job.result?.run_id ??
+    (typeof job.request.run_id === "number" ? job.request.run_id : null)
+  const reportId =
+    job.result?.report_id ??
+    (typeof job.request.report_id === "string" ? job.request.report_id : null)
+  return { popId, runId, reportId }
+}
+
+function JobActionLinks({ job, t }: { job: Job; t: Translate }) {
+  const { popId, runId, reportId } = jobIds(job)
+  const links: ReactNode[] = []
+
+  if (job.status === "succeeded" && popId != null) {
+    links.push(
+      <Link key="pop" to={`/populations/${popId}`}>
+        {t("jobs.openPopulation")}
+      </Link>,
+    )
+  }
+  if (job.status === "succeeded" && job.kind === "run_simulate" && runId != null) {
+    links.push(
+      <Link key="results" to={`/runs/${runId}/edit?tab=results`}>
+        {t("jobs.openResults")}
+      </Link>,
+    )
+  }
+  if (job.status === "succeeded" && job.kind === "report_generate" && reportId != null) {
+    links.push(
+      <Link key="report" to={`/reports/${reportId}`}>
+        {t("jobs.openReport")}
+      </Link>,
+    )
+  }
+  if ((job.status === "pending" || job.status === "running") && job.kind === "run_simulate" && runId != null) {
+    links.push(
+      <Link key="run" to={`/runs/${runId}/edit?tab=results`}>
+        {t("jobs.openRun")}
+      </Link>,
+    )
+  }
+  if (
+    (job.status === "pending" || job.status === "running") &&
+    job.kind === "report_generate" &&
+    reportId != null
+  ) {
+    links.push(
+      <Link key="report-live" to={`/reports/${reportId}`}>
+        {t("jobs.openReport")}
+      </Link>,
+    )
+  }
+
+  return <>{links}</>
+}
+
+function JobCard({ job, t, intl }: { job: Job; t: Translate; intl: string }) {
+  const { popId, runId, reportId } = jobIds(job)
+  const duration = formatJobDuration(job, t)
+  const whenCreated = formatWhen(job.created_at, intl, t("common.emDash"))
+  return (
+    <Card className="gap-0 py-4 ring-1 ring-border">
+      <CardContent className="px-5">
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 16,
+            flexWrap: "wrap",
+            alignItems: "baseline",
+          }}
+        >
+          <div>
+            <div style={{ font: "var(--text-h3)", marginBottom: 4 }}>
+              {job.label || job.id}
+            </div>
+            <div style={{ font: "var(--text-body-sm)", color: "var(--text-muted)" }}>
+              {kindLabel(job.kind, t)} · {t("jobs.created", { when: whenCreated })}
+              {duration ? ` · ${t("jobs.took", { duration })}` : null}
+            </div>
+          </div>
+          <span className={statusClass(job.status)}>{statusLabel(job.status, t)}</span>
+        </div>
+
+        {job.status === "succeeded" && popId != null && (
+          <div style={{ marginTop: 12, font: "var(--text-body-sm)" }}>
+            {t("jobs.personasCount", {
+              count: job.result?.member_count ?? "?",
+            })}{" "}
+            · <Link to={`/populations/${popId}`}>{t("jobs.openPopulation")}</Link>
+            {(() => {
+              const warnings = (job.result as { warnings?: unknown } | null | undefined)
+                ?.warnings
+              if (!Array.isArray(warnings) || warnings.length === 0) return null
+              return (
+                <ul
+                  className="mt-2 list-disc pl-5 text-amber-800 dark:text-amber-200"
+                  style={{ font: "var(--text-body-sm)" }}
+                >
+                  {warnings.map((w) => (
+                    <li key={String(w)}>{String(w)}</li>
+                  ))}
+                </ul>
+              )
+            })()}
+          </div>
+        )}
+        {job.status === "succeeded" && job.kind === "run_simulate" && runId != null && (
+          <div style={{ marginTop: 12, font: "var(--text-body-sm)" }}>
+            <Link to={`/runs/${runId}/edit?tab=results`}>{t("jobs.openResults")}</Link>
+          </div>
+        )}
+        {job.status === "succeeded" && job.kind === "report_generate" && reportId != null && (
+          <div style={{ marginTop: 12, font: "var(--text-body-sm)" }}>
+            <Link to={`/reports/${reportId}`}>{t("jobs.openReport")}</Link>
+          </div>
+        )}
+        {job.status === "failed" && job.error && (
+          <div
+            style={{
+              marginTop: 12,
+              font: "var(--text-body-sm)",
+              color: "var(--db-error)",
+            }}
+          >
+            {job.error}
+          </div>
+        )}
+        {(job.status === "pending" || job.status === "running") && (
+          <div
+            style={{
+              marginTop: 12,
+              font: "var(--text-body-sm)",
+              color: "var(--text-muted)",
+            }}
+          >
+            {progressLabel(job, t)}{" "}
+            {t("jobs.started", {
+              when: formatWhen(job.started_at ?? job.created_at, intl, t("common.emDash")),
+            })}
+            {job.kind === "run_simulate" && runId != null ? (
+              <>
+                {" · "}
+                <Link to={`/runs/${runId}/edit?tab=results`}>{t("jobs.openRun")}</Link>
+              </>
+            ) : null}
+            {job.kind === "report_generate" && reportId != null ? (
+              <>
+                {" · "}
+                <Link to={`/reports/${reportId}`}>{t("jobs.openReport")}</Link>
+              </>
+            ) : null}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function JobListRow({ job, t, intl }: { job: Job; t: Translate; intl: string }) {
+  const duration = formatJobDuration(job, t)
+  const whenCreated = formatWhen(job.created_at, intl, t("common.emDash"))
+  const meta = [
+    kindLabel(job.kind, t),
+    t("jobs.created", { when: whenCreated }),
+    duration ? t("jobs.took", { duration }) : null,
+    job.status === "failed" && job.error ? job.error : null,
+    job.status === "pending" || job.status === "running" ? progressLabel(job, t) : null,
+  ]
+    .filter(Boolean)
+    .join(" · ")
+
+  return (
+    <div className="admin-list-row admin-list-jobs">
+      <div>
+        <div className="nm">{job.label || job.id}</div>
+      </div>
+      <span className={statusClass(job.status)}>{statusLabel(job.status, t)}</span>
+      <div className="cell">{meta}</div>
+      <div className="admin-list-actions">
+        <JobActionLinks job={job} t={t} />
+      </div>
+    </div>
+  )
+}
+
 export function JobsPage() {
   const { t, intl } = useLocale()
   const { jobs, connected, status } = useJobsRealtime()
+  const [view, setView] = useState<ListViewMode>("grid")
   const error =
     status === "closed" && jobs.length === 0 ? t("jobs.loadError") : null
   const reconnecting = !connected && status !== "open"
@@ -123,6 +314,13 @@ export function JobsPage() {
           <p>{t("jobs.intro")}</p>
         </div>
 
+        <div className="controls-row">
+          <div className="controls-left" />
+          <div className="controls-right">
+            <ViewToggle value={view} onChange={setView} />
+          </div>
+        </div>
+
         {reconnecting && (
           <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
             {t("jobs.reconnecting")}
@@ -139,133 +337,17 @@ export function JobsPage() {
           <div className="no-match" style={{ textAlign: "left" }}>
             {t("jobs.empty")}
           </div>
-        ) : (
+        ) : view === "grid" ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {jobs.map((job) => {
-              const popId = job.result?.population_id
-              const runId =
-                job.result?.run_id ??
-                (typeof job.request.run_id === "number" ? job.request.run_id : null)
-              const reportId =
-                job.result?.report_id ??
-                (typeof job.request.report_id === "string"
-                  ? job.request.report_id
-                  : null)
-              const duration = formatJobDuration(job, t)
-              const whenCreated = formatWhen(job.created_at, intl, t("common.emDash"))
-              return (
-                <Card key={job.id} className="gap-0 py-4 ring-1 ring-border">
-                  <CardContent className="px-5">
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: 16,
-                        flexWrap: "wrap",
-                        alignItems: "baseline",
-                      }}
-                    >
-                      <div>
-                        <div style={{ font: "var(--text-h3)", marginBottom: 4 }}>
-                          {job.label || job.id}
-                        </div>
-                        <div style={{ font: "var(--text-body-sm)", color: "var(--text-muted)" }}>
-                          {kindLabel(job.kind, t)} · {t("jobs.created", { when: whenCreated })}
-                          {duration ? ` · ${t("jobs.took", { duration })}` : null}
-                        </div>
-                      </div>
-                      <span className={statusClass(job.status)}>
-                        {statusLabel(job.status, t)}
-                      </span>
-                    </div>
-
-                    {job.status === "succeeded" && popId != null && (
-                      <div style={{ marginTop: 12, font: "var(--text-body-sm)" }}>
-                        {t("jobs.personasCount", {
-                          count: job.result?.member_count ?? "?",
-                        })}{" "}
-                        · <Link to={`/populations/${popId}`}>{t("jobs.openPopulation")}</Link>
-                        {(() => {
-                          const warnings = (
-                            job.result as { warnings?: unknown } | null | undefined
-                          )?.warnings
-                          if (!Array.isArray(warnings) || warnings.length === 0) return null
-                          return (
-                            <ul
-                              className="mt-2 list-disc pl-5 text-amber-800 dark:text-amber-200"
-                              style={{ font: "var(--text-body-sm)" }}
-                            >
-                              {warnings.map((w) => (
-                                <li key={String(w)}>{String(w)}</li>
-                              ))}
-                            </ul>
-                          )
-                        })()}
-                      </div>
-                    )}
-                    {job.status === "succeeded" &&
-                      job.kind === "run_simulate" &&
-                      runId != null && (
-                        <div style={{ marginTop: 12, font: "var(--text-body-sm)" }}>
-                          <Link to={`/runs/${runId}/edit?tab=results`}>
-                            {t("jobs.openResults")}
-                          </Link>
-                        </div>
-                      )}
-                    {job.status === "succeeded" &&
-                      job.kind === "report_generate" &&
-                      reportId != null && (
-                        <div style={{ marginTop: 12, font: "var(--text-body-sm)" }}>
-                          <Link to={`/reports/${reportId}`}>{t("jobs.openReport")}</Link>
-                        </div>
-                      )}
-                    {job.status === "failed" && job.error && (
-                      <div
-                        style={{
-                          marginTop: 12,
-                          font: "var(--text-body-sm)",
-                          color: "var(--db-error)",
-                        }}
-                      >
-                        {job.error}
-                      </div>
-                    )}
-                    {(job.status === "pending" || job.status === "running") && (
-                      <div
-                        style={{
-                          marginTop: 12,
-                          font: "var(--text-body-sm)",
-                          color: "var(--text-muted)",
-                        }}
-                      >
-                        {progressLabel(job, t)}{" "}
-                        {t("jobs.started", {
-                          when: formatWhen(
-                            job.started_at ?? job.created_at,
-                            intl,
-                            t("common.emDash"),
-                          ),
-                        })}
-                        {job.kind === "run_simulate" && runId != null ? (
-                          <>
-                            {" · "}
-                            <Link to={`/runs/${runId}/edit?tab=results`}>
-                              {t("jobs.openRun")}
-                            </Link>
-                          </>
-                        ) : null}
-                        {job.kind === "report_generate" && reportId != null ? (
-                          <>
-                            {" · "}
-                            <Link to={`/reports/${reportId}`}>{t("jobs.openReport")}</Link>
-                          </>
-                        ) : null}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              )
-            })}
+            {jobs.map((job) => (
+              <JobCard key={job.id} job={job} t={t} intl={intl} />
+            ))}
+          </div>
+        ) : (
+          <div className="admin-list-stack">
+            {jobs.map((job) => (
+              <JobListRow key={job.id} job={job} t={t} intl={intl} />
+            ))}
           </div>
         )}
       </div>

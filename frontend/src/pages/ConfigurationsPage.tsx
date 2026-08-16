@@ -8,6 +8,7 @@ import {
   type ConfigurationLanguage,
 } from "@/api/configurations"
 import { Card, CardContent } from "@/components/ui/card"
+import { ViewToggle, type ListViewMode } from "@/components/ui/view-toggle"
 import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
 import { ApiError } from "@/lib/api"
 
@@ -28,13 +29,13 @@ function languageLabel(language: ConfigurationLanguage, t: Translate): string {
   }
 }
 
-type ConfigCardProps = {
+type ConfigItemProps = {
   config: Configuration
   onDelete: (id: number) => void
   onActivate: (id: number) => void
 }
 
-function ConfigCard({ config, onDelete, onActivate }: ConfigCardProps) {
+function ConfigCard({ config, onDelete, onActivate }: ConfigItemProps) {
   const { t } = useLocale()
   const [confirming, setConfirming] = useState(false)
   const promptCount = Object.keys(config.prompts).length
@@ -90,6 +91,56 @@ function ConfigCard({ config, onDelete, onActivate }: ConfigCardProps) {
   )
 }
 
+function ConfigListRow({ config, onDelete, onActivate }: ConfigItemProps) {
+  const { t } = useLocale()
+  const [confirming, setConfirming] = useState(false)
+  const promptCount = Object.keys(config.prompts).length
+  return (
+    <div className="admin-list-row admin-list-configs">
+      <div>
+        <div className="nm">{config.name}</div>
+        <div className="meta">
+          {t("configurations.list.promptCount", { count: promptCount })}
+        </div>
+      </div>
+      <span className="rounded-full border border-[color:var(--border-hairline)] px-2 py-0.5 text-[11px]">
+        {languageLabel(config.language, t)}
+      </span>
+      <div className="cell">
+        {config.is_active
+          ? t("configurations.list.activeBadge")
+          : t("configurations.list.inactiveBadge")}
+      </div>
+      <div className="admin-list-actions">
+        {confirming ? (
+          <>
+            <button type="button" onClick={() => setConfirming(false)}>
+              {t("common.cancel")}
+            </button>
+            <button type="button" className="primary" onClick={() => onDelete(config.id)}>
+              {t("common.deleteConfirm")}
+            </button>
+          </>
+        ) : (
+          <>
+            <Link className="primary" to={`/tools/configurations/${config.id}/edit`}>
+              {t("configurations.list.edit")}
+            </Link>
+            {!config.is_active ? (
+              <button type="button" onClick={() => onActivate(config.id)}>
+                {t("configurations.list.activate")}
+              </button>
+            ) : null}
+            <button type="button" onClick={() => setConfirming(true)}>
+              {t("common.delete")}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export function ConfigurationsPage() {
   const { t } = useLocale()
   const [configs, setConfigs] = useState<Configuration[]>([])
@@ -97,6 +148,7 @@ export function ConfigurationsPage() {
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState("")
   const [languageFilter, setLanguageFilter] = useState<"" | ConfigurationLanguage>("")
+  const [view, setView] = useState<ListViewMode>("grid")
   const [toast, setToast] = useState<string | null>(null)
 
   useEffect(() => {
@@ -190,12 +242,15 @@ export function ConfigurationsPage() {
             <option value="nb">{t("configurations.language.nb")}</option>
           </select>
         </div>
-        <Link
-          to="/tools/configurations/new"
-          className="admin-cta inline-flex h-9 shrink-0 items-center rounded-md bg-db-black px-4 text-sm text-db-ink-0 no-underline hover:bg-db-ink-800"
-        >
-          {t("configurations.list.new")}
-        </Link>
+        <div className="controls-right">
+          <ViewToggle value={view} onChange={setView} />
+          <Link
+            to="/tools/configurations/new"
+            className="admin-cta inline-flex h-9 shrink-0 items-center rounded-md bg-db-black px-4 text-sm text-db-ink-0 no-underline hover:bg-db-ink-800"
+          >
+            {t("configurations.list.new")}
+          </Link>
+        </div>
       </div>
 
       {loading && <p className="muted">{t("configurations.list.loading")}</p>}
@@ -211,16 +266,31 @@ export function ConfigurationsPage() {
           </Link>
         </div>
       )}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {filtered.map((config) => (
-          <ConfigCard
-            key={config.id}
-            config={config}
-            onDelete={onDelete}
-            onActivate={onActivate}
-          />
-        ))}
-      </div>
+      {!loading && !error && filtered.length > 0 ? (
+        view === "grid" ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filtered.map((config) => (
+              <ConfigCard
+                key={config.id}
+                config={config}
+                onDelete={onDelete}
+                onActivate={onActivate}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="admin-list-stack">
+            {filtered.map((config) => (
+              <ConfigListRow
+                key={config.id}
+                config={config}
+                onDelete={onDelete}
+                onActivate={onActivate}
+              />
+            ))}
+          </div>
+        )
+      ) : null}
       {toast && (
         <div className="fixed bottom-6 right-6 z-50 rounded-md bg-db-ink-950 px-4 py-2 text-sm text-db-ink-0">
           {toast}

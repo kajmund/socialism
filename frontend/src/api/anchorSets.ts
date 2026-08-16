@@ -173,3 +173,49 @@ export function listPoolItems(anchorSetId: number): Promise<SsrAnchorPoolItem[]>
 export function deleteAnchorPoolItem(anchorSetId: number, itemId: number): Promise<void> {
   return api.delete(`/anchor-sets/${anchorSetId}/pool/${itemId}`)
 }
+
+export type MisclassificationFlagStatus = "open" | "dismissed" | "resolved"
+
+export type SsrMisclassificationFlag = {
+  id: number
+  anchor_set_id: number
+  kind: AnchorKind
+  text: string
+  predicted_label: string
+  expected_label: string
+  source_type: SsrAnchorPoolItem["source_type"]
+  source_ref: Record<string, unknown>
+  source_run_id: number | null
+  source_attempt_id: string | null
+  source_variant_id: string | null
+  status: MisclassificationFlagStatus
+  pool_item_id: number | null
+  created_at: string
+  resolved_at: string | null
+}
+
+export type SsrMisclassificationFlagUpdate = {
+  status: "dismissed" | "resolved"
+  add_to_calibration?: boolean
+}
+
+export function listMisclassificationFlags(
+  anchorSetId: number,
+  status?: MisclassificationFlagStatus,
+): Promise<SsrMisclassificationFlag[]> {
+  return api.get<SsrMisclassificationFlag[]>(
+    `/anchor-sets/${anchorSetId}/misclassification-flags`,
+    status ? { status } : undefined,
+  )
+}
+
+export function updateMisclassificationFlag(
+  anchorSetId: number,
+  flagId: number,
+  body: SsrMisclassificationFlagUpdate,
+): Promise<SsrMisclassificationFlag> {
+  return api.patch<SsrMisclassificationFlag>(
+    `/anchor-sets/${anchorSetId}/misclassification-flags/${flagId}`,
+    body,
+  )
+}

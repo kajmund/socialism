@@ -23,9 +23,8 @@ Rapporten börjar med **Slutsats**: vilken version som rekommenderas (vid A/B), 
 2. Medan rapporten **genereras** uppdateras sidan automatiskt.
 3. Vid **fel** visas felmeddelandet — gå tillbaka till körningen och försök beställa igen om det behövs.
 4. När rapporten är **klar** visas innehållet i sidan.
-5. Under rapporten kan du **bedöma slutsatsen** (verdict-kalibrering): ange om rekommendationen t.ex. «Redo att publicera» stämmer med hela rapporten, och spara en valfri kommentar.
-6. Välj **Öppna i ny flik** om du vill läsa rapporten i ett eget fönster.
-7. Länken **← Rapporter** tar dig tillbaka till rapportlistan.
+5. Välj **Öppna i ny flik** om du vill läsa rapporten i ett eget fönster.
+6. Länken **← Rapporter** tar dig tillbaka till rapportlistan.
 
 ## Relaterade guider
 
