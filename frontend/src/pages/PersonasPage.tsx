@@ -11,6 +11,7 @@ import {
   type CardFieldKey,
 } from "@/components/personas/PersonaCardFields"
 import { Card, CardContent } from "@/components/ui/card"
+import { ViewToggle, type ListViewMode } from "@/components/ui/view-toggle"
 import { blankEditablePersona, formatLibraryDate, originLabel, personaInitials } from "@/data/library"
 import type { EditablePersona, LibraryPersona, PersonaOrigin } from "@/data/library-types"
 import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
@@ -421,7 +422,7 @@ export function PersonasPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [fieldOptions, setFieldOptions] = useState<Record<string, string[]>>({})
-  const [view, setView] = useState<"grid" | "lista">("grid")
+  const [view, setView] = useState<ListViewMode>("grid")
   const [query, setQuery] = useState("")
   const [affil, setAffil] = useState("alla")
   const [origin, setOrigin] = useState<"alla" | PersonaOrigin>("alla")
@@ -777,30 +778,14 @@ export function PersonasPage() {
               <option value="livssituation">{t("personas.list.sortLifeSituation")}</option>
             </select>
           </div>
-          <Link
-            to="/personas/new"
-            className="admin-cta inline-flex h-9 items-center rounded-md bg-db-black px-4 text-sm text-db-ink-0 no-underline hover:bg-db-ink-800"
-          >
-            {t("personas.list.newPersona")}
-          </Link>
-        </div>
-
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>
-          <div className="view-toggle">
-            <button
-              type="button"
-              className={view === "grid" ? "on" : ""}
-              onClick={() => setView("grid")}
+          <div className="controls-right">
+            <ViewToggle value={view} onChange={setView} />
+            <Link
+              to="/personas/new"
+              className="admin-cta inline-flex h-9 items-center rounded-md bg-db-black px-4 text-sm text-db-ink-0 no-underline hover:bg-db-ink-800"
             >
-              {t("personas.list.gridView")}
-            </button>
-            <button
-              type="button"
-              className={view === "lista" ? "on" : ""}
-              onClick={() => setView("lista")}
-            >
-              {t("personas.list.listView")}
-            </button>
+              {t("personas.list.newPersona")}
+            </Link>
           </div>
         </div>
 

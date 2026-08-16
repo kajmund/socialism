@@ -134,8 +134,12 @@ function InterviewBody({
   }, [runId, attemptId, variant.id, personaId, tickIndex, markers.length, t])
 
   useEffect(() => {
+    if (!chatReady) {
+      setOptimisticUser(null)
+      return
+    }
     void loadMessages()
-  }, [loadMessages])
+  }, [chatReady, loadMessages])
 
   function send() {
     const trimmed = draft.trim()

@@ -168,24 +168,24 @@ def _tone_style_topics(
                     if locale != "en"
                     else f"{label}: dominant tone {top[0]} ({pct(float(top[1]))})"
                 )
-            styles = bundle.get("style_avg_likes") or []
+            styles = bundle.get("style_shares") or []
             if isinstance(styles, list) and styles:
                 ranked = sorted(
                     (
-                        (str(row.get("style") or ""), float(row.get("avg_likes") or 0))
+                        (str(row.get("style") or ""), float(row.get("share") or 0))
                         for row in styles
                         if isinstance(row, dict)
                     ),
                     key=lambda x: x[1],
                     reverse=True,
                 )
-                if ranked:
+                if ranked and ranked[0][1] > 0:
                     best = ranked[0]
                     shown = display_style_label(best[0], locale=locale)
                     lines.append(
-                        f"{label}: starkaste budskapsstil {shown} ({best[1]:.1f} snittlikes)"
+                        f"{label}: starkaste budskapsstil {shown} ({pct(best[1])})"
                         if locale != "en"
-                        else f"{label}: strongest message style {shown} ({best[1]:.1f} avg likes)"
+                        else f"{label}: strongest message style {shown} ({pct(best[1])})"
                     )
     m = metrics.aggregate
     if m.topic_shares:
@@ -195,12 +195,15 @@ def _tone_style_topics(
             if locale != "en"
             else f"Dominant topic in the feed: {top_topic[0]} ({pct(top_topic[1])})"
         )
-    if m.tone_shares:
+    if m.tone_shares and any(v > 0 for v in m.tone_shares.values()):
         ordered = sorted(m.tone_shares.items(), key=lambda x: x[1], reverse=True)
-        bits = ", ".join(f"{k} {pct(v)}" for k, v in ordered[:3])
-        lines.append(
-            f"Tonfördelning (agg): {bits}" if locale != "en" else f"Tone mix (agg): {bits}"
-        )
+        bits = ", ".join(f"{k} {pct(v)}" for k, v in ordered[:3] if v > 0)
+        if bits:
+            lines.append(
+                f"Tonfördelning (agg): {bits}"
+                if locale != "en"
+                else f"Tone mix (agg): {bits}"
+            )
     return lines
 
 

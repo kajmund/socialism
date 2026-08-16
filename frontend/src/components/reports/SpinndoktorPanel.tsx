@@ -109,7 +109,11 @@ export function SpinndoktorPanel({
   }, [loadHistory])
 
   useEffect(() => {
-    if (chatReady) void loadHistory()
+    if (!chatReady) {
+      setOptimisticUser(null)
+      return
+    }
+    void loadHistory()
   }, [chatReady, loadHistory])
 
   const sendMessage = useCallback(() => {

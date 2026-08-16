@@ -20,11 +20,13 @@ from app.schemas.domain import (
     RunCreate,
     RunDetail,
     RunLogTailOut,
+    RunMisclassificationFlagCreate,
     RunPersonaInterviewRequest,
     RunPopulationOption,
     RunSummary,
     RunTaggableTextsOut,
     RunUpdate,
+    SsrMisclassificationFlagOut,
     format_date,
 )
 from app.serializers import (
@@ -44,6 +46,11 @@ from app.services.anchor_pool import (
 )
 from app.services.anchor_store import AnchorResolutionError
 from app.services.district_context import area_block_for_name
+from app.services.misclassification_flags import (
+    MisclassificationFlagError,
+    create_flag,
+    serialize_flag,
+)
 from app.services.oasis_run import oasis_installed, previous_attempts, remove_attempt
 from app.services.run_log import read_run_log_tail
 from app.services.run_results import find_attempt, find_variant
@@ -636,9 +643,20 @@ async def get_run_taggable_texts(
     attempt_id: str = Query(min_length=1),
     variant_id: str = Query(min_length=1),
     locale: str = Query(default="sv", pattern="^(sv|en)$"),
+    include_ssr: bool = Query(
+        default=True,
+        description=(
+            "When true (default), classify each text with SSR against the active "
+            "configuration's tone/style anchors. Requires anchors; returns 409 if missing."
+        ),
+    ),
     session: AsyncSession = Depends(get_session),
 ) -> RunTaggableTextsOut:
-    """Comments and interview answers from a finished attempt for SSR pool tagging."""
+    """Comments and interview answers from a finished attempt for SSR pool tagging.
+
+    With ``include_ssr=true``, each row includes ``tone_predicted`` / ``style_predicted``
+    (argmax) and optional PMFs from the same embedding path used by reports.
+    """
     await _get_run(session, run_id)
     try:
         payload = await list_tagger_texts(
@@ -647,12 +665,48 @@ async def get_run_taggable_texts(
             attempt_id=attempt_id,
             variant_id=variant_id,
             locale=locale,  # type: ignore[arg-type]
+            include_ssr=include_ssr,
         )
     except AnchorPoolError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except AnchorResolutionError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     return RunTaggableTextsOut.model_validate(payload)
+
+
+@router.post(
+    "/{run_id}/misclassification-flags",
+    response_model=SsrMisclassificationFlagOut,
+    status_code=201,
+)
+async def create_run_misclassification_flag(
+    run_id: int,
+    body: RunMisclassificationFlagCreate,
+    session: AsyncSession = Depends(get_session),
+) -> SsrMisclassificationFlagOut:
+    """Flag an SSR misprediction on a run text against the active config's anchor set."""
+    await _get_run(session, run_id)
+    try:
+        flag = await create_flag(
+            session,
+            kind=body.kind,
+            text=body.text,
+            predicted_label=body.predicted_label,
+            expected_label=body.expected_label,
+            source_type=body.source_type,
+            source_ref=body.source_ref,
+            source_run_id=run_id,
+            source_attempt_id=body.attempt_id,
+            source_variant_id=body.variant_id,
+            locale=body.locale,
+        )
+    except AnchorResolutionError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except MisclassificationFlagError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    await session.commit()
+    await session.refresh(flag)
+    return SsrMisclassificationFlagOut.model_validate(serialize_flag(flag))
 
 
 @router.post("/{run_id}/anchor-pool", status_code=201)
