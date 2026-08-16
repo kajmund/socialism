@@ -18,8 +18,9 @@ Hjälpchatten (FAB nere till höger) är en separat funktion och kan vara öppen
 
 ## Ställa frågor
 
-- Skriv frågor på vanlig svenska, t.ex. *Vad säger siffrorna om mottagandet?* eller *Vilken budskapsstil funkade bäst?*
-- Spinndoktorn svarar utifrån den här rapportens data. Den har **inte** tillgång till hela transkriptet från simuleringen i den här versionen.
+- Skriv frågor på vanlig svenska, t.ex. *Vad säger siffrorna om mottagandet?*, *Hur landade budskapet?* eller *Vilken budskapsstil funkade bäst?*
+- Spinndoktorn ser rapportens översiktssiffror direkt. När den behöver **testbudskapet**, citat från flödet, intervjusvar eller en namngiven medborgare hämtar den det själv med verktyg.
+- Den har **inte** hela transkriptet i ett svep — den söker fram det som frågan kräver.
 - Chatthistoriken sparas **per rapport**. En annan rapport har en egen historik.
 
 ## Rapportcanvas
@@ -35,4 +36,4 @@ Hjälpchatten (FAB nere till höger) är en separat funktion och kan vara öppen
 ## Begränsningar (fas 1)
 
 - Inga verktyg för att köra om SSR, intervjua agenter eller skapa egna diagram.
-- Svar baseras på aggregerade metrics och populationsdata — inte varje enskild kommentar i fulltext.
+- Spinndoktorn kan slå upp budskap, söka i flödet, lista intervjuer och titta på enskilda medborgare — men inte hela transkriptet på en gång.

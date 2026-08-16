@@ -203,10 +203,12 @@ CATALOG_DEFAULTS: list[CatalogDefault] = [
         "section": "varderingar",
         "title": "Förtroende",
         "items": _labels(
-            "Lågt för kommunen",
+            "Högt för kommunen",
             "Högt för sjukvården",
-            "Blandat, skeptisk generellt",
-            "Lågt för kommunen / Högt för sjukvården",
+            "Blandat",
+            "Litar på lokala politiker",
+            "Lågt för kommunen",
+            "Skeptisk mot politiker generellt",
         ),
     },
     {
@@ -214,10 +216,12 @@ CATALOG_DEFAULTS: list[CatalogDefault] = [
         "section": "rost_media",
         "title": "Ton",
         "items": _labels(
-            "Sarkastisk och otålig",
-            "Uppgiven men engagerad",
             "Optimistisk och pratglad",
+            "Varm men bestämd",
+            "Saklig och nyanserad",
             "Direkt och kort i tonen",
+            "Eftertänksam, gärna med frågor",
+            "Sarkastisk och otålig",
             "Cynisk mot politiker",
         ),
     },
@@ -257,6 +261,29 @@ CATALOG_DEFAULTS: list[CatalogDefault] = [
         ),
     },
 ]
+
+# Unmodified seed lists from before the balanced ton/förtroende defaults.
+# ensure_catalog_defaults replaces an exact match so existing configs pick up
+# the new lists; operator-edited lists are left alone.
+PREVIOUS_STOCK_LABELS: dict[str, frozenset[str]] = {
+    "ton": frozenset(
+        {
+            "Sarkastisk och otålig",
+            "Uppgiven men engagerad",
+            "Optimistisk och pratglad",
+            "Direkt och kort i tonen",
+            "Cynisk mot politiker",
+        }
+    ),
+    "fortroende": frozenset(
+        {
+            "Lågt för kommunen",
+            "Högt för sjukvården",
+            "Blandat, skeptisk generellt",
+            "Lågt för kommunen / Högt för sjukvården",
+        }
+    ),
+}
 
 SECTION_ORDER = ("demografi", "politik", "varderingar", "rost_media", "simulering")
 

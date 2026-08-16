@@ -109,7 +109,6 @@ async def llm_persona_from_slot(
     session: AsyncSession | None = None,
     taken_surnames: frozenset[str] | None = None,
     fixed_name: str | None = None,
-    writing_trait: str | None = None,
     previous_personas: tuple[str, ...] = (),
     previous_anecdotes: tuple[str, ...] = (),
     prompts: dict[str, str] | None = None,
@@ -136,11 +135,6 @@ async def llm_persona_from_slot(
             "Varje efternamn ska vara unikt inom populationen.\n"
         )
     voice_block = ""
-    if writing_trait:
-        voice_block = (
-            f"\nSkrivsätt / röst (följ särskilt): {writing_trait}\n"
-            "Låt temperament och skrivstil skilja sig tydligt från andra med samma yrke.\n"
-        )
     if previous_personas:
         prev_lines = "\n".join(f"  * {line}" for line in previous_personas[-12:])
         voice_block += (
@@ -172,8 +166,6 @@ async def llm_persona_from_slot(
     if locked:
         profile.name = locked
         profile.initials = persona_initials(locked)
-    if writing_trait:
-        profile.ton = writing_trait
     if include_anecdote:
         profile.anekdot = await llm_persona_anecdote(
             profile,
@@ -183,17 +175,7 @@ async def llm_persona_from_slot(
         )
     else:
         profile.anekdot = "—"
-    generated = profile_to_generated(profile, slot)
-    if writing_trait:
-        return GeneratedPersonaOut(
-            **{
-                **generated.model_dump(),
-                "trait": writing_trait,
-                "quote": writing_trait,
-                "profile": profile,
-            }
-        )
-    return generated
+    return profile_to_generated(profile, slot)
 
 
 async def llm_personas_from_description(
