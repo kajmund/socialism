@@ -264,6 +264,23 @@ class Configuration(Base):
     )
 
 
+class SsrLabelVocabulary(Base):
+    """Global tone/style label vocabulary shared across anchor sets of a kind+locale."""
+
+    __tablename__ = "ssr_label_vocabularies"
+
+    kind: Mapped[str] = mapped_column(String(16), primary_key=True)
+    locale: Mapped[str] = mapped_column(String(8), primary_key=True)
+    # Ordered list of {"key": str, "label": str}.
+    entries: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+
 class SsrAnchorSet(Base):
     """Versioned SSR anchor library entry (tone Likert or style categories)."""
 
@@ -312,6 +329,11 @@ class SsrAnchorSet(Base):
         back_populates="anchor_set",
         cascade="all, delete-orphan",
         order_by="SsrAnchorPoolItem.id",
+    )
+    misclassification_flags: Mapped[list["SsrMisclassificationFlag"]] = relationship(
+        back_populates="anchor_set",
+        cascade="all, delete-orphan",
+        order_by="SsrMisclassificationFlag.id",
     )
 
 
@@ -375,6 +397,51 @@ class SsrAnchorPoolItem(Base):
     )
 
     anchor_set: Mapped["SsrAnchorSet"] = relationship(back_populates="pool_items")
+
+
+class SsrMisclassificationFlag(Base):
+    """Operator flag: SSR predicted label disagrees with expected label."""
+
+    __tablename__ = "ssr_misclassification_flags"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    anchor_set_id: Mapped[int] = mapped_column(
+        ForeignKey("ssr_anchor_sets.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    kind: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    predicted_label: Mapped[str] = mapped_column(String(64), nullable=False)
+    expected_label: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    source_ref: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    source_run_id: Mapped[int | None] = mapped_column(
+        ForeignKey("runs.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    source_attempt_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    source_variant_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="open", index=True)
+    pool_item_id: Mapped[int | None] = mapped_column(
+        ForeignKey("ssr_anchor_pool_items.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    resolved_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    anchor_set: Mapped["SsrAnchorSet"] = relationship(
+        back_populates="misclassification_flags"
+    )
 
 
 class CatalogList(Base):

@@ -1,3 +1,4 @@
+import type { IncomingMessage } from 'node:http'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import tailwindcss from '@tailwindcss/vite'
@@ -21,13 +22,28 @@ const apiPrefixes = [
   'playground',
   'embeddings',
   'anchor-sets',
+  'label-vocabularies',
+  'feedback',
+  'spindoctor',
 ] as const
 
+/** Browser reloads send Accept: text/html; API calls send application/json. */
+function bypassBrowserNavigation(req: IncomingMessage): string | undefined {
+  const accept = req.headers.accept ?? ''
+  if (accept.includes('text/html')) {
+    return '/index.html'
+  }
+  return undefined
+}
+
+const apiProxy: ProxyOptions = {
+  target: backendTarget,
+  changeOrigin: true,
+  bypass: bypassBrowserNavigation,
+}
+
 const devProxy: Record<string, ProxyOptions> = Object.fromEntries(
-  apiPrefixes.map((prefix) => [
-    `/${prefix}`,
-    { target: backendTarget, changeOrigin: true },
-  ]),
+  apiPrefixes.map((prefix) => [`/${prefix}`, apiProxy]),
 )
 devProxy['/ws'] = { target: backendTarget, ws: true, changeOrigin: true }
 

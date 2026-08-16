@@ -11,9 +11,9 @@ Från simuleringsresultat kan du beställa en **HTML-rapport** som sammanfattar 
 
 ## Steg
 
-1. Öppna körningen och gå till fliken **Resultat**.
-2. För **en** simulering: välj **Beställ rapport** på det försök du vill sammanfatta.
-3. För **jämförelse**: markera två eller fler försök med kryssrutor och välj **Jämför i rapport**.
+1. Öppna körningen via **Öppna resultat**.
+2. För **en** simulering: välj dokumentikonen på det försök du vill sammanfatta.
+3. För **jämförelse**: markera två eller fler försök med kryssrutor och välj **Jämför markerade**.
 4. Bekräfta att genereringen ska starta.
 5. Rapporten skapas som ett bakgrundsjobb — följ status under **Rapporter**, **Bakgrundsjobb** eller vänta på notifieringen.
 6. När rapporten är klar öppnas den automatiskt, eller nå den via **Rapporter** i huvudmenyn.

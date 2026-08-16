@@ -14,6 +14,7 @@ from app.api import (
     health,
     help,
     jobs,
+    label_vocabularies,
     messages,
     personas,
     playground,
@@ -25,6 +26,7 @@ from app.api import (
 )
 from app.config import settings
 from app.services import jobs as jobs_service
+from app.services.prompt_store import ensure_default_configurations
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +45,11 @@ async def lifespan(_app: FastAPI):
     except (OperationalError, ProgrammingError) as exc:
         # Fresh checkout / migration not applied yet — don't block boot.
         logger.warning("Skipping interrupted-job sweep on startup: %s", exc)
+    try:
+        async with factory() as session:
+            await ensure_default_configurations(session)
+    except (OperationalError, ProgrammingError) as exc:
+        logger.warning("Skipping configuration prompt backfill on startup: %s", exc)
     yield
 
 
@@ -65,6 +72,7 @@ def create_app() -> FastAPI:
     app.include_router(runs.router)
     app.include_router(messages.router)
     app.include_router(anchor_sets.router)
+    app.include_router(label_vocabularies.router)
     app.include_router(configurations.router)
     app.include_router(catalog.router)
     app.include_router(jobs.router)
