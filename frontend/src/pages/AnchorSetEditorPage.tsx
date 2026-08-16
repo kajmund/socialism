@@ -1,53 +1,61 @@
-import { useEffect, useState, type FormEvent } from "react"
+import { useEffect, useMemo, useState, type FormEvent } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import {
   createAnchorSet,
   createCalibrationItem,
+  deleteAnchorPoolItem,
   deleteCalibrationItem,
   getAnchorSet,
   listCalibrationItems,
+  listMisclassificationFlags,
+  listPoolItems,
   runAnchorCalibration,
   testAnchorSet,
   updateAnchorSet,
+  updateMisclassificationFlag,
   type AnchorKind,
   type AnchorLocale,
   type AnchorTestResponse,
   type SsrAnchorCalibrationItem,
+  type SsrAnchorPoolItem,
+  type SsrMisclassificationFlag,
 } from "@/api/anchorSets"
+import { getLabelVocabulary } from "@/api/labelVocabularies"
 import { AdminButton } from "@/components/ui/admin-button"
-import { useLocale } from "@/i18n"
+import { useLocale, type MessageKey } from "@/i18n"
 import { ApiError } from "@/lib/api"
 
-type EditorTab = "anchors" | "calibration" | "test"
+type EditorTab = "anchors" | "pool" | "flagged" | "calibration" | "test"
 
-const DEFAULT_TONE_LABELS_SV = [
-  "Starkt negativ",
-  "Något negativ",
-  "Neutral",
-  "Något positiv",
-  "Starkt positiv",
-]
-
-const DEFAULT_STYLE_LABELS = [
-  "Sarkastisk + konkret kritik",
-  "Uppgiven + vardagsmetafor",
-  "Fakta + yrkesauktoritet",
-  "Personlig + hjärtlig berättelse",
-  "Optimistisk / lösningsfokuserad",
-  "Provocerande / konfronterande",
-]
-
-function defaultLabels(kind: AnchorKind): string[] {
-  return kind === "tone" ? [...DEFAULT_TONE_LABELS_SV] : [...DEFAULT_STYLE_LABELS]
+function emptyStatements(count: number): string[] {
+  return Array.from({ length: count }, () => "")
 }
 
-function defaultStatements(kind: AnchorKind): string[] {
-  const n = kind === "tone" ? 5 : 6
-  return Array.from({ length: n }, () => "")
+function labelSelectOptions(current: string, vocabLabels: string[]): string[] {
+  if (!current || vocabLabels.includes(current)) return vocabLabels
+  return [current, ...vocabLabels]
+}
+
+function poolSourceLabel(
+  sourceType: SsrAnchorPoolItem["source_type"],
+  t: (key: MessageKey) => string,
+): string {
+  switch (sourceType) {
+    case "comment":
+      return t("anchorSets.pool.sourceComment")
+    case "tick_interview":
+      return t("anchorSets.pool.sourceTickInterview")
+    case "posthoc_interview":
+      return t("anchorSets.pool.sourcePosthocInterview")
+    default: {
+      const _exhaustive: never = sourceType
+      return _exhaustive
+    }
+  }
 }
 
 export function AnchorSetEditorPage() {
-  const { t } = useLocale()
+  const { t, intl } = useLocale()
   const navigate = useNavigate()
   const { id: editId } = useParams<{ id?: string }>()
   const isEdit = Boolean(editId)
@@ -58,8 +66,9 @@ export function AnchorSetEditorPage() {
   const [kind, setKind] = useState<AnchorKind>("tone")
   const [locale, setLocale] = useState<AnchorLocale>("sv")
   const [version, setVersion] = useState("v1")
-  const [labels, setLabels] = useState<string[]>(defaultLabels("tone"))
-  const [statements, setStatements] = useState<string[]>(defaultStatements("tone"))
+  const [labels, setLabels] = useState<string[]>([])
+  const [statements, setStatements] = useState<string[]>([])
+  const [vocabLabels, setVocabLabels] = useState<string[]>([])
   const [status, setStatus] = useState<"draft" | "published">("draft")
   const [validationStatus, setValidationStatus] = useState<
     "untested" | "ok" | "stale" | "low"
@@ -67,11 +76,18 @@ export function AnchorSetEditorPage() {
   const [storedMacroAccuracy, setStoredMacroAccuracy] = useState<number | null>(null)
   const [calibrationItemCount, setCalibrationItemCount] = useState(0)
   const [calibration, setCalibration] = useState<SsrAnchorCalibrationItem[]>([])
+  const [poolItems, setPoolItems] = useState<SsrAnchorPoolItem[]>([])
+  const [poolSearch, setPoolSearch] = useState("")
+  const [poolLabelFilter, setPoolLabelFilter] = useState("")
+  const [flaggedItems, setFlaggedItems] = useState<SsrMisclassificationFlag[]>([])
+  const [flaggedLoading, setFlaggedLoading] = useState(false)
+  const [flagActionId, setFlagActionId] = useState<number | null>(null)
   const [testTexts, setTestTexts] = useState("")
   const [testResult, setTestResult] = useState<AnchorTestResponse | null>(null)
   const [newCalText, setNewCalText] = useState("")
   const [newCalLabel, setNewCalLabel] = useState("")
   const [loading, setLoading] = useState(isEdit)
+  const [vocabLoading, setVocabLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -108,12 +124,115 @@ export function AnchorSetEditorPage() {
     }
   }, [isEdit, numericId, t])
 
+  useEffect(() => {
+    let cancelled = false
+    setVocabLoading(true)
+    getLabelVocabulary(kind, locale)
+      .then((vocab) => {
+        if (cancelled) return
+        const nextLabels = vocab.entries.map((entry) => entry.label)
+        setVocabLabels(nextLabels)
+        if (!isEdit) {
+          setLabels(nextLabels)
+          setStatements(emptyStatements(nextLabels.length))
+          if (nextLabels[0]) setNewCalLabel(nextLabels[0])
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setError(err instanceof ApiError ? err.message : t("anchorSets.vocab.loadError"))
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setVocabLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [kind, locale, isEdit, t])
+
+  // Prefetch for per-label pool counts on the anchors tab.
+  useEffect(() => {
+    if (!isEdit || Number.isNaN(numericId)) return
+    let cancelled = false
+    listPoolItems(numericId)
+      .then((items) => {
+        if (!cancelled) setPoolItems(items)
+      })
+      .catch(() => {
+        /* counts are optional until the pool tab is opened */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [isEdit, numericId])
+
+  // Load (or refresh) pool items when the pool tab is selected.
+  useEffect(() => {
+    if (!isEdit || Number.isNaN(numericId) || tab !== "pool") return
+    let cancelled = false
+    listPoolItems(numericId)
+      .then((items) => {
+        if (!cancelled) setPoolItems(items)
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setError(err instanceof ApiError ? err.message : t("anchorSets.editor.loadError"))
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [isEdit, numericId, tab, t])
+
+  // Load open misclassification flags when the flagged tab is selected.
+  useEffect(() => {
+    if (!isEdit || Number.isNaN(numericId) || tab !== "flagged") return
+    let cancelled = false
+    setFlaggedLoading(true)
+    listMisclassificationFlags(numericId, "open")
+      .then((items) => {
+        if (!cancelled) setFlaggedItems(items)
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setError(
+            err instanceof ApiError ? err.message : t("anchorSets.flagged.loadError"),
+          )
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setFlaggedLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [isEdit, numericId, tab, t])
+
+  const poolCountsByLabel = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const item of poolItems) {
+      counts.set(item.label, (counts.get(item.label) ?? 0) + 1)
+    }
+    return counts
+  }, [poolItems])
+
+  const filteredPoolItems = useMemo(() => {
+    const q = poolSearch.trim().toLowerCase()
+    return poolItems.filter((item) => {
+      if (poolLabelFilter && item.label !== poolLabelFilter) return false
+      if (!q) return true
+      return item.text.toLowerCase().includes(q) || item.label.toLowerCase().includes(q)
+    })
+  }, [poolItems, poolSearch, poolLabelFilter])
+
+  function openPoolForLabel(label: string) {
+    setPoolLabelFilter(label)
+    setTab("pool")
+  }
+
   function onKindChange(next: AnchorKind) {
     setKind(next)
-    if (!isEdit) {
-      setLabels(defaultLabels(next))
-      setStatements(defaultStatements(next))
-    }
   }
 
   async function save(event?: FormEvent) {
@@ -162,6 +281,52 @@ export function AnchorSetEditorPage() {
     setCalibration((prev) => prev.filter((i) => i.id !== itemId))
   }
 
+  async function removePoolItem(itemId: number) {
+    if (!isEdit) return
+    try {
+      await deleteAnchorPoolItem(numericId, itemId)
+      setPoolItems((prev) => prev.filter((i) => i.id !== itemId))
+    } catch (err: unknown) {
+      setError(err instanceof ApiError ? err.message : t("common.saveError"))
+    }
+  }
+
+  async function resolveFlag(flagId: number) {
+    if (!isEdit) return
+    setFlagActionId(flagId)
+    setError(null)
+    try {
+      await updateMisclassificationFlag(numericId, flagId, {
+        status: "resolved",
+      })
+      setFlaggedItems((prev) => prev.filter((f) => f.id !== flagId))
+      const items = await listPoolItems(numericId)
+      setPoolItems(items)
+    } catch (err: unknown) {
+      setError(
+        err instanceof ApiError ? err.message : t("anchorSets.flagged.actionError"),
+      )
+    } finally {
+      setFlagActionId(null)
+    }
+  }
+
+  async function dismissFlag(flagId: number) {
+    if (!isEdit) return
+    setFlagActionId(flagId)
+    setError(null)
+    try {
+      await updateMisclassificationFlag(numericId, flagId, { status: "dismissed" })
+      setFlaggedItems((prev) => prev.filter((f) => f.id !== flagId))
+    } catch (err: unknown) {
+      setError(
+        err instanceof ApiError ? err.message : t("anchorSets.flagged.actionError"),
+      )
+    } finally {
+      setFlagActionId(null)
+    }
+  }
+
   async function persistCalibrationRun() {
     if (!isEdit) return
     setError(null)
@@ -197,6 +362,21 @@ export function AnchorSetEditorPage() {
   }
 
   const readOnly = status === "published"
+
+  const tabEntries: { id: EditorTab; labelKey: MessageKey }[] = [
+    { id: "anchors", labelKey: "anchorSets.editor.tabAnchors" },
+    ...(isEdit
+      ? [
+          { id: "pool" as const, labelKey: "anchorSets.editor.tabPool" as MessageKey },
+          {
+            id: "flagged" as const,
+            labelKey: "anchorSets.editor.tabFlagged" as MessageKey,
+          },
+        ]
+      : []),
+    { id: "calibration", labelKey: "anchorSets.editor.tabCalibration" },
+    { id: "test", labelKey: "anchorSets.editor.tabTest" },
+  ]
 
   return (
     <div className="space-y-6">
@@ -238,13 +418,7 @@ export function AnchorSetEditorPage() {
             role="tablist"
             className="flex flex-wrap gap-1 border-b border-[color:var(--border-hairline)]"
           >
-            {(
-              [
-                ["anchors", "anchorSets.editor.tabAnchors"],
-                ["calibration", "anchorSets.editor.tabCalibration"],
-                ["test", "anchorSets.editor.tabTest"],
-              ] as const
-            ).map(([id, labelKey]) => (
+            {tabEntries.map(({ id, labelKey }) => (
               <button
                 key={id}
                 type="button"
@@ -311,40 +485,64 @@ export function AnchorSetEditorPage() {
 
               <div className="space-y-3">
                 <div className="text-sm font-medium">{t("anchorSets.editor.pairsTitle")}</div>
-                {labels.map((label, idx) => (
-                  <div key={idx} className="grid gap-2 rounded border p-3 sm:grid-cols-2">
-                    <label className="block space-y-1">
-                      <span className="text-xs text-muted-foreground">
-                        {t("anchorSets.editor.labelField")}
-                      </span>
-                      <input
-                        className="dsearch w-full"
-                        value={label}
-                        disabled={readOnly}
-                        onChange={(e) => {
-                          const next = [...labels]
-                          next[idx] = e.target.value
-                          setLabels(next)
-                        }}
-                      />
-                    </label>
-                    <label className="block space-y-1">
-                      <span className="text-xs text-muted-foreground">
-                        {t("anchorSets.editor.statementField")}
-                      </span>
-                      <textarea
-                        className="dsearch w-full min-h-[72px]"
-                        value={statements[idx] ?? ""}
-                        disabled={readOnly}
-                        onChange={(e) => {
-                          const next = [...statements]
-                          next[idx] = e.target.value
-                          setStatements(next)
-                        }}
-                      />
-                    </label>
-                  </div>
-                ))}
+                {vocabLoading && labels.length === 0 ? (
+                  <p className="muted text-sm">{t("anchorSets.list.loading")}</p>
+                ) : null}
+                {labels.map((label, idx) => {
+                  const poolCount = poolCountsByLabel.get(label) ?? 0
+                  const options = labelSelectOptions(label, vocabLabels)
+                  return (
+                    <div key={idx} className="grid gap-2 rounded border p-3 sm:grid-cols-2">
+                      <label className="block space-y-1">
+                        <span className="text-xs text-muted-foreground">
+                          {t("anchorSets.editor.labelField")}
+                        </span>
+                        <select
+                          className="dsel w-full"
+                          value={label}
+                          disabled={readOnly || vocabLoading || options.length === 0}
+                          onChange={(e) => {
+                            const next = [...labels]
+                            next[idx] = e.target.value
+                            setLabels(next)
+                          }}
+                        >
+                          {options.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="block space-y-1">
+                        <span className="text-xs text-muted-foreground">
+                          {t("anchorSets.editor.statementField")}
+                        </span>
+                        <textarea
+                          className="dsearch w-full min-h-[72px]"
+                          value={statements[idx] ?? ""}
+                          disabled={readOnly}
+                          onChange={(e) => {
+                            const next = [...statements]
+                            next[idx] = e.target.value
+                            setStatements(next)
+                          }}
+                        />
+                      </label>
+                      {isEdit && poolCount > 0 ? (
+                        <div className="sm:col-span-2">
+                          <button
+                            type="button"
+                            className="text-xs text-muted-foreground underline hover:text-[color:var(--text-body)]"
+                            onClick={() => openPoolForLabel(label)}
+                          >
+                            {t("anchorSets.editor.poolCount", { count: poolCount })}
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  )
+                })}
               </div>
 
               {!readOnly ? (
@@ -355,6 +553,134 @@ export function AnchorSetEditorPage() {
                 <p className="text-sm text-muted-foreground">{t("anchorSets.editor.publishedHint")}</p>
               )}
             </form>
+          ) : null}
+
+          {tab === "pool" && isEdit ? (
+            <div className="max-w-3xl space-y-4">
+              <p className="text-sm text-muted-foreground">{t("anchorSets.pool.intro")}</p>
+              <div className="flex flex-wrap gap-2">
+                <input
+                  className="dsearch min-w-[12rem] flex-1"
+                  value={poolSearch}
+                  onChange={(e) => setPoolSearch(e.target.value)}
+                  placeholder={t("anchorSets.pool.searchPlaceholder")}
+                />
+                <select
+                  className="dsel"
+                  value={poolLabelFilter}
+                  onChange={(e) => setPoolLabelFilter(e.target.value)}
+                >
+                  <option value="">{t("anchorSets.pool.allLabels")}</option>
+                  {labels.map((label) => (
+                    <option key={label} value={label}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {filteredPoolItems.length === 0 ? (
+                <p className="muted">{t("anchorSets.pool.empty")}</p>
+              ) : (
+                <ul className="space-y-2">
+                  {filteredPoolItems.map((item) => (
+                    <li
+                      key={item.id}
+                      className="flex flex-wrap items-start justify-between gap-2 rounded border p-3 text-sm"
+                    >
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div>{item.text}</div>
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                          <span className="rounded border border-[color:var(--border-hairline)] px-1.5 py-0.5 text-[color:var(--text-body)]">
+                            {item.label}
+                          </span>
+                          <span>
+                            {poolSourceLabel(item.source_type, t)}
+                            {" · "}
+                            {new Intl.DateTimeFormat(intl, {
+                              dateStyle: "medium",
+                              timeStyle: "short",
+                            }).format(new Date(item.created_at))}
+                          </span>
+                        </div>
+                      </div>
+                      <AdminButton
+                        type="button"
+                        variant="secondary"
+                        onClick={() => void removePoolItem(item.id)}
+                      >
+                        {t("anchorSets.pool.remove")}
+                      </AdminButton>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ) : null}
+
+          {tab === "flagged" && isEdit ? (
+            <div className="max-w-3xl space-y-4">
+              <p className="text-sm text-muted-foreground">{t("anchorSets.flagged.intro")}</p>
+              {flaggedLoading ? (
+                <p className="muted">{t("anchorSets.editor.loading")}</p>
+              ) : flaggedItems.length === 0 ? (
+                <p className="muted">{t("anchorSets.flagged.empty")}</p>
+              ) : (
+                <ul className="space-y-3">
+                  {flaggedItems.map((flag) => {
+                    const author =
+                      typeof flag.source_ref.author === "string"
+                        ? flag.source_ref.author
+                        : null
+                    return (
+                      <li
+                        key={flag.id}
+                        className="space-y-2 rounded border p-4 text-sm"
+                      >
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                          {flag.source_run_id != null ? (
+                            <span>
+                              {t("anchorSets.flagged.runLabel", {
+                                id: flag.source_run_id,
+                              })}
+                            </span>
+                          ) : null}
+                          {author ? <span>{author}</span> : null}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {t("anchorSets.flagged.systemSaid", {
+                            label: flag.predicted_label,
+                          })}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {t("anchorSets.flagged.expectedLabel", {
+                            label: flag.expected_label,
+                          })}
+                        </p>
+                        <p className="text-[color:var(--text-body)]">{flag.text}</p>
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          <AdminButton
+                            type="button"
+                            variant="primary"
+                            disabled={flagActionId === flag.id}
+                            onClick={() => void resolveFlag(flag.id)}
+                          >
+                            {t("anchorSets.flagged.addAsAnchor")}
+                          </AdminButton>
+                          <AdminButton
+                            type="button"
+                            variant="secondary"
+                            disabled={flagActionId === flag.id}
+                            onClick={() => void dismissFlag(flag.id)}
+                          >
+                            {t("anchorSets.flagged.dismiss")}
+                          </AdminButton>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </div>
           ) : null}
 
           {tab === "calibration" && isEdit ? (

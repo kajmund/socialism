@@ -1,41 +1,43 @@
 ---
 type: guide
 title: Lägga till SSR-ankare från körning
-description: Tagga kommentarer och intervjusvar från avslutade simuleringar som ton- och stilankare.
+description: Tagga kommentarer från avslutade simuleringar som ton- och stilankare.
 tags: [korningar, rapporter, grunddata]
 ---
 
 # Lägga till SSR-ankare från körning
 
-När en simulering är **klar** kan du plocka ut riktiga kommentarer och intervjusvar från resultatet och lägga till dem i SSR-ankarbiblioteket. Det gör att framtida rapporter kan grundas mer i faktiskt simulerat språk, inte bara i forskartexterna basankare.
+När en simulering är **klar** kan du plocka ut kommentarer från flödet och lägga till dem i SSR-ankarbiblioteket. Det gör att framtida rapporter kan grundas mer i faktiskt simulerat språk, inte bara i forskartexterna basankare.
 
 ## Var du hittar funktionen
 
-1. Öppna körningen och gå till fliken **Resultat**.
+1. Öppna körningen via **Öppna resultat**.
 2. Expandera ett sparat försök (och rätt variant om du körde A/B).
-3. Scrolla till avsnittet **SSR-ankare från körningen** under flödet.
+3. I **flödet** har varje kommentar en sköld — **Lägg till som SSR-ankare**.
 
-Avsnittet visas bara när körningen har status **Klar** och det finns sparade resultat.
+Skölden visas bara när körningen har status **Klar**.
 
-## Vilka texter som visas
+Guldmärkena i rutan visar vilket **ton-** och **stilset** den aktiva konfigurationen använder.
 
-| Typ | Källa |
-| --- | --- |
-| **Kommentar** | Flödeskommentarer från simuleringen |
-| **Planerad intervju** | Tick-intervjuer som kördes via OASIS under simuleringen |
-| **Intervju i efterhand** | Svar från post-hoc-intervjuer du gjort mot personas efter körningen |
+## Så lägger du till en kommentar
 
-## Så taggar du en rad
+1. Klicka på skölden vid kommentaren.
+2. I rutan ser du texten, systemets klassificering (om den finns) och de aktiva ankarseten.
+3. Välj **ton** och/eller **stil**. Tomt val är **Ingen**.
+4. Kryssa i **Lägg även till i kalibrering** om du vill att samma text ska finnas i testkorpusen i ankareditorn (valfritt).
+5. Klicka **Lägg till ankare**.
 
-1. Läs texten och välj **ton** och/eller **stil** i listorna. Du kan välja båda — då skapas ett ankare i respektive bibliotek.
-2. Kryssa i **Lägg även till i kalibrering** om du vill att samma text ska finnas i testkorpusen i ankareditorn (valfritt).
-3. Klicka **Lägg till som ankare**.
+Ankare blir **direkt aktiva** i det ankarbibliotek som den **aktiva konfigurationen** pekar på för körningens språk.
 
-Ankare blir **direkt aktiva** i det ankarbibliotek som den **aktiva konfigurationen** pekar på för körningens språk. Ton- och stilset namn visas ovanför listan så du ser vart texterna hamnar.
+## Fel klassificering
+
+Om SSR:s förslag är fel: klicka på stjärnan vid kommentaren, välj **Rapportera fel klassificering** och ange rätt etikett.
+
+Flaggningen hamnar under fliken **Flaggade** i respektive ankarset, där du senare kan **lägga till som ankare** eller **avfärda**.
 
 ## Ta bort ankare
 
-Om en rad redan är tillagd visas små etiketter under ton/stil. Klicka på **×** för att ta bort just den pool-posten.
+Taggade exempel tas bort under fliken **Ankarpool** i ankareditorn.
 
 Grundankartexterna (forskartexterna basrader) i biblioteket kan fortfarande inte redigeras — bara pool-tillägg på publicerade set.
 

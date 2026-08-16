@@ -12,17 +12,20 @@ I **Konfigurationer** sparar du kompletta uppsättningar av **prompttexter** (pe
 ## Steg
 
 1. Öppna **Verktyg** → **Konfigurationer** i menyn.
-2. I listan syns **namn**, **promptspråk** och om posten är **Aktiv**.
+2. I listan syns **namn**, **promptspråk** och om posten är **Aktiv**. Växla mellan **Rutnät** och **Lista** vid behov.
 3. Skapa nytt med **+ Ny konfiguration** — promptfälten fylls i med standardtexter.
-4. Ge konfigurationen ett **Namn**, välj **Promptspråk** och redigera under fliken **Promptinställningar** (t.ex. Persona, Chat & intervju).
-5. Under fliken **SSR-ankare**: **SSR-temperatur** (lägre = skarpare ton/stil-fördelning; kalibrera gärna i Playground först), val av ton-/stilankare, och **Rapporttrösklar** (hur slutsats och rekommendation tolkas). Standardtrösklar räcker oftast — ändringar gäller bara **nya** rapporter; befintliga behåller trösklarna från när de genererades. Under **Avancerat** finns även trösklar för **målgruppssammanfattning** (korta takeaway-stycken) — separata från rekommendationens narrativa triggare.
-6. **Spara** — du landar i redigeringsläget där fliken **Grunddata** blir tillgänglig.
-7. Under **Grunddata** redigerar du kataloglistor för just den här konfigurationen.
-8. Markera **Aktiv** om den ska användas direkt, eller aktivera senare från listan. När du aktiverar en post blir övriga inaktiva.
-9. På ett kort: **Redigera**, **Aktivera** (om den inte redan är aktiv) eller **Ta bort**.
+4. I sidhuvudet: ge konfigurationen ett **Namn**, välj **promptspråk** (SV/EN/NB) och slå på **Aktiv** om den ska användas direkt. **Spara** och **Avbryt** sitter till höger i samma rad.
+5. Under fliken **Innehåll & ton**: sök eller bläddra i listan till vänster och redigera **ett promptfält i taget**. Du kan återställa ett fält till standardtexten.
+6. Under fliken **Känslighet & rapportgränser**: välj en grupp i vänstermenyn. **Variation i svar** är SSR-temperatur (lägre = skarpare ton/stil-fördelning; kalibrera gärna i Playground först). Övriga grupper är rapporttrösklar (hur slutsats och rekommendation tolkas). Standardvärden räcker oftast — ändringar gäller bara **nya** rapporter. Under **Avancerat** finns poängformel och **målgruppssammanfattning**.
+7. Under fliken **Ankare**: välj publicerat **ton-** och **stilankare** för svenska respektive engelska rapporter.
+8. **Spara** — du landar i redigeringsläget där fliken **Grunddata** blir tillgänglig.
+9. Under **Grunddata** redigerar du kataloglistor för just den här konfigurationen.
+10. Du kan också aktivera senare från listan. När du aktiverar en post blir övriga inaktiva.
+11. På ett kort: **Redigera**, **Aktivera** (om den inte redan är aktiv) eller **Ta bort**.
 
 ## Relaterade guider
 
 - [Använda playground](anvanda-playground.md)
 - [Redigera grunddata](redigera-grunddata.md)
+- [Hantera SSR-ankare](hantera-ssr-ankare.md)
 - [Översikt av ytorna](oversikt.md)

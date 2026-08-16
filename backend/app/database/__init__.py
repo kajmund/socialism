@@ -10,6 +10,8 @@ from app.database.models import (
     Run,
     SsrAnchorCalibrationItem,
     SsrAnchorSet,
+    SsrLabelVocabulary,
+    SsrMisclassificationFlag,
 )
 
 __all__ = [
@@ -24,4 +26,6 @@ __all__ = [
     "Run",
     "SsrAnchorCalibrationItem",
     "SsrAnchorSet",
+    "SsrLabelVocabulary",
+    "SsrMisclassificationFlag",
 ]

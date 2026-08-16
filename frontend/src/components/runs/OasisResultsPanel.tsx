@@ -7,12 +7,22 @@ import {
   type ReactNode,
 } from "react"
 import { createPortal } from "react-dom"
-import { FileText, Files, Loader2, Network, Wrench } from "lucide-react"
+import { FileText, Files, Loader2, Network, Trash2, Wrench } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { createReport } from "@/api/reports"
+import type { RunTaggableTextRow } from "@/api/runs"
 import { useReportsRealtime } from "@/realtime/ReportsRealtimeProvider"
 import { PersonaProfileModal } from "@/components/personas/PersonaProfileModal"
-import { RunAnchorPoolPanel } from "@/components/runs/RunAnchorPoolPanel"
+import {
+  AddAnchorModal,
+  ShieldIcon,
+  type AddAnchorTarget,
+} from "@/components/runs/AddAnchorModal"
+import {
+  ClassificationPopover,
+  flaggedKeyForRow,
+} from "@/components/runs/ClassificationPopover"
+import { useRunTaggableTexts } from "@/components/runs/useRunTaggableTexts"
 import {
   agentToolHistogram,
   agentToolsForAuthor,
@@ -35,7 +45,6 @@ import {
   getMentionMatcher,
 } from "@/components/runs/commentMentions"
 import {
-  CopyAttemptButton,
   CopyFeedTextButton,
   formatCommentForClipboard,
   formatPostForClipboard,
@@ -58,7 +67,6 @@ import {
   type OasisRunResults,
   type OasisVariantResult,
   type QualityWarnings,
-  type RunStatus,
 } from "@/data/runs-types"
 
 type Translate = (key: MessageKey, params?: TranslateParams) => string
@@ -68,6 +76,18 @@ type AgentRow = NonNullable<OasisVariantResult["agents"]>[number]
 type ProfileTarget = {
   personaId: string | null
   name: string
+}
+
+type FeedAnchors = {
+  byCommentId: Map<number, RunTaggableTextRow>
+  toneOptions: string[]
+  styleOptions: string[]
+  flaggedKeys: Set<string>
+  onFlagged: (key: string) => void
+  onAdd: (target: AddAnchorTarget) => void
+  runId: number
+  attemptId: string
+  variantId: string
 }
 
 /** Normalize legacy flat results and current attempts[] into a stable list. */
@@ -137,6 +157,31 @@ function formatWhen(
     hour: "2-digit",
     minute: "2-digit",
   }).format(d)
+}
+
+function formatAttemptDay(
+  iso: string | null | undefined,
+  t: Translate,
+  intl: string,
+): string {
+  if (!iso) return t("runs.results.unknownTime")
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  return new Intl.DateTimeFormat(intl, {
+    day: "numeric",
+    month: "short",
+  }).format(d)
+}
+
+function latestPointMetrics(variant: OasisVariantResult) {
+  const rows = variant.measurements ?? []
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const points = rows[i]?.points ?? []
+    const snapshot =
+      points.find((p) => p.id === "opinion_snapshot") ?? points[0]
+    if (snapshot?.metrics) return snapshot.metrics
+  }
+  return undefined
 }
 
 function agentLabel(
@@ -434,6 +479,90 @@ function MeasurementDetail({ point }: { point: OasisMeasurementPoint }) {
               </li>
             ))}
           </ul>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function VariantOverview({ variant }: { variant: OasisVariantResult }) {
+  const { t } = useLocale()
+  const metrics = latestPointMetrics(variant)
+  const sentiment = metrics?.sentiment
+  const phrases = metrics?.top_phrases ?? []
+  const districts = metrics?.by_district ?? []
+  const maxDistrict = Math.max(
+    1,
+    ...districts.map((d) => d.engagement_score ?? 0),
+  )
+  if (!sentiment && phrases.length === 0 && districts.length === 0) return null
+
+  return (
+    <div className="results-overview">
+      {sentiment ? (
+        <div>
+          <div className="results-overview-lbl">{t("runs.results.networkTitle")}</div>
+          <div className="results-sentiment-bar">
+            <div className="pos" style={{ width: pct(sentiment.positive) }} />
+            <div className="neu" style={{ width: pct(sentiment.neutral) }} />
+            <div className="neg" style={{ width: pct(sentiment.negative) }} />
+          </div>
+          <div className="results-sentiment-legend">
+            <span>
+              {t("runs.results.sentimentPositive", {
+                pct: pct(sentiment.positive),
+              })}
+            </span>
+            <span>
+              {t("runs.results.sentimentNeutral", {
+                pct: pct(sentiment.neutral),
+              })}
+            </span>
+            <span>
+              {t("runs.results.sentimentNegative", {
+                pct: pct(sentiment.negative),
+              })}
+            </span>
+          </div>
+        </div>
+      ) : null}
+      {phrases.length > 0 || districts.length > 0 ? (
+        <div className="results-overview-split">
+          {phrases.length > 0 ? (
+            <div>
+              <div className="results-overview-lbl">
+                {t("runs.results.commonPhrases")}
+              </div>
+              <div className="results-phrase-chips">
+                {phrases.map((p) => (
+                  <span key={p.phrase}>
+                    «{p.phrase}» ×{p.count}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {districts.length > 0 ? (
+            <div>
+              <div className="results-overview-lbl">
+                {t("runs.results.topicDrift")}
+              </div>
+              {districts.slice(0, 6).map((d) => {
+                const share = Math.round(
+                  ((d.engagement_score ?? 0) / maxDistrict) * 100,
+                )
+                return (
+                  <div className="results-drift-row" key={d.label}>
+                    <span className="lbl">{d.label}</span>
+                    <div className="bar">
+                      <div style={{ width: `${share}%` }} />
+                    </div>
+                    <span className="pct">{share}%</span>
+                  </div>
+                )
+              })}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>
@@ -1213,76 +1342,6 @@ function ActionHistogramChart({
   )
 }
 
-function VariantBlock({
-  variant,
-  expanded,
-  onToggleExpand,
-  onOpenNetwork,
-  runId,
-  attemptId,
-  anchorPoolFooter,
-}: {
-  variant: OasisVariantResult
-  expanded: boolean
-  onToggleExpand: () => void
-  onOpenNetwork: () => void
-  runId?: number
-  attemptId?: string
-  anchorPoolFooter?: ReactNode
-}) {
-  const { t } = useLocale()
-  const hasNetwork = variantHasNetworkActivity(variant)
-
-  return (
-    <div className="rounded-md border border-border/80 bg-muted/20">
-      <div className="flex items-start justify-between gap-3 px-3 py-2.5">
-        <div className="flex min-w-0 items-center gap-2">
-          {variant.id === "a" || variant.id === "b" ? (
-            <span
-              className={
-                "inline-grid h-5 min-w-5 shrink-0 place-items-center rounded px-1 text-[11px] font-semibold " +
-                (variant.id === "a"
-                  ? "bg-db-gold-100 text-db-gold-700"
-                  : "bg-db-ink-200 text-db-ink-950")
-              }
-            >
-              {variant.id.toUpperCase()}
-            </span>
-          ) : null}
-          <div className="min-w-0">
-            <span className="text-sm font-medium text-foreground">{variant.label}</span>
-            <span className="mt-0.5 block text-xs text-muted-foreground">
-              {variantSummary(variant, t)}
-            </span>
-          </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-2 pt-0.5">
-          {hasNetwork ? (
-            <NetworkActivityIconButton
-              label={t("runs.results.networkForVariant", { variant: variant.label })}
-              onClick={onOpenNetwork}
-            />
-          ) : null}
-          <button
-            type="button"
-            className="rounded px-2 py-1 text-xs text-muted-foreground hover:bg-muted/60"
-            aria-expanded={expanded}
-            onClick={onToggleExpand}
-          >
-            {expanded ? t("runs.results.hide") : t("runs.results.show")}
-          </button>
-        </div>
-      </div>
-      {expanded ? (
-        <div className="border-t border-border/60 px-3 py-3">
-          <VariantBody variant={variant} runId={runId} attemptId={attemptId} />
-          {anchorPoolFooter}
-        </div>
-      ) : null}
-    </div>
-  )
-}
-
 function CompactActionRow({
   item,
   agents,
@@ -1600,6 +1659,7 @@ function FeedPostCard({
   attemptId,
   onInterview,
   compact = false,
+  anchors,
 }: {
   post: PostRow
   tickIndex: number
@@ -1616,6 +1676,7 @@ function FeedPostCard({
   attemptId?: string
   onInterview: (tickIndex: number, personaId: string) => void
   compact?: boolean
+  anchors?: FeedAnchors
 }) {
   const { intl, t } = useLocale()
   const [toolsModal, setToolsModal] = useState<{
@@ -1787,6 +1848,13 @@ function FeedPostCard({
               Boolean(attemptId) &&
               !commentInjector &&
               Boolean(commentAgent?.persona_id)
+            const taggable = anchors?.byCommentId.get(c.comment_id)
+            const hasClassification = Boolean(
+              taggable?.tone_predicted || taggable?.style_predicted,
+            )
+            const alreadyFlagged = taggable
+              ? anchors!.flaggedKeys.has(flaggedKeyForRow(taggable))
+              : false
             return (
               <li key={c.comment_id} className="flex items-start gap-1.5">
                 {commentInjector ? null : (
@@ -1837,6 +1905,33 @@ function FeedPostCard({
                         })
                       }
                     />
+                  ) : null}
+                  {taggable && hasClassification && anchors ? (
+                    <ClassificationPopover
+                      row={taggable}
+                      runId={anchors.runId}
+                      attemptId={anchors.attemptId}
+                      variantId={anchors.variantId}
+                      toneOptions={anchors.toneOptions}
+                      styleOptions={anchors.styleOptions}
+                      reported={alreadyFlagged}
+                      onReported={() =>
+                        anchors.onFlagged(flaggedKeyForRow(taggable))
+                      }
+                    />
+                  ) : null}
+                  {taggable && anchors ? (
+                    <button
+                      type="button"
+                      className="results-icon-btn gold"
+                      title={t("runs.results.anchorPool.addAsAnchor")}
+                      aria-label={t("runs.results.anchorPool.addAsAnchor")}
+                      onClick={() =>
+                        anchors.onAdd({ row: taggable, author: commentName })
+                      }
+                    >
+                      <ShieldIcon />
+                    </button>
                   ) : null}
                   {canInterviewComment ? (
                     <button
@@ -1893,10 +1988,12 @@ function VariantBody({
   variant,
   runId,
   attemptId,
+  showAnchors = false,
 }: {
   variant: OasisVariantResult
   runId?: number
   attemptId?: string
+  showAnchors?: boolean
 }) {
   const { t } = useLocale()
   const posts = variant.posts ?? []
@@ -1936,6 +2033,32 @@ function VariantBody({
     tickIndex: number
     personaId: string | null
   } | null>(null)
+  const taggable = useRunTaggableTexts(
+    showAnchors ? runId : undefined,
+    showAnchors ? attemptId : undefined,
+    showAnchors ? variant.id : undefined,
+  )
+  const [anchorTarget, setAnchorTarget] = useState<AddAnchorTarget | null>(null)
+  const [flaggedKeys, setFlaggedKeys] = useState<Set<string>>(() => new Set())
+  const feedAnchors: FeedAnchors | undefined =
+    showAnchors && runId != null && attemptId
+      ? {
+          byCommentId: taggable.byCommentId,
+          toneOptions: taggable.context?.tone.labels ?? [],
+          styleOptions: taggable.context?.style.labels ?? [],
+          flaggedKeys,
+          onFlagged: (key) =>
+            setFlaggedKeys((prev) => {
+              const next = new Set(prev)
+              next.add(key)
+              return next
+            }),
+          onAdd: setAnchorTarget,
+          runId,
+          attemptId,
+          variantId: variant.id,
+        }
+      : undefined
 
   const openAgent = useCallback(
     (userId: number) => {
@@ -2048,6 +2171,7 @@ function VariantBody({
 
   return (
     <div>
+      <VariantOverview variant={variant} />
       <p className="mb-3 text-xs text-muted-foreground">
         {t("runs.results.platform", {
           platform: platform === "reddit" ? "Reddit" : "Twitter",
@@ -2194,6 +2318,7 @@ function VariantBody({
                         attemptId={attemptId}
                         onInterview={openPostInterview}
                         compact
+                        anchors={feedAnchors}
                       />
                     ))}
                   </ul>
@@ -2232,6 +2357,7 @@ function VariantBody({
               runId={runId}
               attemptId={attemptId}
               onInterview={openPostInterview}
+              anchors={feedAnchors}
             />
           )
         })}
@@ -2344,55 +2470,29 @@ function VariantBody({
           </div>
         </div>
       ) : null}
+
+      {showAnchors && runId != null && attemptId ? (
+        <AddAnchorModal
+          key={
+            anchorTarget
+              ? flaggedKeyForRow(anchorTarget.row)
+              : "anchor-modal-closed"
+          }
+          open={anchorTarget != null}
+          target={anchorTarget}
+          runId={runId}
+          attemptId={attemptId}
+          variantId={variant.id}
+          toneName={taggable.context?.tone.name ?? ""}
+          styleName={taggable.context?.style.name ?? ""}
+          toneOptions={taggable.context?.tone.labels ?? []}
+          styleOptions={taggable.context?.style.labels ?? []}
+          onClose={() => setAnchorTarget(null)}
+          onAdded={() => void taggable.reload()}
+        />
+      ) : null}
     </div>
   )
-}
-
-function variantSummary(variant: OasisVariantResult, t: Translate): string {
-  if (variant.error) return t("runs.results.failed")
-  const posts = variant.posts?.length ?? 0
-  const meas = (variant.measurements ?? []).reduce(
-    (n, row) => n + row.points.length,
-    0,
-  )
-  const ticks =
-    typeof variant.ticks_run === "number" ? variant.ticks_run : t("common.emDash")
-  return t("runs.results.variantSummary", {
-    ticks,
-    posts,
-    measurements: meas,
-  })
-}
-
-function knownRunStatusLabel(status: RunStatus, t: Translate): string {
-  switch (status) {
-    case "done":
-      return t("runs.status.done")
-    case "running":
-      return t("runs.status.running")
-    case "draft":
-      return t("runs.status.draft")
-    case "failed":
-      return t("runs.status.failed")
-    default:
-      {
-        const exhaustive: never = status
-        return exhaustive
-      }
-  }
-}
-
-function isRunStatus(status: string): status is RunStatus {
-  return (
-    status === "done" ||
-    status === "running" ||
-    status === "draft" ||
-    status === "failed"
-  )
-}
-
-function runStatusLabel(status: string, t: Translate): string {
-  return isRunStatus(status) ? knownRunStatusLabel(status, t) : status
 }
 
 function attemptHasData(attempt: OasisAttemptResult): boolean {
@@ -2444,87 +2544,69 @@ function AttemptBlock({
     stimulusVariant &&
     controlVariant &&
     isStimulusControlPair(variants, branchMode)
-  const postCount = variants.reduce((n, v) => n + (v.posts?.length ?? 0), 0)
   const stamp = formatWhen(attempt.finished_at, t, intl)
-  const metaParts = [
-    total > 1 ? t("runs.results.attemptOrdinal", { number: total - index }) : null,
-    attempt.engine ?? null,
-    variants.length > 1
-      ? t("runs.results.variantCount", { count: variants.length })
-      : null,
-    t("runs.results.metricPosts", { count: postCount }),
-  ].filter(Boolean)
-  const single = variants.length === 1
-  const singleVariant = single ? variants[0] : undefined
+  const dayStamp = formatAttemptDay(attempt.finished_at, t, intl)
+  const attemptNumber = total - index
   const variantIdsKey = variants.map((v) => v.id).join("|")
   const canDelete = Boolean(onRequestDelete && attempt.id)
   const hasData = attemptHasData(attempt)
-  const [menuOpen, setMenuOpen] = useState(false)
   const [expandedVariantId, setExpandedVariantId] = useState<string | null>(() =>
-    variants.length > 1 ? (variants[0]?.id ?? null) : null,
+    variants[0]?.id ?? null,
   )
   const [networkModalVariant, setNetworkModalVariant] =
     useState<OasisVariantResult | null>(null)
   const [networkProfile, setNetworkProfile] = useState<ProfileTarget | null>(null)
-  const menuRef = useRef<HTMLDivElement>(null)
+  const activeVariant =
+    variants.find((v) => v.id === expandedVariantId) ?? variants[0]
 
   useEffect(() => {
-    if (variants.length <= 1) return
     setExpandedVariantId((prev) => {
       if (prev && variants.some((v) => v.id === prev)) return prev
       return variants[0]?.id ?? null
     })
   }, [attempt.id, variantIdsKey, variants.length])
 
-  function toggleVariantExpand(variantId: string) {
-    setExpandedVariantId((prev) => (prev === variantId ? null : variantId))
-  }
-
-  useEffect(() => {
-    if (!menuOpen) return
-    function onDocClick(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false)
-      }
-    }
-    document.addEventListener("mousedown", onDocClick)
-    return () => document.removeEventListener("mousedown", onDocClick)
-  }, [menuOpen])
-
   return (
-    <div className="rounded-md border border-border bg-card">
-      <div className="flex items-start justify-between gap-3 px-4 py-3">
-        <div className="flex min-w-0 items-start gap-3">
-          {onToggleSelect && hasData ? (
-            <input
-              type="checkbox"
-              className="mt-1"
-              checked={Boolean(selected)}
-              aria-label={t("runs.results.selectAttempt", { stamp })}
-              onChange={() => onToggleSelect(attempt.id)}
-            />
-          ) : null}
-          <div className="min-w-0">
-            <time
-              className="block font-mono text-sm font-semibold tabular-nums text-foreground"
-              dateTime={attempt.finished_at ?? undefined}
-            >
-              {stamp}
-            </time>
-            <div className="mt-0.5 text-xs text-muted-foreground">
-              {metaParts.join(" · ")}
-            </div>
+    <div className="results-attempt">
+      <div
+        className="results-attempt-head"
+        role="button"
+        tabIndex={0}
+        aria-expanded={expanded}
+        onClick={onToggleExpand}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault()
+            onToggleExpand()
+          }
+        }}
+      >
+        {onToggleSelect && hasData ? (
+          <input
+            type="checkbox"
+            checked={Boolean(selected)}
+            aria-label={t("runs.results.selectAttempt", { stamp })}
+            onClick={(e) => e.stopPropagation()}
+            onChange={() => onToggleSelect(attempt.id)}
+          />
+        ) : null}
+        <div className="min-w-0 flex-1">
+          <div className="results-attempt-title">
+            {t("runs.results.attemptTitle", {
+              number: attemptNumber,
+              when: dayStamp,
+            })}
           </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-2 pt-0.5">
-          {single &&
-          singleVariant &&
-          variantHasNetworkActivity(singleVariant) ? (
-            <NetworkActivityIconButton
-              label={t("runs.results.networkTitle")}
-              onClick={() => setNetworkModalVariant(singleVariant)}
-            />
+          {attempt.engine ? (
+            <div className="results-attempt-engine">
+              {t("runs.results.engineLine", { engine: attempt.engine })}
+            </div>
           ) : null}
+        </div>
+        <div
+          className="results-attempt-actions"
+          onClick={(e) => e.stopPropagation()}
+        >
           {hasData && onRequestOrderReport ? (
             <OrderReportButton
               busy={ordering}
@@ -2532,88 +2614,30 @@ function AttemptBlock({
               onClick={() => onRequestOrderReport(attempt.id)}
             />
           ) : null}
-          {hasData ? (
-            <CopyAttemptButton attempt={attempt} disabled={deleting} />
-          ) : null}
           {canDelete ? (
-            <div className="relative ml-1 border-l border-border pl-2" ref={menuRef}>
-              <button
-                type="button"
-                className="inline-grid h-7 w-7 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
-                aria-label={t("runs.results.moreActions")}
-                aria-expanded={menuOpen}
-                aria-haspopup="menu"
-                disabled={deleting}
-                onClick={() => setMenuOpen((open) => !open)}
-              >
-                <svg
-                  aria-hidden="true"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                >
-                  <circle cx="5" cy="12" r="1.5" />
-                  <circle cx="12" cy="12" r="1.5" />
-                  <circle cx="19" cy="12" r="1.5" />
-                </svg>
-              </button>
-              {menuOpen ? (
-                <div
-                  role="menu"
-                  className="absolute right-0 top-full z-20 mt-1 min-w-[10rem] rounded-md border border-border bg-card py-1 shadow-lg"
-                >
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-destructive hover:bg-destructive/10 disabled:opacity-50"
-                    disabled={deleting}
-                    onClick={() => {
-                      setMenuOpen(false)
-                      onRequestDelete?.(attempt.id)
-                    }}
-                  >
-                    <svg
-                      aria-hidden="true"
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M3 6h18" />
-                      <path d="M8 6V4h8v2" />
-                      <path d="M19 6l-1 14H6L5 6" />
-                      <path d="M10 11v6" />
-                      <path d="M14 11v6" />
-                    </svg>
-                    {deleting
-                      ? t("runs.results.deleting")
-                      : t("runs.results.deleteResult")}
-                  </button>
-                </div>
-              ) : null}
-            </div>
+            <button
+              type="button"
+              className="results-icon-btn"
+              aria-label={t("runs.results.deleteResult")}
+              disabled={deleting}
+              onClick={() => onRequestDelete?.(attempt.id)}
+            >
+              <Trash2 aria-hidden="true" size={14} />
+            </button>
           ) : null}
-          <button
-            type="button"
-            className="rounded px-2 py-1 text-xs text-muted-foreground hover:bg-muted/60"
-            aria-expanded={expanded}
-            onClick={onToggleExpand}
-          >
-            {expanded ? t("runs.results.hide") : t("runs.results.show")}
-          </button>
         </div>
+        <span className={"results-chevron" + (expanded ? " open" : "")}>▾</span>
       </div>
 
       {expanded ? (
-        <div className="border-t border-border px-4 py-3">
+        <div className="results-attempt-body">
           {attempt.error ? (
-            <p className="mb-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {attempt.error}
+            <p className="mb-3 text-sm text-[#b42318]">{attempt.error}</p>
+          ) : null}
+
+          {runStatus === "running" && !hasData ? (
+            <p className="text-sm text-muted-foreground">
+              {t("runs.results.runningWait")}
             </p>
           ) : null}
 
@@ -2624,44 +2648,52 @@ function AttemptBlock({
             />
           ) : null}
 
-          {single ? (
-            <>
-              <VariantBody
-                variant={variants[0]}
-                runId={runId}
-                attemptId={attempt.id}
-              />
-              {runStatus === "done" && runId && variants[0] ? (
-                <RunAnchorPoolPanel
-                  runId={runId}
-                  attemptId={attempt.id}
-                  variantId={variants[0].id}
+          {variants.length > 1 ? (
+            <div className="results-variant-row">
+              <div className="view-toggle" role="tablist">
+                {variants.map((variant) => (
+                  <button
+                    key={variant.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={activeVariant?.id === variant.id}
+                    className={activeVariant?.id === variant.id ? "on" : undefined}
+                    onClick={() => setExpandedVariantId(variant.id)}
+                  >
+                    {variant.label}
+                  </button>
+                ))}
+              </div>
+              {activeVariant && variantHasNetworkActivity(activeVariant) ? (
+                <NetworkActivityIconButton
+                  label={t("runs.results.networkTitle")}
+                  onClick={() => setNetworkModalVariant(activeVariant)}
                 />
               ) : null}
+            </div>
+          ) : activeVariant && variantHasNetworkActivity(activeVariant) ? (
+            <div className="results-variant-row">
+              <span />
+              <NetworkActivityIconButton
+                label={t("runs.results.networkTitle")}
+                onClick={() => setNetworkModalVariant(activeVariant)}
+              />
+            </div>
+          ) : null}
+
+          {activeVariant ? (
+            <>
+              <VariantBody
+                variant={activeVariant}
+                runId={runId}
+                attemptId={attempt.id}
+                showAnchors={runStatus === "done" && Boolean(runId)}
+              />
             </>
           ) : (
-            <div className="flex flex-col gap-2">
-              {variants.map((variant) => (
-                <VariantBlock
-                  key={variant.id}
-                  variant={variant}
-                  expanded={expandedVariantId === variant.id}
-                  onToggleExpand={() => toggleVariantExpand(variant.id)}
-                  onOpenNetwork={() => setNetworkModalVariant(variant)}
-                  runId={runId}
-                  attemptId={attempt.id}
-                  anchorPoolFooter={
-                    runStatus === "done" && runId && expandedVariantId === variant.id ? (
-                      <RunAnchorPoolPanel
-                        runId={runId}
-                        attemptId={attempt.id}
-                        variantId={variant.id}
-                      />
-                    ) : null
-                  }
-                />
-              ))}
-            </div>
+            <p className="text-sm text-muted-foreground">
+              {t("runs.results.noPostsInAttempt")}
+            </p>
           )}
         </div>
       ) : null}
@@ -2700,6 +2732,7 @@ type Props = {
   results: OasisRunResults
   status: string
   runId?: number
+  pageTitle?: string
   branchMode?: BranchMode | null
   onDeleteAttempt?: (attemptId: string) => void | Promise<void>
   deletingAttemptId?: string | null
@@ -2720,6 +2753,7 @@ export function OasisResultsPanel({
   results,
   status,
   runId,
+  pageTitle,
   branchMode = null,
   onDeleteAttempt,
   deletingAttemptId = null,
@@ -2788,7 +2822,7 @@ export function OasisResultsPanel({
   }
 
   function requestCompare() {
-    if (!runId || selected.size === 0) return
+    if (!runId || selected.size < 2) return
     const ids = [...selected]
     setReportConfirm({
       sources: ids.map((attempt_id) => ({ run_id: runId, attempt_id })),
@@ -2845,53 +2879,47 @@ export function OasisResultsPanel({
   }
 
   const selectionBusy = [...selected].some((id) => busyAttemptIds.has(id))
-  const compareDisabled = compareBusy || orderingId != null || selectionBusy
-  const statusLabel = runStatusLabel(status, t)
+  const compareDisabled =
+    selected.size < 2 || compareBusy || orderingId != null || selectionBusy
 
   if (attempts.length === 0) {
     if (status === "running") return null
     return (
-      <div className="mb-9 rounded-md border border-border px-5 py-6 text-sm text-muted-foreground">
-        {t("runs.results.noSaved")}
+      <div className="mb-9">
+        {pageTitle ? (
+          <div className="results-page-head">
+            <div>
+              <h1>{pageTitle}</h1>
+              <p>{t("runs.results.pageIntro")}</p>
+            </div>
+          </div>
+        ) : null}
+        <p className="text-sm text-muted-foreground">{t("runs.results.noSaved")}</p>
       </div>
     )
   }
 
   return (
-    <div className="mb-9 flex flex-col gap-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <h2 className="text-base font-semibold text-foreground">
-          {t("runs.results.title")}
-        </h2>
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-xs text-muted-foreground">
-            {t("runs.results.attemptCount", { count: attempts.length })}
-            {status !== "running" ? ` · ${statusLabel}` : null}
-          </span>
-          {runId && selected.size > 0 ? (
-            <OrderReportButton
-              prominent
-              busy={compareBusy || selectionBusy}
-              disabled={compareDisabled}
-              label={
-                selected.size === 1
-                  ? t("runs.results.reportOrder")
-                  : t("runs.results.reportCompare", { count: selected.size })
-              }
-              compareCount={selected.size}
-              onClick={requestCompare}
-            />
-          ) : null}
+    <div className="mb-9 flex flex-col gap-3.5">
+      <div className="results-page-head">
+        <div>
+          <h1>{pageTitle || t("runs.results.title")}</h1>
+          <p>{t("runs.results.pageIntro")}</p>
         </div>
+        {runId ? (
+          <button
+            type="button"
+            className="results-compare-btn"
+            disabled={compareDisabled}
+            onClick={requestCompare}
+          >
+            {t("runs.results.compareSelected", { count: selected.size })}
+          </button>
+        ) : null}
       </div>
       {orderError ? (
         <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {orderError}
-        </p>
-      ) : null}
-      {runId ? (
-        <p className="text-xs text-muted-foreground">
-          {t("runs.results.compareHint")}
         </p>
       ) : null}
       {attempts.map((attempt, index) => {
