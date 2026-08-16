@@ -26,7 +26,13 @@ from app.services.spindoctor_chat import (
     list_spindoctor_messages,
     stream_spindoctor_chat_turn,
 )
-from app.services.spindoctor_context import build_spindoctor_context
+from app.services.spindoctor_context import (
+    _confidence_notes,
+    _thresholds_from_ssr_doc,
+    build_spindoctor_context,
+)
+from app.services.report.metrics import compute_report_metrics
+from app.services.report.thresholds import default_report_thresholds
 from tests.test_verdict_calibration import _generate_report
 
 
@@ -151,6 +157,73 @@ async def test_build_spindoctor_context(client, tmp_path, monkeypatch):
     assert "SSR" not in context
     assert "Gini" not in context
     assert "mottagande" in context
+
+
+def test_thresholds_from_ssr_doc_uses_frozen_snapshot():
+    custom = default_report_thresholds().model_copy(
+        update={
+            "verdict": default_report_thresholds().verdict.model_copy(
+                update={"pos_strong": 0.35}
+            )
+        }
+    )
+    loaded = _thresholds_from_ssr_doc(
+        {"report_thresholds": custom.model_dump(mode="json")}
+    )
+    assert loaded.verdict.pos_strong == 0.35
+
+
+def test_confidence_notes_respect_frozen_thresholds():
+    from app.services.report.bundles import RunBundle
+    from app.services.report.classify import BundleClassification
+
+    tone = {
+        "Starkt negativ": 0.0,
+        "Något negativ": 0.1,
+        "Neutral": 0.5,
+        "Något positiv": 0.3,
+        "Starkt positiv": 0.1,
+    }
+    clf = BundleClassification(
+        topic_shares={"Test": 1.0},
+        tone_shares=tone,
+        tone_mode="ssr",
+    )
+    bundle = RunBundle(
+        label="A",
+        run_id=1,
+        run_name="T",
+        attempt_id="att",
+        seed="1",
+        engine="none",
+        posts=[{"post_id": 1, "user_id": 1, "content": "test", "num_likes": 5}],
+        comments=[],
+        injection_texts=["test"],
+        ticks_run=1,
+    )
+    metrics = compute_report_metrics([bundle], [clf])
+    default_notes = _confidence_notes(
+        metrics,
+        [bundle],
+        locale="sv",
+        thresholds=default_report_thresholds(),
+    )
+    custom = default_report_thresholds().model_copy(
+        update={
+            "verdict": default_report_thresholds().verdict.model_copy(
+                update={"pos_strong": 0.35}
+            )
+        }
+    )
+    custom_notes = _confidence_notes(
+        metrics,
+        [bundle],
+        locale="sv",
+        thresholds=custom,
+    )
+    assert custom_notes != default_notes
+    assert "35%" in custom_notes[0]
+    assert "30%" in default_notes[0]
 
 
 def test_ws_rejects_unknown_scope():
