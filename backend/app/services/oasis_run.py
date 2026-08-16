@@ -380,6 +380,7 @@ async def run_oasis_simulation(
         env = setup.env
         agent_graph = setup.agent_graph
         scenario_clock = setup.scenario_clock
+        profile_path = setup.profile_path
         profile_csv = setup.profile_csv
         profile_json = setup.profile_json
 

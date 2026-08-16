@@ -45,6 +45,26 @@ def _age_band(age: int | str) -> str:
     return "äldre"
 
 
+def _run_lines(bundles: list[RunBundle], *, locale: str) -> list[str]:
+    lines: list[str] = []
+    for bundle in bundles:
+        variant = bundle.variant_id or "main"
+        engine = bundle.engine or "—"
+        if locale == "en":
+            lines.append(
+                f"{bundle.label}: run {bundle.run_id} · {bundle.run_name} · "
+                f"attempt {bundle.attempt_id} · variant {variant} · "
+                f"{bundle.ticks_run} ticks · engine {engine}"
+            )
+        else:
+            lines.append(
+                f"{bundle.label}: körning {bundle.run_id} · {bundle.run_name} · "
+                f"försök {bundle.attempt_id} · variant {variant} · "
+                f"{bundle.ticks_run} ronder · motor {engine}"
+            )
+    return lines
+
+
 def _population_lines(bundles: list[RunBundle], *, locale: str) -> list[str]:
     seen: set[str] = set()
     personas: list[dict[str, Any]] = []
@@ -207,24 +227,6 @@ def _tone_style_topics(
     return lines
 
 
-def _leaders_plain(metrics, *, locale: str) -> list[str]:
-    actors = metrics.aggregate.top_actors[:3]
-    if not actors:
-        return []
-    lines = []
-    for actor in actors:
-        name = str(actor.get("name") or "—")
-        likes = actor.get("likes_total", 0)
-        sample = str(actor.get("sample") or "").strip()
-        line = f"{name}: {likes} likes totalt"
-        if locale == "en":
-            line = f"{name}: {likes} total likes"
-        if sample:
-            line += f' — exempel: "{sample[:120]}"'
-        lines.append(line)
-    return lines
-
-
 def _section_ref_catalog(*, locale: str) -> str:
     if locale == "en":
         return (
@@ -240,24 +242,32 @@ def _section_ref_catalog(*, locale: str) -> str:
     )
 
 
+async def load_spindoctor_source(
+    session: AsyncSession,
+    *,
+    report_id: str,
+) -> tuple[Report, list[RunBundle]]:
+    """Load a ready report and its run bundles. Raises ValueError if not usable."""
+    report = await session.get(Report, report_id)
+    if report is None:
+        raise ValueError(f"Report {report_id!r} not found")
+    if report.status != "succeeded":
+        raise ValueError(f"Report {report_id!r} is not ready (status={report.status})")
+    sources = report.sources if isinstance(report.sources, list) else []
+    if not sources:
+        raise ValueError(f"Report {report_id!r} has no sources")
+    return report, await build_bundles(session, sources)
+
+
 async def build_spindoctor_context(
     session: AsyncSession,
     *,
     report_id: str,
 ) -> tuple[Report, str]:
     """Return report row and formatted context block for the system prompt."""
-    report = await session.get(Report, report_id)
-    if report is None:
-        raise ValueError(f"Report {report_id!r} not found")
-    if report.status != "succeeded":
-        raise ValueError(f"Report {report_id!r} is not ready (status={report.status})")
-
+    report, bundles = await load_spindoctor_source(session, report_id=report_id)
     locale = normalize_locale(report.locale or "sv")
     sources = report.sources if isinstance(report.sources, list) else []
-    if not sources:
-        raise ValueError(f"Report {report_id!r} has no sources")
-
-    bundles = await build_bundles(session, sources)
     metrics = compute_report_metrics(bundles)
     ssr_doc = _load_ssr_json(report_id)
     report_thresholds = _thresholds_from_ssr_doc(ssr_doc)
@@ -271,17 +281,15 @@ async def build_spindoctor_context(
         run_line = f"Källor: {len(bundles)} bundle(s) från {len(sources)} körningsförsök."
 
     parts = [header, run_line, ""]
+    parts.append("## Run" if locale == "en" else "## Körning")
+    parts.extend(_run_lines(bundles, locale=locale))
+    parts.append("")
     parts.append("## Population" if locale == "en" else "## Population")
     parts.extend(_population_lines(bundles, locale=locale))
     parts.append("")
     parts.append("## Resultat — engagemang och ton" if locale == "en" else "## Resultat — engagemang och ton")
     parts.append(_engagement_plain(metrics))
     parts.extend(_tone_style_topics(ssr_doc, metrics, locale=locale))
-    leaders = _leaders_plain(metrics, locale=locale)
-    if leaders:
-        parts.append("")
-        parts.append("## Opinionsledare (topp 3)" if locale == "en" else "## Opinionsledare (topp 3)")
-        parts.extend(leaders)
     if recommendation:
         parts.append("")
         parts.append("## Rekommendation (från rapporten)" if locale == "en" else "## Rekommendation (från rapporten)")

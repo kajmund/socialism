@@ -16,8 +16,9 @@ os.environ.setdefault("OPENAI_API_KEY", "test-openai-key-not-real")
 
 from app.config import settings
 from app.database.base import Base
+from app.database.models import Report, Run
 from app.database.session import get_session
-from app.llm import set_text_streamer
+from app.llm import set_text_streamer, set_tools_completer
 from app.main import create_app
 from app.services import jobs as jobs_service
 from app.services.prompt_store import ensure_default_configurations
@@ -31,9 +32,19 @@ from app.services.spindoctor_context import (
     _thresholds_from_ssr_doc,
     build_spindoctor_context,
 )
+from app.services.spindoctor_tools import run_spindoctor_tool
 from app.services.report.metrics import compute_report_metrics
 from app.services.report.thresholds import default_report_thresholds
 from tests.test_verdict_calibration import _generate_report
+
+
+class _NoToolMessage:
+    content = ""
+    tool_calls = None
+
+
+async def _no_tools(_messages: list[dict[str, object]], _tools: list | None = None):
+    return _NoToolMessage()
 
 
 @pytest.mark.asyncio
@@ -49,6 +60,7 @@ async def test_spindoctor_messages_rest(client, tmp_path, monkeypatch):
         yield "ser spritt ut. [[ref:mottagande]]"
 
     set_text_streamer(_mock_stream)
+    set_tools_completer(_no_tools)
     try:
         factory = jobs_service.job_session_factory()
         async with factory() as db:
@@ -66,6 +78,7 @@ async def test_spindoctor_messages_rest(client, tmp_path, monkeypatch):
             assert "[[ref:mottagande]]" in done.reply
     finally:
         set_text_streamer(None)
+        set_tools_completer(None)
 
     listed = await client.get("/spindoctor/messages", params={"report_id": report_id})
     assert listed.status_code == 200
@@ -117,6 +130,7 @@ async def test_clear_waits_for_in_flight_turn(client, tmp_path, monkeypatch):
     clear_done = asyncio.Event()
 
     set_text_streamer(_slow_stream)
+    set_tools_completer(_no_tools)
     try:
         factory = jobs_service.job_session_factory()
 
@@ -145,6 +159,7 @@ async def test_clear_waits_for_in_flight_turn(client, tmp_path, monkeypatch):
         assert clear_done.is_set()
     finally:
         set_text_streamer(None)
+        set_tools_completer(None)
 
 
 @pytest.mark.asyncio
@@ -154,9 +169,126 @@ async def test_build_spindoctor_context(client, tmp_path, monkeypatch):
     async with factory() as db:
         _report, context = await build_spindoctor_context(db, report_id=report_id)
     assert "Population" in context
+    assert "Körning" in context
+    assert "Rapportrun" in context
+    assert "Testbudskap" not in context
+    assert "Äldreomsorg och hemtjänst" not in context
     assert "SSR" not in context
     assert "Gini" not in context
     assert "mottagande" in context
+
+
+async def _put_injection(session, report_id: str, text: str) -> None:
+    report = await session.get(Report, report_id)
+    assert report is not None
+    run = await session.get(Run, int(report.sources[0]["run_id"]))
+    assert run is not None
+    run.main_ticks = [
+        {
+            "key": "d1",
+            "day": 1,
+            "injections": [
+                {
+                    "key": "inj1",
+                    "type": "party_post",
+                    "text": text,
+                    "sender": "Partiet",
+                }
+            ],
+        }
+    ]
+    await session.commit()
+
+
+@pytest.mark.asyncio
+async def test_spindoctor_tools_read_run_data(client, tmp_path, monkeypatch):
+    report_id = await _generate_report(client, tmp_path, monkeypatch)
+    budskap = "Vi satsar på äldreomsorgen i hela kommunen."
+    factory = jobs_service.job_session_factory()
+    async with factory() as db:
+        await _put_injection(db, report_id, budskap)
+        message = await run_spindoctor_tool(
+            db, "get_test_message", {}, report_id=report_id
+        )
+        run = await run_spindoctor_tool(db, "get_run", {}, report_id=report_id)
+        hits = await run_spindoctor_tool(
+            db,
+            "search_reactions",
+            {"query": "trafik", "kind": "comment"},
+            report_id=report_id,
+        )
+        actors = await run_spindoctor_tool(db, "list_actors", {}, report_id=report_id)
+        citizen = await run_spindoctor_tool(
+            db, "get_citizen", {"name": "Anna"}, report_id=report_id
+        )
+        interviews = await run_spindoctor_tool(
+            db, "list_interviews", {}, report_id=report_id
+        )
+    assert budskap in message
+    assert "Rapportrun" in run
+    assert "trafik" in hits
+    assert "Anna" in actors or "Anna" in citizen
+    assert "total" in interviews
+
+
+@pytest.mark.asyncio
+async def test_spindoctor_turn_can_call_get_test_message(
+    client, tmp_path, monkeypatch
+):
+    report_id = await _generate_report(client, tmp_path, monkeypatch)
+    budskap = "Vi satsar på äldreomsorgen i hela kommunen."
+    factory = jobs_service.job_session_factory()
+    async with factory() as db:
+        await _put_injection(db, report_id, budskap)
+
+    class _Fn:
+        name = "get_test_message"
+        arguments = "{}"
+
+    class _Call:
+        id = "call_msg"
+        function = _Fn()
+
+    class _ToolTurn:
+        content = ""
+        tool_calls = [_Call()]
+
+    class _Final:
+        content = "Budskapet handlar om äldreomsorg. [[ref:mottagande]]"
+        tool_calls = None
+
+    seen_tools: list[str] = []
+    turns = {"n": 0}
+
+    async def _tools(messages: list[dict[str, object]], tools: list | None = None):
+        turns["n"] += 1
+        names = [
+            spec["function"]["name"]
+            for spec in (tools or [])
+            if isinstance(spec, dict)
+        ]
+        seen_tools.extend(names)
+        if turns["n"] == 1:
+            return _ToolTurn()
+        return _Final()
+
+    set_tools_completer(_tools)
+    try:
+        async with factory() as db:
+            done = None
+            async for item in stream_spindoctor_chat_turn(
+                db,
+                report_id=report_id,
+                locale="sv",
+                message="Vad sa budskapet?",
+            ):
+                if not isinstance(item, str):
+                    done = item
+        assert done is not None
+        assert "äldreomsorg" in done.reply.lower()
+        assert "get_test_message" in seen_tools
+    finally:
+        set_tools_completer(None)
 
 
 def test_thresholds_from_ssr_doc_uses_frozen_snapshot():

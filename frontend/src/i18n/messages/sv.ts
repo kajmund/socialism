@@ -89,7 +89,7 @@ export const sv = {
     canvasAria: "Rapportcanvas",
     placeholder: "T.ex. Vad säger siffrorna om mottagandet?",
     empty:
-      "Hej! Jag kan hjälpa dig tolka den här rapporten — engagemang, ton, budskapsstilar och målgrupper — utifrån körningens faktiska data. Ställ en fråga så pekar jag gärna till rätt avsnitt.",
+      "Hej! Jag kan hjälpa dig tolka den här rapporten utifrån testbudskapet och körningens data — engagemang, ton, budskapsstilar och målgrupper. Ställ en fråga så pekar jag gärna till rätt avsnitt.",
     clear: "Rensa chatt",
     loadError: "Kunde inte hämta chatthistorik",
     backendUnavailable: "Backend nås inte — kör API på port 8000 (make backend)",

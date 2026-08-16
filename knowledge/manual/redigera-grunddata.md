@@ -30,6 +30,8 @@ För listan **Distrikt** kan du dessutom:
 
 Ändringar i grunddata påverkar nya personas och populationer när konfigurationen är aktiv — befintliga sparade värden behåller sina etiketter tills de redigeras.
 
+**Ton** och **förtroende** kommer bara härifrån. När du genererar en population samplas röst och förtroende från de här listorna — det finns ingen extra hårdkodad ton vid sidan av. Sarkastisk eller cynisk röst dyker bara upp om du har de etiketterna i listan och receptet väger in dem.
+
 ## Relaterade guider
 
 - [Hantera konfigurationer](hantera-konfigurationer.md)
