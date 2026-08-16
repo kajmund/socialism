@@ -520,20 +520,34 @@ export function ConfigureRunPage() {
   return (
     <AdminShell>
       <div className="wrap" style={{ maxWidth: 1180 }}>
-        <div className={"head-row" + (activeTab === "results" ? " head-row-compact" : "")}>
+        {activeTab === "results" && !isNew ? (
+          <div className="results-nav">
+            <Link to="/runs">{t("runs.results.backToRuns")}</Link>
+            <Link
+              to={
+                isQuickMode
+                  ? `/runs/${runId}/edit?tab=config&mode=quick`
+                  : `/runs/${runId}/edit?tab=config`
+              }
+            >
+              {t("runs.list.configuration")}
+            </Link>
+          </div>
+        ) : null}
+
+        {activeTab !== "results" || isNew ? (
+        <div className="head-row">
           <div className="head-row-main">
             <h1>
               {isNew
                 ? t("runs.configure.newTitle")
                 : name || t("runs.configure.runFallback")}
             </h1>
-            {isNew || activeTab === "config" ? (
-              <p>
-                {isNew
-                  ? t("runs.configure.quickIntro")
-                  : t("runs.configure.editIntro")}
-              </p>
-            ) : null}
+            <p>
+              {isNew
+                ? t("runs.configure.quickIntro")
+                : t("runs.configure.editIntro")}
+            </p>
           </div>
           <div className="head-row-aside">
             {(isNew || activeTab === "config") && (
@@ -564,8 +578,9 @@ export function ConfigureRunPage() {
             ) : null}
           </div>
         </div>
+        ) : null}
 
-        {!isNew ? (
+        {!isNew && activeTab === "config" ? (
           <div
             role="tablist"
             aria-label={t("runs.configure.tablistAria")}
@@ -652,6 +667,15 @@ export function ConfigureRunPage() {
             id="run-panel-results"
             aria-labelledby="run-tab-results"
           >
+            {!results ? (
+              <div className="results-page-head">
+                <div>
+                  <h1>{name || t("runs.configure.runFallback")}</h1>
+                  <p>{t("runs.results.pageIntro")}</p>
+                </div>
+              </div>
+            ) : null}
+
             {runStatus === "running" ? (
               <div className="mb-3 flex flex-col gap-1">
                 <h2 className="text-base font-semibold text-foreground">
@@ -696,6 +720,7 @@ export function ConfigureRunPage() {
                 results={results}
                 status={runStatus}
                 runId={runId ?? undefined}
+                pageTitle={name || t("runs.configure.runFallback")}
                 branchMode={branch?.mode ?? null}
                 onDeleteAttempt={
                   runId ? (attemptId) => void handleDeleteAttempt(attemptId) : undefined

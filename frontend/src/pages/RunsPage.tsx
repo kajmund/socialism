@@ -3,6 +3,7 @@ import { Link } from "react-router-dom"
 import { deleteRun, duplicateRun, listRuns } from "@/api/runs"
 import { AdminShell } from "@/components/layout/AdminShell"
 import { Card, CardContent } from "@/components/ui/card"
+import { ViewToggle, type ListViewMode } from "@/components/ui/view-toggle"
 import { formatRunDate } from "@/data/runs"
 import type { RunStatus, RunSummary } from "@/data/runs-types"
 import { useLocale, type MessageKey } from "@/i18n"
@@ -49,13 +50,13 @@ function primaryResultsLabel(status: RunStatus, t: Translate): string {
 function RunCard({ run, intl, t, onDelete, onDuplicate }: RunCardProps) {
   return (
     <div className="run-card">
-      <Card className="h-full gap-0 py-4 ring-1 ring-border">
+      <Card className="relative h-full gap-0 rounded-[var(--radius-md)] py-4">
+        <span className={"status-tag absolute right-4 top-4 " + run.status}>
+          {statusLabel(run.status, t)}
+        </span>
         <CardContent className="run-inner px-4">
           <div className="run-top">
             <div className="run-nm">{run.name}</div>
-            <span className={"status-tag " + run.status}>
-              {statusLabel(run.status, t)}
-            </span>
           </div>
           <div className="run-meta">
             {t("runs.list.population")} <b>{run.population}</b>
@@ -114,6 +115,42 @@ function RunCard({ run, intl, t, onDelete, onDuplicate }: RunCardProps) {
   )
 }
 
+function RunListRow({ run, intl, t, onDelete, onDuplicate }: RunCardProps) {
+  return (
+    <div className="admin-list-row admin-list-runs">
+      <div>
+        <div className="nm">{run.name}</div>
+        <div className="meta">{run.population}</div>
+      </div>
+      <span className={"status-tag " + run.status}>{statusLabel(run.status, t)}</span>
+      <div className="cell">
+        {t("runs.list.ticksDays", { count: run.ticks })}
+      </div>
+      <div className="cell">
+        {run.variants > 1 ? t("runs.list.variantsAb") : t("runs.list.variantsOne")}
+      </div>
+      <div className="cell">{formatRunDate(run.updated, intl)}</div>
+      <div className="admin-list-actions">
+        {run.status === "draft" ? (
+          <Link className="primary" to={`/runs/${run.id}/edit`}>
+            {t("runs.list.continueConfig")}
+          </Link>
+        ) : (
+          <Link className="primary" to={`/runs/${run.id}/edit?tab=results`}>
+            {primaryResultsLabel(run.status, t)}
+          </Link>
+        )}
+        <button type="button" onClick={() => onDuplicate(run.id, run.name)}>
+          {t("common.duplicate")}
+        </button>
+        <button type="button" onClick={() => onDelete(run.id)}>
+          {t("common.delete")}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export function RunsPage() {
   const { t, intl } = useLocale()
   const [runs, setRuns] = useState<RunSummary[]>([])
@@ -122,6 +159,7 @@ export function RunsPage() {
   const [query, setQuery] = useState("")
   const [status, setStatus] = useState<"all" | RunStatus>("all")
   const [sort, setSort] = useState<"updated" | "ticks">("updated")
+  const [view, setView] = useState<ListViewMode>("grid")
   const [toast, setToast] = useState<string | null>(null)
 
   useEffect(() => {
@@ -195,16 +233,7 @@ export function RunsPage() {
         <div className="head-row">
           <div>
             <h1>{t("runs.list.title")}</h1>
-            <div
-              style={{
-                font: "var(--text-body-sm)",
-                color: "var(--text-muted)",
-                marginTop: 6,
-                maxWidth: 640,
-              }}
-            >
-              {t("runs.list.intro")}
-            </div>
+            <p>{t("runs.list.intro")}</p>
           </div>
         </div>
 
@@ -242,32 +271,46 @@ export function RunsPage() {
               <option value="ticks">{t("runs.list.sortTicks")}</option>
             </select>
           </div>
-          <Link
-            to="/runs/new"
-            className="admin-cta inline-flex h-9 items-center rounded-md bg-db-black px-4 text-sm text-db-ink-0 no-underline hover:bg-db-ink-800"
-          >
-            {t("runs.list.newRun")}
-          </Link>
+          <div className="controls-right">
+            <ViewToggle value={view} onChange={setView} />
+            <Link
+              to="/runs/new"
+              className="admin-cta inline-flex h-9 items-center rounded-[var(--radius-md)] bg-db-black px-[18px] text-[0.85rem] text-db-ink-0 no-underline hover:bg-db-ink-800"
+            >
+              {t("runs.list.newRun")}
+            </Link>
+          </div>
         </div>
 
         {loading ? (
           <div className="no-match">{t("runs.list.loading")}</div>
-        ) : (
+        ) : list.length === 0 ? (
+          <div className="no-match">{t("runs.list.emptyFilter")}</div>
+        ) : view === "grid" ? (
           <div className="run-grid">
-            {list.length ? (
-              list.map((run) => (
-                <RunCard
-                  key={run.id}
-                  run={run}
-                  intl={intl}
-                  t={t}
-                  onDelete={handleDelete}
-                  onDuplicate={handleDuplicate}
-                />
-              ))
-            ) : (
-              <div className="no-match">{t("runs.list.emptyFilter")}</div>
-            )}
+            {list.map((run) => (
+              <RunCard
+                key={run.id}
+                run={run}
+                intl={intl}
+                t={t}
+                onDelete={handleDelete}
+                onDuplicate={handleDuplicate}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="admin-list-stack">
+            {list.map((run) => (
+              <RunListRow
+                key={run.id}
+                run={run}
+                intl={intl}
+                t={t}
+                onDelete={handleDelete}
+                onDuplicate={handleDuplicate}
+              />
+            ))}
           </div>
         )}
       </div>

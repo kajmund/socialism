@@ -12,14 +12,15 @@ På sidan **Körningar** ser du alla sparade simuleringsscenarier — både utka
 ## Steg
 
 1. Öppna **Körningar** i menyn.
-2. Sök efter namn i sökfältet om listan är lång.
-3. Filtrera efter status: **Alla**, **Klara**, **Pågår**, **Utkast** eller **Misslyckade**.
-4. Välj sortering: **Senast uppdaterad** eller **Flest tickar**.
-5. På varje kort:
+2. Sök efter körning i sökfältet om listan är lång.
+3. Filtrera efter status: **Alla statusar**, **Klar**, **Pågår**, **Utkast** eller **Misslyckad**.
+4. Välj sortering: **Senast uppdaterad** eller **Flest dagar**.
+5. Växla mellan **Rutnät** och **Lista** beroende på om du vill se kort eller kompakta rader.
+6. På varje kort eller rad:
    - **Utkast** — välj **Fortsätt konfigurera** för att slutföra upplägget.
    - **Pågår / Klar / Misslyckad** — öppna **Resultat**, **Konfiguration** eller **Se fel** beroende på status.
-6. **Duplicera** skapar en kopia av körningen med nytt namn.
-7. **Ta bort** raderar körningen efter bekräftelse.
+7. **Duplicera** skapar en kopia av körningen med nytt namn.
+8. **Ta bort** raderar körningen efter bekräftelse.
 
 ## Relaterade guider
 

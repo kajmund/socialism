@@ -80,10 +80,12 @@ async def client():
         backfill_configuration_anchor_sets,
         ensure_default_anchor_sets,
     )
+    from app.services.label_vocabulary import ensure_vocabularies_seeded
     from app.services.prompt_store import ensure_default_configurations
 
     async with session_factory() as seed_session:
         await ensure_default_anchor_sets(seed_session)
+        await ensure_vocabularies_seeded(seed_session)
         await ensure_default_configurations(seed_session)
         await backfill_configuration_anchor_sets(seed_session)
 
