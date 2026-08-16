@@ -12,6 +12,7 @@ from app.serializers import utcnow
 from app.services.catalog_defaults import (
     CATALOG_DEFAULTS,
     ORT_DEFAULTS_BY_LABEL,
+    PREVIOUS_STOCK_LABELS,
 )
 from app.services.catalog_items import catalog_items_as_json, coerce_catalog_items
 
@@ -105,6 +106,14 @@ async def ensure_catalog_defaults(session: AsyncSession, configuration_id: int) 
             coerced = coerce_catalog_items(existing.items)
             existing.items = catalog_items_as_json(coerced)
             dirty = True
+
+        previous = PREVIOUS_STOCK_LABELS.get(default["key"])
+        if previous is not None:
+            labels = {item.label for item in coerce_catalog_items(existing.items)}
+            if labels == previous:
+                existing.items = catalog_items_as_json(default_items)
+                existing.updated_at = utcnow()
+                dirty = True
 
     if dirty:
         try:

@@ -13,7 +13,7 @@ Med **populationsbyggaren** skapar du en ny population steg för steg: namn och 
 
 1. Välj **+ Ny population** från listan (eller **Redigera recept** på en befintlig).
 2. **Steg 1 — Starta:** Ange populationens namn och önskad storlek (4–40 personas).
-3. **Steg 2 — Fördelningar:** Justera sliders för demografi, politik, värderingar och röst (samma dimensioner som i **Grunddata**).
+3. **Steg 2 — Fördelningar:** Justera sliders för demografi, politik, värderingar och röst (samma dimensioner som i **Grunddata**). Ton och förtroende följer exakt de listorna — ingen extra röst läggs på vid generering.
 4. **Steg 3 — Förhandsgranska:**
    - Granska hur fördelningarna ser ut.
    - Lägg till befintliga personas från biblioteket om du vill.

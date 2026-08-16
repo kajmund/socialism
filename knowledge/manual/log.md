@@ -2,6 +2,8 @@
 
 ## 2026-08-16
 
+* **Populationer**: Ton kommer bara från grunddata. Den hårdkodade skrivsättslistan som tidigare skrev över röst är borttagen. Standardlistorna för **Ton** och **Förtroende** är mer balanserade (orörda listor i befintliga konfigurationer uppdateras).
+* **Rapporter**: Spinndoktor kan anropa verktyg för testbudskap, körningsfakta, sök i flödet, intervjuer och enskilda medborgare.
 * **Konfigurationer**: Redigeraren följer mockupen — kompakt sidhuvud (namn, språk, aktiv), sökbar lista för promptfält och vänstermeny för känslighet/rapportgränser.
 * **Körningar**: SSR-ankare läggs till från flödet (sköld och stjärna på kommentarer). Den gamla listan under resultatet är borttagen.
 * **Körningar**: Öppna resultat följer mockupen — tillbaka-länk, försökskort, variantflikar, översiktsrad och jämför-knapp.
