@@ -71,6 +71,35 @@ def test_stub_persona_applies_ton_and_parti():
     assert persona.quote == "Sarkastisk och otålig"
 
 
+def test_stub_persona_without_ton_group_does_not_invent_voice():
+    recipe = PopulationRecipe(
+        size=2,
+        locale="local",
+        seed=7,
+        dist={
+            "age": DistGroup(
+                label="Ålder",
+                rows=[DistRow(k="medel", l="Medel", v=100)],
+            ),
+            "district": DistGroup(
+                label="Ort",
+                rows=[DistRow(k="centrum", l="Centrum", v=100)],
+            ),
+            "occupation": DistGroup(
+                label="Yrke",
+                rows=[DistRow(k="vard", l="Undersköterska", v=100)],
+            ),
+            "leaning": DistGroup(
+                label="Lutning",
+                rows=[DistRow(k="hoger", l="Höger", v=100)],
+            ),
+        },
+    )
+    persona = stub_persona(recipe, Random(0))
+    assert persona.profile.ton in ("", "—")
+    assert "cynisk" not in persona.quote.casefold()
+
+
 def test_stub_persona_fallback_kon_without_dist_group():
     recipe = PopulationRecipe(
         size=2,

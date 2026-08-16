@@ -31,8 +31,6 @@ from app.services.persona_catalog import (
     LEAN_LABEL,
     NAMES_F,
     NAMES_M,
-    TRAIT_BY_LEAN,
-    WRITING_TRAITS,
 )
 from app.services.population_fingerprint import (
     compare_target_vs_achieved,
@@ -59,18 +57,17 @@ __all__ = [
     "DISTRICT_LABEL",
     "JOB_BY_CAT",
     "LEAN_LABEL",
-    "TRAIT_BY_LEAN",
+    "StoredGeneration",
     "clear_generations",
-    "get_generation",
-    "pop_generation",
-    "put_generation",
     "fingerprint_from_dist",
-    "stub_persona",
+    "get_generation",
     "library_candidate",
     "load_library_personas",
+    "pop_generation",
+    "put_generation",
     "run_generate",
     "sample_slot",
-    "StoredGeneration",
+    "stub_persona",
 ]
 
 
@@ -132,21 +129,6 @@ def _resolve_label(rows: list, key: str, fallback_map: dict[str, str]) -> str:
     if row is not None and getattr(row, "l", None):
         return row.l
     return fallback_map.get(key, key)
-
-
-def _trait_for_lean(lean_key: str, lean_label: str) -> str:
-    if lean_key in TRAIT_BY_LEAN:
-        return TRAIT_BY_LEAN[lean_key]
-    token = _norm_token(lean_label)
-    if "vanster" in token and "mitt" not in token:
-        return TRAIT_BY_LEAN["vanster"]
-    if "vanster" in token:
-        return TRAIT_BY_LEAN["mvanster"]
-    if "hoger" in token and "mitt" not in token:
-        return TRAIT_BY_LEAN["hoger"]
-    if "hoger" in token:
-        return TRAIT_BY_LEAN["mhoger"]
-    return TRAIT_BY_LEAN.get("mitt", "")
 
 
 def _candidate_key() -> str:
@@ -259,23 +241,13 @@ def _sample_profile_fields(dist: dict, rng: Random) -> dict[str, str]:
     return fields
 
 
-def _pick_writing_trait(
-    occ_key: str,
-    used_by_occ: dict[str, set[str]],
-    rng: Random,
-) -> str:
-    used = used_by_occ.setdefault(occ_key, set())
-    available = [trait for trait in WRITING_TRAITS if trait not in used]
-    if not available:
-        available = list(WRITING_TRAITS)
-    choice = rng.choice(available)
-    used.add(choice)
-    return choice
+def _filled_profile_text(value: str) -> str:
+    text = value.strip()
+    return "" if text in ("", "—") else text
 
 
-def _writing_traits_for_slots(slots: list[SlotPlan], rng: Random) -> list[str]:
-    used_by_occ: dict[str, set[str]] = {}
-    return [_pick_writing_trait(slot.occ_key, used_by_occ, rng) for slot in slots]
+def _slot_ton(slot: SlotPlan) -> str:
+    return _filled_profile_text(slot.profile_fields.get("ton", ""))
 
 
 def sample_slot(recipe: PopulationRecipe, rng: Random) -> SlotPlan:
@@ -324,7 +296,6 @@ def stub_persona(
     *,
     used_surnames: set[str] | None = None,
     slot: SlotPlan | None = None,
-    writing_trait: str | None = None,
 ) -> GeneratedPersonaOut:
     slot = slot or sample_slot(recipe, rng)
     kon = slot.profile_fields.get("kön") or _sample_kon(recipe.dist, rng)
@@ -338,7 +309,6 @@ def stub_persona(
             used_surnames.add(sur)
     name = f"{first} {last}"
     initials = persona_initials(name)
-    voice = writing_trait or _trait_for_lean(slot.lean, slot.lean_label)
     profile = EditablePersona(
         name=name,
         initials=initials,
@@ -347,15 +317,10 @@ def stub_persona(
         ort=slot.district,
         yrke=slot.occ,
         lutning=slot.lean_label,
-        ton=voice,
     )
     apply_slot_to_profile(profile, slot)
-    if writing_trait:
-        profile.ton = writing_trait
     profile.anekdot = stub_persona_anecdote(profile, rng)
-    trait = writing_trait or profile.ton or profile.sakfragor or _trait_for_lean(
-        slot.lean, slot.lean_label
-    )
+    trait = _filled_profile_text(profile.ton) or _filled_profile_text(profile.sakfragor)
     return GeneratedPersonaOut(
         name=name,
         initials=initials,
@@ -461,12 +426,15 @@ def _assign_unique_names(
 def _sibling_persona_lines(
     names: list[str],
     slots: list[SlotPlan],
-    writing_traits: list[str],
 ) -> tuple[str, ...]:
-    return tuple(
-        f"{name} | yrke: {slot.occ} | röst: {voice[:80]}"
-        for name, slot, voice in zip(names, slots, writing_traits, strict=True)
-    )
+    lines: list[str] = []
+    for name, slot in zip(names, slots, strict=True):
+        ton = _slot_ton(slot)
+        if ton:
+            lines.append(f"{name} | yrke: {slot.occ} | röst: {ton[:80]}")
+        else:
+            lines.append(f"{name} | yrke: {slot.occ}")
+    return tuple(lines)
 
 
 async def _load_existing_persona_name_sets(
@@ -507,7 +475,6 @@ async def _make_generated_batch(
 
     if settings.persona_generator == "stub":
         slots = [sample_slot(recipe, rng) for _ in range(count)]
-        writing_traits = _writing_traits_for_slots(slots, rng)
         names, name_warnings = _assign_unique_names(
             slots,
             rng,
@@ -516,13 +483,12 @@ async def _make_generated_batch(
         )
         warnings.extend(name_warnings)
         personas: list[GeneratedPersonaOut] = []
-        for slot, voice, name in zip(slots, writing_traits, names, strict=True):
+        for slot, name in zip(slots, names, strict=True):
             persona = stub_persona(
                 recipe,
                 rng,
                 used_surnames=None,
                 slot=slot,
-                writing_trait=voice,
             )
             # Keep pre-assigned unique name (stub_persona picks its own otherwise).
             persona = GeneratedPersonaOut(
@@ -544,7 +510,6 @@ async def _make_generated_batch(
             detail="PERSONA_GENERATOR must be deepseek or stub",
         )
     slots = [sample_slot(recipe, rng) for _ in range(count)]
-    writing_traits = _writing_traits_for_slots(slots, rng)
     names, name_warnings = _assign_unique_names(
         slots,
         rng,
@@ -552,7 +517,7 @@ async def _make_generated_batch(
         used_full_names=used_full,
     )
     warnings.extend(name_warnings)
-    sibling_lines = _sibling_persona_lines(names, slots, writing_traits)
+    sibling_lines = _sibling_persona_lines(names, slots)
     prompts = await require_active_prompts(session) if session is not None else None
     concurrency = settings.persona_generate_concurrency
     sem = asyncio.Semaphore(concurrency)
@@ -564,7 +529,6 @@ async def _make_generated_batch(
                 slots[index],
                 session=session,
                 fixed_name=names[index],
-                writing_trait=writing_traits[index],
                 previous_personas=others,
                 prompts=prompts,
                 include_anecdote=False,

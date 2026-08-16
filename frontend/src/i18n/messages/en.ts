@@ -91,7 +91,7 @@ export const en: LocalizedTree<SvMessages> = {
     canvasAria: "Report canvas",
     placeholder: "E.g. What do the numbers say about reception?",
     empty:
-      "Hi! I can help you interpret this report — engagement, tone, message styles, and target groups — from the run's actual data. Ask a question and I'll point you to the right section.",
+      "Hi! I can help you interpret this report from the test message and the run's data — engagement, tone, message styles, and target groups. Ask a question and I'll point you to the right section.",
     clear: "Clear chat",
     loadError: "Could not load chat history",
     backendUnavailable: "Backend unreachable — run API on port 8000 (make backend)",

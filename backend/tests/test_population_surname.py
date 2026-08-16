@@ -99,6 +99,21 @@ async def test_run_generate_size_13_resolves_names_when_catalog_exhausted(stub_g
 
 
 @pytest.mark.asyncio
+async def test_run_generate_keeps_catalog_ton(stub_generator, gen_session):
+    recipe = _minimal_recipe(4)
+    recipe.dist["ton"] = DistGroup(
+        label="Ton",
+        rows=[DistRow(k="saklig", l="Saklig och nyanserad", v=100)],
+    )
+    body = PopulationGenerateRequest(recipe=recipe, mode="replace")
+    response = await gen.run_generate(body, library_personas={}, session=gen_session)
+    assert [c.persona.profile.ton for c in response.candidates] == [
+        "Saklig och nyanserad"
+    ] * 4
+    assert [c.persona.quote for c in response.candidates] == ["Saklig och nyanserad"] * 4
+
+
+@pytest.mark.asyncio
 async def test_run_generate_size_5_has_no_surname_warnings(stub_generator, gen_session):
     recipe = _minimal_recipe(5)
     body = PopulationGenerateRequest(recipe=recipe, mode="replace")
@@ -107,36 +122,6 @@ async def test_run_generate_size_5_has_no_surname_warnings(stub_generator, gen_s
     surnames = [surname_from_name(c.persona.name) for c in response.candidates]
     assert len(surnames) == len(set(surnames))
     assert response.warnings == []
-
-
-def test_stub_batch_same_occ_key_gets_distinct_writing_traits():
-    from app.llm.persona_gen import SlotPlan
-    from app.services.population_generate import _writing_traits_for_slots
-
-    slots = [
-        SlotPlan(
-            age=40,
-            age_bucket="medel",
-            district_key="centrum",
-            district="Centrum",
-            occ_key="utbildning",
-            occ="Lärare",
-            lean="mitt",
-            lean_label="Mitt",
-        ),
-        SlotPlan(
-            age=41,
-            age_bucket="medel",
-            district_key="centrum",
-            district="Centrum",
-            occ_key="utbildning",
-            occ="Lärare",
-            lean="mitt",
-            lean_label="Mitt",
-        ),
-    ]
-    traits = _writing_traits_for_slots(slots, Random(1))
-    assert traits[0] != traits[1]
 
 
 def test_validate_surname_uniqueness_detects_duplicates():
@@ -198,7 +183,6 @@ async def test_llm_batch_uses_preassigned_names_and_waves(monkeypatch, gen_sessi
         session=None,
         taken_surnames=None,
         fixed_name=None,
-        writing_trait=None,
         previous_personas=(),
         previous_anecdotes=(),
         prompts=None,
@@ -207,6 +191,7 @@ async def test_llm_batch_uses_preassigned_names_and_waves(monkeypatch, gen_sessi
         assert fixed_name
         assert include_anecdote is False
         seen_fixed.append(fixed_name)
+        ton = slot.profile_fields.get("ton", "")
         profile = EditablePersona(
             name="WRONG Namnsson",
             initials="WN",
@@ -215,7 +200,7 @@ async def test_llm_batch_uses_preassigned_names_and_waves(monkeypatch, gen_sessi
             ort=slot.district,
             yrke=slot.occ,
             lutning=slot.lean_label,
-            ton=writing_trait or "",
+            ton=ton,
             anekdot="—",
         )
         # Real path overwrites fixed_name; simulate that contract.
@@ -231,8 +216,8 @@ async def test_llm_batch_uses_preassigned_names_and_waves(monkeypatch, gen_sessi
             district_key=slot.district_key,
             lean=slot.lean,
             lean_label=slot.lean_label,
-            trait=writing_trait or "",
-            quote=writing_trait or "",
+            trait=ton,
+            quote=ton,
             profile=profile,
         )
 
