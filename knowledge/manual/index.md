@@ -9,8 +9,10 @@ Guider för dig som använder Opinionssimulator i webbläsaren. Teknisk setup oc
 # Kom igång
 
 * [Översikt av ytorna](oversikt.md) — Var du hittar huvudfunktionerna i admin
+* [Använda startsidan](anvanda-startsidan.md) — Dashboard med snabbstart, jobb och biblioteksstatistik
 * [Byta gränssnittsspråk](byta-granssnittssprak.md) — Växla mellan svenska och engelska i menyn
 * [Använda hjälpchatten](anvanda-hjalpchatten.md) — Fråga hur appen fungerar i adminytan
+* [Hantera återkoppling](hantera-aterkoppling.md) — Granska buggar, idéer och åsikter från hjälpchatten
 
 # Körningar
 
@@ -20,6 +22,7 @@ Guider för dig som använder Opinionssimulator i webbläsaren. Teknisk setup oc
 * [Starta en simulering](starta-simulering.md) — Starta en sparad körning och följ jobbet
 * [Reaktionsmodell i simuleringen](reaktionsmodell-i-simulering.md) — Vem reagerar, vem får kommentera och när nollställs reglerna
 * [Läsa simuleringsresultat](lasa-simuleringsresultat.md) — Flöde, agenter och jämförelser
+* [Intervjua persona i simulering](intervjua-persona-i-simulering.md) — Chatt med persona utifrån flödeskontext efter vald dag
 * [Lägga till SSR-ankare från körning](lagg-till-ssr-ankare-fran-korning.md) — Tagga kommentarer från flödet som ankare
 
 # Personas
