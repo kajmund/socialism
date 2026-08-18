@@ -1,0 +1,229 @@
+{
+  "run_id": 3,
+  "variants": [
+    "baseline",
+    "symmetric_like",
+    "symmetric_list",
+    "list_only"
+  ],
+  "skip_ssr": true,
+  "mechanics_only": false,
+  "key_notes": [],
+  "results": [
+    {
+      "variant": "baseline",
+      "configuration_id": 3,
+      "configuration_name": "Benchmark: Baseline (action_rules)",
+      "wall_seconds": 31.6,
+      "status": "ok",
+      "error": null,
+      "variants": 1,
+      "ticks_run": 1,
+      "agent_count": 4,
+      "trace_events": 9,
+      "posts": 1,
+      "comments": 0,
+      "action_histogram": [
+        {
+          "action": "sign_up",
+          "count": 4
+        },
+        {
+          "action": "refresh",
+          "count": 2
+        },
+        {
+          "action": "create_post",
+          "count": 1
+        },
+        {
+          "action": "dislike_post",
+          "count": 1
+        },
+        {
+          "action": "like_post",
+          "count": 1
+        }
+      ],
+      "like_count": 1,
+      "dislike_count": 1,
+      "like_ratio": 0.5,
+      "zero_engagement_agents": 3,
+      "zero_engagement_share": 0.75,
+      "gini": 0.0,
+      "tone_shares": {},
+      "positive_tone_share": null,
+      "critical_tone_share": null,
+      "neutral_tone_share": null,
+      "style_shares": [],
+      "sarcasm_style_share": null,
+      "warnings": [
+        "gini unusually low with high like_ratio — engagement may be artificially even"
+      ],
+      "ssr_skipped": true
+    },
+    {
+      "variant": "symmetric_like",
+      "configuration_id": 4,
+      "configuration_name": "Benchmark: Symmetrisk gilla-regel",
+      "wall_seconds": 3.32,
+      "status": "ok",
+      "error": null,
+      "variants": 1,
+      "ticks_run": 1,
+      "agent_count": 4,
+      "trace_events": 10,
+      "posts": 2,
+      "comments": 0,
+      "action_histogram": [
+        {
+          "action": "sign_up",
+          "count": 4
+        },
+        {
+          "action": "create_post",
+          "count": 2
+        },
+        {
+          "action": "refresh",
+          "count": 2
+        },
+        {
+          "action": "dislike_post",
+          "count": 1
+        },
+        {
+          "action": "like_post",
+          "count": 1
+        }
+      ],
+      "like_count": 1,
+      "dislike_count": 1,
+      "like_ratio": 0.5,
+      "zero_engagement_agents": 3,
+      "zero_engagement_share": 0.75,
+      "gini": 0.0,
+      "tone_shares": {},
+      "positive_tone_share": null,
+      "critical_tone_share": null,
+      "neutral_tone_share": null,
+      "style_shares": [],
+      "sarcasm_style_share": null,
+      "warnings": [
+        "gini unusually low with high like_ratio — engagement may be artificially even"
+      ],
+      "ssr_skipped": true
+    },
+    {
+      "variant": "symmetric_list",
+      "configuration_id": 5,
+      "configuration_name": "Benchmark: Symmetrisk + omstrukturerad lista",
+      "wall_seconds": 2.77,
+      "status": "ok",
+      "error": null,
+      "variants": 1,
+      "ticks_run": 1,
+      "agent_count": 4,
+      "trace_events": 9,
+      "posts": 1,
+      "comments": 0,
+      "action_histogram": [
+        {
+          "action": "sign_up",
+          "count": 4
+        },
+        {
+          "action": "refresh",
+          "count": 2
+        },
+        {
+          "action": "create_post",
+          "count": 1
+        },
+        {
+          "action": "dislike_post",
+          "count": 1
+        },
+        {
+          "action": "like_post",
+          "count": 1
+        }
+      ],
+      "like_count": 1,
+      "dislike_count": 1,
+      "like_ratio": 0.5,
+      "zero_engagement_agents": 3,
+      "zero_engagement_share": 0.75,
+      "gini": 0.0,
+      "tone_shares": {},
+      "positive_tone_share": null,
+      "critical_tone_share": null,
+      "neutral_tone_share": null,
+      "style_shares": [],
+      "sarcasm_style_share": null,
+      "warnings": [
+        "gini unusually low with high like_ratio — engagement may be artificially even"
+      ],
+      "ssr_skipped": true
+    },
+    {
+      "variant": "list_only",
+      "configuration_id": 6,
+      "configuration_name": "Benchmark: Omstrukturerad lista (utan gilla-regel)",
+      "wall_seconds": 3.12,
+      "status": "ok",
+      "error": null,
+      "variants": 1,
+      "ticks_run": 1,
+      "agent_count": 4,
+      "trace_events": 10,
+      "posts": 2,
+      "comments": 0,
+      "action_histogram": [
+        {
+          "action": "sign_up",
+          "count": 4
+        },
+        {
+          "action": "create_post",
+          "count": 2
+        },
+        {
+          "action": "refresh",
+          "count": 2
+        },
+        {
+          "action": "dislike_post",
+          "count": 1
+        },
+        {
+          "action": "like_post",
+          "count": 1
+        }
+      ],
+      "like_count": 1,
+      "dislike_count": 1,
+      "like_ratio": 0.5,
+      "zero_engagement_agents": 3,
+      "zero_engagement_share": 0.75,
+      "gini": 0.0,
+      "tone_shares": {},
+      "positive_tone_share": null,
+      "critical_tone_share": null,
+      "neutral_tone_share": null,
+      "style_shares": [],
+      "sarcasm_style_share": null,
+      "warnings": [
+        "gini unusually low with high like_ratio — engagement may be artificially even"
+      ],
+      "ssr_skipped": true
+    }
+  ],
+  "ranking_note": "=== Ranking (engagemangsbalans) ===\n1. baseline: like_ratio=50%, kritisk ton=n/a, gini=0.00, 0-likes=3/4 ⚠ 1 warning(s)\n     - gini unusually low with high like_ratio — engagement may be artificially even\n2. symmetric_like: like_ratio=50%, kritisk ton=n/a, gini=0.00, 0-likes=3/4 ⚠ 1 warning(s)\n     - gini unusually low with high like_ratio — engagement may be artificially even\n3. symmetric_list: like_ratio=50%, kritisk ton=n/a, gini=0.00, 0-likes=3/4 ⚠ 1 warning(s)\n     - gini unusually low with high like_ratio — engagement may be artificially even\n4. list_only: like_ratio=50%, kritisk ton=n/a, gini=0.00, 0-likes=3/4 ⚠ 1 warning(s)\n     - gini unusually low with high like_ratio — engagement may be artificially even\n\nBaseline reference: like_ratio=50%",
+  "ranking": [
+    "baseline",
+    "symmetric_like",
+    "symmetric_list",
+    "list_only"
+  ]
+}
