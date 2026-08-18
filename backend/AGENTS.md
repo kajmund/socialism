@@ -48,7 +48,7 @@ backend/
 
 Optional dependency extra `oasis` (`camel-oasis`) — not installed by default (`uv sync --extra oasis`). That install is heavy (CAMEL + torch). On Python 3.13, `pyproject.toml` overrides pin conflicts (`openai`, `tiktoken`, `pillow`, pytest).
 
-**Model benchmark:** `uv run python scripts/benchmark_simulation_models.py --run-id N` runs the same körning under each `--models` id (default reasoner vs chat), prints wall time + activity metrics, and writes JSON under `data/`. It calls `simulate_run` but does not commit `run.results` (unlike `python -m app.services.oasis_run`). See [docs/guides/backend-setup.md](../docs/guides/backend-setup.md#benchmark-deepseek-models).
+**Model benchmark:** `uv run python scripts/benchmark_simulation_models.py --run-id N` runs the same körning under each `--models` id (default reasoner vs chat), prints wall time + activity metrics, and writes JSON under `data/`. **Prompt benchmark:** `uv run python scripts/benchmark_prompt_configurations.py --run-id N` compares engagement balance across `oasis.agents.action_rules` variants on dedicated Configuration rows; see [docs/guides/backend-setup.md](../docs/guides/backend-setup.md#benchmark-prompt-configurations-engagement-balance). Neither benchmark script commits `run.results` (unlike `python -m app.services.oasis_run`).
 
 ## Code style (backend-specific)
 

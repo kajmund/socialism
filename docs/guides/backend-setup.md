@@ -117,6 +117,29 @@ Constraints (verified against `scripts/benchmark_simulation_models.py`):
 - Still writes/overwrites OASIS artifacts under `data/oasis/run_{id}/…` (same paths as a normal OASIS sim).
 - Requires the `oasis` extra, a seeded run id that exists, and a non-placeholder `DEEPSEEK_API_KEY`. Failures surface as `status: failed` with an `error` string per model — no alternate-model fallback.
 
+### Benchmark prompt configurations (engagement balance)
+
+Compare like/dislike balance, SSR tone/style, and Gini for the **same** körning while varying `oasis.agents.action_rules` on dedicated benchmark Configuration rows (baseline, symmetric like rule, restructured comment list, list-only):
+
+```bash
+cd backend
+uv sync --extra oasis
+# DEEPSEEK_API_KEY + OPENAI_API_KEY (SSR tone/style) must be real keys
+uv run python scripts/benchmark_prompt_configurations.py --run-id 3
+uv run python scripts/benchmark_prompt_configurations.py --run-id 3 \
+  --variants baseline symmetric_like symmetric_list list_only \
+  --output data/benchmark_prompt_configurations.json
+```
+
+Use `--mechanics-only` to create/update the four benchmark Configuration rows without simulating (no API keys). Use `--skip-ssr` to omit OpenAI tone/style classification.
+
+Constraints (verified against `scripts/benchmark_prompt_configurations.py`):
+
+- Creates or updates named Configuration rows under **Konfigurationer**; activates each in turn and restores the previous active config when finished.
+- Calls `simulate_run` once per variant; does **not** persist attempts on the run row (same as model benchmark).
+- Writes JSON to `data/benchmark_prompt_configurations.json` with action histogram, like ratio, zero-engagement share, Gini, tone/style shares, and overcorrection warnings.
+- Flags variants that collapse critical/sarcastic tone vs baseline.
+
 ## Database migrations
 
 Alembic owns schema changes:
