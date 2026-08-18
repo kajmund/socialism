@@ -729,6 +729,36 @@ POPULATIONS: list[dict] = [
             ],
         ),
     },
+    {
+        "name": "Prompt benchmark (full)",
+        "versions": 1,
+        "updated": "2026-08-18",
+        "fp": [[35, 40, 25], [30, 35, 35], [30, 45, 25]],
+        "recipe": _recipe(
+            12,
+            seed=110,
+            age_rows=[("a25", "25–44", 35), ("a45", "45–64", 40), ("a65", "65+", 25)],
+            district_rows=[
+                ("a", "Distrikt A", 30),
+                ("b", "Distrikt B", 25),
+                ("c", "Centrum", 25),
+                ("d", "Distrikt D", 20),
+            ],
+            occ_rows=[
+                ("vard", "Vård/omsorg", 35),
+                ("tjanst", "Tjänsteman", 25),
+                ("industri", "Industri/lager", 20),
+                ("ovrigt", "Övrigt", 20),
+            ],
+            lean_rows=[
+                ("vanster", "Vänster", 25),
+                ("mvanster", "Mitt-vänster", 25),
+                ("mitt", "Mitt", 25),
+                ("mhoger", "Mitt-höger", 15),
+                ("hoger", "Höger", 10),
+            ],
+        ),
+    },
 ]
 
 # Stable ids so runs can reference budskap via message_id.
@@ -1088,6 +1118,47 @@ RUNS: list[dict] = [
         ],
         "branch": None,
     },
+    {
+        "name": "Prompt benchmark — volym",
+        "status": "done",
+        "population": "Prompt benchmark (full)",
+        "seed": "prompt-bench-vol",
+        "updated": "2026-08-18",
+        "oasis_options": {"platform": "twitter", "allow_population_create_post": True},
+        "main_ticks": [
+            _tick(
+                key="pb1",
+                day=1,
+                rounds=3,
+                measurements=["opinion_snapshot"],
+                injections=[
+                    _injection(
+                        key="ipb1",
+                        type="party_post",
+                        sender="Socialdemokraterna",
+                        text=MESSAGES[0]["body"],
+                        message_id=MSG_TRYGGHET,
+                    )
+                ],
+            ),
+            _tick(
+                key="pb2",
+                day=2,
+                rounds=3,
+                measurements=["engagement_decay"],
+                injections=[
+                    _injection(
+                        key="ipb2",
+                        type="party_post",
+                        sender="Socialdemokraterna",
+                        text=MESSAGES[1]["body"],
+                        message_id=MSG_KORT,
+                    )
+                ],
+            ),
+        ],
+        "branch": None,
+    },
 ]
 
 
@@ -1201,6 +1272,23 @@ async def seed(*, reset: bool = True) -> None:
                     )
                 )
                 member_counts[pop_name] += 1
+
+        bench_pop = pop_by_name.get("Prompt benchmark (full)")
+        if bench_pop is not None:
+            for row in PERSONAS:
+                session.add(
+                    PopulationMember(
+                        population_id=bench_pop.id,
+                        persona_id=row["id"],
+                        name=row["name"],
+                        initials=persona_initials(row["name"]),
+                        age=row["age"],
+                        occ=row["occ"],
+                        district=row["district"],
+                        trait=row["quote"],
+                    )
+                )
+            member_counts["Prompt benchmark (full)"] = len(PERSONAS)
 
         await session.flush()
 
