@@ -225,18 +225,20 @@ function SessionActions({
   return (
     <div className={cn("flex items-center gap-4", compact && "flex-wrap")}>
       {user ? (
-        <span className="text-xs text-white/55">
-          {t("auth.signedInAs", { name: user.username })}
-          <span className="text-white/35"> · {roleLabel(user.role, t)}</span>
-        </span>
+        <div className="flex items-baseline gap-2.5 text-xs text-white/45">
+          <span>
+            {t("auth.signedInAs", { name: user.username })}
+            <span className="text-white/30"> · {roleLabel(user.role, t)}</span>
+          </span>
+          <button
+            type="button"
+            className="bg-transparent p-0 text-xs text-white/40 underline-offset-2 hover:text-white/75 hover:underline"
+            onClick={() => void onSignOut()}
+          >
+            {t("auth.signOut")}
+          </button>
+        </div>
       ) : null}
-      <button
-        type="button"
-        className="rounded border border-white/25 bg-black/40 px-3 py-1.5 text-sm text-white hover:border-db-gold-500/70 hover:text-db-gold-500"
-        onClick={() => void onSignOut()}
-      >
-        {t("auth.signOut")}
-      </button>
       <LocaleSwitcher locale={locale} setLocale={setLocale} t={t} />
     </div>
   )
