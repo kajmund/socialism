@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { ChatMode, PersonaMessage } from "@/api/personas"
+import type { SpindoctorWidget } from "@/api/spindoctorWidgets"
+import { parseSpindoctorWidget } from "@/api/spindoctorWidgets"
 import { connectJsonWebSocket } from "@/lib/ws"
 
 export type ChatHello =
@@ -42,6 +44,7 @@ type UseChatSocketOptions = {
   onDone: (messages: ChatDoneMessage[]) => void
   onError: (detail: string) => void
   onSuggestions?: (questions: string[]) => void
+  onWidget?: (widget: SpindoctorWidget) => void
 }
 
 function helloKey(hello: ChatHello | null): string {
@@ -108,6 +111,7 @@ export function useChatSocket({
   onDone,
   onError,
   onSuggestions,
+  onWidget,
 }: UseChatSocketOptions) {
   const [ready, setReady] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -120,6 +124,8 @@ export function useChatSocket({
   onErrorRef.current = onError
   const onSuggestionsRef = useRef(onSuggestions)
   onSuggestionsRef.current = onSuggestions
+  const onWidgetRef = useRef(onWidget)
+  onWidgetRef.current = onWidget
   const sendExtrasRef = useRef(sendExtras)
   sendExtrasRef.current = sendExtras
   const key = helloKey(hello)
@@ -165,6 +171,11 @@ export function useChatSocket({
           case "suggestions": {
             const questions = asQuestions(msg.questions)
             onSuggestionsRef.current?.(questions)
+            break
+          }
+          case "widget": {
+            const widget = parseSpindoctorWidget(msg)
+            if (widget) onWidgetRef.current?.(widget)
             break
           }
           case "error":

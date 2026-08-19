@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import { deleteReport, getReportHtml, type Report } from "@/api/reports"
 import { ReportCanvas, type ReportCanvasHandle } from "@/components/reports/ReportCanvas"
+import { SpinndoktorGrid } from "@/components/reports/spinndoctorGrid/SpinndoktorGrid"
 import { SpinndoktorPanel } from "@/components/reports/SpinndoktorPanel"
+import type { SpindoctorWidget } from "@/api/spindoctorWidgets"
 import { AdminShell } from "@/components/layout/AdminShell"
 import { Card, CardContent } from "@/components/ui/card"
 import { useLocale, type MessageKey } from "@/i18n"
@@ -54,7 +56,8 @@ export function ReportPage() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [viewMode, setViewMode] = useState<ReportViewMode>("report")
-  const [canvasOpen, setCanvasOpen] = useState(false)
+  const [reportPanelOpen, setReportPanelOpen] = useState(false)
+  const [gridWidgets, setGridWidgets] = useState<SpindoctorWidget[]>([])
   const canvasRef = useRef<ReportCanvasHandle | null>(null)
 
   const reportLocale: "sv" | "en" = report?.locale === "en" ? "en" : "sv"
@@ -98,16 +101,28 @@ export function ReportPage() {
 
   useEffect(() => {
     if (viewMode === "report") {
-      setCanvasOpen(false)
+      setReportPanelOpen(false)
+      setGridWidgets([])
     }
   }, [viewMode])
 
   const handleSectionRef = useCallback((sectionId: string) => {
-    setCanvasOpen(true)
+    setReportPanelOpen(true)
     window.setTimeout(() => {
       canvasRef.current?.scrollToSection(sectionId)
     }, 120)
   }, [])
+
+  const handleGridWidget = useCallback((widget: SpindoctorWidget) => {
+    setGridWidgets((prev) => {
+      if (prev.some((row) => row.id === widget.id)) return prev
+      return [...prev, widget]
+    })
+  }, [])
+
+  const handleOpenSnippet = useCallback((sectionId: string) => {
+    handleSectionRef(sectionId)
+  }, [handleSectionRef])
 
   function openInNewTab() {
     if (!html) return
@@ -276,39 +291,43 @@ export function ReportPage() {
         ) : null}
 
         {viewMode === "spinndoctor" && id && html ? (
-          <div className={`spinndoctor-layout${canvasOpen ? " spinndoctor-layout--canvas-open" : ""}`}>
-            <div className="spinndoctor-layout-chat">
+          <div className="spinndoctor-workspace">
+            <aside className="spinndoctor-workspace-chat">
               {spinndoktorReady ? (
-                <>
-                  <div className="spinndoctor-layout-toolbar">
-                    <button
-                      type="button"
-                      className="spinndoctor-canvas-toggle"
-                      aria-expanded={canvasOpen}
-                      aria-controls="spinndoctor-canvas"
-                      onClick={() => setCanvasOpen((open) => !open)}
-                    >
-                      {canvasOpen ? t("spinndoctor.hideCanvas") : t("spinndoctor.toggleCanvas")}
-                    </button>
-                  </div>
-                  <SpinndoktorPanel
-                    reportId={id}
-                    locale={reportLocale}
-                    onSectionRef={handleSectionRef}
-                  />
-                </>
+                <SpinndoktorPanel
+                  reportId={id}
+                  locale={reportLocale}
+                  onSectionRef={handleSectionRef}
+                  onWidget={handleGridWidget}
+                />
               ) : (
                 <p className="text-sm text-muted-foreground">{t("spinndoctor.unavailable")}</p>
               )}
-            </div>
-            {canvasOpen && html ? (
-              <div className="spinndoctor-layout-canvas" id="spinndoctor-canvas">
+            </aside>
+            <main className="spinndoctor-workspace-grid">
+              <div className="spinndoctor-workspace-grid-toolbar">
+                <button
+                  type="button"
+                  className="spinndoctor-canvas-toggle"
+                  aria-expanded={reportPanelOpen}
+                  aria-controls="spinndoctor-report-panel"
+                  onClick={() => setReportPanelOpen((open) => !open)}
+                >
+                  {reportPanelOpen
+                    ? t("spinndoctor.hideReportPanel")
+                    : t("spinndoctor.showReportPanel")}
+                </button>
+              </div>
+              <SpinndoktorGrid widgets={gridWidgets} onOpenSnippet={handleOpenSnippet} />
+            </main>
+            {reportPanelOpen && html ? (
+              <aside className="spinndoctor-workspace-report" id="spinndoctor-report-panel">
                 <ReportCanvas
                   ref={canvasRef}
                   html={html}
                   title={report?.title || t("reports.iframeTitle")}
                 />
-              </div>
+              </aside>
             ) : null}
           </div>
         ) : null}
