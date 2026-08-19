@@ -7,6 +7,8 @@ tags: [grunddata]
 
 # Hantera konfigurationer
 
+Ytan **Verktyg** → **Konfigurationer** syns bara för **administratör**. Inloggade som **användare** når den inte från menyn.
+
 I **Konfigurationer** sparar du kompletta uppsättningar av **prompttexter** (persona, chat, budskap, OASIS och rapport), **SSR-temperatur** och **rapporttrösklar** för snabbrapportens slutsats och rekommendation, samt **grunddata** (kataloglistor). Endast **en** konfiguration kan vara aktiv åt gången — den är den backend använder för både LLM-texter, SSR i rapporter och dropdowns. Det är oberoende av språkvalet i menyn.
 
 ## Steg
