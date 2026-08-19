@@ -31,6 +31,37 @@ Example Cursor config: [`integrations/mcp/cursor-mcp.example.json`](../integrati
 
 Run locally: `make knowledge-mcp` (from repo root, after `cd integrations/mcp && uv sync`).
 
+## Spinndoktor MCP server (prototype)
+
+Separate stdio server at `integrations/mcp/spinndoctor_server.py` for Cursor and local testing. No auth in this phase.
+
+| Tool group | Examples |
+| ---------- | -------- |
+| Report/run data | `list_runs`, `list_reports`, `list_populations`, `get_run`, `search_reactions`, `get_report_ssr`, … |
+| SCB | Same as help chat (`scb_search_tables`, …) |
+| Search | `search_wiki`, `search_duckduckgo` |
+| Grid widgets | `render_chart`, `place_note` |
+
+Requires backend SQLite + `ARTIFACT_ROOT` on the same machine for `report.ssr.json`. In-app Spinndoktor chat calls the same Python module directly (not MCP over HTTP) and streams widget events over the existing chat WebSocket.
+
+Example Cursor entry (merge into your MCP config):
+
+```json
+"spinndoktor": {
+  "command": "uv",
+  "args": [
+    "run",
+    "--directory",
+    "/absolute/path/to/socialism/integrations/mcp",
+    "python",
+    "spinndoctor_server.py"
+  ],
+  "env": {
+    "ARTIFACT_ROOT": "/absolute/path/to/socialism/backend/data/reports"
+  }
+}
+```
+
 ## Env
 
 | Variable | Service | Notes |
