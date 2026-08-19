@@ -124,21 +124,23 @@ Compare like/dislike balance, SSR tone/style, and Gini for the **same** körning
 ```bash
 cd backend
 uv sync --extra oasis
-# DEEPSEEK_API_KEY + OPENAI_API_KEY (SSR tone/style) must be real keys
-uv run python scripts/benchmark_prompt_configurations.py --run-id 3
-uv run python scripts/benchmark_prompt_configurations.py --run-id 3 \
-  --variants baseline symmetric_like symmetric_list list_only \
-  --output data/benchmark_prompt_configurations.json
+# DEEPSEEK_API_KEY + OPENAI_API_KEY required (SSR tone/style is mandatory)
+uv run python scripts/benchmark_prompt_configurations.py --run-id 7 \
+  --repetitions 5 --boost-rounds 2
 ```
 
-Use `--mechanics-only` to create/update the four benchmark Configuration rows without simulating (no API keys). Use `--skip-ssr` to omit OpenAI tone/style classification.
+Recommended seed körning: **Prompt benchmark — volym** (`run_id=7` after fresh seed) — all 12 demo personas, two ticks × three reaction rounds each.
+
+Use `--mechanics-only` to create/update the four benchmark Configuration rows without simulating (no API keys). Do **not** use `--skip-ssr` for real comparisons — winner criteria need `critical_tone_share` and `sarcasm_style_share`.
 
 Constraints (verified against `scripts/benchmark_prompt_configurations.py`):
 
 - Creates or updates named Configuration rows under **Konfigurationer**; activates each in turn and restores the previous active config when finished.
-- Calls `simulate_run` once per variant; does **not** persist attempts on the run row (same as model benchmark).
-- Writes JSON to `data/benchmark_prompt_configurations.json` with action histogram, like ratio, zero-engagement share, Gini, tone/style shares, and overcorrection warnings.
-- Flags variants that collapse critical/sarcastic tone vs baseline.
+- Runs each variant `--repetitions` times (default 5), aggregates mean ± std for like_ratio, critical_tone_share, and sarcasm_style_share.
+- `--boost-rounds N` multiplies each tick's reaction rounds in-memory (does not persist) for more engagement events per run.
+- Declares a **winner** only when a variant beats baseline mean like_ratio **and** keeps ≥70% of baseline critical tone (configurable via `--critical-retention`); otherwise reports *inget tydligt resultat*.
+- Calls `simulate_run` per repetition; does **not** persist attempts on the run row (same as model benchmark).
+- Writes JSON to `data/benchmark_prompt_configurations.json` with per-repetition runs, aggregates, conclusion, and overcorrection warnings.
 
 ## Database migrations
 

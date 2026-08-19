@@ -5,10 +5,8 @@ Compares engagement balance and SSR tone/style for the same körning while varyi
 
 Usage (from backend/):
   uv sync --extra oasis
-  uv run python scripts/benchmark_prompt_configurations.py --run-id 3
-  uv run python scripts/benchmark_prompt_configurations.py --run-id 3 \\
-      --variants baseline symmetric_like symmetric_list list_only \\
-      --output data/benchmark_prompt_configurations.json
+  uv run python scripts/benchmark_prompt_configurations.py --run-id 8 \\
+      --repetitions 5 --boost-rounds 3
 
 Requires real ``DEEPSEEK_API_KEY`` for simulation and ``OPENAI_API_KEY`` for SSR
 tone/style classification (same paths as snabbrapport). Use ``--mechanics-only`` to
@@ -19,7 +17,9 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import copy
 import json
+import statistics
 import time
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
@@ -28,7 +28,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.config import settings
-from app.database.models import Configuration, Run
+from app.database.models import Configuration, Population, Run
 from app.database.session import SessionLocal
 from app.serializers import utcnow
 from app.services.anchor_store import require_anchor_sets_for_language
@@ -70,6 +70,11 @@ DEFAULT_VARIANT_ORDER: tuple[VariantKey, ...] = (
     "list_only",
 )
 
+DEFAULT_REPETITIONS = 5
+DEFAULT_BOOST_ROUNDS = 1
+DEFAULT_CRITICAL_RETENTION = 0.70
+DEFAULT_MIN_REACTIONS = 15
+
 _SYMMETRIC_LIKE_RULE = (
     "- Om du håller med eller uppskattar inlägget: gilla det och säg gärna varför "
     "— instämmande är lika naturligt som kritik."
@@ -97,6 +102,7 @@ class PromptBenchmarkResult:
     variant: str
     configuration_id: int
     configuration_name: str
+    repetition: int
     wall_seconds: float
     status: str
     error: str | None
@@ -109,6 +115,7 @@ class PromptBenchmarkResult:
     action_histogram: list[dict[str, Any]]
     like_count: int
     dislike_count: int
+    reaction_count: int
     like_ratio: float | None
     zero_engagement_agents: int
     zero_engagement_share: float | None
@@ -175,6 +182,7 @@ def engagement_from_histogram(
     agent_count: int,
     gini: float | None,
     zero_like_agents: int | None = None,
+    comments: int = 0,
 ) -> dict[str, Any]:
     likes = _hist_count(histogram, "like_post") + _hist_count(histogram, "like_comment")
     dislikes = _hist_count(histogram, "dislike_post") + _hist_count(
@@ -187,6 +195,7 @@ def engagement_from_histogram(
     return {
         "like_count": likes,
         "dislike_count": dislikes,
+        "reaction_count": reactions + comments,
         "like_ratio": like_ratio,
         "zero_engagement_agents": zero,
         "zero_engagement_share": zero_share,
@@ -225,6 +234,158 @@ def tone_from_classification(
     }
 
 
+def aggregate_numeric(values: list[float | None]) -> dict[str, Any]:
+    nums = [v for v in values if v is not None]
+    if not nums:
+        return {"n": 0, "mean": None, "std": None, "min": None, "max": None}
+    if len(nums) == 1:
+        return {
+            "n": 1,
+            "mean": nums[0],
+            "std": 0.0,
+            "min": nums[0],
+            "max": nums[0],
+        }
+    return {
+        "n": len(nums),
+        "mean": statistics.mean(nums),
+        "std": statistics.pstdev(nums),
+        "min": min(nums),
+        "max": max(nums),
+    }
+
+
+def aggregate_variant_results(
+    runs: list[PromptBenchmarkResult],
+) -> dict[str, Any]:
+    ok_runs = [r for r in runs if r.status == "ok"]
+    return {
+        "variant": runs[0].variant if runs else "",
+        "configuration_id": runs[0].configuration_id if runs else None,
+        "configuration_name": runs[0].configuration_name if runs else "",
+        "repetitions_requested": len(runs),
+        "repetitions_ok": len(ok_runs),
+        "like_ratio": aggregate_numeric([r.like_ratio for r in ok_runs]),
+        "critical_tone_share": aggregate_numeric([r.critical_tone_share for r in ok_runs]),
+        "sarcasm_style_share": aggregate_numeric([r.sarcasm_style_share for r in ok_runs]),
+        "reaction_count": aggregate_numeric([float(r.reaction_count) for r in ok_runs]),
+        "like_count": aggregate_numeric([float(r.like_count) for r in ok_runs]),
+        "gini": aggregate_numeric([r.gini for r in ok_runs if r.gini is not None]),
+        "runs": [asdict(r) for r in runs],
+    }
+
+
+def critical_retention_ok(
+    *,
+    candidate_mean: float | None,
+    baseline_mean: float | None,
+    retention: float,
+) -> bool:
+    """True when candidate keeps at least ``retention`` of baseline critical tone."""
+    if candidate_mean is None or baseline_mean is None:
+        return False
+    if baseline_mean <= 0:
+        return candidate_mean >= 0
+    return candidate_mean >= baseline_mean * retention
+
+
+def determine_conclusion(
+    aggregates: list[dict[str, Any]],
+    *,
+    critical_retention: float,
+) -> dict[str, Any]:
+    baseline = next((a for a in aggregates if a["variant"] == "baseline"), None)
+    if baseline is None or baseline["repetitions_ok"] == 0:
+        return {
+            "conclusion": "no_clear_result",
+            "reason": "baseline_missing_or_failed",
+            "winners": [],
+            "candidates": [],
+        }
+
+    base_like = baseline["like_ratio"]["mean"]
+    base_crit = baseline["critical_tone_share"]["mean"]
+    if base_like is None:
+        return {
+            "conclusion": "no_clear_result",
+            "reason": "baseline_like_ratio_unavailable",
+            "winners": [],
+            "candidates": [],
+        }
+    if base_crit is None:
+        return {
+            "conclusion": "no_clear_result",
+            "reason": "baseline_critical_tone_unavailable_ssr_required",
+            "winners": [],
+            "candidates": [],
+        }
+
+    candidates: list[dict[str, Any]] = []
+    for agg in aggregates:
+        if agg["variant"] == "baseline":
+            continue
+        if agg["repetitions_ok"] == 0:
+            continue
+        cand_like = agg["like_ratio"]["mean"]
+        cand_crit = agg["critical_tone_share"]["mean"]
+        if cand_like is None or cand_crit is None:
+            continue
+        passes_like = cand_like > base_like
+        passes_crit = critical_retention_ok(
+            candidate_mean=cand_crit,
+            baseline_mean=base_crit,
+            retention=critical_retention,
+        )
+        candidates.append(
+            {
+                "variant": agg["variant"],
+                "like_ratio_mean": cand_like,
+                "like_ratio_delta": cand_like - base_like,
+                "critical_tone_share_mean": cand_crit,
+                "critical_retention_ratio": (
+                    cand_crit / base_crit if base_crit > 0 else None
+                ),
+                "passes_like_improvement": passes_like,
+                "passes_critical_retention": passes_crit,
+                "passes_all": passes_like and passes_crit,
+            }
+        )
+
+    winners = [c for c in candidates if c["passes_all"]]
+    if not winners:
+        return {
+            "conclusion": "no_clear_result",
+            "reason": "no_variant_passed_winner_criteria",
+            "winners": [],
+            "candidates": candidates,
+            "baseline": {
+                "like_ratio_mean": base_like,
+                "critical_tone_share_mean": base_crit,
+            },
+            "criteria": {
+                "like_ratio_must_exceed_baseline": True,
+                "critical_tone_retention_min": critical_retention,
+            },
+        }
+
+    winners.sort(key=lambda c: (c["like_ratio_delta"], c["like_ratio_mean"]), reverse=True)
+    return {
+        "conclusion": "winner",
+        "reason": "passed_like_and_critical_retention",
+        "winners": winners,
+        "winner": winners[0]["variant"],
+        "candidates": candidates,
+        "baseline": {
+            "like_ratio_mean": base_like,
+            "critical_tone_share_mean": base_crit,
+        },
+        "criteria": {
+            "like_ratio_must_exceed_baseline": True,
+            "critical_tone_retention_min": critical_retention,
+        },
+    }
+
+
 def detect_overcorrection_warnings(
     result: PromptBenchmarkResult,
     *,
@@ -255,23 +416,60 @@ def detect_overcorrection_warnings(
             warnings.append(
                 "critical_tone_share dropped sharply vs baseline — possible overcorrection"
             )
+    if result.reaction_count < DEFAULT_MIN_REACTIONS:
+        warnings.append(
+            f"reaction_count={result.reaction_count} below recommended "
+            f"{DEFAULT_MIN_REACTIONS} — high sampling noise expected"
+        )
     return warnings
 
 
-def rank_results(results: list[PromptBenchmarkResult]) -> list[PromptBenchmarkResult]:
-    """Rank ok variants: higher like_ratio first, penalize warnings."""
+def _multiply_tick_rounds(ticks: list[dict[str, Any]], multiplier: int) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    for tick in ticks:
+        row = copy.deepcopy(tick)
+        base_rounds = max(1, int(row.get("rounds") or 1))
+        row["rounds"] = base_rounds * multiplier
+        out.append(row)
+    return out
 
-    def score(row: PromptBenchmarkResult) -> tuple[int, float, float]:
-        if row.status != "ok":
-            return (0, -1.0, -1.0)
-        like = row.like_ratio if row.like_ratio is not None else 0.0
-        crit = row.critical_tone_share if row.critical_tone_share is not None else 0.0
-        penalty = len(row.warnings)
-        # Prefer balanced likes while keeping some critical tone (not zero).
-        balance = like * 0.6 + min(crit, 0.35) * 0.4
-        return (1, -penalty, balance)
 
-    return sorted(results, key=score, reverse=True)
+def apply_boost_rounds(run: Run, multiplier: int) -> None:
+    """Scale reaction rounds on ticks in-memory (does not persist to DB)."""
+    if multiplier <= 1:
+        return
+    run.main_ticks = _multiply_tick_rounds(list(run.main_ticks or []), multiplier)
+    branch = run.branch
+    if isinstance(branch, dict):
+        branch_copy = copy.deepcopy(branch)
+        for key in ("a", "b"):
+            ticks = branch_copy.get(key)
+            if isinstance(ticks, list):
+                branch_copy[key] = _multiply_tick_rounds(ticks, multiplier)
+        run.branch = branch_copy
+
+
+def inspect_run(run: Run, population: Population) -> dict[str, Any]:
+    members = list(population.members or [])
+    main_ticks = list(run.main_ticks or [])
+    main_rounds = sum(max(1, int(t.get("rounds") or 1)) for t in main_ticks)
+    branch_rounds = 0
+    branch = run.branch if isinstance(run.branch, dict) else None
+    if branch:
+        for key in ("a", "b"):
+            for tick in branch.get(key) or []:
+                branch_rounds += max(1, int(tick.get("rounds") or 1))
+    return {
+        "run_id": run.id,
+        "run_name": run.name,
+        "population_name": population.name,
+        "population_members": len(members),
+        "main_ticks": len(main_ticks),
+        "main_reaction_rounds": main_rounds,
+        "branch_reaction_rounds": branch_rounds,
+        "has_ab_branch": bool(branch),
+        "recommended_min_reactions": DEFAULT_MIN_REACTIONS,
+    }
 
 
 def _summarize_attempt(attempt: dict[str, Any]) -> dict[str, Any]:
@@ -400,6 +598,8 @@ async def benchmark_variant(
     variant: VariantKey,
     configuration_id: int,
     configuration_name: str,
+    repetition: int,
+    boost_rounds: int,
     skip_ssr: bool,
 ) -> PromptBenchmarkResult:
     settings.apply_oasis_env()
@@ -407,12 +607,14 @@ async def benchmark_variant(
     async with SessionLocal() as session:
         result = await session.execute(
             select(Run)
-            .options(selectinload(Run.population))
+            .options(selectinload(Run.population).selectinload(Population.members))
             .where(Run.id == run_id)
         )
         run = result.scalar_one_or_none()
         if run is None:
             raise SystemExit(f"Run {run_id} not found")
+
+        apply_boost_rounds(run, boost_rounds)
 
         await set_active_configuration(session, configuration_id)
 
@@ -492,12 +694,14 @@ async def benchmark_variant(
             agent_count=summary["agent_count"],
             gini=gini,
             zero_like_agents=zero_like,
+            comments=summary["comments"],
         )
 
         row = PromptBenchmarkResult(
             variant=variant,
             configuration_id=configuration_id,
             configuration_name=configuration_name,
+            repetition=repetition,
             wall_seconds=round(elapsed, 2),
             status=status,
             error=error,
@@ -510,6 +714,7 @@ async def benchmark_variant(
             action_histogram=summary["action_histogram"],
             like_count=engagement["like_count"],
             dislike_count=engagement["dislike_count"],
+            reaction_count=int(engagement["reaction_count"]),
             like_ratio=engagement["like_ratio"],
             zero_engagement_agents=engagement["zero_engagement_agents"],
             zero_engagement_share=engagement["zero_engagement_share"],
@@ -525,36 +730,45 @@ async def benchmark_variant(
         return row
 
 
-def _format_ranking(results: list[PromptBenchmarkResult]) -> str:
-    ranked = rank_results(results)
-    lines = ["", "=== Ranking (engagemangsbalans) ==="]
-    baseline = next((r for r in results if r.variant == "baseline" and r.status == "ok"), None)
-    for i, row in enumerate(ranked, 1):
-        if row.status != "ok":
-            lines.append(f"{i}. {row.variant}: FAILED — {row.error}")
-            continue
-        like_pct = f"{row.like_ratio * 100:.0f}%" if row.like_ratio is not None else "n/a"
-        crit_pct = (
-            f"{row.critical_tone_share * 100:.0f}%"
-            if row.critical_tone_share is not None
+def _format_aggregate_summary(
+    aggregates: list[dict[str, Any]],
+    conclusion: dict[str, Any],
+) -> str:
+    lines = ["", "=== Aggregerat resultat (medel ± std) ==="]
+    for agg in aggregates:
+        like = agg["like_ratio"]
+        crit = agg["critical_tone_share"]
+        sarc = agg["sarcasm_style_share"]
+        like_s = (
+            f"{like['mean'] * 100:.1f}% ± {like['std'] * 100:.1f}%"
+            if like["mean"] is not None and like["std"] is not None
             else "n/a"
         )
-        gini_s = f"{row.gini:.2f}" if row.gini is not None else "n/a"
-        warn = f" ⚠ {len(row.warnings)} warning(s)" if row.warnings else ""
-        lines.append(
-            f"{i}. {row.variant}: like_ratio={like_pct}, kritisk ton={crit_pct}, "
-            f"gini={gini_s}, 0-likes={row.zero_engagement_agents}/{row.agent_count}{warn}"
+        crit_s = (
+            f"{crit['mean'] * 100:.1f}% ± {crit['std'] * 100:.1f}%"
+            if crit["mean"] is not None and crit["std"] is not None
+            else "n/a"
         )
-        for w in row.warnings:
-            lines.append(f"     - {w}")
-    if baseline is not None:
-        lines.append("")
-        if baseline.like_ratio is not None:
-            lines.append(
-                f"Baseline reference: like_ratio={baseline.like_ratio * 100:.0f}%"
-            )
-        else:
-            lines.append("Baseline reference: like_ratio=n/a")
+        sarc_s = (
+            f"{sarc['mean'] * 100:.1f}% ± {sarc['std'] * 100:.1f}%"
+            if sarc["mean"] is not None and sarc["std"] is not None
+            else "n/a"
+        )
+        lines.append(
+            f"{agg['variant']}: ok={agg['repetitions_ok']}/{agg['repetitions_requested']} "
+            f"like_ratio={like_s} kritisk={crit_s} sarkasm={sarc_s}"
+        )
+
+    lines.append("")
+    if conclusion["conclusion"] == "winner":
+        lines.append(f"Slutsats: vinnare = {conclusion['winner']}")
+        lines.append(
+            f"  (högre like_ratio än baseline, kritisk ton ≥ "
+            f"{conclusion['criteria']['critical_tone_retention_min'] * 100:.0f}% av baseline)"
+        )
+    else:
+        lines.append("Slutsats: inget tydligt resultat")
+        lines.append(f"  Orsak: {conclusion['reason']}")
     return "\n".join(lines)
 
 
@@ -565,11 +779,15 @@ def _keys_available() -> tuple[bool, bool, list[str]]:
         and not str(settings.deepseek_api_key).startswith("placeholder")
         and settings.deepseek_api_key != "test-key-not-real"
     )
-    openai_ok = bool(settings.openai_api_key)
+    openai_ok = bool(
+        settings.openai_api_key
+        and not str(settings.openai_api_key).startswith("placeholder")
+        and settings.openai_api_key != "test-openai-key-not-real"
+    )
     if not deepseek_ok:
         notes.append("DEEPSEEK_API_KEY missing or placeholder — simulation will not run")
     if not openai_ok:
-        notes.append("OPENAI_API_KEY missing — SSR tone/style will be skipped")
+        notes.append("OPENAI_API_KEY missing or placeholder — SSR tone/style is required")
     return deepseek_ok, openai_ok, notes
 
 
@@ -584,8 +802,19 @@ async def main_async(args: argparse.Namespace) -> None:
             "Set it in backend/.env or use --mechanics-only to verify config setup only."
         )
 
+    if not openai_ok and not args.mechanics_only and not args.skip_ssr:
+        raise SystemExit(
+            "OPENAI_API_KEY is required for SSR tone/style classification. "
+            "This benchmark needs critical_tone_share and sarcasm_style_share. "
+            "Use --mechanics-only to verify config rows without simulating."
+        )
+
     variants: list[VariantKey] = list(args.variants)
-    skip_ssr = args.skip_ssr or not openai_ok
+    skip_ssr = bool(args.skip_ssr)
+    if skip_ssr and not args.mechanics_only:
+        key_notes.append(
+            "WARNING: --skip-ssr set — critical_tone_share/sarcasm_style_share will be missing"
+        )
 
     async with SessionLocal() as session:
         await ensure_default_configurations(session)
@@ -611,19 +840,73 @@ async def main_async(args: argparse.Namespace) -> None:
                 template=template,
             )
 
+        run_result = await session.execute(
+            select(Run)
+            .options(selectinload(Run.population).selectinload(Population.members))
+            .where(Run.id == args.run_id)
+        )
+        run = run_result.scalar_one_or_none()
+        if run is None:
+            raise SystemExit(f"Run {args.run_id} not found")
+        population = run.population
+        if population is None:
+            raise SystemExit(f"Run {args.run_id} has no population")
+        run_inspection = inspect_run(run, population)
+
+    total_runs = len(variants) * args.repetitions
+    print(
+        f"Benchmark plan: {len(variants)} variants × {args.repetitions} repetitions "
+        f"= {total_runs} simulations"
+    )
+    print(
+        f"Run {args.run_id}: {run_inspection['population_members']} population members, "
+        f"{run_inspection['main_ticks']} main ticks, "
+        f"{run_inspection['main_reaction_rounds']} main reaction rounds"
+        + (f" (×{args.boost_rounds} boost → "
+           f"{run_inspection['main_reaction_rounds'] * args.boost_rounds} effective)"
+           if args.boost_rounds > 1
+           else "")
+    )
+    if run_inspection["population_members"] < 10:
+        key_notes.append(
+            "Population has fewer than 10 members — consider seed run "
+            "'Prompt benchmark — volym' (id after re-seed) or a larger production population"
+        )
+    if run_inspection["has_ab_branch"]:
+        key_notes.append(
+            "Run has A/B branch — benchmark compares variants on full run shape; "
+            "prefer single-arm runs for cleaner prompt A/B tests"
+        )
+
+    cost_note = (
+        f"Estimated LLM calls: ~{total_runs} DeepSeek simulation batches + "
+        f"SSR classify per ok repetition"
+    )
+    if total_runs > 12:
+        print(cost_note)
+        print(
+            "Tip: reduce cost with --repetitions 3 or --variants baseline symmetric_like "
+            "if a variant is clearly worse in early reps"
+        )
+
     out: dict[str, Any] = {
         "run_id": args.run_id,
         "variants": variants,
+        "repetitions": args.repetitions,
+        "boost_rounds": args.boost_rounds,
+        "critical_retention_min": args.critical_retention,
         "skip_ssr": skip_ssr,
         "mechanics_only": args.mechanics_only,
         "key_notes": key_notes,
-        "results": [],
+        "run_inspection": run_inspection,
+        "aggregates": [],
+        "conclusion": {},
     }
 
     if args.mechanics_only:
         for variant in variants:
             row = config_rows[variant]
-            out["results"].append(
+            out["aggregates"].append(
                 {
                     "variant": variant,
                     "configuration_id": row.id,
@@ -643,48 +926,70 @@ async def main_async(args: argparse.Namespace) -> None:
         print("Mechanics-only: benchmark configurations ensured (no simulation run).")
         return
 
-    results: list[PromptBenchmarkResult] = []
+    aggregates: list[dict[str, Any]] = []
+    baseline_by_rep: dict[int, PromptBenchmarkResult] = {}
     try:
         for variant in variants:
             cfg = config_rows[variant]
-            print(f"\n--- Kör simulation med {variant} (config id={cfg.id}) ---")
-            result = await benchmark_variant(
-                run_id=args.run_id,
-                variant=variant,
-                configuration_id=cfg.id,
-                configuration_name=cfg.name,
-                skip_ssr=skip_ssr,
-            )
-            baseline_row = next(
-                (r for r in results if r.variant == "baseline" and r.status == "ok"),
-                None,
-            )
-            result.warnings = detect_overcorrection_warnings(result, baseline=baseline_row)
-            results.append(result)
-            out["results"].append(asdict(result))
-            like_s = (
-                f"{result.like_ratio * 100:.0f}%"
-                if result.like_ratio is not None
-                else "n/a"
-            )
-            print(
-                f"{variant}: {result.wall_seconds}s ({result.status}) "
-                f"likes={result.like_count} dislikes={result.dislike_count} "
-                f"like_ratio={like_s} gini={result.gini}"
-            )
-            if result.error:
-                print(f"  error: {result.error}")
-            for w in result.warnings:
-                print(f"  warning: {w}")
+            rep_results: list[PromptBenchmarkResult] = []
+            print(f"\n=== Variant {variant} (config id={cfg.id}) ===")
+            for rep in range(1, args.repetitions + 1):
+                print(f"--- Repetition {rep}/{args.repetitions} ---")
+                result = await benchmark_variant(
+                    run_id=args.run_id,
+                    variant=variant,
+                    configuration_id=cfg.id,
+                    configuration_name=cfg.name,
+                    repetition=rep,
+                    boost_rounds=args.boost_rounds,
+                    skip_ssr=skip_ssr,
+                )
+                baseline_rep: PromptBenchmarkResult | None = None
+                if variant == "baseline":
+                    baseline_by_rep[rep] = result
+                else:
+                    baseline_rep = baseline_by_rep.get(rep)
+                result.warnings = detect_overcorrection_warnings(
+                    result, baseline=baseline_rep
+                )
+                rep_results.append(result)
+                like_s = (
+                    f"{result.like_ratio * 100:.0f}%"
+                    if result.like_ratio is not None
+                    else "n/a"
+                )
+                crit_s = (
+                    f"{result.critical_tone_share * 100:.0f}%"
+                    if result.critical_tone_share is not None
+                    else "n/a"
+                )
+                print(
+                    f"{variant} rep{rep}: {result.wall_seconds}s ({result.status}) "
+                    f"reactions={result.reaction_count} like_ratio={like_s} "
+                    f"kritisk={crit_s} gini={result.gini}"
+                )
+                if result.error:
+                    print(f"  error: {result.error}")
+                for w in result.warnings:
+                    print(f"  warning: {w}")
+
+            agg = aggregate_variant_results(rep_results)
+            aggregates.append(agg)
     finally:
         if original_active is not None:
             async with SessionLocal() as session:
                 await set_active_configuration(session, original_active.id)
 
-    ranking = _format_ranking(results)
-    print(ranking)
-    out["ranking_note"] = ranking.strip()
-    out["ranking"] = [r.variant for r in rank_results(results)]
+    conclusion = determine_conclusion(
+        aggregates,
+        critical_retention=args.critical_retention,
+    )
+    summary = _format_aggregate_summary(aggregates, conclusion)
+    print(summary)
+
+    out["aggregates"] = aggregates
+    out["conclusion"] = conclusion
+    out["summary_note"] = summary.strip()
 
     if args.output:
         from pathlib import Path
@@ -697,13 +1002,42 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Benchmark OASIS prompt configuration variants (action_rules)"
     )
-    parser.add_argument("--run-id", type=int, default=3, help="Körning id (default: 3)")
+    parser.add_argument(
+        "--run-id",
+        type=int,
+        default=7,
+        help="Körning id (default: 7 = seed 'Prompt benchmark — volym')",
+    )
     parser.add_argument(
         "--variants",
         nargs="+",
         choices=list(DEFAULT_VARIANT_ORDER),
         default=list(DEFAULT_VARIANT_ORDER),
         help="Prompt variants to compare",
+    )
+    parser.add_argument(
+        "--repetitions",
+        type=int,
+        default=DEFAULT_REPETITIONS,
+        help=f"Simulation repetitions per variant (default: {DEFAULT_REPETITIONS})",
+    )
+    parser.add_argument(
+        "--boost-rounds",
+        type=int,
+        default=DEFAULT_BOOST_ROUNDS,
+        help=(
+            "Multiply each tick's reaction rounds in-memory before simulating "
+            f"(default: {DEFAULT_BOOST_ROUNDS}; use 2–3 for more engagement events)"
+        ),
+    )
+    parser.add_argument(
+        "--critical-retention",
+        type=float,
+        default=DEFAULT_CRITICAL_RETENTION,
+        help=(
+            "Winner must keep at least this fraction of baseline critical_tone_share "
+            f"(default: {DEFAULT_CRITICAL_RETENTION} = max 30%% relative drop)"
+        ),
     )
     parser.add_argument(
         "--output",
@@ -713,7 +1047,7 @@ def main() -> None:
     parser.add_argument(
         "--skip-ssr",
         action="store_true",
-        help="Skip OpenAI SSR tone/style classification",
+        help="Skip OpenAI SSR (not recommended — breaks winner criteria)",
     )
     parser.add_argument(
         "--mechanics-only",
@@ -721,6 +1055,10 @@ def main() -> None:
         help="Only create/update benchmark Configuration rows; do not simulate",
     )
     args = parser.parse_args()
+    if args.repetitions < 1:
+        raise SystemExit("--repetitions must be at least 1")
+    if args.boost_rounds < 1:
+        raise SystemExit("--boost-rounds must be at least 1")
     asyncio.run(main_async(args))
 
 
