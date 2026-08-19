@@ -285,6 +285,23 @@ class SpindoctorChatResponse(BaseModel):
     messages: list[SpindoctorMessageOut]
 
 
+SpindoctorWidgetKind = Literal["chart", "note", "report_snippet"]
+SpindoctorChartType = Literal["hbar", "donut", "stat_number"]
+
+
+class SpindoctorWidgetOut(BaseModel):
+    id: str
+    kind: SpindoctorWidgetKind
+    title: str
+    created_at: str
+    question_sent_at: str | None = None
+    latency_ms: int | None = None
+    chart_type: SpindoctorChartType | None = None
+    series: list[dict[str, Any]] | None = None
+    body: str | None = None
+    section_id: str | None = None
+
+
 FeedbackKind = Literal["bug", "idea", "opinion"]
 FeedbackStatus = Literal["open", "in_progress", "done", "archived"]
 FeedbackSource = Literal["help", "admin"]

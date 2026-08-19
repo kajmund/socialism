@@ -6,26 +6,33 @@ import asyncio
 import json
 from collections.abc import AsyncIterator
 
+import httpx
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import SpindoctorMessage
 from app.llm import complete_with_tools, stream_text
-from app.schemas.domain import SpindoctorChatResponse, SpindoctorMessageOut
-from app.serializers import format_date
+from app.schemas.domain import (
+    SpindoctorChatResponse,
+    SpindoctorMessageOut,
+    SpindoctorWidgetOut,
+)
+from app.serializers import format_date, utcnow
 from app.services.help_chat import looks_like_leaked_tool_markup
 from app.services.prompt_catalog import ConfigurationLanguage, render_prompt
 from app.services.prompt_store import require_active_prompts
 from app.services.spindoctor_context import build_spindoctor_context
-from app.services.spindoctor_tools import (
-    SPINDOCTOR_TOOL_NAMES,
-    run_spindoctor_tool,
-    spindoctor_tool_specs,
+from app.services.spindoctor_mcp_tools import (
+    SpindoctorToolContext,
+    make_report_snippet_widget,
+    run_spindoctor_mcp_tool,
+    spindoctor_mcp_tool_specs,
 )
+from app.services.spindoctor_refs import last_spindoctor_ref
 
 _SPINNDOCTOR_LOCKS: dict[str, asyncio.Lock] = {}
 _SPINNDOCTOR_LOCKS_GUARD = asyncio.Lock()
-_MAX_TOOL_ROUNDS = 5
+_MAX_TOOL_ROUNDS = 8
 
 
 class SpindoctorChatTurnError(Exception):
@@ -110,16 +117,18 @@ async def _run_spindoctor_tool_loop(
     session: AsyncSession,
     messages: list[dict[str, object]],
     *,
-    report_id: str,
-) -> list[dict[str, object]]:
-    tools = spindoctor_tool_specs()
+    ctx: SpindoctorToolContext,
+) -> tuple[list[dict[str, object]], list[SpindoctorWidgetOut]]:
+    tools = spindoctor_mcp_tool_specs()
     working = list(messages)
+    emitted = len(ctx.widgets)
+    new_widgets: list[SpindoctorWidgetOut] = []
     for _ in range(_MAX_TOOL_ROUNDS):
         message = await complete_with_tools(working, tools)
         working.append(_assistant_message_dict(message))
         tool_calls = getattr(message, "tool_calls", None)
         if not tool_calls:
-            return working
+            break
         for call in tool_calls:
             name = call.function.name
             raw_args = call.function.arguments or "{}"
@@ -128,16 +137,13 @@ async def _run_spindoctor_tool_loop(
             except json.JSONDecodeError:
                 arguments = {}
             try:
-                if name in SPINDOCTOR_TOOL_NAMES:
-                    result = await run_spindoctor_tool(
-                        session,
-                        name,
-                        arguments if isinstance(arguments, dict) else {},
-                        report_id=report_id,
-                    )
-                else:
-                    result = f"Unknown tool: {name}"
-            except ValueError as exc:
+                result = await run_spindoctor_mcp_tool(
+                    session,
+                    name,
+                    arguments if isinstance(arguments, dict) else {},
+                    ctx=ctx,
+                )
+            except (httpx.HTTPError, ValueError, RuntimeError) as exc:
                 result = f"Tool error ({name}): {exc}"
             working.append(
                 {
@@ -146,7 +152,10 @@ async def _run_spindoctor_tool_loop(
                     "content": result,
                 }
             )
-    return working
+            while emitted < len(ctx.widgets):
+                new_widgets.append(ctx.widgets[emitted])
+                emitted += 1
+    return working, new_widgets
 
 
 async def _build_system_prompt(
@@ -160,6 +169,7 @@ async def _build_system_prompt(
     parts = [
         render_prompt(prompts, "spinndoctor.system"),
         render_prompt(prompts, "spinndoctor.system.tools"),
+        render_prompt(prompts, "spinndoctor.system.widgets"),
         context,
     ]
     if locale == "en":
@@ -169,13 +179,36 @@ async def _build_system_prompt(
     return "\n\n".join(parts)
 
 
+def _section_title(section_id: str, *, locale: ConfigurationLanguage) -> str:
+    titles_sv = {
+        "mottagande": "Mottagande",
+        "budskapsstilar": "Budskapsstilar",
+        "amneskontroll": "Ämneskontroll",
+        "opinionsledare": "Opinionsledare",
+        "valjargrupper": "Väljargrupper",
+        "rekommendation": "Rekommendation",
+        "appendix": "Appendix",
+    }
+    titles_en = {
+        "mottagande": "Reception",
+        "budskapsstilar": "Message styles",
+        "amneskontroll": "Topic control",
+        "opinionsledare": "Opinion leaders",
+        "valjargrupper": "Voter groups",
+        "rekommendation": "Recommendation",
+        "appendix": "Appendix",
+    }
+    table = titles_en if locale == "en" else titles_sv
+    return table.get(section_id, section_id)
+
+
 async def stream_spindoctor_chat_turn(
     session: AsyncSession,
     *,
     report_id: str,
     locale: ConfigurationLanguage,
     message: str,
-) -> AsyncIterator[str | SpindoctorChatResponse]:
+) -> AsyncIterator[str | SpindoctorWidgetOut | SpindoctorChatResponse]:
     lock = await _spindoctor_turn_lock(report_id)
     async with lock:
         try:
@@ -189,6 +222,12 @@ async def stream_spindoctor_chat_turn(
             .order_by(SpindoctorMessage.id.asc())
         )
         prior = list((await session.execute(stmt)).scalars().all())
+
+        question_sent_at = utcnow()
+        ctx = SpindoctorToolContext(
+            report_id=report_id,
+            question_sent_at=question_sent_at,
+        )
 
         user_row = SpindoctorMessage(report_id=report_id, role="user", content=message)
         session.add(user_row)
@@ -206,11 +245,14 @@ async def stream_spindoctor_chat_turn(
             {"role": "user", "content": message},
         ]
 
-        working = await _run_spindoctor_tool_loop(
+        working, tool_widgets = await _run_spindoctor_tool_loop(
             session,
             messages,
-            report_id=report_id,
+            ctx=ctx,
         )
+        for widget in tool_widgets:
+            yield widget
+
         last = working[-1]
         prebuilt_reply = ""
         if last.get("role") == "assistant" and last.get("content"):
@@ -234,6 +276,15 @@ async def stream_spindoctor_chat_turn(
             raise SpindoctorChatTurnError(
                 "Spinndoktor produced an invalid reply (tool protocol leaked into text)"
             )
+
+        section_ref = last_spindoctor_ref(reply)
+        if section_ref:
+            snippet = make_report_snippet_widget(
+                ctx,
+                section_id=section_ref,
+                title=_section_title(section_ref, locale=locale),
+            )
+            yield snippet
 
         assistant_row = SpindoctorMessage(
             report_id=report_id,

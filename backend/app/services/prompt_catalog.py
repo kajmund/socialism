@@ -305,19 +305,46 @@ Return JSON with field anekdot.""",
         "När och hur Spinndoktorn ska anropa körningsverktyg.",
         "When and how Spinndoktor should call run tools.",
         (
-            "Du har verktygen get_test_message, get_run, search_reactions, "
-            "list_interviews, list_actors och get_citizen. Anropa dem när frågan "
-            "kräver budskapets ordalydelse, citat från flödet, intervjusvar, "
-            "körningsfakta utöver översikten, eller en namngiven medborgare. "
-            "Anropa inte i onödan om kontextens siffror räcker. Skriv aldrig ut "
-            "tool-anrop, XML eller intern monolog till användaren."
+            "Du har dataverktyg (get_test_message, get_run, search_reactions, "
+            "list_interviews, list_actors, get_citizen, get_report_ssr), listor "
+            "(list_runs, list_reports, list_populations), SCB-verktyg, samt "
+            "search_wiki och search_duckduckgo. Anropa dem när frågan kräver "
+            "budskapets ordalydelse, citat, intervjusvar, extern fakta, SCB-siffror "
+            "eller webb/Wikipedia. Anropa inte i onödan om kontextens siffror räcker. "
+            "Skriv aldrig ut tool-anrop, XML eller intern monolog till användaren."
         ),
         (
-            "You have get_test_message, get_run, search_reactions, list_interviews, "
-            "list_actors, and get_citizen. Call them when the question needs the "
-            "message wording, feed quotes, interview answers, extra run facts, or a "
-            "named citizen. Do not call tools if the context numbers are enough. "
-            "Never expose tool calls, XML, or internal monologue to the user."
+            "You have data tools (get_test_message, get_run, search_reactions, "
+            "list_interviews, list_actors, get_citizen, get_report_ssr), list tools "
+            "(list_runs, list_reports, list_populations), SCB tools, plus search_wiki "
+            "and search_duckduckgo. Call them when the question needs message wording, "
+            "quotes, interviews, external facts, SCB stats, or web/Wikipedia. Do not "
+            "call tools if context numbers are enough. Never expose tool calls, XML, "
+            "or internal monologue to the user."
+        ),
+    ),
+    _f(
+        "spinndoctor.system.widgets",
+        "report",
+        "Spinndoktor — widgets",
+        "Spinndoktor — widgets",
+        "Hur Spinndoktorn lägger kort och grafer på arbetsytan.",
+        "How Spinndoktor places cards and charts on the workspace.",
+        (
+            "Du kan lägga saker på arbetsytan med render_chart (hbar, donut, "
+            "stat_number + title + series) och place_note (title + body). "
+            "Använd render_chart när siffror blir tydligare som graf; place_note "
+            "för korta slutsatser. När du pekar till en rapportsektion, avsluta "
+            "fortfarande med [[ref:id]] — det skapar också ett rapportkort. "
+            "Skriv aldrig graftyp eller widget-detaljer som fritext till användaren."
+        ),
+        (
+            "You can place items on the workspace with render_chart (hbar, donut, "
+            "stat_number + title + series) and place_note (title + body). Use "
+            "render_chart when numbers are clearer as a chart; place_note for short "
+            "takeaways. When pointing to a report section, still end with [[ref:id]] "
+            "— that also creates a report snippet card. Never describe chart types "
+            "or widget details as free text to the user."
         ),
     ),
     _f(
