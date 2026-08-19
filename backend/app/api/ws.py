@@ -15,6 +15,7 @@ from app.schemas.domain import (
     HelpViewContext,
     PersonaChatResponse,
     SpindoctorChatResponse,
+    SpindoctorWidgetOut,
 )
 from app.services import jobs as jobs_service
 from app.services.help_chat import ChatTurnError as HelpChatTurnError
@@ -222,7 +223,14 @@ async def chat_websocket(websocket: WebSocket) -> None:
                             message=send.message,
                         )
                         async for item in stream:
-                            if isinstance(item, SpindoctorChatResponse):
+                            if isinstance(item, SpindoctorWidgetOut):
+                                await websocket.send_json(
+                                    {
+                                        "type": "widget",
+                                        **item.model_dump(mode="json"),
+                                    }
+                                )
+                            elif isinstance(item, SpindoctorChatResponse):
                                 done_spin = item
                             else:
                                 await websocket.send_json({"type": "token", "text": item})

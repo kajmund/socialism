@@ -4,6 +4,7 @@ import {
   listSpindoctorMessages,
   type SpindoctorMessage,
 } from "@/api/spindoctor"
+import type { SpindoctorWidget } from "@/api/spindoctorWidgets"
 import { MessengerChat } from "@/components/chat/MessengerChat"
 import { useChatSocket } from "@/components/chat/useChatSocket"
 import { AdminButton } from "@/components/ui/admin-button"
@@ -16,6 +17,7 @@ type SpinndoktorPanelProps = {
   reportId: string
   locale: "sv" | "en"
   onSectionRef?: (sectionId: string) => void
+  onWidget?: (widget: SpindoctorWidget) => void
 }
 
 function displayMessages(rows: SpindoctorMessage[]): SpindoctorMessage[] {
@@ -30,6 +32,7 @@ export function SpinndoktorPanel({
   reportId,
   locale,
   onSectionRef,
+  onWidget,
 }: SpinndoktorPanelProps) {
   const { t } = useLocale()
   const sessionId = useMemo(() => getSpindoctorSessionId(), [])
@@ -68,6 +71,7 @@ export function SpinndoktorPanel({
     send: socketSend,
   } = useChatSocket({
     hello: chatHello,
+    onWidget,
     onDone: (rows) => {
       const mapped = rows.map((m) => ({
         id: m.id,

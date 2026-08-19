@@ -13,6 +13,19 @@
         "DEEPSEEK_API_KEY": "your-deepseek-key",
         "OPINIONSSIMULATOR_API_URL": "http://127.0.0.1:8000"
       }
+    },
+    "spinndoktor": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "/absolute/path/to/socialism/integrations/mcp",
+        "python",
+        "spinndoctor_server.py"
+      ],
+      "env": {
+        "ARTIFACT_ROOT": "/absolute/path/to/socialism/backend/data/reports"
+      }
     }
   }
 }
