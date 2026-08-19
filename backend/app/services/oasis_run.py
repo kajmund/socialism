@@ -41,6 +41,7 @@ from app.services.oasis_engagement import (
 from app.services.oasis_clock import OasisScenarioClock
 from app.services.oasis_profiles import (
     build_run_profiles,
+    injection_body,
     injection_has_content,
     injector_key,
 )
@@ -239,14 +240,6 @@ def _max_event_time(db_path: Path) -> int:
     return OasisArtifactReader(db_path).max_event_time()
 
 
-def _injection_body(injection: Injection) -> str:
-    """Post body only — author is the institutional injector account."""
-    if injection.mode == "link" and injection.url.strip():
-        body = injection.text.strip() or injection.sourceDomain.strip() or injection.url
-        return f"{body}\n{injection.url.strip()}".strip()
-    return injection.text.strip()
-
-
 def _injection_texts_labeled(ticks: list[Tick]) -> list[tuple[str, str]]:
     """(source_label, body) for non-silent injections — used in convergence analysis."""
     out: list[tuple[str, str]] = []
@@ -256,14 +249,14 @@ def _injection_texts_labeled(ticks: list[Tick]) -> list[tuple[str, str]]:
         for injection in tick.injections:
             if not injection_has_content(injection):
                 continue
-            body = _injection_body(injection)
+            body = injection_body(injection)
             if body:
                 out.append((tick.key, body))
     return out
 
 
 async def _prepare_injection_content(injection: Injection) -> str:
-    return _injection_body(injection)
+    return injection_body(injection)
 
 
 def _read_oasis_results(db_path: Path) -> dict[str, Any]:
