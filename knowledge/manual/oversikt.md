@@ -7,11 +7,11 @@ tags: [korningar, personas, populationer, budskap, grunddata, jobb, rapporter]
 
 # Översikt av ytorna
 
-Opinionssimulator är en adminyta (mörk Devbrains-stil) för det dagliga arbetet med personas, populationer och körningar.
+Opinionssimulator är en adminyta (mörk Devbrains-stil) för det dagliga arbetet med personas, populationer och körningar. Du måste [logga in](logga-in.md) innan du kommer in.
 
 ## Startsida (dashboard)
 
-När du öppnar appen landar du på **dashboard** (`/`). Där ser du snabbstart, senaste körningar, aktiva bakgrundsjobb, biblioteksstatistik och senaste rapporter. Om inget är skapat ännu visas en **Kom igång**-guide med steg i rätt ordning.
+När du öppnar appen och är inloggad landar du på **dashboard** (`/`). Där ser du snabbstart, senaste körningar, aktiva bakgrundsjobb, biblioteksstatistik och senaste rapporter. Om inget är skapat ännu visas en **Kom igång**-guide med steg i rätt ordning.
 
 ## Admin (det du använder till vardags)
 
@@ -21,7 +21,7 @@ Från menyn når du bland annat:
 2. **Personas** — biblioteket av AI-agenter
 3. **Populationer** — grupper av personas
 4. **Budskap** — budskapsbibliotek och verkstad
-5. **Verktyg** — konfigurationer (prompts, SSR-temperatur, grunddata), playground och embedding-cache
+5. **Verktyg** — konfigurationer (prompts, SSR-temperatur, grunddata), playground och embedding-cache. Bara **administratör** ser den här ytan.
 6. **Rapporter** — alla beställda simuleringsrapporter
 7. **Återkoppling** — buggar, idéer och åsikter sparade från hjälpchatten
 8. **Jobb** — bakgrundsjobb (generering, simulering, rapporter)
@@ -30,6 +30,7 @@ Rapporter beställs från en körnings resultat och listas under **Rapporter**.
 
 ## Relaterade guider
 
+- [Logga in](logga-in.md)
 - [Hantera körningar](hantera-korningar.md)
 - [Skapa en ny körning](skapa-korning.md)
 - [Starta en simulering](starta-simulering.md)

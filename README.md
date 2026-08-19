@@ -10,7 +10,7 @@ Internal tool for testing political messaging (A/B or stimulus/control) against 
 4. Start simulations via background jobs; inspect results and **HTML reports**
 5. Browse admin surfaces: Personas, Populationer, Körningar, Budskap, Grunddata, Jobb
 
-Phase 1: admin CRUD is API-backed (SQLite). Simulation start defaults to status-only; live multi-agent (OASIS) is optional. Auth and Supabase Postgres come later.
+Phase 1: admin CRUD is API-backed (SQLite). Simulation start defaults to status-only; live multi-agent (OASIS) is optional. The SPA has a static login (`admin` / `user`). Supabase Auth and Postgres come later.
 
 ## Stack
 
@@ -69,7 +69,7 @@ cd ..
 make start
 ```
 
-Open [http://localhost:5173/runs](http://localhost:5173/runs). API docs: [http://localhost:8000/docs](http://localhost:8000/docs).
+Open [http://localhost:5173/login](http://localhost:5173/login) (`admin`/`admin` or `user`/`user`). API docs: [http://localhost:8000/docs](http://localhost:8000/docs).
 
 Or start services separately: `make backend` / `make frontend`.
 
@@ -87,7 +87,7 @@ Checks: `pnpm exec tsc -p tsconfig.app.json --noEmit` and `pnpm lint`.
 
 ## Backend
 
-Local admin API: personas, populations, runs, messages, catalog, jobs, reports. No auth in phase 1.
+Local admin API: personas, populations, runs, messages, catalog, jobs, reports. Frontend login is static (not enforced by the API).
 
 ```bash
 cd backend

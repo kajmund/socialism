@@ -1,5 +1,9 @@
 # Manual update log
 
+## 2026-08-19
+
+* **Inloggning**: Appen kräver inloggning. Två roller — administratör (`admin`) ser **Verktyg** och konfiguration; användare (`user`) gör inte det. Ingen registrering.
+
 ## 2026-08-16
 
 * **Populationer**: Ton kommer bara från grunddata. Den hårdkodade skrivsättslistan som tidigare skrev över röst är borttagen. Standardlistorna för **Ton** och **Förtroende** är mer balanserade (orörda listor i befintliga konfigurationer uppdateras).

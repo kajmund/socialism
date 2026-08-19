@@ -9,7 +9,7 @@ This is the React SPA for **Opinionssimulator**. Read [../AGENTS.md](../AGENTS.m
 - **Admin theme:** Devbrains charcoal + gold via Tailwind tokens + shadcn. Run list/config styles live in `src/styles/admin-runs.css` (`.theme-admin`).
 - **shadcn/ui** for UI primitives (admin surfaces). Add components with `pnpm dlx shadcn@latest add <name>` — don't hand-roll what shadcn already ships.
 - **React Router** for routing.
-- **`@supabase/supabase-js`** for auth (email only — no Google sign-in, no SSO providers).
+- **Auth:** static username/password for phase 1 (`src/lib/auth.ts`). Roles: `admin` (sees Verktyg/configuration) and `user` (does not). Swap the `authAdapter` export for Supabase email later — no Google/SSO.
 
 ## Package manager
 
@@ -48,7 +48,8 @@ frontend/
 │   ├── data/              # Shared types + helpers
 │   ├── api/               # Domain API helpers (personas, populations, runs)
 │   ├── i18n/              # Locale catalogs + LocaleProvider (sv default, en)
-│   ├── lib/               # http, api, auth, supabase, env
+│   ├── lib/               # http, api, auth adapter, env
+│   ├── auth/              # AuthProvider + route guards
 │   ├── pages/             # Route-level components
 │   ├── styles/            # admin-runs.css (dense run-config chrome)
 │   ├── App.tsx            # Router
@@ -72,7 +73,7 @@ Swedish is the default UI locale. Do **not** add `react-i18next` / `lingui` unle
 - Catalogs: `src/i18n/messages/sv.ts` (source of truth for keys) and `en.ts` (same shape).
 - Runtime: `LocaleProvider` + `useLocale()` from `@/i18n` (`t(key, params?)`, `locale`, `setLocale`, `intl` for `Intl.*`).
 - Persist choice in `localStorage` (`opinionssimulator.locale`); sync `document.documentElement.lang`.
-- Language switcher lives in `AdminShell` (admin chrome). Migrated so far: nav, Jobs, Runs list/detail/configure/results, Populations list/detail/builder + job toasts, Personas list/composer/card-fields/profile, Messages list/workshop/variants, Config page/map.
+- Language switcher lives in `AdminShell` (admin chrome) and on `/login`. Migrated so far: nav, login, Jobs, Runs list/detail/configure/results, Populations list/detail/builder + job toasts, Personas list/composer/card-fields/profile, Messages list/workshop/variants, Config page/map.
 
 **Adding a string**
 
@@ -87,6 +88,7 @@ Still hardcoded (next slices): OASIS simulation prompts (intentionally Swedish).
 
 | Path | Status |
 |------|--------|
+| `/login` | Sign-in (static admin/user) |
 | `/` | Dashboard (startsida) |
 | `/runs` | Körningar list |
 | `/runs/new`, `/runs/:id/edit` | Körning (wizard / quick + Resultat) |
@@ -133,8 +135,9 @@ Home is `/` (dashboard). Unknown routes redirect to `/`.
 ## Backend integration
 
 - Talks to a separate Python backend over JSON. URL comes from `VITE_API_BASE_URL`.
-- Always use `api.get/post/put/patch/delete` from `@/lib/api` — it handles base URL, JSON, Supabase bearer token, timeouts, and typed `ApiError`s (including the `isNetworkError` flag that distinguishes CORS/network from HTTP errors).
-- Auth is Supabase email. The bearer token is injected automatically via the `api` client; never thread tokens through component props.
+- Always use `api.get/post/put/patch/delete` from `@/lib/api` — it handles base URL, JSON, bearer token from `authAdapter.getAccessToken()`, timeouts, and typed `ApiError`s (including the `isNetworkError` flag that distinguishes CORS/network from HTTP errors).
+- Auth is a static adapter today (`admin`/`admin`, `user`/`user`). The API client reads the session token from the same adapter so a later Supabase swap does not change call sites. Never thread tokens through component props.
+- Hide **Verktyg** / configuration routes for `user`. Use `useAuth().isAdmin` (or `canAccessConfiguration`) — do not sprinkle role strings in pages.
 - Admin surfaces (personas / populations / runs) talk to the FastAPI backend.
 
 ## Testing

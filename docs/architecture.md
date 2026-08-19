@@ -153,7 +153,7 @@ Library chat and post-hoc run interviews share the `persona_messages` table but 
 
 Admin UI (Devbrains charcoal + gold): `/runs`, `/personas`, `/populations`, `/messages`, `/tools` (configurations / playground / embedding cache), `/jobs`, `/reports/:id`.
 
-Admin pages call FastAPI via `VITE_API_BASE_URL`. Supabase env placeholders are required at frontend boot but auth is not wired yet (`accessToken()` returns null).
+Admin pages call FastAPI via `VITE_API_BASE_URL`. The SPA gates routes behind a static login (`/login`, roles `admin` / `user`). The API client reads `authAdapter.getAccessToken()` (null for the static adapter). Supabase env placeholders remain required at boot so Auth can replace the adapter later.
 
 ## Configuration sources
 
@@ -166,7 +166,7 @@ Fail fast on missing required config.
 
 ## Current limitations
 
-- No auth / multi-tenant
+- Static frontend login only (not backend-enforced; not multi-tenant)
 - No durable external job queue (in-process background tasks)
 - Reports are hybrid HTML, not PDF
 - Supabase Postgres/Auth not used for product state yet

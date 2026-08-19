@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
-import { Link, NavLink, useLocation } from "react-router-dom"
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom"
 import type { Job, JobStatus } from "@/api/jobs"
-import { useLocale, type Locale, type MessageKey } from "@/i18n"
+import { useAuth } from "@/auth/AuthProvider"
+import { LocaleSwitcher } from "@/components/layout/LocaleSwitcher"
+import { useLocale, type MessageKey } from "@/i18n"
+import type { Role } from "@/lib/auth"
 import { cn } from "@/lib/utils"
 import { useJobsRealtime } from "@/realtime/JobsRealtimeProvider"
 
@@ -123,47 +126,25 @@ function toastFromTransition(
   }
 }
 
-function LocaleSwitcher({
-  locale,
-  setLocale,
-  t,
-}: {
-  locale: Locale
-  setLocale: (locale: Locale) => void
-  t: Translate
-}) {
-  return (
-    <label className="flex items-center gap-2 text-sm text-white/70">
-      <span className="sr-only">{t("locale.switcherLabel")}</span>
-      <select
-        className="rounded border border-white/25 bg-black/40 px-3 py-1.5 text-sm text-white"
-        value={locale}
-        onChange={(e) => setLocale(e.target.value as Locale)}
-        aria-label={t("locale.switcherLabel")}
-      >
-        <option value="sv">{t("locale.sv")}</option>
-        <option value="en">{t("locale.en")}</option>
-      </select>
-    </label>
-  )
-}
-
 function NavItems({
   pathname,
   activeCount,
   variant,
   t,
+  showTools,
   onNavigate,
 }: {
   pathname: string
   activeCount: number
   variant: "inline" | "panel"
   t: Translate
+  showTools: boolean
   onNavigate?: () => void
 }) {
+  const items = showTools ? NAV_ITEMS : NAV_ITEMS.filter((link) => link.to !== "/tools")
   return (
     <>
-      {NAV_ITEMS.map((link) => {
+      {items.map((link) => {
         const active = isSectionActive(pathname, link.match)
         return (
           <NavLink
@@ -214,9 +195,59 @@ function MenuIcon({ open }: { open: boolean }) {
   )
 }
 
+function roleLabel(role: Role, t: Translate): string {
+  switch (role) {
+    case "admin":
+      return t("auth.roleAdmin")
+    case "user":
+      return t("auth.roleUser")
+    default: {
+      const _exhaustive: never = role
+      return _exhaustive
+    }
+  }
+}
+
+function SessionActions({
+  compact,
+}: {
+  compact?: boolean
+}) {
+  const { t, locale, setLocale } = useLocale()
+  const { user, signOut } = useAuth()
+  const navigate = useNavigate()
+
+  async function onSignOut() {
+    await signOut()
+    navigate("/login", { replace: true })
+  }
+
+  return (
+    <div className={cn("flex items-center gap-4", compact && "flex-wrap")}>
+      {user ? (
+        <div className="flex items-baseline gap-2.5 text-xs text-white/45">
+          <span>
+            {t("auth.signedInAs", { name: user.username })}
+            <span className="text-white/30"> · {roleLabel(user.role, t)}</span>
+          </span>
+          <button
+            type="button"
+            className="bg-transparent p-0 text-xs text-white/40 underline-offset-2 hover:text-white/75 hover:underline"
+            onClick={() => void onSignOut()}
+          >
+            {t("auth.signOut")}
+          </button>
+        </div>
+      ) : null}
+      <LocaleSwitcher locale={locale} setLocale={setLocale} t={t} />
+    </div>
+  )
+}
+
 export function AdminShell({ children }: AdminShellProps) {
   const { pathname } = useLocation()
-  const { locale, setLocale, t } = useLocale()
+  const { t } = useLocale()
+  const { isAdmin } = useAuth()
   const { jobs, activeCount } = useJobsRealtime()
   const [toast, setToast] = useState<ToastState | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -293,9 +324,10 @@ export function AdminShell({ children }: AdminShellProps) {
                 activeCount={activeCount}
                 variant="inline"
                 t={t}
+                showTools={isAdmin}
               />
             </nav>
-            <LocaleSwitcher locale={locale} setLocale={setLocale} t={t} />
+            <SessionActions />
           </div>
           <button
             type="button"
@@ -323,10 +355,11 @@ export function AdminShell({ children }: AdminShellProps) {
                   activeCount={activeCount}
                   variant="panel"
                   t={t}
+                  showTools={isAdmin}
                   onNavigate={() => setMenuOpen(false)}
                 />
               </nav>
-              <LocaleSwitcher locale={locale} setLocale={setLocale} t={t} />
+              <SessionActions compact />
             </div>
           </div>
         ) : null}
