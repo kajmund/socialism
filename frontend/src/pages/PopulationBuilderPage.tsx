@@ -9,6 +9,7 @@ import { AdminButton } from "@/components/ui/admin-button"
 import { Card, CardContent } from "@/components/ui/card"
 import { personaInitials } from "@/data/library"
 import type { LibraryPersona } from "@/data/library-types"
+import { useAuth } from "@/auth/AuthProvider"
 import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
 import { ApiError } from "@/lib/api"
 
@@ -185,6 +186,7 @@ function PrevGroup({ group }: { group: DistGroupData }) {
 
 export function PopulationBuilderPage() {
   const { t } = useLocale()
+  const { isAdmin } = useAuth()
   const navigate = useNavigate()
 
   const [cur, setCur] = useState(1)
@@ -409,9 +411,13 @@ export function PopulationBuilderPage() {
               </h1>
               <p>
                 {t("populations.builder.step2BodyPrefix")}{" "}
-                <Link to="/tools/configurations" style={{ color: "var(--db-gold-700)" }}>
-                  {t("populations.builder.configLink")}
-                </Link>
+                {isAdmin ? (
+                  <Link to="/tools/configurations" style={{ color: "var(--db-gold-700)" }}>
+                    {t("populations.builder.configLink")}
+                  </Link>
+                ) : (
+                  t("populations.builder.configName")
+                )}
                 {t("populations.builder.step2BodySuffix")}
               </p>
             </div>

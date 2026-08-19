@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { Link } from "react-router-dom"
+import { useAuth } from "@/auth/AuthProvider"
 import { useLocale } from "@/i18n"
 
 export type CatalogLabelOption = {
@@ -193,11 +194,17 @@ export function CatalogLabelPicker({
 
 export function CatalogSenderEmptyHint() {
   const { t } = useLocale()
+  const { isAdmin } = useAuth()
 
   return (
     <>
-      {t("runs.tick.senderEmptyPrefix")}{" "}
-      <Link to="/tools/configurations">{t("runs.tick.senderEmptyLink")}</Link>
+      {t("runs.tick.senderEmptyPrefix")}
+      {isAdmin ? (
+        <>
+          {" "}
+          <Link to="/tools/configurations">{t("runs.tick.senderEmptyLink")}</Link>
+        </>
+      ) : null}
     </>
   )
 }

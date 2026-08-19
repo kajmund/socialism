@@ -13,7 +13,7 @@ This file is the source of truth for any coding agent (Claude Code, Cursor, Code
 - **Database (phase 1):** SQLite via SQLAlchemy + `aiosqlite` (local file under `backend/data/`)
 - **Database (later):** Supabase Postgres — swap `DATABASE_URL` when ready; keep models/migrations portable
 - **Migrations:** SQLAlchemy models + Alembic from the backend
-- **Auth (later):** Supabase Auth (not required for phase 1 admin CRUD)
+- **Auth:** static admin/user login in the SPA (phase 1). **Later:** Supabase Auth (email)
 - **Hosting:** Railway (backend service + frontend service)
 - **LLM:** DeepSeek via OpenAI-compatible SDK
 - **Embeddings (SSR):** OpenAI `text-embedding-3-large` (separate `OPENAI_API_KEY`)
