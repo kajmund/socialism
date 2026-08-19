@@ -35,23 +35,24 @@ Required vars (validated in `src/lib/env.ts` — fail fast at boot):
 | `VITE_SUPABASE_URL` | Placeholder for future Auth — required string today |
 | `VITE_SUPABASE_ANON_KEY` | Placeholder for future Auth — required string today |
 
-Auth is **not wired** in phase 1: the API client does not attach a bearer token yet. You still need non-empty Supabase placeholders so the SPA boots. Never put `service_role` or database URLs in frontend env.
+Phase 1 uses a **static login** (`admin` / `admin`, `user` / `user`) in `src/lib/auth.ts`. The API client attaches a bearer token when the adapter provides one (static sessions have none). You still need non-empty Supabase placeholders so the SPA boots. Never put `service_role` or database URLs in frontend env.
 
 Start the backend first (see [backend-setup.md](backend-setup.md)).
 
-Open http://localhost:5173/runs.
+Open http://localhost:5173/login, then sign in. The app redirects unknown routes to `/`.
 
 ## Routes
 
 | Path | Page |
 | ---- | ---- |
-| `/` | Redirects to `/runs` |
+| `/login` | Sign-in (static admin/user) |
+| `/` | Dashboard |
 | `/runs` | Körningar list |
 | `/runs/new`, `/runs/:id/edit` | Configure run (wizard or `?mode=quick`) + results (incl. post-hoc interviews / quality warnings) |
 | `/personas`, `/personas/new`, `/personas/:id` | Persona library + composer (library chat, delete/resend, anecdotes) |
 | `/populations`, `/populations/new`, `/populations/:id`, `.../edit` | Population list / detail / builder |
 | `/messages`, `/messages/new`, `/messages/:id/edit` | Budskapsbibliotek + verkstad |
-| `/config` | Grunddata / catalog lists |
+| `/tools/*` | Configurations, anchor sets, playground, cache (admin role only) |
 | `/jobs` | Background jobs |
 | `/reports/:id` | HTML report viewer |
 

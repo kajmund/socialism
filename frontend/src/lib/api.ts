@@ -1,3 +1,4 @@
+import { authAdapter } from "@/lib/auth"
 import { env } from "@/lib/env"
 import { ApiError, httpRequest, type HttpRequestOptions } from "@/lib/http"
 
@@ -6,8 +7,7 @@ export { ApiError }
 type Query = Record<string, string | number | boolean | undefined | null>
 
 async function accessToken(): Promise<string | null> {
-  // Supabase auth is deferred; inject bearer here when auth lands.
-  return null
+  return authAdapter.getAccessToken()
 }
 
 function buildUrl(path: string, query?: Query): string {

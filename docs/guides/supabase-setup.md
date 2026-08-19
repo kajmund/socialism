@@ -1,6 +1,6 @@
 # Supabase setup (later)
 
-**Phase 1 does not use Supabase for product state.** The app runs on SQLite via SQLAlchemy + Alembic (`DATABASE_URL` under `backend/`). Auth is not wired.
+**Phase 1 does not use Supabase for product state.** The app runs on SQLite via SQLAlchemy + Alembic (`DATABASE_URL` under `backend/`). The SPA uses a static login adapter until this guide is followed.
 
 This guide is for the **future** migration to Supabase Postgres + email Auth. Keep it as a checklist — do not assume the tables or Auth flows below are live today.
 
@@ -49,9 +49,13 @@ Do not hand-create production tables in the dashboard.
 
 ## 5. Frontend wiring (planned)
 
-- Keep using `@supabase/supabase-js` for browser session.
-- Inject the access token from the API client (`src/lib/api.ts`) once Auth is enabled.
-- Until then, placeholders satisfy boot; `accessToken()` can remain null.
+The SPA already has an `AuthAdapter` (`signIn`, `signOut`, `getSession`, `getAccessToken`) in `frontend/src/lib/auth.ts`. Today it is a static username/password implementation. To switch:
+
+1. Implement the same `AuthAdapter` with `@supabase/supabase-js` (`signInWithPassword`, `getSession`, `signOut`).
+2. Map `user.user_metadata.role` (or equivalent) to `"admin" | "user"`.
+3. Replace the `authAdapter` export — do not change `AuthProvider`, route guards, or `api.ts`.
+4. Treat the login field as email (same input; no register flow unless you add one).
+5. Placeholders `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` already satisfy boot.
 
 ## Related
 
