@@ -12,6 +12,7 @@ from sqlalchemy.orm import selectinload
 from app.database.models import Population, PopulationMember, Run
 from app.services.report.persona_bio import persona_record_from_member
 from app.schemas.domain import Tick
+from app.services.oasis_profiles import injection_body, injection_has_content
 from app.services.oasis_run import previous_attempts, variant_plans
 
 
@@ -42,8 +43,12 @@ def _injection_texts_from_ticks(ticks: list[Tick]) -> list[str]:
     seen: set[str] = set()
     out: list[str] = []
     for tick in ticks:
+        if tick.silent:
+            continue
         for inj in tick.injections:
-            text = (inj.text or "").strip()
+            if not injection_has_content(inj):
+                continue
+            text = injection_body(inj)
             if not text or text in seen:
                 continue
             seen.add(text)
