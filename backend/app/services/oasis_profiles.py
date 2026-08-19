@@ -74,6 +74,14 @@ def injection_has_content(injection: Injection) -> bool:
     return bool(injection.text.strip())
 
 
+def injection_body(injection: Injection) -> str:
+    """Post body shown to agents — matches OASIS injector content."""
+    if injection.mode == "link" and injection.url.strip():
+        body = injection.text.strip() or injection.sourceDomain.strip() or injection.url
+        return f"{body}\n{injection.url.strip()}".strip()
+    return injection.text.strip()
+
+
 def _kon_is_set(kön: str) -> bool:
     return bool(kön.strip()) and kön.strip() not in ("—", "-", "?")
 

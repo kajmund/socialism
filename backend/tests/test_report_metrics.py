@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from app.schemas.domain import Injection, Tick
+
 import pytest
 
 from app.llm import set_structured_completer
-from app.services.report.bundles import RunBundle
+from app.services.report.bundles import RunBundle, _injection_texts_from_ticks
 from app.services.report.charts import (
     render_agents_html,
     render_engagement_donut,
@@ -369,3 +371,58 @@ async def test_generate_report_escapes_hostile_title(tmp_path: Path):
     finally:
         set_structured_completer(None)
         set_embedder(None)
+
+
+def test_injection_texts_from_ticks_includes_link_url():
+    ticks = [
+        Tick(
+            key="t1",
+            day=1,
+            injections=[
+                Injection(
+                    key="i1",
+                    type="news_post",
+                    sender="Lokalnyheterna",
+                    text="Vårdcentralen får ny chef",
+                    mode="link",
+                    url="https://example.com/nyheter/vardcentral",
+                    sourceDomain="example.com",
+                )
+            ],
+        )
+    ]
+    texts = _injection_texts_from_ticks(ticks)
+    assert texts == [
+        "Vårdcentralen får ny chef\nhttps://example.com/nyheter/vardcentral"
+    ]
+
+
+def test_injection_texts_from_ticks_skips_silent_ticks():
+    ticks = [
+        Tick(
+            key="silent",
+            day=1,
+            silent=True,
+            injections=[
+                Injection(
+                    key="i0",
+                    type="party_post",
+                    sender="Partiet",
+                    text="Ska inte synas",
+                )
+            ],
+        ),
+        Tick(
+            key="t1",
+            day=2,
+            injections=[
+                Injection(
+                    key="i1",
+                    type="party_post",
+                    sender="Partiet",
+                    text="Synligt budskap",
+                )
+            ],
+        ),
+    ]
+    assert _injection_texts_from_ticks(ticks) == ["Synligt budskap"]
