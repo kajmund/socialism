@@ -106,7 +106,17 @@ export const sv = {
     viewSpinndoktor: "Spinndoktor",
     toggleCanvas: "Visa rapport",
     hideCanvas: "Dölj rapport",
+    showReportPanel: "Visa rapportpanel",
+    hideReportPanel: "Dölj rapportpanel",
     canvasAria: "Rapportcanvas",
+    grid: {
+      empty:
+        "Ställ en fråga — Spinndoktorn lägger grafer, anteckningar och rapportklipp här.",
+      latency: "{ms} ms",
+      latencyHint: "Tid från din fråga till att widgeten dök upp",
+      snippetSection: "Rapportavsnitt: {section}",
+      openSection: "Öppna i rapportpanel",
+    },
     placeholder: "T.ex. Vad säger siffrorna om mottagandet?",
     empty:
       "Hej! Jag kan hjälpa dig tolka den här rapporten utifrån testbudskapet och körningens data — engagemang, ton, budskapsstilar och målgrupper. Ställ en fråga så pekar jag gärna till rätt avsnitt.",

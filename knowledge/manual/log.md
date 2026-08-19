@@ -2,6 +2,7 @@
 
 ## 2026-08-19
 
+* **Rapporter**: Spinndoktor (fas 4-prototyp) — chatt till vänster, panorérbart rutnät med grafer, anteckningar och rapportklipp; referenspanel för HTML-rapporten; SCB och webbsök i chatten.
 * **Inloggning**: Appen kräver inloggning. Två roller — administratör (`admin`) ser **Verktyg** och konfiguration; användare (`user`) gör inte det. Ingen registrering.
 
 ## 2026-08-16

@@ -386,16 +386,13 @@ def _get_citizen(bundles: list[RunBundle], arguments: dict[str, Any]) -> str:
     return _compact({"matches": matches})
 
 
-async def run_spindoctor_tool(
-    session: AsyncSession,
+def run_spindoctor_tool_on_bundles(
     name: str,
     arguments: dict[str, Any],
-    *,
-    report_id: str,
+    bundles: list[RunBundle],
 ) -> str:
     if name not in SPINDOCTOR_TOOL_NAMES:
         raise ValueError(f"Unknown Spinndoktor tool: {name}")
-    _report, bundles = await load_spindoctor_source(session, report_id=report_id)
     if name == "get_test_message":
         return _get_test_message(bundles)
     if name == "get_run":
@@ -407,3 +404,16 @@ async def run_spindoctor_tool(
     if name == "list_actors":
         return _list_actors(bundles, arguments)
     return _get_citizen(bundles, arguments)
+
+
+async def run_spindoctor_tool(
+    session: AsyncSession,
+    name: str,
+    arguments: dict[str, Any],
+    *,
+    report_id: str,
+) -> str:
+    if name not in SPINDOCTOR_TOOL_NAMES:
+        raise ValueError(f"Unknown Spinndoktor tool: {name}")
+    _report, bundles = await load_spindoctor_source(session, report_id=report_id)
+    return run_spindoctor_tool_on_bundles(name, arguments, bundles)

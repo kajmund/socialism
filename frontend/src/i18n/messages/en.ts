@@ -108,7 +108,16 @@ export const en: LocalizedTree<SvMessages> = {
     viewSpinndoktor: "Spinndoktor",
     toggleCanvas: "Show report",
     hideCanvas: "Hide report",
+    showReportPanel: "Show report panel",
+    hideReportPanel: "Hide report panel",
     canvasAria: "Report canvas",
+    grid: {
+      empty: "Ask a question — Spinndoktor places charts, notes, and report clips here.",
+      latency: "{ms} ms",
+      latencyHint: "Time from your question until the widget appeared",
+      snippetSection: "Report section: {section}",
+      openSection: "Open in report panel",
+    },
     placeholder: "E.g. What do the numbers say about reception?",
     empty:
       "Hi! I can help you interpret this report from the test message and the run's data — engagement, tone, message styles, and target groups. Ask a question and I'll point you to the right section.",
