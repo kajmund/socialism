@@ -10,6 +10,7 @@ from typing import Any
 from openai import AsyncOpenAI
 
 from app.config import settings
+from app.llm.tool_messages import normalize_messages_for_deepseek
 from app.schemas.domain import EditablePersona
 
 ChatMessage = dict[str, str]
@@ -155,7 +156,7 @@ async def complete_with_tools(
     client = get_client()
     kwargs: dict[str, Any] = {
         "model": settings.deepseek_model,
-        "messages": messages,
+        "messages": normalize_messages_for_deepseek(messages),
     }
     if tools:
         kwargs["tools"] = tools
