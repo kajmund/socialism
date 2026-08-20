@@ -285,7 +285,7 @@ class SpindoctorChatResponse(BaseModel):
     messages: list[SpindoctorMessageOut]
 
 
-SpindoctorWidgetKind = Literal["chart", "note", "report_snippet"]
+SpindoctorWidgetKind = Literal["chart", "note", "report_snippet", "interview"]
 SpindoctorChartType = Literal["hbar", "donut", "stat_number"]
 
 
@@ -300,6 +300,12 @@ class SpindoctorWidgetOut(BaseModel):
     series: list[dict[str, Any]] | None = None
     body: str | None = None
     section_id: str | None = None
+    persona_id: str | None = None
+    persona_name: str | None = None
+    run_id: int | None = None
+    attempt_id: str | None = None
+    variant_id: str | None = None
+    through_tick_index: int | None = None
 
 
 FeedbackKind = Literal["bug", "idea", "opinion"]
