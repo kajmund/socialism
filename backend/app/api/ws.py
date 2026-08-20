@@ -267,6 +267,7 @@ async def chat_websocket(websocket: WebSocket) -> None:
                             persona_id=hello.persona_id,
                             through_tick_index=hello.through_tick_index,
                             message=send.message,
+                            asked_by="human",
                         )
                     async for item in stream:
                         if isinstance(item, PersonaChatResponse):

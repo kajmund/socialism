@@ -21,6 +21,7 @@ from app.services.report import ARTIFACT_ROOT
 from app.services.persona_chat import (
     ChatTurnError,
     _find_attempt_variant,
+    complete_run_interview_turn,
     run_interview_filter,
     validate_interview_variant,
 )
@@ -59,6 +60,7 @@ _DATA_TOOL_NAMES = frozenset(
     }
 )
 _WIDGET_TOOL_NAMES = frozenset({"render_chart", "place_note", "start_interview"})
+_INTERVIEW_TOOL_NAMES = frozenset({"ask_interview_question"})
 _READ_INTERVIEW_TOOL_NAMES = frozenset({"read_interview_transcript"})
 
 SPINDOCTOR_MCP_TOOL_NAMES = (
@@ -67,6 +69,7 @@ SPINDOCTOR_MCP_TOOL_NAMES = (
     | _SCB_TOOL_NAMES
     | _SEARCH_TOOL_NAMES
     | _WIDGET_TOOL_NAMES
+    | _INTERVIEW_TOOL_NAMES
     | _READ_INTERVIEW_TOOL_NAMES
 )
 
@@ -269,15 +272,48 @@ def _widget_tool_specs() -> list[dict[str, Any]]:
                 "description": (
                     "Open a live persona interview widget on the Spinndoktor grid. "
                     "Match persona_name like get_citizen (substring, case-insensitive). "
-                    "Defaults through_tick_index to the latest simulated tick."
+                    "Defaults through_tick_index to the latest simulated tick. "
+                    "Optional opening_question sends the first turn immediately "
+                    "(doctor asks; answer returned in tool result)."
                 ),
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "persona_name": {"type": "string"},
                         "through_tick_index": {"type": "integer", "minimum": 0},
+                        "opening_question": {"type": "string"},
                     },
                     "required": ["persona_name"],
+                },
+            },
+        },
+    ]
+
+
+def _interview_turn_tool_specs() -> list[dict[str, Any]]:
+    return [
+        {
+            "type": "function",
+            "function": {
+                "name": "ask_interview_question",
+                "description": (
+                    "Ask a follow-up question in an existing live interview widget. "
+                    "Provide widget_id from start_interview, or persona_id + run_id + "
+                    "attempt_id + variant_id + through_tick_index. Returns the persona's "
+                    "answer text."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "widget_id": {"type": "string"},
+                        "persona_id": {"type": "string"},
+                        "run_id": {"type": "integer"},
+                        "attempt_id": {"type": "string"},
+                        "variant_id": {"type": "string"},
+                        "through_tick_index": {"type": "integer", "minimum": 0},
+                        "question": {"type": "string"},
+                    },
+                    "required": ["question"],
                 },
             },
         },
@@ -318,6 +354,7 @@ def spindoctor_mcp_tool_specs() -> list[dict[str, Any]]:
         *help_scb_tool_specs(),
         *_search_tool_specs(),
         *_widget_tool_specs(),
+        *_interview_turn_tool_specs(),
         *_read_interview_tool_specs(),
     ]
 
@@ -598,16 +635,96 @@ async def _start_interview(
         variant_id=variant_id,
         through_tick_index=through_tick_index,
     )
+    payload: dict[str, Any] = {
+        "ok": True,
+        "widget_id": widget.id,
+        "persona_id": persona_id,
+        "persona_name": display_name,
+        "run_id": bundle.run_id,
+        "attempt_id": bundle.attempt_id,
+        "variant_id": variant_id,
+        "through_tick_index": through_tick_index,
+    }
+
+    opening_question = str(arguments.get("opening_question") or "").strip()
+    if opening_question:
+        try:
+            turn = await complete_run_interview_turn(
+                session,
+                run_id=bundle.run_id,
+                attempt_id=bundle.attempt_id,
+                variant_id=variant_id,
+                persona_id=persona_id,
+                through_tick_index=through_tick_index,
+                message=opening_question,
+                asked_by="doctor",
+            )
+        except ChatTurnError as exc:
+            raise ValueError(str(exc)) from exc
+        payload["opening_question"] = opening_question
+        payload["answer"] = turn.reply
+
+    return _compact(payload)
+
+
+async def _ask_interview_question(
+    session: AsyncSession,
+    ctx: SpindoctorToolContext,
+    arguments: dict[str, Any],
+) -> str:
+    question = str(arguments.get("question") or "").strip()
+    if not question:
+        raise ValueError("question is required")
+
+    persona_id, run_id, attempt_id, variant_id, persona_name, through_tick_index = (
+        _resolve_interview_coordinates(ctx, arguments)
+    )
+    if not attempt_id or not variant_id:
+        raise ValueError("attempt_id and variant_id are required")
+
+    run = await session.get(Run, run_id)
+    if run is None:
+        raise ValueError("Run not found")
+    try:
+        variant = _find_attempt_variant(
+            run.results if isinstance(run.results, dict) else None,
+            attempt_id,
+            variant_id,
+        )
+        validate_interview_variant(
+            run,
+            variant,
+            persona_id=persona_id,
+            through_tick_index=through_tick_index,
+        )
+    except ChatTurnError as exc:
+        raise ValueError(str(exc)) from exc
+
+    try:
+        turn = await complete_run_interview_turn(
+            session,
+            run_id=run_id,
+            attempt_id=attempt_id,
+            variant_id=variant_id,
+            persona_id=persona_id,
+            through_tick_index=through_tick_index,
+            message=question,
+            asked_by="doctor",
+        )
+    except ChatTurnError as exc:
+        raise ValueError(str(exc)) from exc
+
     return _compact(
         {
             "ok": True,
-            "widget_id": widget.id,
             "persona_id": persona_id,
-            "persona_name": display_name,
-            "run_id": bundle.run_id,
-            "attempt_id": bundle.attempt_id,
+            "persona_name": persona_name,
+            "run_id": run_id,
+            "attempt_id": attempt_id,
             "variant_id": variant_id,
             "through_tick_index": through_tick_index,
+            "question": question,
+            "answer": turn.reply,
         }
     )
 
@@ -662,6 +779,9 @@ async def _read_interview_transcript(
             "role": row.role,
             "content": row.content,
             "created_at": format_date(row.created_at) if row.created_at else "",
+            "asked_by": (
+                row.asked_by if row.asked_by in {"doctor", "human"} else None
+            ),
         }
         for row in rows
     ]
@@ -731,6 +851,11 @@ async def run_spindoctor_mcp_tool(
 
     if name in _READ_INTERVIEW_TOOL_NAMES:
         return await _read_interview_transcript(session, ctx, arguments)
+
+    if name in _INTERVIEW_TOOL_NAMES:
+        if name == "ask_interview_question":
+            return await _ask_interview_question(session, ctx, arguments)
+        raise ValueError(f"Unknown Spinndoktor tool: {name}")
 
     if name in _SCB_TOOL_NAMES:
         return await run_scb_tool(name, arguments)

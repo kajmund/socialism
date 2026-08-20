@@ -10,6 +10,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.database.base import Base
 from app.database.models import Persona, PersonaMessage, Population, Report, Run
+from app.schemas.domain import PersonaChatResponse, PersonaMessageOut
 from app.serializers import utcnow
 from app.services.spindoctor_mcp_tools import (
     SpindoctorToolContext,
@@ -117,6 +118,7 @@ def test_spindoctor_mcp_tool_specs_include_widgets_and_search():
     assert "render_chart" in names
     assert "place_note" in names
     assert "start_interview" in names
+    assert "ask_interview_question" in names
     assert "read_interview_transcript" in names
     assert "search_wiki" in names
     assert "search_duckduckgo" in names
@@ -226,6 +228,97 @@ async def test_start_interview_emits_widget(session):
 
 
 @pytest.mark.asyncio
+async def test_start_interview_opening_question(session, monkeypatch):
+    report_id, persona_id = await _seed_interview_report(session)
+    ctx = SpindoctorToolContext(report_id=report_id)
+
+    async def fake_turn(_session, **kwargs):
+        assert kwargs["asked_by"] == "doctor"
+        assert kwargs["message"] == "Vad tycker du om förslaget?"
+        assert kwargs["persona_id"] == persona_id
+        return PersonaChatResponse(
+            reply="Jag är tveksam.",
+            messages=[
+                PersonaMessageOut(
+                    id=1,
+                    mode="interview",
+                    role="user",
+                    content=kwargs["message"],
+                    created_at="",
+                    asked_by="doctor",
+                ),
+                PersonaMessageOut(
+                    id=2,
+                    mode="interview",
+                    role="assistant",
+                    content="Jag är tveksam.",
+                    created_at="",
+                ),
+            ],
+        )
+
+    monkeypatch.setattr(
+        "app.services.spindoctor_mcp_tools.complete_run_interview_turn",
+        fake_turn,
+    )
+
+    result = json.loads(
+        await run_spindoctor_mcp_tool(
+            session,
+            "start_interview",
+            {
+                "persona_name": "Johan Lindqvist",
+                "opening_question": "Vad tycker du om förslaget?",
+            },
+            ctx=ctx,
+        )
+    )
+    assert result["ok"] is True
+    assert result["opening_question"] == "Vad tycker du om förslaget?"
+    assert result["answer"] == "Jag är tveksam."
+
+
+@pytest.mark.asyncio
+async def test_ask_interview_question(session, monkeypatch):
+    report_id, persona_id = await _seed_interview_report(session)
+    ctx = SpindoctorToolContext(report_id=report_id)
+    start = json.loads(
+        await run_spindoctor_mcp_tool(
+            session,
+            "start_interview",
+            {"persona_name": "Johan"},
+            ctx=ctx,
+        )
+    )
+
+    async def fake_turn(_session, **kwargs):
+        assert kwargs["asked_by"] == "doctor"
+        assert kwargs["message"] == "Varför då?"
+        return PersonaChatResponse(reply="För att kostnaden känns oklar.", messages=[])
+
+    monkeypatch.setattr(
+        "app.services.spindoctor_mcp_tools.complete_run_interview_turn",
+        fake_turn,
+    )
+
+    result = json.loads(
+        await run_spindoctor_mcp_tool(
+            session,
+            "ask_interview_question",
+            {
+                "widget_id": start["widget_id"],
+                "question": "Varför då?",
+            },
+            ctx=ctx,
+        )
+    )
+    assert result["ok"] is True
+    assert result["question"] == "Varför då?"
+    assert result["answer"] == "För att kostnaden känns oklar."
+    assert result["persona_id"] == persona_id
+
+
+@pytest.mark.asyncio
 async def test_read_interview_transcript_by_widget_id(session):
     report_id, persona_id = await _seed_interview_report(session)
     ctx = SpindoctorToolContext(report_id=report_id)
@@ -247,6 +340,7 @@ async def test_read_interview_transcript_by_widget_id(session):
             attempt_id="att_1",
             variant_id="main",
             through_tick_index=start["through_tick_index"],
+            asked_by="doctor",
             created_at=utcnow(),
         )
     )
@@ -275,6 +369,7 @@ async def test_read_interview_transcript_by_widget_id(session):
     )
     assert len(transcript["messages"]) == 2
     assert transcript["messages"][0]["content"] == "Litar du på finansieringen?"
+    assert transcript["messages"][0]["asked_by"] == "doctor"
     assert "skeptisk" in transcript["messages"][1]["content"]
 
 
