@@ -295,6 +295,13 @@ async def list_tagger_texts(
     locale: ReportLocale,
     include_ssr: bool = True,
 ) -> dict[str, Any]:
+    from app.services.report.bundles import RunBundle, _injection_texts_for_variant
+    from app.services.report.classify import (
+        classify_post_topics,
+        topic_packs_from_injections,
+        topic_status_for_comment,
+    )
+    from app.services.report.sampling import injection_post_ids
     from app.database.models import Run
 
     run = await session.get(Run, run_id)
@@ -309,6 +316,25 @@ async def list_tagger_texts(
 
     trace = [row for row in (variant.get("trace") or []) if isinstance(row, dict)]
     agents = [row for row in (variant.get("agents") or []) if isinstance(row, dict)]
+    posts = [row for row in (variant.get("posts") or []) if isinstance(row, dict)]
+    comments = [row for row in (variant.get("comments") or []) if isinstance(row, dict)]
+    injection_texts = _injection_texts_for_variant(run, variant_id)
+    topic_bundle = RunBundle(
+        label=str(variant.get("label") or variant_id),
+        run_id=run_id,
+        run_name=run.name,
+        attempt_id=attempt_id,
+        seed=str(attempt.get("seed") or run.seed or "") or None,
+        engine=str(attempt.get("engine") or "") or None,
+        agents=agents,
+        posts=posts,
+        comments=comments,
+        injection_texts=injection_texts,
+        variant_id=variant_id,
+    )
+    topic_packs = topic_packs_from_injections(injection_texts, locale=locale)
+    post_topic_status = classify_post_topics(topic_bundle, topic_packs, locale=locale)
+    injection_ids = injection_post_ids(topic_bundle)
     anchor_ctx = await active_anchor_context(session, locale)
     tone_id = anchor_ctx["tone"]["id"]
     style_id = anchor_ctx["style"]["id"]
@@ -328,7 +354,7 @@ async def list_tagger_texts(
 
     rows: list[dict[str, Any]] = []
 
-    for comment in variant.get("comments") or []:
+    for comment in comments:
         if not isinstance(comment, dict):
             continue
         text = str(comment.get("content") or comment.get("text") or "").strip()
@@ -336,6 +362,11 @@ async def list_tagger_texts(
             continue
         ref = _comment_ref(comment)
         key = _source_ref_key(ref)
+        topic_status = topic_status_for_comment(
+            comment,
+            post_topic_status=post_topic_status,
+            injection_post_ids_set=injection_ids,
+        )
         rows.append(
             {
                 "source_type": "comment",
@@ -351,6 +382,7 @@ async def list_tagger_texts(
                 "style_predicted": None,
                 "tone_pmf": None,
                 "style_pmf": None,
+                "topic_status": topic_status,
             }
         )
 
@@ -396,6 +428,7 @@ async def list_tagger_texts(
                 "style_predicted": None,
                 "tone_pmf": None,
                 "style_pmf": None,
+                "topic_status": None,
             }
         )
 
@@ -432,6 +465,7 @@ async def list_tagger_texts(
                 "style_predicted": None,
                 "tone_pmf": None,
                 "style_pmf": None,
+                "topic_status": None,
             }
         )
 
@@ -445,6 +479,7 @@ async def list_tagger_texts(
         "anchor_context": anchor_ctx,
         "rows": rows,
         "include_ssr": include_ssr,
+        "post_topic_status": post_topic_status,
     }
 
 

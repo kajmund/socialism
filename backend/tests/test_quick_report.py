@@ -175,7 +175,7 @@ def test_style_html_reports_absent_style_as_missing_not_as_zero_reception():
             ("Provocerande / konfronterande", 0.0),
         ]
     )
-    html = _style_html(m, locale="sv")
+    html = _style_html(m, locale="sv", thresholds=default_report_thresholds())
     assert "stilen saknas i underlaget" in html
     assert "bekräftat" not in html.lower()
 

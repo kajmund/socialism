@@ -33,7 +33,8 @@ from app.services.report.segment_analysis import (
     theme_display_label,
 )
 from app.services.report.segment_ssr import SegmentSample, SegmentToneRow
-from app.services.report.classify import BundleClassification
+from app.services.report.classify import BundleClassification, lookup_text_topic_status
+from app.services.report.sampling import TopicStatus, discussion_post_ids, reception_vs_discussion_rows
 from app.services.report.thresholds import ReportThresholds, default_report_thresholds
 from app.services.report.tick_report import (
     InterviewQA,
@@ -142,6 +143,108 @@ def render_engagement_donut(metrics: ReportMetrics, *, locale: ReportLocale = "s
     )
 
 
+def topic_status_badge_html(status: TopicStatus | None, *, locale: ReportLocale) -> str:
+    if status is None:
+        return ""
+    if status == "on_topic":
+        label = "On topic" if locale == "en" else "På ämne"
+        css = "topic-tag topic-tag-on"
+    else:
+        label = "Topic drift" if locale == "en" else "Ämnesglidit"
+        css = "topic-tag topic-tag-drift"
+    return f'<span class="{css}">{escape(label)}</span>'
+
+
+def _topic_race_row(
+    name: str,
+    sub: str,
+    share: float,
+    *,
+    color: str,
+) -> str:
+    width = max(0.0, min(1.0, share))
+    pct_txt = pct(width)
+    return (
+        f'<div class="topic-row">'
+        f'<div class="t-name">{escape(name)}<small>{escape(sub)}</small></div>'
+        f'<div class="t-track"><div class="t-fill" style="width:{width * 100:.1f}%;background:{color}"></div></div>'
+        f'<div class="t-pct">{pct_txt}</div></div>'
+    )
+
+
+def render_topic_drift_section(
+    bundles: list[RunBundle],
+    classifications: list[BundleClassification],
+    *,
+    locale: ReportLocale = "sv",
+) -> str:
+    """Per-post topic status bars: reception vs drift (comments inherit parent)."""
+    on_topic_posts = 0
+    drift_posts = 0
+    reception_texts = 0
+    discussion_texts = 0
+
+    for bundle, clf in zip(bundles, classifications, strict=True):
+        discussion_ids = discussion_post_ids(bundle)
+        for post_id, status in clf.post_topic_status.items():
+            if post_id not in discussion_ids:
+                continue
+            if status == "drifted":
+                drift_posts += 1
+            else:
+                on_topic_posts += 1
+        split = reception_vs_discussion_rows(
+            bundle,
+            post_topic_status=clf.post_topic_status,
+            locale=locale,
+        )
+        reception_texts += len(split.reception)
+        discussion_texts += len(split.discussion)
+
+    total_texts = reception_texts + discussion_texts
+    if total_texts <= 0 and on_topic_posts + drift_posts <= 0:
+        empty = (
+            "No citizen posts to classify for topic drift."
+            if locale == "en"
+            else "Inga medborgarinlägg att klassificera för ämnesglidning."
+        )
+        return f"<p>{empty}</p>"
+
+    on_share = reception_texts / total_texts if total_texts else 0.0
+    drift_share = discussion_texts / total_texts if total_texts else 0.0
+
+    if locale == "en":
+        on_name = "On topic"
+        on_sub = f"{reception_texts} posts/comments in reception"
+        drift_name = "Topic drift"
+        drift_sub = f"{drift_posts} drifted posts ({discussion_texts} texts incl. comments)"
+        summary = (
+            f"<p><strong>{drift_posts}</strong> citizen post(s) drifted off the test topic; "
+            f"comments on those posts inherit drift without adding new drift events.</p>"
+            if drift_posts
+            else "<p>All classified citizen posts stayed on the test topic.</p>"
+        )
+    else:
+        on_name = "På ämne"
+        on_sub = f"{reception_texts} inlägg/kommentarer i mottagande"
+        drift_name = "Ämnesglidit"
+        drift_sub = f"{drift_posts} glidna inlägg ({discussion_texts} texter inkl. kommentarer)"
+        summary = (
+            f"<p><strong>{drift_posts}</strong> medborgarinlägg glidit från testämnet; "
+            f"kommentarer på dessa inlägg ärver glidning utan att räknas som nya glidningar.</p>"
+            if drift_posts
+            else "<p>Alla klassade medborgarinlägg höll sig kvar vid testämnet.</p>"
+        )
+
+    race = (
+        f'<div class="topic-race">'
+        f"{_topic_race_row(on_name, on_sub, on_share, color=C_GREEN)}"
+        f"{_topic_race_row(drift_name, drift_sub, drift_share, color=C_ORANGE)}"
+        f"</div>"
+    )
+    return summary + race
+
+
 def render_topic_donut(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -> str:
     m = metrics.aggregate
     ordered = sorted(m.topic_shares.items(), key=lambda x: x[1], reverse=True)
@@ -231,7 +334,13 @@ def render_style_hbars(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -
     )
 
 
-def render_agents_html(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -> str:
+def render_agents_html(
+    metrics: ReportMetrics,
+    *,
+    locale: ReportLocale = "sv",
+    bundles: list[RunBundle] | None = None,
+    classifications: list[BundleClassification] | None = None,
+) -> str:
     if locale == "en":
         role = "Opinion voice"
         likes_l = "likes/post"
@@ -248,6 +357,14 @@ def render_agents_html(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -
     for i, actor in enumerate(metrics.aggregate.top_actors):
         warn = " ag-warn" if i == len(metrics.aggregate.top_actors) - 1 else ""
         quote = escape(str(actor.get("sample") or ""))
+        badge = ""
+        if bundles and classifications and quote:
+            raw = str(actor.get("sample") or "").strip()
+            for bundle, clf in zip(bundles, classifications, strict=True):
+                status = lookup_text_topic_status(bundle, clf.post_topic_status, raw)
+                if status is not None:
+                    badge = topic_status_badge_html(status, locale=locale)
+                    break
         bio = actor.get("bio") if isinstance(actor.get("bio"), dict) else {}
         profile = persona_profile_line(bio, locale=locale) if bio else ""
         label = profile or str(actor.get("name") or "")
@@ -262,7 +379,7 @@ def render_agents_html(metrics: ReportMetrics, *, locale: ReportLocale = "sv") -
             f'<div class="ag-score-l">{total_l}</div></div>'
             f'<div class="ag-score"><div class="ag-score-v">{actor["items"]}</div>'
             f'<div class="ag-score-l">{items_l}</div></div></div>'
-            f'{f"<div class=\"ag-quote\">“{quote}”</div>" if quote else ""}'
+            f'{f"<div class=\"ag-quote\">“{quote}”{badge}</div>" if quote else ""}'
             f"</div>"
         )
     if not cards:
@@ -503,6 +620,8 @@ def render_quick_charts(
     *,
     locale: ReportLocale = "sv",
     ab: bool = False,
+    bundles: list[RunBundle] | None = None,
+    classifications: list[BundleClassification] | None = None,
 ) -> str:
     parts = [
         render_engagement_donut(metrics, locale=locale),
@@ -519,7 +638,14 @@ def render_quick_charts(
             ]
         )
     else:
-        parts.append(render_agents_html(metrics, locale=locale))
+        parts.append(
+            render_agents_html(
+                metrics,
+                locale=locale,
+                bundles=bundles,
+                classifications=classifications,
+            )
+        )
     return f'<div class="chart-grid">{"".join(parts)}</div>'
 
 
@@ -942,8 +1068,14 @@ def _segment_sample_quotes(
         for item in items:
             body = escape(str(item.text))
             meta = item.profile_line or item.agent_name
+            badge = topic_status_badge_html(item.topic_status, locale=locale)
+            meta_bits: list[str] = []
+            if meta:
+                meta_bits.append(escape(meta))
+            if badge:
+                meta_bits.append(badge)
             meta_html = (
-                f'<div class="aud-quote-meta">{escape(meta)}</div>' if meta else ""
+                f'<div class="aud-quote-meta">{"".join(meta_bits)}</div>' if meta_bits else ""
             )
             quotes.append(
                 f'<blockquote class="aud-quote">{meta_html}'
@@ -1213,10 +1345,22 @@ def prefill_quick_chart_slots(
 
     if ab:
         with FootnoteContext(locale) as charts_tracker:
-            charts_html = render_quick_charts(metrics, locale=locale, ab=ab)
+            charts_html = render_quick_charts(
+                metrics,
+                locale=locale,
+                ab=ab,
+                bundles=bundles,
+                classifications=clfs,
+            )
             charts_html += charts_tracker.render_block()
     else:
-        charts_html = render_quick_charts(metrics, locale=locale, ab=ab)
+        charts_html = render_quick_charts(
+            metrics,
+            locale=locale,
+            ab=ab,
+            bundles=bundles,
+            classifications=clfs,
+        )
 
     tick_html = render_tick_timeline(bundles, locale=locale)
 

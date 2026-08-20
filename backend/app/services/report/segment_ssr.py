@@ -5,7 +5,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from app.services.report.bundles import RunBundle
-from app.services.report.classify import BundleClassification, _style_shares_from_pmfs
+from app.services.report.classify import (
+    BundleClassification,
+    _style_shares_from_pmfs,
+    lookup_text_topic_status,
+)
+from app.services.report.sampling import TopicStatus
 from app.services.report.locale import ReportLocale, tone_labels
 from app.services.report.persona_bio import (
     PRIMARY_SEGMENT_KEYS,
@@ -68,6 +73,7 @@ class SegmentSample:
     tone_label: str
     agent_name: str = ""
     profile_line: str = ""
+    topic_status: TopicStatus | None = None
 
 
 @dataclass
@@ -176,12 +182,14 @@ def build_segment_tone_rows(
     by_dim_val_agents: dict[tuple[str, str], set[int]] = {}
     by_dim_val_engagement: dict[tuple[str, str], int] = {}
     by_dim_val_samples: dict[tuple[str, str], list[SegmentSample]] = {}
+    post_topic_status = classification.post_topic_status
 
     for pmf, style_pmf, uid, text in zip(pmfs, style_pmfs, user_ids, texts, strict=True):
         bio = agent_bio.get(uid)
         if not bio:
             continue
         tone_label = _argmax_tone_label(pmf)
+        topic_status = lookup_text_topic_status(bundle, post_topic_status, text)
         for dim in segment_keys:
             val = segment_key_value(bio, dim, locale=locale)
             if not val:
@@ -201,6 +209,7 @@ def build_segment_tone_rows(
                         locale=locale,
                         exclude_dimension=dim,
                     ),
+                    topic_status=topic_status,
                 )
             )
 

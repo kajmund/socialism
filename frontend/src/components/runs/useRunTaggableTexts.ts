@@ -3,6 +3,7 @@ import {
   fetchRunTaggableTexts,
   type RunTaggableTextRow,
   type RunTaggableTextsResponse,
+  type TopicStatus,
 } from "@/api/runs"
 import { useLocale } from "@/i18n"
 import { ApiError } from "@/lib/api"
@@ -58,12 +59,19 @@ export function useRunTaggableTexts(
     }
   }
 
+  const postTopicStatus = data?.post_topic_status ?? {}
+  const byPostId = new Map<number, TopicStatus>(
+    Object.entries(postTopicStatus).map(([id, status]) => [Number(id), status]),
+  )
+
   return {
     loading,
     error,
     data,
     rows,
     byCommentId,
+    byPostId,
+    postTopicStatus,
     context: data?.anchor_context ?? null,
     reload,
   }
