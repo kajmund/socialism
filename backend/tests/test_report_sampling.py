@@ -28,25 +28,33 @@ def _bundle_with_reactions(
     reactions: list[tuple[int, str, int]],
     seed: str = "seed-1",
 ) -> RunBundle:
-    posts: list[dict] = []
+    posts: list[dict] = [
+        {
+            "post_id": 1,
+            "user_id": 0,
+            "content": "Injektionsbudskap om belysning i byarna.",
+            "num_likes": 0,
+        }
+    ]
     comments: list[dict] = []
     agents: list[dict] = [{"index": 0, "member_name": "Parti", "role": "injector"}]
-    for idx, (user_id, text, likes) in enumerate(reactions, start=1):
-        agents.append(
-            {"index": user_id, "member_name": f"Agent {user_id}", "role": "population"}
-        )
+    next_post_id = 10
+    for user_id, text, likes in reactions:
+        if user_id not in {a["index"] for a in agents}:
+            agents.append(
+                {"index": user_id, "member_name": f"Agent {user_id}", "role": "population"}
+            )
         row = {
             "user_id": user_id,
             "content": text,
             "num_likes": likes,
         }
-        if idx % 2 == 0:
-            row["comment_id"] = idx
-            row["post_id"] = 1
-            comments.append(row)
-        else:
-            row["post_id"] = idx
-            posts.append(row)
+        if user_id == 0:
+            continue
+        # Population reactions on the injection are modeled as comments on post 1.
+        row["comment_id"] = len(comments) + 1
+        row["post_id"] = 1
+        comments.append(row)
     return RunBundle(
         label="Test",
         run_id=1,
@@ -58,6 +66,7 @@ def _bundle_with_reactions(
         posts=posts,
         comments=comments,
         variant_id="main",
+        injection_texts=["Injektionsbudskap om belysning i byarna."],
     )
 
 
@@ -185,5 +194,6 @@ async def test_generate_report_writes_sampling_block(tmp_path):
         assert doc["report_thresholds"]["recommendation"]["score_triggers"]["strong_pos"] == 0.45
         html = (tmp_path / "rpt" / "report.html").read_text(encoding="utf-8")
         assert "SSR-sampling" in html or "SSR sampling" in html
+        assert "Direkta reaktioner" in html or "direct reactions" in html.lower()
     finally:
         set_embedder(None)

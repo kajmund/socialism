@@ -36,20 +36,73 @@ def _bundle(
     posts: list[dict] | None = None,
     comments: list[dict] | None = None,
     injection_texts: list[str] | None = None,
-    include_injector: bool = False,
+    include_injector: bool = True,
 ) -> RunBundle:
+    texts = injection_texts or [
+        "Socialdemokraterna vill stoppa nedsläckningen av vägbelysning "
+        "i byar. Belysningen är avgörande för tryggheten."
+    ]
     agent_rows: list[dict] = []
+    bundle_posts: list[dict] = []
     if include_injector:
         agent_rows.append(
             {"index": 0, "member_name": "Partikonto", "role": "injector"}
         )
+        bundle_posts.append(
+            {
+                "post_id": 1,
+                "user_id": 0,
+                "content": texts[0],
+                "num_likes": 4,
+            }
+        )
         start = 1
+        citizen_post_id = 2
     else:
         start = 0
+        citizen_post_id = 1
     for i in range(start, start + agents):
         agent_rows.append(
             {"index": i, "member_name": f"Person {i}", "role": "population"}
         )
+    if posts is None:
+        bundle_posts.extend(
+            [
+                {
+                    "post_id": citizen_post_id,
+                    "user_id": start,
+                    "content": "Belysningen på landsbygden är avgörande för tryggheten.",
+                    "num_likes": 4,
+                },
+                {
+                    "post_id": citizen_post_id + 1,
+                    "user_id": start + 1,
+                    "content": "Enligt rapporten behövs mer data om trygghet.",
+                    "num_likes": 2,
+                },
+            ]
+        )
+    else:
+        bundle_posts = posts
+    if comments is None:
+        bundle_comments = [
+            {
+                "comment_id": 1,
+                "post_id": 1 if include_injector else citizen_post_id,
+                "user_id": start + 2,
+                "content": "Bra förslag, konkret lösning behövs för belysning.",
+                "num_likes": 1,
+            },
+            {
+                "comment_id": 2,
+                "post_id": citizen_post_id + 1,
+                "user_id": start + 3,
+                "content": "Skandal hur dåligt det skötts — rent valfläsk.",
+                "num_likes": 0,
+            },
+        ]
+    else:
+        bundle_comments = comments
     return RunBundle(
         label=label,
         run_id=1,
@@ -58,44 +111,10 @@ def _bundle(
         seed="42",
         engine="oasis",
         agents=agent_rows,
-        posts=posts
-        or [
-            {
-                "post_id": 1,
-                "user_id": start,
-                "content": "Belysningen på landsbygden är avgörande för tryggheten.",
-                "num_likes": 4,
-            },
-            {
-                "post_id": 2,
-                "user_id": start + 1,
-                "content": "Enligt rapporten behövs mer data om trygghet.",
-                "num_likes": 2,
-            },
-        ],
-        comments=comments
-        or [
-            {
-                "comment_id": 1,
-                "post_id": 1,
-                "user_id": start + 2,
-                "content": "Bra förslag, konkret lösning behövs för belysning.",
-                "num_likes": 1,
-            },
-            {
-                "comment_id": 2,
-                "post_id": 2,
-                "user_id": start + 3,
-                "content": "Skandal hur dåligt det skötts — rent valfläsk.",
-                "num_likes": 0,
-            },
-        ],
+        posts=bundle_posts,
+        comments=bundle_comments,
         ticks_run=3,
-        injection_texts=injection_texts
-        or [
-            "Socialdemokraterna vill stoppa nedsläckningen av vägbelysning "
-            "i byar. Belysningen är avgörande för tryggheten."
-        ],
+        injection_texts=texts,
     )
 
 
@@ -203,11 +222,11 @@ def test_population_excludes_injectors():
 
 
 def test_compute_metrics_single_bundle():
-    b = _bundle()
+    b = _bundle(include_injector=True)
     m = compute_report_metrics([b], [_clf_for(b)])
     assert m.n_runs == 1
     assert m.aggregate.agent_count >= 1
-    assert m.aggregate.post_count == 2
+    assert m.aggregate.post_count == 3
     assert "Belysning" in m.aggregate.topic_shares or "Övrigt" in m.aggregate.topic_shares
     assert "Neutral" in m.aggregate.tone_shares
     assert m.tone_mode == "ssr"
