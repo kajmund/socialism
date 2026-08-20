@@ -362,6 +362,7 @@ async def delete_run_result_attempt(
 
 
 def _serialize_persona_message(row: PersonaMessage) -> PersonaMessageOut:
+    asked_by = row.asked_by if row.asked_by in {"doctor", "human"} else None
     return PersonaMessageOut(
         id=row.id,
         mode=row.mode,  # type: ignore[arg-type]
@@ -372,6 +373,7 @@ def _serialize_persona_message(row: PersonaMessage) -> PersonaMessageOut:
         attempt_id=row.attempt_id,
         variant_id=row.variant_id,
         through_tick_index=row.through_tick_index,
+        asked_by=asked_by,  # type: ignore[arg-type]
     )
 
 
@@ -575,6 +577,7 @@ async def run_persona_interview(
         attempt_id=attempt_id,
         variant_id=variant_id,
         through_tick_index=body.through_tick_index,
+        asked_by="human",
     )
     assistant_row = PersonaMessage(
         persona_id=persona_id,

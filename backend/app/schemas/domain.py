@@ -236,6 +236,7 @@ class PersonaGenerateResponse(BaseModel):
 
 ChatMode = Literal["interview", "character"]
 ChatRole = Literal["user", "assistant"]
+InterviewAskedBy = Literal["doctor", "human"]
 
 
 HelpLocale = Literal["sv", "en"]
@@ -357,6 +358,7 @@ class PersonaMessageOut(BaseModel):
     attempt_id: str | None = None
     variant_id: str | None = None
     through_tick_index: int | None = None
+    asked_by: InterviewAskedBy | None = None
 
 
 class FollowUpQuestions(BaseModel):
