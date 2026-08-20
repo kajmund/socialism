@@ -131,6 +131,76 @@ def _keywords_from_text(text: str, *, limit: int = 8) -> list[str]:
     return words
 
 
+_STYLE_CRITICAL = frozenset(
+    {
+        "Sarkastisk + konkret kritik",
+        "Provocerande / konfronterande",
+    }
+)
+_STYLE_RESIGNED = "Uppgiven + vardagsmetafor"
+_STYLE_DOMINANCE_MARGIN = 0.10
+
+
+def dominant_style_label(
+    style_shares: list[tuple[str, float]],
+    *,
+    margin: float = _STYLE_DOMINANCE_MARGIN,
+) -> str:
+    """Highest-share style label when it leads the runner-up by at least ``margin``."""
+    ranked = [
+        (style, share)
+        for style, share in style_shares
+        if style != STYLE_UNCLASSIFIED and share > 0.0
+    ]
+    if not ranked:
+        return ""
+    ranked.sort(key=lambda item: item[1], reverse=True)
+    top_style, top_share = ranked[0]
+    if len(ranked) == 1:
+        return top_style
+    if top_share - ranked[1][1] >= margin:
+        return top_style
+    return ""
+
+
+def honest_negative_tone_phrase(
+    style_shares: list[tuple[str, float]],
+    *,
+    locale: ReportLocale,
+) -> str:
+    """Map negative tone mass to reader-facing wording via dominant style."""
+    dominant = dominant_style_label(style_shares)
+    if dominant in _STYLE_CRITICAL:
+        return "critical" if locale == "en" else "kritisk"
+    if dominant == _STYLE_RESIGNED:
+        return "dissatisfied and resigned" if locale == "en" else "missnöjd/uppgiven"
+    return "negative tone" if locale == "en" else "negativ ton"
+
+
+def _style_shares_from_pmfs(pmfs: list[dict[str, float]]) -> list[tuple[str, float]]:
+    """Share of rated reactions per style label (mean SSR mass, unit weight per text)."""
+    buckets: dict[str, float] = {lab: 0.0 for lab in [*STYLE_LABELS, STYLE_UNCLASSIFIED]}
+    rated = 0
+
+    for pmf in pmfs:
+        rated += 1
+        total = sum(pmf.values()) or 0.0
+        if total <= 0.0:
+            buckets[STYLE_UNCLASSIFIED] += 1.0
+            continue
+        for lab, p in pmf.items():
+            if lab not in buckets:
+                continue
+            buckets[lab] += p / total
+
+    scored = [
+        (style, (buckets[style] / rated) if rated > 0 else 0.0)
+        for style in [*STYLE_LABELS, STYLE_UNCLASSIFIED]
+    ]
+    scored.sort(key=lambda x: x[1], reverse=True)
+    return scored
+
+
 def topic_packs_from_injections(
     injection_texts: list[str],
     *,
@@ -178,30 +248,6 @@ def classify_topics_by_keywords(
                 break
         labels.append(hit)
     return _share_counts(labels, allowed)
-
-
-def _style_shares_from_pmfs(pmfs: list[dict[str, float]]) -> list[tuple[str, float]]:
-    """Share of rated reactions per style label (mean SSR mass, unit weight per text)."""
-    buckets: dict[str, float] = {lab: 0.0 for lab in [*STYLE_LABELS, STYLE_UNCLASSIFIED]}
-    rated = 0
-
-    for pmf in pmfs:
-        rated += 1
-        total = sum(pmf.values()) or 0.0
-        if total <= 0.0:
-            buckets[STYLE_UNCLASSIFIED] += 1.0
-            continue
-        for lab, p in pmf.items():
-            if lab not in buckets:
-                continue
-            buckets[lab] += p / total
-
-    scored = [
-        (style, (buckets[style] / rated) if rated > 0 else 0.0)
-        for style in [*STYLE_LABELS, STYLE_UNCLASSIFIED]
-    ]
-    scored.sort(key=lambda x: x[1], reverse=True)
-    return scored
 
 
 def clip_texts_for_embed(texts: list[str]) -> list[str]:

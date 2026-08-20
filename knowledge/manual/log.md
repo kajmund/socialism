@@ -1,5 +1,9 @@
 # Manual update log
 
+## 2026-08-20
+
+* **Rapporter**: Ton och mottagande bygger på **direkta reaktioner** (kommentarer på injektionsinlägget), inte organisk diskussion mellan medborgare. Ny förklaring högst upp i rapporten. Negativ ton kan beskrivas som missnöjd/uppgiven i stället för kritisk när stilen dominerar.
+
 ## 2026-08-19
 
 * **Rapporter**: Spinndoktor (fas 4-prototyp) — chatt till vänster, panorérbart rutnät med grafer, anteckningar och rapportklipp; referenspanel för HTML-rapporten; SCB och webbsök i chatten.

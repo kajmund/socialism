@@ -22,6 +22,14 @@ class ReactionRow:
 
 
 @dataclass(frozen=True)
+class ReceptionDiscussionSplit:
+    reception: tuple[ReactionRow, ...]
+    discussion: tuple[ReactionRow, ...]
+    injection_post_ids: frozenset[int]
+    discussion_post_ids: frozenset[int]
+
+
+@dataclass(frozen=True)
 class SamplingResult:
     texts: list[str]
     likes: list[int]
@@ -56,26 +64,101 @@ def _user_id(item: dict) -> int:
     return int(raw)
 
 
-def _collect_reactions(bundle: RunBundle) -> list[ReactionRow]:
-    blocked = _injector_user_ids(bundle)
-    rows: list[ReactionRow] = []
+def _post_id(item: dict) -> int | None:
+    raw = item.get("post_id")
+    if raw is None:
+        return None
+    return int(raw)
+
+
+def _reaction_row(item: dict) -> ReactionRow | None:
+    text = str(item.get("content") or item.get("text") or "").strip()
+    if not text:
+        return None
+    return ReactionRow(text=text, likes=_item_likes(item), user_id=_user_id(item))
+
+
+def injection_post_ids(bundle: RunBundle) -> frozenset[int]:
+    """Posts authored by injectors plus repost/quote posts targeting them."""
+    injectors = _injector_user_ids(bundle)
+    ids: set[int] = set()
     for post in bundle.posts:
-        text = str(post.get("content") or post.get("text") or "").strip()
-        if not text:
+        post_id = _post_id(post)
+        if post_id is None:
             continue
-        user_id = _user_id(post)
-        if user_id in blocked:
+        if _user_id(post) in injectors:
+            ids.add(post_id)
+    for post in bundle.posts:
+        post_id = _post_id(post)
+        original_id = post.get("original_post_id")
+        if post_id is None or original_id is None:
             continue
-        rows.append(ReactionRow(text=text, likes=_item_likes(post), user_id=user_id))
+        if int(original_id) in ids:
+            ids.add(post_id)
+    return frozenset(ids)
+
+
+def discussion_post_ids(bundle: RunBundle) -> frozenset[int]:
+    """Citizen-authored posts that are not reposts/quotes of injection posts."""
+    injectors = _injector_user_ids(bundle)
+    injection_ids = injection_post_ids(bundle)
+    ids: set[int] = set()
+    for post in bundle.posts:
+        post_id = _post_id(post)
+        if post_id is None:
+            continue
+        if _user_id(post) in injectors:
+            continue
+        original_id = post.get("original_post_id")
+        if original_id is not None and int(original_id) in injection_ids:
+            continue
+        ids.add(post_id)
+    return frozenset(ids)
+
+
+def reception_vs_discussion_rows(bundle: RunBundle) -> ReceptionDiscussionSplit:
+    """Split eligible reactions into direct message reception vs citizen discussion."""
+    blocked = _injector_user_ids(bundle)
+    injection_ids = injection_post_ids(bundle)
+    discussion_ids = discussion_post_ids(bundle)
+    reception: list[ReactionRow] = []
+    discussion: list[ReactionRow] = []
+
+    for post in bundle.posts:
+        if _user_id(post) in blocked:
+            continue
+        post_id = _post_id(post)
+        if post_id is None or post_id not in discussion_ids:
+            continue
+        row = _reaction_row(post)
+        if row is not None:
+            discussion.append(row)
+
     for comment in bundle.comments:
-        text = str(comment.get("content") or comment.get("text") or "").strip()
-        if not text:
+        if _user_id(comment) in blocked:
             continue
-        user_id = _user_id(comment)
-        if user_id in blocked:
+        parent_id = _post_id(comment)
+        if parent_id is None:
             continue
-        rows.append(ReactionRow(text=text, likes=_item_likes(comment), user_id=user_id))
-    return rows
+        row = _reaction_row(comment)
+        if row is None:
+            continue
+        if parent_id in injection_ids:
+            reception.append(row)
+        elif parent_id in discussion_ids:
+            discussion.append(row)
+
+    return ReceptionDiscussionSplit(
+        reception=tuple(reception),
+        discussion=tuple(discussion),
+        injection_post_ids=injection_ids,
+        discussion_post_ids=discussion_ids,
+    )
+
+
+def _collect_reactions(bundle: RunBundle) -> list[ReactionRow]:
+    split = reception_vs_discussion_rows(bundle)
+    return list(split.reception) + list(split.discussion)
 
 
 def sampling_seed(bundle: RunBundle) -> str:
@@ -114,19 +197,31 @@ def _cap_round_robin(
     return selected
 
 
+def _sampling_scope_meta(split: ReceptionDiscussionSplit) -> dict[str, Any]:
+    return {
+        "reception_eligible_count": len(split.reception),
+        "discussion_eligible_count": len(split.discussion),
+        "injection_post_count": len(split.injection_post_ids),
+        "discussion_post_count": len(split.discussion_post_ids),
+    }
+
+
 def collect_all_reactions_for_ssr(bundle: RunBundle) -> SamplingResult:
-    """Return every eligible reaction text (no stratified cap)."""
-    rows = _collect_reactions(bundle)
+    """Return every eligible reception reaction text (no stratified cap)."""
+    split = reception_vs_discussion_rows(bundle)
+    rows = list(split.reception)
     agent_count = len({row.user_id for row in rows})
     meta = {
         "method": "all",
         "version": SAMPLING_VERSION,
+        "scope": "reception",
         "max_texts": None,
         "max_per_agent": None,
         "seed": None,
         "eligible_count": len(rows),
         "selected_count": len(rows),
         "agent_count": agent_count,
+        **_sampling_scope_meta(split),
     }
     return SamplingResult(
         texts=[row.text for row in rows],
@@ -143,8 +238,9 @@ def sample_reactions_for_ssr(
     max_per_agent: int = MAX_TEXTS_PER_AGENT,
     seed: str | None = None,
 ) -> SamplingResult:
-    """Pick reaction texts stratified by agent (seeded), capped for embed cost."""
-    rows = _collect_reactions(bundle)
+    """Pick reception reaction texts stratified by agent (seeded), capped for embed cost."""
+    split = reception_vs_discussion_rows(bundle)
+    rows = list(split.reception)
     eligible_count = len(rows)
     seed_text = seed if seed is not None else sampling_seed(bundle)
     rng = random.Random(seed_text)
@@ -165,12 +261,14 @@ def sample_reactions_for_ssr(
     meta = {
         "method": SAMPLING_METHOD,
         "version": SAMPLING_VERSION,
+        "scope": "reception",
         "max_texts": limit,
         "max_per_agent": max_per_agent,
         "seed": seed_text,
         "eligible_count": eligible_count,
         "selected_count": len(selected),
         "agent_count": agent_count,
+        **_sampling_scope_meta(split),
     }
     return SamplingResult(
         texts=[row.text for row in selected],

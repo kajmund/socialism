@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from app.services.report.bundles import RunBundle
-from app.services.report.classify import BundleClassification
+from app.services.report.classify import BundleClassification, _style_shares_from_pmfs
 from app.services.report.locale import ReportLocale, tone_labels
 from app.services.report.persona_bio import (
     PRIMARY_SEGMENT_KEYS,
@@ -82,6 +82,7 @@ class SegmentToneRow:
     too_few: bool
     agent_ids: frozenset[int] = frozenset()
     tone_shares: dict[str, float] = field(default_factory=dict)
+    style_shares: list[tuple[str, float]] = field(default_factory=list)
     post_count: int = 0
     comment_count: int = 0
     likes_total: int = 0
@@ -160,19 +161,23 @@ def build_segment_tone_rows(
     agent_names = _agent_name_by_index(bundle)
     # Prefer full sample_texts for quotes; tone_rated_texts may be clipped for embedding.
     pmfs = classification.tone_pmfs
+    style_pmfs = classification.style_pmfs
     user_ids = classification.sample_user_ids
     texts = classification.sample_texts
     if len(texts) != len(pmfs) or len(texts) != len(user_ids):
         texts = classification.tone_rated_texts
+    if len(style_pmfs) != len(pmfs):
+        style_pmfs = [dict() for _ in pmfs]
     if len(texts) != len(pmfs) or len(texts) != len(user_ids):
         return []
 
     by_dim_val_pmfs: dict[tuple[str, str], list[dict[str, float]]] = {}
+    by_dim_val_style_pmfs: dict[tuple[str, str], list[dict[str, float]]] = {}
     by_dim_val_agents: dict[tuple[str, str], set[int]] = {}
     by_dim_val_engagement: dict[tuple[str, str], int] = {}
     by_dim_val_samples: dict[tuple[str, str], list[SegmentSample]] = {}
 
-    for pmf, uid, text in zip(pmfs, user_ids, texts, strict=True):
+    for pmf, style_pmf, uid, text in zip(pmfs, style_pmfs, user_ids, texts, strict=True):
         bio = agent_bio.get(uid)
         if not bio:
             continue
@@ -183,6 +188,7 @@ def build_segment_tone_rows(
                 continue
             key = (dim, val)
             by_dim_val_pmfs.setdefault(key, []).append(pmf)
+            by_dim_val_style_pmfs.setdefault(key, []).append(style_pmf)
             by_dim_val_agents.setdefault(key, set()).add(uid)
             by_dim_val_samples.setdefault(key, []).append(
                 SegmentSample(
@@ -212,6 +218,7 @@ def build_segment_tone_rows(
     for (dim, val), seg_pmfs in sorted(by_dim_val_pmfs.items()):
         count = len(seg_pmfs)
         tone = _mean_pmf_dicts(seg_pmfs, labels)
+        style = _style_shares_from_pmfs(by_dim_val_style_pmfs.get((dim, val), []))
         agents = frozenset(by_dim_val_agents.get((dim, val), set()))
         post_n, comment_n, likes_n, shares_n = _activity_for_agents(bundle, agents)
         samples = list(by_dim_val_samples.get((dim, val), []))
@@ -227,6 +234,7 @@ def build_segment_tone_rows(
                 too_few=count < MIN_SEGMENT_TEXTS,
                 agent_ids=agents,
                 tone_shares=tone,
+                style_shares=style,
                 post_count=post_n,
                 comment_count=comment_n,
                 likes_total=likes_n,
