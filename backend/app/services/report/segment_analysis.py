@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass, field
 
 from app.services.report.bundles import RunBundle
-from app.services.report.classify import BundleClassification, _keywords_from_text
+from app.services.report.classify import BundleClassification, _keywords_from_text, honest_negative_tone_phrase
 from app.services.report.locale import ReportLocale
 from app.services.report.metrics import pct
 from app.services.report.thresholds import default_report_thresholds
@@ -226,9 +226,21 @@ def build_segment_narrative(
                     f"In simulation this group was mostly positive ({pos} positive tone, {crit} critical)."
                 )
             elif tone.critical_share >= 0.45:
-                parts.append(
-                    f"This group was critical ({crit} critical tone, {pos} positive)."
-                )
+                neg_label = honest_negative_tone_phrase(tone.style_shares, locale=locale)
+                if neg_label in ("critical", "kritisk"):
+                    parts.append(
+                        f"This group was critical ({crit} critical tone, {pos} positive)."
+                    )
+                elif neg_label in ("dissatisfied and resigned", "missnöjd/uppgiven"):
+                    parts.append(
+                        f"This group was dissatisfied and resigned "
+                        f"({crit} negative tone, {pos} positive)."
+                    )
+                else:
+                    parts.append(
+                        f"This group had predominantly negative tone "
+                        f"({crit} negative tone, {pos} positive)."
+                    )
             else:
                 parts.append(
                     f"Reception was mixed ({pos} positive, {crit} critical tone in posts and comments)."
@@ -245,9 +257,20 @@ def build_segment_narrative(
                     f"({pos} positiv ton, {crit} kritisk)."
                 )
             elif tone.critical_share >= 0.45:
-                parts.append(
-                    f"Gruppen var kritisk ({crit} kritisk ton, {pos} positiv)."
-                )
+                neg_label = honest_negative_tone_phrase(tone.style_shares, locale=locale)
+                if neg_label == "kritisk":
+                    parts.append(
+                        f"Gruppen var kritisk ({crit} kritisk ton, {pos} positiv)."
+                    )
+                elif neg_label == "missnöjd/uppgiven":
+                    parts.append(
+                        f"Gruppen var missnöjd/uppgiven ({crit} negativ ton, {pos} positiv)."
+                    )
+                else:
+                    parts.append(
+                        f"Gruppen hade övervägande negativ ton "
+                        f"({crit} negativ ton, {pos} positiv)."
+                    )
             else:
                 parts.append(
                     f"Mottagandet var blandat ({pos} positiv, {crit} kritisk ton "
