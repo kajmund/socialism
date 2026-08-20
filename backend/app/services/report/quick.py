@@ -9,7 +9,7 @@ from typing import Any, Literal
 from app.config import settings
 from app.services.report.bundles import RunBundle, is_ab_comparison
 from app.services.report.charts import prefill_quick_chart_slots
-from app.services.report.classify import BundleClassification
+from app.services.report.classify import BundleClassification, honest_negative_tone_phrase
 from app.services.report.locale import ReportLocale, display_style_label
 from app.services.report.metrics import ReportMetrics, injection_likes, pct, tone_shares_sorted
 from app.services.report.recommendation import build_recommendation, _short_arm_label
@@ -79,24 +79,76 @@ def _sampling_tech_line(
 ) -> str:
     meta = classification.sampling or {}
     selected = int(meta.get("selected_count") or len(classification.sample_texts))
-    eligible = int(meta.get("eligible_count") or (len(bundle.posts) + len(bundle.comments)))
+    eligible = int(meta.get("eligible_count") or meta.get("reception_eligible_count") or 0)
+    discussion = int(meta.get("discussion_eligible_count") or 0)
     agents = int(meta.get("agent_count") or 0)
     max_per_agent = int(meta.get("max_per_agent") or 2)
-    # "agents" here is the subset that reacted, not the population — say so, since
-    # the engagement chart on the same page counts every citizen.
+    # "agents" here is the subset that reacted on the injection, not the population.
     if locale == "en":
         detail = (
-            f"{escape(bundle.label)}: {selected} texts stratified per agent "
-            f"(max {max_per_agent}/agent) from {eligible} reactions "
-            f"across {agents} agents that reacted"
+            f"{escape(bundle.label)} — reception: {selected} texts stratified per agent "
+            f"(max {max_per_agent}/agent) from {eligible} direct reactions "
+            f"across {agents} agents; discussion (not tone-rated): {discussion} texts"
         )
     else:
         detail = (
-            f"{escape(bundle.label)}: {selected} texter stratifierat per agent "
-            f"(max {max_per_agent}/agent) ur {eligible} reaktioner "
-            f"från {agents} agenter som reagerade"
+            f"{escape(bundle.label)} — mottagande: {selected} texter stratifierat per agent "
+            f"(max {max_per_agent}/agent) ur {eligible} direkta reaktioner "
+            f"från {agents} agenter; diskussion (ej tonklassad): {discussion} texter"
         )
     return f"<li>{detail}</li>"
+
+
+def _reception_scope_html(
+    bundles: list[RunBundle],
+    classifications: list[BundleClassification],
+    *,
+    locale: ReportLocale,
+) -> str:
+    if locale == "en":
+        title = "What the tone numbers measure"
+        intro = (
+            "Tone and style percentages below come from "
+            "<strong>direct reactions to the test message</strong> "
+            "(comments on the injected post). "
+            "Organic discussion between citizens is shown separately and does not "
+            "affect the reception verdict."
+        )
+        rec_heading = "Direct reactions to the message"
+        disc_heading = "Discussion between citizens"
+    else:
+        title = "Vad ton-siffrorna mäter"
+        intro = (
+            "Ton- och stilandelar nedan bygger på "
+            "<strong>direkta reaktioner på testbudskapet</strong> "
+            "(kommentarer på injektionsinlägget). "
+            "Organisk diskussion mellan medborgare visas separat och påverkar inte "
+            "mottagande-verdikten."
+        )
+        rec_heading = "Direkta reaktioner på budskapet"
+        disc_heading = "Diskussion medborgare emellan"
+
+    rows: list[str] = []
+    for bundle, clf in zip(bundles, classifications, strict=True):
+        meta = clf.sampling or {}
+        reception = int(meta.get("reception_eligible_count") or meta.get("eligible_count") or 0)
+        discussion = int(meta.get("discussion_eligible_count") or 0)
+        sampled = int(meta.get("selected_count") or len(clf.sample_texts))
+        rows.append(
+            f"<li><strong>{escape(bundle.label)}</strong> — "
+            f"{escape(rec_heading)}: {sampled} SSR-rated of {reception}; "
+            f"{escape(disc_heading)}: {discussion} texts (engagement only)</li>"
+            if locale == "en"
+            else f"<li><strong>{escape(bundle.label)}</strong> — "
+            f"{escape(rec_heading)}: {sampled} SSR-klassade av {reception}; "
+            f"{escape(disc_heading)}: {discussion} texter (endast engagemang)</li>"
+        )
+    return (
+        f'<div class="reception-scope" role="note">'
+        f"<p><strong>{escape(title)}</strong> — {intro}</p>"
+        f"<ul>{''.join(rows)}</ul>"
+        f"</div>"
+    )
 
 
 def build_anchor_validation_html(
@@ -219,6 +271,7 @@ def decide_verdict(
     tone = metrics.aggregate.tone_shares
     pos = _positive_share(tone, locale=locale)
     crit = _critical_share(tone, locale=locale)
+    neg_label = honest_negative_tone_phrase(metrics.aggregate.style_shares, locale=locale)
     inj_likes = sum(_injection_likes(b) for b in bundles)
 
     if locale == "en":
@@ -256,15 +309,15 @@ def decide_verdict(
             return QuickVerdict(
                 key="weak",
                 label="Weak reception",
-                detail=f"Positive {pct(pos)} and critical {pct(crit)} (≥ {pct(v.crit_weak)}).",
+                detail=f"Positive {pct(pos)} and {neg_label} {pct(crit)} (≥ {pct(v.crit_weak)}).",
                 positive_share=pos,
                 critical_share=crit,
-                threshold_note=f"Positive < {pct(v.pos_mixed)} and critical ≥ {pct(v.crit_weak)}.",
+                threshold_note=f"Positive < {pct(v.pos_mixed)} and {neg_label} ≥ {pct(v.crit_weak)}.",
             )
         return QuickVerdict(
             key="mixed",
             label="Mixed reception",
-            detail=f"Positive {pct(pos)}, critical {pct(crit)} — no strong band triggered.",
+            detail=f"Positive {pct(pos)}, {neg_label} {pct(crit)} — no strong band triggered.",
             positive_share=pos,
             critical_share=crit,
             threshold_note="Default mixed when no strong/weak band matched.",
@@ -304,15 +357,15 @@ def decide_verdict(
         return QuickVerdict(
             key="weak",
             label="Svagt mottagande",
-            detail=f"Positiv {pct(pos)} och kritisk {pct(crit)} (≥ {pct(v.crit_weak)}).",
+            detail=f"Positiv {pct(pos)} och {neg_label} {pct(crit)} (≥ {pct(v.crit_weak)}).",
             positive_share=pos,
             critical_share=crit,
-            threshold_note=f"Positiv < {pct(v.pos_mixed)} och kritisk ≥ {pct(v.crit_weak)}.",
+            threshold_note=f"Positiv < {pct(v.pos_mixed)} och {neg_label} ≥ {pct(v.crit_weak)}.",
         )
     return QuickVerdict(
         key="mixed",
         label="Blandat mottagande",
-        detail=f"Positiv {pct(pos)}, kritisk {pct(crit)} — inget starkt band triggades.",
+        detail=f"Positiv {pct(pos)}, {neg_label} {pct(crit)} — inget starkt band triggades.",
         positive_share=pos,
         critical_share=crit,
         threshold_note="Standard blandat när varken starkt eller svagt band matchade.",
@@ -486,6 +539,7 @@ def build_quick_slots(
 
     ab_html = _ab_diff_html(metrics, locale=locale, thresholds=t) if ab else ""
     style_html = _style_html(metrics, locale=locale, thresholds=t)
+    reception_scope_html = _reception_scope_html(bundles, classifications, locale=locale)
     audience = [
         seg
         for b, c in zip(bundles, classifications, strict=True)
@@ -529,8 +583,13 @@ def build_quick_slots(
         f"<h4>{'Per run sample sizes' if locale == 'en' else 'Sampelstorlek per körning'}</h4>"
         "<ul>"
         + "".join(
-            f"<li>{escape(b.label)}: n={len(c.sample_texts)}, "
-            f"posts={len(b.posts)}, comments={len(b.comments)}</li>"
+            (
+                f"<li>{escape(b.label)}: reception n={len(c.sample_texts)} "
+                f"(eligible {int((c.sampling or {}).get('reception_eligible_count') or len(c.sample_texts))}), "
+                f"discussion eligible="
+                f"{int((c.sampling or {}).get('discussion_eligible_count') or 0)}; "
+                f"posts={len(b.posts)}, comments={len(b.comments)}</li>"
+            )
             for b, c in zip(bundles, classifications, strict=True)
         )
         + "</ul></details>"
@@ -540,6 +599,7 @@ def build_quick_slots(
         "page_title": page_title,
         "eyebrow": eyebrow,
         "validation_html": build_anchor_validation_html(anchor_validation, locale=locale),
+        "reception_scope_html": reception_scope_html,
         "drift_html": drift_html,
         "ab_html": ab_html or (
             f"<p>{'Single run — no A/B comparison.' if locale == 'en' else 'En körning — ingen A/B-jämförelse.'}</p>"
@@ -597,6 +657,7 @@ def render_quick_html(slots: dict[str, str], *, locale: ReportLocale) -> str:
   <div class="eyebrow">{escape(slots.get("eyebrow", ""))}</div>
   <h1>{escape(slots.get("page_title", ""))}</h1>
   {slots.get("validation_html", "")}
+  {slots.get("reception_scope_html", "")}
   {slots.get("recommendation_html", "")}
   <section>
     <h3>{h_stats}</h3>
