@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 from app.services.report.bundles import RunBundle
+
+TopicStatus = Literal["on_topic", "drifted"]
 
 MAX_CLASSIFY_TEXTS = 16
 MAX_TEXTS_PER_AGENT = 2
@@ -27,6 +29,7 @@ class ReceptionDiscussionSplit:
     discussion: tuple[ReactionRow, ...]
     injection_post_ids: frozenset[int]
     discussion_post_ids: frozenset[int]
+    post_topic_status: dict[int, TopicStatus]
 
 
 @dataclass(frozen=True)
@@ -116,10 +119,31 @@ def discussion_post_ids(bundle: RunBundle) -> frozenset[int]:
     return frozenset(ids)
 
 
-def reception_vs_discussion_rows(bundle: RunBundle) -> ReceptionDiscussionSplit:
-    """Split eligible reactions into direct message reception vs citizen discussion."""
-    blocked = _injector_user_ids(bundle)
+def _comment_topic_status(
+    parent_id: int,
+    post_topic_status: dict[int, TopicStatus],
+    injection_ids: frozenset[int],
+) -> TopicStatus | None:
+    if parent_id in injection_ids:
+        return "on_topic"
+    return post_topic_status.get(parent_id)
+
+
+def reception_vs_discussion_rows(
+    bundle: RunBundle,
+    *,
+    post_topic_status: dict[int, TopicStatus] | None = None,
+    locale: str = "sv",
+) -> ReceptionDiscussionSplit:
+    """Split reactions by per-post topic status (comments inherit parent post)."""
     injection_ids = injection_post_ids(bundle)
+    if post_topic_status is None:
+        from app.services.report.classify import classify_post_topics, topic_packs_from_injections
+
+        packs = topic_packs_from_injections(bundle.injection_texts, locale=locale)  # type: ignore[arg-type]
+        post_topic_status = classify_post_topics(bundle, packs, locale=locale)  # type: ignore[arg-type]
+
+    blocked = _injector_user_ids(bundle)
     discussion_ids = discussion_post_ids(bundle)
     reception: list[ReactionRow] = []
     discussion: list[ReactionRow] = []
@@ -128,10 +152,14 @@ def reception_vs_discussion_rows(bundle: RunBundle) -> ReceptionDiscussionSplit:
         if _user_id(post) in blocked:
             continue
         post_id = _post_id(post)
-        if post_id is None or post_id not in discussion_ids:
+        if post_id is None or post_id not in post_topic_status:
             continue
         row = _reaction_row(post)
-        if row is not None:
+        if row is None:
+            continue
+        if post_topic_status[post_id] == "on_topic":
+            reception.append(row)
+        else:
             discussion.append(row)
 
     for comment in bundle.comments:
@@ -143,9 +171,12 @@ def reception_vs_discussion_rows(bundle: RunBundle) -> ReceptionDiscussionSplit:
         row = _reaction_row(comment)
         if row is None:
             continue
-        if parent_id in injection_ids:
+        status = _comment_topic_status(parent_id, post_topic_status, injection_ids)
+        if status is None:
+            continue
+        if status == "on_topic":
             reception.append(row)
-        elif parent_id in discussion_ids:
+        else:
             discussion.append(row)
 
     return ReceptionDiscussionSplit(
@@ -153,6 +184,7 @@ def reception_vs_discussion_rows(bundle: RunBundle) -> ReceptionDiscussionSplit:
         discussion=tuple(discussion),
         injection_post_ids=injection_ids,
         discussion_post_ids=discussion_ids,
+        post_topic_status=dict(post_topic_status),
     )
 
 
@@ -206,9 +238,18 @@ def _sampling_scope_meta(split: ReceptionDiscussionSplit) -> dict[str, Any]:
     }
 
 
-def collect_all_reactions_for_ssr(bundle: RunBundle) -> SamplingResult:
+def collect_all_reactions_for_ssr(
+    bundle: RunBundle,
+    *,
+    post_topic_status: dict[int, TopicStatus] | None = None,
+    locale: str = "sv",
+) -> SamplingResult:
     """Return every eligible reception reaction text (no stratified cap)."""
-    split = reception_vs_discussion_rows(bundle)
+    split = reception_vs_discussion_rows(
+        bundle,
+        post_topic_status=post_topic_status,
+        locale=locale,
+    )
     rows = list(split.reception)
     agent_count = len({row.user_id for row in rows})
     meta = {
@@ -237,9 +278,15 @@ def sample_reactions_for_ssr(
     limit: int = MAX_CLASSIFY_TEXTS,
     max_per_agent: int = MAX_TEXTS_PER_AGENT,
     seed: str | None = None,
+    post_topic_status: dict[int, TopicStatus] | None = None,
+    locale: str = "sv",
 ) -> SamplingResult:
     """Pick reception reaction texts stratified by agent (seeded), capped for embed cost."""
-    split = reception_vs_discussion_rows(bundle)
+    split = reception_vs_discussion_rows(
+        bundle,
+        post_topic_status=post_topic_status,
+        locale=locale,
+    )
     rows = list(split.reception)
     eligible_count = len(rows)
     seed_text = seed if seed is not None else sampling_seed(bundle)

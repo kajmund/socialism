@@ -2,7 +2,9 @@
 
 ## 2026-08-20
 
-* **Rapporter**: Ton och mottagande bygger på **direkta reaktioner** (kommentarer på injektionsinlägget), inte organisk diskussion mellan medborgare. Ny förklaring högst upp i rapporten. Negativ ton kan beskrivas som missnöjd/uppgiven i stället för kritisk när stilen dominerar.
+* **Rapporter / Flöde (Fas 1b)**: **Ämnesstatus per inlägg** — medborgarinlägg klassas som *på ämne* eller *ämnesglidit* utifrån testbudskapets nyckelord; kommentarer ärver föräldra-inläggets status. Ton/stil bygger på alla reaktioner *på ämne* (inkl. egna inlägg om budskapet, inte bara kommentarer på injektionen). Rapportavsnittet **Ämnesdrift** visar staplar från verkliga per-inlägg-räkningar; citat har tagg *På ämne* / *Ämnesglidit*. I **Flöde** syns samma status som kantmarkering och pill i klassificeringspanelen.
+
+* **Rapporter**: Ton och mottagande bygger på **reaktioner på ämne** (kommentarer på injektionen, på-ämne medborgarinlägg och svar i sådana trådar), inte ämnesglidit. Ny förklaring högst upp i rapporten. Negativ ton kan beskrivas som missnöjd/uppgiven i stället för kritisk när stilen dominerar.
 
 ## 2026-08-19
 

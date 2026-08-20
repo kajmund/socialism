@@ -54,7 +54,19 @@ async def _seed_run_with_reactions(client) -> tuple[int, str]:
             json={
                 "name": "Playgroundrun",
                 "population_id": pop["id"],
-                "main_ticks": [],
+                "main_ticks": [
+                    {
+                        "key": "t1",
+                        "day": 1,
+                        "injections": [
+                            {
+                                "key": "inj1",
+                                "type": "party_post",
+                                "text": "Äldreomsorg och hemtjänst behöver mer resurser.",
+                            }
+                        ],
+                    }
+                ],
             },
         )
     ).json()
@@ -90,17 +102,23 @@ async def _seed_run_with_reactions(client) -> tuple[int, str]:
                             "posts": [
                                 {
                                     "post_id": 1,
+                                    "user_id": 0,
+                                    "content": "Äldreomsorg och hemtjänst behöver mer resurser.",
+                                    "num_likes": 5,
+                                },
+                                {
+                                    "post_id": 2,
                                     "user_id": 1,
-                                    "content": "Äldreomsorg och hemtjänst.",
+                                    "content": "Äldreomsorgen måste bli bättre i kommunen.",
                                     "num_likes": 3,
-                                }
+                                },
                             ],
                             "comments": [
                                 {
                                     "comment_id": 1,
                                     "post_id": 1,
                                     "user_id": 2,
-                                    "content": "Bra förslag om trafik och a-traktor.",
+                                    "content": "Bra förslag om äldreomsorg.",
                                     "num_likes": 1,
                                 }
                             ],

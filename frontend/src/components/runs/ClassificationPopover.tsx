@@ -42,6 +42,12 @@ export function ClassificationPopover({
 
   const canFlagTone = Boolean(row.tone_predicted)
   const canFlagStyle = Boolean(row.style_predicted)
+  const topicLabel =
+    row.topic_status === "on_topic"
+      ? t("runs.results.anchorPool.topicOnTopic")
+      : row.topic_status === "drifted"
+        ? t("runs.results.anchorPool.topicDrifted")
+        : null
   const availableKinds: FlagKind[] = [
     ...(canFlagTone ? (["tone"] as const) : []),
     ...(canFlagStyle ? (["style"] as const) : []),
@@ -136,6 +142,18 @@ export function ClassificationPopover({
             {t("runs.results.anchorPool.systemClassification")}
           </div>
           <div className="class-pop-pills">
+            {topicLabel ? (
+              <span
+                className={
+                  row.topic_status === "drifted"
+                    ? "class-pop-topic class-pop-topic-drift"
+                    : "class-pop-topic class-pop-topic-on"
+                }
+                title={t("runs.results.anchorPool.classTopicTitle")}
+              >
+                {topicLabel}
+              </span>
+            ) : null}
             {row.tone_predicted ? (
               <span title={t("runs.results.anchorPool.classToneTitle")}>
                 {row.tone_predicted}

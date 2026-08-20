@@ -824,6 +824,7 @@ class RunTaggableTextRowOut(BaseModel):
     style_predicted: str | None = None
     tone_pmf: dict[str, float] | None = None
     style_pmf: dict[str, float] | None = None
+    topic_status: Literal["on_topic", "drifted"] | None = None
 
 
 class RunTaggableTextsOut(BaseModel):
@@ -833,6 +834,7 @@ class RunTaggableTextsOut(BaseModel):
     anchor_context: dict[str, Any]
     rows: list[RunTaggableTextRowOut]
     include_ssr: bool = False
+    post_topic_status: dict[int, Literal["on_topic", "drifted"]] = Field(default_factory=dict)
 
 
 MisclassificationKind = Literal["tone", "style"]

@@ -84,27 +84,34 @@ def _bundle(
     )
 
 
-def test_reception_vs_discussion_rows_splits_comments_by_parent_post():
+def test_reception_vs_discussion_rows_splits_by_topic_status():
+    from app.services.report.classify import classify_post_topics, topic_packs_from_injections
+
     bundle = _bundle()
-    split = reception_vs_discussion_rows(bundle)
+    packs = topic_packs_from_injections(bundle.injection_texts)
+    post_status = classify_post_topics(bundle, packs)
+    split = reception_vs_discussion_rows(bundle, post_topic_status=post_status)
     assert split.injection_post_ids == frozenset({1})
-    assert len(split.reception) == 1
-    assert split.reception[0].text.startswith("Bra förslag")
-    assert len(split.discussion) == 2
-    discussion_texts = {row.text for row in split.discussion}
-    assert bundle.posts[1]["content"] in discussion_texts
-    assert any("finansieringen saknas" in text for text in discussion_texts)
+    assert len(split.reception) == 3
+    reception_texts = {row.text for row in split.reception}
+    assert any("Bra förslag" in text for text in reception_texts)
+    assert bundle.posts[1]["content"] in reception_texts
+    assert len(split.discussion) == 0
 
 
-def test_defense_on_citizen_post_is_discussion_not_reception():
+def test_defense_on_citizen_post_is_reception_when_post_on_topic():
+    from app.services.report.classify import classify_post_topics, topic_packs_from_injections
+
     bundle = _bundle(
         reception_comment=None,
         discussion_comment="Jag håller faktiskt med partiet — bra förslag.",
     )
-    split = reception_vs_discussion_rows(bundle)
-    assert split.reception == ()
-    assert len(split.discussion) == 2
-    assert any("med partiet" in row.text for row in split.discussion)
+    packs = topic_packs_from_injections(bundle.injection_texts)
+    post_status = classify_post_topics(bundle, packs)
+    split = reception_vs_discussion_rows(bundle, post_topic_status=post_status)
+    assert len(split.reception) == 2
+    assert any("med partiet" in row.text for row in split.reception)
+    assert split.discussion == ()
 
 
 def test_repost_of_injection_is_in_injection_post_ids():
@@ -124,24 +131,35 @@ def test_repost_of_injection_is_in_injection_post_ids():
 
 
 def test_sample_reactions_for_ssr_uses_reception_only():
+    from app.services.report.classify import classify_post_topics, topic_packs_from_injections
+
     bundle = _bundle()
-    result = sample_reactions_for_ssr(bundle)
-    assert result.texts == ["Bra förslag, konkret lösning behövs."]
+    packs = topic_packs_from_injections(bundle.injection_texts)
+    post_status = classify_post_topics(bundle, packs)
+    result = sample_reactions_for_ssr(bundle, post_topic_status=post_status)
+    assert len(result.texts) == 3
     assert result.meta["scope"] == "reception"
-    assert result.meta["reception_eligible_count"] == 1
-    assert result.meta["discussion_eligible_count"] == 2
+    assert result.meta["reception_eligible_count"] == 3
+    assert result.meta["discussion_eligible_count"] == 0
 
 
 def test_collect_reactions_merges_reception_and_discussion():
+    from app.services.report.classify import classify_post_topics, topic_packs_from_injections
     from app.services.report.sampling import _collect_reactions
 
-    bundle = _bundle()
-    split = reception_vs_discussion_rows(bundle)
+    bundle = _bundle(
+        reception_comment=None,
+        citizen_post_text="Helt unrelated väderprat idag.",
+        discussion_comment="Ja det regnar verkligen.",
+    )
+    packs = topic_packs_from_injections(bundle.injection_texts)
+    post_status = classify_post_topics(bundle, packs)
+    split = reception_vs_discussion_rows(bundle, post_topic_status=post_status)
     combined = _collect_reactions(bundle)
     assert len(combined) == len(split.reception) + len(split.discussion)
+    assert len(split.discussion) >= 1
     combined_texts = {row.text for row in combined}
-    assert split.reception[0].text in combined_texts
-    assert any(row.text == split.discussion[0].text for row in split.discussion)
+    assert split.discussion[0].text in combined_texts
 
 
 def test_engagement_and_opinion_leaders_use_full_bundle_not_ssr_reception():
