@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import HelpMessage
 from app.llm import complete_with_tools, stream_text
+from app.llm.tool_messages import assistant_message_dict, tool_result_message
 from app.schemas.domain import HelpChatResponse, HelpMessageOut, HelpViewContext
 from app.serializers import format_date
 from app.services.feedback_tools import help_feedback_tool_specs, run_feedback_tool
@@ -122,27 +123,6 @@ def _history_rows(rows: list[HelpMessage]) -> list[dict[str, str]]:
     return [{"role": row.role, "content": row.content} for row in rows]
 
 
-def _assistant_message_dict(message: object) -> dict[str, object]:
-    tool_calls = getattr(message, "tool_calls", None)
-    payload: dict[str, object] = {
-        "role": "assistant",
-        "content": getattr(message, "content", None) or "",
-    }
-    if tool_calls:
-        payload["tool_calls"] = [
-            {
-                "id": call.id,
-                "type": "function",
-                "function": {
-                    "name": call.function.name,
-                    "arguments": call.function.arguments,
-                },
-            }
-            for call in tool_calls
-        ]
-    return payload
-
-
 async def _run_help_tool_loop(
     session: AsyncSession,
     messages: list[dict[str, object]],
@@ -155,17 +135,20 @@ async def _run_help_tool_loop(
     working = list(messages)
     for _ in range(_MAX_TOOL_ROUNDS):
         message = await complete_with_tools(working, tools)
-        working.append(_assistant_message_dict(message))
+        working.append(assistant_message_dict(message))
         tool_calls = getattr(message, "tool_calls", None)
         if not tool_calls:
             return working
         for call in tool_calls:
             name = call.function.name
             raw_args = call.function.arguments or "{}"
-            try:
-                arguments = json.loads(raw_args)
-            except json.JSONDecodeError:
-                arguments = {}
+            if isinstance(raw_args, dict):
+                arguments = raw_args
+            else:
+                try:
+                    arguments = json.loads(raw_args)
+                except (json.JSONDecodeError, TypeError):
+                    arguments = {}
             try:
                 if name in _FEEDBACK_TOOL_NAMES:
                     result = await run_feedback_tool(
@@ -182,11 +165,7 @@ async def _run_help_tool_loop(
             except (httpx.HTTPError, ValueError, RuntimeError) as exc:
                 result = f"Tool error ({name}): {exc}"
             working.append(
-                {
-                    "role": "tool",
-                    "tool_call_id": call.id,
-                    "content": result,
-                }
+                tool_result_message(tool_call_id=call.id, content=result, name=name)
             )
     return working
 
