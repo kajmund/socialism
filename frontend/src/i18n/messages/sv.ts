@@ -662,6 +662,9 @@ export const sv = {
         systemClassification: "Systemets klassificering",
         classToneTitle: "Systemets klassificering (ton) av den här kommentaren",
         classStyleTitle: "Systemets klassificering (stil) av den här kommentaren",
+        classTopicTitle: "Ämnesstatus — på ämne eller ämnesglidit",
+        topicOnTopic: "På ämne",
+        topicDrifted: "Ämnesglidit",
         showClassification: "Visa klassificering",
       },
       misclassification: {

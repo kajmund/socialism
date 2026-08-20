@@ -8,7 +8,7 @@ from typing import Any, Literal
 
 from app.config import settings
 from app.services.report.bundles import RunBundle, is_ab_comparison
-from app.services.report.charts import prefill_quick_chart_slots
+from app.services.report.charts import prefill_quick_chart_slots, render_topic_drift_section
 from app.services.report.classify import BundleClassification, honest_negative_tone_phrase
 from app.services.report.locale import ReportLocale, display_style_label
 from app.services.report.metrics import ReportMetrics, injection_likes, pct, tone_shares_sorted
@@ -109,24 +109,24 @@ def _reception_scope_html(
         title = "What the tone numbers measure"
         intro = (
             "Tone and style percentages below come from "
-            "<strong>direct reactions to the test message</strong> "
-            "(comments on the injected post). "
-            "Organic discussion between citizens is shown separately and does not "
-            "affect the reception verdict."
+            "<strong>reactions on topic</strong> "
+            "(comments on the injected post, on-topic citizen posts, and replies on those threads). "
+            "Topic drift — citizen posts and threads that leave the test message — is shown separately "
+            "and does not affect the reception verdict."
         )
-        rec_heading = "Direct reactions to the message"
-        disc_heading = "Discussion between citizens"
+        rec_heading = "On-topic reactions"
+        disc_heading = "Topic drift"
     else:
         title = "Vad ton-siffrorna mäter"
         intro = (
             "Ton- och stilandelar nedan bygger på "
-            "<strong>direkta reaktioner på testbudskapet</strong> "
-            "(kommentarer på injektionsinlägget). "
-            "Organisk diskussion mellan medborgare visas separat och påverkar inte "
-            "mottagande-verdikten."
+            "<strong>reaktioner på ämne</strong> "
+            "(kommentarer på injektionsinlägget, medborgarinlägg på ämne och svar i sådana trådar). "
+            "Ämnesglidning — medborgarinlägg och trådar som lämnar testbudskapet — visas separat "
+            "och påverkar inte mottagande-verdikten."
         )
-        rec_heading = "Direkta reaktioner på budskapet"
-        disc_heading = "Diskussion medborgare emellan"
+        rec_heading = "Reaktioner på ämne"
+        disc_heading = "Ämnesglidning"
 
     rows: list[str] = []
     for bundle, clf in zip(bundles, classifications, strict=True):
@@ -495,13 +495,7 @@ def build_quick_slots(
     thresholds: ReportThresholds | None = None,
 ) -> dict[str, str]:
     t = thresholds if thresholds is not None else default_report_thresholds()
-    drift_bits = [
-        _topic_share_by_day_half(b, c, t)
-        for b, c in zip(bundles, classifications, strict=True)
-    ]
-    any_drift = any(d["flag"] for d in drift_bits)
     ab = is_ab_comparison(bundles) or len(bundles) > 1
-    drift_pct = pct(t.topic_drift)
 
     tone_rows = "".join(
         f"<tr><td>{escape(k)}</td><td>{pct(v)}</td></tr>"
@@ -513,20 +507,7 @@ def build_quick_slots(
         for s, share in metrics.aggregate.style_shares
     )
 
-    if locale == "en":
-        drift_html = (
-            f"<p><strong>Topic drift:</strong> the test topic fell below {drift_pct} "
-            "after day 1 — it disappeared from the debate.</p>"
-            if any_drift
-            else "<p><strong>Topic drift:</strong> no clear drop-off after day 1.</p>"
-        )
-    else:
-        drift_html = (
-            f"<p><strong>Ämnesdrift:</strong> testämnet under {drift_pct} efter dag 1 "
-            "— försvann ur debatten.</p>"
-            if any_drift
-            else "<p><strong>Ämnesdrift:</strong> ingen tydlig nedgång efter dag 1.</p>"
-        )
+    drift_html = render_topic_drift_section(bundles, classifications, locale=locale)
 
     if locale == "en":
         page_title = title.strip() or "Quick report"

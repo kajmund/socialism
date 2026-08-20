@@ -182,6 +182,10 @@
 .results-icon-btn.on{background:var(--db-ink-100);color:var(--text-body)}
 .class-pop-pills{display:flex;flex-wrap:wrap;gap:6px;padding:0 2px;margin-bottom:8px}
 .class-pop-pills span{background:var(--db-ink-100);color:var(--text-body);border-radius:var(--radius-pill);padding:2px 9px;font-size:10.5px;font-weight:600}
+.class-pop-topic-on{background:var(--db-gold-100)!important;color:var(--db-gold-700)!important;border:1px solid color-mix(in srgb,var(--db-gold-500) 45%,transparent)}
+.class-pop-topic-drift{background:#fce8e6!important;color:var(--warm-orange)!important;border:1px solid color-mix(in srgb,var(--warm-orange) 55%,transparent)}
+.feed-topic-on{border-left:3px solid var(--db-gold-500)}
+.feed-topic-drift{border-left:3px solid var(--warm-orange)}
 .class-pop-fields{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
 .class-pop-fields select{width:100%;padding:5px 6px;border-radius:var(--radius-sm);border:1px solid var(--border-hairline);font-size:10.5px;background:#fff}
 .class-pop-error{font-size:10.5px;color:#b42318;margin:0 0 6px}

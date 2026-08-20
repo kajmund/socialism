@@ -84,6 +84,8 @@ export async function deleteRunResultAttempt(
   return getRun(runId)
 }
 
+export type TopicStatus = "on_topic" | "drifted"
+
 export type RunTaggableTextRow = {
   source_type: "comment" | "tick_interview" | "posthoc_interview"
   source_ref: Record<string, unknown>
@@ -95,6 +97,7 @@ export type RunTaggableTextRow = {
   style_predicted?: string | null
   tone_pmf?: Record<string, number> | null
   style_pmf?: Record<string, number> | null
+  topic_status?: TopicStatus | null
 }
 
 export type RunMisclassificationFlagCreate = {
@@ -137,6 +140,7 @@ export type RunTaggableTextsResponse = {
     style: { id: number; name: string; kind: string; labels: string[]; pool_revision: number }
   }
   rows: RunTaggableTextRow[]
+  post_topic_status?: Record<number, TopicStatus>
 }
 
 export function fetchRunTaggableTexts(
