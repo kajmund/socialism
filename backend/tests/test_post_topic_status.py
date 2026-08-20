@@ -134,3 +134,97 @@ def test_sample_reactions_for_ssr_uses_on_topic_reception():
     assert result.meta["scope"] == "reception"
     assert result.meta["reception_eligible_count"] == 3
     assert result.meta["discussion_eligible_count"] == 0
+
+
+def test_quote_only_post_classifies_and_counts_in_reception():
+    injection_text = "Stoppa nedsläckningen av belysning i byarna."
+    bundle = RunBundle(
+        label="A",
+        run_id=1,
+        run_name="Test",
+        attempt_id="att_1",
+        seed="42",
+        engine="oasis",
+        agents=[
+            {"index": 0, "member_name": "Parti", "role": "injector"},
+            {"index": 1, "member_name": "Anna", "role": "population"},
+            {"index": 2, "member_name": "Bo", "role": "population"},
+        ],
+        posts=[
+            {"post_id": 1, "user_id": 0, "content": injection_text, "num_likes": 5},
+            {
+                "post_id": 2,
+                "user_id": 1,
+                "content": "",
+                "quote_content": "Belysning i byarna är viktigt.",
+                "num_likes": 1,
+            },
+        ],
+        comments=[
+            {
+                "comment_id": 1,
+                "post_id": 2,
+                "user_id": 2,
+                "content": "Håller med om belysning!",
+                "num_likes": 1,
+            }
+        ],
+        injection_texts=[injection_text],
+    )
+    packs = topic_packs_from_injections(bundle.injection_texts)
+    post_status = classify_post_topics(bundle, packs)
+    assert post_status[2] == "on_topic"
+    split = reception_vs_discussion_rows(bundle, post_topic_status=post_status)
+    texts = {row.text for row in split.reception}
+    assert "Belysning i byarna är viktigt." in texts
+    assert any("Håller med om belysning" in t for t in texts)
+
+
+def test_empty_repost_inherits_topic_status_for_thread_comments():
+    injection_text = "Stoppa nedsläckningen av belysning i byarna."
+    bundle = RunBundle(
+        label="A",
+        run_id=1,
+        run_name="Test",
+        attempt_id="att_1",
+        seed="42",
+        engine="oasis",
+        agents=[
+            {"index": 0, "member_name": "Parti", "role": "injector"},
+            {"index": 1, "member_name": "Anna", "role": "population"},
+            {"index": 2, "member_name": "Bo", "role": "population"},
+        ],
+        posts=[
+            {"post_id": 1, "user_id": 0, "content": injection_text, "num_likes": 5},
+            {
+                "post_id": 2,
+                "user_id": 1,
+                "content": "Helt unrelated väderprat.",
+                "num_likes": 1,
+            },
+            {
+                "post_id": 3,
+                "user_id": 2,
+                "content": "",
+                "quote_content": "",
+                "original_post_id": 2,
+                "num_likes": 0,
+            },
+        ],
+        comments=[
+            {
+                "comment_id": 1,
+                "post_id": 3,
+                "user_id": 1,
+                "content": "Diskussion under repost",
+                "num_likes": 0,
+            }
+        ],
+        injection_texts=[injection_text],
+    )
+    packs = topic_packs_from_injections(bundle.injection_texts)
+    post_status = classify_post_topics(bundle, packs)
+    assert post_status[2] == "drifted"
+    assert post_status[3] == "drifted"
+    split = reception_vs_discussion_rows(bundle, post_topic_status=post_status)
+    assert any("Diskussion under repost" in row.text for row in split.discussion)

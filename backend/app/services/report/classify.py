@@ -18,6 +18,7 @@ from app.services.report.sampling import (
     TopicStatus,
     injection_post_ids,
     discussion_post_ids,
+    post_body_text,
     sample_reactions_for_ssr,
 )
 from app.services.report.locale import (
@@ -276,12 +277,28 @@ def classify_post_topics(
         if post_id in injection_ids:
             out[post_id] = "on_topic"
         elif post_id in discussion_ids:
-            text = str(post.get("content") or post.get("text") or "").strip()
+            text = post_body_text(post)
             if not text:
                 continue
             shares = classify_topics_by_keywords([text], packs, locale=locale)
             top_label = max(shares, key=shares.get)
             out[post_id] = "drifted" if top_label == other else "on_topic"
+
+    for post in bundle.posts:
+        raw_id = post.get("post_id")
+        if raw_id is None:
+            continue
+        post_id = int(raw_id)
+        if post_id in out or post_id not in discussion_ids:
+            continue
+        if post_body_text(post):
+            continue
+        original_id = post.get("original_post_id")
+        if original_id is None:
+            continue
+        inherited = out.get(int(original_id))
+        if inherited is not None:
+            out[post_id] = inherited
     return out
 
 
@@ -316,7 +333,7 @@ def all_post_texts_for_topic_shares(bundle: RunBundle) -> list[str]:
         uid = post.get("user_id")
         if uid is not None and int(uid) in injectors:
             continue
-        text = str(post.get("content") or post.get("text") or "").strip()
+        text = post_body_text(post)
         if text:
             texts.append(text)
     return texts
@@ -333,7 +350,7 @@ def lookup_text_topic_status(
         return None
     injection_ids = injection_post_ids(bundle)
     for post in bundle.posts:
-        body = str(post.get("content") or post.get("text") or "").strip()
+        body = post_body_text(post)
         if body != needle:
             continue
         raw_id = post.get("post_id")
