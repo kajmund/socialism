@@ -39,6 +39,13 @@ export type ChatDoneMessage = {
   asked_by?: "doctor" | "human" | null
 }
 
+export type InterviewPushMessage = ChatDoneMessage & {
+  run_id?: number | null
+  attempt_id?: string | null
+  variant_id?: string | null
+  through_tick_index?: number | null
+}
+
 type UseChatSocketOptions = {
   hello: ChatHello | null
   sendExtras?: () => Record<string, unknown>
@@ -46,6 +53,7 @@ type UseChatSocketOptions = {
   onError: (detail: string) => void
   onSuggestions?: (questions: string[]) => void
   onWidget?: (widget: SpindoctorWidget) => void
+  onInterviewMessage?: (message: InterviewPushMessage) => void
 }
 
 function helloKey(hello: ChatHello | null): string {
@@ -73,6 +81,28 @@ function helloKey(hello: ChatHello | null): string {
     hello.persona_id,
     hello.through_tick_index,
   ].join(":")
+}
+
+function asInterviewMessage(raw: unknown): InterviewPushMessage | null {
+  if (!raw || typeof raw !== "object") return null
+  const m = raw as Record<string, unknown>
+  if (typeof m.id !== "number") return null
+  if (m.role !== "user" && m.role !== "assistant") return null
+  if (typeof m.content !== "string") return null
+  return {
+    id: m.id,
+    role: m.role,
+    content: m.content,
+    mode: m.mode as ChatMode | undefined,
+    created_at: typeof m.created_at === "string" ? m.created_at : undefined,
+    asked_by:
+      m.asked_by === "doctor" || m.asked_by === "human" ? m.asked_by : null,
+    run_id: typeof m.run_id === "number" ? m.run_id : null,
+    attempt_id: typeof m.attempt_id === "string" ? m.attempt_id : null,
+    variant_id: typeof m.variant_id === "string" ? m.variant_id : null,
+    through_tick_index:
+      typeof m.through_tick_index === "number" ? m.through_tick_index : null,
+  }
 }
 
 function asDoneMessages(raw: unknown): ChatDoneMessage[] {
@@ -115,6 +145,7 @@ export function useChatSocket({
   onError,
   onSuggestions,
   onWidget,
+  onInterviewMessage,
 }: UseChatSocketOptions) {
   const [ready, setReady] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -129,6 +160,8 @@ export function useChatSocket({
   onSuggestionsRef.current = onSuggestions
   const onWidgetRef = useRef(onWidget)
   onWidgetRef.current = onWidget
+  const onInterviewMessageRef = useRef(onInterviewMessage)
+  onInterviewMessageRef.current = onInterviewMessage
   const sendExtrasRef = useRef(sendExtras)
   sendExtrasRef.current = sendExtras
   const key = helloKey(hello)
@@ -179,6 +212,11 @@ export function useChatSocket({
           case "widget": {
             const widget = parseSpindoctorWidget(msg)
             if (widget) onWidgetRef.current?.(widget)
+            break
+          }
+          case "interview.message": {
+            const message = asInterviewMessage(msg.message)
+            if (message) onInterviewMessageRef.current?.(message)
             break
           }
           case "error":
