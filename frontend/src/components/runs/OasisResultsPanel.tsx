@@ -10,7 +10,7 @@ import { createPortal } from "react-dom"
 import { FileText, Files, Loader2, Network, Trash2, Wrench } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { createReport } from "@/api/reports"
-import type { RunTaggableTextRow } from "@/api/runs"
+import type { RunTaggableTextRow, TopicStatus } from "@/api/runs"
 import { useReportsRealtime } from "@/realtime/ReportsRealtimeProvider"
 import { PersonaProfileModal } from "@/components/personas/PersonaProfileModal"
 import {
@@ -80,6 +80,7 @@ type ProfileTarget = {
 
 type FeedAnchors = {
   byCommentId: Map<number, RunTaggableTextRow>
+  byPostId: Map<number, TopicStatus>
   toneOptions: string[]
   styleOptions: string[]
   flaggedKeys: Set<string>
@@ -88,6 +89,12 @@ type FeedAnchors = {
   runId: number
   attemptId: string
   variantId: string
+}
+
+function topicBorderClass(status: TopicStatus | null | undefined): string {
+  if (status === "drifted") return " feed-topic-drift"
+  if (status === "on_topic") return " feed-topic-on"
+  return ""
 }
 
 /** Normalize legacy flat results and current attempts[] into a stable list. */
@@ -1724,11 +1731,15 @@ function FeedPostCard({
     !isInjector &&
     Boolean(agent?.persona_id)
 
+  const postTopicStatus =
+    !isInjector && anchors ? anchors.byPostId.get(post.post_id) ?? null : null
+
   return (
     <li
       className={
         "list-none rounded-lg border border-border bg-card shadow-sm " +
-        (compact ? "px-3 py-2.5" : "px-4 py-3")
+        (compact ? "px-3 py-2.5" : "px-4 py-3") +
+        topicBorderClass(postTopicStatus)
       }
     >
       <div className="flex items-start justify-between gap-2">
@@ -1850,7 +1861,9 @@ function FeedPostCard({
               Boolean(commentAgent?.persona_id)
             const taggable = anchors?.byCommentId.get(c.comment_id)
             const hasClassification = Boolean(
-              taggable?.tone_predicted || taggable?.style_predicted,
+              taggable?.tone_predicted ||
+                taggable?.style_predicted ||
+                taggable?.topic_status,
             )
             const alreadyFlagged = taggable
               ? anchors!.flaggedKeys.has(flaggedKeyForRow(taggable))
@@ -1860,7 +1873,12 @@ function FeedPostCard({
                 {commentInjector ? null : (
                   <AgentAvatar name={commentName} size="sm" />
                 )}
-                <div className="min-w-0 flex-1 rounded-2xl bg-muted/50 px-3 py-2">
+                <div
+                  className={
+                    "min-w-0 flex-1 rounded-2xl bg-muted/50 px-3 py-2" +
+                    topicBorderClass(taggable?.topic_status)
+                  }
+                >
                   <div className="flex flex-wrap items-center gap-1.5">
                     <button
                       type="button"
@@ -2044,6 +2062,7 @@ function VariantBody({
     showAnchors && runId != null && attemptId
       ? {
           byCommentId: taggable.byCommentId,
+          byPostId: taggable.byPostId,
           toneOptions: taggable.context?.tone.labels ?? [],
           styleOptions: taggable.context?.style.labels ?? [],
           flaggedKeys,

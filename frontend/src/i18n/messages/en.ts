@@ -663,6 +663,9 @@ export const en: LocalizedTree<SvMessages> = {
         systemClassification: "System classification",
         classToneTitle: "System classification (tone) of this comment",
         classStyleTitle: "System classification (style) of this comment",
+        classTopicTitle: "Topic status — on topic or drifted",
+        topicOnTopic: "On topic",
+        topicDrifted: "Topic drift",
         showClassification: "Show classification",
       },
       misclassification: {

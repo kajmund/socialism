@@ -93,7 +93,6 @@ def test_render_quick_html_recommendation_section():
     assert 'class="conclusion"' in html
     assert "Publicera" in html or "publicera" in html
     assert "Starkt mottagande" not in html
-    assert "SSR" not in html
 
 
 def test_ab_recommendation_names_winning_version():

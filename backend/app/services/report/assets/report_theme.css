@@ -186,6 +186,13 @@ body {
 .t-fill { height: 100%; border-radius: 4px; }
 .t-pct { font-size: 14px; font-weight: 700; text-align: right; }
 
+.topic-tag {
+  display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; padding: 2px 8px; border-radius: 999px; margin-left: 6px;
+}
+.topic-tag-on { background: var(--db-gold-100); color: var(--db-gold-700); border: 1px solid var(--db-gold-500); }
+.topic-tag-drift { background: #fce8e6; color: var(--warm-orange); border: 1px solid var(--warm-orange); }
+
 .method-steps { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
 .mstep { background: var(--surface-page); border: 1px solid var(--border-hairline); border-radius: var(--radius-md); padding: 18px 16px; }
 .mstep-num {
