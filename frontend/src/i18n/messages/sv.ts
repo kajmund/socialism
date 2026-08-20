@@ -111,11 +111,16 @@ export const sv = {
     canvasAria: "Rapportcanvas",
     grid: {
       empty:
-        "Ställ en fråga — Spinndoktorn lägger grafer, anteckningar och rapportklipp här.",
+        "Ställ en fråga — Spinndoktorn lägger grafer, anteckningar, intervjuer och rapportklipp här.",
       latency: "{ms} ms",
       latencyHint: "Tid från din fråga till att widgeten dök upp",
       snippetSection: "Rapportavsnitt: {section}",
       openSection: "Öppna i rapportpanel",
+      interviewContext: "{persona} · dag {day} (tick {tick})",
+      interviewLoading: "Laddar intervju…",
+      interviewLoadError: "Kunde inte ladda intervjun",
+      interviewMissingContext: "Intervjuwidgeten saknar körningsdata",
+      interviewVariantMissing: "Körningsvarianten hittades inte",
     },
     placeholder: "T.ex. Vad säger siffrorna om mottagandet?",
     empty:

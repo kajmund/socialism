@@ -892,6 +892,8 @@ table.lt.pol .lock.on{background:var(--db-gold-700);border-color:var(--db-gold-7
 .spinndoctor-grid-shell{position:relative;flex:1;min-height:0}
 .spinndoctor-grid-empty{position:absolute;inset:0;display:grid;place-items:center;padding:24px;text-align:center;font-size:13px;color:var(--text-muted);pointer-events:none;z-index:1}
 .spinndoctor-widget{width:320px;max-width:320px;border:1px solid var(--border-hairline);border-radius:12px;background:var(--db-ink-0);box-shadow:0 8px 24px rgba(26,24,22,.08);padding:12px 14px;font-size:13px;color:var(--text-body)}
+.spinndoctor-widget--interview{width:360px;max-width:360px;min-height:280px}
+.spinndoctor-widget-interview-error{margin:0;font-size:12px;color:#b42318;line-height:1.4}
 .spinndoctor-widget-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px}
 .spinndoctor-widget-title{font-weight:600;line-height:1.3}
 .spinndoctor-widget-latency{flex-shrink:0;font-size:10px;font-family:var(--font-mono, monospace);color:var(--text-muted);background:var(--db-ink-50,#f5f4f2);border-radius:999px;padding:2px 8px}

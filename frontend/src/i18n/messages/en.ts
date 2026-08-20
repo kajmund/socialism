@@ -112,11 +112,16 @@ export const en: LocalizedTree<SvMessages> = {
     hideReportPanel: "Hide report panel",
     canvasAria: "Report canvas",
     grid: {
-      empty: "Ask a question — Spinndoktor places charts, notes, and report clips here.",
+      empty: "Ask a question — Spinndoktor places charts, notes, interviews, and report clips here.",
       latency: "{ms} ms",
       latencyHint: "Time from your question until the widget appeared",
       snippetSection: "Report section: {section}",
       openSection: "Open in report panel",
+      interviewContext: "{persona} · day {day} (tick {tick})",
+      interviewLoading: "Loading interview…",
+      interviewLoadError: "Could not load interview",
+      interviewMissingContext: "Interview widget is missing run context",
+      interviewVariantMissing: "Run variant not found",
     },
     placeholder: "E.g. What do the numbers say about reception?",
     empty:
