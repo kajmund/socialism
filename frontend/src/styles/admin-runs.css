@@ -768,6 +768,9 @@ table.lt.pol .lock.on{background:var(--db-gold-700);border-color:var(--db-gold-7
 .ic-switch button.on{background:var(--db-ink-950);color:var(--db-ink-0)}
 .chat-msgs{flex:1;min-height:0;padding:16px 18px;display:flex;flex-direction:column;gap:8px;overflow:auto;font-size:13.5px;background:linear-gradient(180deg,var(--db-ink-0) 0%,color-mix(in srgb,var(--db-ink-100) 55%,transparent) 100%)}
 .chat-msg-row{display:flex;align-items:flex-end;gap:4px;max-width:78%}
+.chat-msg-stack{display:flex;flex-direction:column;align-items:flex-end;gap:2px;max-width:100%;min-width:0}
+.chat-msg-row.them .chat-msg-stack{align-items:flex-start}
+.chat-msg-asked-by{font-size:10px;line-height:1.2;color:var(--muted-foreground);letter-spacing:.02em}
 .chat-msg-row.them{align-self:flex-start}
 .chat-msg-row.me{align-self:flex-end;flex-direction:row-reverse}
 .chat-msg-row .bub{max-width:100%;flex:1;min-width:0}

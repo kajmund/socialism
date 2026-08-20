@@ -103,6 +103,7 @@ export function RunInterviewChat({
           attempt_id: attemptId,
           variant_id: variant.id,
           through_tick_index: tickIndex,
+          asked_by: message.asked_by ?? null,
         })),
       )
       setOptimisticUser(null)
@@ -145,6 +146,14 @@ export function RunInterviewChat({
     }
     void loadMessages()
   }, [chatReady, loadMessages])
+
+  useEffect(() => {
+    if (!compact || !chatReady || !personaId || busy) return
+    const timer = window.setInterval(() => {
+      void loadMessages()
+    }, 2000)
+    return () => window.clearInterval(timer)
+  }, [compact, chatReady, personaId, busy, loadMessages])
 
   function send() {
     const trimmed = draft.trim()
@@ -265,7 +274,12 @@ export function RunInterviewChat({
       <MessengerChat
         className="rounded border border-[color:var(--border-hairline)]"
         messagesClassName={compact ? "max-h-56" : "max-h-72"}
-        messages={messages}
+        messages={messages.map((message) => ({
+          id: message.id,
+          role: message.role,
+          content: message.content,
+          asked_by: message.asked_by ?? null,
+        }))}
         optimisticUser={optimisticUser}
         typing={chatTyping}
         streamText={streamText}

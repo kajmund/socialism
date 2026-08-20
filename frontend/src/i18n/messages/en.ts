@@ -764,6 +764,8 @@ export const en: LocalizedTree<SvMessages> = {
       empty: "No interview yet.",
       roleUser: "You",
       rolePersona: "Persona",
+      askedByDoctor: "Spinndoktor",
+      askedByHuman: "You",
       placeholder: "Ask a question…",
       send: "Send",
       clear: "Clear",

@@ -8,6 +8,7 @@ export type MessengerChatMessage = {
   id: number
   role: "user" | "assistant"
   content: string
+  asked_by?: "doctor" | "human" | null
 }
 
 type MessengerChatProps = {
@@ -85,16 +86,28 @@ export function MessengerChat({
             key={m.id}
             className={"chat-msg-row " + (m.role === "assistant" ? "them" : "me")}
           >
-            <div className={"bub " + (m.role === "assistant" ? "them" : "me")}>
-              <ChatMarkdown text={m.content} />
+            <div className="chat-msg-stack">
+              {m.role === "user" && m.asked_by ? (
+                <span className="chat-msg-asked-by">
+                  {m.asked_by === "doctor"
+                    ? t("runs.interview.askedByDoctor")
+                    : t("runs.interview.askedByHuman")}
+                </span>
+              ) : null}
+              <div className={"bub " + (m.role === "assistant" ? "them" : "me")}>
+                <ChatMarkdown text={m.content} />
+              </div>
             </div>
             {renderActions ? renderActions(m) : null}
           </div>
         ))}
         {optimisticUser ? (
           <div className="chat-msg-row me">
-            <div className="bub me">
-              <ChatMarkdown text={optimisticUser} />
+            <div className="chat-msg-stack">
+              <span className="chat-msg-asked-by">{t("runs.interview.askedByHuman")}</span>
+              <div className="bub me">
+                <ChatMarkdown text={optimisticUser} />
+              </div>
             </div>
           </div>
         ) : null}
