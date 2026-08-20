@@ -306,21 +306,29 @@ Return JSON with field anekdot.""",
         "When and how Spinndoktor should call run tools.",
         (
             "Du har dataverktyg (get_test_message, get_run, search_reactions, "
-            "list_interviews, list_actors, get_citizen, get_report_ssr), listor "
+            "list_interviews, list_actors, get_citizen, get_report_ssr, "
+            "read_interview_transcript, ask_interview_question), listor "
             "(list_runs, list_reports, list_populations), SCB-verktyg, samt "
             "search_wiki och search_duckduckgo. Anropa dem när frågan kräver "
             "budskapets ordalydelse, citat, intervjusvar, extern fakta, SCB-siffror "
-            "eller webb/Wikipedia. Anropa inte i onödan om kontextens siffror räcker. "
-            "Skriv aldrig ut tool-anrop, XML eller intern monolog till användaren."
+            "eller webb/Wikipedia. start_interview öppnar live-intervju (valfri "
+            "opening_question skickar första frågan direkt); ask_interview_question "
+            "fortsätter samma tråd; read_interview_transcript läser hela transkriptet. "
+            "Anropa inte i onödan om kontextens siffror räcker. Skriv aldrig ut "
+            "tool-anrop, XML eller intern monolog till användaren."
         ),
         (
             "You have data tools (get_test_message, get_run, search_reactions, "
-            "list_interviews, list_actors, get_citizen, get_report_ssr), list tools "
+            "list_interviews, list_actors, get_citizen, get_report_ssr, "
+            "read_interview_transcript, ask_interview_question), list tools "
             "(list_runs, list_reports, list_populations), SCB tools, plus search_wiki "
             "and search_duckduckgo. Call them when the question needs message wording, "
-            "quotes, interviews, external facts, SCB stats, or web/Wikipedia. Do not "
-            "call tools if context numbers are enough. Never expose tool calls, XML, "
-            "or internal monologue to the user."
+            "quotes, interviews, external facts, SCB stats, or web/Wikipedia. "
+            "start_interview opens a live interview (optional opening_question sends "
+            "the first turn); ask_interview_question continues the same thread; "
+            "read_interview_transcript reads the full transcript. Do not call tools "
+            "if context numbers are enough. Never expose tool calls, XML, or internal "
+            "monologue to the user."
         ),
     ),
     _f(
@@ -332,19 +340,29 @@ Return JSON with field anekdot.""",
         "How Spinndoktor places cards and charts on the workspace.",
         (
             "Du kan lägga saker på arbetsytan med render_chart (hbar, donut, "
-            "stat_number + title + series) och place_note (title + body). "
-            "Använd render_chart när siffror blir tydligare som graf; place_note "
-            "för korta slutsatser. När du pekar till en rapportsektion, avsluta "
-            "fortfarande med [[ref:id]] — det skapar också ett rapportkort. "
-            "Skriv aldrig graftyp eller widget-detaljer som fritext till användaren."
+            "stat_number + title + series), place_note (title + body) och "
+            "start_interview (persona_name, valfri through_tick_index, valfri "
+            "opening_question) för live-intervjuer som operatören kan fortsätta "
+            "i widgeten. Fortsätt samma tråd med ask_interview_question. Använd "
+            "render_chart när siffror blir tydligare som graf; place_note "
+            "för korta slutsatser och intervjubaserade verdict i löptext; "
+            "start_interview när du vill fråga en specifik persona direkt. "
+            "När du pekar till en rapportsektion, avsluta fortfarande med "
+            "[[ref:id]] — det skapar också ett rapportkort. Skriv aldrig "
+            "graftyp eller widget-detaljer som fritext till användaren."
         ),
         (
             "You can place items on the workspace with render_chart (hbar, donut, "
-            "stat_number + title + series) and place_note (title + body). Use "
+            "stat_number + title + series), place_note (title + body), and "
+            "start_interview (persona_name, optional through_tick_index, optional "
+            "opening_question) for live interviews the operator can continue in the "
+            "widget. Continue the same thread with ask_interview_question. Use "
             "render_chart when numbers are clearer as a chart; place_note for short "
-            "takeaways. When pointing to a report section, still end with [[ref:id]] "
-            "— that also creates a report snippet card. Never describe chart types "
-            "or widget details as free text to the user."
+            "takeaways and interview-based verdicts in prose; start_interview when "
+            "you want to question a specific persona directly. When pointing to a "
+            "report section, still end with [[ref:id]] — that also creates a report "
+            "snippet card. Never describe chart types or widget details as free "
+            "text to the user."
         ),
     ),
     _f(

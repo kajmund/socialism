@@ -3,6 +3,7 @@ import type { Node, NodeProps } from "@xyflow/react"
 import type { SpindoctorWidget } from "@/api/spindoctorWidgets"
 import { useLocale } from "@/i18n"
 import { SpinndoktorChartSvg } from "./SpinndoktorChartSvg"
+import { SpinndoktorInterviewWidget } from "./SpinndoktorInterviewWidget"
 
 export type SpinndoktorWidgetNodeData = {
   widget: SpindoctorWidget
@@ -49,6 +50,7 @@ function SpinndoktorWidgetNodeInner({ data }: NodeProps<SpinndoktorWidgetNode>) 
           </button>
         </div>
       ) : null}
+      {widget.kind === "interview" ? <SpinndoktorInterviewWidget widget={widget} /> : null}
     </div>
   )
 }
