@@ -285,7 +285,7 @@ async def stream_spindoctor_chat_turn(
 
         section_ref = last_spindoctor_ref(reply)
         if section_ref:
-            snippet = make_report_snippet_widget(
+            snippet = await make_report_snippet_widget(
                 ctx,
                 section_id=section_ref,
                 title=_section_title(section_ref, locale=locale),

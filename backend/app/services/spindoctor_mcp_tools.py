@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
-import threading
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -82,7 +82,7 @@ class SpindoctorToolContext:
     report_id: str | None = None
     question_sent_at: datetime | None = None
     widgets: list[SpindoctorWidgetOut] = field(default_factory=list)
-    _widgets_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+    _widgets_lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
 
 
 def _compact(payload: object) -> str:
@@ -96,7 +96,7 @@ def _latency_ms(ctx: SpindoctorToolContext) -> int | None:
     return max(0, int(delta.total_seconds() * 1000))
 
 
-def _widget_out(
+async def _widget_out(
     ctx: SpindoctorToolContext,
     *,
     kind: WidgetKind,
@@ -133,7 +133,7 @@ def _widget_out(
         variant_id=variant_id,
         through_tick_index=through_tick_index,
     )
-    with ctx._widgets_lock:
+    async with ctx._widgets_lock:
         ctx.widgets.append(widget)
     return widget
 
@@ -448,7 +448,7 @@ def _normalize_series(raw: object) -> list[dict[str, float | str]]:
     return out
 
 
-def _render_chart(ctx: SpindoctorToolContext, arguments: dict[str, Any]) -> str:
+async def _render_chart(ctx: SpindoctorToolContext, arguments: dict[str, Any]) -> str:
     chart_raw = str(arguments.get("chart_type") or "").strip()
     if chart_raw not in {"hbar", "donut", "stat_number"}:
         raise ValueError("chart_type must be hbar, donut, or stat_number")
@@ -457,7 +457,7 @@ def _render_chart(ctx: SpindoctorToolContext, arguments: dict[str, Any]) -> str:
     if not title:
         raise ValueError("title is required")
     series = _normalize_series(arguments.get("series"))
-    widget = _widget_out(
+    widget = await _widget_out(
         ctx,
         kind="chart",
         title=title,
@@ -475,14 +475,14 @@ def _render_chart(ctx: SpindoctorToolContext, arguments: dict[str, Any]) -> str:
     )
 
 
-def _place_note(ctx: SpindoctorToolContext, arguments: dict[str, Any]) -> str:
+async def _place_note(ctx: SpindoctorToolContext, arguments: dict[str, Any]) -> str:
     title = str(arguments.get("title") or "").strip()
     body = str(arguments.get("body") or "").strip()
     if not title:
         raise ValueError("title is required")
     if not body:
         raise ValueError("body is required")
-    widget = _widget_out(ctx, kind="note", title=title, body=body)
+    widget = await _widget_out(ctx, kind="note", title=title, body=body)
     return _compact({"ok": True, "widget_id": widget.id, "title": title})
 
 
@@ -627,7 +627,7 @@ async def _start_interview(
     day = markers[through_tick_index].get("day", through_tick_index + 1)
     title = f"Intervju: {display_name} · dag {day}"
 
-    widget = _widget_out(
+    widget = await _widget_out(
         ctx,
         kind="interview",
         title=title,
@@ -801,14 +801,14 @@ async def _read_interview_transcript(
     )
 
 
-def make_report_snippet_widget(
+async def make_report_snippet_widget(
     ctx: SpindoctorToolContext,
     *,
     section_id: str,
     title: str | None = None,
 ) -> SpindoctorWidgetOut:
     label = title or section_id
-    return _widget_out(
+    return await _widget_out(
         ctx,
         kind="report_snippet",
         title=label,
@@ -847,10 +847,10 @@ async def run_spindoctor_mcp_tool(
 ) -> str:
     if name in _WIDGET_TOOL_NAMES:
         if name == "render_chart":
-            return _render_chart(ctx, arguments)
+            return await _render_chart(ctx, arguments)
         if name == "start_interview":
             return await _start_interview(session, ctx, arguments)
-        return _place_note(ctx, arguments)
+        return await _place_note(ctx, arguments)
 
     if name in _READ_INTERVIEW_TOOL_NAMES:
         return await _read_interview_transcript(session, ctx, arguments)
