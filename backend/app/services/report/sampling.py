@@ -74,8 +74,15 @@ def _post_id(item: dict) -> int | None:
     return int(raw)
 
 
+def post_body_text(item: dict) -> str:
+    """Visible post body: quote line plus content (matches run_measurements / OASIS readback)."""
+    quote = str(item.get("quote_content") or "").strip()
+    content = str(item.get("content") or item.get("text") or "").strip()
+    return f"{quote}\n{content}".strip()
+
+
 def _reaction_row(item: dict) -> ReactionRow | None:
-    text = str(item.get("content") or item.get("text") or "").strip()
+    text = post_body_text(item)
     if not text:
         return None
     return ReactionRow(text=text, likes=_item_likes(item), user_id=_user_id(item))
