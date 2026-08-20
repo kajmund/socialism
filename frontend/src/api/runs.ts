@@ -191,6 +191,7 @@ export type RunInterviewMessage = {
   attempt_id?: string | null
   variant_id?: string | null
   through_tick_index?: number | null
+  asked_by?: "doctor" | "human" | null
 }
 
 function interviewPath(

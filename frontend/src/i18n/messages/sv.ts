@@ -763,6 +763,8 @@ export const sv = {
       empty: "Ingen intervju ännu.",
       roleUser: "Du",
       rolePersona: "Persona",
+      askedByDoctor: "Spinndoktor",
+      askedByHuman: "Du",
       placeholder: "Ställ en fråga…",
       send: "Skicka",
       clear: "Rensa",
