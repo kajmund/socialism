@@ -22,6 +22,7 @@ const nodeTypes = {
 const GRID_ORIGIN = { x: 80, y: 80 }
 const GRID_STEP = { x: 48, y: 56 }
 const NODE_WIDTH = 320
+const INTERVIEW_NODE_WIDTH = 360
 
 function cascadePosition(index: number): { x: number; y: number } {
   const col = index % 4
@@ -55,6 +56,10 @@ export function SpinndoktorGrid({ widgets, onOpenSnippet }: SpinndoktorGridProps
           position: existing?.position ?? cascadePosition(index),
           data: { widget, onOpenSnippet },
           draggable: true,
+          style:
+            widget.kind === "interview"
+              ? { width: INTERVIEW_NODE_WIDTH }
+              : { width: NODE_WIDTH },
         }
       })
     })
