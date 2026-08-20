@@ -10,8 +10,11 @@ from app.services.report.classify import (
     honest_negative_tone_phrase,
 )
 from app.services.report.quick import decide_verdict
-from app.services.report.metrics import compute_report_metrics
-from app.services.report.sampling import reception_vs_discussion_rows, sample_reactions_for_ssr
+from app.services.report.metrics import compute_report_metrics, compute_bundle_metrics
+from app.services.report.sampling import (
+    reception_vs_discussion_rows,
+    sample_reactions_for_ssr,
+)
 from app.services.report.segment_analysis import AudienceSegmentSummary, build_segment_narrative
 from app.services.report.segment_ssr import SegmentToneRow
 from app.services.ssr import STYLE_LABELS
@@ -129,6 +132,29 @@ def test_sample_reactions_for_ssr_uses_reception_only():
     assert result.meta["discussion_eligible_count"] == 2
 
 
+def test_collect_reactions_merges_reception_and_discussion():
+    from app.services.report.sampling import _collect_reactions
+
+    bundle = _bundle()
+    split = reception_vs_discussion_rows(bundle)
+    combined = _collect_reactions(bundle)
+    assert len(combined) == len(split.reception) + len(split.discussion)
+    combined_texts = {row.text for row in combined}
+    assert split.reception[0].text in combined_texts
+    assert any(row.text == split.discussion[0].text for row in split.discussion)
+
+
+def test_engagement_and_opinion_leaders_use_full_bundle_not_ssr_reception():
+    """Engagement tiers and top actors read all posts/comments — not reception SSR sample."""
+    bundle = _bundle(reception_comment=None)
+    metrics = compute_bundle_metrics(bundle)
+    assert metrics.comment_count == 1
+    assert metrics.post_count == 2
+    assert metrics.engagement_score > 0
+    actor_samples = {a["sample"] for a in metrics.top_actors}
+    assert bundle.comments[0]["content"] in actor_samples or bundle.posts[1]["content"] in actor_samples
+
+
 def test_honest_negative_tone_phrase_resigned_not_critical():
     style_shares = [(lab, 0.0) for lab in STYLE_LABELS]
     style_shares[1] = ("Uppgiven + vardagsmetafor", 0.7)
@@ -142,6 +168,21 @@ def test_honest_negative_tone_phrase_sarcastic_stays_critical():
     style_shares = [(lab, 0.0) for lab in STYLE_LABELS]
     style_shares[0] = ("Sarkastisk + konkret kritik", 0.6)
     assert honest_negative_tone_phrase(style_shares, locale="sv") == "kritisk"
+
+
+def test_honest_negative_tone_phrase_falls_back_when_margin_too_small():
+    style_shares = [(lab, 0.0) for lab in STYLE_LABELS]
+    style_shares[0] = ("Sarkastisk + konkret kritik", 0.35)
+    style_shares[1] = ("Uppgiven + vardagsmetafor", 0.30)
+    assert honest_negative_tone_phrase(style_shares, locale="sv") == "negativ ton"
+    assert honest_negative_tone_phrase(style_shares, locale="en") == "negative tone"
+
+
+def test_honest_negative_tone_phrase_resigned_when_margin_clear():
+    style_shares = [(lab, 0.0) for lab in STYLE_LABELS]
+    style_shares[1] = ("Uppgiven + vardagsmetafor", 0.45)
+    style_shares[0] = ("Sarkastisk + konkret kritik", 0.30)
+    assert honest_negative_tone_phrase(style_shares, locale="sv") == "missnöjd/uppgiven"
 
 
 def test_segment_narrative_uses_resigned_wording():
