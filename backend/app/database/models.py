@@ -210,6 +210,8 @@ class PersonaMessage(Base):
     attempt_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     variant_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     through_tick_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Run-scoped interview user turns: who asked (doctor via Spinndoktor tools vs human in UI).
+    asked_by: Mapped[str | None] = mapped_column(String(16), nullable=True)
 
 
 class Message(Base):

@@ -36,6 +36,7 @@ export type ChatDoneMessage = {
   content: string
   mode?: ChatMode
   created_at?: string
+  asked_by?: "doctor" | "human" | null
 }
 
 type UseChatSocketOptions = {
@@ -89,6 +90,8 @@ function asDoneMessages(raw: unknown): ChatDoneMessage[] {
       content: m.content,
       mode: m.mode as ChatMode | undefined,
       created_at: typeof m.created_at === "string" ? m.created_at : undefined,
+      asked_by:
+        m.asked_by === "doctor" || m.asked_by === "human" ? m.asked_by : null,
     })
   }
   return out

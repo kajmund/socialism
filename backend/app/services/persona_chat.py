@@ -6,7 +6,7 @@ import asyncio
 import logging
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -76,6 +76,7 @@ def _interview_lock_key(
 
 
 def serialize_persona_message(row: PersonaMessage) -> PersonaMessageOut:
+    asked_by = row.asked_by if row.asked_by in {"doctor", "human"} else None
     return PersonaMessageOut(
         id=row.id,
         mode=row.mode,  # type: ignore[arg-type]
@@ -86,6 +87,7 @@ def serialize_persona_message(row: PersonaMessage) -> PersonaMessageOut:
         attempt_id=row.attempt_id,
         variant_id=row.variant_id,
         through_tick_index=row.through_tick_index,
+        asked_by=asked_by,  # type: ignore[arg-type]
     )
 
 
@@ -261,6 +263,7 @@ async def stream_run_interview_turn(
     persona_id: str,
     through_tick_index: int,
     message: str,
+    asked_by: Literal["doctor", "human"] = "human",
 ) -> AsyncIterator[str | PersonaChatResponse]:
     lock = await _chat_turn_lock(
         _interview_lock_key(
@@ -337,6 +340,7 @@ async def stream_run_interview_turn(
             attempt_id=attempt_id,
             variant_id=variant_id,
             through_tick_index=through_tick_index,
+            asked_by=asked_by,
         )
         session.add(user_row)
         await session.commit()
@@ -386,6 +390,36 @@ async def stream_run_interview_turn(
         )
         messages = [serialize_persona_message(row) for row in all_rows.scalars().all()]
         yield PersonaChatResponse(reply=reply, messages=messages)
+
+
+async def complete_run_interview_turn(
+    session: AsyncSession,
+    *,
+    run_id: int,
+    attempt_id: str,
+    variant_id: str,
+    persona_id: str,
+    through_tick_index: int,
+    message: str,
+    asked_by: Literal["doctor", "human"] = "human",
+) -> PersonaChatResponse:
+    """Run one interview turn to completion (used by Spinndoktor MCP tools)."""
+    done: PersonaChatResponse | None = None
+    async for item in stream_run_interview_turn(
+        session,
+        run_id=run_id,
+        attempt_id=attempt_id,
+        variant_id=variant_id,
+        persona_id=persona_id,
+        through_tick_index=through_tick_index,
+        message=message,
+        asked_by=asked_by,
+    ):
+        if isinstance(item, PersonaChatResponse):
+            done = item
+    if done is None:
+        raise ChatTurnError("Interview turn produced no reply", status_code=502)
+    return done
 
 
 async def library_follow_up_questions(
