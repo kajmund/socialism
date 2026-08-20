@@ -9,6 +9,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field, ValidationError
 
 from app.realtime.hub import job_hub, report_hub
+from app.realtime.interview_broadcast import interview_broadcast, interview_key_tuple
 from app.schemas.domain import (
     ChatMode,
     HelpChatResponse,
@@ -165,6 +166,18 @@ async def chat_websocket(websocket: WebSocket) -> None:
 
         await websocket.send_json({"type": "ready", "scope": hello.scope})
 
+        if isinstance(hello, RunInterviewHello):
+            await interview_broadcast.subscribe(
+                interview_key_tuple(
+                    persona_id=hello.persona_id,
+                    run_id=hello.run_id,
+                    attempt_id=hello.attempt_id,
+                    variant_id=hello.variant_id,
+                    through_tick_index=hello.through_tick_index,
+                ),
+                websocket,
+            )
+
         while True:
             payload = await websocket.receive_json()
             if not isinstance(payload, dict):
@@ -312,3 +325,5 @@ async def chat_websocket(websocket: WebSocket) -> None:
             await websocket.close(code=1011)
         except Exception:
             pass
+    finally:
+        await interview_broadcast.unsubscribe(websocket)

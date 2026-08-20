@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import threading
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -81,6 +82,7 @@ class SpindoctorToolContext:
     report_id: str | None = None
     question_sent_at: datetime | None = None
     widgets: list[SpindoctorWidgetOut] = field(default_factory=list)
+    _widgets_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
 
 def _compact(payload: object) -> str:
@@ -131,7 +133,8 @@ def _widget_out(
         variant_id=variant_id,
         through_tick_index=through_tick_index,
     )
-    ctx.widgets.append(widget)
+    with ctx._widgets_lock:
+        ctx.widgets.append(widget)
     return widget
 
 

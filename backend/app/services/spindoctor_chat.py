@@ -129,9 +129,9 @@ async def _run_spindoctor_tool_loop(
         tool_calls = getattr(message, "tool_calls", None)
         if not tool_calls:
             break
-        for call in tool_calls:
-            name = call.function.name
-            raw_args = call.function.arguments or "{}"
+        async def _run_tool_call(call: object) -> tuple[object, str]:
+            name = call.function.name  # type: ignore[attr-defined]
+            raw_args = call.function.arguments or "{}"  # type: ignore[attr-defined]
             try:
                 arguments = json.loads(raw_args)
             except json.JSONDecodeError:
@@ -145,16 +145,22 @@ async def _run_spindoctor_tool_loop(
                 )
             except (httpx.HTTPError, ValueError, RuntimeError) as exc:
                 result = f"Tool error ({name}): {exc}"
+            return call, result
+
+        tool_results = await asyncio.gather(
+            *[_run_tool_call(call) for call in tool_calls]
+        )
+        for call, result in tool_results:
             working.append(
                 {
                     "role": "tool",
-                    "tool_call_id": call.id,
+                    "tool_call_id": call.id,  # type: ignore[attr-defined]
                     "content": result,
                 }
             )
-            while emitted < len(ctx.widgets):
-                new_widgets.append(ctx.widgets[emitted])
-                emitted += 1
+        while emitted < len(ctx.widgets):
+            new_widgets.append(ctx.widgets[emitted])
+            emitted += 1
     return working, new_widgets
 
 
