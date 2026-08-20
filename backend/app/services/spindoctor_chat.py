@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import SpindoctorMessage
 from app.llm import complete_with_tools, stream_text
+from app.llm.tool_messages import assistant_message_dict, tool_result_message
 from app.schemas.domain import (
     SpindoctorChatResponse,
     SpindoctorMessageOut,
@@ -86,27 +87,6 @@ def _history_rows(rows: list[SpindoctorMessage]) -> list[dict[str, str]]:
     return [{"role": row.role, "content": row.content} for row in rows]
 
 
-def _assistant_message_dict(message: object) -> dict[str, object]:
-    tool_calls = getattr(message, "tool_calls", None)
-    payload: dict[str, object] = {
-        "role": "assistant",
-        "content": getattr(message, "content", None) or "",
-    }
-    if tool_calls:
-        payload["tool_calls"] = [
-            {
-                "id": call.id,
-                "type": "function",
-                "function": {
-                    "name": call.function.name,
-                    "arguments": call.function.arguments,
-                },
-            }
-            for call in tool_calls
-        ]
-    return payload
-
-
 def _emit_text_chunks(text: str, *, chunk_size: int = 24) -> list[str]:
     if not text:
         return []
@@ -125,17 +105,21 @@ async def _run_spindoctor_tool_loop(
     new_widgets: list[SpindoctorWidgetOut] = []
     for _ in range(_MAX_TOOL_ROUNDS):
         message = await complete_with_tools(working, tools)
-        working.append(_assistant_message_dict(message))
+        working.append(assistant_message_dict(message))
         tool_calls = getattr(message, "tool_calls", None)
         if not tool_calls:
             break
-        async def _run_tool_call(call: object) -> tuple[object, str]:
+
+        async def _run_tool_call(call: object) -> tuple[object, str, str]:
             name = call.function.name  # type: ignore[attr-defined]
             raw_args = call.function.arguments or "{}"  # type: ignore[attr-defined]
-            try:
-                arguments = json.loads(raw_args)
-            except json.JSONDecodeError:
-                arguments = {}
+            if isinstance(raw_args, dict):
+                arguments = raw_args
+            else:
+                try:
+                    arguments = json.loads(raw_args)
+                except (json.JSONDecodeError, TypeError):
+                    arguments = {}
             try:
                 result = await run_spindoctor_mcp_tool(
                     session,
@@ -145,18 +129,14 @@ async def _run_spindoctor_tool_loop(
                 )
             except (httpx.HTTPError, ValueError, RuntimeError) as exc:
                 result = f"Tool error ({name}): {exc}"
-            return call, result
+            return call, result, name
 
         tool_results = await asyncio.gather(
             *[_run_tool_call(call) for call in tool_calls]
         )
-        for call, result in tool_results:
+        for call, result, name in tool_results:
             working.append(
-                {
-                    "role": "tool",
-                    "tool_call_id": call.id,  # type: ignore[attr-defined]
-                    "content": result,
-                }
+                tool_result_message(tool_call_id=call.id, content=result, name=name)
             )
         while emitted < len(ctx.widgets):
             new_widgets.append(ctx.widgets[emitted])
