@@ -138,10 +138,15 @@ _STYLE_CRITICAL = frozenset(
     }
 )
 _STYLE_RESIGNED = "Uppgiven + vardagsmetafor"
+_STYLE_DOMINANCE_MARGIN = 0.10
 
 
-def dominant_style_label(style_shares: list[tuple[str, float]]) -> str:
-    """Highest-share style label among rated reactions (ignores unclassified)."""
+def dominant_style_label(
+    style_shares: list[tuple[str, float]],
+    *,
+    margin: float = _STYLE_DOMINANCE_MARGIN,
+) -> str:
+    """Highest-share style label when it leads the runner-up by at least ``margin``."""
     ranked = [
         (style, share)
         for style, share in style_shares
@@ -149,7 +154,13 @@ def dominant_style_label(style_shares: list[tuple[str, float]]) -> str:
     ]
     if not ranked:
         return ""
-    return max(ranked, key=lambda item: item[1])[0]
+    ranked.sort(key=lambda item: item[1], reverse=True)
+    top_style, top_share = ranked[0]
+    if len(ranked) == 1:
+        return top_style
+    if top_share - ranked[1][1] >= margin:
+        return top_style
+    return ""
 
 
 def honest_negative_tone_phrase(
