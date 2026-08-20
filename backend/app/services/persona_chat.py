@@ -28,6 +28,7 @@ from app.services.district_context import area_block_for_name
 from app.services.oasis_run import previous_attempts
 from app.services.prompt_store import require_active_prompts
 from app.services.run_tick_context import build_persona_feed_context
+from app.realtime.interview_broadcast import interview_broadcast, interview_key_tuple
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,24 @@ def _interview_lock_key(
     return (
         f"interview:{persona_id}:{run_id}:{attempt_id}:"
         f"{variant_id}:{through_tick_index}"
+    )
+
+
+async def _publish_interview_message(row: PersonaMessage) -> None:
+    if row.run_id is None or row.attempt_id is None or row.variant_id is None:
+        return
+    if row.through_tick_index is None:
+        return
+    key = interview_key_tuple(
+        persona_id=row.persona_id,
+        run_id=row.run_id,
+        attempt_id=row.attempt_id,
+        variant_id=row.variant_id,
+        through_tick_index=row.through_tick_index,
+    )
+    await interview_broadcast.publish(
+        key,
+        serialize_persona_message(row).model_dump(mode="json"),
     )
 
 
@@ -344,6 +363,8 @@ async def stream_run_interview_turn(
         )
         session.add(user_row)
         await session.commit()
+        await session.refresh(user_row)
+        await _publish_interview_message(user_row)
 
         parts: list[str] = []
         async for chunk in stream_reply_as_persona(
@@ -374,6 +395,8 @@ async def stream_run_interview_turn(
         )
         session.add(assistant_row)
         await session.commit()
+        await session.refresh(assistant_row)
+        await _publish_interview_message(assistant_row)
 
         all_rows = await session.execute(
             select(PersonaMessage)
