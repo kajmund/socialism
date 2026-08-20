@@ -109,9 +109,10 @@ async def _run_spindoctor_tool_loop(
         tool_calls = getattr(message, "tool_calls", None)
         if not tool_calls:
             break
-        for call in tool_calls:
-            name = call.function.name
-            raw_args = call.function.arguments or "{}"
+
+        async def _run_tool_call(call: object) -> tuple[object, str, str]:
+            name = call.function.name  # type: ignore[attr-defined]
+            raw_args = call.function.arguments or "{}"  # type: ignore[attr-defined]
             if isinstance(raw_args, dict):
                 arguments = raw_args
             else:
@@ -128,12 +129,18 @@ async def _run_spindoctor_tool_loop(
                 )
             except (httpx.HTTPError, ValueError, RuntimeError) as exc:
                 result = f"Tool error ({name}): {exc}"
+            return call, result, name
+
+        tool_results = await asyncio.gather(
+            *[_run_tool_call(call) for call in tool_calls]
+        )
+        for call, result, name in tool_results:
             working.append(
                 tool_result_message(tool_call_id=call.id, content=result, name=name)
             )
-            while emitted < len(ctx.widgets):
-                new_widgets.append(ctx.widgets[emitted])
-                emitted += 1
+        while emitted < len(ctx.widgets):
+            new_widgets.append(ctx.widgets[emitted])
+            emitted += 1
     return working, new_widgets
 
 
@@ -258,7 +265,7 @@ async def stream_spindoctor_chat_turn(
 
         section_ref = last_spindoctor_ref(reply)
         if section_ref:
-            snippet = make_report_snippet_widget(
+            snippet = await make_report_snippet_widget(
                 ctx,
                 section_id=section_ref,
                 title=_section_title(section_ref, locale=locale),

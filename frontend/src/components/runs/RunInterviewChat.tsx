@@ -113,6 +113,27 @@ export function RunInterviewChat({
       setOptimisticUser(null)
       setError(detail || t("runs.interview.sendError"))
     },
+    onInterviewMessage: (message) => {
+      setMessages((prev) => {
+        if (prev.some((row) => row.id === message.id)) return prev
+        return [
+          ...prev,
+          {
+            id: message.id,
+            mode: "interview" as const,
+            role: message.role,
+            content: message.content,
+            created_at: message.created_at ?? "",
+            run_id: runId,
+            attempt_id: attemptId,
+            variant_id: variant.id,
+            through_tick_index: tickIndex,
+            asked_by: message.asked_by ?? null,
+          },
+        ]
+      })
+      setError(null)
+    },
   })
 
   const busy = restBusy || socketBusy
@@ -146,14 +167,6 @@ export function RunInterviewChat({
     }
     void loadMessages()
   }, [chatReady, loadMessages])
-
-  useEffect(() => {
-    if (!compact || !chatReady || !personaId || busy) return
-    const timer = window.setInterval(() => {
-      void loadMessages()
-    }, 2000)
-    return () => window.clearInterval(timer)
-  }, [compact, chatReady, personaId, busy, loadMessages])
 
   function send() {
     const trimmed = draft.trim()
