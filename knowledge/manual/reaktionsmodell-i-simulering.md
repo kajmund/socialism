@@ -43,14 +43,15 @@ Engagerade agenter kan **plockas igen** i senare ronder på samma budskag (fortf
 
 Reaktioner på kommentarer i **andra** trådar räknas inte — bara tråden kring det aktuella budskaget.
 
-## Kommentera kräver samma engagemang
+## Kommentera kräver tidigare engagemang
 
-Regeln för **vem som får skriva kommentar** är **samma** som för att räknas som engagerad:
+**Första gången** under en körning får en agent skriva kommentar först efter att hen **engagerat sig i någon tråd** — gillat eller ogillat ett budskagsinlägg, gillat/ogillat en kommentar i tråden, eller skrivit en kommentar.
 
-- Du måste ha **gillat eller ogillat** budskagsinlägget **eller** en kommentar i tråden (eller redan ha kommenterat tidigare) innan du får skriva en ny kommentar.
-- **Passiva** agenter kan **inte** kommentera på samma budskag — de är uteslutna från senare ronder tills nästa budskag.
+- Agenter som **aldrig** engagerat sig under hela körningen saknar **create_comment** tills de gör det — det hindrar spontana, orelaterade kommentarer innan någon reaktion alls.
+- När en agent **väckts** (engagerat sig minst en gång) **behåller** hen rätten att kommentera **resten av körningen**, även när ett **nytt budskag** injiceras och urvalsreglerna nollställs för det nya inlägget. Då kan hen fortsätta debattera **äldre trådar** parallellt med det nya budskapet.
+- **Passiva** agenter kan fortfarande **inte** kommentera på **samma budskag** de skrollade förbi — de är uteslutna från senare ronder tills nästa budskag (eller tills de engagerat sig i någon tråd och därmed fått permanent kommentarsrätt).
 
-Det innebär att kommentarer i resultatet oftast kommer från personer som **faktiskt stannade till** i tråden, inte från alla som råkade se inlägget i flödet.
+Det innebär att kommentarer i resultatet oftast kommer från personer som **faktiskt stannade till** i tråden, inte från alla som råkade se inlägget i flödet — men engagerade medborgare kan **väga flera budskap mot varandra** över dagar.
 
 ## När reglerna nollställs
 
