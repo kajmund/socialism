@@ -551,6 +551,30 @@ class SpindoctorMessage(Base):
     )
 
 
+class SpindoctorWidget(Base):
+    """Spinndoktor board widget scoped to one report."""
+
+    __tablename__ = "spindoctor_widgets"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    report_id: Mapped[str] = mapped_column(
+        String(64),
+        ForeignKey("reports.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    data: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    pos_x: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    pos_y: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+
 class ReportVerdictCalibration(Base):
     """Operator judgment: does the report recommendation match the whole report?"""
 

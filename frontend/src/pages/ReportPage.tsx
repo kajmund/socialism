@@ -4,8 +4,16 @@ import { deleteReport, getReportHtml, type Report } from "@/api/reports"
 import { ReportCanvas, type ReportCanvasHandle } from "@/components/reports/ReportCanvas"
 import { SpinndoktorGrid } from "@/components/reports/spinndoctorGrid/SpinndoktorGrid"
 import { SpinndoktorPanel } from "@/components/reports/SpinndoktorPanel"
-import type { SpindoctorWidget } from "@/api/spindoctorWidgets"
+import {
+  clearSpindoctorWidgets,
+  deleteSpindoctorWidget,
+  listSpindoctorWidgets,
+  parseSpindoctorWidget,
+  updateSpindoctorWidgetPosition,
+  type SpindoctorWidget,
+} from "@/api/spindoctorWidgets"
 import { AdminShell } from "@/components/layout/AdminShell"
+import { AdminButton } from "@/components/ui/admin-button"
 import { Card, CardContent } from "@/components/ui/card"
 import { useLocale, type MessageKey } from "@/i18n"
 import { ApiError } from "@/lib/api"
@@ -57,6 +65,7 @@ export function ReportPage() {
   const [deleting, setDeleting] = useState(false)
   const [viewMode, setViewMode] = useState<ReportViewMode>("report")
   const [reportPanelOpen, setReportPanelOpen] = useState(false)
+  const [chatPanelOpen, setChatPanelOpen] = useState(true)
   const [gridWidgets, setGridWidgets] = useState<SpindoctorWidget[]>([])
   const canvasRef = useRef<ReportCanvasHandle | null>(null)
 
@@ -102,9 +111,32 @@ export function ReportPage() {
   useEffect(() => {
     if (viewMode === "report") {
       setReportPanelOpen(false)
-      setGridWidgets([])
+      setChatPanelOpen(true)
     }
   }, [viewMode])
+
+  useEffect(() => {
+    if (viewMode !== "spinndoctor" || !id) return
+    let cancelled = false
+    void listSpindoctorWidgets(id)
+      .then((rows) => {
+        if (cancelled) return
+        setGridWidgets(
+          rows
+            .map((row) => parseSpindoctorWidget(row))
+            .filter((row): row is SpindoctorWidget => row != null),
+        )
+      })
+      .catch((err) => {
+        if (cancelled) return
+        setActionError(
+          err instanceof ApiError ? err.message : t("spinndoctor.grid.boardLoadError"),
+        )
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [viewMode, id, t])
 
   const handleSectionRef = useCallback((sectionId: string) => {
     setReportPanelOpen(true)
@@ -119,6 +151,50 @@ export function ReportPage() {
       return [...prev, widget]
     })
   }, [])
+
+  const handleCloseWidget = useCallback(
+    async (widgetId: string) => {
+      if (!id) return
+      try {
+        await deleteSpindoctorWidget(id, widgetId)
+        setGridWidgets((prev) => prev.filter((row) => row.id !== widgetId))
+      } catch (err) {
+        setActionError(
+          err instanceof ApiError ? err.message : t("spinndoctor.grid.boardCloseError"),
+        )
+      }
+    },
+    [id, t],
+  )
+
+  const handleMoveWidget = useCallback(
+    (widgetId: string, position: { x: number; y: number }) => {
+      if (!id) return
+      setGridWidgets((prev) =>
+        prev.map((row) =>
+          row.id === widgetId ? { ...row, pos_x: position.x, pos_y: position.y } : row,
+        ),
+      )
+      void updateSpindoctorWidgetPosition(id, widgetId, position).catch((err) => {
+        setActionError(
+          err instanceof ApiError ? err.message : t("spinndoctor.grid.boardMoveError"),
+        )
+      })
+    },
+    [id, t],
+  )
+
+  const handleClearBoard = useCallback(async () => {
+    if (!id) return
+    try {
+      await clearSpindoctorWidgets(id)
+      setGridWidgets([])
+    } catch (err) {
+      setActionError(
+        err instanceof ApiError ? err.message : t("spinndoctor.grid.boardClearError"),
+      )
+    }
+  }, [id, t])
 
   const handleOpenSnippet = useCallback((sectionId: string) => {
     handleSectionRef(sectionId)
@@ -147,165 +223,150 @@ export function ReportPage() {
 
   const duration = report ? formatReportDuration(report, t) : null
 
-  return (
-    <AdminShell>
-      <div
-        className={viewMode === "spinndoctor" ? "wrap spinndoctor-page" : "wrap"}
-        style={{ maxWidth: viewMode === "spinndoctor" ? 1400 : 1100 }}
-      >
-        <div className="section-head">
-          <span className="kicker">{t("reports.kicker")}</span>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h1
-                style={{
-                  font: "var(--text-h1)",
-                  fontFamily: "'Bai Jamjuree', sans-serif",
-                  fontWeight: 400,
-                }}
-              >
-                {report?.title || t("reports.titleFallback")}
-              </h1>
-              <p>
-                <Link to="/reports">{t("reports.backToList")}</Link>
-                {report ? ` · ${t(STATUS_KEY[report.status])}` : null}
-                {duration ? ` · ${t("reports.took", { duration })}` : null}
-              </p>
-            </div>
-            {spinndoktorReady ? (
-              <div className="spinndoctor-view-toggle" role="tablist" aria-label={t("spinndoctor.title")}>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={viewMode === "report"}
-                  className={viewMode === "report" ? "active" : undefined}
-                  onClick={() => setViewMode("report")}
-                >
-                  {t("spinndoctor.viewReport")}
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={viewMode === "spinndoctor"}
-                  className={viewMode === "spinndoctor" ? "active" : undefined}
-                  onClick={() => setViewMode("spinndoctor")}
-                >
-                  {t("spinndoctor.viewSpinndoktor")}
-                </button>
-              </div>
-            ) : null}
-          </div>
-        </div>
-
-        {report ? (
-          confirmDelete ? (
-            <div
-              className="confirm-row mb-4"
-              style={{ display: "flex", gap: 8, flexWrap: "wrap" }}
+  const pageChrome = (
+    <>
+      <div className="section-head">
+        <span className="kicker">{t("reports.kicker")}</span>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1
+              style={{
+                font: "var(--text-h1)",
+                fontFamily: "'Bai Jamjuree', sans-serif",
+                fontWeight: 400,
+              }}
             >
-              <button
-                type="button"
-                disabled={deleting}
-                onClick={() => setConfirmDelete(false)}
-              >
-                {t("common.cancel")}
-              </button>
-              <button
-                type="button"
-                className="yes"
-                disabled={deleting}
-                onClick={() => void handleDelete()}
-              >
-                {t("common.deleteConfirm")}
-              </button>
-            </div>
-          ) : (
-            <div className="mb-4">
-              <button
-                type="button"
-                className="danger"
-                onClick={() => setConfirmDelete(true)}
-              >
-                {t("common.delete")}
-              </button>
-            </div>
-          )
-        ) : null}
-
-        {error ? (
-          <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
-            {error}
+              {report?.title || t("reports.titleFallback")}
+            </h1>
+            <p>
+              <Link to="/reports">{t("reports.backToList")}</Link>
+              {report ? ` · ${t(STATUS_KEY[report.status])}` : null}
+              {duration ? ` · ${t("reports.took", { duration })}` : null}
+            </p>
           </div>
-        ) : null}
+          {spinndoktorReady && viewMode === "report" ? (
+            <AdminButton
+              variant="secondary"
+              onClick={() => setViewMode("spinndoctor")}
+            >
+              {t("spinndoctor.viewSpinndoktor")}
+            </AdminButton>
+          ) : null}
+        </div>
+      </div>
 
-        {report?.status === "failed" ? (
-          <Card className="mb-4 gap-0 ring-1 ring-border">
-            <CardContent className="px-5 py-4 text-sm text-destructive">
-              {report.error || t("reports.generateFailed")}
-            </CardContent>
-          </Card>
-        ) : null}
-
-        {report && (report.status === "pending" || report.status === "running") ? (
-          <Card className="mb-4 gap-0 ring-1 ring-border">
-            <CardContent className="px-5 py-4 text-sm text-muted-foreground">
-              {t("reports.generating")}
-            </CardContent>
-          </Card>
-        ) : null}
-
-        {viewMode === "report" && report?.status === "succeeded" && html ? (
-          <div className="mb-4 flex flex-wrap gap-3 text-sm">
+      {report ? (
+        confirmDelete ? (
+          <div
+            className="confirm-row mb-4"
+            style={{ display: "flex", gap: 8, flexWrap: "wrap" }}
+          >
             <button
               type="button"
-              onClick={openInNewTab}
-              className="text-db-gold-700 underline-offset-2 hover:underline"
+              disabled={deleting}
+              onClick={() => setConfirmDelete(false)}
             >
-              {t("reports.openNewTab")}
+              {t("common.cancel")}
+            </button>
+            <button
+              type="button"
+              className="yes"
+              disabled={deleting}
+              onClick={() => void handleDelete()}
+            >
+              {t("common.deleteConfirm")}
             </button>
           </div>
-        ) : null}
-
-        {htmlError ? (
-          <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
-            {htmlError}
+        ) : (
+          <div className="mb-4">
+            <button
+              type="button"
+              className="danger"
+              onClick={() => setConfirmDelete(true)}
+            >
+              {t("common.delete")}
+            </button>
           </div>
-        ) : null}
+        )
+      ) : null}
 
-        {report?.status === "succeeded" && !html && !htmlError ? (
-          <Card className="mb-4 gap-0 ring-1 ring-border">
-            <CardContent className="px-5 py-4 text-sm text-muted-foreground">
-              {t("reports.loadingHtml")}
-            </CardContent>
-          </Card>
-        ) : null}
+      {error ? (
+        <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
+          {error}
+        </div>
+      ) : null}
 
-        {viewMode === "report" && html ? (
-          <iframe
-            title={report?.title || t("reports.iframeTitle")}
-            srcDoc={html}
-            className="w-full rounded-md border border-db-ink-100 bg-white"
-            style={{ minHeight: "80vh" }}
-            sandbox="allow-same-origin allow-scripts allow-popups"
-          />
-        ) : null}
+      {report?.status === "failed" ? (
+        <Card className="mb-4 gap-0 ring-1 ring-border">
+          <CardContent className="px-5 py-4 text-sm text-destructive">
+            {report.error || t("reports.generateFailed")}
+          </CardContent>
+        </Card>
+      ) : null}
 
-        {viewMode === "spinndoctor" && id && html ? (
+      {report && (report.status === "pending" || report.status === "running") ? (
+        <Card className="mb-4 gap-0 ring-1 ring-border">
+          <CardContent className="px-5 py-4 text-sm text-muted-foreground">
+            {t("reports.generating")}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {htmlError ? (
+        <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
+          {htmlError}
+        </div>
+      ) : null}
+
+      {report?.status === "succeeded" && !html && !htmlError ? (
+        <Card className="mb-4 gap-0 ring-1 ring-border">
+          <CardContent className="px-5 py-4 text-sm text-muted-foreground">
+            {t("reports.loadingHtml")}
+          </CardContent>
+        </Card>
+      ) : null}
+    </>
+  )
+
+  if (viewMode === "spinndoctor" && id && html) {
+    return (
+      <AdminShell>
+        <div className="wrap spinndoctor-page">
           <div className="spinndoctor-workspace">
-            <aside className="spinndoctor-workspace-chat">
-              {spinndoktorReady ? (
-                <SpinndoktorPanel
-                  reportId={id}
-                  locale={reportLocale}
-                  onSectionRef={handleSectionRef}
-                  onWidget={handleGridWidget}
-                />
-              ) : (
-                <p className="text-sm text-muted-foreground">{t("spinndoctor.unavailable")}</p>
-              )}
-            </aside>
             <main className="spinndoctor-workspace-grid">
+              <SpinndoktorGrid
+                widgets={gridWidgets}
+                onOpenSnippet={handleOpenSnippet}
+                onCloseWidget={(widgetId) => void handleCloseWidget(widgetId)}
+                onMoveWidget={handleMoveWidget}
+              />
+            </main>
+            <div className="spinndoctor-workspace-overlays">
               <div className="spinndoctor-workspace-grid-toolbar">
+                <button
+                  type="button"
+                  className="spinndoctor-canvas-toggle"
+                  aria-expanded={chatPanelOpen}
+                  aria-controls="spinndoctor-chat-panel"
+                  onClick={() => setChatPanelOpen((open) => !open)}
+                >
+                  {chatPanelOpen
+                    ? t("spinndoctor.hideChatPanel")
+                    : t("spinndoctor.showChatPanel")}
+                </button>
+                <button
+                  type="button"
+                  className="spinndoctor-canvas-toggle"
+                  disabled={gridWidgets.length === 0}
+                  onClick={() => void handleClearBoard()}
+                >
+                  {t("spinndoctor.clearBoard")}
+                </button>
+                {actionError ? (
+                  <span className="spinndoctor-workspace-board-error" role="alert">
+                    {actionError}
+                  </span>
+                ) : null}
                 <button
                   type="button"
                   className="spinndoctor-canvas-toggle"
@@ -318,20 +379,75 @@ export function ReportPage() {
                     : t("spinndoctor.showReportPanel")}
                 </button>
               </div>
-              <SpinndoktorGrid widgets={gridWidgets} onOpenSnippet={handleOpenSnippet} />
-            </main>
-            {reportPanelOpen && html ? (
-              <aside className="spinndoctor-workspace-report" id="spinndoctor-report-panel">
-                <ReportCanvas
-                  ref={canvasRef}
-                  html={html}
-                  title={report?.title || t("reports.iframeTitle")}
-                />
-              </aside>
-            ) : null}
+              <div className="spinndoctor-workspace-overlays-body">
+                <aside
+                  className={
+                    "spinndoctor-workspace-chat" +
+                    (chatPanelOpen ? "" : " is-collapsed")
+                  }
+                  id="spinndoctor-chat-panel"
+                  hidden={!chatPanelOpen}
+                >
+                  {spinndoktorReady ? (
+                    <SpinndoktorPanel
+                      reportId={id}
+                      locale={reportLocale}
+                      onSectionRef={handleSectionRef}
+                      onWidget={handleGridWidget}
+                      onViewReport={() => setViewMode("report")}
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      {t("spinndoctor.unavailable")}
+                    </p>
+                  )}
+                </aside>
+                {reportPanelOpen ? (
+                  <aside
+                    className="spinndoctor-workspace-report"
+                    id="spinndoctor-report-panel"
+                  >
+                    <ReportCanvas
+                      ref={canvasRef}
+                      html={html}
+                      title={report?.title || t("reports.iframeTitle")}
+                    />
+                  </aside>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </div>
+      </AdminShell>
+    )
+  }
+
+  return (
+    <AdminShell>
+      <div className="wrap" style={{ maxWidth: 1100 }}>
+        {pageChrome}
+
+        {report?.status === "succeeded" && html ? (
+          <div className="mb-4 flex flex-wrap gap-3 text-sm">
+            <button
+              type="button"
+              onClick={openInNewTab}
+              className="text-db-gold-700 underline-offset-2 hover:underline"
+            >
+              {t("reports.openNewTab")}
+            </button>
           </div>
         ) : null}
 
+        {html ? (
+          <iframe
+            title={report?.title || t("reports.iframeTitle")}
+            srcDoc={html}
+            className="w-full rounded-md border border-db-ink-100 bg-white"
+            style={{ minHeight: "80vh" }}
+            sandbox="allow-same-origin allow-scripts allow-popups"
+          />
+        ) : null}
       </div>
     </AdminShell>
   )

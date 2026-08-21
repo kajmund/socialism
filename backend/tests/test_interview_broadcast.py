@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-import asyncio
-
 import pytest
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import StaticPool
 from starlette.websockets import WebSocketState
 
 from app.realtime.interview_broadcast import (
@@ -71,15 +72,21 @@ async def test_interview_broadcast_unsubscribe_on_disconnect():
 
 
 @pytest.mark.asyncio
-async def test_spindoctor_tool_loop_runs_calls_in_parallel(monkeypatch):
+async def test_spindoctor_tool_loop_runs_multiple_calls_on_one_session(monkeypatch):
     from app.services.spindoctor_chat import _run_spindoctor_tool_loop
     from app.services.spindoctor_mcp_tools import SpindoctorToolContext
 
-    started: list[float] = []
+    engine = create_async_engine(
+        "sqlite+aiosqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    session_factory = async_sessionmaker(
+        engine, expire_on_commit=False, class_=AsyncSession
+    )
 
-    async def fake_tool(_session, name, _arguments, *, ctx):
-        started.append(asyncio.get_running_loop().time())
-        await asyncio.sleep(0.05)
+    async def fake_tool(session, name, _arguments, *, ctx):
+        await session.execute(text("SELECT 1"))
         return f"ok:{name}"
 
     class FakeCall:
@@ -122,16 +129,14 @@ async def test_spindoctor_tool_loop_runs_calls_in_parallel(monkeypatch):
     )
 
     ctx = SpindoctorToolContext()
-    loop = asyncio.get_running_loop()
-    t0 = loop.time()
-    working, _widgets = await _run_spindoctor_tool_loop(
-        None,  # type: ignore[arg-type]
-        [{"role": "system", "content": "test"}],
-        ctx=ctx,
-    )
-    elapsed = loop.time() - t0
+    async with session_factory() as session:
+        working, _widgets = await _run_spindoctor_tool_loop(
+            session,
+            [{"role": "system", "content": "test"}],
+            ctx=ctx,
+        )
+    await engine.dispose()
 
-    assert elapsed < 0.09, "Independent tool calls should run concurrently"
-    assert len(started) == 2
     tool_messages = [row for row in working if row.get("role") == "tool"]
-    assert {row["tool_call_id"] for row in tool_messages} == {"call_1", "call_2"}
+    assert [row["tool_call_id"] for row in tool_messages] == ["call_1", "call_2"]
+    assert [row["content"] for row in tool_messages] == ["ok:list_runs", "ok:list_reports"]

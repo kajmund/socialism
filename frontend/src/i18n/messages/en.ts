@@ -110,6 +110,9 @@ export const en: LocalizedTree<SvMessages> = {
     hideCanvas: "Hide report",
     showReportPanel: "Show report panel",
     hideReportPanel: "Hide report panel",
+    showChatPanel: "Show chat",
+    hideChatPanel: "Hide chat",
+    clearBoard: "Clear board",
     canvasAria: "Report canvas",
     grid: {
       empty: "Ask a question — Spinndoktor places charts, notes, interviews, and report clips here.",
@@ -122,6 +125,13 @@ export const en: LocalizedTree<SvMessages> = {
       interviewLoadError: "Could not load interview",
       interviewMissingContext: "Interview widget is missing run context",
       interviewVariantMissing: "Run variant not found",
+      copy: "Copy",
+      copied: "Copied",
+      close: "Close",
+      boardLoadError: "Could not load the board",
+      boardCloseError: "Could not close the card",
+      boardMoveError: "Could not save the card position",
+      boardClearError: "Could not clear the board",
     },
     placeholder: "E.g. What do the numbers say about reception?",
     empty:

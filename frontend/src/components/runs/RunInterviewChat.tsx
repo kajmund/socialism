@@ -213,7 +213,7 @@ export function RunInterviewChat({
   const day = markers[tickIndex]?.day ?? tickIndex + 1
 
   return (
-    <div>
+    <div className={compact ? "run-interview-chat--compact" : undefined}>
       {!compact ? (
         <div
           className="mb-3 rounded border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-foreground"
