@@ -29,7 +29,7 @@ En agent räknas som **passiv** på ett budskag om hen var med i urvalet men bar
 - **Göra inget**
 - **Uppdatera flödet** (scrolla vidare)
 
-Passiva agenter ** ingår inte i senare reaktionsronder på samma budskag**. De får en ny chans först när **nästa budskag eller nyhet** injiceras (ny dag med injektion, eller ny injektion samma dag).
+Passiva agenter ** ingår inte i senare reaktionsronder på samma budskag**. De får en ny chans när **nästa budskag eller nyhet** injiceras, eller när en **tyst dag** börjar (då avslutas den gated reaktionsperioden och hela populationen kan plockas igen).
 
 ## Engagerad — får vara med
 
@@ -58,7 +58,7 @@ Det innebär att kommentarer i resultatet oftast kommer från personer som **fak
 | Händelse | Effekt |
 | -------- | ------ |
 | **Ny injektion** (nytt budskag/nyhet) | Alla agenter får ny chans; passiv-status försvinner för det nya inlägget |
-| **Tyst dag** (ingen ny injektion) | Populationen reagerar fortfarande i ronder, men **utan nytt budskag** — passiv-status från **föregående** budskag gäller tills ett nytt injiceras |
+| **Tyst dag** (ingen ny injektion) | Den gated reaktionsperioden **avslutas** — hela populationen kan plockas igen och **alla** får kommentera fritt. Inget nytt budskag startas. |
 | **Ny reaktionsrond** | Nytt stratifierat urval; passiva utesluts på **samma** budskag |
 
 ## Vad du kan förvänta dig i resultat
