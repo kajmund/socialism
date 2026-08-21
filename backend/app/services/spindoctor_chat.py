@@ -112,8 +112,7 @@ async def _run_spindoctor_tool_loop(
         if not tool_calls:
             break
 
-        # One AsyncSession cannot run concurrent ops; interview tools commit/refresh.
-        for call in tool_calls:
+        async def _run_tool_call(call: object) -> tuple[object, str, str]:
             name = call.function.name  # type: ignore[attr-defined]
             raw_args = call.function.arguments or "{}"  # type: ignore[attr-defined]
             if isinstance(raw_args, dict):
@@ -134,6 +133,12 @@ async def _run_spindoctor_tool_loop(
                     )
             except (httpx.HTTPError, ValueError, RuntimeError) as exc:
                 result = f"Tool error ({name}): {exc}"
+            return call, result, name
+
+        tool_results = await asyncio.gather(
+            *[_run_tool_call(call) for call in tool_calls]
+        )
+        for call, result, name in tool_results:
             working.append(
                 tool_result_message(tool_call_id=call.id, content=result, name=name)
             )
