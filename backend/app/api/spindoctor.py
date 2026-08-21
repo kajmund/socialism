@@ -7,7 +7,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Report
 from app.database.session import get_session
-from app.schemas.domain import SpindoctorMessageOut
+from app.schemas.domain import (
+    SpindoctorMessageOut,
+    SpindoctorWidgetOut,
+    SpindoctorWidgetPositionIn,
+)
+from app.services.spindoctor_board import (
+    clear_spindoctor_widgets,
+    delete_spindoctor_widget,
+    list_spindoctor_widgets,
+    update_spindoctor_widget_position,
+)
 from app.services.spindoctor_chat import (
     clear_spindoctor_messages,
     list_spindoctor_messages,
@@ -41,3 +51,53 @@ async def delete_spindoctor_messages(
 ) -> None:
     await _require_succeeded_report(session, report_id)
     await clear_spindoctor_messages(session, report_id)
+
+
+@router.get("/widgets", response_model=list[SpindoctorWidgetOut])
+async def get_spindoctor_widgets(
+    report_id: str,
+    session: AsyncSession = Depends(get_session),
+) -> list[SpindoctorWidgetOut]:
+    await _require_succeeded_report(session, report_id)
+    return await list_spindoctor_widgets(session, report_id)
+
+
+@router.patch("/widgets/{widget_id}", response_model=SpindoctorWidgetOut)
+async def patch_spindoctor_widget(
+    widget_id: str,
+    body: SpindoctorWidgetPositionIn,
+    session: AsyncSession = Depends(get_session),
+) -> SpindoctorWidgetOut:
+    await _require_succeeded_report(session, body.report_id)
+    try:
+        return await update_spindoctor_widget_position(
+            session,
+            body.report_id,
+            widget_id,
+            pos_x=body.pos_x,
+            pos_y=body.pos_y,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.delete("/widgets/{widget_id}", status_code=204)
+async def remove_spindoctor_widget(
+    widget_id: str,
+    report_id: str,
+    session: AsyncSession = Depends(get_session),
+) -> None:
+    await _require_succeeded_report(session, report_id)
+    try:
+        await delete_spindoctor_widget(session, report_id, widget_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.delete("/widgets", status_code=204)
+async def delete_spindoctor_widgets(
+    report_id: str,
+    session: AsyncSession = Depends(get_session),
+) -> None:
+    await _require_succeeded_report(session, report_id)
+    await clear_spindoctor_widgets(session, report_id)

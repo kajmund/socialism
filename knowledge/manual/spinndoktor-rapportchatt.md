@@ -12,17 +12,18 @@ Spinndoktor är en chatt kopplad till **en enskild rapport**. Den hjälper dig t
 ## Öppna Spinndoktor
 
 1. Gå till **Rapporter** och öppna en rapport som har status **Klar**.
-2. I sidhuvudet: växla från **Rapport** till **Spinndoktor**.
+2. I sidhuvudet: klicka på **Spinndoktor**.
+3. Tillbaka till rapporten: klicka på **Rapport** uppe i chattrutan.
 
 Hjälpchatten (FAB nere till höger) är en separat funktion och kan vara öppen samtidigt.
 
 ## Arbetsyta
 
-- **Chatt** ligger fast i en panel till vänster.
-- **Rutnät** fyller resten av ytan — Spinndoktorn lägger dit kort medan ni pratar.
-- **Visa rapport** (höger) öppnar samma HTML-rapport som referenspanel. Den är stängd som standard.
+- **Rutnätet** fyller hela sidan. Rapportens sidhuvud (titel, status, ta bort) syns inte här — bara chatten, rutnätet och ev. rapportpanel. Du kan panorera och zooma under panelerna och flytta kort fritt.
+- **Chatten** ligger flytande till vänster ovanpå rutnätet. **Visa chatt**, **Rensa rutnät** och **Visa rapportpanel** ligger som en flytande rad i mitten av rutnätet.
+- **Visa rapportpanel** öppnar samma HTML-rapport som en flytande panel till höger. Den är stängd som standard.
 
-Du kan panorera och zooma i rutnätet och flytta kort fritt. Rutnätet töms när du lämnar Spinndoktor-vyn.
+Rutnätet töms när du lämnar Spinndoktor-vyn.
 
 ## Ställa frågor
 
@@ -34,13 +35,14 @@ Du kan panorera och zooma i rutnätet och flytta kort fritt. Rutnätet töms nä
 
 ## Widgets på rutnätet
 
-Spinndoktorn kan lägga till tre typer av kort:
+Spinndoktorn kan lägga till fyra typer av kort:
 
 1. **Graf** — stapel, ring eller enskild siffra utifrån rapportdata eller beräkningar.
 2. **Anteckning** — kort sammanfattning av ett fynd.
 3. **Rapportklipp** — avsnitt ur HTML-rapporten (samma avsnitt som när den pekar dig till `[[ref:…]]`).
+4. **Intervju** — chatt med en persona från körningen. Scrolla i tråden; flytta kortet i titeln.
 
-Varje kort visar en liten tidsstämpel — hur lång tid som gick från din fråga till att kortet dök upp (för utvärdering av känsla och svarstid).
+Varje kort visar en liten tidsstämpel — hur lång tid som gick från din fråga till att kortet dök upp (för utvärdering av känsla och svarstid). Kopieringsikonen uppe till höger kopierar kortets text; krysset stänger kortet. Rutnätet sparas per rapport — kort och deras läge finns kvar när du kommer tillbaka. **Rensa rutnät** tar bort alla kort.
 
 När Spinndoktorn pekar dig till ett avsnitt i rapporten kan du öppna referenspanelen och scrolla dit, eller öppna klippet från kortet.
 
@@ -51,5 +53,4 @@ När Spinndoktorn pekar dig till ett avsnitt i rapporten kan du öppna referensp
 ## Begränsningar (prototyp)
 
 - Rutnätet fylls bara av Spinndoktorn — du kan inte lägga till kort manuellt.
-- Kort sparas inte mellan sessioner.
-- Inga verktyg för att köra om SSR, intervjua agenter eller skapa egna diagram utanför chatten.
+- Inga verktyg för att köra om SSR eller skapa egna diagram utanför chatten.

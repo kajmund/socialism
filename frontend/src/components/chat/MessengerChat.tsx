@@ -78,7 +78,9 @@ export function MessengerChat({
     <div className={"messenger-chat" + (className ? ` ${className}` : "")}>
       <div
         ref={msgsRef}
-        className={"chat-msgs" + (messagesClassName ? ` ${messagesClassName}` : "")}
+        className={
+          "chat-msgs nowheel" + (messagesClassName ? ` ${messagesClassName}` : "")
+        }
       >
         {showEmpty ? empty : null}
         {messages.map((m) => (
@@ -139,7 +141,7 @@ export function MessengerChat({
           </div>
         ) : null}
       </div>
-      <div className="chat-input">
+      <div className="chat-input nodrag">
         <input
           ref={inputRef}
           placeholder={placeholder}

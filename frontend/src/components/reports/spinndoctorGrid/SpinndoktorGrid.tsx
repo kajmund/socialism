@@ -36,9 +36,16 @@ function cascadePosition(index: number): { x: number; y: number } {
 type SpinndoktorGridProps = {
   widgets: SpindoctorWidget[]
   onOpenSnippet?: (sectionId: string) => void
+  onCloseWidget?: (widgetId: string) => void
+  onMoveWidget?: (widgetId: string, position: { x: number; y: number }) => void
 }
 
-export function SpinndoktorGrid({ widgets, onOpenSnippet }: SpinndoktorGridProps) {
+export function SpinndoktorGrid({
+  widgets,
+  onOpenSnippet,
+  onCloseWidget,
+  onMoveWidget,
+}: SpinndoktorGridProps) {
   const { t } = useLocale()
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<SpinndoktorWidgetNodeData>>(
     [],
@@ -53,9 +60,15 @@ export function SpinndoktorGrid({ widgets, onOpenSnippet }: SpinndoktorGridProps
         return {
           id: widget.id,
           type: "spinndoctorWidget" as const,
-          position: existing?.position ?? cascadePosition(index),
-          data: { widget, onOpenSnippet },
+          position:
+            existing?.position ??
+            (typeof widget.pos_x === "number" && typeof widget.pos_y === "number"
+              ? { x: widget.pos_x, y: widget.pos_y }
+              : cascadePosition(index)),
+          data: { widget, onOpenSnippet, onCloseWidget },
           draggable: true,
+          dragHandle:
+            widget.kind === "interview" ? ".spinndoctor-widget-head" : undefined,
           style:
             widget.kind === "interview"
               ? { width: INTERVIEW_NODE_WIDTH }
@@ -63,7 +76,7 @@ export function SpinndoktorGrid({ widgets, onOpenSnippet }: SpinndoktorGridProps
         }
       })
     })
-  }, [widgets, onOpenSnippet, setNodes])
+  }, [widgets, onOpenSnippet, onCloseWidget, setNodes])
 
   const empty = widgets.length === 0
 
@@ -77,6 +90,9 @@ export function SpinndoktorGrid({ widgets, onOpenSnippet }: SpinndoktorGridProps
         edges={edges}
         nodeTypes={nodeTypes}
         onNodesChange={onNodesChange}
+        onNodeDragStop={(_event, node) => {
+          onMoveWidget?.(node.id, node.position)
+        }}
         onEdgesChange={onEdgesChange}
         fitView={empty}
         minZoom={0.35}
@@ -84,7 +100,7 @@ export function SpinndoktorGrid({ widgets, onOpenSnippet }: SpinndoktorGridProps
         proOptions={{ hideAttribution: true }}
       >
         <Background gap={24} size={1} color="var(--border-hairline)" />
-        <Controls showInteractive={false} />
+        <Controls showInteractive={false} position="bottom-center" />
       </ReactFlow>
     </div>
   )

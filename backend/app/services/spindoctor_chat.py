@@ -23,6 +23,7 @@ from app.services.help_chat import looks_like_leaked_tool_markup
 from app.services.prompt_catalog import ConfigurationLanguage, render_prompt
 from app.services.prompt_store import require_active_prompts
 from app.services.spindoctor_context import build_spindoctor_context
+from app.services.spindoctor_board import save_spindoctor_widget
 from app.services.spindoctor_mcp_tools import (
     SpindoctorToolContext,
     make_report_snippet_widget,
@@ -110,7 +111,8 @@ async def _run_spindoctor_tool_loop(
         if not tool_calls:
             break
 
-        async def _run_tool_call(call: object) -> tuple[object, str, str]:
+        # One AsyncSession cannot run concurrent ops; interview tools commit/refresh.
+        for call in tool_calls:
             name = call.function.name  # type: ignore[attr-defined]
             raw_args = call.function.arguments or "{}"  # type: ignore[attr-defined]
             if isinstance(raw_args, dict):
@@ -129,12 +131,6 @@ async def _run_spindoctor_tool_loop(
                 )
             except (httpx.HTTPError, ValueError, RuntimeError) as exc:
                 result = f"Tool error ({name}): {exc}"
-            return call, result, name
-
-        tool_results = await asyncio.gather(
-            *[_run_tool_call(call) for call in tool_calls]
-        )
-        for call, result, name in tool_results:
             working.append(
                 tool_result_message(tool_call_id=call.id, content=result, name=name)
             )
@@ -237,7 +233,7 @@ async def stream_spindoctor_chat_turn(
             ctx=ctx,
         )
         for widget in tool_widgets:
-            yield widget
+            yield await save_spindoctor_widget(session, report_id, widget)
 
         last = working[-1]
         prebuilt_reply = ""
@@ -270,7 +266,7 @@ async def stream_spindoctor_chat_turn(
                 section_id=section_ref,
                 title=_section_title(section_ref, locale=locale),
             )
-            yield snippet
+            yield await save_spindoctor_widget(session, report_id, snippet)
 
         assistant_row = SpindoctorMessage(
             report_id=report_id,
