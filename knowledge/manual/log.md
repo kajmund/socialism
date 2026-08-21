@@ -2,6 +2,7 @@
 
 ## 2026-08-21
 
+* **Körningar**: Agenter som engagerat sig minst en gång under en simulering **behåller** rätten att kommentera resten av körningen — äldre trådar tystnar inte längre bara för att ett nytt budskag injiceras. Agenter som aldrig reagerat saknar fortfarande kommentarsverktyget tills de engagerar sig.
 * **Personas**: Bibliotekslistan döljer population-genererade personas tills du väljer **Spara till bibliotek** (population eller profil). Namnkatalogen för stub-generering har utökats.
 
 ## 2026-08-20

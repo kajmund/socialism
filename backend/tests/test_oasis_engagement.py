@@ -129,6 +129,31 @@ def test_engagement_record_trace_marks_passive_and_engaged():
     assert session.may_comment(1) is False
 
 
+def test_may_comment_persists_after_stimulus_reset_when_ever_engaged():
+    session = StimulusEngagement()
+    session.reset_for_stimulus({10})
+    session.record_trace_rows(
+        [{"user_id": 0, "action": "like_post", "info": '{"post_id": 10}'}],
+        comment_to_post={},
+    )
+    assert session.may_comment(0) is True
+    assert 0 in session.ever_engaged
+
+    session.reset_for_stimulus({20})
+    assert 0 not in session.engaged
+    assert session.may_comment(0) is True
+    assert session.may_comment(1) is False
+
+
+def test_never_engaged_agent_still_blocked_after_stimulus_reset():
+    session = StimulusEngagement()
+    session.reset_for_stimulus({10})
+    assert session.may_comment(0) is False
+
+    session.reset_for_stimulus({20})
+    assert session.may_comment(0) is False
+
+
 def test_engagement_engaged_not_marked_passive_on_do_nothing():
     session = StimulusEngagement()
     session.reset_for_stimulus({5})
