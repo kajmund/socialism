@@ -95,6 +95,69 @@ async def test_spindoctor_messages_rest(client, tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_spindoctor_widgets_board_rest(client, tmp_path, monkeypatch):
+    from app.schemas.domain import SpindoctorWidgetOut
+    from app.services.spindoctor_board import save_spindoctor_widget
+
+    report_id = await _generate_report(client, tmp_path, monkeypatch)
+    empty = await client.get("/spindoctor/widgets", params={"report_id": report_id})
+    assert empty.status_code == 200
+    assert empty.json() == []
+
+    factory = jobs_service.job_session_factory()
+    async with factory() as db:
+        first = await save_spindoctor_widget(
+            db,
+            report_id,
+            SpindoctorWidgetOut(
+                id="wdg_note1",
+                kind="note",
+                title="Anteckning",
+                created_at="2026-08-21T10:00:00+00:00",
+                body="Mottagandet är splittrat.",
+            ),
+        )
+        second = await save_spindoctor_widget(
+            db,
+            report_id,
+            SpindoctorWidgetOut(
+                id="wdg_note2",
+                kind="note",
+                title="Andra",
+                created_at="2026-08-21T10:01:00+00:00",
+                body="Nästa kort.",
+            ),
+        )
+        assert first.pos_x != second.pos_x or first.pos_y != second.pos_y
+
+    listed = await client.get("/spindoctor/widgets", params={"report_id": report_id})
+    assert listed.status_code == 200
+    rows = listed.json()
+    assert [row["id"] for row in rows] == ["wdg_note1", "wdg_note2"]
+
+    moved = await client.patch(
+        "/spindoctor/widgets/wdg_note1",
+        json={"report_id": report_id, "pos_x": 12.5, "pos_y": 40},
+    )
+    assert moved.status_code == 200
+    assert moved.json()["pos_x"] == 12.5
+    assert moved.json()["pos_y"] == 40
+
+    removed = await client.delete(
+        "/spindoctor/widgets/wdg_note1",
+        params={"report_id": report_id},
+    )
+    assert removed.status_code == 204
+    after_one = await client.get("/spindoctor/widgets", params={"report_id": report_id})
+    assert [row["id"] for row in after_one.json()] == ["wdg_note2"]
+
+    cleared = await client.delete("/spindoctor/widgets", params={"report_id": report_id})
+    assert cleared.status_code == 204
+    after = await client.get("/spindoctor/widgets", params={"report_id": report_id})
+    assert after.json() == []
+
+
+@pytest.mark.asyncio
 async def test_build_spindoctor_context_includes_style_shares(client, tmp_path, monkeypatch):
     import json
     from pathlib import Path

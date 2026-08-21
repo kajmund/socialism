@@ -18,6 +18,7 @@ type SpinndoktorPanelProps = {
   locale: "sv" | "en"
   onSectionRef?: (sectionId: string) => void
   onWidget?: (widget: SpindoctorWidget) => void
+  onViewReport?: () => void
 }
 
 function displayMessages(rows: SpindoctorMessage[]): SpindoctorMessage[] {
@@ -33,6 +34,7 @@ export function SpinndoktorPanel({
   locale,
   onSectionRef,
   onWidget,
+  onViewReport,
 }: SpinndoktorPanelProps) {
   const { t } = useLocale()
   const sessionId = useMemo(() => getSpindoctorSessionId(), [])
@@ -156,14 +158,21 @@ export function SpinndoktorPanel({
           <div className="spinndoctor-panel-title">{t("spinndoctor.title")}</div>
           <div className="spinndoctor-panel-sub">{t("spinndoctor.subtitle")}</div>
         </div>
-        <AdminButton
-          variant="secondary"
-          size="sm"
-          disabled={chatBusy || messages.length === 0}
-          onClick={() => void handleClear()}
-        >
-          {t("spinndoctor.clear")}
-        </AdminButton>
+        <div className="spinndoctor-panel-header-actions">
+          {onViewReport ? (
+            <AdminButton variant="secondary" size="sm" onClick={onViewReport}>
+              {t("spinndoctor.viewReport")}
+            </AdminButton>
+          ) : null}
+          <AdminButton
+            variant="secondary"
+            size="sm"
+            disabled={chatBusy || messages.length === 0}
+            onClick={() => void handleClear()}
+          >
+            {t("spinndoctor.clear")}
+          </AdminButton>
+        </div>
       </div>
       {loadError ? <div className="spinndoctor-panel-error">{loadError}</div> : null}
       <MessengerChat

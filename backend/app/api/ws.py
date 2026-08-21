@@ -79,7 +79,10 @@ class ChatSend(BaseModel):
 
 
 async def _send_error(websocket: WebSocket, detail: str) -> None:
-    await websocket.send_json({"type": "error", "detail": detail})
+    try:
+        await websocket.send_json({"type": "error", "detail": detail})
+    except (WebSocketDisconnect, RuntimeError):
+        pass
 
 
 @router.websocket("/ws/jobs")
@@ -307,6 +310,8 @@ async def chat_websocket(websocket: WebSocket) -> None:
                     if done is None:
                         await _send_error(websocket, "Chat turn produced no reply")
                         continue
+            except WebSocketDisconnect:
+                raise
             except HelpChatTurnError as exc:
                 await _send_error(websocket, exc.detail)
             except SpindoctorChatTurnError as exc:

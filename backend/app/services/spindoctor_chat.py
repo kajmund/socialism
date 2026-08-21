@@ -24,6 +24,7 @@ from app.services.jobs import job_session_factory
 from app.services.prompt_catalog import ConfigurationLanguage, render_prompt
 from app.services.prompt_store import require_active_prompts
 from app.services.spindoctor_context import build_spindoctor_context
+from app.services.spindoctor_board import save_spindoctor_widget
 from app.services.spindoctor_mcp_tools import (
     SpindoctorToolContext,
     make_report_snippet_widget,
@@ -240,7 +241,7 @@ async def stream_spindoctor_chat_turn(
             ctx=ctx,
         )
         for widget in tool_widgets:
-            yield widget
+            yield await save_spindoctor_widget(session, report_id, widget)
 
         last = working[-1]
         prebuilt_reply = ""
@@ -273,7 +274,7 @@ async def stream_spindoctor_chat_turn(
                 section_id=section_ref,
                 title=_section_title(section_ref, locale=locale),
             )
-            yield snippet
+            yield await save_spindoctor_widget(session, report_id, snippet)
 
         assistant_row = SpindoctorMessage(
             report_id=report_id,
