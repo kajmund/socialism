@@ -203,3 +203,35 @@ async def test_suggested_questions_endpoint(client):
         "Vad tänker du om partierna i frågan?",
         "Har du ändrat åsikt med åren?",
     ]
+
+
+@pytest.mark.asyncio
+async def test_suggested_questions_endpoint_omits_chips_when_llm_fails(client):
+    created = await client.post(
+        "/personas",
+        json={
+            "name": "Chip Fail",
+            "age": 41,
+            "occ": "Lärare",
+            "district": "Centrum",
+            "quote": "saklig",
+            "origin": "manuell",
+        },
+    )
+    assert created.status_code == 201
+    persona_id = created.json()["id"]
+
+    async def _boom(_messages: list[dict[str, str]], _response_model: type):
+        raise RuntimeError("DeepSeek structured parse failed")
+
+    set_structured_completer(_boom)
+    try:
+        res = await client.get(
+            f"/personas/{persona_id}/suggested-questions",
+            params={"mode": "character"},
+        )
+    finally:
+        set_structured_completer(None)
+
+    assert res.status_code == 200
+    assert res.json()["questions"] == []
