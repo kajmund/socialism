@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
-import { listPersonas } from "@/api/personas"
+import { listLibraryPersonas } from "@/api/personas"
 import { personaInitials } from "@/data/library"
 import type { LibraryPersona } from "@/data/library-types"
 import { useLocale } from "@/i18n"
@@ -26,7 +26,7 @@ export function AddFromLibraryPanel({
 
   useEffect(() => {
     let cancelled = false
-    listPersonas()
+    listLibraryPersonas()
       .then((data) => {
         if (!cancelled) {
           setPersonas(data)

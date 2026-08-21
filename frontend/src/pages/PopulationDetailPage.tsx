@@ -7,7 +7,7 @@ import {
   removePopulationMember,
   type PopulationDetail,
 } from "@/api/populations"
-import { AdminShell } from "@/components/layout/AdminShell"
+import { PersonaLibrarySaveAction } from "@/components/personas/PersonaLibrarySaveAction"
 import { AddFromLibraryPanel } from "@/components/populations/AddFromLibraryPanel"
 import { AdminButton } from "@/components/ui/admin-button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -446,6 +446,20 @@ export function PopulationDetailPage() {
                     </div>
                     <div className="trait">{p.trait}</div>
                     <div className="actions">
+                      <PersonaLibrarySaveAction
+                        personaId={p.id}
+                        origin={p.persona_origin}
+                        onSaved={() => {
+                          setMembers((prev) =>
+                            prev.map((m) =>
+                              m.member_id === p.member_id
+                                ? { ...m, persona_origin: "manuell" }
+                                : m,
+                            ),
+                          )
+                        }}
+                        onToast={showToast}
+                      />
                       <Link to={p.id ? `/personas/${p.id}` : "/personas"}>
                         {t("common.openArrow")}
                       </Link>
@@ -489,7 +503,21 @@ export function PopulationDetailPage() {
                 <div className="meta">
                   {p.age} · {p.occ} · {p.district}
                 </div>
-                <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", alignItems: "center" }}>
+                  <PersonaLibrarySaveAction
+                    personaId={p.id}
+                    origin={p.persona_origin}
+                    onSaved={() => {
+                      setMembers((prev) =>
+                        prev.map((m) =>
+                          m.member_id === p.member_id
+                            ? { ...m, persona_origin: "manuell" }
+                            : m,
+                        ),
+                      )
+                    }}
+                    onToast={showToast}
+                  />
                   <Link to={p.id ? `/personas/${p.id}` : "/personas"}>
                     {t("common.open")}
                   </Link>

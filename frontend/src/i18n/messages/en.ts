@@ -1088,6 +1088,13 @@ export const en: LocalizedTree<SvMessages> = {
       voiceParagraph: "Tone: {tone}. Language pattern: {language}. Media habits: {media}.",
       politicsParagraph: "Party preference: {party}. Turnout: {turnout}.",
     },
+    librarySave: {
+      button: "Save to library",
+      saving: "Saving…",
+      inLibrary: "In library",
+      error: "Could not save to library",
+      savedToast: "{name} saved to library",
+    },
   },
   messages: {
     list: {

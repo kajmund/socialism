@@ -98,6 +98,7 @@ class PopulationMemberOut(BaseModel):
     occ: str
     district: str
     trait: str
+    persona_origin: PersonaOrigin | None = None
 
 
 class PopulationMemberCreate(BaseModel):

@@ -38,8 +38,24 @@ export function editableToWrite(
 export function listPersonas(params?: {
   q?: string
   origin?: string
+  exclude_origin?: string
 }): Promise<LibraryPersona[]> {
   return api.get<LibraryPersona[]>("/personas", params)
+}
+
+/** Default library listing — excludes population-generated personas. */
+export function listLibraryPersonas(params?: {
+  q?: string
+  origin?: string
+}): Promise<LibraryPersona[]> {
+  if (params?.origin === "population") {
+    return listPersonas({ q: params.q, origin: "population" })
+  }
+  return listPersonas({
+    q: params?.q,
+    origin: params?.origin,
+    exclude_origin: "population",
+  })
 }
 
 export function getPersona(id: string): Promise<PersonaDetail> {

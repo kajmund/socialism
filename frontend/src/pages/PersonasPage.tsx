@@ -4,7 +4,7 @@ import {
   catalogToFieldOptions,
   listCatalog,
 } from "@/api/catalog"
-import { deletePersona, listPersonas, updatePersona } from "@/api/personas"
+import { deletePersona, listLibraryPersonas, updatePersona } from "@/api/personas"
 import { AdminShell } from "@/components/layout/AdminShell"
 import {
   PersonaCardFields,
@@ -445,7 +445,13 @@ export function PersonasPage() {
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    Promise.all([listPersonas(), listCatalog()])
+    const fetchParams =
+      origin === "population"
+        ? { origin: "population" as const }
+        : origin === "alla"
+          ? {}
+          : { origin }
+    Promise.all([listLibraryPersonas(fetchParams), listCatalog()])
       .then(([data, catalog]) => {
         if (!cancelled) {
           setPersonas(data)
@@ -464,7 +470,7 @@ export function PersonasPage() {
     return () => {
       cancelled = true
     }
-  }, [t])
+  }, [t, origin])
 
   useEffect(() => {
     const h = () => setPopOpenIdx(-1)
