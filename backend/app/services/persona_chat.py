@@ -451,7 +451,11 @@ async def library_follow_up_questions(
     persona_id: str,
     mode: ChatMode,
 ) -> list[str]:
-    """Generate follow-up chips from the current library thread. Fails loud."""
+    """Follow-up chips for the library thread.
+
+    Missing persona or active prompts still fail. LLM/parse errors omit chips
+    (same as after a successful reply) so opening the composer is not a 500.
+    """
     persona = await session.get(Persona, persona_id)
     if persona is None:
         raise ChatTurnError("Persona not found", status_code=404)
@@ -463,7 +467,7 @@ async def library_follow_up_questions(
     )
     history = [(row.role, row.content) for row in history_rows.scalars().all()]
     prompts = await require_active_prompts(session)
-    return await suggest_follow_up_questions(
+    return await safe_library_follow_ups(
         profile,
         mode,
         history,
