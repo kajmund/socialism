@@ -7,6 +7,7 @@ import {
   removePopulationMember,
   type PopulationDetail,
 } from "@/api/populations"
+import { AdminShell } from "@/components/layout/AdminShell"
 import { PersonaLibrarySaveAction } from "@/components/personas/PersonaLibrarySaveAction"
 import { AddFromLibraryPanel } from "@/components/populations/AddFromLibraryPanel"
 import { AdminButton } from "@/components/ui/admin-button"
