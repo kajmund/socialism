@@ -1087,6 +1087,13 @@ export const sv = {
       voiceParagraph: "Ton: {tone}. Språkmönster: {language}. Medievanor: {media}.",
       politicsParagraph: "Partisympati: {party}. Valdeltagande: {turnout}.",
     },
+    librarySave: {
+      button: "Spara till bibliotek",
+      saving: "Sparar…",
+      inLibrary: "I biblioteket",
+      error: "Kunde inte spara till biblioteket",
+      savedToast: "{name} sparades i biblioteket",
+    },
   },
   messages: {
     list: {

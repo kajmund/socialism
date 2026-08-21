@@ -143,11 +143,14 @@ def _stub_candidates(body: PersonaGenerateRequest) -> list[EditablePersona]:
 async def list_personas(
     q: str | None = Query(default=None),
     origin: str | None = Query(default=None),
+    exclude_origin: list[str] | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
 ) -> list[LibraryPersona]:
     stmt = select(Persona).order_by(Persona.updated_at.desc())
     if origin:
         stmt = stmt.where(Persona.origin == origin)
+    if exclude_origin:
+        stmt = stmt.where(Persona.origin.notin_(exclude_origin))
     if q:
         like = f"%{q}%"
         stmt = stmt.where(

@@ -1,5 +1,9 @@
 # Manual update log
 
+## 2026-08-21
+
+* **Personas**: Bibliotekslistan döljer population-genererade personas tills du väljer **Spara till bibliotek** (population eller profil). Namnkatalogen för stub-generering har utökats.
+
 ## 2026-08-20
 
 * **Rapporter / Flöde (Fas 1b)**: **Ämnesstatus per inlägg** — medborgarinlägg klassas som *på ämne* eller *ämnesglidit* utifrån testbudskapets nyckelord; kommentarer ärver föräldra-inläggets status. Ton/stil bygger på alla reaktioner *på ämne* (inkl. egna inlägg om budskapet, inte bara kommentarer på injektionen). Rapportavsnittet **Ämnesdrift** visar staplar från verkliga per-inlägg-räkningar; citat har tagg *På ämne* / *Ämnesglidit*. I **Flöde** syns samma status som kantmarkering och pill i klassificeringspanelen.
