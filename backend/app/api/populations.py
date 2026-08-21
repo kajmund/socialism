@@ -375,8 +375,9 @@ async def add_member(
     await reconcile_population_metadata(population)
     population.updated_at = utcnow()
     await session.commit()
-    await session.refresh(member)
-    return serialize_member(member)
+    population = await _get_population(session, population_id)
+    saved = next(m for m in population.members if m.id == member.id)
+    return serialize_member(saved)
 
 
 @router.delete("/{population_id}/members/{member_id}", status_code=204)
