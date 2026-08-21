@@ -261,24 +261,14 @@ async def test_llm_batch_uses_preassigned_names_and_waves(monkeypatch, gen_sessi
 
 
 @pytest.mark.asyncio
-async def test_llm_persona_from_slot_forces_fixed_name(monkeypatch):
+async def test_llm_persona_from_slot_builds_profile_from_slot(monkeypatch):
     from app.llm import persona_gen as persona_gen_mod
     from app.services.prompt_catalog import default_prompts
 
-    async def fake_generate(messages):
-        return EditablePersona(
-            name="Modell Felsson",
-            initials="MF",
-            age="40",
-            kön="Kvinna",
-            ort="Centrum",
-            yrke="Lärare",
-            lutning="Mitt",
-            ton="kort",
-            anekdot="—",
-        )
+    async def fail_generate(*_args, **_kwargs):
+        raise AssertionError("generate_editable_persona must not be called for slot profiles")
 
-    monkeypatch.setattr(persona_gen_mod, "generate_editable_persona", fake_generate)
+    monkeypatch.setattr(persona_gen_mod, "generate_editable_persona", fail_generate)
     slot = SlotPlan(
         age=40,
         age_bucket="medel",
@@ -288,7 +278,11 @@ async def test_llm_persona_from_slot_forces_fixed_name(monkeypatch):
         occ="Lärare",
         lean="mitt",
         lean_label="Mitt",
-        profile_fields={"kön": "Kvinna"},
+        profile_fields={
+            "kön": "Kvinna",
+            "ton": "Saklig och nyanserad",
+            "parti": "S",
+        },
     )
     out = await persona_gen_mod.llm_persona_from_slot(
         slot,
@@ -298,4 +292,10 @@ async def test_llm_persona_from_slot_forces_fixed_name(monkeypatch):
     )
     assert out.name == "Anna Lindqvist"
     assert out.profile.name == "Anna Lindqvist"
+    assert out.profile.kön == "Kvinna"
+    assert out.profile.yrke == "Lärare"
+    assert out.profile.ort == "Centrum"
+    assert out.profile.lutning == "Mitt"
+    assert out.profile.ton == "Saklig och nyanserad"
+    assert out.profile.parti == "S"
     assert out.profile.anekdot == "—"

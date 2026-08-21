@@ -56,39 +56,6 @@ def _local_context(area_block: str = "") -> str:
     return area_block.strip()
 
 
-_PROFILE_FIELD_LABELS: dict[str, str] = {
-    "kön": "Kön",
-    "ort": "Ort/stadsdel",
-    "yrke": "Yrke",
-    "utbildning": "Utbildning",
-    "livssituation": "Livssituation",
-    "lutning": "Politisk lutning",
-    "sakfragor": "Sakfrågor",
-    "fortroende": "Förtroende",
-    "ton": "Ton",
-    "sprak": "Språkmönster",
-    "medievanor": "Medievanor",
-    "parti": "Partisympati",
-    "valdeltagande": "Valdeltagande",
-}
-
-
-def _slot_requirement_lines(slot: SlotPlan) -> list[str]:
-    lines = [
-        f"- Ålder ca {slot.age} (spann: {slot.age_bucket})",
-        f"- Ort/stadsdel: {slot.district}",
-        f"- Yrke: {slot.occ}",
-        f"- Politisk lutning: {slot.lean_label}",
-    ]
-    skip = {"ort", "yrke", "lutning"}
-    for key, value in slot.profile_fields.items():
-        if key in skip or not value:
-            continue
-        label = _PROFILE_FIELD_LABELS.get(key, key)
-        lines.append(f"- {label}: {value}")
-    return lines
-
-
 def apply_slot_to_profile(profile: EditablePersona, slot: SlotPlan) -> None:
     """Overwrite profile fields with values sampled from the population recipe."""
     profile.age = str(slot.age)
@@ -114,53 +81,22 @@ async def llm_persona_from_slot(
     prompts: dict[str, str] | None = None,
     include_anecdote: bool = True,
 ) -> GeneratedPersonaOut:
+    _ = free_text, taken_surnames, previous_personas
     if prompts is None:
         if session is None:
             raise RuntimeError("session or prompts is required for persona generation")
         prompts = await require_active_prompts(session)
-    area_block = ""
-    if session is not None:
-        area_block = await area_block_for_name(session, slot.district)
-    requirements = "\n".join(_slot_requirement_lines(slot))
-    surname_block = ""
+
     locked = (fixed_name or "").strip()
-    if locked:
-        surname_block = (
-            f"\nNamn (använd exakt detta för- och efternamn, ändra inte): {locked}\n"
-        )
-    elif taken_surnames:
-        listed = ", ".join(sorted(taken_surnames))
-        surname_block = (
-            f"\nEfternamn som redan används i populationen (välj ett annat): {listed}\n"
-            "Varje efternamn ska vara unikt inom populationen.\n"
-        )
-    voice_block = ""
-    if previous_personas:
-        prev_lines = "\n".join(f"  * {line}" for line in previous_personas[-12:])
-        voice_block += (
-            f"\nPersonas som redan skapats i denna population (variera röst och detaljer):\n"
-            f"{prev_lines}\n"
-        )
-    field_guide = render_prompt(prompts, "persona.field_guide")
-    user = render_prompt(
-        prompts,
-        "persona.from_slot.user",
-        requirements=requirements,
-        surname_block=surname_block,
-        voice_block=voice_block,
-        free_text=free_text or "(inga)",
-        field_guide=field_guide,
-    )
-    system = render_prompt(
-        prompts,
-        "persona.from_slot.system",
-        local_context=_local_context(area_block),
-    )
-    profile = await generate_editable_persona(
-        [
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ]
+    kon = slot.profile_fields.get("kön", "")
+    profile = EditablePersona(
+        name=locked or "—",
+        initials=persona_initials(locked) if locked else "--",
+        age=str(slot.age),
+        kön=kon,
+        ort=slot.district,
+        yrke=slot.occ,
+        lutning=slot.lean_label,
     )
     apply_slot_to_profile(profile, slot)
     if locked:
