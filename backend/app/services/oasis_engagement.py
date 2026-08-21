@@ -119,6 +119,7 @@ class StimulusEngagement:
     stimulus_post_ids: frozenset[int] = frozenset()
     passive: set[int] = field(default_factory=set)
     engaged: set[int] = field(default_factory=set)
+    ever_engaged: set[int] = field(default_factory=set)
 
     @property
     def active(self) -> bool:
@@ -137,7 +138,7 @@ class StimulusEngagement:
     def may_comment(self, agent_id: int) -> bool:
         if not self.active:
             return True
-        return agent_id in self.engaged
+        return agent_id in self.engaged or agent_id in self.ever_engaged
 
     def record_trace_rows(
         self,
@@ -159,6 +160,7 @@ class StimulusEngagement:
 
             if self._action_engages(action, info, comment_to_post):
                 self.engaged.add(agent_id)
+                self.ever_engaged.add(agent_id)
                 self.passive.discard(agent_id)
 
     def _action_engages(
