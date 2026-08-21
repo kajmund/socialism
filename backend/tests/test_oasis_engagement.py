@@ -154,6 +154,71 @@ def test_never_engaged_agent_still_blocked_after_stimulus_reset():
     assert session.may_comment(0) is False
 
 
+def test_end_gating_restores_full_pool_and_comment_access():
+    session = StimulusEngagement()
+    population = {0, 1, 2, 3}
+    session.reset_for_stimulus({42})
+    for agent_id in population:
+        session.record_trace_rows(
+            [{"user_id": agent_id, "action": "do_nothing", "info": "{}"}],
+            comment_to_post={},
+        )
+    assert session.eligible_agents(population) == set()
+    for agent_id in population:
+        assert session.may_comment(agent_id) is False
+
+    session.end_gating()
+
+    assert session.eligible_agents(population) == population
+    for agent_id in population:
+        assert session.may_comment(agent_id) is True
+
+
+def test_end_gating_preserves_ever_engaged():
+    session = StimulusEngagement()
+    session.reset_for_stimulus({10})
+    session.record_trace_rows(
+        [{"user_id": 0, "action": "like_post", "info": '{"post_id": 10}'}],
+        comment_to_post={},
+    )
+    ever_before = set(session.ever_engaged)
+
+    session.end_gating()
+
+    assert session.ever_engaged == ever_before
+    assert session.may_comment(0) is True
+
+
+def test_silent_tick_allows_previously_passive_agents_to_act():
+    """Mirror oasis_run: passive under stimulus → end_gating → free sampling round."""
+    engagement = StimulusEngagement()
+    population = {0, 1, 2, 3}
+    agent_strata = {i: "a" for i in population}
+
+    engagement.reset_for_stimulus({42})
+    for agent_id in population:
+        engagement.record_trace_rows(
+            [{"user_id": agent_id, "action": "do_nothing", "info": "{}"}],
+            comment_to_post={},
+        )
+    assert engagement.eligible_agents(population) == set()
+
+    engagement.end_gating()
+
+    eligible = engagement.eligible_agents(population)
+    assert eligible == population
+    rng = make_round_rng("seed", 1, 0)
+    selected = stratified_agent_sample(
+        eligible,
+        strata=agent_strata,
+        fraction=sample_fraction(0),
+        rng=rng,
+    )
+    assert selected
+    for agent_id in selected:
+        assert engagement.may_comment(agent_id) is True
+
+
 def test_engagement_engaged_not_marked_passive_on_do_nothing():
     session = StimulusEngagement()
     session.reset_for_stimulus({5})
