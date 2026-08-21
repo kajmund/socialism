@@ -4,6 +4,7 @@ import tempfile
 # Required before importing app.config — Settings fails without keys.
 os.environ.setdefault("DEEPSEEK_API_KEY", "test-key-not-real")
 os.environ.setdefault("OPENAI_API_KEY", "test-openai-key-not-real")
+os.environ["LOG_DIR"] = ""
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -26,11 +27,12 @@ from app.services import jobs as jobs_service
 from app.services.image_cache import clear_image_cache
 from app.services.ssr import clear_embedding_cache, set_embedder
 
-# Isolate disk cache from developer machine data/.
+# Isolate disk cache / rotating logs from developer machine data/.
 _EMBED_CACHE_ROOT = tempfile.mkdtemp(prefix="ssr-embed-cache-")
 settings.embedding_cache_dir = _EMBED_CACHE_ROOT
 _IMAGE_CACHE_ROOT = tempfile.mkdtemp(prefix="image-cache-")
 settings.image_cache_dir = _IMAGE_CACHE_ROOT
+settings.log_dir = ""
 
 
 @pytest.fixture(autouse=True)

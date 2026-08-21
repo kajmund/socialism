@@ -33,6 +33,10 @@ cp .env.example .env
 | `PERSONA_GENERATOR` | no | `deepseek` | `stub` = weighted random for offline persona *sampling* in tests only |
 | `SIMULATION_ENGINE` | no | `none` | `none` = empty attempt on start; `oasis` = live CAMEL OASIS |
 | `MAX_CONCURRENT_SIMULATION_JOBS` | no | `2` | Cap overlapping `run_simulate` jobs (1–32). A/B variants inside one job still run in parallel |
+| `LOG_DIR` | no | `data/logs` | Rotating API log directory (empty = no file). Relative to process cwd |
+| `LOG_MAX_BYTES` | no | `2000000` | Rotate `app.log` after this many bytes |
+| `LOG_BACKUP_COUNT` | no | `5` | Kept rotated files (`app.log.1` …) |
+| `LOG_LEVEL` | no | `INFO` | `DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL` |
 
 `.env` example:
 
@@ -51,6 +55,10 @@ EMBEDDING_TIMEOUT_SECONDS=60
 PERSONA_GENERATOR=deepseek
 SIMULATION_ENGINE=none
 MAX_CONCURRENT_SIMULATION_JOBS=2
+LOG_DIR=data/logs
+LOG_MAX_BYTES=2000000
+LOG_BACKUP_COUNT=5
+LOG_LEVEL=INFO
 ```
 
 Constraints:
@@ -58,6 +66,8 @@ Constraints:
 - `DEEPSEEK_API_KEY` is required at startup even when `PERSONA_GENERATOR=stub`. There is no keyword/heuristic LLM fallback for chat or reports.
 - `OPENAI_API_KEY` is required for Semantic Similarity Rating (report tone/style). The SSR embeddings client reads `settings.openai_api_key` explicitly — not the process env after OASIS mirrors DeepSeek into `OPENAI_API_KEY`.
 - Settings live only in `app/config.py` — do not call `os.getenv` / `load_dotenv` in app code.
+
+HTTP access lines and uncaught ASGI exceptions (DeepSeek timeouts, tracebacks) go to **stdout** and to `backend/data/logs/app.log`. When the file hits `LOG_MAX_BYTES` it becomes `app.log.1` and a new `app.log` starts (`LOG_BACKUP_COUNT` files kept). Körning-loggar under `data/oasis/…` are separate.
 
 ## Optional: OASIS simulation
 
