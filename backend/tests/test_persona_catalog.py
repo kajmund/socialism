@@ -37,6 +37,20 @@ def test_clamp_decade_edges():
     assert clamp_decade(2035) == DECADES[-1]
 
 
+def test_recent_female_decades_differ():
+    assert set(FIRST_NAMES_BY_DECADE_F["1980"]) != set(FIRST_NAMES_BY_DECADE_F["2010"])
+    assert set(FIRST_NAMES_BY_DECADE_M["1980"]) != set(FIRST_NAMES_BY_DECADE_M["2010"])
+    modern = set(FIRST_NAMES_BY_DECADE_F["2010"]) | set(FIRST_NAMES_BY_DECADE_F["2000"])
+    assert {"Alice", "Elsa"} & modern
+
+
+def test_decade_buckets_are_not_all_identical():
+    female_signatures = {tuple(names) for names in FIRST_NAMES_BY_DECADE_F.values()}
+    male_signatures = {tuple(names) for names in FIRST_NAMES_BY_DECADE_M.values()}
+    assert len(female_signatures) > len(FIRST_NAMES_BY_DECADE_F) // 2
+    assert len(male_signatures) > len(FIRST_NAMES_BY_DECADE_M) // 2
+
+
 def test_first_name_pool_uses_decade_bucket():
     pool_old = first_name_pool_for_kon("Kvinna", 75)
     pool_young = first_name_pool_for_kon("Kvinna", 24)
