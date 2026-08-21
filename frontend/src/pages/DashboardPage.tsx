@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
 import type { Job, JobStatus } from "@/api/jobs"
 import { listMessages } from "@/api/messages"
-import { listPersonas } from "@/api/personas"
+import { listLibraryPersonas } from "@/api/personas"
 import { listPopulations } from "@/api/populations"
 import { listRuns } from "@/api/runs"
 import { AdminShell } from "@/components/layout/AdminShell"
@@ -264,7 +264,7 @@ export function DashboardPage() {
       try {
         const [runs, personas, populations, messages] = await Promise.all([
           listRuns(),
-          listPersonas(),
+          listLibraryPersonas(),
           listPopulations(),
           listMessages(),
         ])

@@ -30,6 +30,7 @@ import {
 } from "@/components/chat/useChatSocket"
 import { AdminShell } from "@/components/layout/AdminShell"
 import { PersonaAnekdotEditor, PersonaAnekdotPresentation } from "@/components/personas/PersonaAnekdot"
+import { PersonaLibrarySaveAction } from "@/components/personas/PersonaLibrarySaveAction"
 import { AdminButton } from "@/components/ui/admin-button"
 import { Card, CardContent } from "@/components/ui/card"
 import { blankEditablePersona } from "@/data/library"
@@ -179,6 +180,8 @@ function LayerTable({ rows, pol, fieldOptions, t, onChange }: LayerTableProps) {
 type EditorProps = {
   persona: EditablePersona
   personaId: string | null
+  personaOrigin: PersonaOrigin
+  onLibraryOriginChange: (origin: PersonaOrigin) => void
   t: Translate
   setPersona: (updater: (p: EditablePersona) => EditablePersona) => void
   onOpenVariants: () => void
@@ -194,6 +197,8 @@ type EditorProps = {
 function Editor({
   persona,
   personaId,
+  personaOrigin,
+  onLibraryOriginChange,
   t,
   setPersona,
   onOpenVariants,
@@ -495,6 +500,12 @@ function Editor({
           <AdminButton variant="secondary" size="sm" onClick={onOpenVariants}>
             {t("personas.composer.variantsButton")}
           </AdminButton>
+          <PersonaLibrarySaveAction
+            personaId={personaId}
+            origin={personaOrigin}
+            onSaved={onLibraryOriginChange}
+            onToast={onToast}
+          />
           <AdminButton
             variant="primary"
             size="sm"
@@ -1304,6 +1315,8 @@ export function PersonaComposerPage() {
             <Editor
               persona={persona}
               personaId={personaId}
+              personaOrigin={createOrigin}
+              onLibraryOriginChange={setCreateOrigin}
               t={t}
               setPersona={setPersonaState}
               onOpenVariants={() => setScreen("variants")}

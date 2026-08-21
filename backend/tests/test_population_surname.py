@@ -83,14 +83,31 @@ def test_stub_persona_avoids_surname_reuse_within_batch():
 
 
 @pytest.mark.asyncio
-async def test_run_generate_size_13_resolves_names_when_catalog_exhausted(stub_generator, gen_session):
-    recipe = _minimal_recipe(13)
+async def test_run_generate_at_max_size_has_no_surname_catalog_warnings(
+    stub_generator, gen_session
+):
+    recipe = _minimal_recipe(40)
+    body = PopulationGenerateRequest(recipe=recipe, mode="replace")
+    response = await gen.run_generate(body, library_personas={}, session=gen_session)
+    assert not any(
+        "efternamn" in w.casefold() or "disambiguerades" in w.casefold()
+        for w in response.warnings
+    )
+
+
+@pytest.mark.asyncio
+async def test_run_generate_resolves_names_when_catalog_exhausted(
+    stub_generator, gen_session, monkeypatch
+):
+    monkeypatch.setattr(gen, "LASTN", ["Al-Amin", "Berg", "Karlsson"])
+    size = 13
+    recipe = _minimal_recipe(size)
     body = PopulationGenerateRequest(recipe=recipe, mode="replace")
     response = await gen.run_generate(body, library_personas={}, session=gen_session)
     names = [c.persona.name for c in response.candidates]
     assert len(names) == len(set(n.casefold() for n in names))
     surnames = [surname_from_name(n) for n in names]
-    assert len(set(surnames)) <= len(LASTN)
+    assert len(set(surnames)) <= 3
     assert response.warnings
     assert any(
         "efternamn" in w.casefold() or "disambiguerades" in w.casefold()
