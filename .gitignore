@@ -37,6 +37,7 @@ pnpm-debug.log*
 /backend/data/reports/
 /backend/data/embedding_cache/
 /backend/data/image_cache/
+/backend/data/logs/
 /backend/data/benchmark_*.json
 
 # Mockup extract (keep the zip; extracted HTML is local reference only)
