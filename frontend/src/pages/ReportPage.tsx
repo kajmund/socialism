@@ -55,7 +55,7 @@ function formatReportDuration(
 export function ReportPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { t, locale } = useLocale()
+  const { t } = useLocale()
   const { reports, status: wsStatus, connected } = useReportsRealtime()
   const report = id ? reports.find((r) => r.id === id) ?? null : null
   const [html, setHtml] = useState<string | null>(null)
