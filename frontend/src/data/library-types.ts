@@ -32,6 +32,7 @@ export type PopulationMember = {
   occ: string
   district: string
   trait: string
+  persona_origin?: PersonaOrigin
 }
 
 export type EditablePersona = {
