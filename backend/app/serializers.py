@@ -78,6 +78,9 @@ def serialize_persona_detail(persona: Persona, pops: list[str]) -> PersonaDetail
 
 
 def serialize_member(member: PopulationMember) -> PopulationMemberOut:
+    persona_origin = None
+    if member.persona is not None:
+        persona_origin = member.persona.origin  # type: ignore[assignment]
     return PopulationMemberOut(
         member_id=member.id,
         id=member.persona_id,
@@ -87,6 +90,7 @@ def serialize_member(member: PopulationMember) -> PopulationMemberOut:
         occ=member.occ,
         district=member.district,
         trait=member.trait,
+        persona_origin=persona_origin,
     )
 
 
