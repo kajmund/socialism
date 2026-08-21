@@ -83,7 +83,10 @@ def test_stub_persona_avoids_surname_reuse_within_batch():
 
 
 @pytest.mark.asyncio
-async def test_run_generate_size_13_resolves_names_when_catalog_exhausted(stub_generator, gen_session):
+async def test_run_generate_size_13_resolves_names_when_catalog_exhausted(
+    stub_generator, gen_session, monkeypatch
+):
+    monkeypatch.setattr(gen, "LASTN", ["Alpha", "Beta", "Gamma"])
     recipe = _minimal_recipe(13)
     body = PopulationGenerateRequest(recipe=recipe, mode="replace")
     response = await gen.run_generate(body, library_personas={}, session=gen_session)
