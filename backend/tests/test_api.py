@@ -199,6 +199,48 @@ async def test_list_personas_exclude_origin(client):
     assert "lib-pop" in {p["id"] for p in library_after.json()}
 
 
+async def test_add_member_with_persona_id_returns_persona_origin(client):
+    persona = (
+        await client.post(
+            "/personas",
+            json={
+                "id": "lib-add-member",
+                "name": "Bibliotek Add",
+                "age": 38,
+                "occ": "Sjuksköterska",
+                "district": "Distrikt B",
+                "quote": "Citat",
+                "origin": "manuell",
+            },
+        )
+    ).json()
+
+    population = (
+        await client.post(
+            "/populations",
+            json={"name": "Add member pop", "members": []},
+        )
+    ).json()
+
+    added = await client.post(
+        f"/populations/{population['id']}/members",
+        json={
+            "persona_id": persona["id"],
+            "name": persona["name"],
+            "initials": "BA",
+            "age": persona["age"],
+            "occ": persona["occ"],
+            "district": persona["district"],
+            "trait": persona["quote"],
+        },
+    )
+    assert added.status_code == 201
+    body = added.json()
+    assert body["id"] == persona["id"]
+    assert body["persona_origin"] == "manuell"
+    assert isinstance(body["member_id"], int)
+
+
 async def test_run_lifecycle(client):
     from app.services import jobs as jobs_service
 
