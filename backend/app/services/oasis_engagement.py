@@ -130,6 +130,12 @@ class StimulusEngagement:
         self.passive = set()
         self.engaged = set()
 
+    def end_gating(self) -> None:
+        """End active gating (e.g. before a silent tick) without clearing ever_engaged."""
+        self.stimulus_post_ids = frozenset()
+        self.passive = set()
+        self.engaged = set()
+
     def eligible_agents(self, population_indices: set[int]) -> set[int]:
         if not self.active:
             return set(population_indices)
