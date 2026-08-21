@@ -36,6 +36,7 @@ flowchart LR
 | Frontend | Vite · React · TypeScript · Tailwind · shadcn · React Router |
 | Backend | Python 3.12+ · FastAPI · SQLAlchemy · Alembic · pydantic-settings |
 | Database | SQLite via `aiosqlite` (`backend/data/`) |
+| API logs | Rotating file `backend/data/logs/app.log` (uvicorn stdout unchanged) |
 | LLM | DeepSeek (`DEEPSEEK_API_KEY` required at startup) |
 | Embeddings (SSR) | OpenAI `text-embedding-3-large` (`OPENAI_API_KEY` required) |
 | Simulation | `SIMULATION_ENGINE=none` (default) or `oasis` (optional extra) |

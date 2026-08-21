@@ -25,6 +25,7 @@ from app.api import (
     ws,
 )
 from app.config import settings
+from app.logging import configure_logging
 from app.services import jobs as jobs_service
 from app.services.prompt_store import ensure_default_configurations
 
@@ -54,6 +55,9 @@ async def lifespan(_app: FastAPI):
 
 
 def create_app() -> FastAPI:
+    log_path = configure_logging()
+    if log_path is not None:
+        logger.info("File logging %s", log_path)
     if not settings.deepseek_api_key.strip():
         raise RuntimeError("DEEPSEEK_API_KEY is required")
     if not settings.openai_api_key.strip():

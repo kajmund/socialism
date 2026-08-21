@@ -5,6 +5,8 @@ from typing import Annotated, Literal
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
+_LOG_LEVELS = frozenset({"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"})
+
 SimulationEngine = Literal["none", "oasis"]
 PersonaGenerator = Literal["deepseek", "stub"]
 
@@ -53,6 +55,19 @@ class Settings(BaseSettings):
     # Max concurrent LLM calls when generating personas in one population batch.
     # 1 = serial (debug); higher values overlap profile/anecdote waves.
     persona_generate_concurrency: int = Field(default=8, ge=1, le=32)
+    # Rotating API log (empty = no file). Relative paths resolve from cwd.
+    log_dir: str = "data/logs"
+    log_max_bytes: int = Field(default=2_000_000, ge=1024)
+    log_backup_count: int = Field(default=5, ge=1, le=50)
+    log_level: str = "INFO"
+
+    @field_validator("log_level")
+    @classmethod
+    def require_log_level(cls, value: str) -> str:
+        name = value.strip().upper()
+        if name not in _LOG_LEVELS:
+            raise ValueError(f"LOG_LEVEL must be one of {sorted(_LOG_LEVELS)}")
+        return name
 
     @field_validator("allowed_origins", mode="before")
     @classmethod
