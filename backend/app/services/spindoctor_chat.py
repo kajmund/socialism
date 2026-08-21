@@ -20,6 +20,7 @@ from app.schemas.domain import (
 )
 from app.serializers import format_date, utcnow
 from app.services.help_chat import looks_like_leaked_tool_markup
+from app.services.jobs import job_session_factory
 from app.services.prompt_catalog import ConfigurationLanguage, render_prompt
 from app.services.prompt_store import require_active_prompts
 from app.services.spindoctor_context import build_spindoctor_context
@@ -121,12 +122,14 @@ async def _run_spindoctor_tool_loop(
                 except (json.JSONDecodeError, TypeError):
                     arguments = {}
             try:
-                result = await run_spindoctor_mcp_tool(
-                    session,
-                    name,
-                    arguments if isinstance(arguments, dict) else {},
-                    ctx=ctx,
-                )
+                factory = job_session_factory()
+                async with factory() as tool_session:
+                    result = await run_spindoctor_mcp_tool(
+                        tool_session,
+                        name,
+                        arguments if isinstance(arguments, dict) else {},
+                        ctx=ctx,
+                    )
             except (httpx.HTTPError, ValueError, RuntimeError) as exc:
                 result = f"Tool error ({name}): {exc}"
             return call, result, name
