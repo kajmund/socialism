@@ -104,6 +104,20 @@ Fixture: self-contained 5-persona population, 2 ticks (tick 2 reaction-only), 1 
 
 Default `uv run pytest` excludes smoke via `addopts = "-m 'not smoke'"` in `pyproject.toml`.
 
+### Refresh SCB persona name catalog (one-off)
+
+Age-weighted first names and the surname pool come from checked-in static data
+(`app/services/persona_catalog_scb_names.py`). Re-import manually when SCB tables
+change — persona generation never calls SCB at runtime.
+
+```bash
+cd backend
+# from repo root:
+PYTHONPATH=backend:. python3 backend/scripts/import_scb_names.py
+```
+
+Uses PxWebApi v2 tables `TAB615` (first names by birth year) and `TAB616` (top surnames).
+
 ### Benchmark DeepSeek models
 
 Compare wall time and OASIS output metrics across model IDs for the **same** run config (default: `deepseek-reasoner` vs `deepseek-chat`):

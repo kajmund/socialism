@@ -153,6 +153,94 @@ async def test_population_and_members(client):
     assert all(m["id"] != "link-me" for m in after_persona_delete.json()["members"])
 
 
+async def test_list_personas_exclude_origin(client):
+    manual = await client.post(
+        "/personas",
+        json={
+            "id": "lib-manual",
+            "name": "Bibliotek Manual",
+            "age": 35,
+            "occ": "Lärare",
+            "district": "Centrum",
+            "origin": "manuell",
+        },
+    )
+    assert manual.status_code == 201
+
+    population_persona = await client.post(
+        "/personas",
+        json={
+            "id": "lib-pop",
+            "name": "Population Only",
+            "age": 42,
+            "occ": "Handläggare",
+            "district": "Distrikt A",
+            "origin": "population",
+        },
+    )
+    assert population_persona.status_code == 201
+
+    all_rows = await client.get("/personas")
+    assert all_rows.status_code == 200
+    all_ids = {p["id"] for p in all_rows.json()}
+    assert {"lib-manual", "lib-pop"}.issubset(all_ids)
+
+    library = await client.get("/personas", params={"exclude_origin": "population"})
+    assert library.status_code == 200
+    library_ids = {p["id"] for p in library.json()}
+    assert "lib-manual" in library_ids
+    assert "lib-pop" not in library_ids
+
+    save = await client.put("/personas/lib-pop", json={"origin": "manuell"})
+    assert save.status_code == 200
+    assert save.json()["origin"] == "manuell"
+
+    library_after = await client.get("/personas", params={"exclude_origin": "population"})
+    assert "lib-pop" in {p["id"] for p in library_after.json()}
+
+
+async def test_add_member_with_persona_id_returns_persona_origin(client):
+    persona = (
+        await client.post(
+            "/personas",
+            json={
+                "id": "lib-add-member",
+                "name": "Bibliotek Add",
+                "age": 38,
+                "occ": "Sjuksköterska",
+                "district": "Distrikt B",
+                "quote": "Citat",
+                "origin": "manuell",
+            },
+        )
+    ).json()
+
+    population = (
+        await client.post(
+            "/populations",
+            json={"name": "Add member pop", "members": []},
+        )
+    ).json()
+
+    added = await client.post(
+        f"/populations/{population['id']}/members",
+        json={
+            "persona_id": persona["id"],
+            "name": persona["name"],
+            "initials": "BA",
+            "age": persona["age"],
+            "occ": persona["occ"],
+            "district": persona["district"],
+            "trait": persona["quote"],
+        },
+    )
+    assert added.status_code == 201
+    body = added.json()
+    assert body["id"] == persona["id"]
+    assert body["persona_origin"] == "manuell"
+    assert isinstance(body["member_id"], int)
+
+
 async def test_run_lifecycle(client):
     from app.services import jobs as jobs_service
 

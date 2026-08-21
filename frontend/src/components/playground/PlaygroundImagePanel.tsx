@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { listPersonas, type LibraryPersona } from "@/api/personas"
+import { listLibraryPersonas, type LibraryPersona } from "@/api/personas"
 import {
   getPlaygroundImageModels,
   reactPlaygroundImage,
@@ -79,7 +79,7 @@ export function PlaygroundImagePanel() {
       setLoading(true)
       setError(null)
       try {
-        const [rows, catalog] = await Promise.all([listPersonas(), getPlaygroundImageModels()])
+        const [rows, catalog] = await Promise.all([listLibraryPersonas(), getPlaygroundImageModels()])
         if (cancelled) return
         setPersonas(rows)
         setModelCatalog(catalog)
