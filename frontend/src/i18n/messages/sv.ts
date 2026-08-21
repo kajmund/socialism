@@ -108,6 +108,9 @@ export const sv = {
     hideCanvas: "Dölj rapport",
     showReportPanel: "Visa rapportpanel",
     hideReportPanel: "Dölj rapportpanel",
+    showChatPanel: "Visa chatt",
+    hideChatPanel: "Dölj chatt",
+    clearBoard: "Rensa rutnät",
     canvasAria: "Rapportcanvas",
     grid: {
       empty:
@@ -121,6 +124,13 @@ export const sv = {
       interviewLoadError: "Kunde inte ladda intervjun",
       interviewMissingContext: "Intervjuwidgeten saknar körningsdata",
       interviewVariantMissing: "Körningsvarianten hittades inte",
+      copy: "Kopiera",
+      copied: "Kopierat",
+      close: "Stäng",
+      boardLoadError: "Kunde inte ladda rutnätet",
+      boardCloseError: "Kunde inte stänga kortet",
+      boardMoveError: "Kunde inte spara kortets läge",
+      boardClearError: "Kunde inte rensa rutnätet",
     },
     placeholder: "T.ex. Vad säger siffrorna om mottagandet?",
     empty:

@@ -1,3 +1,5 @@
+import { api } from "@/lib/api"
+
 export type SpindoctorWidgetKind = "chart" | "note" | "report_snippet" | "interview"
 
 export type SpindoctorChartType = "hbar" | "donut" | "stat_number"
@@ -19,6 +21,8 @@ export type SpindoctorWidget = {
   attempt_id?: string | null
   variant_id?: string | null
   through_tick_index?: number | null
+  pos_x?: number | null
+  pos_y?: number | null
 }
 
 const WIDGET_KINDS: SpindoctorWidgetKind[] = [
@@ -73,5 +77,33 @@ export function parseSpindoctorWidget(raw: unknown): SpindoctorWidget | null {
     variant_id: typeof row.variant_id === "string" ? row.variant_id : null,
     through_tick_index:
       typeof row.through_tick_index === "number" ? row.through_tick_index : null,
+    pos_x: typeof row.pos_x === "number" ? row.pos_x : null,
+    pos_y: typeof row.pos_y === "number" ? row.pos_y : null,
   }
+}
+
+export function listSpindoctorWidgets(reportId: string): Promise<SpindoctorWidget[]> {
+  return api.get<SpindoctorWidget[]>("/spindoctor/widgets", { report_id: reportId })
+}
+
+export function updateSpindoctorWidgetPosition(
+  reportId: string,
+  widgetId: string,
+  position: { x: number; y: number },
+): Promise<SpindoctorWidget> {
+  return api.patch<SpindoctorWidget>(`/spindoctor/widgets/${encodeURIComponent(widgetId)}`, {
+    report_id: reportId,
+    pos_x: position.x,
+    pos_y: position.y,
+  })
+}
+
+export function deleteSpindoctorWidget(reportId: string, widgetId: string): Promise<void> {
+  return api.delete(`/spindoctor/widgets/${encodeURIComponent(widgetId)}`, {
+    report_id: reportId,
+  })
+}
+
+export function clearSpindoctorWidgets(reportId: string): Promise<void> {
+  return api.delete("/spindoctor/widgets", { report_id: reportId })
 }

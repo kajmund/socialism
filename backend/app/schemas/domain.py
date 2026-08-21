@@ -307,6 +307,14 @@ class SpindoctorWidgetOut(BaseModel):
     attempt_id: str | None = None
     variant_id: str | None = None
     through_tick_index: int | None = None
+    pos_x: float = 0
+    pos_y: float = 0
+
+
+class SpindoctorWidgetPositionIn(BaseModel):
+    report_id: str = Field(min_length=1, max_length=64)
+    pos_x: float
+    pos_y: float
 
 
 FeedbackKind = Literal["bug", "idea", "opinion"]
