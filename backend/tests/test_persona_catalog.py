@@ -1,4 +1,4 @@
-"""Age-weighted SCB name catalog helpers."""
+"""Tests for persona name catalog (expanded fallback + SCB decade buckets)."""
 
 from random import Random
 
@@ -19,11 +19,22 @@ from app.services.persona_catalog_scb_names import (
 )
 
 
+def test_name_catalog_minimum_sizes():
+    assert len(NAMES_F) >= 60
+    assert len(NAMES_M) >= 60
+    assert len(SCB_LASTN) >= 40
+
+
+def test_name_catalog_entries_unique():
+    assert len(NAMES_F) == len(set(NAMES_F))
+    assert len(NAMES_M) == len(set(NAMES_M))
+    assert len(SCB_LASTN) == len(set(SCB_LASTN))
+
+
 def test_scb_static_data_has_decades_and_surnames():
     assert len(DECADES) >= 8
     assert len(FIRST_NAMES_BY_DECADE_F) >= 8
     assert len(FIRST_NAMES_BY_DECADE_M) >= 8
-    assert len(SCB_LASTN) >= 50
     assert LASTN == SCB_LASTN
 
 

@@ -22,6 +22,12 @@ tags: [personas]
 9. Välj **Ta bort** för att radera en persona efter bekräftelse.
 10. Skapa ny med **+ Ny persona**.
 
+## Bibliotek vs population-genererade personas
+
+Standardvyn visar bara personas du aktivt sparat i biblioteket (manuell, från beskrivning eller demografi). Personas som skapats automatiskt när en population sparades (`origin=population`) syns **inte** i listan förrän du väljer **Spara till bibliotek** på medlemsraden i en population eller i persona-profilen.
+
+Filtrera på **Genererad via population** om du vill se population-genererade personas utan att de räknas som biblioteksposter.
+
 ## Relaterade guider
 
 - [Skapa och redigera persona](skapa-och-redigera-persona.md)

@@ -1,5 +1,9 @@
 # Manual update log
 
+## 2026-08-21
+
+* **Personas**: Bibliotekslistan döljer population-genererade personas tills du väljer **Spara till bibliotek** (population eller profil). Namnkatalogen för stub-generering har utökats.
+
 ## 2026-08-20
 
 * **Rapporter**: I Spinndoktor fyller rutnätet hela sidan. Chatten och rapportpanelen ligger flytande ovanpå och kan döljas var för sig. Rapportens sidhuvud (titel, status, ta bort) visas inte. Växlingen är vanliga knappar — **Spinndoktor** i rapportens sidhuvud, **Rapport** i chattrutan. Varje widget har kopiera och stäng. Rutnätet sparas per rapport; **Rensa rutnät** tömmer det.

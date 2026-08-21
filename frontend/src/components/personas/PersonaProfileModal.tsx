@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { getPersona, type PersonaDetail } from "@/api/personas"
 import { PersonaAnekdotPresentation } from "@/components/personas/PersonaAnekdot"
+import { PersonaLibrarySaveAction } from "@/components/personas/PersonaLibrarySaveAction"
 import { AdminButton } from "@/components/ui/admin-button"
 import { useLocale } from "@/i18n"
 import { ApiError } from "@/lib/api"
@@ -101,9 +102,18 @@ export function PersonaProfileModal({
           >
             {title}
           </h2>
-          <AdminButton variant="secondary" size="sm" onClick={onClose}>
-            {t("common.close")}
-          </AdminButton>
+          <div className="flex items-center gap-2">
+            <PersonaLibrarySaveAction
+              personaId={persona?.id ?? personaId}
+              origin={persona?.origin}
+              onSaved={(nextOrigin) => {
+                setPersona((prev) => (prev ? { ...prev, origin: nextOrigin } : prev))
+              }}
+            />
+            <AdminButton variant="secondary" size="sm" onClick={onClose}>
+              {t("common.close")}
+            </AdminButton>
+          </div>
         </div>
 
         <div className="overflow-y-auto px-5 py-4">
