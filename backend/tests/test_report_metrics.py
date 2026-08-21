@@ -18,6 +18,7 @@ from app.services.report.charts import (
 from app.services.report.classify import (
     BundleClassification,
     TopicPack,
+    classify_bundle,
     classify_styles,
     classify_tones,
     classify_topics_by_keywords,
@@ -213,6 +214,98 @@ def test_style_shares_come_from_classification():
     by_style = dict(m.aggregate.style_shares)
     assert by_style["Sarkastisk + konkret kritik"] == 0.6
     assert by_style.get("Personlig + hjärtlig berättelse", 0) == 0.0
+
+
+def _bundle_two_topics_with_comments() -> RunBundle:
+    """Two injection topics, one citizen post on A, comments on topic B."""
+    injection_a = (
+        "Socialdemokraterna vill stoppa nedsläckningen av vägbelysning "
+        "i byar. Belysningen är avgörande för tryggheten."
+    )
+    injection_b = (
+        "Vi behöver fler vårdcentraler på landsbygden för bättre vård "
+        "och kortare väntetider."
+    )
+    posts = [
+        {
+            "post_id": 1,
+            "user_id": 0,
+            "content": injection_a,
+            "num_likes": 3,
+        },
+        {
+            "post_id": 2,
+            "user_id": 0,
+            "content": injection_b,
+            "num_likes": 2,
+        },
+        {
+            "post_id": 3,
+            "user_id": 1,
+            "content": "Belysningen i byarna måste behållas för tryggheten.",
+            "num_likes": 1,
+        },
+    ]
+    comments = [
+        {
+            "comment_id": 1,
+            "post_id": 2,
+            "user_id": 2,
+            "content": "Vårdcentralen behöver fler resurser på landsbygden.",
+            "num_likes": 1,
+        },
+        {
+            "comment_id": 2,
+            "post_id": 2,
+            "user_id": 3,
+            "content": "Vården måste förbättras, kortare väntetider till vårdcentral.",
+            "num_likes": 0,
+        },
+        {
+            "comment_id": 3,
+            "post_id": 2,
+            "user_id": 4,
+            "content": "Fler vårdcentraler skulle hjälpa hela regionen.",
+            "num_likes": 1,
+        },
+    ]
+    return RunBundle(
+        label="A",
+        run_id=1,
+        run_name="Topic mix",
+        attempt_id="att_1",
+        seed="42",
+        engine="oasis",
+        agents=[
+            {"index": 0, "member_name": "Partikonto", "role": "injector"},
+            {"index": 1, "member_name": "Anna", "role": "population"},
+            {"index": 2, "member_name": "Bo", "role": "population"},
+            {"index": 3, "member_name": "Cecilia", "role": "population"},
+            {"index": 4, "member_name": "David", "role": "population"},
+        ],
+        posts=posts,
+        comments=comments,
+        injection_texts=[injection_a, injection_b],
+    )
+
+
+@pytest.mark.asyncio
+async def test_classify_bundle_topic_shares_include_comments():
+    """Vad diskuterades? must count comments, not only citizen posts."""
+    set_embedder(_fake_embed)
+    try:
+        bundle = _bundle_two_topics_with_comments()
+        clf = await classify_bundle(bundle, locale="sv")
+        pack_labels = [p.label for p in clf.topic_packs]
+        assert len(pack_labels) == 2
+        shares = {
+            label: clf.topic_shares.get(label, 0.0)
+            for label in pack_labels
+        }
+        assert sum(shares.values()) == pytest.approx(1.0, abs=1e-6)
+        assert all(0.0 < share < 1.0 for share in shares.values()), shares
+    finally:
+        set_embedder(None)
 
 
 def test_population_excludes_injectors():
