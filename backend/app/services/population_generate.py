@@ -241,10 +241,6 @@ def _filled_profile_text(value: str) -> str:
     return "" if text in ("", "—") else text
 
 
-def _slot_ton(slot: SlotPlan) -> str:
-    return _filled_profile_text(slot.profile_fields.get("ton", ""))
-
-
 def sample_slot(recipe: PopulationRecipe, rng: Random) -> SlotPlan:
     dist = recipe.dist
     age_rows = dist["age"].rows if "age" in dist else []
@@ -418,20 +414,6 @@ def _assign_unique_names(
     return names, warnings
 
 
-def _sibling_persona_lines(
-    names: list[str],
-    slots: list[SlotPlan],
-) -> tuple[str, ...]:
-    lines: list[str] = []
-    for name, slot in zip(names, slots, strict=True):
-        ton = _slot_ton(slot)
-        if ton:
-            lines.append(f"{name} | yrke: {slot.occ} | röst: {ton[:80]}")
-        else:
-            lines.append(f"{name} | yrke: {slot.occ}")
-    return tuple(lines)
-
-
 async def _load_existing_persona_name_sets(
     session: AsyncSession | None,
 ) -> tuple[set[str], set[str]]:
@@ -512,19 +494,16 @@ async def _make_generated_batch(
         used_full_names=used_full,
     )
     warnings.extend(name_warnings)
-    sibling_lines = _sibling_persona_lines(names, slots)
     prompts = await require_active_prompts(session) if session is not None else None
     concurrency = settings.persona_generate_concurrency
     sem = asyncio.Semaphore(concurrency)
 
     async def _profile_one(index: int) -> GeneratedPersonaOut:
-        others = tuple(line for i, line in enumerate(sibling_lines) if i != index)
         async with sem:
             return await llm_persona_from_slot(
                 slots[index],
                 session=session,
                 fixed_name=names[index],
-                previous_personas=others,
                 prompts=prompts,
                 include_anecdote=False,
             )
