@@ -19,6 +19,7 @@ from app.services.report.sampling import (
     injection_post_ids,
     discussion_post_ids,
     post_body_text,
+    reception_vs_discussion_rows,
     sample_reactions_for_ssr,
 )
 from app.services.report.locale import (
@@ -318,27 +319,6 @@ def topic_status_for_comment(
     return post_topic_status.get(parent_id)
 
 
-def all_post_texts_for_topic_shares(bundle: RunBundle) -> list[str]:
-    """Non-injector post bodies for aggregate topic keyword shares."""
-    injectors: set[int] = set()
-    for agent in bundle.agents:
-        if str(agent.get("role") or "") != "injector":
-            continue
-        try:
-            injectors.add(int(agent.get("index")))
-        except (TypeError, ValueError):
-            continue
-    texts: list[str] = []
-    for post in bundle.posts:
-        uid = post.get("user_id")
-        if uid is not None and int(uid) in injectors:
-            continue
-        text = post_body_text(post)
-        if text:
-            texts.append(text)
-    return texts
-
-
 def lookup_text_topic_status(
     bundle: RunBundle,
     post_topic_status: dict[int, TopicStatus],
@@ -454,7 +434,12 @@ async def classify_bundle(
 ) -> BundleClassification:
     packs = topic_packs_from_injections(bundle.injection_texts, locale=locale)
     post_topic_status = classify_post_topics(bundle, packs, locale=locale)
-    topic_texts = all_post_texts_for_topic_shares(bundle)
+    split = reception_vs_discussion_rows(
+        bundle,
+        post_topic_status=post_topic_status,
+        locale=locale,
+    )
+    topic_texts = [row.text for row in (*split.reception, *split.discussion)]
     topic_shares = classify_topics_by_keywords(topic_texts, packs, locale=locale)
 
     sampled = sample_reactions_for_ssr(
