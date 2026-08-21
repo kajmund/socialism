@@ -29,8 +29,7 @@ from app.services.persona_catalog import (
     JOB_BY_CAT,
     LASTN,
     LEAN_LABEL,
-    NAMES_F,
-    NAMES_M,
+    sample_first_name,
 )
 from app.services.population_fingerprint import (
     compare_target_vs_achieved,
@@ -176,12 +175,8 @@ def _sample_kon(dist: dict, rng: Random) -> str:
     return _KON_FEMALE if rng.random() < 0.5 else _KON_MALE
 
 
-def _first_name_for_kon(kon: str, rng: Random) -> str:
-    if kon == _KON_FEMALE:
-        return rng.choice(NAMES_F)
-    if kon == _KON_MALE:
-        return rng.choice(NAMES_M)
-    return rng.choice(NAMES_F if rng.random() < 0.5 else NAMES_M)
+def _first_name_for_kon(kon: str, rng: Random, age: int | None = None) -> str:
+    return sample_first_name(kon, rng, age)
 
 
 def surname_from_name(name: str) -> str:
@@ -299,7 +294,7 @@ def stub_persona(
 ) -> GeneratedPersonaOut:
     slot = slot or sample_slot(recipe, rng)
     kon = slot.profile_fields.get("kön") or _sample_kon(recipe.dist, rng)
-    first = _first_name_for_kon(kon, rng)
+    first = _first_name_for_kon(kon, rng, slot.age)
     if used_surnames is None:
         last = rng.choice(LASTN)
     else:
@@ -391,7 +386,7 @@ def _assign_unique_names(
         kon = slot.profile_fields.get("kön") or _KON_FEMALE
         name: str | None = None
         for _attempt in range(24):
-            first = _first_name_for_kon(kon, rng)
+            first = _first_name_for_kon(kon, rng, slot.age)
             last, forced = _pick_stub_surname(rng, used_surnames)
             candidate = f"{first} {last}"
             if candidate.casefold() in full_names:
@@ -406,7 +401,7 @@ def _assign_unique_names(
             name = candidate
             break
         if name is None:
-            first = _first_name_for_kon(kon, rng)
+            first = _first_name_for_kon(kon, rng, slot.age)
             last, _forced = _pick_stub_surname(rng, used_surnames)
             sur = surname_from_name(last)
             if sur:
