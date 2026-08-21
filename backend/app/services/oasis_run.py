@@ -426,6 +426,8 @@ async def run_oasis_simulation(
                         )
                         if new_posts:
                             engagement.reset_for_stimulus(new_posts)
+                elif tick.silent:
+                    engagement.end_gating()
 
                 rounds = max(1, tick.rounds)
                 set_oasis_tool_trace_tick(tick_index)

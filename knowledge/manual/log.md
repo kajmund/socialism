@@ -2,6 +2,7 @@
 
 ## 2026-08-21
 
+* **Körningar**: En **tyst dag** avslutar nu den gated reaktionsperioden för föregående budskag — hela populationen kan reagera fritt igen tills nästa injektion. Passiv-uteslutning och kommentarsspärr (för agenter utan tidigare engagemang) gäller inte längre genom tysta tickar.
 * **Körningar**: Agenter som engagerat sig minst en gång under en simulering **behåller** rätten att kommentera resten av körningen — äldre trådar tystnar inte längre bara för att ett nytt budskag injiceras. Agenter som aldrig reagerat saknar fortfarande kommentarsverktyget tills de engagerar sig.
 * **Personas**: Bibliotekslistan döljer population-genererade personas tills du väljer **Spara till bibliotek** (population eller profil). Namnkatalogen för stub-generering har utökats.
 
