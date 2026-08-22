@@ -38,6 +38,66 @@ def _member(
     )
 
 
+def test_short_description_includes_parti_sakfragor_and_anekdot():
+    persona = Persona(
+        id="aa01",
+        name="Anna Andersson",
+        age=72,
+        occ="Pensionär",
+        district="Centrum",
+        quote="",
+        origin="manuell",
+        profile={
+            "name": "Anna Andersson",
+            "age": "72",
+            "kön": "Kvinna",
+            "ort": "Centrum",
+            "yrke": "Pensionär",
+            "lutning": "Mitt-vänster",
+            "parti": "Socialdemokraterna",
+            "sakfragor": "Vård och skola",
+            "anekdot": "Väntade tre timmar på vårdcentralen i somras.",
+        },
+    )
+    profiles = members_to_profiles(
+        [_member(persona=persona)],
+        prompts=_PROMPTS,
+    )
+    description = profiles[0].description
+    assert "Sympati: Socialdemokraterna." in description
+    assert "Viktiga frågor: Vård och skola." in description
+    assert "Väntade tre timmar på vårdcentralen i somras." in description
+    assert "Lutning: Mitt-vänster." in description
+
+
+def test_short_description_omits_empty_parti_sakfragor_anekdot():
+    persona = Persona(
+        id="aa01",
+        name="Anna Andersson",
+        age=42,
+        occ="Lärare",
+        district="Centrum",
+        quote="",
+        origin="manuell",
+        profile={
+            "name": "Anna Andersson",
+            "age": "42",
+            "kön": "Kvinna",
+            "ort": "Centrum",
+            "yrke": "Lärare",
+            "lutning": "Mitt",
+            "parti": "—",
+            "sakfragor": "",
+            "anekdot": "—",
+        },
+    )
+    profiles = members_to_profiles([_member(persona=persona)], prompts=_PROMPTS)
+    description = profiles[0].description
+    assert description.endswith("Lutning: Mitt.")
+    assert "Sympati:" not in description
+    assert "Viktiga frågor:" not in description
+
+
 def test_build_user_char_includes_profile_and_swedish_instruction():
     persona = Persona(
         id="aa01",
