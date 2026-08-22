@@ -387,7 +387,7 @@ export function PopulationBuilderPage() {
                   id="pop-size"
                   type="number"
                   min={4}
-                  max={40}
+                  max={100}
                   value={popSize}
                   onChange={(e) => setPopSize(parseInt(e.target.value, 10) || 12)}
                 />

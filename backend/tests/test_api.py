@@ -374,6 +374,21 @@ def _sample_recipe(size: int = 6, seed: int = 42) -> dict:
     }
 
 
+async def test_population_recipe_size_cap(client):
+    ok = await client.post(
+        "/populations/generate",
+        json={"recipe": _sample_recipe(size=100, seed=99), "mode": "replace"},
+    )
+    assert ok.status_code == 200
+    assert len(ok.json()["candidates"]) == 100
+
+    too_large = await client.post(
+        "/populations/generate",
+        json={"recipe": _sample_recipe(size=101, seed=99), "mode": "replace"},
+    )
+    assert too_large.status_code == 422
+
+
 async def test_generate_and_create_from_generation(client):
     generated = await client.post(
         "/populations/generate",
