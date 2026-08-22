@@ -53,31 +53,78 @@ function injectionSummary(inj: Injection, library: Message[], t: Translate): str
   return parts.join(" · ")
 }
 
-type RoundsDotsProps = {
+const ROUNDS_MIN = 1
+const ROUNDS_SOFT_MAX = 12
+
+type RoundsStepperProps = {
   value: number
   onChange: (n: number) => void
 }
 
-function RoundsDots({ value, onChange }: RoundsDotsProps) {
+function normalizeRounds(value: number): number {
+  if (!Number.isFinite(value)) return ROUNDS_MIN
+  return Math.max(ROUNDS_MIN, Math.round(value))
+}
+
+function RoundsStepper({ value, onChange }: RoundsStepperProps) {
   const { t } = useLocale()
+  const displayValue = normalizeRounds(value)
+  const atSoftMax = displayValue >= ROUNDS_SOFT_MAX
+  const openedValueRef = useRef(displayValue)
+
+  const handleBlur = () => {
+    if (displayValue < ROUNDS_MIN) {
+      onChange(ROUNDS_MIN)
+      return
+    }
+    if (
+      displayValue > ROUNDS_SOFT_MAX &&
+      displayValue !== openedValueRef.current
+    ) {
+      onChange(ROUNDS_SOFT_MAX)
+    }
+  }
 
   return (
-    <div style={{ display: "flex", alignItems: "center" }}>
-      <div className="rounds-dots">
-        {[1, 2, 3, 4, 5].map((n) => (
-          <button
-            type="button"
-            key={n}
-            className={"rd-dot" + (n <= value ? " on" : "")}
-            onClick={() => onChange(n)}
-            title={t("runs.tick.roundsTitle", { n })}
-            aria-label={t("runs.tick.roundsTitle", { n })}
-            aria-pressed={n <= value}
-          />
-        ))}
-      </div>
+    <div className="rounds-stepper">
+      <button
+        type="button"
+        className="rounds-stepper-btn"
+        onClick={() => onChange(displayValue - 1)}
+        disabled={displayValue <= ROUNDS_MIN}
+        aria-label={t("runs.tick.roundsDecrease")}
+      >
+        −
+      </button>
+      <input
+        id="tick-rounds-input"
+        className="rounds-stepper-input"
+        type="number"
+        min={ROUNDS_MIN}
+        value={displayValue}
+        onChange={(e) => {
+          const parsed = parseInt(e.target.value, 10)
+          if (!Number.isNaN(parsed)) onChange(parsed)
+        }}
+        onBlur={handleBlur}
+        aria-label={t("runs.tick.roundsInputLabel")}
+        aria-describedby="tick-rounds-hint"
+      />
+      <button
+        type="button"
+        className="rounds-stepper-btn"
+        onClick={() => onChange(displayValue + 1)}
+        disabled={atSoftMax}
+        aria-label={t("runs.tick.roundsIncrease")}
+      >
+        +
+      </button>
       <span className="rounds-num">
-        {value} {t(value === 1 ? "runs.tick.roundOne" : "runs.tick.roundMany")}
+        {displayValue}{" "}
+        {t(displayValue === 1 ? "runs.tick.roundOne" : "runs.tick.roundMany")}
+      </span>
+      <span id="tick-rounds-hint" className="rounds-stepper-hint">
+        {t("runs.tick.roundsSoftMaxHint", { max: ROUNDS_SOFT_MAX })}
       </span>
     </div>
   )
@@ -534,7 +581,8 @@ export function TickEditorBody({
                   : t("runs.tick.roundsAfterDesc")}
               </span>
             </span>
-            <RoundsDots
+            <RoundsStepper
+              key={tick.key}
               value={tick.rounds}
               onChange={(n) => onUpdate({ ...tick, rounds: n })}
             />
