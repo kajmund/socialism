@@ -392,7 +392,14 @@
 .rounds-dots{display:flex;gap:8px}
 .rd-dot{width:15px;height:15px;border-radius:50%;border:1.5px solid var(--border-hairline);cursor:pointer;background:var(--db-ink-0);padding:0;appearance:none}
 .rd-dot.on{background:var(--db-ink-950);border-color:var(--db-ink-950)}
-.rounds-num{font:var(--text-mono);font-size:12px;color:var(--text-muted);margin-left:6px;align-self:center}
+.rounds-stepper{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:6px}
+.rounds-stepper-btn{width:32px;height:32px;border:1.5px solid var(--border-hairline);border-radius:var(--radius-sm);background:var(--db-ink-0);color:var(--text-body);font-size:18px;line-height:1;cursor:pointer;display:grid;place-items:center;padding:0}
+.rounds-stepper-btn:hover:not(:disabled){border-color:var(--db-ink-950);background:var(--db-ink-100)}
+.rounds-stepper-btn:disabled{opacity:.35;cursor:not-allowed}
+.rounds-stepper-input{width:56px;height:32px;border:1.5px solid var(--border-hairline);border-radius:var(--radius-sm);background:var(--db-ink-0);color:var(--text-body);font:var(--text-mono);font-size:14px;text-align:center;padding:0 4px;-moz-appearance:textfield}
+.rounds-stepper-input::-webkit-outer-spin-button,.rounds-stepper-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.rounds-num{font:var(--text-mono);font-size:12px;color:var(--text-muted);align-self:center}
+.rounds-stepper-hint{flex-basis:100%;font-size:11.5px;color:var(--text-muted);line-height:1.35}
 
 .meas-chips{display:flex;flex-wrap:wrap;gap:6px}
 .meas-chip{font-size:11px;padding:5px 10px;border-radius:var(--radius-pill);border:1px solid var(--border-hairline);background:var(--db-ink-0);cursor:pointer;color:var(--text-body);display:block;line-height:1.25;font:inherit;text-align:center;white-space:nowrap}

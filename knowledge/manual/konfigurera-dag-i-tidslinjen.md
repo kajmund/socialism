@@ -18,7 +18,7 @@ Varje **dag** (tick) i en körning beskriver vad som händer den dagen i simuler
    - Lägg till **injektioner** (partipost, nyhetspost eller reklampost).
    - Välj avsändare och text — antingen från **Budskapsbiblioteket** eller fritt skriven text.
 4. På fliken **Ronder & mätpunkter**:
-   - Ange antal **reaktionsronder** (1–5).
+   - Ange antal **reaktionsronder** (1–12; standard 3).
    - Välj vilka **mätningar** som ska tas (t.ex. opinionsmätning, sentiment-baslinje, frasspridning).
 5. På fliken **Intervjuer**:
    - Planera intervjuer med personas från populationen genom att skriva en prompt och lägga till intervjuplaner.
