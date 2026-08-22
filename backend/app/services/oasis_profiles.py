@@ -112,6 +112,9 @@ def _short_description(
     district: str,
     lutning: str,
     kön: str,
+    parti: str = "",
+    sakfragor: str = "",
+    anekdot: str = "",
 ) -> str:
     parts: list[str] = []
     if _kon_is_set(kön):
@@ -120,7 +123,14 @@ def _short_description(
     parts.append(occ)
     parts.append(district)
     base = ", ".join(parts)
-    return f"{base}. Lutning: {lutning}."
+    extra = [f"Lutning: {lutning}."]
+    if parti.strip() and parti.strip() != "—":
+        extra.append(f"Sympati: {parti.strip()}.")
+    if sakfragor.strip() and sakfragor.strip() != "—":
+        extra.append(f"Viktiga frågor: {sakfragor.strip()}.")
+    if anekdot.strip() and anekdot.strip() != "—":
+        extra.append(anekdot.strip())
+    return f"{base}. " + " ".join(extra)
 
 
 def population_action_rules(
@@ -311,6 +321,9 @@ def members_to_profiles(
             district=member.district,
             lutning=profile.lutning,
             kön=kön,
+            parti=profile.parti,
+            sakfragor=profile.sakfragor,
+            anekdot=profile.anekdot,
         )
         area_block = (
             blocks.get(member.district)

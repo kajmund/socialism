@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from "react"
 import { createPortal } from "react-dom"
-import { FileText, Files, Loader2, Network, Trash2, Wrench } from "lucide-react"
+import { Brain, FileText, Files, Loader2, Network, Trash2, Wrench } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { createReport } from "@/api/reports"
 import type { RunTaggableTextRow, TopicStatus } from "@/api/runs"
@@ -32,8 +32,11 @@ import {
   groupTimelineSegments,
   HIDDEN_ACTIONS,
   parseTraceInfo,
+  reasoningForComment,
+  reasoningForPost,
   sortKeyFromCreatedAt,
   tickIndexForCreatedAt,
+  type AgentReasoningRow,
   type AgentToolRow,
   type PostRow,
   type TickMarker,
@@ -1206,6 +1209,40 @@ function AgentToolsModalContent({ tools }: { tools: AgentToolRow[] }) {
   )
 }
 
+function ReasoningIconButton({
+  label,
+  onClick,
+}: {
+  label: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      className="inline-grid h-7 w-7 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+      title={label}
+      aria-label={label}
+      onClick={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        onClick()
+      }}
+    >
+      <Brain className="size-3.5" aria-hidden />
+    </button>
+  )
+}
+
+function ReasoningModalContent({ reasoning }: { reasoning: string }) {
+  return (
+    <div className="max-h-[min(28rem,70vh)] overflow-y-auto">
+      <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+        {reasoning}
+      </p>
+    </div>
+  )
+}
+
 function NetworkActivityContent({
   variant,
   onOpenAgent,
@@ -1657,6 +1694,7 @@ function FeedPostCard({
   postsById,
   commentsByPostId,
   agentTools,
+  agentReasoning,
   tickMarkers,
   mentionMatcher,
   openMention,
@@ -1674,6 +1712,7 @@ function FeedPostCard({
   postsById: Map<number, PostRow>
   commentsByPostId: Map<number, NonNullable<OasisVariantResult["comments"]>>
   agentTools: AgentToolRow[]
+  agentReasoning: AgentReasoningRow[]
   tickMarkers: TickMarker[]
   mentionMatcher: ReturnType<typeof getMentionMatcher>
   openMention: (userIds: number[], label: string) => void
@@ -1691,6 +1730,11 @@ function FeedPostCard({
     authorName: string
     tools: AgentToolRow[]
   } | null>(null)
+  const [reasoningModal, setReasoningModal] = useState<{
+    kind: "post" | "comment"
+    authorName: string
+    reasoning: string
+  } | null>(null)
   const agent = agents.find((a) => a.index === post.user_id)
   const author = agent?.member_name ?? t("runs.feed.agentFallback", { userId: post.user_id })
   const isInjector = agent?.role === "injector"
@@ -1704,6 +1748,9 @@ function FeedPostCard({
   const postComments = commentsByPostId.get(post.post_id) ?? []
   const when = formatFeedWhen(post.created_at, t, intl)
   const postTools = agentToolsForAuthor(agentTools, post.user_id, tickIndex)
+  const postReasoningRow =
+    !isInjector ? reasoningForPost(agentReasoning, post.post_id) : null
+  const postReasoning = postReasoningRow?.reasoning_content?.trim() ?? ""
 
   let kindLabel: string | null = null
   if (isInjector) kindLabel = t("runs.feed.injection")
@@ -1774,6 +1821,18 @@ function FeedPostCard({
                   kind: "post",
                   authorName: author,
                   tools: postTools,
+                })
+              }
+            />
+          ) : null}
+          {postReasoning ? (
+            <ReasoningIconButton
+              label={t("runs.feed.reasoningAria")}
+              onClick={() =>
+                setReasoningModal({
+                  kind: "post",
+                  authorName: author,
+                  reasoning: postReasoning,
                 })
               }
             />
@@ -1854,6 +1913,11 @@ function FeedPostCard({
               c.user_id,
               commentTick,
             )
+            const commentReasoningRow = !commentInjector
+              ? reasoningForComment(agentReasoning, c.comment_id)
+              : null
+            const commentReasoning =
+              commentReasoningRow?.reasoning_content?.trim() ?? ""
             const canInterviewComment =
               runId != null &&
               Boolean(attemptId) &&
@@ -1920,6 +1984,18 @@ function FeedPostCard({
                           kind: "comment",
                           authorName: commentName,
                           tools: commentTools,
+                        })
+                      }
+                    />
+                  ) : null}
+                  {commentReasoning ? (
+                    <ReasoningIconButton
+                      label={t("runs.feed.reasoningAria")}
+                      onClick={() =>
+                        setReasoningModal({
+                          kind: "comment",
+                          authorName: commentName,
+                          reasoning: commentReasoning,
                         })
                       }
                     />
@@ -1997,6 +2073,29 @@ function FeedPostCard({
         wide
       >
         {toolsModal ? <AgentToolsModalContent tools={toolsModal.tools} /> : null}
+      </AdminModal>
+
+      <AdminModal
+        open={reasoningModal != null}
+        titleId="agent-reasoning-modal-title"
+        title={
+          reasoningModal?.kind === "comment"
+            ? t("runs.feed.reasoningTitleComment")
+            : t("runs.feed.reasoningTitle")
+        }
+        description={
+          reasoningModal
+            ? t("runs.feed.reasoningModalDescription", {
+                name: reasoningModal.authorName,
+              })
+            : undefined
+        }
+        onClose={() => setReasoningModal(null)}
+        wide
+      >
+        {reasoningModal ? (
+          <ReasoningModalContent reasoning={reasoningModal.reasoning} />
+        ) : null}
       </AdminModal>
     </li>
   )
@@ -2328,6 +2427,7 @@ function VariantBody({
                         postsById={postsById}
                         commentsByPostId={commentsByPostId}
                         agentTools={variant.agent_tools ?? []}
+                        agentReasoning={variant.agent_reasoning ?? []}
                         tickMarkers={variant.tick_markers ?? []}
                         mentionMatcher={mentionMatcher}
                         openMention={openMention}
@@ -2368,6 +2468,7 @@ function VariantBody({
               postsById={postsById}
               commentsByPostId={commentsByPostId}
               agentTools={variant.agent_tools ?? []}
+              agentReasoning={variant.agent_reasoning ?? []}
               tickMarkers={variant.tick_markers ?? []}
               mentionMatcher={mentionMatcher}
               openMention={openMention}

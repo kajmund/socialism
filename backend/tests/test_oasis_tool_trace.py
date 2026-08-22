@@ -7,6 +7,7 @@ import pytest
 import app.services.oasis_tool_trace as trace_mod
 from app.services.oasis_tool_trace import (
     clear_oasis_tool_trace,
+    drain_oasis_reasoning_trace,
     drain_oasis_tool_trace,
     is_external_tool,
     set_oasis_tool_trace_tick,
@@ -90,3 +91,61 @@ def test_tool_trace_is_task_local():
     assert len(other_rows) == 1
     assert other_rows[0]["user_id"] == 9
     assert drain_oasis_tool_trace() == []
+
+
+def test_reasoning_trace_links_post_id_from_args_and_result(camel_available):
+    from camel.agents.chat_agent import ChatAgent
+    from camel.types import RoleType
+
+    with camel_llm_runtime():
+        agent = ChatAgent.__new__(ChatAgent)
+        agent.role_name = "Assistant"
+        agent.role_type = RoleType.ASSISTANT
+        agent.social_agent_id = 5
+        agent._deepseek_pending_reasoning = "Jag vill svara på det här inlägget."
+        agent.update_memory = MagicMock()
+
+        set_oasis_tool_trace_tick(1)
+        ChatAgent._record_tool_calling(
+            agent,
+            "create_comment",
+            {"post_id": 42, "content": "Bra poäng."},
+            {"comment_id": 123},
+            "call_comment",
+        )
+
+        rows = drain_oasis_reasoning_trace()
+        assert len(rows) == 1
+        assert rows[0]["user_id"] == 5
+        assert rows[0]["tick_index"] == 1
+        assert rows[0]["func_name"] == "create_comment"
+        assert rows[0]["post_id"] == 42
+        assert rows[0]["comment_id"] == 123
+        assert "Jag vill svara" in rows[0]["reasoning_content"]
+        assert drain_oasis_tool_trace() == []
+
+
+def test_append_reasoning_trace_without_camel():
+    from app.services.simulation.llm_runtime import _append_reasoning_trace
+
+    clear_oasis_tool_trace()
+    set_oasis_tool_trace_tick(2)
+    agent = MagicMock()
+    agent.social_agent_id = 7
+
+    _append_reasoning_trace(
+        agent,
+        "create_comment",
+        {"post_id": 42, "content": "Hej"},
+        {"comment_id": 99},
+        "Resonemang om kommentaren.",
+    )
+
+    rows = drain_oasis_reasoning_trace()
+    assert len(rows) == 1
+    assert rows[0]["user_id"] == 7
+    assert rows[0]["tick_index"] == 2
+    assert rows[0]["func_name"] == "create_comment"
+    assert rows[0]["post_id"] == 42
+    assert rows[0]["comment_id"] == 99
+    assert rows[0]["reasoning_content"] == "Resonemang om kommentaren."
