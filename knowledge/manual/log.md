@@ -1,5 +1,9 @@
 # Manual update log
 
+## 2026-08-22
+
+* **Populationer:** Maxstorlek i population builder och API höjd från 40 till 100 medlemmar (standard 12 oförändrat).
+
 ## 2026-08-21
 
 * **Körningar**: En **tyst dag** avslutar nu den gated reaktionsperioden för föregående budskag — hela populationen kan reagera fritt igen tills nästa injektion. Passiv-uteslutning och kommentarsspärr (för agenter utan tidigare engagemang) gäller inte längre genom tysta tickar.
