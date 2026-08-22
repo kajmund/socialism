@@ -1,6 +1,6 @@
 /** Build a chronological timeline: posts + compact non-engagement actions. */
 
-import type { OasisVariantResult } from "@/data/runs-types"
+import type { AgentReasoningRow, OasisVariantResult } from "@/data/runs-types"
 import type { MessageKey, TranslateParams } from "@/i18n"
 
 type Translate = (key: MessageKey, params?: TranslateParams) => string
@@ -12,6 +12,7 @@ export type MuteRow = NonNullable<OasisVariantResult["mutes"]>[number]
 export type ReportRow = NonNullable<OasisVariantResult["reports"]>[number]
 export type AgentRow = NonNullable<OasisVariantResult["agents"]>[number]
 export type AgentToolRow = NonNullable<OasisVariantResult["agent_tools"]>[number]
+export type { AgentReasoningRow }
 
 /** Actions already shown on post/comment cards — skip as timeline rows. */
 export const CARD_COVERED_ACTIONS = new Set([
@@ -106,6 +107,26 @@ export function agentToolsForAuthor(
   return (tools ?? [])
     .filter((row) => row.user_id === userId && row.tick_index === tickIndex)
     .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0))
+}
+
+/** Reasoning captured for a specific post (excludes comment-scoped rows). */
+export function reasoningForPost(
+  rows: AgentReasoningRow[] | undefined,
+  postId: number,
+): AgentReasoningRow | null {
+  return (
+    (rows ?? []).find(
+      (row) => row.post_id === postId && row.comment_id == null,
+    ) ?? null
+  )
+}
+
+/** Reasoning captured for a specific comment. */
+export function reasoningForComment(
+  rows: AgentReasoningRow[] | undefined,
+  commentId: number,
+): AgentReasoningRow | null {
+  return (rows ?? []).find((row) => row.comment_id === commentId) ?? null
 }
 
 export function sortKeyFromCreatedAt(value: string | number | undefined): number {
