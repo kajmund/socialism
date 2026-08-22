@@ -15,12 +15,16 @@ from app.services.simulation.action_catalog import is_external_tool as _catalog_
 _TRACE: ContextVar[list[dict[str, Any]] | None] = ContextVar(
     "oasis_tool_trace", default=None
 )
+_REASONING_TRACE: ContextVar[list[dict[str, Any]] | None] = ContextVar(
+    "oasis_reasoning_trace", default=None
+)
 _TICK_INDEX: ContextVar[int] = ContextVar("oasis_tool_tick", default=0)
 _SEQUENCE: ContextVar[int] = ContextVar("oasis_tool_seq", default=0)
 
 
 def clear_oasis_tool_trace() -> None:
     _TRACE.set([])
+    _REASONING_TRACE.set([])
     _TICK_INDEX.set(0)
     _SEQUENCE.set(0)
 
@@ -32,6 +36,10 @@ def set_oasis_tool_trace_tick(tick_index: int) -> None:
 
 def drain_oasis_tool_trace() -> list[dict[str, Any]]:
     return list(_TRACE.get() or [])
+
+
+def drain_oasis_reasoning_trace() -> list[dict[str, Any]]:
+    return list(_REASONING_TRACE.get() or [])
 
 
 def _preview(value: Any, *, limit: int = 2000) -> str | None:
