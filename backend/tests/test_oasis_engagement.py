@@ -189,6 +189,28 @@ def test_end_gating_preserves_ever_engaged():
     assert session.may_comment(0) is True
 
 
+def test_non_silent_empty_injection_tick_ends_gating():
+    """Mirror oasis_run: non-silent tick with no new posts ends gating like silent."""
+    engagement = StimulusEngagement()
+    population = {0, 1, 2, 3}
+
+    engagement.reset_for_stimulus({42})
+    for agent_id in population:
+        engagement.record_trace_rows(
+            [{"user_id": agent_id, "action": "do_nothing", "info": "{}"}],
+            comment_to_post={},
+        )
+    assert engagement.eligible_agents(population) == set()
+
+    new_posts: frozenset[int] = frozenset()
+    if new_posts:
+        engagement.reset_for_stimulus(new_posts)
+    else:
+        engagement.end_gating()
+
+    assert engagement.eligible_agents(population) == population
+
+
 def test_silent_tick_allows_previously_passive_agents_to_act():
     """Mirror oasis_run: passive under stimulus → end_gating → free sampling round."""
     engagement = StimulusEngagement()
