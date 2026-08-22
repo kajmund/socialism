@@ -759,6 +759,10 @@ export const sv = {
       toolsQuery: "Fråga",
       toolsResult: "Resultat",
       toolsEmptyResult: "Inget resultat sparat",
+      reasoningTitle: "Resonemang före inlägg",
+      reasoningTitleComment: "Resonemang före kommentar",
+      reasoningAria: "Visa agentens resonemang",
+      reasoningModalDescription: "{name}",
     },
     interview: {
       loadError: "Kunde inte hämta intervju",

@@ -760,6 +760,10 @@ export const en: LocalizedTree<SvMessages> = {
       toolsQuery: "Query",
       toolsResult: "Result",
       toolsEmptyResult: "No result saved",
+      reasoningTitle: "Reasoning before post",
+      reasoningTitleComment: "Reasoning before comment",
+      reasoningAria: "Show agent reasoning",
+      reasoningModalDescription: "{name}",
     },
     interview: {
       loadError: "Could not load interview",
