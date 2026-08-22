@@ -1,5 +1,9 @@
 # Manual update log
 
+## 2026-08-22
+
+* **Körningar**: Antal reaktionsronder per dag ställs in med stegare (1–12) i stället för fem fasta prickar. Standard för nya dagar är fortfarande 3.
+
 ## 2026-08-21
 
 * **Körningar**: En **tyst dag** avslutar nu den gated reaktionsperioden för föregående budskag — hela populationen kan reagera fritt igen tills nästa injektion. Passiv-uteslutning och kommentarsspärr (för agenter utan tidigare engagemang) gäller inte längre genom tysta tickar.
