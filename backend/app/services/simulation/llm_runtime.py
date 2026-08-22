@@ -8,6 +8,7 @@ share patched classes safely and originals restore when the last run exits.
 
 from __future__ import annotations
 
+import json
 import time
 from contextlib import contextmanager
 from collections.abc import Generator
@@ -50,6 +51,39 @@ def _attach_reasoning(
     return message_dict
 
 
+def _int_id(value: Any) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _ids_from_mapping(data: dict[str, Any]) -> dict[str, int]:
+    out: dict[str, int] = {}
+    for key in ("post_id", "comment_id", "like_id"):
+        parsed = _int_id(data.get(key))
+        if parsed is not None:
+            out[key] = parsed
+    return out
+
+
+def _ids_from_result(result: Any) -> dict[str, int]:
+    if isinstance(result, dict):
+        return _ids_from_mapping(result)
+    if isinstance(result, str):
+        text = result.strip()
+        if text.startswith("{"):
+            try:
+                parsed = json.loads(text)
+            except json.JSONDecodeError:
+                return {}
+            if isinstance(parsed, dict):
+                return _ids_from_mapping(parsed)
+    return {}
+
+
 def _append_external_tool_trace(
     agent: Any,
     func_name: str,
@@ -75,6 +109,34 @@ def _append_external_tool_trace(
             "result_preview": _preview(result),
         }
     )
+
+
+def _append_reasoning_trace(
+    agent: Any,
+    func_name: str,
+    args: dict[str, Any],
+    result: Any,
+    reasoning: str,
+) -> None:
+    from app.services.oasis_tool_trace import _REASONING_TRACE, _TICK_INDEX
+
+    trace = _REASONING_TRACE.get()
+    if trace is None:
+        return
+
+    agent_index = _agent_index(agent)
+    row: dict[str, Any] = {
+        "tick_index": _TICK_INDEX.get(),
+        "user_id": agent_index if agent_index is not None else -1,
+        "func_name": func_name,
+        "reasoning_content": _preview(reasoning, limit=2000) or reasoning,
+    }
+    post_id = _int_id(args.get("post_id"))
+    if post_id is not None:
+        row["post_id"] = post_id
+    for key, value in _ids_from_result(result).items():
+        row[key] = value
+    trace.append(row)
 
 
 def _apply_llm_patches() -> None:
@@ -152,6 +214,9 @@ def _apply_llm_patches() -> None:
 
         if is_external_tool(func_name):
             _append_external_tool_trace(self, func_name, args, result)
+
+        if isinstance(reasoning, str) and reasoning:
+            _append_reasoning_trace(self, func_name, args, result, reasoning)
 
         return record
 

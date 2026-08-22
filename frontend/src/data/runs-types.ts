@@ -66,6 +66,16 @@ export type QualityWarnings = {
   warnings: LexicalConvergenceWarning[]
 }
 
+export type AgentReasoningRow = {
+  tick_index: number
+  user_id: number
+  func_name: string
+  reasoning_content: string
+  post_id?: number
+  comment_id?: number
+  like_id?: number
+}
+
 export type OasisVariantResult = {
   id: string
   label: string
@@ -140,6 +150,7 @@ export type OasisVariantResult = {
     args?: Record<string, unknown>
     result_preview?: string | null
   }>
+  agent_reasoning?: AgentReasoningRow[]
   action_histogram?: Array<{ action: string; count: number }>
   tick_markers?: Array<{
     tick_index: number
