@@ -52,6 +52,7 @@ from app.services.oasis_swedish import (
 )
 from app.services.oasis_tool_trace import (
     clear_oasis_tool_trace,
+    drain_oasis_reasoning_trace,
     drain_oasis_tool_trace,
     set_oasis_tool_trace_tick,
 )
@@ -495,6 +496,7 @@ async def run_oasis_simulation(
 
         feed = _read_oasis_results(db_path)
         agent_tools = drain_oasis_tool_trace()
+        agent_reasoning = drain_oasis_reasoning_trace()
         return {
             "engine": "oasis",
             "seed": seed,
@@ -521,6 +523,7 @@ async def run_oasis_simulation(
             "trace": feed["trace"],
             "action_histogram": feed["action_histogram"],
             "agent_tools": agent_tools,
+            "agent_reasoning": agent_reasoning,
             "artifact_db": str(db_path),
             "profile_path": str(profile_path),
             "profile_csv": profile_csv,
@@ -628,6 +631,7 @@ def _failed_variant(
         "trace": [],
         "action_histogram": [],
         "agent_tools": [],
+        "agent_reasoning": [],
         "measurements": build_measurements(ticks, ticks_run=0),
     }
     if log_path:
@@ -695,6 +699,7 @@ async def _simulate_variant(
         trace = sim.get("trace") or []
         action_histogram = sim.get("action_histogram") or []
         agent_tools = sim.get("agent_tools") or []
+        agent_reasoning = sim.get("agent_reasoning") or []
         tick_markers = sim.get("tick_markers") or []
         ticks_run = int(sim.get("ticks_run") or 0)
         log.info(
@@ -719,6 +724,7 @@ async def _simulate_variant(
             "trace": trace,
             "action_histogram": action_histogram,
             "agent_tools": agent_tools,
+            "agent_reasoning": agent_reasoning,
             "artifact_db": sim.get("artifact_db"),
             "profile_path": sim.get("profile_path"),
             "profile_csv": sim.get("profile_csv"),
