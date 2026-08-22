@@ -2,6 +2,7 @@
 
 ## 2026-08-22
 
+* **Populationer:** Maxstorlek i population builder och API höjd från 40 till 100 medlemmar (standard 12 oförändrat).
 * **Körningar**: Antal reaktionsronder per dag ställs in med stegare (1–12) i stället för fem fasta prickar. Standard för nya dagar är fortfarande 3.
 
 ## 2026-08-21
