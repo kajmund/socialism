@@ -399,6 +399,7 @@ async def run_oasis_simulation(
                 if scenario_clock is not None:
                     scenario_clock.set_day_index(max(0, tick.day - 1))
                 time_start = prev_end + 1
+                new_posts: frozenset[int] = frozenset()
                 if not tick.silent:
                     max_post_before = _engagement_max_post_id(db_path)
                     inject_actions: dict[Any, list[Any]] = {}
@@ -425,9 +426,9 @@ async def run_oasis_simulation(
                             injector_indices=injector_indices,
                             after_post_id=max_post_before,
                         )
-                        if new_posts:
-                            engagement.reset_for_stimulus(new_posts)
-                elif tick.silent:
+                if new_posts:
+                    engagement.reset_for_stimulus(new_posts)
+                else:
                     engagement.end_gating()
 
                 rounds = max(1, tick.rounds)
