@@ -1,7 +1,7 @@
 from copy import deepcopy
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -55,6 +55,7 @@ from app.services.oasis_run import oasis_installed, previous_attempts, remove_at
 from app.services.run_log import read_run_log_tail
 from app.services.run_results import find_attempt, find_variant
 from app.services.run_tick_context import build_persona_feed_context
+from app.services.run_watch_demo import publish_run_watch_demo
 
 router = APIRouter(prefix="/runs", tags=["runs"])
 
@@ -797,6 +798,34 @@ async def get_run_log_tail(
         truncated=truncated,
         content=content,
     )
+
+
+@router.post("/{run_id}/demo-live-feed", status_code=202)
+async def demo_live_feed(
+    run_id: int,
+    background_tasks: BackgroundTasks,
+    variant_id: str = Query(default="a", min_length=1),
+    delay_seconds: float = Query(default=2.0, ge=0.0, le=15.0),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, str]:
+    """Dev helper: stream staged run-watch events through the running server."""
+    if settings.persona_generator != "stub":
+        raise HTTPException(status_code=403, detail="Demo live feed is dev-only")
+    await _get_run(session, run_id)
+
+    async def _run() -> None:
+        from app.database.session import SessionLocal
+
+        async with SessionLocal() as bg_session:
+            await publish_run_watch_demo(
+                bg_session,
+                run_id=run_id,
+                variant_id=variant_id,
+                delay_seconds=delay_seconds,
+            )
+
+    background_tasks.add_task(_run)
+    return {"status": "started", "variant_id": variant_id}
 
 
 @router.delete("/{run_id}", status_code=204)
