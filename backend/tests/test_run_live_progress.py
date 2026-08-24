@@ -128,9 +128,86 @@ def test_activity_items_match_enriched_rows(tmp_path: Path):
         "created_at": 1,
         "post_id": 10,
         "content": "Hej världen",
+        "info": {"post_id": 10},
     }
     assert items[1]["comment_id"] == 5
     assert items[1]["post_id"] == 10
+
+
+def _seed_social_trace_db(db: Path) -> None:
+    conn = sqlite3.connect(db)
+    conn.executescript(
+        """
+        CREATE TABLE post (
+            post_id INTEGER PRIMARY KEY,
+            user_id INTEGER,
+            content TEXT,
+            original_post_id INTEGER,
+            quote_content TEXT,
+            num_likes INTEGER,
+            num_dislikes INTEGER,
+            num_shares INTEGER,
+            created_at INTEGER
+        );
+        CREATE TABLE follow (
+            follow_id INTEGER PRIMARY KEY,
+            follower_id INTEGER,
+            followee_id INTEGER,
+            created_at INTEGER
+        );
+        CREATE TABLE report (
+            report_id INTEGER PRIMARY KEY,
+            user_id INTEGER,
+            post_id INTEGER,
+            report_reason TEXT,
+            created_at INTEGER
+        );
+        CREATE TABLE trace (
+            user_id INTEGER,
+            created_at INTEGER,
+            action TEXT,
+            info TEXT
+        );
+        INSERT INTO post (post_id, user_id, content, original_post_id, quote_content,
+            num_likes, num_dislikes, num_shares, created_at)
+        VALUES (7, 99, 'Olämpligt inlägg', NULL, NULL, 0, 0, 0, 1);
+        INSERT INTO follow (follow_id, follower_id, followee_id, created_at)
+        VALUES (3, 1, 2, 1);
+        INSERT INTO report (report_id, user_id, post_id, report_reason, created_at)
+        VALUES (4, 1, 7, 'spam', 2);
+        INSERT INTO trace (user_id, created_at, action, info) VALUES
+            (1, 1, 'follow', '{"follow_id": 3}');
+        INSERT INTO trace (user_id, created_at, action, info) VALUES
+            (1, 2, 'mute', '{"mutee_id": 99}');
+        INSERT INTO trace (user_id, created_at, action, info) VALUES
+            (1, 3, 'report_post', '{"post_id": 7, "report_id": 4}');
+        """
+    )
+    conn.commit()
+    conn.close()
+
+
+def test_enrich_trace_rows_resolves_social_targets(tmp_path: Path):
+    db = tmp_path / "simulation.db"
+    _seed_social_trace_db(db)
+    rows = read_trace_range(db, 0, 3)
+    enriched = enrich_trace_rows(db, rows)
+    assert enriched[0]["followee_id"] == 2
+    assert enriched[1]["mutee_id"] == 99
+    assert enriched[2]["post_id"] == 7
+    assert enriched[2]["report_reason"] == "spam"
+    assert enriched[2]["post_preview"] == "Olämpligt inlägg"
+
+    items = activity_items_from_trace_rows(enriched)
+    assert items[0]["info"] == {"follow_id": 3, "followee_id": 2}
+    assert items[1]["info"] == {"mutee_id": 99}
+    assert items[2]["info"] == {
+        "post_id": 7,
+        "report_id": 4,
+        "report_reason": "spam",
+    }
+    assert items[2]["post_preview"] == "Olämpligt inlägg"
+    assert items[2]["post_id"] == 7
 
 
 @pytest.mark.asyncio
