@@ -241,6 +241,10 @@ def read_trace_since(db_path: Path, after_count: int) -> list[dict[str, Any]]:
     return _reader(db_path).read_trace_since(after_count)
 
 
+def read_trace_range(db_path: Path, start: int, end: int) -> list[dict[str, Any]]:
+    return _reader(db_path).read_trace_range(start, end)
+
+
 def comment_post_ids(db_path: Path, comment_ids: set[int]) -> dict[int, int]:
     return _reader(db_path).comment_post_ids(comment_ids)
 

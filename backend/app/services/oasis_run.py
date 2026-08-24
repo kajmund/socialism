@@ -69,6 +69,12 @@ from app.services.run_log import (
     run_variant_log_path,
     write_run_log_note,
 )
+from app.services.run_live_progress import reset_live_progress
+from app.services.run_trace_enrich import (
+    activity_items_from_trace_rows,
+    enrich_trace_rows,
+)
+from app.realtime.run_broadcast import run_broadcast
 from app.services.run_measurements import build_measurements
 from app.services.simulation.action_catalog import population_action_names
 
@@ -272,6 +278,7 @@ async def run_oasis_simulation(
     ticks: list[Tick],
     seed: str,
     variant_id: str = "main",
+    attempt_id: str,
     area_blocks: dict[str, str] | None = None,
     oasis_options: OasisRunOptions | None = None,
     simulation_start: date | None = None,
@@ -341,6 +348,25 @@ async def run_oasis_simulation(
         if not population_indices:
             raise OasisUnavailable("Population has no members to simulate")
 
+        agents_payload = [
+            {
+                "index": i,
+                "username": p.username,
+                "member_name": p.member_name,
+                "persona_id": p.persona_id,
+                "role": p.role,
+            }
+            for i, p in enumerate(profiles)
+        ]
+        await run_broadcast.publish(
+            (run_id, variant_id),
+            {
+                "type": "run.attempt_started",
+                "attempt_id": attempt_id,
+                "agents": agents_payload,
+            },
+        )
+
         art = _artifact_dir(run_id, variant_id)
         db_path = art / "simulation.db"
         if db_path.exists():
@@ -396,6 +422,19 @@ async def run_oasis_simulation(
             await env.reset()
 
             for tick_index, tick in enumerate(active_ticks):
+                await run_broadcast.publish(
+                    (run_id, variant_id),
+                    {
+                        "type": "tick.started",
+                        "run_id": run_id,
+                        "variant_id": variant_id,
+                        "tick_index": tick_index,
+                        "day": tick.day,
+                        "silent": tick.silent,
+                        "key": tick.key,
+                        "rounds": tick.rounds,
+                    },
+                )
                 if scenario_clock is not None:
                     scenario_clock.set_day_index(max(0, tick.day - 1))
                 time_start = prev_end + 1
@@ -461,6 +500,38 @@ async def run_oasis_simulation(
                     engagement.record_trace_rows(
                         new_trace, comment_to_post=comment_map
                     )
+                    trace_after = trace_row_count(db_path)
+                    progress_entry = {
+                        "tick_index": tick_index,
+                        "round_index": round_index,
+                        "trace_start": trace_before,
+                        "trace_end": trace_after,
+                    }
+                    factory = jobs_service.job_session_factory()
+                    if factory is not None:
+                        async with factory() as progress_session:
+                            from app.services.run_live_progress import (
+                                append_live_progress_entry,
+                            )
+
+                            await append_live_progress_entry(
+                                progress_session,
+                                run_id=run_id,
+                                variant_id=variant_id,
+                                entry=progress_entry,
+                            )
+                    enriched = enrich_trace_rows(db_path, new_trace)
+                    await run_broadcast.publish(
+                        (run_id, variant_id),
+                        {
+                            "type": "round.activity",
+                            "run_id": run_id,
+                            "variant_id": variant_id,
+                            "tick_index": tick_index,
+                            "round_index": round_index,
+                            "items": activity_items_from_trace_rows(enriched),
+                        },
+                    )
 
                 # Planned interviews after reactions — agent has no future-tick context.
                 interview_actions: dict[Any, list[Any]] = {}
@@ -479,16 +550,24 @@ async def run_oasis_simulation(
 
                 end = _max_event_time(db_path)
                 time_end = end if end >= time_start else time_start - 1
-                tick_markers.append(
+                tick_marker = {
+                    "tick_index": tick_index,
+                    "day": tick.day,
+                    "silent": tick.silent,
+                    "key": tick.key,
+                    "rounds": tick.rounds,
+                    "time_start": time_start,
+                    "time_end": time_end,
+                }
+                tick_markers.append(tick_marker)
+                await run_broadcast.publish(
+                    (run_id, variant_id),
                     {
-                        "tick_index": tick_index,
-                        "day": tick.day,
-                        "silent": tick.silent,
-                        "key": tick.key,
-                        "rounds": tick.rounds,
-                        "time_start": time_start,
-                        "time_end": time_end,
-                    }
+                        "type": "tick.completed",
+                        "run_id": run_id,
+                        "variant_id": variant_id,
+                        **tick_marker,
+                    },
                 )
                 prev_end = max(prev_end, end)
                 ticks_run += 1
@@ -671,6 +750,7 @@ async def _simulate_variant(
                 ticks=ticks,
                 seed=run.seed,
                 variant_id=variant_id,
+                attempt_id=attempt_id,
                 area_blocks=area_blocks,
                 oasis_options=options,
                 simulation_start=(
@@ -683,13 +763,34 @@ async def _simulate_variant(
             raise
         except Exception as exc:  # noqa: BLE001 — keep other variants; record this failure
             log.exception("Variant %s failed: %s", variant_id, exc)
-            return _failed_variant(
+            error = str(exc) or exc.__class__.__name__
+            await run_broadcast.publish(
+                (run.id, variant_id),
+                {
+                    "type": "variant.failed",
+                    "run_id": run.id,
+                    "variant_id": variant_id,
+                    "error": error,
+                },
+            )
+            result = _failed_variant(
                 variant_id=variant_id,
                 label=label,
                 ticks=ticks,
-                error=str(exc) or exc.__class__.__name__,
+                error=error,
                 log_path=str(log_path),
             )
+            await run_broadcast.publish(
+                (run.id, variant_id),
+                {
+                    "type": "run.attempt_finished",
+                    "run_id": run.id,
+                    "variant_id": variant_id,
+                    "attempt_id": attempt_id,
+                    "error": error,
+                },
+            )
+            return result
 
         agents = sim.get("agents") or []
         posts = sim.get("posts") or []
@@ -710,7 +811,7 @@ async def _simulate_variant(
             len(posts),
             len(comments),
         )
-        return {
+        result_payload = {
             "id": variant_id,
             "label": label,
             "error": None,
@@ -751,6 +852,17 @@ async def _simulate_variant(
                 injection_texts=_injection_texts_labeled(ticks),
             ),
         }
+        await run_broadcast.publish(
+            (run.id, variant_id),
+            {
+                "type": "run.attempt_finished",
+                "run_id": run.id,
+                "variant_id": variant_id,
+                "attempt_id": attempt_id,
+                "error": None,
+            },
+        )
+        return result_payload
 
 
 async def simulate_run(session: AsyncSession, run: Run) -> dict[str, Any]:
@@ -789,6 +901,16 @@ async def simulate_run(session: AsyncSession, run: Run) -> dict[str, Any]:
     attempt_id = f"att_{secrets.token_hex(4)}"
     log_dir = run_attempt_log_dir(run.id, attempt_id)
     log_dir.mkdir(parents=True, exist_ok=True)
+    variant_ids = [variant_id for variant_id, _, _ in plans]
+    await reset_live_progress(session, run, variant_ids)
+    for variant_id in variant_ids:
+        await run_broadcast.publish(
+            (run.id, variant_id),
+            {
+                "type": "run.attempt_started",
+                "attempt_id": attempt_id,
+            },
+        )
     variants_out = list(
         await asyncio.gather(
             *[

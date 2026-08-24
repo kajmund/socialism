@@ -236,13 +236,64 @@ class OasisArtifactReader:
         conn = self._connect()
         try:
             rows = conn.execute(
-                "SELECT user_id, action, info FROM trace "
+                "SELECT user_id, created_at, action, info FROM trace "
                 "ORDER BY rowid LIMIT -1 OFFSET ?",
                 (max(0, after_count),),
             ).fetchall()
             return [dict(row) for row in rows]
         except sqlite3.OperationalError:
             return []
+        finally:
+            conn.close()
+
+    def read_trace_range(self, start: int, end: int) -> list[dict[str, Any]]:
+        """Read trace rows for one round using the same rowid ordering as trace_row_count."""
+        if not self._db_path.exists() or end <= start:
+            return []
+        conn = self._connect()
+        try:
+            rows = conn.execute(
+                "SELECT user_id, created_at, action, info FROM trace "
+                "ORDER BY rowid LIMIT ? OFFSET ?",
+                (end - start, max(0, start)),
+            ).fetchall()
+            return [dict(row) for row in rows]
+        except sqlite3.OperationalError:
+            return []
+        finally:
+            conn.close()
+
+    def post_contents(self, post_ids: set[int]) -> dict[int, str]:
+        if not self._db_path.exists() or not post_ids:
+            return {}
+        conn = self._connect()
+        try:
+            placeholders = ",".join("?" for _ in post_ids)
+            sql = (
+                f"SELECT post_id, content FROM post "
+                f"WHERE post_id IN ({placeholders})"
+            )
+            rows = conn.execute(sql, sorted(post_ids)).fetchall()
+            return {int(r[0]): str(r[1] or "") for r in rows}
+        except sqlite3.OperationalError:
+            return {}
+        finally:
+            conn.close()
+
+    def comment_contents(self, comment_ids: set[int]) -> dict[int, str]:
+        if not self._db_path.exists() or not comment_ids:
+            return {}
+        conn = self._connect()
+        try:
+            placeholders = ",".join("?" for _ in comment_ids)
+            sql = (
+                f"SELECT comment_id, content FROM comment "
+                f"WHERE comment_id IN ({placeholders})"
+            )
+            rows = conn.execute(sql, sorted(comment_ids)).fetchall()
+            return {int(r[0]): str(r[1] or "") for r in rows}
+        except sqlite3.OperationalError:
+            return {}
         finally:
             conn.close()
 
@@ -258,6 +309,41 @@ class OasisArtifactReader:
             )
             rows = conn.execute(sql, sorted(comment_ids)).fetchall()
             return {int(r[0]): int(r[1]) for r in rows}
+        except sqlite3.OperationalError:
+            return {}
+        finally:
+            conn.close()
+
+    def followee_ids_by_follow_id(self, follow_ids: set[int]) -> dict[int, int]:
+        """Resolve OASIS follow trace rows that only carry follow_id."""
+        if not self._db_path.exists() or not follow_ids:
+            return {}
+        conn = self._connect()
+        try:
+            placeholders = ",".join("?" for _ in follow_ids)
+            sql = (
+                f"SELECT follow_id, followee_id FROM follow "
+                f"WHERE follow_id IN ({placeholders})"
+            )
+            rows = conn.execute(sql, sorted(follow_ids)).fetchall()
+            return {int(r[0]): int(r[1]) for r in rows}
+        except sqlite3.OperationalError:
+            return {}
+        finally:
+            conn.close()
+
+    def report_reasons_by_report_id(self, report_ids: set[int]) -> dict[int, str]:
+        if not self._db_path.exists() or not report_ids:
+            return {}
+        conn = self._connect()
+        try:
+            placeholders = ",".join("?" for _ in report_ids)
+            sql = (
+                f"SELECT report_id, report_reason FROM report "
+                f"WHERE report_id IN ({placeholders})"
+            )
+            rows = conn.execute(sql, sorted(report_ids)).fetchall()
+            return {int(r[0]): str(r[1] or "") for r in rows}
         except sqlite3.OperationalError:
             return {}
         finally:

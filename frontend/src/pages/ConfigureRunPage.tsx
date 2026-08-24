@@ -10,6 +10,7 @@ import {
 } from "@/api/runs"
 import { AdminShell, rememberJobPending } from "@/components/layout/AdminShell"
 import { OasisResultsPanel } from "@/components/runs/OasisResultsPanel"
+import { RunLiveFeedPanel } from "@/components/runs/RunLiveFeedPanel"
 import { RunActionCard } from "@/components/runs/RunActionCard"
 import { RunAgentToolsFields } from "@/components/runs/RunAgentToolsFields"
 import { RunCreateWizard } from "@/components/runs/RunCreateWizard"
@@ -31,6 +32,11 @@ import type {
   RunStatus,
   Tick,
 } from "@/data/runs-types"
+import {
+  CONTROL_VARIANT_LABEL,
+  STIMULUS_VARIANT_LABEL,
+} from "@/data/runs-types"
+import type { RunWatchVariantPlan } from "@/data/runWatch-types"
 import { useLocale } from "@/i18n"
 import { ApiError } from "@/lib/api"
 
@@ -63,6 +69,25 @@ function normalizeOasisOptions(
 
 function parseTab(raw: string | null): RunTab {
   return raw === "results" ? "results" : "config"
+}
+
+function liveVariantPlans(
+  branch: BranchState | null,
+  t: (key: "runs.results.mainTimeline" | "runs.timeline.versionA" | "runs.timeline.versionB") => string,
+): RunWatchVariantPlan[] {
+  if (!branch) {
+    return [{ id: "main", label: t("runs.results.mainTimeline") }]
+  }
+  if (branch.mode === "stimulus_control") {
+    return [
+      { id: "a", label: STIMULUS_VARIANT_LABEL },
+      { id: "b", label: CONTROL_VARIANT_LABEL },
+    ]
+  }
+  return [
+    { id: "a", label: t("runs.timeline.versionA") },
+    { id: "b", label: t("runs.timeline.versionB") },
+  ]
 }
 
 export function ConfigureRunPage() {
@@ -430,6 +455,7 @@ export function ConfigureRunPage() {
     : mainTicks.length
   const variantCount = branch ? 2 : 1
   const configLocked = runStatus === "running" || pendingAction !== null
+  const liveVariantPlansForRun = liveVariantPlans(branch, t)
   const pendingMessage =
     pendingAction === "start"
       ? t("runs.configure.pendingStart")
@@ -693,6 +719,14 @@ export function ConfigureRunPage() {
                   </Link>
                 </p>
               </div>
+            ) : null}
+
+            {runStatus === "running" && runId != null ? (
+              <RunLiveFeedPanel
+                runId={runId}
+                variantPlans={liveVariantPlansForRun}
+                enabled={activeTab === "results"}
+              />
             ) : null}
 
             {runStatus === "draft" && !results ? (
