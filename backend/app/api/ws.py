@@ -163,6 +163,9 @@ async def runs_websocket(websocket: WebSocket) -> None:
             await websocket.close(code=1003)
             return
 
+        key = (hello.run_id, hello.variant_id)
+        await run_broadcast.subscribe(key, websocket)
+
         factory = jobs_service.job_session_factory()
         async with factory() as session:
             result = await session.execute(select(Run).where(Run.id == hello.run_id))
@@ -173,8 +176,6 @@ async def runs_websocket(websocket: WebSocket) -> None:
                 return
             replay = build_run_replay_payload(run, variant_id=hello.variant_id)
 
-        key = (hello.run_id, hello.variant_id)
-        await run_broadcast.subscribe(key, websocket)
         await websocket.send_json(replay)
 
         while True:
