@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from "react"
 import { Loader2 } from "lucide-react"
 import {
   describeTimelineAction,
+  type PostRow,
 } from "@/components/runs/activityFeed"
 import { useRunWatchSocket } from "@/components/runs/useRunWatchSocket"
 import { personaInitials } from "@/data/library"
@@ -30,6 +31,26 @@ function tickMeta(
   ticks: RunWatchTick[],
 ): RunWatchTick | undefined {
   return ticks.find((tick) => tick.tickIndex === tickIndex)
+}
+
+function buildLivePostsById(item: RunWatchActivityItem): Map<number, PostRow> {
+  if (item.post_id == null || !item.post_preview) return new Map()
+  return new Map([
+    [
+      item.post_id,
+      {
+        post_id: item.post_id,
+        user_id: 0,
+        content: item.post_preview,
+        original_post_id: null,
+        quote_content: null,
+        num_likes: 0,
+        num_dislikes: 0,
+        num_shares: 0,
+        created_at: 0,
+      },
+    ],
+  ])
 }
 
 function LiveActivityRow({
@@ -84,15 +105,16 @@ function LiveActivityRow({
 
   const desc = describeTimelineAction(action, item.user_id, t, {
     info: {
-      post_id: item.post_id,
-      comment_id: item.comment_id,
+      ...(item.info ?? {}),
+      ...(item.post_id != null ? { post_id: item.post_id } : {}),
+      ...(item.comment_id != null ? { comment_id: item.comment_id } : {}),
     },
     followsById: new Map(),
     mutesById: new Map(),
     reportsById: new Map(),
     followsLoose: [],
     mutesLoose: [],
-    postsById: new Map(),
+    postsById: buildLivePostsById(item),
     agentName: (userId) => agentLabel(agents, userId, t),
   })
 

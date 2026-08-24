@@ -58,6 +58,12 @@ function asActivityItems(raw: unknown): RunWatchActivityItem[] {
     if (typeof row.post_id === "number") parsed.post_id = row.post_id
     if (typeof row.comment_id === "number") parsed.comment_id = row.comment_id
     if (typeof row.content === "string" && row.content) parsed.content = row.content
+    if (typeof row.post_preview === "string" && row.post_preview) {
+      parsed.post_preview = row.post_preview
+    }
+    if (row.info && typeof row.info === "object" && !Array.isArray(row.info)) {
+      parsed.info = row.info as Record<string, unknown>
+    }
     if (row.created_at != null && row.created_at !== "") {
       parsed.created_at = row.created_at as string | number
     }

@@ -314,6 +314,41 @@ class OasisArtifactReader:
         finally:
             conn.close()
 
+    def followee_ids_by_follow_id(self, follow_ids: set[int]) -> dict[int, int]:
+        """Resolve OASIS follow trace rows that only carry follow_id."""
+        if not self._db_path.exists() or not follow_ids:
+            return {}
+        conn = self._connect()
+        try:
+            placeholders = ",".join("?" for _ in follow_ids)
+            sql = (
+                f"SELECT follow_id, followee_id FROM follow "
+                f"WHERE follow_id IN ({placeholders})"
+            )
+            rows = conn.execute(sql, sorted(follow_ids)).fetchall()
+            return {int(r[0]): int(r[1]) for r in rows}
+        except sqlite3.OperationalError:
+            return {}
+        finally:
+            conn.close()
+
+    def report_reasons_by_report_id(self, report_ids: set[int]) -> dict[int, str]:
+        if not self._db_path.exists() or not report_ids:
+            return {}
+        conn = self._connect()
+        try:
+            placeholders = ",".join("?" for _ in report_ids)
+            sql = (
+                f"SELECT report_id, report_reason FROM report "
+                f"WHERE report_id IN ({placeholders})"
+            )
+            rows = conn.execute(sql, sorted(report_ids)).fetchall()
+            return {int(r[0]): str(r[1] or "") for r in rows}
+        except sqlite3.OperationalError:
+            return {}
+        finally:
+            conn.close()
+
     def max_event_time(self) -> int:
         """Highest created_at in trace/post, or -1 when empty."""
         if not self._db_path.exists():
