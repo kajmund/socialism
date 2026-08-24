@@ -135,6 +135,9 @@ class Run(Base):
     branch: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     oasis_options: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     results: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    live_progress_main: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    live_progress_a: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    live_progress_b: Mapped[list | None] = mapped_column(JSON, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

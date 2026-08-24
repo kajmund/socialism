@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 from app.realtime.hub import job_hub, report_hub
 from app.realtime.interview_broadcast import interview_broadcast, interview_key_tuple
+from app.realtime.run_broadcast import run_broadcast
 from app.schemas.domain import (
     ChatMode,
     HelpChatResponse,
@@ -32,6 +33,9 @@ from app.services.spindoctor_chat import (
     stream_spindoctor_chat_turn,
 )
 from app.services.report_realtime import list_reports, serialize_report
+from app.services.run_watch import build_run_replay_payload
+from app.database.models import Run
+from sqlalchemy import select
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +73,13 @@ class SpindoctorHello(BaseModel):
     session_id: str = Field(min_length=1, max_length=64)
     report_id: str = Field(min_length=1, max_length=64)
     locale: Literal["sv", "en"] = "sv"
+
+
+class RunWatchHello(BaseModel):
+    type: Literal["hello"] = "hello"
+    scope: Literal["run_watch"]
+    run_id: int
+    variant_id: str = Field(min_length=1)
 
 
 class ChatSend(BaseModel):
@@ -133,6 +144,52 @@ async def reports_websocket(websocket: WebSocket) -> None:
         pass
     finally:
         await report_hub.unsubscribe(websocket)
+
+
+@router.websocket("/ws/runs")
+async def runs_websocket(websocket: WebSocket) -> None:
+    await websocket.accept()
+    hello: RunWatchHello | None = None
+    try:
+        raw = await websocket.receive_json()
+        if not isinstance(raw, dict):
+            await _send_error(websocket, "Expected JSON object")
+            await websocket.close(code=1003)
+            return
+        try:
+            hello = RunWatchHello.model_validate(raw)
+        except ValidationError as exc:
+            await _send_error(websocket, str(exc.errors()[0]["msg"]))
+            await websocket.close(code=1003)
+            return
+
+        factory = jobs_service.job_session_factory()
+        async with factory() as session:
+            result = await session.execute(select(Run).where(Run.id == hello.run_id))
+            run = result.scalar_one_or_none()
+            if run is None:
+                await _send_error(websocket, f"Run {hello.run_id} not found")
+                await websocket.close(code=1003)
+                return
+            replay = build_run_replay_payload(run, variant_id=hello.variant_id)
+
+        key = (hello.run_id, hello.variant_id)
+        await run_broadcast.subscribe(key, websocket)
+        await websocket.send_json(replay)
+
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        logger.exception("Run watch WebSocket failed")
+        try:
+            await _send_error(websocket, "WebSocket error")
+            await websocket.close(code=1011)
+        except Exception:
+            pass
+    finally:
+        await run_broadcast.unsubscribe(websocket)
 
 
 @router.websocket("/ws/chat")
