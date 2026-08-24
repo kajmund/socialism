@@ -7,7 +7,9 @@ from typing import Literal
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field, ValidationError
+from sqlalchemy import select
 
+from app.database.models import Run
 from app.realtime.hub import job_hub, report_hub
 from app.realtime.interview_broadcast import interview_broadcast, interview_key_tuple
 from app.realtime.run_broadcast import run_broadcast
@@ -34,8 +36,6 @@ from app.services.spindoctor_chat import (
 )
 from app.services.report_realtime import list_reports, serialize_report
 from app.services.run_watch import build_run_replay_payload
-from app.database.models import Run
-from sqlalchemy import select
 
 logger = logging.getLogger(__name__)
 
