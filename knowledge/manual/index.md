@@ -23,6 +23,10 @@ Guider för dig som använder Opinionssimulator i webbläsaren. Teknisk setup oc
 * [Starta en simulering](starta-simulering.md) — Starta en sparad körning och följ jobbet
 * [Reaktionsmodell i simuleringen](reaktionsmodell-i-simulering.md) — Vem reagerar, vem får kommentera och när nollställs reglerna
 * [Läsa simuleringsresultat](lasa-simuleringsresultat.md) — Flöde, agenter och jämförelser
+* [Kopiera inlägg och kommentarer från simulering](kopiera-inlagg-och-kommentarer-fran-simulering.md) — Urklipp från flödet
+* [Visa agentresonemang i simulering](visa-agentresonemang-i-simulering.md) — Läs resonemang före inlägg och kommentarer
+* [Visa agentverktyg i simulering](visa-agentverktyg-i-simulering.md) — Se verktygsanrop före inlägg och kommentarer
+* [Inspektera nätverk i simulering](inspektera-natverk-i-simulering.md) — Följare, tystnader och åtgärdsstatistik
 * [Intervjua persona i simulering](intervjua-persona-i-simulering.md) — Chatt med persona utifrån flödeskontext efter vald dag
 * [Lägga till SSR-ankare från körning](lagg-till-ssr-ankare-fran-korning.md) — Tagga kommentarer från flödet som ankare
 
@@ -30,6 +34,7 @@ Guider för dig som använder Opinionssimulator i webbläsaren. Teknisk setup oc
 
 * [Hantera personas](hantera-personas.md) — Bibliotek, sökning och snabbredigering
 * [Skapa och redigera persona](skapa-och-redigera-persona.md) — Kompositör, profil och chatt
+* [Hantera meddelanden i personachatt](hantera-meddelanden-i-personachatt.md) — Ta bort eller skicka om enskilda meddelanden
 * [Generera personavarianter](generera-personavarianter.md) — Fem varianter från en baspersona
 
 # Populationer
@@ -37,6 +42,7 @@ Guider för dig som använder Opinionssimulator i webbläsaren. Teknisk setup oc
 * [Hantera populationer](hantera-populationer.md) — Lista, sök och hantera populationer
 * [Bygga en population](bygga-population.md) — Recept, fördelningar och generering
 * [Visa och redigera population](visa-och-redigera-population.md) — Medlemmar och fingeravtryck
+* [Spara en populationspersona i biblioteket](spara-populationspersona-i-biblioteket.md) — Gör auto-genererade medlemmar till bibliotekspersonas
 
 # Budskap
 
@@ -49,6 +55,7 @@ Guider för dig som använder Opinionssimulator i webbläsaren. Teknisk setup oc
 * [Hantera SSR-ankare](hantera-ssr-ankare.md) — Skapa, testa och publicera ton- och stilankare för rapporter
 * [Redigera grunddata](redigera-grunddata.md) — Kataloglistor och distriktskartor under en konfiguration
 * [Använda playground](anvanda-playground.md) — Kalibrera anchors, jämföra SSR och prova promptvarianter
+* [Prova bildreaktion i playground](prova-bildreaktion-i-playground.md) — Testa persona-reaktion och SSR på uppladdad bild
 * [Hantera embedding-cache](hantera-embedding-cache.md) — Visa och rensa cachade SSR-ankarembeddings och budskapsbilder
 * [Följa bakgrundsjobb](folja-bakgrundsjobb.md) — Status för generering, simulering och rapporter
 
