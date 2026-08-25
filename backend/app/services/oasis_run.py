@@ -852,6 +852,18 @@ async def _simulate_variant(
                 injection_texts=_injection_texts_labeled(ticks),
             ),
         }
+        from app.services import jobs as jobs_service
+        from app.services.run_watch import snapshot_live_feed_rounds
+
+        factory = jobs_service.job_session_factory()
+        async with factory() as progress_session:
+            progress_row = await progress_session.execute(
+                select(Run).where(Run.id == run.id)
+            )
+            fresh = progress_row.scalar_one()
+            result_payload["live_feed"] = {
+                "rounds": snapshot_live_feed_rounds(fresh, variant_id),
+            }
         await run_broadcast.publish(
             (run.id, variant_id),
             {

@@ -9,6 +9,7 @@ from app.services.oasis_profiles import (
     injectors_from_ticks,
     members_to_profiles,
     oasis_gender_from_kon,
+    watch_agent_roster,
     write_reddit_profile_json,
     write_twitter_profile_csv,
 )
@@ -327,6 +328,34 @@ def test_build_run_profiles_puts_injectors_before_population():
     assert profiles[1].member_name == "Bo Lindgren"
     assert profiles[2].member_name == "Göran Svensson"
     assert key_to_index["party_post:socialdemokraterna"] == 0
+
+
+def test_watch_agent_roster_matches_profile_indexes():
+    members = [
+        _member(name="Bo Lindgren", member_id=1),
+        _member(name="Göran Svensson", member_id=2),
+    ]
+    ticks = [
+        Tick(
+            key="t1",
+            day=1,
+            injections=[
+                Injection(
+                    key="i1",
+                    type="party_post",
+                    sender="@Socialdemokraterna",
+                    text="Hej",
+                )
+            ],
+        )
+    ]
+    roster = watch_agent_roster(members, ticks)
+    assert [row["index"] for row in roster] == [0, 1, 2]
+    assert roster[0]["member_name"] == "Socialdemokraterna"
+    assert roster[0]["role"] == "injector"
+    assert roster[1]["member_name"] == "Bo Lindgren"
+    assert roster[1]["role"] == "population"
+    assert roster[2]["member_name"] == "Göran Svensson"
 
 
 def test_build_run_profiles_includes_full_population_plus_injectors():

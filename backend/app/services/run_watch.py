@@ -5,8 +5,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from app.database.models import Run
+from app.database.models import PopulationMember, Run
+from app.schemas.domain import Tick
 from app.services.oasis_engagement import read_trace_range
+from app.services.oasis_profiles import watch_agent_roster
+from app.services.oasis_run import variant_plans
 from app.services.run_live_progress import read_live_progress
 from app.services.run_trace_enrich import (
     activity_items_from_trace_rows,
@@ -20,10 +23,18 @@ def variant_artifact_db(run_id: int, variant_id: str) -> Path:
     return ARTIFACT_ROOT / f"run_{run_id}" / variant_id / "simulation.db"
 
 
+def ticks_for_variant(run: Run, variant_id: str) -> list[Tick]:
+    for plan_id, _label, ticks in variant_plans(run):
+        if plan_id == variant_id:
+            return ticks
+    return []
+
+
 def build_run_replay_payload(
     run: Run,
     *,
     variant_id: str,
+    members: list[PopulationMember] | None = None,
 ) -> dict[str, Any]:
     db_path = variant_artifact_db(run.id, variant_id)
     rounds: list[dict[str, Any]] = []
@@ -43,5 +54,11 @@ def build_run_replay_payload(
         "type": "run.replay",
         "run_id": run.id,
         "variant_id": variant_id,
+        "agents": watch_agent_roster(members or [], ticks_for_variant(run, variant_id)),
         "rounds": rounds,
     }
+
+
+def snapshot_live_feed_rounds(run: Run, variant_id: str) -> list[dict[str, Any]]:
+    """Freeze the live-watch rounds for storage on the attempt variant."""
+    return build_run_replay_payload(run, variant_id=variant_id)["rounds"]

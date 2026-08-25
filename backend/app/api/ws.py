@@ -8,8 +8,9 @@ from typing import Literal
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
-from app.database.models import Run
+from app.database.models import Population, PopulationMember, Run
 from app.realtime.hub import job_hub, report_hub
 from app.realtime.interview_broadcast import interview_broadcast, interview_key_tuple
 from app.realtime.run_broadcast import run_broadcast
@@ -168,13 +169,26 @@ async def runs_websocket(websocket: WebSocket) -> None:
 
         factory = jobs_service.job_session_factory()
         async with factory() as session:
-            result = await session.execute(select(Run).where(Run.id == hello.run_id))
+            result = await session.execute(
+                select(Run)
+                .where(Run.id == hello.run_id)
+                .options(
+                    selectinload(Run.population).selectinload(Population.members)
+                )
+            )
             run = result.scalar_one_or_none()
             if run is None:
                 await _send_error(websocket, f"Run {hello.run_id} not found")
                 await websocket.close(code=1003)
                 return
-            replay = build_run_replay_payload(run, variant_id=hello.variant_id)
+            members: list[PopulationMember] = (
+                list(run.population.members) if run.population is not None else []
+            )
+            replay = build_run_replay_payload(
+                run,
+                variant_id=hello.variant_id,
+                members=members,
+            )
 
         await websocket.send_json(replay)
 
