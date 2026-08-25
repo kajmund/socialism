@@ -44,7 +44,13 @@ DEMO_ROUNDS = [
         "trace_start": 0,
         "trace_end": 2,
         "items": [
-            {"user_id": 0, "action": "like_post", "post_id": 1, "created_at": 2},
+            {
+                "user_id": 0,
+                "action": "like_post",
+                "post_id": 1,
+                "post_preview": "Vi tar ansvar för äldreomsorgen.",
+                "created_at": 2,
+            },
             {"user_id": 1, "action": "refresh", "created_at": 3},
         ],
     },
@@ -78,7 +84,13 @@ DEMO_ROUNDS = [
                 "content": "Bra att någon tar ansvar för äldreomsorgen i vår kommun.",
                 "created_at": 8,
             },
-            {"user_id": 1, "action": "like_post", "post_id": 2, "created_at": 9},
+            {
+                "user_id": 1,
+                "action": "like_post",
+                "post_id": 2,
+                "post_preview": "Bra att någon tar ansvar för äldreomsorgen i vår kommun.",
+                "created_at": 9,
+            },
         ],
     },
 ]

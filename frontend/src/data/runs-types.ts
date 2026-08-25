@@ -171,6 +171,25 @@ export type OasisVariantResult = {
   oasis_options?: OasisRunOptions
   /** Backend-relative path, e.g. data/oasis/run_4/attempts/att_…/main.log */
   log_path?: string
+  /** Frozen live-watch rounds (tick/round activity items) persisted at attempt end. */
+  live_feed?: {
+    rounds?: Array<{
+      tick_index?: number
+      tickIndex?: number
+      round_index?: number
+      roundIndex?: number
+      items?: Array<{
+        user_id: number
+        action: string
+        post_id?: number
+        comment_id?: number
+        content?: string
+        post_preview?: string
+        info?: Record<string, unknown>
+        created_at?: string | number
+      }>
+    }>
+  }
 }
 
 export type OasisAttemptResult = {

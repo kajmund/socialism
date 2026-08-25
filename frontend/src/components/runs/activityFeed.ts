@@ -414,14 +414,28 @@ export function describeTimelineAction(
     case "unlike_comment":
     case "undo_dislike_comment":
     case "repost":
-    case "quote_post":
-      // Covered by cards — should not reach timeline, but label for safety.
+    case "quote_post": {
+      const labels = {
+        create_post: t("runs.live.createPost"),
+        create_comment: t("runs.live.createComment"),
+        like_post: t("runs.feed.actionLikePost"),
+        dislike_post: t("runs.feed.actionDislikePost"),
+        unlike_post: t("runs.feed.actionUnlikePost"),
+        undo_dislike_post: t("runs.feed.actionUndoDislikePost"),
+        like_comment: t("runs.feed.actionLikeComment"),
+        dislike_comment: t("runs.feed.actionDislikeComment"),
+        unlike_comment: t("runs.feed.actionUnlikeComment"),
+        undo_dislike_comment: t("runs.feed.actionUndoDislikeComment"),
+        repost: t("runs.feed.actionRepost"),
+        quote_post: t("runs.feed.actionQuotePost"),
+      } as const
       return {
-        label: action,
+        label: labels[action],
         detail: null,
         targetUserId: null,
         postId: asInt(ctx.info.post_id),
       }
+    }
     default:
       return {
         label: action.replaceAll("_", " "),
