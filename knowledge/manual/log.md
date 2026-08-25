@@ -1,5 +1,13 @@
 # Manual update log
 
+## 2026-08-24
+
+* **Körningar**: Live-flödet under en pågående simulering visar namn från populationen (inte agentnummer), nyaste händelsen överst och gillade inlägg ihopfällda. Efter körningen öppnas samma flöde med radiosymbolen till vänster om **Beställ rapport** på försökskortet.
+* **Körningar**: I live-flödet är gillade kommentarer ihopfällda och kan öppnas. Kommentarer och inlägg visar samma gilla-, ogilla- och dela-tummar som i det färdiga flödet. Följ-händelser slår upp namnet på den som följdes.
+* **Körningar**: Live-flödet visar inte längre att agenter skapades i simuleringen.
+* **Körningar**: Gilla/ogilla/dela i live-flödet nämner vems inlägg eller kommentar det gäller, t.ex. *Cecilia Lindholm gillade Rickard Bergmans inlägg*. Klicka på ordet **inlägg** eller **kommentar** för att läsa texten.
+* **Körningar**: När någon skriver en kommentar står det vems inlägg den hör till, t.ex. *Viveca Abrahamsson skrev en kommentar på Rickard Bergmans inlägg*. Kommentarer på det injicerade inlägget nämner avsändaren, t.ex. *Socialdemokraternas inlägg*.
+
 ## 2026-08-22
 
 * **Populationer:** Maxstorlek i population builder och API höjd från 40 till 100 medlemmar (standard 12 oförändrat).

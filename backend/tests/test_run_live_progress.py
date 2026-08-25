@@ -10,14 +10,14 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 
 from app.database.base import Base
-from app.database.models import Population, Run
+from app.database.models import Population, PopulationMember, Run
 from app.services.oasis_engagement import read_trace_range, read_trace_since
 from app.services.run_live_progress import append_live_progress_entry, read_live_progress
 from app.services.run_trace_enrich import (
     activity_items_from_trace_rows,
     enrich_trace_rows,
 )
-from app.services.run_watch import build_run_replay_payload
+from app.services.run_watch import build_run_replay_payload, snapshot_live_feed_rounds
 
 
 def _seed_trace_db(db: Path) -> None:
@@ -132,6 +132,8 @@ def test_activity_items_match_enriched_rows(tmp_path: Path):
     }
     assert items[1]["comment_id"] == 5
     assert items[1]["post_id"] == 10
+    assert items[1]["post_preview"] == "Hej världen"
+    assert items[1]["info"]["post_user_id"] == 1
 
 
 def _seed_social_trace_db(db: Path) -> None:
@@ -147,6 +149,15 @@ def _seed_social_trace_db(db: Path) -> None:
             num_likes INTEGER,
             num_dislikes INTEGER,
             num_shares INTEGER,
+            created_at INTEGER
+        );
+        CREATE TABLE comment (
+            comment_id INTEGER PRIMARY KEY,
+            post_id INTEGER,
+            user_id INTEGER,
+            content TEXT,
+            num_likes INTEGER,
+            num_dislikes INTEGER,
             created_at INTEGER
         );
         CREATE TABLE follow (
@@ -171,6 +182,8 @@ def _seed_social_trace_db(db: Path) -> None:
         INSERT INTO post (post_id, user_id, content, original_post_id, quote_content,
             num_likes, num_dislikes, num_shares, created_at)
         VALUES (7, 99, 'Olämpligt inlägg', NULL, NULL, 0, 0, 0, 1);
+        INSERT INTO comment (comment_id, post_id, user_id, content, num_likes, num_dislikes, created_at)
+        VALUES (11, 7, 2, 'En kommentar i tråden', 1, 0, 3);
         INSERT INTO follow (follow_id, follower_id, followee_id, created_at)
         VALUES (3, 1, 2, 1);
         INSERT INTO report (report_id, user_id, post_id, report_reason, created_at)
@@ -181,6 +194,10 @@ def _seed_social_trace_db(db: Path) -> None:
             (1, 2, 'mute', '{"mutee_id": 99}');
         INSERT INTO trace (user_id, created_at, action, info) VALUES
             (1, 3, 'report_post', '{"post_id": 7, "report_id": 4}');
+        INSERT INTO trace (user_id, created_at, action, info) VALUES
+            (2, 4, 'like_post', '{"post_id": 7}');
+        INSERT INTO trace (user_id, created_at, action, info) VALUES
+            (1, 5, 'like_comment', '{"comment_id": 11}');
         """
     )
     conn.commit()
@@ -190,13 +207,16 @@ def _seed_social_trace_db(db: Path) -> None:
 def test_enrich_trace_rows_resolves_social_targets(tmp_path: Path):
     db = tmp_path / "simulation.db"
     _seed_social_trace_db(db)
-    rows = read_trace_range(db, 0, 3)
+    rows = read_trace_range(db, 0, 5)
     enriched = enrich_trace_rows(db, rows)
     assert enriched[0]["followee_id"] == 2
     assert enriched[1]["mutee_id"] == 99
     assert enriched[2]["post_id"] == 7
     assert enriched[2]["report_reason"] == "spam"
     assert enriched[2]["post_preview"] == "Olämpligt inlägg"
+    assert enriched[4]["comment_id"] == 11
+    assert enriched[4]["comment_preview"] == "En kommentar i tråden"
+    assert enriched[4]["post_id"] == 7
 
     items = activity_items_from_trace_rows(enriched)
     assert items[0]["info"] == {"follow_id": 3, "followee_id": 2}
@@ -205,9 +225,19 @@ def test_enrich_trace_rows_resolves_social_targets(tmp_path: Path):
         "post_id": 7,
         "report_id": 4,
         "report_reason": "spam",
+        "post_user_id": 99,
     }
     assert items[2]["post_preview"] == "Olämpligt inlägg"
     assert items[2]["post_id"] == 7
+    assert items[3]["action"] == "like_post"
+    assert items[3]["post_preview"] == "Olämpligt inlägg"
+    assert items[3]["post_id"] == 7
+    assert items[3]["info"]["post_user_id"] == 99
+    assert items[4]["action"] == "like_comment"
+    assert items[4]["comment_id"] == 11
+    assert items[4]["comment_preview"] == "En kommentar i tråden"
+    assert items[4]["post_id"] == 7
+    assert items[4]["info"]["comment_user_id"] == 2
 
 
 @pytest.mark.asyncio
@@ -220,12 +250,46 @@ async def test_build_run_replay_from_live_progress(
     _seed_trace_db(db)
     pop = await session.get(Population, 1)
     assert pop is not None
+    member = PopulationMember(
+        population_id=pop.id,
+        name="Anna Holm",
+        initials="AH",
+        age=40,
+        occ="Lärare",
+        district="Centrum",
+        trait="",
+    )
+    session.add(member)
+    await session.flush()
     run = Run(
         name="Live",
         status="running",
         population_id=pop.id,
         seed="s",
-        main_ticks=[],
+        main_ticks=[
+            {
+                "key": "t1",
+                "day": 1,
+                "silent": False,
+                "injections": [
+                    {
+                        "key": "i1",
+                        "type": "party_post",
+                        "sender": "Socialdemokraterna",
+                        "text": "Hej",
+                        "mode": "text",
+                        "url": "",
+                        "fetching": False,
+                        "sourceDomain": "",
+                        "isVideo": False,
+                        "message_id": None,
+                    }
+                ],
+                "rounds": 1,
+                "measurements": [],
+                "interviews": [],
+            }
+        ],
     )
     session.add(run)
     await session.commit()
@@ -263,10 +327,20 @@ async def test_build_run_replay_from_live_progress(
     progress = read_live_progress(run, "main")
     assert len(progress) == 2
 
-    replay = build_run_replay_payload(run, variant_id="main")
+    replay = build_run_replay_payload(
+        run,
+        variant_id="main",
+        members=[member],
+    )
     assert replay["type"] == "run.replay"
     assert replay["run_id"] == run.id
     assert replay["variant_id"] == "main"
+    assert replay["agents"][0]["member_name"] == "Socialdemokraterna"
+    assert replay["agents"][0]["role"] == "injector"
+    assert replay["agents"][1]["member_name"] == "Anna Holm"
+    assert replay["agents"][1]["index"] == 1
     assert len(replay["rounds"]) == 2
     assert replay["rounds"][0]["items"][0]["content"] == "Hej världen"
     assert replay["rounds"][1]["items"][0]["action"] == "do_nothing"
+    frozen = snapshot_live_feed_rounds(run, "main")
+    assert frozen == replay["rounds"]

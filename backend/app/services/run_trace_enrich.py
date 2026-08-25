@@ -15,6 +15,29 @@ _TRACE_INFO_KEYS = (
     "mutee_id",
     "report_id",
     "report_reason",
+    "post_user_id",
+    "comment_user_id",
+)
+
+_POST_PREVIEW_ACTIONS = frozenset(
+    {
+        "like_post",
+        "dislike_post",
+        "unlike_post",
+        "undo_dislike_post",
+        "report_post",
+        "repost",
+        "quote_post",
+    }
+)
+
+_COMMENT_PREVIEW_ACTIONS = frozenset(
+    {
+        "like_comment",
+        "dislike_comment",
+        "unlike_comment",
+        "undo_dislike_comment",
+    }
 )
 
 
@@ -52,16 +75,15 @@ def enrich_trace_rows(db_path: Path, rows: list[dict[str, Any]]) -> list[dict[st
     comment_ids: set[int] = set()
     follow_ids: set[int] = set()
     report_ids: set[int] = set()
-    report_post_ids: set[int] = set()
 
     for row in rows:
         info = _parse_info(row.get("info"))
         action = str(row.get("action") or "").strip().lower()
-        if action == "create_post":
+        if action == "create_post" or action in _POST_PREVIEW_ACTIONS:
             post_id = _int_or_none(info.get("post_id"))
             if post_id is not None:
                 post_ids.add(post_id)
-        elif action == "create_comment":
+        elif action == "create_comment" or action in _COMMENT_PREVIEW_ACTIONS:
             comment_id = _int_or_none(info.get("comment_id"))
             if comment_id is not None:
                 comment_ids.add(comment_id)
@@ -69,17 +91,17 @@ def enrich_trace_rows(db_path: Path, rows: list[dict[str, Any]]) -> list[dict[st
             follow_id = _int_or_none(info.get("follow_id"))
             if follow_id is not None:
                 follow_ids.add(follow_id)
-        elif action == "report_post":
+        if action == "report_post":
             report_id = _int_or_none(info.get("report_id"))
             if report_id is not None:
                 report_ids.add(report_id)
-            post_id = _int_or_none(info.get("post_id"))
-            if post_id is not None:
-                report_post_ids.add(post_id)
 
-    post_contents = reader.post_contents(post_ids | report_post_ids)
     comment_contents = reader.comment_contents(comment_ids)
+    comment_user_ids = reader.comment_user_ids(comment_ids)
     comment_post_ids = reader.comment_post_ids(comment_ids)
+    post_ids.update(comment_post_ids.values())
+    post_contents = reader.post_contents(post_ids)
+    post_user_ids = reader.post_user_ids(post_ids)
     followee_by_follow_id = reader.followee_ids_by_follow_id(follow_ids)
     report_reasons = reader.report_reasons_by_report_id(report_ids)
 
@@ -101,6 +123,25 @@ def enrich_trace_rows(db_path: Path, rows: list[dict[str, Any]]) -> list[dict[st
                 post_id = comment_post_ids.get(comment_id)
                 if post_id is not None:
                     out["post_id"] = post_id
+                    preview = post_contents.get(post_id, "")
+                    if preview:
+                        out["post_preview"] = preview
+                    post_user_id = post_user_ids.get(post_id)
+                    if post_user_id is not None:
+                        out["post_user_id"] = post_user_id
+        elif action in _COMMENT_PREVIEW_ACTIONS:
+            comment_id = _int_or_none(info.get("comment_id"))
+            if comment_id is not None:
+                out["comment_id"] = comment_id
+                preview = comment_contents.get(comment_id, "")
+                if preview:
+                    out["comment_preview"] = preview
+                comment_user_id = comment_user_ids.get(comment_id)
+                if comment_user_id is not None:
+                    out["comment_user_id"] = comment_user_id
+                post_id = comment_post_ids.get(comment_id)
+                if post_id is not None:
+                    out["post_id"] = post_id
         elif action == "follow":
             follow_id = _int_or_none(info.get("follow_id"))
             if follow_id is not None:
@@ -116,19 +157,23 @@ def enrich_trace_rows(db_path: Path, rows: list[dict[str, Any]]) -> list[dict[st
             mutee_id = _int_or_none(info.get("mutee_id"))
             if mutee_id is not None:
                 out["mutee_id"] = mutee_id
-        elif action == "report_post":
+        elif action in _POST_PREVIEW_ACTIONS:
             post_id = _int_or_none(info.get("post_id"))
             if post_id is not None:
                 out["post_id"] = post_id
                 preview = post_contents.get(post_id, "")
                 if preview:
                     out["post_preview"] = preview
-            report_id = _int_or_none(info.get("report_id"))
-            if report_id is not None:
-                out["report_id"] = report_id
-                reason = report_reasons.get(report_id)
-                if reason:
-                    out["report_reason"] = reason
+                post_user_id = post_user_ids.get(post_id)
+                if post_user_id is not None:
+                    out["post_user_id"] = post_user_id
+            if action == "report_post":
+                report_id = _int_or_none(info.get("report_id"))
+                if report_id is not None:
+                    out["report_id"] = report_id
+                    reason = report_reasons.get(report_id)
+                    if reason:
+                        out["report_reason"] = reason
         enriched.append(out)
     return enriched
 
@@ -166,6 +211,9 @@ def activity_items_from_trace_rows(rows: list[dict[str, Any]]) -> list[dict[str,
         post_preview = row.get("post_preview")
         if isinstance(post_preview, str) and post_preview:
             item["post_preview"] = post_preview
+        comment_preview = row.get("comment_preview")
+        if isinstance(comment_preview, str) and comment_preview:
+            item["comment_preview"] = comment_preview
         info = _build_activity_info(row)
         if info:
             item["info"] = info

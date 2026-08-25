@@ -726,6 +726,9 @@ export function ConfigureRunPage() {
                 runId={runId}
                 variantPlans={liveVariantPlansForRun}
                 enabled={activeTab === "results"}
+                populationId={popId}
+                mainTicks={mainTicks}
+                branch={branch}
               />
             ) : null}
 

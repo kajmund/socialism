@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from "react"
 import { createPortal } from "react-dom"
-import { Brain, FileText, Files, Loader2, Network, Trash2, Wrench } from "lucide-react"
+import { Brain, FileText, Files, Loader2, Network, Radio, Trash2, Wrench } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { createReport } from "@/api/reports"
 import type { RunTaggableTextRow, TopicStatus } from "@/api/runs"
@@ -18,6 +18,15 @@ import {
   ShieldIcon,
   type AddAnchorTarget,
 } from "@/components/runs/AddAnchorModal"
+import { AttemptLiveFeedView } from "@/components/runs/AttemptLiveFeedView"
+import {
+  AgentAvatar,
+  AgentNameButton,
+  LikeShareBar,
+  agentIsInjector,
+  agentLabel,
+} from "@/components/runs/feedChrome"
+import { attemptHasLiveFeed } from "@/components/runs/liveFeedFromVariant"
 import {
   ClassificationPopover,
   flaggedKeyForRow,
@@ -57,7 +66,6 @@ import {
   InterviewIcon,
   RunPersonaInterviewModal,
 } from "@/components/runs/RunPersonaInterviewPanel"
-import { personaInitials } from "@/data/library"
 import { ApiError } from "@/lib/api"
 import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
 import {
@@ -194,17 +202,6 @@ function latestPointMetrics(variant: OasisVariantResult) {
   return undefined
 }
 
-function agentLabel(
-  agents: NonNullable<OasisVariantResult["agents"]>,
-  userId: number,
-  t: Translate,
-): string {
-  return (
-    agents.find((a) => a.index === userId)?.member_name ??
-    t("runs.feed.agentFallback", { userId })
-  )
-}
-
 function agentProfileTarget(
   agents: NonNullable<OasisVariantResult["agents"]>,
   userId: number,
@@ -215,61 +212,6 @@ function agentProfileTarget(
     personaId: agent?.persona_id ?? null,
     name: agent?.member_name ?? t("runs.feed.agentFallback", { userId }),
   }
-}
-
-function AgentAvatar({
-  name,
-  size = "sm",
-}: {
-  name: string
-  size?: "xs" | "sm" | "md"
-}) {
-  let box = "h-8 w-8 text-[10px]"
-  if (size === "xs") box = "h-5 w-5 text-[9px]"
-  else if (size === "md") box = "h-10 w-10 text-[12px]"
-  return (
-    <span
-      aria-hidden
-      className={
-        "inline-grid shrink-0 place-items-center rounded-full bg-db-ink-950 font-semibold uppercase leading-none text-white " +
-        box
-      }
-    >
-      {personaInitials(name)}
-    </span>
-  )
-}
-
-function AgentNameButton({
-  name,
-  onOpen,
-  className,
-  size = "xs",
-  showAvatar = true,
-}: {
-  name: string
-  onOpen: () => void
-  className?: string
-  size?: "xs" | "sm" | "md"
-  showAvatar?: boolean
-}) {
-  return (
-    <button
-      type="button"
-      className={
-        "inline-flex items-center gap-1.5 font-medium text-foreground underline-offset-2 hover:underline " +
-        (className ?? "")
-      }
-      onClick={(e) => {
-        e.preventDefault()
-        e.stopPropagation()
-        onOpen()
-      }}
-    >
-      {showAvatar ? <AgentAvatar name={name} size={size} /> : null}
-      <span>{name}</span>
-    </button>
-  )
 }
 
 function FeedAuthorHeader({
@@ -327,13 +269,6 @@ function formatFeedWhen(
     hour: "2-digit",
     minute: "2-digit",
   }).format(d)
-}
-
-function agentIsInjector(
-  agents: NonNullable<OasisVariantResult["agents"]>,
-  userId: number,
-): boolean {
-  return agents.find((a) => a.index === userId)?.role === "injector"
 }
 
 function pct(value: number | undefined): string {
@@ -720,262 +655,6 @@ function MeasurementPointBlock({ point }: { point: OasisMeasurementPoint }) {
       <div className="mt-0.5 text-xs text-muted-foreground">{point.summary}</div>
       <div className="mt-3 border-t border-border/50 pt-3">
         <MeasurementDetail point={point} />
-      </div>
-    </div>
-  )
-}
-
-function ActorList({
-  agents,
-  userIds,
-  emptyLabel,
-  onOpenAgent,
-}: {
-  agents: NonNullable<OasisVariantResult["agents"]>
-  userIds: number[]
-  emptyLabel: string
-  onOpenAgent: (userId: number) => void
-}) {
-  const { t } = useLocale()
-  if (userIds.length === 0) {
-    return <p className="px-1 py-0.5 text-xs text-muted-foreground">{emptyLabel}</p>
-  }
-  return (
-    <ul className="max-h-40 overflow-auto py-0.5">
-      {userIds.map((id) => (
-        <li key={id} className="rounded px-2 py-0.5 text-xs hover:bg-muted/60">
-          <AgentNameButton
-            name={agentLabel(agents, id, t)}
-            className="w-full px-0 py-1 text-left text-xs"
-            showAvatar={!agentIsInjector(agents, id)}
-            onOpen={() => onOpenAgent(id)}
-          />
-        </li>
-      ))}
-    </ul>
-  )
-}
-
-function LikeShareBar({
-  agents,
-  likedBy,
-  dislikedBy,
-  sharedBy,
-  compact = false,
-  onOpenAgent,
-}: {
-  agents: NonNullable<OasisVariantResult["agents"]>
-  likedBy?: number[]
-  dislikedBy?: number[]
-  sharedBy?: Array<{
-    user_id: number
-    kind: "repost" | "quote"
-    share_post_id?: number
-  }>
-  compact?: boolean
-  onOpenAgent: (userId: number) => void
-}) {
-  const { t } = useLocale()
-  const likes = likedBy ?? []
-  const dislikes = dislikedBy ?? []
-  const shares = sharedBy ?? []
-  const [open, setOpen] = useState<"like" | "dislike" | "share" | null>(null)
-  const rootRef = useRef<HTMLDivElement>(null)
-
-  function toggle(kind: "like" | "dislike" | "share") {
-    setOpen((prev) => (prev === kind ? null : kind))
-  }
-
-  useEffect(() => {
-    if (open == null) return
-    function onPointerDown(e: PointerEvent) {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
-        setOpen(null)
-      }
-    }
-    document.addEventListener("pointerdown", onPointerDown)
-    return () => document.removeEventListener("pointerdown", onPointerDown)
-  }, [open])
-
-  function openAgentAndClose(userId: number) {
-    setOpen(null)
-    onOpenAgent(userId)
-  }
-
-  return (
-    <div
-      ref={rootRef}
-      className={
-        "relative " + (compact ? "mt-1" : "mt-2 border-t border-border/60 pt-2")
-      }
-    >
-      <div className="flex items-center gap-1">
-        <div className="relative">
-          <button
-            type="button"
-            disabled={likes.length === 0}
-            aria-expanded={open === "like"}
-            aria-label={t("runs.feed.likeAria", { count: likes.length })}
-            className={
-              "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors " +
-              (open === "like"
-                ? "bg-[#e7f3ff] text-[#0866ff]"
-                : likes.length > 0
-                  ? "text-[#0866ff] hover:bg-[#e7f3ff]"
-                  : "cursor-default text-muted-foreground opacity-50")
-            }
-            onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              if (likes.length > 0) toggle("like")
-            }}
-          >
-            <span
-              aria-hidden
-              className={
-                "inline-grid h-5 w-5 place-items-center rounded-full text-[11px] leading-none " +
-                (likes.length > 0
-                  ? "bg-[#0866ff] text-white"
-                  : "bg-muted text-muted-foreground")
-              }
-            >
-              👍
-            </span>
-            <span className="tabular-nums">{likes.length}</span>
-            {!compact ? <span>{t("runs.feed.like")}</span> : null}
-          </button>
-          {open === "like" ? (
-            <div
-              className="absolute bottom-full left-0 z-20 mb-1.5 min-w-[12rem] max-w-[16rem] rounded-lg border border-border bg-card p-1.5 shadow-lg"
-              role="dialog"
-              aria-label={t("runs.feed.likedBy")}
-            >
-              <div className="border-b border-border/60 px-2 py-1 text-[11px] font-semibold text-muted-foreground">
-                {t("runs.feed.likedBy")}
-              </div>
-              <ActorList
-                agents={agents}
-                userIds={likes}
-                emptyLabel={t("runs.feed.noLikes")}
-                onOpenAgent={openAgentAndClose}
-              />
-            </div>
-          ) : null}
-        </div>
-
-        <div className="relative">
-          <button
-            type="button"
-            disabled={dislikes.length === 0}
-            aria-expanded={open === "dislike"}
-            aria-label={t("runs.feed.dislikeAria", { count: dislikes.length })}
-            className={
-              "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors " +
-              (open === "dislike"
-                ? "bg-[#fde8e8] text-[#e41e3f]"
-                : dislikes.length > 0
-                  ? "text-[#e41e3f] hover:bg-[#fde8e8]"
-                  : "cursor-default text-muted-foreground opacity-50")
-            }
-            onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              if (dislikes.length > 0) toggle("dislike")
-            }}
-          >
-            <span
-              aria-hidden
-              className={
-                "inline-grid h-5 w-5 place-items-center rounded-full text-[11px] leading-none " +
-                (dislikes.length > 0
-                  ? "bg-[#e41e3f] text-white"
-                  : "bg-muted text-muted-foreground")
-              }
-            >
-              👎
-            </span>
-            <span className="tabular-nums">{dislikes.length}</span>
-            {!compact ? <span>{t("runs.feed.dislike")}</span> : null}
-          </button>
-          {open === "dislike" ? (
-            <div
-              className="absolute bottom-full left-0 z-20 mb-1.5 min-w-[12rem] max-w-[16rem] rounded-lg border border-border bg-card p-1.5 shadow-lg"
-              role="dialog"
-              aria-label={t("runs.feed.dislikedBy")}
-            >
-              <div className="border-b border-border/60 px-2 py-1 text-[11px] font-semibold text-muted-foreground">
-                {t("runs.feed.dislikedBy")}
-              </div>
-              <ActorList
-                agents={agents}
-                userIds={dislikes}
-                emptyLabel={t("runs.feed.noDislikes")}
-                onOpenAgent={openAgentAndClose}
-              />
-            </div>
-          ) : null}
-        </div>
-
-        {!compact ? (
-          <div className="relative">
-            <button
-              type="button"
-              disabled={shares.length === 0}
-              aria-expanded={open === "share"}
-              aria-label={t("runs.feed.shareAria", { count: shares.length })}
-              className={
-                "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors " +
-                (open === "share"
-                  ? "bg-muted text-foreground"
-                  : shares.length > 0
-                    ? "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
-                    : "cursor-default text-muted-foreground opacity-50")
-              }
-              onClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                if (shares.length > 0) toggle("share")
-              }}
-            >
-              <span aria-hidden className="text-sm leading-none">
-                ↗
-              </span>
-              <span className="tabular-nums">{shares.length}</span>
-              <span>{t("runs.feed.shareVerb")}</span>
-            </button>
-            {open === "share" ? (
-              <div
-                className="absolute bottom-full left-0 z-20 mb-1.5 min-w-[12rem] max-w-[16rem] rounded-lg border border-border bg-card p-1.5 shadow-lg"
-                role="dialog"
-                aria-label={t("runs.feed.sharedBy")}
-              >
-                <div className="border-b border-border/60 px-2 py-1 text-[11px] font-semibold text-muted-foreground">
-                  {t("runs.feed.sharedBy")}
-                </div>
-                <ul className="max-h-40 overflow-auto py-0.5">
-                  {shares.map((s) => (
-                    <li
-                      key={`${s.user_id}-${s.kind}-${s.share_post_id ?? ""}`}
-                      className="flex items-center justify-between gap-2 rounded px-2 py-0.5 text-xs hover:bg-muted/60"
-                    >
-                      <AgentNameButton
-                        name={agentLabel(agents, s.user_id, t)}
-                        className="px-0 py-1 text-left text-xs"
-                        showAvatar={!agentIsInjector(agents, s.user_id)}
-                        onOpen={() => openAgentAndClose(s.user_id)}
-                      />
-                      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                        {s.kind === "quote"
-                          ? t("runs.feed.quote")
-                          : t("runs.feed.share")}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
       </div>
     </div>
   )
@@ -2676,6 +2355,8 @@ function AttemptBlock({
   const [networkModalVariant, setNetworkModalVariant] =
     useState<OasisVariantResult | null>(null)
   const [networkProfile, setNetworkProfile] = useState<ProfileTarget | null>(null)
+  const [liveFeedOpen, setLiveFeedOpen] = useState(false)
+  const hasLiveFeed = attemptHasLiveFeed(variants)
   const activeVariant =
     variants.find((v) => v.id === expandedVariantId) ?? variants[0]
 
@@ -2727,6 +2408,17 @@ function AttemptBlock({
           className="results-attempt-actions"
           onClick={(e) => e.stopPropagation()}
         >
+          {hasLiveFeed ? (
+            <button
+              type="button"
+              className="results-icon-btn"
+              aria-label={t("runs.results.liveFeedAria")}
+              title={t("runs.results.liveFeedAria")}
+              onClick={() => setLiveFeedOpen(true)}
+            >
+              <Radio aria-hidden="true" size={14} />
+            </button>
+          ) : null}
           {hasData && onRequestOrderReport ? (
             <OrderReportButton
               busy={ordering}
@@ -2817,6 +2509,20 @@ function AttemptBlock({
           )}
         </div>
       ) : null}
+
+      <AdminModal
+        open={liveFeedOpen}
+        titleId="attempt-live-feed-title"
+        title={t("runs.results.liveFeedTitle")}
+        description={t("runs.results.attemptTitle", {
+          number: attemptNumber,
+          when: dayStamp,
+        })}
+        wide
+        onClose={() => setLiveFeedOpen(false)}
+      >
+        <AttemptLiveFeedView attempt={attempt} />
+      </AdminModal>
 
       <AdminModal
         open={networkModalVariant != null}

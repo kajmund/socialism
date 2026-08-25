@@ -137,6 +137,8 @@ export function useRunWatchSocket({
         const msg = data as Record<string, unknown>
         switch (msg.type) {
           case "run.replay": {
+            const nextAgents = asAgents(msg.agents)
+            if (nextAgents.length > 0) setAgents(nextAgents)
             const replayRounds = asReplayRounds(msg.rounds)
             if (replayRounds.length === 0) break
             setRounds((prev) => {
@@ -172,7 +174,7 @@ export function useRunWatchSocket({
             if (typeof msg.tick_index !== "number") break
             setTicks((prev) =>
               upsertTick(prev, {
-                tickIndex: msg.tick_index,
+                tickIndex: msg.tick_index as number,
                 day: typeof msg.day === "number" ? msg.day : undefined,
                 silent: msg.silent === true,
                 key: typeof msg.key === "string" ? msg.key : undefined,
@@ -186,7 +188,7 @@ export function useRunWatchSocket({
             if (typeof msg.tick_index !== "number") break
             setTicks((prev) =>
               upsertTick(prev, {
-                tickIndex: msg.tick_index,
+                tickIndex: msg.tick_index as number,
                 day: typeof msg.day === "number" ? msg.day : undefined,
                 silent: msg.silent === true,
                 key: typeof msg.key === "string" ? msg.key : undefined,
