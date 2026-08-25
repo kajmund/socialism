@@ -1,7 +1,9 @@
 import { memo, useMemo, type ReactNode } from "react"
-import type { OasisVariantResult } from "@/data/runs-types"
 
-type AgentRow = NonNullable<OasisVariantResult["agents"]>[number]
+type AgentRow = {
+  index: number
+  member_name: string
+}
 
 export type MentionAlias = {
   userIds: number[]

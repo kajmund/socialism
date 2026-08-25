@@ -280,6 +280,23 @@ class OasisArtifactReader:
         finally:
             conn.close()
 
+    def post_user_ids(self, post_ids: set[int]) -> dict[int, int]:
+        if not self._db_path.exists() or not post_ids:
+            return {}
+        conn = self._connect()
+        try:
+            placeholders = ",".join("?" for _ in post_ids)
+            sql = (
+                f"SELECT post_id, user_id FROM post "
+                f"WHERE post_id IN ({placeholders})"
+            )
+            rows = conn.execute(sql, sorted(post_ids)).fetchall()
+            return {int(r[0]): int(r[1]) for r in rows}
+        except sqlite3.OperationalError:
+            return {}
+        finally:
+            conn.close()
+
     def comment_contents(self, comment_ids: set[int]) -> dict[int, str]:
         if not self._db_path.exists() or not comment_ids:
             return {}
@@ -292,6 +309,23 @@ class OasisArtifactReader:
             )
             rows = conn.execute(sql, sorted(comment_ids)).fetchall()
             return {int(r[0]): str(r[1] or "") for r in rows}
+        except sqlite3.OperationalError:
+            return {}
+        finally:
+            conn.close()
+
+    def comment_user_ids(self, comment_ids: set[int]) -> dict[int, int]:
+        if not self._db_path.exists() or not comment_ids:
+            return {}
+        conn = self._connect()
+        try:
+            placeholders = ",".join("?" for _ in comment_ids)
+            sql = (
+                f"SELECT comment_id, user_id FROM comment "
+                f"WHERE comment_id IN ({placeholders})"
+            )
+            rows = conn.execute(sql, sorted(comment_ids)).fetchall()
+            return {int(r[0]): int(r[1]) for r in rows}
         except sqlite3.OperationalError:
             return {}
         finally:

@@ -7,7 +7,7 @@ import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from app.database.models import PopulationMember
 from app.schemas.domain import Injection, InjectionType, OasisPlatform, OasisRunOptions, Tick
@@ -66,6 +66,59 @@ def injector_key(injection: Injection) -> str:
     if sender:
         return f"{injection.type}:{sender.casefold()}"
     return f"{injection.type}:default"
+
+
+def injector_display_name(injection: Injection) -> str:
+    raw_sender = injection.sender.strip().lstrip("@")
+    return raw_sender or _TYPE_DEFAULT_NAME[injection.type]
+
+
+def unique_injector_names(ticks: list[Tick]) -> list[str]:
+    """Injector display names in the same order as injectors_from_ticks()."""
+    names: list[str] = []
+    seen: set[str] = set()
+    for tick in ticks:
+        if tick.silent:
+            continue
+        for injection in tick.injections:
+            if not injection_has_content(injection):
+                continue
+            key = injector_key(injection)
+            if key in seen:
+                continue
+            seen.add(key)
+            names.append(injector_display_name(injection))
+    return names
+
+
+def watch_agent_roster(
+    members: list[PopulationMember],
+    ticks: list[Tick],
+) -> list[dict[str, Any]]:
+    """OASIS user_id → name map for live/replay (injectors first, then members)."""
+    agents: list[dict[str, Any]] = []
+    for i, name in enumerate(unique_injector_names(ticks)):
+        agents.append(
+            {
+                "index": i,
+                "username": "",
+                "member_name": name,
+                "persona_id": None,
+                "role": "injector",
+            }
+        )
+    start = len(agents)
+    for i, member in enumerate(members):
+        agents.append(
+            {
+                "index": start + i,
+                "username": "",
+                "member_name": member.name,
+                "persona_id": member.persona_id,
+                "role": "population",
+            }
+        )
+    return agents
 
 
 def injection_has_content(injection: Injection) -> bool:
@@ -171,8 +224,7 @@ def build_injector_profile(
     *,
     prompts: dict[str, str],
 ) -> OasisAgentProfile:
-    raw_sender = injection.sender.strip().lstrip("@")
-    display = raw_sender or _TYPE_DEFAULT_NAME[injection.type]
+    display = injector_display_name(injection)
     type_label = _TYPE_LABEL[injection.type]
     key = injector_key(injection)
     description = f"Officiellt {type_label}. Publicerar konfigurerade budskap."
