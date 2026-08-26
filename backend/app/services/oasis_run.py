@@ -69,6 +69,7 @@ from app.services.run_log import (
     run_variant_log_path,
     write_run_log_note,
 )
+from app.services import jobs as jobs_service
 from app.services.run_live_progress import reset_live_progress
 from app.services.run_trace_enrich import (
     activity_items_from_trace_rows,
@@ -719,6 +720,40 @@ def _failed_variant(
     return out
 
 
+async def _attach_live_feed_snapshot(
+    result_payload: dict[str, Any],
+    *,
+    run_id: int,
+    variant_id: str,
+) -> None:
+    """Freeze live_feed rounds on the variant payload.
+
+    Live feed is auxiliary UI data — a snapshot failure must not discard a
+    successful OASIS variant payload.
+    """
+    # Circular: run_watch imports variant_plans from this module.
+    from app.services.run_watch import snapshot_live_feed_rounds
+
+    log = logging.getLogger(__name__)
+    try:
+        factory = jobs_service.job_session_factory()
+        async with factory() as progress_session:
+            progress_row = await progress_session.execute(
+                select(Run).where(Run.id == run_id)
+            )
+            fresh = progress_row.scalar_one()
+            result_payload["live_feed"] = {
+                "rounds": snapshot_live_feed_rounds(fresh, variant_id),
+            }
+    except Exception:
+        log.exception(
+            "Failed to snapshot live_feed for run_id=%s variant=%s",
+            run_id,
+            variant_id,
+        )
+        result_payload["live_feed"] = {"rounds": []}
+
+
 async def _simulate_variant(
     *,
     run: Run,
@@ -852,18 +887,11 @@ async def _simulate_variant(
                 injection_texts=_injection_texts_labeled(ticks),
             ),
         }
-        from app.services import jobs as jobs_service
-        from app.services.run_watch import snapshot_live_feed_rounds
-
-        factory = jobs_service.job_session_factory()
-        async with factory() as progress_session:
-            progress_row = await progress_session.execute(
-                select(Run).where(Run.id == run.id)
-            )
-            fresh = progress_row.scalar_one()
-            result_payload["live_feed"] = {
-                "rounds": snapshot_live_feed_rounds(fresh, variant_id),
-            }
+        await _attach_live_feed_snapshot(
+            result_payload,
+            run_id=run.id,
+            variant_id=variant_id,
+        )
         await run_broadcast.publish(
             (run.id, variant_id),
             {
