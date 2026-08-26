@@ -143,6 +143,191 @@ export function sortKeyFromCreatedAt(value: string | number | undefined): number
   return Number.isNaN(ms) ? Number.MAX_SAFE_INTEGER : ms
 }
 
+/** OASIS scenario clock values (monotonic sequence within a day, not wall time). */
+export function isSimulatedClockTimestamp(
+  value: string | number | null | undefined,
+): boolean {
+  if (value == null || value === "") return false
+  if (typeof value === "number" && Number.isFinite(value)) return true
+  const raw = String(value).trim()
+  return /^\d+(\.\d+)?$/.test(raw) && !raw.includes("-") && !raw.includes("T")
+}
+
+/** Default "awake hours" window for display-only simulated time-of-day (08:00–23:30). */
+export type SimulatedTimeWindow = {
+  startMinutes: number
+  endMinutes: number
+}
+
+export const DEFAULT_SIMULATED_TIME_WINDOW: SimulatedTimeWindow = {
+  startMinutes: 8 * 60,
+  endMinutes: 23 * 60 + 30,
+}
+
+export type SimulatedClockEvent = {
+  key: string
+  createdAt: string | number | undefined
+}
+
+export function simulatedTimeEventKey(params: {
+  kind: "post" | "comment" | "action" | "live"
+  id?: number | null
+  userId?: number
+  action?: string
+  createdAt?: string | number | null
+  tie?: number
+}): string {
+  if (params.kind === "post" && params.id != null) return `post:${params.id}`
+  if (params.kind === "comment" && params.id != null) return `comment:${params.id}`
+  const action = (params.action ?? "").trim().toLowerCase()
+  return `trace:${params.userId ?? 0}:${action}:${params.createdAt ?? params.tie ?? 0}`
+}
+
+function formatMinutesAsHHMM(totalMinutes: number): string {
+  const clamped = Math.max(0, Math.min(24 * 60 - 1, totalMinutes))
+  const hours = Math.floor(clamped / 60)
+  const minutes = clamped % 60
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`
+}
+
+/** Map monotonic sim-clock sequence within a day to HH:MM in the awake window. */
+export function buildSimulatedTimeLabels(
+  events: SimulatedClockEvent[],
+  window: SimulatedTimeWindow = DEFAULT_SIMULATED_TIME_WINDOW,
+): Map<string, string> {
+  if (events.length === 0) return new Map()
+  const sorted = [...events].sort((a, b) => {
+    const keyDiff = sortKeyFromCreatedAt(a.createdAt) - sortKeyFromCreatedAt(b.createdAt)
+    if (keyDiff !== 0) return keyDiff
+    return a.key.localeCompare(b.key)
+  })
+  const span = window.endMinutes - window.startMinutes
+  const labels = new Map<string, string>()
+  const count = sorted.length
+  for (let index = 0; index < count; index += 1) {
+    const fraction = count <= 1 ? 0 : index / (count - 1)
+    const minutes = Math.round(window.startMinutes + fraction * span)
+    labels.set(sorted[index]!.key, formatMinutesAsHHMM(minutes))
+  }
+  return labels
+}
+
+function eventsInTickRange(
+  marker: TickMarker,
+  variant: Pick<OasisVariantResult, "posts" | "comments" | "trace">,
+): SimulatedClockEvent[] {
+  const events: SimulatedClockEvent[] = []
+  for (const post of variant.posts ?? []) {
+    const sortKey = sortKeyFromCreatedAt(post.created_at)
+    if (sortKey < marker.time_start || sortKey > marker.time_end) continue
+    events.push({
+      key: simulatedTimeEventKey({ kind: "post", id: post.post_id, createdAt: post.created_at }),
+      createdAt: post.created_at,
+    })
+  }
+  for (const comment of variant.comments ?? []) {
+    const sortKey = sortKeyFromCreatedAt(comment.created_at)
+    if (sortKey < marker.time_start || sortKey > marker.time_end) continue
+    events.push({
+      key: simulatedTimeEventKey({
+        kind: "comment",
+        id: comment.comment_id,
+        createdAt: comment.created_at,
+      }),
+      createdAt: comment.created_at,
+    })
+  }
+  let tie = 0
+  for (const row of variant.trace ?? []) {
+    const sortKey = sortKeyFromCreatedAt(row.created_at)
+    if (sortKey < marker.time_start || sortKey > marker.time_end) continue
+    events.push({
+      key: simulatedTimeEventKey({
+        kind: "action",
+        userId: row.user_id,
+        action: row.action,
+        createdAt: row.created_at,
+        tie: tie++,
+      }),
+      createdAt: row.created_at,
+    })
+  }
+  return events
+}
+
+/** Precompute HH:MM labels for all sim-clock events in a variant (keyed by simulatedTimeEventKey). */
+export function buildVariantSimulatedTimeLabels(
+  variant: Pick<OasisVariantResult, "posts" | "comments" | "trace" | "tick_markers">,
+  window: SimulatedTimeWindow = DEFAULT_SIMULATED_TIME_WINDOW,
+): Map<string, string> {
+  const markers = variant.tick_markers ?? []
+  const merged = new Map<string, string>()
+  if (markers.length === 0) {
+    const events: SimulatedClockEvent[] = []
+    for (const post of variant.posts ?? []) {
+      events.push({
+        key: simulatedTimeEventKey({ kind: "post", id: post.post_id, createdAt: post.created_at }),
+        createdAt: post.created_at,
+      })
+    }
+    for (const comment of variant.comments ?? []) {
+      events.push({
+        key: simulatedTimeEventKey({
+          kind: "comment",
+          id: comment.comment_id,
+          createdAt: comment.created_at,
+        }),
+        createdAt: comment.created_at,
+      })
+    }
+    let tie = 0
+    for (const row of variant.trace ?? []) {
+      events.push({
+        key: simulatedTimeEventKey({
+          kind: "action",
+          userId: row.user_id,
+          action: row.action,
+          createdAt: row.created_at,
+          tie: tie++,
+        }),
+        createdAt: row.created_at,
+      })
+    }
+    for (const [key, label] of buildSimulatedTimeLabels(events, window)) {
+      merged.set(key, label)
+    }
+    return merged
+  }
+  for (const marker of markers) {
+    for (const [key, label] of buildSimulatedTimeLabels(
+      eventsInTickRange(marker, variant),
+      window,
+    )) {
+      merged.set(key, label)
+    }
+  }
+  return merged
+}
+
+export function formatFeedWhenDisplay(
+  iso: string | number | null | undefined,
+  intl: string,
+  simulatedLabel?: string | null,
+): string | null {
+  if (iso == null || iso === "") return null
+  if (isSimulatedClockTimestamp(iso)) {
+    return simulatedLabel ?? null
+  }
+  const d = new Date(String(iso))
+  if (Number.isNaN(d.getTime())) return String(iso)
+  return new Intl.DateTimeFormat(intl, {
+    day: "numeric",
+    month: "long",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(d)
+}
+
 export function parseTraceInfo(
   info: string | null | undefined,
 ): Record<string, unknown> {
