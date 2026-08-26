@@ -37,12 +37,15 @@ import {
   agentToolsForAuthor,
   argPreview,
   buildTimelineItems,
+  buildVariantSimulatedTimeLabels,
   describeAgentTool,
+  formatFeedWhenDisplay,
   groupTimelineSegments,
   HIDDEN_ACTIONS,
   parseTraceInfo,
   reasoningForComment,
   reasoningForPost,
+  simulatedTimeEventKey,
   sortKeyFromCreatedAt,
   tickIndexForCreatedAt,
   type AgentReasoningRow,
@@ -250,25 +253,6 @@ function FeedAuthorHeader({
       </div>
     </div>
   )
-}
-
-function formatFeedWhen(
-  iso: string | number | null | undefined,
-  t: Translate,
-  intl: string,
-): string | null {
-  if (iso == null || iso === "") return null
-  if (typeof iso === "number" || (/^\d+(\.\d+)?$/.test(String(iso)) && !String(iso).includes("-"))) {
-    return t("runs.feed.simTime", { value: iso })
-  }
-  const d = new Date(String(iso))
-  if (Number.isNaN(d.getTime())) return String(iso)
-  return new Intl.DateTimeFormat(intl, {
-    day: "numeric",
-    month: "long",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(d)
 }
 
 function pct(value: number | undefined): string {
@@ -1068,14 +1052,16 @@ function ActionHistogramChart({
 function CompactActionRow({
   item,
   agents,
+  simulatedWhen,
   onOpenAgent,
 }: {
   item: TimelineActionItem
   agents: NonNullable<OasisVariantResult["agents"]>
+  simulatedWhen?: string | null
   onOpenAgent: (userId: number) => void
 }) {
   const { intl, t } = useLocale()
-  const when = formatFeedWhen(item.createdAt, t, intl)
+  const when = formatFeedWhenDisplay(item.createdAt, intl, simulatedWhen)
   return (
     <li className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border border-dashed border-border/70 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
       <AgentNameButton
@@ -1384,6 +1370,7 @@ function FeedPostCard({
   onInterview,
   compact = false,
   anchors,
+  simulatedWhen,
 }: {
   post: PostRow
   tickIndex: number
@@ -1402,6 +1389,7 @@ function FeedPostCard({
   onInterview: (tickIndex: number, personaId: string) => void
   compact?: boolean
   anchors?: FeedAnchors
+  simulatedWhen?: string | null
 }) {
   const { intl, t } = useLocale()
   const [toolsModal, setToolsModal] = useState<{
@@ -1425,7 +1413,7 @@ function FeedPostCard({
   const isQuote = originalId != null && quote.length > 0
   const isRepost = originalId != null && quote.length === 0
   const postComments = commentsByPostId.get(post.post_id) ?? []
-  const when = formatFeedWhen(post.created_at, t, intl)
+  const when = formatFeedWhenDisplay(post.created_at, intl, simulatedWhen)
   const postTools = agentToolsForAuthor(agentTools, post.user_id, tickIndex)
   const postReasoningRow =
     !isInjector ? reasoningForPost(agentReasoning, post.post_id) : null
@@ -1891,6 +1879,10 @@ function VariantBody({
     () => buildTimelineItems(variant, { hideNoise: true, agentName, t }),
     [variant, agentName, t],
   )
+  const simulatedTimes = useMemo(
+    () => buildVariantSimulatedTimeLabels(variant),
+    [variant],
+  )
   const segments = useMemo(() => groupTimelineSegments(timeline), [timeline])
   const injectors = useMemo(
     () => agents.filter((a) => a.role === "injector"),
@@ -2117,6 +2109,15 @@ function VariantBody({
                         onInterview={openPostInterview}
                         compact
                         anchors={feedAnchors}
+                        simulatedWhen={
+                          simulatedTimes.get(
+                            simulatedTimeEventKey({
+                              kind: "post",
+                              id: post.post_id,
+                              createdAt: post.created_at,
+                            }),
+                          ) ?? null
+                        }
                       />
                     ))}
                   </ul>
@@ -2157,6 +2158,15 @@ function VariantBody({
               attemptId={attemptId}
               onInterview={openPostInterview}
               anchors={feedAnchors}
+              simulatedWhen={
+                simulatedTimes.get(
+                  simulatedTimeEventKey({
+                    kind: "post",
+                    id: segment.post.post_id,
+                    createdAt: segment.post.created_at,
+                  }),
+                ) ?? null
+              }
             />
           )
         })}
@@ -2182,6 +2192,17 @@ function VariantBody({
                 key={`modal-action-${item.userId}-${item.action}-${item.sortKey}-${item.tie}`}
                 item={item}
                 agents={agents}
+                simulatedWhen={
+                  simulatedTimes.get(
+                    simulatedTimeEventKey({
+                      kind: "action",
+                      userId: item.userId,
+                      action: item.action,
+                      createdAt: item.createdAt,
+                      tie: item.tie,
+                    }),
+                  ) ?? null
+                }
                 onOpenAgent={openAgent}
               />
             ))}

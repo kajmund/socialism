@@ -54,6 +54,7 @@ export function AttemptLiveFeedView({ attempt }: { attempt: OasisAttemptResult }
       ) : null}
       <div className="max-h-[min(70vh,36rem)] overflow-y-auto pr-1">
         <LiveFeedList
+          key={active?.id ?? "none"}
           rounds={feed.rounds}
           agents={feed.agents}
           ticks={feed.ticks}
