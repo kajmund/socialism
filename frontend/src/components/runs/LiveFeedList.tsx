@@ -1,10 +1,16 @@
-import { useMemo, useState, type ReactElement } from "react"
+import { useEffect, useMemo, useRef, useState, type ReactElement } from "react"
+import { Loader2 } from "lucide-react"
 import {
+  buildSimulatedTimeLabels,
   describeTimelineAction,
+  formatFeedWhenDisplay,
+  isSimulatedClockTimestamp,
+  simulatedTimeKeyForWatchItem,
   type FollowRow,
   type MuteRow,
   type PostRow,
   type ReportRow,
+  type SimulatedClockEvent,
 } from "@/components/runs/activityFeed"
 import {
   FeedCommentCard,
@@ -327,27 +333,23 @@ function ActionLabelToggles({
 function LiveActivityRow({
   item,
   agents,
-  tick,
   catalog,
+  simulatedWhen,
   onOpenAgent,
 }: {
   item: RunWatchActivityItem
   agents: RunWatchAgent[]
-  tick?: RunWatchTick
   catalog?: LiveFeedCatalog
+  simulatedWhen?: string | null
   onOpenAgent: (userId: number) => void
 }) {
-  const { t, locale } = useLocale()
+  const { t, locale, intl } = useLocale()
   const [openPost, setOpenPost] = useState(false)
   const [openComment, setOpenComment] = useState(false)
   const action = item.action.trim().toLowerCase()
   const author = agentName(agents, item.user_id, t)
   const feedAgents = asFeedAgents(agents)
-  const createdAt =
-    item.created_at != null && item.created_at !== ""
-      ? t("runs.feed.simTime", { value: String(item.created_at) })
-      : null
-  const dayLabel = t("runs.live.dayBadge", { day: tick?.day ?? (tick?.tickIndex ?? 0) + 1 })
+  const createdAt = formatFeedWhenDisplay(item.created_at, intl, simulatedWhen)
   const post = postFromCatalog(item, catalog)
   const comment = commentFromCatalog(item, catalog)
 
@@ -432,7 +434,6 @@ function LiveActivityRow({
         {desc.detail ? (
           <span className="text-muted-foreground">{desc.detail}</span>
         ) : null}
-        <span className="text-xs text-muted-foreground">{dayLabel}</span>
         {createdAt ? <span className="text-xs text-muted-foreground">{createdAt}</span> : null}
       </div>
       {openComment && showComment && comment ? (
@@ -453,6 +454,103 @@ function LiveActivityRow({
   )
 }
 
+type LiveFeedEvent = ReturnType<typeof collectLiveEvents>[number]
+
+function simulatedLabelsForTickEvents(events: LiveFeedEvent[]): Map<string, string> {
+  const clockEvents: SimulatedClockEvent[] = []
+  for (const event of events) {
+    const key = simulatedTimeKeyForWatchItem(event.item)
+    if (key == null) continue
+    if (!isSimulatedClockTimestamp(event.item.created_at)) continue
+    clockEvents.push({ key, createdAt: event.item.created_at })
+  }
+  const labels = buildSimulatedTimeLabels(clockEvents)
+  const byItemKey = new Map<string, string>()
+  for (const event of events) {
+    const mapKey = simulatedTimeKeyForWatchItem(event.item)
+    if (mapKey != null) {
+      const label = labels.get(mapKey)
+      if (label != null) byItemKey.set(event.key, label)
+    }
+  }
+  return byItemKey
+}
+
+function LiveTickSection({
+  tickIndex,
+  events,
+  ticks,
+  agents,
+  catalog,
+  expanded,
+  onToggle,
+  onOpenAgent,
+}: {
+  tickIndex: number
+  events: LiveFeedEvent[]
+  ticks: RunWatchTick[]
+  agents: RunWatchAgent[]
+  catalog?: LiveFeedCatalog
+  expanded: boolean
+  onToggle: () => void
+  onOpenAgent: (userId: number) => void
+}) {
+  const { t } = useLocale()
+  const tick = tickMeta(tickIndex, ticks)
+  const day = tick?.day ?? tickIndex + 1
+  const silent = tick?.silent === true
+  const inProgress = tick != null && !tick.completed
+  const simulatedLabels = useMemo(
+    () => simulatedLabelsForTickEvents(events),
+    [events],
+  )
+  const sectionId = `live-tick-${tickIndex}`
+
+  return (
+    <section className="rounded-lg border border-border bg-card/40">
+      <button
+        type="button"
+        className="flex w-full flex-wrap items-center gap-2 px-4 py-3 text-left"
+        aria-expanded={expanded}
+        aria-controls={sectionId}
+        onClick={onToggle}
+      >
+        <h3 className="text-sm font-semibold text-foreground">
+          {t("runs.results.dayLabel", { day })}
+        </h3>
+        {silent ? (
+          <span className="rounded border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+            {t("runs.results.silentTick")}
+          </span>
+        ) : null}
+        {inProgress ? (
+          <span className="inline-flex items-center gap-1 text-xs text-db-gold-700">
+            <Loader2 className="size-3 animate-spin" aria-hidden />
+            {t("runs.live.tickInProgress")}
+          </span>
+        ) : null}
+        <span className="ml-auto text-xs text-muted-foreground">
+          {expanded ? t("runs.live.collapseDay") : t("runs.live.expandDay")}
+        </span>
+      </button>
+      {expanded ? (
+        <ul id={sectionId} className="flex flex-col gap-2 border-t border-border/60 px-4 py-3">
+          {events.map((event) => (
+            <LiveActivityRow
+              key={event.key}
+              item={event.item}
+              agents={agents}
+              catalog={catalog}
+              simulatedWhen={simulatedLabels.get(event.key) ?? null}
+              onOpenAgent={onOpenAgent}
+            />
+          ))}
+        </ul>
+      ) : null}
+    </section>
+  )
+}
+
 export function LiveFeedList({
   rounds,
   agents,
@@ -470,21 +568,69 @@ export function LiveFeedList({
 }) {
   const events = useMemo(() => collectLiveEvents(rounds), [rounds])
   const openAgent = onOpenAgent ?? (() => {})
+  const tickIndexes = useMemo(
+    () => [...new Set(events.map((event) => event.tickIndex))].sort((a, b) => b - a),
+    [events],
+  )
+  const eventsByTick = useMemo(() => {
+    const map = new Map<number, LiveFeedEvent[]>()
+    for (const event of events) {
+      const bucket = map.get(event.tickIndex) ?? []
+      bucket.push(event)
+      map.set(event.tickIndex, bucket)
+    }
+    return map
+  }, [events])
+
+  const seenTicksRef = useRef<Set<number>>(new Set())
+  const [collapsedTicks, setCollapsedTicks] = useState<Set<number>>(() => new Set())
+
+  useEffect(() => {
+    const newest = tickIndexes[0]
+    if (newest == null) return
+    setCollapsedTicks((prev) => {
+      const next = new Set(prev)
+      for (const tickIndex of tickIndexes) {
+        if (seenTicksRef.current.has(tickIndex)) continue
+        seenTicksRef.current.add(tickIndex)
+        if (tickIndex !== newest) next.add(tickIndex)
+      }
+      next.delete(newest)
+      return next
+    })
+  }, [tickIndexes])
+
   if (events.length === 0) {
     return <p className="text-sm text-muted-foreground">{emptyLabel}</p>
   }
+
   return (
-    <ul className="flex flex-col gap-2">
-      {events.map((event) => (
-        <LiveActivityRow
-          key={event.key}
-          item={event.item}
-          agents={agents}
-          tick={tickMeta(event.tickIndex, ticks)}
-          catalog={catalog}
-          onOpenAgent={openAgent}
-        />
-      ))}
-    </ul>
+    <div className="flex flex-col gap-3">
+      {tickIndexes.map((tickIndex) => {
+        const tickEvents = eventsByTick.get(tickIndex) ?? []
+        if (tickEvents.length === 0) return null
+        const expanded = !collapsedTicks.has(tickIndex)
+        return (
+          <LiveTickSection
+            key={tickIndex}
+            tickIndex={tickIndex}
+            events={tickEvents}
+            ticks={ticks}
+            agents={agents}
+            catalog={catalog}
+            expanded={expanded}
+            onToggle={() =>
+              setCollapsedTicks((prev) => {
+                const next = new Set(prev)
+                if (next.has(tickIndex)) next.delete(tickIndex)
+                else next.add(tickIndex)
+                return next
+              })
+            }
+            onOpenAgent={openAgent}
+          />
+        )
+      })}
+    </div>
   )
 }

@@ -712,6 +712,8 @@ export const en: LocalizedTree<SvMessages> = {
       round: "Round {round}",
       roundOf: "{total} rounds",
       tickInProgress: "in progress",
+      expandDay: "Show",
+      collapseDay: "Hide",
       createPost: "post",
       createComment: "comment",
       commentId: "comment #{id}",
