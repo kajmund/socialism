@@ -50,11 +50,14 @@ async def session():
     session_factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    from app.services.jobs import set_job_session_factory
     from app.services.prompt_store import ensure_default_configurations
 
+    set_job_session_factory(session_factory)
     async with session_factory() as s:
         await ensure_default_configurations(s)
         yield s
+    set_job_session_factory(None)
     await engine.dispose()
 
 
@@ -212,3 +215,46 @@ async def test_simulate_run_propagates_oasis_unavailable(session: AsyncSession):
     ):
         with pytest.raises(OasisUnavailable, match="missing oasis"):
             await simulate_run(session, run)
+
+
+async def test_simulate_run_keeps_variant_results_when_live_feed_snapshot_fails(
+    session: AsyncSession,
+):
+    run = await _seed_ab_run(session)
+
+    async def fake_sim(**kwargs):
+        vid = kwargs["variant_id"]
+        return {
+            "agents": [],
+            "posts": [{"post_id": 1, "content": vid}],
+            "comments": [],
+            "follows": [],
+            "mutes": [],
+            "reports": [],
+            "trace": [],
+            "action_histogram": [],
+            "tick_markers": [],
+            "ticks_run": 2,
+            "artifact_db": f"data/oasis/run_{kwargs['run_id']}/{vid}/simulation.db",
+            "platform": "twitter",
+            "agent_count": 1,
+            "configured_ticks": 2,
+            "oasis_options": {"platform": "twitter", "allow_population_create_post": True},
+        }
+
+    with patch(
+        "app.services.oasis_run.run_oasis_simulation",
+        new=AsyncMock(side_effect=fake_sim),
+    ), patch(
+        "app.services.run_watch.snapshot_live_feed_rounds",
+        side_effect=RuntimeError("snapshot boom"),
+    ):
+        results = await simulate_run(session, run)
+
+    attempt = results["attempts"][0]
+    assert attempt["error"] is None
+    assert len(attempt["variants"]) == 2
+    assert attempt["variants"][0]["posts"][0]["content"] == "a"
+    assert attempt["variants"][1]["posts"][0]["content"] == "b"
+    assert attempt["variants"][0]["live_feed"] == {"rounds": []}
+    assert attempt["variants"][1]["live_feed"] == {"rounds": []}
