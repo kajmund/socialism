@@ -5,6 +5,7 @@ import {
   describeTimelineAction,
   formatFeedWhenDisplay,
   isSimulatedClockTimestamp,
+  simulatedTimeKeyForWatchItem,
   type FollowRow,
   type MuteRow,
   type PostRow,
@@ -458,10 +459,21 @@ type LiveFeedEvent = ReturnType<typeof collectLiveEvents>[number]
 function simulatedLabelsForTickEvents(events: LiveFeedEvent[]): Map<string, string> {
   const clockEvents: SimulatedClockEvent[] = []
   for (const event of events) {
+    const key = simulatedTimeKeyForWatchItem(event.item)
+    if (key == null) continue
     if (!isSimulatedClockTimestamp(event.item.created_at)) continue
-    clockEvents.push({ key: event.key, createdAt: event.item.created_at })
+    clockEvents.push({ key, createdAt: event.item.created_at })
   }
-  return buildSimulatedTimeLabels(clockEvents)
+  const labels = buildSimulatedTimeLabels(clockEvents)
+  const byItemKey = new Map<string, string>()
+  for (const event of events) {
+    const mapKey = simulatedTimeKeyForWatchItem(event.item)
+    if (mapKey != null) {
+      const label = labels.get(mapKey)
+      if (label != null) byItemKey.set(event.key, label)
+    }
+  }
+  return byItemKey
 }
 
 function LiveTickSection({

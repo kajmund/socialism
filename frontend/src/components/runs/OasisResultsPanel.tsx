@@ -45,6 +45,8 @@ import {
   parseTraceInfo,
   reasoningForComment,
   reasoningForPost,
+  simulatedTimeKeyForTraceRow,
+  simulatedTimeKeyForWatchItem,
   simulatedTimeEventKey,
   sortKeyFromCreatedAt,
   tickIndexForCreatedAt,
@@ -2194,13 +2196,14 @@ function VariantBody({
                 agents={agents}
                 simulatedWhen={
                   simulatedTimes.get(
-                    simulatedTimeEventKey({
-                      kind: "action",
-                      userId: item.userId,
-                      action: item.action,
-                      createdAt: item.createdAt,
-                      tie: item.tie,
-                    }),
+                    simulatedTimeKeyForTraceRow(
+                      {
+                        user_id: item.userId,
+                        action: item.action,
+                        created_at: item.createdAt,
+                      },
+                      item.traceIndex ?? item.tie,
+                    ),
                   ) ?? null
                 }
                 onOpenAgent={openAgent}
