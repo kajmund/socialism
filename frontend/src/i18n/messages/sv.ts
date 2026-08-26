@@ -711,6 +711,8 @@ export const sv = {
       round: "Rond {round}",
       roundOf: "{total} ronder",
       tickInProgress: "pågår",
+      expandDay: "Visa",
+      collapseDay: "Dölj",
       createPost: "inlägg",
       createComment: "kommentar",
       commentId: "kommentar #{id}",

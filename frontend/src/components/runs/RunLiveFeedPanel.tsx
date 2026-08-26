@@ -101,6 +101,7 @@ export function RunLiveFeedPanel({
       onVariantChange={setVariantId}
     >
       <LiveFeedList
+        key={activeVariantId}
         rounds={live.rounds}
         agents={agents}
         ticks={live.ticks}
