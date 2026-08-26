@@ -48,6 +48,8 @@ export type TimelineActionItem = {
   tickIndex: number
   sortKey: number
   tie: number
+  /** Index in variant.trace when this row comes from trace (shared simulated-time key). */
+  traceIndex?: number
   userId: number
   action: string
   createdAt: string | number | undefined
@@ -183,6 +185,52 @@ export function simulatedTimeEventKey(params: {
   return `trace:${params.userId ?? 0}:${action}:${params.createdAt ?? params.tie ?? 0}`
 }
 
+/** Stable simulated-time map key for a trace row (index = position in variant.trace). */
+export function simulatedTimeKeyForTraceRow(
+  row: Pick<TraceRow, "user_id" | "action" | "created_at">,
+  traceIndex: number,
+): string {
+  return simulatedTimeEventKey({
+    kind: "action",
+    userId: row.user_id,
+    action: row.action,
+    createdAt: row.created_at,
+    tie: traceIndex,
+  })
+}
+
+/** Stable simulated-time map key for a live-watch activity item. */
+export function simulatedTimeKeyForWatchItem(item: {
+  action: string
+  user_id: number
+  post_id?: number
+  comment_id?: number
+  created_at?: string | number
+}): string | null {
+  const action = item.action.trim().toLowerCase()
+  if (action === "create_post" && item.post_id != null) {
+    return simulatedTimeEventKey({
+      kind: "post",
+      id: item.post_id,
+      createdAt: item.created_at,
+    })
+  }
+  if (action === "create_comment" && item.comment_id != null) {
+    return simulatedTimeEventKey({
+      kind: "comment",
+      id: item.comment_id,
+      createdAt: item.created_at,
+    })
+  }
+  if (!isSimulatedClockTimestamp(item.created_at)) return null
+  return simulatedTimeEventKey({
+    kind: "action",
+    userId: item.user_id,
+    action,
+    createdAt: item.created_at,
+  })
+}
+
 function formatMinutesAsHHMM(totalMinutes: number): string {
   const clamped = Math.max(0, Math.min(24 * 60 - 1, totalMinutes))
   const hours = Math.floor(clamped / 60)
@@ -237,18 +285,11 @@ function eventsInTickRange(
       createdAt: comment.created_at,
     })
   }
-  let tie = 0
-  for (const row of variant.trace ?? []) {
+  for (const [traceIndex, row] of (variant.trace ?? []).entries()) {
     const sortKey = sortKeyFromCreatedAt(row.created_at)
     if (sortKey < marker.time_start || sortKey > marker.time_end) continue
     events.push({
-      key: simulatedTimeEventKey({
-        kind: "action",
-        userId: row.user_id,
-        action: row.action,
-        createdAt: row.created_at,
-        tie: tie++,
-      }),
+      key: simulatedTimeKeyForTraceRow(row, traceIndex),
       createdAt: row.created_at,
     })
   }
@@ -280,16 +321,9 @@ export function buildVariantSimulatedTimeLabels(
         createdAt: comment.created_at,
       })
     }
-    let tie = 0
-    for (const row of variant.trace ?? []) {
+    for (const [traceIndex, row] of (variant.trace ?? []).entries()) {
       events.push({
-        key: simulatedTimeEventKey({
-          kind: "action",
-          userId: row.user_id,
-          action: row.action,
-          createdAt: row.created_at,
-          tie: tie++,
-        }),
+        key: simulatedTimeKeyForTraceRow(row, traceIndex),
         createdAt: row.created_at,
       })
     }
@@ -717,7 +751,7 @@ export function buildTimelineItems(
     })
   }
 
-  for (const row of trace) {
+  for (const [traceIndex, row] of trace.entries()) {
     const action = (row.action || "").trim()
     if (!isTimelineAction(action, hideNoise)) continue
     const info = parseTraceInfo(row.info)
@@ -737,6 +771,7 @@ export function buildTimelineItems(
       tickIndex: markers.length ? tickIndexForTime(sortTime, markers) : 0,
       sortKey: sortTime,
       tie: 10_000 + actionTie++,
+      traceIndex,
       userId: row.user_id,
       action,
       createdAt: row.created_at,
