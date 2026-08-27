@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import Report, Run
+from app.database.models import PanelSession, Report, Run
 from app.database.session import get_session
 from app.schemas.domain import (
     JobCreate,
@@ -27,13 +27,14 @@ from app.schemas.domain import (
 )
 from app.serializers import utcnow
 from app.services import jobs as jobs_service
+from app.services.panel.schemas import DdPanelResult
 from app.services.report import ARTIFACT_ROOT
-from app.services.report.bundles import attempt_has_data, find_attempt
 from app.services.report.locale import (
     default_report_title,
     download_filename,
     normalize_locale,
 )
+from app.services.report.bundles import attempt_has_data, find_attempt
 from app.services.report.verdict_calibration import (
     get_calibration_row,
     load_recommendation_snapshot,
@@ -56,34 +57,73 @@ def _serialize(report: Report) -> ReportOut:
     return serialize_report(report)
 
 
-async def _validate_sources(session: AsyncSession, body: ReportCreate) -> list[dict]:
+async def _validate_oasis_source(
+    session: AsyncSession,
+    src,
+    *,
+    index: int,
+) -> dict:
+    run = await session.get(Run, src.run_id)
+    if run is None:
+        raise HTTPException(status_code=400, detail=f"Run not found: {src.run_id}")
+    attempt = find_attempt(
+        run.results if isinstance(run.results, dict) else None,
+        src.attempt_id or "",
+    )
+    if attempt is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Attempt not found: {src.attempt_id} on run {src.run_id}",
+        )
+    if not attempt_has_data(attempt):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Attempt {src.attempt_id} has no simulation data",
+        )
+    return {
+        "type": "oasis",
+        "run_id": src.run_id,
+        "attempt_id": src.attempt_id,
+        "label": f"{run.name} ({index + 1})",
+    }
+
+
+async def _validate_dd_session_source(session: AsyncSession, src) -> dict:
+    panel = await session.get(PanelSession, src.session_id)
+    if panel is None:
+        raise HTTPException(status_code=400, detail=f"Panel session not found: {src.session_id}")
+    if panel.protocol != "dd_panel":
+        raise HTTPException(status_code=400, detail="Report source must be a dd_panel session")
+    if panel.status != "succeeded":
+        raise HTTPException(status_code=400, detail="Panel session has not succeeded")
+    if not isinstance(panel.result, dict):
+        raise HTTPException(status_code=400, detail="Panel session has no result payload")
+    result = DdPanelResult.model_validate(panel.result)
+    if result.candidate.id != src.candidate_id:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"candidate_id {src.candidate_id!r} does not match session result "
+                f"({result.candidate.id!r})"
+            ),
+        )
+    return {
+        "type": "dd_session",
+        "session_id": src.session_id,
+        "candidate_id": src.candidate_id,
+        "label": result.candidate.namn,
+    }
+
+
+async def _validate_sources(session: AsyncSession, body: ReportCreate) -> tuple[list[dict], str]:
     sources: list[dict] = []
+    mode = body.mode or "quick"
     for i, src in enumerate(body.sources):
-        run = await session.get(Run, src.run_id)
-        if run is None:
-            raise HTTPException(status_code=400, detail=f"Run not found: {src.run_id}")
-        attempt = find_attempt(
-            run.results if isinstance(run.results, dict) else None,
-            src.attempt_id,
-        )
-        if attempt is None:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Attempt not found: {src.attempt_id} on run {src.run_id}",
-            )
-        if not attempt_has_data(attempt):
-            raise HTTPException(
-                status_code=400,
-                detail=f"Attempt {src.attempt_id} has no simulation data",
-            )
-        sources.append(
-            {
-                "run_id": src.run_id,
-                "attempt_id": src.attempt_id,
-                "label": f"{run.name} ({i + 1})",
-            }
-        )
-    return sources
+        if src.type == "dd_session":
+            sources.append(await _validate_dd_session_source(session, src))
+        else:
+            sources.append(await _validate_oasis_source(session, src, index=i))
+    return sources, mode
 
 
 @router.post("", response_model=ReportOut, status_code=202)
@@ -92,15 +132,17 @@ async def create_report(
     response: Response,
     session: AsyncSession = Depends(get_session),
 ) -> ReportOut:
-    sources = await _validate_sources(session, body)
+    sources, mode = await _validate_sources(session, body)
     report_id = f"rpt_{secrets.token_hex(8)}"
     locale = normalize_locale(body.locale)
     ab_source = False
-    if len(sources) == 1:
+    if mode == "quick" and len(sources) == 1:
         run = await session.get(Run, sources[0]["run_id"])
         ab_source = run is not None and bool(run.branch)
     if (body.title or "").strip():
         title = body.title.strip()
+    elif mode == "dd" and sources:
+        title = str(sources[0]["label"])
     else:
         source_label = sources[0]["label"].rsplit(" (", 1)[0] if sources else ""
         title = default_report_title(
@@ -115,7 +157,7 @@ async def create_report(
         status="pending",
         title=title,
         locale=locale,
-        mode="quick",
+        mode=mode,
         sources=sources,
         html_path=None,
         slots_path=None,

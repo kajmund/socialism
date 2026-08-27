@@ -1137,9 +1137,25 @@ class RunSimulateJobRequest(BaseModel):
     run_id: int
 
 
+ReportSourceType = Literal["oasis", "dd_session"]
+
+
 class ReportSource(BaseModel):
-    run_id: int
-    attempt_id: str
+    type: ReportSourceType = "oasis"
+    run_id: int | None = None
+    attempt_id: str | None = None
+    session_id: str | None = None
+    candidate_id: str | None = None
+
+    @model_validator(mode="after")
+    def validate_source_shape(self) -> Self:
+        if self.type == "oasis":
+            if self.run_id is None or not (self.attempt_id or "").strip():
+                raise ValueError("oasis source requires run_id and attempt_id")
+        elif self.type == "dd_session":
+            if not (self.session_id or "").strip() or not (self.candidate_id or "").strip():
+                raise ValueError("dd_session source requires session_id and candidate_id")
+        return self
 
 
 class ReportGenerateJobRequest(BaseModel):
@@ -1152,6 +1168,21 @@ class ReportCreate(BaseModel):
     sources: list[ReportSource] = Field(min_length=1)
     title: str = ""
     locale: Literal["sv", "en"] = "sv"
+    mode: Literal["quick", "dd"] | None = None
+
+    @model_validator(mode="after")
+    def validate_mode_matches_sources(self) -> Self:
+        types = {src.type for src in self.sources}
+        if len(types) > 1:
+            raise ValueError("All report sources must share the same type")
+        source_type = next(iter(types))
+        if self.mode is None:
+            self.mode = "dd" if source_type == "dd_session" else "quick"
+        elif source_type == "dd_session" and self.mode != "dd":
+            raise ValueError("dd_session sources require mode=dd")
+        elif source_type == "oasis" and self.mode == "dd":
+            raise ValueError("oasis sources require mode=quick")
+        return self
 
 
 class ReportOut(BaseModel):
@@ -1159,7 +1190,7 @@ class ReportOut(BaseModel):
     status: ReportStatus
     title: str
     locale: Literal["sv", "en"] = "sv"
-    mode: Literal["full", "quick"] = "quick"
+    mode: Literal["full", "quick", "dd"] = "quick"
     sources: list[ReportSource]
     html_path: str | None = None
     slots_path: str | None = None

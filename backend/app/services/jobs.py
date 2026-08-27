@@ -417,13 +417,17 @@ async def _run_report_generate(job_id: str) -> None:
 
     from app.services.report import ARTIFACT_ROOT
     from app.services.report.bundles import build_bundles
+    from app.services.report.dd_report import generate_dd_report_html
     from app.services.report.generate import generate_report_html
+    from app.services.panel.schemas import DdPanelResult
+    from app.services.panel.sessions import get_panel_session
 
     factory = job_session_factory()
     report_id: str | None = None
     title = ""
     locale = "sv"
     sources: list = []
+    report_mode = "quick"
     out_dir: Path | None = None
 
     async with factory() as session:
@@ -440,43 +444,71 @@ async def _run_report_generate(job_id: str) -> None:
         title = report.title
         locale = getattr(report, "locale", None) or "sv"
         sources = list(report.sources or [])
+        report_mode = getattr(report, "mode", None) or "quick"
         report.status = "running"
         report.updated_at = utcnow()
         await session.commit()
         await publish_report(report)
 
     try:
-        async with factory() as session:
-            bundles = await build_bundles(session, sources)
-            out_dir = Path(ARTIFACT_ROOT) / report_id
-            from app.services.anchor_calibration import anchor_validation_for_report
-            from app.services.anchor_store import require_anchor_sets_for_language
-            from app.services.prompt_store import (
-                require_active_report_thresholds,
-                require_active_ssr_temperature,
+        out_dir = Path(ARTIFACT_ROOT) / report_id
+        if report_mode == "dd":
+            if len(sources) != 1 or sources[0].get("type") != "dd_session":
+                raise ValueError("DD report requires exactly one dd_session source")
+            src = sources[0]
+            session_id = str(src["session_id"])
+            candidate_id = str(src["candidate_id"])
+            async with factory() as session:
+                panel = await get_panel_session(session, session_id)
+                if panel is None:
+                    raise ValueError(f"Panel session not found: {session_id}")
+                if panel.protocol != "dd_panel":
+                    raise ValueError("Panel session is not dd_panel")
+                if panel.status != "succeeded":
+                    raise ValueError("Panel session has not succeeded")
+                if not isinstance(panel.result, dict):
+                    raise ValueError("Panel session has no result")
+                result = DdPanelResult.model_validate(panel.result)
+            html_path, slots_path, _slots, _dd = await generate_dd_report_html(
+                result,
+                session_id=session_id,
+                candidate_id=candidate_id,
+                out_dir=out_dir,
+                title=title,
+                locale=locale,
             )
+            timing = {"total_seconds": 0.0}
+        else:
+            async with factory() as session:
+                bundles = await build_bundles(session, sources)
+                from app.services.anchor_calibration import anchor_validation_for_report
+                from app.services.anchor_store import require_anchor_sets_for_language
+                from app.services.prompt_store import (
+                    require_active_report_thresholds,
+                    require_active_ssr_temperature,
+                )
 
-            ssr_temperature = await require_active_ssr_temperature(session)
-            report_thresholds = await require_active_report_thresholds(session)
-            resolved_anchors = await require_anchor_sets_for_language(
-                session, "en" if locale == "en" else "sv"
-            )
-            anchor_validation = await anchor_validation_for_report(
-                session,
-                tone_row=resolved_anchors["tone_row"],
-                style_row=resolved_anchors["style_row"],
-            )
+                ssr_temperature = await require_active_ssr_temperature(session)
+                report_thresholds = await require_active_report_thresholds(session)
+                resolved_anchors = await require_anchor_sets_for_language(
+                    session, "en" if locale == "en" else "sv"
+                )
+                anchor_validation = await anchor_validation_for_report(
+                    session,
+                    tone_row=resolved_anchors["tone_row"],
+                    style_row=resolved_anchors["style_row"],
+                )
 
-        html_path, slots_path, _slots, timing = await generate_report_html(
-            bundles,
-            out_dir=out_dir,
-            title=title,
-            locale=locale,
-            ssr_temperature=ssr_temperature,
-            report_thresholds=report_thresholds,
-            resolved_anchors=resolved_anchors,
-            anchor_validation=anchor_validation,
-        )
+            html_path, slots_path, _slots, timing = await generate_report_html(
+                bundles,
+                out_dir=out_dir,
+                title=title,
+                locale=locale,
+                ssr_temperature=ssr_temperature,
+                report_thresholds=report_thresholds,
+                resolved_anchors=resolved_anchors,
+                anchor_validation=anchor_validation,
+            )
     except Exception as exc:  # noqa: BLE001 — mark report failed
         async with factory() as session:
             report = await session.get(Report, report_id)
@@ -510,8 +542,8 @@ async def _run_report_generate(job_id: str) -> None:
                 "report_id": report.id,
                 "html_path": str(html_path),
                 "slots_path": str(slots_path),
-                "sources": len(bundles),
-                "mode": "quick",
+                "sources": len(sources),
+                "mode": report_mode,
                 "timing": timing,
             },
         )
