@@ -14,6 +14,7 @@ import { ConfigurationsPage } from "@/pages/ConfigurationsPage"
 import { DashboardPage } from "@/pages/DashboardPage"
 import { DdCampaignEditorPage } from "@/pages/DdCampaignEditorPage"
 import { DdCampaignsPage } from "@/pages/DdCampaignsPage"
+import { DdExpertsPage } from "@/pages/DdExpertsPage"
 import { EmbeddingCachePage } from "@/pages/EmbeddingCachePage"
 import { FeedbackPage } from "@/pages/FeedbackPage"
 import { JobsPage } from "@/pages/JobsPage"
@@ -66,6 +67,7 @@ export default function App() {
               <Route path="campaigns" element={<DdCampaignsPage />} />
               <Route path="campaigns/new" element={<DdCampaignEditorPage />} />
               <Route path="campaigns/:id" element={<DdCampaignEditorPage />} />
+              <Route path="experts" element={<DdExpertsPage />} />
               <Route path="reports/:id" element={<ReportPage />} />
             </Route>
           </Route>

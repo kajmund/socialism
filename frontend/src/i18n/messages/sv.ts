@@ -48,6 +48,7 @@ export const sv = {
     nav: {
       ariaMain: "DD-meny",
       campaigns: "Kampanjer",
+      experts: "Experter",
     },
   },
   dd: {
@@ -124,11 +125,23 @@ export const sv = {
       addRole: "Lägg till expertroll",
       removeRole: "Ta bort",
     },
+    experts: {
+      title: "Experter",
+      intro:
+        "Skapa och redigera expertroller för DD-panelen. Rollerna används när du väljer deltagare i en kampanj.",
+      loading: "Hämtar expertroller…",
+      loadError: "Kunde inte hämta expertroller.",
+      saveError: "Kunde inte spara expertroller.",
+      saved: "Expertrollerna sparades.",
+      countLabel: "{count} roller",
+    },
     panel: {
       expertRolesTitle: "Expertpanel",
-      expertRolesIntro: "Välj vilka expertroller som ska delta i DD-panelen. Alla fyra är förvalda.",
+      expertRolesIntro:
+        "Välj vilka expertroller som ska delta i DD-panelen. Alla tillgängliga roller är förvalda.",
+      manageExperts: "Hantera experter",
       rolesLoading: "Hämtar expertroller…",
-      rolesEmpty: "Inga expertroller hittades i katalogen.",
+      rolesEmpty: "Inga expertroller hittades.",
       candidatesIntro: "Markera kandidater som ska gå vidare till DD-panel och rapport.",
       selectAllCandidates: "Markera alla",
       clearCandidates: "Rensa val",

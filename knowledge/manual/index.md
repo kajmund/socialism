@@ -65,6 +65,7 @@ Guider för dig som använder Opinionssimulator i webbläsaren. Teknisk setup oc
 * [Beställa en rapport](bestalla-rapport.md) — Sammanfattning eller jämförelse från resultat
 * [Läsa simuleringsrapport](lasa-simuleringsrapport.md) — Öppna och läsa HTML-rapporten
 * [Spinndoktor — rapportchatt](spinndoktor-rapportchatt.md) — Resonera kring en klar rapport med Spinndoktor
+* [Konfigurera DD-experter](konfigurera-dd-experter.md) — Skapa och redigera expertroller för due diligence-panelen
 
 # Taggar
 
