@@ -201,6 +201,8 @@ function roleLabel(role: Role, t: Translate): string {
       return t("auth.roleAdmin")
     case "user":
       return t("auth.roleUser")
+    case "bolag":
+      return t("auth.roleBolag")
     default: {
       const _exhaustive: never = role
       return _exhaustive

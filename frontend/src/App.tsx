@@ -1,6 +1,9 @@
 import { Navigate, Outlet, Route, Routes, useParams } from "react-router-dom"
 import { RequireAdmin } from "@/auth/RequireAdmin"
 import { RequireAuth } from "@/auth/RequireAuth"
+import { RequireBolag } from "@/auth/RequireBolag"
+import { RequireOsUser } from "@/auth/RequireOsUser"
+import { BolagShell } from "@/components/layout/BolagShell"
 import { HelpChatWidget } from "@/components/help/HelpChatWidget"
 import { ToolsShell } from "@/components/layout/ToolsShell"
 import { AnchorSetEditorPage } from "@/pages/AnchorSetEditorPage"
@@ -9,6 +12,8 @@ import { ConfigureRunPage } from "@/pages/ConfigureRunPage"
 import { ConfigurationEditorPage } from "@/pages/ConfigurationEditorPage"
 import { ConfigurationsPage } from "@/pages/ConfigurationsPage"
 import { DashboardPage } from "@/pages/DashboardPage"
+import { DdCampaignEditorPage } from "@/pages/DdCampaignEditorPage"
+import { DdCampaignsPage } from "@/pages/DdCampaignsPage"
 import { EmbeddingCachePage } from "@/pages/EmbeddingCachePage"
 import { FeedbackPage } from "@/pages/FeedbackPage"
 import { JobsPage } from "@/pages/JobsPage"
@@ -55,6 +60,16 @@ export default function App() {
 
       <Route element={<RequireAuth />}>
         <Route element={<AuthenticatedShell />}>
+          <Route element={<RequireBolag />}>
+            <Route path="/bolag" element={<BolagShell />}>
+              <Route index element={<Navigate to="campaigns" replace />} />
+              <Route path="campaigns" element={<DdCampaignsPage />} />
+              <Route path="campaigns/new" element={<DdCampaignEditorPage />} />
+              <Route path="campaigns/:id" element={<DdCampaignEditorPage />} />
+            </Route>
+          </Route>
+
+          <Route element={<RequireOsUser />}>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/runs" element={<RunsPage />} />
           <Route path="/runs/new" element={<ConfigureRunPage />} />
@@ -102,6 +117,7 @@ export default function App() {
           <Route path="/reports/:id" element={<ReportPage />} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
+          </Route>
         </Route>
       </Route>
     </Routes>

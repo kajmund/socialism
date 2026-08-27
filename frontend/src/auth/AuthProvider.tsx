@@ -10,6 +10,7 @@ import {
 import {
   authAdapter,
   canAccessConfiguration,
+  hasModule,
   type AuthSession,
   type AuthUser,
   type Role,
@@ -21,6 +22,8 @@ type AuthContextValue = {
   role: Role | null
   loading: boolean
   isAdmin: boolean
+  isBolag: boolean
+  hasModule: (moduleId: string) => boolean
   signIn: (username: string, password: string) => Promise<void>
   signOut: () => Promise<void>
 }
@@ -55,12 +58,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<AuthContextValue>(() => {
     const role = session?.user.role ?? null
+    const user = session?.user ?? null
     return {
       session,
-      user: session?.user ?? null,
+      user,
       role,
       loading,
       isAdmin: role != null && canAccessConfiguration(role),
+      isBolag: role === "bolag",
+      hasModule: (moduleId: string) => hasModule(user, moduleId),
       signIn,
       signOut,
     }

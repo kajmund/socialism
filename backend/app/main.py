@@ -9,6 +9,7 @@ from app.api import (
     anchor_sets,
     catalog,
     configurations,
+    dd,
     embeddings,
     feedback,
     health,
@@ -79,6 +80,7 @@ def create_app() -> FastAPI:
     app.include_router(label_vocabularies.router)
     app.include_router(configurations.router)
     app.include_router(catalog.router)
+    app.include_router(dd.router)
     app.include_router(jobs.router)
     app.include_router(reports.router)
     app.include_router(playground.router)
