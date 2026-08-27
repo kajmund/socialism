@@ -116,6 +116,7 @@ def test_build_help_context_includes_run_troubleshooting(help_session, tmp_path,
             session.add(
                 Run(
                     name="Demo run",
+                    project_id=1,
                     status="failed",
                     population_id=pop.id,
                     seed="seed",

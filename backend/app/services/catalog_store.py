@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +15,10 @@ from app.services.catalog_defaults import (
     PREVIOUS_STOCK_LABELS,
 )
 from app.services.catalog_items import catalog_items_as_json, coerce_catalog_items
+from app.services.kund_store import default_os_project_id
+
+# District maps (ort) are project-local; other catalog keys stay global (project_id NULL).
+LOCAL_PROJECT_CATALOG_KEYS = frozenset({"ort"})
 
 
 def enrich_ort_items(items: list[CatalogItem]) -> list[CatalogItem]:
@@ -44,48 +48,96 @@ def enrich_ort_items(items: list[CatalogItem]) -> list[CatalogItem]:
     return out
 
 
+def _resolve_project_id(key: str, project_id: int | None) -> int | None:
+    if key in LOCAL_PROJECT_CATALOG_KEYS:
+        return project_id
+    return None
+
+
 async def get_catalog_list(
     session: AsyncSession,
     configuration_id: int,
     key: str,
+    *,
+    project_id: int | None = None,
 ) -> CatalogList | None:
-    result = await session.execute(
-        select(CatalogList).where(
-            CatalogList.configuration_id == configuration_id,
-            CatalogList.key == key,
+    scoped_project_id = _resolve_project_id(key, project_id)
+    if key in LOCAL_PROJECT_CATALOG_KEYS:
+        if scoped_project_id is None:
+            scoped_project_id = await default_os_project_id(session)
+        result = await session.execute(
+            select(CatalogList).where(
+                CatalogList.configuration_id == configuration_id,
+                CatalogList.key == key,
+                CatalogList.project_id == scoped_project_id,
+            )
         )
-    )
+    else:
+        result = await session.execute(
+            select(CatalogList).where(
+                CatalogList.configuration_id == configuration_id,
+                CatalogList.key == key,
+                CatalogList.project_id.is_(None),
+            )
+        )
     return result.scalar_one_or_none()
 
 
 async def list_catalog_lists(
     session: AsyncSession,
     configuration_id: int,
+    *,
+    project_id: int | None = None,
 ) -> list[CatalogList]:
+    if project_id is None:
+        project_id = await default_os_project_id(session)
     result = await session.execute(
-        select(CatalogList).where(CatalogList.configuration_id == configuration_id)
+        select(CatalogList).where(
+            CatalogList.configuration_id == configuration_id,
+            or_(
+                CatalogList.project_id.is_(None),
+                CatalogList.project_id == project_id,
+            ),
+        )
     )
     return list(result.scalars().all())
 
 
-async def ensure_catalog_defaults(session: AsyncSession, configuration_id: int) -> int:
+async def ensure_catalog_defaults(
+    session: AsyncSession,
+    configuration_id: int,
+    *,
+    project_id: int | None = None,
+) -> int:
     """Insert missing catalog keys for one configuration. Returns rows added."""
+    if project_id is None:
+        project_id = await default_os_project_id(session)
     result = await session.execute(
         select(CatalogList).where(CatalogList.configuration_id == configuration_id)
     )
-    by_key = {row.key: row for row in result.scalars().all()}
+    rows = list(result.scalars().all())
     added = 0
     dirty = False
     for default in CATALOG_DEFAULTS:
-        existing = by_key.get(default["key"])
+        key = default["key"]
+        scoped_project_id = _resolve_project_id(key, project_id)
+        existing = next(
+            (
+                row
+                for row in rows
+                if row.key == key and row.project_id == scoped_project_id
+            ),
+            None,
+        )
         default_items = coerce_catalog_items(list(default["items"]))
-        if default["key"] == "ort":
+        if key == "ort":
             default_items = enrich_ort_items(default_items)
         if existing is None:
             session.add(
                 CatalogList(
                     configuration_id=configuration_id,
-                    key=default["key"],
+                    project_id=scoped_project_id,
+                    key=key,
                     section=default["section"],
                     title=default["title"],
                     items=catalog_items_as_json(default_items),
@@ -107,7 +159,7 @@ async def ensure_catalog_defaults(session: AsyncSession, configuration_id: int) 
             existing.items = catalog_items_as_json(coerced)
             dirty = True
 
-        previous = PREVIOUS_STOCK_LABELS.get(default["key"])
+        previous = PREVIOUS_STOCK_LABELS.get(key)
         if previous is not None:
             labels = {item.label for item in coerce_catalog_items(existing.items)}
             if labels == previous:

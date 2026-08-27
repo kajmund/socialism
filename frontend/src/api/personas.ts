@@ -1,4 +1,5 @@
 import { api } from "@/lib/api"
+import { OS_CUSTOMER_ID } from "@/lib/scoping"
 import type {
   EditablePersona,
   LibraryPersona,
@@ -39,8 +40,12 @@ export function listPersonas(params?: {
   q?: string
   origin?: string
   exclude_origin?: string
+  customer_id?: number
 }): Promise<LibraryPersona[]> {
-  return api.get<LibraryPersona[]>("/personas", params)
+  return api.get<LibraryPersona[]>("/personas", {
+    ...params,
+    customer_id: params?.customer_id ?? OS_CUSTOMER_ID,
+  })
 }
 
 /** Default library listing — excludes population-generated personas. */

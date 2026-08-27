@@ -33,6 +33,7 @@ async def chat_sessions():
         seed_session.add(
             Persona(
                 id="p-concurrent",
+                customer_id=1,
                 name="Test Persona",
                 age=40,
                 occ="Vård",

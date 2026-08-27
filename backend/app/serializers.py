@@ -196,6 +196,7 @@ def serialize_run_detail(run: Run, population_name: str) -> RunDetail:
     oasis_options = OasisRunOptions.model_validate(run.oasis_options or {})
     return RunDetail(
         **summary.model_dump(),
+        project_id=run.project_id,
         population_id=run.population_id,
         start_date=start,
         main_ticks=ticks,

@@ -71,6 +71,7 @@ async def test_require_prompts_for_language_prefers_active_not_oldest(
     custom_prompts = dict(default_prompts("sv"))
     custom_prompts["oasis.env.empty_posts"] = "CUSTOM_ACTIVE_SV_MARKER"
     custom = Configuration(
+        customer_id=1,
         name="Custom active sv",
         language="sv",
         prompts=custom_prompts,

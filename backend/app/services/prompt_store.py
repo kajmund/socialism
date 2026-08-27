@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.database.models import Configuration
+from app.services.kund_store import default_os_customer_id, ensure_default_kunder
 from app.schemas.domain import DEFAULT_SSR_TEMPERATURE
 from app.serializers import utcnow
 from app.services.prompt_catalog import (
@@ -199,6 +200,7 @@ async def ensure_default_configurations(session: AsyncSession) -> int:
         ensure_default_anchor_sets,
     )
 
+    await ensure_default_kunder(session)
     await ensure_default_anchor_sets(session)
     default_refs = await default_anchor_refs(session)
     for language, name, activate in (
@@ -211,8 +213,10 @@ async def ensure_default_configurations(session: AsyncSession) -> int:
         rows = list(result.scalars().all())
         if not rows:
             now = utcnow()
+            customer_id = await default_os_customer_id(session)
             session.add(
                 Configuration(
+                    customer_id=customer_id,
                     name=name,
                     language=language,
                     prompts=default_prompts(language),  # type: ignore[arg-type]

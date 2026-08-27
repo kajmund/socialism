@@ -15,6 +15,7 @@ from app.api import (
     health,
     help,
     jobs,
+    kunder,
     label_vocabularies,
     messages,
     panel,
@@ -29,6 +30,7 @@ from app.api import (
 from app.config import settings
 from app.logging import configure_logging
 from app.services import jobs as jobs_service
+from app.services.kund_store import ensure_default_kunder
 from app.services.prompt_store import ensure_default_configurations
 
 logger = logging.getLogger(__name__)
@@ -50,6 +52,7 @@ async def lifespan(_app: FastAPI):
         logger.warning("Skipping interrupted-job sweep on startup: %s", exc)
     try:
         async with factory() as session:
+            await ensure_default_kunder(session)
             await ensure_default_configurations(session)
     except (OperationalError, ProgrammingError) as exc:
         logger.warning("Skipping configuration prompt backfill on startup: %s", exc)
@@ -80,6 +83,7 @@ def create_app() -> FastAPI:
     app.include_router(anchor_sets.router)
     app.include_router(label_vocabularies.router)
     app.include_router(configurations.router)
+    app.include_router(kunder.router)
     app.include_router(catalog.router)
     app.include_router(dd.router)
     app.include_router(panel.router)
