@@ -40,10 +40,17 @@ def serialize_campaign(row: DdCampaign) -> DdCampaignOut:
     )
 
 
-async def list_campaigns(session: AsyncSession, *, module: str | None = None) -> list[DdCampaignOut]:
+async def list_campaigns(
+    session: AsyncSession,
+    *,
+    module: str | None = None,
+    customer_id: int | None = None,
+) -> list[DdCampaignOut]:
     stmt = select(DdCampaign).order_by(DdCampaign.updated_at.desc())
     if module:
         stmt = stmt.where(DdCampaign.module == module)
+    if customer_id is not None:
+        stmt = stmt.where(DdCampaign.customer_id == customer_id)
     rows = (await session.execute(stmt)).scalars().all()
     return [serialize_campaign(row) for row in rows]
 

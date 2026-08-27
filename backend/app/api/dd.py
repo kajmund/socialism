@@ -1,4 +1,8 @@
-"""DD module API — campaigns and mock sourcing."""
+"""DD module API — campaigns and mock sourcing.
+
+List endpoints accept optional scope query params (customer_id) declared by the
+client — not enforced server-side identity until the Auth card lands.
+"""
 
 from __future__ import annotations
 
@@ -32,9 +36,10 @@ router = APIRouter(prefix="/dd", tags=["dd"])
 @router.get("/campaigns", response_model=list[DdCampaignOut])
 async def get_campaigns(
     module: str | None = Query(default=None),
+    customer_id: int | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
 ) -> list[DdCampaignOut]:
-    return await list_campaigns(session, module=module)
+    return await list_campaigns(session, module=module, customer_id=customer_id)
 
 
 @router.post("/campaigns", response_model=DdCampaignOut, status_code=201)

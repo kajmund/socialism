@@ -1,4 +1,5 @@
 import { api } from "@/lib/api"
+import { OS_DEFAULT_PROJECT_ID } from "@/lib/scoping"
 import type {
   BranchState,
   OasisRunOptions,
@@ -42,8 +43,12 @@ export type RunUpdate = {
 export function listRuns(params?: {
   q?: string
   status?: string
+  project_id?: number
 }): Promise<RunSummary[]> {
-  return api.get<RunSummary[]>("/runs", params)
+  return api.get<RunSummary[]>("/runs", {
+    ...params,
+    project_id: params?.project_id ?? OS_DEFAULT_PROJECT_ID,
+  })
 }
 
 export function listRunPopulations(): Promise<RunPopulationOption[]> {

@@ -1,4 +1,5 @@
 import { api } from "@/lib/api"
+import { BOLAG_DEMO_CUSTOMER_ID } from "@/lib/scoping"
 
 export type DdResultatFilter = "vinst" | "förlust" | "oavsett"
 
@@ -35,9 +36,16 @@ export type DdCampaign = {
   updated_at: string
 }
 
-export function listDdCampaigns(module?: string): Promise<DdCampaign[]> {
-  const q = module ? `?module=${encodeURIComponent(module)}` : ""
-  return api.get<DdCampaign[]>(`/dd/campaigns${q}`)
+export function listDdCampaigns(params?: {
+  module?: string
+  customer_id?: number
+}): Promise<DdCampaign[]> {
+  const search = new URLSearchParams()
+  if (params?.module) search.set("module", params.module)
+  const customerId = params?.customer_id ?? BOLAG_DEMO_CUSTOMER_ID
+  search.set("customer_id", String(customerId))
+  const q = search.toString()
+  return api.get<DdCampaign[]>(`/dd/campaigns?${q}`)
 }
 
 export function createDdCampaign(body: {
