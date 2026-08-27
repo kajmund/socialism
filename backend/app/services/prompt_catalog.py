@@ -35,6 +35,7 @@ PromptSection = Literal[
     "oasis_env",
     "oasis_agents",
     "report",
+    "panel",
 ]
 
 PROMPT_SECTIONS: list[tuple[PromptSection, dict[str, str]]] = [
@@ -44,6 +45,7 @@ PROMPT_SECTIONS: list[tuple[PromptSection, dict[str, str]]] = [
     ("oasis_env", {"sv": "OASIS — miljö", "en": "OASIS — environment"}),
     ("oasis_agents", {"sv": "OASIS — agenter", "en": "OASIS — agents"}),
     ("report", {"sv": "Rapport", "en": "Report"}),
+    ("panel", {"sv": "Panel", "en": "Panel"}),
 ]
 
 
@@ -1076,6 +1078,118 @@ HOW YOU WRITE COMMENTS:
             "You are an ordinary person on a social media service — not a debater, "
             "assistant, or balanced analyst. "
             "React authentically to political messages from your background."
+        ),
+    ),
+    _f(
+        "panel.moderator.system",
+        "panel",
+        "Moderator — system",
+        "Moderator — system",
+        "Styr panelens ton och struktur.",
+        "Sets panel tone and structure.",
+        (
+            "Du modererar en expertpanel. Håll tonen professionell, kortfattad och "
+            "fokuserad på sak. Du styr turordning men låter experterna tala i egen röst."
+        ),
+        (
+            "You moderate an expert panel. Keep a professional, concise, substantive tone. "
+            "You manage turn order while letting experts speak in their own voice."
+        ),
+    ),
+    _f(
+        "panel.moderator.opening",
+        "panel",
+        "Moderator — öppning",
+        "Moderator — opening",
+        "Platshållare: {topic}, {brief}, {expert_list}.",
+        "Placeholders: {topic}, {brief}, {expert_list}.",
+        (
+            "Ämne: {topic}\n\nBakgrund:\n{brief}\n\nExperter:\n{expert_list}\n\n"
+            "Öppna panelen med en kort introduktion och ställ en tydlig inledande fråga."
+        ),
+        (
+            "Topic: {topic}\n\nBackground:\n{brief}\n\nExperts:\n{expert_list}\n\n"
+            "Open the panel with a brief introduction and one clear starting question."
+        ),
+    ),
+    _f(
+        "panel.moderator.analysis",
+        "panel",
+        "Moderator — analys",
+        "Moderator — analysis",
+        "Platshållare: {topic}, {transcript}.",
+        "Placeholders: {topic}, {transcript}.",
+        (
+            "Ämne: {topic}\n\nTranskript:\n{transcript}\n\n"
+            "Avsluta med en strukturerad syntes: konsensus, oenighet, risker och rekommenderade nästa steg."
+        ),
+        (
+            "Topic: {topic}\n\nTranscript:\n{transcript}\n\n"
+            "Close with a structured synthesis: consensus, disagreement, risks, and recommended next steps."
+        ),
+    ),
+    _f(
+        "panel.expert.system",
+        "panel",
+        "Expert — system",
+        "Expert — system",
+        "Platshållare: {label}, {profile}.",
+        "Placeholders: {label}, {profile}.",
+        (
+            "Du deltar som {label} i en expertpanel.\n\nProfil:\n{profile}\n\n"
+            "Svara kort och konkret utifrån din kompetens."
+        ),
+        (
+            "You participate as {label} in an expert panel.\n\nProfile:\n{profile}\n\n"
+            "Reply briefly and concretely from your expertise."
+        ),
+    ),
+    _f(
+        "panel.expert.raise_hand",
+        "panel",
+        "Expert — raise hand",
+        "Expert — raise hand",
+        "Svara JA eller NEJ.",
+        "Reply YES or NO.",
+        (
+            "Ämne: {topic}\n\nHittills:\n{transcript}\n\nDina privata anteckningar:\n{scratchpad}\n\n"
+            "Vill du begära ordet härnäst? Svara endast JA eller NEJ."
+        ),
+        (
+            "Topic: {topic}\n\nSo far:\n{transcript}\n\nYour private notes:\n{scratchpad}\n\n"
+            "Do you want to speak next? Reply with YES or NO only."
+        ),
+    ),
+    _f(
+        "panel.expert.scratchpad",
+        "panel",
+        "Expert — scratchpad",
+        "Expert — scratchpad",
+        "Privata anteckningar — syns inte för andra.",
+        "Private notes — not visible to others.",
+        (
+            "Ämne: {topic}\n\nHittills:\n{transcript}\n\nTidigare anteckningar:\n{scratchpad}\n\n"
+            "Uppdatera dina privata anteckningar (max 120 ord)."
+        ),
+        (
+            "Topic: {topic}\n\nSo far:\n{transcript}\n\nPrevious notes:\n{scratchpad}\n\n"
+            "Update your private notes (max 120 words)."
+        ),
+    ),
+    _f(
+        "panel.expert.turn",
+        "panel",
+        "Expert — tur",
+        "Expert — turn",
+        "Offentligt inlägg i panelen.",
+        "Public panel contribution.",
+        (
+            "Ämne: {topic}\n\nHittills:\n{transcript}\n\nDina anteckningar:\n{scratchpad}\n\n"
+            "Ge ditt offentliga inlägg (max 150 ord)."
+        ),
+        (
+            "Topic: {topic}\n\nSo far:\n{transcript}\n\nYour notes:\n{scratchpad}\n\n"
+            "Give your public contribution (max 150 words)."
         ),
     ),
 ]
