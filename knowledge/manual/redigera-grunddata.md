@@ -13,12 +13,16 @@ Grunddata (kataloglistor) hör till en **konfiguration** tillsammans med prompti
 
 1. Öppna **Konfigurationer** i menyn och **Redigera** den konfiguration du vill ändra.
 2. Välj fliken **Grunddata** (bredvid **Promptinställningar**).
-3. Välj sektion: **Demografi**, **Politik**, **Värderingar**, **Röst & media** eller **Simulering**.
-4. Välj den lista du vill redigera (t.ex. **Distrikt**, **Ton**, **Parti**).
+3. Välj sektion: **Demografi**, **Politik**, **Värderingar**, **Röst & media**, **Simulering** eller **DD expertpanel**.
+4. Välj den lista du vill redigera (t.ex. **Distrikt**, **Ton**, **Parti** eller **Expertroller**).
 5. **Lägg till**, **redigera**, **ändra ordning** eller **ta bort** rader i listan.
 6. Välj **Spara** när du gjort ändringar (osparda ändringar markeras).
 
 Ny konfiguration: spara först namn och prompts — då skapas grunddatalistorna och fliken **Grunddata** blir tillgänglig.
+
+## DD expertpanel
+
+Under **DD expertpanel** → **Expertroller** konfigurerar du rollerna som due diligence-panelen kan använda (namn, beskrivning, kompetens, stil, bakgrund och anekdot). Bolag-användare redigerar samma lista via menyn **Experter** i Due diligence-ytan — se [Konfigurera DD-experter](konfigurera-dd-experter.md).
 
 ## Distrikt med karta
 
@@ -35,5 +39,6 @@ För listan **Distrikt** kan du dessutom:
 ## Relaterade guider
 
 - [Hantera konfigurationer](hantera-konfigurationer.md)
+- [Konfigurera DD-experter](konfigurera-dd-experter.md)
 - [Skapa och redigera persona](skapa-och-redigera-persona.md)
 - [Bygga en population](bygga-population.md)

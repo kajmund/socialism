@@ -88,7 +88,11 @@ Still hardcoded (next slices): OASIS simulation prompts (intentionally Swedish).
 
 | Path | Status |
 |------|--------|
-| `/login` | Sign-in (static admin/user) |
+| `/login` | Sign-in (static admin/user/bolag) |
+| `/bolag` | Due diligence home (redirect → campaigns) |
+| `/bolag/campaigns`, `/bolag/campaigns/new`, `/bolag/campaigns/:id` | DD campaigns (bolag role) |
+| `/bolag/experts` | DD expert roles catalog (bolag role) |
+| `/bolag/reports/:id` | DD report viewer |
 | `/` | Dashboard (startsida) |
 | `/runs` | Körningar list |
 | `/runs/new`, `/runs/:id/edit` | Körning (wizard / quick + Resultat) |

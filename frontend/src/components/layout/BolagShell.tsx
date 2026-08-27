@@ -93,6 +93,7 @@ export function BolagShell({ children }: BolagShellProps) {
 
   const campaignsActive =
     pathname === "/bolag/campaigns" || pathname.startsWith("/bolag/campaigns/")
+  const expertsActive = pathname === "/bolag/experts" || pathname.startsWith("/bolag/experts/")
 
   return (
     <div className="theme-admin">
@@ -111,6 +112,15 @@ export function BolagShell({ children }: BolagShellProps) {
                 )}
               >
                 {t("bolag.nav.campaigns")}
+              </NavLink>
+              <NavLink
+                to="/bolag/experts"
+                className={cn(
+                  "admin-topnav-link admin-topnav-link-inline",
+                  expertsActive && "is-active",
+                )}
+              >
+                {t("bolag.nav.experts")}
               </NavLink>
             </nav>
             <SessionActions />
@@ -142,6 +152,13 @@ export function BolagShell({ children }: BolagShellProps) {
                   onClick={() => setMenuOpen(false)}
                 >
                   {t("bolag.nav.campaigns")}
+                </NavLink>
+                <NavLink
+                  to="/bolag/experts"
+                  className={cn("admin-topnav-link admin-topnav-link-panel", expertsActive && "is-active")}
+                  onClick={() => setMenuOpen(false)}
+                >
+                  {t("bolag.nav.experts")}
                 </NavLink>
               </nav>
               <SessionActions compact />

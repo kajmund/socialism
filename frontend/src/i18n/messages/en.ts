@@ -50,6 +50,7 @@ export const en: LocalizedTree<SvMessages> = {
     nav: {
       ariaMain: "DD navigation",
       campaigns: "Campaigns",
+      experts: "Experts",
     },
   },
   dd: {
@@ -126,11 +127,23 @@ export const en: LocalizedTree<SvMessages> = {
       addRole: "Add expert role",
       removeRole: "Remove",
     },
+    experts: {
+      title: "Experts",
+      intro:
+        "Create and edit expert roles for the DD panel. Roles are used when you pick participants in a campaign.",
+      loading: "Loading expert roles…",
+      loadError: "Could not load expert roles.",
+      saveError: "Could not save expert roles.",
+      saved: "Expert roles saved.",
+      countLabel: "{count} roles",
+    },
     panel: {
       expertRolesTitle: "Expert panel",
-      expertRolesIntro: "Choose which expert roles join the DD panel. All four are selected by default.",
+      expertRolesIntro:
+        "Choose which expert roles join the DD panel. All available roles are selected by default.",
+      manageExperts: "Manage experts",
       rolesLoading: "Loading expert roles…",
-      rolesEmpty: "No expert roles found in the catalog.",
+      rolesEmpty: "No expert roles found.",
       candidatesIntro: "Select candidates to proceed to the DD panel and report.",
       selectAllCandidates: "Select all",
       clearCandidates: "Clear selection",

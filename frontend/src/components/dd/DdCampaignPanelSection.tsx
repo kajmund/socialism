@@ -288,15 +288,21 @@ export function DdCampaignPanelSection({
       <section>
         <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-lg font-medium">{t("dd.panel.expertRolesTitle")}</h2>
-          {savingSelection ? (
-            <span className="text-xs text-muted-foreground">{t("dd.panel.savingSelection")}</span>
-          ) : null}
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            {savingSelection ? (
+              <span className="text-xs text-muted-foreground">{t("dd.panel.savingSelection")}</span>
+            ) : null}
+            <Link to="/bolag/experts">{t("dd.panel.manageExperts")}</Link>
+          </div>
         </div>
         <p className="mb-4 text-sm text-muted-foreground">{t("dd.panel.expertRolesIntro")}</p>
         {rolesLoading ? (
           <p className="text-sm text-muted-foreground">{t("dd.panel.rolesLoading")}</p>
         ) : expertRoles.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t("dd.panel.rolesEmpty")}</p>
+          <p className="text-sm text-muted-foreground">
+            {t("dd.panel.rolesEmpty")}{" "}
+            <Link to="/bolag/experts">{t("dd.panel.manageExperts")}</Link>
+          </p>
         ) : (
           <div className="grid gap-2 md:grid-cols-2">
             {expertRoles.map((role) => (
