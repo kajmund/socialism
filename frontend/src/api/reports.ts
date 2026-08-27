@@ -4,14 +4,24 @@ import type { Locale } from "@/i18n"
 
 export type ReportStatus = "pending" | "running" | "succeeded" | "failed"
 
-export type ReportSource = {
+export type OasisReportSource = {
+  type?: "oasis"
   run_id: number
   attempt_id: string
   label?: string
 }
 
-/** Legacy rows may still be `"full"`; new reports are always `"quick"`. */
-export type ReportMode = "full" | "quick"
+export type DdReportSource = {
+  type: "dd_session"
+  session_id: string
+  candidate_id: string
+  label?: string
+}
+
+export type ReportSource = OasisReportSource | DdReportSource
+
+/** Legacy rows may still be `"full"`; new OASIS reports are `"quick"`. */
+export type ReportMode = "full" | "quick" | "dd"
 
 export type Report = {
   id: string
@@ -29,14 +39,48 @@ export type Report = {
   updated_at: string
 }
 
-export type ReportCreate = {
+export type OasisReportCreate = {
   sources: Array<{ run_id: number; attempt_id: string }>
   title?: string
   locale?: Locale
+  mode?: "quick"
 }
 
-export function createReport(body: ReportCreate): Promise<Report> {
+export type DdReportCreate = {
+  sources: Array<{
+    type: "dd_session"
+    session_id: string
+    candidate_id: string
+  }>
+  title?: string
+  locale?: Locale
+  mode?: "dd"
+}
+
+export type ReportCreate = OasisReportCreate | DdReportCreate
+
+export function createReport(body: OasisReportCreate): Promise<Report> {
   return api.post<Report>("/reports", body)
+}
+
+export function createDdReport(body: {
+  session_id: string
+  candidate_id: string
+  title?: string
+  locale?: Locale
+}): Promise<Report> {
+  return api.post<Report>("/reports", {
+    mode: "dd",
+    title: body.title,
+    locale: body.locale,
+    sources: [
+      {
+        type: "dd_session",
+        session_id: body.session_id,
+        candidate_id: body.candidate_id,
+      },
+    ],
+  })
 }
 
 export function listReports(params?: {
