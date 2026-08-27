@@ -12,10 +12,36 @@ from app.services.report.locale import normalize_locale
 
 
 def _normalize_mode(value: str | None) -> str:
-    """Pass through legacy ``full`` rows; default new/unknown to ``quick``."""
+    """Pass through legacy ``full`` rows; recognize ``dd`` and default to ``quick``."""
     if value == "full":
         return "full"
+    if value == "dd":
+        return "dd"
     return "quick"
+
+
+def _normalize_sources(raw: list | None) -> list[dict]:
+    out: list[dict] = []
+    for item in raw or []:
+        if not isinstance(item, dict):
+            continue
+        if item.get("type") == "dd_session":
+            out.append(
+                {
+                    "type": "dd_session",
+                    "session_id": item.get("session_id"),
+                    "candidate_id": item.get("candidate_id"),
+                }
+            )
+        else:
+            out.append(
+                {
+                    "type": "oasis",
+                    "run_id": item.get("run_id"),
+                    "attempt_id": item.get("attempt_id"),
+                }
+            )
+    return out
 
 
 def serialize_report(report: Report) -> ReportOut:
@@ -25,7 +51,7 @@ def serialize_report(report: Report) -> ReportOut:
         title=report.title,
         locale=normalize_locale(getattr(report, "locale", None)),
         mode=_normalize_mode(getattr(report, "mode", None)),  # type: ignore[arg-type]
-        sources=list(report.sources or []),
+        sources=_normalize_sources(list(report.sources or [])),
         html_path=report.html_path,
         slots_path=report.slots_path,
         job_id=report.job_id,
