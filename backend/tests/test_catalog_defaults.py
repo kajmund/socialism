@@ -9,6 +9,7 @@ from app.serializers import utcnow
 from app.services.catalog_defaults import CATALOG_DEFAULTS
 from app.services.catalog_items import catalog_items_as_json, coerce_catalog_items
 from app.services.catalog_store import ensure_catalog_defaults
+from app.services.kund_store import ensure_default_kunder
 
 
 def _labels_for(key: str) -> list[str]:
@@ -51,7 +52,8 @@ async def session():
 
 
 async def _add_config_with_ton(session: AsyncSession, labels: list[str]) -> int:
-    config = Configuration(name="Test", language="sv", prompts={})
+    await ensure_default_kunder(session)
+    config = Configuration(name="Test", language="sv", prompts={}, customer_id=1)
     session.add(config)
     await session.flush()
     session.add(

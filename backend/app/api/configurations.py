@@ -43,6 +43,7 @@ from app.services.anchor_store import (
     ensure_default_anchor_sets,
     validate_configuration_anchor_refs,
 )
+from app.services.kund_store import default_os_customer_id
 from app.services.prompt_store import ensure_default_configurations, set_active_configuration
 from app.services.report.thresholds import (
     ReportThresholds,
@@ -187,7 +188,9 @@ async def create_configuration(
     now = utcnow()
     if body.is_active:
         await _deactivate_others(session, keep_id=None)
+    customer_id = await default_os_customer_id(session)
     row = Configuration(
+        customer_id=customer_id,
         name=body.name,
         language=body.language,
         prompts=prompts,

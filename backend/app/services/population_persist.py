@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 from app.database.models import Persona, Population, PopulationMember
 from app.schemas.domain import PopulationMemberCreate, PopulationRecipe
 from app.serializers import slug_id, utcnow
+from app.services.kund_store import default_os_customer_id
 from app.services.population_fingerprint import (
     compare_target_vs_achieved,
     fingerprint_from_members,
@@ -98,9 +99,11 @@ async def members_from_generation(
             persona_id = slug_id(persona.name)
             while await session.get(Persona, persona_id) is not None:
                 persona_id = slug_id(persona.name)
+            customer_id = await default_os_customer_id(session)
             session.add(
                 Persona(
                     id=persona_id,
+                    customer_id=customer_id,
                     name=persona.name,
                     age=persona.age,
                     occ=persona.occ,

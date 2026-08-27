@@ -12,6 +12,7 @@ from app.database.models import Message, Persona, Population, PopulationMember, 
 from app.database.session import SessionLocal, engine
 from app.schemas.domain import EditablePersona, new_message_id
 from app.serializers import blank_profile, persona_initials
+from app.services.kund_store import default_os_customer_id
 from app.services.prompt_store import ensure_default_configurations
 
 
@@ -1210,10 +1211,12 @@ async def seed(*, reset: bool = True) -> None:
             )
             return
 
+        customer_id = await default_os_customer_id(session)
         for row in PERSONAS:
             session.add(
                 Persona(
                     id=row["id"],
+                    customer_id=customer_id,
                     name=row["name"],
                     age=row["age"],
                     occ=row["occ"],

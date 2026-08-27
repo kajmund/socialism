@@ -65,6 +65,7 @@ async def _seed_ab_run(session: AsyncSession) -> Run:
     session.add(
         Persona(
             id="p1",
+            customer_id=1,
             name="Anna Test",
             age=40,
             occ="Lärare",
