@@ -12,7 +12,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.config import settings
-from app.database.models import Job, Report, Run
+from app.database.models import Job, PanelSession, Report, Run
 from app.database.session import SessionLocal
 from app.schemas.domain import (
     JobCreate,
@@ -36,16 +36,20 @@ from app.services.oasis_run import (
     previous_attempts,
     simulate_run,
 )
+from app.services.panel.engine import run_generic_panel
+from app.services.panel.schemas import PanelSessionRunJobRequest
 from app.services.population_persist import (
     create_population_from_generation,
     update_population_from_generation,
 )
+from app.services.prompt_store import require_active_prompts
 
 logger = logging.getLogger(__name__)
-
-_session_factory: async_sessionmaker[AsyncSession] | None = None
 _simulation_job_semaphore: asyncio.Semaphore | None = None
 _simulation_job_semaphore_limit: int | None = None
+
+
+_session_factory: async_sessionmaker[AsyncSession] | None = None
 
 
 def set_job_session_factory(factory: async_sessionmaker[AsyncSession] | None) -> None:
@@ -123,6 +127,13 @@ async def create_job(session: AsyncSession, body: JobCreate) -> Job:
         if report is None:
             raise ValueError(f"Report not found: {payload.report_id}")
         label = (body.label or "").strip() or report.title or payload.report_id
+    elif body.kind == "panel_session_run":
+        payload = PanelSessionRunJobRequest.model_validate(body.request)
+        panel = await session.get(PanelSession, payload.session_id)
+        if panel is None:
+            raise ValueError(f"Panel session not found: {payload.session_id}")
+        topic = str((panel.config or {}).get("topic") or payload.session_id)
+        label = (body.label or "").strip() or f"Panel: {topic[:80]}"
     else:
         raise ValueError(f"Unsupported job kind: {body.kind}")
 
@@ -179,6 +190,8 @@ async def _execute_job_kind(job_id: str, kind: str) -> None:
         await _run_simulate(job_id)
     elif kind == "report_generate":
         await _run_report_generate(job_id)
+    elif kind == "panel_session_run":
+        await _run_panel_session(job_id)
     else:
         factory = job_session_factory()
         async with factory() as session:
@@ -502,6 +515,49 @@ async def _run_report_generate(job_id: str) -> None:
             },
         )
 
+
+async def _run_panel_session(job_id: str) -> None:
+    factory = job_session_factory()
+    async with factory() as session:
+        job = await session.get(Job, job_id)
+        if job is None:
+            return
+        payload = PanelSessionRunJobRequest.model_validate(job.request or {})
+        panel = await session.get(PanelSession, payload.session_id)
+        if panel is None:
+            await _fail(session, job_id, f"Panel session not found: {payload.session_id}")
+            return
+        panel.status = "running"
+        panel.error = None
+        panel.updated_at = utcnow()
+        await session.commit()
+
+    try:
+        async with factory() as session:
+            panel = await session.get(PanelSession, payload.session_id)
+            if panel is None:
+                await _fail(session, job_id, f"Panel session not found: {payload.session_id}")
+                return
+            prompts = await require_active_prompts(session)
+            if panel.protocol != "generic_panel":
+                raise RuntimeError(f"Unsupported panel protocol: {panel.protocol}")
+            await run_generic_panel(session, panel, prompts)
+            await session.commit()
+
+        async with factory() as session:
+            await _succeed(session, job_id, {"session_id": payload.session_id})
+    except Exception as exc:
+        logger.exception("Panel session job %s failed", job_id)
+        async with factory() as session:
+            panel = await session.get(PanelSession, payload.session_id)
+            if panel is not None:
+                panel.status = "failed"
+                panel.error = (str(exc) or exc.__class__.__name__)[:2000]
+                panel.updated_at = utcnow()
+                await session.commit()
+            await _fail(session, job_id, str(exc) or exc.__class__.__name__)
+
+
 async def list_jobs(
     session: AsyncSession,
     *,
@@ -531,6 +587,7 @@ async def fail_interrupted_jobs(
     )
     run_ids: list[int] = []
     report_ids: list[str] = []
+    panel_session_ids: list[str] = []
     for job in active.scalars().all():
         if job.kind == "run_simulate":
             rid = (job.request or {}).get("run_id")
@@ -540,6 +597,10 @@ async def fail_interrupted_jobs(
             rid = (job.request or {}).get("report_id")
             if isinstance(rid, str):
                 report_ids.append(rid)
+        elif job.kind == "panel_session_run":
+            sid = (job.request or {}).get("session_id")
+            if isinstance(sid, str):
+                panel_session_ids.append(sid)
 
     result = await session.execute(
         update(Job)
@@ -575,6 +636,13 @@ async def fail_interrupted_jobs(
         report.finished_at = now
         report.updated_at = now
         failed_reports.append(report)
+    for session_id in panel_session_ids:
+        panel = await session.get(PanelSession, session_id)
+        if panel is None or panel.status not in {"pending", "running"}:
+            continue
+        panel.status = "failed"
+        panel.error = message
+        panel.updated_at = now
     await session.commit()
     for report in failed_reports:
         await publish_report(report)
