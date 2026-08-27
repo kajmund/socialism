@@ -9,6 +9,7 @@ from app.database.models import DdCampaign
 from app.serializers import format_date
 from app.services.dd.allabolag_mock import search_companies
 from app.services.dd.candidate_runs import list_candidate_runs, list_run_candidate_ids
+from app.services.kund_store import bolag_demo_customer_id
 from app.services.dd.schemas import (
     DdCampaignCreate,
     DdCampaignOut,
@@ -39,6 +40,7 @@ def serialize_campaign(
         candidates=[DdCandidateCompany.model_validate(c) for c in candidates_raw],
         selected_candidate_ids=list(row.selected_candidate_ids or []),
         expert_role_keys=list(row.expert_role_keys or []),
+        customer_id=row.customer_id,
         candidate_runs=list(candidate_runs or []),
         created_at=format_date(row.created_at) if row.created_at else "",
         updated_at=format_date(row.updated_at) if row.updated_at else "",
@@ -50,10 +52,17 @@ async def serialize_campaign_detail(session: AsyncSession, row: DdCampaign) -> D
     return serialize_campaign(row, candidate_runs=runs)
 
 
-async def list_campaigns(session: AsyncSession, *, module: str | None = None) -> list[DdCampaignOut]:
+async def list_campaigns(
+    session: AsyncSession,
+    *,
+    module: str | None = None,
+    customer_id: int | None = None,
+) -> list[DdCampaignOut]:
     stmt = select(DdCampaign).order_by(DdCampaign.updated_at.desc())
     if module:
         stmt = stmt.where(DdCampaign.module == module)
+    if customer_id is not None:
+        stmt = stmt.where(DdCampaign.customer_id == customer_id)
     rows = (await session.execute(stmt)).scalars().all()
     return [serialize_campaign(row, candidate_runs=[]) for row in rows]
 
@@ -64,7 +73,9 @@ async def get_campaign(session: AsyncSession, campaign_id: int) -> DdCampaign | 
 
 async def create_campaign(session: AsyncSession, body: DdCampaignCreate) -> DdCampaignOut:
     criteria = body.criteria or DdSourcingCriteria()
+    customer_id = await bolag_demo_customer_id(session)
     row = DdCampaign(
+        customer_id=customer_id,
         module=body.module,
         title=body.title.strip(),
         status="draft",

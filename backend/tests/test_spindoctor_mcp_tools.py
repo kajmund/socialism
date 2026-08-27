@@ -43,10 +43,15 @@ def _variant_payload(persona_id: str) -> dict:
     }
 
 
+from app.services.kund_store import ensure_default_kunder
+
+
 async def _seed_interview_report(session: AsyncSession) -> tuple[str, str]:
+    await ensure_default_kunder(session)
     now = utcnow()
     persona = Persona(
         id="p-johan",
+        customer_id=1,
         name="Johan Lindqvist",
         age=44,
         occ="Ekonom",
@@ -59,6 +64,7 @@ async def _seed_interview_report(session: AsyncSession) -> tuple[str, str]:
     pop = Population(id=1, name="Testpop", size=1, recipe={}, fingerprint=[])
     run = Run(
         id=7,
+        project_id=1,
         name="Testkörning",
         status="done",
         population_id=1,
@@ -169,6 +175,7 @@ async def test_list_runs_reports_populations(session):
     session.add(
         Run(
             id=7,
+            project_id=1,
             name="Testkörning",
             status="done",
             population_id=1,

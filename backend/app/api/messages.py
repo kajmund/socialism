@@ -30,6 +30,7 @@ from app.serializers import utcnow
 from app.api.message_images import router as message_images_router
 from app.api.message_images import message_image_sha256
 from app.services.image_cache import get_entry
+from app.services.kund_store import default_os_project_id
 from app.services.prompt_store import require_active_prompts
 
 router = APIRouter(prefix="/messages", tags=["messages"])
@@ -54,6 +55,7 @@ def _serialize(row: Message) -> MessageOut:
         image_sha256=digest,
         image_caption=caption,
         created_at=format_date(row.created_at) if row.created_at else "",
+        project_id=row.project_id,
     )
 
 
@@ -68,9 +70,12 @@ async def _get_message(session: AsyncSession, message_id: str) -> Message:
 async def list_messages(
     q: str | None = Query(default=None),
     type: MessageType | None = Query(default=None),
+    project_id: int | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
 ) -> list[MessageOut]:
     stmt = select(Message).order_by(Message.created_at.desc())
+    if project_id is not None:
+        stmt = stmt.where(Message.project_id == project_id)
     if type is not None:
         stmt = stmt.where(Message.type == type)
     if q:
@@ -136,6 +141,7 @@ async def create_message(
         )
     row = Message(
         id=message_id,
+        project_id=await default_os_project_id(session),
         type=body.type,
         title=body.title,
         body=body.body,

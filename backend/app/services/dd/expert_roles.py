@@ -36,7 +36,12 @@ async def load_expert_slots(
     *,
     role_keys: list[str] | None = None,
 ) -> list[PanelExpertSlot]:
-    """Resolve expert slots from active configuration's dd_expertpanel catalog."""
+    """Resolve expert slots from active configuration's dd_expertpanel catalog.
+
+    Intentional for now: uses the globally active Configuration (Devbrains tenant),
+    not the DD campaign's customer_id. Bolag-demo gets its own expert catalog only when
+    per-customer active configuration is implemented (auth card).
+    """
     active = await get_active_configuration(session)
     if active is None:
         raise MissingActiveConfigurationError("No active configuration")

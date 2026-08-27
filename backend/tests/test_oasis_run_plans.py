@@ -34,6 +34,7 @@ def _tick(key: str, day: int, text: str = "", *, silent: bool = False) -> dict:
 def test_variant_plans_without_branch_uses_main_ticks():
     run = Run(
         id=1,
+        project_id=1,
         name="x",
         status="draft",
         population_id=1,
@@ -53,6 +54,7 @@ def test_variant_plans_without_branch_uses_main_ticks():
 def test_variant_plans_with_branch_builds_stem_plus_a_and_b():
     run = Run(
         id=2,
+        project_id=1,
         name="ab",
         status="draft",
         population_id=1,
@@ -84,6 +86,7 @@ def test_variant_plans_with_branch_builds_stem_plus_a_and_b():
 def test_variant_plans_stimulus_control_uses_mode_labels():
     run = Run(
         id=3,
+        project_id=1,
         name="sc",
         status="draft",
         population_id=1,

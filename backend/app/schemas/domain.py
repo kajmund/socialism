@@ -424,6 +424,7 @@ MessageVariant = Literal["analytical", "narrative", "concise"]
 
 class MessageOut(BaseModel):
     id: str
+    project_id: int
     type: MessageType
     title: str
     body: str
@@ -980,6 +981,7 @@ class RunSummary(BaseModel):
 
 
 class RunDetail(RunSummary):
+    project_id: int
     population_id: int
     start_date: str | None = None
     main_ticks: list[Tick] = Field(default_factory=list)

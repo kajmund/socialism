@@ -105,6 +105,7 @@ async def interview_client():
     async with session_factory() as session:
         persona = Persona(
             id="p-anna",
+            customer_id=1,
             name="Anna",
             age=40,
             occ="Lärare",
@@ -139,6 +140,7 @@ async def interview_client():
         )
         run = Run(
             name="InterviewRun",
+            project_id=1,
             status="done",
             population_id=pop.id,
             seed="s",

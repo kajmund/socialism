@@ -34,6 +34,11 @@ _IMAGE_CACHE_ROOT = tempfile.mkdtemp(prefix="image-cache-")
 settings.image_cache_dir = _IMAGE_CACHE_ROOT
 settings.log_dir = ""
 
+# Seeded by ensure_default_kunder() as Devbrains (primary OS tenant).
+TEST_CUSTOMER_ID = 1
+# Default projekt under Devbrains from ensure_default_kunder().
+TEST_PROJECT_ID = 1
+
 
 @pytest.fixture(autouse=True)
 def _reset_llm_completers():
@@ -117,3 +122,11 @@ async def client():
     jobs_service.set_job_session_factory(None)
     jobs_service.set_schedule_hook(None)
     await engine.dispose()
+
+
+@pytest.fixture
+async def client_db(client):
+    """HTTP client and its session factory (same in-memory DB)."""
+    factory = jobs_service.job_session_factory()
+    assert factory is not None
+    yield client, factory
