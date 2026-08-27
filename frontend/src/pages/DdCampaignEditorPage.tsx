@@ -7,12 +7,12 @@ import {
   runDdCampaignSourcing,
   updateDdCampaign,
   type DdCampaign,
-  type DdCandidateCompany,
   type DdResultatFilter,
   type DdSourcingCriteria,
 } from "@/api/dd"
 import { useLocale } from "@/i18n"
 import { ApiError } from "@/lib/api"
+import { DdCampaignPanelSection } from "@/components/dd/DdCampaignPanelSection"
 
 const RESULTAT_OPTIONS: DdResultatFilter[] = ["oavsett", "vinst", "förlust"]
 
@@ -85,59 +85,6 @@ function CriteriaForm({
           onChange={(e) => onChange({ ...criteria, fritext: e.target.value })}
         />
       </label>
-    </div>
-  )
-}
-
-function CandidateList({ candidates }: { candidates: DdCandidateCompany[] }) {
-  const { t, intl } = useLocale()
-  if (candidates.length === 0) return null
-
-  return (
-    <div className="mt-8">
-      <h2 className="mb-3 text-lg font-medium">{t("dd.sourcing.candidatesTitle")}</h2>
-      <div className="grid gap-3">
-        {candidates.map((c) => (
-          <div
-            key={c.id}
-            className="rounded-md border border-[color:var(--border-hairline)] bg-db-ink-0 p-4"
-          >
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <div className="font-medium">{c.namn}</div>
-              <div className="text-xs text-muted-foreground">{c.organisationsnummer}</div>
-            </div>
-            <p className="mt-2 text-sm text-muted-foreground">{c.beskrivning}</p>
-            <dl className="mt-3 grid gap-1 text-sm md:grid-cols-2">
-              <div>
-                <dt className="text-xs uppercase tracking-wide text-muted-foreground">
-                  {t("dd.sourcing.candidateAge")}
-                </dt>
-                <dd>{t("dd.sourcing.candidateAgeValue", { years: c.alder_ar })}</dd>
-              </div>
-              <div>
-                <dt className="text-xs uppercase tracking-wide text-muted-foreground">
-                  {t("dd.sourcing.candidateRegion")}
-                </dt>
-                <dd>{c.omrade}</dd>
-              </div>
-              <div>
-                <dt className="text-xs uppercase tracking-wide text-muted-foreground">
-                  {t("dd.sourcing.candidateResult")}
-                </dt>
-                <dd>{t(`dd.sourcing.resultatOptions.${c.resultat}`)}</dd>
-              </div>
-              {c.omsattning_sek != null ? (
-                <div>
-                  <dt className="text-xs uppercase tracking-wide text-muted-foreground">
-                    {t("dd.sourcing.candidateRevenue")}
-                  </dt>
-                  <dd>{new Intl.NumberFormat(intl).format(c.omsattning_sek)} SEK</dd>
-                </div>
-              ) : null}
-            </dl>
-          </div>
-        ))}
-      </div>
     </div>
   )
 }
@@ -317,7 +264,12 @@ export function DdCampaignEditorPage() {
           </div>
         </form>
 
-        {!isNew && campaign ? <CandidateList candidates={campaign.candidates} /> : null}
+        {!isNew && campaign ? (
+          <DdCampaignPanelSection
+            campaign={campaign}
+            onCampaignChange={setCampaign}
+          />
+        ) : null}
       </div>
 
       {toast ? (
