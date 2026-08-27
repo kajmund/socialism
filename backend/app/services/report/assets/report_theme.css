@@ -129,6 +129,7 @@ body {
 }
 .badge.confirmed { background: var(--db-success); color: #fff; }
 .badge.indicated { background: var(--db-gold-500); color: var(--db-navy-ink); }
+.badge.web { background: #3b6ea5; color: #fff; }
 .badge.single { background: var(--text-muted); color: #fff; }
 
 .finding-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
