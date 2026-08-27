@@ -2,7 +2,7 @@ import { api } from "@/lib/api"
 
 export type SpindoctorWidgetKind = "chart" | "note" | "report_snippet" | "interview"
 
-export type SpindoctorChartType = "hbar" | "donut" | "stat_number"
+export type SpindoctorChartType = "hbar" | "donut" | "stat_number" | "radar"
 
 export type SpindoctorWidget = {
   id: string
@@ -54,7 +54,8 @@ export function parseSpindoctorWidget(raw: unknown): SpindoctorWidget | null {
     chart_type:
       row.chart_type === "hbar" ||
       row.chart_type === "donut" ||
-      row.chart_type === "stat_number"
+      row.chart_type === "stat_number" ||
+      row.chart_type === "radar"
         ? row.chart_type
         : null,
     series: Array.isArray(row.series)

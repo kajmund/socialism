@@ -11,13 +11,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.session import get_session
 from app.services.dd.campaigns import (
+    apply_sourcing_run,
     create_campaign,
     get_campaign,
     list_campaigns,
     run_sourcing,
-    serialize_campaign,
+    serialize_campaign_detail,
     update_campaign,
 )
+from app.services.dd.candidate_runs import upsert_panel_session
 from app.services.dd.panel_sessions import create_dd_panel_session_from_campaign
 from app.services.dd.schemas import (
     DdCampaignCreate,
@@ -47,9 +49,9 @@ async def post_campaign(
     body: DdCampaignCreate,
     session: AsyncSession = Depends(get_session),
 ) -> DdCampaignOut:
-    row = await create_campaign(session, body)
+    out = await create_campaign(session, body)
     await session.commit()
-    return row
+    return out
 
 
 @router.get("/campaigns/{campaign_id}", response_model=DdCampaignOut)
@@ -60,7 +62,7 @@ async def get_campaign_by_id(
     row = await get_campaign(session, campaign_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Campaign not found")
-    return serialize_campaign(row)
+    return await serialize_campaign_detail(session, row)
 
 
 @router.patch("/campaigns/{campaign_id}", response_model=DdCampaignOut)
@@ -92,7 +94,7 @@ async def post_campaign_sourcing_run(
     if row is None:
         raise HTTPException(status_code=404, detail="Campaign not found")
     criteria = DdSourcingCriteria.model_validate(row.criteria or {})
-    candidates = run_sourcing(criteria)
+    candidates = await apply_sourcing_run(session, row, criteria)
     out = await update_campaign(
         session,
         row,
@@ -125,5 +127,11 @@ async def post_dd_panel_session(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     out = await create_panel_session(session, create_body)
+    await upsert_panel_session(
+        session,
+        campaign_id=campaign_id,
+        candidate_id=body.candidate_id,
+        panel_session_id=out.id,
+    )
     await session.commit()
     return out

@@ -36,7 +36,7 @@ from app.services.spindoctor_tools import (
     spindoctor_tool_specs,
 )
 
-ChartType = Literal["hbar", "donut", "stat_number"]
+ChartType = Literal["hbar", "donut", "stat_number", "radar"]
 WidgetKind = Literal["chart", "note", "report_snippet", "interview"]
 
 _SCB_TOOL_NAMES = frozenset(
@@ -58,6 +58,7 @@ _DATA_TOOL_NAMES = frozenset(
         "list_actors",
         "get_citizen",
         "get_report_ssr",
+        "get_report_dd",
     }
 )
 _WIDGET_TOOL_NAMES = frozenset({"render_chart", "place_note", "start_interview"})
@@ -203,7 +204,25 @@ def _list_tool_specs() -> list[dict[str, Any]]:
             "function": {
                 "name": "get_report_ssr",
                 "description": (
-                    "Load report.ssr.json aggregates (tone, style, thresholds) for a report id."
+                    "Load report.ssr.json aggregates (tone, style, thresholds) for an OASIS "
+                    "simulation report id."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "report_id": {"type": "string"},
+                    },
+                    "required": ["report_id"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_report_dd",
+                "description": (
+                    "Load report.dd.json (candidate, expert scores, dissensus, summary) for a "
+                    "DD report id."
                 ),
                 "parameters": {
                     "type": "object",
@@ -225,14 +244,15 @@ def _widget_tool_specs() -> list[dict[str, Any]]:
                 "name": "render_chart",
                 "description": (
                     "Place a chart widget on the Spinndoktor grid. "
-                    "Use hbar for style shares, donut for tone/topics, stat_number for one KPI."
+                    "Use hbar for style shares, donut for tone/topics, stat_number for one KPI, "
+                    "radar for DD sub-question scores (0–10 per axis)."
                 ),
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "chart_type": {
                             "type": "string",
-                            "enum": ["hbar", "donut", "stat_number"],
+                            "enum": ["hbar", "donut", "stat_number", "radar"],
                         },
                         "title": {"type": "string"},
                         "series": {
@@ -403,6 +423,7 @@ async def _list_reports(session: AsyncSession, arguments: dict[str, Any]) -> str
             "title": row.title,
             "status": row.status,
             "locale": row.locale,
+            "mode": row.mode,
         }
         for row in rows
     ]
@@ -429,6 +450,16 @@ async def _get_report_ssr(arguments: dict[str, Any]) -> str:
     return path.read_text(encoding="utf-8")
 
 
+async def _get_report_dd(arguments: dict[str, Any], *, ctx: SpindoctorToolContext) -> str:
+    report_id = str(arguments.get("report_id") or ctx.report_id or "").strip()
+    if not report_id:
+        return "report_id is required"
+    path = Path(ARTIFACT_ROOT) / report_id / "report.dd.json"
+    if not path.is_file():
+        return f"report.dd.json not found for {report_id!r}"
+    return path.read_text(encoding="utf-8")
+
+
 def _normalize_series(raw: object) -> list[dict[str, float | str]]:
     if not isinstance(raw, list):
         raise ValueError("series must be an array")
@@ -451,13 +482,18 @@ def _normalize_series(raw: object) -> list[dict[str, float | str]]:
 
 async def _render_chart(ctx: SpindoctorToolContext, arguments: dict[str, Any]) -> str:
     chart_raw = str(arguments.get("chart_type") or "").strip()
-    if chart_raw not in {"hbar", "donut", "stat_number"}:
-        raise ValueError("chart_type must be hbar, donut, or stat_number")
+    if chart_raw not in {"hbar", "donut", "stat_number", "radar"}:
+        raise ValueError("chart_type must be hbar, donut, stat_number, or radar")
     chart_type: ChartType = chart_raw  # type: ignore[assignment]
     title = str(arguments.get("title") or "").strip()
     if not title:
         raise ValueError("title is required")
     series = _normalize_series(arguments.get("series"))
+    if chart_type == "radar":
+        for row in series:
+            value = float(row["value"])
+            if value < 0 or value > 10:
+                raise ValueError("radar series values must be between 0 and 10")
     widget = await _widget_out(
         ctx,
         kind="chart",
@@ -823,7 +859,11 @@ async def _resolve_bundles(
     arguments: dict[str, Any],
 ) -> list[RunBundle]:
     if ctx.report_id:
-        _report, bundles = await load_spindoctor_source(session, report_id=ctx.report_id)
+        report, bundles = await load_spindoctor_source(session, report_id=ctx.report_id)
+        if report.mode == "dd":
+            raise ValueError(
+                "Interview tools require a simulation (OASIS) report, not a DD report"
+            )
         return bundles
     run_id = arguments.get("run_id")
     attempt_id = str(arguments.get("attempt_id") or "").strip()
@@ -883,6 +923,9 @@ async def run_spindoctor_mcp_tool(
 
     if name == "get_report_ssr":
         return await _get_report_ssr(arguments)
+
+    if name == "get_report_dd":
+        return await _get_report_dd(arguments, ctx=ctx)
 
     if name in _DATA_TOOL_NAMES:
         if ctx.report_id:

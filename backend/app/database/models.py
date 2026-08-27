@@ -726,6 +726,49 @@ class DdCampaign(Base):
     kund: Mapped[Kund] = relationship(back_populates="dd_campaigns")
 
 
+class DdCandidateRun(Base):
+    """Links a campaign candidate to its panel session and DD report."""
+
+    __tablename__ = "dd_candidate_runs"
+    __table_args__ = (
+        UniqueConstraint(
+            "campaign_id",
+            "candidate_id",
+            name="uq_dd_candidate_runs_campaign_candidate",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    campaign_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("dd_campaigns.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    candidate_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    panel_session_id: Mapped[str | None] = mapped_column(
+        String(64),
+        ForeignKey("panel_sessions.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    report_id: Mapped[str | None] = mapped_column(
+        String(64),
+        ForeignKey("reports.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+
 class PanelSession(Base):
     """Panel engine session — generic_panel and future protocols."""
 
