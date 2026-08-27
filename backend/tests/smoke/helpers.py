@@ -76,6 +76,7 @@ async def seed_smoke_run(
 
     run = Run(
         name="OASIS smoke harness",
+        project_id=1,
         status="running",
         population_id=pop.id,
         seed="smoke-harness",

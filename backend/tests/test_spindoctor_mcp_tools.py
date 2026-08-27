@@ -64,6 +64,7 @@ async def _seed_interview_report(session: AsyncSession) -> tuple[str, str]:
     pop = Population(id=1, name="Testpop", size=1, recipe={}, fingerprint=[])
     run = Run(
         id=7,
+        project_id=1,
         name="Testkörning",
         status="done",
         population_id=1,
@@ -173,6 +174,7 @@ async def test_list_runs_reports_populations(session):
     session.add(
         Run(
             id=7,
+            project_id=1,
             name="Testkörning",
             status="done",
             population_id=1,

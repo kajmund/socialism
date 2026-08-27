@@ -93,3 +93,20 @@ async def bolag_demo_customer_id(session: AsyncSession) -> int:
             f"Bolag demo kund {BOLAG_DEMO_KUND_SLUG!r} missing — run ensure_default_kunder"
         )
     return int(row.id)
+
+
+async def default_os_project_id(session: AsyncSession) -> int:
+    """Default project under the OS tenant — fail loud if seed was not run."""
+    customer_id = await default_os_customer_id(session)
+    result = await session.execute(
+        select(Projekt).where(
+            Projekt.customer_id == customer_id,
+            Projekt.slug == DEFAULT_PROJEKT_SLUG,
+        )
+    )
+    row = result.scalar_one_or_none()
+    if row is None:
+        raise RuntimeError(
+            f"Default projekt {DEFAULT_PROJEKT_SLUG!r} missing — run ensure_default_kunder"
+        )
+    return int(row.id)

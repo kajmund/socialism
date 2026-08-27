@@ -140,6 +140,7 @@ async def interview_client():
         )
         run = Run(
             name="InterviewRun",
+            project_id=1,
             status="done",
             population_id=pop.id,
             seed="s",

@@ -37,6 +37,7 @@ from app.serializers import (
     utcnow,
 )
 from app.services import jobs as jobs_service
+from app.services.kund_store import default_os_project_id
 from app.services.anchor_pool import (
     AnchorPoolError,
     active_anchor_context,
@@ -208,9 +209,11 @@ async def create_run(
     population = await session.get(Population, body.population_id)
     if population is None:
         raise HTTPException(status_code=404, detail="Population not found")
+    project_id = await default_os_project_id(session)
     run = Run(
         name=body.name,
         status=body.status,
+        project_id=project_id,
         population_id=body.population_id,
         seed="",
         start_date=parse_optional_date(body.start_date),
@@ -322,6 +325,7 @@ async def duplicate_run(
     run = Run(
         name=f"{source.name} (kopia)",
         status="draft",
+        project_id=source.project_id,
         population_id=source.population_id,
         seed="",
         start_date=source.start_date,

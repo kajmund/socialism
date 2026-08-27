@@ -80,6 +80,7 @@ async def session():
         db.add(
             Run(
                 id=7,
+                project_id=1,
                 name="Testkörning",
                 status="done",
                 population_id=1,

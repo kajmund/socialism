@@ -263,6 +263,7 @@ async def test_build_run_replay_from_live_progress(
     await session.flush()
     run = Run(
         name="Live",
+        project_id=1,
         status="running",
         population_id=pop.id,
         seed="s",

@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import DdCampaign
 from app.serializers import format_date
 from app.services.dd.allabolag_mock import search_companies
+from app.services.kund_store import bolag_demo_customer_id
 from app.services.dd.schemas import (
     DdCampaignCreate,
     DdCampaignOut,
@@ -33,6 +34,7 @@ def serialize_campaign(row: DdCampaign) -> DdCampaignOut:
         candidates=[DdCandidateCompany.model_validate(c) for c in candidates_raw],
         selected_candidate_ids=list(row.selected_candidate_ids or []),
         expert_role_keys=list(row.expert_role_keys or []),
+        customer_id=row.customer_id,
         created_at=format_date(row.created_at) if row.created_at else "",
         updated_at=format_date(row.updated_at) if row.updated_at else "",
     )
@@ -52,7 +54,9 @@ async def get_campaign(session: AsyncSession, campaign_id: int) -> DdCampaign | 
 
 async def create_campaign(session: AsyncSession, body: DdCampaignCreate) -> DdCampaignOut:
     criteria = body.criteria or DdSourcingCriteria()
+    customer_id = await bolag_demo_customer_id(session)
     row = DdCampaign(
+        customer_id=customer_id,
         module=body.module,
         title=body.title.strip(),
         status="draft",

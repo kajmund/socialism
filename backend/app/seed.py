@@ -12,7 +12,7 @@ from app.database.models import Message, Persona, Population, PopulationMember, 
 from app.database.session import SessionLocal, engine
 from app.schemas.domain import EditablePersona, new_message_id
 from app.serializers import blank_profile, persona_initials
-from app.services.kund_store import default_os_customer_id
+from app.services.kund_store import bolag_demo_customer_id, default_os_customer_id, default_os_project_id
 from app.services.prompt_store import ensure_default_configurations
 
 
@@ -1212,6 +1212,7 @@ async def seed(*, reset: bool = True) -> None:
             return
 
         customer_id = await default_os_customer_id(session)
+        project_id = await default_os_project_id(session)
         for row in PERSONAS:
             session.add(
                 Persona(
@@ -1233,6 +1234,7 @@ async def seed(*, reset: bool = True) -> None:
             session.add(
                 Message(
                     id=row["id"],
+                    project_id=project_id,
                     type=row["type"],
                     title=row["title"],
                     body=row["body"],
@@ -1309,6 +1311,7 @@ async def seed(*, reset: bool = True) -> None:
                 Run(
                     name=row["name"],
                     status=row["status"],
+                    project_id=project_id,
                     population_id=population.id,
                     seed=row["seed"],
                     start_date=date(2026, 7, 1),
