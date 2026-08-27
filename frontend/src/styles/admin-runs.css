@@ -937,6 +937,12 @@ table.lt.pol .lock.on{background:var(--db-gold-700);border-color:var(--db-gold-7
 .spinndoctor-chart-stat{display:grid;gap:4px;justify-items:start}
 .spinndoctor-chart-stat-value{font-size:28px;font-weight:600;line-height:1}
 .spinndoctor-chart-stat-label{font-size:12px;color:var(--text-muted)}
+.spinndoctor-chart-radar{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:center}
+.spinndoctor-chart-radar-svg{width:100%;max-width:220px;justify-self:center}
+.spinndoctor-chart-radar-grid{fill:none;stroke:var(--db-ink-100);stroke-width:1}
+.spinndoctor-chart-radar-axis{stroke:var(--db-ink-100);stroke-width:1}
+.spinndoctor-chart-radar-fill{fill:rgba(196,146,42,.18);stroke:var(--db-gold-500);stroke-width:2}
+.spinndoctor-chart-radar-dot{fill:var(--db-gold-600);stroke:var(--db-ink-0);stroke-width:1}
 .spinndoctor-canvas-toggle{font-size:12px;color:var(--db-gold-700);background:transparent;border:0;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
 .spinndoctor-canvas-toggle:disabled{opacity:.4;cursor:not-allowed;text-decoration:none}
 .spinndoctor-workspace-board-error{font-size:12px;color:#b42318;padding:0 8px}

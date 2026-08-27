@@ -178,6 +178,11 @@ def _section_title(section_id: str, *, locale: ConfigurationLanguage) -> str:
         "valjargrupper": "Väljargrupper",
         "rekommendation": "Rekommendation",
         "appendix": "Appendix",
+        "sammanfattning": "Sammanfattning",
+        "kandidat": "Kandidat",
+        "delfragor": "Delfrågor",
+        "poangmatris": "Poängmatris",
+        "kallbilaga": "Källbilaga",
     }
     titles_en = {
         "mottagande": "Reception",
@@ -187,6 +192,11 @@ def _section_title(section_id: str, *, locale: ConfigurationLanguage) -> str:
         "valjargrupper": "Voter groups",
         "rekommendation": "Recommendation",
         "appendix": "Appendix",
+        "sammanfattning": "Summary",
+        "kandidat": "Candidate",
+        "delfragor": "Sub-questions",
+        "poangmatris": "Score matrix",
+        "kallbilaga": "Sources",
     }
     table = titles_en if locale == "en" else titles_sv
     return table.get(section_id, section_id)
