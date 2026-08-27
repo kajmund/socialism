@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react"
 import { Navigate, useLocation } from "react-router-dom"
 import { useAuth } from "@/auth/AuthProvider"
+import { homePathForRole } from "@/lib/auth"
 import { LocaleSwitcher } from "@/components/layout/LocaleSwitcher"
 import { useLocale } from "@/i18n"
 
@@ -19,7 +20,10 @@ export function LoginPage() {
   const [submitting, setSubmitting] = useState(false)
 
   if (loading) return <div className="min-h-svh bg-db-black" aria-hidden="true" />
-  if (session) return <Navigate to={from && from !== "/login" ? from : "/"} replace />
+  if (session) {
+    const dest = from && from !== "/login" ? from : homePathForRole(session.user.role)
+    return <Navigate to={dest} replace />
+  }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()

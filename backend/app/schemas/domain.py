@@ -1032,7 +1032,14 @@ def format_date(value: datetime | None) -> str:
     return value.date().isoformat()
 
 
-CatalogSection = Literal["demografi", "politik", "varderingar", "rost_media", "simulering"]
+CatalogSection = Literal[
+    "demografi",
+    "politik",
+    "varderingar",
+    "rost_media",
+    "simulering",
+    "dd_expertpanel",
+]
 
 
 class GeoBounds(BaseModel):
@@ -1056,6 +1063,10 @@ class CatalogItem(BaseModel):
     label: str
     description: str = ""
     bounds: GeoBounds | None = None
+    kompetensomrade: str = ""
+    radgivningsstil: str = ""
+    yrkesbakgrund: str = ""
+    professionell_anekdot: str = ""
 
 
 class CatalogListOut(BaseModel):
@@ -1097,6 +1108,10 @@ class CatalogListUpdate(BaseModel):
                     label=label,
                     description=item.description.strip(),
                     bounds=item.bounds,
+                    kompetensomrade=item.kompetensomrade.strip(),
+                    radgivningsstil=item.radgivningsstil.strip(),
+                    yrkesbakgrund=item.yrkesbakgrund.strip(),
+                    professionell_anekdot=item.professionell_anekdot.strip(),
                 )
             )
         return cleaned

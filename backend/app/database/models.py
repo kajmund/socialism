@@ -601,3 +601,29 @@ class ReportVerdictCalibration(Base):
         onupdate=func.now(),
         nullable=False,
     )
+
+
+class DdCampaign(Base):
+    """DD module campaign (M&A sourcing + panel) — phase 0 persistence."""
+
+    __tablename__ = "dd_campaigns"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    module: Mapped[str] = mapped_column(String(32), nullable=False, default="dd", index=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="draft")
+    criteria: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    candidates: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    selected_candidate_ids: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    expert_role_keys: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )

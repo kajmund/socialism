@@ -6,6 +6,7 @@ export type CatalogSection =
   | "varderingar"
   | "rost_media"
   | "simulering"
+  | "dd_expertpanel"
 
 export type GeoBounds = {
   south: number
@@ -18,6 +19,10 @@ export type CatalogItem = {
   label: string
   description: string
   bounds: GeoBounds | null
+  kompetensomrade?: string
+  radgivningsstil?: string
+  yrkesbakgrund?: string
+  professionell_anekdot?: string
 }
 
 export type CatalogList = {
@@ -34,6 +39,7 @@ export const SECTION_ORDER: CatalogSection[] = [
   "varderingar",
   "rost_media",
   "simulering",
+  "dd_expertpanel",
 ]
 
 export function listCatalog(): Promise<CatalogList[]> {
@@ -64,4 +70,16 @@ export function catalogToFieldOptions(
 
 export function blankCatalogItem(label = ""): CatalogItem {
   return { label, description: "", bounds: null }
+}
+
+export function blankExpertCatalogItem(label = ""): CatalogItem {
+  return {
+    label,
+    description: "",
+    bounds: null,
+    kompetensomrade: "",
+    radgivningsstil: "",
+    yrkesbakgrund: "",
+    professionell_anekdot: "",
+  }
 }
