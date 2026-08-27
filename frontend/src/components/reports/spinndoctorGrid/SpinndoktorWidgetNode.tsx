@@ -26,7 +26,11 @@ function formatWidgetCopyText(
     case "chart":
       for (const row of widget.series ?? []) {
         const value =
-          row.value <= 1 ? `${Math.round(row.value * 100)}%` : String(Math.round(row.value))
+          widget.chart_type === "radar"
+            ? `${Math.round(row.value * 10) / 10}/10`
+            : row.value <= 1
+              ? `${Math.round(row.value * 100)}%`
+              : String(Math.round(row.value))
         lines.push(`${row.label}: ${value}`)
       }
       break
