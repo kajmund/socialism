@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.session import get_session
 from app.services.dd.campaigns import (
+    apply_sourcing_run,
     create_campaign,
     get_campaign,
     list_campaigns,
@@ -88,7 +89,7 @@ async def post_campaign_sourcing_run(
     if row is None:
         raise HTTPException(status_code=404, detail="Campaign not found")
     criteria = DdSourcingCriteria.model_validate(row.criteria or {})
-    candidates = run_sourcing(criteria)
+    candidates = await apply_sourcing_run(session, row, criteria)
     out = await update_campaign(
         session,
         row,

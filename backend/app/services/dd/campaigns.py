@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import DdCampaign
 from app.serializers import format_date
 from app.services.dd.allabolag_mock import search_companies
-from app.services.dd.candidate_runs import list_candidate_runs
+from app.services.dd.candidate_runs import list_candidate_runs, list_run_candidate_ids
 from app.services.dd.schemas import (
     DdCampaignCreate,
     DdCampaignOut,
@@ -103,3 +103,45 @@ async def update_campaign(
 
 def run_sourcing(criteria: DdSourcingCriteria) -> list[DdCandidateCompany]:
     return search_companies(criteria)
+
+
+def merge_sourcing_candidates(
+    existing_raw: list,
+    incoming: list[DdCandidateCompany],
+    *,
+    protected_candidate_ids: set[str] | None = None,
+) -> list[DdCandidateCompany]:
+    """Merge sourcing hits into campaign candidates — upsert on organisationsnummer, never drop rows."""
+    existing = [DdCandidateCompany.model_validate(c) for c in (existing_raw or [])]
+    protected = protected_candidate_ids or set()
+    by_orgnr: dict[str, DdCandidateCompany] = {c.organisationsnummer: c for c in existing}
+    by_id: dict[str, DdCandidateCompany] = {c.id: c for c in existing}
+    order_orgnrs = [c.organisationsnummer for c in existing]
+
+    for candidate in incoming:
+        orgnr = candidate.organisationsnummer
+        if orgnr not in by_orgnr:
+            order_orgnrs.append(orgnr)
+        by_orgnr[orgnr] = candidate
+        by_id[candidate.id] = candidate
+
+    merged = [by_orgnr[orgnr] for orgnr in order_orgnrs]
+    merged_ids = {c.id for c in merged}
+    for candidate_id in protected:
+        if candidate_id not in merged_ids and candidate_id in by_id:
+            merged.append(by_id[candidate_id])
+    return merged
+
+
+async def apply_sourcing_run(
+    session: AsyncSession,
+    row: DdCampaign,
+    criteria: DdSourcingCriteria,
+) -> list[DdCandidateCompany]:
+    incoming = run_sourcing(criteria)
+    protected = await list_run_candidate_ids(session, row.id)
+    return merge_sourcing_candidates(
+        row.candidates if isinstance(row.candidates, list) else [],
+        incoming,
+        protected_candidate_ids=protected,
+    )
