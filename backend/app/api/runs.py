@@ -155,9 +155,12 @@ async def _snapshot_message_bodies(session: AsyncSession, run: Run) -> None:
 async def list_runs(
     q: str | None = Query(default=None),
     status: str | None = Query(default=None),
+    project_id: int | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
 ) -> list[RunSummary]:
     stmt = select(Run).options(selectinload(Run.population)).order_by(Run.updated_at.desc())
+    if project_id is not None:
+        stmt = stmt.where(Run.project_id == project_id)
     if status:
         stmt = stmt.where(Run.status == status)
     if q:

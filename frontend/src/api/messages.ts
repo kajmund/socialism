@@ -1,5 +1,6 @@
 import { api } from "@/lib/api"
 import { env } from "@/lib/env"
+import { OS_DEFAULT_PROJECT_ID } from "@/lib/scoping"
 
 export type MessageType = "post" | "news"
 export type MessageVariantKey = "analytical" | "narrative" | "concise"
@@ -43,8 +44,12 @@ export type GenerateVariantsRequest = {
 export function listMessages(params?: {
   q?: string
   type?: MessageType
+  project_id?: number
 }): Promise<Message[]> {
-  return api.get<Message[]>("/messages", params)
+  return api.get<Message[]>("/messages", {
+    ...params,
+    project_id: params?.project_id ?? OS_DEFAULT_PROJECT_ID,
+  })
 }
 
 export function getMessage(id: string): Promise<Message> {

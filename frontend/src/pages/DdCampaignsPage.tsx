@@ -21,7 +21,7 @@ export function DdCampaignsPage() {
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    listDdCampaigns("dd")
+    listDdCampaigns({ module: "dd" })
       .then((data) => {
         if (!cancelled) setRows(data)
       })

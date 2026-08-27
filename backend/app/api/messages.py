@@ -70,9 +70,12 @@ async def _get_message(session: AsyncSession, message_id: str) -> Message:
 async def list_messages(
     q: str | None = Query(default=None),
     type: MessageType | None = Query(default=None),
+    project_id: int | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
 ) -> list[MessageOut]:
     stmt = select(Message).order_by(Message.created_at.desc())
+    if project_id is not None:
+        stmt = stmt.where(Message.project_id == project_id)
     if type is not None:
         stmt = stmt.where(Message.type == type)
     if q:

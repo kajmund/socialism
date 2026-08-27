@@ -122,3 +122,11 @@ async def client():
     jobs_service.set_job_session_factory(None)
     jobs_service.set_schedule_hook(None)
     await engine.dispose()
+
+
+@pytest.fixture
+async def client_db(client):
+    """HTTP client and its session factory (same in-memory DB)."""
+    factory = jobs_service.job_session_factory()
+    assert factory is not None
+    yield client, factory
