@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Link, useNavigate, useParams } from "react-router-dom"
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom"
 import { deleteReport, getReportHtml, type Report } from "@/api/reports"
 import { ReportCanvas, type ReportCanvasHandle } from "@/components/reports/ReportCanvas"
 import { SpinndoktorGrid } from "@/components/reports/spinndoctorGrid/SpinndoktorGrid"
@@ -13,6 +13,7 @@ import {
   type SpindoctorWidget,
 } from "@/api/spindoctorWidgets"
 import { AdminShell } from "@/components/layout/AdminShell"
+import { BolagShell } from "@/components/layout/BolagShell"
 import { AdminButton } from "@/components/ui/admin-button"
 import { Card, CardContent } from "@/components/ui/card"
 import { useLocale, type MessageKey } from "@/i18n"
@@ -54,8 +55,13 @@ function formatReportDuration(
 
 export function ReportPage() {
   const { id } = useParams<{ id: string }>()
+  const location = useLocation()
   const navigate = useNavigate()
   const { t } = useLocale()
+  const isBolagReport = location.pathname.startsWith("/bolag/reports/")
+  const Shell = isBolagReport ? BolagShell : AdminShell
+  const reportsListPath = isBolagReport ? "/bolag/campaigns" : "/reports"
+  const reportsListLabel = isBolagReport ? t("dd.panel.backToCampaigns") : t("reports.backToList")
   const { reports, status: wsStatus, connected } = useReportsRealtime()
   const report = id ? reports.find((r) => r.id === id) ?? null : null
   const [html, setHtml] = useState<string | null>(null)
@@ -215,7 +221,7 @@ export function ReportPage() {
     setDeleting(true)
     try {
       await deleteReport(id)
-      navigate("/reports")
+      navigate(reportsListPath)
     } catch (err) {
       setDeleting(false)
       setConfirmDelete(false)
@@ -241,7 +247,7 @@ export function ReportPage() {
               {report?.title || t("reports.titleFallback")}
             </h1>
             <p>
-              <Link to="/reports">{t("reports.backToList")}</Link>
+              <Link to={reportsListPath}>{reportsListLabel}</Link>
               {report ? ` · ${t(STATUS_KEY[report.status])}` : null}
               {duration ? ` · ${t("reports.took", { duration })}` : null}
             </p>
@@ -257,7 +263,7 @@ export function ReportPage() {
         </div>
       </div>
 
-      {report ? (
+      {report && !isBolagReport ? (
         confirmDelete ? (
           <div
             className="confirm-row mb-4"
@@ -332,7 +338,7 @@ export function ReportPage() {
 
   if (viewMode === "spinndoctor" && id && html) {
     return (
-      <AdminShell>
+      <Shell>
         <div className="wrap spinndoctor-page">
           <div className="spinndoctor-workspace">
             <main className="spinndoctor-workspace-grid">
@@ -435,12 +441,12 @@ export function ReportPage() {
             </div>
           </div>
         </div>
-      </AdminShell>
+      </Shell>
     )
   }
 
   return (
-    <AdminShell>
+    <Shell>
       <div className="wrap" style={{ maxWidth: reportFullWidth ? "none" : 1100 }}>
         {pageChrome}
 
@@ -474,6 +480,6 @@ export function ReportPage() {
           />
         ) : null}
       </div>
-    </AdminShell>
+    </Shell>
   )
 }

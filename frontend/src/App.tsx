@@ -66,6 +66,7 @@ export default function App() {
               <Route path="campaigns" element={<DdCampaignsPage />} />
               <Route path="campaigns/new" element={<DdCampaignEditorPage />} />
               <Route path="campaigns/:id" element={<DdCampaignEditorPage />} />
+              <Route path="reports/:id" element={<ReportPage />} />
             </Route>
           </Route>
 
