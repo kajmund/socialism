@@ -4,13 +4,14 @@
  * keep this module as the only import surface for session + token.
  */
 
-export type Role = "admin" | "user"
+export type Role = "admin" | "user" | "bolag"
 
 export type AuthUser = {
   id: string
   username: string
   email: string
   role: Role
+  modules: string[]
 }
 
 export type AuthSession = {
@@ -47,6 +48,7 @@ const STATIC_ACCOUNTS: ReadonlyArray<{
       username: "admin",
       email: "admin@local",
       role: "admin",
+      modules: [],
     },
   },
   {
@@ -57,12 +59,29 @@ const STATIC_ACCOUNTS: ReadonlyArray<{
       username: "user",
       email: "user@local",
       role: "user",
+      modules: [],
+    },
+  },
+  {
+    username: "bolag",
+    password: "bolag",
+    user: {
+      id: "static-bolag",
+      username: "bolag",
+      email: "bolag@local",
+      role: "bolag",
+      modules: ["dd"],
     },
   },
 ]
 
 function isRole(value: unknown): value is Role {
-  return value === "admin" || value === "user"
+  return value === "admin" || value === "user" || value === "bolag"
+}
+
+function parseModules(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value.filter((item): item is string => typeof item === "string")
 }
 
 function parseSession(raw: string): AuthSession | null {
@@ -88,6 +107,7 @@ function parseSession(raw: string): AuthSession | null {
       username: fields.username,
       email: fields.email,
       role: fields.role,
+      modules: parseModules(fields.modules),
     },
     accessToken,
   }
@@ -135,4 +155,14 @@ export const authAdapter: AuthAdapter = staticAuthAdapter
 
 export function canAccessConfiguration(role: Role): boolean {
   return role === "admin"
+}
+
+export function hasModule(user: AuthUser | null | undefined, moduleId: string): boolean {
+  if (!user) return false
+  return user.modules.includes(moduleId)
+}
+
+export function homePathForRole(role: Role | null): string {
+  if (role === "bolag") return "/bolag"
+  return "/"
 }
