@@ -153,7 +153,8 @@ def search_companies(criteria: DdSourcingCriteria) -> list[DdCandidateCompany]:
         key=lambda r: hashlib.sha256(f"{seed}:{r['organisationsnummer']}".encode()).hexdigest(),
     )
 
-    # Always return at least five candidates for demo UX; pad from full pool when filters are tight.
+    # Demo minimum: pad with out-of-criteria companies when the filter yields <5 matches.
+    # Padded rows are deterministic but may not satisfy the caller's criteria — not silent hits.
     if len(ordered) < 5:
         seen = {str(r["organisationsnummer"]) for r in ordered}
         pool_order = sorted(
