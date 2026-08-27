@@ -407,6 +407,12 @@ def run_spindoctor_tool_on_bundles(
     return _get_citizen(bundles, arguments)
 
 
+_OASIS_ONLY_NOTE = (
+    "This tool applies to simulation (OASIS) reports only. "
+    "For DD reports use get_report_dd and render_chart (radar)."
+)
+
+
 async def run_spindoctor_tool(
     session: AsyncSession,
     name: str,
@@ -416,5 +422,7 @@ async def run_spindoctor_tool(
 ) -> str:
     if name not in SPINDOCTOR_TOOL_NAMES:
         raise ValueError(f"Unknown Spinndoktor tool: {name}")
-    _report, bundles = await load_spindoctor_source(session, report_id=report_id)
+    report, bundles = await load_spindoctor_source(session, report_id=report_id)
+    if report.mode == "dd":
+        return _OASIS_ONLY_NOTE
     return run_spindoctor_tool_on_bundles(name, arguments, bundles)
