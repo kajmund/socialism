@@ -396,6 +396,20 @@ function CandidatePanelCard({
   onRunPanel: () => void
   t: ReturnType<typeof useLocale>["t"]
 }) {
+  const [confirmRerun, setConfirmRerun] = useState(false)
+
+  useEffect(() => {
+    if (!selected) setConfirmRerun(false)
+  }, [selected])
+
+  function handleRunClick() {
+    if (reportId) {
+      setConfirmRerun(true)
+      return
+    }
+    onRunPanel()
+  }
+
   return (
     <div className="rounded-md border border-[color:var(--border-hairline)] bg-db-ink-0 p-4">
       <div className="flex flex-wrap items-start gap-3">
@@ -429,40 +443,64 @@ function CandidatePanelCard({
           </dl>
 
           {selected ? (
-            <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-[color:var(--border-hairline)] pt-4">
-              <button
-                type="button"
-                className="primary"
-                disabled={isRunningPanel || savingSelection}
-                onClick={onRunPanel}
-              >
-                {isRunningPanel ? t("dd.panel.runningPanel") : t("dd.panel.runPanel")}
-              </button>
-              {panelStatus ? (
-                <span className={panelStatusClass(panelStatus)}>
-                  {t(`dd.panel.panelStatus.${panelStatus}`)}
-                </span>
-              ) : null}
-              {reportId && (reportStatus === "pending" || reportStatus === "running") ? (
-                <span className={reportStatusClass(reportStatus)}>
-                  {t("dd.panel.generatingReport")}
-                </span>
-              ) : null}
-              {reportId && reportStatus === "failed" ? (
-                <span className={reportStatusClass(reportStatus)}>
-                  {t("dd.panel.reportFailed")}
-                </span>
-              ) : null}
-              {reportId && reportStatus === "succeeded" ? (
-                <Link className="primary" to={`/bolag/reports/${reportId}`}>
-                  {t("dd.panel.openReport")}
-                </Link>
-              ) : null}
-              {reportId && reportStatus == null ? (
-                <span className={reportStatusClass("pending")}>
-                  {t("dd.panel.generatingReport")}
-                </span>
-              ) : null}
+            <div className="mt-4 flex flex-col gap-3 border-t border-[color:var(--border-hairline)] pt-4">
+              {confirmRerun ? (
+                <div className="confirm-row flex flex-col gap-3 text-sm">
+                  <p>{t("dd.panel.rerunConfirmMessage")}</p>
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={() => setConfirmRerun(false)}>
+                      {t("common.cancel")}
+                    </button>
+                    <button
+                      type="button"
+                      className="primary"
+                      disabled={isRunningPanel || savingSelection}
+                      onClick={() => {
+                        setConfirmRerun(false)
+                        onRunPanel()
+                      }}
+                    >
+                      {t("dd.panel.rerunConfirmContinue")}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    className="primary"
+                    disabled={isRunningPanel || savingSelection}
+                    onClick={handleRunClick}
+                  >
+                    {isRunningPanel ? t("dd.panel.runningPanel") : t("dd.panel.runPanel")}
+                  </button>
+                  {panelStatus ? (
+                    <span className={panelStatusClass(panelStatus)}>
+                      {t(`dd.panel.panelStatus.${panelStatus}`)}
+                    </span>
+                  ) : null}
+                  {reportId && (reportStatus === "pending" || reportStatus === "running") ? (
+                    <span className={reportStatusClass(reportStatus)}>
+                      {t("dd.panel.generatingReport")}
+                    </span>
+                  ) : null}
+                  {reportId && reportStatus === "failed" ? (
+                    <span className={reportStatusClass(reportStatus)}>
+                      {t("dd.panel.reportFailed")}
+                    </span>
+                  ) : null}
+                  {reportId && reportStatus === "succeeded" ? (
+                    <Link className="primary" to={`/bolag/reports/${reportId}`}>
+                      {t("dd.panel.openReport")}
+                    </Link>
+                  ) : null}
+                  {reportId && reportStatus == null ? (
+                    <span className={reportStatusClass("pending")}>
+                      {t("dd.panel.generatingReport")}
+                    </span>
+                  ) : null}
+                </div>
+              )}
             </div>
           ) : null}
         </div>

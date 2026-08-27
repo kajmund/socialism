@@ -122,6 +122,21 @@ async def test_candidate_run_links_panel_and_report(
     assert runs[0]["panel_session_id"] == session_id
     assert runs[0]["report_id"] == report_id
 
+    session_resp_2 = await client.post(
+        f"/dd/campaigns/{campaign_id}/panel-sessions",
+        json={"campaign_id": campaign_id, "candidate_id": candidate_id},
+    )
+    assert session_resp_2.status_code == 201
+    new_session_id = session_resp_2.json()["id"]
+    assert new_session_id != session_id
+
+    after_rerun = await client.get(f"/dd/campaigns/{campaign_id}")
+    assert after_rerun.status_code == 200
+    runs = after_rerun.json()["candidate_runs"]
+    assert len(runs) == 1
+    assert runs[0]["panel_session_id"] == new_session_id
+    assert runs[0]["report_id"] == report_id
+
     listed = await client.get("/dd/campaigns?module=dd")
     assert listed.status_code == 200
     row = next(item for item in listed.json() if item["id"] == campaign_id)
