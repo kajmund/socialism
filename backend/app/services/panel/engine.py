@@ -8,7 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import PanelSession
 from app.llm import complete_text
-from app.services.panel.schemas import PanelExpertSlot, PanelSessionConfig, PanelTurn
+from app.services.panel.schemas import (
+    PanelExpertSlot,
+    PanelSessionConfig,
+    PanelTurn,
+    PanelTurnPhase,
+)
 from app.services.prompt_catalog import render_prompt
 
 
@@ -28,7 +33,7 @@ def _append_turn(
     transcript: list[PanelTurn],
     *,
     speaker: str,
-    phase: PanelTurn["phase"],
+    phase: PanelTurnPhase,
     content: str,
     round_index: int | None = None,
     slot_id: str | None = None,

@@ -26,7 +26,8 @@ Reuses existing job worker, prompt store, and LLM `complete_text` — not the OA
 1. Moderator opening (`panel.moderator.opening`)
 2. For each round (default 2):
    - Each expert: raise-hand (`panel.expert.raise_hand`) → JA/NEJ queue
-   - Turn order: queue first, then round-robin
+   - Turn order: experts who raised hand first, then the rest (round-robin among non-queued)
+   - **All experts speak every round** — raise-hand only affects speaking order, not whether an expert gets the floor. Intentional for DD-style panels where every role should contribute each round.
    - Per expert: scratchpad update → public turn
 3. Moderator analysis (`panel.moderator.analysis`)
 
