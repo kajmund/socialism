@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest"
 import type { OasisVariantResult } from "@/data/runs-types"
 import {
+  applyCausalCreatedAt,
   buildSimulatedTimeLabels,
   buildVariantSimulatedTimeLabels,
   buildTimelineItems,
   formatFeedWhenDisplay,
   isSimulatedClockTimestamp,
   simulatedTimeKeyForTraceRow,
+  sortKeyFromCreatedAt,
   type TimelineActionItem,
 } from "@/components/runs/activityFeed"
 
@@ -117,6 +119,40 @@ describe("buildVariantSimulatedTimeLabels", () => {
       )
       expect(labels.get(key)).toBeTruthy()
     }
+  })
+})
+
+describe("applyCausalCreatedAt", () => {
+  it("keeps a like after the post it targets even if created_at is earlier", () => {
+    const adjusted = applyCausalCreatedAt([
+      { key: "like", createdAt: 5, action: "like_post", postId: 1 },
+      { key: "post", createdAt: 20, action: "create_post", postId: 1 },
+    ])
+    const like = adjusted.find((event) => event.key === "like")
+    const post = adjusted.find((event) => event.key === "post")
+    expect(sortKeyFromCreatedAt(like?.createdAt)).toBeGreaterThan(
+      sortKeyFromCreatedAt(post?.createdAt),
+    )
+  })
+
+  it("keeps a comment like after the comment even if created_at is earlier", () => {
+    const adjusted = applyCausalCreatedAt([
+      { key: "like", createdAt: 2, action: "like_comment", commentId: 9 },
+      { key: "comment", createdAt: 40, action: "create_comment", commentId: 9, postId: 1 },
+    ])
+    const like = adjusted.find((event) => event.key === "like")
+    const comment = adjusted.find((event) => event.key === "comment")
+    expect(sortKeyFromCreatedAt(like?.createdAt)).toBeGreaterThan(
+      sortKeyFromCreatedAt(comment?.createdAt),
+    )
+  })
+
+  it("uses catalog created_at when the create event is missing", () => {
+    const adjusted = applyCausalCreatedAt(
+      [{ key: "like", createdAt: 1, action: "like_post", postId: 3 }],
+      { posts: [{ post_id: 3, created_at: 50 }] },
+    )
+    expect(sortKeyFromCreatedAt(adjusted[0]?.createdAt)).toBeGreaterThan(50)
   })
 })
 

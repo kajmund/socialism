@@ -42,9 +42,8 @@ SPINDOCTOR_TOOL_SPECS: list[dict[str, Any]] = [
             "name": "get_test_message",
             "description": (
                 "Return the test campaign message(s) injected in this run "
-                "(frozen timeline text per variant). Call when the user asks "
-                "what was said, how to rewrite the message, or anything that "
-                "needs the actual wording."
+                "(frozen timeline text per variant). Call whenever wording "
+                "matters — do not ask the user to paste or describe the message."
             ),
             "parameters": {"type": "object", "properties": {}},
         },
@@ -66,8 +65,8 @@ SPINDOCTOR_TOOL_SPECS: list[dict[str, Any]] = [
             "name": "search_reactions",
             "description": (
                 "Search posts and comments from the simulation. Empty query "
-                "lists the latest items. Use to quote reactions or find how "
-                "people talked about a topic."
+                "lists the latest items. Call this to quote how people talked; "
+                "do not ask the user to summarize the feed."
             ),
             "parameters": {
                 "type": "object",
@@ -101,7 +100,8 @@ SPINDOCTOR_TOOL_SPECS: list[dict[str, Any]] = [
         "function": {
             "name": "list_interviews",
             "description": (
-                "List planned interview question/answer pairs from the run."
+                "List planned interview question/answer pairs from the run. "
+                "Call this instead of asking whether interviews exist."
             ),
             "parameters": {
                 "type": "object",
@@ -147,7 +147,8 @@ SPINDOCTOR_TOOL_SPECS: list[dict[str, Any]] = [
             "name": "get_citizen",
             "description": (
                 "Look up one simulated citizen by name and return profile "
-                "plus their posts and comments."
+                "plus their posts and comments. Call this instead of asking "
+                "the user who someone is."
             ),
             "parameters": {
                 "type": "object",

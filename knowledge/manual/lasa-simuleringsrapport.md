@@ -22,8 +22,8 @@ Rapporten börjar med **Slutsats**: vilken version som rekommenderas (vid A/B), 
 1. Öppna rapporten via **Rapporter** i huvudmenyn, länken i **Bakgrundsjobb**, eller notifieringen efter beställning.
 2. Medan rapporten **genereras** uppdateras sidan automatiskt.
 3. Vid **fel** visas felmeddelandet — gå tillbaka till körningen och försök beställa igen om det behövs.
-4. När rapporten är **klar** visas innehållet i sidan.
-5. Välj **Öppna i ny flik** om du vill läsa rapporten i ett eget fönster.
+4. När rapporten är **klar** öppnas **Spinndoktor**. Klicka på **Rapport** i chatten för att läsa HTML-rapporten.
+5. På rapporten: **Full bredd** tar bort sidans smala mått så rapporten fyller ut ytan. **Öppna i ny flik** visar den i ett eget fönster.
 6. Länken **← Rapporter** tar dig tillbaka till rapportlistan.
 
 ## Relaterade guider

@@ -276,8 +276,9 @@ def _widget_tool_specs() -> list[dict[str, Any]]:
                     "Open a live persona interview widget on the Spinndoktor grid. "
                     "Match persona_name like get_citizen (substring, case-insensitive). "
                     "Defaults through_tick_index to the latest simulated tick. "
-                    "Optional opening_question sends the first turn immediately "
-                    "(doctor asks; answer returned in tool result)."
+                    "Always send opening_question so the first turn goes out immediately "
+                    "(doctor asks; answer returned in tool result). Do not ask the "
+                    "operator what to ask the persona."
                 ),
                 "parameters": {
                     "type": "object",

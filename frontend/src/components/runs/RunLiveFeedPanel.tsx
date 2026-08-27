@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { getPopulation } from "@/api/populations"
-import { LiveFeedList } from "@/components/runs/LiveFeedList"
+import { LiveFeedSplitView } from "@/components/runs/LiveFeedSplitView"
 import { useRunWatchSocket } from "@/components/runs/useRunWatchSocket"
 import {
   mergeWatchAgents,
@@ -100,12 +100,13 @@ export function RunLiveFeedPanel({
       activeVariantId={activeVariantId}
       onVariantChange={setVariantId}
     >
-      <LiveFeedList
+      <LiveFeedSplitView
         key={activeVariantId}
         rounds={live.rounds}
         agents={agents}
         ticks={live.ticks}
-        emptyLabel={t("runs.live.waiting")}
+        feedEmptyLabel={t("runs.live.feedWaiting")}
+        activityEmptyLabel={t("runs.live.waiting")}
       />
     </CardLikePanel>
   )

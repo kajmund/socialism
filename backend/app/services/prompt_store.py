@@ -43,6 +43,53 @@ def _filled_prompts(row: Configuration) -> dict[str, str]:
     return normalize_prompts(dict(row.prompts or {}), language=language, fill_missing=True)
 
 
+_SPINNDOCTOR_PROMPT_KEYS = (
+    "spinndoctor.system",
+    "spinndoctor.system.tools",
+    "spinndoctor.system.widgets",
+)
+
+# Stock phrasing from the previous cautious catalog. Custom text without
+# these markers is left alone.
+_STALE_SPINNDOCTOR_MARKERS = (
+    "hämtar du med verktyg när du behöver dem",
+    "Svara kort om möjligt, utveckla när användaren ber om det",
+    "Anropa dem när frågan kräver",
+    "Anropa inte i onödan",
+    "Du kan lägga saker på arbetsytan med render_chart",
+    "with tools when needed",
+    "Keep answers short unless the user asks for depth",
+    "Call them when the question needs",
+    "Do not call tools if",
+    "You can place items on the workspace with render_chart",
+)
+
+
+def _refresh_stale_spindoctor_prompts(row: Configuration) -> bool:
+    """Replace stock cautious Spinndoktor prompts with the current catalog."""
+    language: ConfigurationLanguage = row.language  # type: ignore[assignment]
+    defaults = default_prompts(language)
+    stored = dict(row.prompts or {})
+    changed = False
+    for key in _SPINNDOCTOR_PROMPT_KEYS:
+        current = stored.get(key) or ""
+        if any(marker in current for marker in _STALE_SPINNDOCTOR_MARKERS):
+            stored[key] = defaults[key]
+            changed = True
+    if not changed:
+        return False
+    row.prompts = stored
+    flag_modified(row, "prompts")
+    row.updated_at = utcnow()
+    return True
+
+
+def _sync_stored_prompts(row: Configuration) -> bool:
+    """Fill missing catalog keys and refresh stale Spinndoktor stock text."""
+    changed = _merge_missing_catalog_prompts(row)
+    return _refresh_stale_spindoctor_prompts(row) or changed
+
+
 def _merge_missing_catalog_prompts(row: Configuration) -> bool:
     """Persist new catalog keys into a stored config. Returns True if row changed."""
     before = dict(row.prompts or {})
@@ -61,7 +108,7 @@ async def require_active_prompts(session: AsyncSession) -> dict[str, str]:
         raise MissingActiveConfigurationError(
             "No active prompt configuration. Activate one under Konfigurationer."
         )
-    if _merge_missing_catalog_prompts(row):
+    if _sync_stored_prompts(row):
         await session.commit()
         await session.refresh(row)
 
@@ -89,7 +136,7 @@ async def require_prompts_for_language(
             f"'{row.language}', but '{language}' prompts were required. "
             f"Activate a {language} configuration under Konfigurationer."
         )
-    if _merge_missing_catalog_prompts(row):
+    if _sync_stored_prompts(row):
         await session.commit()
         await session.refresh(row)
     return _filled_prompts(row)
@@ -185,6 +232,8 @@ async def ensure_default_configurations(session: AsyncSession) -> int:
                 row.prompts = merged
                 flag_modified(row, "prompts")
                 row.updated_at = utcnow()
+                changed += 1
+            if _refresh_stale_spindoctor_prompts(row):
                 changed += 1
             if _backfill_report_thresholds(row):
                 changed += 1

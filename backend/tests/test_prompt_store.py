@@ -115,3 +115,46 @@ async def test_require_active_prompts_backfills_missing_help_keys(
     await session.refresh(row)
     assert "help.system" in (row.prompts or {})
     assert "help.system.feedback" in (row.prompts or {})
+
+
+async def test_require_active_prompts_refreshes_stale_spindoctor_stock_text(
+    session: AsyncSession,
+):
+    result = await session.execute(
+        select(Configuration).where(Configuration.is_active.is_(True))
+    )
+    row = result.scalar_one()
+    stored = dict(row.prompts or {})
+    stored["spinndoctor.system"] = (
+        "Gammal text. Svara kort om möjligt, utveckla när användaren ber om det."
+    )
+    stored["spinndoctor.system.tools"] = (
+        "Egen verktygstext. Be inte om tillåtelse att använda ett verktyg."
+    )
+    row.prompts = stored
+    await session.commit()
+
+    prompts = await require_active_prompts(session)
+    assert "Fråga inte användaren om något du kan slå upp" in prompts["spinndoctor.system"]
+    assert "Svara kort om möjligt" not in prompts["spinndoctor.system"]
+    assert prompts["spinndoctor.system.tools"].startswith("Egen verktygstext.")
+
+
+async def test_require_active_prompts_refreshes_older_english_spindoctor_tools(
+    session: AsyncSession,
+):
+    result = await session.execute(select(Configuration))
+    rows = list(result.scalars().all())
+    en_row = next(r for r in rows if r.language == "en")
+    await set_active_configuration(session, en_row.id)
+    stored = dict(en_row.prompts or {})
+    stored["spinndoctor.system.tools"] = (
+        "You have get_test_message. Call them when the question needs the "
+        "message wording. Do not call tools if the context numbers are enough."
+    )
+    en_row.prompts = stored
+    await session.commit()
+
+    prompts = await require_active_prompts(session)
+    assert "Do not ask permission to use a tool" in prompts["spinndoctor.system.tools"]
+    assert "Do not call tools if" not in prompts["spinndoctor.system.tools"]
