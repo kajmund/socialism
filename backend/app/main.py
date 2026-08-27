@@ -17,6 +17,7 @@ from app.api import (
     jobs,
     label_vocabularies,
     messages,
+    panel,
     personas,
     playground,
     populations,
@@ -81,6 +82,7 @@ def create_app() -> FastAPI:
     app.include_router(configurations.router)
     app.include_router(catalog.router)
     app.include_router(dd.router)
+    app.include_router(panel.router)
     app.include_router(jobs.router)
     app.include_router(reports.router)
     app.include_router(playground.router)

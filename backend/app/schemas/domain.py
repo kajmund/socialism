@@ -1117,7 +1117,7 @@ class CatalogListUpdate(BaseModel):
         return cleaned
 
 
-JobKind = Literal["population_generate", "run_simulate", "report_generate"]
+JobKind = Literal["population_generate", "run_simulate", "report_generate", "panel_session_run"]
 JobStatus = Literal["pending", "running", "succeeded", "failed"]
 ReportStatus = Literal["pending", "running", "succeeded", "failed"]
 
