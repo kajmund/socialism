@@ -288,7 +288,7 @@ class SpindoctorChatResponse(BaseModel):
 
 
 SpindoctorWidgetKind = Literal["chart", "note", "report_snippet", "interview"]
-SpindoctorChartType = Literal["hbar", "donut", "stat_number"]
+SpindoctorChartType = Literal["hbar", "donut", "stat_number", "radar"]
 
 
 class SpindoctorWidgetOut(BaseModel):

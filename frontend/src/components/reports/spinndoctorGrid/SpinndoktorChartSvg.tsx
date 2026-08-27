@@ -7,6 +7,92 @@ function pct(value: number, total: number): string {
   return `${Math.round((value / total) * 100)}%`
 }
 
+function formatChartValue(chartType: SpindoctorChartType, value: number): string {
+  if (chartType === "radar") return `${Math.round(value * 10) / 10}/10`
+  if (value <= 1) return pct(value, 1)
+  return String(Math.round(value))
+}
+
+function RadarChart({ series }: { series: SeriesRow[] }) {
+  const size = 220
+  const cx = size / 2
+  const cy = size / 2
+  const maxRadius = 78
+  const maxValue = 10
+  const count = Math.max(series.length, 3)
+  const angleStep = (Math.PI * 2) / count
+
+  const pointFor = (index: number, value: number) => {
+    const angle = -Math.PI / 2 + index * angleStep
+    const radius = (Math.max(0, Math.min(value, maxValue)) / maxValue) * maxRadius
+    return {
+      x: cx + Math.cos(angle) * radius,
+      y: cy + Math.sin(angle) * radius,
+    }
+  }
+
+  const gridLevels = [2, 4, 6, 8, 10]
+  const polygonPoints = series
+    .map((row, index) => {
+      const { x, y } = pointFor(index, row.value)
+      return `${x},${y}`
+    })
+    .join(" ")
+
+  return (
+    <div className="spinndoctor-chart-radar">
+      <svg
+        viewBox={`0 0 ${size} ${size}`}
+        className="spinndoctor-chart-radar-svg"
+        role="img"
+        aria-hidden
+      >
+        {gridLevels.map((level) => {
+          const ring = Array.from({ length: count }, (_, index) => {
+            const { x, y } = pointFor(index, level)
+            return `${x},${y}`
+          }).join(" ")
+          return (
+            <polygon
+              key={level}
+              points={ring}
+              className="spinndoctor-chart-radar-grid"
+            />
+          )
+        })}
+        {series.map((row, index) => {
+          const outer = pointFor(index, maxValue)
+          return (
+            <line
+              key={row.label}
+              x1={cx}
+              y1={cy}
+              x2={outer.x}
+              y2={outer.y}
+              className="spinndoctor-chart-radar-axis"
+            />
+          )
+        })}
+        {polygonPoints ? (
+          <polygon points={polygonPoints} className="spinndoctor-chart-radar-fill" />
+        ) : null}
+        {series.map((row, index) => {
+          const { x, y } = pointFor(index, row.value)
+          return <circle key={`${row.label}-dot`} cx={x} cy={y} r={3.5} className="spinndoctor-chart-radar-dot" />
+        })}
+      </svg>
+      <ul className="spinndoctor-chart-legend">
+        {series.map((row) => (
+          <li key={row.label}>
+            <span>{row.label}</span>
+            <strong>{formatChartValue("radar", row.value)}</strong>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 export function SpinndoktorChartSvg({
   chartType,
   series,
@@ -25,6 +111,10 @@ export function SpinndoktorChartSvg({
         <div className="spinndoctor-chart-stat-label">{top?.label ?? "—"}</div>
       </div>
     )
+  }
+
+  if (chartType === "radar") {
+    return <RadarChart series={series} />
   }
 
   if (chartType === "donut") {
@@ -72,7 +162,7 @@ export function SpinndoktorChartSvg({
             />
           </div>
           <div className="spinndoctor-chart-hbar-val">
-            {row.value <= 1 ? pct(row.value, 1) : Math.round(row.value)}
+            {formatChartValue("hbar", row.value)}
           </div>
         </div>
       ))}
