@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import PanelSession
 from app.serializers import format_date
 from app.services.panel.schemas import (
+    DdPanelResult,
     PanelSessionConfig,
     PanelSessionCreate,
     PanelSessionOut,
@@ -24,6 +25,10 @@ def serialize_panel_session(row: PanelSession) -> PanelSessionOut:
     config_raw = row.config if isinstance(row.config, dict) else {}
     transcript_raw = row.transcript if isinstance(row.transcript, list) else []
     scratchpads_raw = row.scratchpads if isinstance(row.scratchpads, dict) else {}
+    result_raw = row.result if isinstance(row.result, dict) else None
+    result: DdPanelResult | None = None
+    if result_raw:
+        result = DdPanelResult.model_validate(result_raw)
     return PanelSessionOut(
         id=row.id,
         protocol=row.protocol,  # type: ignore[arg-type]
@@ -32,6 +37,7 @@ def serialize_panel_session(row: PanelSession) -> PanelSessionOut:
         transcript=[PanelTurn.model_validate(t) for t in transcript_raw],
         scratchpads={str(k): str(v) for k, v in scratchpads_raw.items()},
         analysis=row.analysis,
+        result=result,
         campaign_id=row.campaign_id,
         job_id=row.job_id,
         error=row.error,

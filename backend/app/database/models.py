@@ -641,6 +641,7 @@ class PanelSession(Base):
     transcript: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     scratchpads: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     analysis: Mapped[str | None] = mapped_column(Text, nullable=True)
+    result: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     campaign_id: Mapped[int | None] = mapped_column(
         Integer,
         ForeignKey("dd_campaigns.id", ondelete="SET NULL"),
