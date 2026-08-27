@@ -16,7 +16,7 @@ Från simuleringsresultat kan du beställa en **HTML-rapport** som sammanfattar 
 3. För **jämförelse**: markera två eller fler försök med kryssrutor och välj **Jämför markerade**.
 4. Bekräfta att genereringen ska starta.
 5. Rapporten skapas som ett bakgrundsjobb — följ status under **Rapporter**, **Bakgrundsjobb** eller vänta på notifieringen.
-6. När rapporten är klar öppnas den automatiskt, eller nå den via **Rapporter** i huvudmenyn.
+6. När rapporten är klar öppnas den automatiskt i **Spinndoktor**, eller nå den via **Rapporter** i huvudmenyn.
 
 Se [Läsa simuleringsrapport](lasa-simuleringsrapport.md) för hur du läser den färdiga rapporten. För tekniska detaljer, öppna **Tekniskt stycke** längst ner i rapporten.
 

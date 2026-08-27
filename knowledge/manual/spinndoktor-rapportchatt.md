@@ -11,9 +11,8 @@ Spinndoktor är en chatt kopplad till **en enskild rapport**. Den hjälper dig t
 
 ## Öppna Spinndoktor
 
-1. Gå till **Rapporter** och öppna en rapport som har status **Klar**.
-2. I sidhuvudet: klicka på **Spinndoktor**.
-3. Tillbaka till rapporten: klicka på **Rapport** uppe i chattrutan.
+1. Gå till **Rapporter** och öppna en rapport som har status **Klar** — du kommer direkt till Spinndoktor.
+2. Tillbaka till rapporten: klicka på **Rapport** uppe i chattrutan. Därifrån tar **Spinndoktor** dig tillbaka.
 
 Hjälpchatten (FAB nere till höger) är en separat funktion och kan vara öppen samtidigt.
 
@@ -21,16 +20,16 @@ Hjälpchatten (FAB nere till höger) är en separat funktion och kan vara öppen
 
 - **Rutnätet** fyller hela sidan. Rapportens sidhuvud (titel, status, ta bort) syns inte här — bara chatten, rutnätet och ev. rapportpanel. Du kan panorera och zooma under panelerna och flytta kort fritt.
 - **Chatten** ligger flytande till vänster ovanpå rutnätet. **Visa chatt**, **Rensa rutnät** och **Visa rapportpanel** ligger som en flytande rad i mitten av rutnätet.
-- **Visa rapportpanel** öppnar samma HTML-rapport som en flytande panel till höger. Den är stängd som standard.
+- **Visa rapportpanel** öppnar samma HTML-rapport som en flytande panel till höger. Den är stängd som standard. **Full bredd** låter panelen fylla ut den lediga ytan; **Normal bredd** tar tillbaka den smala panelen.
 
 Rutnätet töms när du lämnar Spinndoktor-vyn.
 
 ## Ställa frågor
 
 - Skriv frågor på vanlig svenska, t.ex. *Vad säger siffrorna om mottagandet?*, *Hur landade budskapet?* eller *Vilken budskapsstil funkade bäst?*
-- Spinndoktorn ser rapportens översiktssiffror direkt. När den behöver **testbudskapet**, citat från flödet, intervjusvar eller en namngiven medborgare hämtar den det själv med verktyg.
-- Den kan också slå upp **SCB-statistik** och söka på **Wikipedia** eller **webben** när det hjälper tolkningen.
-- Den har **inte** hela transkriptet i ett svep — den söker fram det som frågan kräver.
+- Spinndoktorn ser rapportens översiktssiffror direkt. Hen hämtar själv **testbudskapet**, citat från flödet, intervjusvar och namngivna medborgare med verktyg — utan att fråga dig först.
+- Hen kan också slå upp **SCB-statistik** och söka på **Wikipedia** eller **webben**, och lägger grafer, anteckningar och intervjuer på rutnätet i samma svar.
+- Hen har **inte** hela transkriptet i ett svep — hen söker fram det som gör svaret bättre.
 - Chatthistoriken sparas **per rapport**. En annan rapport har en egen historik.
 
 ## Widgets på rutnätet

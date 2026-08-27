@@ -61,6 +61,9 @@ function asActivityItems(raw: unknown): RunWatchActivityItem[] {
     if (typeof row.post_preview === "string" && row.post_preview) {
       parsed.post_preview = row.post_preview
     }
+    if (typeof row.comment_preview === "string" && row.comment_preview) {
+      parsed.comment_preview = row.comment_preview
+    }
     if (row.info && typeof row.info === "object" && !Array.isArray(row.info)) {
       parsed.info = row.info as Record<string, unknown>
     }

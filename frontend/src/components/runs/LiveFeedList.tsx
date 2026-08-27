@@ -1,20 +1,24 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from "react"
 import { Loader2 } from "lucide-react"
 import {
+  applyCausalCreatedAt,
   buildSimulatedTimeLabels,
   describeTimelineAction,
   formatFeedWhenDisplay,
   isSimulatedClockTimestamp,
   simulatedTimeKeyForWatchItem,
+  sortKeyFromCreatedAt,
+  type CausalClockEvent,
   type FollowRow,
   type MuteRow,
   type PostRow,
   type ReportRow,
-  type SimulatedClockEvent,
 } from "@/components/runs/activityFeed"
 import {
+  AgentNameButton,
   FeedCommentCard,
   FeedPostSnippet,
+  agentIsInjector,
   type FeedAgent,
   type FeedComment,
   type FeedPost,
@@ -103,7 +107,8 @@ function agentName(
   userId: number,
   t: (key: "runs.feed.agentFallback", params?: { userId: number }) => string,
 ): string {
-  const name = agents.find((agent) => agent.index === userId)?.member_name.trim()
+  const agent = agents.find((row) => row.index === userId)
+  const name = (agent?.member_name ?? "").trim()
   return name || t("runs.feed.agentFallback", { userId })
 }
 
@@ -425,7 +430,13 @@ function LiveActivityRow({
   return (
     <li className="list-none rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm">
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <span className="font-medium text-foreground">{author}</span>
+        <AgentNameButton
+          name={author}
+          size="xs"
+          showAvatar={!agentIsInjector(feedAgents, item.user_id)}
+          className="text-sm"
+          onOpen={() => onOpenAgent(item.user_id)}
+        />
         {toggles.length > 0 ? (
           <ActionLabelToggles label={actionLabel} targets={toggles} />
         ) : (
@@ -438,6 +449,15 @@ function LiveActivityRow({
       </div>
       {openComment && showComment && comment ? (
         <div className="mt-2 rounded-md border border-border/70 bg-background/60 px-2.5 py-2">
+          {action === "like_comment" ? (
+            <p className="mb-1.5 text-xs text-muted-foreground">
+              {t("runs.live.likedByActor", { name: author })}
+            </p>
+          ) : action === "dislike_comment" ? (
+            <p className="mb-1.5 text-xs text-muted-foreground">
+              {t("runs.live.dislikedByActor", { name: author })}
+            </p>
+          ) : null}
           <FeedCommentCard
             comment={comment}
             agents={feedAgents}
@@ -456,24 +476,70 @@ function LiveActivityRow({
 
 type LiveFeedEvent = ReturnType<typeof collectLiveEvents>[number]
 
-function simulatedLabelsForTickEvents(events: LiveFeedEvent[]): Map<string, string> {
-  const clockEvents: SimulatedClockEvent[] = []
+function clockEventsForTick(
+  events: LiveFeedEvent[],
+  catalog: LiveFeedCatalog | undefined,
+): CausalClockEvent[] {
+  const clockEvents: CausalClockEvent[] = []
   for (const event of events) {
     const key = simulatedTimeKeyForWatchItem(event.item)
     if (key == null) continue
     if (!isSimulatedClockTimestamp(event.item.created_at)) continue
-    clockEvents.push({ key, createdAt: event.item.created_at })
+    clockEvents.push({
+      key,
+      createdAt: event.item.created_at,
+      action: event.item.action,
+      postId: firstId(event.item.post_id, event.item.info?.post_id),
+      commentId: firstId(event.item.comment_id, event.item.info?.comment_id),
+    })
   }
-  const labels = buildSimulatedTimeLabels(clockEvents)
-  const byItemKey = new Map<string, string>()
+  return applyCausalCreatedAt(clockEvents, catalog)
+}
+
+function minutesFromClockLabel(label: string | undefined): number | null {
+  if (label == null) return null
+  const match = /^(\d{2}):(\d{2})$/.exec(label)
+  if (!match) return null
+  return Number(match[1]) * 60 + Number(match[2])
+}
+
+function tickClock(
+  events: LiveFeedEvent[],
+  catalog: LiveFeedCatalog | undefined,
+): {
+  labels: Map<string, string>
+  ordered: LiveFeedEvent[]
+} {
+  const causal = clockEventsForTick(events, catalog)
+  const labelsByClockKey = buildSimulatedTimeLabels(causal)
+  const labels = new Map<string, string>()
+  const causalByKey = new Map(
+    causal.map((event) => [event.key, event.createdAt]),
+  )
   for (const event of events) {
     const mapKey = simulatedTimeKeyForWatchItem(event.item)
-    if (mapKey != null) {
-      const label = labels.get(mapKey)
-      if (label != null) byItemKey.set(event.key, label)
-    }
+    if (mapKey == null) continue
+    const label = labelsByClockKey.get(mapKey)
+    if (label != null) labels.set(event.key, label)
   }
-  return byItemKey
+  const ordered = [...events].sort((a, b) => {
+    const aLabel = minutesFromClockLabel(labels.get(a.key))
+    const bLabel = minutesFromClockLabel(labels.get(b.key))
+    if (aLabel != null && bLabel != null && aLabel !== bLabel) {
+      return bLabel - aLabel
+    }
+    const aCausal = sortKeyFromCreatedAt(
+      causalByKey.get(simulatedTimeKeyForWatchItem(a.item) ?? "") ??
+        a.item.created_at,
+    )
+    const bCausal = sortKeyFromCreatedAt(
+      causalByKey.get(simulatedTimeKeyForWatchItem(b.item) ?? "") ??
+        b.item.created_at,
+    )
+    if (aCausal !== bCausal) return bCausal - aCausal
+    return a.key.localeCompare(b.key)
+  })
+  return { labels, ordered }
 }
 
 function LiveTickSection({
@@ -500,9 +566,9 @@ function LiveTickSection({
   const day = tick?.day ?? tickIndex + 1
   const silent = tick?.silent === true
   const inProgress = tick != null && !tick.completed
-  const simulatedLabels = useMemo(
-    () => simulatedLabelsForTickEvents(events),
-    [events],
+  const { labels: simulatedLabels, ordered: orderedEvents } = useMemo(
+    () => tickClock(events, catalog),
+    [events, catalog],
   )
   const sectionId = `live-tick-${tickIndex}`
 
@@ -535,7 +601,7 @@ function LiveTickSection({
       </button>
       {expanded ? (
         <ul id={sectionId} className="flex flex-col gap-2 border-t border-border/60 px-4 py-3">
-          {events.map((event) => (
+          {orderedEvents.map((event) => (
             <LiveActivityRow
               key={event.key}
               item={event.item}

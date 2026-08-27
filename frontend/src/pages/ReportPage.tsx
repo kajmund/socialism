@@ -63,8 +63,9 @@ export function ReportPage() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const [viewMode, setViewMode] = useState<ReportViewMode>("report")
+  const [viewMode, setViewMode] = useState<ReportViewMode>("spinndoctor")
   const [reportPanelOpen, setReportPanelOpen] = useState(false)
+  const [reportFullWidth, setReportFullWidth] = useState(false)
   const [chatPanelOpen, setChatPanelOpen] = useState(true)
   const [gridWidgets, setGridWidgets] = useState<SpindoctorWidget[]>([])
   const canvasRef = useRef<ReportCanvasHandle | null>(null)
@@ -111,6 +112,7 @@ export function ReportPage() {
   useEffect(() => {
     if (viewMode === "report") {
       setReportPanelOpen(false)
+      setReportFullWidth(false)
       setChatPanelOpen(true)
     }
   }, [viewMode])
@@ -404,9 +406,24 @@ export function ReportPage() {
                 </aside>
                 {reportPanelOpen ? (
                   <aside
-                    className="spinndoctor-workspace-report"
+                    className={
+                      "spinndoctor-workspace-report" +
+                      (reportFullWidth ? " is-full-width" : "")
+                    }
                     id="spinndoctor-report-panel"
                   >
+                    <div className="spinndoctor-report-toolbar">
+                      <button
+                        type="button"
+                        className="spinndoctor-canvas-toggle"
+                        aria-pressed={reportFullWidth}
+                        onClick={() => setReportFullWidth((wide) => !wide)}
+                      >
+                        {reportFullWidth
+                          ? t("reports.normalWidth")
+                          : t("reports.fullWidth")}
+                      </button>
+                    </div>
                     <ReportCanvas
                       ref={canvasRef}
                       html={html}
@@ -424,11 +441,19 @@ export function ReportPage() {
 
   return (
     <AdminShell>
-      <div className="wrap" style={{ maxWidth: 1100 }}>
+      <div className="wrap" style={{ maxWidth: reportFullWidth ? "none" : 1100 }}>
         {pageChrome}
 
         {report?.status === "succeeded" && html ? (
           <div className="mb-4 flex flex-wrap gap-3 text-sm">
+            <button
+              type="button"
+              onClick={() => setReportFullWidth((wide) => !wide)}
+              className="text-db-gold-700 underline-offset-2 hover:underline"
+              aria-pressed={reportFullWidth}
+            >
+              {reportFullWidth ? t("reports.normalWidth") : t("reports.fullWidth")}
+            </button>
             <button
               type="button"
               onClick={openInNewTab}

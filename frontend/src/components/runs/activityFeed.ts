@@ -171,6 +171,110 @@ export type SimulatedClockEvent = {
   createdAt: string | number | undefined
 }
 
+/** Event metadata so clock assignment can keep reactions after the target exists. */
+export type CausalClockEvent = SimulatedClockEvent & {
+  action?: string
+  postId?: number | null
+  commentId?: number | null
+}
+
+const AFTER_POST_ACTIONS = new Set([
+  "like_post",
+  "dislike_post",
+  "unlike_post",
+  "undo_dislike_post",
+  "report_post",
+  "repost",
+  "quote_post",
+  "create_comment",
+])
+
+const AFTER_COMMENT_ACTIONS = new Set([
+  "like_comment",
+  "dislike_comment",
+  "unlike_comment",
+  "undo_dislike_comment",
+])
+
+export type CausalClockCatalog = {
+  posts?: Array<{ post_id: number; created_at?: string | number }>
+  comments?: Array<{
+    comment_id: number
+    post_id?: number
+    created_at?: string | number
+  }>
+}
+
+function nextAfterSimClock(value: number): number {
+  return Number.isInteger(value) ? value + 1 : value + 1e-6
+}
+
+function earliestCreatedAt(
+  current: number | undefined,
+  candidate: string | number | undefined,
+): number | undefined {
+  const next = sortKeyFromCreatedAt(candidate)
+  if (next === Number.MAX_SAFE_INTEGER) return current
+  if (current == null) return next
+  return Math.min(current, next)
+}
+
+/**
+ * Bump reaction timestamps so a like/comment never sorts before the post
+ * (or comment) it targets. OASIS sim-clock values can violate that order.
+ */
+export function applyCausalCreatedAt(
+  events: CausalClockEvent[],
+  catalog?: CausalClockCatalog,
+): SimulatedClockEvent[] {
+  const postCreated = new Map<number, number>()
+  const commentCreated = new Map<number, number>()
+
+  for (const post of catalog?.posts ?? []) {
+    const t = earliestCreatedAt(undefined, post.created_at)
+    if (t != null) postCreated.set(post.post_id, t)
+  }
+  for (const comment of catalog?.comments ?? []) {
+    const t = earliestCreatedAt(undefined, comment.created_at)
+    if (t != null) commentCreated.set(comment.comment_id, t)
+  }
+  for (const event of events) {
+    const action = (event.action ?? "").trim().toLowerCase()
+    if (action === "create_post" && event.postId != null) {
+      const t = earliestCreatedAt(postCreated.get(event.postId), event.createdAt)
+      if (t != null) postCreated.set(event.postId, t)
+    }
+    if (action === "create_comment" && event.commentId != null) {
+      const t = earliestCreatedAt(
+        commentCreated.get(event.commentId),
+        event.createdAt,
+      )
+      if (t != null) commentCreated.set(event.commentId, t)
+    }
+  }
+
+  return events.map((event) => {
+    let createdAt = sortKeyFromCreatedAt(event.createdAt)
+    if (createdAt === Number.MAX_SAFE_INTEGER) {
+      return { key: event.key, createdAt: event.createdAt }
+    }
+    const action = (event.action ?? "").trim().toLowerCase()
+    if (event.postId != null && AFTER_POST_ACTIONS.has(action)) {
+      const parent = postCreated.get(event.postId)
+      if (parent != null && createdAt <= parent) {
+        createdAt = nextAfterSimClock(parent)
+      }
+    }
+    if (event.commentId != null && AFTER_COMMENT_ACTIONS.has(action)) {
+      const parent = commentCreated.get(event.commentId)
+      if (parent != null && createdAt <= parent) {
+        createdAt = nextAfterSimClock(parent)
+      }
+    }
+    return { key: event.key, createdAt }
+  })
+}
+
 export function simulatedTimeEventKey(params: {
   kind: "post" | "comment" | "action" | "live"
   id?: number | null

@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from "react"
 import { createPortal } from "react-dom"
-import { Brain, FileText, Files, Loader2, Network, Radio, Trash2, Wrench } from "lucide-react"
+import { Brain, FileText, Files, Loader2, Network, Trash2, Wrench } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { createReport } from "@/api/reports"
 import type { RunTaggableTextRow, TopicStatus } from "@/api/runs"
@@ -18,7 +18,6 @@ import {
   ShieldIcon,
   type AddAnchorTarget,
 } from "@/components/runs/AddAnchorModal"
-import { AttemptLiveFeedView } from "@/components/runs/AttemptLiveFeedView"
 import {
   AgentAvatar,
   AgentNameButton,
@@ -26,7 +25,14 @@ import {
   agentIsInjector,
   agentLabel,
 } from "@/components/runs/feedChrome"
-import { attemptHasLiveFeed } from "@/components/runs/liveFeedFromVariant"
+import { LiveFeedList } from "@/components/runs/LiveFeedList"
+import { liveFeedFromVariant } from "@/components/runs/liveFeedFromVariant"
+import {
+  ResultPaneToggle,
+  paneShowsActivity,
+  paneShowsFeed,
+  type ResultPaneMode,
+} from "@/components/runs/ResultPaneToggle"
 import {
   ClassificationPopover,
   flaggedKeyForRow,
@@ -46,7 +52,6 @@ import {
   reasoningForComment,
   reasoningForPost,
   simulatedTimeKeyForTraceRow,
-  simulatedTimeKeyForWatchItem,
   simulatedTimeEventKey,
   sortKeyFromCreatedAt,
   tickIndexForCreatedAt,
@@ -1811,6 +1816,9 @@ function VariantBody({
     label: string
   } | null>(null)
   const [expandedTickIndex, setExpandedTickIndex] = useState<number | null>(null)
+  const [injectorsOpen, setInjectorsOpen] = useState(true)
+  const [populationOpen, setPopulationOpen] = useState(false)
+  const [paneMode, setPaneMode] = useState<ResultPaneMode>("both")
   const [dayEventsModalTick, setDayEventsModalTick] = useState<number | null>(null)
   const [dayMeasurementsModalTick, setDayMeasurementsModalTick] = useState<
     number | null
@@ -1886,6 +1894,10 @@ function VariantBody({
     [variant],
   )
   const segments = useMemo(() => groupTimelineSegments(timeline), [timeline])
+  const live = useMemo(() => liveFeedFromVariant(variant), [variant])
+  const showFeed = paneShowsFeed(paneMode)
+  const showActivity = paneShowsActivity(paneMode)
+  const splitPanes = showFeed && showActivity
   const injectors = useMemo(
     () => agents.filter((a) => a.role === "injector"),
     [agents],
@@ -1973,41 +1985,79 @@ function VariantBody({
       {agents.length > 0 ? (
         <div className="mb-3 space-y-1 text-sm text-muted-foreground">
           {injectors.length > 0 ? (
-            <p>
-              {t("runs.results.injectors")}{" "}
-              {injectors.map((a, i) => (
-                <span key={a.index}>
-                  {i > 0 ? ", " : null}
-                  <AgentNameButton
-                    name={a.member_name || a.username}
-                    className="text-sm text-muted-foreground"
-                    showAvatar={false}
-                    onOpen={() =>
-                      openAgentRow(a, a.member_name || a.username)
-                    }
-                  />
+            <div>
+              <button
+                type="button"
+                className="flex w-full items-baseline gap-2 text-left text-sm text-muted-foreground"
+                aria-expanded={injectorsOpen}
+                aria-controls="result-feed-injectors"
+                onClick={() => setInjectorsOpen((open) => !open)}
+              >
+                <span className="font-medium text-foreground">
+                  {t("runs.results.injectors")}
                 </span>
-              ))}
-            </p>
+                <span className="ml-auto text-xs">
+                  {injectorsOpen
+                    ? t("runs.results.collapseInjectors")
+                    : t("runs.results.expandInjectors")}
+                </span>
+              </button>
+              {injectorsOpen ? (
+                <p id="result-feed-injectors" className="mt-1">
+                  {injectors.map((a, i) => (
+                    <span key={a.index}>
+                      {i > 0 ? ", " : null}
+                      <AgentNameButton
+                        name={a.member_name || a.username}
+                        className="text-sm text-muted-foreground"
+                        showAvatar={false}
+                        onOpen={() =>
+                          openAgentRow(a, a.member_name || a.username)
+                        }
+                      />
+                    </span>
+                  ))}
+                </p>
+              ) : null}
+            </div>
           ) : null}
-          <p>
-            {t("runs.results.population")}{" "}
-            {population.length === 0
-              ? t("common.emDash")
-              : population.map((a, i) => (
-                  <span key={a.index}>
-                    {i > 0 ? ", " : null}
-                    <AgentNameButton
-                      name={a.member_name || a.username}
-                      className="text-sm text-muted-foreground"
-                      showAvatar={false}
-                      onOpen={() =>
-                        openAgentRow(a, a.member_name || a.username)
-                      }
-                    />
-                  </span>
-                ))}
-          </p>
+          <div>
+            <button
+              type="button"
+              className="flex w-full items-baseline gap-2 text-left text-sm text-muted-foreground"
+              aria-expanded={populationOpen}
+              aria-controls="result-feed-population"
+              onClick={() => setPopulationOpen((open) => !open)}
+            >
+              <span className="font-medium text-foreground">
+                {t("runs.results.population")}
+              </span>
+              <span className="ml-auto text-xs">
+                {populationOpen
+                  ? t("runs.results.collapsePopulation")
+                  : t("runs.results.expandPopulation")}
+              </span>
+            </button>
+            {populationOpen ? (
+              <p id="result-feed-population" className="mt-1">
+                {population.length === 0
+                  ? t("common.emDash")
+                  : population.map((a, i) => (
+                      <span key={a.index}>
+                        {i > 0 ? ", " : null}
+                        <AgentNameButton
+                          name={a.member_name || a.username}
+                          className="text-sm text-muted-foreground"
+                          showAvatar={false}
+                          onOpen={() =>
+                            openAgentRow(a, a.member_name || a.username)
+                          }
+                        />
+                      </span>
+                    ))}
+              </p>
+            ) : null}
+          </div>
         </div>
       ) : null}
       {runId != null && attemptId && interviewTarget != null ? (
@@ -2023,10 +2073,23 @@ function VariantBody({
         />
       ) : null}
 
-      <h3 className="mb-2 text-sm font-semibold text-foreground">
-        {t("runs.feed.title")}
-      </h3>
+      <div className="mb-2 flex justify-end">
+        <ResultPaneToggle value={paneMode} onChange={setPaneMode} />
+      </div>
 
+      <div className={splitPanes ? "grid gap-4 lg:grid-cols-2" : undefined}>
+        {showFeed ? (
+          <section className="min-w-0">
+            <h3 className="mb-2 text-sm font-semibold text-foreground">
+              {t("runs.feed.title")}
+            </h3>
+            <div
+              className={
+                splitPanes
+                  ? "max-h-[min(70vh,42rem)] overflow-y-auto pr-1"
+                  : undefined
+              }
+            >
       {posts.length === 0 && segments.every((s) => s.kind !== "actions") ? (
         <p className="text-sm text-muted-foreground">
           {t("runs.feed.noPostsSaved")}
@@ -2173,6 +2236,45 @@ function VariantBody({
           )
         })}
       </ul>
+            </div>
+          </section>
+        ) : null}
+        {showActivity ? (
+          <section
+            className={
+              splitPanes
+                ? "min-w-0 lg:border-l lg:border-border/60 lg:pl-4"
+                : "min-w-0"
+            }
+          >
+            <h3 className="mb-2 text-sm font-semibold text-foreground">
+              {t("runs.live.activityColumn")}
+            </h3>
+            <div
+              className={
+                splitPanes
+                  ? "max-h-[min(70vh,42rem)] overflow-y-auto pr-1"
+                  : undefined
+              }
+            >
+              <LiveFeedList
+                rounds={live.rounds}
+                agents={live.agents}
+                ticks={live.ticks}
+                emptyLabel={t("runs.results.liveFeedEmpty")}
+                catalog={{
+                  posts: variant.posts,
+                  comments: variant.comments,
+                  follows: variant.follows,
+                  mutes: variant.mutes,
+                  reports: variant.reports,
+                }}
+                onOpenAgent={openAgent}
+              />
+            </div>
+          </section>
+        ) : null}
+      </div>
 
       <AdminModal
         open={dayEventsModalTick != null}
@@ -2379,8 +2481,6 @@ function AttemptBlock({
   const [networkModalVariant, setNetworkModalVariant] =
     useState<OasisVariantResult | null>(null)
   const [networkProfile, setNetworkProfile] = useState<ProfileTarget | null>(null)
-  const [liveFeedOpen, setLiveFeedOpen] = useState(false)
-  const hasLiveFeed = attemptHasLiveFeed(variants)
   const activeVariant =
     variants.find((v) => v.id === expandedVariantId) ?? variants[0]
 
@@ -2432,17 +2532,6 @@ function AttemptBlock({
           className="results-attempt-actions"
           onClick={(e) => e.stopPropagation()}
         >
-          {hasLiveFeed ? (
-            <button
-              type="button"
-              className="results-icon-btn"
-              aria-label={t("runs.results.liveFeedAria")}
-              title={t("runs.results.liveFeedAria")}
-              onClick={() => setLiveFeedOpen(true)}
-            >
-              <Radio aria-hidden="true" size={14} />
-            </button>
-          ) : null}
           {hasData && onRequestOrderReport ? (
             <OrderReportButton
               busy={ordering}
@@ -2533,20 +2622,6 @@ function AttemptBlock({
           )}
         </div>
       ) : null}
-
-      <AdminModal
-        open={liveFeedOpen}
-        titleId="attempt-live-feed-title"
-        title={t("runs.results.liveFeedTitle")}
-        description={t("runs.results.attemptTitle", {
-          number: attemptNumber,
-          when: dayStamp,
-        })}
-        wide
-        onClose={() => setLiveFeedOpen(false)}
-      >
-        <AttemptLiveFeedView attempt={attempt} />
-      </AdminModal>
 
       <AdminModal
         open={networkModalVariant != null}

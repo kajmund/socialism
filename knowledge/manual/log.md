@@ -1,5 +1,16 @@
 # Manual update log
 
+## 2026-08-27
+
+* **Rapporter**: Spinndoktorn tar mer initiativ — hämtar underlag med sina verktyg och lägger kort på rutnätet i stället för att fråga tillbaka.
+* **Körningar**: Resultatet av en körning visas med flödet till vänster och aktiviteterna till höger. Du kan välja **Flöde**, **Aktivitet** eller **Båda**. Samma växling finns i live-vyn medan simuleringen körs. Populationen ovanför flödet är ihopfälld och kan öppnas; injektorer likaså.
+
+## 2026-08-26
+
+* **Körningar**: I live-flödet syns den som gillade eller ogillade en kommentar med namn och initialer, och den öppnade kommentaren säger *Gillat av …*.
+* **Körningar**: Live-flödet sorterar händelser per dag efter klockslaget (senaste överst). Klockan följer händelseordningen, så ett inlägg gillas inte före det skapats.
+* **Rapporter**: En klar rapport öppnas direkt i Spinndoktor. På rapporten finns **Full bredd** så den kan fylla ut ytan.
+
 ## 2026-08-24
 
 * **Körningar**: Live-flödet under en pågående simulering visar namn från populationen (inte agentnummer), nyaste händelsen överst och gillade inlägg ihopfällda. Efter körningen öppnas samma flöde med radiosymbolen till vänster om **Beställ rapport** på försökskortet.
