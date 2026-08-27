@@ -1,0 +1,99 @@
+"""Tests for panel engine generic_panel sessions."""
+
+from __future__ import annotations
+
+import asyncio
+
+import pytest
+from httpx import AsyncClient
+
+from app.llm import set_text_completer
+from app.services import jobs as jobs_service
+from app.services.panel.schemas import PanelSessionCreate, PanelSessionConfig, PanelExpertSlot
+
+
+@pytest.fixture
+def mock_panel_llm():
+    counters = {"n": 0}
+
+    async def _complete(messages, *, model=None):
+        counters["n"] += 1
+        user = messages[-1]["content"]
+        if "JA eller NEJ" in user or "YES or NO" in user:
+            return "JA"
+        if "privata anteckningar" in user or "private notes" in user.lower():
+            return f"Anteckning {counters['n']}"
+        if "offentliga inlägg" in user or "public contribution" in user.lower():
+            return f"Inlägg {counters['n']}"
+        if "strukturerad syntes" in user or "structured synthesis" in user.lower():
+            return "Syntes: panelen enades om fortsatt DD."
+        if "Öppna panelen" in user or "Open the panel" in user:
+            return "Välkommen till panelen."
+        return f"Svar {counters['n']}"
+
+    set_text_completer(_complete)
+    yield
+    set_text_completer(None)
+
+
+@pytest.mark.asyncio
+async def test_panel_session_run_job(client: AsyncClient, mock_panel_llm):
+    done = asyncio.Event()
+
+    def _schedule(job_id: str) -> None:
+        async def _run() -> None:
+            await jobs_service._run_job(job_id)
+            done.set()
+
+        asyncio.create_task(_run())
+
+    jobs_service.set_schedule_hook(_schedule)
+
+    create = await client.post(
+        "/panel/sessions",
+        json={
+            "config": {
+                "protocol": "generic_panel",
+                "topic": "Förvärv av målbolag X",
+                "brief": "Demo-session",
+                "max_rounds": 1,
+                "expert_slots": [
+                    {"slot_id": "fin", "label": "Finansiell analytiker", "profile": "Siffror"},
+                    {"slot_id": "legal", "label": "Jurist", "profile": "Avtal"},
+                ],
+            }
+        },
+    )
+    assert create.status_code == 201
+    session_id = create.json()["id"]
+
+    run = await client.post(f"/panel/sessions/{session_id}/run")
+    assert run.status_code == 202
+    job_id = run.json()["job_id"]
+
+    await asyncio.wait_for(done.wait(), timeout=10)
+
+    job = await client.get(f"/jobs/{job_id}")
+    assert job.status_code == 200
+    assert job.json()["status"] == "succeeded"
+
+    session = await client.get(f"/panel/sessions/{session_id}")
+    assert session.status_code == 200
+    body = session.json()
+    assert body["status"] == "succeeded"
+    assert body["analysis"]
+    assert len(body["transcript"]) >= 4
+    assert any(t["phase"] == "opening" for t in body["transcript"])
+    assert any(t["phase"] == "expert" for t in body["transcript"])
+
+    jobs_service.set_schedule_hook(None)
+
+
+@pytest.mark.asyncio
+async def test_panel_session_config_validation():
+    cfg = PanelSessionConfig(
+        topic="Test",
+        expert_slots=[PanelExpertSlot(slot_id="a", label="Expert A")],
+    )
+    assert cfg.protocol == "generic_panel"
+    assert PanelSessionCreate(config=cfg).config.max_rounds == 2
