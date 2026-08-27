@@ -1192,6 +1192,87 @@ HOW YOU WRITE COMMENTS:
             "Give your public contribution (max 150 words)."
         ),
     ),
+    _f(
+        "panel.dd.moderator.opening",
+        "panel",
+        "DD-panel — Spinndoktor öppning",
+        "DD panel — Spinndoktor opening",
+        "Platshållare: {topic}, {brief}, {expert_list}.",
+        "Placeholders: {topic}, {brief}, {expert_list}.",
+        (
+            "Du modererar en due diligence-panel som Spinndoktor.\n\n"
+            "Målbolag:\n{brief}\n\nExperter:\n{expert_list}\n\n"
+            "Öppna panelen kort. Förklara att varje expert snart bedömer finansiell hälsa, "
+            "legal risk, marknadsposition och integrationsrisk med poäng 1–10."
+        ),
+        (
+            "You moderate a due diligence panel as Spinndoktor.\n\n"
+            "Target:\n{brief}\n\nExperts:\n{expert_list}\n\n"
+            "Open briefly. Explain each expert will score financial health, legal risk, "
+            "market position, and integration risk on a 1–10 scale."
+        ),
+    ),
+    _f(
+        "panel.dd.moderator.sub_question",
+        "panel",
+        "DD-panel — Spinndoktor delfråga",
+        "DD panel — Spinndoktor sub-question",
+        "Platshållare: {topic}, {sub_question}, {transcript}.",
+        "Placeholders: {topic}, {sub_question}, {transcript}.",
+        (
+            "Målbolag: {topic}\n\nNuvarande delfråga: {sub_question}\n\n"
+            "Hittills:\n{transcript}\n\n"
+            "Introducera delfrågan kort och be experterna ge poäng 1–10 med kort motivering."
+        ),
+        (
+            "Target: {topic}\n\nCurrent sub-question: {sub_question}\n\n"
+            "So far:\n{transcript}\n\n"
+            "Introduce the sub-question briefly and ask experts for a 1–10 score with short rationale."
+        ),
+    ),
+    _f(
+        "panel.dd.expert.score",
+        "panel",
+        "DD-panel — expertpoäng",
+        "DD panel — expert score",
+        "Platshållare: {topic}, {brief}, {sub_question}, {source_*}, {transcript}.",
+        "Placeholders: {topic}, {brief}, {sub_question}, {source_*}, {transcript}.",
+        (
+            "Målbolag: {topic}\n\nGrunddata:\n{brief}\n\nDelfråga: {sub_question}\n\n"
+            "Tillgänglig källbadge: {source_label} ({source_kind}) — {source_detail}\n\n"
+            "Hittills:\n{transcript}\n\n"
+            "Svara ENDAST med JSON:\n"
+            '{{"score": <1-10>, "motivation": "<max 80 ord, svenska>"}}\n'
+            "Poängen ska spegla din expertroll och kandidatens data. Nämn källan om relevant."
+        ),
+        (
+            "Target: {topic}\n\nFacts:\n{brief}\n\nSub-question: {sub_question}\n\n"
+            "Available source badge: {source_label} ({source_kind}) — {source_detail}\n\n"
+            "So far:\n{transcript}\n\n"
+            "Reply ONLY with JSON:\n"
+            '{{"score": <1-10>, "motivation": "<max 80 words>"}}\n'
+            "Score from your expert role and candidate facts. Mention the source when relevant."
+        ),
+    ),
+    _f(
+        "panel.dd.moderator.summary",
+        "panel",
+        "DD-panel — Spinndoktor sammanfattning",
+        "DD panel — Spinndoktor summary",
+        "Platshållare: {topic}, {transcript}, {score_table}, {dissensus}.",
+        "Placeholders: {topic}, {transcript}, {score_table}, {dissensus}.",
+        (
+            "Målbolag: {topic}\n\nPoängtabell:\n{score_table}\n\n"
+            "Dissensus:\n{dissensus}\n\nTranskript:\n{transcript}\n\n"
+            "Avsluta med en kort DD-sammanfattning: styrkor, risker, oenigheter och "
+            "rekommenderade nästa steg. Inga tekniska termer."
+        ),
+        (
+            "Target: {topic}\n\nScore table:\n{score_table}\n\n"
+            "Dissensus:\n{dissensus}\n\nTranscript:\n{transcript}\n\n"
+            "Close with a brief DD summary: strengths, risks, disagreements, and next steps."
+        ),
+    ),
 ]
 
 PROMPT_KEYS: tuple[str, ...] = tuple(f["key"] for f in PROMPT_FIELDS)

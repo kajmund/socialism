@@ -7,7 +7,7 @@ Domain layer for multi-expert panel sessions, separate from OASIS tick-loop / `s
 | Protocol | Status | Description |
 | -------- | ------ | ----------- |
 | `generic_panel` | Fas 1 | Moderator + 3–4 experts, turn-taking, scratchpads, session analysis |
-| `dd_panel` | Fas 2 | DD-specific protocol on top of shared engine |
+| `dd_panel` | Fas 2 | DD scoring matrix (4 sub-questions × experts), Spinndoktor moderator, source badges |
 | Focus group | Later | Third protocol; does not replace the above |
 
 ## Architecture
@@ -33,9 +33,27 @@ Reuses existing job worker, prompt store, and LLM `complete_text` — not the OA
 
 Scratchpads are stored on the session row and included in expert prompts but omitted from the public transcript flow order (recorded as `scratchpad` phase turns).
 
+## dd_panel flow (Fas 2)
+
+1. Create via `POST /dd/campaigns/{id}/panel-sessions` (candidate + expert roles from `dd_expertpanel` catalog)
+2. Spinndoktor (`spinndoctor.system`) moderates — not `panel.moderator.system`
+3. Four sub-questions (finansiell hälsa, legal risk, marknadsposition, integrationsrisk)
+4. Each expert scores each sub-question (1–10) with motivation + source badge
+5. Structured output in `panel_sessions.result` (`DdPanelResult`: scores matrix, dissensus notes, summary)
+
+### Source attribution (explicit priority chain)
+
+Implemented in `app/services/dd/source_attribution.py` — **not** silent fallbacks:
+
+1. OKF manual (`knowledge/manual`)
+2. Web (DuckDuckGo)
+3. `llm` — labeled **Modellbedömning** when no external source is found
+
+Badges are stored per score in `result.scores[].source`.
+
 ## Persistence
 
-- `panel_sessions` — config, transcript JSON, scratchpads, analysis, optional `campaign_id`, `job_id`
+- `panel_sessions` — config, transcript JSON, scratchpads, analysis, **result** (dd_panel), optional `campaign_id`, `job_id`
 - Prompts live in the database (`prompt_catalog.py` defaults, active configuration at runtime)
 
 ## API

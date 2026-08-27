@@ -8,12 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.session import get_session
 from app.schemas.domain import JobCreate
 from app.services import jobs as jobs_service
-from app.services.panel.engine import run_generic_panel
 from app.services.panel.schemas import PanelSessionCreate, PanelSessionOut
 from app.services.panel.sessions import create_panel_session, get_panel_session, serialize_panel_session
-from app.services.prompt_store import require_active_prompts
 
 router = APIRouter(prefix="/panel", tags=["panel"])
+
+_SUPPORTED_PROTOCOLS = {"generic_panel", "dd_panel"}
 
 
 @router.post("/sessions", response_model=PanelSessionOut, status_code=201)
@@ -21,7 +21,7 @@ async def post_panel_session(
     body: PanelSessionCreate,
     session: AsyncSession = Depends(get_session),
 ) -> PanelSessionOut:
-    if body.config.protocol != "generic_panel":
+    if body.config.protocol not in _SUPPORTED_PROTOCOLS:
         raise HTTPException(status_code=400, detail="Unsupported protocol")
     out = await create_panel_session(session, body)
     await session.commit()
@@ -49,6 +49,8 @@ async def post_panel_session_run(
         raise HTTPException(status_code=404, detail="Panel session not found")
     if row.status in {"pending", "running"}:
         raise HTTPException(status_code=409, detail="Panel session already running")
+    if row.protocol not in _SUPPORTED_PROTOCOLS:
+        raise HTTPException(status_code=400, detail="Unsupported protocol")
 
     row.status = "pending"
     row.error = None

@@ -20,6 +20,10 @@ def coerce_catalog_item(raw: Any) -> CatalogItem | None:
             label=label,
             description=raw.description.strip(),
             bounds=raw.bounds,
+            kompetensomrade=raw.kompetensomrade.strip(),
+            radgivningsstil=raw.radgivningsstil.strip(),
+            yrkesbakgrund=raw.yrkesbakgrund.strip(),
+            professionell_anekdot=raw.professionell_anekdot.strip(),
         )
     if isinstance(raw, str):
         label = raw.strip()
@@ -54,7 +58,15 @@ def coerce_catalog_item(raw: Any) -> CatalogItem | None:
         except (TypeError, ValueError):
             bounds = None
 
-    return CatalogItem(label=label, description=description, bounds=bounds)
+    return CatalogItem(
+        label=label,
+        description=description,
+        bounds=bounds,
+        kompetensomrade=str(raw.get("kompetensomrade") or "").strip(),
+        radgivningsstil=str(raw.get("radgivningsstil") or "").strip(),
+        yrkesbakgrund=str(raw.get("yrkesbakgrund") or "").strip(),
+        professionell_anekdot=str(raw.get("professionell_anekdot") or "").strip(),
+    )
 
 
 def coerce_catalog_items(raw_items: Any) -> list[CatalogItem]:

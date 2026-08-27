@@ -14,6 +14,7 @@ from app.services.dd.campaigns import (
     serialize_campaign,
     update_campaign,
 )
+from app.services.dd.panel_sessions import create_dd_panel_session_from_campaign
 from app.services.dd.schemas import (
     DdCampaignCreate,
     DdCampaignOut,
@@ -22,6 +23,8 @@ from app.services.dd.schemas import (
     DdSourcingSearchRequest,
     DdSourcingSearchResponse,
 )
+from app.services.panel.schemas import DdPanelSessionCreateRequest, PanelSessionOut
+from app.services.panel.sessions import create_panel_session
 
 router = APIRouter(prefix="/dd", tags=["dd"])
 
@@ -93,5 +96,29 @@ async def post_campaign_sourcing_run(
             candidates=candidates,
         ),
     )
+    await session.commit()
+    return out
+
+
+@router.post(
+    "/campaigns/{campaign_id}/panel-sessions",
+    response_model=PanelSessionOut,
+    status_code=201,
+)
+async def post_dd_panel_session(
+    campaign_id: int,
+    body: DdPanelSessionCreateRequest,
+    session: AsyncSession = Depends(get_session),
+) -> PanelSessionOut:
+    if body.campaign_id != campaign_id:
+        raise HTTPException(status_code=400, detail="campaign_id mismatch")
+    try:
+        create_body, _candidate = await create_dd_panel_session_from_campaign(session, body)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    out = await create_panel_session(session, create_body)
     await session.commit()
     return out
