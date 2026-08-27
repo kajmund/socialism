@@ -49,7 +49,7 @@ export function ExpertRoleListEditor({
   return (
     <Card className="gap-0 py-4 ring-1 ring-border">
       <CardContent className="px-5">
-        <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="sticky top-[88px] z-10 mb-3 flex items-start justify-between gap-3 border-b border-[color:var(--border-hairline)] bg-db-ink-0 py-3 md:top-[100px]">
           <div>
             <div className="text-sm font-medium text-[color:var(--text-body)]">{list.title}</div>
             {showKeyMeta ? (
@@ -156,9 +156,12 @@ export function ExpertRoleListEditor({
           ))}
         </ul>
 
-        <div className="mt-3">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           <AdminButton variant="secondary" size="sm" onClick={addItem}>
             {t("dd.expertpanel.addRole")}
+          </AdminButton>
+          <AdminButton variant="accent" size="sm" disabled={!dirty || saving} onClick={onSave}>
+            {saving ? t("common.saving") : t("common.save")}
           </AdminButton>
         </div>
       </CardContent>
