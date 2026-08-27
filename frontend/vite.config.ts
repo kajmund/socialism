@@ -25,6 +25,8 @@ const apiPrefixes = [
   'label-vocabularies',
   'feedback',
   'spindoctor',
+  'dd',
+  'panel',
 ] as const
 
 /** Browser reloads send Accept: text/html; API calls send application/json. */
