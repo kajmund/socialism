@@ -27,6 +27,7 @@ from app.schemas.domain import (
 )
 from app.serializers import utcnow
 from app.services import jobs as jobs_service
+from app.services.dd.candidate_runs import upsert_report as upsert_dd_candidate_report
 from app.services.panel.schemas import DdPanelResult
 from app.services.report import ARTIFACT_ROOT
 from app.services.report.locale import (
@@ -167,6 +168,17 @@ async def create_report(
         updated_at=utcnow(),
     )
     session.add(report)
+    await session.flush()
+    if mode == "dd" and body.sources:
+        src = body.sources[0]
+        panel = await session.get(PanelSession, src.session_id)
+        if panel is not None and panel.campaign_id is not None and src.candidate_id:
+            await upsert_dd_candidate_report(
+                session,
+                campaign_id=panel.campaign_id,
+                candidate_id=src.candidate_id,
+                report_id=report_id,
+            )
     await session.commit()
     await session.refresh(report)
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Link } from "react-router-dom"
 import {
+  getDdCampaign,
   updateDdCampaign,
   type DdCampaign,
   type DdCandidateCompany,
@@ -25,33 +26,6 @@ type ExpertRoleOption = {
   description: string
 }
 
-type CandidateRunState = {
-  sessionId: string
-  panelJobId: string | null
-  reportId: string | null
-  reportJobId: string | null
-  panelStatus: PanelSessionStatus | null
-}
-
-function storageKey(campaignId: number): string {
-  return `dd-panel-runs-${campaignId}`
-}
-
-function loadRunState(campaignId: number): Record<string, CandidateRunState> {
-  try {
-    const raw = localStorage.getItem(storageKey(campaignId))
-    if (!raw) return {}
-    const parsed = JSON.parse(raw) as Record<string, CandidateRunState>
-    return parsed && typeof parsed === "object" ? parsed : {}
-  } catch {
-    return {}
-  }
-}
-
-function saveRunState(campaignId: number, state: Record<string, CandidateRunState>): void {
-  localStorage.setItem(storageKey(campaignId), JSON.stringify(state))
-}
-
 function panelStatusClass(status: PanelSessionStatus | null): string {
   if (status === "succeeded") return "job-status succeeded"
   if (status === "failed") return "job-status failed"
@@ -64,6 +38,10 @@ function reportStatusClass(status: Report["status"] | null): string {
   if (status === "failed") return "job-status failed"
   if (status === "running" || status === "pending") return "job-status running"
   return "job-status"
+}
+
+function runForCandidate(campaign: DdCampaign, candidateId: string) {
+  return campaign.candidate_runs.find((row) => row.candidate_id === candidateId)
 }
 
 export function DdCampaignPanelSection({
@@ -82,21 +60,23 @@ export function DdCampaignPanelSection({
   const [selectedIds, setSelectedIds] = useState<string[]>(campaign.selected_candidate_ids)
   const [expertKeys, setExpertKeys] = useState<string[]>(campaign.expert_role_keys)
   const [savingSelection, setSavingSelection] = useState(false)
-  const [runState, setRunState] = useState<Record<string, CandidateRunState>>(() =>
-    loadRunState(campaign.id),
-  )
+  const [panelStatusByCandidate, setPanelStatusByCandidate] = useState<
+    Record<string, PanelSessionStatus | null>
+  >({})
   const [runningCandidateId, setRunningCandidateId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const reportCreateStarted = useRef<Set<string>>(new Set())
 
   const allRoleKeys = useMemo(() => expertRoles.map((r) => r.key), [expertRoles])
-
   const effectiveExpertKeys = expertKeys.length > 0 ? expertKeys : allRoleKeys
 
   useEffect(() => {
     setSelectedIds(campaign.selected_candidate_ids)
     setExpertKeys(campaign.expert_role_keys)
-  }, [campaign.id, campaign.selected_candidate_ids, campaign.expert_role_keys])
+    reportCreateStarted.current = new Set(
+      campaign.candidate_runs.filter((row) => row.report_id).map((row) => row.candidate_id),
+    )
+  }, [campaign])
 
   useEffect(() => {
     let cancelled = false
@@ -122,43 +102,72 @@ export function DdCampaignPanelSection({
     }
   }, [])
 
-  useEffect(() => {
-    saveRunState(campaign.id, runState)
-  }, [campaign.id, runState])
+  const refreshCampaign = useCallback(async () => {
+    const row = await getDdCampaign(campaign.id)
+    onCampaignChange(row)
+    return row
+  }, [campaign.id, onCampaignChange])
 
   useEffect(() => {
-    const stored = loadRunState(campaign.id)
-    setRunState(stored)
-    reportCreateStarted.current = new Set(
-      Object.entries(stored)
-        .filter(([, state]) => Boolean(state.reportId))
-        .map(([candidateId]) => candidateId),
-    )
-
     let cancelled = false
+    const sessionIds = campaign.candidate_runs
+      .filter((row) => row.panel_session_id)
+      .map((row) => [row.candidate_id, row.panel_session_id as string] as const)
+
+    if (sessionIds.length === 0) {
+      setPanelStatusByCandidate({})
+      return
+    }
+
     void (async () => {
-      const updates: Record<string, CandidateRunState> = { ...stored }
+      const next: Record<string, PanelSessionStatus | null> = {}
       await Promise.all(
-        Object.entries(stored).map(async ([candidateId, state]) => {
+        sessionIds.map(async ([candidateId, sessionId]) => {
           try {
-            const session = await getPanelSession(state.sessionId)
-            updates[candidateId] = {
-              ...state,
-              panelStatus: session.status,
-              panelJobId: session.job_id ?? state.panelJobId,
-            }
+            const session = await getPanelSession(sessionId)
+            next[candidateId] = session.status
           } catch {
-            // keep cached state
+            next[candidateId] = null
           }
         }),
       )
-      if (!cancelled) setRunState(updates)
+      if (!cancelled) setPanelStatusByCandidate(next)
     })()
 
     return () => {
       cancelled = true
     }
-  }, [campaign.id])
+  }, [campaign.candidate_runs])
+
+  useEffect(() => {
+    setPanelStatusByCandidate((prev) => {
+      let changed = false
+      const next = { ...prev }
+      for (const row of campaign.candidate_runs) {
+        if (!row.panel_session_id) continue
+        const panelJob = jobs.find(
+          (job) =>
+            job.kind === "panel_session_run" &&
+            job.request?.session_id === row.panel_session_id,
+        )
+        const panelStatus =
+          panelJob?.status === "succeeded"
+            ? "succeeded"
+            : panelJob?.status === "failed"
+              ? "failed"
+              : panelJob?.status === "running"
+                ? "running"
+                : panelJob?.status === "pending"
+                  ? "pending"
+                  : prev[row.candidate_id] ?? null
+        if (panelStatus !== prev[row.candidate_id]) {
+          changed = true
+          next[row.candidate_id] = panelStatus
+        }
+      }
+      return changed ? next : prev
+    })
+  }, [jobs, campaign.candidate_runs])
 
   const persistSelection = useCallback(
     async (nextSelected: string[], nextExperts: string[]) => {
@@ -210,95 +219,38 @@ export function DdCampaignPanelSection({
     async (candidateId: string, sessionId: string, candidateName: string) => {
       if (reportCreateStarted.current.has(candidateId)) return
       reportCreateStarted.current.add(candidateId)
-
       try {
-        const report = await createDdReport({
+        await createDdReport({
           session_id: sessionId,
           candidate_id: candidateId,
           title: t("dd.panel.reportTitle", { name: candidateName }),
           locale,
         })
-        setRunState((prev) => ({
-          ...prev,
-          [candidateId]: {
-            ...(prev[candidateId] ?? {
-              sessionId,
-              panelJobId: null,
-              panelStatus: "succeeded",
-            }),
-            reportId: report.id,
-            reportJobId: report.job_id,
-          },
-        }))
+        await refreshCampaign()
       } catch (err) {
         reportCreateStarted.current.delete(candidateId)
         setError(err instanceof ApiError ? err.message : t("dd.panel.reportCreateError"))
       }
     },
-    [locale, t],
+    [locale, refreshCampaign, t],
   )
 
   useEffect(() => {
-    let changed = false
-    const next: Record<string, CandidateRunState> = { ...runState }
-
-    for (const [candidateId, state] of Object.entries(runState)) {
-      if (!state.sessionId) continue
-
-      const panelJob = state.panelJobId
-        ? jobs.find((j) => j.id === state.panelJobId)
-        : jobs.find(
-            (j) =>
-              j.kind === "panel_session_run" &&
-              j.request?.session_id === state.sessionId,
-          )
-
-      const panelStatus =
-        panelJob?.status === "succeeded"
-          ? "succeeded"
-          : panelJob?.status === "failed"
-            ? "failed"
-            : panelJob?.status === "running"
-              ? "running"
-              : panelJob?.status === "pending"
-                ? "pending"
-                : state.panelStatus
-
-      const panelJobId = panelJob?.id ?? state.panelJobId
-
-      if (panelStatus !== state.panelStatus || panelJobId !== state.panelJobId) {
-        changed = true
-        next[candidateId] = { ...state, panelStatus, panelJobId }
-      }
-
-      const merged = next[candidateId] ?? state
-      if (merged.panelStatus === "succeeded" && !merged.reportId) {
-        const candidate = campaign.candidates.find((c) => c.id === candidateId)
-        if (candidate) {
-          void maybeCreateReport(candidateId, merged.sessionId, candidate.namn)
-        }
+    for (const row of campaign.candidate_runs) {
+      if (!row.panel_session_id || row.report_id) continue
+      const panelStatus = panelStatusByCandidate[row.candidate_id]
+      if (panelStatus !== "succeeded") continue
+      const candidate = campaign.candidates.find((c) => c.id === row.candidate_id)
+      if (candidate) {
+        void maybeCreateReport(row.candidate_id, row.panel_session_id, candidate.namn)
       }
     }
-
-    if (changed) setRunState(next)
-  }, [jobs, runState, campaign.candidates, maybeCreateReport])
-
-  useEffect(() => {
-    for (const [candidateId, state] of Object.entries(runState)) {
-      if (!state.reportId) continue
-      const live = reports.find((r) => r.id === state.reportId)
-      if (!live) continue
-      const reportJob = state.reportJobId
-        ? jobs.find((j) => j.id === state.reportJobId)
-        : jobs.find((j) => j.kind === "report_generate" && j.result?.report_id === state.reportId)
-      if (reportJob?.id && reportJob.id !== state.reportJobId) {
-        setRunState((prev) => ({
-          ...prev,
-          [candidateId]: { ...prev[candidateId], reportJobId: reportJob.id },
-        }))
-      }
-    }
-  }, [jobs, reports, runState])
+  }, [
+    campaign.candidate_runs,
+    campaign.candidates,
+    maybeCreateReport,
+    panelStatusByCandidate,
+  ])
 
   async function onRunPanel(candidate: DdCandidateCompany) {
     if (effectiveExpertKeys.length === 0) {
@@ -313,17 +265,9 @@ export function DdCampaignPanelSection({
         candidate_id: candidate.id,
         expert_role_keys: effectiveExpertKeys,
       })
-      const run = await runPanelSession(session.id)
-      setRunState((prev) => ({
-        ...prev,
-        [candidate.id]: {
-          sessionId: session.id,
-          panelJobId: run.job_id,
-          reportId: null,
-          reportJobId: null,
-          panelStatus: "pending",
-        },
-      }))
+      await runPanelSession(session.id)
+      await refreshCampaign()
+      setPanelStatusByCandidate((prev) => ({ ...prev, [candidate.id]: "pending" }))
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("dd.panel.runError"))
     } finally {
@@ -397,12 +341,11 @@ export function DdCampaignPanelSection({
         <div className="grid gap-3">
           {campaign.candidates.map((c) => {
             const selected = selectedIds.includes(c.id)
-            const state = runState[c.id]
-            const liveReport = state?.reportId
-              ? reports.find((r) => r.id === state.reportId)
-              : null
+            const run = runForCandidate(campaign, c.id)
+            const reportId = run?.report_id ?? null
+            const liveReport = reportId ? reports.find((r) => r.id === reportId) : null
             const reportStatus = liveReport?.status ?? null
-            const panelStatus = state?.panelStatus ?? null
+            const panelStatus = panelStatusByCandidate[c.id] ?? null
             const isRunningPanel =
               runningCandidateId === c.id ||
               panelStatus === "pending" ||
@@ -416,7 +359,7 @@ export function DdCampaignPanelSection({
                 savingSelection={savingSelection}
                 panelStatus={panelStatus}
                 reportStatus={reportStatus}
-                reportId={state?.reportId ?? null}
+                reportId={reportId}
                 isRunningPanel={isRunningPanel}
                 onToggle={() => toggleCandidate(c.id)}
                 onRunPanel={() => void onRunPanel(c)}
@@ -500,12 +443,7 @@ function CandidatePanelCard({
                   {t(`dd.panel.panelStatus.${panelStatus}`)}
                 </span>
               ) : null}
-              {reportId && reportStatus === "pending" ? (
-                <span className={reportStatusClass(reportStatus)}>
-                  {t("dd.panel.generatingReport")}
-                </span>
-              ) : null}
-              {reportId && reportStatus === "running" ? (
+              {reportId && (reportStatus === "pending" || reportStatus === "running") ? (
                 <span className={reportStatusClass(reportStatus)}>
                   {t("dd.panel.generatingReport")}
                 </span>
@@ -519,6 +457,11 @@ function CandidatePanelCard({
                 <Link className="primary" to={`/bolag/reports/${reportId}`}>
                   {t("dd.panel.openReport")}
                 </Link>
+              ) : null}
+              {reportId && reportStatus == null ? (
+                <span className={reportStatusClass("pending")}>
+                  {t("dd.panel.generatingReport")}
+                </span>
               ) : null}
             </div>
           ) : null}

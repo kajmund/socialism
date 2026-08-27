@@ -22,6 +22,12 @@ export type DdCandidateCompany = {
   beskrivning: string
 }
 
+export type DdCandidateRun = {
+  candidate_id: string
+  panel_session_id: string | null
+  report_id: string | null
+}
+
 export type DdCampaign = {
   id: number
   module: string
@@ -31,6 +37,7 @@ export type DdCampaign = {
   candidates: DdCandidateCompany[]
   selected_candidate_ids: string[]
   expert_role_keys: string[]
+  candidate_runs: DdCandidateRun[]
   created_at: string
   updated_at: string
 }
