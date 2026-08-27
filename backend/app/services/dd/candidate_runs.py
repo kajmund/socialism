@@ -64,7 +64,6 @@ async def upsert_panel_session(
         session.add(row)
     else:
         row.panel_session_id = panel_session_id
-        row.report_id = None
     await session.flush()
     await session.refresh(row)
     return serialize_candidate_run(row)

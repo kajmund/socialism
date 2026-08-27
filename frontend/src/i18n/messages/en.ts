@@ -146,6 +146,9 @@ export const en: LocalizedTree<SvMessages> = {
       reportFailed: "Report failed",
       reportTitle: "DD: {name}",
       openReport: "Open DD report",
+      rerunConfirmMessage:
+        "A report already exists for this candidate. A new run will replace it when complete. Continue?",
+      rerunConfirmContinue: "Continue",
       backToCampaigns: "← Campaigns",
       panelStatus: {
         draft: "Draft",

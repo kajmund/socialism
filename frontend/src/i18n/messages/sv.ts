@@ -144,6 +144,9 @@ export const sv = {
       reportFailed: "Rapporten misslyckades",
       reportTitle: "DD: {name}",
       openReport: "Öppna DD-rapport",
+      rerunConfirmMessage:
+        "Det finns redan en rapport för den här kandidaten. En ny körning ersätter den när den är klar. Fortsätt?",
+      rerunConfirmContinue: "Fortsätt",
       backToCampaigns: "← Kampanjer",
       panelStatus: {
         draft: "Utkast",
