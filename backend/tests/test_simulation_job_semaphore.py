@@ -46,6 +46,7 @@ async def _seed_pending_sim_job(factory: async_sessionmaker[AsyncSession], name:
         await session.flush()
         run = Run(
             name=name,
+            project_id=1,
             status="running",
             population_id=pop.id,
             seed="s",

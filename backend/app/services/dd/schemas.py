@@ -72,6 +72,7 @@ class DdCampaignOut(BaseModel):
     candidates: list[DdCandidateCompany]
     selected_candidate_ids: list[str]
     expert_role_keys: list[str]
+    customer_id: int
     created_at: str
     updated_at: str
 

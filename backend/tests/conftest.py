@@ -36,6 +36,8 @@ settings.log_dir = ""
 
 # Seeded by ensure_default_kunder() as Devbrains (primary OS tenant).
 TEST_CUSTOMER_ID = 1
+# Default projekt under Devbrains from ensure_default_kunder().
+TEST_PROJECT_ID = 1
 
 
 @pytest.fixture(autouse=True)

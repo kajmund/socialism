@@ -44,6 +44,7 @@ class Kund(Base):
     )
     personas: Mapped[list["Persona"]] = relationship(back_populates="kund")
     configurations: Mapped[list["Configuration"]] = relationship(back_populates="kund")
+    dd_campaigns: Mapped[list["DdCampaign"]] = relationship(back_populates="kund")
 
 
 class Projekt(Base):
@@ -72,6 +73,8 @@ class Projekt(Base):
     )
 
     kund: Mapped[Kund] = relationship(back_populates="projekt")
+    runs: Mapped[list["Run"]] = relationship(back_populates="projekt")
+    messages: Mapped[list["Message"]] = relationship(back_populates="projekt")
 
     __table_args__ = (
         UniqueConstraint("customer_id", "slug", name="uq_projekt_customer_slug"),
@@ -188,6 +191,11 @@ class Run(Base):
     __tablename__ = "runs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projekt.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="draft")
     population_id: Mapped[int] = mapped_column(
@@ -212,6 +220,7 @@ class Run(Base):
     )
 
     population: Mapped[Population] = relationship(back_populates="runs")
+    projekt: Mapped["Projekt"] = relationship(back_populates="runs")
 
 
 class HelpMessage(Base):
@@ -289,6 +298,11 @@ class Message(Base):
     __tablename__ = "messages"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projekt.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
     type: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False, default="")
@@ -299,6 +313,8 @@ class Message(Base):
         server_default=func.now(),
         nullable=False,
     )
+
+    projekt: Mapped["Projekt"] = relationship(back_populates="messages")
 
 
 class Configuration(Base):
@@ -525,14 +541,16 @@ class CatalogList(Base):
     """Editable master-data option lists scoped to a configuration."""
 
     __tablename__ = "catalog_lists"
-    __table_args__ = (
-        UniqueConstraint("configuration_id", "key", name="uq_catalog_lists_config_key"),
-    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     configuration_id: Mapped[int] = mapped_column(
         ForeignKey("configurations.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
+    )
+    project_id: Mapped[int | None] = mapped_column(
+        ForeignKey("projekt.id", ondelete="RESTRICT"),
+        nullable=True,
         index=True,
     )
     key: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -681,6 +699,11 @@ class DdCampaign(Base):
     __tablename__ = "dd_campaigns"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("kunder.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
     module: Mapped[str] = mapped_column(String(32), nullable=False, default="dd", index=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="draft")
@@ -699,6 +722,8 @@ class DdCampaign(Base):
         onupdate=func.now(),
         nullable=False,
     )
+
+    kund: Mapped[Kund] = relationship(back_populates="dd_campaigns")
 
 
 class PanelSession(Base):
