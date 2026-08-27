@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.dd.campaigns import get_campaign
 from app.services.dd.expert_roles import load_expert_slots
 from app.services.dd.schemas import DdCandidateCompany
-from app.services.dd.sub_questions import DD_SUB_QUESTIONS
 from app.services.panel.dd_engine import _candidate_brief
 from app.services.panel.schemas import DdPanelSessionCreateRequest, PanelSessionConfig, PanelSessionCreate
 from app.services.panel.sessions import create_panel_session
@@ -34,7 +33,6 @@ async def create_dd_panel_session_from_campaign(
         topic=f"Due diligence: {candidate.namn}",
         brief=_candidate_brief(candidate),
         expert_slots=expert_slots,
-        max_rounds=len(DD_SUB_QUESTIONS),
         campaign_id=body.campaign_id,
         candidate=candidate,
         candidate_id=candidate.id,
