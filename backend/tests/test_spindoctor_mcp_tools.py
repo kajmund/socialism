@@ -43,10 +43,15 @@ def _variant_payload(persona_id: str) -> dict:
     }
 
 
+from app.services.kund_store import ensure_default_kunder
+
+
 async def _seed_interview_report(session: AsyncSession) -> tuple[str, str]:
+    await ensure_default_kunder(session)
     now = utcnow()
     persona = Persona(
         id="p-johan",
+        customer_id=1,
         name="Johan Lindqvist",
         age=44,
         occ="Ekonom",

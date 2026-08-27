@@ -31,7 +31,7 @@ from app.config import settings
 from app.database.models import Configuration, Population, Run
 from app.database.session import SessionLocal
 from app.serializers import utcnow
-from app.services.anchor_store import require_anchor_sets_for_language
+from app.services.kund_store import default_os_customer_id
 from app.services.catalog_store import ensure_catalog_defaults
 from app.services.oasis_run import OasisUnavailable, attempt_all_failed, simulate_run
 from app.services.prompt_catalog import default_prompts, normalize_prompts
@@ -567,7 +567,9 @@ async def ensure_benchmark_configuration(
     )
     now = utcnow()
     if row is None:
+        customer_id = await default_os_customer_id(session)
         row = Configuration(
+            customer_id=customer_id,
             name=name,
             language=template.language,
             prompts=normalized,

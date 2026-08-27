@@ -34,6 +34,9 @@ _IMAGE_CACHE_ROOT = tempfile.mkdtemp(prefix="image-cache-")
 settings.image_cache_dir = _IMAGE_CACHE_ROOT
 settings.log_dir = ""
 
+# Seeded by ensure_default_kunder() as Devbrains (primary OS tenant).
+TEST_CUSTOMER_ID = 1
+
 
 @pytest.fixture(autouse=True)
 def _reset_llm_completers():

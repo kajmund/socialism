@@ -65,6 +65,7 @@ async def session():
             db.add(
                 Persona(
                     id=pid,
+                    customer_id=1,
                     name=name,
                     age=40,
                     occ="Ekonom",

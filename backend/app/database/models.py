@@ -18,10 +18,75 @@ from sqlalchemy.types import JSON
 from app.database.base import Base
 
 
+class Kund(Base):
+    """Customer (tenant) — hardest scoping level for library data."""
+
+    __tablename__ = "kunder"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    slug: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    projekt: Mapped[list["Projekt"]] = relationship(
+        back_populates="kund",
+        cascade="all, delete-orphan",
+    )
+    personas: Mapped[list["Persona"]] = relationship(back_populates="kund")
+    configurations: Mapped[list["Configuration"]] = relationship(back_populates="kund")
+
+
+class Projekt(Base):
+    """Project grouping within a customer (soft scope for runs, messages, grunddata)."""
+
+    __tablename__ = "projekt"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("kunder.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    slug: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    kund: Mapped[Kund] = relationship(back_populates="projekt")
+
+    __table_args__ = (
+        UniqueConstraint("customer_id", "slug", name="uq_projekt_customer_slug"),
+    )
+
+
 class Persona(Base):
     __tablename__ = "personas"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("kunder.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     age: Mapped[int] = mapped_column(Integer, nullable=False)
     occ: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -36,6 +101,7 @@ class Persona(Base):
         nullable=False,
     )
 
+    kund: Mapped[Kund] = relationship(back_populates="personas")
     memberships: Mapped[list["PopulationMember"]] = relationship(
         back_populates="persona",
         cascade="all, delete-orphan",
@@ -241,6 +307,11 @@ class Configuration(Base):
     __tablename__ = "configurations"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("kunder.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     language: Mapped[str] = mapped_column(String(8), nullable=False, index=True)
     prompts: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
@@ -263,6 +334,7 @@ class Configuration(Base):
         nullable=False,
     )
 
+    kund: Mapped[Kund] = relationship(back_populates="configurations")
     catalog_lists: Mapped[list["CatalogList"]] = relationship(
         back_populates="configuration",
         cascade="all, delete-orphan",
