@@ -51,6 +51,15 @@ Implemented in `app/services/dd/source_attribution.py` — **not** silent fallba
 
 Badges are stored per score in `result.scores[].source`.
 
+## DD report (Fas 3)
+
+1. `POST /reports` with `mode=dd` (auto-inferred) and source `{type: "dd_session", session_id, candidate_id}`
+2. Validation requires `PanelSession.status == succeeded`, `protocol == dd_panel`, and matching `candidate_id`
+3. Job `report_generate` renders `panel_sessions.result` via `app/services/report/dd_report.py` (no SSR / no new scoring)
+4. Artifacts: `report.html`, `report.slots.json`, `report.dd.json` under `data/reports/{id}/`
+
+Source badge colors in HTML: `okf` → green (`confirmed`), `web` → blue (`web`), `llm` → gray (`single`).
+
 ## Persistence
 
 - `panel_sessions` — config, transcript JSON, scratchpads, analysis, **result** (dd_panel), optional `campaign_id`, `job_id`
