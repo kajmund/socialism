@@ -126,6 +126,7 @@ def test_spindoctor_mcp_tool_specs_include_widgets_and_search():
     assert "list_runs" in names
     assert "list_reports" in names
     assert "list_populations" in names
+    assert "get_report_dd" in names
 
 
 @pytest.mark.asyncio

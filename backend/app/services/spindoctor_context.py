@@ -12,6 +12,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import Report
 from app.services.report import ARTIFACT_ROOT
 from app.services.report.bundles import RunBundle, build_bundles
+from app.services.spindoctor_dd import (
+    build_dd_spindoctor_context_block,
+    load_dd_report_json,
+)
 from app.services.report.classify import TONE_LABELS
 from app.services.report.locale import display_style_label, normalize_locale
 from app.services.report.metrics import compute_report_metrics, pct
@@ -256,6 +260,10 @@ async def load_spindoctor_source(
     sources = report.sources if isinstance(report.sources, list) else []
     if not sources:
         raise ValueError(f"Report {report_id!r} has no sources")
+    if report.mode == "dd":
+        if load_dd_report_json(report_id) is None:
+            raise ValueError(f"report.dd.json not found for {report_id!r}")
+        return report, []
     return report, await build_bundles(session, sources)
 
 
@@ -267,6 +275,16 @@ async def build_spindoctor_context(
     """Return report row and formatted context block for the system prompt."""
     report, bundles = await load_spindoctor_source(session, report_id=report_id)
     locale = normalize_locale(report.locale or "sv")
+    if report.mode == "dd":
+        dd_doc = load_dd_report_json(report_id)
+        if dd_doc is None:
+            raise ValueError(f"report.dd.json not found for {report_id!r}")
+        context = build_dd_spindoctor_context_block(
+            dd_doc,
+            locale=locale,
+            title=report.title or report_id,
+        )
+        return report, context
     sources = report.sources if isinstance(report.sources, list) else []
     metrics = compute_report_metrics(bundles)
     ssr_doc = _load_ssr_json(report_id)

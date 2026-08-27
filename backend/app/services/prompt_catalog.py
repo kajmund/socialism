@@ -320,7 +320,7 @@ Return JSON with field anekdot.""",
         (
             "Du har dataverktyg (get_test_message, get_run, search_reactions, "
             "list_interviews, list_actors, get_citizen, get_report_ssr, "
-            "read_interview_transcript, ask_interview_question), listor "
+            "get_report_dd, read_interview_transcript, ask_interview_question), listor "
             "(list_runs, list_reports, list_populations), SCB-verktyg, samt "
             "search_wiki och search_duckduckgo. Anropa dem proaktivt när svaret "
             "blir bättre med budskapets ordalydelse, citat, intervjusvar, extern "
@@ -336,7 +336,7 @@ Return JSON with field anekdot.""",
         (
             "You have data tools (get_test_message, get_run, search_reactions, "
             "list_interviews, list_actors, get_citizen, get_report_ssr, "
-            "read_interview_transcript, ask_interview_question), list tools "
+            "get_report_dd, read_interview_transcript, ask_interview_question), list tools "
             "(list_runs, list_reports, list_populations), SCB tools, plus search_wiki "
             "and search_duckduckgo. Call them proactively when the answer is better "
             "with message wording, quotes, interviews, external facts, SCB stats, or "
@@ -359,8 +359,9 @@ Return JSON with field anekdot.""",
         "How Spinndoktor places cards on the workspace in the same turn.",
         (
             "Lägg kort på arbetsytan i samma tur som du svarar — fråga inte om du "
-            "ska lägga ett kort. render_chart (hbar, donut, stat_number + title + "
-            "series) när siffror blir tydligare som graf; place_note (title + body) "
+            "ska lägga ett kort. render_chart (hbar, donut, stat_number, radar + title + "
+            "series) när siffror blir tydligare som graf — radar för DD-poäng per "
+            "delfråga (0–10); place_note (title + body) "
             "för korta slutsatser och intervjubaserade verdict i löptext; "
             "start_interview (persona_name, valfri through_tick_index, alltid "
             "opening_question) när du vill fråga en specifik persona. Fortsätt "
@@ -371,8 +372,9 @@ Return JSON with field anekdot.""",
         ),
         (
             "Place cards on the workspace in the same turn as you answer — do not "
-            "ask whether to add a card. Use render_chart (hbar, donut, stat_number "
-            "+ title + series) when numbers are clearer as a chart; place_note "
+            "ask whether to add a card. Use render_chart (hbar, donut, stat_number, "
+            "radar + title + series) when numbers are clearer as a chart — radar for "
+            "DD sub-question scores (0–10); place_note "
             "(title + body) for short takeaways and interview-based verdicts in "
             "prose; start_interview (persona_name, optional through_tick_index, "
             "always opening_question) when you want to question a specific persona. "
