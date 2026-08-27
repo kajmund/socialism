@@ -17,6 +17,12 @@ def serialize_candidate_run(row: DdCandidateRun) -> DdCandidateRunOut:
     )
 
 
+async def list_run_candidate_ids(session: AsyncSession, campaign_id: int) -> set[str]:
+    stmt = select(DdCandidateRun.candidate_id).where(DdCandidateRun.campaign_id == campaign_id)
+    rows = (await session.execute(stmt)).scalars().all()
+    return set(rows)
+
+
 async def list_candidate_runs(session: AsyncSession, campaign_id: int) -> list[DdCandidateRunOut]:
     stmt = (
         select(DdCandidateRun)
