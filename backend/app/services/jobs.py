@@ -36,6 +36,7 @@ from app.services.oasis_run import (
     previous_attempts,
     simulate_run,
 )
+from app.services.panel.dd_engine import run_dd_panel
 from app.services.panel.engine import run_generic_panel
 from app.services.panel.schemas import PanelSessionRunJobRequest
 from app.services.population_persist import (
@@ -539,9 +540,12 @@ async def _run_panel_session(job_id: str) -> None:
                 await _fail(session, job_id, f"Panel session not found: {payload.session_id}")
                 return
             prompts = await require_active_prompts(session)
-            if panel.protocol != "generic_panel":
+            if panel.protocol == "generic_panel":
+                await run_generic_panel(session, panel, prompts)
+            elif panel.protocol == "dd_panel":
+                await run_dd_panel(session, panel, prompts)
+            else:
                 raise RuntimeError(f"Unsupported panel protocol: {panel.protocol}")
-            await run_generic_panel(session, panel, prompts)
             await session.commit()
 
         async with factory() as session:
