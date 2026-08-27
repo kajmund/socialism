@@ -63,6 +63,12 @@ class DdCampaignUpdate(BaseModel):
     expert_role_keys: list[str] | None = None
 
 
+class DdCandidateRunOut(BaseModel):
+    candidate_id: str
+    panel_session_id: str | None = None
+    report_id: str | None = None
+
+
 class DdCampaignOut(BaseModel):
     id: int
     module: str
@@ -72,6 +78,7 @@ class DdCampaignOut(BaseModel):
     candidates: list[DdCandidateCompany]
     selected_candidate_ids: list[str]
     expert_role_keys: list[str]
+    candidate_runs: list[DdCandidateRunOut] = Field(default_factory=list)
     created_at: str
     updated_at: str
 
