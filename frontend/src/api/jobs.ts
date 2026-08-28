@@ -19,6 +19,7 @@ export type RunSimulateJobRequest = {
 
 export type Job = {
   id: string
+  customer_id: number
   kind: JobKind | string
   status: JobStatus
   label: string
@@ -32,6 +33,8 @@ export type Job = {
     engine?: string
     ticks_run?: number
     report_id?: string
+    session_id?: string
+    campaign_id?: number
     html_path?: string
     sources?: number
     dry_run?: boolean
@@ -55,10 +58,12 @@ export function createJob(body: JobCreate): Promise<Job> {
 
 export function listJobs(params?: {
   status?: JobStatus
+  customer_id?: number
   limit?: number
 }): Promise<Job[]> {
   const qs = new URLSearchParams()
   if (params?.status) qs.set("status", params.status)
+  if (params?.customer_id != null) qs.set("customer_id", String(params.customer_id))
   if (params?.limit != null) qs.set("limit", String(params.limit))
   const suffix = qs.toString() ? `?${qs}` : ""
   return api.get<Job[]>(`/jobs${suffix}`)

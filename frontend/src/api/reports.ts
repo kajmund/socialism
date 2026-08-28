@@ -25,6 +25,7 @@ export type ReportMode = "full" | "quick" | "dd"
 
 export type Report = {
   id: string
+  customer_id: number
   status: ReportStatus
   title: string
   locale: Locale

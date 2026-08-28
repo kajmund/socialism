@@ -20,8 +20,8 @@ import { ExpertsPage } from "@/pages/ExpertsPage"
 import { DdCampaignEditorPage } from "@/pages/DdCampaignEditorPage"
 import { DdCampaignsPage } from "@/pages/DdCampaignsPage"
 import { EmbeddingCachePage } from "@/pages/EmbeddingCachePage"
-import { FeedbackPage } from "@/pages/FeedbackPage"
-import { JobsPage } from "@/pages/JobsPage"
+import { BolagFeedbackPage, FeedbackPage } from "@/pages/FeedbackPage"
+import { BolagJobsPage, JobsPage } from "@/pages/JobsPage"
 import { LoginPage } from "@/pages/LoginPage"
 import { MessagesPage } from "@/pages/MessagesPage"
 import { MessagesWorkshopPage } from "@/pages/MessagesWorkshopPage"
@@ -32,7 +32,7 @@ import { PopulationBuilderPage } from "@/pages/PopulationBuilderPage"
 import { PopulationDetailPage } from "@/pages/PopulationDetailPage"
 import { PopulationsPage } from "@/pages/PopulationsPage"
 import { ReportPage } from "@/pages/ReportPage"
-import { ReportsPage } from "@/pages/ReportsPage"
+import { BolagReportsPage, ReportsPage } from "@/pages/ReportsPage"
 import { RunsPage } from "@/pages/RunsPage"
 import { JobsRealtimeProvider } from "@/realtime/JobsRealtimeProvider"
 import { ReportsRealtimeProvider } from "@/realtime/ReportsRealtimeProvider"
@@ -77,7 +77,10 @@ export default function App() {
               <Route path="campaigns" element={<DdCampaignsPage />} />
               <Route path="campaigns/new" element={<DdCampaignEditorPage />} />
               <Route path="campaigns/:id" element={<DdCampaignEditorPage />} />
+              <Route path="jobs" element={<BolagJobsPage />} />
+              <Route path="reports" element={<BolagReportsPage />} />
               <Route path="reports/:id" element={<ReportPage />} />
+              <Route path="feedback" element={<BolagFeedbackPage />} />
             </Route>
           </Route>
 

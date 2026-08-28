@@ -93,6 +93,7 @@ def _dt(value: datetime | None) -> str | None:
 def serialize_job(job: Job) -> JobOut:
     return JobOut(
         id=job.id,
+        customer_id=job.customer_id,
         kind=job.kind,
         status=job.status,  # type: ignore[arg-type]
         label=job.label,
@@ -609,7 +610,11 @@ async def _run_panel_session(job_id: str) -> None:
         await publish_panel_finished(payload.session_id, status="succeeded")
 
         async with factory() as session:
-            await _succeed(session, job_id, {"session_id": payload.session_id})
+            panel = await session.get(PanelSession, payload.session_id)
+            result: dict[str, object] = {"session_id": payload.session_id}
+            if panel is not None and panel.campaign_id is not None:
+                result["campaign_id"] = panel.campaign_id
+            await _succeed(session, job_id, result)
     except Exception as exc:
         logger.exception("Panel session job %s failed", job_id)
         error_text = str(exc) or exc.__class__.__name__
@@ -628,11 +633,14 @@ async def list_jobs(
     session: AsyncSession,
     *,
     status: JobStatus | None = None,
+    customer_id: int | None = None,
     limit: int = 50,
 ) -> list[Job]:
     stmt = select(Job).order_by(Job.created_at.desc()).limit(min(max(limit, 1), 100))
     if status is not None:
         stmt = stmt.where(Job.status == status)
+    if customer_id is not None:
+        stmt = stmt.where(Job.customer_id == customer_id)
     result = await session.execute(stmt)
     return list(result.scalars().all())
 

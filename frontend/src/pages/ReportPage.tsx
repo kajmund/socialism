@@ -60,8 +60,8 @@ export function ReportPage() {
   const { t } = useLocale()
   const isBolagReport = location.pathname.startsWith("/bolag/reports/")
   const Shell = isBolagReport ? BolagShell : AdminShell
-  const reportsListPath = isBolagReport ? "/bolag/campaigns" : "/reports"
-  const reportsListLabel = isBolagReport ? t("dd.panel.backToCampaigns") : t("reports.backToList")
+  const reportsListPath = isBolagReport ? "/bolag/reports" : "/reports"
+  const reportsListLabel = isBolagReport ? t("bolag.nav.reports") : t("reports.backToList")
   const { reports, status: wsStatus, connected } = useReportsRealtime()
   const report = id ? reports.find((r) => r.id === id) ?? null : null
   const [html, setHtml] = useState<string | null>(null)

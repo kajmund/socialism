@@ -47,6 +47,7 @@ def _normalize_sources(raw: list | None) -> list[dict]:
 def serialize_report(report: Report) -> ReportOut:
     return ReportOut(
         id=report.id,
+        customer_id=report.customer_id,
         status=report.status,  # type: ignore[arg-type]
         title=report.title,
         locale=normalize_locale(getattr(report, "locale", None)),
@@ -66,11 +67,14 @@ async def list_reports(
     session: AsyncSession,
     *,
     status: str | None = None,
+    customer_id: int | None = None,
     limit: int = 50,
 ) -> list[Report]:
     stmt = select(Report).order_by(Report.created_at.desc()).limit(min(max(limit, 1), 100))
     if status is not None:
         stmt = stmt.where(Report.status == status)
+    if customer_id is not None:
+        stmt = stmt.where(Report.customer_id == customer_id)
     return list((await session.execute(stmt)).scalars().all())
 
 

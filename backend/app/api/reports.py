@@ -215,10 +215,13 @@ async def create_report(
 @router.get("", response_model=list[ReportOut])
 async def list_reports(
     status: ReportStatus | None = Query(default=None),
+    customer_id: int | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=100),
     session: AsyncSession = Depends(get_session),
 ) -> list[ReportOut]:
-    rows = await list_report_rows(session, status=status, limit=limit)
+    rows = await list_report_rows(
+        session, status=status, customer_id=customer_id, limit=limit
+    )
     return [_serialize(r) for r in rows]
 
 

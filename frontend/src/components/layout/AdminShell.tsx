@@ -1,10 +1,14 @@
-import { useEffect, useRef, useState, type ReactNode } from "react"
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom"
 import type { Job, JobStatus } from "@/api/jobs"
 import { useAuth } from "@/auth/AuthProvider"
 import { LocaleSwitcher } from "@/components/layout/LocaleSwitcher"
 import { useLocale, type MessageKey } from "@/i18n"
 import type { Role } from "@/lib/auth"
+import {
+  matchesCustomerScope,
+  type CustomerScope,
+} from "@/lib/scoping"
 import { cn } from "@/lib/utils"
 import { useJobsRealtime } from "@/realtime/JobsRealtimeProvider"
 
@@ -37,6 +41,7 @@ export type AdminShellProps = {
   showTools?: boolean
   jobToasts?: boolean
   menuId?: string
+  customerScope?: CustomerScope
 }
 
 type ToastState = {
@@ -78,6 +83,7 @@ function toastFromTransition(
   job: Job,
   prev: JobStatus | undefined,
   t: Translate,
+  scope: CustomerScope,
 ): ToastState | null {
   if (job.status !== "succeeded" && job.status !== "failed") return null
   if (prev === "succeeded" || prev === "failed") return null
@@ -89,6 +95,9 @@ function toastFromTransition(
     const populationKind = job.result?.population_kind
     const runId = job.result?.run_id
     const reportId = job.result?.report_id
+    const campaignId =
+      typeof job.result?.campaign_id === "number" ? job.result.campaign_id : null
+    const bolag = scope === "bolag"
     if (job.kind === "run_simulate" && runId != null) {
       return {
         kind: "ok",
@@ -101,16 +110,31 @@ function toastFromTransition(
       return {
         kind: "ok",
         message: t("toast.reportDone", { label: job.label }),
-        href: `/reports/${reportId}`,
+        href: bolag ? `/bolag/reports/${reportId}` : `/reports/${reportId}`,
         hrefLabel: t("toast.openReport"),
+      }
+    }
+    if (
+      (job.kind === "panel_session_run" || job.kind === "dd_sourcing_run") &&
+      campaignId != null
+    ) {
+      return {
+        kind: "ok",
+        message: t("toast.jobDone", { label: job.label }),
+        href: `/bolag/campaigns/${campaignId}`,
+        hrefLabel: t("toast.openCampaign"),
       }
     }
     const populationHref =
       popId != null
         ? populationKind === "expert_panel"
           ? `/bolag/expertpaneler/${popId}`
-          : `/populations/${popId}`
-        : "/jobs"
+          : bolag
+            ? `/bolag/expertpaneler/${popId}`
+            : `/populations/${popId}`
+        : bolag
+          ? "/bolag/jobs"
+          : "/jobs"
     return {
       kind: "ok",
       message: t("toast.jobDone", { label: job.label }),
@@ -133,14 +157,14 @@ function toastFromTransition(
     return {
       kind: "err",
       message: t("toast.reportFailed", { label: job.label, detail }),
-      href: `/reports/${reportId}`,
+      href: scope === "bolag" ? `/bolag/reports/${reportId}` : `/reports/${reportId}`,
       hrefLabel: t("toast.openReport"),
     }
   }
   return {
     kind: "err",
     message: t("toast.jobFailed", { label: job.label, detail }),
-    href: "/jobs",
+    href: scope === "bolag" ? "/bolag/jobs" : "/jobs",
     hrefLabel: t("toast.viewJobs"),
   }
 }
@@ -273,6 +297,7 @@ export function AdminShell({
   showTools: showToolsProp,
   jobToasts = true,
   menuId = "admin-main-menu",
+  customerScope = "admin",
 }: AdminShellProps) {
   const { pathname } = useLocation()
   const { t } = useLocale()
@@ -281,11 +306,20 @@ export function AdminShell({
   const visibleNavItems = showTools
     ? navItems
     : navItems.filter((link) => link.to !== "/tools")
-  const { jobs, activeCount } = useJobsRealtime()
+  const { jobs } = useJobsRealtime()
+  const scopedJobs = useMemo(
+    () => jobs.filter((job) => matchesCustomerScope(job, customerScope)),
+    [jobs, customerScope],
+  )
+  const activeCount = useMemo(
+    () =>
+      scopedJobs.filter((job) => job.status === "pending" || job.status === "running").length,
+    [scopedJobs],
+  )
   const [toast, setToast] = useState<ToastState | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
-  const jobsRef = useRef(jobs)
-  jobsRef.current = jobs
+  const jobsRef = useRef(scopedJobs)
+  jobsRef.current = scopedJobs
 
   useEffect(() => {
     setMenuOpen(false)
@@ -323,7 +357,7 @@ export function AdminShell({
     let notify: ToastState | null = null
     for (const job of rows) {
       const prev = seen[job.id]
-      const toastCandidate = toastFromTransition(job, prev, t)
+      const toastCandidate = toastFromTransition(job, prev, t, customerScope)
       if (toastCandidate && !notify) notify = toastCandidate
       nextSeen[job.id] = job.status
     }
@@ -333,7 +367,7 @@ export function AdminShell({
       const hide = window.setTimeout(() => setToast(null), 6000)
       return () => window.clearTimeout(hide)
     }
-  }, [jobToasts, jobs, t])
+  }, [customerScope, jobToasts, scopedJobs, t])
 
   return (
     <div className="theme-admin">
