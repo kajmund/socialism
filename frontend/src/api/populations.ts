@@ -104,8 +104,11 @@ export type PopulationUpdate = {
   keep_keys?: string[]
 }
 
-export function listPopulations(): Promise<PopulationSummary[]> {
-  return api.get<PopulationSummary[]>("/populations")
+export function listPopulations(params?: { kind?: "persona" | "expert_panel" }): Promise<PopulationSummary[]> {
+  const search = new URLSearchParams()
+  if (params?.kind) search.set("kind", params.kind)
+  const q = search.toString()
+  return api.get<PopulationSummary[]>(`/populations${q ? `?${q}` : ""}`)
 }
 
 export function getPopulation(id: number): Promise<PopulationDetail> {

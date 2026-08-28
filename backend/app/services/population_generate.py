@@ -64,6 +64,7 @@ __all__ = [
     "load_library_personas",
     "pop_generation",
     "put_generation",
+    "run_expert_panel_generate",
     "run_generate",
     "sample_slot",
     "stub_persona",
@@ -73,6 +74,8 @@ __all__ = [
 async def load_library_personas(
     session: AsyncSession,
     ids: list[str],
+    *,
+    required_kind: str | None = None,
 ) -> dict[str, LibraryPersonaRow]:
     """Load library personas by id. Raises ValueError if any id is missing."""
     unique = list(dict.fromkeys(ids))
@@ -81,9 +84,11 @@ async def load_library_personas(
     result = await session.execute(select(Persona).where(Persona.id.in_(unique)))
     library: dict[str, LibraryPersonaRow] = {}
     for persona in result.scalars().all():
+        if required_kind is not None and persona.kind != required_kind:
+            raise ValueError(f"Persona {persona.id} is not kind={required_kind}")
         library[persona.id] = (
             persona.name,
-            persona.age,
+            persona.age if persona.age is not None else 0,
             persona.occ,
             persona.district,
             persona.quote,
@@ -547,6 +552,68 @@ async def _make_generated_batch(
                 previous_anecdotes.append(cleaned)
 
     return personas, warnings
+
+
+async def run_expert_panel_generate(
+    body: PopulationGenerateRequest,
+    library_personas: dict[str, LibraryPersonaRow],
+    *,
+    session: AsyncSession,
+) -> PopulationGenerateResponse:
+    """Library-only staging for expert panels — no LLM generation."""
+    include_ids = list(dict.fromkeys(body.include_persona_ids))
+    present_library = {
+        c.persona_id for c in body.existing if c.source == "library" and c.persona_id
+    }
+    for persona_id in include_ids:
+        present_library.add(persona_id)
+
+    if not present_library:
+        raise ValueError("Expert panel requires at least one expert persona")
+
+    candidates: list[GenerationCandidate] = []
+    for persona_id in include_ids:
+        if persona_id in {c.persona_id for c in candidates}:
+            continue
+        row = library_personas.get(persona_id)
+        if row is None:
+            raise ValueError(f"Persona not found: {persona_id}")
+        candidates.append(library_candidate(persona_id, *row))
+
+    for cand in body.existing:
+        if cand.source != "library" or not cand.persona_id:
+            continue
+        if any(c.persona_id == cand.persona_id for c in candidates):
+            continue
+        row = library_personas.get(cand.persona_id)
+        if row is None:
+            continue
+        candidates.append(library_candidate(cand.persona_id, *row))
+
+    if not candidates:
+        raise ValueError("Expert panel requires at least one expert persona")
+
+    recipe = PopulationRecipe(size=len(candidates), dist={})
+    generation_id = body.generation_id or f"gen_{secrets.token_hex(8)}"
+    fingerprint: list[list[int]] = [[], [], []]
+    await put_generation(
+        session,
+        generation_id,
+        StoredGeneration(
+            recipe=recipe,
+            fingerprint=fingerprint,
+            candidates=candidates,
+            qa_warnings=[],
+        ),
+    )
+    return PopulationGenerateResponse(
+        generation_id=generation_id,
+        fingerprint=fingerprint,
+        candidates=candidates,
+        warnings=[],
+        qa_warnings=[],
+        target_fingerprint=fingerprint,
+    )
 
 
 async def run_generate(

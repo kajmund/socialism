@@ -17,6 +17,7 @@ export type LibraryPersona = {
 
 export type PopulationSummary = {
   id: number
+  kind?: "persona" | "expert_panel"
   name: string
   size: number
   runs: number

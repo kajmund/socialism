@@ -9,6 +9,8 @@ export type PopulationGenerateJobRequest = {
   recipe: PopulationRecipe
   population_id?: number | null
   include_persona_ids?: string[]
+  kind?: "persona" | "expert_panel"
+  customer_id?: number
 }
 
 export type RunSimulateJobRequest = {
@@ -23,6 +25,7 @@ export type Job = {
   request: Record<string, unknown>
   result: {
     population_id?: number
+    population_kind?: string
     fingerprint?: number[][]
     member_count?: number
     run_id?: number

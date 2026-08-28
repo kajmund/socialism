@@ -5,7 +5,7 @@ from __future__ import annotations
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.dd.campaigns import get_campaign
-from app.services.dd.expert_roles import load_expert_slots
+from app.services.dd.expert_roles import load_expert_slots, load_expert_slots_from_population
 from app.services.dd.schemas import DdCandidateCompany
 from app.services.panel.dd_engine import _candidate_brief
 from app.services.panel.schemas import DdPanelSessionCreateRequest, PanelSessionConfig, PanelSessionCreate
@@ -25,12 +25,19 @@ async def create_dd_panel_session_from_campaign(
     if candidate is None:
         raise LookupError(f"Candidate not found: {body.candidate_id}")
 
-    role_keys = body.expert_role_keys or list(campaign.expert_role_keys or [])
-    expert_slots = await load_expert_slots(
-        session,
-        customer_id=campaign.customer_id,
-        role_keys=role_keys or None,
-    )
+    if campaign.expert_panel_id is not None:
+        expert_slots = await load_expert_slots_from_population(
+            session,
+            campaign.expert_panel_id,
+        )
+        role_keys = [slot.slot_id for slot in expert_slots]
+    else:
+        role_keys = body.expert_role_keys or list(campaign.expert_role_keys or [])
+        expert_slots = await load_expert_slots(
+            session,
+            customer_id=campaign.customer_id,
+            role_keys=role_keys or None,
+        )
 
     config = PanelSessionConfig(
         protocol="dd_panel",

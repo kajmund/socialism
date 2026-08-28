@@ -2,21 +2,13 @@
 
 from __future__ import annotations
 
-import re
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Persona
 from app.schemas.domain import EditablePersona
 from app.serializers import persona_initials, utcnow
+from app.services.dd.expert_keys import expert_role_key
 from app.services.kund_store import bolag_demo_customer_id
-
-_EXPERT_KEY_RE = re.compile(r"[^a-z0-9]+")
-
-
-def expert_persona_key(name: str) -> str:
-    slug = _EXPERT_KEY_RE.sub("_", name.strip().casefold()).strip("_")
-    return slug or "expert"
 
 DEFAULT_EXPERT_SPECS: list[dict[str, str]] = [
     {
@@ -55,7 +47,7 @@ DEFAULT_EXPERT_SPECS: list[dict[str, str]] = [
 
 
 def _expert_persona_id(name: str) -> str:
-    return f"exp_{expert_persona_key(name)}"
+    return f"exp_{expert_role_key(name)}"
 
 
 def _profile_from_spec(spec: dict[str, str]) -> dict:

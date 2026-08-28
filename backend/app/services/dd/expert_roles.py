@@ -2,22 +2,15 @@
 
 from __future__ import annotations
 
-import re
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
-from app.database.models import Persona
+from app.database.models import Persona, Population, PopulationMember
 from app.serializers import profile_from_dict
 from app.services.dd.default_experts import ensure_default_expert_personas
+from app.services.dd.expert_keys import expert_role_key
 from app.services.panel.schemas import PanelExpertSlot
-
-_EXPERT_KEY_RE = re.compile(r"[^a-z0-9]+")
-
-
-def expert_role_key(label: str) -> str:
-    slug = _EXPERT_KEY_RE.sub("_", label.strip().casefold()).strip("_")
-    return slug or "expert"
 
 
 def _profile_text(persona: Persona) -> str:
@@ -70,4 +63,38 @@ async def load_expert_slots(
                 profile=_profile_text(persona),
             )
         )
+    return slots
+
+
+async def load_expert_slots_from_population(
+    session: AsyncSession,
+    population_id: int,
+) -> list[PanelExpertSlot]:
+    """Resolve expert slots from a saved expert_panel population."""
+    result = await session.execute(
+        select(Population)
+        .options(selectinload(Population.members).selectinload(PopulationMember.persona))
+        .where(Population.id == population_id)
+    )
+    population = result.scalar_one_or_none()
+    if population is None:
+        raise RuntimeError(f"Population not found: {population_id}")
+    if population.kind != "expert_panel":
+        raise RuntimeError(f"Population {population_id} is not an expert panel")
+
+    slots: list[PanelExpertSlot] = []
+    for member in population.members:
+        persona = member.persona
+        if persona is None:
+            raise RuntimeError(f"Expert panel member missing persona: {member.id}")
+        key = expert_role_key(persona.name)
+        slots.append(
+            PanelExpertSlot(
+                slot_id=key,
+                label=persona.name,
+                profile=_profile_text(persona),
+            )
+        )
+    if not slots:
+        raise RuntimeError(f"Expert panel {population_id} has no members")
     return slots

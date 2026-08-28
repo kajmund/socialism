@@ -86,6 +86,7 @@ function toastFromTransition(
   }
   if (job.status === "succeeded") {
     const popId = job.result?.population_id
+    const populationKind = job.result?.population_kind
     const runId = job.result?.run_id
     const reportId = job.result?.report_id
     if (job.kind === "run_simulate" && runId != null) {
@@ -104,10 +105,16 @@ function toastFromTransition(
         hrefLabel: t("toast.openReport"),
       }
     }
+    const populationHref =
+      popId != null
+        ? populationKind === "expert_panel"
+          ? `/bolag/expertpaneler/${popId}`
+          : `/populations/${popId}`
+        : "/jobs"
     return {
       kind: "ok",
       message: t("toast.jobDone", { label: job.label }),
-      href: popId != null ? `/populations/${popId}` : "/jobs",
+      href: populationHref,
       hrefLabel: popId != null ? t("toast.openPopulation") : t("toast.viewJobs"),
     }
   }
