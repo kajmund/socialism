@@ -183,6 +183,7 @@ async def test_parallel_start_interview_persists_all_messages(session, monkeypat
     session.add(
         Report(
             id="rpt_parallel",
+            customer_id=1,
             status="succeeded",
             title="Parallel",
             locale="sv",

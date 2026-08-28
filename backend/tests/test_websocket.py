@@ -172,6 +172,7 @@ def test_reports_websocket_snapshot_update_and_delete(ws_client):
         async with factory() as session:
             report = Report(
                 id="rpt_ws_test",
+                customer_id=1,
                 status="pending",
                 title="WS report",
                 locale="sv",

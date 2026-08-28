@@ -7,6 +7,8 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from app.services.report.thresholds import ReportThresholds
 
 PersonaOrigin = Literal["manuell", "beskrivning", "demografi", "population"]
+PersonaKind = Literal["persona", "expert"]
+PopulationKind = Literal["persona", "expert_panel"]
 
 
 class EditablePersona(BaseModel):
@@ -53,8 +55,9 @@ class PersonaAnecdoteOut(BaseModel):
 
 class LibraryPersona(BaseModel):
     id: str
+    kind: PersonaKind = "persona"
     name: str
-    age: int
+    age: int | None = None
     occ: str
     district: str
     quote: str
@@ -70,6 +73,7 @@ class PersonaDetail(LibraryPersona):
 
 class PersonaCreate(BaseModel):
     id: str | None = None
+    kind: PersonaKind = "persona"
     name: str
     age: int
     occ: str
@@ -188,6 +192,7 @@ class PopulationDistQaGroup(BaseModel):
 
 class PopulationSummary(BaseModel):
     id: int
+    kind: PopulationKind = "persona"
     name: str
     size: int
     runs: int
@@ -206,6 +211,7 @@ class PopulationDetail(PopulationSummary):
 
 
 class PopulationCreate(BaseModel):
+    kind: PopulationKind = "persona"
     name: str
     fingerprint: list[list[int]] = Field(default_factory=list)
     recipe: dict[str, Any] = Field(default_factory=dict)
