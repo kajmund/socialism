@@ -472,6 +472,7 @@ async def test_delete_report_removes_row_and_artifacts(client, tmp_path, monkeyp
         session.add(
             Report(
                 id=report_id,
+                customer_id=1,
                 status="succeeded",
                 title="Att ta bort",
                 locale="sv",
@@ -515,6 +516,7 @@ async def test_bulk_delete_reports(client, tmp_path, monkeypatch):
             session.add(
                 Report(
                     id=report_id,
+                    customer_id=1,
                     status="succeeded",
                     title=report_id,
                     locale="sv",

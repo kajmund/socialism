@@ -35,6 +35,7 @@ from app.services.report.locale import (
     download_filename,
     normalize_locale,
 )
+from app.services.customer_scope import customer_id_for_new_report
 from app.services.report.bundles import attempt_has_data, find_attempt
 from app.services.report.verdict_calibration import (
     get_calibration_row,
@@ -153,8 +154,11 @@ async def create_report(
             n_sources=len(sources),
         )
 
+    customer_id = await customer_id_for_new_report(session, body, sources=sources, mode=mode)
+
     report = Report(
         id=report_id,
+        customer_id=customer_id,
         status="pending",
         title=title,
         locale=locale,
@@ -211,10 +215,13 @@ async def create_report(
 @router.get("", response_model=list[ReportOut])
 async def list_reports(
     status: ReportStatus | None = Query(default=None),
+    customer_id: int | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=100),
     session: AsyncSession = Depends(get_session),
 ) -> list[ReportOut]:
-    rows = await list_report_rows(session, status=status, limit=limit)
+    rows = await list_report_rows(
+        session, status=status, customer_id=customer_id, limit=limit
+    )
     return [_serialize(r) for r in rows]
 
 
@@ -232,17 +239,19 @@ async def _delete_reports_by_ids(
     """Delete existing reports by id. Returns ids that were removed."""
     unique = list(dict.fromkeys(ids))
     deleted: list[str] = []
+    deleted_entries: list[tuple[str, int | None]] = []
     for report_id in unique:
         report = await session.get(Report, report_id)
         if report is None:
             continue
+        deleted_entries.append((report_id, report.customer_id))
         await session.delete(report)
         deleted.append(report_id)
     if deleted:
         await session.commit()
         for report_id in deleted:
             _remove_report_artifacts(report_id)
-        await publish_reports_deleted(deleted)
+        await publish_reports_deleted(deleted_entries)
     return deleted
 
 

@@ -61,6 +61,7 @@ def profile_from_dict(data: dict | None, fallback_name: str) -> EditablePersona:
 def serialize_library_persona(persona: Persona, pops: list[str]) -> LibraryPersona:
     return LibraryPersona(
         id=persona.id,
+        kind=persona.kind,  # type: ignore[arg-type]
         name=persona.name,
         age=persona.age,
         occ=persona.occ,
@@ -97,6 +98,7 @@ def serialize_member(member: PopulationMember) -> PopulationMemberOut:
 def serialize_population_summary(population: Population, run_count: int) -> PopulationSummary:
     return PopulationSummary(
         id=population.id,
+        kind=population.kind,  # type: ignore[arg-type]
         name=population.name,
         size=population.size,
         runs=run_count,

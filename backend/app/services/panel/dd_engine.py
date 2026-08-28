@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import re
-import secrets
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,11 +19,15 @@ from app.services.panel.schemas import (
     PanelExpertSlot,
     PanelSessionConfig,
     PanelTurn,
-    PanelTurnPhase,
 )
+from app.services.panel.watch import run_turn
 from app.services.prompt_catalog import render_prompt
 
 _SCORE_JSON_RE = re.compile(r"\{[\s\S]*\}")
+
+
+async def _static_text(text: str) -> str:
+    return text
 
 
 def _candidate_brief(candidate: DdCandidateCompany) -> str:
@@ -42,29 +45,6 @@ def _candidate_brief(candidate: DdCandidateCompany) -> str:
     if candidate.beskrivning:
         lines.append(f"Beskrivning: {candidate.beskrivning}")
     return "\n".join(lines)
-
-
-def _append_turn(
-    transcript: list[PanelTurn],
-    *,
-    speaker: str,
-    phase: PanelTurnPhase,
-    content: str,
-    round_index: int | None = None,
-    slot_id: str | None = None,
-    sub_question_id: str | None = None,
-) -> PanelTurn:
-    turn = PanelTurn(
-        turn_id=f"turn_{secrets.token_hex(6)}",
-        speaker=speaker,
-        phase=phase,
-        content=content.strip(),
-        round_index=round_index,
-        slot_id=slot_id,
-        sub_question_id=sub_question_id,
-    )
-    transcript.append(turn)
-    return turn
 
 
 def _transcript_text(transcript: list[PanelTurn]) -> str:
@@ -241,19 +221,28 @@ async def run_dd_panel(
     for slot in config.expert_slots:
         scratchpads.setdefault(slot.slot_id, "")
 
-    opening = await _moderator_opening(config, prompts)
-    _append_turn(transcript, speaker="Spinndoktor", phase="opening", content=opening)
+    await run_turn(
+        db,
+        panel,
+        transcript,
+        speaker="Spinndoktor",
+        phase="opening",
+        produce_content=lambda: _moderator_opening(config, prompts),
+    )
 
     scores: list[DdExpertScore] = []
     for round_index, sub_question in enumerate(DD_SUB_QUESTIONS, start=1):
-        intro = await _moderator_sub_question(config, sub_question, transcript, prompts)
-        _append_turn(
+        await run_turn(
+            db,
+            panel,
             transcript,
             speaker="Spinndoktor",
             phase="sub_question",
-            content=intro,
             round_index=round_index,
             sub_question_id=sub_question.id,
+            produce_content=lambda sq=sub_question: _moderator_sub_question(
+                config, sq, transcript, prompts
+            ),
         )
 
         for slot in config.expert_slots:
@@ -284,19 +273,30 @@ async def run_dd_panel(
                 f"Poäng {score_value}/10 — {motivation} "
                 f"[Källa: {source.label}: {source.detail}]"
             )
-            _append_turn(
+            await run_turn(
+                db,
+                panel,
                 transcript,
                 speaker=slot.label,
                 phase="score",
-                content=public,
                 round_index=round_index,
                 slot_id=slot.slot_id,
                 sub_question_id=sub_question.id,
+                produce_content=lambda text=public: _static_text(text),
             )
 
     dissensus = _dissensus_notes(scores)
-    summary = await _moderator_summary(config, transcript, scores, dissensus, prompts)
-    _append_turn(transcript, speaker="Spinndoktor", phase="analysis", content=summary)
+    summary_turn = await run_turn(
+        db,
+        panel,
+        transcript,
+        speaker="Spinndoktor",
+        phase="analysis",
+        produce_content=lambda: _moderator_summary(
+            config, transcript, scores, dissensus, prompts
+        ),
+    )
+    summary = summary_turn.content
 
     result = DdPanelResult(
         candidate=candidate,
@@ -305,7 +305,6 @@ async def run_dd_panel(
         summary=summary,
     )
 
-    panel.transcript = [t.model_dump(mode="json") for t in transcript]
     panel.scratchpads = scratchpads
     panel.analysis = summary
     panel.result = result.model_dump(mode="json")

@@ -84,6 +84,7 @@ async def _seed_interview_report(session: AsyncSession) -> tuple[str, str]:
     )
     report = Report(
         id="rpt_interview",
+        customer_id=1,
         status="succeeded",
         title="Intervjurapport",
         locale="sv",
@@ -189,6 +190,7 @@ async def test_list_runs_reports_populations(session):
     session.add(
         Report(
             id="rpt_list",
+            customer_id=1,
             status="succeeded",
             title="Lista",
             locale="sv",

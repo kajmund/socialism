@@ -7,6 +7,8 @@ import {
   type ReactNode,
 } from "react"
 import type { Report } from "@/api/reports"
+import { useAuth } from "@/auth/AuthProvider"
+import { realtimeCustomerIdForRole } from "@/lib/scoping"
 import { connectJsonWebSocket, type WsStatus } from "@/lib/ws"
 
 type ReportsRealtimeValue = {
@@ -45,14 +47,31 @@ function removeReports(list: Report[], ids: string[]): Report[] {
 }
 
 export function ReportsRealtimeProvider({ children }: { children: ReactNode }) {
+  const { role, loading } = useAuth()
+  const customerId = realtimeCustomerIdForRole(role)
   const [reports, setReports] = useState<Report[]>([])
   const [status, setStatus] = useState<WsStatus>("connecting")
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (loading) return
+
+    setReports([])
+    setError(null)
+
     const conn = connectJsonWebSocket({
       path: "/ws/reports",
       onStatus: setStatus,
+      onOpen: () => {
+        const hello: Record<string, unknown> = {
+          type: "hello",
+          scope: "reports_watch",
+        }
+        if (customerId != null) {
+          hello.customer_id = customerId
+        }
+        conn.send(hello)
+      },
       onMessage: (data) => {
         if (!data || typeof data !== "object") return
         const msg = data as Record<string, unknown>
@@ -80,7 +99,7 @@ export function ReportsRealtimeProvider({ children }: { children: ReactNode }) {
       window.clearInterval(ping)
       conn.close()
     }
-  }, [])
+  }, [customerId, loading])
 
   const value = useMemo<ReportsRealtimeValue>(() => {
     const activeCount = reports.filter(

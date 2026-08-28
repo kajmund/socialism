@@ -12,11 +12,16 @@ import { ConfigureRunPage } from "@/pages/ConfigureRunPage"
 import { ConfigurationEditorPage } from "@/pages/ConfigurationEditorPage"
 import { ConfigurationsPage } from "@/pages/ConfigurationsPage"
 import { DashboardPage } from "@/pages/DashboardPage"
+import { ExpertPanelBuilderPage } from "@/pages/ExpertPanelBuilderPage"
+import { ExpertPanelDetailPage } from "@/pages/ExpertPanelDetailPage"
+import { ExpertPanelsPage } from "@/pages/ExpertPanelsPage"
+import { ExpertComposerPage } from "@/pages/ExpertComposerPage"
+import { ExpertsPage } from "@/pages/ExpertsPage"
 import { DdCampaignEditorPage } from "@/pages/DdCampaignEditorPage"
 import { DdCampaignsPage } from "@/pages/DdCampaignsPage"
 import { EmbeddingCachePage } from "@/pages/EmbeddingCachePage"
-import { FeedbackPage } from "@/pages/FeedbackPage"
-import { JobsPage } from "@/pages/JobsPage"
+import { BolagFeedbackPage, FeedbackPage } from "@/pages/FeedbackPage"
+import { BolagJobsPage, JobsPage } from "@/pages/JobsPage"
 import { LoginPage } from "@/pages/LoginPage"
 import { MessagesPage } from "@/pages/MessagesPage"
 import { MessagesWorkshopPage } from "@/pages/MessagesWorkshopPage"
@@ -27,7 +32,7 @@ import { PopulationBuilderPage } from "@/pages/PopulationBuilderPage"
 import { PopulationDetailPage } from "@/pages/PopulationDetailPage"
 import { PopulationsPage } from "@/pages/PopulationsPage"
 import { ReportPage } from "@/pages/ReportPage"
-import { ReportsPage } from "@/pages/ReportsPage"
+import { BolagReportsPage, ReportsPage } from "@/pages/ReportsPage"
 import { RunsPage } from "@/pages/RunsPage"
 import { JobsRealtimeProvider } from "@/realtime/JobsRealtimeProvider"
 import { ReportsRealtimeProvider } from "@/realtime/ReportsRealtimeProvider"
@@ -63,10 +68,19 @@ export default function App() {
           <Route element={<RequireBolag />}>
             <Route path="/bolag" element={<BolagShell />}>
               <Route index element={<Navigate to="campaigns" replace />} />
+              <Route path="experter" element={<ExpertsPage />} />
+              <Route path="experter/new" element={<ExpertComposerPage />} />
+              <Route path="experter/:id" element={<ExpertComposerPage />} />
+              <Route path="expertpaneler" element={<ExpertPanelsPage />} />
+              <Route path="expertpaneler/new" element={<ExpertPanelBuilderPage />} />
+              <Route path="expertpaneler/:id" element={<ExpertPanelDetailPage />} />
               <Route path="campaigns" element={<DdCampaignsPage />} />
               <Route path="campaigns/new" element={<DdCampaignEditorPage />} />
               <Route path="campaigns/:id" element={<DdCampaignEditorPage />} />
+              <Route path="jobs" element={<BolagJobsPage />} />
+              <Route path="reports" element={<BolagReportsPage />} />
               <Route path="reports/:id" element={<ReportPage />} />
+              <Route path="feedback" element={<BolagFeedbackPage />} />
             </Route>
           </Route>
 

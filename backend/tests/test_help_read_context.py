@@ -79,6 +79,7 @@ def test_build_help_context_includes_failed_job_error(help_session):
             session.add(
                 Job(
                     id="job_fail_demo",
+                    customer_id=1,
                     kind="run_simulate",
                     status="failed",
                     label="Simulering misslyckades",

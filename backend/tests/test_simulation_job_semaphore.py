@@ -59,6 +59,7 @@ async def _seed_pending_sim_job(factory: async_sessionmaker[AsyncSession], name:
         await session.flush()
         job = Job(
             id=f"job_{name}",
+            customer_id=1,
             kind="run_simulate",
             status="pending",
             label=name,

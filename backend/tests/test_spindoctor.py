@@ -463,6 +463,7 @@ async def test_list_clear_service():
     async with factory() as session:
         report = Report(
             id="rpt_spin_test",
+            customer_id=1,
             status="succeeded",
             title="Test",
             locale="sv",

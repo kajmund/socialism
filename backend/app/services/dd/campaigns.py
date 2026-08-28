@@ -5,7 +5,7 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import DdCampaign
+from app.database.models import DdCampaign, Population
 from app.serializers import format_date
 from app.services.dd.allabolag_mock import search_companies
 from app.services.dd.candidate_runs import list_candidate_runs, list_run_candidate_ids
@@ -40,6 +40,7 @@ def serialize_campaign(
         candidates=[DdCandidateCompany.model_validate(c) for c in candidates_raw],
         selected_candidate_ids=list(row.selected_candidate_ids or []),
         expert_role_keys=list(row.expert_role_keys or []),
+        expert_panel_id=row.expert_panel_id,
         customer_id=row.customer_id,
         candidate_runs=list(candidate_runs or []),
         created_at=format_date(row.created_at) if row.created_at else "",
@@ -107,6 +108,13 @@ async def update_campaign(
         row.selected_candidate_ids = list(body.selected_candidate_ids)
     if body.expert_role_keys is not None:
         row.expert_role_keys = list(body.expert_role_keys)
+    if body.expert_panel_id is not None:
+        panel = await session.get(Population, body.expert_panel_id)
+        if panel is None:
+            raise ValueError(f"Expert panel not found: {body.expert_panel_id}")
+        if panel.kind != "expert_panel":
+            raise ValueError(f"Population {body.expert_panel_id} is not an expert panel")
+        row.expert_panel_id = body.expert_panel_id
     await session.flush()
     await session.refresh(row)
     return await serialize_campaign_detail(session, row)

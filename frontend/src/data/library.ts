@@ -81,12 +81,26 @@ export function blankEditablePersona(): EditablePersona {
   }
 }
 
+export function blankEditableExpert(): EditablePersona {
+  return {
+    ...blankEditablePersona(),
+    name: "Namnlös expert",
+    age: "—",
+    ort: "—",
+    beskrivning: "—",
+    kompetensomrade: "—",
+    radgivningsstil: "—",
+    yrkesbakgrund: "—",
+    professionell_anekdot: "—",
+  }
+}
+
 export function libraryPersonaToMember(p: LibraryPersona): PopulationMember {
   return {
     id: p.id,
     name: p.name,
     initials: personaInitials(p.name),
-    age: p.age,
+    age: p.age ?? 0,
     occ: p.occ,
     district: p.district,
     trait: p.quote,

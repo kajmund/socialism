@@ -1,13 +1,47 @@
-import { useState, type ReactNode } from "react"
+import { useMemo, useState, type ComponentType, type ReactNode } from "react"
 import { Link } from "react-router-dom"
 import type { Job, JobStatus } from "@/api/jobs"
 import { AdminShell } from "@/components/layout/AdminShell"
+import { BolagShell } from "@/components/layout/BolagShell"
 import { Card, CardContent } from "@/components/ui/card"
 import { ViewToggle, type ListViewMode } from "@/components/ui/view-toggle"
 import { useLocale, type MessageKey } from "@/i18n"
+import {
+  matchesCustomerScope,
+  type CustomerScope,
+} from "@/lib/scoping"
 import { useJobsRealtime } from "@/realtime/JobsRealtimeProvider"
 
 type Translate = (key: MessageKey, params?: Record<string, string | number>) => string
+
+type ShellComponent = ComponentType<{ children: ReactNode }>
+
+type JobLinkPaths = {
+  reports: string
+  populations: string
+  expertPanels: string
+  campaigns: string
+  runs: string
+}
+
+function jobLinkPaths(scope: CustomerScope): JobLinkPaths {
+  if (scope === "bolag") {
+    return {
+      reports: "/bolag/reports",
+      populations: "/bolag/expertpaneler",
+      expertPanels: "/bolag/expertpaneler",
+      campaigns: "/bolag/campaigns",
+      runs: "/runs",
+    }
+  }
+  return {
+    reports: "/reports",
+    populations: "/populations",
+    expertPanels: "/populations",
+    campaigns: "/bolag/campaigns",
+    runs: "/runs",
+  }
+}
 
 function formatWhen(iso: string | null | undefined, intl: string, emDash: string): string {
   if (!iso) return emDash
@@ -19,7 +53,6 @@ function formatWhen(iso: string | null | undefined, intl: string, emDash: string
   }).format(d)
 }
 
-/** Wall-clock duration from started→finished (falls back to created→finished). */
 function formatJobDuration(job: Job, t: Translate): string | null {
   const startIso = job.started_at ?? job.created_at
   const endIso = job.finished_at
@@ -84,6 +117,10 @@ function kindLabel(kind: string, t: Translate): string {
       return t("jobs.kind.run_simulate")
     case "report_generate":
       return t("jobs.kind.report_generate")
+    case "panel_session_run":
+      return t("jobs.kind.panel_session_run")
+    case "dd_sourcing_run":
+      return t("jobs.kind.dd_sourcing_run")
     default:
       return kind
   }
@@ -96,6 +133,10 @@ function progressLabel(job: Job, t: Translate): string {
       return t("jobs.progress.simulating")
     case "report_generate":
       return t("jobs.progress.reporting")
+    case "panel_session_run":
+      return t("jobs.progress.panel")
+    case "dd_sourcing_run":
+      return t("jobs.progress.sourcing")
     default:
       return t("jobs.progress.generating")
   }
@@ -109,37 +150,79 @@ function jobIds(job: Job) {
   const reportId =
     job.result?.report_id ??
     (typeof job.request.report_id === "string" ? job.request.report_id : null)
-  return { popId, runId, reportId }
+  const sessionId =
+    typeof job.result?.session_id === "string"
+      ? job.result.session_id
+      : typeof job.request.session_id === "string"
+        ? job.request.session_id
+        : null
+  const campaignId =
+    typeof job.result?.campaign_id === "number"
+      ? job.result.campaign_id
+      : typeof job.request.campaign_id === "number"
+        ? job.request.campaign_id
+        : null
+  return { popId, runId, reportId, sessionId, campaignId }
 }
 
-function JobActionLinks({ job, t }: { job: Job; t: Translate }) {
-  const { popId, runId, reportId } = jobIds(job)
+function populationHref(
+  job: Job,
+  popId: number,
+  paths: JobLinkPaths,
+): string {
+  if (job.result?.population_kind === "expert_panel") {
+    return `${paths.expertPanels}/${popId}`
+  }
+  return `${paths.populations}/${popId}`
+}
+
+function JobActionLinks({
+  job,
+  t,
+  paths,
+}: {
+  job: Job
+  t: Translate
+  paths: JobLinkPaths
+}) {
+  const { popId, runId, reportId, campaignId } = jobIds(job)
   const links: ReactNode[] = []
 
   if (job.status === "succeeded" && popId != null) {
     links.push(
-      <Link key="pop" to={`/populations/${popId}`}>
+      <Link key="pop" to={populationHref(job, popId, paths)}>
         {t("jobs.openPopulation")}
       </Link>,
     )
   }
   if (job.status === "succeeded" && job.kind === "run_simulate" && runId != null) {
     links.push(
-      <Link key="results" to={`/runs/${runId}/edit?tab=results`}>
+      <Link key="results" to={`${paths.runs}/${runId}/edit?tab=results`}>
         {t("jobs.openResults")}
       </Link>,
     )
   }
   if (job.status === "succeeded" && job.kind === "report_generate" && reportId != null) {
     links.push(
-      <Link key="report" to={`/reports/${reportId}`}>
+      <Link key="report" to={`${paths.reports}/${reportId}`}>
         {t("jobs.openReport")}
+      </Link>,
+    )
+  }
+  if (
+    job.status === "succeeded" &&
+    (job.kind === "panel_session_run" || job.kind === "dd_sourcing_run") &&
+    campaignId != null
+  ) {
+    links.push(
+      <Link key="campaign" to={`${paths.campaigns}/${campaignId}`}>
+        {t("jobs.openCampaign")}
       </Link>,
     )
   }
   if ((job.status === "pending" || job.status === "running") && job.kind === "run_simulate" && runId != null) {
     links.push(
-      <Link key="run" to={`/runs/${runId}/edit?tab=results`}>
+      <Link key="run" to={`${paths.runs}/${runId}/edit?tab=results`}>
         {t("jobs.openRun")}
       </Link>,
     )
@@ -150,8 +233,19 @@ function JobActionLinks({ job, t }: { job: Job; t: Translate }) {
     reportId != null
   ) {
     links.push(
-      <Link key="report-live" to={`/reports/${reportId}`}>
+      <Link key="report-live" to={`${paths.reports}/${reportId}`}>
         {t("jobs.openReport")}
+      </Link>,
+    )
+  }
+  if (
+    (job.status === "pending" || job.status === "running") &&
+    (job.kind === "panel_session_run" || job.kind === "dd_sourcing_run") &&
+    campaignId != null
+  ) {
+    links.push(
+      <Link key="campaign-live" to={`${paths.campaigns}/${campaignId}`}>
+        {t("jobs.openCampaign")}
       </Link>,
     )
   }
@@ -159,8 +253,18 @@ function JobActionLinks({ job, t }: { job: Job; t: Translate }) {
   return <>{links}</>
 }
 
-function JobCard({ job, t, intl }: { job: Job; t: Translate; intl: string }) {
-  const { popId, runId, reportId } = jobIds(job)
+function JobCard({
+  job,
+  t,
+  intl,
+  paths,
+}: {
+  job: Job
+  t: Translate
+  intl: string
+  paths: JobLinkPaths
+}) {
+  const { popId, runId, reportId, campaignId } = jobIds(job)
   const duration = formatJobDuration(job, t)
   const whenCreated = formatWhen(job.created_at, intl, t("common.emDash"))
   return (
@@ -192,7 +296,8 @@ function JobCard({ job, t, intl }: { job: Job; t: Translate; intl: string }) {
             {t("jobs.personasCount", {
               count: job.result?.member_count ?? "?",
             })}{" "}
-            · <Link to={`/populations/${popId}`}>{t("jobs.openPopulation")}</Link>
+            ·{" "}
+            <Link to={populationHref(job, popId, paths)}>{t("jobs.openPopulation")}</Link>
             {(() => {
               const warnings = (job.result as { warnings?: unknown } | null | undefined)
                 ?.warnings
@@ -212,14 +317,21 @@ function JobCard({ job, t, intl }: { job: Job; t: Translate; intl: string }) {
         )}
         {job.status === "succeeded" && job.kind === "run_simulate" && runId != null && (
           <div style={{ marginTop: 12, font: "var(--text-body-sm)" }}>
-            <Link to={`/runs/${runId}/edit?tab=results`}>{t("jobs.openResults")}</Link>
+            <Link to={`${paths.runs}/${runId}/edit?tab=results`}>{t("jobs.openResults")}</Link>
           </div>
         )}
         {job.status === "succeeded" && job.kind === "report_generate" && reportId != null && (
           <div style={{ marginTop: 12, font: "var(--text-body-sm)" }}>
-            <Link to={`/reports/${reportId}`}>{t("jobs.openReport")}</Link>
+            <Link to={`${paths.reports}/${reportId}`}>{t("jobs.openReport")}</Link>
           </div>
         )}
+        {job.status === "succeeded" &&
+          (job.kind === "panel_session_run" || job.kind === "dd_sourcing_run") &&
+          campaignId != null && (
+            <div style={{ marginTop: 12, font: "var(--text-body-sm)" }}>
+              <Link to={`${paths.campaigns}/${campaignId}`}>{t("jobs.openCampaign")}</Link>
+            </div>
+          )}
         {job.status === "failed" && job.error && (
           <div
             style={{
@@ -246,13 +358,20 @@ function JobCard({ job, t, intl }: { job: Job; t: Translate; intl: string }) {
             {job.kind === "run_simulate" && runId != null ? (
               <>
                 {" · "}
-                <Link to={`/runs/${runId}/edit?tab=results`}>{t("jobs.openRun")}</Link>
+                <Link to={`${paths.runs}/${runId}/edit?tab=results`}>{t("jobs.openRun")}</Link>
               </>
             ) : null}
             {job.kind === "report_generate" && reportId != null ? (
               <>
                 {" · "}
-                <Link to={`/reports/${reportId}`}>{t("jobs.openReport")}</Link>
+                <Link to={`${paths.reports}/${reportId}`}>{t("jobs.openReport")}</Link>
+              </>
+            ) : null}
+            {(job.kind === "panel_session_run" || job.kind === "dd_sourcing_run") &&
+            campaignId != null ? (
+              <>
+                {" · "}
+                <Link to={`${paths.campaigns}/${campaignId}`}>{t("jobs.openCampaign")}</Link>
               </>
             ) : null}
           </div>
@@ -262,7 +381,17 @@ function JobCard({ job, t, intl }: { job: Job; t: Translate; intl: string }) {
   )
 }
 
-function JobListRow({ job, t, intl }: { job: Job; t: Translate; intl: string }) {
+function JobListRow({
+  job,
+  t,
+  intl,
+  paths,
+}: {
+  job: Job
+  t: Translate
+  intl: string
+  paths: JobLinkPaths
+}) {
   const duration = formatJobDuration(job, t)
   const whenCreated = formatWhen(job.created_at, intl, t("common.emDash"))
   const meta = [
@@ -283,22 +412,32 @@ function JobListRow({ job, t, intl }: { job: Job; t: Translate; intl: string }) 
       <span className={statusClass(job.status)}>{statusLabel(job.status, t)}</span>
       <div className="cell">{meta}</div>
       <div className="admin-list-actions">
-        <JobActionLinks job={job} t={t} />
+        <JobActionLinks job={job} t={t} paths={paths} />
       </div>
     </div>
   )
 }
 
-export function JobsPage() {
+export type JobsPageProps = {
+  scope?: CustomerScope
+  Shell?: ShellComponent
+}
+
+export function JobsPage({ scope = "admin", Shell = AdminShell }: JobsPageProps) {
   const { t, intl } = useLocale()
-  const { jobs, connected, status } = useJobsRealtime()
+  const { jobs: allJobs, connected, status } = useJobsRealtime()
+  const jobs = useMemo(
+    () => allJobs.filter((job) => matchesCustomerScope(job, scope)),
+    [allJobs, scope],
+  )
+  const paths = useMemo(() => jobLinkPaths(scope), [scope])
   const [view, setView] = useState<ListViewMode>("grid")
   const error =
     status === "closed" && jobs.length === 0 ? t("jobs.loadError") : null
   const reconnecting = !connected && status !== "open"
 
   return (
-    <AdminShell>
+    <Shell>
       <div className="wrap" style={{ maxWidth: 960 }}>
         <div className="section-head">
           <span className="kicker">{t("jobs.kicker")}</span>
@@ -311,7 +450,7 @@ export function JobsPage() {
           >
             {t("jobs.title")}
           </h1>
-          <p>{t("jobs.intro")}</p>
+          <p>{scope === "bolag" ? t("jobs.introBolag") : t("jobs.intro")}</p>
         </div>
 
         <div className="controls-row">
@@ -335,22 +474,26 @@ export function JobsPage() {
 
         {jobs.length === 0 && !error ? (
           <div className="no-match" style={{ textAlign: "left" }}>
-            {t("jobs.empty")}
+            {scope === "bolag" ? t("jobs.emptyBolag") : t("jobs.empty")}
           </div>
         ) : view === "grid" ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {jobs.map((job) => (
-              <JobCard key={job.id} job={job} t={t} intl={intl} />
+              <JobCard key={job.id} job={job} t={t} intl={intl} paths={paths} />
             ))}
           </div>
         ) : (
           <div className="admin-list-stack">
             {jobs.map((job) => (
-              <JobListRow key={job.id} job={job} t={t} intl={intl} />
+              <JobListRow key={job.id} job={job} t={t} intl={intl} paths={paths} />
             ))}
           </div>
         )}
       </div>
-    </AdminShell>
+    </Shell>
   )
+}
+
+export function BolagJobsPage() {
+  return <JobsPage scope="bolag" Shell={BolagShell} />
 }
