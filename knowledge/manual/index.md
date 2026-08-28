@@ -59,6 +59,11 @@ Guider för dig som använder Opinionssimulator i webbläsaren. Teknisk setup oc
 * [Hantera embedding-cache](hantera-embedding-cache.md) — Visa och rensa cachade SSR-ankarembeddings och budskapsbilder
 * [Följa bakgrundsjobb](folja-bakgrundsjobb.md) — Status för generering, simulering och rapporter
 
+# Due diligence (bolag)
+
+* [Komponera en expertpanel](komponera-expertpanel.md) — Välj experter och spara panelen direkt
+* [Köra en DD-kampanj](kora-dd-kampanj.md) — Skapa kampanj, chatta fram bolag och köra DD per kandidat
+
 # Rapporter
 
 * [Hantera rapporter](hantera-rapporter.md) — Lista och öppna beställda rapporter

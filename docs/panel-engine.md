@@ -58,9 +58,8 @@ Scratchpads are stored on the session row and included in expert prompts but omi
 
 Implemented in `app/services/dd/source_attribution.py` — **not** silent fallbacks:
 
-1. OKF manual (`knowledge/manual`)
-2. Web (DuckDuckGo)
-3. `llm` — labeled **Modellbedömning** when no external source is found
+1. Web (DuckDuckGo)
+2. `llm` — labeled **Modellbedömning** when no external source is found
 
 Badges are stored per score in `result.scores[].source`.
 
@@ -71,7 +70,7 @@ Badges are stored per score in `result.scores[].source`.
 3. Job `report_generate` renders `panel_sessions.result` via `app/services/report/dd_report.py` (no SSR / no new scoring)
 4. Artifacts: `report.html`, `report.slots.json`, `report.dd.json` under `data/reports/{id}/`
 
-Source badge colors in HTML: `okf` → green (`confirmed`), `web` → blue (`web`), `llm` → gray (`single`).
+Source badge colors in HTML: `web` → blue (`web`), `llm` → gray (`single`).
 
 ## Persistence
 

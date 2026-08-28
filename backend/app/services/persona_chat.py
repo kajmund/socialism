@@ -14,9 +14,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import Persona, PersonaMessage, Run
 from app.llm.chat import (
     build_run_interview_prompt,
+    stream_reply_as_expert,
     stream_reply_as_persona,
     suggest_follow_up_questions,
 )
+from app.realtime.interview_broadcast import interview_broadcast, interview_key_tuple
 from app.schemas.domain import (
     ChatMode,
     EditablePersona,
@@ -28,7 +30,6 @@ from app.services.district_context import area_block_for_name
 from app.services.oasis_run import previous_attempts
 from app.services.prompt_store import require_active_prompts
 from app.services.run_tick_context import build_persona_feed_context
-from app.realtime.interview_broadcast import interview_broadcast, interview_key_tuple
 
 logger = logging.getLogger(__name__)
 
@@ -230,8 +231,13 @@ async def stream_library_chat_turn(
         session.add(user_row)
         await session.commit()
 
+        stream = (
+            stream_reply_as_expert
+            if persona.kind == "expert"
+            else stream_reply_as_persona
+        )
         parts: list[str] = []
-        async for chunk in stream_reply_as_persona(
+        async for chunk in stream(
             profile,
             mode,
             history,

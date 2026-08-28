@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+from types import SimpleNamespace
 
 import pytest
 from httpx import AsyncClient
 
-from app.llm import set_text_completer
+from app.llm import set_text_completer, set_tools_completer
 from app.services import jobs as jobs_service
 from app.services.panel.schemas import PanelSessionCreate, PanelSessionConfig, PanelExpertSlot
 
@@ -15,6 +16,7 @@ from app.services.panel.schemas import PanelSessionCreate, PanelSessionConfig, P
 @pytest.fixture
 def mock_panel_llm():
     counters = {"n": 0}
+    seen_tools: list[list[str]] = []
 
     async def _complete(messages, *, model=None):
         counters["n"] += 1
@@ -31,9 +33,18 @@ def mock_panel_llm():
             return "Välkommen till panelen."
         return f"Svar {counters['n']}"
 
+    async def _tools(messages, tools=None):
+        if tools:
+            seen_tools.append(
+                [item["function"]["name"] for item in tools if item.get("function")]
+            )
+        return SimpleNamespace(content=await _complete(messages), tool_calls=None)
+
     set_text_completer(_complete)
-    yield
+    set_tools_completer(_tools)
+    yield {"seen_tools": seen_tools}
     set_text_completer(None)
+    set_tools_completer(None)
 
 
 @pytest.mark.asyncio
@@ -85,6 +96,11 @@ async def test_panel_session_run_job(client: AsyncClient, mock_panel_llm):
     assert len(body["transcript"]) >= 4
     assert any(t["phase"] == "opening" for t in body["transcript"])
     assert any(t["phase"] == "expert" for t in body["transcript"])
+    assert mock_panel_llm["seen_tools"]
+    offered = mock_panel_llm["seen_tools"][0]
+    assert "search_companies" in offered
+    assert "search_duckduckgo" in offered
+    assert "search_wiki" in offered
 
     jobs_service.set_schedule_hook(None)
 

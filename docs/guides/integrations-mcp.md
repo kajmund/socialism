@@ -44,6 +44,18 @@ Separate stdio server at `integrations/mcp/spinndoctor_server.py` for Cursor and
 
 Requires backend SQLite + `ARTIFACT_ROOT` on the same machine for `report.ssr.json`. In-app Spinndoktor chat calls the same Python module directly (not MCP over HTTP) and streams widget events over the existing chat WebSocket.
 
+## Company tools (DD)
+
+In-app DD surfaces share one company MCP (`search_companies`, `lookup_company`, `validate_orgnr`):
+
+- **Sourcing chat** — campaign search modal (company tools only)
+- **DD expert panel** — experts look up nyckeltal before scoring, plus the same DuckDuckGo/Wikipedia search tools political personas can get in a körning
+- **Generic expert panel** — scratchpad and public turns use the same company + search tools
+- **Expert library chat** — interview and in-character on the expert composer (company + search)
+- **Spinndoktor** — in-app report chat and the Spinndoktor stdio MCP server (company + search + SCB + report tools)
+
+Backend: BolagsAPI remote MCP when `BOLAGSAPI_API_KEY` is set, otherwise Allabolag.se (`__NEXT_DATA__` scrape). Successful tool results and Allabolag HTML are cached on disk for 10 months (`BOLAGSAPI_CACHE_DIR`). A BolagsAPI failure does not fall through to Allabolag. Rate-limit responses are not cached.
+
 Example Cursor entry (merge into your MCP config):
 
 ```json
@@ -69,3 +81,5 @@ Example Cursor entry (merge into your MCP config):
 | `DEEPSEEK_API_KEY` | backend + MCP | Required |
 | `OKF_MANUAL_ROOT` | backend + MCP | Optional override; default `knowledge/manual` |
 | `OPINIONSSIMULATOR_API_URL` | MCP only | e.g. `http://127.0.0.1:8000` for run tools |
+| `BOLAGSAPI_API_KEY` | backend (DD company tools) | When set, company tools use BolagsAPI; when empty, Allabolag scrape |
+| `BOLAGSAPI_MCP_URL` | backend (DD chat) | Default `https://mcp.bolagsapi.se/mcp` |

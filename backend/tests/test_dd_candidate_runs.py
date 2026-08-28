@@ -45,7 +45,7 @@ async def test_candidate_run_links_panel_and_report(
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(
         "app.services.dd.source_attribution.search_duckduckgo",
-        lambda *_a, **_k: [],
+        lambda query, number_of_result_pages=5: [],
     )
     create = await client.post(
         "/dd/campaigns",
@@ -141,3 +141,10 @@ async def test_candidate_run_links_panel_and_report(
     assert listed.status_code == 200
     row = next(item for item in listed.json() if item["id"] == campaign_id)
     assert row["candidate_runs"] == []
+
+    deleted = await client.delete(f"/dd/campaigns/{campaign_id}/runs/{candidate_id}")
+    assert deleted.status_code == 204
+    after_delete = await client.get(f"/dd/campaigns/{campaign_id}")
+    assert after_delete.json()["candidate_runs"] == []
+    missing = await client.delete(f"/dd/campaigns/{campaign_id}/runs/{candidate_id}")
+    assert missing.status_code == 404

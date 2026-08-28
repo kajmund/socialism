@@ -56,12 +56,18 @@ async def post_panel_session_run(
     row.error = None
     await session.flush()
 
+    request: dict[str, object] = {"session_id": session_id}
+    if row.campaign_id is not None:
+        request["campaign_id"] = row.campaign_id
+    candidate_id = (row.config or {}).get("candidate_id")
+    if isinstance(candidate_id, str) and candidate_id:
+        request["candidate_id"] = candidate_id
     job = await jobs_service.create_job(
         session,
         JobCreate(
             kind="panel_session_run",
             label=f"Panel: {row.config.get('topic', session_id)[:80]}",
-            request={"session_id": session_id},
+            request=request,
         ),
     )
     row.job_id = job.id

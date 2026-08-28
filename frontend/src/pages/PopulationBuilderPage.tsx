@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from
 import { Link, useNavigate } from "react-router-dom"
 import { listCatalog, type CatalogList } from "@/api/catalog"
 import { createJob } from "@/api/jobs"
-import { type DistRow, type PopulationRecipe } from "@/api/populations"
+import { createPopulation, type DistRow, type PopulationRecipe } from "@/api/populations"
 import { AdminShell, rememberJobPending } from "@/components/layout/AdminShell"
 import { AddFromLibraryPanel } from "@/components/populations/AddFromLibraryPanel"
 import { AdminButton } from "@/components/ui/admin-button"
@@ -12,7 +12,6 @@ import type { LibraryPersona, PersonaKind } from "@/data/library-types"
 import { useAuth } from "@/auth/AuthProvider"
 import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
 import { ApiError } from "@/lib/api"
-import { BOLAG_DEMO_CUSTOMER_ID } from "@/lib/scoping"
 
 type Translator = (key: MessageKey, params?: TranslateParams) => string
 
@@ -22,7 +21,6 @@ type PopulationBuilderPageProps = {
   kind?: PopulationBuilderKind
   Shell?: ComponentType<{ children: ReactNode }>
   basePath?: string
-  customerId?: number
 }
 
 const PERSONA_STEP_TITLES = [
@@ -203,7 +201,6 @@ export function PopulationBuilderPage({
   kind = "persona",
   Shell = AdminShell,
   basePath = "/populations",
-  customerId,
 }: PopulationBuilderPageProps) {
   const isExpertPanel = kind === "expert_panel"
   const personaKind: PersonaKind = isExpertPanel ? "expert" : "persona"
@@ -305,16 +302,35 @@ export function PopulationBuilderPage({
     })
   }
 
-  async function startGenerationJob() {
-    if (isExpertPanel && selectedPersonas.length === 0) {
+  async function createExpertPanel() {
+    if (selectedPersonas.length === 0) {
       setLoadError(t("expertPanels.builder.noExpertsSelected"))
       return
     }
     setSubmitting(true)
     setLoadError(null)
-    const name =
-      popName.trim() ||
-      t(isExpertPanel ? "expertPanels.builder.fallbackName" : "populations.builder.fallbackName")
+    const name = popName.trim() || t("expertPanels.builder.fallbackName")
+    try {
+      const panel = await createPopulation({
+        kind: "expert_panel",
+        name,
+        recipe: buildRecipe(),
+        include_persona_ids: selectedIds,
+      })
+      navigate(`${basePath}/${panel.id}`)
+    } catch (err) {
+      setLoadError(
+        err instanceof ApiError ? err.message : t("expertPanels.builder.createError"),
+      )
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function startGenerationJob() {
+    setSubmitting(true)
+    setLoadError(null)
+    const name = popName.trim() || t("populations.builder.fallbackName")
     try {
       const job = await createJob({
         kind: "population_generate",
@@ -324,13 +340,10 @@ export function PopulationBuilderPage({
           recipe: buildRecipe(),
           include_persona_ids: selectedIds,
           kind,
-          ...(isExpertPanel
-            ? { customer_id: customerId ?? BOLAG_DEMO_CUSTOMER_ID }
-            : {}),
         },
       })
       rememberJobPending(job.id)
-      navigate(isExpertPanel ? basePath : "/jobs")
+      navigate("/jobs")
     } catch (err) {
       setLoadError(
         err instanceof ApiError ? err.message : t("populations.builder.startJobError"),
@@ -615,10 +628,14 @@ export function PopulationBuilderPage({
               <AdminButton
                 variant="accent"
                 disabled={submitting || (isExpertPanel && selectedPersonas.length === 0)}
-                onClick={() => void startGenerationJob()}
+                onClick={() => void (isExpertPanel ? createExpertPanel() : startGenerationJob())}
               >
                 {submitting
-                  ? t("populations.builder.startingJob")
+                  ? t(
+                      isExpertPanel
+                        ? "expertPanels.builder.creating"
+                        : "populations.builder.startingJob",
+                    )
                   : isExpertPanel
                     ? t("expertPanels.builder.createPanel")
                     : generateCount === 0

@@ -92,7 +92,7 @@ export function listLibraryPersonas(params?: {
     q: params?.q,
     origin: params?.origin,
     exclude_origin: "population",
-    customer_id: params.customer_id ?? OS_CUSTOMER_ID,
+    customer_id: params?.customer_id ?? OS_CUSTOMER_ID,
     kind: "persona",
   })
 }
@@ -103,7 +103,7 @@ export function listExpertPersonas(params?: {
 }): Promise<LibraryPersona[]> {
   return listPersonas({
     q: params?.q,
-    customer_id: params.customer_id ?? BOLAG_DEMO_CUSTOMER_ID,
+    customer_id: params?.customer_id ?? BOLAG_DEMO_CUSTOMER_ID,
     kind: "expert",
   })
 }

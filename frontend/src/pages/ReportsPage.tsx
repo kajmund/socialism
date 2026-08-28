@@ -1,21 +1,29 @@
 import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react"
-import { Link } from "react-router-dom"
+import { Link, useSearchParams } from "react-router-dom"
 import {
   bulkDeleteReports,
   deleteReport,
   type Report,
   type ReportStatus,
 } from "@/api/reports"
+import { useAuth } from "@/auth/AuthProvider"
 import { AdminShell } from "@/components/layout/AdminShell"
-import { BolagShell } from "@/components/layout/BolagShell"
+import { NestedBolagPage } from "@/components/layout/BolagShell"
 import { Card, CardContent } from "@/components/ui/card"
 import { ViewToggle, type ListViewMode } from "@/components/ui/view-toggle"
 import { useLocale, type MessageKey } from "@/i18n"
 import { ApiError } from "@/lib/api"
 import {
+  isReportModuleId,
+  moduleForReport,
+  reportModulesForUser,
+  type ReportModuleId,
+} from "@/lib/report-modules"
+import {
   matchesCustomerScope,
   type CustomerScope,
 } from "@/lib/scoping"
+import { cn } from "@/lib/utils"
 import { useReportsRealtime } from "@/realtime/ReportsRealtimeProvider"
 
 type Translate = (key: MessageKey, params?: Record<string, string | number>) => string
@@ -301,12 +309,45 @@ export type ReportsPageProps = {
   Shell?: ShellComponent
 }
 
+const MODULE_TABS: readonly { id: ReportModuleId; labelKey: MessageKey }[] = [
+  { id: "politik", labelKey: "reports.list.tabPolitik" },
+  { id: "dd", labelKey: "reports.list.tabDd" },
+]
+
+function introKey(module: ReportModuleId, scope: CustomerScope): MessageKey {
+  if (module === "dd") {
+    return scope === "bolag" ? "reports.list.introBolag" : "reports.list.introDd"
+  }
+  return "reports.list.intro"
+}
+
+function emptyKey(module: ReportModuleId, scope: CustomerScope): MessageKey {
+  if (module === "dd") {
+    return scope === "bolag" ? "reports.list.emptyBolag" : "reports.list.emptyDd"
+  }
+  return "reports.list.empty"
+}
+
 export function ReportsPage({ scope = "admin", Shell = AdminShell }: ReportsPageProps) {
   const { t, intl } = useLocale()
+  const { user } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { reports: allReports, connected, status: wsStatus } = useReportsRealtime()
+  const availableModules = useMemo(() => reportModulesForUser(user), [user])
+  const showModuleTabs = availableModules.length > 1
+  const activeModule = useMemo<ReportModuleId>(() => {
+    if (availableModules.length === 1) return availableModules[0]
+    const fromUrl = searchParams.get("tab")
+    if (isReportModuleId(fromUrl) && availableModules.includes(fromUrl)) return fromUrl
+    return availableModules[0] ?? "politik"
+  }, [availableModules, searchParams])
   const reports = useMemo(
-    () => allReports.filter((report) => matchesCustomerScope(report, scope)),
-    [allReports, scope],
+    () =>
+      allReports.filter(
+        (report) =>
+          matchesCustomerScope(report, scope) && moduleForReport(report) === activeModule,
+      ),
+    [allReports, scope, activeModule],
   )
   const reportBase = scope === "bolag" ? "/bolag/reports" : "/reports"
   const [selected, setSelected] = useState<Set<string>>(() => new Set())
@@ -338,6 +379,21 @@ export function ReportsPage({ scope = "admin", Shell = AdminShell }: ReportsPage
     [reports, selected],
   )
   const selectedCount = selected.size
+
+  function setActiveModule(next: ReportModuleId) {
+    if (next === activeModule) return
+    setConfirmId(null)
+    setConfirmBulk(false)
+    setSelected(new Set())
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev)
+        params.set("tab", next)
+        return params
+      },
+      { replace: true },
+    )
+  }
 
   function showToast(msg: string) {
     setToast(msg)
@@ -411,9 +467,46 @@ export function ReportsPage({ scope = "admin", Shell = AdminShell }: ReportsPage
           >
             {t("reports.list.title")}
           </h1>
-          <p>{scope === "bolag" ? t("reports.list.introBolag") : t("reports.list.intro")}</p>
+          <p>{t(introKey(activeModule, scope))}</p>
         </div>
 
+        {showModuleTabs ? (
+          <div
+            role="tablist"
+            aria-label={t("reports.list.tabsAria")}
+            className="mb-6 flex flex-wrap gap-1 border-b border-[color:var(--border-hairline)]"
+          >
+            {MODULE_TABS.filter((tab) => availableModules.includes(tab.id)).map((tab) => {
+              const selectedTab = tab.id === activeModule
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  id={`reports-tab-${tab.id}`}
+                  aria-selected={selectedTab}
+                  aria-controls={`reports-tab-panel-${tab.id}`}
+                  tabIndex={selectedTab ? 0 : -1}
+                  className={cn(
+                    "-mb-px border-b-2 px-3 py-2 text-sm",
+                    selectedTab
+                      ? "border-db-ink-950 font-medium text-[color:var(--text-body)]"
+                      : "border-transparent text-muted-foreground hover:text-[color:var(--text-body)]",
+                  )}
+                  onClick={() => setActiveModule(tab.id)}
+                >
+                  {t(tab.labelKey)}
+                </button>
+              )
+            })}
+          </div>
+        ) : null}
+
+        <div
+          id={showModuleTabs ? `reports-tab-panel-${activeModule}` : undefined}
+          role={showModuleTabs ? "tabpanel" : undefined}
+          aria-labelledby={showModuleTabs ? `reports-tab-${activeModule}` : undefined}
+        >
         {toast ? (
           <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
             {toast}
@@ -434,7 +527,7 @@ export function ReportsPage({ scope = "admin", Shell = AdminShell }: ReportsPage
 
         {!loading && reports.length === 0 && !error ? (
           <div className="no-match" style={{ textAlign: "left" }}>
-            {scope === "bolag" ? t("reports.list.emptyBolag") : t("reports.list.empty")}
+            {t(emptyKey(activeModule, scope))}
           </div>
         ) : null}
 
@@ -535,11 +628,12 @@ export function ReportsPage({ scope = "admin", Shell = AdminShell }: ReportsPage
             )}
           </>
         ) : null}
+        </div>
       </div>
     </Shell>
   )
 }
 
 export function BolagReportsPage() {
-  return <ReportsPage scope="bolag" Shell={BolagShell} />
+  return <ReportsPage scope="bolag" Shell={NestedBolagPage} />
 }

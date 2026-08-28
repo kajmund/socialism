@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import PanelSession
 from app.llm import complete_text
+from app.services.dd.company_mcp import complete_text_with_company_tools
 from app.services.panel.schemas import (
     PanelExpertSlot,
     PanelSessionConfig,
@@ -13,6 +14,14 @@ from app.services.panel.schemas import (
 )
 from app.services.panel.watch import run_turn
 from app.services.prompt_catalog import render_prompt
+
+
+def _expert_system(prompts: dict[str, str], slot: PanelExpertSlot) -> str:
+    return (
+        render_prompt(prompts, "panel.expert.system", label=slot.label, profile=slot.profile)
+        + "\n\n"
+        + render_prompt(prompts, "panel.expert.tools")
+    )
 
 
 def _expert_list(config: PanelSessionConfig) -> str:
@@ -52,7 +61,7 @@ async def _expert_raise_hand(
     prompts: dict[str, str],
 ) -> bool:
     messages = [
-        {"role": "system", "content": render_prompt(prompts, "panel.expert.system", label=slot.label, profile=slot.profile)},
+        {"role": "system", "content": _expert_system(prompts, slot)},
         {
             "role": "user",
             "content": render_prompt(
@@ -76,7 +85,7 @@ async def _expert_scratchpad(
     prompts: dict[str, str],
 ) -> str:
     messages = [
-        {"role": "system", "content": render_prompt(prompts, "panel.expert.system", label=slot.label, profile=slot.profile)},
+        {"role": "system", "content": _expert_system(prompts, slot)},
         {
             "role": "user",
             "content": render_prompt(
@@ -88,7 +97,7 @@ async def _expert_scratchpad(
             ),
         },
     ]
-    return (await complete_text(messages)).strip()
+    return (await complete_text_with_company_tools(messages)).strip()
 
 
 async def _expert_turn(
@@ -99,7 +108,7 @@ async def _expert_turn(
     prompts: dict[str, str],
 ) -> str:
     messages = [
-        {"role": "system", "content": render_prompt(prompts, "panel.expert.system", label=slot.label, profile=slot.profile)},
+        {"role": "system", "content": _expert_system(prompts, slot)},
         {
             "role": "user",
             "content": render_prompt(
@@ -111,7 +120,7 @@ async def _expert_turn(
             ),
         },
     ]
-    return (await complete_text(messages)).strip()
+    return (await complete_text_with_company_tools(messages)).strip()
 
 
 async def _moderator_analysis(

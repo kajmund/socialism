@@ -12,12 +12,14 @@ import {
   updateSpindoctorWidgetPosition,
   type SpindoctorWidget,
 } from "@/api/spindoctorWidgets"
+import { useAuth } from "@/auth/AuthProvider"
 import { AdminShell } from "@/components/layout/AdminShell"
-import { BolagShell } from "@/components/layout/BolagShell"
+import { NestedBolagPage } from "@/components/layout/BolagShell"
 import { AdminButton } from "@/components/ui/admin-button"
 import { Card, CardContent } from "@/components/ui/card"
 import { useLocale, type MessageKey } from "@/i18n"
 import { ApiError } from "@/lib/api"
+import { moduleForReport, reportModulesForUser } from "@/lib/report-modules"
 import { useReportsRealtime } from "@/realtime/ReportsRealtimeProvider"
 
 type ReportViewMode = "report" | "spinndoctor"
@@ -58,12 +60,18 @@ export function ReportPage() {
   const location = useLocation()
   const navigate = useNavigate()
   const { t } = useLocale()
+  const { user } = useAuth()
   const isBolagReport = location.pathname.startsWith("/bolag/reports/")
-  const Shell = isBolagReport ? BolagShell : AdminShell
-  const reportsListPath = isBolagReport ? "/bolag/reports" : "/reports"
+  const Shell = isBolagReport ? NestedBolagPage : AdminShell
   const reportsListLabel = isBolagReport ? t("bolag.nav.reports") : t("reports.backToList")
   const { reports, status: wsStatus, connected } = useReportsRealtime()
   const report = id ? reports.find((r) => r.id === id) ?? null : null
+  const reportModules = reportModulesForUser(user)
+  const reportsListPath = isBolagReport
+    ? "/bolag/reports"
+    : report && reportModules.length > 1
+      ? `/reports?tab=${moduleForReport(report)}`
+      : "/reports"
   const [html, setHtml] = useState<string | null>(null)
   const [htmlError, setHtmlError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)

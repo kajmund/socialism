@@ -7,7 +7,7 @@ import {
   type FeedbackStatus,
 } from "@/api/feedback"
 import { AdminShell } from "@/components/layout/AdminShell"
-import { BolagShell } from "@/components/layout/BolagShell"
+import { NestedBolagPage } from "@/components/layout/BolagShell"
 import { Card, CardContent } from "@/components/ui/card"
 import { ViewToggle, type ListViewMode } from "@/components/ui/view-toggle"
 import { useLocale, type MessageKey } from "@/i18n"
@@ -401,5 +401,5 @@ export function FeedbackPage({ Shell = AdminShell }: FeedbackPageProps) {
 }
 
 export function BolagFeedbackPage() {
-  return <FeedbackPage Shell={BolagShell} />
+  return <FeedbackPage Shell={NestedBolagPage} />
 }

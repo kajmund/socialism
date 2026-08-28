@@ -24,6 +24,7 @@ from app.serializers import (
 from app.services import population_generate as gen
 from app.services.population_generation_store import pop_generation
 from app.services.population_persist import (
+    create_expert_panel,
     member_row,
     members_from_generation,
     reconcile_population_metadata,
@@ -164,6 +165,23 @@ async def create_population(
     body: PopulationCreate,
     session: AsyncSession = Depends(get_session),
 ) -> PopulationDetail:
+    if body.kind == "expert_panel":
+        persona_ids = list(body.include_persona_ids)
+        if not persona_ids:
+            persona_ids = [member.persona_id for member in body.members if member.persona_id]
+        try:
+            population = await create_expert_panel(
+                session,
+                name=body.name,
+                persona_ids=persona_ids,
+                recipe=body.recipe,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        await session.commit()
+        population = await _get_population(session, population.id)
+        return serialize_population_detail(population, 0, list(population.members))
+
     existing = await session.execute(select(Population).where(Population.name == body.name))
     if existing.scalar_one_or_none() is not None:
         raise HTTPException(status_code=409, detail="Population name already exists")
