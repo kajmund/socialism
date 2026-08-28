@@ -1,5 +1,9 @@
 # Manual update log
 
+## 2026-08-28
+
+* **Due diligence (bolag)**: Menyn täcker hela DD-flödet — Experter, Expertpaneler, Kampanjer, Rapporter, Återkoppling och Jobb. Rapporter och jobb visar bara bolagets egna poster.
+
 ## 2026-08-27
 
 * **Rapporter**: Spinndoktorn tar mer initiativ — hämtar underlag med sina verktyg och lägger kort på rutnätet i stället för att fråga tillbaka.
