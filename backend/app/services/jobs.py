@@ -39,6 +39,7 @@ from app.services.oasis_run import (
 from app.services.panel.dd_engine import run_dd_panel
 from app.services.panel.engine import run_generic_panel
 from app.services.panel.schemas import PanelSessionRunJobRequest
+from app.services.panel.watch import publish_panel_finished
 from app.services.population_persist import (
     create_population_from_generation,
     update_population_from_generation,
@@ -605,18 +606,22 @@ async def _run_panel_session(job_id: str) -> None:
                 raise RuntimeError(f"Unsupported panel protocol: {panel.protocol}")
             await session.commit()
 
+        await publish_panel_finished(payload.session_id, status="succeeded")
+
         async with factory() as session:
             await _succeed(session, job_id, {"session_id": payload.session_id})
     except Exception as exc:
         logger.exception("Panel session job %s failed", job_id)
+        error_text = str(exc) or exc.__class__.__name__
         async with factory() as session:
             panel = await session.get(PanelSession, payload.session_id)
             if panel is not None:
                 panel.status = "failed"
-                panel.error = (str(exc) or exc.__class__.__name__)[:2000]
+                panel.error = error_text[:2000]
                 panel.updated_at = utcnow()
                 await session.commit()
-            await _fail(session, job_id, str(exc) or exc.__class__.__name__)
+            await _fail(session, job_id, error_text)
+        await publish_panel_finished(payload.session_id, status="failed", error=error_text)
 
 
 async def list_jobs(

@@ -19,6 +19,7 @@ import { useLocale } from "@/i18n"
 import { ApiError } from "@/lib/api"
 import { useJobsRealtime } from "@/realtime/JobsRealtimeProvider"
 import { useReportsRealtime } from "@/realtime/ReportsRealtimeProvider"
+import { PanelLiveFeedPanel } from "@/components/panel/PanelLiveFeedPanel"
 
 function panelStatusClass(status: PanelSessionStatus | null): string {
   if (status === "succeeded") return "job-status succeeded"
@@ -348,6 +349,15 @@ export function DdCampaignPanelSection({
               runningCandidateId === c.id ||
               panelStatus === "pending" ||
               panelStatus === "running"
+            const panelSessionId = run?.panel_session_id ?? null
+            const showLiveFeed =
+              selected &&
+              panelSessionId != null &&
+              (isRunningPanel ||
+                panelStatus === "pending" ||
+                panelStatus === "running" ||
+                panelStatus === "succeeded" ||
+                panelStatus === "failed")
 
             return (
               <CandidatePanelCard
@@ -360,6 +370,8 @@ export function DdCampaignPanelSection({
                 reportId={reportId}
                 isRunningPanel={isRunningPanel}
                 panelReady={expertPanelId != null}
+                panelSessionId={panelSessionId}
+                showLiveFeed={showLiveFeed}
                 onToggle={() => toggleCandidate(c.id)}
                 onRunPanel={() => void onRunPanel(c)}
                 t={t}
@@ -381,6 +393,8 @@ function CandidatePanelCard({
   reportId,
   isRunningPanel,
   panelReady,
+  panelSessionId,
+  showLiveFeed,
   onToggle,
   onRunPanel,
   t,
@@ -393,6 +407,8 @@ function CandidatePanelCard({
   reportId: string | null
   isRunningPanel: boolean
   panelReady: boolean
+  panelSessionId: string | null
+  showLiveFeed: boolean
   onToggle: () => void
   onRunPanel: () => void
   t: ReturnType<typeof useLocale>["t"]
@@ -503,6 +519,9 @@ function CandidatePanelCard({
                 </div>
               )}
             </div>
+          ) : null}
+          {showLiveFeed && panelSessionId ? (
+            <PanelLiveFeedPanel sessionId={panelSessionId} enabled={showLiveFeed} />
           ) : null}
         </div>
       </div>
