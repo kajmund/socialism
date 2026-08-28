@@ -2,6 +2,7 @@ import { Outlet } from "react-router-dom"
 import { AdminShell, type ShellNavItem } from "@/components/layout/AdminShell"
 
 const BOLAG_NAV_ITEMS: ShellNavItem[] = [
+  { key: "bolag.nav.experter", to: "/bolag/experter", match: "/bolag/experter" },
   { key: "bolag.nav.campaigns", to: "/bolag/campaigns", match: "/bolag/campaigns" },
 ]
 

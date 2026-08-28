@@ -26,7 +26,11 @@ async def create_dd_panel_session_from_campaign(
         raise LookupError(f"Candidate not found: {body.candidate_id}")
 
     role_keys = body.expert_role_keys or list(campaign.expert_role_keys or [])
-    expert_slots = await load_expert_slots(session, role_keys=role_keys or None)
+    expert_slots = await load_expert_slots(
+        session,
+        customer_id=campaign.customer_id,
+        role_keys=role_keys or None,
+    )
 
     config = PanelSessionConfig(
         protocol="dd_panel",

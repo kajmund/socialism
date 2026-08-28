@@ -6,7 +6,7 @@ import {
   type DdCampaign,
   type DdCandidateCompany,
 } from "@/api/dd"
-import { getCatalogList, type CatalogItem } from "@/api/catalog"
+import { listExpertPersonas } from "@/api/personas"
 import {
   createDdPanelSession,
   getPanelSession,
@@ -81,13 +81,13 @@ export function DdCampaignPanelSection({
   useEffect(() => {
     let cancelled = false
     setRolesLoading(true)
-    void getCatalogList("expert_roller")
-      .then((list) => {
+    void listExpertPersonas()
+      .then((items) => {
         if (cancelled) return
-        const roles = list.items.map((item: CatalogItem) => ({
-          key: expertRoleKey(item.label),
-          label: item.label,
-          description: item.description,
+        const roles = items.map((item) => ({
+          key: expertRoleKey(item.name),
+          label: item.name,
+          description: item.quote || item.profile.beskrivning || "",
         }))
         setExpertRoles(roles)
       })

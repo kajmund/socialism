@@ -47,7 +47,30 @@ export const sv = {
     product: "Due diligence",
     nav: {
       ariaMain: "DD-meny",
+      experter: "Experter",
       campaigns: "Kampanjer",
+    },
+  },
+  experts: {
+    list: {
+      title: "Experter",
+      description: "Skapa och redigera experter för DD-paneler — samma intervju- och in-character-chatt som personas.",
+      newExpert: "Ny expert",
+      searchPlaceholder: "Sök experter…",
+      loading: "Hämtar experter…",
+      empty: "Inga experter ännu. Skapa din första expert.",
+      loadError: "Kunde inte hämta experter.",
+      deleted: "Experten togs bort.",
+      columnName: "Namn",
+      columnBackground: "Yrkesbakgrund",
+      columnUpdated: "Uppdaterad",
+    },
+    composer: {
+      layerCompetence: "Kompetens",
+      layerBackground: "Bakgrund",
+      layerAnecdote: "Professionell anekdot",
+      anecdoteHint: "Kort erfarenhet som förankrar expertens röst i panelen.",
+      backToLibrary: "← Tillbaka till experter",
     },
   },
   dd: {

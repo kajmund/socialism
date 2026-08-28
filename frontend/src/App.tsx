@@ -12,6 +12,8 @@ import { ConfigureRunPage } from "@/pages/ConfigureRunPage"
 import { ConfigurationEditorPage } from "@/pages/ConfigurationEditorPage"
 import { ConfigurationsPage } from "@/pages/ConfigurationsPage"
 import { DashboardPage } from "@/pages/DashboardPage"
+import { ExpertComposerPage } from "@/pages/ExpertComposerPage"
+import { ExpertsPage } from "@/pages/ExpertsPage"
 import { DdCampaignEditorPage } from "@/pages/DdCampaignEditorPage"
 import { DdCampaignsPage } from "@/pages/DdCampaignsPage"
 import { EmbeddingCachePage } from "@/pages/EmbeddingCachePage"
@@ -63,6 +65,9 @@ export default function App() {
           <Route element={<RequireBolag />}>
             <Route path="/bolag" element={<BolagShell />}>
               <Route index element={<Navigate to="campaigns" replace />} />
+              <Route path="experter" element={<ExpertsPage />} />
+              <Route path="experter/new" element={<ExpertComposerPage />} />
+              <Route path="experter/:id" element={<ExpertComposerPage />} />
               <Route path="campaigns" element={<DdCampaignsPage />} />
               <Route path="campaigns/new" element={<DdCampaignEditorPage />} />
               <Route path="campaigns/:id" element={<DdCampaignEditorPage />} />
