@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from sqlalchemy import select, update
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import DdCandidateRun, PanelSession
@@ -54,6 +55,48 @@ async def get_candidate_run(
     return (await session.execute(stmt)).scalar_one_or_none()
 
 
+async def _upsert_candidate_run(
+    session: AsyncSession,
+    *,
+    campaign_id: int,
+    candidate_id: str,
+    panel_session_id: str | None = None,
+    report_id: str | None = None,
+    clear_report: bool = False,
+) -> DdCandidateRunOut:
+    """Insert or update candidate run links atomically (SQLite upsert; phase-1 DB)."""
+    insert_values: dict[str, object] = {
+        "campaign_id": campaign_id,
+        "candidate_id": candidate_id,
+    }
+    update_values: dict[str, object] = {}
+    if panel_session_id is not None:
+        insert_values["panel_session_id"] = panel_session_id
+        update_values["panel_session_id"] = panel_session_id
+    if report_id is not None:
+        insert_values["report_id"] = report_id
+        update_values["report_id"] = report_id
+    if clear_report:
+        insert_values["report_id"] = None
+        update_values["report_id"] = None
+
+    stmt = sqlite_insert(DdCandidateRun).values(**insert_values)
+    if update_values:
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["campaign_id", "candidate_id"],
+            set_=update_values,
+        )
+    await session.execute(stmt)
+    await session.flush()
+
+    row = await get_candidate_run(session, campaign_id=campaign_id, candidate_id=candidate_id)
+    if row is None:
+        raise RuntimeError(
+            f"candidate run missing after upsert: campaign={campaign_id} candidate={candidate_id}"
+        )
+    return serialize_candidate_run(row)
+
+
 async def upsert_panel_session(
     session: AsyncSession,
     *,
@@ -61,21 +104,16 @@ async def upsert_panel_session(
     candidate_id: str,
     panel_session_id: str,
 ) -> DdCandidateRunOut:
-    row = await get_candidate_run(session, campaign_id=campaign_id, candidate_id=candidate_id)
-    if row is None:
-        row = DdCandidateRun(
-            campaign_id=campaign_id,
-            candidate_id=candidate_id,
-            panel_session_id=panel_session_id,
-            report_id=None,
-        )
-        session.add(row)
-    else:
-        row.panel_session_id = panel_session_id
-        row.report_id = None
-    await session.flush()
-    await session.refresh(row)
-    return serialize_candidate_run(row)
+    existing = await get_candidate_run(
+        session, campaign_id=campaign_id, candidate_id=candidate_id
+    )
+    return await _upsert_candidate_run(
+        session,
+        campaign_id=campaign_id,
+        candidate_id=candidate_id,
+        panel_session_id=panel_session_id,
+        clear_report=existing is not None,
+    )
 
 
 async def upsert_report(
@@ -85,20 +123,12 @@ async def upsert_report(
     candidate_id: str,
     report_id: str,
 ) -> DdCandidateRunOut:
-    row = await get_candidate_run(session, campaign_id=campaign_id, candidate_id=candidate_id)
-    if row is None:
-        row = DdCandidateRun(
-            campaign_id=campaign_id,
-            candidate_id=candidate_id,
-            panel_session_id=None,
-            report_id=report_id,
-        )
-        session.add(row)
-    else:
-        row.report_id = report_id
-    await session.flush()
-    await session.refresh(row)
-    return serialize_candidate_run(row)
+    return await _upsert_candidate_run(
+        session,
+        campaign_id=campaign_id,
+        candidate_id=candidate_id,
+        report_id=report_id,
+    )
 
 
 async def upsert_research_job(
