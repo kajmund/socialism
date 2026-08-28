@@ -10,9 +10,10 @@ from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from app.database.models import Population, PopulationMember, Run
+from app.database.models import PanelSession, Population, PopulationMember, Run
 from app.realtime.hub import job_hub, report_hub
 from app.realtime.interview_broadcast import interview_broadcast, interview_key_tuple
+from app.realtime.panel_broadcast import panel_broadcast
 from app.realtime.run_broadcast import run_broadcast
 from app.schemas.domain import (
     ChatMode,
@@ -37,6 +38,7 @@ from app.services.spindoctor_chat import (
 )
 from app.services.report_realtime import list_reports, serialize_report
 from app.services.run_watch import build_run_replay_payload
+from app.services.panel.watch import build_panel_replay_payload
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +83,12 @@ class RunWatchHello(BaseModel):
     scope: Literal["run_watch"]
     run_id: int
     variant_id: str = Field(min_length=1)
+
+
+class PanelWatchHello(BaseModel):
+    type: Literal["hello"] = "hello"
+    scope: Literal["panel_watch"]
+    session_id: str = Field(min_length=1)
 
 
 class ChatSend(BaseModel):
@@ -205,6 +213,51 @@ async def runs_websocket(websocket: WebSocket) -> None:
             pass
     finally:
         await run_broadcast.unsubscribe(websocket)
+
+
+@router.websocket("/ws/panels")
+async def panels_websocket(websocket: WebSocket) -> None:
+    await websocket.accept()
+    hello: PanelWatchHello | None = None
+    try:
+        raw = await websocket.receive_json()
+        if not isinstance(raw, dict):
+            await _send_error(websocket, "Expected JSON object")
+            await websocket.close(code=1003)
+            return
+        try:
+            hello = PanelWatchHello.model_validate(raw)
+        except ValidationError as exc:
+            await _send_error(websocket, str(exc.errors()[0]["msg"]))
+            await websocket.close(code=1003)
+            return
+
+        await panel_broadcast.subscribe(hello.session_id, websocket)
+
+        factory = jobs_service.job_session_factory()
+        async with factory() as session:
+            panel = await session.get(PanelSession, hello.session_id)
+            if panel is None:
+                await _send_error(websocket, f"Panel session {hello.session_id} not found")
+                await websocket.close(code=1003)
+                return
+            replay = build_panel_replay_payload(panel)
+
+        await websocket.send_json(replay)
+
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        logger.exception("Panel watch WebSocket failed")
+        try:
+            await _send_error(websocket, "WebSocket error")
+            await websocket.close(code=1011)
+        except Exception:
+            pass
+    finally:
+        await panel_broadcast.unsubscribe(websocket)
 
 
 @router.websocket("/ws/chat")

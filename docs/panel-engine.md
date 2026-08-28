@@ -15,11 +15,24 @@ Domain layer for multi-expert panel sessions, separate from OASIS tick-loop / `s
 ```text
 POST /panel/sessions          → PanelSession row (draft)
 POST /panel/sessions/{id}/run → Job kind panel_session_run (202)
-jobs.py                       → panel.engine.run_generic_panel()
+jobs.py                       → panel.engine / panel.dd_engine (live turns via panel.watch)
+/ws/panels                    → panel_watch replay + fan-out (panel.replay, turn.*, panel.finished)
 prompt_store                  → panel.* keys in active configuration
 ```
 
-Reuses existing job worker, prompt store, and LLM `complete_text` — not the OASIS simulation engine.
+Reuses existing job worker, prompt store, LLM `complete_text`, and the same realtime pattern as run watch — not the OASIS simulation engine.
+
+## Live watch (WebSocket)
+
+Connect to `/ws/panels` with hello scope `panel_watch` and `session_id`. Server sends `panel.replay` immediately (status, expert slots, transcript turns), then streams:
+
+| Event | When |
+| ----- | ---- |
+| `turn.started` | Before LLM produces a turn |
+| `turn.completed` | After turn persisted to `panel_sessions.transcript` |
+| `panel.finished` | Job succeeded or failed (`status`, optional `error`) |
+
+Implementation: `app/realtime/panel_broadcast.py`, `app/services/panel/watch.py`, frontend `usePanelWatchSocket` + `PanelLiveFeedPanel`.
 
 ## generic_panel flow
 
@@ -35,7 +48,7 @@ Scratchpads are stored on the session row and included in expert prompts but omi
 
 ## dd_panel flow (Fas 2)
 
-1. Create via `POST /dd/campaigns/{id}/panel-sessions` (candidate + expert roles from `dd_expertpanel` catalog)
+1. Create via `POST /dd/campaigns/{id}/panel-sessions` (candidate + expert panel from campaign `expert_panel_id`, or legacy `expert_role_keys`)
 2. Spinndoktor (`spinndoctor.system`) moderates — not `panel.moderator.system`
 3. Four sub-questions (finansiell hälsa, legal risk, marknadsposition, integrationsrisk)
 4. Each expert scores each sub-question (1–10) with motivation + source badge
