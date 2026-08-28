@@ -12,6 +12,9 @@ import { ConfigureRunPage } from "@/pages/ConfigureRunPage"
 import { ConfigurationEditorPage } from "@/pages/ConfigurationEditorPage"
 import { ConfigurationsPage } from "@/pages/ConfigurationsPage"
 import { DashboardPage } from "@/pages/DashboardPage"
+import { ExpertPanelBuilderPage } from "@/pages/ExpertPanelBuilderPage"
+import { ExpertPanelDetailPage } from "@/pages/ExpertPanelDetailPage"
+import { ExpertPanelsPage } from "@/pages/ExpertPanelsPage"
 import { ExpertComposerPage } from "@/pages/ExpertComposerPage"
 import { ExpertsPage } from "@/pages/ExpertsPage"
 import { DdCampaignEditorPage } from "@/pages/DdCampaignEditorPage"
@@ -68,6 +71,9 @@ export default function App() {
               <Route path="experter" element={<ExpertsPage />} />
               <Route path="experter/new" element={<ExpertComposerPage />} />
               <Route path="experter/:id" element={<ExpertComposerPage />} />
+              <Route path="expertpaneler" element={<ExpertPanelsPage />} />
+              <Route path="expertpaneler/new" element={<ExpertPanelBuilderPage />} />
+              <Route path="expertpaneler/:id" element={<ExpertPanelDetailPage />} />
               <Route path="campaigns" element={<DdCampaignsPage />} />
               <Route path="campaigns/new" element={<DdCampaignEditorPage />} />
               <Route path="campaigns/:id" element={<DdCampaignEditorPage />} />

@@ -7,11 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import DdCampaign, PanelSession, Projekt, Report, Run
 from app.schemas.domain import (
     JobCreate,
+    PopulationGenerateJobRequest,
     ReportCreate,
     ReportGenerateJobRequest,
     RunSimulateJobRequest,
 )
-from app.services.kund_store import default_os_customer_id
+from app.services.kund_store import bolag_demo_customer_id, default_os_customer_id
 from app.services.panel.schemas import PanelSessionRunJobRequest
 
 
@@ -53,6 +54,11 @@ async def customer_id_for_new_report(
 
 async def customer_id_for_new_job(session: AsyncSession, body: JobCreate) -> int:
     if body.kind == "population_generate":
+        payload = PopulationGenerateJobRequest.model_validate(body.request)
+        if payload.kind == "expert_panel":
+            if payload.customer_id is not None:
+                return payload.customer_id
+            return await bolag_demo_customer_id(session)
         return await default_os_customer_id(session)
     if body.kind == "run_simulate":
         payload = RunSimulateJobRequest.model_validate(body.request)

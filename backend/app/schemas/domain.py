@@ -1060,7 +1060,6 @@ CatalogSection = Literal[
     "varderingar",
     "rost_media",
     "simulering",
-    "dd_expertpanel",
 ]
 
 
@@ -1151,6 +1150,8 @@ class PopulationGenerateJobRequest(BaseModel):
     recipe: PopulationRecipe
     population_id: int | None = None
     include_persona_ids: list[str] = Field(default_factory=list)
+    kind: PopulationKind = "persona"
+    customer_id: int | None = None
 
 
 class RunSimulateJobRequest(BaseModel):

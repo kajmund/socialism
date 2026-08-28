@@ -86,6 +86,7 @@ export function blankEditableExpert(): EditablePersona {
     ...blankEditablePersona(),
     name: "Namnlös expert",
     age: "—",
+    ort: "—",
     beskrivning: "—",
     kompetensomrade: "—",
     radgivningsstil: "—",

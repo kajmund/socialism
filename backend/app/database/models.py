@@ -730,6 +730,11 @@ class DdCampaign(Base):
     candidates: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     selected_candidate_ids: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     expert_role_keys: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    expert_panel_id: Mapped[int | None] = mapped_column(
+        ForeignKey("populations.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

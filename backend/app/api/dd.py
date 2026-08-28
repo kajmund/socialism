@@ -74,7 +74,10 @@ async def patch_campaign(
     row = await get_campaign(session, campaign_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Campaign not found")
-    out = await update_campaign(session, row, body)
+    try:
+        out = await update_campaign(session, row, body)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     await session.commit()
     return out
 

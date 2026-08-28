@@ -268,13 +268,31 @@ async def _run_population_generate(job_id: str) -> None:
         if job is None:
             return
         payload = PopulationGenerateJobRequest.model_validate(job.request)
-        library = await gen.load_library_personas(session, payload.include_persona_ids)
-        gen_req = PopulationGenerateRequest(
-            recipe=payload.recipe,
-            include_persona_ids=payload.include_persona_ids,
-            mode="replace",
+        population_kind = payload.kind
+        required_kind = "expert" if population_kind == "expert_panel" else None
+        library = await gen.load_library_personas(
+            session,
+            payload.include_persona_ids,
+            required_kind=required_kind,
         )
-        response = await gen.run_generate(gen_req, library, session=session)
+        if population_kind == "expert_panel":
+            gen_req = PopulationGenerateRequest(
+                recipe=payload.recipe,
+                include_persona_ids=payload.include_persona_ids,
+                mode="replace",
+            )
+            response = await gen.run_expert_panel_generate(
+                gen_req,
+                library,
+                session=session,
+            )
+        else:
+            gen_req = PopulationGenerateRequest(
+                recipe=payload.recipe,
+                include_persona_ids=payload.include_persona_ids,
+                mode="replace",
+            )
+            response = await gen.run_generate(gen_req, library, session=session)
 
         if payload.population_id is not None:
             population = await update_population_from_generation(
@@ -283,12 +301,14 @@ async def _run_population_generate(job_id: str) -> None:
                 name=payload.name,
                 generation_id=response.generation_id,
                 recipe=payload.recipe,
+                kind=population_kind,
             )
         else:
             population = await create_population_from_generation(
                 session,
                 name=payload.name,
                 generation_id=response.generation_id,
+                kind=population_kind,
             )
         await session.commit()
         await _succeed(
@@ -296,6 +316,7 @@ async def _run_population_generate(job_id: str) -> None:
             job_id,
             {
                 "population_id": population.id,
+                "population_kind": population.kind,
                 "name": population.name,
                 "fingerprint": response.fingerprint,
                 "member_count": population.size,

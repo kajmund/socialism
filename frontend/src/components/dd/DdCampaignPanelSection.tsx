@@ -6,7 +6,8 @@ import {
   type DdCampaign,
   type DdCandidateCompany,
 } from "@/api/dd"
-import { listExpertPersonas } from "@/api/personas"
+import { listPopulations } from "@/api/populations"
+import type { PopulationSummary } from "@/data/library-types"
 import {
   createDdPanelSession,
   getPanelSession,
@@ -15,16 +16,9 @@ import {
 } from "@/api/panel"
 import { createDdReport, type Report } from "@/api/reports"
 import { useLocale } from "@/i18n"
-import { expertRoleKey } from "@/lib/ddExpertRoles"
 import { ApiError } from "@/lib/api"
 import { useJobsRealtime } from "@/realtime/JobsRealtimeProvider"
 import { useReportsRealtime } from "@/realtime/ReportsRealtimeProvider"
-
-type ExpertRoleOption = {
-  key: string
-  label: string
-  description: string
-}
 
 function panelStatusClass(status: PanelSessionStatus | null): string {
   if (status === "succeeded") return "job-status succeeded"
@@ -55,10 +49,10 @@ export function DdCampaignPanelSection({
   const { jobs } = useJobsRealtime()
   const { reports } = useReportsRealtime()
 
-  const [expertRoles, setExpertRoles] = useState<ExpertRoleOption[]>([])
-  const [rolesLoading, setRolesLoading] = useState(true)
+  const [expertPanels, setExpertPanels] = useState<PopulationSummary[]>([])
+  const [panelsLoading, setPanelsLoading] = useState(true)
   const [selectedIds, setSelectedIds] = useState<string[]>(campaign.selected_candidate_ids)
-  const [expertKeys, setExpertKeys] = useState<string[]>(campaign.expert_role_keys)
+  const [expertPanelId, setExpertPanelId] = useState<number | null>(campaign.expert_panel_id)
   const [savingSelection, setSavingSelection] = useState(false)
   const [panelStatusByCandidate, setPanelStatusByCandidate] = useState<
     Record<string, PanelSessionStatus | null>
@@ -67,12 +61,14 @@ export function DdCampaignPanelSection({
   const [error, setError] = useState<string | null>(null)
   const reportCreateStarted = useRef<Set<string>>(new Set())
 
-  const allRoleKeys = useMemo(() => expertRoles.map((r) => r.key), [expertRoles])
-  const effectiveExpertKeys = expertKeys.length > 0 ? expertKeys : allRoleKeys
+  const selectedPanel = useMemo(
+    () => expertPanels.find((panel) => panel.id === expertPanelId) ?? null,
+    [expertPanelId, expertPanels],
+  )
 
   useEffect(() => {
     setSelectedIds(campaign.selected_candidate_ids)
-    setExpertKeys(campaign.expert_role_keys)
+    setExpertPanelId(campaign.expert_panel_id)
     reportCreateStarted.current = new Set(
       campaign.candidate_runs.filter((row) => row.report_id).map((row) => row.candidate_id),
     )
@@ -80,22 +76,16 @@ export function DdCampaignPanelSection({
 
   useEffect(() => {
     let cancelled = false
-    setRolesLoading(true)
-    void listExpertPersonas()
-      .then((items) => {
-        if (cancelled) return
-        const roles = items.map((item) => ({
-          key: expertRoleKey(item.name),
-          label: item.name,
-          description: item.quote || item.profile.beskrivning || "",
-        }))
-        setExpertRoles(roles)
+    setPanelsLoading(true)
+    void listPopulations({ kind: "expert_panel" })
+      .then((rows) => {
+        if (!cancelled) setExpertPanels(rows)
       })
       .catch(() => {
-        if (!cancelled) setExpertRoles([])
+        if (!cancelled) setExpertPanels([])
       })
       .finally(() => {
-        if (!cancelled) setRolesLoading(false)
+        if (!cancelled) setPanelsLoading(false)
       })
     return () => {
       cancelled = true
@@ -170,13 +160,13 @@ export function DdCampaignPanelSection({
   }, [jobs, campaign.candidate_runs])
 
   const persistSelection = useCallback(
-    async (nextSelected: string[], nextExperts: string[]) => {
+    async (nextSelected: string[], nextPanelId: number | null) => {
       setSavingSelection(true)
       setError(null)
       try {
         const row = await updateDdCampaign(campaign.id, {
           selected_candidate_ids: nextSelected,
-          expert_role_keys: nextExperts,
+          expert_panel_id: nextPanelId,
         })
         onCampaignChange(row)
       } catch (err) {
@@ -193,26 +183,25 @@ export function DdCampaignPanelSection({
       ? selectedIds.filter((x) => x !== id)
       : [...selectedIds, id]
     setSelectedIds(next)
-    void persistSelection(next, expertKeys)
+    void persistSelection(next, expertPanelId)
   }
 
-  function toggleExpert(key: string) {
-    const base = effectiveExpertKeys
-    const next = base.includes(key) ? base.filter((x) => x !== key) : [...base, key]
-    if (next.length === 0) return
-    setExpertKeys(next)
-    void persistSelection(selectedIds, next)
+  function onExpertPanelChange(value: string) {
+    const nextPanelId = value ? Number(value) : null
+    if (value && !Number.isFinite(nextPanelId)) return
+    setExpertPanelId(nextPanelId)
+    void persistSelection(selectedIds, nextPanelId)
   }
 
   function selectAllCandidates() {
     const next = campaign.candidates.map((c) => c.id)
     setSelectedIds(next)
-    void persistSelection(next, expertKeys)
+    void persistSelection(next, expertPanelId)
   }
 
   function clearCandidates() {
     setSelectedIds([])
-    void persistSelection([], expertKeys)
+    void persistSelection([], expertPanelId)
   }
 
   const maybeCreateReport = useCallback(
@@ -253,8 +242,8 @@ export function DdCampaignPanelSection({
   ])
 
   async function onRunPanel(candidate: DdCandidateCompany) {
-    if (effectiveExpertKeys.length === 0) {
-      setError(t("dd.panel.noExpertsSelected"))
+    if (expertPanelId == null) {
+      setError(t("dd.panel.noExpertPanelSelected"))
       return
     }
     setRunningCandidateId(candidate.id)
@@ -263,7 +252,6 @@ export function DdCampaignPanelSection({
       const session = await createDdPanelSession(campaign.id, {
         campaign_id: campaign.id,
         candidate_id: candidate.id,
-        expert_role_keys: effectiveExpertKeys,
       })
       await runPanelSession(session.id)
       await refreshCampaign()
@@ -287,42 +275,52 @@ export function DdCampaignPanelSection({
 
       <section>
         <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-lg font-medium">{t("dd.panel.expertRolesTitle")}</h2>
+          <h2 className="text-lg font-medium">{t("dd.panel.expertPanelTitle")}</h2>
           {savingSelection ? (
             <span className="text-xs text-muted-foreground">{t("dd.panel.savingSelection")}</span>
           ) : null}
         </div>
-        <p className="mb-4 text-sm text-muted-foreground">{t("dd.panel.expertRolesIntro")}</p>
-        {rolesLoading ? (
-          <p className="text-sm text-muted-foreground">{t("dd.panel.rolesLoading")}</p>
-        ) : expertRoles.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t("dd.panel.rolesEmpty")}</p>
+        <p className="mb-4 text-sm text-muted-foreground">{t("dd.panel.expertPanelIntro")}</p>
+        {panelsLoading ? (
+          <p className="text-sm text-muted-foreground">{t("dd.panel.panelsLoading")}</p>
+        ) : expertPanels.length === 0 ? (
+          <div className="space-y-3 text-sm text-muted-foreground">
+            <p>{t("dd.panel.panelsEmpty")}</p>
+            <Link className="primary" to="/bolag/expertpaneler/new">
+              {t("dd.panel.createExpertPanel")}
+            </Link>
+          </div>
         ) : (
-          <div className="grid gap-2 md:grid-cols-2">
-            {expertRoles.map((role) => (
-              <label
-                key={role.key}
-                className="flex cursor-pointer gap-3 rounded-md border border-[color:var(--border-hairline)] bg-db-ink-0 p-3"
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="flex min-w-[min(100%,280px)] flex-1 flex-col gap-1 text-sm">
+              <span className="text-muted-foreground">{t("dd.panel.expertPanelLabel")}</span>
+              <select
+                className="dsearch"
+                value={expertPanelId ?? ""}
+                disabled={savingSelection}
+                onChange={(e) => onExpertPanelChange(e.target.value)}
               >
-                <input
-                  type="checkbox"
-                  className="mt-1"
-                  checked={effectiveExpertKeys.includes(role.key)}
-                  disabled={savingSelection || rolesLoading}
-                  onChange={() => toggleExpert(role.key)}
-                />
-                <span>
-                  <span className="block font-medium">{role.label}</span>
-                  {role.description ? (
-                    <span className="mt-0.5 block text-sm text-muted-foreground">
-                      {role.description}
-                    </span>
-                  ) : null}
-                </span>
-              </label>
-            ))}
+                <option value="">{t("dd.panel.expertPanelPlaceholder")}</option>
+                {expertPanels.map((panel) => (
+                  <option key={panel.id} value={panel.id}>
+                    {panel.name} ({panel.size})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <Link className="text-sm" to="/bolag/expertpaneler">
+              {t("dd.panel.manageExpertPanels")}
+            </Link>
           </div>
         )}
+        {selectedPanel ? (
+          <p className="mt-3 text-sm text-muted-foreground">
+            {t("dd.panel.expertPanelSelected", {
+              name: selectedPanel.name,
+              count: selectedPanel.size,
+            })}
+          </p>
+        ) : null}
       </section>
 
       <section>
@@ -361,6 +359,7 @@ export function DdCampaignPanelSection({
                 reportStatus={reportStatus}
                 reportId={reportId}
                 isRunningPanel={isRunningPanel}
+                panelReady={expertPanelId != null}
                 onToggle={() => toggleCandidate(c.id)}
                 onRunPanel={() => void onRunPanel(c)}
                 t={t}
@@ -381,6 +380,7 @@ function CandidatePanelCard({
   reportStatus,
   reportId,
   isRunningPanel,
+  panelReady,
   onToggle,
   onRunPanel,
   t,
@@ -392,6 +392,7 @@ function CandidatePanelCard({
   reportStatus: Report["status"] | null
   reportId: string | null
   isRunningPanel: boolean
+  panelReady: boolean
   onToggle: () => void
   onRunPanel: () => void
   t: ReturnType<typeof useLocale>["t"]
@@ -454,7 +455,7 @@ function CandidatePanelCard({
                     <button
                       type="button"
                       className="primary"
-                      disabled={isRunningPanel || savingSelection}
+                      disabled={isRunningPanel || savingSelection || !panelReady}
                       onClick={() => {
                         setConfirmRerun(false)
                         onRunPanel()
@@ -469,7 +470,7 @@ function CandidatePanelCard({
                   <button
                     type="button"
                     className="primary"
-                    disabled={isRunningPanel || savingSelection}
+                    disabled={isRunningPanel || savingSelection || !panelReady}
                     onClick={handleRunClick}
                   >
                     {isRunningPanel ? t("dd.panel.runningPanel") : t("dd.panel.runPanel")}

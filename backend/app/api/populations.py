@@ -112,9 +112,13 @@ async def _members_from_generation(
 
 @router.get("", response_model=list[PopulationSummary])
 async def list_populations(
+    kind: str | None = None,
     session: AsyncSession = Depends(get_session),
 ) -> list[PopulationSummary]:
-    result = await session.execute(select(Population).order_by(Population.updated_at.desc()))
+    stmt = select(Population).order_by(Population.updated_at.desc())
+    if kind is not None:
+        stmt = stmt.where(Population.kind == kind)
+    result = await session.execute(stmt)
     populations = list(result.scalars().all())
     out: list[PopulationSummary] = []
     for population in populations:
@@ -329,6 +333,7 @@ async def duplicate_population(
             PopulationMember(
                 population_id=population.id,
                 persona_id=member.persona_id,
+                kind=member.kind,
                 name=member.name,
                 initials=member.initials,
                 age=member.age,

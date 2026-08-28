@@ -38,6 +38,7 @@ export type DdCampaign = {
   candidates: DdCandidateCompany[]
   selected_candidate_ids: string[]
   expert_role_keys: string[]
+  expert_panel_id: number | null
   customer_id: number
   candidate_runs: DdCandidateRun[]
   created_at: string
@@ -77,6 +78,7 @@ export function updateDdCampaign(
     candidates: DdCandidateCompany[]
     selected_candidate_ids: string[]
     expert_role_keys: string[]
+    expert_panel_id: number | null
   }>,
 ): Promise<DdCampaign> {
   return api.patch<DdCampaign>(`/dd/campaigns/${id}`, body)
