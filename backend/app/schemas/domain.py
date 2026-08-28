@@ -230,6 +230,7 @@ class PopulationCreate(BaseModel):
     fingerprint: list[list[int]] = Field(default_factory=list)
     recipe: dict[str, Any] = Field(default_factory=dict)
     members: list[PopulationMemberCreate] = Field(default_factory=list)
+    include_persona_ids: list[str] = Field(default_factory=list)
     generation_id: str | None = None
     keep_keys: list[str] | None = None
 

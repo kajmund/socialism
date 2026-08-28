@@ -9,6 +9,13 @@ from app.llm.tool_messages import (
 )
 
 
+def test_assistant_message_extracts_multipart_text():
+    payload = assistant_message_dict(
+        SimpleNamespace(content=[{"type": "text", "text": "Här är bolagen."}])
+    )
+    assert payload["content"] == "Här är bolagen."
+
+
 def test_assistant_message_includes_tool_call_type_and_reasoning():
     call = SimpleNamespace(
         id="call_1",

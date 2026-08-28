@@ -46,6 +46,7 @@ from app.services.persona_chat import (
     safe_library_follow_ups,
 )
 from app.services.population_generate import stub_persona
+from app.services.dd.default_experts import ensure_default_expert_personas
 from app.services.kund_store import bolag_demo_customer_id, default_os_customer_id
 from app.services.prompt_store import require_active_prompts
 
@@ -149,6 +150,11 @@ async def list_personas(
     kind: str | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
 ) -> list[LibraryPersona]:
+    if kind == "expert":
+        created = await ensure_default_expert_personas(session, customer_id=customer_id)
+        if created:
+            await session.commit()
+
     stmt = select(Persona).order_by(Persona.updated_at.desc())
     if customer_id is not None:
         stmt = stmt.where(Persona.customer_id == customer_id)

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import AsyncIterator, Awaitable, Callable
+from types import SimpleNamespace
 from typing import Any
 
 from openai import AsyncOpenAI
@@ -152,6 +153,9 @@ async def complete_with_tools(
     """One chat.completions turn; may return tool_calls. Injectable for tests."""
     if _tools_completer is not None:
         return await _tools_completer(messages, tools)
+    if _text_completer is not None:
+        content = await _text_completer(messages)  # type: ignore[arg-type]
+        return SimpleNamespace(content=content, tool_calls=None)
 
     client = get_client()
     kwargs: dict[str, Any] = {

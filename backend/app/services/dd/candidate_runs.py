@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import DdCandidateRun
+from app.database.models import DdCandidateRun, PanelSession
+from app.serializers import format_date
 from app.services.dd.schemas import DdCandidateRunOut
 
 
@@ -14,6 +15,8 @@ def serialize_candidate_run(row: DdCandidateRun) -> DdCandidateRunOut:
         candidate_id=row.candidate_id,
         panel_session_id=row.panel_session_id,
         report_id=row.report_id,
+        created_at=format_date(row.created_at) if row.created_at else "",
+        updated_at=format_date(row.updated_at) if row.updated_at else "",
     )
 
 
@@ -90,3 +93,22 @@ async def upsert_report(
     await session.flush()
     await session.refresh(row)
     return serialize_candidate_run(row)
+
+
+async def delete_candidate_run(
+    session: AsyncSession,
+    *,
+    campaign_id: int,
+    candidate_id: str,
+) -> bool:
+    row = await get_candidate_run(session, campaign_id=campaign_id, candidate_id=candidate_id)
+    if row is None:
+        return False
+    if row.panel_session_id:
+        await session.execute(
+            update(PanelSession)
+            .where(PanelSession.id == row.panel_session_id)
+            .values(campaign_id=None)
+        )
+    await session.delete(row)
+    return True

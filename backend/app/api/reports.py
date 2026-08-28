@@ -30,6 +30,7 @@ from app.services import jobs as jobs_service
 from app.services.dd.candidate_runs import upsert_report as upsert_dd_candidate_report
 from app.services.panel.schemas import DdPanelResult
 from app.services.report import ARTIFACT_ROOT
+from app.services.report.dd_report import render_dd_html_from_artifact
 from app.services.report.locale import (
     default_report_title,
     download_filename,
@@ -355,6 +356,18 @@ async def get_report_html(
         raise HTTPException(status_code=404, detail="Report not found")
     if report.status != "succeeded" or not report.html_path:
         raise HTTPException(status_code=404, detail="Report HTML not ready")
+    if getattr(report, "mode", None) == "dd":
+        fresh = render_dd_html_from_artifact(
+            Path(ARTIFACT_ROOT) / report_id,
+            title=report.title,
+            locale=getattr(report, "locale", None) or "sv",
+        )
+        if fresh:
+            filename = download_filename(normalize_locale(getattr(report, "locale", None)))
+            return HTMLResponse(
+                content=fresh,
+                headers={"Content-Disposition": f'inline; filename="{filename}"'},
+            )
     path = Path(report.html_path)
     if not path.is_file():
         alt = Path(ARTIFACT_ROOT) / report_id / "report.html"

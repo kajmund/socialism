@@ -10,14 +10,18 @@ from httpx import AsyncClient
 
 from app.llm import set_text_completer
 from app.services import jobs as jobs_service
-from app.services.dd.schemas import DdCandidateCompany
+from app.services.dd.schemas import DdAccountFigure, DdAccountYear, DdCandidateCompany
 from app.services.dd.source_attribution import SourceBadge
 from app.services.panel.schemas import (
     DdDissensusNote,
     DdExpertScore,
     DdPanelResult,
 )
-from app.services.report.dd_report import generate_dd_report_html, render_dd_html
+from app.services.report.dd_report import (
+    generate_dd_report_html,
+    render_dd_html,
+    render_dd_html_from_artifact,
+)
 
 
 def _sample_result(*, with_dissensus: bool = True) -> DdPanelResult:
@@ -31,6 +35,38 @@ def _sample_result(*, with_dissensus: bool = True) -> DdPanelResult:
         omsattning_sek=12_500_000,
         anstallda=42,
         beskrivning="Nischad B2B-leverantör.",
+        rakenskaper=[
+            DdAccountYear(
+                year="2025",
+                omsattning_sek=14_000_000,
+                resultat_sek=2_100_000,
+                ebitda_sek=3_400_000,
+                utdelning_sek=500_000,
+                anstallda=48,
+                eget_kapital_sek=8_000_000,
+                soliditet_pct="52.0",
+                poster=[
+                    DdAccountFigure(kod="EK", namn="Avskrivningar", enhet="sek", sek=900_000),
+                ],
+            ),
+            DdAccountYear(
+                year="2024",
+                omsattning_sek=11_500_000,
+                resultat_sek=-400_000,
+                ebitda_sek=1_200_000,
+                anstallda=42,
+                eget_kapital_sek=6_200_000,
+                soliditet_pct="47.5",
+            ),
+            DdAccountYear(
+                year="2023",
+                omsattning_sek=9_800_000,
+                resultat_sek=800_000,
+                ebitda_sek=1_600_000,
+                anstallda=38,
+                eget_kapital_sek=5_400_000,
+            ),
+        ],
     )
     scores = [
         DdExpertScore(
@@ -40,7 +76,7 @@ def _sample_result(*, with_dissensus: bool = True) -> DdPanelResult:
             sub_question_label="Finansiell hälsa",
             score=8,
             motivation="Stabil marginal.",
-            source=SourceBadge(kind="okf", label="OKF-manual", detail="Guide"),
+            source=SourceBadge(kind="web", label="Webb", detail="Bolagsverket"),
         ),
         DdExpertScore(
             expert_slot_id="jurist",
@@ -76,7 +112,7 @@ def _sample_result(*, with_dissensus: bool = True) -> DdPanelResult:
         candidate=candidate,
         scores=scores,
         dissensus=dissensus,
-        summary="Blandad bild — legal risk sticker ut.",
+        summary="**Blandad bild** — legal risk sticker ut.\n\n### Risker\n- Pågående tvist\n",
     )
 
 
@@ -89,15 +125,72 @@ def test_render_dd_html_includes_summary_matrix_and_dissensus():
         session_id="panel_abc",
         candidate_id="cand_1",
     )
-    assert "Blandad bild" in html
+    assert "<strong>Blandad bild</strong>" in html
+    assert "<h3>Risker</h3>" in html
+    assert "<li>Pågående tvist</li>" in html
+    assert "**Blandad bild**" not in html
     assert "Testbolaget AB" in html
     assert "556677-8899" in html
     assert "poängmatris" in html
     assert "Dissensus" in html
-    assert 'class="badge confirmed"' in html
     assert 'class="badge web"' in html
     assert 'class="badge single"' in html
+    assert "OKF-manual" not in html
+    assert 'class="badge confirmed"' not in html
     assert "Källbilaga" in html
+    assert 'id="rakenskaper"' in html
+    assert 'class="dd-accounts-grid"' in html
+    assert 'aria-label="Omsättning:' in html
+    assert 'aria-label="Resultat:' in html
+    assert "<strong>2025</strong> —" not in html
+    assert "<th>2023</th>" in html
+    assert "<th>2024</th>" in html
+    assert "<th>2025</th>" in html
+    assert "14 000 000 SEK" in html
+    assert "−400 000 SEK" in html or "-400 000 SEK" in html
+
+
+def test_render_dd_html_remaps_okf_badges():
+    result = _sample_result(with_dissensus=False)
+    result.scores[0].source = SourceBadge.model_validate(
+        {"kind": "okf", "label": "OKF-manual", "detail": "Byta gränssnittsspråk"}
+    )
+    html = render_dd_html(
+        result,
+        title="DD Test",
+        locale="sv",
+        session_id="panel_abc",
+        candidate_id="cand_1",
+    )
+    assert "OKF-manual" not in html
+    assert "badge confirmed" not in html
+    assert "Modellbedömning" in html
+    assert 'class="badge single"' in html
+
+
+@pytest.mark.asyncio
+async def test_render_dd_html_from_artifact_drops_okf(tmp_path):
+    result = _sample_result(with_dissensus=False)
+    result.scores[0].source = SourceBadge.model_validate(
+        {"kind": "okf", "label": "OKF-manual", "detail": "Byta gränssnittsspråk"}
+    )
+    out_dir = tmp_path / "rpt_okf"
+    await generate_dd_report_html(
+        result,
+        session_id="panel_abc",
+        candidate_id="cand_1",
+        out_dir=out_dir,
+        title="DD Test",
+    )
+    (out_dir / "report.html").write_text(
+        '<span class="badge confirmed">OKF-manual</span>',
+        encoding="utf-8",
+    )
+    html = render_dd_html_from_artifact(out_dir, title="DD Test")
+    assert html is not None
+    assert "OKF-manual" not in html
+    assert "badge confirmed" not in html
+    assert "Modellbedömning" in html
 
 
 @pytest.mark.asyncio
@@ -151,7 +244,7 @@ async def test_dd_report_end_to_end_from_panel_session(
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(
         "app.services.dd.source_attribution.search_duckduckgo",
-        lambda *_a, **_k: [],
+        lambda query, number_of_result_pages=5: [],
     )
 
     create = await client.post(

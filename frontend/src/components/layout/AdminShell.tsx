@@ -5,6 +5,7 @@ import { useAuth } from "@/auth/AuthProvider"
 import { LocaleSwitcher } from "@/components/layout/LocaleSwitcher"
 import { useLocale, type MessageKey } from "@/i18n"
 import type { Role } from "@/lib/auth"
+import { campaignJobHref } from "@/lib/dd-runs"
 import {
   matchesCustomerScope,
   type CustomerScope,
@@ -96,7 +97,17 @@ function toastFromTransition(
     const runId = job.result?.run_id
     const reportId = job.result?.report_id
     const campaignId =
-      typeof job.result?.campaign_id === "number" ? job.result.campaign_id : null
+      typeof job.result?.campaign_id === "number"
+        ? job.result.campaign_id
+        : typeof job.request.campaign_id === "number"
+          ? job.request.campaign_id
+          : null
+    const candidateId =
+      typeof job.result?.candidate_id === "string"
+        ? job.result.candidate_id
+        : typeof job.request.candidate_id === "string"
+          ? job.request.candidate_id
+          : null
     const bolag = scope === "bolag"
     if (job.kind === "run_simulate" && runId != null) {
       return {
@@ -114,15 +125,15 @@ function toastFromTransition(
         hrefLabel: t("toast.openReport"),
       }
     }
-    if (
-      (job.kind === "panel_session_run" || job.kind === "dd_sourcing_run") &&
-      campaignId != null
-    ) {
-      return {
-        kind: "ok",
-        message: t("toast.jobDone", { label: job.label }),
-        href: `/bolag/campaigns/${campaignId}`,
-        hrefLabel: t("toast.openCampaign"),
+    if (job.kind === "panel_session_run" || job.kind === "dd_sourcing_run") {
+      const href = campaignJobHref(campaignId, candidateId)
+      if (href) {
+        return {
+          kind: "ok",
+          message: t("toast.jobDone", { label: job.label }),
+          href,
+          hrefLabel: candidateId ? t("toast.openResults") : t("toast.openCampaign"),
+        }
       }
     }
     const populationHref =

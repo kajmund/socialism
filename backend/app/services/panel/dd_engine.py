@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import json
-import re
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import PanelSession
 from app.llm import complete_text
+from app.services.dd.company_mcp import run_company_tool_loop, visible_assistant_text
 from app.services.dd.schemas import DdCandidateCompany
 from app.services.dd.source_attribution import SourceBadge, resolve_source_badge
 from app.services.dd.sub_questions import DD_SUB_QUESTIONS, DdSubQuestion
@@ -22,8 +22,7 @@ from app.services.panel.schemas import (
 )
 from app.services.panel.watch import run_turn
 from app.services.prompt_catalog import render_prompt
-
-_SCORE_JSON_RE = re.compile(r"\{[\s\S]*\}")
+from app.services.spindoctor_refs import strip_spindoctor_refs
 
 
 async def _static_text(text: str) -> str:
@@ -61,6 +60,10 @@ def _expert_list(slots: list[PanelExpertSlot]) -> str:
     return "\n".join(f"- {slot.label}: {slot.profile or slot.label}" for slot in slots)
 
 
+def _visible_moderator_text(text: str) -> str:
+    return strip_spindoctor_refs(text)
+
+
 def _slot_by_id(config: PanelSessionConfig, slot_id: str) -> PanelExpertSlot:
     for slot in config.expert_slots:
         if slot.slot_id == slot_id:
@@ -68,18 +71,39 @@ def _slot_by_id(config: PanelSessionConfig, slot_id: str) -> PanelExpertSlot:
     raise RuntimeError(f"Unknown expert slot: {slot_id}")
 
 
+def _iter_json_objects(raw: str) -> list[dict[str, object]]:
+    decoder = json.JSONDecoder()
+    found: list[dict[str, object]] = []
+    idx = 0
+    while idx < len(raw):
+        start = raw.find("{", idx)
+        if start < 0:
+            break
+        try:
+            data, end = decoder.raw_decode(raw, start)
+        except json.JSONDecodeError:
+            idx = start + 1
+            continue
+        if isinstance(data, dict):
+            found.append(data)
+        idx = end
+    return found
+
+
 def _parse_score_payload(raw: str) -> tuple[int, str]:
-    match = _SCORE_JSON_RE.search(raw)
-    if not match:
-        raise ValueError("Expert score response missing JSON object")
-    data = json.loads(match.group(0))
-    score = int(data["score"])
-    motivation = str(data.get("motivation") or data.get("motivering") or "").strip()
-    if score < 1 or score > 10:
-        raise ValueError(f"Score out of range: {score}")
-    if not motivation:
-        raise ValueError("Expert score missing motivation")
-    return score, motivation
+    for data in _iter_json_objects(raw):
+        if "score" not in data:
+            continue
+        try:
+            score = int(data["score"])  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            continue
+        motivation = str(data.get("motivation") or data.get("motivering") or "").strip()
+        if score < 1 or score > 10 or not motivation:
+            continue
+        return score, motivation
+    snippet = " ".join(raw.split())[:180]
+    raise ValueError(f"Expert score response was not valid JSON: {snippet}")
 
 
 def _dissensus_notes(scores: list[DdExpertScore]) -> list[DdDissensusNote]:
@@ -106,7 +130,7 @@ def _dissensus_notes(scores: list[DdExpertScore]) -> list[DdDissensusNote]:
 
 async def _moderator_opening(config: PanelSessionConfig, prompts: dict[str, str]) -> str:
     messages = [
-        {"role": "system", "content": render_prompt(prompts, "spinndoctor.system")},
+        {"role": "system", "content": render_prompt(prompts, "panel.moderator.system")},
         {
             "role": "user",
             "content": render_prompt(
@@ -118,7 +142,7 @@ async def _moderator_opening(config: PanelSessionConfig, prompts: dict[str, str]
             ),
         },
     ]
-    return (await complete_text(messages)).strip()
+    return _visible_moderator_text(await complete_text(messages))
 
 
 async def _moderator_sub_question(
@@ -128,7 +152,7 @@ async def _moderator_sub_question(
     prompts: dict[str, str],
 ) -> str:
     messages = [
-        {"role": "system", "content": render_prompt(prompts, "spinndoctor.system")},
+        {"role": "system", "content": render_prompt(prompts, "panel.moderator.system")},
         {
             "role": "user",
             "content": render_prompt(
@@ -140,7 +164,7 @@ async def _moderator_sub_question(
             ),
         },
     ]
-    return (await complete_text(messages)).strip()
+    return _visible_moderator_text(await complete_text(messages))
 
 
 async def _expert_score(
@@ -152,7 +176,16 @@ async def _expert_score(
     prompts: dict[str, str],
 ) -> tuple[int, str]:
     messages = [
-        {"role": "system", "content": render_prompt(prompts, "panel.expert.system", label=slot.label, profile=slot.profile)},
+        {
+            "role": "system",
+            "content": (
+                render_prompt(
+                    prompts, "panel.expert.system", label=slot.label, profile=slot.profile
+                )
+                + "\n\n"
+                + render_prompt(prompts, "panel.expert.tools")
+            ),
+        },
         {
             "role": "user",
             "content": render_prompt(
@@ -168,8 +201,19 @@ async def _expert_score(
             ),
         },
     ]
-    raw = (await complete_text(messages)).strip()
-    return _parse_score_payload(raw)
+    working, _found = await run_company_tool_loop(messages, with_search=True)
+    raw = visible_assistant_text(working[-1]).strip()
+    try:
+        return _parse_score_payload(raw)
+    except ValueError:
+        working.append(
+            {
+                "role": "user",
+                "content": render_prompt(prompts, "panel.dd.expert.score_json"),
+            }
+        )
+        raw = (await complete_text(working)).strip()
+        return _parse_score_payload(raw)
 
 
 async def _moderator_summary(
@@ -189,7 +233,7 @@ async def _moderator_summary(
     ] or ["- Ingen tydlig dissensus (spridning < 3)"]
 
     messages = [
-        {"role": "system", "content": render_prompt(prompts, "spinndoctor.system")},
+        {"role": "system", "content": render_prompt(prompts, "panel.moderator.system")},
         {
             "role": "user",
             "content": render_prompt(
@@ -202,7 +246,7 @@ async def _moderator_summary(
             ),
         },
     ]
-    return (await complete_text(messages)).strip()
+    return _visible_moderator_text(await complete_text(messages))
 
 
 async def run_dd_panel(

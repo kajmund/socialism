@@ -2,7 +2,7 @@ import { useMemo, useState, type ComponentType, type ReactNode } from "react"
 import { Link } from "react-router-dom"
 import type { Job, JobStatus } from "@/api/jobs"
 import { AdminShell } from "@/components/layout/AdminShell"
-import { BolagShell } from "@/components/layout/BolagShell"
+import { NestedBolagPage } from "@/components/layout/BolagShell"
 import { Card, CardContent } from "@/components/ui/card"
 import { ViewToggle, type ListViewMode } from "@/components/ui/view-toggle"
 import { useLocale, type MessageKey } from "@/i18n"
@@ -10,6 +10,7 @@ import {
   matchesCustomerScope,
   type CustomerScope,
 } from "@/lib/scoping"
+import { campaignJobHref } from "@/lib/dd-runs"
 import { useJobsRealtime } from "@/realtime/JobsRealtimeProvider"
 
 type Translate = (key: MessageKey, params?: Record<string, string | number>) => string
@@ -162,7 +163,23 @@ function jobIds(job: Job) {
       : typeof job.request.campaign_id === "number"
         ? job.request.campaign_id
         : null
-  return { popId, runId, reportId, sessionId, campaignId }
+  const candidateId =
+    typeof job.result?.candidate_id === "string"
+      ? job.result.candidate_id
+      : typeof job.request.candidate_id === "string"
+        ? job.request.candidate_id
+        : null
+  return { popId, runId, reportId, sessionId, campaignId, candidateId }
+}
+
+function ddCampaignHref(job: Job): string | null {
+  const { campaignId, candidateId } = jobIds(job)
+  return campaignJobHref(campaignId, candidateId)
+}
+
+function ddCampaignLinkLabel(job: Job, t: Translate): string {
+  const { candidateId } = jobIds(job)
+  return candidateId ? t("jobs.openResults") : t("jobs.openCampaign")
 }
 
 function populationHref(
@@ -185,7 +202,7 @@ function JobActionLinks({
   t: Translate
   paths: JobLinkPaths
 }) {
-  const { popId, runId, reportId, campaignId } = jobIds(job)
+  const { popId, runId, reportId } = jobIds(job)
   const links: ReactNode[] = []
 
   if (job.status === "succeeded" && popId != null) {
@@ -211,14 +228,16 @@ function JobActionLinks({
   }
   if (
     job.status === "succeeded" &&
-    (job.kind === "panel_session_run" || job.kind === "dd_sourcing_run") &&
-    campaignId != null
+    (job.kind === "panel_session_run" || job.kind === "dd_sourcing_run")
   ) {
-    links.push(
-      <Link key="campaign" to={`${paths.campaigns}/${campaignId}`}>
-        {t("jobs.openCampaign")}
-      </Link>,
-    )
+    const href = ddCampaignHref(job)
+    if (href) {
+      links.push(
+        <Link key="campaign" to={href}>
+          {ddCampaignLinkLabel(job, t)}
+        </Link>,
+      )
+    }
   }
   if ((job.status === "pending" || job.status === "running") && job.kind === "run_simulate" && runId != null) {
     links.push(
@@ -240,14 +259,16 @@ function JobActionLinks({
   }
   if (
     (job.status === "pending" || job.status === "running") &&
-    (job.kind === "panel_session_run" || job.kind === "dd_sourcing_run") &&
-    campaignId != null
+    (job.kind === "panel_session_run" || job.kind === "dd_sourcing_run")
   ) {
-    links.push(
-      <Link key="campaign-live" to={`${paths.campaigns}/${campaignId}`}>
-        {t("jobs.openCampaign")}
-      </Link>,
-    )
+    const href = ddCampaignHref(job)
+    if (href) {
+      links.push(
+        <Link key="campaign-live" to={href}>
+          {ddCampaignLinkLabel(job, t)}
+        </Link>,
+      )
+    }
   }
 
   return <>{links}</>
@@ -264,7 +285,8 @@ function JobCard({
   intl: string
   paths: JobLinkPaths
 }) {
-  const { popId, runId, reportId, campaignId } = jobIds(job)
+  const { popId, runId, reportId } = jobIds(job)
+  const ddHref = ddCampaignHref(job)
   const duration = formatJobDuration(job, t)
   const whenCreated = formatWhen(job.created_at, intl, t("common.emDash"))
   return (
@@ -327,9 +349,9 @@ function JobCard({
         )}
         {job.status === "succeeded" &&
           (job.kind === "panel_session_run" || job.kind === "dd_sourcing_run") &&
-          campaignId != null && (
+          ddHref != null && (
             <div style={{ marginTop: 12, font: "var(--text-body-sm)" }}>
-              <Link to={`${paths.campaigns}/${campaignId}`}>{t("jobs.openCampaign")}</Link>
+              <Link to={ddHref}>{ddCampaignLinkLabel(job, t)}</Link>
             </div>
           )}
         {job.status === "failed" && job.error && (
@@ -368,10 +390,10 @@ function JobCard({
               </>
             ) : null}
             {(job.kind === "panel_session_run" || job.kind === "dd_sourcing_run") &&
-            campaignId != null ? (
+            ddHref != null ? (
               <>
                 {" · "}
-                <Link to={`${paths.campaigns}/${campaignId}`}>{t("jobs.openCampaign")}</Link>
+                <Link to={ddHref}>{ddCampaignLinkLabel(job, t)}</Link>
               </>
             ) : null}
           </div>
@@ -495,5 +517,5 @@ export function JobsPage({ scope = "admin", Shell = AdminShell }: JobsPageProps)
 }
 
 export function BolagJobsPage() {
-  return <JobsPage scope="bolag" Shell={BolagShell} />
+  return <JobsPage scope="bolag" Shell={NestedBolagPage} />
 }

@@ -134,6 +134,8 @@ def test_spindoctor_mcp_tool_specs_include_widgets_and_search():
     assert "list_reports" in names
     assert "list_populations" in names
     assert "get_report_dd" in names
+    assert "search_companies" in names
+    assert "lookup_company" in names
 
 
 @pytest.mark.asyncio

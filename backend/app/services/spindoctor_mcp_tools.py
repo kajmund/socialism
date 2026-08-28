@@ -17,8 +17,16 @@ from sqlalchemy.orm import selectinload
 from app.database.models import PersonaMessage, Population, Report, Run
 from app.schemas.domain import SpindoctorWidgetOut
 from app.serializers import format_date, utcnow
-from app.services.oasis_agent_tools import search_duckduckgo, search_wiki
-from app.services.report import ARTIFACT_ROOT
+from app.services.dd.company_mcp import (
+    COMPANY_TOOL_NAMES,
+    company_tool_specs,
+    run_company_tool,
+)
+from app.services.oasis_agent_tools import (
+    SEARCH_TOOL_NAMES,
+    run_search_tool,
+    search_tool_specs,
+)
 from app.services.persona_chat import (
     ChatTurnError,
     _find_attempt_variant,
@@ -26,6 +34,7 @@ from app.services.persona_chat import (
     run_interview_filter,
     validate_interview_variant,
 )
+from app.services.report import ARTIFACT_ROOT
 from app.services.report.bundles import RunBundle, build_bundles
 from app.services.scb_tools import help_scb_tool_specs, run_scb_tool
 from app.services.spindoctor_context import load_spindoctor_source
@@ -47,7 +56,7 @@ _SCB_TOOL_NAMES = frozenset(
         "scb_population_dist",
     }
 )
-_SEARCH_TOOL_NAMES = frozenset({"search_wiki", "search_duckduckgo"})
+_SEARCH_TOOL_NAMES = SEARCH_TOOL_NAMES
 _LIST_TOOL_NAMES = frozenset({"list_runs", "list_reports", "list_populations"})
 _DATA_TOOL_NAMES = frozenset(
     {
@@ -73,6 +82,7 @@ SPINDOCTOR_MCP_TOOL_NAMES = (
     | _WIDGET_TOOL_NAMES
     | _INTERVIEW_TOOL_NAMES
     | _READ_INTERVIEW_TOOL_NAMES
+    | COMPANY_TOOL_NAMES
 )
 
 
@@ -137,25 +147,6 @@ async def _widget_out(
     async with ctx._widgets_lock:
         ctx.widgets.append(widget)
     return widget
-
-
-def _search_tool_specs() -> list[dict[str, Any]]:
-    from app.services.playground_tools import _callable_doc, _openai_params
-
-    def _spec(fn: Any, name: str) -> dict[str, Any]:
-        return {
-            "type": "function",
-            "function": {
-                "name": name,
-                "description": _callable_doc(fn),
-                "parameters": _openai_params(fn),
-            },
-        }
-
-    return [
-        _spec(search_duckduckgo, "search_duckduckgo"),
-        _spec(search_wiki, "search_wiki"),
-    ]
 
 
 def _list_tool_specs() -> list[dict[str, Any]]:
@@ -376,10 +367,11 @@ def spindoctor_mcp_tool_specs() -> list[dict[str, Any]]:
         *spindoctor_tool_specs(),
         *_list_tool_specs(),
         *help_scb_tool_specs(),
-        *_search_tool_specs(),
+        *search_tool_specs(),
         *_widget_tool_specs(),
         *_interview_turn_tool_specs(),
         *_read_interview_tool_specs(),
+        *company_tool_specs(),
     ]
 
 
@@ -904,13 +896,8 @@ async def run_spindoctor_mcp_tool(
     if name in _SCB_TOOL_NAMES:
         return await run_scb_tool(name, arguments)
 
-    if name == "search_wiki":
-        entity = str(arguments.get("entity") or "").strip()
-        return search_wiki(entity)
-
-    if name == "search_duckduckgo":
-        query = str(arguments.get("query") or "").strip()
-        return search_duckduckgo(query)
+    if name in _SEARCH_TOOL_NAMES:
+        return run_search_tool(name, arguments)
 
     if name == "list_runs":
         return await _list_runs(session, arguments)
@@ -937,5 +924,8 @@ async def run_spindoctor_mcp_tool(
             )
         bundles = await _resolve_bundles(session, ctx, arguments)
         return run_spindoctor_tool_on_bundles(name, arguments, bundles)
+
+    if name in COMPANY_TOOL_NAMES:
+        return await run_company_tool(name, arguments)
 
     raise ValueError(f"Unknown Spinndoktor tool: {name}")

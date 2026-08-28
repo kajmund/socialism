@@ -7,27 +7,37 @@ If no external source is found, the badge is ``llm`` (modellbedömning) so
 operators know the score rests on model reasoning alone.
 
 Priority (highest first):
-1. OKF operator manual bundle (``knowledge/manual``)
-2. Web search (DuckDuckGo via ``search_duckduckgo``)
-3. LLM-only — explicit label, never disguised as external fact
+1. Web search (DuckDuckGo via ``search_duckduckgo``)
+2. LLM-only — explicit label, never disguised as external fact
 """
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
-from app.services.okf_corpus import search_manual
 from app.services.oasis_agent_tools import search_duckduckgo
 
-SourceKind = Literal["okf", "web", "llm"]
+SourceKind = Literal["web", "llm"]
 
 
 class SourceBadge(BaseModel):
     kind: SourceKind
     label: str = Field(min_length=1, max_length=64)
     detail: str = ""
+
+    @model_validator(mode="before")
+    @classmethod
+    def drop_okf_kind(cls, data: Any) -> Any:
+        if not isinstance(data, dict) or data.get("kind") != "okf":
+            return data
+        return {
+            **data,
+            "kind": "llm",
+            "label": "Modellbedömning",
+            "detail": "Ingen extern källa hittades — bedömningen bygger på kandidatdata och expertprofil",
+        }
 
 
 def resolve_source_badge(
@@ -41,16 +51,7 @@ def resolve_source_badge(
     if not query:
         return SourceBadge(kind="llm", label="Modellbedömning", detail="Ingen sökfråga")
 
-    guides = search_manual(query, limit=1)
-    if guides:
-        guide = guides[0]
-        return SourceBadge(
-            kind="okf",
-            label="OKF-manual",
-            detail=guide.title,
-        )
-
-    web_hits = search_duckduckgo(query, max_results=1)
+    web_hits = search_duckduckgo(query, number_of_result_pages=1)
     if web_hits and "error" not in web_hits[0]:
         hit = web_hits[0]
         title = str(hit.get("title") or hit.get("url") or "Webbträff").strip()

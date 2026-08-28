@@ -18,6 +18,7 @@ import { ExpertPanelsPage } from "@/pages/ExpertPanelsPage"
 import { ExpertComposerPage } from "@/pages/ExpertComposerPage"
 import { ExpertsPage } from "@/pages/ExpertsPage"
 import { DdCampaignEditorPage } from "@/pages/DdCampaignEditorPage"
+import { DdCampaignRunPage } from "@/pages/DdCampaignRunPage"
 import { DdCampaignsPage } from "@/pages/DdCampaignsPage"
 import { EmbeddingCachePage } from "@/pages/EmbeddingCachePage"
 import { BolagFeedbackPage, FeedbackPage } from "@/pages/FeedbackPage"
@@ -76,6 +77,7 @@ export default function App() {
               <Route path="expertpaneler/:id" element={<ExpertPanelDetailPage />} />
               <Route path="campaigns" element={<DdCampaignsPage />} />
               <Route path="campaigns/new" element={<DdCampaignEditorPage />} />
+              <Route path="campaigns/:id/runs/:candidateId" element={<DdCampaignRunPage />} />
               <Route path="campaigns/:id" element={<DdCampaignEditorPage />} />
               <Route path="jobs" element={<BolagJobsPage />} />
               <Route path="reports" element={<BolagReportsPage />} />

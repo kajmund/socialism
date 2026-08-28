@@ -614,6 +614,9 @@ async def _run_panel_session(job_id: str) -> None:
             result: dict[str, object] = {"session_id": payload.session_id}
             if panel is not None and panel.campaign_id is not None:
                 result["campaign_id"] = panel.campaign_id
+            candidate_id = (panel.config or {}).get("candidate_id") if panel else None
+            if isinstance(candidate_id, str) and candidate_id:
+                result["candidate_id"] = candidate_id
             await _succeed(session, job_id, result)
     except Exception as exc:
         logger.exception("Panel session job %s failed", job_id)

@@ -37,6 +37,9 @@ cp .env.example .env
 | `LOG_MAX_BYTES` | no | `2000000` | Rotate `app.log` after this many bytes |
 | `LOG_BACKUP_COUNT` | no | `5` | Kept rotated files (`app.log.1` …) |
 | `LOG_LEVEL` | no | `INFO` | `DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL` |
+| `BOLAGSAPI_API_KEY` | for DD company tools | — | When set, company tools use BolagsAPI MCP. When empty, the same tools scrape Allabolag.se |
+| `BOLAGSAPI_MCP_URL` | no | `https://mcp.bolagsapi.se/mcp` | BolagsAPI remote MCP |
+| `BOLAGSAPI_CACHE_DIR` | no | `data/bolagsapi_cache` | Disk cache for MCP tool results. Entries expire after 10 months |
 
 `.env` example:
 
@@ -66,6 +69,7 @@ Constraints:
 - `DEEPSEEK_API_KEY` is required at startup even when `PERSONA_GENERATOR=stub`. There is no keyword/heuristic LLM fallback for chat or reports.
 - `OPENAI_API_KEY` is required for Semantic Similarity Rating (report tone/style). The SSR embeddings client reads `settings.openai_api_key` explicitly — not the process env after OASIS mirrors DeepSeek into `OPENAI_API_KEY`.
 - Settings live only in `app/config.py` — do not call `os.getenv` / `load_dotenv` in app code.
+- `BOLAGSAPI_API_KEY` selects the company-data backend: BolagsAPI MCP when set, Allabolag scrape when empty. One path per process — a BolagsAPI failure does not fall through to Allabolag. Successful tool results (and Allabolag HTML) are cached on disk for 10 months.
 
 HTTP access lines and uncaught ASGI exceptions (DeepSeek timeouts, tracebacks) go to **stdout** and to `backend/data/logs/app.log`. When the file hits `LOG_MAX_BYTES` it becomes `app.log.1` and a new `app.log` starts (`LOG_BACKUP_COUNT` files kept). Körning-loggar under `data/oasis/…` are separate.
 

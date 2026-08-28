@@ -48,7 +48,7 @@ const STATIC_ACCOUNTS: ReadonlyArray<{
       username: "admin",
       email: "admin@local",
       role: "admin",
-      modules: [],
+      modules: ["politik", "dd"],
     },
   },
   {
@@ -59,7 +59,7 @@ const STATIC_ACCOUNTS: ReadonlyArray<{
       username: "user",
       email: "user@local",
       role: "user",
-      modules: [],
+      modules: ["politik"],
     },
   },
   {

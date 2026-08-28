@@ -40,7 +40,7 @@ def mock_dd_panel_llm():
 async def test_dd_panel_run_emits_live_turn_events(client: AsyncClient, mock_dd_panel_llm, monkeypatch):
     monkeypatch.setattr(
         "app.services.dd.source_attribution.search_duckduckgo",
-        lambda *_a, **_k: [],
+        lambda query, number_of_result_pages=5: [],
     )
 
     events: list[dict] = []

@@ -4,10 +4,13 @@ from unittest.mock import MagicMock
 
 from app.schemas.domain import OasisRunOptions
 from app.services.oasis_agent_tools import (
+    SEARCH_TOOL_NAMES,
     apply_population_agent_tools,
     build_population_extra_tools,
     population_agent_max_iteration,
     population_tool_rules,
+    run_search_tool,
+    search_tool_specs,
 )
 from app.services.oasis_profiles import build_user_char
 from app.services.oasis_run import parse_oasis_options
@@ -178,6 +181,46 @@ def test_search_toolkit_runtime_dependencies():
 
     assert importlib.util.find_spec("ddgs") is not None
     assert importlib.util.find_spec("wikipedia") is not None
+
+
+def test_search_tool_specs_match_population_search_tools():
+    names = {
+        spec["function"]["name"]
+        for spec in search_tool_specs()
+        if spec.get("function")
+    }
+    assert names == SEARCH_TOOL_NAMES
+    assert names == {"search_duckduckgo", "search_wiki"}
+
+
+def test_run_search_wiki_tool():
+    assert "Tom" in run_search_tool("search_wiki", {"entity": "  "})
+
+
+def test_run_search_duckduckgo_tool():
+    out = run_search_tool("search_duckduckgo", {"query": " "})
+    assert "error" in out
+
+
+def test_run_search_duckduckgo_accepts_max_results_alias(monkeypatch):
+    seen: dict[str, object] = {}
+
+    def _fake(query: str, number_of_result_pages: int = 5):
+        seen["query"] = query
+        seen["pages"] = number_of_result_pages
+        return [{"title": "Ok"}]
+
+    monkeypatch.setattr(
+        "app.services.oasis_agent_tools.search_duckduckgo",
+        _fake,
+    )
+    out = run_search_tool(
+        "search_duckduckgo",
+        {"query": "Spotify", "max_results": 1},
+    )
+    assert "Ok" in out
+    assert seen["query"] == "Spotify"
+    assert seen["pages"] == 1
 
 
 def test_search_wiki_rejects_empty():

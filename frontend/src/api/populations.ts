@@ -86,10 +86,12 @@ export type PopulationMemberWrite = {
 }
 
 export type PopulationWrite = {
+  kind?: "persona" | "expert_panel"
   name: string
   fingerprint?: number[][]
   recipe?: Record<string, unknown>
   members?: PopulationMemberWrite[]
+  include_persona_ids?: string[]
   generation_id?: string
   keep_keys?: string[]
 }

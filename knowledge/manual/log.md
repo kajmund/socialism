@@ -2,6 +2,20 @@
 
 ## 2026-08-28
 
+* **Due diligence (bolag)**: Om ett organisationsnummer inte finns hos Allabolag fortsätter bolagssökchatten — den avbryts inte.
+* **Due diligence (bolag)**: Bolagssökchatten kraschar inte längre när assistenten läcker verktygs-XML eller lämnar ett tomt svar efter sökningen.
+* **Due diligence (bolag)**: En expertpanel sparas direkt när du valt experter — inget bakgrundsjobb.
+* **Due diligence (bolag)**: DD-rapporten märker inte längre poäng med **OKF-manual**. Källbrickorna är **Webb** eller **Modellbedömning**.
+* **Due diligence (bolag)**: DD-rapporten visar räkenskaper som staplar per år, så omsättning, resultat och andra nyckeltal kan jämföras mellan åren.
+* **Due diligence (bolag)**: Fliken **Körningar** listar en körning per kandidat. Du öppnar **Resultat**, går till **Konfiguration** eller tar bort körningen, likadant som i politikmodulen.
+* **Rapporter**: Har kontot både politik och due diligence delas rapportlistan upp i flikar. Har kontot bara en modul visas bara den modulens rapporter.
+* **Due diligence (bolag)**: Kandidatbolag visar F-skatt, moms, styrelse, koncern, varumärken, SNI, händelser och flera års räkenskaper, inklusive föreslagen utdelning och övriga nyckeltal, när uppgifterna finns i bolagsregistret.
+* **Due diligence (bolag)**: I bolagssöket kan du avmarkera enskilda träffar eller **Avmarkera alla**. Chatten går att skrolla när träfflistan syns.
+* **Due diligence (bolag)**: Experter, expertchatten och Spinndoktor kan slå upp bolagsuppgifter (omsättning, resultat, anställda) när de bedömer ett målbolag.
+* **Due diligence (bolag)**: Experter i chatt och panel har samma webbsök och Wikipedia som politik-personas kan få i en körning, utöver bolagsuppslag.
+* **Due diligence (bolag)**: Bolagssök i kampanjen är en chatt. Du beskriver vilka bolag du söker, väljer bland träffarna och lägger dem i kampanjen. Sökbriefen visas i översikten och kan inte ändras där.
+* **Due diligence (bolag)**: Kampanjer kan tas bort från listan efter bekräftelse.
+* **Due diligence (bolag)**: I en kampanj sker bolagssök i en modal. Du väljer kandidater bland träffarna och lägger dem i kampanjen. Sökkriterierna visas i översikten och kan inte ändras där. Kampanjen är uppdelad i flikarna Översikt, Kandidater och Expertpanel.
 * **Due diligence (bolag)**: Menyn täcker hela DD-flödet — Experter, Expertpaneler, Kampanjer, Rapporter, Återkoppling och Jobb. Rapporter och jobb visar bara bolagets egna poster.
 
 ## 2026-08-27

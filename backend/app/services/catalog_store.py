@@ -13,9 +13,12 @@ from app.services.catalog_defaults import (
     CATALOG_DEFAULTS,
     ORT_DEFAULTS_BY_LABEL,
     PREVIOUS_STOCK_LABELS,
+    SECTION_ORDER,
 )
 from app.services.catalog_items import catalog_items_as_json, coerce_catalog_items
 from app.services.kund_store import default_os_project_id
+
+KNOWN_SECTIONS = frozenset(SECTION_ORDER)
 
 # District maps (ort) are project-local; other catalog keys stay global (project_id NULL).
 LOCAL_PROJECT_CATALOG_KEYS = frozenset({"ort"})
@@ -100,7 +103,7 @@ async def list_catalog_lists(
             ),
         )
     )
-    return list(result.scalars().all())
+    return [row for row in result.scalars().all() if row.section in KNOWN_SECTIONS]
 
 
 async def ensure_catalog_defaults(
@@ -118,6 +121,14 @@ async def ensure_catalog_defaults(
     rows = list(result.scalars().all())
     added = 0
     dirty = False
+    kept: list[CatalogList] = []
+    for row in rows:
+        if row.section in KNOWN_SECTIONS:
+            kept.append(row)
+            continue
+        await session.delete(row)
+        dirty = True
+    rows = kept
     for default in CATALOG_DEFAULTS:
         key = default["key"]
         scoped_project_id = _resolve_project_id(key, project_id)

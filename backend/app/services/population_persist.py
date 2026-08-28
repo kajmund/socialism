@@ -16,6 +16,7 @@ from app.services.population_fingerprint import (
     infer_slots_from_profile,
     slots_from_persona,
 )
+from app.services.population_generate import library_candidate, load_library_personas
 from app.services.population_generation_store import get_generation, pop_generation
 
 _DEFAULT_POPULATION_NAME = "Namnlös population"
@@ -172,6 +173,50 @@ async def allocate_unique_population_name(
             return candidate
         candidate = f"{base} ({n})"
         n += 1
+
+
+async def create_expert_panel(
+    session: AsyncSession,
+    *,
+    name: str,
+    persona_ids: list[str],
+    recipe: dict | None = None,
+) -> Population:
+    ids = list(dict.fromkeys(pid.strip() for pid in persona_ids if pid and pid.strip()))
+    if not ids:
+        raise ValueError("Expert panel requires at least one expert persona")
+    library = await load_library_personas(session, ids, required_kind="expert")
+    members: list[PopulationMemberCreate] = []
+    for persona_id in ids:
+        candidate = library_candidate(persona_id, *library[persona_id])
+        members.append(
+            _member_create_from_candidate(
+                candidate,
+                persona_id=persona_id,
+                recipe_dist={},
+                population_kind="expert_panel",
+            )
+        )
+    unique_name = await allocate_unique_population_name(session, name)
+    stored_recipe = dict(recipe) if recipe else {}
+    stored_recipe["size"] = len(members)
+    stored_recipe.setdefault("dist", {})
+    population = Population(
+        kind="expert_panel",
+        name=unique_name,
+        size=len(members),
+        versions=1,
+        fingerprint=[[], [], []],
+        fingerprint_inferred=True,
+        recipe=stored_recipe,
+        updated_at=utcnow(),
+    )
+    session.add(population)
+    await session.flush()
+    for member in members:
+        session.add(member_row(population.id, member, member_kind="expert"))
+    await session.flush()
+    return population
 
 
 async def create_population_from_generation(

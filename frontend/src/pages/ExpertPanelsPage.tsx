@@ -5,30 +5,138 @@ import {
   duplicatePopulation,
   listPopulations,
 } from "@/api/populations"
-import type { PopulationSummary } from "@/data/library-types"
-import { BolagShell } from "@/components/layout/BolagShell"
-import { AdminButton } from "@/components/ui/admin-button"
+import { Card, CardContent } from "@/components/ui/card"
+import { ViewToggle, type ListViewMode } from "@/components/ui/view-toggle"
 import { formatLibraryDate } from "@/data/library"
-import { useLocale } from "@/i18n"
+import type { PopulationSummary } from "@/data/library-types"
+import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
 import { ApiError } from "@/lib/api"
 
+type Translate = (key: MessageKey, params?: TranslateParams) => string
+
+const CTA_CLASS =
+  "admin-cta inline-flex h-9 items-center rounded-[var(--radius-md)] bg-db-black px-[18px] text-[0.85rem] text-db-ink-0 no-underline hover:bg-db-ink-800"
+
+type PanelItemProps = {
+  panel: PopulationSummary
+  intl: string
+  t: Translate
+  onDelete: (id: number) => void
+  onDup: (id: number) => void
+}
+
+function PanelCard({ panel, intl, t, onDelete, onDup }: PanelItemProps) {
+  const [confirming, setConfirming] = useState(false)
+  return (
+    <div className="pop-card">
+      <Card className="h-full gap-0 py-4 ring-1 ring-border">
+        <CardContent className="pop-inner px-4">
+          <div className="top">
+            <div className="nm">{panel.name}</div>
+          </div>
+          <div className="meta-line">
+            {t("expertPanels.list.metaLine", {
+              count: panel.size,
+              when: formatLibraryDate(panel.updated, intl),
+            })}
+          </div>
+          {confirming ? (
+            <div className="confirm-row" style={{ marginTop: "auto" }}>
+              <button type="button" style={{ flex: 1 }} onClick={() => setConfirming(false)}>
+                {t("common.cancel")}
+              </button>
+              <button
+                type="button"
+                className="yes"
+                style={{ flex: 1 }}
+                onClick={() => onDelete(panel.id)}
+              >
+                {t("common.deleteConfirm")}
+              </button>
+            </div>
+          ) : (
+            <div className="card-actions">
+              <Link className="primary" to={`/bolag/expertpaneler/${panel.id}`}>
+                {t("common.open")}
+              </Link>
+              <button type="button" onClick={() => onDup(panel.id)}>
+                {t("common.duplicate")}
+              </button>
+              <button type="button" className="danger" onClick={() => setConfirming(true)}>
+                {t("common.delete")}
+              </button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+function PanelListRow({ panel, intl, t, onDelete, onDup }: PanelItemProps) {
+  const [confirming, setConfirming] = useState(false)
+  return (
+    <div className="admin-list-row admin-list-pops">
+      <div>
+        <div className="nm">{panel.name}</div>
+        <div className="meta">
+          {t("expertPanels.list.metaLine", {
+            count: panel.size,
+            when: formatLibraryDate(panel.updated, intl),
+          })}
+        </div>
+      </div>
+      <div className="cell">{panel.size}</div>
+      <div className="admin-list-actions">
+        {confirming ? (
+          <>
+            <button type="button" onClick={() => setConfirming(false)}>
+              {t("common.cancel")}
+            </button>
+            <button type="button" className="primary" onClick={() => onDelete(panel.id)}>
+              {t("common.deleteConfirm")}
+            </button>
+          </>
+        ) : (
+          <>
+            <Link className="primary" to={`/bolag/expertpaneler/${panel.id}`}>
+              {t("common.open")}
+            </Link>
+            <button type="button" onClick={() => onDup(panel.id)}>
+              {t("common.duplicate")}
+            </button>
+            <button type="button" onClick={() => setConfirming(true)}>
+              {t("common.delete")}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export function ExpertPanelsPage() {
-  const { t, locale } = useLocale()
+  const { t, intl } = useLocale()
   const [panels, setPanels] = useState<PopulationSummary[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState("")
-  const [toast, setToast] = useState("")
+  const [view, setView] = useState<ListViewMode>("grid")
+  const [toast, setToast] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     void listPopulations({ kind: "expert_panel" })
       .then((rows) => {
-        if (!cancelled) setPanels(rows)
+        if (!cancelled) {
+          setPanels(rows)
+          setError(null)
+        }
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setToast(err instanceof ApiError ? err.message : t("expertPanels.list.loadError"))
+          setError(err instanceof ApiError ? err.message : t("expertPanels.list.loadError"))
         }
       })
       .finally(() => {
@@ -38,6 +146,12 @@ export function ExpertPanelsPage() {
       cancelled = true
     }
   }, [t])
+
+  useEffect(() => {
+    if (!toast) return
+    const timer = window.setTimeout(() => setToast(null), 2400)
+    return () => window.clearTimeout(timer)
+  }, [toast])
 
   const list = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -67,92 +181,89 @@ export function ExpertPanelsPage() {
   }
 
   return (
-    <BolagShell>
-      <div className="wrap">
-        <div className="head-row">
-          <div>
-            <h1
-              style={{
-                font: "var(--text-h1)",
-                fontFamily: "'Bai Jamjuree', sans-serif",
-                fontWeight: 400,
-                margin: 0,
-              }}
-            >
-              {t("expertPanels.list.title")}
-            </h1>
-            <p
-              style={{
-                font: "var(--text-body-sm)",
-                color: "var(--text-muted)",
-                marginTop: 6,
-                maxWidth: 640,
-              }}
-            >
-              {t("expertPanels.list.intro")}
-            </p>
+    <div className="wrap">
+      <div className="head-row">
+        <div>
+          <h1>{t("expertPanels.list.title")}</h1>
+          <p>{t("expertPanels.list.intro")}</p>
+        </div>
+      </div>
+
+      {error ? (
+        <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
+          {error}
+        </div>
+      ) : null}
+
+      {loading ? (
+        <div className="no-match">{t("expertPanels.list.loading")}</div>
+      ) : panels.length > 0 ? (
+        <>
+          <div className="controls-row">
+            <div className="controls-left">
+              <input
+                className="dsearch"
+                placeholder={t("expertPanels.list.searchPlaceholder")}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
+            <div className="controls-right">
+              <ViewToggle value={view} onChange={setView} />
+              <Link to="/bolag/expertpaneler/new" className={CTA_CLASS}>
+                {t("expertPanels.list.newPanel")}
+              </Link>
+            </div>
           </div>
-          <Link to="/bolag/expertpaneler/new" className="no-underline">
-            <AdminButton variant="primary">{t("expertPanels.list.newPanel")}</AdminButton>
+          {list.length === 0 ? (
+            <div className="no-match">{t("expertPanels.list.emptyFilter", { query })}</div>
+          ) : view === "grid" ? (
+            <div className="pop-grid">
+              {list.map((panel) => (
+                <PanelCard
+                  key={panel.id}
+                  panel={panel}
+                  intl={intl}
+                  t={t}
+                  onDelete={(id) => void handleDelete(id)}
+                  onDup={(id) => void handleDuplicate(id)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="admin-list-stack">
+              {list.map((panel) => (
+                <PanelListRow
+                  key={panel.id}
+                  panel={panel}
+                  intl={intl}
+                  t={t}
+                  onDelete={(id) => void handleDelete(id)}
+                  onDup={(id) => void handleDuplicate(id)}
+                />
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="empty-state">
+          <h2 style={{ font: "var(--text-h2)", marginBottom: 10 }}>
+            {t("expertPanels.list.emptyTitle")}
+          </h2>
+          <p style={{ color: "var(--text-muted)", marginBottom: 24 }}>
+            {t("expertPanels.list.emptyBody")}
+          </p>
+          <Link to="/bolag/expertpaneler/new" className={CTA_CLASS}>
+            {t("expertPanels.list.newPanel")}
           </Link>
         </div>
+      )}
 
-        <div className="controls-row" style={{ marginTop: 24 }}>
-          <input
-            className="dsearch"
-            placeholder={t("expertPanels.list.searchPlaceholder")}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
+      {toast ? (
+        <div className="fixed bottom-6 right-6 z-50 rounded-md bg-db-ink-950 px-4 py-3 text-sm text-db-ink-0 shadow-lg">
+          {toast}
         </div>
-
-        {loading ? (
-          <p style={{ color: "var(--text-muted)", marginTop: 24 }}>{t("expertPanels.list.loading")}</p>
-        ) : list.length === 0 ? (
-          <p style={{ color: "var(--text-muted)", marginTop: 24 }}>{t("expertPanels.list.empty")}</p>
-        ) : (
-          <div className="table-wrap" style={{ marginTop: 24 }}>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>{t("expertPanels.list.columnName")}</th>
-                  <th>{t("expertPanels.list.columnSize")}</th>
-                  <th>{t("expertPanels.list.columnUpdated")}</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {list.map((row) => (
-                  <tr key={row.id}>
-                    <td>
-                      <Link to={`/bolag/expertpaneler/${row.id}`} className="row-link">
-                        {row.name}
-                      </Link>
-                    </td>
-                    <td>{row.size}</td>
-                    <td>{formatLibraryDate(row.updated, locale)}</td>
-                    <td className="actions-cell">
-                      <button type="button" className="linkish" onClick={() => void handleDuplicate(row.id)}>
-                        {t("common.duplicate")}
-                      </button>
-                      <button type="button" className="linkish" onClick={() => void handleDelete(row.id)}>
-                        {t("common.delete")}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {toast ? (
-          <div className="toast" role="status">
-            <div className="ck">✓</div>
-            {toast}
-          </div>
-        ) : null}
-      </div>
-    </BolagShell>
+      ) : null}
+    </div>
   )
 }

@@ -47,6 +47,11 @@ class Settings(BaseSettings):
     # OKF operator manuals for in-app help chat (empty = repo knowledge/manual).
     okf_manual_dir: str = ""
 
+    # BolagsAPI remote MCP (DD company search). When empty, company tools use Allabolag.
+    bolagsapi_api_key: str = ""
+    bolagsapi_mcp_url: str = "https://mcp.bolagsapi.se/mcp"
+    bolagsapi_cache_dir: str = "data/bolagsapi_cache"
+
     # none = status-only start; oasis = live CAMEL OASIS spike (optional dep group)
     simulation_engine: SimulationEngine = "none"
     # Cap overlapping run_simulate background jobs (A/B variants within one job

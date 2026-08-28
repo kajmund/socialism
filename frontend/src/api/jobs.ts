@@ -35,6 +35,7 @@ export type Job = {
     report_id?: string
     session_id?: string
     campaign_id?: number
+    candidate_id?: string
     html_path?: string
     sources?: number
     dry_run?: boolean

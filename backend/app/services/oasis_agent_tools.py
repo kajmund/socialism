@@ -8,9 +8,12 @@ Web search uses our wrappers rather than CAMEL SearchToolkit:
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from app.schemas.domain import OasisRunOptions
+
+SEARCH_TOOL_NAMES = frozenset({"search_duckduckgo", "search_wiki"})
 
 # OASIS cookbook examples use max_iteration=5 when agents have external tools.
 _TOOL_MAX_ITERATION = 5
@@ -169,6 +172,74 @@ def search_duckduckgo(
             }
         ]
     return responses
+
+
+def search_tool_specs() -> list[dict[str, Any]]:
+    """OpenAI tool specs for the same search functions population agents can get."""
+    return [
+        {
+            "type": "function",
+            "function": {
+                "name": "search_duckduckgo",
+                "description": (
+                    "Search the web via DuckDuckGo (Swedish region) for news and facts."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": (
+                                "Search query (news, laws, figures, current events)."
+                            ),
+                        },
+                        "number_of_result_pages": {
+                            "type": "integer",
+                            "description": "Max results to return (default 5).",
+                        },
+                    },
+                    "required": ["query"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "search_wiki",
+                "description": (
+                    "Search Swedish Wikipedia for a named entity and return a short summary."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "entity": {
+                            "type": "string",
+                            "description": (
+                                "Short page title or proper name only "
+                                '(e.g. "Sverigedemokraterna", "gängkriminalitet").'
+                            ),
+                        },
+                    },
+                    "required": ["entity"],
+                },
+            },
+        },
+    ]
+
+
+def run_search_tool(name: str, arguments: dict[str, Any]) -> str:
+    if name == "search_wiki":
+        return search_wiki(str(arguments.get("entity") or ""))
+    if name == "search_duckduckgo":
+        kwargs: dict[str, Any] = {}
+        pages = arguments.get("number_of_result_pages")
+        if pages is None:
+            pages = arguments.get("max_results")
+        if pages is not None:
+            kwargs["number_of_result_pages"] = int(pages)
+        result = search_duckduckgo(str(arguments.get("query") or ""), **kwargs)
+        return json.dumps(result, ensure_ascii=False)
+    raise ValueError(f"Unknown search tool: {name}")
 
 
 def build_population_extra_tools(options: OasisRunOptions) -> list[Any]:
