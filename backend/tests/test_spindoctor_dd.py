@@ -53,6 +53,7 @@ async def _seed_dd_report(session: AsyncSession, tmp_path: Path, report_id: str 
     session.add(
         Report(
             id=report_id,
+            customer_id=1,
             status="succeeded",
             title="DD Spinndoktor",
             locale="sv",

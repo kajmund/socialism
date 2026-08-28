@@ -188,3 +188,52 @@ async def test_dd_campaign_gets_bolag_customer_id(client: AsyncClient):
     )
     assert create.status_code == 201
     assert create.json()["customer_id"] == bolag_id
+
+
+@pytest.mark.asyncio
+async def test_persona_kind_defaults_to_persona(client: AsyncClient):
+    create = await client.post(
+        "/personas",
+        json={
+            "name": "Kind Test",
+            "age": 40,
+            "occ": "Testare",
+            "district": "Stockholm",
+        },
+    )
+    assert create.status_code == 201
+    assert create.json()["kind"] == "persona"
+
+
+@pytest.mark.asyncio
+async def test_os_job_gets_devbrains_customer_id(session: AsyncSession):
+    from sqlalchemy import select
+
+    from app.database.models import Job, Population, Run
+    from app.schemas.domain import JobCreate, RunSimulateJobRequest
+    from app.services import jobs as jobs_service
+
+    pop = Population(name="JobScopePop", size=0, versions=1, fingerprint=[], recipe={})
+    session.add(pop)
+    await session.flush()
+    run = Run(
+        project_id=await default_os_project_id(session),
+        name="JobScopeRun",
+        status="draft",
+        population_id=pop.id,
+        seed="",
+    )
+    session.add(run)
+    await session.flush()
+
+    job = await jobs_service.create_job(
+        session,
+        JobCreate(
+            kind="run_simulate",
+            request=RunSimulateJobRequest(run_id=run.id).model_dump(),
+        ),
+    )
+
+    os_id = await default_os_customer_id(session)
+    row = (await session.execute(select(Job).where(Job.id == job.id))).scalar_one()
+    assert row.customer_id == os_id

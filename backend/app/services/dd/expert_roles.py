@@ -1,32 +1,31 @@
-"""Load DD expert roles from the dd_expertpanel catalog."""
+"""Load DD expert roles from kind=expert Persona rows."""
 
 from __future__ import annotations
 
-import re
-
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
-from app.schemas.domain import CatalogItem
-from app.services.catalog_items import coerce_catalog_items
-from app.services.catalog_store import ensure_catalog_defaults, get_catalog_list
+from app.database.models import Persona, Population, PopulationMember
+from app.serializers import profile_from_dict
+from app.services.dd.default_experts import ensure_default_expert_personas
+from app.services.dd.expert_keys import expert_role_key
 from app.services.panel.schemas import PanelExpertSlot
-from app.services.prompt_store import MissingActiveConfigurationError, get_active_configuration
-
-_EXPERT_KEY_RE = re.compile(r"[^a-z0-9]+")
 
 
-def expert_role_key(label: str) -> str:
-    slug = _EXPERT_KEY_RE.sub("_", label.strip().casefold()).strip("_")
-    return slug or "expert"
-
-
-def _profile_text(item: CatalogItem) -> str:
+def _profile_text(persona: Persona) -> str:
+    profile = profile_from_dict(persona.profile if isinstance(persona.profile, dict) else None, persona.name)
+    description = persona.quote if persona.quote else profile.beskrivning
     lines = [
-        item.description,
-        f"Kompetensområde: {item.kompetensomrade}" if item.kompetensomrade else "",
-        f"Rådgivningsstil: {item.radgivningsstil}" if item.radgivningsstil else "",
-        f"Yrkesbakgrund: {item.yrkesbakgrund}" if item.yrkesbakgrund else "",
-        f"Anekdot: {item.professionell_anekdot}" if item.professionell_anekdot else "",
+        description if description not in ("", "—") else "",
+        f"Kompetensområde: {profile.kompetensomrade}" if profile.kompetensomrade not in ("", "—") else "",
+        f"Rådgivningsstil: {profile.radgivningsstil}" if profile.radgivningsstil not in ("", "—") else "",
+        f"Yrkesbakgrund: {profile.yrkesbakgrund or persona.occ}"
+        if (profile.yrkesbakgrund or persona.occ) not in ("", "—")
+        else "",
+        f"Anekdot: {profile.professionell_anekdot}"
+        if profile.professionell_anekdot not in ("", "—")
+        else "",
     ]
     return "\n".join(line for line in lines if line).strip()
 
@@ -34,38 +33,68 @@ def _profile_text(item: CatalogItem) -> str:
 async def load_expert_slots(
     session: AsyncSession,
     *,
+    customer_id: int,
     role_keys: list[str] | None = None,
 ) -> list[PanelExpertSlot]:
-    """Resolve expert slots from active configuration's dd_expertpanel catalog.
+    """Resolve expert slots from Persona rows scoped to the DD campaign customer."""
+    await ensure_default_expert_personas(session, customer_id=customer_id)
 
-    Intentional for now: uses the globally active Configuration (Devbrains tenant),
-    not the DD campaign's customer_id. Bolag-demo gets its own expert catalog only when
-    per-customer active configuration is implemented (auth card).
-    """
-    active = await get_active_configuration(session)
-    if active is None:
-        raise MissingActiveConfigurationError("No active configuration")
-    await ensure_catalog_defaults(session, active.id)
-    row = await get_catalog_list(session, active.id, "expert_roller")
-    if row is None:
-        raise RuntimeError("DD expertpanel catalog missing on active configuration")
+    result = await session.execute(
+        select(Persona).where(
+            Persona.kind == "expert",
+            Persona.customer_id == customer_id,
+        )
+    )
+    personas = list(result.scalars().all())
+    if not personas:
+        raise RuntimeError(f"No expert personas for customer_id={customer_id}")
 
-    items = coerce_catalog_items(row.items)
-    if not items:
-        raise RuntimeError("DD expertpanel catalog has no roles")
-
-    by_key = {expert_role_key(item.label): item for item in items}
+    by_key = {expert_role_key(p.name): p for p in personas}
     selected_keys = role_keys or list(by_key.keys())
     slots: list[PanelExpertSlot] = []
     for key in selected_keys:
-        item = by_key.get(key)
-        if item is None:
+        persona = by_key.get(key)
+        if persona is None:
             raise RuntimeError(f"Unknown DD expert role key: {key}")
         slots.append(
             PanelExpertSlot(
                 slot_id=key,
-                label=item.label,
-                profile=_profile_text(item),
+                label=persona.name,
+                profile=_profile_text(persona),
             )
         )
+    return slots
+
+
+async def load_expert_slots_from_population(
+    session: AsyncSession,
+    population_id: int,
+) -> list[PanelExpertSlot]:
+    """Resolve expert slots from a saved expert_panel population."""
+    result = await session.execute(
+        select(Population)
+        .options(selectinload(Population.members).selectinload(PopulationMember.persona))
+        .where(Population.id == population_id)
+    )
+    population = result.scalar_one_or_none()
+    if population is None:
+        raise RuntimeError(f"Population not found: {population_id}")
+    if population.kind != "expert_panel":
+        raise RuntimeError(f"Population {population_id} is not an expert panel")
+
+    slots: list[PanelExpertSlot] = []
+    for member in population.members:
+        persona = member.persona
+        if persona is None:
+            raise RuntimeError(f"Expert panel member missing persona: {member.id}")
+        key = expert_role_key(persona.name)
+        slots.append(
+            PanelExpertSlot(
+                slot_id=key,
+                label=persona.name,
+                profile=_profile_text(persona),
+            )
+        )
+    if not slots:
+        raise RuntimeError(f"Expert panel {population_id} has no members")
     return slots

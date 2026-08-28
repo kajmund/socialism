@@ -45,6 +45,8 @@ class Kund(Base):
     personas: Mapped[list["Persona"]] = relationship(back_populates="kund")
     configurations: Mapped[list["Configuration"]] = relationship(back_populates="kund")
     dd_campaigns: Mapped[list["DdCampaign"]] = relationship(back_populates="kund")
+    jobs: Mapped[list["Job"]] = relationship(back_populates="kund")
+    reports: Mapped[list["Report"]] = relationship(back_populates="kund")
 
 
 class Projekt(Base):
@@ -90,8 +92,9 @@ class Persona(Base):
         nullable=False,
         index=True,
     )
+    kind: Mapped[str] = mapped_column(String(32), nullable=False, default="persona", server_default="persona")
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    age: Mapped[int] = mapped_column(Integer, nullable=False)
+    age: Mapped[int | None] = mapped_column(Integer, nullable=True)
     occ: Mapped[str] = mapped_column(String(255), nullable=False)
     district: Mapped[str] = mapped_column(String(255), nullable=False)
     quote: Mapped[str] = mapped_column(Text, nullable=False, default="")
@@ -115,6 +118,7 @@ class Population(Base):
     __tablename__ = "populations"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False, default="persona", server_default="persona")
     name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     size: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     versions: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
@@ -154,6 +158,7 @@ class PopulationMember(Base):
         nullable=True,
         index=True,
     )
+    kind: Mapped[str] = mapped_column(String(32), nullable=False, default="persona", server_default="persona")
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     initials: Mapped[str] = mapped_column(String(8), nullable=False)
     age: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -573,6 +578,11 @@ class Job(Base):
     __tablename__ = "jobs"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("kunder.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
     kind: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending", index=True)
     label: Mapped[str] = mapped_column(String(255), nullable=False, default="")
@@ -593,6 +603,8 @@ class Job(Base):
         nullable=False,
     )
 
+    kund: Mapped[Kund] = relationship(back_populates="jobs")
+
 
 class Report(Base):
     """Generated HTML simulation report (one or more run attempts)."""
@@ -600,6 +612,11 @@ class Report(Base):
     __tablename__ = "reports"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("kunder.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending", index=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     locale: Mapped[str] = mapped_column(String(8), nullable=False, default="sv")
@@ -621,6 +638,8 @@ class Report(Base):
         onupdate=func.now(),
         nullable=False,
     )
+
+    kund: Mapped[Kund] = relationship(back_populates="reports")
 
 
 class SpindoctorMessage(Base):
@@ -711,6 +730,11 @@ class DdCampaign(Base):
     candidates: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     selected_candidate_ids: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     expert_role_keys: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    expert_panel_id: Mapped[int | None] = mapped_column(
+        ForeignKey("populations.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

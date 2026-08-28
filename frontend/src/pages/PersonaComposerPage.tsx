@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react"
 import { createPortal } from "react-dom"
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import {
@@ -33,8 +33,8 @@ import { PersonaAnekdotEditor, PersonaAnekdotPresentation } from "@/components/p
 import { PersonaLibrarySaveAction } from "@/components/personas/PersonaLibrarySaveAction"
 import { AdminButton } from "@/components/ui/admin-button"
 import { Card, CardContent } from "@/components/ui/card"
-import { blankEditablePersona } from "@/data/library"
-import type { EditablePersona, PersonaOrigin } from "@/data/library-types"
+import { blankEditableExpert, blankEditablePersona } from "@/data/library"
+import type { EditablePersona, PersonaKind, PersonaOrigin } from "@/data/library-types"
 import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
 import { ApiError } from "@/lib/api"
 
@@ -192,6 +192,7 @@ type EditorProps = {
   fieldOptions: Record<string, string[]>
   saving?: boolean
   deleting?: boolean
+  kind?: PersonaKind
 }
 
 function Editor({
@@ -209,6 +210,7 @@ function Editor({
   fieldOptions,
   saving,
   deleting,
+  kind = "persona",
 }: EditorProps) {
   const [mode, setMode] = useState<"work" | "present">("work")
   const [icMode, setIcMode] = useState<ChatMode>("interview")
@@ -473,7 +475,9 @@ function Editor({
               onChange={(e) => upd("name", e.target.value)}
             />
             <div className="sub">
-              {persona.age} · {persona.yrke} · {persona.ort}
+              {kind === "expert"
+                ? `${persona.yrkesbakgrund && persona.yrkesbakgrund !== "—" ? persona.yrkesbakgrund : persona.yrke} · ${persona.kompetensomrade ?? "—"}`
+                : `${persona.age} · ${persona.yrke} · ${persona.ort}`}
             </div>
           </div>
         </div>
@@ -497,9 +501,11 @@ function Editor({
           <AdminButton variant="secondary" size="sm" onClick={onDuplicate}>
             {t("common.duplicate")}
           </AdminButton>
-          <AdminButton variant="secondary" size="sm" onClick={onOpenVariants}>
-            {t("personas.composer.variantsButton")}
-          </AdminButton>
+          {kind !== "expert" ? (
+            <AdminButton variant="secondary" size="sm" onClick={onOpenVariants}>
+              {t("personas.composer.variantsButton")}
+            </AdminButton>
+          ) : null}
           <PersonaLibrarySaveAction
             personaId={personaId}
             origin={personaOrigin}
@@ -563,6 +569,61 @@ function Editor({
 
       <div className="work" style={{ display: mode === "work" ? "flex" : "none" }}>
         <div className="layers-col">
+          {kind === "expert" ? (
+            <>
+              <div className="layer-h">{t("experts.composer.layerCompetence")}</div>
+              <LayerTable
+                fieldOptions={fieldOptions}
+                t={t}
+                onChange={upd}
+                rows={[
+                  {
+                    k: "kompetensomrade",
+                    l: t("dd.expertpanel.kompetensField"),
+                    v: persona.kompetensomrade ?? "—",
+                    locked: !!locks.kompetensomrade,
+                  },
+                  {
+                    k: "radgivningsstil",
+                    l: t("dd.expertpanel.stilField"),
+                    v: persona.radgivningsstil ?? "—",
+                    locked: !!locks.radgivningsstil,
+                  },
+                ]}
+              />
+              <div className="layer-h">{t("experts.composer.layerBackground")}</div>
+              <LayerTable
+                fieldOptions={fieldOptions}
+                t={t}
+                onChange={upd}
+                rows={[
+                  {
+                    k: "beskrivning",
+                    l: t("dd.expertpanel.descriptionField"),
+                    v: persona.beskrivning ?? "—",
+                    locked: !!locks.beskrivning,
+                  },
+                  {
+                    k: "yrkesbakgrund",
+                    l: t("dd.expertpanel.bakgrundField"),
+                    v: persona.yrkesbakgrund ?? "—",
+                    locked: !!locks.yrkesbakgrund,
+                  },
+                ]}
+              />
+              <div className="layer-h">{t("experts.composer.layerAnecdote")}</div>
+              <div className="anekdot-layer">
+                <textarea
+                  className="cell-input"
+                  rows={3}
+                  value={persona.professionell_anekdot ?? "—"}
+                  onChange={(e) => upd("professionell_anekdot", e.target.value)}
+                />
+                <p className="anekdot-hint">{t("experts.composer.anecdoteHint")}</p>
+              </div>
+            </>
+          ) : (
+            <>
           <div className="layer-h">{t("personas.composer.layerDemography")}</div>
           <LayerTable
             fieldOptions={fieldOptions}
@@ -659,6 +720,8 @@ function Editor({
             />
             <p className="anekdot-hint">{t("personas.composer.anecdoteHint")}</p>
           </div>
+            </>
+          )}
         </div>
         <div className="chat-col">
           <div className="chat-top">
@@ -965,7 +1028,20 @@ function Editor({
   )
 }
 
-export function PersonaComposerPage() {
+export type PersonaComposerPageProps = {
+  kind?: PersonaKind
+  basePath?: string
+  Shell?: ComponentType<{ children: ReactNode }>
+  customerId?: number
+}
+
+export function PersonaComposerPage({
+  kind = "persona",
+  basePath = "/personas",
+  Shell = AdminShell,
+  customerId,
+}: PersonaComposerPageProps = {}) {
+  const isExpert = kind === "expert"
   const { t } = useLocale()
   const { id } = useParams()
   const [params] = useSearchParams()
@@ -974,7 +1050,7 @@ export function PersonaComposerPage() {
   const existingId = !startCreating && id && id !== "new" ? id : null
 
   const [screen, setScreen] = useState<"create" | "edit" | "variants">(
-    startCreating ? "create" : "edit",
+    startCreating && !isExpert ? "create" : "edit",
   )
   const [createStep, setCreateStep] = useState<"choose" | "free" | "demografi" | "candidates">(
     "choose",
@@ -983,7 +1059,7 @@ export function PersonaComposerPage() {
   const [candidates, setCandidates] = useState<EditablePersona[]>([])
   const [toast, setToast] = useState("")
   const [persona, setPersona] = useState<EditablePersona | null>(
-    startCreating ? null : blankEditablePersona(),
+    startCreating ? (isExpert ? blankEditableExpert() : null) : isExpert ? blankEditableExpert() : blankEditablePersona(),
   )
   const [personaId, setPersonaId] = useState<string | null>(existingId)
   const [loading, setLoading] = useState(!!existingId)
@@ -1087,16 +1163,16 @@ export function PersonaComposerPage() {
   async function savePersona(target: EditablePersona, origin: PersonaOrigin) {
     setSaving(true)
     try {
-      const body = editableToWrite(target, origin)
+      const body = editableToWrite(target, origin, "", { kind, customerId })
       if (personaId) {
         const saved = await updatePersona(personaId, body)
-        setPersona({ ...blankEditablePersona(), ...saved.profile })
+        setPersona({ ...(isExpert ? blankEditableExpert() : blankEditablePersona()), ...saved.profile })
         setPersonaId(saved.id)
       } else {
         const saved = await createPersona(body)
-        setPersona({ ...blankEditablePersona(), ...saved.profile })
+        setPersona({ ...(isExpert ? blankEditableExpert() : blankEditablePersona()), ...saved.profile })
         setPersonaId(saved.id)
-        navigate(`/personas/${saved.id}`, { replace: true })
+        navigate(`${basePath}/${saved.id}`, { replace: true })
       }
     } catch (err) {
       setToast(err instanceof ApiError ? err.message : t("common.saveError"))
@@ -1108,18 +1184,18 @@ export function PersonaComposerPage() {
 
   if (loading) {
     return (
-      <AdminShell>
+      <Shell>
         <div className="shell">
           <div className="mainarea">
             <div className="no-match">{t("personas.composer.loadingPersona")}</div>
           </div>
         </div>
-      </AdminShell>
+      </Shell>
     )
   }
 
   return (
-    <AdminShell>
+    <Shell>
       <div className="shell">
         <div className="mainarea">
           {screen === "create" && createStep === "choose" && (
@@ -1159,8 +1235,8 @@ export function PersonaComposerPage() {
                 ))}
               </div>
               <div style={{ marginTop: 24 }}>
-                <AdminButton variant="secondary" onClick={() => navigate("/personas")}>
-                  {t("personas.composer.backToLibrary")}
+                <AdminButton variant="secondary" onClick={() => navigate(basePath)}>
+                  {t(isExpert ? "experts.composer.backToLibrary" : "personas.composer.backToLibrary")}
                 </AdminButton>
               </div>
             </div>
@@ -1327,6 +1403,7 @@ export function PersonaComposerPage() {
               saving={saving}
               deleting={deleting}
               onToast={showToast}
+              kind={kind}
               onDelete={
                 personaId
                   ? () => {
@@ -1334,7 +1411,7 @@ export function PersonaComposerPage() {
                         setDeleting(true)
                         try {
                           await deletePersona(personaId)
-                          navigate("/personas")
+                          navigate(basePath)
                         } catch (err) {
                           setToast(
                             err instanceof ApiError ? err.message : t("common.deleteError"),
@@ -1353,7 +1430,7 @@ export function PersonaComposerPage() {
                     .then((copy) => {
                       setToast(t("personas.composer.duplicatedToast"))
                       window.setTimeout(() => setToast(""), 2400)
-                      navigate(`/personas/${copy.id}`)
+                      navigate(`${basePath}/${copy.id}`)
                     })
                     .catch((err: unknown) => {
                       setToast(err instanceof ApiError ? err.message : t("common.duplicateError"))
@@ -1389,7 +1466,7 @@ export function PersonaComposerPage() {
           </div>
         )}
       </div>
-    </AdminShell>
+    </Shell>
   )
 }
 

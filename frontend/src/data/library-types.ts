@@ -1,9 +1,11 @@
 export type PersonaOrigin = "manuell" | "beskrivning" | "demografi" | "population"
+export type PersonaKind = "persona" | "expert"
 
 export type LibraryPersona = {
   id: string
+  kind: PersonaKind
   name: string
-  age: number
+  age: number | null
   occ: string
   district: string
   quote: string
@@ -15,6 +17,7 @@ export type LibraryPersona = {
 
 export type PopulationSummary = {
   id: number
+  kind?: "persona" | "expert_panel"
   name: string
   size: number
   runs: number
@@ -54,4 +57,9 @@ export type EditablePersona = {
   valdeltagande: string
   anekdot?: string
   key?: number
+  beskrivning?: string
+  kompetensomrade?: string
+  radgivningsstil?: string
+  yrkesbakgrund?: string
+  professionell_anekdot?: string
 }

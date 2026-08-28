@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { listCatalog, type CatalogList } from "@/api/catalog"
 import { createJob } from "@/api/jobs"
@@ -8,17 +8,32 @@ import { AddFromLibraryPanel } from "@/components/populations/AddFromLibraryPane
 import { AdminButton } from "@/components/ui/admin-button"
 import { Card, CardContent } from "@/components/ui/card"
 import { personaInitials } from "@/data/library"
-import type { LibraryPersona } from "@/data/library-types"
+import type { LibraryPersona, PersonaKind } from "@/data/library-types"
 import { useAuth } from "@/auth/AuthProvider"
 import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
 import { ApiError } from "@/lib/api"
+import { BOLAG_DEMO_CUSTOMER_ID } from "@/lib/scoping"
 
 type Translator = (key: MessageKey, params?: TranslateParams) => string
 
-const STEP_TITLES = [
+type PopulationBuilderKind = "persona" | "expert_panel"
+
+type PopulationBuilderPageProps = {
+  kind?: PopulationBuilderKind
+  Shell?: ComponentType<{ children: ReactNode }>
+  basePath?: string
+  customerId?: number
+}
+
+const PERSONA_STEP_TITLES = [
   "populations.builder.stepStart",
   "populations.builder.stepDistributions",
   "populations.builder.stepPreview",
+] as const satisfies readonly MessageKey[]
+
+const EXPERT_PANEL_STEP_TITLES = [
+  "expertPanels.builder.stepStart",
+  "expertPanels.builder.stepExperts",
 ] as const satisfies readonly MessageKey[]
 /** Palette uses tokens that exist on `.theme-admin` (ink-600 / gold-300 do not). */
 const ROW_COLORS = [
@@ -184,33 +199,47 @@ function PrevGroup({ group }: { group: DistGroupData }) {
   )
 }
 
-export function PopulationBuilderPage() {
+export function PopulationBuilderPage({
+  kind = "persona",
+  Shell = AdminShell,
+  basePath = "/populations",
+  customerId,
+}: PopulationBuilderPageProps) {
+  const isExpertPanel = kind === "expert_panel"
+  const personaKind: PersonaKind = isExpertPanel ? "expert" : "persona"
+  const stepKeys = isExpertPanel ? EXPERT_PANEL_STEP_TITLES : PERSONA_STEP_TITLES
+  const maxStep = stepKeys.length
   const { t } = useLocale()
   const { isAdmin } = useAuth()
   const navigate = useNavigate()
 
   const [cur, setCur] = useState(1)
   const [maxReached, setMaxReached] = useState(1)
-  const [popName, setPopName] = useState(() => t("populations.builder.defaultName"))
+  const [popName, setPopName] = useState(() =>
+    t(isExpertPanel ? "expertPanels.builder.defaultName" : "populations.builder.defaultName"),
+  )
   const [popSize, setPopSize] = useState(12)
   const [dist, setDist] = useState<DistState>(() => ({
     age: buildAgeGroup(t),
   }))
-  const [catalogReady, setCatalogReady] = useState(false)
+  const [catalogReady, setCatalogReady] = useState(isExpertPanel)
   const [submitting, setSubmitting] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [selectedPersonas, setSelectedPersonas] = useState<LibraryPersona[]>([])
 
-  const effectiveSize = Math.max(popSize, selectedPersonas.length)
+  const effectiveSize = isExpertPanel
+    ? Math.max(1, selectedPersonas.length)
+    : Math.max(popSize, selectedPersonas.length)
   const libraryCount = selectedPersonas.length
-  const generateCount = Math.max(0, effectiveSize - libraryCount)
+  const generateCount = isExpertPanel ? 0 : Math.max(0, effectiveSize - libraryCount)
   const selectedIds = useMemo(
     () => selectedPersonas.map((p) => p.id),
     [selectedPersonas],
   )
-  const stepTitles = useMemo(() => STEP_TITLES.map((key) => t(key)), [t])
+  const stepTitles = useMemo(() => stepKeys.map((key) => t(key)), [stepKeys, t])
 
   useEffect(() => {
+    if (isExpertPanel) return
     let cancelled = false
     listCatalog()
       .then((lists) => {
@@ -229,9 +258,16 @@ export function PopulationBuilderPage() {
     return () => {
       cancelled = true
     }
-  }, [t])
+  }, [isExpertPanel, t])
 
   function buildRecipe(): PopulationRecipe {
+    if (isExpertPanel) {
+      return {
+        size: Math.max(1, selectedPersonas.length),
+        dist: {},
+        locale: "local",
+      }
+    }
     return {
       size: effectiveSize,
       dist,
@@ -270,9 +306,15 @@ export function PopulationBuilderPage() {
   }
 
   async function startGenerationJob() {
+    if (isExpertPanel && selectedPersonas.length === 0) {
+      setLoadError(t("expertPanels.builder.noExpertsSelected"))
+      return
+    }
     setSubmitting(true)
     setLoadError(null)
-    const name = popName.trim() || t("populations.builder.fallbackName")
+    const name =
+      popName.trim() ||
+      t(isExpertPanel ? "expertPanels.builder.fallbackName" : "populations.builder.fallbackName")
     try {
       const job = await createJob({
         kind: "population_generate",
@@ -281,10 +323,14 @@ export function PopulationBuilderPage() {
           name,
           recipe: buildRecipe(),
           include_persona_ids: selectedIds,
+          kind,
+          ...(isExpertPanel
+            ? { customer_id: customerId ?? BOLAG_DEMO_CUSTOMER_ID }
+            : {}),
         },
       })
       rememberJobPending(job.id)
-      navigate("/jobs")
+      navigate(isExpertPanel ? basePath : "/jobs")
     } catch (err) {
       setLoadError(
         err instanceof ApiError ? err.message : t("populations.builder.startJobError"),
@@ -305,7 +351,7 @@ export function PopulationBuilderPage() {
   }
 
   function next() {
-    if (cur < 3) {
+    if (cur < maxStep) {
       setCur(cur + 1)
       setMaxReached((m) => Math.max(m, cur + 1))
     }
@@ -315,8 +361,11 @@ export function PopulationBuilderPage() {
     if (cur > 1) setCur(cur - 1)
   }
 
+  const libraryStep = isExpertPanel ? 2 : 3
+  const distributionsStep = 2
+
   return (
-    <AdminShell>
+    <Shell>
       <div className="wrap" style={{ maxWidth: 1180 }}>
         {loadError && (
           <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
@@ -360,7 +409,9 @@ export function PopulationBuilderPage() {
         {cur === 1 && (
           <section>
             <div className="section-head">
-              <span className="kicker">{t("populations.builder.step1Kicker")}</span>
+              <span className="kicker">
+                {t(isExpertPanel ? "expertPanels.builder.step1Kicker" : "populations.builder.step1Kicker")}
+              </span>
               <h1
                 style={{
                   font: "var(--text-h1)",
@@ -368,35 +419,39 @@ export function PopulationBuilderPage() {
                   fontWeight: 400,
                 }}
               >
-                {t("populations.builder.step1Title")}
+                {t(isExpertPanel ? "expertPanels.builder.step1Title" : "populations.builder.step1Title")}
               </h1>
-              <p>{t("populations.builder.step1Body")}</p>
+              <p>{t(isExpertPanel ? "expertPanels.builder.step1Body" : "populations.builder.step1Body")}</p>
             </div>
             <div className="field-row">
               <div className="field">
-                <label htmlFor="pop-name">{t("populations.builder.nameLabel")}</label>
+                <label htmlFor="pop-name">
+                  {t(isExpertPanel ? "expertPanels.builder.nameLabel" : "populations.builder.nameLabel")}
+                </label>
                 <input
                   id="pop-name"
                   value={popName}
                   onChange={(e) => setPopName(e.target.value)}
                 />
               </div>
-              <div className="field">
-                <label htmlFor="pop-size">{t("populations.builder.sizeLabel")}</label>
-                <input
-                  id="pop-size"
-                  type="number"
-                  min={4}
-                  max={100}
-                  value={popSize}
-                  onChange={(e) => setPopSize(parseInt(e.target.value, 10) || 12)}
-                />
-              </div>
+              {!isExpertPanel ? (
+                <div className="field">
+                  <label htmlFor="pop-size">{t("populations.builder.sizeLabel")}</label>
+                  <input
+                    id="pop-size"
+                    type="number"
+                    min={4}
+                    max={100}
+                    value={popSize}
+                    onChange={(e) => setPopSize(parseInt(e.target.value, 10) || 12)}
+                  />
+                </div>
+              ) : null}
             </div>
           </section>
         )}
 
-        {cur === 2 && (
+        {!isExpertPanel && cur === distributionsStep && (
           <section>
             <div className="section-head">
               <span className="kicker">{t("populations.builder.step2Kicker")}</span>
@@ -435,10 +490,16 @@ export function PopulationBuilderPage() {
           </section>
         )}
 
-        {cur === 3 && (
+        {cur === libraryStep && (
           <section>
             <div className="section-head">
-              <span className="kicker">{t("populations.builder.step3Kicker")}</span>
+              <span className="kicker">
+                {t(
+                  isExpertPanel
+                    ? "expertPanels.builder.step2Kicker"
+                    : "populations.builder.step3Kicker",
+                )}
+              </span>
               <h1
                 style={{
                   font: "var(--text-h1)",
@@ -446,33 +507,55 @@ export function PopulationBuilderPage() {
                   fontWeight: 400,
                 }}
               >
-                {t("populations.builder.step3Title")}
+                {t(
+                  isExpertPanel
+                    ? "expertPanels.builder.step2Title"
+                    : "populations.builder.step3Title",
+                )}
               </h1>
-              <p>{t("populations.builder.step3Body")}</p>
+              <p>
+                {t(
+                  isExpertPanel
+                    ? "expertPanels.builder.step2Body"
+                    : "populations.builder.step3Body",
+                )}
+              </p>
             </div>
-            <div className="prev-grid">
-              {Object.keys(dist).map((gkey) => (
-                <PrevGroup key={gkey} group={dist[gkey]!} />
-              ))}
-            </div>
+            {!isExpertPanel ? (
+              <div className="prev-grid">
+                {Object.keys(dist).map((gkey) => (
+                  <PrevGroup key={gkey} group={dist[gkey]!} />
+                ))}
+              </div>
+            ) : null}
 
             <div style={{ marginTop: 28, marginBottom: 10 }}>
               <h3 style={{ font: "var(--text-h3)", marginBottom: 6 }}>
-                {t("populations.builder.libraryTitle")}
+                {t(
+                  isExpertPanel
+                    ? "expertPanels.builder.expertsTitle"
+                    : "populations.builder.libraryTitle",
+                )}
               </h3>
-              <p style={{ color: "var(--text-muted)", fontSize: 13.5, marginBottom: 12 }}>
-                {effectiveSize !== popSize
-                  ? t("populations.builder.librarySummaryRaised", {
-                      libraryCount,
-                      generateCount,
-                      effectiveSize,
-                    })
-                  : t("populations.builder.librarySummary", {
-                      libraryCount,
-                      generateCount,
-                      effectiveSize,
-                    })}
-              </p>
+              {!isExpertPanel ? (
+                <p style={{ color: "var(--text-muted)", fontSize: 13.5, marginBottom: 12 }}>
+                  {effectiveSize !== popSize
+                    ? t("populations.builder.librarySummaryRaised", {
+                        libraryCount,
+                        generateCount,
+                        effectiveSize,
+                      })
+                    : t("populations.builder.librarySummary", {
+                        libraryCount,
+                        generateCount,
+                        effectiveSize,
+                      })}
+                </p>
+              ) : (
+                <p style={{ color: "var(--text-muted)", fontSize: 13.5, marginBottom: 12 }}>
+                  {t("expertPanels.builder.expertsSummary", { count: libraryCount })}
+                </p>
+              )}
               {selectedPersonas.length > 0 && (
                 <div
                   style={{
@@ -499,7 +582,9 @@ export function PopulationBuilderPage() {
                         <div style={{ minWidth: 0 }}>
                           <div style={{ fontWeight: 600, fontSize: 13 }}>{p.name}</div>
                           <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                            {p.age} · {p.occ} · {p.district}
+                            {isExpertPanel
+                              ? p.occ
+                              : `${p.age} · ${p.occ} · ${p.district}`}
                           </div>
                         </div>
                       </div>
@@ -515,23 +600,30 @@ export function PopulationBuilderPage() {
                 </div>
               )}
               <AddFromLibraryPanel
+                personaKind={personaKind}
                 excludeIds={selectedIds}
                 onAdd={addLibraryPersona}
-                hint={t("populations.builder.libraryHint")}
+                hint={t(
+                  isExpertPanel
+                    ? "expertPanels.builder.expertsHint"
+                    : "populations.builder.libraryHint",
+                )}
               />
             </div>
 
             <div className="run-cta">
               <AdminButton
                 variant="accent"
-                disabled={submitting}
+                disabled={submitting || (isExpertPanel && selectedPersonas.length === 0)}
                 onClick={() => void startGenerationJob()}
               >
                 {submitting
                   ? t("populations.builder.startingJob")
-                  : generateCount === 0
-                    ? t("populations.builder.createPopulation")
-                    : t("populations.builder.generatePersonas")}
+                  : isExpertPanel
+                    ? t("expertPanels.builder.createPanel")
+                    : generateCount === 0
+                      ? t("populations.builder.createPopulation")
+                      : t("populations.builder.generatePersonas")}
               </AdminButton>
             </div>
           </section>
@@ -541,13 +633,13 @@ export function PopulationBuilderPage() {
           <AdminButton variant="secondary" disabled={cur === 1} onClick={back}>
             {t("common.back")}
           </AdminButton>
-          {cur !== 3 && (
+          {cur !== maxStep && (
             <AdminButton variant="primary" onClick={next}>
               {t("common.next")}
             </AdminButton>
           )}
         </div>
       </div>
-    </AdminShell>
+    </Shell>
   )
 }

@@ -191,3 +191,103 @@ async def test_unfiltered_persona_list_includes_all_customers(client_db):
     os_only = await client.get("/personas", params={"customer_id": os_id})
     os_names = {row["name"] for row in os_only.json()}
     assert "Bolag Unfiltered" not in os_names
+
+
+@pytest.mark.asyncio
+async def test_list_jobs_filters_by_customer_id(client_db):
+    client, factory = client_db
+    os_id, bolag_id = await _tenant_ids(client)
+
+    from app.database.models import Job
+    from app.serializers import utcnow
+
+    async with factory() as session:
+        session.add(
+            Job(
+                id="job-bolag-scope",
+                customer_id=bolag_id,
+                kind="panel_session_run",
+                status="succeeded",
+                label="Bolag panel",
+                request={"session_id": "panel_test"},
+                result={"session_id": "panel_test"},
+                created_at=utcnow(),
+                updated_at=utcnow(),
+            )
+        )
+        session.add(
+            Job(
+                id="job-os-scope",
+                customer_id=os_id,
+                kind="run_simulate",
+                status="succeeded",
+                label="OS run",
+                request={"run_id": 1},
+                result={"run_id": 1},
+                created_at=utcnow(),
+                updated_at=utcnow(),
+            )
+        )
+        await session.commit()
+
+    bolag_jobs = await client.get("/jobs", params={"customer_id": bolag_id})
+    assert bolag_jobs.status_code == 200
+    bolag_ids = {row["id"] for row in bolag_jobs.json()}
+    assert "job-bolag-scope" in bolag_ids
+    assert "job-os-scope" not in bolag_ids
+
+    os_jobs = await client.get("/jobs", params={"customer_id": os_id})
+    assert os_jobs.status_code == 200
+    os_ids = {row["id"] for row in os_jobs.json()}
+    assert "job-os-scope" in os_ids
+    assert "job-bolag-scope" not in os_ids
+
+
+@pytest.mark.asyncio
+async def test_list_reports_filters_by_customer_id(client_db):
+    client, factory = client_db
+    os_id, bolag_id = await _tenant_ids(client)
+
+    from app.database.models import Report
+    from app.serializers import utcnow
+
+    async with factory() as session:
+        session.add(
+            Report(
+                id="rpt-bolag-scope",
+                customer_id=bolag_id,
+                status="succeeded",
+                title="DD report",
+                locale="sv",
+                mode="dd",
+                sources=[{"type": "dd_session", "session_id": "p1", "candidate_id": "c1"}],
+                created_at=utcnow(),
+                updated_at=utcnow(),
+            )
+        )
+        session.add(
+            Report(
+                id="rpt-os-scope",
+                customer_id=os_id,
+                status="succeeded",
+                title="Quick report",
+                locale="sv",
+                mode="quick",
+                sources=[{"type": "oasis", "run_id": 1, "attempt_id": "main"}],
+                created_at=utcnow(),
+                updated_at=utcnow(),
+            )
+        )
+        await session.commit()
+
+    bolag_reports = await client.get("/reports", params={"customer_id": bolag_id})
+    assert bolag_reports.status_code == 200
+    bolag_ids = {row["id"] for row in bolag_reports.json()}
+    assert "rpt-bolag-scope" in bolag_ids
+    assert "rpt-os-scope" not in bolag_ids
+
+    os_reports = await client.get("/reports", params={"customer_id": os_id})
+    assert os_reports.status_code == 200
+    os_ids = {row["id"] for row in os_reports.json()}
+    assert "rpt-os-scope" in os_ids
+    assert "rpt-bolag-scope" not in os_ids

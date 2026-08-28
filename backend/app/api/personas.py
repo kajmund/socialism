@@ -46,7 +46,7 @@ from app.services.persona_chat import (
     safe_library_follow_ups,
 )
 from app.services.population_generate import stub_persona
-from app.services.kund_store import default_os_customer_id
+from app.services.kund_store import bolag_demo_customer_id, default_os_customer_id
 from app.services.prompt_store import require_active_prompts
 
 router = APIRouter(prefix="/personas", tags=["personas"])
@@ -146,11 +146,14 @@ async def list_personas(
     origin: str | None = Query(default=None),
     exclude_origin: list[str] | None = Query(default=None),
     customer_id: int | None = Query(default=None),
+    kind: str | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
 ) -> list[LibraryPersona]:
     stmt = select(Persona).order_by(Persona.updated_at.desc())
     if customer_id is not None:
         stmt = stmt.where(Persona.customer_id == customer_id)
+    if kind is not None:
+        stmt = stmt.where(Persona.kind == kind)
     if origin:
         stmt = stmt.where(Persona.origin == origin)
     if exclude_origin:
@@ -214,22 +217,47 @@ async def create_persona(
     if existing is not None:
         raise HTTPException(status_code=409, detail="Persona id already exists")
 
-    profile = body.profile or EditablePersona(
-        name=body.name,
-        initials=persona_initials(body.name),
-        age=str(body.age),
-        ort=body.district,
-        yrke=body.occ,
-    )
-    customer_id = await default_os_customer_id(session)
+    if body.profile is not None:
+        profile = body.profile
+    elif body.kind == "expert":
+        occ = body.occ or "—"
+        profile = EditablePersona(
+            name=body.name,
+            initials=persona_initials(body.name),
+            yrke=occ,
+            yrkesbakgrund=occ,
+            ort=body.district,
+            beskrivning=body.quote,
+        )
+    else:
+        profile = EditablePersona(
+            name=body.name,
+            initials=persona_initials(body.name),
+            age=str(body.age),
+            ort=body.district,
+            yrke=body.occ,
+        )
+
+    if body.kind == "expert":
+        customer_id = body.customer_id or await bolag_demo_customer_id(session)
+        occ = body.occ or profile.yrkesbakgrund or profile.yrke or "—"
+        quote = body.quote or (
+            profile.beskrivning if profile.beskrivning not in ("", "—") else ""
+        )
+    else:
+        customer_id = body.customer_id or await default_os_customer_id(session)
+        occ = body.occ
+        quote = body.quote
+
     persona = Persona(
         id=persona_id,
         customer_id=customer_id,
+        kind=body.kind,
         name=body.name,
         age=body.age,
-        occ=body.occ,
+        occ=occ,
         district=body.district,
-        quote=body.quote,
+        quote=quote,
         origin=body.origin,
         profile=profile.model_dump(),
         updated_at=utcnow(),
@@ -272,6 +300,7 @@ async def duplicate_persona(
     persona = Persona(
         id=new_id,
         customer_id=source.customer_id,
+        kind=source.kind,
         name=f"{source.name} (kopia)",
         age=source.age,
         occ=source.occ,

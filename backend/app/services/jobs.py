@@ -39,10 +39,12 @@ from app.services.oasis_run import (
 from app.services.panel.dd_engine import run_dd_panel
 from app.services.panel.engine import run_generic_panel
 from app.services.panel.schemas import PanelSessionRunJobRequest
+from app.services.panel.watch import publish_panel_finished
 from app.services.population_persist import (
     create_population_from_generation,
     update_population_from_generation,
 )
+from app.services.customer_scope import customer_id_for_new_job
 from app.services.prompt_store import require_active_prompts
 
 logger = logging.getLogger(__name__)
@@ -91,6 +93,7 @@ def _dt(value: datetime | None) -> str | None:
 def serialize_job(job: Job) -> JobOut:
     return JobOut(
         id=job.id,
+        customer_id=job.customer_id,
         kind=job.kind,
         status=job.status,  # type: ignore[arg-type]
         label=job.label,
@@ -138,8 +141,11 @@ async def create_job(session: AsyncSession, body: JobCreate) -> Job:
     else:
         raise ValueError(f"Unsupported job kind: {body.kind}")
 
+    customer_id = await customer_id_for_new_job(session, body)
+
     job = Job(
         id=f"job_{secrets.token_hex(8)}",
+        customer_id=customer_id,
         kind=body.kind,
         status="pending",
         label=label,
@@ -264,13 +270,31 @@ async def _run_population_generate(job_id: str) -> None:
         if job is None:
             return
         payload = PopulationGenerateJobRequest.model_validate(job.request)
-        library = await gen.load_library_personas(session, payload.include_persona_ids)
-        gen_req = PopulationGenerateRequest(
-            recipe=payload.recipe,
-            include_persona_ids=payload.include_persona_ids,
-            mode="replace",
+        population_kind = payload.kind
+        required_kind = "expert" if population_kind == "expert_panel" else None
+        library = await gen.load_library_personas(
+            session,
+            payload.include_persona_ids,
+            required_kind=required_kind,
         )
-        response = await gen.run_generate(gen_req, library, session=session)
+        if population_kind == "expert_panel":
+            gen_req = PopulationGenerateRequest(
+                recipe=payload.recipe,
+                include_persona_ids=payload.include_persona_ids,
+                mode="replace",
+            )
+            response = await gen.run_expert_panel_generate(
+                gen_req,
+                library,
+                session=session,
+            )
+        else:
+            gen_req = PopulationGenerateRequest(
+                recipe=payload.recipe,
+                include_persona_ids=payload.include_persona_ids,
+                mode="replace",
+            )
+            response = await gen.run_generate(gen_req, library, session=session)
 
         if payload.population_id is not None:
             population = await update_population_from_generation(
@@ -279,12 +303,14 @@ async def _run_population_generate(job_id: str) -> None:
                 name=payload.name,
                 generation_id=response.generation_id,
                 recipe=payload.recipe,
+                kind=population_kind,
             )
         else:
             population = await create_population_from_generation(
                 session,
                 name=payload.name,
                 generation_id=response.generation_id,
+                kind=population_kind,
             )
         await session.commit()
         await _succeed(
@@ -292,6 +318,7 @@ async def _run_population_generate(job_id: str) -> None:
             job_id,
             {
                 "population_id": population.id,
+                "population_kind": population.kind,
                 "name": population.name,
                 "fingerprint": response.fingerprint,
                 "member_count": population.size,
@@ -580,29 +607,40 @@ async def _run_panel_session(job_id: str) -> None:
                 raise RuntimeError(f"Unsupported panel protocol: {panel.protocol}")
             await session.commit()
 
+        await publish_panel_finished(payload.session_id, status="succeeded")
+
         async with factory() as session:
-            await _succeed(session, job_id, {"session_id": payload.session_id})
+            panel = await session.get(PanelSession, payload.session_id)
+            result: dict[str, object] = {"session_id": payload.session_id}
+            if panel is not None and panel.campaign_id is not None:
+                result["campaign_id"] = panel.campaign_id
+            await _succeed(session, job_id, result)
     except Exception as exc:
         logger.exception("Panel session job %s failed", job_id)
+        error_text = str(exc) or exc.__class__.__name__
         async with factory() as session:
             panel = await session.get(PanelSession, payload.session_id)
             if panel is not None:
                 panel.status = "failed"
-                panel.error = (str(exc) or exc.__class__.__name__)[:2000]
+                panel.error = error_text[:2000]
                 panel.updated_at = utcnow()
                 await session.commit()
-            await _fail(session, job_id, str(exc) or exc.__class__.__name__)
+            await _fail(session, job_id, error_text)
+        await publish_panel_finished(payload.session_id, status="failed", error=error_text)
 
 
 async def list_jobs(
     session: AsyncSession,
     *,
     status: JobStatus | None = None,
+    customer_id: int | None = None,
     limit: int = 50,
 ) -> list[Job]:
     stmt = select(Job).order_by(Job.created_at.desc()).limit(min(max(limit, 1), 100))
     if status is not None:
         stmt = stmt.where(Job.status == status)
+    if customer_id is not None:
+        stmt = stmt.where(Job.customer_id == customer_id)
     result = await session.execute(stmt)
     return list(result.scalars().all())
 

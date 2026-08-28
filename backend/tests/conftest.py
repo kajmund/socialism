@@ -94,6 +94,7 @@ async def client():
         ensure_default_anchor_sets,
     )
     from app.services.label_vocabulary import ensure_vocabularies_seeded
+    from app.services.dd.default_experts import ensure_default_expert_personas
     from app.services.prompt_store import ensure_default_configurations
 
     async with session_factory() as seed_session:
@@ -101,6 +102,8 @@ async def client():
         await ensure_vocabularies_seeded(seed_session)
         await ensure_default_configurations(seed_session)
         await backfill_configuration_anchor_sets(seed_session)
+        await ensure_default_expert_personas(seed_session)
+        await seed_session.commit()
 
     jobs_service.set_job_session_factory(session_factory)
     jobs_service.set_schedule_hook(None)
