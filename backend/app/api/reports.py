@@ -35,6 +35,7 @@ from app.services.report.locale import (
     download_filename,
     normalize_locale,
 )
+from app.services.customer_scope import customer_id_for_new_report
 from app.services.report.bundles import attempt_has_data, find_attempt
 from app.services.report.verdict_calibration import (
     get_calibration_row,
@@ -153,8 +154,11 @@ async def create_report(
             n_sources=len(sources),
         )
 
+    customer_id = await customer_id_for_new_report(session, body, sources=sources, mode=mode)
+
     report = Report(
         id=report_id,
+        customer_id=customer_id,
         status="pending",
         title=title,
         locale=locale,

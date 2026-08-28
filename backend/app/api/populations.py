@@ -176,6 +176,7 @@ async def create_population(
         )
 
     population = Population(
+        kind=body.kind,
         name=body.name,
         size=len(members),
         versions=1,
@@ -312,6 +313,7 @@ async def duplicate_population(
         suffix += 1
 
     population = Population(
+        kind=source.kind,
         name=name,
         size=source.size,
         versions=1,

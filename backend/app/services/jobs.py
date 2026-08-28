@@ -43,6 +43,7 @@ from app.services.population_persist import (
     create_population_from_generation,
     update_population_from_generation,
 )
+from app.services.customer_scope import customer_id_for_new_job
 from app.services.prompt_store import require_active_prompts
 
 logger = logging.getLogger(__name__)
@@ -138,8 +139,11 @@ async def create_job(session: AsyncSession, body: JobCreate) -> Job:
     else:
         raise ValueError(f"Unsupported job kind: {body.kind}")
 
+    customer_id = await customer_id_for_new_job(session, body)
+
     job = Job(
         id=f"job_{secrets.token_hex(8)}",
+        customer_id=customer_id,
         kind=body.kind,
         status="pending",
         label=label,

@@ -225,6 +225,7 @@ async def create_persona(
     persona = Persona(
         id=persona_id,
         customer_id=customer_id,
+        kind=body.kind,
         name=body.name,
         age=body.age,
         occ=body.occ,
@@ -272,6 +273,7 @@ async def duplicate_persona(
     persona = Persona(
         id=new_id,
         customer_id=source.customer_id,
+        kind=source.kind,
         name=f"{source.name} (kopia)",
         age=source.age,
         occ=source.occ,
