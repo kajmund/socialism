@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useState, type ComponentType, type ReactNode } from "react"
 import {
   listFeedback,
   updateFeedback,
@@ -7,6 +7,7 @@ import {
   type FeedbackStatus,
 } from "@/api/feedback"
 import { AdminShell } from "@/components/layout/AdminShell"
+import { BolagShell } from "@/components/layout/BolagShell"
 import { Card, CardContent } from "@/components/ui/card"
 import { ViewToggle, type ListViewMode } from "@/components/ui/view-toggle"
 import { useLocale, type MessageKey } from "@/i18n"
@@ -112,7 +113,11 @@ function FeedbackActions({ item, busyId, onSetStatus, t }: FeedbackActionsProps)
   )
 }
 
-export function FeedbackPage() {
+export type FeedbackPageProps = {
+  Shell?: ComponentType<{ children: ReactNode }>
+}
+
+export function FeedbackPage({ Shell = AdminShell }: FeedbackPageProps) {
   const { t, intl } = useLocale()
   const [items, setItems] = useState<FeedbackItem[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -172,7 +177,7 @@ export function FeedbackPage() {
   }
 
   return (
-    <AdminShell>
+    <Shell>
       <div className="wrap" style={{ maxWidth: 960 }}>
         <div className="section-head">
           <span className="kicker">{t("feedback.kicker")}</span>
@@ -391,6 +396,10 @@ export function FeedbackPage() {
           </div>
         ) : null}
       </div>
-    </AdminShell>
+    </Shell>
   )
+}
+
+export function BolagFeedbackPage() {
+  return <FeedbackPage Shell={BolagShell} />
 }

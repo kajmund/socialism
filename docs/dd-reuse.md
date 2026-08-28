@@ -12,8 +12,8 @@ Reuse the politics admin visual system and job/realtime patterns for bolag (DD) 
 | **D** | **Closed — skipped** | No separate configure page. A DD panel session has exactly two params (candidate + expert panel), both chosen on the campaign editor before **Kör**. `DdCampaignPanelSection` is the correct home — a dedicated page would only duplicate the campaign editor. |
 | **E** | Done | Live panel view: `PanelBroadcastRegistry`, `/ws/panels`, `usePanelWatchSocket`, `PanelLiveFeedPanel` on campaign cards |
 | **F** | Done | Parametrized `AdminShell` / `BolagShell` |
-| **G** | Pending | Scoped Jobs/Reports for bolag |
-| **H** | Pending | Full bolag nav |
+| **G** | Done | Scoped Jobs/Reports pages; `customer_id` filter; DD kind/mode labels |
+| **H** | Done | BolagShell nav: experter, paneler, kampanjer, rapporter, återkoppling, jobb |
 
 ## FAS E — live panel watch
 
@@ -25,3 +25,13 @@ Mirrors run live feed (`RunBroadcastRegistry` / `/ws/runs` / `useRunWatchSocket`
 - UI: `PanelLiveFeedPanel` under each selected candidate card while a panel session exists
 
 See [panel-engine.md](./panel-engine.md) for protocol and persistence details.
+
+## FAS G — scoped Jobs and Reports
+
+Shared `JobsPage` / `ReportsPage` accept `scope: "admin" | "bolag"`. Bolag routes under `/bolag/jobs` and `/bolag/reports` filter realtime lists via `matchesCustomerScope()` (`BOLAG_DEMO_CUSTOMER_ID`). Backend list APIs accept optional `customer_id`; `JobOut` / `ReportOut` expose `customer_id`.
+
+DD-specific labels: job kinds `panel_session_run`, `dd_sourcing_run`; report mode `dd` → "DD-rapport".
+
+## FAS H — Bolag navigation
+
+`BolagShell` nav mirrors admin structure for the DD flow: Experter → Expertpaneler → Kampanjer → Rapporter → Återkoppling → Jobb (scoped badge + toasts via `customerScope="bolag"`).

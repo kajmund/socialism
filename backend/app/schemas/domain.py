@@ -1210,6 +1210,7 @@ class ReportCreate(BaseModel):
 
 class ReportOut(BaseModel):
     id: str
+    customer_id: int
     status: ReportStatus
     title: str
     locale: Literal["sv", "en"] = "sv"
@@ -1260,6 +1261,7 @@ class JobCreate(BaseModel):
 
 class JobOut(BaseModel):
     id: str
+    customer_id: int
     kind: str
     status: JobStatus
     label: str

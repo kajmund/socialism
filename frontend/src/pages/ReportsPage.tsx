@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react"
 import { Link } from "react-router-dom"
 import {
   bulkDeleteReports,
@@ -7,13 +7,19 @@ import {
   type ReportStatus,
 } from "@/api/reports"
 import { AdminShell } from "@/components/layout/AdminShell"
+import { BolagShell } from "@/components/layout/BolagShell"
 import { Card, CardContent } from "@/components/ui/card"
 import { ViewToggle, type ListViewMode } from "@/components/ui/view-toggle"
 import { useLocale, type MessageKey } from "@/i18n"
 import { ApiError } from "@/lib/api"
+import {
+  matchesCustomerScope,
+  type CustomerScope,
+} from "@/lib/scoping"
 import { useReportsRealtime } from "@/realtime/ReportsRealtimeProvider"
 
 type Translate = (key: MessageKey, params?: Record<string, string | number>) => string
+type ShellComponent = ComponentType<{ children: ReactNode }>
 
 const STATUS_KEY: Record<ReportStatus, MessageKey> = {
   pending: "reports.status.pending",
@@ -71,6 +77,7 @@ function formatReportDuration(report: Report, t: Translate): string | null {
 }
 
 function modeLabel(mode: Report["mode"], t: Translate): string {
+  if (mode === "dd") return t("reports.list.modeDd")
   return mode === "full"
     ? t("reports.list.modeFullLegacy")
     : t("reports.list.modeQuick")
@@ -90,6 +97,7 @@ type ReportItemProps = {
   report: Report
   t: Translate
   intl: string
+  reportHref: string
   isSelected: boolean
   confirming: boolean
   deleting: boolean
@@ -103,6 +111,7 @@ function ReportCard({
   report,
   t,
   intl,
+  reportHref,
   isSelected,
   confirming,
   deleting,
@@ -191,7 +200,7 @@ function ReportCard({
               alignItems: "center",
             }}
           >
-            <Link to={`/reports/${report.id}`}>{t("reports.list.open")}</Link>
+            <Link to={reportHref}>{t("reports.list.open")}</Link>
             <button
               type="button"
               className="danger"
@@ -214,6 +223,7 @@ function ReportListRow({
   report,
   t,
   intl,
+  reportHref,
   isSelected,
   confirming,
   deleting,
@@ -266,7 +276,7 @@ function ReportListRow({
           </>
         ) : (
           <>
-            <Link className="primary" to={`/reports/${report.id}`}>
+            <Link className="primary" to={reportHref}>
               {t("reports.list.open")}
             </Link>
             <button
@@ -286,9 +296,19 @@ function ReportListRow({
   )
 }
 
-export function ReportsPage() {
+export type ReportsPageProps = {
+  scope?: CustomerScope
+  Shell?: ShellComponent
+}
+
+export function ReportsPage({ scope = "admin", Shell = AdminShell }: ReportsPageProps) {
   const { t, intl } = useLocale()
-  const { reports, connected, status: wsStatus } = useReportsRealtime()
+  const { reports: allReports, connected, status: wsStatus } = useReportsRealtime()
+  const reports = useMemo(
+    () => allReports.filter((report) => matchesCustomerScope(report, scope)),
+    [allReports, scope],
+  )
+  const reportBase = scope === "bolag" ? "/bolag/reports" : "/reports"
   const [selected, setSelected] = useState<Set<string>>(() => new Set())
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [confirmBulk, setConfirmBulk] = useState(false)
@@ -378,7 +398,7 @@ export function ReportsPage() {
   }
 
   return (
-    <AdminShell>
+    <Shell>
       <div className="wrap" style={{ maxWidth: 960 }}>
         <div className="section-head">
           <span className="kicker">{t("reports.list.kicker")}</span>
@@ -391,7 +411,7 @@ export function ReportsPage() {
           >
             {t("reports.list.title")}
           </h1>
-          <p>{t("reports.list.intro")}</p>
+          <p>{scope === "bolag" ? t("reports.list.introBolag") : t("reports.list.intro")}</p>
         </div>
 
         {toast ? (
@@ -414,7 +434,7 @@ export function ReportsPage() {
 
         {!loading && reports.length === 0 && !error ? (
           <div className="no-match" style={{ textAlign: "left" }}>
-            {t("reports.list.empty")}
+            {scope === "bolag" ? t("reports.list.emptyBolag") : t("reports.list.empty")}
           </div>
         ) : null}
 
@@ -482,6 +502,7 @@ export function ReportsPage() {
                     report={report}
                     t={t}
                     intl={intl}
+                    reportHref={`${reportBase}/${report.id}`}
                     isSelected={selected.has(report.id)}
                     confirming={confirmId === report.id}
                     deleting={deleting}
@@ -500,6 +521,7 @@ export function ReportsPage() {
                     report={report}
                     t={t}
                     intl={intl}
+                    reportHref={`${reportBase}/${report.id}`}
                     isSelected={selected.has(report.id)}
                     confirming={confirmId === report.id}
                     deleting={deleting}
@@ -514,6 +536,10 @@ export function ReportsPage() {
           </>
         ) : null}
       </div>
-    </AdminShell>
+    </Shell>
   )
+}
+
+export function BolagReportsPage() {
+  return <ReportsPage scope="bolag" Shell={BolagShell} />
 }
