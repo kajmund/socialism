@@ -30,6 +30,12 @@ class EditablePersona(BaseModel):
     valdeltagande: str = "—"
     # Genereras vid persona-skapande — inte ett recept-/katalogfält.
     anekdot: str = "—"
+    # Expert (DD) profile fields — used when kind=expert instead of political layers.
+    beskrivning: str = "—"
+    kompetensomrade: str = "—"
+    radgivningsstil: str = "—"
+    yrkesbakgrund: str = "—"
+    professionell_anekdot: str = "—"
 
 
 class PersonaAnecdoteOut(BaseModel):
@@ -74,16 +80,24 @@ class PersonaDetail(LibraryPersona):
 class PersonaCreate(BaseModel):
     id: str | None = None
     kind: PersonaKind = "persona"
+    customer_id: int | None = None
     name: str
-    age: int
-    occ: str
-    district: str
+    age: int | None = None
+    occ: str = ""
+    district: str = "—"
     quote: str = ""
     origin: PersonaOrigin = "manuell"
     profile: EditablePersona | None = None
 
+    @model_validator(mode="after")
+    def require_age_for_persona_kind(self) -> Self:
+        if self.kind == "persona" and self.age is None:
+            raise ValueError("age is required for persona kind")
+        return self
+
 
 class PersonaUpdate(BaseModel):
+    kind: PersonaKind | None = None
     name: str | None = None
     age: int | None = None
     occ: str | None = None

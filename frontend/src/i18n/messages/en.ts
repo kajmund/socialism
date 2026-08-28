@@ -49,7 +49,30 @@ export const en: LocalizedTree<SvMessages> = {
     product: "Due diligence",
     nav: {
       ariaMain: "DD navigation",
+      experter: "Experts",
       campaigns: "Campaigns",
+    },
+  },
+  experts: {
+    list: {
+      title: "Experts",
+      description: "Create and edit experts for DD panels — same interview and in-character chat flow as personas.",
+      newExpert: "New expert",
+      searchPlaceholder: "Search experts…",
+      loading: "Loading experts…",
+      empty: "No experts yet. Create your first expert.",
+      loadError: "Could not load experts.",
+      deleted: "Expert deleted.",
+      columnName: "Name",
+      columnBackground: "Background",
+      columnUpdated: "Updated",
+    },
+    composer: {
+      layerCompetence: "Competence",
+      layerBackground: "Background",
+      layerAnecdote: "Professional anecdote",
+      anecdoteHint: "Short experience that anchors the expert's voice in the panel.",
+      backToLibrary: "← Back to experts",
     },
   },
   dd: {

@@ -260,45 +260,6 @@ CATALOG_DEFAULTS: list[CatalogDefault] = [
             "@partihandle",
         ),
     },
-    {
-        "key": "expert_roller",
-        "section": "dd_expertpanel",
-        "title": "Expertroller",
-        "items": [
-            {
-                "label": "Finansiell analytiker",
-                "description": "Bedömer lönsamhet, skuldsättning och kassaflöde.",
-                "kompetensomrade": "Finansiell analys",
-                "radgivningsstil": "Saklig och siffror-driven",
-                "yrkesbakgrund": "15 år på investmentbank och CFO-advisory",
-                "professionell_anekdot": "Har sett två förvärv kollapsa på working capital-missar i Q4.",
-            },
-            {
-                "label": "Jurist",
-                "description": "Granskar avtal, ägarstruktur och regulatoriska risker.",
-                "kompetensomrade": "Legal risk",
-                "radgivningsstil": "Försiktig och detaljorienterad",
-                "yrkesbakgrund": "M&A-jurist på affärsjuristbyrå",
-                "professionell_anekdot": "Flaggade en dold optionspool som halverade effektivt enterprise value.",
-            },
-            {
-                "label": "Marknadsanalytiker",
-                "description": "Värderar marknadsposition, konkurrens och tillväxt.",
-                "kompetensomrade": "Marknadsposition",
-                "radgivningsstil": "Nyfiken och konkurrensinriktad",
-                "yrkesbakgrund": "Strategikonsult och marknadschef i scale-up",
-                "professionell_anekdot": "Upptäckte att 'marknadsledande' bara gällde en nisch på 8 % av omsättningen.",
-            },
-            {
-                "label": "Integrationsriskbedömare",
-                "description": "Bedömer kultur, IT och operativ integrationsrisk.",
-                "kompetensomrade": "Integrationsrisk",
-                "radgivningsstil": "Praktisk och erfarenhetsbaserad",
-                "yrkesbakgrund": "PMO-lead för post-merger integrationer",
-                "professionell_anekdot": "Ett ERP-byte tog 18 månader längre än plan — kundbasen tappade förtroende under tiden.",
-            },
-        ],
-    },
 ]
 
 # Unmodified seed lists from before the balanced ton/förtroende defaults.
@@ -330,7 +291,6 @@ SECTION_ORDER = (
     "varderingar",
     "rost_media",
     "simulering",
-    "dd_expertpanel",
 )
 
 SECTION_LABELS: dict[str, str] = {
@@ -339,7 +299,6 @@ SECTION_LABELS: dict[str, str] = {
     "varderingar": "Värderingar",
     "rost_media": "Röst & media",
     "simulering": "Simulering",
-    "dd_expertpanel": "DD expertpanel",
 }
 
 ORT_DEFAULTS_BY_LABEL: dict[str, CatalogItemDict] = {
