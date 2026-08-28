@@ -22,3 +22,11 @@ export function matchesCustomerScope(
   if (scopedId == null) return true
   return row.customer_id === scopedId
 }
+
+/** Tenant filter for jobs/reports WebSocket hello (undefined = admin, all tenants). */
+export function realtimeCustomerIdForRole(
+  role: string | null,
+): number | undefined {
+  if (role === "bolag") return BOLAG_DEMO_CUSTOMER_ID
+  return undefined
+}

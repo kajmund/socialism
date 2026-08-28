@@ -87,7 +87,17 @@ async def publish_report(report: Report) -> None:
     )
 
 
-async def publish_reports_deleted(ids: list[str]) -> None:
-    if not ids:
+async def publish_reports_deleted(entries: list[tuple[str, int | None]]) -> None:
+    if not entries:
         return
-    await report_hub.publish({"type": "report.deleted", "ids": list(ids)})
+    by_customer: dict[int | None, list[str]] = {}
+    for report_id, customer_id in entries:
+        by_customer.setdefault(customer_id, []).append(report_id)
+    for customer_id, ids in by_customer.items():
+        await report_hub.publish(
+            {
+                "type": "report.deleted",
+                "customer_id": customer_id,
+                "ids": list(ids),
+            }
+        )
