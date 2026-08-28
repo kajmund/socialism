@@ -239,17 +239,19 @@ async def _delete_reports_by_ids(
     """Delete existing reports by id. Returns ids that were removed."""
     unique = list(dict.fromkeys(ids))
     deleted: list[str] = []
+    deleted_entries: list[tuple[str, int | None]] = []
     for report_id in unique:
         report = await session.get(Report, report_id)
         if report is None:
             continue
+        deleted_entries.append((report_id, report.customer_id))
         await session.delete(report)
         deleted.append(report_id)
     if deleted:
         await session.commit()
         for report_id in deleted:
             _remove_report_artifacts(report_id)
-        await publish_reports_deleted(deleted)
+        await publish_reports_deleted(deleted_entries)
     return deleted
 
 

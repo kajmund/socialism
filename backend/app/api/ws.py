@@ -91,6 +91,18 @@ class PanelWatchHello(BaseModel):
     session_id: str = Field(min_length=1)
 
 
+class JobsWatchHello(BaseModel):
+    type: Literal["hello"] = "hello"
+    scope: Literal["jobs_watch"]
+    customer_id: int | None = None
+
+
+class ReportsWatchHello(BaseModel):
+    type: Literal["hello"] = "hello"
+    scope: Literal["reports_watch"]
+    customer_id: int | None = None
+
+
 class ChatSend(BaseModel):
     type: Literal["send"]
     message: str = Field(min_length=1)
@@ -108,11 +120,26 @@ async def _send_error(websocket: WebSocket, detail: str) -> None:
 @router.websocket("/ws/jobs")
 async def jobs_websocket(websocket: WebSocket) -> None:
     await websocket.accept()
-    await job_hub.subscribe(websocket)
     try:
+        raw = await websocket.receive_json()
+        if not isinstance(raw, dict):
+            await _send_error(websocket, "Expected JSON object")
+            await websocket.close(code=1003)
+            return
+        try:
+            hello = JobsWatchHello.model_validate(raw)
+        except ValidationError as exc:
+            await _send_error(websocket, str(exc.errors()[0]["msg"]))
+            await websocket.close(code=1003)
+            return
+
+        await job_hub.subscribe(websocket, customer_id=hello.customer_id)
+
         factory = jobs_service.job_session_factory()
         async with factory() as session:
-            rows = await jobs_service.list_jobs(session, limit=50)
+            rows = await jobs_service.list_jobs(
+                session, limit=50, customer_id=hello.customer_id
+            )
             await websocket.send_json(
                 {
                     "type": "jobs.snapshot",
@@ -127,6 +154,13 @@ async def jobs_websocket(websocket: WebSocket) -> None:
             await websocket.receive_text()
     except WebSocketDisconnect:
         pass
+    except Exception:
+        logger.exception("Jobs watch WebSocket failed")
+        try:
+            await _send_error(websocket, "WebSocket error")
+            await websocket.close(code=1011)
+        except Exception:
+            pass
     finally:
         await job_hub.unsubscribe(websocket)
 
@@ -134,11 +168,26 @@ async def jobs_websocket(websocket: WebSocket) -> None:
 @router.websocket("/ws/reports")
 async def reports_websocket(websocket: WebSocket) -> None:
     await websocket.accept()
-    await report_hub.subscribe(websocket)
     try:
+        raw = await websocket.receive_json()
+        if not isinstance(raw, dict):
+            await _send_error(websocket, "Expected JSON object")
+            await websocket.close(code=1003)
+            return
+        try:
+            hello = ReportsWatchHello.model_validate(raw)
+        except ValidationError as exc:
+            await _send_error(websocket, str(exc.errors()[0]["msg"]))
+            await websocket.close(code=1003)
+            return
+
+        await report_hub.subscribe(websocket, customer_id=hello.customer_id)
+
         factory = jobs_service.job_session_factory()
         async with factory() as session:
-            rows = await list_reports(session, limit=50)
+            rows = await list_reports(
+                session, limit=50, customer_id=hello.customer_id
+            )
             await websocket.send_json(
                 {
                     "type": "reports.snapshot",
@@ -151,6 +200,13 @@ async def reports_websocket(websocket: WebSocket) -> None:
             await websocket.receive_text()
     except WebSocketDisconnect:
         pass
+    except Exception:
+        logger.exception("Reports watch WebSocket failed")
+        try:
+            await _send_error(websocket, "WebSocket error")
+            await websocket.close(code=1011)
+        except Exception:
+            pass
     finally:
         await report_hub.unsubscribe(websocket)
 
