@@ -130,12 +130,60 @@ async def test_candidate_run_links_panel_and_report(
     new_session_id = session_resp_2.json()["id"]
     assert new_session_id != session_id
 
+    panel_done_2 = asyncio.Event()
+
+    def _schedule_panel_2(job_id: str) -> None:
+        async def _run() -> None:
+            await jobs_service._run_job(job_id)
+            panel_done_2.set()
+
+        asyncio.create_task(_run())
+
+    jobs_service.set_schedule_hook(_schedule_panel_2)
+    run_panel_2 = await client.post(f"/panel/sessions/{new_session_id}/run")
+    assert run_panel_2.status_code == 202
+    await asyncio.wait_for(panel_done_2.wait(), timeout=20)
+
     after_rerun = await client.get(f"/dd/campaigns/{campaign_id}")
     assert after_rerun.status_code == 200
     runs = after_rerun.json()["candidate_runs"]
     assert len(runs) == 1
     assert runs[0]["panel_session_id"] == new_session_id
     assert runs[0]["report_id"] == report_id
+
+    report_done_2 = asyncio.Event()
+
+    def _schedule_report_2(job_id: str) -> None:
+        async def _run() -> None:
+            await jobs_service._run_job(job_id)
+            report_done_2.set()
+
+        asyncio.create_task(_run())
+
+    jobs_service.set_schedule_hook(_schedule_report_2)
+    create_report_2 = await client.post(
+        "/reports",
+        json={
+            "sources": [
+                {
+                    "type": "dd_session",
+                    "session_id": new_session_id,
+                    "candidate_id": candidate_id,
+                }
+            ],
+            "title": "Linked DD report after rerun",
+        },
+    )
+    assert create_report_2.status_code == 202, create_report_2.text
+    report_id_2 = create_report_2.json()["id"]
+    assert report_id_2 != report_id
+    await asyncio.wait_for(report_done_2.wait(), timeout=20)
+    jobs_service.set_schedule_hook(None)
+
+    after_rerun_report = await client.get(f"/dd/campaigns/{campaign_id}")
+    runs = after_rerun_report.json()["candidate_runs"]
+    assert runs[0]["panel_session_id"] == new_session_id
+    assert runs[0]["report_id"] == report_id_2
 
     listed = await client.get("/dd/campaigns?module=dd")
     assert listed.status_code == 200

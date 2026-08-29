@@ -80,6 +80,16 @@ export function DdCampaignRunPage() {
   const liveReport = reportId ? reports.find((row) => row.id === reportId) : null
   const reportStatus = liveReport?.status ?? null
   const panelSessionId = run?.panel_session_id ?? null
+  const linkedReportSessionId =
+    liveReport?.sources?.[0]?.type === "dd_session"
+      ? liveReport.sources[0].session_id
+      : null
+  const reportAlreadyLinkedToPanel =
+    Boolean(reportId) &&
+    linkedReportSessionId === panelSessionId &&
+    (reportStatus === "pending" ||
+      reportStatus === "running" ||
+      reportStatus === "succeeded")
 
   const jobStatus = jobs.find(
     (job) =>
@@ -164,12 +174,13 @@ export function DdCampaignRunPage() {
   }, [campaign, runStatus, searchParams, setSearchParams])
 
   useEffect(() => {
-    reportCreateStarted.current = Boolean(run?.report_id)
-  }, [run?.report_id])
+    reportCreateStarted.current = false
+  }, [panelSessionId])
 
   useEffect(() => {
-    if (!candidate || !panelSessionId || run?.report_id || reportCreateStarted.current) return
+    if (!candidate || !panelSessionId || reportCreateStarted.current) return
     if (livePanelStatus !== "succeeded") return
+    if (reportAlreadyLinkedToPanel) return
     reportCreateStarted.current = true
     void createDdReport({
       session_id: panelSessionId,
@@ -182,7 +193,15 @@ export function DdCampaignRunPage() {
         reportCreateStarted.current = false
         setError(err instanceof ApiError ? err.message : t("dd.panel.reportCreateError"))
       })
-  }, [candidate, locale, livePanelStatus, panelSessionId, refreshCampaign, run?.report_id, t])
+  }, [
+    candidate,
+    locale,
+    livePanelStatus,
+    panelSessionId,
+    refreshCampaign,
+    reportAlreadyLinkedToPanel,
+    t,
+  ])
 
   async function persistPanel(nextPanelId: number | null) {
     if (!campaign || !candidateId) return
