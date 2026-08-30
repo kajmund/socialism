@@ -197,8 +197,12 @@ def merge_sourcing_candidates(
         orgnr = candidate.organisationsnummer
         if orgnr not in by_orgnr:
             order_orgnrs.append(orgnr)
-        by_orgnr[orgnr] = candidate
-        by_id[candidate.id] = candidate
+            stored = candidate
+        else:
+            # Sourcing paths disagree on id (mock hash vs orgnr from Allabolag/chat).
+            stored = candidate.model_copy(update={"id": by_orgnr[orgnr].id})
+        by_orgnr[orgnr] = stored
+        by_id[stored.id] = stored
 
     merged = [by_orgnr[orgnr] for orgnr in order_orgnrs]
     merged_ids = {c.id for c in merged}
