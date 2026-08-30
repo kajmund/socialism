@@ -12,8 +12,9 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.config import settings
-from app.database.models import Job, PanelSession, Report, Run
+from app.database.models import DdCampaign, Job, PanelSession, Report, Run
 from app.database.session import SessionLocal
+from app.realtime.hub import job_hub
 from app.schemas.domain import (
     JobCreate,
     JobOut,
@@ -23,10 +24,14 @@ from app.schemas.domain import (
     ReportGenerateJobRequest,
     RunSimulateJobRequest,
 )
-from app.realtime.hub import job_hub
 from app.serializers import utcnow
 from app.services import population_generate as gen
-from app.services.report_realtime import publish_report
+from app.services.customer_scope import customer_id_for_new_job
+from app.services.dd.allabolag import AllabolagError
+from app.services.dd.campaigns import get_campaign
+from app.services.dd.candidate_runs import get_candidate_run, upsert_research
+from app.services.dd.research import DdResearchError, run_dd_research
+from app.services.dd.schemas import DdCandidateCompany, DdResearchDossier, DdResearchJobRequest
 from app.services.oasis_run import (
     OasisUnavailable,
     attempt_all_failed,
@@ -44,8 +49,8 @@ from app.services.population_persist import (
     create_population_from_generation,
     update_population_from_generation,
 )
-from app.services.customer_scope import customer_id_for_new_job
 from app.services.prompt_store import require_active_prompts
+from app.services.report_realtime import publish_report
 
 logger = logging.getLogger(__name__)
 _simulation_job_semaphore: asyncio.Semaphore | None = None
@@ -138,6 +143,30 @@ async def create_job(session: AsyncSession, body: JobCreate) -> Job:
             raise ValueError(f"Panel session not found: {payload.session_id}")
         topic = str((panel.config or {}).get("topic") or payload.session_id)
         label = (body.label or "").strip() or f"Panel: {topic[:80]}"
+    elif body.kind == "dd_research":
+        payload = DdResearchJobRequest.model_validate(body.request)
+        campaign = await session.get(DdCampaign, payload.campaign_id)
+        if campaign is None:
+            raise ValueError(f"Campaign not found: {payload.campaign_id}")
+        raw_candidates = campaign.candidates if isinstance(campaign.candidates, list) else []
+        match = next(
+            (
+                row
+                for row in raw_candidates
+                if isinstance(row, dict) and row.get("id") == payload.candidate_id
+            ),
+            None,
+        )
+        if match is None:
+            raise ValueError(f"Candidate not found: {payload.candidate_id}")
+        name = str(match.get("namn") or payload.candidate_id)
+        if payload.mode == "people":
+            prefix = "Personutredning"
+        elif payload.continue_group:
+            prefix = "Koncern (fler)"
+        else:
+            prefix = "Koncern"
+        label = (body.label or "").strip() or f"{prefix}: {name[:80]}"
     else:
         raise ValueError(f"Unsupported job kind: {body.kind}")
 
@@ -199,6 +228,8 @@ async def _execute_job_kind(job_id: str, kind: str) -> None:
         await _run_report_generate(job_id)
     elif kind == "panel_session_run":
         await _run_panel_session(job_id)
+    elif kind == "dd_research":
+        await _run_dd_research(job_id)
     else:
         factory = job_session_factory()
         async with factory() as session:
@@ -630,6 +661,74 @@ async def _run_panel_session(job_id: str) -> None:
                 await session.commit()
             await _fail(session, job_id, error_text)
         await publish_panel_finished(payload.session_id, status="failed", error=error_text)
+
+
+async def _run_dd_research(job_id: str) -> None:
+    factory = job_session_factory()
+    async with factory() as session:
+        job = await session.get(Job, job_id)
+        if job is None:
+            return
+        payload = DdResearchJobRequest.model_validate(job.request or {})
+        campaign = await get_campaign(session, payload.campaign_id)
+        if campaign is None:
+            await _fail(session, job_id, f"Campaign not found: {payload.campaign_id}")
+            return
+        candidates = [DdCandidateCompany.model_validate(row) for row in (campaign.candidates or [])]
+        candidate = next((row for row in candidates if row.id == payload.candidate_id), None)
+        if candidate is None:
+            await _fail(session, job_id, f"Candidate not found: {payload.candidate_id}")
+            return
+        existing = None
+        if payload.mode == "people" or payload.continue_group:
+            run = await get_candidate_run(
+                session,
+                campaign_id=payload.campaign_id,
+                candidate_id=payload.candidate_id,
+            )
+            if run is None or not isinstance(run.research, dict) or not run.research:
+                await _fail(session, job_id, "Kör koncernkartan först")
+                return
+            existing = DdResearchDossier.model_validate(run.research)
+            if payload.continue_group and not existing.pending:
+                await _fail(session, job_id, "Inga fler bolag att kartlägga")
+                return
+
+    try:
+        dossier = await run_dd_research(
+            candidate,
+            mode=payload.mode,
+            person_names=payload.person_names,
+            existing=existing,
+            continue_group=payload.continue_group,
+            job_id=job_id,
+        )
+    except (AllabolagError, DdResearchError) as exc:
+        async with factory() as session:
+            await _fail(session, job_id, str(exc) or exc.__class__.__name__)
+        return
+
+    async with factory() as session:
+        await upsert_research(
+            session,
+            campaign_id=payload.campaign_id,
+            candidate_id=payload.candidate_id,
+            dossier=dossier,
+            job_id=job_id,
+        )
+        await session.commit()
+        await _succeed(
+            session,
+            job_id,
+            {
+                "campaign_id": payload.campaign_id,
+                "candidate_id": payload.candidate_id,
+                "mode": payload.mode,
+                "company_count": len(dossier.companies),
+                "people_count": len(dossier.people),
+                "leftover_count": len(dossier.leftover),
+            },
+        )
 
 
 async def list_jobs(

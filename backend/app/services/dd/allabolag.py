@@ -5,8 +5,11 @@ Amounts on Allabolag cards are in tkr (thousands of SEK).
 
 from __future__ import annotations
 
+import asyncio
 import json
+import random
 import re
+from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from typing import Any
 from urllib.parse import quote
@@ -90,6 +93,11 @@ _NEXT_DATA = re.compile(
 )
 _SEARCH_PATH = "https://www.allabolag.se/bransch-s%C3%B6k"
 _COMPANY_PATH = "https://www.allabolag.se/foretag/{name}/{location}/{industry}/{company_id}"
+_PERSON_SEARCH_PATH = "https://www.allabolag.se/befattningshavare"
+_PERSON_PATH = "https://www.allabolag.se/befattning/{name}/-/{person_id}"
+_STRUCTURE_PATH = "https://www.allabolag.se/api/company/legal/{orgnr}/corporateStructure"
+_THROTTLE_MIN_S = 0.5
+_THROTTLE_MAX_S = 1.0
 
 
 class AllabolagError(RuntimeError):
@@ -100,12 +108,27 @@ class AllabolagNotFoundError(AllabolagError):
     pass
 
 
+@dataclass(frozen=True)
+class GroupCompany:
+    namn: str
+    orgnr: str
+    parent_orgnr: str
+
+
 def _slug(value: str) -> str:
     text = value.strip().casefold()
     for src, dst in (("å", "a"), ("ä", "a"), ("ö", "o"), ("é", "e")):
         text = text.replace(src, dst)
     text = re.sub(r"[^a-z0-9]+", "-", text)
     return text.strip("-") or "-"
+
+
+def _norm_person_name(name: str) -> str:
+    return " ".join(name.split()).casefold()
+
+
+async def _pause() -> None:
+    await asyncio.sleep(random.uniform(_THROTTLE_MIN_S, _THROTTLE_MAX_S))
 
 
 def extract_next_data(html: str) -> dict[str, Any]:
@@ -705,6 +728,82 @@ async def search_companies(query: str) -> str:
     return format_search_markdown(await search_company_rows(query))
 
 
+def people_from_search_next_data(data: dict[str, Any]) -> list[dict[str, Any]]:
+    block = data.get("props", {}).get("pageProps", {}).get("rolePersons")
+    if not isinstance(block, dict):
+        raise AllabolagError("Allabolag person search had no rolePersons")
+    rows = block.get("businessPersons")
+    if not isinstance(rows, list):
+        raise AllabolagError("Allabolag person search had no businessPersons")
+    return [
+        row
+        for row in rows
+        if isinstance(row, dict) and row.get("personId") and row.get("name")
+    ]
+
+
+def roles_from_person_next_data(data: dict[str, Any]) -> list[dict[str, Any]]:
+    person = data.get("props", {}).get("pageProps", {}).get("rolePerson")
+    if not isinstance(person, dict):
+        raise AllabolagError("Allabolag person page had no rolePerson")
+    roles = person.get("roles")
+    if roles is None:
+        return []
+    if not isinstance(roles, list):
+        raise AllabolagError("Allabolag person page had no roles list")
+    return [row for row in roles if isinstance(row, dict)]
+
+
+def companies_from_person_roles(roles: list[dict[str, Any]]) -> list[dict[str, str]]:
+    out: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for row in roles:
+        raw = str(row.get("id") or "")
+        digits = re.sub(r"\D", "", raw)
+        if len(digits) != 10:
+            continue
+        orgnr = format_orgnr(digits)
+        if orgnr in seen:
+            continue
+        namn = str(row.get("name") or orgnr).strip()
+        seen.add(orgnr)
+        out.append({"name": namn, "orgnr": orgnr})
+    return out
+
+
+def person_page_path(name: str, person_id: str) -> str:
+    person_key = str(person_id).strip()
+    if not person_key:
+        raise AllabolagError("Allabolag person is missing personId")
+    return _PERSON_PATH.format(
+        name=quote(_slug(name), safe="-"),
+        person_id=quote(person_key, safe=""),
+    )
+
+
+def _pick_person(people: list[dict[str, Any]], name: str) -> dict[str, Any] | None:
+    wanted = _norm_person_name(name)
+    matches = [
+        row for row in people if _norm_person_name(str(row.get("name") or "")) == wanted
+    ]
+    if not matches:
+        return None
+    return max(matches, key=lambda row: int(row.get("numberOfRoles") or 0))
+
+
+async def lookup_person_companies(name: str) -> list[dict[str, str]]:
+    text = name.strip()
+    if not text:
+        raise AllabolagError("Person name is required")
+    html = await _get_html(f"{_PERSON_SEARCH_PATH}?q={quote(text)}")
+    person = _pick_person(people_from_search_next_data(extract_next_data(html)), text)
+    if person is None:
+        return []
+    await _pause()
+    page = await _get_html(person_page_path(str(person["name"]), str(person["personId"])))
+    return companies_from_person_roles(roles_from_person_next_data(extract_next_data(page)))
+
+
 async def lookup_company_row(orgnr: str) -> dict[str, Any]:
     formatted = format_orgnr(orgnr)
     html = await _get_html(f"{_SEARCH_PATH}?q={quote(formatted)}")
@@ -721,6 +820,69 @@ async def lookup_company_row(orgnr: str) -> dict[str, Any]:
 
 async def lookup_company(orgnr: str) -> str:
     return format_lookup_markdown(await lookup_company_row(orgnr))
+
+
+def companies_from_corporate_structure(payload: dict[str, Any]) -> list[GroupCompany]:
+    tree = payload.get("tree")
+    if not isinstance(tree, dict):
+        raise AllabolagError("Allabolag corporate structure had no tree")
+    out: list[GroupCompany] = []
+
+    def walk(node: dict[str, Any], parent_orgnr: str) -> None:
+        name = str(node.get("name") or "").strip()
+        raw = str(node.get("organisationNumber") or "").strip()
+        digits = re.sub(r"\D", "", raw)
+        orgnr = format_orgnr(digits) if len(digits) == 10 else ""
+        if name:
+            out.append(GroupCompany(namn=name, orgnr=orgnr, parent_orgnr=parent_orgnr))
+        next_parent = orgnr or parent_orgnr
+        children = node.get("sub")
+        if not isinstance(children, list):
+            return
+        for child in children:
+            if isinstance(child, dict):
+                walk(child, next_parent)
+
+    walk(tree, "")
+    return out
+
+
+async def lookup_corporate_structure(orgnr: str) -> list[GroupCompany]:
+    formatted = format_orgnr(orgnr)
+    digits = re.sub(r"\D", "", formatted)
+    if len(digits) != 10:
+        raise AllabolagError(f"Invalid organization number: {orgnr}")
+    cached = get_cached("allabolag_corporate_structure", {"orgnr": formatted})
+    if cached is not None:
+        try:
+            payload = json.loads(cached)
+        except json.JSONDecodeError as exc:
+            raise AllabolagError("Cached Allabolag corporate structure was not JSON") from exc
+        if not isinstance(payload, dict):
+            raise AllabolagError("Cached Allabolag corporate structure was not an object")
+        return companies_from_corporate_structure(payload)
+    url = _STRUCTURE_PATH.format(orgnr=digits)
+    async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as http:
+        response = await http.get(
+            url,
+            headers={
+                "User-Agent": _BROWSER_UA,
+                "Accept": "application/json",
+                "Accept-Language": "sv-SE,sv;q=0.9,en;q=0.8",
+            },
+        )
+    if response.status_code == 404:
+        return []
+    if response.status_code >= 400:
+        raise AllabolagError(f"Allabolag HTTP {response.status_code} for {url}")
+    try:
+        payload = response.json()
+    except json.JSONDecodeError as exc:
+        raise AllabolagError("Allabolag corporate structure was not JSON") from exc
+    if not isinstance(payload, dict):
+        raise AllabolagError("Allabolag corporate structure was not an object")
+    put_cached("allabolag_corporate_structure", {"orgnr": formatted}, response.text)
+    return companies_from_corporate_structure(payload)
 
 
 def _has_company_page_facts(candidate: DdCandidateCompany) -> bool:

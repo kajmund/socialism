@@ -8,6 +8,7 @@ export type PanelWatchTurnPhase =
   | "analysis"
   | "sub_question"
   | "score"
+  | "unanswered"
 
 export type PanelWatchExpertSlot = {
   slot_id: string

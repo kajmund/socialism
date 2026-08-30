@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom"
 import type { Job, JobStatus } from "@/api/jobs"
 import { useAuth } from "@/auth/AuthProvider"
@@ -125,7 +125,11 @@ function toastFromTransition(
         hrefLabel: t("toast.openReport"),
       }
     }
-    if (job.kind === "panel_session_run" || job.kind === "dd_sourcing_run") {
+    if (
+      job.kind === "panel_session_run" ||
+      job.kind === "dd_sourcing_run" ||
+      job.kind === "dd_research"
+    ) {
       const href = campaignJobHref(campaignId, candidateId)
       if (href) {
         return {
@@ -336,6 +340,16 @@ export function AdminShell({
     setMenuOpen(false)
   }, [pathname])
 
+  useLayoutEffect(() => {
+    const root = document.documentElement
+    root.classList.add("admin-scroll-lock")
+    document.body.classList.add("admin-scroll-lock")
+    return () => {
+      root.classList.remove("admin-scroll-lock")
+      document.body.classList.remove("admin-scroll-lock")
+    }
+  }, [])
+
   useEffect(() => {
     const desktop = window.matchMedia("(min-width: 1280px)")
     function sync() {
@@ -352,12 +366,7 @@ export function AdminShell({
       if (e.key === "Escape") setMenuOpen(false)
     }
     window.addEventListener("keydown", onKey)
-    const prev = document.body.style.overflow
-    document.body.style.overflow = "hidden"
-    return () => {
-      window.removeEventListener("keydown", onKey)
-      document.body.style.overflow = prev
-    }
+    return () => window.removeEventListener("keydown", onKey)
   }, [menuOpen])
 
   useEffect(() => {
@@ -381,8 +390,8 @@ export function AdminShell({
   }, [customerScope, jobToasts, scopedJobs, t])
 
   return (
-    <div className="theme-admin">
-      <header className="admin-topnav relative sticky top-0 z-50 text-white">
+    <div className="theme-admin admin-shell">
+      <header className="admin-topnav relative text-white">
         <div className="mx-auto flex h-[88px] max-w-[1440px] items-center justify-between gap-8 px-6 md:h-[100px] md:px-10 2xl:px-[90px]">
           <NavLink
             to={brandTo}
@@ -442,6 +451,7 @@ export function AdminShell({
           </div>
         ) : null}
       </header>
+      <main className="admin-main-scroll">{children}</main>
       {menuOpen ? (
         <button
           type="button"
@@ -450,7 +460,6 @@ export function AdminShell({
           onClick={() => setMenuOpen(false)}
         />
       ) : null}
-      {children}
       {toast && (
         <div className="toast" role="status">
           <div className="ck">{toast.kind === "ok" ? "✓" : "!"}</div>

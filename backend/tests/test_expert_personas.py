@@ -33,6 +33,13 @@ async def test_create_expert_without_age(client: AsyncClient):
     body = create.json()
     assert body["kind"] == "expert"
     assert body["age"] is None
+    assert body["tools"] == [
+        "search_companies",
+        "lookup_company",
+        "validate_orgnr",
+        "search_duckduckgo",
+        "search_wiki",
+    ]
 
 
 @pytest.mark.asyncio
@@ -59,3 +66,50 @@ async def test_persona_kind_still_requires_age(client: AsyncClient):
         },
     )
     assert missing_age.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_and_update_expert_tools(client: AsyncClient):
+    create = await client.post(
+        "/personas",
+        json={
+            "kind": "expert",
+            "name": "Sökexpert",
+            "occ": "Analytiker",
+            "district": "—",
+            "quote": "Söker fakta.",
+            "tools": ["search_wiki", "search_duckduckgo", "search_wiki"],
+        },
+    )
+    assert create.status_code == 201, create.text
+    body = create.json()
+    assert body["tools"] == ["search_wiki", "search_duckduckgo"]
+
+    updated = await client.put(
+        f"/personas/{body['id']}",
+        json={"tools": ["lookup_company"]},
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["tools"] == ["lookup_company"]
+
+    cleared = await client.put(
+        f"/personas/{body['id']}",
+        json={"tools": []},
+    )
+    assert cleared.status_code == 200, cleared.text
+    assert cleared.json()["tools"] == []
+
+
+@pytest.mark.asyncio
+async def test_reject_unknown_expert_tool(client: AsyncClient):
+    create = await client.post(
+        "/personas",
+        json={
+            "kind": "expert",
+            "name": "Felverktyg",
+            "occ": "Analytiker",
+            "district": "—",
+            "tools": ["search_wiki", "not_a_tool"],
+        },
+    )
+    assert create.status_code == 422

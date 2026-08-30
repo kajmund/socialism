@@ -164,24 +164,22 @@ export function ExpertsPage() {
   }
 
   return (
-    <div className="wrap">
-      <div className="head-row">
-        <div>
-          <h1>{t("experts.list.title")}</h1>
-          <p>{t("experts.list.description")}</p>
+    <div className="wrap admin-page">
+      <div className="admin-page-chrome">
+        <div className="head-row">
+          <div>
+            <h1>{t("experts.list.title")}</h1>
+            <p>{t("experts.list.description")}</p>
+          </div>
         </div>
-      </div>
 
-      {error ? (
-        <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
-          {error}
-        </div>
-      ) : null}
+        {error ? (
+          <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
+            {error}
+          </div>
+        ) : null}
 
-      {loading ? (
-        <div className="no-match">{t("experts.list.loading")}</div>
-      ) : rows.length > 0 ? (
-        <>
+        {!loading && rows.length > 0 ? (
           <div className="controls-row">
             <div className="controls-left">
               <input
@@ -198,7 +196,14 @@ export function ExpertsPage() {
               </Link>
             </div>
           </div>
-          {list.length === 0 ? (
+        ) : null}
+      </div>
+
+      <div className="admin-page-body">
+        {loading ? (
+          <div className="no-match">{t("experts.list.loading")}</div>
+        ) : rows.length > 0 ? (
+          list.length === 0 ? (
             <div className="no-match">{t("experts.list.emptyFilter", { query })}</div>
           ) : view === "grid" ? (
             <div className="pop-grid">
@@ -224,21 +229,21 @@ export function ExpertsPage() {
                 />
               ))}
             </div>
-          )}
-        </>
-      ) : (
-        <div className="empty-state">
-          <h2 style={{ font: "var(--text-h2)", marginBottom: 10 }}>
-            {t("experts.list.emptyTitle")}
-          </h2>
-          <p style={{ color: "var(--text-muted)", marginBottom: 24 }}>
-            {t("experts.list.emptyBody")}
-          </p>
-          <Link to="/bolag/experter/new" className={CTA_CLASS}>
-            {t("experts.list.newExpert")}
-          </Link>
-        </div>
-      )}
+          )
+        ) : (
+          <div className="empty-state">
+            <h2 style={{ font: "var(--text-h2)", marginBottom: 10 }}>
+              {t("experts.list.emptyTitle")}
+            </h2>
+            <p style={{ color: "var(--text-muted)", marginBottom: 24 }}>
+              {t("experts.list.emptyBody")}
+            </p>
+            <Link to="/bolag/experter/new" className={CTA_CLASS}>
+              {t("experts.list.newExpert")}
+            </Link>
+          </div>
+        )}
+      </div>
 
       {toast ? (
         <div className="fixed bottom-6 right-6 z-50 rounded-md bg-db-ink-950 px-4 py-3 text-sm text-db-ink-0 shadow-lg">

@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import PanelSession
 from app.llm import complete_text
 from app.services.dd.company_mcp import complete_text_with_company_tools
+from app.services.expert_tools import expert_tool_prompt_extra
 from app.services.panel.schemas import (
     PanelExpertSlot,
     PanelSessionConfig,
@@ -16,12 +17,21 @@ from app.services.panel.watch import run_turn
 from app.services.prompt_catalog import render_prompt
 
 
-def _expert_system(prompts: dict[str, str], slot: PanelExpertSlot) -> str:
-    return (
-        render_prompt(prompts, "panel.expert.system", label=slot.label, profile=slot.profile)
-        + "\n\n"
-        + render_prompt(prompts, "panel.expert.tools")
+def _expert_system(
+    prompts: dict[str, str],
+    slot: PanelExpertSlot,
+    *,
+    with_tools: bool = False,
+) -> str:
+    text = render_prompt(
+        prompts, "panel.expert.system", label=slot.label, profile=slot.profile
     )
+    if not with_tools:
+        return text
+    extra = expert_tool_prompt_extra(prompts, slot.tools)
+    if not extra:
+        return text
+    return text + "\n\n" + extra
 
 
 def _expert_list(config: PanelSessionConfig) -> str:
@@ -85,7 +95,7 @@ async def _expert_scratchpad(
     prompts: dict[str, str],
 ) -> str:
     messages = [
-        {"role": "system", "content": _expert_system(prompts, slot)},
+        {"role": "system", "content": _expert_system(prompts, slot, with_tools=True)},
         {
             "role": "user",
             "content": render_prompt(
@@ -97,7 +107,11 @@ async def _expert_scratchpad(
             ),
         },
     ]
-    return (await complete_text_with_company_tools(messages)).strip()
+    return (
+        await complete_text_with_company_tools(
+            messages, allowed_tools=frozenset(slot.tools)
+        )
+    ).strip()
 
 
 async def _expert_turn(
@@ -108,7 +122,7 @@ async def _expert_turn(
     prompts: dict[str, str],
 ) -> str:
     messages = [
-        {"role": "system", "content": _expert_system(prompts, slot)},
+        {"role": "system", "content": _expert_system(prompts, slot, with_tools=True)},
         {
             "role": "user",
             "content": render_prompt(
@@ -120,7 +134,11 @@ async def _expert_turn(
             ),
         },
     ]
-    return (await complete_text_with_company_tools(messages)).strip()
+    return (
+        await complete_text_with_company_tools(
+            messages, allowed_tools=frozenset(slot.tools)
+        )
+    ).strip()
 
 
 async def _moderator_analysis(

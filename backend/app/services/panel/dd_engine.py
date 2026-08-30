@@ -9,13 +9,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import PanelSession
 from app.llm import complete_text
 from app.services.dd.company_mcp import run_company_tool_loop, visible_assistant_text
-from app.services.dd.schemas import DdCandidateCompany
+from app.services.dd.research import format_research_brief
+from app.services.dd.schemas import DdCandidateCompany, DdResearchDossier
 from app.services.dd.source_attribution import SourceBadge, resolve_source_badge
 from app.services.dd.sub_questions import DD_SUB_QUESTIONS, DdSubQuestion
 from app.services.panel.schemas import (
     DdDissensusNote,
     DdExpertScore,
     DdPanelResult,
+    DdUnansweredNote,
     PanelExpertSlot,
     PanelSessionConfig,
     PanelTurn,
@@ -29,7 +31,10 @@ async def _static_text(text: str) -> str:
     return text
 
 
-def _candidate_brief(candidate: DdCandidateCompany) -> str:
+def _candidate_brief(
+    candidate: DdCandidateCompany,
+    research: DdResearchDossier | None = None,
+) -> str:
     lines = [
         f"Namn: {candidate.namn}",
         f"Organisationsnummer: {candidate.organisationsnummer}",
@@ -43,17 +48,30 @@ def _candidate_brief(candidate: DdCandidateCompany) -> str:
         lines.append(f"Anställda: {candidate.anstallda}")
     if candidate.beskrivning:
         lines.append(f"Beskrivning: {candidate.beskrivning}")
+    if research is not None:
+        lines.append("")
+        lines.append(format_research_brief(research))
     return "\n".join(lines)
+
+
+def _candidate_has_figures(candidate: DdCandidateCompany) -> bool:
+    if candidate.omsattning_sek is not None or candidate.anstallda is not None:
+        return True
+    return any(
+        year.omsattning_sek is not None
+        or year.resultat_sek is not None
+        or year.anstallda is not None
+        for year in candidate.rakenskaper
+    )
 
 
 def _transcript_text(transcript: list[PanelTurn]) -> str:
     lines: list[str] = []
     for turn in transcript:
-        if turn.phase == "scratchpad":
+        if turn.phase not in ("opening", "score", "unanswered"):
             continue
-        name = turn.speaker
-        lines.append(f"{name}: {turn.content}")
-    return "\n".join(lines)
+        lines.append(f"{turn.speaker}: {turn.content}")
+    return "\n".join(lines) or "(inga poäng ännu)"
 
 
 def _expert_list(slots: list[PanelExpertSlot]) -> str:
@@ -106,6 +124,10 @@ def _parse_score_payload(raw: str) -> tuple[int, str]:
     raise ValueError(f"Expert score response was not valid JSON: {snippet}")
 
 
+def _typical_owner(sub_question: DdSubQuestion) -> str:
+    return (sub_question.expert_label or "").strip() or "ingen specifik roll"
+
+
 def _dissensus_notes(scores: list[DdExpertScore]) -> list[DdDissensusNote]:
     by_question: dict[str, list[DdExpertScore]] = {}
     for row in scores:
@@ -130,7 +152,7 @@ def _dissensus_notes(scores: list[DdExpertScore]) -> list[DdDissensusNote]:
 
 async def _moderator_opening(config: PanelSessionConfig, prompts: dict[str, str]) -> str:
     messages = [
-        {"role": "system", "content": render_prompt(prompts, "panel.moderator.system")},
+        {"role": "system", "content": render_prompt(prompts, "panel.dd.moderator.system")},
         {
             "role": "user",
             "content": render_prompt(
@@ -152,7 +174,7 @@ async def _moderator_sub_question(
     prompts: dict[str, str],
 ) -> str:
     messages = [
-        {"role": "system", "content": render_prompt(prompts, "panel.moderator.system")},
+        {"role": "system", "content": render_prompt(prompts, "panel.dd.moderator.system")},
         {
             "role": "user",
             "content": render_prompt(
@@ -160,11 +182,42 @@ async def _moderator_sub_question(
                 "panel.dd.moderator.sub_question",
                 topic=config.topic,
                 sub_question=sub_question.label,
+                expert_list=_expert_list(config.expert_slots),
                 transcript=_transcript_text(transcript),
             ),
         },
     ]
     return _visible_moderator_text(await complete_text(messages))
+
+
+async def _expert_raise_hand_dd(
+    slot: PanelExpertSlot,
+    config: PanelSessionConfig,
+    sub_question: DdSubQuestion,
+    prompts: dict[str, str],
+) -> bool:
+    messages = [
+        {
+            "role": "system",
+            "content": render_prompt(
+                prompts, "panel.expert.system", label=slot.label, profile=slot.profile
+            ),
+        },
+        {
+            "role": "user",
+            "content": render_prompt(
+                prompts,
+                "panel.dd.expert.raise_hand",
+                topic=config.topic,
+                sub_question=sub_question.label,
+                typical_owner=_typical_owner(sub_question),
+                brief=config.brief,
+                label=slot.label,
+            ),
+        },
+    ]
+    answer = (await complete_text(messages)).strip().upper()
+    return answer.startswith("JA") or answer.startswith("YES")
 
 
 async def _expert_score(
@@ -175,16 +228,15 @@ async def _expert_score(
     transcript: list[PanelTurn],
     prompts: dict[str, str],
 ) -> tuple[int, str]:
+    system = render_prompt(
+        prompts, "panel.expert.system", label=slot.label, profile=slot.profile
+    )
+    if slot.tools:
+        system = system + "\n\n" + render_prompt(prompts, "panel.expert.tools")
     messages = [
         {
             "role": "system",
-            "content": (
-                render_prompt(
-                    prompts, "panel.expert.system", label=slot.label, profile=slot.profile
-                )
-                + "\n\n"
-                + render_prompt(prompts, "panel.expert.tools")
-            ),
+            "content": system,
         },
         {
             "role": "user",
@@ -201,8 +253,14 @@ async def _expert_score(
             ),
         },
     ]
-    working, _found = await run_company_tool_loop(messages, with_search=True)
-    raw = visible_assistant_text(working[-1]).strip()
+    if slot.tools:
+        working, _found = await run_company_tool_loop(
+            messages, with_search=True, allowed_tools=frozenset(slot.tools)
+        )
+        raw = visible_assistant_text(working[-1]).strip()
+    else:
+        working = list(messages)
+        raw = (await complete_text(working)).strip()
     try:
         return _parse_score_payload(raw)
     except ValueError:
@@ -216,11 +274,34 @@ async def _expert_score(
         return _parse_score_payload(raw)
 
 
+async def _moderator_no_answer(
+    config: PanelSessionConfig,
+    sub_question: DdSubQuestion,
+    expert_slots: list[PanelExpertSlot],
+    prompts: dict[str, str],
+) -> str:
+    messages = [
+        {"role": "system", "content": render_prompt(prompts, "panel.dd.moderator.system")},
+        {
+            "role": "user",
+            "content": render_prompt(
+                prompts,
+                "panel.dd.moderator.no_answer",
+                topic=config.topic,
+                sub_question=sub_question.label,
+                expert_list=", ".join(s.label for s in expert_slots),
+            ),
+        },
+    ]
+    return _visible_moderator_text((await complete_text(messages)).strip())
+
+
 async def _moderator_summary(
     config: PanelSessionConfig,
     transcript: list[PanelTurn],
     scores: list[DdExpertScore],
     dissensus: list[DdDissensusNote],
+    unanswered: list[DdUnansweredNote],
     prompts: dict[str, str],
 ) -> str:
     score_lines = [
@@ -231,9 +312,13 @@ async def _moderator_summary(
         f"- {note.sub_question_label}: spridning {note.spread} (lägst {note.min_score}, högst {note.max_score})"
         for note in dissensus
     ] or ["- Ingen tydlig dissensus (spridning < 3)"]
+    unanswered_lines = [
+        f"- {note.sub_question_label}: {note.moderator_note}"
+        for note in unanswered
+    ] or ["- Inga obesvarade delfrågor"]
 
     messages = [
-        {"role": "system", "content": render_prompt(prompts, "panel.moderator.system")},
+        {"role": "system", "content": render_prompt(prompts, "panel.dd.moderator.system")},
         {
             "role": "user",
             "content": render_prompt(
@@ -243,6 +328,7 @@ async def _moderator_summary(
                 transcript=_transcript_text(transcript),
                 score_table="\n".join(score_lines),
                 dissensus="\n".join(dissensus_lines),
+                unanswered="\n".join(unanswered_lines),
             ),
         },
     ]
@@ -275,6 +361,7 @@ async def run_dd_panel(
     )
 
     scores: list[DdExpertScore] = []
+    unanswered: list[DdUnansweredNote] = []
     for round_index, sub_question in enumerate(DD_SUB_QUESTIONS, start=1):
         await run_turn(
             db,
@@ -289,11 +376,55 @@ async def run_dd_panel(
             ),
         )
 
+        participating: list[PanelExpertSlot] = []
         for slot in config.expert_slots:
+
+            async def produce_raise_hand(s=slot, sq=sub_question) -> str:
+                wants = await _expert_raise_hand_dd(s, config, sq, prompts)
+                return "JA" if wants else "NEJ"
+
+            turn = await run_turn(
+                db,
+                panel,
+                transcript,
+                speaker=slot.label,
+                phase="raise_hand",
+                round_index=round_index,
+                slot_id=slot.slot_id,
+                sub_question_id=sub_question.id,
+                produce_content=produce_raise_hand,
+            )
+            if turn.content == "JA":
+                participating.append(slot)
+
+        if not participating:
+            note_turn = await run_turn(
+                db,
+                panel,
+                transcript,
+                speaker="Spinndoktor",
+                phase="unanswered",
+                round_index=round_index,
+                sub_question_id=sub_question.id,
+                produce_content=lambda sq=sub_question: _moderator_no_answer(
+                    config, sq, config.expert_slots, prompts
+                ),
+            )
+            unanswered.append(
+                DdUnansweredNote(
+                    sub_question_id=sub_question.id,
+                    sub_question_label=sub_question.label,
+                    moderator_note=note_turn.content,
+                )
+            )
+            continue
+
+        for slot in participating:
             source = resolve_source_badge(
                 sub_question_label=sub_question.label,
                 candidate_name=candidate.namn,
                 extra_context=candidate.beskrivning,
+                figures_in_brief=_candidate_has_figures(candidate),
             )
             score_value, motivation = await _expert_score(
                 slot,
@@ -337,7 +468,7 @@ async def run_dd_panel(
         speaker="Spinndoktor",
         phase="analysis",
         produce_content=lambda: _moderator_summary(
-            config, transcript, scores, dissensus, prompts
+            config, transcript, scores, dissensus, unanswered, prompts
         ),
     )
     summary = summary_turn.content
@@ -346,6 +477,7 @@ async def run_dd_panel(
         candidate=candidate,
         scores=scores,
         dissensus=dissensus,
+        unanswered=unanswered,
         summary=summary,
     )
 

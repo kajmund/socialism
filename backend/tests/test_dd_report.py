@@ -16,6 +16,7 @@ from app.services.panel.schemas import (
     DdDissensusNote,
     DdExpertScore,
     DdPanelResult,
+    DdUnansweredNote,
 )
 from app.services.report.dd_report import (
     generate_dd_report_html,
@@ -24,7 +25,9 @@ from app.services.report.dd_report import (
 )
 
 
-def _sample_result(*, with_dissensus: bool = True) -> DdPanelResult:
+def _sample_result(
+    *, with_dissensus: bool = True, with_unanswered: bool = False
+) -> DdPanelResult:
     candidate = DdCandidateCompany(
         id="cand_1",
         namn="Testbolaget AB",
@@ -108,10 +111,20 @@ def _sample_result(*, with_dissensus: bool = True) -> DdPanelResult:
                 spread=3,
             )
         ]
+    unanswered = []
+    if with_unanswered:
+        unanswered = [
+            DdUnansweredNote(
+                sub_question_id="integrationsrisk",
+                sub_question_label="Integrationsrisk",
+                moderator_note="Kräver extern integrationskompetens.",
+            )
+        ]
     return DdPanelResult(
         candidate=candidate,
         scores=scores,
         dissensus=dissensus,
+        unanswered=unanswered,
         summary="**Blandad bild** — legal risk sticker ut.\n\n### Risker\n- Pågående tvist\n",
     )
 
@@ -148,6 +161,35 @@ def test_render_dd_html_includes_summary_matrix_and_dissensus():
     assert "<th>2025</th>" in html
     assert "14 000 000 SEK" in html
     assert "−400 000 SEK" in html or "-400 000 SEK" in html
+
+
+def test_render_dd_html_includes_unanswered():
+    result = _sample_result(with_dissensus=False, with_unanswered=True)
+    html = render_dd_html(
+        result,
+        title="DD Test",
+        locale="sv",
+        session_id="panel_abc",
+        candidate_id="cand_1",
+    )
+    assert 'id="obesvarade"' in html
+    assert "Obesvarade delfrågor" in html
+    assert "Integrationsrisk" in html
+    assert "extern integrationskompetens" in html
+    assert "unanswered-col" in html
+
+
+def test_render_dd_html_omits_unanswered_when_empty():
+    result = _sample_result(with_dissensus=False)
+    html = render_dd_html(
+        result,
+        title="DD Test",
+        locale="sv",
+        session_id="panel_abc",
+        candidate_id="cand_1",
+    )
+    assert 'id="obesvarade"' not in html
+    assert "Obesvarade delfrågor" not in html
 
 
 def test_render_dd_html_remaps_okf_badges():
@@ -195,7 +237,7 @@ async def test_render_dd_html_from_artifact_drops_okf(tmp_path):
 
 @pytest.mark.asyncio
 async def test_generate_dd_report_html_writes_artifacts(tmp_path):
-    result = _sample_result()
+    result = _sample_result(with_unanswered=True)
     html_path, slots_path, slots_doc, dd_doc = await generate_dd_report_html(
         result,
         session_id="panel_abc",
@@ -208,6 +250,8 @@ async def test_generate_dd_report_html_writes_artifacts(tmp_path):
     assert (tmp_path / "rpt_test" / "report.dd.json").is_file()
     assert dd_doc["mode"] == "dd"
     assert slots_doc["mode"] == "dd"
+    assert dd_doc["unanswered"][0]["sub_question_id"] == "integrationsrisk"
+    assert "Obesvarade delfrågor" in html_path.read_text(encoding="utf-8")
     assert "Sammanfattning" in html_path.read_text(encoding="utf-8")
 
 
@@ -217,6 +261,10 @@ def mock_dd_panel_llm():
 
     async def _complete(messages, *, model=None):
         user = messages[-1]["content"]
+        if "ENDAST JA eller NEJ" in user or "ONLY YES or NO" in user:
+            return "JA"
+        if "Ingen av experterna" in user or "None of the experts" in user:
+            return "Panelen saknar rätt kompetens för frågan."
         if "ENDAST med JSON" in user or "ONLY with JSON" in user:
             score_counter["n"] += 1
             score = 5 + (score_counter["n"] % 4)

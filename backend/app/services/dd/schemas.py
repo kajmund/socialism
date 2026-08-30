@@ -109,10 +109,96 @@ class DdCampaignUpdate(BaseModel):
     enrich_from_allabolag: bool = False
 
 
+DdResearchMode = Literal["group", "people"]
+DdResearchRelation = Literal["kandidat", "moderbolag", "dotterbolag"]
+
+
+class DdResearchCompany(BaseModel):
+    namn: str
+    orgnr: str = ""
+    parent_orgnr: str = ""
+    relation: DdResearchRelation
+    nyckeltal: list[str] = Field(default_factory=list)
+    styrelse: list[str] = Field(default_factory=list)
+
+
+class DdResearchPersonSeat(BaseModel):
+    namn: str
+    orgnr: str = ""
+    roll: str = ""
+
+
+class DdResearchPersonCompany(BaseModel):
+    namn: str
+    orgnr: str = ""
+
+
+class DdResearchWebHit(BaseModel):
+    title: str = ""
+    url: str = ""
+    natverk: str = ""
+
+
+class DdResearchPerson(BaseModel):
+    namn: str
+    roll: str = ""
+    poster: list[DdResearchPersonSeat] = Field(default_factory=list)
+    bolag: list[DdResearchPersonCompany] = Field(default_factory=list)
+    web_hits: list[DdResearchWebHit] = Field(default_factory=list)
+
+
+class DdResearchPending(BaseModel):
+    orgnr: str
+    namn: str = ""
+
+
+class DdResearchDossier(BaseModel):
+    companies: list[DdResearchCompany] = Field(default_factory=list)
+    people: list[DdResearchPerson] = Field(default_factory=list)
+    leftover: list[str] = Field(default_factory=list)
+    pending: list[DdResearchPending] = Field(default_factory=list)
+    searched_names: list[str] = Field(default_factory=list)
+    group_size: int | None = None
+    job_id: str = ""
+
+    @model_validator(mode="before")
+    @classmethod
+    def drop_non_group_companies(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+        companies = value.get("companies")
+        if not isinstance(companies, list):
+            return value
+        allowed = {"kandidat", "moderbolag", "dotterbolag"}
+        cleaned = dict(value)
+        cleaned["companies"] = [
+            row
+            for row in companies
+            if not isinstance(row, dict) or row.get("relation") in allowed
+        ]
+        return cleaned
+
+
+class DdResearchStartRequest(BaseModel):
+    mode: DdResearchMode = "group"
+    person_names: list[str] = Field(default_factory=list)
+    continue_group: bool = False
+
+
+class DdResearchJobRequest(BaseModel):
+    campaign_id: int
+    candidate_id: str
+    mode: DdResearchMode = "group"
+    person_names: list[str] = Field(default_factory=list)
+    continue_group: bool = False
+
+
 class DdCandidateRunOut(BaseModel):
     candidate_id: str
     panel_session_id: str | None = None
     report_id: str | None = None
+    research: DdResearchDossier | None = None
+    research_job_id: str | None = None
     created_at: str = ""
     updated_at: str = ""
 

@@ -91,6 +91,7 @@ def build_dd_spindoctor_context_block(
     candidate = dd_doc.get("candidate") if isinstance(dd_doc.get("candidate"), dict) else {}
     summary = str(dd_doc.get("summary") or "").strip()
     dissensus = dd_doc.get("dissensus") if isinstance(dd_doc.get("dissensus"), list) else []
+    unanswered = dd_doc.get("unanswered") if isinstance(dd_doc.get("unanswered"), list) else []
 
     if locale == "en":
         header = f"DD report: {title}"
@@ -127,6 +128,16 @@ def build_dd_spindoctor_context_block(
                 f"({note.get('min_score')}–{note.get('max_score')})"
             )
 
+    if unanswered:
+        parts.append("")
+        parts.append("## Unanswered" if locale == "en" else "## Obesvarade delfrågor")
+        for note in unanswered:
+            if not isinstance(note, dict):
+                continue
+            parts.append(
+                f"- {note.get('sub_question_label')}: {note.get('moderator_note')}"
+            )
+
     averages = average_scores_by_sub_question(dd_doc)
     if averages:
         parts.append("")
@@ -142,7 +153,7 @@ def build_dd_spindoctor_context_block(
         parts.append("")
         parts.append(
             "Report section refs (append [[ref:id]] when pointing the user to a section): "
-            "sammanfattning, kandidat, delfragor, poangmatris, kallbilaga. "
+            "sammanfattning, kandidat, delfragor, poangmatris, kallbilaga, obesvarade. "
             "Sub-questions also have ids like delfraga-finansiell_halsa."
         )
         parts.append(
@@ -153,7 +164,7 @@ def build_dd_spindoctor_context_block(
         parts.append("")
         parts.append(
             "Rapportsektioner (lägg [[ref:id]] sist när du pekar läsaren till en del): "
-            "sammanfattning, kandidat, delfragor, poangmatris, kallbilaga. "
+            "sammanfattning, kandidat, delfragor, poangmatris, kallbilaga, obesvarade. "
             "Delfrågor har också id som delfraga-finansiell_halsa."
         )
         parts.append(

@@ -100,6 +100,7 @@ class Persona(Base):
     quote: Mapped[str] = mapped_column(Text, nullable=False, default="")
     origin: Mapped[str] = mapped_column(String(32), nullable=False, default="manuell")
     profile: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    tools: Mapped[list | None] = mapped_column(JSON, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -781,6 +782,8 @@ class DdCandidateRun(Base):
         ForeignKey("reports.id", ondelete="SET NULL"),
         nullable=True,
     )
+    research: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    research_job_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

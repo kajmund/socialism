@@ -1,7 +1,12 @@
 import { api } from "@/lib/api"
 import type { PopulationRecipe } from "@/api/populations"
 
-export type JobKind = "population_generate" | "run_simulate" | "report_generate"
+export type JobKind =
+  | "population_generate"
+  | "run_simulate"
+  | "report_generate"
+  | "panel_session_run"
+  | "dd_research"
 export type JobStatus = "pending" | "running" | "succeeded" | "failed"
 
 export type PopulationGenerateJobRequest = {

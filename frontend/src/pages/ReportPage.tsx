@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom"
-import { deleteReport, getReportHtml, type Report } from "@/api/reports"
+import { deleteReport, getReport, getReportHtml, type Report } from "@/api/reports"
+import { getJob, type Job } from "@/api/jobs"
 import { ReportCanvas, type ReportCanvasHandle } from "@/components/reports/ReportCanvas"
 import { SpinndoktorGrid } from "@/components/reports/spinndoctorGrid/SpinndoktorGrid"
 import { SpinndoktorPanel } from "@/components/reports/SpinndoktorPanel"
@@ -19,10 +20,26 @@ import { AdminButton } from "@/components/ui/admin-button"
 import { Card, CardContent } from "@/components/ui/card"
 import { useLocale, type MessageKey } from "@/i18n"
 import { ApiError } from "@/lib/api"
+import { formatElapsed } from "@/lib/formatDuration"
 import { moduleForReport, reportModulesForUser } from "@/lib/report-modules"
+import { useJobsRealtime } from "@/realtime/JobsRealtimeProvider"
 import { useReportsRealtime } from "@/realtime/ReportsRealtimeProvider"
 
 type ReportViewMode = "report" | "spinndoctor"
+
+function ReportShell({
+  embedded,
+  isBolagReport,
+  children,
+}: {
+  embedded: boolean
+  isBolagReport: boolean
+  children: ReactNode
+}) {
+  if (embedded) return children
+  if (isBolagReport) return <NestedBolagPage>{children}</NestedBolagPage>
+  return <AdminShell>{children}</AdminShell>
+}
 
 const STATUS_KEY: Record<Report["status"], MessageKey> = {
   pending: "reports.status.pending",
@@ -33,39 +50,39 @@ const STATUS_KEY: Record<Report["status"], MessageKey> = {
 
 function formatReportDuration(
   report: Report,
+  job: Job | undefined,
   t: (key: MessageKey, params?: Record<string, string | number>) => string,
 ): string | null {
-  if (!report.created_at || !report.finished_at) return null
-  const ms =
-    new Date(report.finished_at).getTime() - new Date(report.created_at).getTime()
-  if (!Number.isFinite(ms) || ms < 0) return null
-  const sec = Math.round(ms / 1000)
-  if (sec < 60) return t("reports.duration.seconds", { n: sec })
-  const m = Math.floor(sec / 60)
-  const s = sec % 60
-  if (m < 60) {
-    return s > 0
-      ? t("reports.duration.minutesSeconds", { m, s })
-      : t("reports.duration.minutes", { m })
-  }
-  const h = Math.floor(m / 60)
-  const rm = m % 60
-  return rm > 0
-    ? t("reports.duration.hoursMinutes", { h, m: rm })
-    : t("reports.duration.hours", { h })
+  if (report.job_id && !job) return null
+  const start = job?.started_at ?? job?.created_at ?? report.created_at
+  const end = job?.finished_at ?? report.finished_at
+  return formatElapsed(start, end, t, "reports.duration")
 }
 
-export function ReportPage() {
-  const { id } = useParams<{ id: string }>()
+export function ReportPage({
+  reportId,
+  embedded = false,
+  initialViewMode = "spinndoctor",
+}: {
+  reportId?: string
+  embedded?: boolean
+  initialViewMode?: ReportViewMode
+} = {}) {
+  const { id: idFromRoute } = useParams<{ id: string }>()
+  const id = reportId ?? idFromRoute
   const location = useLocation()
   const navigate = useNavigate()
   const { t } = useLocale()
   const { user } = useAuth()
-  const isBolagReport = location.pathname.startsWith("/bolag/reports/")
-  const Shell = isBolagReport ? NestedBolagPage : AdminShell
+  const { jobs } = useJobsRealtime()
+  const isBolagReport = embedded || location.pathname.startsWith("/bolag/reports/")
   const reportsListLabel = isBolagReport ? t("bolag.nav.reports") : t("reports.backToList")
-  const { reports, status: wsStatus, connected } = useReportsRealtime()
-  const report = id ? reports.find((r) => r.id === id) ?? null : null
+  const { reports } = useReportsRealtime()
+  const [fetchedReport, setFetchedReport] = useState<Report | null>(null)
+  const [reportMissing, setReportMissing] = useState(false)
+  const [fetchedJob, setFetchedJob] = useState<Job | undefined>(undefined)
+  const wsReport = id ? reports.find((r) => r.id === id) ?? null : null
+  const report = wsReport ?? fetchedReport
   const reportModules = reportModulesForUser(user)
   const reportsListPath = isBolagReport
     ? "/bolag/reports"
@@ -77,7 +94,7 @@ export function ReportPage() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const [viewMode, setViewMode] = useState<ReportViewMode>("spinndoctor")
+  const [viewMode, setViewMode] = useState<ReportViewMode>(initialViewMode)
   const [reportPanelOpen, setReportPanelOpen] = useState(false)
   const [reportFullWidth, setReportFullWidth] = useState(false)
   const [chatPanelOpen, setChatPanelOpen] = useState(true)
@@ -88,12 +105,55 @@ export function ReportPage() {
   const spinndoktorReady = report?.status === "succeeded" && html != null && id != null
 
   const error =
-    actionError ??
-    (id && report == null && !connected && wsStatus === "closed"
-      ? t("reports.loadError")
-      : id && report == null && wsStatus === "open"
-        ? t("reports.loadError")
-        : null)
+    actionError ?? (id && report == null && reportMissing ? t("reports.loadError") : null)
+
+  useEffect(() => {
+    if (!id) {
+      setFetchedReport(null)
+      setReportMissing(false)
+      return
+    }
+    let cancelled = false
+    setReportMissing(false)
+    void getReport(id)
+      .then((row) => {
+        if (cancelled) return
+        setFetchedReport(row)
+        setReportMissing(false)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setFetchedReport(null)
+        setReportMissing(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [id])
+
+  useEffect(() => {
+    const jobId = report?.job_id
+    if (!jobId) {
+      setFetchedJob(undefined)
+      return
+    }
+    const fromList = jobs.find((row) => row.id === jobId)
+    if (fromList) {
+      setFetchedJob(fromList)
+      return
+    }
+    let cancelled = false
+    void getJob(jobId)
+      .then((row) => {
+        if (!cancelled) setFetchedJob(row)
+      })
+      .catch(() => {
+        if (!cancelled) setFetchedJob(undefined)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [jobs, report?.job_id])
 
   useEffect(() => {
     if (!report || report.status !== "succeeded") {
@@ -237,10 +297,11 @@ export function ReportPage() {
     }
   }
 
-  const duration = report ? formatReportDuration(report, t) : null
+  const duration = report ? formatReportDuration(report, fetchedJob, t) : null
 
   const pageChrome = (
     <>
+      {embedded ? null : (
       <div className="section-head">
         <span className="kicker">{t("reports.kicker")}</span>
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -270,6 +331,7 @@ export function ReportPage() {
           ) : null}
         </div>
       </div>
+      )}
 
       {report && !isBolagReport ? (
         confirmDelete ? (
@@ -320,6 +382,14 @@ export function ReportPage() {
         </Card>
       ) : null}
 
+      {id && !report && !error ? (
+        <Card className="mb-4 gap-0 ring-1 ring-border">
+          <CardContent className="px-5 py-4 text-sm text-muted-foreground">
+            {t("reports.loadingHtml")}
+          </CardContent>
+        </Card>
+      ) : null}
+
       {report && (report.status === "pending" || report.status === "running") ? (
         <Card className="mb-4 gap-0 ring-1 ring-border">
           <CardContent className="px-5 py-4 text-sm text-muted-foreground">
@@ -346,8 +416,8 @@ export function ReportPage() {
 
   if (viewMode === "spinndoctor" && id && html) {
     return (
-      <Shell>
-        <div className="wrap spinndoctor-page">
+      <ReportShell embedded={embedded} isBolagReport={isBolagReport}>
+        <div className={"wrap spinndoctor-page" + (embedded ? " is-embedded" : "")}>
           <div className="spinndoctor-workspace">
             <main className="spinndoctor-workspace-grid">
               <SpinndoktorGrid
@@ -449,16 +519,19 @@ export function ReportPage() {
             </div>
           </div>
         </div>
-      </Shell>
+      </ReportShell>
     )
   }
 
   return (
-    <Shell>
-      <div className="wrap" style={{ maxWidth: reportFullWidth ? "none" : 1100 }}>
+    <ReportShell embedded={embedded} isBolagReport={isBolagReport}>
+      <div
+        className={embedded ? undefined : "wrap"}
+        style={embedded ? undefined : { maxWidth: reportFullWidth ? "none" : 1100 }}
+      >
         {pageChrome}
 
-        {report?.status === "succeeded" && html ? (
+        {!embedded && report?.status === "succeeded" && html ? (
           <div className="mb-4 flex flex-wrap gap-3 text-sm">
             <button
               type="button"
@@ -482,12 +555,16 @@ export function ReportPage() {
           <iframe
             title={report?.title || t("reports.iframeTitle")}
             srcDoc={html}
-            className="w-full rounded-md border border-db-ink-100 bg-white"
-            style={{ minHeight: "80vh" }}
+            className={
+              embedded
+                ? "dd-run-results-report w-full bg-white"
+                : "w-full rounded-md border border-db-ink-100 bg-white"
+            }
+            style={{ minHeight: embedded ? "calc(100vh - 140px)" : "80vh" }}
             sandbox="allow-same-origin allow-scripts allow-popups"
           />
         ) : null}
       </div>
-    </Shell>
+    </ReportShell>
   )
 }

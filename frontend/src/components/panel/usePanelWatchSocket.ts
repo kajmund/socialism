@@ -35,6 +35,7 @@ function asTurnPhase(value: unknown): PanelWatchTurnPhase | null {
     case "analysis":
     case "sub_question":
     case "score":
+    case "unanswered":
       return value
     default:
       return null

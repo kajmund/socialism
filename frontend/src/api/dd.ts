@@ -1,4 +1,5 @@
 import { api } from "@/lib/api"
+import type { Job } from "@/api/jobs"
 import { BOLAG_DEMO_CUSTOMER_ID } from "@/lib/scoping"
 
 export type DdResultatFilter = "vinst" | "förlust" | "oavsett"
@@ -67,10 +68,63 @@ export type DdCandidateCompany = {
   gasell?: boolean | null
 }
 
+export type DdResearchRelation = "kandidat" | "moderbolag" | "dotterbolag"
+
+export type DdResearchCompany = {
+  namn: string
+  orgnr: string
+  parent_orgnr?: string
+  relation: DdResearchRelation
+  nyckeltal: string[]
+  styrelse: string[]
+}
+
+export type DdResearchPersonSeat = {
+  namn: string
+  orgnr: string
+  roll: string
+}
+
+export type DdResearchPersonCompany = {
+  namn: string
+  orgnr: string
+}
+
+export type DdResearchWebHit = {
+  title: string
+  url: string
+  natverk?: string
+}
+
+export type DdResearchPerson = {
+  namn: string
+  roll: string
+  poster: DdResearchPersonSeat[]
+  bolag: DdResearchPersonCompany[]
+  web_hits: DdResearchWebHit[]
+}
+
+export type DdResearchPending = {
+  orgnr: string
+  namn: string
+}
+
+export type DdResearchDossier = {
+  companies: DdResearchCompany[]
+  people: DdResearchPerson[]
+  leftover: string[]
+  pending?: DdResearchPending[]
+  searched_names?: string[]
+  group_size?: number | null
+  job_id: string
+}
+
 export type DdCandidateRun = {
   candidate_id: string
   panel_session_id: string | null
   report_id: string | null
+  research: DdResearchDossier | null
+  research_job_id: string | null
   created_at?: string
   updated_at?: string
 }
@@ -143,6 +197,18 @@ export function updateDdCampaign(
 
 export function runDdCampaignSourcing(id: number): Promise<DdCampaign> {
   return api.post<DdCampaign>(`/dd/campaigns/${id}/sourcing/run`, {})
+}
+
+export function startDdCandidateResearch(
+  campaignId: number,
+  candidateId: string,
+  body?: { mode?: "group" | "people"; person_names?: string[]; continue_group?: boolean },
+): Promise<Job> {
+  return api.post<Job>(`/dd/campaigns/${campaignId}/candidates/${candidateId}/research`, body ?? {})
+}
+
+export function clearDdCandidateResearch(campaignId: number, candidateId: string): Promise<void> {
+  return api.delete(`/dd/campaigns/${campaignId}/candidates/${candidateId}/research`)
 }
 
 export function searchDdSourcing(criteria: DdSourcingCriteria): Promise<{ candidates: DdCandidateCompany[] }> {

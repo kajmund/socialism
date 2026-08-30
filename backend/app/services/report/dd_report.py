@@ -11,7 +11,12 @@ from typing import Any
 from app.services.dd.schemas import DdAccountYear, DdCandidateCompany
 from app.services.dd.source_attribution import SourceBadge, SourceKind
 from app.services.dd.sub_questions import DD_SUB_QUESTIONS
-from app.services.panel.schemas import DdDissensusNote, DdExpertScore, DdPanelResult
+from app.services.panel.schemas import (
+    DdDissensusNote,
+    DdExpertScore,
+    DdPanelResult,
+    DdUnansweredNote,
+)
 from app.services.report.locale import ReportLocale, normalize_locale
 from app.services.report.markdown_html import markdown_to_html
 from app.services.report.render import REPORT_FONTS_HREF, inject_report_theme
@@ -424,6 +429,29 @@ def _candidate_html(candidate: DdCandidateCompany, *, locale: ReportLocale) -> s
 """
 
 
+def _unanswered_banner(notes: list[DdUnansweredNote], *, locale: ReportLocale) -> str:
+    if not notes:
+        return ""
+    items = "".join(
+        f"<li><strong>{escape(n.sub_question_label)}</strong> — "
+        f"{escape(n.moderator_note)}</li>"
+        for n in notes
+    )
+    title = "Unanswered sub-questions" if locale == "en" else "Obesvarade delfrågor"
+    intro = (
+        "No expert raised a hand for the following sub-questions. Scoring was skipped."
+        if locale == "en"
+        else "Ingen expert räckte upp handen för följande delfrågor. Poängsättning hoppades över."
+    )
+    return f"""
+<div class="explainer ag-warn" id="obesvarade">
+  <strong>{title}</strong>
+  <p>{intro}</p>
+  <ul class="rec-list">{items}</ul>
+</div>
+"""
+
+
 def _dissensus_banner(notes: list[DdDissensusNote], *, locale: ReportLocale) -> str:
     if not notes:
         return ""
@@ -511,9 +539,18 @@ def _raw_score_table(result: DdPanelResult, *, locale: ReportLocale) -> str:
         by_key[(row.expert_slot_id, row.sub_question_id)] = row
 
     dissensus_ids = {n.sub_question_id for n in result.dissensus}
+    unanswered_ids = {n.sub_question_id for n in result.unanswered}
+
+    def _header_class(question_id: str) -> str:
+        classes: list[str] = []
+        if question_id in dissensus_ids:
+            classes.append("dissensus-col")
+        if question_id in unanswered_ids:
+            classes.append("unanswered-col")
+        return f' class="{" ".join(classes)}"' if classes else ""
+
     header_cells = "".join(
-        f'<th class="{"dissensus-col" if sq.id in dissensus_ids else ""}">'
-        f"{escape(sq.label)}</th>"
+        f"<th{_header_class(sq.id)}>{escape(sq.label)}</th>"
         for sq in DD_SUB_QUESTIONS
     )
     body_rows = []
@@ -614,6 +651,7 @@ def render_dd_html(
 .dd-matrix td, .dd-matrix th {{ vertical-align: top; }}
 .dd-matrix .badge {{ margin-left: 6px; margin-bottom: 0; }}
 th.dissensus-col {{ color: var(--warm-orange); }}
+th.unanswered-col {{ color: var(--text-muted); font-style: italic; }}
 .dd-accounts-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin: 12px 0 18px; }}
 .dd-year-chart {{ margin: 0; padding: 16px 16px 12px; }}
 .dd-year-chart svg {{ width: 100%; height: auto; display: block; }}
@@ -633,6 +671,7 @@ th.dissensus-col {{ color: var(--warm-orange); }}
   <div class="eyebrow">{eyebrow}</div>
   <h1>{escape(page_title)}</h1>
   {_dissensus_banner(result.dissensus, locale=locale)}
+  {_unanswered_banner(result.unanswered, locale=locale)}
   <section class="section" id="sammanfattning">
     <div class="eyebrow">{summary_heading}</div>
     <h2>{summary_heading}</h2>
@@ -675,6 +714,7 @@ def render_dd_html_from_artifact(
             "candidate": doc["candidate"],
             "scores": doc["scores"],
             "dissensus": doc.get("dissensus") or [],
+            "unanswered": doc.get("unanswered") or [],
             "summary": doc.get("summary") or "",
         }
     )
@@ -725,6 +765,7 @@ async def generate_dd_report_html(
         "candidate": result.candidate.model_dump(mode="json"),
         "scores": [s.model_dump(mode="json") for s in result.scores],
         "dissensus": [d.model_dump(mode="json") for d in result.dissensus],
+        "unanswered": [u.model_dump(mode="json") for u in result.unanswered],
         "summary": result.summary,
     }
     slots_doc = {

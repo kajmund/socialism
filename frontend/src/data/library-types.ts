@@ -13,6 +13,7 @@ export type LibraryPersona = {
   updated: string
   origin: PersonaOrigin
   profile: EditablePersona
+  tools?: string[] | null
 }
 
 export type PopulationSummary = {

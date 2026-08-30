@@ -20,11 +20,13 @@ export type PersonaWrite = {
   quote?: string
   origin?: PersonaOrigin
   profile?: EditablePersona
+  tools?: string[]
 }
 
 export type PersonaWriteOptions = {
   kind?: PersonaKind
   customerId?: number
+  tools?: string[]
 }
 
 export function editableToWrite(
@@ -48,6 +50,7 @@ export function editableToWrite(
       quote: quote || persona.beskrivning || "",
       origin,
       profile: persona,
+      tools: options.tools,
     }
   }
   const age = Number.parseInt(persona.age, 10)

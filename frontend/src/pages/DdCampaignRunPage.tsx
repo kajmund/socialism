@@ -1,11 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Link, Navigate, useParams, useSearchParams } from "react-router-dom"
 import {
+  clearDdCandidateResearch,
   getDdCampaign,
+  startDdCandidateResearch,
   updateDdCampaign,
   type DdCampaign,
   type DdCandidateCompany,
 } from "@/api/dd"
+import type { Job, JobStatus } from "@/api/jobs"
 import { listPopulations } from "@/api/populations"
 import type { PopulationSummary } from "@/data/library-types"
 import {
@@ -14,10 +17,13 @@ import {
   runPanelSession,
   type PanelSessionStatus,
 } from "@/api/panel"
-import { createDdReport, type Report } from "@/api/reports"
+import { createDdReport } from "@/api/reports"
+import { DdResearchTab, type ResearchSubTab } from "@/components/dd/DdResearchTab"
+import { ReportPage } from "@/pages/ReportPage"
 import { NestedBolagPage } from "@/components/layout/BolagShell"
 import { rememberJobPending } from "@/components/layout/AdminShell"
 import { PanelLiveFeedPanel } from "@/components/panel/PanelLiveFeedPanel"
+import { Card, CardContent } from "@/components/ui/card"
 import { useLocale } from "@/i18n"
 import { ApiError } from "@/lib/api"
 import {
@@ -29,10 +35,16 @@ import { cn } from "@/lib/utils"
 import { useJobsRealtime } from "@/realtime/JobsRealtimeProvider"
 import { useReportsRealtime } from "@/realtime/ReportsRealtimeProvider"
 
-type RunTab = "config" | "results"
+type RunTab = "config" | "research" | "results"
 
 function parseTab(raw: string | null): RunTab {
-  return raw === "results" ? "results" : "config"
+  if (raw === "results") return "results"
+  if (raw === "research") return "research"
+  return "config"
+}
+
+function parseResearchSub(raw: string | null): ResearchSubTab {
+  return raw === "people" ? "people" : "group"
 }
 
 function panelStatusClass(status: PanelSessionStatus | null): string {
@@ -42,7 +54,7 @@ function panelStatusClass(status: PanelSessionStatus | null): string {
   return "job-status"
 }
 
-function reportStatusClass(status: Report["status"] | null): string {
+function researchStatusClass(status: JobStatus): string {
   if (status === "succeeded") return "job-status succeeded"
   if (status === "failed") return "job-status failed"
   if (status === "running" || status === "pending") return "job-status running"
@@ -55,9 +67,9 @@ export function DdCampaignRunPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const campaignId = id ? Number(id) : NaN
   const activeTab = parseTab(searchParams.get("tab"))
+  const researchSub = parseResearchSub(searchParams.get("sub"))
 
   const { jobs } = useJobsRealtime()
-  const { reports } = useReportsRealtime()
 
   const [campaign, setCampaign] = useState<DdCampaign | null>(null)
   const [expertPanels, setExpertPanels] = useState<PopulationSummary[]>([])
@@ -65,10 +77,15 @@ export function DdCampaignRunPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [starting, setStarting] = useState(false)
+  const [startingResearch, setStartingResearch] = useState(false)
+  const [clearingResearch, setClearingResearch] = useState(false)
+  const [selectedPeople, setSelectedPeople] = useState<Set<string>>(new Set())
   const [error, setError] = useState<string | null>(null)
   const [confirmRerun, setConfirmRerun] = useState(false)
-  const reportCreateStarted = useRef(false)
+  const [localReportId, setLocalReportId] = useState<string | null>(null)
   const defaultedTab = useRef(false)
+  const refreshedResearchJob = useRef<string | null>(null)
+  const { reports } = useReportsRealtime()
 
   const candidate: DdCandidateCompany | null =
     campaign && candidateId
@@ -76,10 +93,34 @@ export function DdCampaignRunPage() {
       : null
   const run = campaign && candidateId ? runForCandidate(campaign, candidateId) : undefined
   const panelId = campaign && candidateId ? assignedPanelId(campaign, candidateId) : null
-  const reportId = run?.report_id ?? null
-  const liveReport = reportId ? reports.find((row) => row.id === reportId) : null
-  const reportStatus = liveReport?.status ?? null
   const panelSessionId = run?.panel_session_id ?? null
+  const inferredReportId = reports.find((row) =>
+    row.sources.some(
+      (src) =>
+        src.type === "dd_session" &&
+        ((panelSessionId != null && src.session_id === panelSessionId) ||
+          src.candidate_id === candidateId),
+    ),
+  )?.id
+  const reportId = run?.report_id ?? localReportId ?? inferredReportId ?? null
+
+  const researchJob = useMemo(() => {
+    const byId = run?.research_job_id
+      ? jobs.find((job) => job.id === run.research_job_id)
+      : undefined
+    if (byId) return byId
+    const matches = jobs.filter(
+      (job) =>
+        job.kind === "dd_research" &&
+        job.request?.campaign_id === campaignId &&
+        job.request?.candidate_id === candidateId,
+    )
+    return matches.sort((a, b) => (a.created_at < b.created_at ? 1 : -1))[0] as Job | undefined
+  }, [campaignId, candidateId, jobs, run?.research_job_id])
+  const isResearching =
+    startingResearch ||
+    researchJob?.status === "pending" ||
+    researchJob?.status === "running"
 
   const jobStatus = jobs.find(
     (job) =>
@@ -102,7 +143,11 @@ export function DdCampaignRunPage() {
     panelSessionId != null &&
     (isRunning || livePanelStatus === "succeeded" || livePanelStatus === "failed")
 
-  function setTab(tab: RunTab) {
+  function setTab(tab: RunTab, sub?: ResearchSubTab) {
+    if (tab === "research") {
+      setSearchParams({ tab, sub: sub ?? researchSub }, { replace: true })
+      return
+    }
     setSearchParams({ tab }, { replace: true })
   }
 
@@ -164,25 +209,45 @@ export function DdCampaignRunPage() {
   }, [campaign, runStatus, searchParams, setSearchParams])
 
   useEffect(() => {
-    reportCreateStarted.current = Boolean(run?.report_id)
-  }, [run?.report_id])
+    if (!candidate || !panelSessionId) return
+    if (livePanelStatus !== "succeeded") return
+    if (run?.report_id || localReportId) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const created = await createDdReport({
+          session_id: panelSessionId,
+          candidate_id: candidate.id,
+          title: t("dd.panel.reportTitle", { name: candidate.namn }),
+          locale,
+        })
+        if (cancelled) return
+        setLocalReportId(created.id)
+        await refreshCampaign()
+      } catch (err: unknown) {
+        if (cancelled) return
+        setError(err instanceof ApiError ? err.message : t("dd.panel.reportCreateError"))
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [candidate, locale, livePanelStatus, localReportId, panelSessionId, refreshCampaign, run?.report_id, t])
 
   useEffect(() => {
-    if (!candidate || !panelSessionId || run?.report_id || reportCreateStarted.current) return
-    if (livePanelStatus !== "succeeded") return
-    reportCreateStarted.current = true
-    void createDdReport({
-      session_id: panelSessionId,
-      candidate_id: candidate.id,
-      title: t("dd.panel.reportTitle", { name: candidate.namn }),
-      locale,
-    })
-      .then(() => refreshCampaign())
-      .catch((err: unknown) => {
-        reportCreateStarted.current = false
-        setError(err instanceof ApiError ? err.message : t("dd.panel.reportCreateError"))
-      })
-  }, [candidate, locale, livePanelStatus, panelSessionId, refreshCampaign, run?.report_id, t])
+    if (researchJob == null) return
+    if (researchJob.status !== "succeeded" && researchJob.status !== "failed") return
+    if (refreshedResearchJob.current === researchJob.id) return
+    refreshedResearchJob.current = researchJob.id
+    void refreshCampaign()
+  }, [researchJob, refreshCampaign])
+
+  const peopleRoster = run?.research?.people ?? []
+  const isGroupJob = isResearching && researchJob?.request?.mode !== "people"
+  const isContinueJob = Boolean(isGroupJob && researchJob?.request?.continue_group)
+  useEffect(() => {
+    setSelectedPeople(new Set(peopleRoster.map((person) => person.namn)))
+  }, [run?.research?.job_id])
 
   async function persistPanel(nextPanelId: number | null) {
     if (!campaign || !candidateId) return
@@ -199,6 +264,71 @@ export function DdCampaignRunPage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  async function startResearch(
+    mode: "group" | "people",
+    personNames: string[] = [],
+    continueGroup = false,
+  ) {
+    if (!campaign || !candidate) return
+    if (mode === "group" && !continueGroup && run?.research != null) {
+      setError(t("dd.panel.researchNeedClearGroup"))
+      return
+    }
+    if (mode === "people" && run?.research == null) {
+      setError(t("dd.panel.researchPeopleNeedGroup"))
+      return
+    }
+    if (mode === "people" && personNames.length === 0) {
+      setError(t("dd.panel.researchPeopleNeedSelection"))
+      return
+    }
+    if (mode === "group" && continueGroup && (run?.research?.pending?.length ?? 0) === 0) {
+      setError(t("dd.panel.researchNeedPending"))
+      return
+    }
+    setStartingResearch(true)
+    setError(null)
+    try {
+      const job = await startDdCandidateResearch(campaign.id, candidate.id, {
+        mode,
+        person_names: personNames,
+        continue_group: continueGroup,
+      })
+      rememberJobPending(job.id)
+      refreshedResearchJob.current = null
+      await refreshCampaign()
+      setTab("research", mode === "people" ? "people" : "group")
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("dd.panel.researchError"))
+    } finally {
+      setStartingResearch(false)
+    }
+  }
+
+  async function clearResearch() {
+    if (!campaign || !candidate) return
+    setClearingResearch(true)
+    setError(null)
+    try {
+      await clearDdCandidateResearch(campaign.id, candidate.id)
+      setSelectedPeople(new Set())
+      await refreshCampaign()
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("dd.panel.researchClearError"))
+    } finally {
+      setClearingResearch(false)
+    }
+  }
+
+  function togglePerson(name: string, checked: boolean) {
+    setSelectedPeople((prev) => {
+      const next = new Set(prev)
+      if (checked) next.add(name)
+      else next.delete(name)
+      return next
+    })
   }
 
   async function startRun() {
@@ -258,184 +388,228 @@ export function DdCampaignRunPage() {
     )
   }
 
+  const researchMapped = Boolean(run?.research && run.research.companies.length > 0)
+
+  const tabList = (
+    <div
+      role="tablist"
+      aria-label={t("dd.panel.runTablistAria")}
+      className="dd-run-chrome-tabs flex flex-wrap gap-1"
+    >
+      {(
+        [
+          { id: "config" as const, label: t("dd.panel.runTabConfig") },
+          { id: "research" as const, label: t("dd.panel.runTabResearch") },
+          { id: "results" as const, label: t("dd.panel.runTabResults") },
+        ] as const
+      ).map((tab) => {
+        const selected = tab.id === activeTab
+        return (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            id={`dd-run-tab-${tab.id}`}
+            aria-selected={selected}
+            aria-controls={`dd-run-panel-${tab.id}`}
+            tabIndex={selected ? 0 : -1}
+            className={cn(
+              "-mb-px border-b-2 px-3 py-2 text-sm",
+              selected
+                ? "border-db-ink-950 font-medium text-[color:var(--text-body)]"
+                : "border-transparent text-muted-foreground hover:text-[color:var(--text-body)]",
+            )}
+            onClick={() => setTab(tab.id)}
+          >
+            {tab.label}
+            {tab.id === "results" && runStatus === "running" ? (
+              <span className="ml-2 inline-block h-1.5 w-1.5 rounded-full bg-db-gold-500 align-middle" />
+            ) : null}
+          </button>
+        )
+      })}
+    </div>
+  )
+
   return (
     <NestedBolagPage>
-      <div className="wrap">
-        {activeTab === "results" ? (
-          <div className="results-nav">
+      <div className="wrap dd-run-page admin-page">
+        <div className="admin-page-chrome">
+          <div className="dd-run-chrome">
             <Link to={`/bolag/campaigns/${campaign.id}?tab=run`}>{t("dd.panel.runDetailBack")}</Link>
-            <Link to={`/bolag/campaigns/${campaign.id}/runs/${candidate.id}?tab=config`}>
-              {t("dd.panel.runConfiguration")}
-            </Link>
-          </div>
-        ) : (
-          <div className="crumb">
-            <Link to={`/bolag/campaigns/${campaign.id}?tab=run`}>{t("dd.panel.runDetailBack")}</Link>
-          </div>
-        )}
-
-        {activeTab === "config" ? (
-          <div className="head-row">
-            <div>
-              <h1>{candidate.namn}</h1>
-              <p>{t("dd.panel.runConfigIntro")}</p>
-            </div>
-          </div>
-        ) : null}
-
-        {activeTab === "config" ? (
-          <div
-            role="tablist"
-            aria-label={t("dd.panel.runTablistAria")}
-            className="mb-6 flex flex-wrap gap-1 border-b border-[color:var(--border-hairline)]"
-          >
-            {(
-              [
-                { id: "config" as const, label: t("dd.panel.runTabConfig") },
-                { id: "results" as const, label: t("dd.panel.runTabResults") },
-              ] as const
-            ).map((tab) => {
-              const selected = tab.id === activeTab
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  role="tab"
-                  id={`dd-run-tab-${tab.id}`}
-                  aria-selected={selected}
-                  aria-controls={`dd-run-panel-${tab.id}`}
-                  tabIndex={selected ? 0 : -1}
-                  className={cn(
-                    "-mb-px border-b-2 px-3 py-2 text-sm",
-                    selected
-                      ? "border-db-ink-950 font-medium text-[color:var(--text-body)]"
-                      : "border-transparent text-muted-foreground hover:text-[color:var(--text-body)]",
-                  )}
-                  onClick={() => setTab(tab.id)}
-                >
-                  {tab.label}
-                  {tab.id === "results" && runStatus === "running" ? (
-                    <span className="ml-2 inline-block h-1.5 w-1.5 rounded-full bg-db-gold-500 align-middle" />
-                  ) : null}
-                </button>
-              )
-            })}
-          </div>
-        ) : null}
-
-        {error ? (
-          <div className="no-match mb-4" style={{ textAlign: "left" }} role="alert">
-            {error}
-          </div>
-        ) : null}
-
-        {activeTab === "config" ? (
-          <div id="dd-run-panel-config" role="tabpanel" aria-labelledby="dd-run-tab-config">
-            <label className="mb-6 flex max-w-md flex-col gap-1 text-sm">
-              <span className="text-muted-foreground">
-                {t("dd.panel.candidatePanelLabel", { name: candidate.namn })}
-              </span>
-              {expertPanels.length === 0 ? (
-                <p className="text-muted-foreground">
-                  {t("dd.panel.panelsEmpty")}{" "}
-                  <Link to="/bolag/expertpaneler/new">{t("dd.panel.createExpertPanel")}</Link>
-                </p>
-              ) : (
-                <select
-                  className="dsel"
-                  value={panelId ?? ""}
-                  disabled={saving || isRunning}
-                  onChange={(e) => {
-                    const value = e.target.value
-                    void persistPanel(value ? Number(value) : null)
-                  }}
-                >
-                  <option value="">{t("dd.panel.expertPanelPlaceholder")}</option>
-                  {expertPanels.map((panel) => (
-                    <option key={panel.id} value={panel.id}>
-                      {panel.name} ({panel.size})
-                    </option>
-                  ))}
-                </select>
-              )}
-            </label>
-            {confirmRerun ? (
-              <div className="confirm-row flex flex-col gap-3 text-sm">
-                <p>{t("dd.panel.rerunConfirmMessage")}</p>
-                <div className="flex flex-wrap gap-2">
-                  <button type="button" onClick={() => setConfirmRerun(false)}>
-                    {t("common.cancel")}
-                  </button>
+            {tabList}
+            <div className="dd-run-chrome-aside">
+              {activeTab === "config" ? (
+                confirmRerun ? (
+                  <>
+                    <button type="button" className="btn-save" onClick={() => setConfirmRerun(false)}>
+                      {t("common.cancel")}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-run"
+                      disabled={isRunning || saving || panelId == null}
+                      onClick={() => void startRun()}
+                    >
+                      {t("dd.panel.rerunConfirmContinue")}
+                    </button>
+                  </>
+                ) : (
                   <button
                     type="button"
-                    className="primary"
+                    className="btn-run"
                     disabled={isRunning || saving || panelId == null}
-                    onClick={() => void startRun()}
+                    onClick={() => {
+                      if (reportId) setConfirmRerun(true)
+                      else void startRun()
+                    }}
                   >
-                    {t("dd.panel.rerunConfirmContinue")}
+                    {isRunning ? t("dd.panel.runningPanel") : t("dd.panel.runPanel")}
                   </button>
-                </div>
-              </div>
-            ) : (
-              <button
-                type="button"
-                className="primary"
-                disabled={isRunning || saving || panelId == null}
-                onClick={() => {
-                  if (reportId) setConfirmRerun(true)
-                  else void startRun()
-                }}
-              >
-                {isRunning ? t("dd.panel.runningPanel") : t("dd.panel.runPanel")}
-              </button>
-            )}
+                )
+              ) : activeTab === "results" && reportId ? (
+                <Link to={`/bolag/reports/${reportId}`} className="btn-save">
+                  {t("spinndoctor.viewSpinndoktor")}
+                </Link>
+              ) : null}
+            </div>
           </div>
-        ) : (
-          <div id="dd-run-panel-results" role="tabpanel" aria-labelledby="dd-run-tab-results">
-            {runStatus === "draft" && !showLiveFeed ? (
-              <div className="no-match" style={{ textAlign: "left" }}>
-                <p className="font-medium">{t("dd.panel.runEmptyResultsTitle")}</p>
-                <p className="mt-2 text-sm text-muted-foreground">{t("dd.panel.runEmptyResultsBody")}</p>
-                <button type="button" className="primary mt-4" onClick={() => setTab("config")}>
-                  {t("dd.panel.runGoToConfig")}
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex flex-wrap items-center gap-3">
+
+          {activeTab === "config" && confirmRerun ? (
+            <p className="mb-4 text-sm text-muted-foreground">{t("dd.panel.rerunConfirmMessage")}</p>
+          ) : null}
+
+          {error ? (
+            <div className="no-match mb-4 text-left" role="alert">
+              {error}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="admin-page-body">
+          {activeTab === "config" ? (
+            <div id="dd-run-panel-config" role="tabpanel" aria-labelledby="dd-run-tab-config">
+              <Card className="id-card mb-9 gap-0 overflow-visible py-0 ring-1 ring-border">
+                <CardContent className="px-0">
+                  <div className="id-grid id-grid-3">
+                    <div className="id-field">
+                      <label htmlFor="dd-run-company">{t("dd.panel.runConfigCompany")}</label>
+                      <div id="dd-run-company" className="text-sm">
+                        <div className="font-medium">{candidate.namn}</div>
+                        <div className="text-muted-foreground">
+                          {candidate.organisationsnummer || t("common.emDash")}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="id-field">
+                      <label htmlFor="dd-run-panel">{t("dd.panel.expertPanelLabel")}</label>
+                      {expertPanels.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                          {t("dd.panel.panelsEmpty")}{" "}
+                          <Link to="/bolag/expertpaneler/new">{t("dd.panel.createExpertPanel")}</Link>
+                        </p>
+                      ) : (
+                        <select
+                          id="dd-run-panel"
+                          className="dsel w-full"
+                          value={panelId ?? ""}
+                          disabled={saving || isRunning}
+                          onChange={(e) => {
+                            const value = e.target.value
+                            void persistPanel(value ? Number(value) : null)
+                          }}
+                        >
+                          <option value="">{t("dd.panel.expertPanelPlaceholder")}</option>
+                          {expertPanels.map((panel) => (
+                            <option key={panel.id} value={panel.id}>
+                              {panel.name} ({panel.size})
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                    <div className="id-field">
+                      <label>{t("dd.panel.runConfigResearchSummary")}</label>
+                      <p className="mb-3 text-sm text-muted-foreground">
+                        {researchMapped
+                          ? t("dd.panel.runConfigResearchMapped", {
+                              companies: run?.research?.companies.length ?? 0,
+                              people: run?.research?.people.length ?? 0,
+                            })
+                          : t("dd.panel.runConfigResearchNone")}
+                      </p>
+                      <div className="start-buttons">
+                        {researchJob ? (
+                          <span className={researchStatusClass(researchJob.status)}>
+                            {t(`dd.panel.researchStatus.${researchJob.status}`)}
+                          </span>
+                        ) : null}
+                        <button type="button" className="btn-save" onClick={() => setTab("research")}>
+                          {t("dd.panel.researchOpen")}
+                        </button>
+                      </div>
+                      {researchJob?.status === "failed" && researchJob.error ? (
+                        <p className="mt-2 text-sm text-muted-foreground" role="alert">
+                          {researchJob.error}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          ) : activeTab === "research" ? (
+            <DdResearchTab
+              dossier={run?.research ?? null}
+              subTab={researchSub}
+              onSubTab={(sub) => setTab("research", sub)}
+              selected={selectedPeople}
+              disabled={isResearching}
+              clearing={clearingResearch}
+              isGroupJob={isGroupJob}
+              isContinueJob={isContinueJob}
+              researchJob={researchJob}
+              companyName={candidate.namn}
+              companyOrgnr={candidate.organisationsnummer}
+              runCreatedAt={run?.created_at}
+              onMapGroup={() => void startResearch("group")}
+              onMapMore={() => void startResearch("group", [], true)}
+              onClear={() => void clearResearch()}
+              onToggle={togglePerson}
+              onInvestigate={() => void startResearch("people", [...selectedPeople])}
+              onInvestigateAll={() =>
+                void startResearch(
+                  "people",
+                  peopleRoster.map((person) => person.namn),
+                )
+              }
+              t={t}
+            />
+          ) : (
+            <div id="dd-run-panel-results" role="tabpanel" aria-labelledby="dd-run-tab-results">
+              {reportId ? (
+                <ReportPage reportId={reportId} embedded initialViewMode="report" />
+              ) : showLiveFeed && panelSessionId ? (
+                <div className="space-y-4">
                   {livePanelStatus ? (
                     <span className={panelStatusClass(livePanelStatus)}>
                       {t(`dd.panel.panelStatus.${livePanelStatus}`)}
                     </span>
                   ) : null}
-                  {reportId && (reportStatus === "pending" || reportStatus === "running") ? (
-                    <span className={reportStatusClass(reportStatus)}>
-                      {t("dd.panel.generatingReport")}
-                    </span>
-                  ) : null}
-                  {reportId && reportStatus === "failed" ? (
-                    <span className={reportStatusClass(reportStatus)}>
-                      {t("dd.panel.reportFailed")}
-                    </span>
-                  ) : null}
-                  {reportId && reportStatus === "succeeded" ? (
-                    <Link className="primary" to={`/bolag/reports/${reportId}`}>
-                      {t("dd.panel.openReport")}
-                    </Link>
-                  ) : null}
-                  {reportId && reportStatus == null ? (
-                    <span className={reportStatusClass("pending")}>
-                      {t("dd.panel.generatingReport")}
-                    </span>
-                  ) : null}
-                </div>
-                {showLiveFeed && panelSessionId ? (
                   <PanelLiveFeedPanel sessionId={panelSessionId} enabled={showLiveFeed} />
-                ) : null}
-              </div>
-            )}
-          </div>
-        )}
+                </div>
+              ) : (
+                <div className="no-match text-left">
+                  <p className="font-medium">{t("dd.panel.runEmptyResultsTitle")}</p>
+                  <p className="mt-2 text-sm text-muted-foreground">{t("dd.panel.runEmptyResultsBody")}</p>
+                  <button type="button" className="btn-run mt-4" onClick={() => setTab("config")}>
+                    {t("dd.panel.runGoToConfig")}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </NestedBolagPage>
   )
