@@ -12,19 +12,11 @@ from app.services.report.metrics import compute_report_metrics
 from app.services.report.persona_bio import build_agent_bio_by_index, persona_profile_line
 from app.services.report.tick_report import extract_interview_qa
 from app.services.spindoctor_context import load_spindoctor_source
+from app.services.spindoctor_tool_names import SPINDOCTOR_OASIS_TOOL_NAMES
 
 ReactionKind = Literal["post", "comment", "any"]
 
-SPINDOCTOR_TOOL_NAMES = frozenset(
-    {
-        "get_test_message",
-        "get_run",
-        "search_reactions",
-        "list_interviews",
-        "list_actors",
-        "get_citizen",
-    }
-)
+SPINDOCTOR_TOOL_NAMES = SPINDOCTOR_OASIS_TOOL_NAMES
 
 _TEXT_CHARS = 400
 _MAX_SEARCH = 40

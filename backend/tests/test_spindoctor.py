@@ -27,10 +27,10 @@ from app.services.spindoctor_chat import (
     list_spindoctor_messages,
     stream_spindoctor_chat_turn,
 )
-from app.services.spindoctor_context import (
+from app.services.spindoctor_context import build_spindoctor_context
+from app.services.spindoctor_politik import (
     _confidence_notes,
     _thresholds_from_ssr_doc,
-    build_spindoctor_context,
 )
 from app.services.spindoctor_tools import run_spindoctor_tool
 from app.services.report.metrics import compute_report_metrics

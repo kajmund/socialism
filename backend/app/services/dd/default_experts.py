@@ -1,4 +1,4 @@
-"""Default DD expert personas (migrated from dd_expertpanel catalog)."""
+"""Default DD expert personas (seeded from panel_expert_profiles catalog)."""
 
 from __future__ import annotations
 
@@ -10,7 +10,12 @@ from app.serializers import persona_initials, utcnow
 from app.services.dd.expert_keys import expert_role_key
 from app.services.expert_tools import default_expert_tools
 from app.services.kund_store import bolag_demo_customer_id
+from app.services.panel.expert_profiles_store import (
+    ensure_expert_profile_defaults,
+    get_expert_profiles,
+)
 
+# Seed data for PanelExpertProfile (and MODULE_REGISTRY.expert_defaults_provider).
 DEFAULT_EXPERT_SPECS: list[dict[str, str]] = [
     {
         "name": "Finansiell analytiker",
@@ -51,16 +56,24 @@ def _expert_persona_id(name: str) -> str:
     return f"exp_{expert_role_key(name)}"
 
 
-def _profile_from_spec(spec: dict[str, str]) -> dict:
+def _profile_from_fields(
+    *,
+    name: str,
+    description: str,
+    kompetensomrade: str,
+    radgivningsstil: str,
+    yrkesbakgrund: str,
+    professionell_anekdot: str,
+) -> dict:
     profile = EditablePersona(
-        name=spec["name"],
-        initials=persona_initials(spec["name"]),
-        yrke=spec["yrkesbakgrund"],
-        kompetensomrade=spec["kompetensomrade"],
-        radgivningsstil=spec["radgivningsstil"],
-        yrkesbakgrund=spec["yrkesbakgrund"],
-        professionell_anekdot=spec["professionell_anekdot"],
-        beskrivning=spec["description"],
+        name=name,
+        initials=persona_initials(name),
+        yrke=yrkesbakgrund,
+        kompetensomrade=kompetensomrade,
+        radgivningsstil=radgivningsstil,
+        yrkesbakgrund=yrkesbakgrund,
+        professionell_anekdot=professionell_anekdot,
+        beskrivning=description,
     )
     return profile.model_dump()
 
@@ -70,11 +83,16 @@ async def ensure_default_expert_personas(
     *,
     customer_id: int | None = None,
 ) -> list[Persona]:
-    """Idempotently seed the four default DD experts as Persona rows."""
+    """Idempotently seed default DD experts as Persona rows from the catalog store."""
+    await ensure_expert_profile_defaults(session, "dd", DEFAULT_EXPERT_SPECS)
+    profiles = await get_expert_profiles(session, "dd")
+    if not profiles:
+        raise RuntimeError("No active panel expert profiles for module 'dd'")
+
     cid = customer_id if customer_id is not None else await bolag_demo_customer_id(session)
     created: list[Persona] = []
-    for spec in DEFAULT_EXPERT_SPECS:
-        persona_id = _expert_persona_id(spec["name"])
+    for profile in profiles:
+        persona_id = _expert_persona_id(profile.name)
         existing = await session.get(Persona, persona_id)
         if existing is not None:
             if existing.tools is None:
@@ -84,13 +102,20 @@ async def ensure_default_expert_personas(
             id=persona_id,
             customer_id=cid,
             kind="expert",
-            name=spec["name"],
+            name=profile.name,
             age=None,
-            occ=spec["yrkesbakgrund"],
+            occ=profile.yrkesbakgrund,
             district="—",
-            quote=spec["description"],
+            quote=profile.description,
             origin="manuell",
-            profile=_profile_from_spec(spec),
+            profile=_profile_from_fields(
+                name=profile.name,
+                description=profile.description,
+                kompetensomrade=profile.kompetensomrade,
+                radgivningsstil=profile.radgivningsstil,
+                yrkesbakgrund=profile.yrkesbakgrund,
+                professionell_anekdot=profile.professionell_anekdot,
+            ),
             tools=default_expert_tools(),
             updated_at=utcnow(),
         )
