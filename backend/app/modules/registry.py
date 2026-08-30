@@ -18,7 +18,7 @@ from app.services.dd.default_experts import DEFAULT_EXPERT_SPECS
 from app.services.dd.sub_questions import DD_SUB_QUESTION_DEFAULTS
 from app.services.spindoctor_dd import build_dd_spindoctor_context_block
 from app.services.spindoctor_politik import build_politik_spindoctor_context_block
-from app.services.spindoctor_tools import SPINDOCTOR_TOOL_NAMES
+from app.services.spindoctor_tool_names import SPINDOCTOR_OASIS_TOOL_NAMES
 
 _politik_router = APIRouter(tags=["politik"])
 _politik_router.include_router(runs.router)
@@ -55,7 +55,7 @@ MODULE_REGISTRY: dict[str, ModuleManifest] = {
         components=frozenset({"personas", "interview", "spindoctor"}),
         spindoctor=SpindoctorBinding(
             context_builder=build_politik_spindoctor_context_block,
-            mcp_tool_names=frozenset({"get_report_ssr"}) | SPINDOCTOR_TOOL_NAMES,
+            mcp_tool_names=frozenset({"get_report_ssr"}) | SPINDOCTOR_OASIS_TOOL_NAMES,
             supports_interview=True,
         ),
     ),

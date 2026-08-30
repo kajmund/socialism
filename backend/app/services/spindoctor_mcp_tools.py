@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database.models import PersonaMessage, Population, Report, Run
+from app.modules.registry import MODULE_REGISTRY, module_id_for_report_mode
 from app.schemas.domain import SpindoctorWidgetOut
 from app.serializers import format_date, utcnow
 from app.services.dd.company_mcp import (
@@ -107,8 +108,6 @@ _GENERIC_ALWAYS_TOOL_NAMES = (
 
 def allowed_spindoctor_tool_names(module_id: str) -> frozenset[str]:
     """Tool names exposed for a product module (binding + always-generic)."""
-    from app.modules.registry import MODULE_REGISTRY
-
     manifest = MODULE_REGISTRY.get(module_id)
     if manifest is None:
         raise ValueError(f"Unknown module_id: {module_id!r}")
@@ -917,8 +916,6 @@ async def run_spindoctor_mcp_tool(
 ) -> str:
     module_id = ctx.module_id
     if module_id is None and ctx.report_id:
-        from app.modules.registry import module_id_for_report_mode
-
         report = await session.get(Report, ctx.report_id)
         if report is not None:
             module_id = module_id_for_report_mode(report.mode)
