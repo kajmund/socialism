@@ -832,3 +832,62 @@ class PanelSession(Base):
         onupdate=func.now(),
         nullable=False,
     )
+
+
+class PanelSubQuestion(Base):
+    """Modul-skopade bedömningsdimensioner för Expertpanel-motorn."""
+
+    __tablename__ = "panel_sub_questions"
+    __table_args__ = (
+        UniqueConstraint("module", "key", name="uq_panel_sub_questions_module_key"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    module: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    key: Mapped[str] = mapped_column(String(64), nullable=False)
+    label: Mapped[str] = mapped_column(String(255), nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+
+class PanelExpertProfile(Base):
+    """Modul-skopade default-expertprofiler (katalog/seed, parallellt med Persona)."""
+
+    __tablename__ = "panel_expert_profiles"
+    __table_args__ = (
+        UniqueConstraint("module", "key", name="uq_panel_expert_profiles_module_key"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    module: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    key: Mapped[str] = mapped_column(String(64), nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    kompetensomrade: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    radgivningsstil: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    yrkesbakgrund: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    professionell_anekdot: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )

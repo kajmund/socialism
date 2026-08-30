@@ -12,10 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import Report
 from app.services.report import ARTIFACT_ROOT
 from app.services.report.bundles import RunBundle, build_bundles
-from app.services.spindoctor_dd import (
-    build_dd_spindoctor_context_block,
-    load_dd_report_json,
-)
+from app.services.spindoctor_dd import load_dd_report_json
 from app.services.report.classify import TONE_LABELS
 from app.services.report.locale import display_style_label, normalize_locale
 from app.services.report.metrics import compute_report_metrics, pct
@@ -246,56 +243,25 @@ def _section_ref_catalog(*, locale: str) -> str:
     )
 
 
-async def load_spindoctor_source(
-    session: AsyncSession,
+def build_politik_spindoctor_context_block(
     *,
+    title: str,
+    locale: str,
+    sources: list,
+    bundles: list[RunBundle],
     report_id: str,
-) -> tuple[Report, list[RunBundle]]:
-    """Load a ready report and its run bundles. Raises ValueError if not usable."""
-    report = await session.get(Report, report_id)
-    if report is None:
-        raise ValueError(f"Report {report_id!r} not found")
-    if report.status != "succeeded":
-        raise ValueError(f"Report {report_id!r} is not ready (status={report.status})")
-    sources = report.sources if isinstance(report.sources, list) else []
-    if not sources:
-        raise ValueError(f"Report {report_id!r} has no sources")
-    if report.mode == "dd":
-        if load_dd_report_json(report_id) is None:
-            raise ValueError(f"report.dd.json not found for {report_id!r}")
-        return report, []
-    return report, await build_bundles(session, sources)
-
-
-async def build_spindoctor_context(
-    session: AsyncSession,
-    *,
-    report_id: str,
-) -> tuple[Report, str]:
-    """Return report row and formatted context block for the system prompt."""
-    report, bundles = await load_spindoctor_source(session, report_id=report_id)
-    locale = normalize_locale(report.locale or "sv")
-    if report.mode == "dd":
-        dd_doc = load_dd_report_json(report_id)
-        if dd_doc is None:
-            raise ValueError(f"report.dd.json not found for {report_id!r}")
-        context = build_dd_spindoctor_context_block(
-            dd_doc,
-            locale=locale,
-            title=report.title or report_id,
-        )
-        return report, context
-    sources = report.sources if isinstance(report.sources, list) else []
+) -> str:
+    """Format OASIS/politik report context for the Spinndoktor system prompt."""
     metrics = compute_report_metrics(bundles)
     ssr_doc = _load_ssr_json(report_id)
     report_thresholds = _thresholds_from_ssr_doc(ssr_doc)
     recommendation = load_recommendation_snapshot(report_id)
 
     if locale == "en":
-        header = f"Report: {report.title or report_id}"
+        header = f"Report: {title}"
         run_line = f"Sources: {len(bundles)} bundle(s) from {len(sources)} run attempt(s)."
     else:
-        header = f"Rapport: {report.title or report_id}"
+        header = f"Rapport: {title}"
         run_line = f"Källor: {len(bundles)} bundle(s) från {len(sources)} körningsförsök."
 
     parts = [header, run_line, ""]
@@ -334,4 +300,62 @@ async def build_spindoctor_context(
     parts.append(
         f"Tone labels: {', '.join(TONE_LABELS)} · Style labels: {', '.join(STYLE_LABELS)}"
     )
-    return report, "\n".join(parts)
+    return "\n".join(parts)
+
+
+async def load_spindoctor_source(
+    session: AsyncSession,
+    *,
+    report_id: str,
+) -> tuple[Report, list[RunBundle]]:
+    """Load a ready report and its run bundles. Raises ValueError if not usable."""
+    report = await session.get(Report, report_id)
+    if report is None:
+        raise ValueError(f"Report {report_id!r} not found")
+    if report.status != "succeeded":
+        raise ValueError(f"Report {report_id!r} is not ready (status={report.status})")
+    sources = report.sources if isinstance(report.sources, list) else []
+    if not sources:
+        raise ValueError(f"Report {report_id!r} has no sources")
+    if report.mode == "dd":
+        if load_dd_report_json(report_id) is None:
+            raise ValueError(f"report.dd.json not found for {report_id!r}")
+        return report, []
+    return report, await build_bundles(session, sources)
+
+
+async def build_spindoctor_context(
+    session: AsyncSession,
+    *,
+    report_id: str,
+) -> tuple[Report, str]:
+    """Return report row and formatted context block for the system prompt."""
+    from app.modules.registry import MODULE_REGISTRY, module_id_for_report_mode
+
+    report, bundles = await load_spindoctor_source(session, report_id=report_id)
+    locale = normalize_locale(report.locale or "sv")
+    module_id = module_id_for_report_mode(report.mode)
+    binding = MODULE_REGISTRY[module_id].spindoctor
+    if binding is None:
+        raise RuntimeError(f"Module {module_id!r} has no spindoctor binding")
+
+    if report.mode == "dd":
+        dd_doc = load_dd_report_json(report_id)
+        if dd_doc is None:
+            raise ValueError(f"report.dd.json not found for {report_id!r}")
+        context = binding.context_builder(
+            dd_doc,
+            locale=locale,
+            title=report.title or report_id,
+        )
+        return report, context
+
+    sources = report.sources if isinstance(report.sources, list) else []
+    context = binding.context_builder(
+        title=report.title or report_id,
+        locale=locale,
+        sources=sources,
+        bundles=bundles,
+        report_id=report_id,
+    )
+    return report, context

@@ -97,6 +97,7 @@ async def client():
     )
     from app.services.label_vocabulary import ensure_vocabularies_seeded
     from app.services.dd.default_experts import ensure_default_expert_personas
+    from app.services.panel.module_defaults import ensure_module_panel_defaults
     from app.services.prompt_store import ensure_default_configurations
 
     async with session_factory() as seed_session:
@@ -104,6 +105,7 @@ async def client():
         await ensure_vocabularies_seeded(seed_session)
         await ensure_default_configurations(seed_session)
         await backfill_configuration_anchor_sets(seed_session)
+        await ensure_module_panel_defaults(seed_session)
         await ensure_default_expert_personas(seed_session)
         await seed_session.commit()
 

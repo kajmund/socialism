@@ -75,7 +75,9 @@ async def _seed_dd_report(session: AsyncSession, tmp_path: Path, report_id: str 
 
 def test_average_scores_by_sub_question():
     doc = _dd_doc()
-    rows = average_scores_by_sub_question(doc)
+    from app.services.spindoctor_dd import sub_questions_from_dd_doc
+
+    rows = average_scores_by_sub_question(doc, sub_questions_from_dd_doc(doc))
     assert len(rows) == 3
     by_id = {row["sub_question_id"]: row["value"] for row in rows}
     assert by_id["finansiell_halsa"] == 8.0
@@ -153,7 +155,7 @@ async def test_get_report_dd_mcp_tool(session, tmp_path, monkeypatch):
         session,
         "get_report_dd",
         {"report_id": report_id},
-        ctx=SpindoctorToolContext(report_id=report_id),
+        ctx=SpindoctorToolContext(report_id=report_id, module_id="dd"),
     )
     payload = json.loads(raw)
     assert payload["candidate"]["namn"] == "Testbolaget AB"
@@ -162,7 +164,7 @@ async def test_get_report_dd_mcp_tool(session, tmp_path, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_render_radar_chart_emits_widget(session):
-    ctx = SpindoctorToolContext(report_id="rpt_dd")
+    ctx = SpindoctorToolContext(report_id="rpt_dd", module_id="dd")
     result = await run_spindoctor_mcp_tool(
         session,
         "render_chart",
@@ -186,7 +188,7 @@ async def test_render_radar_chart_emits_widget(session):
 
 @pytest.mark.asyncio
 async def test_render_radar_rejects_out_of_range(session):
-    ctx = SpindoctorToolContext(report_id="rpt_dd")
+    ctx = SpindoctorToolContext(report_id="rpt_dd", module_id="dd")
     with pytest.raises(ValueError, match="between 0 and 10"):
         await run_spindoctor_mcp_tool(
             session,

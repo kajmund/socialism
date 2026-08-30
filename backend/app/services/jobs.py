@@ -473,12 +473,15 @@ async def _run_simulate(job_id: str) -> None:
 async def _run_report_generate(job_id: str) -> None:
     from pathlib import Path
 
+    from app.services.dd.sub_questions import SubQuestionRef
+    from app.services.panel.module_defaults import ensure_module_panel_defaults
+    from app.services.panel.schemas import DdPanelResult
+    from app.services.panel.sessions import get_panel_session
+    from app.services.panel.sub_questions_store import get_sub_questions
     from app.services.report import ARTIFACT_ROOT
     from app.services.report.bundles import build_bundles
     from app.services.report.dd_report import generate_dd_report_html
     from app.services.report.generate import generate_report_html
-    from app.services.panel.schemas import DdPanelResult
-    from app.services.panel.sessions import get_panel_session
 
     factory = job_session_factory()
     report_id: str | None = None
@@ -527,6 +530,11 @@ async def _run_report_generate(job_id: str) -> None:
                 if not isinstance(panel.result, dict):
                     raise ValueError("Panel session has no result")
                 result = DdPanelResult.model_validate(panel.result)
+                await ensure_module_panel_defaults(session)
+                sq_rows = await get_sub_questions(session, "dd")
+                sub_questions = [
+                    SubQuestionRef(id=row.key, label=row.label) for row in sq_rows
+                ]
             html_path, slots_path, _slots, _dd = await generate_dd_report_html(
                 result,
                 session_id=session_id,
@@ -534,6 +542,7 @@ async def _run_report_generate(job_id: str) -> None:
                 out_dir=out_dir,
                 title=title,
                 locale=locale,
+                sub_questions=sub_questions,
             )
             timing = {"total_seconds": 0.0}
         else:
