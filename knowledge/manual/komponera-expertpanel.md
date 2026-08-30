@@ -19,6 +19,8 @@ En **expertpanel** är en sparad grupp experter som du återanvänder i DD-kampa
 
 Panelen öppnas direkt. Du kan välja den när du konfigurerar en DD-körning.
 
+Varje expert tar med sig de verktyg du valt på expertens sida. Se [Skapa och redigera expert](skapa-och-redigera-expert.md).
+
 ## Relaterade guider
 
 - [Köra en DD-kampanj](kora-dd-kampanj.md)

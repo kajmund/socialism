@@ -8,7 +8,7 @@ from types import SimpleNamespace
 from typing import Any, Self
 
 from app.config import settings
-from app.llm import complete_with_tools
+from app.llm import complete_text, complete_with_tools
 from app.llm.tool_messages import assistant_message_dict, tool_result_message
 from app.services.dd import allabolag
 from app.services.dd.bolagsapi_mcp import (
@@ -19,6 +19,7 @@ from app.services.dd.bolagsapi_mcp import (
 )
 from app.services.dd.schemas import DdCandidateCompany
 from app.services.help_chat import looks_like_leaked_tool_markup
+from app.services.expert_tools import filter_openai_tools
 from app.services.oasis_agent_tools import (
     SEARCH_TOOL_NAMES,
     run_search_tool,
@@ -278,6 +279,7 @@ async def run_company_tool_loop(
     *,
     max_rounds: int = _MAX_TOOL_ROUNDS,
     with_search: bool = False,
+    allowed_tools: frozenset[str] | None = None,
 ) -> tuple[list[dict[str, Any]], list[DdCandidateCompany]]:
     """Run search/lookup tool rounds. Returns the working transcript and parsed hits."""
     found: list[DdCandidateCompany] = []
@@ -286,6 +288,10 @@ async def run_company_tool_loop(
         tools = await mcp.openai_tools()
         if with_search:
             tools = [*tools, *search_tool_specs()]
+        if allowed_tools is not None:
+            tools = filter_openai_tools(tools, allowed_tools)
+        if not tools:
+            return working, found
         for _ in range(max_rounds):
             reply = await complete_with_tools(working, tools)
             working.append(assistant_message_dict(reply))
@@ -310,19 +316,27 @@ async def run_company_tool_loop(
             for call in tool_calls:
                 name = call.function.name
                 arguments = parse_tool_args(call.function.arguments)
+                allowed = allowed_tools is None or name in allowed_tools
                 try:
-                    if name in COMPANY_TOOL_NAMES:
+                    if allowed and name in COMPANY_TOOL_NAMES:
                         tool_text, parsed = await mcp.call_tool_with_candidates(
                             name, arguments
                         )
-                    elif with_search and name in SEARCH_TOOL_NAMES:
+                    elif allowed and with_search and name in SEARCH_TOOL_NAMES:
                         tool_text = run_search_tool(name, arguments)
                         parsed = []
                     else:
                         tool_text = f"Unknown tool: {name}"
                         parsed = []
                 except CompanyMcpError as exc:
-                    raise CompanyMcpError(str(exc)) from exc
+                    message = str(exc)
+                    if "rate limit" in message.lower():
+                        raise
+                    tool_text = message
+                    parsed = []
+                except (TypeError, ValueError) as exc:
+                    tool_text = str(exc)
+                    parsed = []
                 found = _merge_candidates(found, parsed)
                 working.append(
                     tool_result_message(
@@ -334,9 +348,20 @@ async def run_company_tool_loop(
     return working, found
 
 
-async def complete_text_with_company_tools(messages: list[dict[str, Any]]) -> str:
+async def complete_text_with_company_tools(
+    messages: list[dict[str, Any]],
+    *,
+    allowed_tools: frozenset[str] | None = None,
+) -> str:
     """Tool loop then a visible assistant reply. Used by DD experts and chats."""
-    working, _found = await run_company_tool_loop(messages, with_search=True)
+    if allowed_tools is not None and not allowed_tools:
+        reply = (await complete_text(messages)).strip()
+        if not reply:
+            raise CompanyMcpError("Company tools produced an empty reply")
+        return reply
+    working, _found = await run_company_tool_loop(
+        messages, with_search=True, allowed_tools=allowed_tools
+    )
     content = visible_assistant_text(working[-1])
     if content:
         return content

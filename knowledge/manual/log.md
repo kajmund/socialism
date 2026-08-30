@@ -1,11 +1,35 @@
 # Manual update log
 
+## 2026-08-30
+
+* **Due diligence (bolag)**: Under Research → Koncern visas bolagen som en sökbar lista i strukturordning med KPI-sammanfattning och detaljer till höger (styrelse och understruktur). Den tidigare koncernkartan är borttagen.
+* **Due diligence (bolag)**: Under Research → Personer visas personerna i en lista med sök och filter. Välj en person för att se dossiern till höger (uppdrag i/utanför koncernen och sociala träffar). **Utred valda** och **Utred alla** ligger uppe till höger, samma plats som koncernknapparna.
+* **Due diligence (bolag)**: Omresearch kräver **Rensa research** först. Du kan inte kartlägga koncernen om, och inte utreda personer igen när alla valda redan är utredda, förrän dossiern är rensad. **Kartlägg fler** fungerar fortfarande när det finns kvarvarande bolag.
+* **Due diligence (bolag)**: Resultatfliken visar rapporten efter en körning. Knappen **Spinndoktor** öppnar rapporten i fullbredd. Tiden på rapporten är hur lång genereringen tog, inte tiden sedan första utkastet.
+* **Due diligence (bolag)**: Övriga räkenskapsposter under ett kandidatbolag visas som en tabell per år.
+* **Due diligence (bolag)**: Översikten visar bara kampanjens namn. Sökbriefen syns inte där.
+* **Due diligence (bolag)**: Körningar är uppdelade som i politikmodulen: sök och filter på listan, konfiguration med expertpanel och start, research i egen flik.
+* **Due diligence (bolag)**: Utred person söker efter personen på LinkedIn, Facebook, Instagram, X och TikTok i stället för en allmän webbsökning.
+* **Due diligence (bolag)**: Utred person hämtar uppdragen från Allabolags befattningssidor. Tidigare sökte jobbet bolagsnamn, så personer med flera bolag kunde felaktigt hamna under Inte hittat.
+* **Due diligence (bolag)**: Personens uppdrag listar alla bolag från Allabolag, även de som redan finns i koncernen. Taket är 25 bolag per person.
+* **Due diligence (bolag)**: Körningen har en Research-flik med Koncern och Personer. Personutredningen visar lista och dossier sida vid sida. Revisorer får en not om att den långa listan beror på revisorsrollen.
+
+## 2026-08-29
+
+* **Due diligence (bolag)**: Research hämtar hela koncernträdet från Allabolag (även Academic Work och utländska bolag) och slår upp nyckeltal per svenskt bolag. Kartan ritar upp till 25 bolag per omgång, med moderbolaget till vänster. Finns fler kvar kan du kartlägga nästa omgång. Personerna i styrelserna samlas som en sidoeffekt. Relaterade bolag utanför koncernen tas inte med.
+* **Due diligence (bolag)**: Kandidatlistan är hopfälld. Fäll ut ett bolag för att se uppgifterna. Räkenskaperna visas som staplar per år, likadant som i DD-rapporten.
+* **Due diligence (bolag)**: På experten öppnar du verktygsvalen med skiftnyckeln i topbaren.
+
 ## 2026-08-28
 
+* **Due diligence (bolag)**: Expertchatten avbryts inte längre om ett bolagsuppslag saknar organisationsnummer eller misslyckas — experten får felet och kan fortsätta.
+* **Due diligence (bolag)**: Experter googlar inte omsättning, resultat eller anställda om de redan finns i kandidatens grunddata. Finansiell hälsa märks då **Grunddata** i stället för **Webb**.
+* **Due diligence (bolag)**: Spinndoktor i live-panelen skriver bara sin egen replik — inte påhittade expertnamn, roller eller poäng. Experterna räcker upp handen per delfråga.
+* **Due diligence (bolag)**: På experten väljer du vilka verktyg den får använda i chatt och i expertpanelen (bolagssök och webbsök). Standard är alla.
 * **Due diligence (bolag)**: Om ett organisationsnummer inte finns hos Allabolag fortsätter bolagssökchatten — den avbryts inte.
 * **Due diligence (bolag)**: Bolagssökchatten kraschar inte längre när assistenten läcker verktygs-XML eller lämnar ett tomt svar efter sökningen.
 * **Due diligence (bolag)**: En expertpanel sparas direkt när du valt experter — inget bakgrundsjobb.
-* **Due diligence (bolag)**: DD-rapporten märker inte längre poäng med **OKF-manual**. Källbrickorna är **Webb** eller **Modellbedömning**.
+* **Due diligence (bolag)**: DD-rapporten märker inte längre poäng med **OKF-manual**. Källbrickorna är **Webb**, **Grunddata** eller **Modellbedömning**.
 * **Due diligence (bolag)**: DD-rapporten visar räkenskaper som staplar per år, så omsättning, resultat och andra nyckeltal kan jämföras mellan åren.
 * **Due diligence (bolag)**: Fliken **Körningar** listar en körning per kandidat. Du öppnar **Resultat**, går till **Konfiguration** eller tar bort körningen, likadant som i politikmodulen.
 * **Rapporter**: Har kontot både politik och due diligence delas rapportlistan upp i flikar. Har kontot bara en modul visas bara den modulens rapporter.

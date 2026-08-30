@@ -26,6 +26,7 @@ from app.schemas.domain import (
     PersonaMessageOut,
 )
 from app.serializers import format_date, profile_from_dict, utcnow
+from app.services.dd.company_mcp import CompanyMcpError
 from app.services.district_context import area_block_for_name
 from app.services.oasis_run import previous_attempts
 from app.services.prompt_store import require_active_prompts
@@ -231,22 +232,32 @@ async def stream_library_chat_turn(
         session.add(user_row)
         await session.commit()
 
-        stream = (
-            stream_reply_as_expert
-            if persona.kind == "expert"
-            else stream_reply_as_persona
-        )
+        if persona.kind == "expert":
+            stream = stream_reply_as_expert(
+                profile,
+                mode,
+                history,
+                message,
+                prompts=prompts,
+                area_block=area_block,
+                tools=persona.tools,
+            )
+        else:
+            stream = stream_reply_as_persona(
+                profile,
+                mode,
+                history,
+                message,
+                prompts=prompts,
+                area_block=area_block,
+            )
         parts: list[str] = []
-        async for chunk in stream(
-            profile,
-            mode,
-            history,
-            message,
-            prompts=prompts,
-            area_block=area_block,
-        ):
-            parts.append(chunk)
-            yield chunk
+        try:
+            async for chunk in stream:
+                parts.append(chunk)
+                yield chunk
+        except CompanyMcpError as exc:
+            raise ChatTurnError(str(exc), status_code=502) from exc
 
         reply = "".join(parts).strip()
         if not reply:

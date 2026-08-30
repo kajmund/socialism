@@ -61,6 +61,7 @@ Guider för dig som använder Opinionssimulator i webbläsaren. Teknisk setup oc
 
 # Due diligence (bolag)
 
+* [Skapa och redigera expert](skapa-och-redigera-expert.md) — Profil, chatt och vilka verktyg experten får använda
 * [Komponera en expertpanel](komponera-expertpanel.md) — Välj experter och spara panelen direkt
 * [Köra en DD-kampanj](kora-dd-kampanj.md) — Skapa kampanj, chatta fram bolag och köra DD per kandidat
 

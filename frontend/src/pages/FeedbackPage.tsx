@@ -178,160 +178,214 @@ export function FeedbackPage({ Shell = AdminShell }: FeedbackPageProps) {
 
   return (
     <Shell>
-      <div className="wrap" style={{ maxWidth: 960 }}>
-        <div className="section-head">
-          <span className="kicker">{t("feedback.kicker")}</span>
-          <h1
-            style={{
-              font: "var(--text-h1)",
-              fontFamily: "'Bai Jamjuree', sans-serif",
-              fontWeight: 400,
-            }}
-          >
-            {t("feedback.title")}
-          </h1>
-          <p>{t("feedback.intro")}</p>
+      <div className="wrap admin-page">
+        <div className="admin-page-chrome">
+          <div className="section-head">
+            <span className="kicker">{t("feedback.kicker")}</span>
+            <h1
+              style={{
+                font: "var(--text-h1)",
+                fontFamily: "'Bai Jamjuree', sans-serif",
+                fontWeight: 400,
+              }}
+            >
+              {t("feedback.title")}
+            </h1>
+            <p>{t("feedback.intro")}</p>
+          </div>
+
+          {toast ? (
+            <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
+              {toast}
+            </div>
+          ) : null}
+
+          {error ? (
+            <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
+              {error}
+            </div>
+          ) : null}
+
+          <div className="controls-row">
+            <div className="controls-left" style={{ alignItems: "center", gap: 12 }}>
+              <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+                <span style={{ color: "var(--text-muted)" }}>{t("feedback.filterStatus")}</span>
+                <select
+                  className="dsel"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value as FeedbackStatus | "")}
+                >
+                  <option value="">{t("feedback.filterAll")}</option>
+                  <option value="open">{t("feedback.status.open")}</option>
+                  <option value="in_progress">{t("feedback.status.inProgress")}</option>
+                  <option value="done">{t("feedback.status.done")}</option>
+                  <option value="archived">{t("feedback.status.archived")}</option>
+                </select>
+              </label>
+              <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+                <span style={{ color: "var(--text-muted)" }}>{t("feedback.filterKind")}</span>
+                <select
+                  className="dsel"
+                  value={kindFilter}
+                  onChange={(e) => setKindFilter(e.target.value as FeedbackKind | "")}
+                >
+                  <option value="">{t("feedback.filterAll")}</option>
+                  <option value="bug">{t("feedback.kind.bug")}</option>
+                  <option value="idea">{t("feedback.kind.idea")}</option>
+                  <option value="opinion">{t("feedback.kind.opinion")}</option>
+                </select>
+              </label>
+              <label style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
+                <input
+                  type="checkbox"
+                  checked={showArchived}
+                  onChange={(e) => setShowArchived(e.target.checked)}
+                />
+                {t("feedback.showArchived")}
+              </label>
+            </div>
+            <div className="controls-right">
+              <ViewToggle value={view} onChange={setView} />
+            </div>
+          </div>
         </div>
 
-        {toast ? (
-          <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
-            {toast}
-          </div>
-        ) : null}
+        <div className="admin-page-body">
+          {loading && items.length === 0 && !error ? (
+            <div className="no-match" style={{ textAlign: "left" }}>
+              {t("feedback.loading")}
+            </div>
+          ) : null}
 
-        {error ? (
-          <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
-            {error}
-          </div>
-        ) : null}
+          {!loading && items.length === 0 && !error ? (
+            <div className="no-match" style={{ textAlign: "left" }}>
+              {t("feedback.empty")}
+            </div>
+          ) : null}
 
-        <div className="controls-row">
-          <div className="controls-left" style={{ alignItems: "center", gap: 12 }}>
-            <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
-              <span style={{ color: "var(--text-muted)" }}>{t("feedback.filterStatus")}</span>
-              <select
-                className="dsel"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as FeedbackStatus | "")}
-              >
-                <option value="">{t("feedback.filterAll")}</option>
-                <option value="open">{t("feedback.status.open")}</option>
-                <option value="in_progress">{t("feedback.status.inProgress")}</option>
-                <option value="done">{t("feedback.status.done")}</option>
-                <option value="archived">{t("feedback.status.archived")}</option>
-              </select>
-            </label>
-            <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
-              <span style={{ color: "var(--text-muted)" }}>{t("feedback.filterKind")}</span>
-              <select
-                className="dsel"
-                value={kindFilter}
-                onChange={(e) => setKindFilter(e.target.value as FeedbackKind | "")}
-              >
-                <option value="">{t("feedback.filterAll")}</option>
-                <option value="bug">{t("feedback.kind.bug")}</option>
-                <option value="idea">{t("feedback.kind.idea")}</option>
-                <option value="opinion">{t("feedback.kind.opinion")}</option>
-              </select>
-            </label>
-            <label style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
-              <input
-                type="checkbox"
-                checked={showArchived}
-                onChange={(e) => setShowArchived(e.target.checked)}
-              />
-              {t("feedback.showArchived")}
-            </label>
-          </div>
-          <div className="controls-right">
-            <ViewToggle value={view} onChange={setView} />
-          </div>
-        </div>
-
-        {loading && items.length === 0 && !error ? (
-          <div className="no-match" style={{ textAlign: "left" }}>
-            {t("feedback.loading")}
-          </div>
-        ) : null}
-
-        {!loading && items.length === 0 && !error ? (
-          <div className="no-match" style={{ textAlign: "left" }}>
-            {t("feedback.empty")}
-          </div>
-        ) : null}
-
-        {items.length > 0 && view === "grid" ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {items.map((item) => {
-              const open = expandedId === item.id
-              const when = formatWhen(item.created_at, intl, t("common.emDash"))
-              return (
-                <Card key={item.id} className="gap-0 py-4 ring-1 ring-border">
-                  <CardContent className="px-5">
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: 16,
-                        flexWrap: "wrap",
-                        alignItems: "flex-start",
-                      }}
-                    >
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ font: "var(--text-body-sm)", color: "var(--text-muted)" }}>
-                          {t(KIND_KEY[item.kind])} · {when}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setExpandedId(open ? null : item.id)}
-                          style={{
-                            background: "none",
-                            border: "none",
-                            padding: 0,
-                            marginTop: 4,
-                            font: "var(--text-h3)",
-                            textAlign: "left",
-                            cursor: "pointer",
-                            color: "inherit",
-                          }}
-                        >
-                          {item.title}
-                        </button>
-                        <div
-                          style={{
-                            marginTop: 6,
-                            font: "var(--text-body-sm)",
-                            color: "var(--text-muted)",
-                            whiteSpace: "pre-wrap",
-                          }}
-                        >
-                          {open ? item.body || t("common.emDash") : truncate(item.body || "")}
-                        </div>
-                        {open && item.view_path ? (
+          {items.length > 0 && view === "grid" ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {items.map((item) => {
+                const open = expandedId === item.id
+                const when = formatWhen(item.created_at, intl, t("common.emDash"))
+                return (
+                  <Card key={item.id} className="gap-0 py-4 ring-1 ring-border">
+                    <CardContent className="px-5">
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: 16,
+                          flexWrap: "wrap",
+                          alignItems: "flex-start",
+                        }}
+                      >
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ font: "var(--text-body-sm)", color: "var(--text-muted)" }}>
+                            {t(KIND_KEY[item.kind])} · {when}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setExpandedId(open ? null : item.id)}
+                            style={{
+                              background: "none",
+                              border: "none",
+                              padding: 0,
+                              marginTop: 4,
+                              font: "var(--text-h3)",
+                              textAlign: "left",
+                              cursor: "pointer",
+                              color: "inherit",
+                            }}
+                          >
+                            {item.title}
+                          </button>
                           <div
                             style={{
                               marginTop: 6,
                               font: "var(--text-body-sm)",
                               color: "var(--text-muted)",
+                              whiteSpace: "pre-wrap",
                             }}
                           >
-                            {t("feedback.viewPath", { path: item.view_path })}
+                            {open ? item.body || t("common.emDash") : truncate(item.body || "")}
                           </div>
-                        ) : null}
+                          {open && item.view_path ? (
+                            <div
+                              style={{
+                                marginTop: 6,
+                                font: "var(--text-body-sm)",
+                                color: "var(--text-muted)",
+                              }}
+                            >
+                              {t("feedback.viewPath", { path: item.view_path })}
+                            </div>
+                          ) : null}
+                        </div>
+                        <span className={statusClass(item.status)}>{t(STATUS_KEY[item.status])}</span>
                       </div>
-                      <span className={statusClass(item.status)}>{t(STATUS_KEY[item.status])}</span>
-                    </div>
 
-                    <div
-                      style={{
-                        marginTop: 12,
-                        font: "var(--text-body-sm)",
-                        display: "flex",
-                        gap: 8,
-                        flexWrap: "wrap",
-                        alignItems: "center",
-                      }}
-                    >
+                      <div
+                        style={{
+                          marginTop: 12,
+                          font: "var(--text-body-sm)",
+                          display: "flex",
+                          gap: 8,
+                          flexWrap: "wrap",
+                          alignItems: "center",
+                        }}
+                      >
+                        <FeedbackActions
+                          item={item}
+                          busyId={busyId}
+                          onSetStatus={setStatus}
+                          t={t}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          ) : null}
+
+          {items.length > 0 && view === "list" ? (
+            <div className="admin-list-stack">
+              {items.map((item) => {
+                const open = expandedId === item.id
+                const when = formatWhen(item.created_at, intl, t("common.emDash"))
+                return (
+                  <div key={item.id} className="admin-list-row admin-list-feedback">
+                    <div>
+                      <button
+                        type="button"
+                        className="nm"
+                        onClick={() => setExpandedId(open ? null : item.id)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          padding: 0,
+                          textAlign: "left",
+                          cursor: "pointer",
+                          color: "inherit",
+                          font: "inherit",
+                        }}
+                      >
+                        {item.title}
+                      </button>
+                      <div className="meta">
+                        {open ? item.body || t("common.emDash") : truncate(item.body || "", 80)}
+                        {open && item.view_path
+                          ? ` · ${t("feedback.viewPath", { path: item.view_path })}`
+                          : null}
+                      </div>
+                    </div>
+                    <span className="rounded-full border px-2 py-0.5 text-[11px]">
+                      {t(KIND_KEY[item.kind])}
+                    </span>
+                    <span className={statusClass(item.status)}>{t(STATUS_KEY[item.status])}</span>
+                    <div className="cell">{when}</div>
+                    <div className="admin-list-actions">
                       <FeedbackActions
                         item={item}
                         busyId={busyId}
@@ -339,62 +393,12 @@ export function FeedbackPage({ Shell = AdminShell }: FeedbackPageProps) {
                         t={t}
                       />
                     </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
-        ) : null}
-
-        {items.length > 0 && view === "list" ? (
-          <div className="admin-list-stack">
-            {items.map((item) => {
-              const open = expandedId === item.id
-              const when = formatWhen(item.created_at, intl, t("common.emDash"))
-              return (
-                <div key={item.id} className="admin-list-row admin-list-feedback">
-                  <div>
-                    <button
-                      type="button"
-                      className="nm"
-                      onClick={() => setExpandedId(open ? null : item.id)}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        padding: 0,
-                        textAlign: "left",
-                        cursor: "pointer",
-                        color: "inherit",
-                        font: "inherit",
-                      }}
-                    >
-                      {item.title}
-                    </button>
-                    <div className="meta">
-                      {open ? item.body || t("common.emDash") : truncate(item.body || "", 80)}
-                      {open && item.view_path
-                        ? ` · ${t("feedback.viewPath", { path: item.view_path })}`
-                        : null}
-                    </div>
                   </div>
-                  <span className="rounded-full border px-2 py-0.5 text-[11px]">
-                    {t(KIND_KEY[item.kind])}
-                  </span>
-                  <span className={statusClass(item.status)}>{t(STATUS_KEY[item.status])}</span>
-                  <div className="cell">{when}</div>
-                  <div className="admin-list-actions">
-                    <FeedbackActions
-                      item={item}
-                      busyId={busyId}
-                      onSetStatus={setStatus}
-                      t={t}
-                    />
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        ) : null}
+                )
+              })}
+            </div>
+          ) : null}
+        </div>
       </div>
     </Shell>
   )

@@ -10,6 +10,7 @@ from app.database.models import Persona, Population, PopulationMember
 from app.serializers import profile_from_dict
 from app.services.dd.default_experts import ensure_default_expert_personas
 from app.services.dd.expert_keys import expert_role_key
+from app.services.expert_tools import resolve_expert_tools
 from app.services.panel.schemas import PanelExpertSlot
 
 
@@ -61,6 +62,7 @@ async def load_expert_slots(
                 slot_id=key,
                 label=persona.name,
                 profile=_profile_text(persona),
+                tools=resolve_expert_tools(persona.tools),
             )
         )
     return slots
@@ -93,6 +95,7 @@ async def load_expert_slots_from_population(
                 slot_id=key,
                 label=persona.name,
                 profile=_profile_text(persona),
+                tools=resolve_expert_tools(persona.tools),
             )
         )
     if not slots:

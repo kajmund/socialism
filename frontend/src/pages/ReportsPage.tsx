@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react"
 import { Link, useSearchParams } from "react-router-dom"
+import type { Job } from "@/api/jobs"
 import {
   bulkDeleteReports,
   deleteReport,
@@ -24,6 +25,8 @@ import {
   type CustomerScope,
 } from "@/lib/scoping"
 import { cn } from "@/lib/utils"
+import { formatElapsed } from "@/lib/formatDuration"
+import { useJobsRealtime } from "@/realtime/JobsRealtimeProvider"
 import { useReportsRealtime } from "@/realtime/ReportsRealtimeProvider"
 
 type Translate = (key: MessageKey, params?: Record<string, string | number>) => string
@@ -63,25 +66,11 @@ function formatWhen(iso: string | null | undefined, intl: string, emDash: string
   }).format(d)
 }
 
-function formatReportDuration(report: Report, t: Translate): string | null {
-  if (!report.created_at || !report.finished_at) return null
-  const ms =
-    new Date(report.finished_at).getTime() - new Date(report.created_at).getTime()
-  if (!Number.isFinite(ms) || ms < 0) return null
-  const sec = Math.round(ms / 1000)
-  if (sec < 60) return t("reports.duration.seconds", { n: sec })
-  const m = Math.floor(sec / 60)
-  const s = sec % 60
-  if (m < 60) {
-    return s > 0
-      ? t("reports.duration.minutesSeconds", { m, s })
-      : t("reports.duration.minutes", { m })
-  }
-  const h = Math.floor(m / 60)
-  const rm = m % 60
-  return rm > 0
-    ? t("reports.duration.hoursMinutes", { h, m: rm })
-    : t("reports.duration.hours", { h })
+function formatReportDuration(report: Report, job: Job | undefined, t: Translate): string | null {
+  if (report.job_id && !job) return null
+  const start = job?.started_at ?? job?.created_at ?? report.created_at
+  const end = job?.finished_at ?? report.finished_at
+  return formatElapsed(start, end, t, "reports.duration")
 }
 
 function modeLabel(mode: Report["mode"], t: Translate): string {
@@ -103,6 +92,7 @@ function sourcesLabel(report: Report, t: Translate): string {
 
 type ReportItemProps = {
   report: Report
+  job: Job | undefined
   t: Translate
   intl: string
   reportHref: string
@@ -117,6 +107,7 @@ type ReportItemProps = {
 
 function ReportCard({
   report,
+  job,
   t,
   intl,
   reportHref,
@@ -128,7 +119,7 @@ function ReportCard({
   onDelete,
   onClearBulkConfirm,
 }: ReportItemProps) {
-  const duration = formatReportDuration(report, t)
+  const duration = formatReportDuration(report, job, t)
   const when = formatWhen(report.finished_at ?? report.created_at, intl, t("common.emDash"))
   return (
     <Card className="gap-0 py-4 ring-1 ring-border">
@@ -229,6 +220,7 @@ function ReportCard({
 
 function ReportListRow({
   report,
+  job,
   t,
   intl,
   reportHref,
@@ -240,7 +232,7 @@ function ReportListRow({
   onDelete,
   onClearBulkConfirm,
 }: ReportItemProps) {
-  const duration = formatReportDuration(report, t)
+  const duration = formatReportDuration(report, job, t)
   const when = formatWhen(report.finished_at ?? report.created_at, intl, t("common.emDash"))
   const detail = [
     modeLabel(report.mode, t),
@@ -333,6 +325,7 @@ export function ReportsPage({ scope = "admin", Shell = AdminShell }: ReportsPage
   const { user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const { reports: allReports, connected, status: wsStatus } = useReportsRealtime()
+  const { jobs } = useJobsRealtime()
   const availableModules = useMemo(() => reportModulesForUser(user), [user])
   const showModuleTabs = availableModules.length > 1
   const activeModule = useMemo<ReportModuleId>(() => {
@@ -455,84 +448,67 @@ export function ReportsPage({ scope = "admin", Shell = AdminShell }: ReportsPage
 
   return (
     <Shell>
-      <div className="wrap" style={{ maxWidth: 960 }}>
-        <div className="section-head">
-          <span className="kicker">{t("reports.list.kicker")}</span>
-          <h1
-            style={{
-              font: "var(--text-h1)",
-              fontFamily: "'Bai Jamjuree', sans-serif",
-              fontWeight: 400,
-            }}
-          >
-            {t("reports.list.title")}
-          </h1>
-          <p>{t(introKey(activeModule, scope))}</p>
-        </div>
-
-        {showModuleTabs ? (
-          <div
-            role="tablist"
-            aria-label={t("reports.list.tabsAria")}
-            className="mb-6 flex flex-wrap gap-1 border-b border-[color:var(--border-hairline)]"
-          >
-            {MODULE_TABS.filter((tab) => availableModules.includes(tab.id)).map((tab) => {
-              const selectedTab = tab.id === activeModule
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  role="tab"
-                  id={`reports-tab-${tab.id}`}
-                  aria-selected={selectedTab}
-                  aria-controls={`reports-tab-panel-${tab.id}`}
-                  tabIndex={selectedTab ? 0 : -1}
-                  className={cn(
-                    "-mb-px border-b-2 px-3 py-2 text-sm",
-                    selectedTab
-                      ? "border-db-ink-950 font-medium text-[color:var(--text-body)]"
-                      : "border-transparent text-muted-foreground hover:text-[color:var(--text-body)]",
-                  )}
-                  onClick={() => setActiveModule(tab.id)}
-                >
-                  {t(tab.labelKey)}
-                </button>
-              )
-            })}
+      <div className="wrap admin-page">
+        <div className="admin-page-chrome">
+          <div className="section-head">
+            <span className="kicker">{t("reports.list.kicker")}</span>
+            <h1
+              style={{
+                font: "var(--text-h1)",
+                fontFamily: "'Bai Jamjuree', sans-serif",
+                fontWeight: 400,
+              }}
+            >
+              {t("reports.list.title")}
+            </h1>
+            <p>{t(introKey(activeModule, scope))}</p>
           </div>
-        ) : null}
 
-        <div
-          id={showModuleTabs ? `reports-tab-panel-${activeModule}` : undefined}
-          role={showModuleTabs ? "tabpanel" : undefined}
-          aria-labelledby={showModuleTabs ? `reports-tab-${activeModule}` : undefined}
-        >
-        {toast ? (
-          <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
-            {toast}
-          </div>
-        ) : null}
+          {showModuleTabs ? (
+            <div
+              role="tablist"
+              aria-label={t("reports.list.tabsAria")}
+              className="mb-6 flex flex-wrap gap-1 border-b border-[color:var(--border-hairline)]"
+            >
+              {MODULE_TABS.filter((tab) => availableModules.includes(tab.id)).map((tab) => {
+                const selectedTab = tab.id === activeModule
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    id={`reports-tab-${tab.id}`}
+                    aria-selected={selectedTab}
+                    aria-controls={`reports-tab-panel-${tab.id}`}
+                    tabIndex={selectedTab ? 0 : -1}
+                    className={cn(
+                      "-mb-px border-b-2 px-3 py-2 text-sm",
+                      selectedTab
+                        ? "border-db-ink-950 font-medium text-[color:var(--text-body)]"
+                        : "border-transparent text-muted-foreground hover:text-[color:var(--text-body)]",
+                    )}
+                    onClick={() => setActiveModule(tab.id)}
+                  >
+                    {t(tab.labelKey)}
+                  </button>
+                )
+              })}
+            </div>
+          ) : null}
 
-        {error && (
-          <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
-            {error}
-          </div>
-        )}
+          {toast ? (
+            <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
+              {toast}
+            </div>
+          ) : null}
 
-        {loading && reports.length === 0 && !error ? (
-          <div className="no-match" style={{ textAlign: "left" }}>
-            {t("reports.list.loading")}
-          </div>
-        ) : null}
+          {error && (
+            <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
+              {error}
+            </div>
+          )}
 
-        {!loading && reports.length === 0 && !error ? (
-          <div className="no-match" style={{ textAlign: "left" }}>
-            {t(emptyKey(activeModule, scope))}
-          </div>
-        ) : null}
-
-        {reports.length > 0 ? (
-          <>
+          {reports.length > 0 ? (
             <div className="controls-row">
               <div className="controls-left" style={{ alignItems: "center", gap: 12 }}>
                 <label style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
@@ -586,13 +562,35 @@ export function ReportsPage({ scope = "admin", Shell = AdminShell }: ReportsPage
                 <ViewToggle value={view} onChange={setView} />
               </div>
             </div>
+          ) : null}
+        </div>
 
-            {view === "grid" ? (
+        <div
+          className="admin-page-body"
+          id={showModuleTabs ? `reports-tab-panel-${activeModule}` : undefined}
+          role={showModuleTabs ? "tabpanel" : undefined}
+          aria-labelledby={showModuleTabs ? `reports-tab-${activeModule}` : undefined}
+        >
+          {loading && reports.length === 0 && !error ? (
+            <div className="no-match" style={{ textAlign: "left" }}>
+              {t("reports.list.loading")}
+            </div>
+          ) : null}
+
+          {!loading && reports.length === 0 && !error ? (
+            <div className="no-match" style={{ textAlign: "left" }}>
+              {t(emptyKey(activeModule, scope))}
+            </div>
+          ) : null}
+
+          {reports.length > 0 ? (
+            view === "grid" ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {reports.map((report) => (
                   <ReportCard
                     key={report.id}
                     report={report}
+                    job={jobs.find((row) => row.id === report.job_id)}
                     t={t}
                     intl={intl}
                     reportHref={`${reportBase}/${report.id}`}
@@ -612,6 +610,7 @@ export function ReportsPage({ scope = "admin", Shell = AdminShell }: ReportsPage
                   <ReportListRow
                     key={report.id}
                     report={report}
+                    job={jobs.find((row) => row.id === report.job_id)}
                     t={t}
                     intl={intl}
                     reportHref={`${reportBase}/${report.id}`}
@@ -625,9 +624,8 @@ export function ReportsPage({ scope = "admin", Shell = AdminShell }: ReportsPage
                   />
                 ))}
               </div>
-            )}
-          </>
-        ) : null}
+            )
+          ) : null}
         </div>
       </div>
     </Shell>

@@ -13,6 +13,7 @@ from app.schemas.domain import (
     RunSimulateJobRequest,
 )
 from app.services.kund_store import bolag_demo_customer_id, default_os_customer_id
+from app.services.dd.schemas import DdResearchJobRequest
 from app.services.panel.schemas import PanelSessionRunJobRequest
 
 
@@ -72,4 +73,10 @@ async def customer_id_for_new_job(session: AsyncSession, body: JobCreate) -> int
     if body.kind == "panel_session_run":
         payload = PanelSessionRunJobRequest.model_validate(body.request)
         return await customer_id_for_panel_session(session, payload.session_id)
+    if body.kind == "dd_research":
+        payload = DdResearchJobRequest.model_validate(body.request)
+        campaign = await session.get(DdCampaign, payload.campaign_id)
+        if campaign is None:
+            return await default_os_customer_id(session)
+        return campaign.customer_id
     return await default_os_customer_id(session)

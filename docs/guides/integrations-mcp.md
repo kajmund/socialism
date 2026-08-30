@@ -49,12 +49,12 @@ Requires backend SQLite + `ARTIFACT_ROOT` on the same machine for `report.ssr.js
 In-app DD surfaces share one company MCP (`search_companies`, `lookup_company`, `validate_orgnr`):
 
 - **Sourcing chat** — campaign search modal (company tools only)
-- **DD expert panel** — experts look up nyckeltal before scoring, plus the same DuckDuckGo/Wikipedia search tools political personas can get in a körning
-- **Generic expert panel** — scratchpad and public turns use the same company + search tools
-- **Expert library chat** — interview and in-character on the expert composer (company + search)
+- **DD expert panel** — each expert uses the tools configured on that expert row (company lookup and/or DuckDuckGo/Wikipedia). Figures already in the candidate brief are not looked up again.
+- **Generic expert panel** — scratchpad and public turns use the same per-expert tool list
+- **Expert library chat** — interview and in-character on the expert composer use that expert's tools
 - **Spinndoktor** — in-app report chat and the Spinndoktor stdio MCP server (company + search + SCB + report tools)
 
-Backend: BolagsAPI remote MCP when `BOLAGSAPI_API_KEY` is set, otherwise Allabolag.se (`__NEXT_DATA__` scrape). Successful tool results and Allabolag HTML are cached on disk for 10 months (`BOLAGSAPI_CACHE_DIR`). A BolagsAPI failure does not fall through to Allabolag. Rate-limit responses are not cached.
+Backend: BolagsAPI remote MCP when `BOLAGSAPI_API_KEY` is set, otherwise Allabolag.se (`__NEXT_DATA__` scrape). DD group research reads Allabolag `GET /api/company/legal/{orgnr}/corporateStructure` for the group tree (cached as `allabolag_corporate_structure`). Person investigation uses `/befattningshavare` plus `/befattning/{slug}/-/{personId}`. Successful tool results and Allabolag HTML/JSON are cached on disk for 10 months (`BOLAGSAPI_CACHE_DIR`). A BolagsAPI failure does not fall through to Allabolag. Rate-limit responses are not cached.
 
 Example Cursor entry (merge into your MCP config):
 

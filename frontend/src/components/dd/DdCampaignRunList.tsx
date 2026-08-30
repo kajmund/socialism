@@ -1,12 +1,13 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
 import { deleteDdCandidateRun, type DdCampaign, type DdCandidateCompany } from "@/api/dd"
 import { getPanelSession, type PanelSessionStatus } from "@/api/panel"
 import { listPopulations } from "@/api/populations"
 import { Card, CardContent } from "@/components/ui/card"
+import { ViewToggle, type ListViewMode } from "@/components/ui/view-toggle"
 import type { PopulationSummary } from "@/data/library-types"
 import { formatLibraryDate } from "@/data/library"
-import { useLocale, type MessageKey } from "@/i18n"
+import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
 import { ApiError } from "@/lib/api"
 import {
   assignedPanelId,
@@ -17,7 +18,7 @@ import {
 } from "@/lib/dd-runs"
 import { useJobsRealtime } from "@/realtime/JobsRealtimeProvider"
 
-type Translate = (key: MessageKey, params?: Record<string, string | number>) => string
+type Translate = (key: MessageKey, params?: TranslateParams) => string
 
 function statusLabel(status: DdRunStatus, t: Translate): string {
   switch (status) {
@@ -47,6 +48,18 @@ function primaryResultsLabel(status: DdRunStatus, t: Translate): string {
   }
 }
 
+function researchLabel(
+  campaign: DdCampaign,
+  candidateId: string,
+  t: Translate,
+): string {
+  const research = runForCandidate(campaign, candidateId)?.research
+  if (!research || research.companies.length === 0) {
+    return t("dd.panel.runListResearchNone")
+  }
+  return t("dd.panel.runListResearchCount", { count: research.companies.length })
+}
+
 function resolvePanelStatus(
   campaign: DdCampaign,
   candidateId: string,
@@ -66,7 +79,7 @@ function resolvePanelStatus(
   return fetched
 }
 
-type RunCardProps = {
+type RunItemProps = {
   campaign: DdCampaign
   candidate: DdCandidateCompany
   panelName: string
@@ -76,7 +89,65 @@ type RunCardProps = {
   onDelete: (candidateId: string) => void
 }
 
-function RunCard({ campaign, candidate, panelName, status, intl, t, onDelete }: RunCardProps) {
+function RunActions({
+  campaign,
+  candidate,
+  status,
+  t,
+  confirming,
+  onConfirm,
+  onCancel,
+  onAskDelete,
+  canDelete,
+}: {
+  campaign: DdCampaign
+  candidate: DdCandidateCompany
+  status: DdRunStatus
+  t: Translate
+  confirming: boolean
+  onConfirm: () => void
+  onCancel: () => void
+  onAskDelete: () => void
+  canDelete: boolean
+}) {
+  if (confirming) {
+    return (
+      <>
+        <button type="button" onClick={onCancel}>
+          {t("common.cancel")}
+        </button>
+        <button type="button" className="yes" onClick={onConfirm}>
+          {t("common.deleteConfirm")}
+        </button>
+      </>
+    )
+  }
+  return (
+    <>
+      {status === "draft" ? (
+        <Link className="primary full" to={campaignRunPath(campaign.id, candidate.id, "config")}>
+          {t("dd.panel.runContinueConfig")}
+        </Link>
+      ) : (
+        <Link className="primary" to={campaignRunPath(campaign.id, candidate.id, "results")}>
+          {primaryResultsLabel(status, t)}
+        </Link>
+      )}
+      {status !== "draft" ? (
+        <Link to={campaignRunPath(campaign.id, candidate.id, "config")}>
+          {t("dd.panel.runConfiguration")}
+        </Link>
+      ) : null}
+      {canDelete ? (
+        <button type="button" onClick={onAskDelete}>
+          {t("common.delete")}
+        </button>
+      ) : null}
+    </>
+  )
+}
+
+function RunCard({ campaign, candidate, panelName, status, intl, t, onDelete }: RunItemProps) {
   const [confirming, setConfirming] = useState(false)
   const run = runForCandidate(campaign, candidate.id)
   const assigned = campaign.panel_assignments?.[candidate.id] != null
@@ -95,55 +166,82 @@ function RunCard({ campaign, candidate, panelName, status, intl, t, onDelete }: 
           </div>
           <div className="run-details">
             <div className="row">
+              <span>{t("dd.panel.runListOrgnr")}</span>
+              <span className="v">{candidate.organisationsnummer || t("common.emDash")}</span>
+            </div>
+            <div className="row">
+              <span>{t("dd.panel.runListResearch")}</span>
+              <span className="v">{researchLabel(campaign, candidate.id, t)}</span>
+            </div>
+            <div className="row">
               <span>{t("dd.panel.runListUpdated")}</span>
               <span className="v">{formatLibraryDate(when, intl)}</span>
             </div>
           </div>
           {confirming ? (
-            <div className="confirm-row" style={{ marginTop: "auto" }}>
-              <button type="button" style={{ flex: 1 }} onClick={() => setConfirming(false)}>
-                {t("common.cancel")}
-              </button>
-              <button
-                type="button"
-                className="yes"
-                style={{ flex: 1 }}
-                onClick={() => onDelete(candidate.id)}
-              >
-                {t("common.deleteConfirm")}
-              </button>
+            <div className="confirm-row">
+              <RunActions
+                campaign={campaign}
+                candidate={candidate}
+                status={status}
+                t={t}
+                confirming
+                canDelete={canDelete}
+                onConfirm={() => onDelete(candidate.id)}
+                onCancel={() => setConfirming(false)}
+                onAskDelete={() => setConfirming(true)}
+              />
             </div>
           ) : (
             <div className="run-actions">
-              {status === "draft" ? (
-                <Link
-                  className="primary full"
-                  to={campaignRunPath(campaign.id, candidate.id, "config")}
-                >
-                  {t("dd.panel.runContinueConfig")}
-                </Link>
-              ) : (
-                <>
-                  <Link
-                    className="primary"
-                    to={campaignRunPath(campaign.id, candidate.id, "results")}
-                  >
-                    {primaryResultsLabel(status, t)}
-                  </Link>
-                  <Link to={campaignRunPath(campaign.id, candidate.id, "config")}>
-                    {t("dd.panel.runConfiguration")}
-                  </Link>
-                </>
-              )}
-              {canDelete ? (
-                <button type="button" onClick={() => setConfirming(true)}>
-                  {t("common.delete")}
-                </button>
-              ) : null}
+              <RunActions
+                campaign={campaign}
+                candidate={candidate}
+                status={status}
+                t={t}
+                confirming={false}
+                canDelete={canDelete}
+                onConfirm={() => onDelete(candidate.id)}
+                onCancel={() => setConfirming(false)}
+                onAskDelete={() => setConfirming(true)}
+              />
             </div>
           )}
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+function RunListRow({ campaign, candidate, panelName, status, intl, t, onDelete }: RunItemProps) {
+  const [confirming, setConfirming] = useState(false)
+  const run = runForCandidate(campaign, candidate.id)
+  const assigned = campaign.panel_assignments?.[candidate.id] != null
+  const canDelete = Boolean(run || assigned)
+  const when = run?.updated_at || campaign.updated_at
+  return (
+    <div className="admin-list-row admin-list-dd-runs">
+      <div>
+        <div className="nm">{candidate.namn}</div>
+        <div className="meta">{candidate.organisationsnummer || t("common.emDash")}</div>
+      </div>
+      <span className={"status-tag " + status}>{statusLabel(status, t)}</span>
+      <div className="cell">{panelName || t("common.emDash")}</div>
+      <div className="cell">{researchLabel(campaign, candidate.id, t)}</div>
+      <div className="cell">{formatLibraryDate(when, intl)}</div>
+      <div className={confirming ? "confirm-row" : "admin-list-actions"}>
+        <RunActions
+          campaign={campaign}
+          candidate={candidate}
+          status={status}
+          t={t}
+          confirming={confirming}
+          canDelete={canDelete}
+          onConfirm={() => onDelete(candidate.id)}
+          onCancel={() => setConfirming(false)}
+          onAskDelete={() => setConfirming(true)}
+        />
+      </div>
     </div>
   )
 }
@@ -161,6 +259,9 @@ export function DdCampaignRunList({
   const [panelStatusByCandidate, setPanelStatusByCandidate] = useState<
     Record<string, PanelSessionStatus | null>
   >({})
+  const [query, setQuery] = useState("")
+  const [statusFilter, setStatusFilter] = useState<"all" | DdRunStatus>("all")
+  const [view, setView] = useState<ListViewMode>("grid")
   const [toast, setToast] = useState<string | null>(null)
 
   useEffect(() => {
@@ -205,10 +306,33 @@ export function DdCampaignRunList({
     }
   }, [campaign.candidate_runs])
 
+  useEffect(() => {
+    if (!toast) return
+    const timer = window.setTimeout(() => setToast(null), 2400)
+    return () => window.clearTimeout(timer)
+  }, [toast])
+
   function panelName(candidateId: string): string {
     const panelId = assignedPanelId(campaign, candidateId)
     return expertPanels.find((panel) => panel.id === panelId)?.name ?? ""
   }
+
+  function itemStatus(candidateId: string): DdRunStatus {
+    return ddRunStatus(
+      resolvePanelStatus(campaign, candidateId, panelStatusByCandidate[candidateId] ?? null, jobs),
+    )
+  }
+
+  const list = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return campaign.candidates.filter((candidate) => {
+      const status = itemStatus(candidate.id)
+      if (statusFilter !== "all" && status !== statusFilter) return false
+      if (!q) return true
+      const orgnr = (candidate.organisationsnummer ?? "").toLowerCase()
+      return candidate.namn.toLowerCase().includes(q) || orgnr.includes(q)
+    })
+  }, [campaign, query, statusFilter, panelStatusByCandidate, jobs])
 
   async function handleDelete(candidateId: string) {
     try {
@@ -221,50 +345,78 @@ export function DdCampaignRunList({
         ),
       })
       setToast(t("dd.panel.runDeleted"))
-      window.setTimeout(() => setToast(null), 2400)
     } catch (err) {
       setToast(err instanceof ApiError ? err.message : t("dd.panel.runDeleteError"))
-      window.setTimeout(() => setToast(null), 2400)
     }
   }
 
   return (
     <section aria-label={t("dd.panel.runTitle")}>
-      <div className="mb-3">
-        <h2 className="text-lg font-medium">{t("dd.panel.runTitle")}</h2>
-        <p className="text-sm text-muted-foreground">{t("dd.panel.runIntro")}</p>
-      </div>
-      {toast ? (
-        <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
-          {toast}
-        </div>
-      ) : null}
+      <p className="mb-4 text-sm text-muted-foreground">{t("dd.panel.runIntro")}</p>
       {campaign.candidates.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t("dd.panel.runEmptyCandidates")}</p>
       ) : (
-        <div className="run-grid">
-          {campaign.candidates.map((candidate) => {
-            const panelStatus = resolvePanelStatus(
-              campaign,
-              candidate.id,
-              panelStatusByCandidate[candidate.id] ?? null,
-              jobs,
-            )
-            return (
-              <RunCard
-                key={candidate.id}
-                campaign={campaign}
-                candidate={candidate}
-                panelName={panelName(candidate.id)}
-                status={ddRunStatus(panelStatus)}
-                intl={intl}
-                t={t}
-                onDelete={(id) => void handleDelete(id)}
+        <>
+          <div className="controls-row">
+            <div className="controls-left">
+              <input
+                className="dsearch"
+                placeholder={t("dd.panel.runListSearchPlaceholder")}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
               />
-            )
-          })}
-        </div>
+              <select
+                className="dsel"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as "all" | DdRunStatus)}
+              >
+                <option value="all">{t("dd.panel.runListStatusAll")}</option>
+                <option value="done">{t("runs.list.statusDone")}</option>
+                <option value="running">{t("runs.list.statusRunning")}</option>
+                <option value="draft">{t("runs.list.statusDraft")}</option>
+                <option value="failed">{t("runs.list.statusFailed")}</option>
+              </select>
+            </div>
+            <div className="controls-right">
+              <ViewToggle value={view} onChange={setView} />
+            </div>
+          </div>
+          {list.length === 0 ? (
+            <div className="no-match">{t("dd.panel.runListEmptyFilter")}</div>
+          ) : view === "grid" ? (
+            <div className="run-grid">
+              {list.map((candidate) => (
+                <RunCard
+                  key={candidate.id}
+                  campaign={campaign}
+                  candidate={candidate}
+                  panelName={panelName(candidate.id)}
+                  status={itemStatus(candidate.id)}
+                  intl={intl}
+                  t={t}
+                  onDelete={(id) => void handleDelete(id)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="admin-list-stack">
+              {list.map((candidate) => (
+                <RunListRow
+                  key={candidate.id}
+                  campaign={campaign}
+                  candidate={candidate}
+                  panelName={panelName(candidate.id)}
+                  status={itemStatus(candidate.id)}
+                  intl={intl}
+                  t={t}
+                  onDelete={(id) => void handleDelete(id)}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
+      {toast ? <div className="toast">{toast}</div> : null}
     </section>
   )
 }

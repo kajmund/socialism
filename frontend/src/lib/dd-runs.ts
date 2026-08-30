@@ -35,7 +35,7 @@ export function ddRunStatus(panelStatus: PanelSessionStatus | null): DdRunStatus
 export function campaignRunPath(
   campaignId: number,
   candidateId: string,
-  tab?: "config" | "results",
+  tab?: "config" | "research" | "results",
 ): string {
   const base = `/bolag/campaigns/${campaignId}/runs/${candidateId}`
   if (!tab) return base

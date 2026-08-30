@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -44,6 +46,14 @@ def _normalize_sources(raw: list | None) -> list[dict]:
     return out
 
 
+def _iso(value: datetime | None) -> str | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=UTC)
+    return value.isoformat()
+
+
 def serialize_report(report: Report) -> ReportOut:
     return ReportOut(
         id=report.id,
@@ -57,9 +67,9 @@ def serialize_report(report: Report) -> ReportOut:
         slots_path=report.slots_path,
         job_id=report.job_id,
         error=report.error,
-        created_at=report.created_at.isoformat() if report.created_at else "",
-        finished_at=report.finished_at.isoformat() if report.finished_at else None,
-        updated_at=report.updated_at.isoformat() if report.updated_at else "",
+        created_at=_iso(report.created_at) or "",
+        finished_at=_iso(report.finished_at),
+        updated_at=_iso(report.updated_at) or "",
     )
 
 

@@ -19,6 +19,10 @@ def mock_dd_panel_llm():
 
     async def _complete(messages, *, model=None):
         user = messages[-1]["content"]
+        if "ENDAST JA eller NEJ" in user or "ONLY YES or NO" in user:
+            return "JA"
+        if "Ingen av experterna" in user or "None of the experts" in user:
+            return "Panelen saknar rätt kompetens för frågan."
         if "ENDAST med JSON" in user or "ONLY with JSON" in user:
             score_counter["n"] += 1
             score = 5 + (score_counter["n"] % 4)

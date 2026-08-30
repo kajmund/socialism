@@ -122,6 +122,8 @@ function kindLabel(kind: string, t: Translate): string {
       return t("jobs.kind.panel_session_run")
     case "dd_sourcing_run":
       return t("jobs.kind.dd_sourcing_run")
+    case "dd_research":
+      return t("jobs.kind.dd_research")
     default:
       return kind
   }
@@ -138,6 +140,8 @@ function progressLabel(job: Job, t: Translate): string {
       return t("jobs.progress.panel")
     case "dd_sourcing_run":
       return t("jobs.progress.sourcing")
+    case "dd_research":
+      return t("jobs.progress.research")
     default:
       return t("jobs.progress.generating")
   }
@@ -228,7 +232,9 @@ function JobActionLinks({
   }
   if (
     job.status === "succeeded" &&
-    (job.kind === "panel_session_run" || job.kind === "dd_sourcing_run")
+    (job.kind === "panel_session_run" ||
+      job.kind === "dd_sourcing_run" ||
+      job.kind === "dd_research")
   ) {
     const href = ddCampaignHref(job)
     if (href) {
@@ -259,7 +265,9 @@ function JobActionLinks({
   }
   if (
     (job.status === "pending" || job.status === "running") &&
-    (job.kind === "panel_session_run" || job.kind === "dd_sourcing_run")
+    (job.kind === "panel_session_run" ||
+      job.kind === "dd_sourcing_run" ||
+      job.kind === "dd_research")
   ) {
     const href = ddCampaignHref(job)
     if (href) {
@@ -348,7 +356,9 @@ function JobCard({
           </div>
         )}
         {job.status === "succeeded" &&
-          (job.kind === "panel_session_run" || job.kind === "dd_sourcing_run") &&
+          (job.kind === "panel_session_run" ||
+            job.kind === "dd_sourcing_run" ||
+            job.kind === "dd_research") &&
           ddHref != null && (
             <div style={{ marginTop: 12, font: "var(--text-body-sm)" }}>
               <Link to={ddHref}>{ddCampaignLinkLabel(job, t)}</Link>
@@ -389,7 +399,9 @@ function JobCard({
                 <Link to={`${paths.reports}/${reportId}`}>{t("jobs.openReport")}</Link>
               </>
             ) : null}
-            {(job.kind === "panel_session_run" || job.kind === "dd_sourcing_run") &&
+            {(job.kind === "panel_session_run" ||
+              job.kind === "dd_sourcing_run" ||
+              job.kind === "dd_research") &&
             ddHref != null ? (
               <>
                 {" · "}
@@ -460,57 +472,61 @@ export function JobsPage({ scope = "admin", Shell = AdminShell }: JobsPageProps)
 
   return (
     <Shell>
-      <div className="wrap" style={{ maxWidth: 960 }}>
-        <div className="section-head">
-          <span className="kicker">{t("jobs.kicker")}</span>
-          <h1
-            style={{
-              font: "var(--text-h1)",
-              fontFamily: "'Bai Jamjuree', sans-serif",
-              fontWeight: 400,
-            }}
-          >
-            {t("jobs.title")}
-          </h1>
-          <p>{scope === "bolag" ? t("jobs.introBolag") : t("jobs.intro")}</p>
+      <div className="wrap admin-page">
+        <div className="admin-page-chrome">
+          <div className="section-head">
+            <span className="kicker">{t("jobs.kicker")}</span>
+            <h1
+              style={{
+                font: "var(--text-h1)",
+                fontFamily: "'Bai Jamjuree', sans-serif",
+                fontWeight: 400,
+              }}
+            >
+              {t("jobs.title")}
+            </h1>
+            <p>{scope === "bolag" ? t("jobs.introBolag") : t("jobs.intro")}</p>
+          </div>
+
+          <div className="controls-row">
+            <div className="controls-left" />
+            <div className="controls-right">
+              <ViewToggle value={view} onChange={setView} />
+            </div>
+          </div>
+
+          {reconnecting && (
+            <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
+              {t("jobs.reconnecting")}
+            </div>
+          )}
+
+          {error && (
+            <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
+              {error}
+            </div>
+          )}
         </div>
 
-        <div className="controls-row">
-          <div className="controls-left" />
-          <div className="controls-right">
-            <ViewToggle value={view} onChange={setView} />
-          </div>
+        <div className="admin-page-body">
+          {jobs.length === 0 && !error ? (
+            <div className="no-match" style={{ textAlign: "left" }}>
+              {scope === "bolag" ? t("jobs.emptyBolag") : t("jobs.empty")}
+            </div>
+          ) : view === "grid" ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {jobs.map((job) => (
+                <JobCard key={job.id} job={job} t={t} intl={intl} paths={paths} />
+              ))}
+            </div>
+          ) : (
+            <div className="admin-list-stack">
+              {jobs.map((job) => (
+                <JobListRow key={job.id} job={job} t={t} intl={intl} paths={paths} />
+              ))}
+            </div>
+          )}
         </div>
-
-        {reconnecting && (
-          <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
-            {t("jobs.reconnecting")}
-          </div>
-        )}
-
-        {error && (
-          <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
-            {error}
-          </div>
-        )}
-
-        {jobs.length === 0 && !error ? (
-          <div className="no-match" style={{ textAlign: "left" }}>
-            {scope === "bolag" ? t("jobs.emptyBolag") : t("jobs.empty")}
-          </div>
-        ) : view === "grid" ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {jobs.map((job) => (
-              <JobCard key={job.id} job={job} t={t} intl={intl} paths={paths} />
-            ))}
-          </div>
-        ) : (
-          <div className="admin-list-stack">
-            {jobs.map((job) => (
-              <JobListRow key={job.id} job={job} t={t} intl={intl} paths={paths} />
-            ))}
-          </div>
-        )}
       </div>
     </Shell>
   )

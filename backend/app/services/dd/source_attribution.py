@@ -7,8 +7,9 @@ If no external source is found, the badge is ``llm`` (modellbedömning) so
 operators know the score rests on model reasoning alone.
 
 Priority (highest first):
-1. Web search (DuckDuckGo via ``search_duckduckgo``)
-2. LLM-only — explicit label, never disguised as external fact
+1. Candidate figures already in the brief (financial health) — labeled **Grunddata**, no web search
+2. Web search (DuckDuckGo via ``search_duckduckgo``)
+3. LLM-only — explicit label, never disguised as external fact
 """
 
 from __future__ import annotations
@@ -45,8 +46,16 @@ def resolve_source_badge(
     sub_question_label: str,
     candidate_name: str,
     extra_context: str = "",
+    figures_in_brief: bool = False,
 ) -> SourceBadge:
     """Resolve the best available attribution badge for an expert score."""
+    label = sub_question_label.strip().lower()
+    if figures_in_brief and label in {"finansiell hälsa", "financial health"}:
+        return SourceBadge(
+            kind="llm",
+            label="Grunddata",
+            detail="Nyckeltal från kandidatunderlaget",
+        )
     query = " ".join(part for part in (sub_question_label, candidate_name, extra_context) if part).strip()
     if not query:
         return SourceBadge(kind="llm", label="Modellbedömning", detail="Ingen sökfråga")

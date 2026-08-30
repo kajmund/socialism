@@ -159,11 +159,15 @@ export function PopulationDetailPage({
     }
   }, [populationId, t])
 
+  const wrapClass = "wrap admin-page"
+
   if (loading) {
     return (
       <Shell>
-        <div className="wrap wrap-full">
-          <div className="no-match">{t("populations.detail.loading")}</div>
+        <div className={wrapClass}>
+          <div className="admin-page-body">
+            <div className="no-match">{t("populations.detail.loading")}</div>
+          </div>
         </div>
       </Shell>
     )
@@ -180,9 +184,8 @@ export function PopulationDetailPage({
   const sectionLabels = fpSectionLabels(t)
   const legendFallback = fpLegendFallback(t)
 
-  return (
-    <Shell>
-      <div className="wrap wrap-full">
+  const detail = (
+        <>
         <div className="crumb">
           <Link to={basePath}>
             {t(isExpertPanel ? "expertPanels.detail.back" : "populations.detail.back")}
@@ -559,6 +562,13 @@ export function PopulationDetailPage({
             ))}
           </div>
         )}
+      </>
+  )
+
+  return (
+    <Shell>
+      <div className={wrapClass}>
+        <div className="admin-page-body">{detail}</div>
       </div>
       {toast && (
         <div className="fixed bottom-6 right-6 rounded-md bg-db-ink-950 px-4 py-3 text-sm text-db-ink-0 shadow-lg">

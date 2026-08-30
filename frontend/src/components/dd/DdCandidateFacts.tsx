@@ -1,4 +1,5 @@
 import type { DdAccountFigure, DdCandidateCompany } from "@/api/dd"
+import { DdAccountCharts } from "@/components/dd/DdAccountCharts"
 import { useLocale, type MessageKey } from "@/i18n"
 
 const SUMMARY_ACCOUNT_CODES = new Set(["SDI", "DR", "SUB", "EBITDA", "ANT", "SEK", "EKA"])
@@ -8,20 +9,37 @@ function formatSek(value: number | null | undefined, intl: string): string {
   return `${new Intl.NumberFormat(intl).format(value)} kr`
 }
 
-function formatFigure(figure: DdAccountFigure, intl: string): string {
+function formatFigureValue(figure: DdAccountFigure | undefined, intl: string): string {
+  if (!figure) return "—"
   switch (figure.enhet) {
     case "sek":
-      return `${figure.namn}: ${formatSek(figure.sek, intl)}`
+      return formatSek(figure.sek, intl)
     case "pct":
-      return `${figure.namn}: ${figure.tal ?? "—"}%`
+      return figure.tal != null ? `${figure.tal}%` : "—"
     case "antal":
     case "tal":
-      return `${figure.namn}: ${figure.tal ?? "—"}`
+      return figure.tal ?? "—"
     default: {
       const _never: never = figure.enhet
       return _never
     }
   }
+}
+
+function extraAccountRows(years: DdCandidateCompany["rakenskaper"]): {
+  kod: string
+  namn: string
+}[] {
+  const rows: { kod: string; namn: string }[] = []
+  const seen = new Set<string>()
+  for (const year of years ?? []) {
+    for (const fig of year.poster ?? []) {
+      if (SUMMARY_ACCOUNT_CODES.has(fig.kod) || seen.has(fig.kod)) continue
+      seen.add(fig.kod)
+      rows.push({ kod: fig.kod, namn: fig.namn })
+    }
+  }
+  return rows
 }
 
 function registeredLabel(
@@ -57,6 +75,8 @@ export function DdCandidateFacts({
   const officers = candidate.styrelse ?? []
   const marks = candidate.varumarken ?? []
   const accounts = candidate.rakenskaper ?? []
+  const extraRows = extraAccountRows(accounts)
+  const extraYears = [...accounts].sort((a, b) => a.year.localeCompare(b.year))
   const signatories = candidate.firmateckning ?? []
   const sni = candidate.sni ?? []
   const events = candidate.handelser ?? []
@@ -219,54 +239,37 @@ export function DdCandidateFacts({
           <FactList title={t("dd.sourcing.candidateSites")} items={sites} />
           <FactList title={t("dd.sourcing.candidateRelated")} items={related} />
           <FactList title={t("dd.sourcing.candidateEvents")} items={events} />
-          {accounts.length > 0 ? (
+          {accounts.length > 0 ? <DdAccountCharts years={accounts} /> : null}
+          {extraRows.length > 0 ? (
             <div>
               <h4 className="text-xs uppercase tracking-wide text-muted-foreground">
-                {t("dd.sourcing.candidateAccounts")}
+                {t("dd.sourcing.candidateOtherAccounts")}
               </h4>
-              <ul className="mt-1 grid gap-2 text-sm">
-                {accounts.map((year) => {
-                  const extra = (year.poster ?? []).filter(
-                    (fig) => !SUMMARY_ACCOUNT_CODES.has(fig.kod),
-                  )
-                  return (
-                    <li key={year.year}>
-                      <div className="font-medium">{year.year}</div>
-                      <div className="text-muted-foreground">
-                        {t("dd.sourcing.candidateRevenue")}: {formatSek(year.omsattning_sek, intl)}
-                        {" · "}
-                        {t("dd.sourcing.candidateResult")}: {formatSek(year.resultat_sek, intl)}
-                        {" · "}
-                        {t("dd.sourcing.candidateDividend")}: {formatSek(year.utdelning_sek, intl)}
-                        {year.ebitda_sek != null
-                          ? ` · ${t("dd.sourcing.candidateEbitda")}: ${formatSek(year.ebitda_sek, intl)}`
-                          : ""}
-                        {year.anstallda != null
-                          ? ` · ${t("dd.sourcing.candidateEmployees")}: ${year.anstallda}`
-                          : ""}
-                        {year.eget_kapital_sek != null
-                          ? ` · ${t("dd.sourcing.candidateEquity")}: ${formatSek(year.eget_kapital_sek, intl)}`
-                          : ""}
-                        {year.soliditet_pct
-                          ? ` · ${t("dd.sourcing.candidateSolidity")}: ${year.soliditet_pct}%`
-                          : ""}
-                      </div>
-                      {extra.length > 0 ? (
-                        <div className="mt-1">
-                          <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                            {t("dd.sourcing.candidateOtherAccounts")}
-                          </div>
-                          <ul className="mt-0.5 grid gap-0.5 text-muted-foreground md:grid-cols-2">
-                            {extra.map((fig) => (
-                              <li key={fig.kod}>{formatFigure(fig, intl)}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      ) : null}
-                    </li>
-                  )
-                })}
-              </ul>
+              <div className="table-scroll mt-2">
+                <table className="dd-accounts-table">
+                  <thead>
+                    <tr>
+                      <th>{t("dd.sourcing.accountsMetric")}</th>
+                      {extraYears.map((year) => (
+                        <th key={year.year}>{year.year}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {extraRows.map((row) => (
+                      <tr key={row.kod}>
+                        <th>{row.namn}</th>
+                        {extraYears.map((year) => {
+                          const fig = (year.poster ?? []).find((item) => item.kod === row.kod)
+                          return (
+                            <td key={`${row.kod}-${year.year}`}>{formatFigureValue(fig, intl)}</td>
+                          )
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           ) : null}
         </>

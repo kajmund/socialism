@@ -49,17 +49,20 @@ Scratchpads are stored on the session row and included in expert prompts but omi
 ## dd_panel flow (Fas 2)
 
 1. Create via `POST /dd/campaigns/{id}/panel-sessions` (candidate + expert panel from campaign `expert_panel_id`, or legacy `expert_role_keys`)
-2. Spinndoktor (`spinndoctor.system`) moderates — not `panel.moderator.system`
+2. Spinndoktor opens and introduces each sub-question
 3. Four sub-questions (finansiell hälsa, legal risk, marknadsposition, integrationsrisk)
-4. Each expert scores each sub-question (1–10) with motivation + source badge
-5. Structured output in `panel_sessions.result` (`DdPanelResult`: scores matrix, dissensus notes, summary)
+4. Per sub-question: each expert raise-hand (`panel.dd.expert.raise_hand`) — only those who answer JA score that question
+5. If nobody raises a hand: skip scoring, Spinndoktor explains the coverage gap (`panel.dd.moderator.no_answer`, phase `unanswered`)
+6. Participating experts score 1–10 with motivation + source badge
+7. Structured output in `panel_sessions.result` (`DdPanelResult`: scores matrix, dissensus notes, unanswered notes, summary)
 
 ### Source attribution (explicit priority chain)
 
 Implemented in `app/services/dd/source_attribution.py` — **not** silent fallbacks:
 
-1. Web (DuckDuckGo)
-2. `llm` — labeled **Modellbedömning** when no external source is found
+1. Candidate figures already in the brief (financial health) — labeled **Grunddata**, no web search
+2. Web (DuckDuckGo)
+3. `llm` — labeled **Modellbedömning** when no external source is found
 
 Badges are stored per score in `result.scores[].source`.
 

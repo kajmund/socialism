@@ -10,6 +10,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.database.models import PanelSession, Report, Run
 from app.database.session import get_session
@@ -27,7 +28,12 @@ from app.schemas.domain import (
 )
 from app.serializers import utcnow
 from app.services import jobs as jobs_service
-from app.services.dd.candidate_runs import upsert_report as upsert_dd_candidate_report
+from app.services.dd.candidate_runs import (
+    get_candidate_run,
+    upsert_report as upsert_dd_candidate_report,
+)
+from app.services.spindoctor_board import clear_spindoctor_widgets
+from app.services.spindoctor_chat import clear_spindoctor_messages
 from app.services.panel.schemas import DdPanelResult
 from app.services.report import ARTIFACT_ROOT
 from app.services.report.dd_report import render_dd_html_from_artifact
@@ -129,6 +135,43 @@ async def _validate_sources(session: AsyncSession, body: ReportCreate) -> tuple[
     return sources, mode
 
 
+async def _reuse_dd_report(
+    session: AsyncSession,
+    *,
+    sources: list[dict],
+    body: ReportCreate,
+) -> Report | None:
+    if not body.sources:
+        return None
+    src = body.sources[0]
+    panel = await session.get(PanelSession, src.session_id)
+    if panel is None or panel.campaign_id is None or not src.candidate_id:
+        return None
+    run = await get_candidate_run(
+        session, campaign_id=panel.campaign_id, candidate_id=src.candidate_id
+    )
+    if run is None or not run.report_id:
+        return None
+    report = await session.get(Report, run.report_id)
+    if report is None or report.mode != "dd":
+        return None
+    report.status = "pending"
+    if (body.title or "").strip():
+        report.title = body.title.strip()
+    report.locale = normalize_locale(body.locale)
+    report.sources = sources
+    flag_modified(report, "sources")
+    report.html_path = None
+    report.slots_path = None
+    report.job_id = None
+    report.error = None
+    report.created_at = utcnow()
+    report.finished_at = None
+    report.updated_at = utcnow()
+    await session.flush()
+    return report
+
+
 @router.post("", response_model=ReportOut, status_code=202)
 async def create_report(
     body: ReportCreate,
@@ -136,7 +179,6 @@ async def create_report(
     session: AsyncSession = Depends(get_session),
 ) -> ReportOut:
     sources, mode = await _validate_sources(session, body)
-    report_id = f"rpt_{secrets.token_hex(8)}"
     locale = normalize_locale(body.locale)
     ab_source = False
     if mode == "quick" and len(sources) == 1:
@@ -155,37 +197,45 @@ async def create_report(
             n_sources=len(sources),
         )
 
-    customer_id = await customer_id_for_new_report(session, body, sources=sources, mode=mode)
-
-    report = Report(
-        id=report_id,
-        customer_id=customer_id,
-        status="pending",
-        title=title,
-        locale=locale,
-        mode=mode,
-        sources=sources,
-        html_path=None,
-        slots_path=None,
-        job_id=None,
-        error=None,
-        created_at=utcnow(),
-        updated_at=utcnow(),
-    )
-    session.add(report)
-    await session.flush()
-    if mode == "dd" and body.sources:
-        src = body.sources[0]
-        panel = await session.get(PanelSession, src.session_id)
-        if panel is not None and panel.campaign_id is not None and src.candidate_id:
-            await upsert_dd_candidate_report(
-                session,
-                campaign_id=panel.campaign_id,
-                candidate_id=src.candidate_id,
-                report_id=report_id,
-            )
+    reused = await _reuse_dd_report(session, sources=sources, body=body) if mode == "dd" else None
+    if reused is not None:
+        report = reused
+        report_id = report.id
+    else:
+        report_id = f"rpt_{secrets.token_hex(8)}"
+        customer_id = await customer_id_for_new_report(session, body, sources=sources, mode=mode)
+        report = Report(
+            id=report_id,
+            customer_id=customer_id,
+            status="pending",
+            title=title,
+            locale=locale,
+            mode=mode,
+            sources=sources,
+            html_path=None,
+            slots_path=None,
+            job_id=None,
+            error=None,
+            created_at=utcnow(),
+            updated_at=utcnow(),
+        )
+        session.add(report)
+        await session.flush()
+        if mode == "dd" and body.sources:
+            src = body.sources[0]
+            panel = await session.get(PanelSession, src.session_id)
+            if panel is not None and panel.campaign_id is not None and src.candidate_id:
+                await upsert_dd_candidate_report(
+                    session,
+                    campaign_id=panel.campaign_id,
+                    candidate_id=src.candidate_id,
+                    report_id=report_id,
+                )
     await session.commit()
     await session.refresh(report)
+    if reused is not None:
+        await clear_spindoctor_messages(session, report.id)
+        await clear_spindoctor_widgets(session, report.id)
 
     try:
         job = await jobs_service.create_job(

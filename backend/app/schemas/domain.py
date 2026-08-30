@@ -4,6 +4,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.services.expert_tools import normalize_expert_tools
 from app.services.report.thresholds import ReportThresholds
 
 PersonaOrigin = Literal["manuell", "beskrivning", "demografi", "population"]
@@ -71,6 +72,7 @@ class LibraryPersona(BaseModel):
     updated: str
     origin: PersonaOrigin
     profile: EditablePersona
+    tools: list[str] | None = None
 
 
 class PersonaDetail(LibraryPersona):
@@ -88,6 +90,14 @@ class PersonaCreate(BaseModel):
     quote: str = ""
     origin: PersonaOrigin = "manuell"
     profile: EditablePersona | None = None
+    tools: list[str] | None = None
+
+    @field_validator("tools")
+    @classmethod
+    def validate_tools(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return None
+        return normalize_expert_tools(value)
 
     @model_validator(mode="after")
     def require_age_for_persona_kind(self) -> Self:
@@ -105,6 +115,14 @@ class PersonaUpdate(BaseModel):
     quote: str | None = None
     origin: PersonaOrigin | None = None
     profile: EditablePersona | None = None
+    tools: list[str] | None = None
+
+    @field_validator("tools")
+    @classmethod
+    def validate_tools(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return None
+        return normalize_expert_tools(value)
 
 
 class PopulationMemberOut(BaseModel):
@@ -1139,7 +1157,13 @@ class CatalogListUpdate(BaseModel):
         return cleaned
 
 
-JobKind = Literal["population_generate", "run_simulate", "report_generate", "panel_session_run"]
+JobKind = Literal[
+    "population_generate",
+    "run_simulate",
+    "report_generate",
+    "panel_session_run",
+    "dd_research",
+]
 JobStatus = Literal["pending", "running", "succeeded", "failed"]
 ReportStatus = Literal["pending", "running", "succeeded", "failed"]
 

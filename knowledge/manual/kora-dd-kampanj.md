@@ -1,7 +1,7 @@
 ---
 type: guide
 title: Köra en DD-kampanj
-description: Skapa en kampanj, chatta fram bolag, konfigurera körningar och öppna resultat.
+description: Skapa en kampanj, chatta fram bolag, köra research, konfigurera körningar och öppna resultat.
 tags: [jobb, rapporter]
 ---
 
@@ -17,7 +17,7 @@ En **DD-kampanj** samlar en sökbrief, kandidatbolag och körningar. Du chattar 
 
 ## Sök och välj bolag
 
-1. På **Översikt** eller **Kandidater**, välj **Sök bolag**.
+1. På **Kandidater**, välj **Sök bolag**.
 2. Beskriv vilka bolag du söker, till exempel bransch, ort eller storlek. Du kan också välja ett färdigt förslag.
 3. Assistenten söker och visar träffar.
 4. Markera bolagen du vill ha. **Avmarkera alla** tar bort markeringen; du kan också avmarkera enskilda träffar.
@@ -31,25 +31,30 @@ Din första beskrivning sparas som kampanjens sökbrief.
 
 Kampanjen är uppdelad i flikar:
 
-- **Översikt** — namn och sökbriefen. Briefen kan inte ändras här.
+- **Översikt** — kampanjens namn.
 - **Kandidater** — bolagen du lagt till.
 - **Körningar** — en körning per kandidat. Öppna resultat, gå till konfiguration eller ta bort körningen.
 
 När minst ett bolag är tillagt låses sökbriefen. Du kan chatta vidare och lägga till fler bolag.
 
-På kandidatkortet syns omsättning, resultat, anställda, F-skatt, moms, arbetsgivaravgift, styrelse, koncern, varumärken, SNI, händelser och flera års räkenskaper — inklusive föreslagen utdelning och övriga nyckeltal — när uppgifterna finns.
+På kandidatlistan syns namn, organisationsnummer, omsättning och anställda. Fäll ut ett bolag för att se resten: F-skatt, moms, styrelse, koncern, varumärken, SNI, händelser och räkenskaper. Nyckeltalen visas som staplar per år, likadant som i DD-rapporten. Exakta belopp och övriga poster står i tabeller under diagrammen.
 
 ## Konfigurera och starta en körning
 
-1. Öppna fliken **Körningar**.
+1. Öppna fliken **Körningar**. Där syns en körning per kandidat — sök, filtrera och växla mellan rutnät och lista.
 2. Välj **Fortsätt konfigurera** på kandidaten (eller **Konfiguration** om körningen redan har startats).
-3. Välj en expertpanel och **Kör DD-panel**.
+3. Under **Konfiguration** väljer du expertpanel. Research-läget syns som en sammanfattning; kartläggningen görs under **Research**.
+4. Öppna **Research** → **Koncern** och välj **Kartlägg koncern**. Jobbet listar upp till 25 bolag i koncernen — även syskon och deras dotterbolag, till exempel Academic Work i Akind-koncernen. Trädet hämtas från Allabolags koncernuppgifter; nyckeltal slås upp per bolag. I vyn syns en sammanfattning (bolag, omsättning, anställda, resultat), en sökbar lista i strukturordning och detaljer för det valda bolaget till höger (styrelse och understruktur). Finns fler bolag kvar väljer du **Kartlägg fler**. Personerna i styrelserna samlas som en sidoeffekt. Relaterade bolag utanför koncernen tas inte med. Saknade uppgifter hamnar under **Inte hittat**; om Allabolag inte svarar stannar jobbet.
+5. Öppna **Research** → **Personer**. Sök eller filtrera listan, markera en eller flera personer och välj **Utred valda**, eller **Utred alla**. Välj en person i listan för att se dossiern till höger: uppdrag i koncernen, uppdrag utanför och sociala träffar. Revisorer får en not om att den långa listan beror på revisorsrollen. När personerna redan är utredda (eller när du vill kartlägga koncernen om) måste du först välja **Rensa research**.
+6. Tillbaka under **Konfiguration**, välj **Kör DD-panel**.
 
-När panelen är klar öppnas **Resultat**. Där följer du live-panelen och öppnar DD-rapporten. Från resultat kan du gå tillbaka till **Konfiguration**.
+När research är klar syns koncern och personer under fliken **Research**. När panelen är klar visas rapporten under **Resultat**. Knappen **Spinndoktor** öppnar rapporten i fullbredd så du kan arbeta i spinndoktorvyn. Panelen får dossiern i underlaget om research körts först. Från resultat kan du gå tillbaka till **Konfiguration**.
 
 I DD-rapporten jämförs räkenskaperna med staplar per år — omsättning, resultat, EBITDA och övriga nyckeltal — i stället för en år-för-år-lista. Exakta belopp står i tabellen under diagrammen.
 
-Experterna i panelen, expertchatten (intervju och in-character) och Spinndoktor kan slå upp samma bolagsuppgifter när de bedömer ett målbolag. Experterna kan också söka på webben och Wikipedia — samma sökverktyg som politik-personas kan få i en körning.
+I live-panelen leder Spinndoktor bara — experterna talar själva när de räcker upp handen. Varje expert bedömer bara de delfrågor som är hens kärnkompetens. Om ingen räcker upp handen hoppas poängen över, och rapporten förklarar luckan under **Obesvarade delfrågor**.
+
+Experterna i panelen, expertchatten (intervju och in-character) och Spinndoktor kan slå upp bolagsuppgifter när ett nyckeltal saknas. Siffror som redan finns i grunddata söks inte om. Experterna kan också söka på webben och Wikipedia efter annat än de redan givna nyckeltalen.
 
 ## Ta bort en körning
 

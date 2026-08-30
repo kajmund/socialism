@@ -14,6 +14,7 @@ const PHASE_LABEL_KEYS: Record<PanelWatchTurnPhase, MessageKey> = {
   raise_hand: "dd.panel.live.phase.raiseHand",
   expert: "dd.panel.live.phase.expert",
   scratchpad: "dd.panel.live.phase.scratchpad",
+  unanswered: "dd.panel.live.phase.unanswered",
 }
 
 function TurnRow({

@@ -8,6 +8,7 @@ from app.database.models import Persona
 from app.schemas.domain import EditablePersona
 from app.serializers import persona_initials, utcnow
 from app.services.dd.expert_keys import expert_role_key
+from app.services.expert_tools import default_expert_tools
 from app.services.kund_store import bolag_demo_customer_id
 
 DEFAULT_EXPERT_SPECS: list[dict[str, str]] = [
@@ -76,6 +77,8 @@ async def ensure_default_expert_personas(
         persona_id = _expert_persona_id(spec["name"])
         existing = await session.get(Persona, persona_id)
         if existing is not None:
+            if existing.tools is None:
+                existing.tools = default_expert_tools()
             continue
         row = Persona(
             id=persona_id,
@@ -88,6 +91,7 @@ async def ensure_default_expert_personas(
             quote=spec["description"],
             origin="manuell",
             profile=_profile_from_spec(spec),
+            tools=default_expert_tools(),
             updated_at=utcnow(),
         )
         session.add(row)

@@ -33,8 +33,14 @@ import { PersonaAnekdotEditor, PersonaAnekdotPresentation } from "@/components/p
 import { PersonaLibrarySaveAction } from "@/components/personas/PersonaLibrarySaveAction"
 import { AdminButton } from "@/components/ui/admin-button"
 import { Card, CardContent } from "@/components/ui/card"
+import { ExpertToolsFields } from "@/components/experts/ExpertToolsFields"
 import { blankEditableExpert, blankEditablePersona } from "@/data/library"
 import type { EditablePersona, PersonaKind, PersonaOrigin } from "@/data/library-types"
+import {
+  DEFAULT_EXPERT_TOOLS,
+  normalizeExpertTools,
+  type ExpertToolId,
+} from "@/data/expert-tools"
 import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
 import { ApiError } from "@/lib/api"
 
@@ -193,6 +199,8 @@ type EditorProps = {
   saving?: boolean
   deleting?: boolean
   kind?: PersonaKind
+  tools?: ExpertToolId[]
+  onToolsChange?: (tools: ExpertToolId[]) => void
 }
 
 function Editor({
@@ -211,6 +219,8 @@ function Editor({
   saving,
   deleting,
   kind = "persona",
+  tools = DEFAULT_EXPERT_TOOLS,
+  onToolsChange,
 }: EditorProps) {
   const [mode, setMode] = useState<"work" | "present">("work")
   const [icMode, setIcMode] = useState<ChatMode>("interview")
@@ -498,6 +508,12 @@ function Editor({
               {t("personas.composer.presentMode")}
             </button>
           </div>
+          {kind === "expert" ? (
+            <ExpertToolsFields
+              tools={tools}
+              onChange={onToolsChange ?? (() => undefined)}
+            />
+          ) : null}
           <AdminButton variant="secondary" size="sm" onClick={onDuplicate}>
             {t("common.duplicate")}
           </AdminButton>
@@ -1062,6 +1078,7 @@ export function PersonaComposerPage({
     startCreating ? (isExpert ? blankEditableExpert() : null) : isExpert ? blankEditableExpert() : blankEditablePersona(),
   )
   const [personaId, setPersonaId] = useState<string | null>(existingId)
+  const [tools, setTools] = useState<ExpertToolId[]>(DEFAULT_EXPERT_TOOLS)
   const [loading, setLoading] = useState(!!existingId)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -1140,6 +1157,7 @@ export function PersonaComposerPage({
         setPersona({ ...blankEditablePersona(), ...detail.profile })
         setPersonaId(detail.id)
         setCreateOrigin(detail.origin)
+        if (isExpert) setTools(normalizeExpertTools(detail.tools))
       })
       .catch((err: unknown) => {
         if (!cancelled) {
@@ -1163,15 +1181,21 @@ export function PersonaComposerPage({
   async function savePersona(target: EditablePersona, origin: PersonaOrigin) {
     setSaving(true)
     try {
-      const body = editableToWrite(target, origin, "", { kind, customerId })
+      const body = editableToWrite(target, origin, "", {
+        kind,
+        customerId,
+        tools: isExpert ? tools : undefined,
+      })
       if (personaId) {
         const saved = await updatePersona(personaId, body)
         setPersona({ ...(isExpert ? blankEditableExpert() : blankEditablePersona()), ...saved.profile })
         setPersonaId(saved.id)
+        if (isExpert) setTools(normalizeExpertTools(saved.tools))
       } else {
         const saved = await createPersona(body)
         setPersona({ ...(isExpert ? blankEditableExpert() : blankEditablePersona()), ...saved.profile })
         setPersonaId(saved.id)
+        if (isExpert) setTools(normalizeExpertTools(saved.tools))
         navigate(`${basePath}/${saved.id}`, { replace: true })
       }
     } catch (err) {
@@ -1404,6 +1428,8 @@ export function PersonaComposerPage({
               deleting={deleting}
               onToast={showToast}
               kind={kind}
+              tools={tools}
+              onToolsChange={setTools}
               onDelete={
                 personaId
                   ? () => {

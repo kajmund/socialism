@@ -47,6 +47,7 @@ from app.services.persona_chat import (
 )
 from app.services.population_generate import stub_persona
 from app.services.dd.default_experts import ensure_default_expert_personas
+from app.services.expert_tools import resolve_expert_tools
 from app.services.kund_store import bolag_demo_customer_id, default_os_customer_id
 from app.services.prompt_store import require_active_prompts
 
@@ -266,6 +267,7 @@ async def create_persona(
         quote=quote,
         origin=body.origin,
         profile=profile.model_dump(),
+        tools=resolve_expert_tools(body.tools) if body.kind == "expert" else None,
         updated_at=utcnow(),
     )
     session.add(persona)
@@ -283,10 +285,14 @@ async def update_persona(
     persona = await _get_persona(session, persona_id)
     data = body.model_dump(exclude_unset=True)
     profile = data.pop("profile", None)
+    tools_set = "tools" in data
+    tools = data.pop("tools", None)
     for key, value in data.items():
         setattr(persona, key, value)
     if profile is not None:
         persona.profile = profile
+    if tools_set:
+        persona.tools = resolve_expert_tools(tools) if persona.kind == "expert" else None
     persona.updated_at = utcnow()
     await session.commit()
     await session.refresh(persona)
@@ -314,6 +320,7 @@ async def duplicate_persona(
         quote=source.quote,
         origin=source.origin,
         profile=dict(source.profile or blank_profile(source.name).model_dump()),
+        tools=list(source.tools) if source.tools is not None else source.tools,
         updated_at=utcnow(),
     )
     session.add(persona)
