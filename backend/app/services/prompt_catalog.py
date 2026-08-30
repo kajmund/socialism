@@ -1394,13 +1394,12 @@ HOW YOU WRITE COMMENTS:
         "panel",
         "DD-panel — expert räck upp handen",
         "DD panel — expert raise hand",
-        "Platshållare: {topic}, {sub_question}, {typical_owner}, {brief}, {label}.",
-        "Placeholders: {topic}, {sub_question}, {typical_owner}, {brief}, {label}.",
+        "Platshållare: {topic}, {sub_question}, {brief}, {label}.",
+        "Placeholders: {topic}, {sub_question}, {brief}, {label}.",
         (
             "Målbolag: {topic}\n\n"
             "Din roll: {label}\n\n"
-            "Delfråga: {sub_question}\n"
-            "(Kärnrollen för den här frågan är vanligtvis: {typical_owner}.)\n\n"
+            "Delfråga: {sub_question}\n\n"
             "Grunddata:\n{brief}\n\n"
             "Räck upp handen BARA om den här delfrågan är din kärnkompetens — det du är här för att bedöma.\n"
             "En sidovinkel räcker inte (t.ex. finans som kommenterar avtal via kundfordringar, "
@@ -1411,8 +1410,7 @@ HOW YOU WRITE COMMENTS:
         (
             "Target: {topic}\n\n"
             "Your role: {label}\n\n"
-            "Sub-question: {sub_question}\n"
-            "(The core role for this question is typically: {typical_owner}.)\n\n"
+            "Sub-question: {sub_question}\n\n"
             "Facts:\n{brief}\n\n"
             "Raise your hand ONLY if this sub-question is your core competence — what you are here to assess.\n"
             "An adjacent angle is not enough (e.g. finance commenting on contracts via receivables, "

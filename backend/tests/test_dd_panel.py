@@ -184,7 +184,7 @@ def test_parse_score_payload_rejects_non_numeric_score():
 async def test_expert_score_asks_for_json_after_invalid_tool_reply():
     from app.llm import set_text_completer, set_tools_completer
     from app.services.dd.source_attribution import SourceBadge
-    from app.services.dd.sub_questions import DD_SUB_QUESTIONS
+    from app.services.dd.sub_questions import DD_SUB_QUESTION_DEFAULTS, SubQuestionRef
     from app.services.panel.dd_engine import _expert_score
     from app.services.panel.schemas import PanelExpertSlot, PanelSessionConfig
     from app.services.prompt_catalog import default_prompts
@@ -210,7 +210,7 @@ async def test_expert_score_asks_for_json_after_invalid_tool_reply():
                     PanelExpertSlot(slot_id="fin", label="Finans", profile="Siffror")
                 ],
             ),
-            DD_SUB_QUESTIONS[0],
+            SubQuestionRef(id=DD_SUB_QUESTION_DEFAULTS[0].key, label=DD_SUB_QUESTION_DEFAULTS[0].label),
             SourceBadge(kind="llm", label="Modellbedömning", detail=""),
             [],
             default_prompts("sv"),
@@ -269,7 +269,7 @@ def test_candidate_has_figures_from_accounts():
 @pytest.mark.asyncio
 async def test_expert_raise_hand_dd_accepts_ja_and_yes():
     from app.llm import set_text_completer
-    from app.services.dd.sub_questions import DD_SUB_QUESTIONS
+    from app.services.dd.sub_questions import DD_SUB_QUESTION_DEFAULTS, SubQuestionRef
     from app.services.panel.dd_engine import _expert_raise_hand_dd
     from app.services.panel.schemas import PanelExpertSlot, PanelSessionConfig
     from app.services.prompt_catalog import default_prompts
@@ -288,9 +288,9 @@ async def test_expert_raise_hand_dd_accepts_ja_and_yes():
             expert_slots=[slot],
         )
         prompts = default_prompts("sv")
-        assert await _expert_raise_hand_dd(slot, config, DD_SUB_QUESTIONS[0], prompts)
-        assert await _expert_raise_hand_dd(slot, config, DD_SUB_QUESTIONS[1], prompts)
-        assert not await _expert_raise_hand_dd(slot, config, DD_SUB_QUESTIONS[2], prompts)
+        assert await _expert_raise_hand_dd(slot, config, SubQuestionRef(id=DD_SUB_QUESTION_DEFAULTS[0].key, label=DD_SUB_QUESTION_DEFAULTS[0].label), prompts)
+        assert await _expert_raise_hand_dd(slot, config, SubQuestionRef(id=DD_SUB_QUESTION_DEFAULTS[1].key, label=DD_SUB_QUESTION_DEFAULTS[1].label), prompts)
+        assert not await _expert_raise_hand_dd(slot, config, SubQuestionRef(id=DD_SUB_QUESTION_DEFAULTS[2].key, label=DD_SUB_QUESTION_DEFAULTS[2].label), prompts)
     finally:
         set_text_completer(None)
 
@@ -299,7 +299,7 @@ async def test_expert_raise_hand_dd_accepts_ja_and_yes():
 async def test_dd_panel_skips_score_when_no_expert_raises_hand(
     client: AsyncClient, monkeypatch
 ):
-    from app.services.dd.sub_questions import DD_SUB_QUESTIONS
+    from app.services.dd.sub_questions import DD_SUB_QUESTION_DEFAULTS, SubQuestionRef
 
     score_counter = {"n": 0}
 
@@ -379,7 +379,7 @@ async def test_dd_panel_skips_score_when_no_expert_raises_hand(
             t["phase"] == "score" and t.get("sub_question_id") == "legal_risk"
             for t in finished["transcript"]
         )
-        assert {sq.id for sq in DD_SUB_QUESTIONS} - scored_ids == {"legal_risk"}
+        assert {d.key for d in DD_SUB_QUESTION_DEFAULTS} - scored_ids == {"legal_risk"}
     finally:
         set_text_completer(None)
         set_tools_completer(None)

@@ -10,7 +10,7 @@ from typing import Any
 
 from app.services.dd.schemas import DdAccountYear, DdCandidateCompany
 from app.services.dd.source_attribution import SourceBadge, SourceKind
-from app.services.dd.sub_questions import DD_SUB_QUESTIONS
+from app.services.dd.sub_questions import SubQuestionRef
 from app.services.panel.schemas import (
     DdDissensusNote,
     DdExpertScore,
@@ -20,6 +20,7 @@ from app.services.panel.schemas import (
 from app.services.report.locale import ReportLocale, normalize_locale
 from app.services.report.markdown_html import markdown_to_html
 from app.services.report.render import REPORT_FONTS_HREF, inject_report_theme
+from app.services.spindoctor_dd import sub_questions_from_dd_doc
 
 _SOURCE_BADGE_CLASS: dict[SourceKind, str] = {
     "web": "web",
@@ -487,12 +488,13 @@ def _sub_question_sections(
     *,
     locale: ReportLocale,
     dissensus_ids: set[str],
+    sub_questions: list[SubQuestionRef],
 ) -> str:
     grouped = _scores_by_sub_question(result.scores)
     parts: list[str] = []
     heading = "Scores by sub-question" if locale == "en" else "Poäng per delfråga"
     parts.append(f'<section class="section" id="delfragor"><div class="eyebrow">{heading}</div><h2>{heading}</h2>')
-    for sq in DD_SUB_QUESTIONS:
+    for sq in sub_questions:
         rows = grouped.get(sq.id, [])
         if not rows:
             continue
@@ -526,7 +528,12 @@ def _sub_question_sections(
     return "".join(parts)
 
 
-def _raw_score_table(result: DdPanelResult, *, locale: ReportLocale) -> str:
+def _raw_score_table(
+    result: DdPanelResult,
+    *,
+    locale: ReportLocale,
+    sub_questions: list[SubQuestionRef],
+) -> str:
     experts: list[tuple[str, str]] = []
     seen: set[str] = set()
     for row in result.scores:
@@ -551,12 +558,12 @@ def _raw_score_table(result: DdPanelResult, *, locale: ReportLocale) -> str:
 
     header_cells = "".join(
         f"<th{_header_class(sq.id)}>{escape(sq.label)}</th>"
-        for sq in DD_SUB_QUESTIONS
+        for sq in sub_questions
     )
     body_rows = []
     for slot_id, label in experts:
         cells = []
-        for sq in DD_SUB_QUESTIONS:
+        for sq in sub_questions:
             score_row = by_key.get((slot_id, sq.id))
             if score_row is None:
                 cells.append("<td>—</td>")
@@ -627,9 +634,17 @@ def render_dd_html(
     locale: ReportLocale,
     session_id: str,
     candidate_id: str,
+    sub_questions: list[SubQuestionRef] | None = None,
 ) -> str:
     lang = "en" if locale == "en" else "sv"
     dissensus_ids = {n.sub_question_id for n in result.dissensus}
+    resolved = sub_questions or sub_questions_from_dd_doc(
+        {
+            "scores": [s.model_dump(mode="json") for s in result.scores],
+            "dissensus": [d.model_dump(mode="json") for d in result.dissensus],
+            "unanswered": [u.model_dump(mode="json") for u in result.unanswered],
+        }
+    )
     page_title = title.strip() or result.candidate.namn
     eyebrow = "DD REPORT" if locale == "en" else "DD-RAPPORT"
     summary_heading = "Summary" if locale == "en" else "Sammanfattning"
@@ -678,8 +693,8 @@ th.unanswered-col {{ color: var(--text-muted); font-style: italic; }}
     <div class="explainer md-body">{markdown_to_html(result.summary)}</div>
   </section>
   {_candidate_html(result.candidate, locale=locale)}
-  {_sub_question_sections(result, locale=locale, dissensus_ids=dissensus_ids)}
-  {_raw_score_table(result, locale=locale)}
+  {_sub_question_sections(result, locale=locale, dissensus_ids=dissensus_ids, sub_questions=resolved)}
+  {_raw_score_table(result, locale=locale, sub_questions=resolved)}
   {_sources_appendix(result.scores, locale=locale)}
   <p class="meta">session={escape(session_id)} · candidate={escape(candidate_id)}</p>
 </div>
@@ -741,6 +756,7 @@ async def generate_dd_report_html(
     out_dir: Path,
     title: str = "",
     locale: str = "sv",
+    sub_questions: list[SubQuestionRef] | None = None,
 ) -> tuple[Path, Path, dict[str, Any], dict[str, Any]]:
     """Write report.html + slots.json + dd.json for a succeeded dd_panel session."""
     loc = normalize_locale(locale)
@@ -751,6 +767,7 @@ async def generate_dd_report_html(
         locale=loc,
         session_id=session_id,
         candidate_id=candidate_id,
+        sub_questions=sub_questions,
     )
     html_path = out_dir / "report.html"
     slots_path = out_dir / "report.slots.json"
