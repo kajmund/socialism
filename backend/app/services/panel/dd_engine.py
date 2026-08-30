@@ -12,7 +12,7 @@ from app.services.dd.company_mcp import run_company_tool_loop, visible_assistant
 from app.services.dd.research import format_research_brief
 from app.services.dd.schemas import DdCandidateCompany, DdResearchDossier
 from app.services.dd.source_attribution import SourceBadge, resolve_source_badge
-from app.services.dd.sub_questions import DD_SUB_QUESTIONS, DdSubQuestion
+from app.services.dd.sub_questions import SubQuestionRef
 from app.services.panel.schemas import (
     DdDissensusNote,
     DdExpertScore,
@@ -22,6 +22,7 @@ from app.services.panel.schemas import (
     PanelSessionConfig,
     PanelTurn,
 )
+from app.services.panel.sub_questions_store import get_sub_questions
 from app.services.panel.watch import run_turn
 from app.services.prompt_catalog import render_prompt
 from app.services.spindoctor_refs import strip_spindoctor_refs
@@ -124,10 +125,6 @@ def _parse_score_payload(raw: str) -> tuple[int, str]:
     raise ValueError(f"Expert score response was not valid JSON: {snippet}")
 
 
-def _typical_owner(sub_question: DdSubQuestion) -> str:
-    return (sub_question.expert_label or "").strip() or "ingen specifik roll"
-
-
 def _dissensus_notes(scores: list[DdExpertScore]) -> list[DdDissensusNote]:
     by_question: dict[str, list[DdExpertScore]] = {}
     for row in scores:
@@ -169,7 +166,7 @@ async def _moderator_opening(config: PanelSessionConfig, prompts: dict[str, str]
 
 async def _moderator_sub_question(
     config: PanelSessionConfig,
-    sub_question: DdSubQuestion,
+    sub_question: SubQuestionRef,
     transcript: list[PanelTurn],
     prompts: dict[str, str],
 ) -> str:
@@ -193,7 +190,7 @@ async def _moderator_sub_question(
 async def _expert_raise_hand_dd(
     slot: PanelExpertSlot,
     config: PanelSessionConfig,
-    sub_question: DdSubQuestion,
+    sub_question: SubQuestionRef,
     prompts: dict[str, str],
 ) -> bool:
     messages = [
@@ -210,7 +207,6 @@ async def _expert_raise_hand_dd(
                 "panel.dd.expert.raise_hand",
                 topic=config.topic,
                 sub_question=sub_question.label,
-                typical_owner=_typical_owner(sub_question),
                 brief=config.brief,
                 label=slot.label,
             ),
@@ -223,7 +219,7 @@ async def _expert_raise_hand_dd(
 async def _expert_score(
     slot: PanelExpertSlot,
     config: PanelSessionConfig,
-    sub_question: DdSubQuestion,
+    sub_question: SubQuestionRef,
     source: SourceBadge,
     transcript: list[PanelTurn],
     prompts: dict[str, str],
@@ -276,7 +272,7 @@ async def _expert_score(
 
 async def _moderator_no_answer(
     config: PanelSessionConfig,
-    sub_question: DdSubQuestion,
+    sub_question: SubQuestionRef,
     expert_slots: list[PanelExpertSlot],
     prompts: dict[str, str],
 ) -> str:
@@ -362,7 +358,11 @@ async def run_dd_panel(
 
     scores: list[DdExpertScore] = []
     unanswered: list[DdUnansweredNote] = []
-    for round_index, sub_question in enumerate(DD_SUB_QUESTIONS, start=1):
+    rows = await get_sub_questions(db, "dd")
+    if not rows:
+        raise RuntimeError("No active panel sub-questions for module 'dd'")
+    sub_questions = [SubQuestionRef(id=row.key, label=row.label) for row in rows]
+    for round_index, sub_question in enumerate(sub_questions, start=1):
         await run_turn(
             db,
             panel,

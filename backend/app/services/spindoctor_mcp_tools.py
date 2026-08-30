@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database.models import PersonaMessage, Population, Report, Run
+from app.modules.registry import MODULE_REGISTRY, module_id_for_report_mode
 from app.schemas.domain import SpindoctorWidgetOut
 from app.serializers import format_date, utcnow
 from app.services.dd.company_mcp import (
@@ -91,9 +92,57 @@ class SpindoctorToolContext:
     """Mutable context for one chat turn or MCP call batch."""
 
     report_id: str | None = None
+    module_id: str | None = None
     question_sent_at: datetime | None = None
     widgets: list[SpindoctorWidgetOut] = field(default_factory=list)
     _widgets_lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
+
+
+_GENERIC_ALWAYS_TOOL_NAMES = (
+    frozenset({"render_chart", "place_note"})
+    | _LIST_TOOL_NAMES
+    | _SCB_TOOL_NAMES
+    | _SEARCH_TOOL_NAMES
+)
+
+
+def allowed_spindoctor_tool_names(module_id: str) -> frozenset[str]:
+    """Tool names exposed for a product module (binding + always-generic)."""
+    manifest = MODULE_REGISTRY.get(module_id)
+    if manifest is None:
+        raise ValueError(f"Unknown module_id: {module_id!r}")
+    binding = manifest.spindoctor
+    if binding is None:
+        raise ValueError(f"Module {module_id!r} has no spindoctor binding")
+    names = set(_GENERIC_ALWAYS_TOOL_NAMES) | set(binding.mcp_tool_names)
+    if binding.supports_interview:
+        names |= _INTERVIEW_TOOL_NAMES | _READ_INTERVIEW_TOOL_NAMES | {"start_interview"}
+    return frozenset(names)
+
+
+def _tool_spec_name(spec: dict[str, Any]) -> str:
+    function = spec.get("function")
+    if isinstance(function, dict):
+        return str(function.get("name") or "")
+    return ""
+
+
+def spindoctor_mcp_tool_specs(module_id: str) -> list[dict[str, Any]]:
+    allowed = allowed_spindoctor_tool_names(module_id)
+    return [
+        spec
+        for spec in (
+            *spindoctor_tool_specs(),
+            *_list_tool_specs(),
+            *help_scb_tool_specs(),
+            *search_tool_specs(),
+            *_widget_tool_specs(),
+            *_interview_turn_tool_specs(),
+            *_read_interview_tool_specs(),
+            *company_tool_specs(),
+        )
+        if _tool_spec_name(spec) in allowed
+    ]
 
 
 def _compact(payload: object) -> str:
@@ -359,19 +408,6 @@ def _read_interview_tool_specs() -> list[dict[str, Any]]:
                 },
             },
         },
-    ]
-
-
-def spindoctor_mcp_tool_specs() -> list[dict[str, Any]]:
-    return [
-        *spindoctor_tool_specs(),
-        *_list_tool_specs(),
-        *help_scb_tool_specs(),
-        *search_tool_specs(),
-        *_widget_tool_specs(),
-        *_interview_turn_tool_specs(),
-        *_read_interview_tool_specs(),
-        *company_tool_specs(),
     ]
 
 
@@ -878,6 +914,18 @@ async def run_spindoctor_mcp_tool(
     *,
     ctx: SpindoctorToolContext,
 ) -> str:
+    module_id = ctx.module_id
+    if module_id is None and ctx.report_id:
+        report = await session.get(Report, ctx.report_id)
+        if report is not None:
+            module_id = module_id_for_report_mode(report.mode)
+            ctx.module_id = module_id
+    if module_id is None:
+        raise ValueError("module_id is required to run Spinndoktor tools")
+    allowed = allowed_spindoctor_tool_names(module_id)
+    if name not in allowed:
+        raise ValueError(f"Tool {name!r} is not available for module {module_id!r}")
+
     if name in _WIDGET_TOOL_NAMES:
         if name == "render_chart":
             return await _render_chart(ctx, arguments)

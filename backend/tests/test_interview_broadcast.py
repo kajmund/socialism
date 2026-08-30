@@ -121,7 +121,7 @@ async def test_spindoctor_tool_loop_runs_calls_in_parallel(monkeypatch):
         fake_tool,
     )
 
-    ctx = SpindoctorToolContext()
+    ctx = SpindoctorToolContext(module_id="politik")
     loop = asyncio.get_running_loop()
     t0 = loop.time()
     working, _widgets = await _run_spindoctor_tool_loop(
