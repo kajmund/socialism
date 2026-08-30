@@ -109,7 +109,6 @@ async def test_load_dd_report_json(tmp_path, monkeypatch):
 @pytest.mark.asyncio
 async def test_build_spindoctor_context_for_dd_report(session, tmp_path, monkeypatch):
     monkeypatch.setattr("app.services.spindoctor_dd.ARTIFACT_ROOT", str(tmp_path))
-    monkeypatch.setattr("app.services.spindoctor_context.ARTIFACT_ROOT", str(tmp_path))
     report_id = await _seed_dd_report(session, tmp_path)
 
     report, context = await build_spindoctor_context(session, report_id=report_id)
@@ -122,7 +121,6 @@ async def test_build_spindoctor_context_for_dd_report(session, tmp_path, monkeyp
 @pytest.mark.asyncio
 async def test_load_spindoctor_source_dd_has_empty_bundles(session, tmp_path, monkeypatch):
     monkeypatch.setattr("app.services.spindoctor_dd.ARTIFACT_ROOT", str(tmp_path))
-    monkeypatch.setattr("app.services.spindoctor_context.ARTIFACT_ROOT", str(tmp_path))
     report_id = await _seed_dd_report(session, tmp_path)
 
     report, bundles = await load_spindoctor_source(session, report_id=report_id)
@@ -133,7 +131,6 @@ async def test_load_spindoctor_source_dd_has_empty_bundles(session, tmp_path, mo
 @pytest.mark.asyncio
 async def test_oasis_tool_returns_guard_on_dd_report(session, tmp_path, monkeypatch):
     monkeypatch.setattr("app.services.spindoctor_dd.ARTIFACT_ROOT", str(tmp_path))
-    monkeypatch.setattr("app.services.spindoctor_context.ARTIFACT_ROOT", str(tmp_path))
     report_id = await _seed_dd_report(session, tmp_path)
 
     result = await run_spindoctor_tool(
