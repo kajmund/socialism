@@ -23,4 +23,6 @@ Varje expert tar med sig de verktyg du valt på expertens sida. Se [Skapa och re
 
 ## Relaterade guider
 
+- [Hantera expertpaneler](hantera-expertpaneler.md)
+- [Visa och redigera expertpanel](visa-och-redigera-expertpanel.md)
 - [Köra en DD-kampanj](kora-dd-kampanj.md)

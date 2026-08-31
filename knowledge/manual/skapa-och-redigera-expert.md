@@ -33,5 +33,6 @@ I chattpanelen kan du intervjua experten eller prata in-character. Experten anvÃ
 
 ## Relaterade guider
 
+- [Hantera experter](hantera-experter.md)
 - [Komponera en expertpanel](komponera-expertpanel.md)
 - [KÃ¶ra en DD-kampanj](kora-dd-kampanj.md)
