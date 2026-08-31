@@ -4,12 +4,18 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
-from app.services.dd.sub_questions import DD_SUB_QUESTIONS
+from app.services.dd.sub_questions import SubQuestionRef
 from app.services.report import ARTIFACT_ROOT
 from app.services.report.locale import ReportLocale
+
+
+class _SubQuestionLike(Protocol):
+    id: str
+    label: str
 
 
 def load_dd_report_json(report_id: str) -> dict[str, Any] | None:
@@ -19,8 +25,28 @@ def load_dd_report_json(report_id: str) -> dict[str, Any] | None:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def average_scores_by_sub_question(dd_doc: dict[str, Any]) -> list[dict[str, float | str]]:
-    """Mean expert score (1–10) per sub-question, ordered like DD_SUB_QUESTIONS."""
+def sub_questions_from_dd_doc(dd_doc: dict[str, Any]) -> list[SubQuestionRef]:
+    """Derive ordered sub-question refs from scores/unanswered already in the doc."""
+    ordered: list[SubQuestionRef] = []
+    seen: set[str] = set()
+    for key in ("scores", "unanswered", "dissensus"):
+        for row in dd_doc.get(key) or []:
+            if not isinstance(row, dict):
+                continue
+            sq_id = str(row.get("sub_question_id") or "").strip()
+            label = str(row.get("sub_question_label") or sq_id).strip()
+            if not sq_id or sq_id in seen:
+                continue
+            seen.add(sq_id)
+            ordered.append(SubQuestionRef(id=sq_id, label=label or sq_id))
+    return ordered
+
+
+def average_scores_by_sub_question(
+    dd_doc: dict[str, Any],
+    sub_questions: Sequence[_SubQuestionLike],
+) -> list[dict[str, float | str]]:
+    """Mean expert score (1–10) per sub-question, ordered like ``sub_questions``."""
     buckets: dict[str, list[int]] = defaultdict(list)
     for row in dd_doc.get("scores") or []:
         if not isinstance(row, dict):
@@ -33,7 +59,7 @@ def average_scores_by_sub_question(dd_doc: dict[str, Any]) -> list[dict[str, flo
         if sq_id:
             buckets[sq_id].append(score)
     out: list[dict[str, float | str]] = []
-    for sq in DD_SUB_QUESTIONS:
+    for sq in sub_questions:
         values = buckets.get(sq.id, [])
         if not values:
             continue
@@ -91,6 +117,7 @@ def build_dd_spindoctor_context_block(
     candidate = dd_doc.get("candidate") if isinstance(dd_doc.get("candidate"), dict) else {}
     summary = str(dd_doc.get("summary") or "").strip()
     dissensus = dd_doc.get("dissensus") if isinstance(dd_doc.get("dissensus"), list) else []
+    unanswered = dd_doc.get("unanswered") if isinstance(dd_doc.get("unanswered"), list) else []
 
     if locale == "en":
         header = f"DD report: {title}"
@@ -127,7 +154,17 @@ def build_dd_spindoctor_context_block(
                 f"({note.get('min_score')}–{note.get('max_score')})"
             )
 
-    averages = average_scores_by_sub_question(dd_doc)
+    if unanswered:
+        parts.append("")
+        parts.append("## Unanswered" if locale == "en" else "## Obesvarade delfrågor")
+        for note in unanswered:
+            if not isinstance(note, dict):
+                continue
+            parts.append(
+                f"- {note.get('sub_question_label')}: {note.get('moderator_note')}"
+            )
+
+    averages = average_scores_by_sub_question(dd_doc, sub_questions_from_dd_doc(dd_doc))
     if averages:
         parts.append("")
         parts.append(
@@ -142,7 +179,7 @@ def build_dd_spindoctor_context_block(
         parts.append("")
         parts.append(
             "Report section refs (append [[ref:id]] when pointing the user to a section): "
-            "sammanfattning, kandidat, delfragor, poangmatris, kallbilaga. "
+            "sammanfattning, kandidat, delfragor, poangmatris, kallbilaga, obesvarade. "
             "Sub-questions also have ids like delfraga-finansiell_halsa."
         )
         parts.append(
@@ -153,7 +190,7 @@ def build_dd_spindoctor_context_block(
         parts.append("")
         parts.append(
             "Rapportsektioner (lägg [[ref:id]] sist när du pekar läsaren till en del): "
-            "sammanfattning, kandidat, delfragor, poangmatris, kallbilaga. "
+            "sammanfattning, kandidat, delfragor, poangmatris, kallbilaga, obesvarade. "
             "Delfrågor har också id som delfraga-finansiell_halsa."
         )
         parts.append(

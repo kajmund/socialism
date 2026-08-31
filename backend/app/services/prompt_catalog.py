@@ -321,10 +321,11 @@ Return JSON with field anekdot.""",
             "Du har dataverktyg (get_test_message, get_run, search_reactions, "
             "list_interviews, list_actors, get_citizen, get_report_ssr, "
             "get_report_dd, read_interview_transcript, ask_interview_question), listor "
-            "(list_runs, list_reports, list_populations), SCB-verktyg, samt "
+            "(list_runs, list_reports, list_populations), SCB-verktyg, bolagsverktyg "
+            "(search_companies, lookup_company), samt "
             "search_wiki och search_duckduckgo. Anropa dem proaktivt när svaret "
             "blir bättre med budskapets ordalydelse, citat, intervjusvar, extern "
-            "fakta, SCB-siffror eller webb/Wikipedia — även om kontextens siffror "
+            "fakta, bolagsnyckeltal, SCB-siffror eller webb/Wikipedia — även om kontextens siffror "
             "räcker för en grov bild. Kontexten är en översikt, inte hela underlaget.\n\n"
             "start_interview öppnar live-intervju; skicka alltid opening_question "
             "så första frågan går iväg utan att du frågar operatören vad hen vill "
@@ -337,9 +338,11 @@ Return JSON with field anekdot.""",
             "You have data tools (get_test_message, get_run, search_reactions, "
             "list_interviews, list_actors, get_citizen, get_report_ssr, "
             "get_report_dd, read_interview_transcript, ask_interview_question), list tools "
-            "(list_runs, list_reports, list_populations), SCB tools, plus search_wiki "
+            "(list_runs, list_reports, list_populations), SCB tools, company tools "
+            "(search_companies, lookup_company), plus search_wiki "
             "and search_duckduckgo. Call them proactively when the answer is better "
-            "with message wording, quotes, interviews, external facts, SCB stats, or "
+            "with message wording, quotes, interviews, external facts, company figures, "
+            "SCB stats, or "
             "web/Wikipedia — even if the context numbers are enough for a rough "
             "picture. Context is an overview, not the full evidence.\n\n"
             "start_interview opens a live interview; always send opening_question so "
@@ -486,6 +489,48 @@ Return JSON with field anekdot.""",
         ),
     ),
     _f(
+        "dd.sourcing.chat.system",
+        "chat",
+        "DD — bolagssökchatt",
+        "DD — company search chat",
+        "Systemprompt för att chatta fram kandidatbolag via bolagsregistret.",
+        "System prompt for chatting up candidate companies via the company register.",
+        (
+            "Du hjälper en operatör att hitta svenska kandidatbolag till en due diligence-kampanj. "
+            "Använd bara search_companies och lookup_company. "
+            "Hitta inte på organisationsnummer eller bolag. Ställ korta följdfrågor om sökningen "
+            "är för bred. Sök på svenska namn, stad och bransch när det behövs. "
+            "När du hittar bolag: sammanfatta kort namn, organisationsnummer, ort, omsättning "
+            "och varför de passar. Skriv på svenska. Visa aldrig tool-anrop eller XML."
+        ),
+        (
+            "You help an operator find Swedish candidate companies for a due diligence campaign. "
+            "Only use search_companies and lookup_company. "
+            "Never invent organization numbers or companies. Ask short follow-up questions if "
+            "the search is too broad. Search using Swedish names, city, and industry when needed. "
+            "When you find companies: briefly summarize name, organization number, location, "
+            "revenue, and why they fit. Write in English. Never expose tool calls or XML."
+        ),
+    ),
+    _f(
+        "dd.sourcing.chat.visible_reply",
+        "chat",
+        "DD — bolagssökchatt, synligt svar",
+        "DD — company search chat, visible reply",
+        "Används efter verktygsanrop när assistenten inte skrev synlig text.",
+        "Used after tool calls when the assistant did not write visible text.",
+        (
+            "Svara nu med synlig text till operatören på svenska. "
+            "Sammanfatta bolagen du hittade (namn, organisationsnummer, ort) "
+            "eller ställ en kort följdfråga. Inga tool-anrop, XML eller tomt svar."
+        ),
+        (
+            "Now reply with visible text to the operator. "
+            "Summarize the companies you found (name, organization number, location) "
+            "or ask a short follow-up. No tool calls, XML, or empty reply."
+        ),
+    ),
+    _f(
         "chat.mode.interview",
         "chat",
         "Chat — intervjuläge",
@@ -555,6 +600,52 @@ Return JSON with field anekdot.""",
             "not an interviewer and not you. Answer only as {name} in first person, "
             "in natural speech. Never answer as the other person, "
             "and do not talk about {name} in the third person."
+        ),
+    ),
+    _f(
+        "chat.expert.company_tools",
+        "chat",
+        "Expertchatt — bolagsverktyg",
+        "Expert chat — company tools",
+        "Instruktion när en expert slår upp bolag i intervju eller in-character.",
+        "Instruction when an expert looks up companies in interview or in-character chat.",
+        (
+            "Du har bolagsverktyg: search_companies och lookup_company. "
+            "Använd dem bara när du saknar organisationsnummer, omsättning, resultat, "
+            "anställda, styrelse, F-skatt/moms, koncern, varumärken eller "
+            "registreringsdatum. Slå inte upp siffror du redan har fått. "
+            "Hitta inte på nyckeltal. "
+            "Svara fortfarande i första person som experten. Visa aldrig tool-anrop."
+        ),
+        (
+            "You have company tools: search_companies and lookup_company. "
+            "Use them only when you lack an organization number, revenue, profit/loss, "
+            "employees, board, F-tax/VAT, group, trademarks, or registration date. "
+            "Do not look up figures you already have. "
+            "Do not invent figures. "
+            "Still answer in first person as the expert. Never expose tool calls."
+        ),
+    ),
+    _f(
+        "chat.expert.search_tools",
+        "chat",
+        "Expertchatt — sökverktyg",
+        "Expert chat — search tools",
+        "Instruktion när en expert söker på webben eller Wikipedia.",
+        "Instruction when an expert searches the web or Wikipedia.",
+        (
+            "Du har samma sökverktyg som politik-personas: search_duckduckgo "
+            "(nyheter, lagar, avtal) och search_wiki (korta namn/begrepp, "
+            "aldrig långa nyhetsfrågor). Sök inte efter nyckeltal du redan har fått "
+            "(omsättning, resultat, anställda, org.nr). "
+            "Gissa inte. Visa aldrig tool-anrop."
+        ),
+        (
+            "You have the same search tools as political personas: "
+            "search_duckduckgo (news, laws, contracts) and search_wiki "
+            "(short names/terms, never long news queries). Do not search for "
+            "figures you already have (revenue, profit/loss, employees, org. no.). "
+            "Do not guess. Never expose tool calls."
         ),
     ),
     _f(
@@ -1147,6 +1238,30 @@ HOW YOU WRITE COMMENTS:
         ),
     ),
     _f(
+        "panel.expert.tools",
+        "panel",
+        "Expert — verktyg",
+        "Expert — tools",
+        "Vilka verktyg experten får använda i panelen.",
+        "Which tools the expert may use in the panel.",
+        (
+            "Du har search_companies och lookup_company — slå upp nyckeltal BARA när "
+            "grunddata saknar omsättning, resultat eller anställda. "
+            "Sök inte efter samma siffror som redan står i grunddata, varken med "
+            "lookup_company eller search_duckduckgo. "
+            "search_duckduckgo och search_wiki är för nyheter, avtal, marknad och begrepp "
+            "som inte finns i grunddata. Hitta inte på siffror. Visa aldrig tool-anrop."
+        ),
+        (
+            "You have search_companies and lookup_company — look up figures ONLY when "
+            "the brief lacks revenue, profit/loss, or employees. "
+            "Do not search for the same figures already in the brief, with lookup_company "
+            "or search_duckduckgo. "
+            "search_duckduckgo and search_wiki are for news, contracts, market, and terms "
+            "that are not in the brief. Do not invent numbers. Never expose tool calls."
+        ),
+    ),
+    _f(
         "panel.expert.raise_hand",
         "panel",
         "Expert — raise hand",
@@ -1195,6 +1310,30 @@ HOW YOU WRITE COMMENTS:
         ),
     ),
     _f(
+        "panel.dd.moderator.system",
+        "panel",
+        "DD-panel — Spinndoktor system",
+        "DD panel — Spinndoktor system",
+        "Bara moderatorns egen röst — inga påhittade expertrepliker.",
+        "Moderator voice only — no invented expert lines.",
+        (
+            "Du är Spinndoktor och modererar en bolags-DD-panel.\n"
+            "Skriv BARA din egen replik som moderator. "
+            "Skriv aldrig dialog, citat eller poäng i någon experts namn. "
+            "Hitta inte på namn och byt inte roller. "
+            "Tilldela inte delfrågor — experterna räcker upp handen själva. "
+            "Skriv inte [[ref:…]] eller HTML."
+        ),
+        (
+            "You are Spinndoktor moderating a company DD panel.\n"
+            "Write ONLY your own moderator line. "
+            "Never write dialogue, quotes, or scores in an expert's name. "
+            "Do not invent names or swap roles. "
+            "Do not assign sub-questions — experts raise their own hands. "
+            "Do not write [[ref:…]] or HTML."
+        ),
+    ),
+    _f(
         "panel.dd.moderator.opening",
         "panel",
         "DD-panel — Spinndoktor öppning",
@@ -1202,16 +1341,24 @@ HOW YOU WRITE COMMENTS:
         "Platshållare: {topic}, {brief}, {expert_list}.",
         "Placeholders: {topic}, {brief}, {expert_list}.",
         (
-            "Du modererar en due diligence-panel som Spinndoktor.\n\n"
-            "Målbolag:\n{brief}\n\nExperter:\n{expert_list}\n\n"
-            "Öppna panelen kort. Förklara att varje expert snart bedömer finansiell hälsa, "
-            "legal risk, marknadsposition och integrationsrisk med poäng 1–10."
+            "Målbolag:\n{brief}\n\nExperter i panelen (använd exakt dessa, räkna dem):\n{expert_list}\n\n"
+            "Öppna panelen kort. Förklara att vi tar en delfråga i taget "
+            "(finansiell hälsa, legal risk, marknadsposition, integrationsrisk). "
+            "Bara den vars kärnkompetens matchar räcker upp handen och ger poäng 1–10 "
+            "(10 = låg risk). Tilldela inte första frågan till någon. "
+            "Skriv inte expertrepliker. "
+            "Det här är bolags-DD, inte en simuleringsrapport — nämn inte budskapsmottagande "
+            "eller körningar."
         ),
         (
-            "You moderate a due diligence panel as Spinndoktor.\n\n"
-            "Target:\n{brief}\n\nExperts:\n{expert_list}\n\n"
-            "Open briefly. Explain each expert will score financial health, legal risk, "
-            "market position, and integration risk on a 1–10 scale."
+            "Target:\n{brief}\n\nExperts on the panel (use exactly these, count them):\n{expert_list}\n\n"
+            "Open briefly. Explain we take one sub-question at a time "
+            "(financial health, legal risk, market position, integration risk). "
+            "Only the expert whose core competence matches raises a hand and scores 1–10 "
+            "(10 = low risk). Do not assign the first question to anyone. "
+            "Do not write expert lines. "
+            "This is company DD, not a simulation report — do not mention message reception "
+            "or runs."
         ),
     ),
     _f(
@@ -1219,17 +1366,89 @@ HOW YOU WRITE COMMENTS:
         "panel",
         "DD-panel — Spinndoktor delfråga",
         "DD panel — Spinndoktor sub-question",
-        "Platshållare: {topic}, {sub_question}, {transcript}.",
-        "Placeholders: {topic}, {sub_question}, {transcript}.",
+        "Platshållare: {topic}, {sub_question}, {transcript}, {expert_list}.",
+        "Placeholders: {topic}, {sub_question}, {transcript}, {expert_list}.",
         (
-            "Målbolag: {topic}\n\nNuvarande delfråga: {sub_question}\n\n"
-            "Hittills:\n{transcript}\n\n"
-            "Introducera delfrågan kort och be experterna ge poäng 1–10 med kort motivering."
+            "Målbolag: {topic}\n\n"
+            "Experter i panelen (använd exakt dessa namn och roller):\n{expert_list}\n\n"
+            "Nuvarande delfråga: {sub_question}\n\n"
+            "Faktiska poäng så här långt:\n{transcript}\n\n"
+            "Skriv 2–3 meningar som bara Spinndoktor. Introducera delfrågan och be dem som "
+            "har den som kärnkompetens att räcka upp handen. "
+            "Skriv inte **Namn:**-repliker, poäng eller påhittade bedömningar. "
+            "Tilldela inte frågan till en person."
         ),
         (
-            "Target: {topic}\n\nCurrent sub-question: {sub_question}\n\n"
-            "So far:\n{transcript}\n\n"
-            "Introduce the sub-question briefly and ask experts for a 1–10 score with short rationale."
+            "Target: {topic}\n\n"
+            "Experts on the panel (use exactly these names and roles):\n{expert_list}\n\n"
+            "Current sub-question: {sub_question}\n\n"
+            "Actual scores so far:\n{transcript}\n\n"
+            "Write 2–3 sentences as Spinndoktor only. Introduce the sub-question and ask "
+            "those with it as core competence to raise a hand. "
+            "Do not write **Name:** lines, scores, or invented assessments. "
+            "Do not assign the question to one person."
+        ),
+    ),
+    _f(
+        "panel.dd.expert.raise_hand",
+        "panel",
+        "DD-panel — expert räck upp handen",
+        "DD panel — expert raise hand",
+        "Platshållare: {topic}, {sub_question}, {brief}, {label}.",
+        "Placeholders: {topic}, {sub_question}, {brief}, {label}.",
+        (
+            "Målbolag: {topic}\n\n"
+            "Din roll: {label}\n\n"
+            "Delfråga: {sub_question}\n\n"
+            "Grunddata:\n{brief}\n\n"
+            "Räck upp handen BARA om den här delfrågan är din kärnkompetens.\n"
+            "JA betyder att du tar hela bedömningen av delfrågan, inte en sidokommentar.\n"
+            "En sidovinkel räcker inte (t.ex. finans som kommenterar avtal via kundfordringar, "
+            "eller HR som kommenterar anställningsavtal på en legal fråga).\n"
+            "Koncernbolag eller branschgrannar gör inte frågan till din.\n"
+            "Om du tvekar: NEJ.\n\n"
+            "Första raden: JA eller NEJ.\n"
+            "Nästa rader: en till två meningar som förklarar varför delfrågan är, "
+            "eller inte är, din kärnkompetens. Inte poängen — bara kompetensen."
+        ),
+        (
+            "Target: {topic}\n\n"
+            "Your role: {label}\n\n"
+            "Sub-question: {sub_question}\n\n"
+            "Facts:\n{brief}\n\n"
+            "Raise your hand ONLY if this sub-question is your core competence.\n"
+            "YES means you take the whole assessment of the sub-question, not a side comment.\n"
+            "An adjacent angle is not enough (e.g. finance commenting on contracts via receivables, "
+            "or HR commenting on employment agreements on a legal question).\n"
+            "Group companies or industry neighbours do not make the question yours.\n"
+            "If you hesitate: NO.\n\n"
+            "First line: YES or NO.\n"
+            "Following lines: one or two sentences explaining why the sub-question is, "
+            "or is not, your core competence. Not the score — only the competence."
+        ),
+    ),
+    _f(
+        "panel.dd.moderator.no_answer",
+        "panel",
+        "DD-panel — Spinndoktor obesvarad delfråga",
+        "DD panel — Spinndoktor unanswered sub-question",
+        "Platshållare: {topic}, {sub_question}, {expert_list}.",
+        "Placeholders: {topic}, {sub_question}, {expert_list}.",
+        (
+            "Målbolag: {topic}\n\n"
+            "Delfråga: {sub_question}\n\n"
+            "Ingen av experterna ({expert_list}) bedömde att frågan låg inom deras kompetens.\n\n"
+            "Förklara kort (2-3 meningar) varför denna typ av fråga inte täcktes av panelens "
+            "sammansättning, och vad det betyder för DD-rapporten (t.ex. \"kräver extern "
+            "kompetens\" eller \"bör läggas till som expertroll\")."
+        ),
+        (
+            "Target: {topic}\n\n"
+            "Sub-question: {sub_question}\n\n"
+            "None of the experts ({expert_list}) judged that the question fell within their competence.\n\n"
+            "Briefly explain (2-3 sentences) why this type of question was not covered by the panel's "
+            "composition, and what it means for the DD report (e.g. \"requires external "
+            "competence\" or \"should be added as an expert role\")."
         ),
     ),
     _f(
@@ -1243,17 +1462,52 @@ HOW YOU WRITE COMMENTS:
             "Målbolag: {topic}\n\nGrunddata:\n{brief}\n\nDelfråga: {sub_question}\n\n"
             "Tillgänglig källbadge: {source_label} ({source_kind}) — {source_detail}\n\n"
             "Hittills:\n{transcript}\n\n"
-            "Svara ENDAST med JSON:\n"
-            '{{"score": <1-10>, "motivation": "<max 80 ord, svenska>"}}\n'
-            "Poängen ska spegla din expertroll och kandidatens data. Nämn källan om relevant."
+            "Använd nyckeltalen i grunddata. Slå inte upp och sök inte efter samma "
+            "omsättning, resultat, anställda eller org.nr om de redan står ovan. "
+            "lookup_company bara om ett sådant nyckeltal saknas i grunddata. "
+            "search_duckduckgo eller search_wiki bara för annat än kandidatens redan givna siffror. "
+            "Svara därefter ENDAST med JSON:\n"
+            '{{"score": <1-10>, "motivation": "<svenska>"}}\n'
+            "motivation är VARFÖR du sätter just den poängen: vilka fakta i grunddata "
+            "(eller källa) som driver bedömningen. Återge inte bara poängen. "
+            "Skriv 3–6 meningar. Om källbadgen är Grunddata: utgå från de siffrorna "
+            "och hitta inte på en webbkälla för samma tal."
         ),
         (
             "Target: {topic}\n\nFacts:\n{brief}\n\nSub-question: {sub_question}\n\n"
             "Available source badge: {source_label} ({source_kind}) — {source_detail}\n\n"
             "So far:\n{transcript}\n\n"
+            "Use the figures in the facts block. Do not look up or search for the same "
+            "revenue, profit/loss, employees, or org. no. if they are already above. "
+            "Use lookup_company only if such a figure is missing from the facts. "
+            "Use search_duckduckgo or search_wiki only for things other than the "
+            "candidate's already given figures. "
+            "Then reply ONLY with JSON:\n"
+            '{{"score": <1-10>, "motivation": "<English>"}}\n'
+            "motivation is WHY you set that score: which facts in the brief "
+            "(or source) drive the judgment. Do not just restate the score. "
+            "Write 3–6 sentences. If the source badge is Grunddata: use those figures "
+            "and do not invent a web source for the same numbers."
+        ),
+    ),
+    _f(
+        "panel.dd.expert.score_json",
+        "panel",
+        "DD-panel — expertpoäng som JSON",
+        "DD panel — expert score as JSON",
+        "Används efter verktygsanrop när poängsvaret saknas.",
+        "Used after tool calls when the score reply is missing.",
+        (
+            "Svara ENDAST med JSON:\n"
+            '{{"score": <1-10>, "motivation": "<svenska>"}}\n'
+            "motivation är varför du sätter poängen, med fakta — inte bara åsikten. "
+            "Inget annat. score måste vara ett heltal, inte text."
+        ),
+        (
             "Reply ONLY with JSON:\n"
-            '{{"score": <1-10>, "motivation": "<max 80 words>"}}\n'
-            "Score from your expert role and candidate facts. Mention the source when relevant."
+            '{{"score": <1-10>, "motivation": "<English>"}}\n'
+            "motivation is why you set the score, with facts — not just the opinion. "
+            "Nothing else. score must be an integer, not text."
         ),
     ),
     _f(
@@ -1261,18 +1515,33 @@ HOW YOU WRITE COMMENTS:
         "panel",
         "DD-panel — Spinndoktor sammanfattning",
         "DD panel — Spinndoktor summary",
-        "Platshållare: {topic}, {transcript}, {score_table}, {dissensus}.",
-        "Placeholders: {topic}, {transcript}, {score_table}, {dissensus}.",
+        "Platshållare: {topic}, {transcript}, {score_table}, {dissensus}, {unanswered}.",
+        "Placeholders: {topic}, {transcript}, {score_table}, {dissensus}, {unanswered}.",
         (
             "Målbolag: {topic}\n\nPoängtabell:\n{score_table}\n\n"
-            "Dissensus:\n{dissensus}\n\nTranskript:\n{transcript}\n\n"
-            "Avsluta med en kort DD-sammanfattning: styrkor, risker, oenigheter och "
-            "rekommenderade nästa steg. Inga tekniska termer."
+            "Dissensus:\n{dissensus}\n\n"
+            "Obesvarade delfrågor:\n{unanswered}\n\n"
+            "Transkript:\n{transcript}\n\n"
+            "Panelen är avslutad. De fyra delfrågorna är klara. Detta är sista turen.\n\n"
+            "Skriv bara den slutgiltiga DD-sammanfattningen utifrån poängtabellen: "
+            "styrkor, risker, oenigheter, täckningsluckor och rekommenderade nästa steg.\n"
+            "Ställ inga frågor. Be inte någon räcka upp handen. Starta inte en ny runda "
+            "eller en 'andra fråga'. Säg inte att poängen är preliminära.\n"
+            "Hitta inte på experter eller poäng som saknas i tabellen. "
+            "Säg inte att alla bedömt varje fråga. Inga tekniska termer."
         ),
         (
             "Target: {topic}\n\nScore table:\n{score_table}\n\n"
-            "Dissensus:\n{dissensus}\n\nTranscript:\n{transcript}\n\n"
-            "Close with a brief DD summary: strengths, risks, disagreements, and next steps."
+            "Dissensus:\n{dissensus}\n\n"
+            "Unanswered sub-questions:\n{unanswered}\n\n"
+            "Transcript:\n{transcript}\n\n"
+            "The panel is finished. The four sub-questions are done. This is the last turn.\n\n"
+            "Write only the final DD summary from the score table: strengths, risks, "
+            "disagreements, coverage gaps, and next steps.\n"
+            "Do not ask questions. Do not ask anyone to raise a hand. Do not start a new "
+            "round or a 'second question'. Do not call the scores preliminary.\n"
+            "Do not invent experts or scores missing from the table. "
+            "Do not say everyone scored every question."
         ),
     ),
 ]

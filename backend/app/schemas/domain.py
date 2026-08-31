@@ -4,9 +4,12 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.services.expert_tools import normalize_expert_tools
 from app.services.report.thresholds import ReportThresholds
 
 PersonaOrigin = Literal["manuell", "beskrivning", "demografi", "population"]
+PersonaKind = Literal["persona", "expert"]
+PopulationKind = Literal["persona", "expert_panel"]
 
 
 class EditablePersona(BaseModel):
@@ -28,6 +31,12 @@ class EditablePersona(BaseModel):
     valdeltagande: str = "—"
     # Genereras vid persona-skapande — inte ett recept-/katalogfält.
     anekdot: str = "—"
+    # Expert (DD) profile fields — used when kind=expert instead of political layers.
+    beskrivning: str = "—"
+    kompetensomrade: str = "—"
+    radgivningsstil: str = "—"
+    yrkesbakgrund: str = "—"
+    professionell_anekdot: str = "—"
 
 
 class PersonaAnecdoteOut(BaseModel):
@@ -53,8 +62,9 @@ class PersonaAnecdoteOut(BaseModel):
 
 class LibraryPersona(BaseModel):
     id: str
+    kind: PersonaKind = "persona"
     name: str
-    age: int
+    age: int | None = None
     occ: str
     district: str
     quote: str
@@ -62,6 +72,7 @@ class LibraryPersona(BaseModel):
     updated: str
     origin: PersonaOrigin
     profile: EditablePersona
+    tools: list[str] | None = None
 
 
 class PersonaDetail(LibraryPersona):
@@ -70,16 +81,33 @@ class PersonaDetail(LibraryPersona):
 
 class PersonaCreate(BaseModel):
     id: str | None = None
+    kind: PersonaKind = "persona"
+    customer_id: int | None = None
     name: str
-    age: int
-    occ: str
-    district: str
+    age: int | None = None
+    occ: str = ""
+    district: str = "—"
     quote: str = ""
     origin: PersonaOrigin = "manuell"
     profile: EditablePersona | None = None
+    tools: list[str] | None = None
+
+    @field_validator("tools")
+    @classmethod
+    def validate_tools(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return None
+        return normalize_expert_tools(value)
+
+    @model_validator(mode="after")
+    def require_age_for_persona_kind(self) -> Self:
+        if self.kind == "persona" and self.age is None:
+            raise ValueError("age is required for persona kind")
+        return self
 
 
 class PersonaUpdate(BaseModel):
+    kind: PersonaKind | None = None
     name: str | None = None
     age: int | None = None
     occ: str | None = None
@@ -87,6 +115,14 @@ class PersonaUpdate(BaseModel):
     quote: str | None = None
     origin: PersonaOrigin | None = None
     profile: EditablePersona | None = None
+    tools: list[str] | None = None
+
+    @field_validator("tools")
+    @classmethod
+    def validate_tools(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return None
+        return normalize_expert_tools(value)
 
 
 class PopulationMemberOut(BaseModel):
@@ -188,6 +224,7 @@ class PopulationDistQaGroup(BaseModel):
 
 class PopulationSummary(BaseModel):
     id: int
+    kind: PopulationKind = "persona"
     name: str
     size: int
     runs: int
@@ -206,10 +243,12 @@ class PopulationDetail(PopulationSummary):
 
 
 class PopulationCreate(BaseModel):
+    kind: PopulationKind = "persona"
     name: str
     fingerprint: list[list[int]] = Field(default_factory=list)
     recipe: dict[str, Any] = Field(default_factory=dict)
     members: list[PopulationMemberCreate] = Field(default_factory=list)
+    include_persona_ids: list[str] = Field(default_factory=list)
     generation_id: str | None = None
     keep_keys: list[str] | None = None
 
@@ -1040,7 +1079,6 @@ CatalogSection = Literal[
     "varderingar",
     "rost_media",
     "simulering",
-    "dd_expertpanel",
 ]
 
 
@@ -1119,7 +1157,13 @@ class CatalogListUpdate(BaseModel):
         return cleaned
 
 
-JobKind = Literal["population_generate", "run_simulate", "report_generate", "panel_session_run"]
+JobKind = Literal[
+    "population_generate",
+    "run_simulate",
+    "report_generate",
+    "panel_session_run",
+    "dd_research",
+]
 JobStatus = Literal["pending", "running", "succeeded", "failed"]
 ReportStatus = Literal["pending", "running", "succeeded", "failed"]
 
@@ -1131,6 +1175,8 @@ class PopulationGenerateJobRequest(BaseModel):
     recipe: PopulationRecipe
     population_id: int | None = None
     include_persona_ids: list[str] = Field(default_factory=list)
+    kind: PopulationKind = "persona"
+    customer_id: int | None = None
 
 
 class RunSimulateJobRequest(BaseModel):
@@ -1189,6 +1235,7 @@ class ReportCreate(BaseModel):
 
 class ReportOut(BaseModel):
     id: str
+    customer_id: int
     status: ReportStatus
     title: str
     locale: Literal["sv", "en"] = "sv"
@@ -1239,6 +1286,7 @@ class JobCreate(BaseModel):
 
 class JobOut(BaseModel):
     id: str
+    customer_id: int
     kind: str
     status: JobStatus
     label: str

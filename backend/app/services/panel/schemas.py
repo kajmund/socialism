@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.services.dd.schemas import DdCandidateCompany
 from app.services.dd.source_attribution import SourceBadge
+from app.services.expert_tools import default_expert_tools, normalize_expert_tools
 
 PanelProtocol = Literal["generic_panel", "dd_panel"]
 PanelSessionStatus = Literal["draft", "pending", "running", "succeeded", "failed"]
@@ -19,6 +20,7 @@ PanelTurnPhase = Literal[
     "analysis",
     "sub_question",
     "score",
+    "unanswered",
 ]
 
 
@@ -26,6 +28,12 @@ class PanelExpertSlot(BaseModel):
     slot_id: str = Field(min_length=1, max_length=64)
     label: str = Field(min_length=1, max_length=255)
     profile: str = ""
+    tools: list[str] = Field(default_factory=default_expert_tools)
+
+    @field_validator("tools")
+    @classmethod
+    def validate_tools(cls, value: list[str]) -> list[str]:
+        return normalize_expert_tools(value)
 
 
 class PanelSessionConfig(BaseModel):
@@ -84,11 +92,18 @@ class DdDissensusNote(BaseModel):
     spread: int
 
 
+class DdUnansweredNote(BaseModel):
+    sub_question_id: str
+    sub_question_label: str
+    moderator_note: str
+
+
 class DdPanelResult(BaseModel):
     protocol: Literal["dd_panel"] = "dd_panel"
     candidate: DdCandidateCompany
     scores: list[DdExpertScore]
     dissensus: list[DdDissensusNote]
+    unanswered: list[DdUnansweredNote] = Field(default_factory=list)
     summary: str
 
 

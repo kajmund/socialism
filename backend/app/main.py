@@ -6,31 +6,29 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import OperationalError, ProgrammingError
 
 from app.api import (
-    anchor_sets,
     catalog,
     configurations,
-    dd,
     embeddings,
     feedback,
     health,
     help,
     jobs,
     kunder,
-    label_vocabularies,
-    messages,
+    modules,
     panel,
+    panel_catalog,
     personas,
-    playground,
     populations,
     reports,
-    runs,
     spindoctor,
     ws,
 )
 from app.config import settings
 from app.logging import configure_logging
+from app.modules.registry import MODULE_REGISTRY
 from app.services import jobs as jobs_service
 from app.services.kund_store import ensure_default_kunder
+from app.services.panel.module_defaults import ensure_module_panel_defaults
 from app.services.prompt_store import ensure_default_configurations
 
 logger = logging.getLogger(__name__)
@@ -54,6 +52,7 @@ async def lifespan(_app: FastAPI):
         async with factory() as session:
             await ensure_default_kunder(session)
             await ensure_default_configurations(session)
+            await ensure_module_panel_defaults(session)
     except (OperationalError, ProgrammingError) as exc:
         logger.warning("Skipping configuration prompt backfill on startup: %s", exc)
     yield
@@ -76,20 +75,18 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(health.router)
-    app.include_router(personas.router)
-    app.include_router(populations.router)
-    app.include_router(runs.router)
-    app.include_router(messages.router)
-    app.include_router(anchor_sets.router)
-    app.include_router(label_vocabularies.router)
     app.include_router(configurations.router)
     app.include_router(kunder.router)
+    app.include_router(modules.router)
     app.include_router(catalog.router)
-    app.include_router(dd.router)
+    app.include_router(personas.router)
+    app.include_router(populations.router)
+    for module in MODULE_REGISTRY.values():
+        app.include_router(module.router)
     app.include_router(panel.router)
+    app.include_router(panel_catalog.router)
     app.include_router(jobs.router)
     app.include_router(reports.router)
-    app.include_router(playground.router)
     app.include_router(embeddings.router)
     app.include_router(feedback.router)
     app.include_router(help.router)

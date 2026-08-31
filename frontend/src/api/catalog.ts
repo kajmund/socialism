@@ -6,7 +6,6 @@ export type CatalogSection =
   | "varderingar"
   | "rost_media"
   | "simulering"
-  | "dd_expertpanel"
 
 export type GeoBounds = {
   south: number
@@ -39,7 +38,6 @@ export const SECTION_ORDER: CatalogSection[] = [
   "varderingar",
   "rost_media",
   "simulering",
-  "dd_expertpanel",
 ]
 
 export function listCatalog(): Promise<CatalogList[]> {

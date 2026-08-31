@@ -85,10 +85,114 @@ def _refresh_stale_spindoctor_prompts(row: Configuration) -> bool:
     return True
 
 
+_STALE_PANEL_DD_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    (
+        "panel.dd.expert.raise_hand",
+        (
+            "{typical_owner}",
+            "men avgör själv utifrån din faktiska kompetens",
+            "but decide from your actual competence",
+            "det du är här för att bedöma",
+            "what you are here to assess",
+            "Svara ENDAST JA eller NEJ",
+            "Reply ONLY YES or NO",
+        ),
+    ),
+    (
+        "panel.dd.moderator.sub_question",
+        (
+            "be experterna ge poäng 1–10",
+            "ask experts for a 1–10 score",
+            "Be inte alla om poäng",
+            "Do not ask everyone to score",
+        ),
+    ),
+    (
+        "panel.dd.moderator.opening",
+        (
+            "varje expert snart bedömer finansiell hälsa",
+            "each expert will score financial health",
+        ),
+    ),
+    (
+        "panel.dd.expert.score",
+        (
+            "Slå upp bolaget med lookup_company om du behöver nyckeltal",
+            "Look up the company with lookup_company if you need figures",
+            "max 80 ord, svenska",
+            "max 80 words",
+            "Poängen ska spegla din expertroll och kandidatens data",
+            "Score from your expert role and candidate facts",
+            "Nämn källan om relevant",
+            "Mention the source when relevant",
+        ),
+    ),
+    (
+        "panel.dd.expert.score_json",
+        (
+            "max 80 ord, svenska",
+            "max 80 words",
+        ),
+    ),
+    (
+        "panel.expert.tools",
+        (
+            "slå upp nyckeltal när grunddata saknar omsättning",
+            "look up figures when the brief lacks revenue",
+        ),
+    ),
+    (
+        "chat.expert.search_tools",
+        (
+            "(nyheter, lagar, siffror)",
+            "search_duckduckgo (news, laws, figures)",
+        ),
+    ),
+    (
+        "chat.expert.company_tools",
+        (
+            "Använd dem när du behöver organisationsnummer, omsättning, resultat",
+            "Use them when you need an organization number, revenue, profit/loss",
+        ),
+    ),
+    (
+        "panel.dd.moderator.summary",
+        (
+            "Avsluta med en kort DD-sammanfattning: styrkor, risker, oenigheter, "
+            "täckningsluckor och rekommenderade nästa steg. Inga tekniska termer.",
+            "Avsluta med en kort DD-sammanfattning utifrån poängtabellen",
+            "Close with a brief DD summary: strengths, risks, disagreements, "
+            "coverage gaps, and next steps.",
+            "Close with a brief DD summary from the score table",
+        ),
+    ),
+)
+
+
+def _refresh_stale_panel_dd_prompts(row: Configuration) -> bool:
+    """Replace stock DD-panel prompts that still use dropped placeholders or old scoring copy."""
+    language: ConfigurationLanguage = row.language  # type: ignore[assignment]
+    defaults = default_prompts(language)
+    stored = dict(row.prompts or {})
+    changed = False
+    for key, markers in _STALE_PANEL_DD_MARKERS:
+        current = stored.get(key) or ""
+        if any(marker in current for marker in markers):
+            stored[key] = defaults[key]
+            changed = True
+    if not changed:
+        return False
+    row.prompts = stored
+    flag_modified(row, "prompts")
+    row.updated_at = utcnow()
+    return True
+
+
 def _sync_stored_prompts(row: Configuration) -> bool:
-    """Fill missing catalog keys and refresh stale Spinndoktor stock text."""
+    """Fill missing catalog keys and refresh stale stock prompt text."""
     changed = _merge_missing_catalog_prompts(row)
-    return _refresh_stale_spindoctor_prompts(row) or changed
+    changed = _refresh_stale_spindoctor_prompts(row) or changed
+    return _refresh_stale_panel_dd_prompts(row) or changed
 
 
 def _merge_missing_catalog_prompts(row: Configuration) -> bool:

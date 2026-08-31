@@ -249,7 +249,10 @@ export function DashboardPage() {
   const { jobs } = useJobsRealtime()
   const { reports: liveReports } = useReportsRealtime()
   const recentReports = useMemo(
-    () => liveReports.filter((r) => r.status === "succeeded").slice(0, 5),
+    () =>
+      liveReports
+        .filter((r) => r.status === "succeeded" && r.mode !== "dd")
+        .slice(0, 5),
     [liveReports],
   )
   const [data, setData] = useState<DashboardData | null>(null)

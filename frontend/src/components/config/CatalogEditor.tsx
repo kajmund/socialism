@@ -32,8 +32,6 @@ function sectionLabel(section: CatalogSection, t: Translate): string {
       return t("config.page.sectionVoiceMedia")
     case "simulering":
       return t("config.page.sectionSimulation")
-    case "dd_expertpanel":
-      return t("config.page.sectionDdExpertpanel")
     default: {
       const exhaustive: never = section
       return exhaustive

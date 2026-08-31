@@ -26,6 +26,7 @@ class Kund(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
+    available_modules: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -45,6 +46,8 @@ class Kund(Base):
     personas: Mapped[list["Persona"]] = relationship(back_populates="kund")
     configurations: Mapped[list["Configuration"]] = relationship(back_populates="kund")
     dd_campaigns: Mapped[list["DdCampaign"]] = relationship(back_populates="kund")
+    jobs: Mapped[list["Job"]] = relationship(back_populates="kund")
+    reports: Mapped[list["Report"]] = relationship(back_populates="kund")
 
 
 class Projekt(Base):
@@ -90,13 +93,15 @@ class Persona(Base):
         nullable=False,
         index=True,
     )
+    kind: Mapped[str] = mapped_column(String(32), nullable=False, default="persona", server_default="persona")
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    age: Mapped[int] = mapped_column(Integer, nullable=False)
+    age: Mapped[int | None] = mapped_column(Integer, nullable=True)
     occ: Mapped[str] = mapped_column(String(255), nullable=False)
     district: Mapped[str] = mapped_column(String(255), nullable=False)
     quote: Mapped[str] = mapped_column(Text, nullable=False, default="")
     origin: Mapped[str] = mapped_column(String(32), nullable=False, default="manuell")
     profile: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    tools: Mapped[list | None] = mapped_column(JSON, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -115,6 +120,7 @@ class Population(Base):
     __tablename__ = "populations"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False, default="persona", server_default="persona")
     name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     size: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     versions: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
@@ -154,6 +160,7 @@ class PopulationMember(Base):
         nullable=True,
         index=True,
     )
+    kind: Mapped[str] = mapped_column(String(32), nullable=False, default="persona", server_default="persona")
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     initials: Mapped[str] = mapped_column(String(8), nullable=False)
     age: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -573,6 +580,11 @@ class Job(Base):
     __tablename__ = "jobs"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("kunder.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
     kind: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending", index=True)
     label: Mapped[str] = mapped_column(String(255), nullable=False, default="")
@@ -593,6 +605,8 @@ class Job(Base):
         nullable=False,
     )
 
+    kund: Mapped[Kund] = relationship(back_populates="jobs")
+
 
 class Report(Base):
     """Generated HTML simulation report (one or more run attempts)."""
@@ -600,6 +614,11 @@ class Report(Base):
     __tablename__ = "reports"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("kunder.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending", index=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     locale: Mapped[str] = mapped_column(String(8), nullable=False, default="sv")
@@ -621,6 +640,8 @@ class Report(Base):
         onupdate=func.now(),
         nullable=False,
     )
+
+    kund: Mapped[Kund] = relationship(back_populates="reports")
 
 
 class SpindoctorMessage(Base):
@@ -711,6 +732,12 @@ class DdCampaign(Base):
     candidates: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     selected_candidate_ids: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     expert_role_keys: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    expert_panel_id: Mapped[int | None] = mapped_column(
+        ForeignKey("populations.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    panel_assignments: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -756,6 +783,8 @@ class DdCandidateRun(Base):
         ForeignKey("reports.id", ondelete="SET NULL"),
         nullable=True,
     )
+    research: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    research_job_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -793,6 +822,71 @@ class PanelSession(Base):
         nullable=True,
     )
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+
+class PanelSubQuestion(Base):
+    """Modul-skopade bedömningsdimensioner för Expertpanel-motorn."""
+
+    __tablename__ = "panel_sub_questions"
+    __table_args__ = (
+        UniqueConstraint("module", "key", name="uq_panel_sub_questions_module_key"),
+        UniqueConstraint(
+            "module", "sort_order", name="uq_panel_sub_questions_module_sort_order"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    module: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    key: Mapped[str] = mapped_column(String(64), nullable=False)
+    label: Mapped[str] = mapped_column(String(255), nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+
+class PanelExpertProfile(Base):
+    """Modul-skopade default-expertprofiler (katalog/seed, parallellt med Persona)."""
+
+    __tablename__ = "panel_expert_profiles"
+    __table_args__ = (
+        UniqueConstraint("module", "key", name="uq_panel_expert_profiles_module_key"),
+        UniqueConstraint(
+            "module", "sort_order", name="uq_panel_expert_profiles_module_sort_order"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    module: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    key: Mapped[str] = mapped_column(String(64), nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    kompetensomrade: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    radgivningsstil: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    yrkesbakgrund: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    professionell_anekdot: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

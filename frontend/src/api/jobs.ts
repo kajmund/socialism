@@ -1,7 +1,12 @@
 import { api } from "@/lib/api"
 import type { PopulationRecipe } from "@/api/populations"
 
-export type JobKind = "population_generate" | "run_simulate" | "report_generate"
+export type JobKind =
+  | "population_generate"
+  | "run_simulate"
+  | "report_generate"
+  | "panel_session_run"
+  | "dd_research"
 export type JobStatus = "pending" | "running" | "succeeded" | "failed"
 
 export type PopulationGenerateJobRequest = {
@@ -9,6 +14,8 @@ export type PopulationGenerateJobRequest = {
   recipe: PopulationRecipe
   population_id?: number | null
   include_persona_ids?: string[]
+  kind?: "persona" | "expert_panel"
+  customer_id?: number
 }
 
 export type RunSimulateJobRequest = {
@@ -17,18 +24,23 @@ export type RunSimulateJobRequest = {
 
 export type Job = {
   id: string
+  customer_id: number
   kind: JobKind | string
   status: JobStatus
   label: string
   request: Record<string, unknown>
   result: {
     population_id?: number
+    population_kind?: string
     fingerprint?: number[][]
     member_count?: number
     run_id?: number
     engine?: string
     ticks_run?: number
     report_id?: string
+    session_id?: string
+    campaign_id?: number
+    candidate_id?: string
     html_path?: string
     sources?: number
     dry_run?: boolean
@@ -52,10 +64,12 @@ export function createJob(body: JobCreate): Promise<Job> {
 
 export function listJobs(params?: {
   status?: JobStatus
+  customer_id?: number
   limit?: number
 }): Promise<Job[]> {
   const qs = new URLSearchParams()
   if (params?.status) qs.set("status", params.status)
+  if (params?.customer_id != null) qs.set("customer_id", String(params.customer_id))
   if (params?.limit != null) qs.set("limit", String(params.limit))
   const suffix = qs.toString() ? `?${qs}` : ""
   return api.get<Job[]>(`/jobs${suffix}`)

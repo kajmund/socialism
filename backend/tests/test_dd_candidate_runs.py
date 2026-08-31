@@ -18,6 +18,10 @@ def mock_dd_panel_llm():
 
     async def _complete(messages, *, model=None):
         user = messages[-1]["content"]
+        if "Första raden: JA eller NEJ" in user or "First line: YES or NO" in user:
+            return "JA"
+        if "Ingen av experterna" in user or "None of the experts" in user:
+            return "Panelen saknar rätt kompetens för frågan."
         if "ENDAST med JSON" in user or "ONLY with JSON" in user:
             score_counter["n"] += 1
             score = 5 + (score_counter["n"] % 4)
@@ -43,10 +47,6 @@ async def test_candidate_run_links_panel_and_report(
     tmp_path,
 ):
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(
-        "app.services.dd.source_attribution.search_duckduckgo",
-        lambda *_a, **_k: [],
-    )
     create = await client.post(
         "/dd/campaigns",
         json={"title": "Runs link", "criteria": {"alder_min": 0, "alder_max": 50, "omrade": ""}},
@@ -135,9 +135,65 @@ async def test_candidate_run_links_panel_and_report(
     runs = after_rerun.json()["candidate_runs"]
     assert len(runs) == 1
     assert runs[0]["panel_session_id"] == new_session_id
-    assert runs[0]["report_id"] == report_id
+    assert runs[0]["report_id"] is None
+
+    panel_done_2 = asyncio.Event()
+
+    def _schedule_panel_2(job_id: str) -> None:
+        async def _run() -> None:
+            await jobs_service._run_job(job_id)
+            panel_done_2.set()
+
+        asyncio.create_task(_run())
+
+    jobs_service.set_schedule_hook(_schedule_panel_2)
+    rerun_panel = await client.post(f"/panel/sessions/{new_session_id}/run")
+    assert rerun_panel.status_code == 202
+    await asyncio.wait_for(panel_done_2.wait(), timeout=20)
+
+    report_done_2 = asyncio.Event()
+
+    def _schedule_report_2(job_id: str) -> None:
+        async def _run() -> None:
+            await jobs_service._run_job(job_id)
+            report_done_2.set()
+
+        asyncio.create_task(_run())
+
+    jobs_service.set_schedule_hook(_schedule_report_2)
+    replace_report = await client.post(
+        "/reports",
+        json={
+            "sources": [
+                {
+                    "type": "dd_session",
+                    "session_id": new_session_id,
+                    "candidate_id": candidate_id,
+                }
+            ],
+            "title": "Linked DD report",
+        },
+    )
+    assert replace_report.status_code == 202, replace_report.text
+    new_report_id = replace_report.json()["id"]
+    await asyncio.wait_for(report_done_2.wait(), timeout=20)
+    jobs_service.set_schedule_hook(None)
+
+    replaced = await client.get(f"/reports/{new_report_id}")
+    assert replaced.status_code == 200
+    assert replaced.json()["sources"][0]["session_id"] == new_session_id
+
+    linked_again = await client.get(f"/dd/campaigns/{campaign_id}")
+    assert linked_again.json()["candidate_runs"][0]["report_id"] == new_report_id
 
     listed = await client.get("/dd/campaigns?module=dd")
     assert listed.status_code == 200
     row = next(item for item in listed.json() if item["id"] == campaign_id)
     assert row["candidate_runs"] == []
+
+    deleted = await client.delete(f"/dd/campaigns/{campaign_id}/runs/{candidate_id}")
+    assert deleted.status_code == 204
+    after_delete = await client.get(f"/dd/campaigns/{campaign_id}")
+    assert after_delete.json()["candidate_runs"] == []
+    missing = await client.delete(f"/dd/campaigns/{campaign_id}/runs/{candidate_id}")
+    assert missing.status_code == 404

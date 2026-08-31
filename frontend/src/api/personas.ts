@@ -1,8 +1,9 @@
 import { api } from "@/lib/api"
-import { OS_CUSTOMER_ID } from "@/lib/scoping"
+import { BOLAG_DEMO_CUSTOMER_ID, OS_CUSTOMER_ID } from "@/lib/scoping"
 import type {
   EditablePersona,
   LibraryPersona,
+  PersonaKind,
   PersonaOrigin,
 } from "@/data/library-types"
 
@@ -10,22 +11,52 @@ export type PersonaDetail = LibraryPersona
 
 export type PersonaWrite = {
   id?: string
+  kind?: PersonaKind
+  customer_id?: number
   name: string
-  age: number
+  age?: number | null
   occ: string
   district: string
   quote?: string
   origin?: PersonaOrigin
   profile?: EditablePersona
+  tools?: string[]
+}
+
+export type PersonaWriteOptions = {
+  kind?: PersonaKind
+  customerId?: number
+  tools?: string[]
 }
 
 export function editableToWrite(
   persona: EditablePersona,
   origin: PersonaOrigin = "manuell",
   quote = "",
+  options: PersonaWriteOptions = {},
 ): PersonaWrite {
+  const kind = options.kind ?? "persona"
+  if (kind === "expert") {
+    const occ =
+      persona.yrkesbakgrund && persona.yrkesbakgrund !== "—"
+        ? persona.yrkesbakgrund
+        : persona.yrke
+    return {
+      kind: "expert",
+      customer_id: options.customerId ?? BOLAG_DEMO_CUSTOMER_ID,
+      name: persona.name,
+      occ,
+      district: persona.ort,
+      quote: quote || persona.beskrivning || "",
+      origin,
+      profile: persona,
+      tools: options.tools,
+    }
+  }
   const age = Number.parseInt(persona.age, 10)
   return {
+    kind: "persona",
+    customer_id: options.customerId ?? OS_CUSTOMER_ID,
     name: persona.name,
     age: Number.isFinite(age) ? age : 0,
     occ: persona.yrke,
@@ -41,25 +72,42 @@ export function listPersonas(params?: {
   origin?: string
   exclude_origin?: string
   customer_id?: number
+  kind?: PersonaKind
 }): Promise<LibraryPersona[]> {
-  return api.get<LibraryPersona[]>("/personas", {
-    ...params,
-    customer_id: params?.customer_id ?? OS_CUSTOMER_ID,
-  })
+  return api.get<LibraryPersona[]>("/personas", params)
 }
 
 /** Default library listing — excludes population-generated personas. */
 export function listLibraryPersonas(params?: {
   q?: string
   origin?: string
+  customer_id?: number
 }): Promise<LibraryPersona[]> {
   if (params?.origin === "population") {
-    return listPersonas({ q: params.q, origin: "population" })
+    return listPersonas({
+      q: params.q,
+      origin: "population",
+      customer_id: params.customer_id ?? OS_CUSTOMER_ID,
+      kind: "persona",
+    })
   }
   return listPersonas({
     q: params?.q,
     origin: params?.origin,
     exclude_origin: "population",
+    customer_id: params?.customer_id ?? OS_CUSTOMER_ID,
+    kind: "persona",
+  })
+}
+
+export function listExpertPersonas(params?: {
+  q?: string
+  customer_id?: number
+}): Promise<LibraryPersona[]> {
+  return listPersonas({
+    q: params?.q,
+    customer_id: params?.customer_id ?? BOLAG_DEMO_CUSTOMER_ID,
+    kind: "expert",
   })
 }
 

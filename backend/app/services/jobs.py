@@ -12,8 +12,9 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.config import settings
-from app.database.models import Job, PanelSession, Report, Run
+from app.database.models import DdCampaign, Job, PanelSession, Report, Run
 from app.database.session import SessionLocal
+from app.realtime.hub import job_hub
 from app.schemas.domain import (
     JobCreate,
     JobOut,
@@ -23,10 +24,14 @@ from app.schemas.domain import (
     ReportGenerateJobRequest,
     RunSimulateJobRequest,
 )
-from app.realtime.hub import job_hub
 from app.serializers import utcnow
 from app.services import population_generate as gen
-from app.services.report_realtime import publish_report
+from app.services.customer_scope import customer_id_for_new_job
+from app.services.dd.allabolag import AllabolagError
+from app.services.dd.campaigns import get_campaign
+from app.services.dd.candidate_runs import get_candidate_run, upsert_research
+from app.services.dd.research import DdResearchError, run_dd_research
+from app.services.dd.schemas import DdCandidateCompany, DdResearchDossier, DdResearchJobRequest
 from app.services.oasis_run import (
     OasisUnavailable,
     attempt_all_failed,
@@ -39,11 +44,13 @@ from app.services.oasis_run import (
 from app.services.panel.dd_engine import run_dd_panel
 from app.services.panel.engine import run_generic_panel
 from app.services.panel.schemas import PanelSessionRunJobRequest
+from app.services.panel.watch import publish_panel_finished
 from app.services.population_persist import (
     create_population_from_generation,
     update_population_from_generation,
 )
 from app.services.prompt_store import require_active_prompts
+from app.services.report_realtime import publish_report
 
 logger = logging.getLogger(__name__)
 _simulation_job_semaphore: asyncio.Semaphore | None = None
@@ -91,6 +98,7 @@ def _dt(value: datetime | None) -> str | None:
 def serialize_job(job: Job) -> JobOut:
     return JobOut(
         id=job.id,
+        customer_id=job.customer_id,
         kind=job.kind,
         status=job.status,  # type: ignore[arg-type]
         label=job.label,
@@ -135,11 +143,38 @@ async def create_job(session: AsyncSession, body: JobCreate) -> Job:
             raise ValueError(f"Panel session not found: {payload.session_id}")
         topic = str((panel.config or {}).get("topic") or payload.session_id)
         label = (body.label or "").strip() or f"Panel: {topic[:80]}"
+    elif body.kind == "dd_research":
+        payload = DdResearchJobRequest.model_validate(body.request)
+        campaign = await session.get(DdCampaign, payload.campaign_id)
+        if campaign is None:
+            raise ValueError(f"Campaign not found: {payload.campaign_id}")
+        raw_candidates = campaign.candidates if isinstance(campaign.candidates, list) else []
+        match = next(
+            (
+                row
+                for row in raw_candidates
+                if isinstance(row, dict) and row.get("id") == payload.candidate_id
+            ),
+            None,
+        )
+        if match is None:
+            raise ValueError(f"Candidate not found: {payload.candidate_id}")
+        name = str(match.get("namn") or payload.candidate_id)
+        if payload.mode == "people":
+            prefix = "Personutredning"
+        elif payload.continue_group:
+            prefix = "Koncern (fler)"
+        else:
+            prefix = "Koncern"
+        label = (body.label or "").strip() or f"{prefix}: {name[:80]}"
     else:
         raise ValueError(f"Unsupported job kind: {body.kind}")
 
+    customer_id = await customer_id_for_new_job(session, body)
+
     job = Job(
         id=f"job_{secrets.token_hex(8)}",
+        customer_id=customer_id,
         kind=body.kind,
         status="pending",
         label=label,
@@ -193,6 +228,8 @@ async def _execute_job_kind(job_id: str, kind: str) -> None:
         await _run_report_generate(job_id)
     elif kind == "panel_session_run":
         await _run_panel_session(job_id)
+    elif kind == "dd_research":
+        await _run_dd_research(job_id)
     else:
         factory = job_session_factory()
         async with factory() as session:
@@ -264,13 +301,31 @@ async def _run_population_generate(job_id: str) -> None:
         if job is None:
             return
         payload = PopulationGenerateJobRequest.model_validate(job.request)
-        library = await gen.load_library_personas(session, payload.include_persona_ids)
-        gen_req = PopulationGenerateRequest(
-            recipe=payload.recipe,
-            include_persona_ids=payload.include_persona_ids,
-            mode="replace",
+        population_kind = payload.kind
+        required_kind = "expert" if population_kind == "expert_panel" else None
+        library = await gen.load_library_personas(
+            session,
+            payload.include_persona_ids,
+            required_kind=required_kind,
         )
-        response = await gen.run_generate(gen_req, library, session=session)
+        if population_kind == "expert_panel":
+            gen_req = PopulationGenerateRequest(
+                recipe=payload.recipe,
+                include_persona_ids=payload.include_persona_ids,
+                mode="replace",
+            )
+            response = await gen.run_expert_panel_generate(
+                gen_req,
+                library,
+                session=session,
+            )
+        else:
+            gen_req = PopulationGenerateRequest(
+                recipe=payload.recipe,
+                include_persona_ids=payload.include_persona_ids,
+                mode="replace",
+            )
+            response = await gen.run_generate(gen_req, library, session=session)
 
         if payload.population_id is not None:
             population = await update_population_from_generation(
@@ -279,12 +334,14 @@ async def _run_population_generate(job_id: str) -> None:
                 name=payload.name,
                 generation_id=response.generation_id,
                 recipe=payload.recipe,
+                kind=population_kind,
             )
         else:
             population = await create_population_from_generation(
                 session,
                 name=payload.name,
                 generation_id=response.generation_id,
+                kind=population_kind,
             )
         await session.commit()
         await _succeed(
@@ -292,6 +349,7 @@ async def _run_population_generate(job_id: str) -> None:
             job_id,
             {
                 "population_id": population.id,
+                "population_kind": population.kind,
                 "name": population.name,
                 "fingerprint": response.fingerprint,
                 "member_count": population.size,
@@ -415,12 +473,15 @@ async def _run_simulate(job_id: str) -> None:
 async def _run_report_generate(job_id: str) -> None:
     from pathlib import Path
 
+    from app.services.dd.sub_questions import SubQuestionRef
+    from app.services.panel.module_defaults import ensure_module_panel_defaults
+    from app.services.panel.schemas import DdPanelResult
+    from app.services.panel.sessions import get_panel_session
+    from app.services.panel.sub_questions_store import get_sub_questions
     from app.services.report import ARTIFACT_ROOT
     from app.services.report.bundles import build_bundles
     from app.services.report.dd_report import generate_dd_report_html
     from app.services.report.generate import generate_report_html
-    from app.services.panel.schemas import DdPanelResult
-    from app.services.panel.sessions import get_panel_session
 
     factory = job_session_factory()
     report_id: str | None = None
@@ -469,6 +530,11 @@ async def _run_report_generate(job_id: str) -> None:
                 if not isinstance(panel.result, dict):
                     raise ValueError("Panel session has no result")
                 result = DdPanelResult.model_validate(panel.result)
+                await ensure_module_panel_defaults(session)
+                sq_rows = await get_sub_questions(session, "dd")
+                sub_questions = [
+                    SubQuestionRef(id=row.key, label=row.label) for row in sq_rows
+                ]
             html_path, slots_path, _slots, _dd = await generate_dd_report_html(
                 result,
                 session_id=session_id,
@@ -476,6 +542,7 @@ async def _run_report_generate(job_id: str) -> None:
                 out_dir=out_dir,
                 title=title,
                 locale=locale,
+                sub_questions=sub_questions,
             )
             timing = {"total_seconds": 0.0}
         else:
@@ -580,29 +647,111 @@ async def _run_panel_session(job_id: str) -> None:
                 raise RuntimeError(f"Unsupported panel protocol: {panel.protocol}")
             await session.commit()
 
+        await publish_panel_finished(payload.session_id, status="succeeded")
+
         async with factory() as session:
-            await _succeed(session, job_id, {"session_id": payload.session_id})
+            panel = await session.get(PanelSession, payload.session_id)
+            result: dict[str, object] = {"session_id": payload.session_id}
+            if panel is not None and panel.campaign_id is not None:
+                result["campaign_id"] = panel.campaign_id
+            candidate_id = (panel.config or {}).get("candidate_id") if panel else None
+            if isinstance(candidate_id, str) and candidate_id:
+                result["candidate_id"] = candidate_id
+            await _succeed(session, job_id, result)
     except Exception as exc:
         logger.exception("Panel session job %s failed", job_id)
+        error_text = str(exc) or exc.__class__.__name__
         async with factory() as session:
             panel = await session.get(PanelSession, payload.session_id)
             if panel is not None:
                 panel.status = "failed"
-                panel.error = (str(exc) or exc.__class__.__name__)[:2000]
+                panel.error = error_text[:2000]
                 panel.updated_at = utcnow()
                 await session.commit()
+            await _fail(session, job_id, error_text)
+        await publish_panel_finished(payload.session_id, status="failed", error=error_text)
+
+
+async def _run_dd_research(job_id: str) -> None:
+    factory = job_session_factory()
+    async with factory() as session:
+        job = await session.get(Job, job_id)
+        if job is None:
+            return
+        payload = DdResearchJobRequest.model_validate(job.request or {})
+        campaign = await get_campaign(session, payload.campaign_id)
+        if campaign is None:
+            await _fail(session, job_id, f"Campaign not found: {payload.campaign_id}")
+            return
+        candidates = [DdCandidateCompany.model_validate(row) for row in (campaign.candidates or [])]
+        candidate = next((row for row in candidates if row.id == payload.candidate_id), None)
+        if candidate is None:
+            await _fail(session, job_id, f"Candidate not found: {payload.candidate_id}")
+            return
+        existing = None
+        if payload.mode == "people" or payload.continue_group:
+            run = await get_candidate_run(
+                session,
+                campaign_id=payload.campaign_id,
+                candidate_id=payload.candidate_id,
+            )
+            if run is None or not isinstance(run.research, dict) or not run.research:
+                await _fail(session, job_id, "Kör koncernkartan först")
+                return
+            existing = DdResearchDossier.model_validate(run.research)
+            if payload.continue_group and not existing.pending:
+                await _fail(session, job_id, "Inga fler bolag att kartlägga")
+                return
+
+    try:
+        dossier = await run_dd_research(
+            candidate,
+            mode=payload.mode,
+            person_names=payload.person_names,
+            existing=existing,
+            continue_group=payload.continue_group,
+            job_id=job_id,
+        )
+    except (AllabolagError, DdResearchError) as exc:
+        async with factory() as session:
             await _fail(session, job_id, str(exc) or exc.__class__.__name__)
+        return
+
+    async with factory() as session:
+        await upsert_research(
+            session,
+            campaign_id=payload.campaign_id,
+            candidate_id=payload.candidate_id,
+            dossier=dossier,
+            job_id=job_id,
+        )
+        await session.commit()
+        await _succeed(
+            session,
+            job_id,
+            {
+                "campaign_id": payload.campaign_id,
+                "candidate_id": payload.candidate_id,
+                "mode": payload.mode,
+                "company_count": len(dossier.companies),
+                "people_count": len(dossier.people),
+                "leftover_count": len(dossier.leftover),
+            },
+        )
 
 
 async def list_jobs(
     session: AsyncSession,
     *,
     status: JobStatus | None = None,
+    customer_id: int | None = None,
     limit: int = 50,
 ) -> list[Job]:
     stmt = select(Job).order_by(Job.created_at.desc()).limit(min(max(limit, 1), 100))
     if status is not None:
         stmt = stmt.where(Job.status == status)
+    if customer_id is not None:
+        stmt = stmt.where(Job.customer_id == customer_id)
     result = await session.execute(stmt)
     return list(result.scalars().all())
 

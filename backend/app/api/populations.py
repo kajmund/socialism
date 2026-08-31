@@ -24,6 +24,7 @@ from app.serializers import (
 from app.services import population_generate as gen
 from app.services.population_generation_store import pop_generation
 from app.services.population_persist import (
+    create_expert_panel,
     member_row,
     members_from_generation,
     reconcile_population_metadata,
@@ -112,9 +113,13 @@ async def _members_from_generation(
 
 @router.get("", response_model=list[PopulationSummary])
 async def list_populations(
+    kind: str | None = None,
     session: AsyncSession = Depends(get_session),
 ) -> list[PopulationSummary]:
-    result = await session.execute(select(Population).order_by(Population.updated_at.desc()))
+    stmt = select(Population).order_by(Population.updated_at.desc())
+    if kind is not None:
+        stmt = stmt.where(Population.kind == kind)
+    result = await session.execute(stmt)
     populations = list(result.scalars().all())
     out: list[PopulationSummary] = []
     for population in populations:
@@ -160,6 +165,23 @@ async def create_population(
     body: PopulationCreate,
     session: AsyncSession = Depends(get_session),
 ) -> PopulationDetail:
+    if body.kind == "expert_panel":
+        persona_ids = list(body.include_persona_ids)
+        if not persona_ids:
+            persona_ids = [member.persona_id for member in body.members if member.persona_id]
+        try:
+            population = await create_expert_panel(
+                session,
+                name=body.name,
+                persona_ids=persona_ids,
+                recipe=body.recipe,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        await session.commit()
+        population = await _get_population(session, population.id)
+        return serialize_population_detail(population, 0, list(population.members))
+
     existing = await session.execute(select(Population).where(Population.name == body.name))
     if existing.scalar_one_or_none() is not None:
         raise HTTPException(status_code=409, detail="Population name already exists")
@@ -176,6 +198,7 @@ async def create_population(
         )
 
     population = Population(
+        kind=body.kind,
         name=body.name,
         size=len(members),
         versions=1,
@@ -312,6 +335,7 @@ async def duplicate_population(
         suffix += 1
 
     population = Population(
+        kind=source.kind,
         name=name,
         size=source.size,
         versions=1,
@@ -327,6 +351,7 @@ async def duplicate_population(
             PopulationMember(
                 population_id=population.id,
                 persona_id=member.persona_id,
+                kind=member.kind,
                 name=member.name,
                 initials=member.initials,
                 age=member.age,

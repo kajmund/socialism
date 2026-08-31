@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, type ComponentType, type ReactNode } from "react"
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom"
 import {
   addPopulationMember,
@@ -85,7 +85,17 @@ function targetValuesForSection(
   }
 }
 
-export function PopulationDetailPage() {
+type PopulationDetailPageProps = {
+  Shell?: ComponentType<{ children: ReactNode }>
+  basePath?: string
+  expectedKind?: "persona" | "expert_panel"
+}
+
+export function PopulationDetailPage({
+  Shell = AdminShell,
+  basePath = "/populations",
+  expectedKind,
+}: PopulationDetailPageProps) {
   const { id } = useParams()
   const navigate = useNavigate()
   const { t, intl } = useLocale()
@@ -149,27 +159,37 @@ export function PopulationDetailPage() {
     }
   }, [populationId, t])
 
+  const wrapClass = "wrap admin-page"
+
   if (loading) {
     return (
-      <AdminShell>
-        <div className="wrap wrap-full">
-          <div className="no-match">{t("populations.detail.loading")}</div>
+      <Shell>
+        <div className={wrapClass}>
+          <div className="admin-page-body">
+            <div className="no-match">{t("populations.detail.loading")}</div>
+          </div>
         </div>
-      </AdminShell>
+      </Shell>
     )
   }
 
-  if (notFound || !pop) return <Navigate to="/populations" replace />
+  if (notFound || !pop) return <Navigate to={basePath} replace />
 
+  if (expectedKind && pop.kind !== expectedKind) {
+    return <Navigate to={basePath} replace />
+  }
+
+  const isExpertPanel = pop.kind === "expert_panel"
   const excludeNames = members.map((m) => m.name)
   const sectionLabels = fpSectionLabels(t)
   const legendFallback = fpLegendFallback(t)
 
-  return (
-    <AdminShell>
-      <div className="wrap wrap-full">
+  const detail = (
+        <>
         <div className="crumb">
-          <Link to="/populations">{t("populations.detail.back")}</Link>
+          <Link to={basePath}>
+            {t(isExpertPanel ? "expertPanels.detail.back" : "populations.detail.back")}
+          </Link>
         </div>
         <div className="head-row">
           <div>
@@ -207,21 +227,24 @@ export function PopulationDetailPage() {
         </div>
         <div className="head-meta">
           <span>
-            <b>{members.length}</b> {t("common.personas")}
+            <b>{members.length}</b>{" "}
+            {t(isExpertPanel ? "expertPanels.detail.memberCount" : "common.personas")}
           </span>
           <span>
             {t("common.updated", { when: formatLibraryDate(pop.updated, intl) })}
           </span>
-          <span>
-            {pop.runs > 0 ? (
-              <>
-                {t("populations.detail.usedInPrefix")} <b>{pop.runs}</b>{" "}
-                {t("populations.detail.usedInSuffix")}
-              </>
-            ) : (
-              <i>{t("populations.detail.unused")}</i>
-            )}
-          </span>
+          {!isExpertPanel ? (
+            <span>
+              {pop.runs > 0 ? (
+                <>
+                  {t("populations.detail.usedInPrefix")} <b>{pop.runs}</b>{" "}
+                  {t("populations.detail.usedInSuffix")}
+                </>
+              ) : (
+                <i>{t("populations.detail.unused")}</i>
+              )}
+            </span>
+          ) : null}
           {pop.versions > 1 && (
             <span className="rounded-full border border-[color:var(--border-hairline)] px-2 py-0.5 text-[11px]">
               {t("common.versions", { count: pop.versions })}
@@ -229,7 +252,7 @@ export function PopulationDetailPage() {
           )}
         </div>
 
-        {pop.qa_warnings.length > 0 && (
+        {!isExpertPanel && pop.qa_warnings.length > 0 && (
           <div
             className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
             role="status"
@@ -243,12 +266,14 @@ export function PopulationDetailPage() {
           </div>
         )}
 
-        {pop.fingerprint_inferred && (
+        {!isExpertPanel && pop.fingerprint_inferred && (
           <p className="mb-4 text-sm text-[color:var(--text-muted)]">
             {t("populations.detail.fingerprintInferred")}
           </p>
         )}
 
+        {!isExpertPanel ? (
+          <>
         <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-[color:var(--text-muted)]">
           {t("populations.detail.achievedTitle")}
         </h2>
@@ -365,9 +390,11 @@ export function PopulationDetailPage() {
             )
           })}
         </div>
+          </>
+        ) : null}
 
         <div className="section-title">
-          <h2>{t("populations.detail.membersTitle")}</h2>
+          <h2>{t(isExpertPanel ? "expertPanels.detail.membersTitle" : "populations.detail.membersTitle")}</h2>
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
             {members.length > 0 ? (
               <div className="view-toggle">
@@ -401,6 +428,7 @@ export function PopulationDetailPage() {
 
         {showAdd && (
           <AddFromLibraryPanel
+            personaKind={isExpertPanel ? "expert" : "persona"}
             excludeNames={excludeNames}
             onAdd={(p) => {
               const member = libraryPersonaToMember(p)
@@ -534,12 +562,19 @@ export function PopulationDetailPage() {
             ))}
           </div>
         )}
+      </>
+  )
+
+  return (
+    <Shell>
+      <div className={wrapClass}>
+        <div className="admin-page-body">{detail}</div>
       </div>
       {toast && (
         <div className="fixed bottom-6 right-6 rounded-md bg-db-ink-950 px-4 py-3 text-sm text-db-ink-0 shadow-lg">
           {toast}
         </div>
       )}
-    </AdminShell>
+    </Shell>
   )
 }

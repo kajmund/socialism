@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react"
 import { Navigate, useLocation } from "react-router-dom"
 import { useAuth } from "@/auth/AuthProvider"
-import { homePathForRole } from "@/lib/auth"
+import { homePathForUser } from "@/lib/auth"
 import { LocaleSwitcher } from "@/components/layout/LocaleSwitcher"
 import { useLocale } from "@/i18n"
 
@@ -11,17 +11,18 @@ type LoginLocationState = {
 
 export function LoginPage() {
   const { t, locale, setLocale } = useLocale()
-  const { session, loading, signIn } = useAuth()
+  const { session, loading, signIn, resolvedModules } = useAuth()
   const location = useLocation()
   const from = (location.state as LoginLocationState | null)?.from
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const noModules = Boolean(session) && resolvedModules.length === 0
 
   if (loading) return <div className="min-h-svh bg-db-black" aria-hidden="true" />
-  if (session) {
-    const dest = from && from !== "/login" ? from : homePathForRole(session.user.role)
+  if (session && resolvedModules.length > 0) {
+    const dest = from && from !== "/login" ? from : homePathForUser(resolvedModules)
     return <Navigate to={dest} replace />
   }
 
@@ -33,6 +34,7 @@ export function LoginPage() {
       await signIn(username, password)
     } catch {
       setError(t("auth.invalidCredentials"))
+    } finally {
       setSubmitting(false)
     }
   }
@@ -120,9 +122,9 @@ export function LoginPage() {
                   />
                 </label>
 
-                {error ? (
+                {error || noModules ? (
                   <p className="text-sm text-[#ffb4b4]" role="alert">
-                    {error}
+                    {error ?? t("auth.noModules")}
                   </p>
                 ) : null}
 

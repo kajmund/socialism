@@ -45,7 +45,9 @@ async def test_ensure_default_kunder_seeds_os_and_bolag(session: AsyncSession):
     kunder = list((await session.execute(select(Kund).order_by(Kund.id))).scalars().all())
     assert len(kunder) == 2
     assert kunder[0].slug == OS_DEFAULT_KUND_SLUG
+    assert kunder[0].available_modules == ["politik"]
     assert kunder[1].slug == BOLAG_DEMO_KUND_SLUG
+    assert kunder[1].available_modules == ["dd"]
 
     projekt = list(
         (await session.execute(select(Projekt).where(Projekt.customer_id == kunder[0].id)))
@@ -108,6 +110,9 @@ async def test_kunder_api_lists_seeded_tenants():
         devbrains = next(row for row in body if row["slug"] == OS_DEFAULT_KUND_SLUG)
         assert devbrains["projekt"]
         assert devbrains["projekt"][0]["slug"] == DEFAULT_PROJEKT_SLUG
+        assert devbrains["available_modules"] == ["politik"]
+        bolag = next(row for row in body if row["slug"] == BOLAG_DEMO_KUND_SLUG)
+        assert bolag["available_modules"] == ["dd"]
 
     await engine.dispose()
 
@@ -188,3 +193,52 @@ async def test_dd_campaign_gets_bolag_customer_id(client: AsyncClient):
     )
     assert create.status_code == 201
     assert create.json()["customer_id"] == bolag_id
+
+
+@pytest.mark.asyncio
+async def test_persona_kind_defaults_to_persona(client: AsyncClient):
+    create = await client.post(
+        "/personas",
+        json={
+            "name": "Kind Test",
+            "age": 40,
+            "occ": "Testare",
+            "district": "Stockholm",
+        },
+    )
+    assert create.status_code == 201
+    assert create.json()["kind"] == "persona"
+
+
+@pytest.mark.asyncio
+async def test_os_job_gets_devbrains_customer_id(session: AsyncSession):
+    from sqlalchemy import select
+
+    from app.database.models import Job, Population, Run
+    from app.schemas.domain import JobCreate, RunSimulateJobRequest
+    from app.services import jobs as jobs_service
+
+    pop = Population(name="JobScopePop", size=0, versions=1, fingerprint=[], recipe={})
+    session.add(pop)
+    await session.flush()
+    run = Run(
+        project_id=await default_os_project_id(session),
+        name="JobScopeRun",
+        status="draft",
+        population_id=pop.id,
+        seed="",
+    )
+    session.add(run)
+    await session.flush()
+
+    job = await jobs_service.create_job(
+        session,
+        JobCreate(
+            kind="run_simulate",
+            request=RunSimulateJobRequest(run_id=run.id).model_dump(),
+        ),
+    )
+
+    os_id = await default_os_customer_id(session)
+    row = (await session.execute(select(Job).where(Job.id == job.id))).scalar_one()
+    assert row.customer_id == os_id

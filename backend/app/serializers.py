@@ -21,6 +21,7 @@ from app.schemas.domain import (
     Tick,
     format_date,
 )
+from app.services.expert_tools import resolve_expert_tools
 from app.services.population_fingerprint import (
     compare_target_vs_achieved,
     dist_qa_rows,
@@ -61,6 +62,7 @@ def profile_from_dict(data: dict | None, fallback_name: str) -> EditablePersona:
 def serialize_library_persona(persona: Persona, pops: list[str]) -> LibraryPersona:
     return LibraryPersona(
         id=persona.id,
+        kind=persona.kind,  # type: ignore[arg-type]
         name=persona.name,
         age=persona.age,
         occ=persona.occ,
@@ -70,6 +72,7 @@ def serialize_library_persona(persona: Persona, pops: list[str]) -> LibraryPerso
         updated=format_date(persona.updated_at),
         origin=persona.origin,  # type: ignore[arg-type]
         profile=profile_from_dict(persona.profile, persona.name),
+        tools=resolve_expert_tools(persona.tools) if persona.kind == "expert" else None,
     )
 
 
@@ -97,6 +100,7 @@ def serialize_member(member: PopulationMember) -> PopulationMemberOut:
 def serialize_population_summary(population: Population, run_count: int) -> PopulationSummary:
     return PopulationSummary(
         id=population.id,
+        kind=population.kind,  # type: ignore[arg-type]
         name=population.name,
         size=population.size,
         runs=run_count,

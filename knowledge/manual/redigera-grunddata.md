@@ -22,7 +22,7 @@ Ny konfiguration: spara först namn och prompts — då skapas grunddatalistorna
 
 ## DD expertpanel
 
-Under **DD expertpanel** → **Expertroller** konfigurerar du rollerna som due diligence-panelen kan använda (namn, beskrivning, kompetens, stil, bakgrund och anekdot). Bolag-användare redigerar samma lista via menyn **Experter** i Due diligence-ytan — se [Konfigurera DD-experter](konfigurera-dd-experter.md).
+Under **DD expertpanel** → **Expertroller** finns kvar katalogfält för äldre rolltexter i grunddata. Bolag-användare skapar och redigerar experter under **Experter** i Due diligence-ytan — se [Skapa och redigera expert](skapa-och-redigera-expert.md).
 
 ## Distrikt med karta
 
@@ -39,6 +39,6 @@ För listan **Distrikt** kan du dessutom:
 ## Relaterade guider
 
 - [Hantera konfigurationer](hantera-konfigurationer.md)
-- [Konfigurera DD-experter](konfigurera-dd-experter.md)
+- [Skapa och redigera expert](skapa-och-redigera-expert.md)
 - [Skapa och redigera persona](skapa-och-redigera-persona.md)
 - [Bygga en population](bygga-population.md)

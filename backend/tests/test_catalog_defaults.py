@@ -8,7 +8,7 @@ from app.database.models import CatalogList, Configuration
 from app.serializers import utcnow
 from app.services.catalog_defaults import CATALOG_DEFAULTS
 from app.services.catalog_items import catalog_items_as_json, coerce_catalog_items
-from app.services.catalog_store import ensure_catalog_defaults
+from app.services.catalog_store import ensure_catalog_defaults, list_catalog_lists
 from app.services.kund_store import ensure_default_kunder
 
 
@@ -105,3 +105,35 @@ async def test_ensure_keeps_edited_ton_list(session: AsyncSession):
     )
     await ensure_catalog_defaults(session, config_id)
     assert await _ton_labels(session, config_id) == ["Varm men bestämd", "Egen röst"]
+
+
+@pytest.mark.asyncio
+async def test_ensure_drops_retired_catalog_sections(session: AsyncSession):
+    await ensure_default_kunder(session)
+    config = Configuration(name="Test", language="sv", prompts={}, customer_id=1)
+    session.add(config)
+    await session.flush()
+    session.add(
+        CatalogList(
+            configuration_id=config.id,
+            key="expert_roller",
+            section="dd_expertpanel",
+            title="Expertroller",
+            items=catalog_items_as_json(coerce_catalog_items(["Jurist"])),
+            updated_at=utcnow(),
+        )
+    )
+    await session.commit()
+
+    await ensure_catalog_defaults(session, config.id)
+    leftover = (
+        await session.execute(
+            select(CatalogList).where(
+                CatalogList.configuration_id == config.id,
+                CatalogList.key == "expert_roller",
+            )
+        )
+    ).scalar_one_or_none()
+    assert leftover is None
+    listed = await list_catalog_lists(session, config.id)
+    assert all(row.section != "dd_expertpanel" for row in listed)

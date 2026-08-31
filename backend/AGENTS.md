@@ -35,6 +35,7 @@ backend/
 ├── app/
 │   ├── main.py          # FastAPI entrypoint
 │   ├── config.py        # Pydantic settings — single source of truth for env
+│   ├── modules/         # Product-module manifests + registry (dd, politik)
 │   ├── api/             # Routers: personas, populations, runs, messages, configurations, catalog, jobs, reports, playground, health, ws
 │   ├── database/        # SQLAlchemy models, async session, base
 │   ├── llm/             # DeepSeek client, persona gen, interview chat

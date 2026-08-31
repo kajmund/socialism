@@ -1,19 +1,38 @@
-import { useEffect, useMemo, useState } from "react"
-import { Link } from "react-router-dom"
+import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react"
+import { Link, useSearchParams } from "react-router-dom"
+import type { Job } from "@/api/jobs"
 import {
   bulkDeleteReports,
   deleteReport,
   type Report,
   type ReportStatus,
 } from "@/api/reports"
+import { useAuth } from "@/auth/AuthProvider"
 import { AdminShell } from "@/components/layout/AdminShell"
+import { NestedBolagPage } from "@/components/layout/BolagShell"
 import { Card, CardContent } from "@/components/ui/card"
 import { ViewToggle, type ListViewMode } from "@/components/ui/view-toggle"
 import { useLocale, type MessageKey } from "@/i18n"
 import { ApiError } from "@/lib/api"
+import {
+  isReportModuleId,
+  moduleForReport,
+  reportModulesForUser,
+  reportModulesFromIds,
+  type ReportModuleId,
+} from "@/lib/report-modules"
+import { useKundModules } from "@/modules/useKundModules"
+import {
+  matchesCustomerScope,
+  type CustomerScope,
+} from "@/lib/scoping"
+import { cn } from "@/lib/utils"
+import { formatElapsed } from "@/lib/formatDuration"
+import { useJobsRealtime } from "@/realtime/JobsRealtimeProvider"
 import { useReportsRealtime } from "@/realtime/ReportsRealtimeProvider"
 
 type Translate = (key: MessageKey, params?: Record<string, string | number>) => string
+type ShellComponent = ComponentType<{ children: ReactNode }>
 
 const STATUS_KEY: Record<ReportStatus, MessageKey> = {
   pending: "reports.status.pending",
@@ -49,28 +68,15 @@ function formatWhen(iso: string | null | undefined, intl: string, emDash: string
   }).format(d)
 }
 
-function formatReportDuration(report: Report, t: Translate): string | null {
-  if (!report.created_at || !report.finished_at) return null
-  const ms =
-    new Date(report.finished_at).getTime() - new Date(report.created_at).getTime()
-  if (!Number.isFinite(ms) || ms < 0) return null
-  const sec = Math.round(ms / 1000)
-  if (sec < 60) return t("reports.duration.seconds", { n: sec })
-  const m = Math.floor(sec / 60)
-  const s = sec % 60
-  if (m < 60) {
-    return s > 0
-      ? t("reports.duration.minutesSeconds", { m, s })
-      : t("reports.duration.minutes", { m })
-  }
-  const h = Math.floor(m / 60)
-  const rm = m % 60
-  return rm > 0
-    ? t("reports.duration.hoursMinutes", { h, m: rm })
-    : t("reports.duration.hours", { h })
+function formatReportDuration(report: Report, job: Job | undefined, t: Translate): string | null {
+  if (report.job_id && !job) return null
+  const start = job?.started_at ?? job?.created_at ?? report.created_at
+  const end = job?.finished_at ?? report.finished_at
+  return formatElapsed(start, end, t, "reports.duration")
 }
 
 function modeLabel(mode: Report["mode"], t: Translate): string {
+  if (mode === "dd") return t("reports.list.modeDd")
   return mode === "full"
     ? t("reports.list.modeFullLegacy")
     : t("reports.list.modeQuick")
@@ -88,8 +94,10 @@ function sourcesLabel(report: Report, t: Translate): string {
 
 type ReportItemProps = {
   report: Report
+  job: Job | undefined
   t: Translate
   intl: string
+  reportHref: string
   isSelected: boolean
   confirming: boolean
   deleting: boolean
@@ -101,8 +109,10 @@ type ReportItemProps = {
 
 function ReportCard({
   report,
+  job,
   t,
   intl,
+  reportHref,
   isSelected,
   confirming,
   deleting,
@@ -111,7 +121,7 @@ function ReportCard({
   onDelete,
   onClearBulkConfirm,
 }: ReportItemProps) {
-  const duration = formatReportDuration(report, t)
+  const duration = formatReportDuration(report, job, t)
   const when = formatWhen(report.finished_at ?? report.created_at, intl, t("common.emDash"))
   return (
     <Card className="gap-0 py-4 ring-1 ring-border">
@@ -191,7 +201,7 @@ function ReportCard({
               alignItems: "center",
             }}
           >
-            <Link to={`/reports/${report.id}`}>{t("reports.list.open")}</Link>
+            <Link to={reportHref}>{t("reports.list.open")}</Link>
             <button
               type="button"
               className="danger"
@@ -212,8 +222,10 @@ function ReportCard({
 
 function ReportListRow({
   report,
+  job,
   t,
   intl,
+  reportHref,
   isSelected,
   confirming,
   deleting,
@@ -222,7 +234,7 @@ function ReportListRow({
   onDelete,
   onClearBulkConfirm,
 }: ReportItemProps) {
-  const duration = formatReportDuration(report, t)
+  const duration = formatReportDuration(report, job, t)
   const when = formatWhen(report.finished_at ?? report.created_at, intl, t("common.emDash"))
   const detail = [
     modeLabel(report.mode, t),
@@ -266,7 +278,7 @@ function ReportListRow({
           </>
         ) : (
           <>
-            <Link className="primary" to={`/reports/${report.id}`}>
+            <Link className="primary" to={reportHref}>
               {t("reports.list.open")}
             </Link>
             <button
@@ -286,9 +298,57 @@ function ReportListRow({
   )
 }
 
-export function ReportsPage() {
+export type ReportsPageProps = {
+  scope?: CustomerScope
+  Shell?: ShellComponent
+}
+
+const MODULE_TABS: readonly { id: ReportModuleId; labelKey: MessageKey }[] = [
+  { id: "politik", labelKey: "reports.list.tabPolitik" },
+  { id: "dd", labelKey: "reports.list.tabDd" },
+]
+
+function introKey(module: ReportModuleId, scope: CustomerScope): MessageKey {
+  if (module === "dd") {
+    return scope === "bolag" ? "reports.list.introBolag" : "reports.list.introDd"
+  }
+  return "reports.list.intro"
+}
+
+function emptyKey(module: ReportModuleId, scope: CustomerScope): MessageKey {
+  if (module === "dd") {
+    return scope === "bolag" ? "reports.list.emptyBolag" : "reports.list.emptyDd"
+  }
+  return "reports.list.empty"
+}
+
+export function ReportsPage({ scope = "admin", Shell = AdminShell }: ReportsPageProps) {
   const { t, intl } = useLocale()
-  const { reports, connected, status: wsStatus } = useReportsRealtime()
+  const { user } = useAuth()
+  const { moduleIds, loading: kundLoading } = useKundModules()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const { reports: allReports, connected, status: wsStatus } = useReportsRealtime()
+  const { jobs } = useJobsRealtime()
+  const availableModules = useMemo(() => {
+    if (kundLoading) return reportModulesForUser(user)
+    return reportModulesFromIds(moduleIds)
+  }, [kundLoading, moduleIds, user])
+  const showModuleTabs = availableModules.length > 1
+  const activeModule = useMemo<ReportModuleId>(() => {
+    if (availableModules.length === 1) return availableModules[0]
+    const fromUrl = searchParams.get("tab")
+    if (isReportModuleId(fromUrl) && availableModules.includes(fromUrl)) return fromUrl
+    return availableModules[0] ?? "politik"
+  }, [availableModules, searchParams])
+  const reports = useMemo(
+    () =>
+      allReports.filter(
+        (report) =>
+          matchesCustomerScope(report, scope) && moduleForReport(report) === activeModule,
+      ),
+    [allReports, scope, activeModule],
+  )
+  const reportBase = scope === "bolag" ? "/bolag/reports" : "/reports"
   const [selected, setSelected] = useState<Set<string>>(() => new Set())
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [confirmBulk, setConfirmBulk] = useState(false)
@@ -318,6 +378,21 @@ export function ReportsPage() {
     [reports, selected],
   )
   const selectedCount = selected.size
+
+  function setActiveModule(next: ReportModuleId) {
+    if (next === activeModule) return
+    setConfirmId(null)
+    setConfirmBulk(false)
+    setSelected(new Set())
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev)
+        params.set("tab", next)
+        return params
+      },
+      { replace: true },
+    )
+  }
 
   function showToast(msg: string) {
     setToast(msg)
@@ -378,48 +453,68 @@ export function ReportsPage() {
   }
 
   return (
-    <AdminShell>
-      <div className="wrap" style={{ maxWidth: 960 }}>
-        <div className="section-head">
-          <span className="kicker">{t("reports.list.kicker")}</span>
-          <h1
-            style={{
-              font: "var(--text-h1)",
-              fontFamily: "'Bai Jamjuree', sans-serif",
-              fontWeight: 400,
-            }}
-          >
-            {t("reports.list.title")}
-          </h1>
-          <p>{t("reports.list.intro")}</p>
-        </div>
-
-        {toast ? (
-          <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
-            {toast}
+    <Shell>
+      <div className="wrap admin-page">
+        <div className="admin-page-chrome">
+          <div className="section-head">
+            <span className="kicker">{t("reports.list.kicker")}</span>
+            <h1
+              style={{
+                font: "var(--text-h1)",
+                fontFamily: "'Bai Jamjuree', sans-serif",
+                fontWeight: 400,
+              }}
+            >
+              {t("reports.list.title")}
+            </h1>
+            <p>{t(introKey(activeModule, scope))}</p>
           </div>
-        ) : null}
 
-        {error && (
-          <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
-            {error}
-          </div>
-        )}
+          {showModuleTabs ? (
+            <div
+              role="tablist"
+              aria-label={t("reports.list.tabsAria")}
+              className="mb-6 flex flex-wrap gap-1 border-b border-[color:var(--border-hairline)]"
+            >
+              {MODULE_TABS.filter((tab) => availableModules.includes(tab.id)).map((tab) => {
+                const selectedTab = tab.id === activeModule
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    id={`reports-tab-${tab.id}`}
+                    aria-selected={selectedTab}
+                    aria-controls={`reports-tab-panel-${tab.id}`}
+                    tabIndex={selectedTab ? 0 : -1}
+                    className={cn(
+                      "-mb-px border-b-2 px-3 py-2 text-sm",
+                      selectedTab
+                        ? "border-db-ink-950 font-medium text-[color:var(--text-body)]"
+                        : "border-transparent text-muted-foreground hover:text-[color:var(--text-body)]",
+                    )}
+                    onClick={() => setActiveModule(tab.id)}
+                  >
+                    {t(tab.labelKey)}
+                  </button>
+                )
+              })}
+            </div>
+          ) : null}
 
-        {loading && reports.length === 0 && !error ? (
-          <div className="no-match" style={{ textAlign: "left" }}>
-            {t("reports.list.loading")}
-          </div>
-        ) : null}
+          {toast ? (
+            <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
+              {toast}
+            </div>
+          ) : null}
 
-        {!loading && reports.length === 0 && !error ? (
-          <div className="no-match" style={{ textAlign: "left" }}>
-            {t("reports.list.empty")}
-          </div>
-        ) : null}
+          {error && (
+            <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
+              {error}
+            </div>
+          )}
 
-        {reports.length > 0 ? (
-          <>
+          {reports.length > 0 ? (
             <div className="controls-row">
               <div className="controls-left" style={{ alignItems: "center", gap: 12 }}>
                 <label style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
@@ -473,15 +568,38 @@ export function ReportsPage() {
                 <ViewToggle value={view} onChange={setView} />
               </div>
             </div>
+          ) : null}
+        </div>
 
-            {view === "grid" ? (
+        <div
+          className="admin-page-body"
+          id={showModuleTabs ? `reports-tab-panel-${activeModule}` : undefined}
+          role={showModuleTabs ? "tabpanel" : undefined}
+          aria-labelledby={showModuleTabs ? `reports-tab-${activeModule}` : undefined}
+        >
+          {loading && reports.length === 0 && !error ? (
+            <div className="no-match" style={{ textAlign: "left" }}>
+              {t("reports.list.loading")}
+            </div>
+          ) : null}
+
+          {!loading && reports.length === 0 && !error ? (
+            <div className="no-match" style={{ textAlign: "left" }}>
+              {t(emptyKey(activeModule, scope))}
+            </div>
+          ) : null}
+
+          {reports.length > 0 ? (
+            view === "grid" ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {reports.map((report) => (
                   <ReportCard
                     key={report.id}
                     report={report}
+                    job={jobs.find((row) => row.id === report.job_id)}
                     t={t}
                     intl={intl}
+                    reportHref={`${reportBase}/${report.id}`}
                     isSelected={selected.has(report.id)}
                     confirming={confirmId === report.id}
                     deleting={deleting}
@@ -498,8 +616,10 @@ export function ReportsPage() {
                   <ReportListRow
                     key={report.id}
                     report={report}
+                    job={jobs.find((row) => row.id === report.job_id)}
                     t={t}
                     intl={intl}
+                    reportHref={`${reportBase}/${report.id}`}
                     isSelected={selected.has(report.id)}
                     confirming={confirmId === report.id}
                     deleting={deleting}
@@ -510,10 +630,14 @@ export function ReportsPage() {
                   />
                 ))}
               </div>
-            )}
-          </>
-        ) : null}
+            )
+          ) : null}
+        </div>
       </div>
-    </AdminShell>
+    </Shell>
   )
+}
+
+export function BolagReportsPage() {
+  return <ReportsPage scope="bolag" Shell={NestedBolagPage} />
 }

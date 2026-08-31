@@ -7,6 +7,8 @@ import {
   type ReactNode,
 } from "react"
 import type { Job } from "@/api/jobs"
+import { useAuth } from "@/auth/AuthProvider"
+import { realtimeCustomerIdForRole } from "@/lib/scoping"
 import { connectJsonWebSocket, type WsStatus } from "@/lib/ws"
 
 type JobsRealtimeValue = {
@@ -39,14 +41,31 @@ function upsertJob(list: Job[], job: Job): Job[] {
 }
 
 export function JobsRealtimeProvider({ children }: { children: ReactNode }) {
+  const { role, loading } = useAuth()
+  const customerId = realtimeCustomerIdForRole(role)
   const [jobs, setJobs] = useState<Job[]>([])
   const [status, setStatus] = useState<WsStatus>("connecting")
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (loading) return
+
+    setJobs([])
+    setError(null)
+
     const conn = connectJsonWebSocket({
       path: "/ws/jobs",
       onStatus: setStatus,
+      onOpen: () => {
+        const hello: Record<string, unknown> = {
+          type: "hello",
+          scope: "jobs_watch",
+        }
+        if (customerId != null) {
+          hello.customer_id = customerId
+        }
+        conn.send(hello)
+      },
       onMessage: (data) => {
         if (!data || typeof data !== "object") return
         const msg = data as Record<string, unknown>
@@ -70,7 +89,7 @@ export function JobsRealtimeProvider({ children }: { children: ReactNode }) {
       window.clearInterval(ping)
       conn.close()
     }
-  }, [])
+  }, [customerId, loading])
 
   const value = useMemo<JobsRealtimeValue>(() => {
     const activeCount = jobs.filter(

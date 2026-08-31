@@ -183,6 +183,7 @@ async def test_parallel_start_interview_persists_all_messages(session, monkeypat
     session.add(
         Report(
             id="rpt_parallel",
+            customer_id=1,
             status="succeeded",
             title="Parallel",
             locale="sv",
@@ -193,7 +194,7 @@ async def test_parallel_start_interview_persists_all_messages(session, monkeypat
         )
     )
     await session.commit()
-    ctx = SpindoctorToolContext(report_id="rpt_parallel")
+    ctx = SpindoctorToolContext(report_id="rpt_parallel", module_id="politik")
 
     try:
         working, _widgets = await _run_spindoctor_tool_loop(

@@ -6,10 +6,27 @@ from collections.abc import AsyncIterator
 
 from app.llm import complete_structured, complete_text, stream_text
 from app.schemas.domain import ChatMode, EditablePersona, FollowUpQuestions
+from app.services.dd.company_mcp import complete_text_with_company_tools
+from app.services.expert_tools import expert_tool_prompt_extra, resolve_expert_tools
 from app.services.prompt_catalog import render_prompt
 
 MAX_FOLLOW_UPS = 3
 MAX_QUESTION_CHARS = 140
+
+
+def _expert_block(profile: EditablePersona) -> str:
+    lines = [f"Namn: {profile.name}"]
+    for label, value in (
+        ("Uppdrag", profile.beskrivning),
+        ("Kompetensområde", profile.kompetensomrade),
+        ("Rådgivningsstil", profile.radgivningsstil),
+        ("Yrkesbakgrund", profile.yrkesbakgrund),
+        ("Anekdot", profile.professionell_anekdot),
+    ):
+        text = (value or "").strip()
+        if text and text != "—":
+            lines.append(f"{label}: {text}")
+    return "\n".join(lines)
 
 
 def _persona_block(profile: EditablePersona) -> str:
@@ -43,9 +60,16 @@ def build_chat_system_prompt(
     prompts: dict[str, str],
     area_block: str = "",
     simulation_context: str = "",
+    extra_system: str = "",
+    profile_kind: str = "persona",
 ) -> str:
     local = area_block.strip()
-    persona_block = _persona_block(profile)
+    if profile_kind == "expert":
+        persona_block = _expert_block(profile)
+        profile_header = f"Profil för {profile.name} — du är den här experten:\n{persona_block}"
+    else:
+        persona_block = _persona_block(profile)
+        profile_header = f"Profil för {profile.name} — du är den här personen:\n{persona_block}"
     if mode == "interview":
         mode_rules = render_prompt(prompts, "chat.mode.interview")
         role_lock = render_prompt(prompts, "chat.role_lock", name=profile.name)
@@ -58,7 +82,7 @@ def build_chat_system_prompt(
         mode_rules,
         role_lock,
         "",
-        f"Profil för {profile.name} — du är den här personen:\n{persona_block}",
+        profile_header,
     ]
     if local:
         parts.extend(["", f"Lokal kontext:\n{local}"])
@@ -72,6 +96,9 @@ def build_chat_system_prompt(
                 render_prompt(prompts, "chat.simulation_context.footer"),
             ]
         )
+    extra = extra_system.strip()
+    if extra:
+        parts.extend(["", extra])
     return "\n".join(parts)
 
 
@@ -110,6 +137,8 @@ def _chat_messages(
     area_block: str = "",
     simulation_context: str = "",
     system_prompt: str | None = None,
+    extra_system: str = "",
+    profile_kind: str = "persona",
 ) -> list[dict[str, str]]:
     content = system_prompt or build_chat_system_prompt(
         profile,
@@ -117,6 +146,8 @@ def _chat_messages(
         prompts=prompts,
         area_block=area_block,
         simulation_context=simulation_context,
+        extra_system=extra_system,
+        profile_kind=profile_kind,
     )
     messages: list[dict[str, str]] = [
         {
@@ -140,7 +171,9 @@ async def reply_as_persona(
     area_block: str = "",
     simulation_context: str = "",
     system_prompt: str | None = None,
+    extra_system: str = "",
     model: str | None = None,
+    profile_kind: str = "persona",
 ) -> str:
     messages = _chat_messages(
         profile,
@@ -151,6 +184,8 @@ async def reply_as_persona(
         area_block=area_block,
         simulation_context=simulation_context,
         system_prompt=system_prompt,
+        extra_system=extra_system,
+        profile_kind=profile_kind,
     )
     return await complete_text(messages, model=model)
 
@@ -165,6 +200,8 @@ async def stream_reply_as_persona(
     area_block: str = "",
     simulation_context: str = "",
     system_prompt: str | None = None,
+    extra_system: str = "",
+    profile_kind: str = "persona",
 ) -> AsyncIterator[str]:
     messages = _chat_messages(
         profile,
@@ -175,9 +212,44 @@ async def stream_reply_as_persona(
         area_block=area_block,
         simulation_context=simulation_context,
         system_prompt=system_prompt,
+        extra_system=extra_system,
+        profile_kind=profile_kind,
     )
     async for chunk in stream_text(messages):
         yield chunk
+
+
+async def stream_reply_as_expert(
+    profile: EditablePersona,
+    mode: ChatMode,
+    history: list[tuple[str, str]],
+    user_message: str,
+    *,
+    prompts: dict[str, str],
+    area_block: str = "",
+    simulation_context: str = "",
+    system_prompt: str | None = None,
+    tools: list[str] | None = None,
+) -> AsyncIterator[str]:
+    allowed = resolve_expert_tools(tools)
+    extra = expert_tool_prompt_extra(prompts, allowed)
+    messages = _chat_messages(
+        profile,
+        mode,
+        history,
+        user_message,
+        prompts=prompts,
+        area_block=area_block,
+        simulation_context=simulation_context,
+        system_prompt=system_prompt,
+        extra_system=extra,
+        profile_kind="expert",
+    )
+    reply = await complete_text_with_company_tools(
+        messages, allowed_tools=frozenset(allowed)
+    )
+    if reply:
+        yield reply
 
 
 def normalize_follow_up_questions(raw: list[str]) -> list[str]:
