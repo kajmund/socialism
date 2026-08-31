@@ -21,6 +21,7 @@ export const en: LocalizedTree<SvMessages> = {
     submit: "Sign in",
     submitting: "Signing in…",
     invalidCredentials: "Wrong username or password",
+    noModules: "No modules are assigned to this account.",
     signOut: "Sign out",
     signedInAs: "{name}",
     roleAdmin: "Administrator",
@@ -64,6 +65,14 @@ export const en: LocalizedTree<SvMessages> = {
     politik: {
       name: "Political simulation",
     },
+  },
+  valjModul: {
+    title: "Choose module",
+    intro: "Choose which surface you want to open.",
+    loading: "Loading modules…",
+    loadError: "Could not load modules.",
+    empty: "No modules are assigned.",
+    openAria: "Open {name}",
   },
   expertPanels: {
     list: {
