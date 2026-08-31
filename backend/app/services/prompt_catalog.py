@@ -1401,22 +1401,30 @@ HOW YOU WRITE COMMENTS:
             "Din roll: {label}\n\n"
             "Delfråga: {sub_question}\n\n"
             "Grunddata:\n{brief}\n\n"
-            "Räck upp handen BARA om den här delfrågan är din kärnkompetens — det du är här för att bedöma.\n"
+            "Räck upp handen BARA om den här delfrågan är din kärnkompetens.\n"
+            "JA betyder att du tar hela bedömningen av delfrågan, inte en sidokommentar.\n"
             "En sidovinkel räcker inte (t.ex. finans som kommenterar avtal via kundfordringar, "
             "eller HR som kommenterar anställningsavtal på en legal fråga).\n"
+            "Koncernbolag eller branschgrannar gör inte frågan till din.\n"
             "Om du tvekar: NEJ.\n\n"
-            "Svara ENDAST JA eller NEJ."
+            "Första raden: JA eller NEJ.\n"
+            "Nästa rader: en till två meningar som förklarar varför delfrågan är, "
+            "eller inte är, din kärnkompetens. Inte poängen — bara kompetensen."
         ),
         (
             "Target: {topic}\n\n"
             "Your role: {label}\n\n"
             "Sub-question: {sub_question}\n\n"
             "Facts:\n{brief}\n\n"
-            "Raise your hand ONLY if this sub-question is your core competence — what you are here to assess.\n"
+            "Raise your hand ONLY if this sub-question is your core competence.\n"
+            "YES means you take the whole assessment of the sub-question, not a side comment.\n"
             "An adjacent angle is not enough (e.g. finance commenting on contracts via receivables, "
             "or HR commenting on employment agreements on a legal question).\n"
+            "Group companies or industry neighbours do not make the question yours.\n"
             "If you hesitate: NO.\n\n"
-            "Reply ONLY YES or NO."
+            "First line: YES or NO.\n"
+            "Following lines: one or two sentences explaining why the sub-question is, "
+            "or is not, your core competence. Not the score — only the competence."
         ),
     ),
     _f(
@@ -1459,8 +1467,11 @@ HOW YOU WRITE COMMENTS:
             "lookup_company bara om ett sådant nyckeltal saknas i grunddata. "
             "search_duckduckgo eller search_wiki bara för annat än kandidatens redan givna siffror. "
             "Svara därefter ENDAST med JSON:\n"
-            '{{"score": <1-10>, "motivation": "<max 80 ord, svenska>"}}\n'
-            "Poängen ska spegla din expertroll och kandidatens data. Nämn källan om relevant."
+            '{{"score": <1-10>, "motivation": "<svenska>"}}\n'
+            "motivation är VARFÖR du sätter just den poängen: vilka fakta i grunddata "
+            "(eller källa) som driver bedömningen. Återge inte bara poängen. "
+            "Skriv 3–6 meningar. Om källbadgen är Grunddata: utgå från de siffrorna "
+            "och hitta inte på en webbkälla för samma tal."
         ),
         (
             "Target: {topic}\n\nFacts:\n{brief}\n\nSub-question: {sub_question}\n\n"
@@ -1472,8 +1483,11 @@ HOW YOU WRITE COMMENTS:
             "Use search_duckduckgo or search_wiki only for things other than the "
             "candidate's already given figures. "
             "Then reply ONLY with JSON:\n"
-            '{{"score": <1-10>, "motivation": "<max 80 words>"}}\n'
-            "Score from your expert role and candidate facts. Mention the source when relevant."
+            '{{"score": <1-10>, "motivation": "<English>"}}\n'
+            "motivation is WHY you set that score: which facts in the brief "
+            "(or source) drive the judgment. Do not just restate the score. "
+            "Write 3–6 sentences. If the source badge is Grunddata: use those figures "
+            "and do not invent a web source for the same numbers."
         ),
     ),
     _f(
@@ -1485,12 +1499,14 @@ HOW YOU WRITE COMMENTS:
         "Used after tool calls when the score reply is missing.",
         (
             "Svara ENDAST med JSON:\n"
-            '{{"score": <1-10>, "motivation": "<max 80 ord, svenska>"}}\n'
+            '{{"score": <1-10>, "motivation": "<svenska>"}}\n'
+            "motivation är varför du sätter poängen, med fakta — inte bara åsikten. "
             "Inget annat. score måste vara ett heltal, inte text."
         ),
         (
             "Reply ONLY with JSON:\n"
-            '{{"score": <1-10>, "motivation": "<max 80 words>"}}\n'
+            '{{"score": <1-10>, "motivation": "<English>"}}\n'
+            "motivation is why you set the score, with facts — not just the opinion. "
             "Nothing else. score must be an integer, not text."
         ),
     ),

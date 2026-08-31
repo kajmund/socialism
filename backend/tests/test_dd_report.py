@@ -38,6 +38,7 @@ def _sample_result(
         omsattning_sek=12_500_000,
         anstallda=42,
         beskrivning="Nischad B2B-leverantör.",
+        relaterade_bolag=["Syskon AB — 556000-0003"],
         rakenskaper=[
             DdAccountYear(
                 year="2025",
@@ -161,6 +162,8 @@ def test_render_dd_html_includes_summary_matrix_and_dissensus():
     assert "<th>2025</th>" in html
     assert "14 000 000 SEK" in html
     assert "−400 000 SEK" in html or "-400 000 SEK" in html
+    assert "Relaterade bolag" not in html
+    assert "Syskon AB" not in html
 
 
 def test_render_dd_html_includes_unanswered():
@@ -261,7 +264,7 @@ def mock_dd_panel_llm():
 
     async def _complete(messages, *, model=None):
         user = messages[-1]["content"]
-        if "ENDAST JA eller NEJ" in user or "ONLY YES or NO" in user:
+        if "Första raden: JA eller NEJ" in user or "First line: YES or NO" in user:
             return "JA"
         if "Ingen av experterna" in user or "None of the experts" in user:
             return "Panelen saknar rätt kompetens för frågan."
@@ -290,10 +293,6 @@ async def test_dd_report_end_to_end_from_panel_session(
     tmp_path,
 ):
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(
-        "app.services.dd.source_attribution.search_duckduckgo",
-        lambda query, number_of_result_pages=5: [],
-    )
 
     create = await client.post(
         "/dd/campaigns",

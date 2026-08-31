@@ -48,11 +48,11 @@ På kandidatlistan syns namn, organisationsnummer, omsättning och anställda. F
 5. Öppna **Research** → **Personer**. Sök eller filtrera listan, markera en eller flera personer och välj **Utred valda**, eller **Utred alla**. Välj en person i listan för att se dossiern till höger: uppdrag i koncernen, uppdrag utanför och sociala träffar. Revisorer får en not om att den långa listan beror på revisorsrollen. När personerna redan är utredda (eller när du vill kartlägga koncernen om) måste du först välja **Rensa research**.
 6. Tillbaka under **Konfiguration**, välj **Kör DD-panel**.
 
-När research är klar syns koncern och personer under fliken **Research**. När panelen är klar visas rapporten under **Resultat**. Knappen **Spinndoktor** öppnar rapporten i fullbredd så du kan arbeta i spinndoktorvyn. Panelen får dossiern i underlaget om research körts först. Från resultat kan du gå tillbaka till **Konfiguration**.
+När research är klar syns koncern och personer under fliken **Research**. När du kör panelen öppnas **Resultat** med **Live-panel** — utfrågningen spelas upp där, även om du kör om. **Rapport** fylls i när den nya rapporten är klar; den gamla rapporten tas bort från körningen (den ligger kvar under Rapporter). Knappen **Spinndoktor** syns på rapportfliken och öppnar rapporten i fullbredd. Panelen får dossiern i underlaget om research körts först. Från resultat kan du gå tillbaka till **Konfiguration**.
 
 I DD-rapporten jämförs räkenskaperna med staplar per år — omsättning, resultat, EBITDA och övriga nyckeltal — i stället för en år-för-år-lista. Exakta belopp står i tabellen under diagrammen.
 
-I live-panelen leder Spinndoktor bara — experterna talar själva när de räcker upp handen. Varje expert bedömer bara de delfrågor som är hens kärnkompetens. Om ingen räcker upp handen hoppas poängen över, och rapporten förklarar luckan under **Obesvarade delfrågor**.
+I live-panelen leder Spinndoktor bara — experterna talar själva när de räcker upp handen. Varje expert bedömer bara de delfrågor som är hens kärnkompetens, och säger varför frågan är (eller inte är) hens. När de poängsätter skriver de också varför, med fakta från underlaget — inte bara siffran. Finns nyckeltal i grunddata märks poängen **Grunddata**, även på andra delfrågor än finansiell hälsa. Om ingen räcker upp handen hoppas poängen över, och rapporten förklarar luckan under **Obesvarade delfrågor**. Relaterade bolag från Allabolag visas inte i underlag eller rapport.
 
 Experterna i panelen, expertchatten (intervju och in-character) och Spinndoktor kan slå upp bolagsuppgifter när ett nyckeltal saknas. Siffror som redan finns i grunddata söks inte om. Experterna kan också söka på webben och Wikipedia efter annat än de redan givna nyckeltalen.
 

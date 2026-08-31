@@ -21,8 +21,8 @@ def mock_dd_panel_llm():
 
     async def _complete(messages, *, model=None):
         user = messages[-1]["content"]
-        if "ENDAST JA eller NEJ" in user or "ONLY YES or NO" in user:
-            return "JA"
+        if "Första raden: JA eller NEJ" in user or "First line: YES or NO" in user:
+            return "JA\nDelfrågan är min kärnkompetens."
         if "Ingen av experterna" in user or "None of the experts" in user:
             return "Panelen saknar rätt kompetens för frågan."
         if "ENDAST med JSON" in user or "ONLY with JSON" in user:
@@ -47,53 +47,36 @@ def mock_dd_panel_llm():
     set_tools_completer(None)
 
 
-def test_resolve_source_badge_llm_when_no_external_hits(monkeypatch):
-    def _empty(query: str, number_of_result_pages: int = 5):
-        return []
-
-    monkeypatch.setattr("app.services.dd.source_attribution.search_duckduckgo", _empty)
-    badge = resolve_source_badge(
-        sub_question_label="Finansiell hälsa",
-        candidate_name="Test AB",
-    )
+def test_resolve_source_badge_llm_when_no_figures_and_no_web():
+    badge = resolve_source_badge()
     assert badge.kind == "llm"
     assert badge.label == "Modellbedömning"
 
 
-def test_resolve_source_badge_skips_web_when_figures_in_brief(monkeypatch):
-    def _should_not_run(query: str, number_of_result_pages: int = 5):
-        raise AssertionError(f"should not search for figures: {query}")
-
-    monkeypatch.setattr(
-        "app.services.dd.source_attribution.search_duckduckgo", _should_not_run
-    )
-    badge = resolve_source_badge(
-        sub_question_label="Finansiell hälsa",
-        candidate_name="Test AB",
-        figures_in_brief=True,
-    )
+def test_resolve_source_badge_grunddata_for_any_sub_question_when_figures_in_brief():
+    badge = resolve_source_badge(figures_in_brief=True)
     assert badge.label == "Grunddata"
     assert badge.kind == "llm"
+    assert badge.detail == "Nyckeltal från kandidatunderlaget"
 
 
-def test_resolve_source_badge_web_uses_search_signature(monkeypatch):
-    seen: dict[str, object] = {}
-
-    def _hit(query: str, number_of_result_pages: int = 5):
-        seen["query"] = query
-        seen["pages"] = number_of_result_pages
-        return [{"title": "Bolagsverket", "url": "https://bolagsverket.se"}]
-
-    monkeypatch.setattr("app.services.dd.source_attribution.search_duckduckgo", _hit)
+def test_resolve_source_badge_grunddata_wins_over_web_detail():
     badge = resolve_source_badge(
-        sub_question_label="Finansiell hälsa",
-        candidate_name="Test AB",
+        figures_in_brief=True,
+        web_detail="Crowd Collective Finland AB i Linköping - Merinfo.se",
+    )
+    assert badge.label == "Grunddata"
+    assert "Merinfo" not in badge.detail
+
+
+def test_resolve_source_badge_web_only_without_figures():
+    badge = resolve_source_badge(
+        figures_in_brief=False,
+        web_detail="Bolagsverket",
     )
     assert badge.kind == "web"
     assert badge.label == "Webb"
-    assert "Bolagsverket" in badge.detail
-    assert seen["pages"] == 1
-    assert "Test AB" in str(seen["query"])
+    assert badge.detail == "Bolagsverket"
 
 
 def test_source_badge_drops_stored_okf():
@@ -105,12 +88,7 @@ def test_source_badge_drops_stored_okf():
 
 
 @pytest.mark.asyncio
-async def test_dd_panel_session_from_campaign(client: AsyncClient, mock_dd_panel_llm, monkeypatch):
-    monkeypatch.setattr(
-        "app.services.dd.source_attribution.search_duckduckgo",
-        lambda query, number_of_result_pages=5: [],
-    )
-
+async def test_dd_panel_session_from_campaign(client: AsyncClient, mock_dd_panel_llm):
     create = await client.post(
         "/dd/campaigns",
         json={"title": "Panel DD", "criteria": {"alder_min": 0, "alder_max": 50, "omrade": ""}},
@@ -157,6 +135,10 @@ async def test_dd_panel_session_from_campaign(client: AsyncClient, mock_dd_panel
     assert finished["result"]["unanswered"] == []
     assert finished["result"]["summary"]
     assert any(t["phase"] == "raise_hand" for t in finished["transcript"])
+    assert any(
+        t["phase"] == "raise_hand" and "kärnkompetens" in t["content"]
+        for t in finished["transcript"]
+    )
     assert any(t["phase"] == "score" for t in finished["transcript"])
 
     jobs_service.set_schedule_hook(None)
@@ -288,16 +270,25 @@ async def test_expert_raise_hand_dd_accepts_ja_and_yes():
             expert_slots=[slot],
         )
         prompts = default_prompts("sv")
-        assert await _expert_raise_hand_dd(slot, config, SubQuestionRef(id=DD_SUB_QUESTION_DEFAULTS[0].key, label=DD_SUB_QUESTION_DEFAULTS[0].label), prompts)
-        assert await _expert_raise_hand_dd(slot, config, SubQuestionRef(id=DD_SUB_QUESTION_DEFAULTS[1].key, label=DD_SUB_QUESTION_DEFAULTS[1].label), prompts)
-        assert not await _expert_raise_hand_dd(slot, config, SubQuestionRef(id=DD_SUB_QUESTION_DEFAULTS[2].key, label=DD_SUB_QUESTION_DEFAULTS[2].label), prompts)
+        wants_fin, text_fin = await _expert_raise_hand_dd(
+            slot, config, SubQuestionRef(id=DD_SUB_QUESTION_DEFAULTS[0].key, label=DD_SUB_QUESTION_DEFAULTS[0].label), prompts
+        )
+        wants_legal, text_legal = await _expert_raise_hand_dd(
+            slot, config, SubQuestionRef(id=DD_SUB_QUESTION_DEFAULTS[1].key, label=DD_SUB_QUESTION_DEFAULTS[1].label), prompts
+        )
+        wants_market, text_market = await _expert_raise_hand_dd(
+            slot, config, SubQuestionRef(id=DD_SUB_QUESTION_DEFAULTS[2].key, label=DD_SUB_QUESTION_DEFAULTS[2].label), prompts
+        )
+        assert wants_fin and "ja" in text_fin.lower()
+        assert wants_legal and "yes" in text_legal.lower()
+        assert not wants_market and "nej" in text_market.lower()
     finally:
         set_text_completer(None)
 
 
 @pytest.mark.asyncio
 async def test_dd_panel_skips_score_when_no_expert_raises_hand(
-    client: AsyncClient, monkeypatch
+    client: AsyncClient,
 ):
     from app.services.dd.sub_questions import DD_SUB_QUESTION_DEFAULTS, SubQuestionRef
 
@@ -305,10 +296,10 @@ async def test_dd_panel_skips_score_when_no_expert_raises_hand(
 
     async def _complete(messages, *, model=None):
         user = messages[-1]["content"]
-        if "ENDAST JA eller NEJ" in user or "ONLY YES or NO" in user:
+        if "Första raden: JA eller NEJ" in user or "First line: YES or NO" in user:
             if "Legal risk" in user:
-                return "NEJ"
-            return "JA"
+                return "NEJ\nLegal risk är inte min kärnkompetens."
+            return "JA\nDelfrågan är min kärnkompetens."
         if "Ingen av experterna" in user or "None of the experts" in user:
             return "Legal risk kräver en jurist som saknas i den här panelen."
         if "ENDAST med JSON" in user or "ONLY with JSON" in user:
@@ -329,10 +320,6 @@ async def test_dd_panel_skips_score_when_no_expert_raises_hand(
 
     set_text_completer(_complete)
     set_tools_completer(_tools)
-    monkeypatch.setattr(
-        "app.services.dd.source_attribution.search_duckduckgo",
-        lambda query, number_of_result_pages=5: [],
-    )
     try:
         create = await client.post(
             "/dd/campaigns",
@@ -383,6 +370,19 @@ async def test_dd_panel_skips_score_when_no_expert_raises_hand(
     finally:
         set_text_completer(None)
         set_tools_completer(None)
+
+
+def test_parse_raise_hand_reply_keeps_reason():
+    from app.services.panel.dd_engine import parse_raise_hand_reply
+
+    wants, text = parse_raise_hand_reply(
+        "JA\nMarknadsposition är min kärnkompetens — jag bedömer konkurrens och prissättning."
+    )
+    assert wants is True
+    assert "kärnkompetens" in text
+    assert parse_raise_hand_reply("NEJ. Jag är jurist, inte marknad.")[0] is False
+    assert parse_raise_hand_reply("Yes — within my brief")[0] is True
+    assert parse_raise_hand_reply("")[0] is False
 
 
 def test_transcript_text_skips_raise_hand():

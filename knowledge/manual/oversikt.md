@@ -21,7 +21,7 @@ Från menyn når du bland annat:
 2. **Personas** — biblioteket av AI-agenter
 3. **Populationer** — grupper av personas
 4. **Budskap** — budskapsbibliotek och verkstad
-5. **Verktyg** — konfigurationer (prompts, SSR-temperatur, grunddata), playground och embedding-cache. Bara **administratör** ser den här ytan.
+5. **Verktyg** — konfigurationer (prompts, SSR-temperatur, grunddata), kunder och panelkatalog, playground och embedding-cache. Bara **administratör** ser den här ytan.
 6. **Rapporter** — beställda rapporter, uppdelade per modul om kontot har både politik och due diligence
 7. **Återkoppling** — buggar, idéer och åsikter sparade från hjälpchatten
 8. **Jobb** — bakgrundsjobb (generering, simulering, rapporter)

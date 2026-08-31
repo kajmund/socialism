@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom"
 import { deleteReport, getReport, getReportHtml, type Report } from "@/api/reports"
 import { getJob, type Job } from "@/api/jobs"
@@ -21,7 +21,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { useLocale, type MessageKey } from "@/i18n"
 import { ApiError } from "@/lib/api"
 import { formatElapsed } from "@/lib/formatDuration"
-import { moduleForReport, reportModulesForUser } from "@/lib/report-modules"
+import { moduleForReport, reportModulesForUser, reportModulesFromIds } from "@/lib/report-modules"
+import { useKundModules } from "@/modules/useKundModules"
 import { useJobsRealtime } from "@/realtime/JobsRealtimeProvider"
 import { useReportsRealtime } from "@/realtime/ReportsRealtimeProvider"
 
@@ -74,6 +75,7 @@ export function ReportPage({
   const navigate = useNavigate()
   const { t } = useLocale()
   const { user } = useAuth()
+  const { moduleIds, loading: kundLoading } = useKundModules()
   const { jobs } = useJobsRealtime()
   const isBolagReport = embedded || location.pathname.startsWith("/bolag/reports/")
   const reportsListLabel = isBolagReport ? t("bolag.nav.reports") : t("reports.backToList")
@@ -83,7 +85,10 @@ export function ReportPage({
   const [fetchedJob, setFetchedJob] = useState<Job | undefined>(undefined)
   const wsReport = id ? reports.find((r) => r.id === id) ?? null : null
   const report = wsReport ?? fetchedReport
-  const reportModules = reportModulesForUser(user)
+  const reportModules = useMemo(() => {
+    if (kundLoading) return reportModulesForUser(user)
+    return reportModulesFromIds(moduleIds)
+  }, [kundLoading, moduleIds, user])
   const reportsListPath = isBolagReport
     ? "/bolag/reports"
     : report && reportModules.length > 1
