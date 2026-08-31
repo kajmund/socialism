@@ -51,7 +51,6 @@
 
 ## 2026-08-27
 
-* **Due diligence**: Under **Experter** skapar och redigerar du expertroller till DD-panelen. Från en kampanj finns länken **Hantera experter**.
 * **Rapporter**: Spinndoktorn tar mer initiativ — hämtar underlag med sina verktyg och lägger kort på rutnätet i stället för att fråga tillbaka.
 * **Körningar**: Resultatet av en körning visas med flödet till vänster och aktiviteterna till höger. Du kan välja **Flöde**, **Aktivitet** eller **Båda**. Samma växling finns i live-vyn medan simuleringen körs. Populationen ovanför flödet är ihopfälld och kan öppnas; injektorer likaså.
 
