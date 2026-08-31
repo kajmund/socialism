@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.dependencies import require_admin
 from app.database.models import CatalogList, Configuration
 from app.database.session import get_session
 from app.schemas.domain import (
@@ -53,7 +54,11 @@ from app.services.report.thresholds import (
     report_thresholds_to_dict,
 )
 
-router = APIRouter(prefix="/configurations", tags=["configurations"])
+router = APIRouter(
+    prefix="/configurations",
+    tags=["configurations"],
+    dependencies=[Depends(require_admin)],
+)
 
 
 def _dt(value: datetime | None) -> str:

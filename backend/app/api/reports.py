@@ -12,7 +12,9 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
-from app.database.models import PanelSession, Report, Run
+from app.auth.dependencies import get_current_user
+from app.auth.scope import assert_kund_access, effective_customer_id
+from app.database.models import PanelSession, Report, Run, UserAccount
 from app.database.session import get_session
 from app.schemas.domain import (
     JobCreate,
@@ -194,6 +196,7 @@ async def create_report(
     body: ReportCreate,
     response: Response,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> ReportOut:
     sources, mode = await _validate_sources(session, body)
     locale = normalize_locale(body.locale)
@@ -216,11 +219,13 @@ async def create_report(
 
     reused = await _reuse_dd_report(session, sources=sources, body=body) if mode == "dd" else None
     if reused is not None:
+        assert_kund_access(user, reused.customer_id)
         report = reused
         report_id = report.id
     else:
         report_id = f"rpt_{secrets.token_hex(8)}"
         customer_id = await customer_id_for_new_report(session, body, sources=sources, mode=mode)
+        assert_kund_access(user, customer_id)
         report = Report(
             id=report_id,
             customer_id=customer_id,
@@ -286,7 +291,9 @@ async def list_reports(
     customer_id: int | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=100),
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> list[ReportOut]:
+    customer_id = effective_customer_id(user, customer_id)
     rows = await list_report_rows(
         session, status=status, customer_id=customer_id, limit=limit
     )
@@ -327,7 +334,13 @@ async def _delete_reports_by_ids(
 async def bulk_delete_reports(
     body: ReportBulkDelete,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> ReportBulkDeleteResult:
+    for report_id in dict.fromkeys(body.ids):
+        report = await session.get(Report, report_id)
+        if report is None:
+            continue
+        assert_kund_access(user, report.customer_id)
     deleted_ids = await _delete_reports_by_ids(session, body.ids)
     if not deleted_ids:
         raise HTTPException(status_code=404, detail="No matching reports")
@@ -338,10 +351,12 @@ async def bulk_delete_reports(
 async def get_report(
     report_id: str,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> ReportOut:
     report = await session.get(Report, report_id)
     if report is None:
         raise HTTPException(status_code=404, detail="Report not found")
+    assert_kund_access(user, report.customer_id)
     return _serialize(report)
 
 
@@ -366,10 +381,12 @@ def _recommendation_out(report_id: str) -> RecommendationSnapshot | None:
 async def get_verdict_calibration(
     report_id: str,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> VerdictCalibrationOut:
     report = await session.get(Report, report_id)
     if report is None:
         raise HTTPException(status_code=404, detail="Report not found")
+    assert_kund_access(user, report.customer_id)
     _require_succeeded_report(report)
     recommendation = _recommendation_out(report_id)
     if recommendation is None:
@@ -384,10 +401,12 @@ async def post_verdict_calibration(
     report_id: str,
     body: VerdictCalibrationWrite,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> VerdictCalibrationOut:
     report = await session.get(Report, report_id)
     if report is None:
         raise HTTPException(status_code=404, detail="Report not found")
+    assert_kund_access(user, report.customer_id)
     _require_succeeded_report(report)
     recommendation = _recommendation_out(report_id)
     if recommendation is None:
@@ -406,7 +425,12 @@ async def post_verdict_calibration(
 async def delete_report(
     report_id: str,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> Response:
+    report = await session.get(Report, report_id)
+    if report is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+    assert_kund_access(user, report.customer_id)
     deleted = await _delete_reports_by_ids(session, [report_id])
     if not deleted:
         raise HTTPException(status_code=404, detail="Report not found")
@@ -417,10 +441,12 @@ async def delete_report(
 async def get_report_html(
     report_id: str,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> HTMLResponse:
     report = await session.get(Report, report_id)
     if report is None:
         raise HTTPException(status_code=404, detail="Report not found")
+    assert_kund_access(user, report.customer_id)
     if report.status != "succeeded" or not report.html_path:
         raise HTTPException(status_code=404, detail="Report HTML not ready")
     if getattr(report, "mode", None) == "dd":

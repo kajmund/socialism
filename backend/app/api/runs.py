@@ -6,8 +6,21 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.api.message_images import resolve_message_feed_body
+from app.api.populations import assert_population_access
+from app.auth.dependencies import get_current_user
+from app.auth.scope import assert_kund_access, require_user_kund_id
 from app.config import settings
-from app.database.models import Message, Persona, PersonaMessage, Population, Run
+from app.database.models import (
+    Message,
+    Persona,
+    PersonaMessage,
+    Population,
+    PopulationMember,
+    Projekt,
+    Run,
+    UserAccount,
+)
 from app.database.session import get_session
 from app.llm.chat import build_run_interview_prompt, reply_as_persona
 from app.services.prompt_store import require_prompts_for_persona
@@ -37,7 +50,7 @@ from app.serializers import (
     utcnow,
 )
 from app.services import jobs as jobs_service
-from app.services.kund_store import default_os_project_id
+from app.services.kund_store import DEFAULT_PROJEKT_SLUG, default_os_project_id
 from app.services.anchor_pool import (
     AnchorPoolError,
     active_anchor_context,
@@ -71,6 +84,31 @@ async def _get_run(session: AsyncSession, run_id: int) -> Run:
     return run
 
 
+async def _assert_run_access(
+    session: AsyncSession,
+    user: UserAccount,
+    run: Run,
+) -> None:
+    projekt = await session.get(Projekt, run.project_id)
+    assert_kund_access(user, None if projekt is None else projekt.customer_id)
+
+
+async def _project_id_for_create(session: AsyncSession, user: UserAccount) -> int:
+    if user.role == "admin":
+        return await default_os_project_id(session)
+    kund_id = require_user_kund_id(user)
+    result = await session.execute(
+        select(Projekt).where(
+            Projekt.customer_id == kund_id,
+            Projekt.slug == DEFAULT_PROJEKT_SLUG,
+        )
+    )
+    row = result.scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status_code=403, detail="kund_access_denied")
+    return int(row.id)
+
+
 def _ticks_payload(ticks: list) -> list:
     return [t.model_dump() if hasattr(t, "model_dump") else t for t in ticks]
 
@@ -87,9 +125,6 @@ def _oasis_options_payload(options) -> dict:
     if isinstance(options, OasisRunOptions):
         return options.model_dump()
     return OasisRunOptions.model_validate(options).model_dump()
-
-
-from app.api.message_images import resolve_message_feed_body
 
 
 async def _snapshot_message_bodies(session: AsyncSession, run: Run) -> None:
@@ -157,8 +192,14 @@ async def list_runs(
     status: str | None = Query(default=None),
     project_id: int | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> list[RunSummary]:
     stmt = select(Run).options(selectinload(Run.population)).order_by(Run.updated_at.desc())
+    if user.role != "admin":
+        kund_id = require_user_kund_id(user)
+        stmt = stmt.join(Projekt, Run.project_id == Projekt.id).where(
+            Projekt.customer_id == kund_id
+        )
     if project_id is not None:
         stmt = stmt.where(Run.project_id == project_id)
     if status:
@@ -174,15 +215,22 @@ async def list_runs(
 @router.get("/populations", response_model=list[RunPopulationOption])
 async def list_run_populations(
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> list[RunPopulationOption]:
     result = await session.execute(
         select(Population)
-        .options(selectinload(Population.members))
+        .options(
+            selectinload(Population.members).selectinload(PopulationMember.persona),
+        )
         .order_by(Population.name)
     )
     populations = list(result.scalars().all())
     out: list[RunPopulationOption] = []
     for population in populations:
+        try:
+            await assert_population_access(session, user, population.id)
+        except HTTPException:
+            continue
         initials = [m.initials for m in population.members[:3]]
         out.append(
             RunPopulationOption(
@@ -199,8 +247,10 @@ async def list_run_populations(
 async def get_run(
     run_id: int,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> RunDetail:
     run = await _get_run(session, run_id)
+    await _assert_run_access(session, user, run)
     return serialize_run_detail(run, run.population.name)
 
 
@@ -208,11 +258,10 @@ async def get_run(
 async def create_run(
     body: RunCreate,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> RunDetail:
-    population = await session.get(Population, body.population_id)
-    if population is None:
-        raise HTTPException(status_code=404, detail="Population not found")
-    project_id = await default_os_project_id(session)
+    await assert_population_access(session, user, body.population_id)
+    project_id = await _project_id_for_create(session, user)
     run = Run(
         name=body.name,
         status=body.status,
@@ -236,13 +285,13 @@ async def update_run(
     run_id: int,
     body: RunUpdate,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> RunDetail:
     run = await _get_run(session, run_id)
+    await _assert_run_access(session, user, run)
     data = body.model_dump(exclude_unset=True)
     if "population_id" in data:
-        population = await session.get(Population, data["population_id"])
-        if population is None:
-            raise HTTPException(status_code=404, detail="Population not found")
+        await assert_population_access(session, user, data["population_id"])
     if "start_date" in data:
         data["start_date"] = parse_optional_date(data["start_date"])
     if "main_ticks" in data and data["main_ticks"] is not None:
@@ -263,9 +312,11 @@ async def update_run(
 async def start_run(
     run_id: int,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> RunDetail:
     """Queue simulation as a background job; returns immediately with status=running."""
     run = await _get_run(session, run_id)
+    await _assert_run_access(session, user, run)
     if run.status == "running":
         raise HTTPException(status_code=409, detail="Run is already running")
 
@@ -323,8 +374,10 @@ async def start_run(
 async def duplicate_run(
     run_id: int,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> RunDetail:
     source = await _get_run(session, run_id)
+    await _assert_run_access(session, user, source)
     run = Run(
         name=f"{source.name} (kopia)",
         status="draft",
@@ -348,9 +401,11 @@ async def delete_run_result_attempt(
     run_id: int,
     attempt_id: str,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> RunDetail:
     """Remove one saved simulation attempt from the run's results history."""
     run = await _get_run(session, run_id)
+    await _assert_run_access(session, user, run)
     if run.status == "running":
         raise HTTPException(
             status_code=409,
@@ -475,8 +530,10 @@ async def list_run_persona_interview(
     persona_id: str,
     through_tick_index: int = Query(ge=0),
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> list[PersonaMessageOut]:
     run = await _get_run(session, run_id)
+    await _assert_run_access(session, user, run)
     variant = _find_attempt_variant(
         run.results if isinstance(run.results, dict) else None,
         attempt_id,
@@ -512,8 +569,10 @@ async def run_persona_interview(
     persona_id: str,
     body: RunPersonaInterviewRequest,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> PersonaChatResponse:
     run = await _get_run(session, run_id)
+    await _assert_run_access(session, user, run)
     persona = await session.get(Persona, persona_id)
     if persona is None:
         raise HTTPException(status_code=404, detail="Persona not found")
@@ -630,8 +689,10 @@ async def clear_run_persona_interview(
     persona_id: str,
     through_tick_index: int = Query(ge=0),
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> None:
-    await _get_run(session, run_id)
+    run = await _get_run(session, run_id)
+    await _assert_run_access(session, user, run)
     result = await session.execute(
         select(PersonaMessage).where(
             *_run_interview_filter(
@@ -662,13 +723,15 @@ async def get_run_taggable_texts(
         ),
     ),
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> RunTaggableTextsOut:
     """Comments and interview answers from a finished attempt for SSR pool tagging.
 
     With ``include_ssr=true``, each row includes ``tone_predicted`` / ``style_predicted``
     (argmax) and optional PMFs from the same embedding path used by reports.
     """
-    await _get_run(session, run_id)
+    run = await _get_run(session, run_id)
+    await _assert_run_access(session, user, run)
     try:
         payload = await list_tagger_texts(
             session,
@@ -694,9 +757,11 @@ async def create_run_misclassification_flag(
     run_id: int,
     body: RunMisclassificationFlagCreate,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> SsrMisclassificationFlagOut:
     """Flag an SSR misprediction on a run text against the active config's anchor set."""
-    await _get_run(session, run_id)
+    run = await _get_run(session, run_id)
+    await _assert_run_access(session, user, run)
     try:
         flag = await create_flag(
             session,
@@ -725,9 +790,11 @@ async def add_run_anchor_pool_items(
     run_id: int,
     body: RunAnchorPoolAddRequest,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> dict:
     """Tag a simulation text as tone/style pool anchor(s) on the active configuration's sets."""
-    await _get_run(session, run_id)
+    run = await _get_run(session, run_id)
+    await _assert_run_access(session, user, run)
     try:
         refs = await resolve_active_anchor_set_ids(session, body.locale)
     except AnchorResolutionError as exc:
@@ -778,8 +845,10 @@ async def get_run_log_tail(
     variant: str = Query(min_length=1, max_length=64),
     tail: int = Query(default=200, ge=1, le=500),
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> RunLogTailOut:
     run = await _get_run(session, run_id)
+    await _assert_run_access(session, user, run)
     attempt_row = find_attempt(run.results, attempt)
     if attempt_row is None:
         raise HTTPException(status_code=404, detail="Attempt not found")
@@ -814,11 +883,13 @@ async def demo_live_feed(
     variant_id: str = Query(default="a", min_length=1),
     delay_seconds: float = Query(default=2.0, ge=0.0, le=15.0),
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> dict[str, str]:
     """Dev helper: stream staged run-watch events through the running server."""
     if settings.persona_generator != "stub":
         raise HTTPException(status_code=403, detail="Demo live feed is dev-only")
-    await _get_run(session, run_id)
+    run = await _get_run(session, run_id)
+    await _assert_run_access(session, user, run)
 
     async def _run() -> None:
         from app.database.session import SessionLocal
@@ -839,7 +910,9 @@ async def demo_live_feed(
 async def delete_run(
     run_id: int,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> None:
     run = await _get_run(session, run_id)
+    await _assert_run_access(session, user, run)
     await session.delete(run)
     await session.commit()
