@@ -19,6 +19,7 @@ export const sv = {
     submit: "Logga in",
     submitting: "Loggar in…",
     invalidCredentials: "Fel användarnamn eller lösenord",
+    noModules: "Inga moduler är tilldelade det här kontot.",
     signOut: "Logga ut",
     signedInAs: "{name}",
     roleAdmin: "Administratör",
@@ -62,6 +63,14 @@ export const sv = {
     politik: {
       name: "Politisk simulering",
     },
+  },
+  valjModul: {
+    title: "Välj modul",
+    intro: "Välj vilken yta du vill öppna.",
+    loading: "Hämtar moduler…",
+    loadError: "Kunde inte hämta modulerna.",
+    empty: "Inga moduler är tilldelade.",
+    openAria: "Öppna {name}",
   },
   expertPanels: {
     list: {
