@@ -52,6 +52,11 @@ class Settings(BaseSettings):
     bolagsapi_mcp_url: str = "https://mcp.bolagsapi.se/mcp"
     bolagsapi_cache_dir: str = "data/bolagsapi_cache"
 
+    # Supabase Auth — JWT verify + Admin invite (service_role never goes to the SPA).
+    supabase_url: str = ""
+    supabase_jwt_secret: str = ""
+    supabase_service_role_key: str = ""
+
     # none = status-only start; oasis = live CAMEL OASIS spike (optional dep group)
     simulation_engine: SimulationEngine = "none"
     # Cap overlapping run_simulate background jobs (A/B variants within one job
@@ -100,6 +105,39 @@ class Settings(BaseSettings):
             raise ValueError(
                 "OPENAI_API_KEY is required — set it in backend/.env "
                 "(OpenAI embeddings for SSR; separate from DeepSeek chat)"
+            )
+        return key
+
+    @field_validator("supabase_url")
+    @classmethod
+    def require_supabase_url(cls, value: str) -> str:
+        url = value.strip()
+        if not url:
+            raise ValueError(
+                "SUPABASE_URL is required — set it in backend/.env "
+                "(Supabase project URL for Auth)"
+            )
+        return url
+
+    @field_validator("supabase_jwt_secret")
+    @classmethod
+    def require_supabase_jwt_secret(cls, value: str) -> str:
+        secret = value.strip()
+        if not secret:
+            raise ValueError(
+                "SUPABASE_JWT_SECRET is required — set it in backend/.env "
+                "(HS256 secret for verifying Supabase access tokens)"
+            )
+        return secret
+
+    @field_validator("supabase_service_role_key")
+    @classmethod
+    def require_supabase_service_role_key(cls, value: str) -> str:
+        key = value.strip()
+        if not key:
+            raise ValueError(
+                "SUPABASE_SERVICE_ROLE_KEY is required — set it in backend/.env "
+                "(backend-only; used for Admin invite API)"
             )
         return key
 
