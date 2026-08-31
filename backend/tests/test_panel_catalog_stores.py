@@ -86,6 +86,8 @@ async def test_ensure_expert_profile_defaults_inserts_once(session: AsyncSession
     assert rows[0].key == expert_role_key(DEFAULT_EXPERT_SPECS[0]["name"])
     assert rows[0].name == DEFAULT_EXPERT_SPECS[0]["name"]
     assert rows[0].kompetensomrade == DEFAULT_EXPERT_SPECS[0]["kompetensomrade"]
+    assert rows[0].modules == ["dd"]
+    assert await get_expert_profiles(session, "politik") == []
 
 
 @pytest.mark.asyncio
@@ -93,10 +95,7 @@ async def test_ensure_expert_profile_defaults_does_not_overwrite(session: AsyncS
     await ensure_expert_profile_defaults(session, "dd", DEFAULT_EXPERT_SPECS)
     key = expert_role_key(DEFAULT_EXPERT_SPECS[0]["name"])
     result = await session.execute(
-        select(PanelExpertProfile).where(
-            PanelExpertProfile.module == "dd",
-            PanelExpertProfile.key == key,
-        )
+        select(PanelExpertProfile).where(PanelExpertProfile.key == key)
     )
     row = result.scalar_one()
     row.description = "Edited description"
@@ -105,6 +104,37 @@ async def test_ensure_expert_profile_defaults_does_not_overwrite(session: AsyncS
     await ensure_expert_profile_defaults(session, "dd", DEFAULT_EXPERT_SPECS)
     await session.refresh(row)
     assert row.description == "Edited description"
+
+
+@pytest.mark.asyncio
+async def test_ensure_expert_profile_defaults_attaches_module_without_duplicate(
+    session: AsyncSession,
+):
+    await ensure_expert_profile_defaults(session, "dd", DEFAULT_EXPERT_SPECS)
+    key = expert_role_key(DEFAULT_EXPERT_SPECS[0]["name"])
+    result = await session.execute(
+        select(PanelExpertProfile).where(PanelExpertProfile.key == key)
+    )
+    row = result.scalar_one()
+    row.description = "Edited description"
+    await session.commit()
+
+    attached = await ensure_expert_profile_defaults(session, "politik", DEFAULT_EXPERT_SPECS)
+    assert attached == len(DEFAULT_EXPERT_SPECS)
+    again = await ensure_expert_profile_defaults(session, "politik", DEFAULT_EXPERT_SPECS)
+    assert again == 0
+
+    await session.refresh(row)
+    assert row.description == "Edited description"
+    assert row.modules == ["dd", "politik"]
+
+    dd_rows = await get_expert_profiles(session, "dd")
+    politik_rows = await get_expert_profiles(session, "politik")
+    assert [r.key for r in dd_rows] == [r.key for r in politik_rows]
+    assert len({r.id for r in dd_rows} | {r.id for r in politik_rows}) == 4
+
+    all_rows = (await session.execute(select(PanelExpertProfile))).scalars().all()
+    assert len(all_rows) == 4
 
 
 @pytest.mark.asyncio
@@ -160,13 +190,14 @@ async def test_duplicate_sort_order_is_rejected(session: AsyncSession):
     await session.rollback()
 
     await ensure_expert_profile_defaults(session, "dd", DEFAULT_EXPERT_SPECS)
+    first = (await get_expert_profiles(session, "dd"))[0]
     with pytest.raises(IntegrityError):
         await create_expert_profile(
             session,
-            module="dd",
-            key="esg_expert",
-            name="ESG-expert",
-            sort_order=0,
+            module="politik",
+            key=first.key,
+            name="Duplicate key",
+            sort_order=99,
         )
 
 

@@ -49,6 +49,7 @@ class PanelSubQuestionUpdate(BaseModel):
 class PanelExpertProfileOut(BaseModel):
     id: int
     module: str
+    modules: list[str]
     key: str
     name: str
     description: str

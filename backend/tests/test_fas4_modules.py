@@ -159,10 +159,13 @@ async def test_panel_catalog_rejects_duplicate_sort_order(client: AsyncClient):
     experts = await client.get(
         "/panel/expert-profiles", params={"module": "dd", "include_inactive": True}
     )
-    expert_taken = experts.json()[0]["sort_order"]
+    assert experts.status_code == 200
+    assert experts.json()[0]["module"] == "dd"
+    assert experts.json()[0]["modules"] == ["dd"]
+    expert_key = experts.json()[0]["key"]
     expert_clash = await client.post(
         "/panel/expert-profiles",
-        json={"module": "dd", "name": "Dup-ordning", "sort_order": expert_taken},
+        json={"module": "politik", "key": expert_key, "name": "Dup-nyckel"},
     )
     assert expert_clash.status_code == 409
 
@@ -172,6 +175,7 @@ async def test_panel_expert_profile_crud_api(client: AsyncClient):
     listed = await client.get("/panel/expert-profiles", params={"module": "dd"})
     assert listed.status_code == 200
     assert len(listed.json()) == 4
+    assert all(row["module"] == "dd" and row["modules"] == ["dd"] for row in listed.json())
 
     created = await client.post(
         "/panel/expert-profiles",
@@ -184,6 +188,8 @@ async def test_panel_expert_profile_crud_api(client: AsyncClient):
     )
     assert created.status_code == 201
     assert created.json()["key"] == expert_role_key("IT-revisor")
+    assert created.json()["module"] == "dd"
+    assert created.json()["modules"] == ["dd"]
     row_id = created.json()["id"]
 
     patched = await client.patch(
