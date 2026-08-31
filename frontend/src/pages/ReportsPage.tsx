@@ -18,8 +18,10 @@ import {
   isReportModuleId,
   moduleForReport,
   reportModulesForUser,
+  reportModulesFromIds,
   type ReportModuleId,
 } from "@/lib/report-modules"
+import { useKundModules } from "@/modules/useKundModules"
 import {
   matchesCustomerScope,
   type CustomerScope,
@@ -323,10 +325,14 @@ function emptyKey(module: ReportModuleId, scope: CustomerScope): MessageKey {
 export function ReportsPage({ scope = "admin", Shell = AdminShell }: ReportsPageProps) {
   const { t, intl } = useLocale()
   const { user } = useAuth()
+  const { moduleIds, loading: kundLoading } = useKundModules()
   const [searchParams, setSearchParams] = useSearchParams()
   const { reports: allReports, connected, status: wsStatus } = useReportsRealtime()
   const { jobs } = useJobsRealtime()
-  const availableModules = useMemo(() => reportModulesForUser(user), [user])
+  const availableModules = useMemo(() => {
+    if (kundLoading) return reportModulesForUser(user)
+    return reportModulesFromIds(moduleIds)
+  }, [kundLoading, moduleIds, user])
   const showModuleTabs = availableModules.length > 1
   const activeModule = useMemo<ReportModuleId>(() => {
     if (availableModules.length === 1) return availableModules[0]

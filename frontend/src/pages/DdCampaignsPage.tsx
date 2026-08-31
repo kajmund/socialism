@@ -6,6 +6,8 @@ import { ViewToggle, type ListViewMode } from "@/components/ui/view-toggle"
 import { formatLibraryDate } from "@/data/library"
 import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
 import { ApiError } from "@/lib/api"
+import { primaryCampaignModuleId } from "@/modules/moduleRegistry"
+import { useKundModules } from "@/modules/useKundModules"
 
 type Translate = (key: MessageKey, params?: TranslateParams) => string
 
@@ -116,6 +118,8 @@ function CampaignListRow({ campaign, intl, t, onDelete }: CampaignItemProps) {
 
 export function DdCampaignsPage() {
   const { t, intl } = useLocale()
+  const { moduleIds, loading: kundLoading } = useKundModules()
+  const campaignModule = primaryCampaignModuleId(kundLoading ? ["dd"] : moduleIds)
   const [rows, setRows] = useState<DdCampaign[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -125,8 +129,13 @@ export function DdCampaignsPage() {
 
   useEffect(() => {
     let cancelled = false
+    if (!campaignModule) {
+      setRows([])
+      setLoading(false)
+      return
+    }
     setLoading(true)
-    listDdCampaigns({ module: "dd" })
+    listDdCampaigns({ module: campaignModule })
       .then((data) => {
         if (!cancelled) {
           setRows(data)
@@ -144,7 +153,7 @@ export function DdCampaignsPage() {
     return () => {
       cancelled = true
     }
-  }, [t])
+  }, [campaignModule, t])
 
   useEffect(() => {
     if (!toast) return

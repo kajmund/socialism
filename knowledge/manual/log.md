@@ -2,10 +2,13 @@
 
 ## 2026-08-30
 
+* **Verktyg**: Under **Kunder** slår administratören på och av produktmoduler per kund. Rapportflikar och bolag-menyn följer kundens moduler.
+* **Verktyg**: Under **Panelkatalog** redigerar administratören sub-frågor och default-expertprofiler för expertpanelen. Inaktiverade rader används inte i nya körningar. Ordningen måste vara unik — två rader kan inte dela samma nummer.
+* **Due diligence (bolag)**: Relaterade bolag från Allabolag visas inte i kandidatuppgifter, panelunderlag eller rapport. Experterna motiverar poängen med fakta, inte bara siffran. När de räcker upp handen säger de också varför frågan är deras kärnkompetens. Finns nyckeltal i grunddata märks poängen **Grunddata** — inte en slumpmässig webbträff.
 * **Due diligence (bolag)**: Under Research → Koncern visas bolagen som en sökbar lista i strukturordning med KPI-sammanfattning och detaljer till höger (styrelse och understruktur). Den tidigare koncernkartan är borttagen.
 * **Due diligence (bolag)**: Under Research → Personer visas personerna i en lista med sök och filter. Välj en person för att se dossiern till höger (uppdrag i/utanför koncernen och sociala träffar). **Utred valda** och **Utred alla** ligger uppe till höger, samma plats som koncernknapparna.
 * **Due diligence (bolag)**: Omresearch kräver **Rensa research** först. Du kan inte kartlägga koncernen om, och inte utreda personer igen när alla valda redan är utredda, förrän dossiern är rensad. **Kartlägg fler** fungerar fortfarande när det finns kvarvarande bolag.
-* **Due diligence (bolag)**: Resultatfliken visar rapporten efter en körning. Knappen **Spinndoktor** öppnar rapporten i fullbredd. Tiden på rapporten är hur lång genereringen tog, inte tiden sedan första utkastet.
+* **Due diligence (bolag)**: Resultat har två flikar: **Live-panel** (utfrågningen) och **Rapport**. En ny körning tar bort den gamla rapporten från körningen och visar liveflödet; den färdiga rapporten ligger kvar under Rapporter. Spinndoktor öppnar den aktuella rapporten i fullbredd. Tiden på rapporten är hur lång genereringen tog, inte tiden sedan första utkastet.
 * **Due diligence (bolag)**: Övriga räkenskapsposter under ett kandidatbolag visas som en tabell per år.
 * **Due diligence (bolag)**: Översikten visar bara kampanjens namn. Sökbriefen syns inte där.
 * **Due diligence (bolag)**: Körningar är uppdelade som i politikmodulen: sök och filter på listan, konfiguration med expertpanel och start, research i egen flik.

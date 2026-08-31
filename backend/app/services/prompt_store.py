@@ -89,8 +89,13 @@ _STALE_PANEL_DD_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
     (
         "panel.dd.expert.raise_hand",
         (
+            "{typical_owner}",
             "men avgör själv utifrån din faktiska kompetens",
             "but decide from your actual competence",
+            "det du är här för att bedöma",
+            "what you are here to assess",
+            "Svara ENDAST JA eller NEJ",
+            "Reply ONLY YES or NO",
         ),
     ),
     (
@@ -114,6 +119,19 @@ _STALE_PANEL_DD_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
         (
             "Slå upp bolaget med lookup_company om du behöver nyckeltal",
             "Look up the company with lookup_company if you need figures",
+            "max 80 ord, svenska",
+            "max 80 words",
+            "Poängen ska spegla din expertroll och kandidatens data",
+            "Score from your expert role and candidate facts",
+            "Nämn källan om relevant",
+            "Mention the source when relevant",
+        ),
+    ),
+    (
+        "panel.dd.expert.score_json",
+        (
+            "max 80 ord, svenska",
+            "max 80 words",
         ),
     ),
     (
@@ -152,7 +170,7 @@ _STALE_PANEL_DD_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
 
 
 def _refresh_stale_panel_dd_prompts(row: Configuration) -> bool:
-    """Replace the first raise-hand prompts that invited every expert to score."""
+    """Replace stock DD-panel prompts that still use dropped placeholders or old scoring copy."""
     language: ConfigurationLanguage = row.language  # type: ignore[assignment]
     defaults = default_prompts(language)
     stored = dict(row.prompts or {})

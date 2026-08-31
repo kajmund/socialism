@@ -254,13 +254,7 @@ def company_from_next_data(data: dict[str, Any]) -> dict[str, Any]:
         marks = trademarks["trademarks"]
     elif isinstance(trademarks, list):
         marks = trademarks
-    related = page.get("relatedCompanies")
-    related_rows: list[Any] = []
-    if isinstance(related, dict) and isinstance(related.get("companies"), list):
-        related_rows = related["companies"]
-    elif isinstance(related, list):
-        related_rows = related
-    return {**company, "trademarks": marks, "relatedCompanies": related_rows}
+    return {**company, "trademarks": marks}
 
 
 def company_page_path(row: dict[str, Any]) -> str:
@@ -420,10 +414,6 @@ def _events(row: dict[str, Any]) -> list[str]:
     return _string_list(row.get("announcements"), "date", "text")
 
 
-def _related_companies(row: dict[str, Any]) -> list[str]:
-    return _string_list(row.get("relatedCompanies"), "name", "orgnr", "industryName", "postPlace")[:20]
-
-
 def _sites(row: dict[str, Any]) -> list[str]:
     return _string_list(row.get("businessUnits"), "name")
 
@@ -504,7 +494,6 @@ def candidate_from_allabolag(
         sni=_string_list(row.get("naceIndustries")),
         handelser=_events(row),
         arbetsstallen=_sites(row),
-        relaterade_bolag=_related_companies(row),
         telefon=_phone(row),
         foretagshypotek=row.get("mortgages") if isinstance(row.get("mortgages"), bool) else None,
         betalningsanmarkning=(
@@ -669,8 +658,6 @@ def format_lookup_markdown(row: dict[str, Any], *, today: date | None = None) ->
         lines.extend(["", "## SNI", *[f"- {item}" for item in candidate.sni]])
     if candidate.arbetsstallen:
         lines.extend(["", "## Arbetsställen", *[f"- {item}" for item in candidate.arbetsstallen]])
-    if candidate.relaterade_bolag:
-        lines.extend(["", "## Relaterade bolag", *[f"- {item}" for item in candidate.relaterade_bolag[:12]]])
     if candidate.handelser:
         lines.extend(["", "## Händelser", *[f"- {item}" for item in candidate.handelser]])
     if candidate.telefon:

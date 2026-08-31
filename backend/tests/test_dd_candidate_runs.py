@@ -18,7 +18,7 @@ def mock_dd_panel_llm():
 
     async def _complete(messages, *, model=None):
         user = messages[-1]["content"]
-        if "ENDAST JA eller NEJ" in user or "ONLY YES or NO" in user:
+        if "Första raden: JA eller NEJ" in user or "First line: YES or NO" in user:
             return "JA"
         if "Ingen av experterna" in user or "None of the experts" in user:
             return "Panelen saknar rätt kompetens för frågan."
@@ -47,10 +47,6 @@ async def test_candidate_run_links_panel_and_report(
     tmp_path,
 ):
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(
-        "app.services.dd.source_attribution.search_duckduckgo",
-        lambda query, number_of_result_pages=5: [],
-    )
     create = await client.post(
         "/dd/campaigns",
         json={"title": "Runs link", "criteria": {"alder_min": 0, "alder_max": 50, "omrade": ""}},
@@ -139,7 +135,7 @@ async def test_candidate_run_links_panel_and_report(
     runs = after_rerun.json()["candidate_runs"]
     assert len(runs) == 1
     assert runs[0]["panel_session_id"] == new_session_id
-    assert runs[0]["report_id"] == report_id
+    assert runs[0]["report_id"] is None
 
     panel_done_2 = asyncio.Event()
 
@@ -179,13 +175,16 @@ async def test_candidate_run_links_panel_and_report(
         },
     )
     assert replace_report.status_code == 202, replace_report.text
-    assert replace_report.json()["id"] == report_id
+    new_report_id = replace_report.json()["id"]
     await asyncio.wait_for(report_done_2.wait(), timeout=20)
     jobs_service.set_schedule_hook(None)
 
-    replaced = await client.get(f"/reports/{report_id}")
+    replaced = await client.get(f"/reports/{new_report_id}")
     assert replaced.status_code == 200
     assert replaced.json()["sources"][0]["session_id"] == new_session_id
+
+    linked_again = await client.get(f"/dd/campaigns/{campaign_id}")
+    assert linked_again.json()["candidate_runs"][0]["report_id"] == new_report_id
 
     listed = await client.get("/dd/campaigns?module=dd")
     assert listed.status_code == 200

@@ -127,7 +127,7 @@ async def test_require_active_prompts_refreshes_stale_panel_dd_raise_hand(
     row = result.scalar_one()
     stored = dict(row.prompts or {})
     stored["panel.dd.expert.raise_hand"] = (
-        "Vanligtvis bedömd av: {typical_owner} — men avgör själv utifrån din faktiska kompetens."
+        "Vanligtvis bedömd av: {typical_owner}. Räck upp handen om delfrågan är din."
     )
     stored["panel.dd.moderator.sub_question"] = (
         "Introducera delfrågan kort. Be inte alla om poäng — bara den som räcker upp handen."
@@ -151,12 +151,19 @@ async def test_require_active_prompts_refreshes_stale_panel_dd_raise_hand(
 
     prompts = await require_active_prompts(session)
     assert "kärnkompetens" in prompts["panel.dd.expert.raise_hand"]
+    assert "hela bedömningen" in prompts["panel.dd.expert.raise_hand"]
+    assert "Första raden: JA eller NEJ" in prompts["panel.dd.expert.raise_hand"]
+    assert "varför delfrågan är" in prompts["panel.dd.expert.raise_hand"]
+    assert "{typical_owner}" not in prompts["panel.dd.expert.raise_hand"]
     assert "avgör själv" not in prompts["panel.dd.expert.raise_hand"]
+    assert "Svara ENDAST JA eller NEJ" not in prompts["panel.dd.expert.raise_hand"]
     assert "Skriv inte **Namn:**-repliker" in prompts["panel.dd.moderator.sub_question"]
     assert "Be inte alla om poäng" not in prompts["panel.dd.moderator.sub_question"]
     assert "Tilldela inte första frågan" in prompts["panel.dd.moderator.opening"]
     assert "varje expert snart bedömer" not in prompts["panel.dd.moderator.opening"]
     assert "Slå inte upp" in prompts["panel.dd.expert.score"]
+    assert "hitta inte på en webbkälla" in prompts["panel.dd.expert.score"]
+    assert "max 80" not in prompts["panel.dd.expert.score"]
     assert "Slå upp bolaget med lookup_company" not in prompts["panel.dd.expert.score"]
     assert "Sök inte efter samma siffror" in prompts["panel.expert.tools"]
     assert "Sök inte efter nyckeltal du redan har fått" in prompts[

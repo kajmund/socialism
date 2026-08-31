@@ -14,7 +14,9 @@ from app.api import (
     help,
     jobs,
     kunder,
+    modules,
     panel,
+    panel_catalog,
     personas,
     populations,
     reports,
@@ -75,12 +77,14 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(configurations.router)
     app.include_router(kunder.router)
+    app.include_router(modules.router)
     app.include_router(catalog.router)
     app.include_router(personas.router)
     app.include_router(populations.router)
     for module in MODULE_REGISTRY.values():
         app.include_router(module.router)
     app.include_router(panel.router)
+    app.include_router(panel_catalog.router)
     app.include_router(jobs.router)
     app.include_router(reports.router)
     app.include_router(embeddings.router)

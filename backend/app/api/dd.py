@@ -89,6 +89,14 @@ async def post_campaign(
     body: DdCampaignCreate,
     session: AsyncSession = Depends(get_session),
 ) -> DdCampaignOut:
+    # registry.py imports this router; import here to avoid a cycle.
+    from app.modules.registry import module_has_component
+
+    if not module_has_component(body.module, "campaigns"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Module {body.module!r} does not support campaigns",
+        )
     out = await create_campaign(session, body)
     await session.commit()
     return out

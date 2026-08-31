@@ -7,6 +7,8 @@ import { DdSourcingSearchModal } from "@/components/dd/DdSourcingSearchModal"
 import { useLocale, type MessageKey } from "@/i18n"
 import { ApiError } from "@/lib/api"
 import { cn } from "@/lib/utils"
+import { primaryCampaignModuleId } from "@/modules/moduleRegistry"
+import { useKundModules } from "@/modules/useKundModules"
 
 type CampaignTab = "overview" | "candidates" | "run"
 
@@ -43,6 +45,8 @@ export function DdCampaignEditorPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const { moduleIds, loading: kundLoading } = useKundModules()
+  const campaignModule = primaryCampaignModuleId(moduleIds)
 
   useEffect(() => {
     if (isNew || campaignId == null || Number.isNaN(campaignId)) return
@@ -87,7 +91,11 @@ export function DdCampaignEditorPage() {
     setError(null)
     setSaving(true)
     try {
-      const row = await createDdCampaign({ title: title.trim() })
+      if (!campaignModule) {
+        setError(t("dd.campaigns.detail.noCampaignModule"))
+        return
+      }
+      const row = await createDdCampaign({ title: title.trim(), module: campaignModule })
       navigate(`/bolag/campaigns/${row.id}`, { replace: true })
     } catch (err: unknown) {
       setError(err instanceof ApiError ? err.message : t("dd.campaigns.detail.saveError"))
@@ -231,7 +239,11 @@ export function DdCampaignEditorPage() {
                   placeholder={t("dd.campaigns.detail.namePlaceholder")}
                 />
               </label>
-              <button type="submit" className="primary" disabled={saving || !title.trim()}>
+              <button
+                type="submit"
+                className="primary"
+                disabled={saving || kundLoading || !campaignModule || !title.trim()}
+              >
                 {saving ? t("dd.campaigns.detail.creating") : t("dd.campaigns.detail.create")}
               </button>
             </form>

@@ -278,7 +278,7 @@ def test_candidate_from_company_page():
     assert candidate.sni == ["60.200 Radio- och TV-verksamhet"]
     assert candidate.handelser == ["2026-03-01 — Årsredovisning registrerad"]
     assert candidate.arbetsstallen == ["Stockholm HQ"]
-    assert candidate.relaterade_bolag == ["Spotify Ltd — 12345678 — Music — London"]
+    assert candidate.relaterade_bolag == []
     assert candidate.telefon == "08-123 45 67"
     assert candidate.foretagshypotek is False
     assert candidate.betalningsanmarkning is False
@@ -307,6 +307,7 @@ def test_lookup_markdown_is_parseable():
     assert "Avskrivningar och nedskrivningar" in text
     assert "60.200 Radio- och TV-verksamhet" in text
     assert "Årsredovisning registrerad" in text
+    assert "Relaterade bolag" not in text
 
 
 @pytest.mark.asyncio

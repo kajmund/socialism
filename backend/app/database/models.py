@@ -26,6 +26,7 @@ class Kund(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
+    available_modules: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -840,6 +841,9 @@ class PanelSubQuestion(Base):
     __tablename__ = "panel_sub_questions"
     __table_args__ = (
         UniqueConstraint("module", "key", name="uq_panel_sub_questions_module_key"),
+        UniqueConstraint(
+            "module", "sort_order", name="uq_panel_sub_questions_module_sort_order"
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -867,6 +871,9 @@ class PanelExpertProfile(Base):
     __tablename__ = "panel_expert_profiles"
     __table_args__ = (
         UniqueConstraint("module", "key", name="uq_panel_expert_profiles_module_key"),
+        UniqueConstraint(
+            "module", "sort_order", name="uq_panel_expert_profiles_module_sort_order"
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
