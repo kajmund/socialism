@@ -405,7 +405,6 @@ def _candidate_html(candidate: DdCandidateCompany, *, locale: ReportLocale) -> s
     for title_en, title_sv, items in (
         ("NACE", "SNI", candidate.sni),
         ("Establishments", "Arbetsställen", candidate.arbetsstallen),
-        ("Related companies", "Relaterade bolag", candidate.relaterade_bolag),
         ("Events", "Händelser", candidate.handelser),
     ):
         if items:

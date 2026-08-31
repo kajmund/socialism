@@ -24,7 +24,7 @@ class ModuleManifest:
     prompt_namespace: str  # Configuration.prompts[namespace]
     frontend_entry: str  # frontend route-namespace, t.ex. "dd"
     components: frozenset[str] = field(default_factory=frozenset)
-    # kända components: "personas", "interview", "panel_engine", "spindoctor"
+    # kända components: "personas", "interview", "panel_engine", "spindoctor", "campaigns"
     sub_questions_provider: Callable[[], list] | None = None
     expert_defaults_provider: Callable[[], list] | None = None
     spindoctor: SpindoctorBinding | None = None

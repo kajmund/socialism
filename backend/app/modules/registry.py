@@ -36,7 +36,7 @@ MODULE_REGISTRY: dict[str, ModuleManifest] = {
         router=dd.router,
         prompt_namespace="dd",
         frontend_entry="dd",
-        components=frozenset({"personas", "panel_engine", "spindoctor"}),
+        components=frozenset({"personas", "panel_engine", "spindoctor", "campaigns"}),
         sub_questions_provider=lambda: list(DD_SUB_QUESTION_DEFAULTS),
         expert_defaults_provider=lambda: list(DEFAULT_EXPERT_SPECS),
         spindoctor=SpindoctorBinding(
@@ -65,3 +65,23 @@ MODULE_REGISTRY: dict[str, ModuleManifest] = {
 def module_id_for_report_mode(mode: str) -> str:
     """Map Report.mode to a MODULE_REGISTRY key."""
     return "dd" if mode == "dd" else "politik"
+
+
+def serialize_module(module: ModuleManifest) -> dict[str, object]:
+    """Public module metadata — no routers or callables."""
+    return {
+        "id": module.id,
+        "name": module.name,
+        "icon": module.icon,
+        "prompt_namespace": module.prompt_namespace,
+        "frontend_entry": module.frontend_entry,
+        "components": sorted(module.components),
+        "has_sub_questions": module.sub_questions_provider is not None,
+        "has_expert_defaults": module.expert_defaults_provider is not None,
+        "supports_interview": bool(module.spindoctor and module.spindoctor.supports_interview),
+    }
+
+
+def module_has_component(module_id: str, component: str) -> bool:
+    manifest = MODULE_REGISTRY.get(module_id)
+    return manifest is not None and component in manifest.components

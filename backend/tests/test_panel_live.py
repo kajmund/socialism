@@ -19,7 +19,7 @@ def mock_dd_panel_llm():
 
     async def _complete(messages, *, model=None):
         user = messages[-1]["content"]
-        if "ENDAST JA eller NEJ" in user or "ONLY YES or NO" in user:
+        if "Första raden: JA eller NEJ" in user or "First line: YES or NO" in user:
             return "JA"
         if "Ingen av experterna" in user or "None of the experts" in user:
             return "Panelen saknar rätt kompetens för frågan."
@@ -41,12 +41,9 @@ def mock_dd_panel_llm():
 
 
 @pytest.mark.asyncio
-async def test_dd_panel_run_emits_live_turn_events(client: AsyncClient, mock_dd_panel_llm, monkeypatch):
-    monkeypatch.setattr(
-        "app.services.dd.source_attribution.search_duckduckgo",
-        lambda query, number_of_result_pages=5: [],
-    )
-
+async def test_dd_panel_run_emits_live_turn_events(
+    client: AsyncClient, mock_dd_panel_llm, monkeypatch
+):
     events: list[dict] = []
     original_publish = panel_broadcast.publish
 

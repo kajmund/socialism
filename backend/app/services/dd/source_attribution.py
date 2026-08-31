@@ -7,8 +7,9 @@ If no external source is found, the badge is ``llm`` (modellbedömning) so
 operators know the score rests on model reasoning alone.
 
 Priority (highest first):
-1. Candidate figures already in the brief (financial health) — labeled **Grunddata**, no web search
-2. Web search (DuckDuckGo via ``search_duckduckgo``)
+1. Candidate figures already in the brief — labeled **Grunddata** (any
+   sub-question that uses those numbers; no decorative web search)
+2. An actual web/wiki tool result from the scoring turn — labeled **Webb**
 3. LLM-only — explicit label, never disguised as external fact
 """
 
@@ -17,8 +18,6 @@ from __future__ import annotations
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
-
-from app.services.oasis_agent_tools import search_duckduckgo
 
 SourceKind = Literal["web", "llm"]
 
@@ -43,30 +42,23 @@ class SourceBadge(BaseModel):
 
 def resolve_source_badge(
     *,
-    sub_question_label: str,
-    candidate_name: str,
-    extra_context: str = "",
     figures_in_brief: bool = False,
+    web_detail: str = "",
 ) -> SourceBadge:
-    """Resolve the best available attribution badge for an expert score."""
-    label = sub_question_label.strip().lower()
-    if figures_in_brief and label in {"finansiell hälsa", "financial health"}:
+    """Resolve the attribution badge for an expert score.
+
+    Do not run a parallel web search here. A DuckDuckGo hit on the sub-question
+    title is not evidence — it routinely attaches the wrong company.
+    """
+    if figures_in_brief:
         return SourceBadge(
             kind="llm",
             label="Grunddata",
             detail="Nyckeltal från kandidatunderlaget",
         )
-    query = " ".join(part for part in (sub_question_label, candidate_name, extra_context) if part).strip()
-    if not query:
-        return SourceBadge(kind="llm", label="Modellbedömning", detail="Ingen sökfråga")
-
-    web_hits = search_duckduckgo(query, number_of_result_pages=1)
-    if web_hits and "error" not in web_hits[0]:
-        hit = web_hits[0]
-        title = str(hit.get("title") or hit.get("url") or "Webbträff").strip()
-        if title:
-            return SourceBadge(kind="web", label="Webb", detail=title[:200])
-
+    detail = web_detail.strip()
+    if detail:
+        return SourceBadge(kind="web", label="Webb", detail=detail[:200])
     return SourceBadge(
         kind="llm",
         label="Modellbedömning",
