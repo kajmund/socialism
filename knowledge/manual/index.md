@@ -8,7 +8,8 @@ Guider för dig som använder Opinionssimulator i webbläsaren. Teknisk setup oc
 
 # Kom igång
 
-* [Logga in](logga-in.md) — Logga in som administratör, användare eller bolag
+* [Logga in](logga-in.md) — Logga in med inloggningslänk till din e-post
+* [Hantera användare](hantera-anvandare.md) — Bjud in användare (administratör)
 * [Översikt av ytorna](oversikt.md) — Var du hittar huvudfunktionerna i admin
 * [Använda startsidan](anvanda-startsidan.md) — Dashboard med snabbstart, jobb och biblioteksstatistik
 * [Byta gränssnittsspråk](byta-granssnittssprak.md) — Växla mellan svenska och engelska i menyn

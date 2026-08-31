@@ -24,6 +24,7 @@ import { EmbeddingCachePage } from "@/pages/EmbeddingCachePage"
 import { BolagFeedbackPage, FeedbackPage } from "@/pages/FeedbackPage"
 import { BolagJobsPage, JobsPage } from "@/pages/JobsPage"
 import { KunderPage } from "@/pages/KunderPage"
+import { AnvandarePage } from "@/pages/AnvandarePage"
 import { LoginPage } from "@/pages/LoginPage"
 import { ValjModulPage } from "@/pages/ValjModulPage"
 import { MessagesPage } from "@/pages/MessagesPage"
@@ -78,6 +79,7 @@ export default function App() {
               <Route path="configurations/new" element={<ConfigurationEditorPage />} />
               <Route path="configurations/:id/edit" element={<ConfigurationEditorPage />} />
               <Route path="kunder" element={<KunderPage />} />
+              <Route path="anvandare" element={<AnvandarePage />} />
               <Route path="panel-catalog" element={<PanelCatalogPage />} />
               <Route path="anchor-sets" element={<AnchorSetsPage />} />
               <Route path="anchor-sets/new" element={<AnchorSetEditorPage />} />
