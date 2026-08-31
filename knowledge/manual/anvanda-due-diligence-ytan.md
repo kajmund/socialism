@@ -11,7 +11,7 @@ tags: [jobb, rapporter]
 
 ## Logga in
 
-Bolagsanvändare loggar in med kontot `bolag` och landar direkt i due diligence-ytan. Administratörer och vanliga användare som jobbar med politisk simulering ser i stället Opinionssimulator-menyn (Personas, Populationer, Körningar med mera). Se [Logga in](logga-in.md).
+Bolagsanvändare som har due diligence-modulen landar i due diligence-ytan. Administratörer och vanliga användare som jobbar med politisk simulering ser i stället Opinionssimulator-menyn (Personas, Populationer, Körningar med mera). Se [Logga in](logga-in.md).
 
 ## Menyn
 

@@ -11,13 +11,13 @@ type LoginLocationState = {
 
 export function LoginPage() {
   const { t, locale, setLocale } = useLocale()
-  const { session, loading, signIn, resolvedModules } = useAuth()
+  const { session, loading, requestMagicLink, resolvedModules } = useAuth()
   const location = useLocation()
   const from = (location.state as LoginLocationState | null)?.from
-  const [username, setUsername] = useState("")
-  const [password, setPassword] = useState("")
+  const [email, setEmail] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [linkSent, setLinkSent] = useState(false)
   const noModules = Boolean(session) && resolvedModules.length === 0
 
   if (loading) return <div className="min-h-svh bg-db-black" aria-hidden="true" />
@@ -31,9 +31,10 @@ export function LoginPage() {
     setError(null)
     setSubmitting(true)
     try {
-      await signIn(username, password)
+      await requestMagicLink(email)
+      setLinkSent(true)
     } catch {
-      setError(t("auth.invalidCredentials"))
+      setError(t("auth.magicLinkFailed"))
     } finally {
       setSubmitting(false)
     }
@@ -89,53 +90,55 @@ export function LoginPage() {
               </h1>
               <p className="mb-7 text-sm text-white/65">{t("auth.subtitle")}</p>
 
-              <form className="flex flex-col gap-4" onSubmit={onSubmit} aria-label={t("auth.formAria")}>
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-xs font-medium tracking-wide text-white/80">
-                    {t("auth.usernameLabel")}
-                  </span>
-                  <input
-                    type="text"
-                    name="username"
-                    autoComplete="username"
-                    autoFocus
-                    required
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder={t("auth.usernamePlaceholder")}
-                    className="h-11 rounded-md border border-white/20 bg-black/45 px-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-db-gold-500 focus:ring-1 focus:ring-db-gold-500/50"
-                  />
-                </label>
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-xs font-medium tracking-wide text-white/80">
-                    {t("auth.passwordLabel")}
-                  </span>
-                  <input
-                    type="password"
-                    name="password"
-                    autoComplete="current-password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder={t("auth.passwordPlaceholder")}
-                    className="h-11 rounded-md border border-white/20 bg-black/45 px-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-db-gold-500 focus:ring-1 focus:ring-db-gold-500/50"
-                  />
-                </label>
+              {linkSent ? (
+                <div className="flex flex-col gap-3" role="status">
+                  <p className="text-sm text-white/90">{t("auth.checkInbox")}</p>
+                  <p className="text-sm text-white/60">{t("auth.checkInboxHint", { email })}</p>
+                  <button
+                    type="button"
+                    className="mt-2 text-sm text-db-gold-500 underline-offset-2 hover:underline"
+                    onClick={() => {
+                      setLinkSent(false)
+                      setError(null)
+                    }}
+                  >
+                    {t("auth.sendAgain")}
+                  </button>
+                </div>
+              ) : (
+                <form className="flex flex-col gap-4" onSubmit={onSubmit} aria-label={t("auth.formAria")}>
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-xs font-medium tracking-wide text-white/80">
+                      {t("auth.emailLabel")}
+                    </span>
+                    <input
+                      type="email"
+                      name="email"
+                      autoComplete="email"
+                      autoFocus
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder={t("auth.emailPlaceholder")}
+                      className="h-11 rounded-md border border-white/20 bg-black/45 px-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-db-gold-500 focus:ring-1 focus:ring-db-gold-500/50"
+                    />
+                  </label>
 
-                {error || noModules ? (
-                  <p className="text-sm text-[#ffb4b4]" role="alert">
-                    {error ?? t("auth.noModules")}
-                  </p>
-                ) : null}
+                  {error || noModules ? (
+                    <p className="text-sm text-[#ffb4b4]" role="alert">
+                      {error ?? t("auth.noModules")}
+                    </p>
+                  ) : null}
 
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="mt-1 inline-flex h-11 items-center justify-center rounded-md bg-db-gold-500 px-4 text-sm font-medium text-db-navy-ink transition-colors hover:bg-db-gold-700 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {submitting ? t("auth.submitting") : t("auth.submit")}
-                </button>
-              </form>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="mt-1 inline-flex h-11 items-center justify-center rounded-md bg-db-gold-500 px-4 text-sm font-medium text-db-navy-ink transition-colors hover:bg-db-gold-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {submitting ? t("auth.submittingLink") : t("auth.sendLink")}
+                  </button>
+                </form>
+              )}
             </div>
           </div>
         </main>

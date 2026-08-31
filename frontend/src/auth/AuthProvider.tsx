@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react"
-import { listKunder, type Kund } from "@/api/kunder"
+import { api } from "@/lib/api"
 import {
   authAdapter,
   canAccessConfiguration,
@@ -15,6 +15,15 @@ import {
   type AuthUser,
   type Role,
 } from "@/lib/auth"
+
+type MeResponse = {
+  id: string
+  email: string
+  role: Role
+  kund_id: number | null
+  kund_slug: string | null
+  available_modules: string[]
+}
 
 type AuthContextValue = {
   session: AuthSession | null
@@ -25,42 +34,24 @@ type AuthContextValue = {
   isBolag: boolean
   resolvedModules: string[]
   hasModule: (moduleId: string) => boolean
-  signIn: (username: string, password: string) => Promise<void>
+  requestMagicLink: (email: string) => Promise<void>
   signOut: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
-function uniqueModuleIds(kunder: Kund[]): string[] {
-  const seen = new Set<string>()
-  const out: string[] = []
-  for (const kund of kunder) {
-    for (const id of kund.available_modules) {
-      if (seen.has(id)) continue
-      seen.add(id)
-      out.push(id)
-    }
-  }
-  return out
-}
-
-async function resolveModules(user: AuthUser): Promise<string[]> {
-  try {
-    const kunder = await listKunder()
-    if (user.kundSlug === null) {
-      return uniqueModuleIds(kunder)
-    }
-    const kund = kunder.find((row) => row.slug === user.kundSlug)
-    if (!kund) {
-      console.warn(
-        `No kund with slug "${user.kundSlug}"; using static session modules`,
-      )
-      return user.modules
-    }
-    return kund.available_modules
-  } catch (err) {
-    console.warn("Failed to load kund modules; using static session modules", err)
-    return user.modules
+async function hydrateFromMe(base: AuthSession): Promise<AuthSession> {
+  const me = await api.get<MeResponse>("/me")
+  return {
+    accessToken: base.accessToken,
+    user: {
+      id: me.id,
+      username: me.email,
+      email: me.email,
+      role: me.role,
+      modules: me.available_modules,
+      kundSlug: me.kund_slug,
+    },
   }
 }
 
@@ -69,33 +60,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [resolvedModules, setResolvedModules] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
 
+  const applySession = useCallback(async (next: AuthSession | null) => {
+    if (!next) {
+      setResolvedModules([])
+      setSession(null)
+      return
+    }
+    const hydrated = await hydrateFromMe(next)
+    setResolvedModules(hydrated.user.modules)
+    setSession(hydrated)
+  }, [])
+
   useEffect(() => {
     let cancelled = false
     void (async () => {
-      const next = await authAdapter.getSession()
-      if (cancelled) return
-      if (!next) {
-        setResolvedModules([])
-        setSession(null)
-        setLoading(false)
-        return
+      try {
+        const next = await authAdapter.getSession()
+        if (cancelled) return
+        await applySession(next)
+      } catch {
+        if (!cancelled) {
+          setResolvedModules([])
+          setSession(null)
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
       }
-      const modules = await resolveModules(next.user)
-      if (cancelled) return
-      setResolvedModules(modules)
-      setSession(next)
-      setLoading(false)
     })()
+
+    const unsubscribe = authAdapter.onSessionChange((next) => {
+      void (async () => {
+        try {
+          await applySession(next)
+        } catch {
+          setResolvedModules([])
+          setSession(null)
+        } finally {
+          setLoading(false)
+        }
+      })()
+    })
+
     return () => {
       cancelled = true
+      unsubscribe()
     }
-  }, [])
+  }, [applySession])
 
-  const signIn = useCallback(async (username: string, password: string) => {
-    const next = await authAdapter.signIn(username, password)
-    const modules = await resolveModules(next.user)
-    setResolvedModules(modules)
-    setSession(next)
+  const requestMagicLink = useCallback(async (email: string) => {
+    await authAdapter.requestMagicLink(email)
   }, [])
 
   const signOut = useCallback(async () => {
@@ -116,10 +129,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isBolag: role === "bolag",
       resolvedModules,
       hasModule: (moduleId: string) => resolvedModules.includes(moduleId),
-      signIn,
+      requestMagicLink,
       signOut,
     }
-  }, [loading, resolvedModules, session, signIn, signOut])
+  }, [loading, resolvedModules, session, requestMagicLink, signOut])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
