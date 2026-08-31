@@ -2,16 +2,21 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
+from app.auth.dependencies import require_admin
 from app.config import settings
 from app.services.ssr.embeddings import (
     clear_embedding_cache,
     list_embedding_cache_entries,
 )
 
-router = APIRouter(prefix="/embeddings", tags=["embeddings"])
+router = APIRouter(
+    prefix="/embeddings",
+    tags=["embeddings"],
+    dependencies=[Depends(require_admin)],
+)
 
 
 class CacheEntryOut(BaseModel):

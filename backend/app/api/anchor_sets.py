@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.dependencies import require_admin
 from app.database.models import Configuration, SsrAnchorCalibrationItem, SsrAnchorPoolItem, SsrAnchorSet
 from app.database.session import get_session
 from app.schemas.domain import (
@@ -60,7 +61,11 @@ from app.services.playground import rate_case
 from app.services.prompt_store import get_active_configuration
 from app.services.ssr import rate_texts
 
-router = APIRouter(prefix="/anchor-sets", tags=["anchor-sets"])
+router = APIRouter(
+    prefix="/anchor-sets",
+    tags=["anchor-sets"],
+    dependencies=[Depends(require_admin)],
+)
 
 
 def _dt(value: datetime | None) -> str:

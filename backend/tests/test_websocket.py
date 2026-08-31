@@ -7,6 +7,9 @@ import os
 
 os.environ.setdefault("DEEPSEEK_API_KEY", "test-key-not-real")
 os.environ.setdefault("OPENAI_API_KEY", "test-openai-key-not-real")
+os.environ.setdefault("SUPABASE_URL", "https://test.supabase.co")
+os.environ.setdefault("SUPABASE_JWT_SECRET", "test-supabase-jwt-secret-not-real")
+os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "test-supabase-service-role-not-real")
 
 from collections.abc import AsyncIterator
 
@@ -17,13 +20,24 @@ from starlette.testclient import TestClient
 
 from app.config import settings
 from app.database.base import Base
+from app.database.models import UserAccount
 from app.database.session import get_session
 from app.llm import set_structured_completer, set_text_completer, set_text_streamer
 from app.main import create_app
 from app.schemas.domain import FollowUpQuestions
 from app.services import jobs as jobs_service
-from app.services.kund_store import BOLAG_DEMO_KUND_SLUG, ensure_default_kunder
+from app.services.kund_store import (
+    BOLAG_DEMO_KUND_SLUG,
+    bolag_demo_customer_id,
+    ensure_default_kunder,
+)
 from app.services.prompt_store import ensure_default_configurations
+from tests.conftest import (
+    ADMIN_USER_ID,
+    BOLAG_USER_ID,
+    TEST_JWT_SECRET,
+    mint_access_token,
+)
 
 
 def _sample_recipe(*, size: int = 2, seed: int = 1) -> dict:
@@ -61,10 +75,19 @@ def _sample_recipe(*, size: int = 2, seed: int = 1) -> dict:
     }
 
 
+def _admin_token() -> str:
+    return mint_access_token(sub=ADMIN_USER_ID, email="admin@test.local")
+
+
+def _bolag_token() -> str:
+    return mint_access_token(sub=BOLAG_USER_ID, email="bolag@test.local")
+
+
 @pytest.fixture
 def ws_client():
     settings.persona_generator = "stub"
     settings.deepseek_api_key = "test-key-not-real"
+    settings.supabase_jwt_secret = TEST_JWT_SECRET
     settings.simulation_engine = "none"
 
     async def _mock_text(_messages: list[dict[str, str]]) -> str:
@@ -100,6 +123,23 @@ def ws_client():
         async with session_factory() as seed_session:
             await ensure_default_configurations(seed_session)
             await ensure_default_kunder(seed_session)
+            bolag_id = await bolag_demo_customer_id(seed_session)
+            seed_session.add(
+                UserAccount(
+                    id=ADMIN_USER_ID,
+                    email="admin@test.local",
+                    role="admin",
+                    kund_id=None,
+                )
+            )
+            seed_session.add(
+                UserAccount(
+                    id=BOLAG_USER_ID,
+                    email="bolag@test.local",
+                    role="bolag",
+                    kund_id=bolag_id,
+                )
+            )
             await seed_session.commit()
 
     loop.run_until_complete(_prepare())
@@ -117,7 +157,9 @@ def ws_client():
 
     app.dependency_overrides[get_session] = override_get_session
 
+    admin_token = _admin_token()
     with TestClient(app) as client:
+        client.headers["Authorization"] = f"Bearer {admin_token}"
         yield client, loop
 
     jobs_service.set_job_session_factory(None)
@@ -151,7 +193,8 @@ def _bolag_customer_id(client) -> int:
 
 def test_jobs_websocket_snapshot_and_update(ws_client):
     client, loop = ws_client
-    with client.websocket_connect("/ws/jobs") as ws:
+    token = _admin_token()
+    with client.websocket_connect(f"/ws/jobs?access_token={token}") as ws:
         ws.send_json(_jobs_hello())
         snap = ws.receive_json()
         assert snap["type"] == "jobs.snapshot"
@@ -215,7 +258,8 @@ def test_reports_websocket_snapshot_update_and_delete(ws_client):
             await publish_report(report)
             return report.id
 
-    with client.websocket_connect("/ws/reports") as ws:
+    token = _admin_token()
+    with client.websocket_connect(f"/ws/reports?access_token={token}") as ws:
         ws.send_json(_reports_hello())
         snap = ws.receive_json()
         assert snap["type"] == "reports.snapshot"
@@ -289,7 +333,8 @@ def test_jobs_websocket_customer_scope_filters_push(ws_client):
             await publish_job(os_job)
             await publish_job(bolag_job)
 
-    with client.websocket_connect("/ws/jobs") as admin_ws:
+    admin_token = _admin_token()
+    with client.websocket_connect(f"/ws/jobs?access_token={admin_token}") as admin_ws:
         admin_ws.send_json(_jobs_hello())
         admin_snap = admin_ws.receive_json()
         assert admin_snap["type"] == "jobs.snapshot"
@@ -304,7 +349,8 @@ def test_jobs_websocket_customer_scope_filters_push(ws_client):
         assert admin_bolag["type"] == "job.updated"
         assert admin_bolag["job"]["id"] == "job-ws-bolag"
 
-    with client.websocket_connect("/ws/jobs") as bolag_ws:
+    bolag_token = _bolag_token()
+    with client.websocket_connect(f"/ws/jobs?access_token={bolag_token}") as bolag_ws:
         bolag_ws.send_json(_jobs_hello(customer_id=bolag_id))
         bolag_snap = bolag_ws.receive_json()
         assert bolag_snap["type"] == "jobs.snapshot"
@@ -369,7 +415,8 @@ def test_reports_websocket_customer_scope_filters_push(ws_client):
             await publish_report(os_report)
             await publish_report(bolag_report)
 
-    with client.websocket_connect("/ws/reports") as admin_ws:
+    admin_token = _admin_token()
+    with client.websocket_connect(f"/ws/reports?access_token={admin_token}") as admin_ws:
         admin_ws.send_json(_reports_hello())
         admin_snap = admin_ws.receive_json()
         assert admin_snap["type"] == "reports.snapshot"
@@ -384,7 +431,8 @@ def test_reports_websocket_customer_scope_filters_push(ws_client):
         assert admin_bolag["type"] == "report.updated"
         assert admin_bolag["report"]["id"] == "rpt-ws-bolag"
 
-    with client.websocket_connect("/ws/reports") as bolag_ws:
+    bolag_token = _bolag_token()
+    with client.websocket_connect(f"/ws/reports?access_token={bolag_token}") as bolag_ws:
         bolag_ws.send_json(_reports_hello(customer_id=bolag_id))
         bolag_snap = bolag_ws.receive_json()
         assert bolag_snap["type"] == "reports.snapshot"
@@ -431,7 +479,8 @@ def test_chat_websocket_streams_tokens(ws_client):
     assert created.status_code == 201
     persona_id = created.json()["id"]
 
-    with client.websocket_connect("/ws/chat") as ws:
+    token = _admin_token()
+    with client.websocket_connect(f"/ws/chat?access_token={token}") as ws:
         ws.send_json(
             {
                 "type": "hello",
