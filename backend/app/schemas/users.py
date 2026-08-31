@@ -10,6 +10,15 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 UserRole = Literal["admin", "user", "bolag"]
 
 
+class MeOut(BaseModel):
+    id: str
+    email: str
+    role: UserRole
+    kund_id: int | None
+    kund_slug: str | None
+    available_modules: list[str]
+
+
 class UserAccountOut(BaseModel):
     id: str
     email: str

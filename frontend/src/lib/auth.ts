@@ -1,11 +1,10 @@
 /**
- * Auth boundary. Phase 1 uses a static username/password adapter.
- * Swap `authAdapter` to a Supabase implementation when Auth is enabled —
- * keep this module as the only import surface for session + token.
+ * Auth boundary — Supabase magic-link adapter.
+ * Keep this module as the only import surface for session + token.
  */
 
 import { MODULE_HOME_PATHS } from "@/lib/moduleHomePaths"
-import { BOLAG_DEMO_CUSTOMER_SLUG, OS_CUSTOMER_SLUG } from "@/lib/scoping"
+import { supabase } from "@/lib/supabaseClient"
 
 export type Role = "admin" | "user" | "bolag"
 
@@ -24,153 +23,82 @@ export type AuthSession = {
 }
 
 export type AuthAdapter = {
-  signIn(username: string, password: string): Promise<AuthSession>
+  requestMagicLink(email: string): Promise<void>
   signOut(): Promise<void>
   getSession(): Promise<AuthSession | null>
   getAccessToken(): Promise<string | null>
+  onSessionChange(cb: (session: AuthSession | null) => void): () => void
 }
 
-export class InvalidCredentialsError extends Error {
-  constructor() {
-    super("invalid_credentials")
-    this.name = "InvalidCredentialsError"
+export class MagicLinkError extends Error {
+  constructor(message = "magic_link_failed") {
+    super(message)
+    this.name = "MagicLinkError"
   }
 }
 
-const STORAGE_KEY = "opinionssimulator.auth"
-
-const STATIC_ACCOUNTS: ReadonlyArray<{
-  username: string
-  password: string
-  user: AuthUser
-}> = [
-  {
-    username: "admin",
-    password: "admin",
+function sessionFromSupabase(
+  accessToken: string,
+  user: { id: string; email?: string | null },
+): AuthSession {
+  const email = (user.email ?? "").trim() || user.id
+  return {
+    accessToken,
     user: {
-      id: "static-admin",
-      username: "admin",
-      email: "admin@local",
-      role: "admin",
-      modules: ["politik", "dd"],
+      id: user.id,
+      username: email,
+      email,
+      // Role/modules filled by AuthProvider via GET /me.
+      role: "user",
+      modules: [],
       kundSlug: null,
     },
-  },
-  {
-    username: "user",
-    password: "user",
-    user: {
-      id: "static-user",
-      username: "user",
-      email: "user@local",
-      role: "user",
-      modules: ["politik"],
-      kundSlug: OS_CUSTOMER_SLUG,
-    },
-  },
-  {
-    username: "bolag",
-    password: "bolag",
-    user: {
-      id: "static-bolag",
-      username: "bolag",
-      email: "bolag@local",
-      role: "bolag",
-      modules: ["dd"],
-      kundSlug: BOLAG_DEMO_CUSTOMER_SLUG,
-    },
-  },
-]
-
-function isRole(value: unknown): value is Role {
-  return value === "admin" || value === "user" || value === "bolag"
-}
-
-function parseModules(value: unknown): string[] {
-  if (!Array.isArray(value)) return []
-  return value.filter((item): item is string => typeof item === "string")
-}
-
-function kundSlugForUsername(username: string): string | null {
-  const account = STATIC_ACCOUNTS.find((account) => account.user.username === username)
-  return account?.user.kundSlug ?? null
-}
-
-function parseKundSlug(value: unknown, username: string): string | null {
-  if (value === null) return null
-  if (typeof value === "string") return value
-  return kundSlugForUsername(username)
-}
-
-function parseSession(raw: string): AuthSession | null {
-  const parsed: unknown = JSON.parse(raw)
-  if (parsed == null || typeof parsed !== "object") return null
-  const record = parsed as Record<string, unknown>
-  const user = record.user
-  if (user == null || typeof user !== "object") return null
-  const fields = user as Record<string, unknown>
-  if (
-    typeof fields.id !== "string" ||
-    typeof fields.username !== "string" ||
-    typeof fields.email !== "string" ||
-    !isRole(fields.role)
-  ) {
-    return null
-  }
-  const accessToken = record.accessToken
-  if (accessToken !== null && typeof accessToken !== "string") return null
-  return {
-    user: {
-      id: fields.id,
-      username: fields.username,
-      email: fields.email,
-      role: fields.role,
-      modules: parseModules(fields.modules),
-      kundSlug: parseKundSlug(fields.kundSlug, fields.username),
-    },
-    accessToken,
   }
 }
 
-function readStoredSession(): AuthSession | null {
-  const raw = localStorage.getItem(STORAGE_KEY)
-  if (!raw) return null
-  try {
-    return parseSession(raw)
-  } catch {
-    localStorage.removeItem(STORAGE_KEY)
-    return null
-  }
-}
-
-const staticAuthAdapter: AuthAdapter = {
-  async signIn(username, password) {
-    const match = STATIC_ACCOUNTS.find(
-      (account) =>
-        account.username.toLowerCase() === username.trim().toLowerCase() &&
-        account.password === password,
-    )
-    if (!match) throw new InvalidCredentialsError()
-    const session: AuthSession = { user: match.user, accessToken: null }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(session))
-    return session
+const supabaseAuthAdapter: AuthAdapter = {
+  async requestMagicLink(email) {
+    const trimmed = email.trim()
+    const { error } = await supabase.auth.signInWithOtp({
+      email: trimmed,
+      options: {
+        emailRedirectTo: `${window.location.origin}/login`,
+        shouldCreateUser: false,
+      },
+    })
+    if (error) throw new MagicLinkError(error.message)
   },
 
   async signOut() {
-    localStorage.removeItem(STORAGE_KEY)
+    await supabase.auth.signOut()
   },
 
   async getSession() {
-    return readStoredSession()
+    const { data, error } = await supabase.auth.getSession()
+    if (error || !data.session?.user) return null
+    return sessionFromSupabase(data.session.access_token, data.session.user)
   },
 
   async getAccessToken() {
-    return readStoredSession()?.accessToken ?? null
+    const { data } = await supabase.auth.getSession()
+    return data.session?.access_token ?? null
+  },
+
+  onSessionChange(cb) {
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session?.user) {
+        cb(null)
+        return
+      }
+      cb(sessionFromSupabase(session.access_token, session.user))
+    })
+    return () => {
+      data.subscription.unsubscribe()
+    }
   },
 }
 
-/** Replace this assignment with a Supabase adapter when Auth is enabled. */
-export const authAdapter: AuthAdapter = staticAuthAdapter
+export const authAdapter: AuthAdapter = supabaseAuthAdapter
 
 export function canAccessConfiguration(role: Role): boolean {
   return role === "admin"
