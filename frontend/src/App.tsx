@@ -23,9 +23,11 @@ import { DdCampaignsPage } from "@/pages/DdCampaignsPage"
 import { EmbeddingCachePage } from "@/pages/EmbeddingCachePage"
 import { BolagFeedbackPage, FeedbackPage } from "@/pages/FeedbackPage"
 import { BolagJobsPage, JobsPage } from "@/pages/JobsPage"
+import { KunderPage } from "@/pages/KunderPage"
 import { LoginPage } from "@/pages/LoginPage"
 import { MessagesPage } from "@/pages/MessagesPage"
 import { MessagesWorkshopPage } from "@/pages/MessagesWorkshopPage"
+import { PanelCatalogPage } from "@/pages/PanelCatalogPage"
 import { PersonaComposerPage } from "@/pages/PersonaComposerPage"
 import { PersonasPage } from "@/pages/PersonasPage"
 import { PlaygroundPage } from "@/pages/PlaygroundPage"
@@ -111,6 +113,8 @@ export default function App() {
               <Route path="configurations" element={<ConfigurationsPage />} />
               <Route path="configurations/new" element={<ConfigurationEditorPage />} />
               <Route path="configurations/:id/edit" element={<ConfigurationEditorPage />} />
+              <Route path="kunder" element={<KunderPage />} />
+              <Route path="panel-catalog" element={<PanelCatalogPage />} />
               <Route path="anchor-sets" element={<AnchorSetsPage />} />
               <Route path="anchor-sets/new" element={<AnchorSetEditorPage />} />
               <Route path="anchor-sets/:id/edit" element={<AnchorSetEditorPage />} />

@@ -36,9 +36,11 @@ export function campaignRunPath(
   campaignId: number,
   candidateId: string,
   tab?: "config" | "research" | "results",
+  view?: "live" | "report",
 ): string {
   const base = `/bolag/campaigns/${campaignId}/runs/${candidateId}`
   if (!tab) return base
+  if (tab === "results" && view) return `${base}?tab=${tab}&view=${view}`
   return `${base}?tab=${tab}`
 }
 

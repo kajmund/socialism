@@ -52,6 +52,8 @@ Guider för dig som använder Opinionssimulator i webbläsaren. Teknisk setup oc
 # Grunddata och jobb
 
 * [Hantera konfigurationer](hantera-konfigurationer.md) — Prompts och grunddata per konfiguration
+* [Hantera kundmoduler](hantera-kundmoduler.md) — Slå på och av produktmoduler per kund
+* [Redigera panelkatalog](redigera-panelkatalog.md) — Sub-frågor och default-expertprofiler för expertpanelen
 * [Hantera SSR-ankare](hantera-ssr-ankare.md) — Skapa, testa och publicera ton- och stilankare för rapporter
 * [Redigera grunddata](redigera-grunddata.md) — Kataloglistor och distriktskartor under en konfiguration
 * [Använda playground](anvanda-playground.md) — Kalibrera anchors, jämföra SSR och prova promptvarianter

@@ -36,11 +36,22 @@ import { useJobsRealtime } from "@/realtime/JobsRealtimeProvider"
 import { useReportsRealtime } from "@/realtime/ReportsRealtimeProvider"
 
 type RunTab = "config" | "research" | "results"
+type ResultsView = "live" | "report"
 
 function parseTab(raw: string | null): RunTab {
   if (raw === "results") return "results"
   if (raw === "research") return "research"
   return "config"
+}
+
+function parseResultsView(
+  raw: string | null,
+  running: boolean,
+  hasReport: boolean,
+): ResultsView {
+  if (raw === "live" || raw === "report") return raw
+  if (running || !hasReport) return "live"
+  return "report"
 }
 
 function parseResearchSub(raw: string | null): ResearchSubTab {
@@ -98,8 +109,8 @@ export function DdCampaignRunPage() {
     row.sources.some(
       (src) =>
         src.type === "dd_session" &&
-        ((panelSessionId != null && src.session_id === panelSessionId) ||
-          src.candidate_id === candidateId),
+        panelSessionId != null &&
+        src.session_id === panelSessionId,
     ),
   )?.id
   const reportId = run?.report_id ?? localReportId ?? inferredReportId ?? null
@@ -142,10 +153,15 @@ export function DdCampaignRunPage() {
   const showLiveFeed =
     panelSessionId != null &&
     (isRunning || livePanelStatus === "succeeded" || livePanelStatus === "failed")
+  const resultsView = parseResultsView(searchParams.get("view"), isRunning, reportId != null)
 
-  function setTab(tab: RunTab, sub?: ResearchSubTab) {
+  function setTab(tab: RunTab, opts?: { sub?: ResearchSubTab; view?: ResultsView }) {
     if (tab === "research") {
-      setSearchParams({ tab, sub: sub ?? researchSub }, { replace: true })
+      setSearchParams({ tab, sub: opts?.sub ?? researchSub }, { replace: true })
+      return
+    }
+    if (tab === "results") {
+      setSearchParams({ tab, view: opts?.view ?? resultsView }, { replace: true })
       return
     }
     setSearchParams({ tab }, { replace: true })
@@ -203,10 +219,27 @@ export function DdCampaignRunPage() {
     if (!campaign || defaultedTab.current) return
     defaultedTab.current = true
     if (searchParams.has("tab")) return
-    if (runStatus !== "draft") {
-      setSearchParams({ tab: "results" }, { replace: true })
+    if (runStatus === "draft") return
+    if (runStatus === "running") {
+      setSearchParams({ tab: "results", view: "live" }, { replace: true })
+      return
     }
-  }, [campaign, runStatus, searchParams, setSearchParams])
+    setSearchParams(
+      { tab: "results", view: reportId ? "report" : "live" },
+      { replace: true },
+    )
+  }, [campaign, reportId, runStatus, searchParams, setSearchParams])
+
+  useEffect(() => {
+    if (!campaign) return
+    if (activeTab !== "results") return
+    const raw = searchParams.get("view")
+    if (raw === "live" || raw === "report") return
+    setSearchParams(
+      { tab: "results", view: isRunning || !reportId ? "live" : "report" },
+      { replace: true },
+    )
+  }, [activeTab, campaign, isRunning, reportId, searchParams, setSearchParams])
 
   useEffect(() => {
     if (!candidate || !panelSessionId) return
@@ -299,7 +332,7 @@ export function DdCampaignRunPage() {
       rememberJobPending(job.id)
       refreshedResearchJob.current = null
       await refreshCampaign()
-      setTab("research", mode === "people" ? "people" : "group")
+      setTab("research", { sub: mode === "people" ? "people" : "group" })
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("dd.panel.researchError"))
     } finally {
@@ -346,9 +379,10 @@ export function DdCampaignRunPage() {
       })
       const started = await runPanelSession(session.id)
       rememberJobPending(started.job_id)
+      setLocalReportId(null)
       await refreshCampaign()
       setPanelStatus("pending")
-      setTab("results")
+      setTab("results", { view: "live" })
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("dd.panel.runError"))
     } finally {
@@ -467,7 +501,7 @@ export function DdCampaignRunPage() {
                     {isRunning ? t("dd.panel.runningPanel") : t("dd.panel.runPanel")}
                   </button>
                 )
-              ) : activeTab === "results" && reportId ? (
+              ) : activeTab === "results" && resultsView === "report" && reportId ? (
                 <Link to={`/bolag/reports/${reportId}`} className="btn-save">
                   {t("spinndoctor.viewSpinndoktor")}
                 </Link>
@@ -562,7 +596,7 @@ export function DdCampaignRunPage() {
             <DdResearchTab
               dossier={run?.research ?? null}
               subTab={researchSub}
-              onSubTab={(sub) => setTab("research", sub)}
+              onSubTab={(sub) => setTab("research", { sub })}
               selected={selectedPeople}
               disabled={isResearching}
               clearing={clearingResearch}
@@ -587,26 +621,117 @@ export function DdCampaignRunPage() {
             />
           ) : (
             <div id="dd-run-panel-results" role="tabpanel" aria-labelledby="dd-run-tab-results">
-              {reportId ? (
-                <ReportPage reportId={reportId} embedded initialViewMode="report" />
-              ) : showLiveFeed && panelSessionId ? (
-                <div className="space-y-4">
-                  {livePanelStatus ? (
-                    <span className={panelStatusClass(livePanelStatus)}>
-                      {t(`dd.panel.panelStatus.${livePanelStatus}`)}
-                    </span>
-                  ) : null}
-                  <PanelLiveFeedPanel sessionId={panelSessionId} enabled={showLiveFeed} />
+              <div
+                role="tablist"
+                aria-label={t("dd.panel.runResultsTablistAria")}
+                className="mb-6 flex flex-wrap gap-1 border-b border-[color:var(--border-hairline)]"
+              >
+                {(
+                  [
+                    { id: "live" as const, label: t("dd.panel.runResultsLiveTab") },
+                    { id: "report" as const, label: t("dd.panel.runResultsReportTab") },
+                  ] as const
+                ).map((tab) => {
+                  const selected = tab.id === resultsView
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      role="tab"
+                      id={`dd-run-results-${tab.id}`}
+                      aria-selected={selected}
+                      aria-controls={`dd-run-results-panel-${tab.id}`}
+                      tabIndex={selected ? 0 : -1}
+                      className={cn(
+                        "-mb-px border-b-2 px-3 py-2 text-sm",
+                        selected
+                          ? "border-db-ink-950 font-medium text-[color:var(--text-body)]"
+                          : "border-transparent text-muted-foreground hover:text-[color:var(--text-body)]",
+                      )}
+                      onClick={() => setTab("results", { view: tab.id })}
+                    >
+                      {tab.label}
+                      {tab.id === "live" && isRunning ? (
+                        <span className="ml-2 inline-block h-1.5 w-1.5 rounded-full bg-db-gold-500 align-middle" />
+                      ) : null}
+                    </button>
+                  )
+                })}
+              </div>
+              {panelSessionId ? (
+                <div
+                  id="dd-run-results-panel-live"
+                  role="tabpanel"
+                  aria-labelledby="dd-run-results-live"
+                  hidden={resultsView !== "live"}
+                >
+                  <div className="space-y-4">
+                    {livePanelStatus ? (
+                      <span className={panelStatusClass(livePanelStatus)}>
+                        {t(`dd.panel.panelStatus.${livePanelStatus}`)}
+                      </span>
+                    ) : null}
+                    <PanelLiveFeedPanel
+                      key={panelSessionId}
+                      sessionId={panelSessionId}
+                      enabled={showLiveFeed}
+                    />
+                  </div>
                 </div>
-              ) : (
-                <div className="no-match text-left">
-                  <p className="font-medium">{t("dd.panel.runEmptyResultsTitle")}</p>
-                  <p className="mt-2 text-sm text-muted-foreground">{t("dd.panel.runEmptyResultsBody")}</p>
-                  <button type="button" className="btn-run mt-4" onClick={() => setTab("config")}>
-                    {t("dd.panel.runGoToConfig")}
-                  </button>
+              ) : resultsView === "live" ? (
+                <div
+                  id="dd-run-results-panel-live"
+                  role="tabpanel"
+                  aria-labelledby="dd-run-results-live"
+                >
+                  <div className="no-match text-left">
+                    <p className="font-medium">{t("dd.panel.runEmptyResultsTitle")}</p>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      {t("dd.panel.runEmptyResultsBody")}
+                    </p>
+                    <button type="button" className="btn-run mt-4" onClick={() => setTab("config")}>
+                      {t("dd.panel.runGoToConfig")}
+                    </button>
+                  </div>
                 </div>
-              )}
+              ) : null}
+              {resultsView === "report" ? (
+                <div
+                  id="dd-run-results-panel-report"
+                  role="tabpanel"
+                  aria-labelledby="dd-run-results-report"
+                >
+                  {reportId ? (
+                    <ReportPage reportId={reportId} embedded initialViewMode="report" />
+                  ) : (
+                    <div className="no-match text-left">
+                      <p className="font-medium">{t("dd.panel.runResultsReportEmptyTitle")}</p>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        {isRunning
+                          ? t("dd.panel.generatingReport")
+                          : t("dd.panel.runResultsReportEmptyBody")}
+                      </p>
+                      {panelSessionId ? (
+                        <button
+                          type="button"
+                          className="btn-save mt-4"
+                          onClick={() => setTab("results", { view: "live" })}
+                        >
+                          {t("dd.panel.runResultsGoToLive")}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn-run mt-4"
+                          onClick={() => setTab("config")}
+                        >
+                          {t("dd.panel.runGoToConfig")}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : null}
             </div>
           )}
         </div>

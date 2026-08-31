@@ -129,7 +129,15 @@ function RunActions({
           {t("dd.panel.runContinueConfig")}
         </Link>
       ) : (
-        <Link className="primary" to={campaignRunPath(campaign.id, candidate.id, "results")}>
+        <Link
+          className="primary"
+          to={campaignRunPath(
+            campaign.id,
+            candidate.id,
+            "results",
+            status === "done" ? "report" : "live",
+          )}
+        >
           {primaryResultsLabel(status, t)}
         </Link>
       )}

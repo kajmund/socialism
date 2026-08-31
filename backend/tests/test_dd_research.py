@@ -47,7 +47,6 @@ def _candidate(**updates: object) -> DdCandidateCompany:
         "anstallda": 12,
         "styrelse": [DdOfficer(namn="Eva Ägare", roll="Ordförande", grupp="Styrelse")],
         "moderbolag": "Moder AB (556000-0002)",
-        "relaterade_bolag": ["Syskon AB — 556000-0003"],
     }
     data.update(updates)
     return DdCandidateCompany.model_validate(data)

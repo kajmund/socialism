@@ -81,7 +81,6 @@ export function DdCandidateFacts({
   const sni = candidate.sni ?? []
   const events = candidate.handelser ?? []
   const sites = candidate.arbetsstallen ?? []
-  const related = candidate.relaterade_bolag ?? []
   const fskatt = registeredLabel(candidate.fskatt, t)
   const moms = registeredLabel(candidate.moms, t)
   const payroll = registeredLabel(candidate.arbetsgivaravgift, t)
@@ -237,7 +236,6 @@ export function DdCandidateFacts({
           ) : null}
           <FactList title={t("dd.sourcing.candidateSni")} items={sni} />
           <FactList title={t("dd.sourcing.candidateSites")} items={sites} />
-          <FactList title={t("dd.sourcing.candidateRelated")} items={related} />
           <FactList title={t("dd.sourcing.candidateEvents")} items={events} />
           {accounts.length > 0 ? <DdAccountCharts years={accounts} /> : null}
           {extraRows.length > 0 ? (

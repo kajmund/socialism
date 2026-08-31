@@ -60,9 +60,9 @@ Scratchpads are stored on the session row and included in expert prompts but omi
 
 Implemented in `app/services/dd/source_attribution.py` — **not** silent fallbacks:
 
-1. Candidate figures already in the brief (financial health) — labeled **Grunddata**, no web search
-2. Web (DuckDuckGo)
-3. `llm` — labeled **Modellbedömning** when no external source is found
+1. Candidate figures already in the brief — labeled **Grunddata** for every sub-question that uses those numbers. Do not run a parallel web search to decorate the badge.
+2. An actual web/wiki tool result from the scoring turn — labeled **Webb** (only when grunddata figures are missing)
+3. `llm` — labeled **Modellbedömning** when no figures and no web tool result
 
 Badges are stored per score in `result.scores[].source`.
 
