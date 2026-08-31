@@ -21,6 +21,7 @@ from app.api import (
     populations,
     reports,
     spindoctor,
+    users,
     ws,
 )
 from app.config import settings
@@ -89,6 +90,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(configurations.router)
     app.include_router(kunder.router)
+    app.include_router(users.router)
     app.include_router(modules.router)
     app.include_router(catalog.router)
     app.include_router(personas.router)
