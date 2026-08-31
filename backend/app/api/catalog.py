@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.dependencies import require_admin
 from app.database.models import CatalogList
 from app.database.session import get_session
 from app.schemas.domain import CatalogListOut, CatalogListUpdate, format_date
@@ -18,7 +19,11 @@ from app.services.catalog_store import (
 )
 from app.services.prompt_store import get_active_configuration
 
-router = APIRouter(prefix="/catalog", tags=["catalog"])
+router = APIRouter(
+    prefix="/catalog",
+    tags=["catalog"],
+    dependencies=[Depends(require_admin)],
+)
 
 
 def _serialize(row: CatalogList) -> CatalogListOut:

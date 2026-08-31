@@ -110,9 +110,15 @@ async def delete_campaign(session: AsyncSession, row: DdCampaign) -> None:
     await session.delete(row)
 
 
-async def create_campaign(session: AsyncSession, body: DdCampaignCreate) -> DdCampaignOut:
+async def create_campaign(
+    session: AsyncSession,
+    body: DdCampaignCreate,
+    *,
+    customer_id: int | None = None,
+) -> DdCampaignOut:
     criteria = body.criteria or DdSourcingCriteria()
-    customer_id = await bolag_demo_customer_id(session)
+    if customer_id is None:
+        customer_id = await bolag_demo_customer_id(session)
     row = DdCampaign(
         customer_id=customer_id,
         module=body.module,

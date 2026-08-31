@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.dependencies import get_current_user
 from app.database.session import get_session
 from app.schemas.domain import HelpChatRequest, HelpChatResponse, HelpMessageOut
 from app.services.help_chat import (
@@ -14,7 +15,11 @@ from app.services.help_chat import (
     stream_help_chat_turn,
 )
 
-router = APIRouter(prefix="/help", tags=["help"])
+router = APIRouter(
+    prefix="/help",
+    tags=["help"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 @router.get("/messages", response_model=list[HelpMessageOut])

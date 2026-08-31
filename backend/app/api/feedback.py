@@ -5,6 +5,8 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.dependencies import get_current_user, require_admin
+from app.database.models import UserAccount
 from app.database.session import get_session
 from app.schemas.domain import (
     FeedbackItemCreate,
@@ -31,6 +33,7 @@ async def list_feedback(
     include_archived: bool = Query(default=False),
     limit: int = Query(default=100, ge=1, le=200),
     session: AsyncSession = Depends(get_session),
+    _admin: UserAccount = Depends(require_admin),
 ) -> list[FeedbackItemOut]:
     rows = await list_feedback_items(
         session,
@@ -46,6 +49,7 @@ async def list_feedback(
 async def get_feedback(
     item_id: int,
     session: AsyncSession = Depends(get_session),
+    _admin: UserAccount = Depends(require_admin),
 ) -> FeedbackItemOut:
     return serialize_feedback_item(await get_feedback_item(session, item_id))
 
@@ -54,6 +58,7 @@ async def get_feedback(
 async def create_feedback(
     body: FeedbackItemCreate,
     session: AsyncSession = Depends(get_session),
+    _user: UserAccount = Depends(get_current_user),
 ) -> FeedbackItemOut:
     row = await create_feedback_item(session, body)
     return serialize_feedback_item(row)
@@ -64,6 +69,7 @@ async def patch_feedback(
     item_id: int,
     body: FeedbackItemUpdate,
     session: AsyncSession = Depends(get_session),
+    _admin: UserAccount = Depends(require_admin),
 ) -> FeedbackItemOut:
     row = await update_feedback_item(session, item_id, body)
     return serialize_feedback_item(row)
