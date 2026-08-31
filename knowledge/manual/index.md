@@ -63,8 +63,13 @@ Guider för dig som använder Opinionssimulator i webbläsaren. Teknisk setup oc
 
 # Due diligence (bolag)
 
+* [Använda due diligence-ytan](anvanda-due-diligence-ytan.md) — Meny, flöde och skillnad mot politisk simulering
+* [Hantera experter](hantera-experter.md) — Sök, öppna och ta bort experter i biblioteket
 * [Skapa och redigera expert](skapa-och-redigera-expert.md) — Profil, chatt och vilka verktyg experten får använda
+* [Hantera expertpaneler](hantera-expertpaneler.md) — Lista, duplicera och ta bort sparade paneler
 * [Komponera en expertpanel](komponera-expertpanel.md) — Välj experter och spara panelen direkt
+* [Visa och redigera expertpanel](visa-och-redigera-expertpanel.md) — Medlemmar och lägg till från biblioteket
+* [Hantera kampanjer](hantera-kampanjer.md) — Sök, öppna och ta bort DD-kampanjer
 * [Köra en DD-kampanj](kora-dd-kampanj.md) — Skapa kampanj, chatta fram bolag och köra DD per kandidat
 
 # Rapporter
