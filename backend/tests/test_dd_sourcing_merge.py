@@ -56,6 +56,34 @@ def test_merge_sourcing_never_drops_existing_without_incoming_match():
     }
 
 
+def test_merge_sourcing_preserves_existing_id_when_orgnr_matches():
+    """Chat/Allabolag use orgnr as id; mock sourcing uses hash — upsert must keep the first id."""
+    existing = [
+        DdCandidateCompany(
+            id="556123-4567",
+            namn="Chat AB",
+            organisationsnummer="556123-4567",
+            alder_ar=10,
+            omrade="Stockholm",
+            resultat="vinst",
+            omsattning_sek=1_000_000,
+            anstallda=5,
+            beskrivning="From sourcing chat",
+        )
+    ]
+    incoming = [_candidate("556123-4567", namn="Mock refresh")]
+
+    merged = merge_sourcing_candidates(
+        existing,
+        incoming,
+        protected_candidate_ids={"556123-4567"},
+    )
+
+    assert len(merged) == 1
+    assert merged[0].id == "556123-4567"
+    assert merged[0].namn == "Mock refresh"
+
+
 def test_merge_sourcing_keeps_protected_candidate_ids():
     protected = _candidate("556666-6666", namn="Protected AB")
     existing = [protected]
