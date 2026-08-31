@@ -9,7 +9,7 @@ This is the React SPA for **Opinionssimulator**. Read [../AGENTS.md](../AGENTS.m
 - **Admin theme:** Devbrains charcoal + gold via Tailwind tokens + shadcn. Run list/config styles live in `src/styles/admin-runs.css` (`.theme-admin`).
 - **shadcn/ui** for UI primitives (admin surfaces). Add components with `pnpm dlx shadcn@latest add <name>` — don't hand-roll what shadcn already ships.
 - **React Router** for routing.
-- **Auth:** static username/password for phase 1 (`src/lib/auth.ts`). Roles: `admin` (sees Verktyg/configuration) and `user` (does not). Swap the `authAdapter` export for Supabase email later — no Google/SSO.
+- **Auth:** Supabase magic link via `src/lib/auth.ts` + `supabaseClient.ts`. Roles: `admin` (sees Verktyg/configuration), `user`, `bolag`. No Google/SSO.
 
 ## Package manager
 
@@ -128,7 +128,7 @@ Still hardcoded (next slices): OASIS simulation prompts (intentionally Swedish).
 
 | Path | Status |
 |------|--------|
-| `/login` | Sign-in (static admin/user/bolag) |
+| `/login` | Sign-in (magic link) |
 | `/valj-modul` | Module picker (accounts with 2+ modules) |
 | `/` | Dashboard (startsida) |
 | `/runs` | Körningar list |
@@ -177,7 +177,7 @@ Home is `/` (dashboard). Unknown routes redirect to `/`.
 
 - Talks to a separate Python backend over JSON. URL comes from `VITE_API_BASE_URL`.
 - Always use `api.get/post/put/patch/delete` from `@/lib/api` — it handles base URL, JSON, bearer token from `authAdapter.getAccessToken()`, timeouts, and typed `ApiError`s (including the `isNetworkError` flag that distinguishes CORS/network from HTTP errors).
-- Auth is a static adapter today (`admin`/`admin`, `user`/`user`). The API client reads the session token from the same adapter so a later Supabase swap does not change call sites. Never thread tokens through component props.
+- Auth uses the Supabase magic-link adapter (`authAdapter`). The API client reads the bearer token from `getAccessToken()` — never thread tokens through component props.
 - Hide **Verktyg** / configuration routes for `user`. Use `useAuth().isAdmin` (or `canAccessConfiguration`) — do not sprinkle role strings in pages.
 - Admin surfaces (personas / populations / runs) talk to the FastAPI backend.
 

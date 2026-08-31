@@ -1,3 +1,4 @@
+import { authAdapter } from "@/lib/auth"
 import { env } from "@/lib/env"
 
 export type WsStatus = "connecting" | "open" | "closed"
@@ -16,6 +17,7 @@ export type ReconnectingWebSocketOptions = {
 
 /**
  * Thin reconnecting WebSocket. No deps — browser WebSocket only.
+ * Appends `access_token` from the auth adapter for backend WS auth.
  */
 export function connectJsonWebSocket(options: ReconnectingWebSocketOptions): {
   send: (payload: unknown) => void
@@ -27,12 +29,14 @@ export function connectJsonWebSocket(options: ReconnectingWebSocketOptions): {
   let socket: WebSocket | null = null
   let retryTimer: number | undefined
   let delay = baseDelay
-  let attempt = 0
 
-  function url(): string {
+  async function buildUrl(): Promise<string> {
     const base = env.wsBaseUrl.replace(/\/$/, "")
     const path = options.path.startsWith("/") ? options.path : `/${options.path}`
-    return `${base}${path}`
+    const token = await authAdapter.getAccessToken()
+    if (!token) return `${base}${path}`
+    const sep = path.includes("?") ? "&" : "?"
+    return `${base}${path}${sep}access_token=${encodeURIComponent(token)}`
   }
 
   function setStatus(status: WsStatus) {
@@ -44,20 +48,21 @@ export function connectJsonWebSocket(options: ReconnectingWebSocketOptions): {
     if (retryTimer != null) window.clearTimeout(retryTimer)
     retryTimer = window.setTimeout(() => {
       retryTimer = undefined
-      open()
+      void open()
     }, delay)
     delay = Math.min(maxDelay, delay * 2)
   }
 
-  function open() {
+  async function open() {
     if (closedByUser) return
     setStatus("connecting")
-    const ws = new WebSocket(url())
+    const wsUrl = await buildUrl()
+    if (closedByUser) return
+    const ws = new WebSocket(wsUrl)
     socket = ws
 
     ws.onopen = () => {
       delay = baseDelay
-      attempt = 0
       setStatus("open")
       options.onOpen?.()
     }
@@ -79,13 +84,12 @@ export function connectJsonWebSocket(options: ReconnectingWebSocketOptions): {
       if (socket === ws) socket = null
       setStatus("closed")
       if (!closedByUser) {
-        attempt += 1
         scheduleReconnect()
       }
     }
   }
 
-  open()
+  void open()
 
   return {
     send(payload: unknown) {
