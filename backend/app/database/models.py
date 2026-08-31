@@ -866,18 +866,13 @@ class PanelSubQuestion(Base):
 
 
 class PanelExpertProfile(Base):
-    """Modul-skopade default-expertprofiler (katalog/seed, parallellt med Persona)."""
+    """Shared default-expert profiles (katalog/seed). One row per key; many modules."""
 
     __tablename__ = "panel_expert_profiles"
-    __table_args__ = (
-        UniqueConstraint("module", "key", name="uq_panel_expert_profiles_module_key"),
-        UniqueConstraint(
-            "module", "sort_order", name="uq_panel_expert_profiles_module_sort_order"
-        ),
-    )
+    __table_args__ = (UniqueConstraint("key", name="uq_panel_expert_profiles_key"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    module: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    modules: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     key: Mapped[str] = mapped_column(String(64), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False, default="")

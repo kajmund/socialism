@@ -14,6 +14,7 @@ export type PanelSubQuestion = {
 export type PanelExpertProfile = {
   id: number
   module: string
+  modules: string[]
   key: string
   name: string
   description: string

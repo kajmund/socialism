@@ -3,6 +3,7 @@
 ## 2026-08-31
 
 * **Inloggning**: Vilken yta du landar på styrs av kundens tilldelade moduler under **Verktyg** → **Kunder**. Två eller fler moduler ger sidan **Välj modul**. Inga tilldelade moduler visas som ett fel på inloggningen.
+* **Verktyg**: Default-expertprofiler i panelkatalogen kan delas mellan moduler (samma profil, flera moduler). Sub-frågor är fortfarande unika per modul.
 
 ## 2026-08-30
 

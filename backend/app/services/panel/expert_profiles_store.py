@@ -1,4 +1,4 @@
-"""Persist and seed module-scoped panel expert profile catalog rows."""
+"""Persist and seed panel expert profile catalog rows shared across modules."""
 
 from __future__ import annotations
 
@@ -19,30 +19,46 @@ def _unused_sort_order(taken: set[int], preferred: int) -> int:
     return max(taken) + 1
 
 
+def _row_modules(row: PanelExpertProfile) -> list[str]:
+    raw = row.modules
+    if not raw:
+        return []
+    return [str(item) for item in raw]
+
+
+def row_belongs_to_module(row: PanelExpertProfile, module: str) -> bool:
+    return module in _row_modules(row)
+
+
 async def get_expert_profiles(
     session: AsyncSession,
     module: str,
     *,
     active_only: bool = True,
 ) -> list[PanelExpertProfile]:
-    """Return expert profiles for a module, ordered by sort_order then key."""
-    stmt = select(PanelExpertProfile).where(PanelExpertProfile.module == module)
+    """Return expert profiles that include ``module``, ordered by sort_order then key.
+
+    Membership is filtered in Python — the catalog is small, and SQLite JSON
+    contains-queries are not worth a dialect-specific path.
+    """
+    stmt = select(PanelExpertProfile)
     if active_only:
         stmt = stmt.where(PanelExpertProfile.active.is_(True))
-    stmt = stmt.order_by(PanelExpertProfile.sort_order, PanelExpertProfile.key)
     result = await session.execute(stmt)
-    return list(result.scalars().all())
+    matched = [row for row in result.scalars().all() if row_belongs_to_module(row, module)]
+    return sorted(matched, key=lambda row: (row.sort_order, row.key))
 
 
 async def get_expert_profile(session: AsyncSession, row_id: int) -> PanelExpertProfile | None:
     return await session.get(PanelExpertProfile, row_id)
 
 
-async def next_expert_profile_sort_order(session: AsyncSession, module: str) -> int:
-    rows = await get_expert_profiles(session, module, active_only=False)
-    if not rows:
+async def next_expert_profile_sort_order(session: AsyncSession) -> int:
+    result = await session.execute(select(PanelExpertProfile.sort_order))
+    orders = list(result.scalars().all())
+    if not orders:
         return 0
-    return max(row.sort_order for row in rows) + 1
+    return max(orders) + 1
 
 
 async def create_expert_profile(
@@ -60,7 +76,7 @@ async def create_expert_profile(
     active: bool = True,
 ) -> PanelExpertProfile:
     row = PanelExpertProfile(
-        module=module,
+        modules=[module],
         key=key,
         name=name,
         description=description,
@@ -118,28 +134,29 @@ async def ensure_expert_profile_defaults(
     module: str,
     defaults: list[Mapping[str, str]] | tuple[Mapping[str, str], ...],
 ) -> int:
-    """Insert missing (module, key) rows. Does not overwrite existing rows.
+    """Insert missing keys, or attach ``module`` to an existing shared row.
+
+    A later provider that seeds the same ``key`` adds its module to the
+    existing row instead of inserting a duplicate. Fields on an existing
+    row are never overwritten.
 
     Each default mapping must include name, description, kompetensomrade,
     radgivningsstil, yrkesbakgrund, professionell_anekdot. key is derived
     from name via expert_role_key when not provided.
     """
-    result = await session.execute(
-        select(PanelExpertProfile).where(PanelExpertProfile.module == module)
-    )
+    result = await session.execute(select(PanelExpertProfile))
     existing_rows = list(result.scalars().all())
-    existing_keys = {row.key for row in existing_rows}
+    by_key = {row.key: row for row in existing_rows}
     taken_orders = {row.sort_order for row in existing_rows}
-    added = 0
+    changed = 0
     for index, default in enumerate(defaults):
         name = str(default["name"])
         key = str(default.get("key") or expert_role_key(name))
-        if key in existing_keys:
-            continue
-        sort_order = _unused_sort_order(taken_orders, index)
-        session.add(
-            PanelExpertProfile(
-                module=module,
+        row = by_key.get(key)
+        if row is None:
+            sort_order = _unused_sort_order(taken_orders, index)
+            row = PanelExpertProfile(
+                modules=[module],
                 key=key,
                 name=name,
                 description=str(default.get("description") or ""),
@@ -151,14 +168,17 @@ async def ensure_expert_profile_defaults(
                 active=True,
                 updated_at=utcnow(),
             )
-        )
-        added += 1
-        existing_keys.add(key)
-        taken_orders.add(sort_order)
-    if added:
+            session.add(row)
+            by_key[key] = row
+            taken_orders.add(sort_order)
+            changed += 1
+        elif module not in _row_modules(row):
+            row.modules = [*_row_modules(row), module]
+            changed += 1
+    if changed:
         try:
             await session.commit()
         except IntegrityError:
             await session.rollback()
             return 0
-    return added
+    return changed
