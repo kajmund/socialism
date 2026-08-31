@@ -1,11 +1,12 @@
 import { Navigate, Outlet } from "react-router-dom"
 import { useAuth } from "@/auth/AuthProvider"
-import { homePathForRole } from "@/lib/auth"
+import { AuthSplash } from "@/auth/RequireAuth"
+import { homePathForUser } from "@/lib/auth"
 
-/** Redirect non-bolag users away from bolag-only routes. */
+/** Redirect users without the DD module away from bolag routes. */
 export function RequireBolag() {
-  const { role, loading } = useAuth()
-  if (loading) return <div className="min-h-svh bg-db-black" aria-hidden="true" />
-  if (role !== "bolag") return <Navigate to={homePathForRole(role)} replace />
+  const { hasModule, loading, resolvedModules } = useAuth()
+  if (loading) return <AuthSplash />
+  if (!hasModule("dd")) return <Navigate to={homePathForUser(resolvedModules)} replace />
   return <Outlet />
 }
