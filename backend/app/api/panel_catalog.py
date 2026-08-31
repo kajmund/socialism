@@ -30,9 +30,11 @@ from app.services.panel.expert_profiles_store import (
 )
 from app.services.panel.sub_questions_store import (
     create_sub_question,
+    delete_sub_question,
     get_sub_question,
     get_sub_questions,
     next_sub_question_sort_order,
+    sub_question_key_in_use,
     update_sub_question,
 )
 
@@ -160,6 +162,23 @@ async def patch_sub_question(
         await session.rollback()
         raise _conflict_from_integrity(exc, key_detail=_SUB_QUESTION_KEY_CONFLICT) from exc
     return _serialize_sub_question(row)
+
+
+@router.delete("/sub-questions/{row_id}", status_code=204)
+async def remove_sub_question(
+    row_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> None:
+    row = await get_sub_question(session, row_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Sub-question not found")
+    if await sub_question_key_in_use(session, row.key):
+        raise HTTPException(
+            status_code=409,
+            detail="Sub-question is used in a run or report; delete those first",
+        )
+    await delete_sub_question(session, row)
+    await session.commit()
 
 
 @router.get("/expert-profiles", response_model=list[PanelExpertProfileOut])

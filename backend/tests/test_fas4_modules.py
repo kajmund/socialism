@@ -126,6 +126,23 @@ async def test_panel_sub_question_crud_api(client: AsyncClient):
     missing = await client.patch("/panel/sub-questions/99999", json={"label": "x"})
     assert missing.status_code == 404
 
+    # Hard-delete unused question (kultur_fit was only soft-deactivated above — recreate)
+    recreate = await client.post(
+        "/panel/sub-questions",
+        json={"module": "dd", "key": "temp_delete_me", "label": "Temp"},
+    )
+    assert recreate.status_code == 201
+    temp_id = recreate.json()["id"]
+    deleted = await client.delete(f"/panel/sub-questions/{temp_id}")
+    assert deleted.status_code == 204
+    gone = await client.get(
+        "/panel/sub-questions", params={"module": "dd", "include_inactive": True}
+    )
+    assert all(row["key"] != "temp_delete_me" for row in gone.json())
+
+    missing_del = await client.delete("/panel/sub-questions/99999")
+    assert missing_del.status_code == 404
+
 
 @pytest.mark.asyncio
 async def test_panel_catalog_rejects_duplicate_sort_order(client: AsyncClient):

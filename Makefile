@@ -22,10 +22,28 @@ frontend:
 	cd frontend && pnpm dev
 
 start:
-	@trap 'kill 0' EXIT; \
-	(cd backend && uv run uvicorn app.main:app --reload) & \
-	(cd frontend && pnpm dev) & \
-	wait
+	@bash -eu -c '\
+	  cleanup() { \
+	    trap - EXIT INT TERM HUP; \
+	    for pid in $$(jobs -p); do \
+	      kill -TERM -$$pid 2>/dev/null || kill -TERM $$pid 2>/dev/null || true; \
+	    done; \
+	    wait 2>/dev/null || true; \
+	    for port in 8000 5173; do \
+	      pids=$$(lsof -nP -t -iTCP:$$port -sTCP:LISTEN 2>/dev/null || true); \
+	      if [ -n "$$pids" ]; then kill -TERM $$pids 2>/dev/null || true; fi; \
+	    done; \
+	    sleep 0.2; \
+	    for port in 8000 5173; do \
+	      pids=$$(lsof -nP -t -iTCP:$$port -sTCP:LISTEN 2>/dev/null || true); \
+	      if [ -n "$$pids" ]; then kill -KILL $$pids 2>/dev/null || true; fi; \
+	    done; \
+	  }; \
+	  trap cleanup EXIT INT TERM HUP; \
+	  (cd backend && uv run uvicorn app.main:app --reload) & \
+	  (cd frontend && pnpm dev) & \
+	  wait \
+	'
 
 install:
 	cd backend && uv sync

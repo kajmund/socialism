@@ -55,6 +55,10 @@ export function updatePanelSubQuestion(
   return api.patch<PanelSubQuestion>(`/panel/sub-questions/${id}`, body)
 }
 
+export function deletePanelSubQuestion(id: number): Promise<void> {
+  return api.delete(`/panel/sub-questions/${id}`)
+}
+
 export function listPanelExpertProfiles(
   module: string,
   includeInactive = true,

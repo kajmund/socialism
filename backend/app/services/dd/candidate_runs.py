@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import DdCandidateRun, PanelSession
+from app.database.models import DdCandidateRun, PanelSession, Report
 from app.serializers import format_date
 from app.services.dd.schemas import DdCandidateRunOut, DdResearchDossier
 
@@ -205,15 +205,29 @@ async def delete_candidate_run(
     *,
     campaign_id: int,
     candidate_id: str,
-) -> bool:
+) -> tuple[bool, str | None]:
+    """Delete the candidate-run link and its panel session.
+
+    Returns ``(removed, report_id)``. ``report_id`` is set when a linked report
+    row was deleted (caller should remove on-disk artifacts after commit).
+    """
     row = await get_candidate_run(session, campaign_id=campaign_id, candidate_id=candidate_id)
     if row is None:
-        return False
-    if row.panel_session_id:
-        await session.execute(
-            update(PanelSession)
-            .where(PanelSession.id == row.panel_session_id)
-            .values(campaign_id=None)
-        )
+        return False, None
+    panel_id = row.panel_session_id
+    report_id = row.report_id
     await session.delete(row)
-    return True
+    await session.flush()
+    if panel_id:
+        panel = await session.get(PanelSession, panel_id)
+        if panel is not None:
+            await session.delete(panel)
+            await session.flush()
+    deleted_report_id: str | None = None
+    if report_id:
+        report = await session.get(Report, report_id)
+        if report is not None:
+            await session.delete(report)
+            deleted_report_id = report_id
+            await session.flush()
+    return True, deleted_report_id

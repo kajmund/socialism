@@ -12,9 +12,9 @@ from app.auth.scope import assert_kund_access
 from app.database.models import Kund, Projekt, UserAccount
 from app.database.session import get_session
 from app.modules.registry import MODULE_REGISTRY
-from app.schemas.kund import KundOut, KundUpdate, ProjektOut
+from app.schemas.kund import KundCreate, KundOut, KundUpdate, ProjektOut
 from app.serializers import utcnow
-from app.services.kund_store import ensure_default_kunder
+from app.services.kund_store import DEFAULT_PROJEKT_SLUG, ensure_default_kunder
 
 router = APIRouter(prefix="/kunder", tags=["kunder"])
 
@@ -69,6 +69,14 @@ def _normalize_available_modules(ids: list[str]) -> list[str]:
     return out
 
 
+def _normalize_slug(raw: str) -> str:
+    slug = raw.strip().lower().replace(" ", "-")
+    cleaned = "".join(ch for ch in slug if ch.isalnum() or ch == "-")
+    while "--" in cleaned:
+        cleaned = cleaned.replace("--", "-")
+    return cleaned.strip("-")
+
+
 @router.get("", response_model=list[KundOut])
 async def list_kunder(
     session: AsyncSession = Depends(get_session),
@@ -82,6 +90,49 @@ async def list_kunder(
     result = await session.execute(stmt)
     rows = list(result.scalars().unique().all())
     return [_serialize_kund(row, include_projekt=True) for row in rows]
+
+
+@router.post("", response_model=KundOut, status_code=201)
+async def create_kund(
+    body: KundCreate,
+    session: AsyncSession = Depends(get_session),
+    _admin: UserAccount = Depends(require_admin),
+) -> KundOut:
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="name is required")
+    slug = _normalize_slug(body.slug)
+    if not slug:
+        raise HTTPException(status_code=400, detail="slug is required")
+    existing = await session.execute(select(Kund).where(Kund.slug == slug))
+    if existing.scalar_one_or_none() is not None:
+        raise HTTPException(status_code=409, detail="slug already exists")
+    modules = _normalize_available_modules(body.available_modules)
+    now = utcnow()
+    row = Kund(
+        name=name,
+        slug=slug,
+        available_modules=modules,
+        created_at=now,
+        updated_at=now,
+    )
+    session.add(row)
+    await session.flush()
+    session.add(
+        Projekt(
+            customer_id=row.id,
+            name="Default",
+            slug=DEFAULT_PROJEKT_SLUG,
+            created_at=now,
+            updated_at=now,
+        )
+    )
+    await session.commit()
+    result = await session.execute(
+        select(Kund).where(Kund.id == row.id).options(selectinload(Kund.projekt))
+    )
+    created = result.scalar_one()
+    return _serialize_kund(created, include_projekt=True)
 
 
 @router.get("/{kund_id}", response_model=KundOut)

@@ -23,6 +23,14 @@ export function getKund(id: number): Promise<Kund> {
   return api.get<Kund>(`/kunder/${id}`)
 }
 
+export function createKund(body: {
+  name: string
+  slug: string
+  available_modules?: string[]
+}): Promise<Kund> {
+  return api.post<Kund>("/kunder", body)
+}
+
 export function updateKundModules(id: number, available_modules: string[]): Promise<Kund> {
   return api.patch<Kund>(`/kunder/${id}`, { available_modules })
 }

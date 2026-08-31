@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react"
-import { api } from "@/lib/api"
+import { api, ApiError } from "@/lib/api"
 import {
   authAdapter,
   canAccessConfiguration,
@@ -25,6 +25,8 @@ type MeResponse = {
   available_modules: string[]
 }
 
+type ProfileError = "not_provisioned" | "invalid_token" | "unknown"
+
 type AuthContextValue = {
   session: AuthSession | null
   user: AuthUser | null
@@ -34,11 +36,21 @@ type AuthContextValue = {
   isBolag: boolean
   resolvedModules: string[]
   hasModule: (moduleId: string) => boolean
+  /** Set when Supabase session exists but GET /me fails. */
+  profileError: ProfileError | null
   requestMagicLink: (email: string) => Promise<void>
   signOut: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
+
+function profileErrorFromUnknown(err: unknown): ProfileError {
+  if (err instanceof ApiError) {
+    if (err.status === 403) return "not_provisioned"
+    if (err.status === 401) return "invalid_token"
+  }
+  return "unknown"
+}
 
 async function hydrateFromMe(base: AuthSession): Promise<AuthSession> {
   const me = await api.get<MeResponse>("/me")
@@ -59,16 +71,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AuthSession | null>(null)
   const [resolvedModules, setResolvedModules] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
+  const [profileError, setProfileError] = useState<ProfileError | null>(null)
 
   const applySession = useCallback(async (next: AuthSession | null) => {
     if (!next) {
       setResolvedModules([])
       setSession(null)
+      setProfileError(null)
       return
     }
-    const hydrated = await hydrateFromMe(next)
-    setResolvedModules(hydrated.user.modules)
-    setSession(hydrated)
+    try {
+      const hydrated = await hydrateFromMe(next)
+      setProfileError(null)
+      setResolvedModules(hydrated.user.modules)
+      setSession(hydrated)
+    } catch (err) {
+      setResolvedModules([])
+      setSession(null)
+      setProfileError(profileErrorFromUnknown(err))
+      throw err
+    }
   }, [])
 
   useEffect(() => {
@@ -93,8 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           await applySession(next)
         } catch {
-          setResolvedModules([])
-          setSession(null)
+          // profileError already set in applySession
         } finally {
           setLoading(false)
         }
@@ -115,6 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await authAdapter.signOut()
     setResolvedModules([])
     setSession(null)
+    setProfileError(null)
   }, [])
 
   const value = useMemo<AuthContextValue>(() => {
@@ -129,10 +151,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isBolag: role === "bolag",
       resolvedModules,
       hasModule: (moduleId: string) => resolvedModules.includes(moduleId),
+      profileError,
       requestMagicLink,
       signOut,
     }
-  }, [loading, resolvedModules, session, requestMagicLink, signOut])
+  }, [loading, profileError, resolvedModules, session, requestMagicLink, signOut])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
