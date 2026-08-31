@@ -74,6 +74,7 @@ Tidigare rapporter från kampanjen finns kvar under **Rapporter**.
 
 ## Relaterade guider
 
+- [Hantera kampanjer](hantera-kampanjer.md)
 - [Komponera en expertpanel](komponera-expertpanel.md)
 - [Följa bakgrundsjobb](folja-bakgrundsjobb.md)
 - [Hantera rapporter](hantera-rapporter.md)
