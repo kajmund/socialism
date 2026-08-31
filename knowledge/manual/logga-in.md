@@ -25,7 +25,7 @@ Opinionssimulator kräver inloggning. Det finns ingen registrering — du använ
 | --------- | -------- | ---- |
 | `admin` | `admin` | Administratör — ser allt, inklusive **Verktyg** (konfigurationer, kunder, panelkatalog, playground och cache) |
 | `user` | `user` | Användare — samma dagliga ytor som politikmodulen men utan **Verktyg** och konfiguration |
-| `bolag` | `bolag` | Bolag — due diligence-ytan. Får även politikytan om administratören kryssat i den för kunden |
+| `bolag` | `bolag` | Bolag — due diligence-ytan (Experter, Expertpaneler, Kampanjer, Rapporter). Får även politikytan om administratören kryssat i den för kunden |
 
 Modulerna per kund ställs in under **Verktyg** → **Kunder**. En ny inloggning (eller omladdning) tar upp den aktuella uppsättningen.
 
@@ -33,7 +33,7 @@ Modulerna per kund ställs in under **Verktyg** → **Kunder**. En ny inloggning
 
 - **Administratör** kan öppna **Verktyg** och ändra konfigurationer, kundmoduler, SSR-ankare, playground och embedding-cache.
 - **Användare** ser inte **Verktyg** i menyn. En länk till konfiguration leder tillbaka till startsidan.
-- **Bolag** arbetar i due diligence-ytan. Roll styr inte längre ensam vilken yta du får in — det gör kundens tilldelade moduler.
+- **Bolag** arbetar i due diligence-ytan. Roll styr inte längre ensam vilken yta du får in — det gör kundens tilldelade moduler. Se [Använda due diligence-ytan](anvanda-due-diligence-ytan.md).
 
 ## Logga ut
 
@@ -43,5 +43,6 @@ Klicka **Logga ut** uppe till höger i menyn (på liten skärm: öppna menyknapp
 
 - [Översikt av ytorna](oversikt.md)
 - [Hantera kundmoduler](hantera-kundmoduler.md)
+- [Använda due diligence-ytan](anvanda-due-diligence-ytan.md)
 - [Byta gränssnittsspråk](byta-granssnittssprak.md)
 - [Hantera konfigurationer](hantera-konfigurationer.md)
