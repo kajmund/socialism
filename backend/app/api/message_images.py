@@ -4,10 +4,13 @@ from __future__ import annotations
 
 from typing import Literal
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
+from app.auth.dependencies import get_current_user, require_admin
+from app.config import settings
+from app.database.models import UserAccount
 from app.services.image_cache import (
     clear_image_cache,
     compose_feed_body,
@@ -80,6 +83,7 @@ async def upload_image(
     locale: Locale = Form(default="sv"),
     vision_provider: str | None = Form(default=None),
     vision_model: str | None = Form(default=None),
+    _user: UserAccount = Depends(get_current_user),
 ) -> ImageUploadOut:
     # Cap read before buffering — validate_image runs after read; unbounded read()
     # would allow multi‑GB uploads to exhaust worker memory.
@@ -103,9 +107,9 @@ async def upload_image(
 
 
 @router.get("/cache", response_model=ImageCacheListOut)
-async def get_image_cache() -> ImageCacheListOut:
-    from app.config import settings
-
+async def get_image_cache(
+    _admin: UserAccount = Depends(require_admin),
+) -> ImageCacheListOut:
     entries = [_serialize(row) for row in list_entries()]
     return ImageCacheListOut(
         cache_dir=settings.image_cache_dir,
@@ -115,7 +119,10 @@ async def get_image_cache() -> ImageCacheListOut:
 
 
 @router.get("/cache/{sha256}", response_model=ImageCacheEntryOut)
-async def get_image_cache_entry(sha256: str) -> ImageCacheEntryOut:
+async def get_image_cache_entry(
+    sha256: str,
+    _admin: UserAccount = Depends(require_admin),
+) -> ImageCacheEntryOut:
     entry = get_entry(sha256)
     if entry is None:
         raise HTTPException(status_code=404, detail="Image cache entry not found")
@@ -123,7 +130,11 @@ async def get_image_cache_entry(sha256: str) -> ImageCacheEntryOut:
 
 
 @router.patch("/cache/{sha256}", response_model=ImageCacheEntryOut)
-async def patch_image_caption(sha256: str, body: CaptionUpdate) -> ImageCacheEntryOut:
+async def patch_image_caption(
+    sha256: str,
+    body: CaptionUpdate,
+    _admin: UserAccount = Depends(require_admin),
+) -> ImageCacheEntryOut:
     try:
         entry = update_caption(sha256, body.caption)
     except ValueError as exc:
@@ -132,17 +143,25 @@ async def patch_image_caption(sha256: str, body: CaptionUpdate) -> ImageCacheEnt
 
 
 @router.delete("/cache/{sha256}", response_model=CacheDeleteOut)
-async def delete_image_cache_entry(sha256: str) -> CacheDeleteOut:
+async def delete_image_cache_entry(
+    sha256: str,
+    _admin: UserAccount = Depends(require_admin),
+) -> CacheDeleteOut:
     return CacheDeleteOut(deleted=delete_entry(sha256))
 
 
 @router.delete("/cache", response_model=CacheClearOut)
-async def delete_all_image_cache() -> CacheClearOut:
+async def delete_all_image_cache(
+    _admin: UserAccount = Depends(require_admin),
+) -> CacheClearOut:
     return CacheClearOut(cleared=clear_image_cache())
 
 
 @router.get("/cache/{sha256}/file")
-async def get_cached_image_file(sha256: str) -> FileResponse:
+async def get_cached_image_file(
+    sha256: str,
+    _user: UserAccount = Depends(get_current_user),
+) -> FileResponse:
     entry = get_entry(sha256)
     if entry is None:
         raise HTTPException(status_code=404, detail="Image cache entry not found")

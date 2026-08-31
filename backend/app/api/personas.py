@@ -6,8 +6,10 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.auth.dependencies import get_current_user
+from app.auth.scope import assert_kund_access, effective_customer_id, require_user_kund_id
 from app.config import settings
-from app.database.models import Persona, PersonaMessage, Population, PopulationMember
+from app.database.models import Persona, PersonaMessage, Population, PopulationMember, UserAccount
 from app.database.session import get_session
 from app.llm.chat import reply_as_persona
 from app.llm.persona_gen import llm_personas_from_description
@@ -150,7 +152,9 @@ async def list_personas(
     customer_id: int | None = Query(default=None),
     kind: str | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> list[LibraryPersona]:
+    customer_id = effective_customer_id(user, customer_id)
     if kind == "expert":
         created = await ensure_default_expert_personas(session, customer_id=customer_id)
         if created:
@@ -186,6 +190,7 @@ async def list_personas(
 async def generate_personas(
     body: PersonaGenerateRequest,
     session: AsyncSession = Depends(get_session),
+    _user: UserAccount = Depends(get_current_user),
 ) -> PersonaGenerateResponse:
     if settings.persona_generator == "stub":
         return PersonaGenerateResponse(candidates=_stub_candidates(body))
@@ -208,8 +213,10 @@ async def generate_personas(
 async def get_persona(
     persona_id: str,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> PersonaDetail:
     persona = await _get_persona(session, persona_id)
+    assert_kund_access(user, persona.customer_id)
     pops = await _population_names_for_persona(session, persona.id)
     return serialize_persona_detail(persona, pops)
 
@@ -218,6 +225,7 @@ async def get_persona(
 async def create_persona(
     body: PersonaCreate,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> PersonaDetail:
     persona_id = body.id or slug_id(body.name)
     existing = await session.get(Persona, persona_id)
@@ -256,6 +264,9 @@ async def create_persona(
         occ = body.occ
         quote = body.quote
 
+    if user.role != "admin":
+        customer_id = require_user_kund_id(user)
+
     persona = Persona(
         id=persona_id,
         customer_id=customer_id,
@@ -281,8 +292,10 @@ async def update_persona(
     persona_id: str,
     body: PersonaUpdate,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> PersonaDetail:
     persona = await _get_persona(session, persona_id)
+    assert_kund_access(user, persona.customer_id)
     data = body.model_dump(exclude_unset=True)
     profile = data.pop("profile", None)
     tools_set = "tools" in data
@@ -304,8 +317,10 @@ async def update_persona(
 async def duplicate_persona(
     persona_id: str,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> PersonaDetail:
     source = await _get_persona(session, persona_id)
+    assert_kund_access(user, source.customer_id)
     new_id = slug_id(source.name)
     while await session.get(Persona, new_id) is not None:
         new_id = slug_id(source.name)
@@ -346,8 +361,10 @@ async def get_suggested_questions(
     persona_id: str,
     mode: ChatMode = Query(default="interview"),
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> SuggestedQuestionsResponse:
-    await _get_persona(session, persona_id)
+    persona = await _get_persona(session, persona_id)
+    assert_kund_access(user, persona.customer_id)
     try:
         questions = await library_follow_up_questions(
             session,
@@ -364,8 +381,10 @@ async def list_messages(
     persona_id: str,
     mode: ChatMode = Query(default="interview"),
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> list[PersonaMessageOut]:
-    await _get_persona(session, persona_id)
+    persona = await _get_persona(session, persona_id)
+    assert_kund_access(user, persona.customer_id)
     result = await session.execute(
         select(PersonaMessage)
         .where(*_library_chat_filter(persona_id, mode))
@@ -379,8 +398,10 @@ async def chat_with_persona(
     persona_id: str,
     body: PersonaChatRequest,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> PersonaChatResponse:
     persona = await _get_persona(session, persona_id)
+    assert_kund_access(user, persona.customer_id)
     profile = profile_from_dict(persona.profile, persona.name)
 
     history_rows = await session.execute(
@@ -441,8 +462,10 @@ async def clear_messages(
     persona_id: str,
     mode: ChatMode = Query(default="interview"),
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> None:
-    await _get_persona(session, persona_id)
+    persona = await _get_persona(session, persona_id)
+    assert_kund_access(user, persona.customer_id)
     result = await session.execute(
         select(PersonaMessage).where(*_library_chat_filter(persona_id, mode))
     )
@@ -459,8 +482,10 @@ async def delete_message(
     persona_id: str,
     message_id: int,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> PersonaMessageDeleteResponse:
-    await _get_persona(session, persona_id)
+    persona = await _get_persona(session, persona_id)
+    assert_kund_access(user, persona.customer_id)
     result = await session.execute(
         select(PersonaMessage)
         .where(
@@ -501,8 +526,10 @@ async def resend_message(
     persona_id: str,
     message_id: int,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> PersonaChatResponse:
     persona = await _get_persona(session, persona_id)
+    assert_kund_access(user, persona.customer_id)
     profile = profile_from_dict(persona.profile, persona.name)
 
     result = await session.execute(
@@ -612,8 +639,10 @@ async def resend_message(
 async def delete_persona(
     persona_id: str,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> None:
     persona = await _get_persona(session, persona_id)
+    assert_kund_access(user, persona.customer_id)
     result = await session.execute(
         select(PopulationMember)
         .options(selectinload(PopulationMember.population))

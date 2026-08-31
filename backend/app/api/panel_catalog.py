@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.dependencies import require_admin
 from app.database.models import PanelExpertProfile, PanelSubQuestion
 from app.database.session import get_session
 from app.modules.registry import MODULE_REGISTRY
@@ -35,7 +36,11 @@ from app.services.panel.sub_questions_store import (
     update_sub_question,
 )
 
-router = APIRouter(prefix="/panel", tags=["panel-catalog"])
+router = APIRouter(
+    prefix="/panel",
+    tags=["panel-catalog"],
+    dependencies=[Depends(require_admin)],
+)
 
 _SORT_ORDER_CONFLICT = "Sort order already used for this module"
 _SUB_QUESTION_KEY_CONFLICT = "Sub-question key already exists for this module"

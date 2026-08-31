@@ -9,11 +9,14 @@ from sqlalchemy.pool import StaticPool
 
 from app.config import settings
 from app.database.base import Base
-from app.database.models import Persona, Population, PopulationMember, Run
+from app.database.models import Persona, Population, PopulationMember, Run, UserAccount
 from app.database.session import get_session
 from app.llm import set_text_completer
 from app.main import create_app
 from app.serializers import utcnow
+from app.services import jobs as jobs_service
+from app.services.kund_store import ensure_default_kunder
+from tests.conftest import ADMIN_USER_ID, TEST_JWT_SECRET, mint_access_token
 
 
 def _variant_payload(persona_id: str) -> dict:
@@ -73,6 +76,7 @@ def _variant_payload(persona_id: str) -> dict:
 async def interview_client():
     settings.persona_generator = "stub"
     settings.deepseek_api_key = "test-key-not-real"
+    settings.supabase_jwt_secret = TEST_JWT_SECRET
     settings.simulation_engine = "none"
 
     async def _mock_text(messages: list[dict[str, str]]) -> str:
@@ -100,7 +104,17 @@ async def interview_client():
     from app.services.prompt_store import ensure_default_configurations
 
     async with session_factory() as seed_session:
+        await ensure_default_kunder(seed_session)
         await ensure_default_configurations(seed_session)
+        seed_session.add(
+            UserAccount(
+                id=ADMIN_USER_ID,
+                email="admin@test.local",
+                role="admin",
+                kund_id=None,
+            )
+        )
+        await seed_session.commit()
 
     async with session_factory() as session:
         persona = Persona(
@@ -166,6 +180,7 @@ async def interview_client():
         run_id = run.id
         persona_id = persona.id
 
+    jobs_service.set_job_session_factory(session_factory)
     app = create_app()
 
     async def override_get_session():
@@ -174,9 +189,15 @@ async def interview_client():
 
     app.dependency_overrides[get_session] = override_get_session
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    token = mint_access_token(sub=ADMIN_USER_ID, email="admin@test.local")
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers={"Authorization": f"Bearer {token}"},
+    ) as ac:
         yield ac, run_id, persona_id
 
+    jobs_service.set_job_session_factory(None)
     set_text_completer(None)
     await engine.dispose()
 

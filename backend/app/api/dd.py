@@ -1,14 +1,13 @@
-"""DD module API — campaigns, company-search chat, and mock search.
-
-List endpoints accept optional scope query params (customer_id) declared by the
-client — not enforced server-side identity until the Auth card lands.
-"""
+"""DD module API — campaigns, company-search chat, and mock search."""
 
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.dependencies import get_current_user
+from app.auth.scope import assert_kund_access, effective_customer_id, require_user_kund_id
+from app.database.models import DdCampaign, UserAccount
 from app.database.session import get_session
 from app.services.dd.campaigns import (
     apply_sourcing_run,
@@ -75,12 +74,26 @@ def _people_research_blocked(dossier: DdResearchDossier, person_names: list[str]
     return all(_person_investigated(person) for person in targets)
 
 
+async def _require_campaign(
+    session: AsyncSession,
+    campaign_id: int,
+    user: UserAccount,
+) -> DdCampaign:
+    row = await get_campaign(session, campaign_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    assert_kund_access(user, row.customer_id)
+    return row
+
+
 @router.get("/campaigns", response_model=list[DdCampaignOut])
 async def get_campaigns(
     module: str | None = Query(default=None),
     customer_id: int | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> list[DdCampaignOut]:
+    customer_id = effective_customer_id(user, customer_id)
     return await list_campaigns(session, module=module, customer_id=customer_id)
 
 
@@ -88,6 +101,7 @@ async def get_campaigns(
 async def post_campaign(
     body: DdCampaignCreate,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> DdCampaignOut:
     # registry.py imports this router; import here to avoid a cycle.
     from app.modules.registry import module_has_component
@@ -97,7 +111,9 @@ async def post_campaign(
             status_code=400,
             detail=f"Module {body.module!r} does not support campaigns",
         )
-    out = await create_campaign(session, body)
+    # DdCampaignCreate has no customer_id; non-admin must own the created row.
+    customer_id = require_user_kund_id(user) if user.role != "admin" else None
+    out = await create_campaign(session, body, customer_id=customer_id)
     await session.commit()
     return out
 
@@ -106,10 +122,9 @@ async def post_campaign(
 async def get_campaign_by_id(
     campaign_id: int,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> DdCampaignOut:
-    row = await get_campaign(session, campaign_id)
-    if row is None:
-        raise HTTPException(status_code=404, detail="Campaign not found")
+    row = await _require_campaign(session, campaign_id, user)
     return await serialize_campaign_detail(session, row)
 
 
@@ -118,10 +133,9 @@ async def patch_campaign(
     campaign_id: int,
     body: DdCampaignUpdate,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> DdCampaignOut:
-    row = await get_campaign(session, campaign_id)
-    if row is None:
-        raise HTTPException(status_code=404, detail="Campaign not found")
+    row = await _require_campaign(session, campaign_id, user)
     try:
         out = await update_campaign(session, row, body)
     except ValueError as exc:
@@ -134,10 +148,9 @@ async def patch_campaign(
 async def delete_campaign_by_id(
     campaign_id: int,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> None:
-    row = await get_campaign(session, campaign_id)
-    if row is None:
-        raise HTTPException(status_code=404, detail="Campaign not found")
+    row = await _require_campaign(session, campaign_id, user)
     await delete_campaign(session, row)
     await session.commit()
 
@@ -147,10 +160,9 @@ async def delete_campaign_run(
     campaign_id: int,
     candidate_id: str,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> None:
-    row = await get_campaign(session, campaign_id)
-    if row is None:
-        raise HTTPException(status_code=404, detail="Campaign not found")
+    row = await _require_campaign(session, campaign_id, user)
     removed_run = await delete_candidate_run(
         session,
         campaign_id=campaign_id,
@@ -163,7 +175,10 @@ async def delete_campaign_run(
 
 
 @router.post("/sourcing/search", response_model=DdSourcingSearchResponse)
-async def post_sourcing_search(body: DdSourcingSearchRequest) -> DdSourcingSearchResponse:
+async def post_sourcing_search(
+    body: DdSourcingSearchRequest,
+    _user: UserAccount = Depends(get_current_user),
+) -> DdSourcingSearchResponse:
     candidates = run_sourcing(body.criteria)
     return DdSourcingSearchResponse(candidates=candidates)
 
@@ -173,10 +188,9 @@ async def post_campaign_sourcing_chat(
     campaign_id: int,
     body: DdSourcingChatRequest,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> DdSourcingChatResponse:
-    row = await get_campaign(session, campaign_id)
-    if row is None:
-        raise HTTPException(status_code=404, detail="Campaign not found")
+    await _require_campaign(session, campaign_id, user)
     try:
         reply, candidates = await run_sourcing_chat_turn(
             session,
@@ -192,10 +206,9 @@ async def post_campaign_sourcing_chat(
 async def post_campaign_sourcing_run(
     campaign_id: int,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> DdCampaignOut:
-    row = await get_campaign(session, campaign_id)
-    if row is None:
-        raise HTTPException(status_code=404, detail="Campaign not found")
+    row = await _require_campaign(session, campaign_id, user)
     criteria = DdSourcingCriteria.model_validate(row.criteria or {})
     candidates = await apply_sourcing_run(session, row, criteria)
     out = await update_campaign(
@@ -220,10 +233,9 @@ async def post_candidate_research(
     candidate_id: str,
     body: DdResearchStartRequest,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> JobOut:
-    row = await get_campaign(session, campaign_id)
-    if row is None:
-        raise HTTPException(status_code=404, detail="Campaign not found")
+    row = await _require_campaign(session, campaign_id, user)
     candidates = row.candidates if isinstance(row.candidates, list) else []
     match = next(
         (item for item in candidates if isinstance(item, dict) and item.get("id") == candidate_id),
@@ -291,10 +303,9 @@ async def delete_candidate_research(
     campaign_id: int,
     candidate_id: str,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> None:
-    row = await get_campaign(session, campaign_id)
-    if row is None:
-        raise HTTPException(status_code=404, detail="Campaign not found")
+    row = await _require_campaign(session, campaign_id, user)
     candidates = row.candidates if isinstance(row.candidates, list) else []
     match = next(
         (item for item in candidates if isinstance(item, dict) and item.get("id") == candidate_id),
@@ -322,9 +333,11 @@ async def post_dd_panel_session(
     campaign_id: int,
     body: DdPanelSessionCreateRequest,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> PanelSessionOut:
     if body.campaign_id != campaign_id:
         raise HTTPException(status_code=400, detail="campaign_id mismatch")
+    await _require_campaign(session, campaign_id, user)
     try:
         create_body, _candidate = await create_dd_panel_session_from_campaign(session, body)
     except LookupError as exc:

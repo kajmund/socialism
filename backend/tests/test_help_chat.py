@@ -13,9 +13,13 @@ from starlette.testclient import TestClient
 
 os.environ.setdefault("DEEPSEEK_API_KEY", "test-key-not-real")
 os.environ.setdefault("OPENAI_API_KEY", "test-openai-key-not-real")
+os.environ.setdefault("SUPABASE_URL", "https://test.supabase.co")
+os.environ.setdefault("SUPABASE_JWT_SECRET", "test-supabase-jwt-secret-not-real")
+os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "test-supabase-service-role-not-real")
 
 from app.config import settings
 from app.database.base import Base
+from app.database.models import UserAccount
 from app.database.session import get_session
 from app.llm import set_text_completer, set_text_streamer, set_tools_completer
 from app.main import create_app
@@ -28,6 +32,7 @@ from app.services.help_chat import (
 )
 from app.services.okf_corpus import search_manual
 from app.services.prompt_store import ensure_default_configurations
+from tests.conftest import ADMIN_USER_ID, TEST_JWT_SECRET, mint_access_token
 
 
 def test_looks_like_leaked_tool_markup_detects_dsml_and_invoke():
@@ -43,6 +48,7 @@ def test_looks_like_leaked_tool_markup_detects_dsml_and_invoke():
 @pytest.fixture
 def help_client():
     settings.deepseek_api_key = "test-key-not-real"
+    settings.supabase_jwt_secret = TEST_JWT_SECRET
 
     async def _mock_text(_messages: list[dict[str, str]]) -> str:
         return "Mockat hjälpssvar."
@@ -79,6 +85,15 @@ def help_client():
             await conn.run_sync(Base.metadata.create_all)
         async with session_factory() as seed_session:
             await ensure_default_configurations(seed_session)
+            seed_session.add(
+                UserAccount(
+                    id=ADMIN_USER_ID,
+                    email="admin@test.local",
+                    role="admin",
+                    kund_id=None,
+                )
+            )
+            await seed_session.commit()
 
     loop.run_until_complete(_prepare())
 
@@ -91,7 +106,9 @@ def help_client():
 
     app.dependency_overrides[get_session] = override_get_session
 
+    admin_token = mint_access_token(sub=ADMIN_USER_ID, email="admin@test.local")
     with TestClient(app) as client:
+        client.headers["Authorization"] = f"Bearer {admin_token}"
         yield client, loop, session_factory, tools_calls
 
     jobs_service.set_job_session_factory(None)
@@ -119,7 +136,8 @@ def test_help_chat_websocket_streams(help_client):
         "search": {},
     }
 
-    with client.websocket_connect("/ws/chat") as ws:
+    token = mint_access_token(sub=ADMIN_USER_ID, email="admin@test.local")
+    with client.websocket_connect(f"/ws/chat?access_token={token}") as ws:
         ws.send_json(
             {
                 "type": "hello",

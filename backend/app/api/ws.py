@@ -5,12 +5,24 @@ from __future__ import annotations
 import logging
 from typing import Literal
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.database.models import PanelSession, Population, PopulationMember, Run
+from app.auth.scope import assert_kund_access, effective_customer_id
+from app.auth.tokens import user_from_bearer_token
+from app.database.models import (
+    PanelSession,
+    Persona,
+    Population,
+    PopulationMember,
+    Projekt,
+    Report,
+    Run,
+    UserAccount,
+)
 from app.realtime.hub import job_hub, report_hub
 from app.realtime.interview_broadcast import interview_broadcast, interview_key_tuple
 from app.realtime.panel_broadcast import panel_broadcast
@@ -24,6 +36,7 @@ from app.schemas.domain import (
     SpindoctorWidgetOut,
 )
 from app.services import jobs as jobs_service
+from app.services.customer_scope import customer_id_for_panel_session
 from app.services.help_chat import ChatTurnError as HelpChatTurnError
 from app.services.help_chat import stream_help_chat_turn
 from app.services.persona_chat import (
@@ -117,9 +130,56 @@ async def _send_error(websocket: WebSocket, detail: str) -> None:
         pass
 
 
+async def _close_auth_error(websocket: WebSocket, exc: HTTPException) -> None:
+    code = 4401 if exc.status_code == 401 else 4403
+    try:
+        await websocket.close(code=code)
+    except Exception:
+        pass
+
+
+async def _authenticate_websocket(websocket: WebSocket) -> UserAccount | None:
+    """Verify access_token query param before any hub subscribe. Returns None if closed."""
+    access_token = websocket.query_params.get("access_token")
+    factory = jobs_service.job_session_factory()
+    try:
+        async with factory() as session:
+            return await user_from_bearer_token(session, access_token)
+    except HTTPException as exc:
+        await _close_auth_error(websocket, exc)
+        return None
+
+
+async def _assert_run_ws_access(
+    session: AsyncSession,
+    user: UserAccount,
+    run: Run,
+) -> None:
+    projekt = await session.get(Projekt, run.project_id)
+    assert_kund_access(user, None if projekt is None else projekt.customer_id)
+
+
+async def _assert_panel_ws_access(
+    session: AsyncSession,
+    user: UserAccount,
+    *,
+    session_id: str,
+    campaign_id: int | None,
+) -> None:
+    if campaign_id is not None:
+        customer_id = await customer_id_for_panel_session(session, session_id)
+        assert_kund_access(user, customer_id)
+        return
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="admin_required")
+
+
 @router.websocket("/ws/jobs")
 async def jobs_websocket(websocket: WebSocket) -> None:
     await websocket.accept()
+    user = await _authenticate_websocket(websocket)
+    if user is None:
+        return
     try:
         raw = await websocket.receive_json()
         if not isinstance(raw, dict):
@@ -133,12 +193,18 @@ async def jobs_websocket(websocket: WebSocket) -> None:
             await websocket.close(code=1003)
             return
 
-        await job_hub.subscribe(websocket, customer_id=hello.customer_id)
+        try:
+            customer_id = effective_customer_id(user, hello.customer_id)
+        except HTTPException as exc:
+            await _close_auth_error(websocket, exc)
+            return
+
+        await job_hub.subscribe(websocket, customer_id=customer_id)
 
         factory = jobs_service.job_session_factory()
         async with factory() as session:
             rows = await jobs_service.list_jobs(
-                session, limit=50, customer_id=hello.customer_id
+                session, limit=50, customer_id=customer_id
             )
             await websocket.send_json(
                 {
@@ -168,6 +234,9 @@ async def jobs_websocket(websocket: WebSocket) -> None:
 @router.websocket("/ws/reports")
 async def reports_websocket(websocket: WebSocket) -> None:
     await websocket.accept()
+    user = await _authenticate_websocket(websocket)
+    if user is None:
+        return
     try:
         raw = await websocket.receive_json()
         if not isinstance(raw, dict):
@@ -181,12 +250,18 @@ async def reports_websocket(websocket: WebSocket) -> None:
             await websocket.close(code=1003)
             return
 
-        await report_hub.subscribe(websocket, customer_id=hello.customer_id)
+        try:
+            customer_id = effective_customer_id(user, hello.customer_id)
+        except HTTPException as exc:
+            await _close_auth_error(websocket, exc)
+            return
+
+        await report_hub.subscribe(websocket, customer_id=customer_id)
 
         factory = jobs_service.job_session_factory()
         async with factory() as session:
             rows = await list_reports(
-                session, limit=50, customer_id=hello.customer_id
+                session, limit=50, customer_id=customer_id
             )
             await websocket.send_json(
                 {
@@ -214,6 +289,9 @@ async def reports_websocket(websocket: WebSocket) -> None:
 @router.websocket("/ws/runs")
 async def runs_websocket(websocket: WebSocket) -> None:
     await websocket.accept()
+    user = await _authenticate_websocket(websocket)
+    if user is None:
+        return
     hello: RunWatchHello | None = None
     try:
         raw = await websocket.receive_json()
@@ -227,9 +305,6 @@ async def runs_websocket(websocket: WebSocket) -> None:
             await _send_error(websocket, str(exc.errors()[0]["msg"]))
             await websocket.close(code=1003)
             return
-
-        key = (hello.run_id, hello.variant_id)
-        await run_broadcast.subscribe(key, websocket)
 
         factory = jobs_service.job_session_factory()
         async with factory() as session:
@@ -245,6 +320,11 @@ async def runs_websocket(websocket: WebSocket) -> None:
                 await _send_error(websocket, f"Run {hello.run_id} not found")
                 await websocket.close(code=1003)
                 return
+            try:
+                await _assert_run_ws_access(session, user, run)
+            except HTTPException as exc:
+                await _close_auth_error(websocket, exc)
+                return
             members: list[PopulationMember] = (
                 list(run.population.members) if run.population is not None else []
             )
@@ -254,6 +334,8 @@ async def runs_websocket(websocket: WebSocket) -> None:
                 members=members,
             )
 
+        key = (hello.run_id, hello.variant_id)
+        await run_broadcast.subscribe(key, websocket)
         await websocket.send_json(replay)
 
         while True:
@@ -274,6 +356,9 @@ async def runs_websocket(websocket: WebSocket) -> None:
 @router.websocket("/ws/panels")
 async def panels_websocket(websocket: WebSocket) -> None:
     await websocket.accept()
+    user = await _authenticate_websocket(websocket)
+    if user is None:
+        return
     hello: PanelWatchHello | None = None
     try:
         raw = await websocket.receive_json()
@@ -288,8 +373,6 @@ async def panels_websocket(websocket: WebSocket) -> None:
             await websocket.close(code=1003)
             return
 
-        await panel_broadcast.subscribe(hello.session_id, websocket)
-
         factory = jobs_service.job_session_factory()
         async with factory() as session:
             panel = await session.get(PanelSession, hello.session_id)
@@ -297,8 +380,19 @@ async def panels_websocket(websocket: WebSocket) -> None:
                 await _send_error(websocket, f"Panel session {hello.session_id} not found")
                 await websocket.close(code=1003)
                 return
+            try:
+                await _assert_panel_ws_access(
+                    session,
+                    user,
+                    session_id=hello.session_id,
+                    campaign_id=panel.campaign_id,
+                )
+            except HTTPException as exc:
+                await _close_auth_error(websocket, exc)
+                return
             replay = build_panel_replay_payload(panel)
 
+        await panel_broadcast.subscribe(hello.session_id, websocket)
         await websocket.send_json(replay)
 
         while True:
@@ -319,6 +413,9 @@ async def panels_websocket(websocket: WebSocket) -> None:
 @router.websocket("/ws/chat")
 async def chat_websocket(websocket: WebSocket) -> None:
     await websocket.accept()
+    user = await _authenticate_websocket(websocket)
+    if user is None:
+        return
     hello: LibraryHello | RunInterviewHello | HelpHello | SpindoctorHello | None = None
     try:
         raw = await websocket.receive_json()
@@ -347,6 +444,35 @@ async def chat_websocket(websocket: WebSocket) -> None:
             await _send_error(websocket, str(exc.errors()[0]["msg"]))
             await websocket.close(code=1003)
             return
+
+        factory = jobs_service.job_session_factory()
+        async with factory() as session:
+            try:
+                if isinstance(hello, LibraryHello):
+                    persona = await session.get(Persona, hello.persona_id)
+                    if persona is None:
+                        await _send_error(websocket, "Persona not found")
+                        await websocket.close(code=1003)
+                        return
+                    assert_kund_access(user, persona.customer_id)
+                elif isinstance(hello, RunInterviewHello):
+                    run = await session.get(Run, hello.run_id)
+                    if run is None:
+                        await _send_error(websocket, f"Run {hello.run_id} not found")
+                        await websocket.close(code=1003)
+                        return
+                    await _assert_run_ws_access(session, user, run)
+                elif isinstance(hello, SpindoctorHello):
+                    report = await session.get(Report, hello.report_id)
+                    if report is None:
+                        await _send_error(websocket, "Report not found")
+                        await websocket.close(code=1003)
+                        return
+                    assert_kund_access(user, report.customer_id)
+                # HelpHello: authenticated user is enough
+            except HTTPException as exc:
+                await _close_auth_error(websocket, exc)
+                return
 
         await websocket.send_json({"type": "ready", "scope": hello.scope})
 

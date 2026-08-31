@@ -6,7 +6,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import Message
+from app.api.message_images import router as message_images_router
+from app.api.message_images import message_image_sha256
+from app.auth.dependencies import get_current_user
+from app.auth.scope import assert_kund_access, require_user_kund_id
+from app.database.models import Message, Projekt, UserAccount
 from app.database.session import get_session
 from app.llm.message_gen import (
     generate_message_variants,
@@ -27,10 +31,8 @@ from app.schemas.domain import (
     new_message_id,
 )
 from app.serializers import utcnow
-from app.api.message_images import router as message_images_router
-from app.api.message_images import message_image_sha256
 from app.services.image_cache import get_entry
-from app.services.kund_store import default_os_project_id
+from app.services.kund_store import DEFAULT_PROJEKT_SLUG, default_os_project_id
 from app.services.prompt_store import require_active_prompts
 
 router = APIRouter(prefix="/messages", tags=["messages"])
@@ -66,14 +68,45 @@ async def _get_message(session: AsyncSession, message_id: str) -> Message:
     return row
 
 
+async def _assert_message_access(
+    session: AsyncSession,
+    user: UserAccount,
+    message: Message,
+) -> None:
+    projekt = await session.get(Projekt, message.project_id)
+    assert_kund_access(user, None if projekt is None else projekt.customer_id)
+
+
+async def _project_id_for_create(session: AsyncSession, user: UserAccount) -> int:
+    if user.role == "admin":
+        return await default_os_project_id(session)
+    kund_id = require_user_kund_id(user)
+    result = await session.execute(
+        select(Projekt).where(
+            Projekt.customer_id == kund_id,
+            Projekt.slug == DEFAULT_PROJEKT_SLUG,
+        )
+    )
+    row = result.scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status_code=403, detail="kund_access_denied")
+    return int(row.id)
+
+
 @router.get("", response_model=list[MessageOut])
 async def list_messages(
     q: str | None = Query(default=None),
     type: MessageType | None = Query(default=None),
     project_id: int | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> list[MessageOut]:
     stmt = select(Message).order_by(Message.created_at.desc())
+    if user.role != "admin":
+        kund_id = require_user_kund_id(user)
+        stmt = stmt.join(Projekt, Message.project_id == Projekt.id).where(
+            Projekt.customer_id == kund_id
+        )
     if project_id is not None:
         stmt = stmt.where(Message.project_id == project_id)
     if type is not None:
@@ -89,6 +122,7 @@ async def list_messages(
 async def summarize_url(
     body: SummarizeUrlRequest,
     session: AsyncSession = Depends(get_session),
+    _user: UserAccount = Depends(get_current_user),
 ) -> SummarizeUrlResponse:
     url = normalize_url(body.url)
     prompts = await require_active_prompts(session)
@@ -107,6 +141,7 @@ async def summarize_url(
 async def generate_variants(
     body: GenerateVariantsRequest,
     session: AsyncSession = Depends(get_session),
+    _user: UserAccount = Depends(get_current_user),
 ) -> GenerateVariantsResponse:
     prompts = await require_active_prompts(session)
     try:
@@ -120,14 +155,18 @@ async def generate_variants(
 async def get_message(
     message_id: str,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> MessageOut:
-    return _serialize(await _get_message(session, message_id))
+    row = await _get_message(session, message_id)
+    await _assert_message_access(session, user, row)
+    return _serialize(row)
 
 
 @router.post("", response_model=MessageOut, status_code=201)
 async def create_message(
     body: MessageCreate,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> MessageOut:
     message_id = body.id or new_message_id()
     if await session.get(Message, message_id) is not None:
@@ -141,7 +180,7 @@ async def create_message(
         )
     row = Message(
         id=message_id,
-        project_id=await default_os_project_id(session),
+        project_id=await _project_id_for_create(session, user),
         type=body.type,
         title=body.title,
         body=body.body,
@@ -160,8 +199,10 @@ async def update_message(
     message_id: str,
     body: MessageUpdate,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> MessageOut:
     row = await _get_message(session, message_id)
+    await _assert_message_access(session, user, row)
     data = body.model_dump(exclude_unset=True)
     if "title" in data and data["title"] is not None:
         row.title = data["title"]
@@ -196,7 +237,9 @@ async def update_message(
 async def delete_message(
     message_id: str,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> None:
     row = await _get_message(session, message_id)
+    await _assert_message_access(session, user, row)
     await session.delete(row)
     await session.commit()

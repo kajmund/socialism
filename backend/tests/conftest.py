@@ -1,5 +1,6 @@
 import os
 import tempfile
+from datetime import UTC, datetime, timedelta
 
 # Required before importing app.config — Settings fails without keys.
 os.environ.setdefault("DEEPSEEK_API_KEY", "test-key-not-real")
@@ -9,6 +10,7 @@ os.environ.setdefault("SUPABASE_JWT_SECRET", "test-supabase-jwt-secret-not-real"
 os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "test-supabase-service-role-not-real")
 os.environ["LOG_DIR"] = ""
 
+import jwt
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -16,6 +18,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.config import settings
 from app.database.base import Base
+from app.database.models import UserAccount
 from app.database.session import get_session
 from app.llm import (
     set_structured_completer,
@@ -28,6 +31,7 @@ from app.main import create_app
 from app.schemas.domain import FollowUpQuestions
 from app.services import jobs as jobs_service
 from app.services.image_cache import clear_image_cache
+from app.services.kund_store import bolag_demo_customer_id, ensure_default_kunder
 from app.services.ssr import clear_embedding_cache, set_embedder
 
 # Isolate disk cache / rotating logs from developer machine data/.
@@ -43,6 +47,29 @@ settings.log_dir = ""
 TEST_CUSTOMER_ID = 1
 # Default projekt under Devbrains from ensure_default_kunder().
 TEST_PROJECT_ID = 1
+
+TEST_JWT_SECRET = "test-supabase-jwt-secret-not-real"
+ADMIN_USER_ID = "00000000-0000-4000-8000-aaaaaaaaaaaa"
+USER_USER_ID = "00000000-0000-4000-8000-bbbbbbbbbbbb"
+BOLAG_USER_ID = "00000000-0000-4000-8000-cccccccccccc"
+
+
+def mint_access_token(
+    *,
+    sub: str,
+    email: str = "test@example.com",
+    secret: str = TEST_JWT_SECRET,
+) -> str:
+    now = datetime.now(UTC)
+    payload = {
+        "sub": sub,
+        "email": email,
+        "aud": "authenticated",
+        "role": "authenticated",
+        "iat": int(now.timestamp()),
+        "exp": int((now + timedelta(hours=1)).timestamp()),
+    }
+    return jwt.encode(payload, secret, algorithm="HS256")
 
 
 @pytest.fixture(autouse=True)
@@ -65,6 +92,7 @@ async def client():
     settings.persona_generator = "stub"
     settings.deepseek_api_key = "test-key-not-real"
     settings.openai_api_key = "test-openai-key-not-real"
+    settings.supabase_jwt_secret = TEST_JWT_SECRET
     settings.simulation_engine = "none"
 
     async def _mock_text(_messages: list[dict[str, str]]) -> str:
@@ -104,12 +132,38 @@ async def client():
     from app.services.prompt_store import ensure_default_configurations
 
     async with session_factory() as seed_session:
+        await ensure_default_kunder(seed_session)
         await ensure_default_anchor_sets(seed_session)
         await ensure_vocabularies_seeded(seed_session)
         await ensure_default_configurations(seed_session)
         await backfill_configuration_anchor_sets(seed_session)
         await ensure_module_panel_defaults(seed_session)
         await ensure_default_expert_personas(seed_session)
+        bolag_id = await bolag_demo_customer_id(seed_session)
+        seed_session.add(
+            UserAccount(
+                id=ADMIN_USER_ID,
+                email="admin@test.local",
+                role="admin",
+                kund_id=None,
+            )
+        )
+        seed_session.add(
+            UserAccount(
+                id=USER_USER_ID,
+                email="user@test.local",
+                role="user",
+                kund_id=TEST_CUSTOMER_ID,
+            )
+        )
+        seed_session.add(
+            UserAccount(
+                id=BOLAG_USER_ID,
+                email="bolag@test.local",
+                role="bolag",
+                kund_id=bolag_id,
+            )
+        )
         await seed_session.commit()
 
     jobs_service.set_job_session_factory(session_factory)
@@ -125,8 +179,13 @@ async def client():
 
     app.dependency_overrides[get_session] = override_get_session
 
+    admin_token = mint_access_token(sub=ADMIN_USER_ID, email="admin@test.local")
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    ) as ac:
         yield ac
 
     jobs_service.set_job_session_factory(None)
@@ -140,3 +199,34 @@ async def client_db(client):
     factory = jobs_service.job_session_factory()
     assert factory is not None
     yield client, factory
+
+
+@pytest.fixture
+def admin_token() -> str:
+    return mint_access_token(sub=ADMIN_USER_ID, email="admin@test.local")
+
+
+@pytest.fixture
+def user_token() -> str:
+    return mint_access_token(sub=USER_USER_ID, email="user@test.local")
+
+
+@pytest.fixture
+def bolag_token() -> str:
+    return mint_access_token(sub=BOLAG_USER_ID, email="bolag@test.local")
+
+
+@pytest.fixture
+async def user_client(client):
+    """Same app/DB as client, but Authorization is the Devbrains user role."""
+    token = mint_access_token(sub=USER_USER_ID, email="user@test.local")
+    client.headers["Authorization"] = f"Bearer {token}"
+    yield client
+
+
+@pytest.fixture
+async def bolag_client(client):
+    """Same app/DB as client, but Authorization is the bolag-demo role."""
+    token = mint_access_token(sub=BOLAG_USER_ID, email="bolag@test.local")
+    client.headers["Authorization"] = f"Bearer {token}"
+    yield client

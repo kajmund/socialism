@@ -13,10 +13,13 @@ from starlette.testclient import TestClient
 
 os.environ.setdefault("DEEPSEEK_API_KEY", "test-key-not-real")
 os.environ.setdefault("OPENAI_API_KEY", "test-openai-key-not-real")
+os.environ.setdefault("SUPABASE_URL", "https://test.supabase.co")
+os.environ.setdefault("SUPABASE_JWT_SECRET", "test-supabase-jwt-secret-not-real")
+os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "test-supabase-service-role-not-real")
 
 from app.config import settings
 from app.database.base import Base
-from app.database.models import Report, Run
+from app.database.models import Report, Run, UserAccount
 from app.database.session import get_session
 from app.llm import set_text_streamer, set_tools_completer
 from app.main import create_app
@@ -35,6 +38,7 @@ from app.services.spindoctor_politik import (
 from app.services.spindoctor_tools import run_spindoctor_tool
 from app.services.report.metrics import compute_report_metrics
 from app.services.report.thresholds import default_report_thresholds
+from tests.conftest import ADMIN_USER_ID, TEST_JWT_SECRET, mint_access_token
 from tests.test_verdict_calibration import _generate_report
 
 
@@ -423,28 +427,52 @@ def test_confidence_notes_respect_frozen_thresholds():
 
 def test_ws_rejects_unknown_scope():
     settings.deepseek_api_key = "test-key-not-real"
-    app = create_app()
+    settings.supabase_jwt_secret = TEST_JWT_SECRET
 
-    async def _session_override():
-        engine = create_async_engine(
-            "sqlite+aiosqlite://",
-            connect_args={"check_same_thread": False},
-            poolclass=StaticPool,
-        )
-        factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+    engine = create_async_engine(
+        "sqlite+aiosqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+
+    async def _prepare() -> None:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-        async with factory() as s:
-            await ensure_default_configurations(s)
-            yield s
-        await engine.dispose()
+        async with factory() as session:
+            await ensure_default_configurations(session)
+            session.add(
+                UserAccount(
+                    id=ADMIN_USER_ID,
+                    email="admin@test.local",
+                    role="admin",
+                    kund_id=None,
+                )
+            )
+            await session.commit()
 
-    app.dependency_overrides[get_session] = _session_override
-    with TestClient(app) as tc:
-        with tc.websocket_connect("/ws/chat") as ws:
-            ws.send_json({"type": "hello", "scope": "unknown"})
-            msg = ws.receive_json()
-            assert msg["type"] == "error"
+    loop = asyncio.new_event_loop()
+    loop.run_until_complete(_prepare())
+
+    jobs_service.set_job_session_factory(factory)
+    app = create_app()
+
+    async def override_get_session():
+        async with factory() as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override_get_session
+    token = mint_access_token(sub=ADMIN_USER_ID, email="admin@test.local")
+    try:
+        with TestClient(app) as tc:
+            with tc.websocket_connect(f"/ws/chat?access_token={token}") as ws:
+                ws.send_json({"type": "hello", "scope": "unknown"})
+                msg = ws.receive_json()
+                assert msg["type"] == "error"
+    finally:
+        jobs_service.set_job_session_factory(None)
+        loop.run_until_complete(engine.dispose())
+        loop.close()
 
 
 @pytest.mark.asyncio

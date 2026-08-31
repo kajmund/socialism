@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 
 from app.database.base import Base
-from app.database.models import Configuration, Kund, Persona, Projekt
+from app.database.models import Configuration, Kund, Persona, Projekt, UserAccount
 from app.database.session import get_session
 from app.main import create_app
 from app.services.catalog_store import LOCAL_PROJECT_CATALOG_KEYS, get_catalog_list
@@ -22,6 +22,7 @@ from app.services.kund_store import (
     default_os_project_id,
     ensure_default_kunder,
 )
+from tests.conftest import ADMIN_USER_ID, mint_access_token
 
 
 @pytest.fixture
@@ -91,6 +92,17 @@ async def test_kunder_api_lists_seeded_tenants():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
+    async with factory() as seed:
+        seed.add(
+            UserAccount(
+                id=ADMIN_USER_ID,
+                email="admin@test.local",
+                role="admin",
+                kund_id=None,
+            )
+        )
+        await seed.commit()
+
     app = create_app()
 
     async def override_get_session():
@@ -99,7 +111,12 @@ async def test_kunder_api_lists_seeded_tenants():
 
     app.dependency_overrides[get_session] = override_get_session
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    token = mint_access_token(sub=ADMIN_USER_ID, email="admin@test.local")
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers={"Authorization": f"Bearer {token}"},
+    ) as client:
         listed = await client.get("/kunder")
         assert listed.status_code == 200
         body = listed.json()

@@ -5,6 +5,9 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.dependencies import get_current_user
+from app.auth.scope import assert_kund_access, effective_customer_id
+from app.database.models import UserAccount
 from app.database.session import get_session
 from app.schemas.domain import JobCreate, JobOut, JobStatus
 from app.services import jobs as jobs_service
@@ -17,11 +20,13 @@ async def create_job(
     body: JobCreate,
     response: Response,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> JobOut:
     try:
         job = await jobs_service.create_job(session, body)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    assert_kund_access(user, job.customer_id)
     jobs_service.enqueue_job(job.id)
     response.status_code = 202
     return jobs_service.serialize_job(job)
@@ -33,7 +38,9 @@ async def list_jobs(
     customer_id: int | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=100),
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> list[JobOut]:
+    customer_id = effective_customer_id(user, customer_id)
     rows = await jobs_service.list_jobs(
         session, status=status, customer_id=customer_id, limit=limit
     )
@@ -44,8 +51,10 @@ async def list_jobs(
 async def get_job(
     job_id: str,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> JobOut:
     job = await jobs_service.get_job(session, job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
+    assert_kund_access(user, job.customer_id)
     return jobs_service.serialize_job(job)
