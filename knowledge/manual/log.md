@@ -1,5 +1,9 @@
 # Manual update log
 
+## 2026-08-31
+
+* **Inloggning**: Vilken yta du landar på styrs av kundens tilldelade moduler under **Verktyg** → **Kunder**. Två eller fler moduler ger sidan **Välj modul**. Inga tilldelade moduler visas som ett fel på inloggningen.
+
 ## 2026-08-30
 
 * **Verktyg**: Under **Kunder** slår administratören på och av produktmoduler per kund. Rapportflikar och bolag-menyn följer kundens moduler.

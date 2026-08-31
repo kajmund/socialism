@@ -25,6 +25,7 @@ import { BolagFeedbackPage, FeedbackPage } from "@/pages/FeedbackPage"
 import { BolagJobsPage, JobsPage } from "@/pages/JobsPage"
 import { KunderPage } from "@/pages/KunderPage"
 import { LoginPage } from "@/pages/LoginPage"
+import { ValjModulPage } from "@/pages/ValjModulPage"
 import { MessagesPage } from "@/pages/MessagesPage"
 import { MessagesWorkshopPage } from "@/pages/MessagesWorkshopPage"
 import { PanelCatalogPage } from "@/pages/PanelCatalogPage"
@@ -68,6 +69,33 @@ export default function App() {
 
       <Route element={<RequireAuth />}>
         <Route element={<AuthenticatedShell />}>
+          <Route path="/valj-modul" element={<ValjModulPage />} />
+
+          <Route element={<RequireAdmin />}>
+            <Route path="/tools" element={<ToolsShell />}>
+              <Route index element={<Navigate to="configurations" replace />} />
+              <Route path="configurations" element={<ConfigurationsPage />} />
+              <Route path="configurations/new" element={<ConfigurationEditorPage />} />
+              <Route path="configurations/:id/edit" element={<ConfigurationEditorPage />} />
+              <Route path="kunder" element={<KunderPage />} />
+              <Route path="panel-catalog" element={<PanelCatalogPage />} />
+              <Route path="anchor-sets" element={<AnchorSetsPage />} />
+              <Route path="anchor-sets/new" element={<AnchorSetEditorPage />} />
+              <Route path="anchor-sets/:id/edit" element={<AnchorSetEditorPage />} />
+              <Route path="playground" element={<PlaygroundPage />} />
+              <Route path="cache" element={<EmbeddingCachePage />} />
+            </Route>
+
+            <Route path="/configurations" element={<Navigate to="/tools/configurations" replace />} />
+            <Route
+              path="/configurations/new"
+              element={<Navigate to="/tools/configurations/new" replace />}
+            />
+            <Route path="/configurations/:id/edit" element={<RedirectConfigurationEdit />} />
+            <Route path="/config" element={<Navigate to="/tools/configurations" replace />} />
+            <Route path="/playground" element={<Navigate to="/tools/playground" replace />} />
+          </Route>
+
           <Route element={<RequireBolag />}>
             <Route path="/bolag" element={<BolagShell />}>
               <Route index element={<Navigate to="campaigns" replace />} />
@@ -106,31 +134,6 @@ export default function App() {
           <Route path="/messages" element={<MessagesPage />} />
           <Route path="/messages/new" element={<MessagesWorkshopPage />} />
           <Route path="/messages/:id/edit" element={<MessagesWorkshopPage />} />
-
-          <Route element={<RequireAdmin />}>
-            <Route path="/tools" element={<ToolsShell />}>
-              <Route index element={<Navigate to="configurations" replace />} />
-              <Route path="configurations" element={<ConfigurationsPage />} />
-              <Route path="configurations/new" element={<ConfigurationEditorPage />} />
-              <Route path="configurations/:id/edit" element={<ConfigurationEditorPage />} />
-              <Route path="kunder" element={<KunderPage />} />
-              <Route path="panel-catalog" element={<PanelCatalogPage />} />
-              <Route path="anchor-sets" element={<AnchorSetsPage />} />
-              <Route path="anchor-sets/new" element={<AnchorSetEditorPage />} />
-              <Route path="anchor-sets/:id/edit" element={<AnchorSetEditorPage />} />
-              <Route path="playground" element={<PlaygroundPage />} />
-              <Route path="cache" element={<EmbeddingCachePage />} />
-            </Route>
-
-            <Route path="/configurations" element={<Navigate to="/tools/configurations" replace />} />
-            <Route
-              path="/configurations/new"
-              element={<Navigate to="/tools/configurations/new" replace />}
-            />
-            <Route path="/configurations/:id/edit" element={<RedirectConfigurationEdit />} />
-            <Route path="/config" element={<Navigate to="/tools/configurations" replace />} />
-            <Route path="/playground" element={<Navigate to="/tools/playground" replace />} />
-          </Route>
 
           <Route path="/jobs" element={<JobsPage />} />
           <Route path="/feedback" element={<FeedbackPage />} />

@@ -4,6 +4,9 @@
  * keep this module as the only import surface for session + token.
  */
 
+import { MODULE_HOME_PATHS } from "@/lib/moduleHomePaths"
+import { BOLAG_DEMO_CUSTOMER_SLUG, OS_CUSTOMER_SLUG } from "@/lib/scoping"
+
 export type Role = "admin" | "user" | "bolag"
 
 export type AuthUser = {
@@ -12,6 +15,7 @@ export type AuthUser = {
   email: string
   role: Role
   modules: string[]
+  kundSlug: string | null
 }
 
 export type AuthSession = {
@@ -49,6 +53,7 @@ const STATIC_ACCOUNTS: ReadonlyArray<{
       email: "admin@local",
       role: "admin",
       modules: ["politik", "dd"],
+      kundSlug: null,
     },
   },
   {
@@ -60,6 +65,7 @@ const STATIC_ACCOUNTS: ReadonlyArray<{
       email: "user@local",
       role: "user",
       modules: ["politik"],
+      kundSlug: OS_CUSTOMER_SLUG,
     },
   },
   {
@@ -71,6 +77,7 @@ const STATIC_ACCOUNTS: ReadonlyArray<{
       email: "bolag@local",
       role: "bolag",
       modules: ["dd"],
+      kundSlug: BOLAG_DEMO_CUSTOMER_SLUG,
     },
   },
 ]
@@ -82,6 +89,17 @@ function isRole(value: unknown): value is Role {
 function parseModules(value: unknown): string[] {
   if (!Array.isArray(value)) return []
   return value.filter((item): item is string => typeof item === "string")
+}
+
+function kundSlugForUsername(username: string): string | null {
+  const account = STATIC_ACCOUNTS.find((account) => account.user.username === username)
+  return account?.user.kundSlug ?? null
+}
+
+function parseKundSlug(value: unknown, username: string): string | null {
+  if (value === null) return null
+  if (typeof value === "string") return value
+  return kundSlugForUsername(username)
 }
 
 function parseSession(raw: string): AuthSession | null {
@@ -108,6 +126,7 @@ function parseSession(raw: string): AuthSession | null {
       email: fields.email,
       role: fields.role,
       modules: parseModules(fields.modules),
+      kundSlug: parseKundSlug(fields.kundSlug, fields.username),
     },
     accessToken,
   }
@@ -162,7 +181,10 @@ export function hasModule(user: AuthUser | null | undefined, moduleId: string): 
   return user.modules.includes(moduleId)
 }
 
-export function homePathForRole(role: Role | null): string {
-  if (role === "bolag") return "/bolag"
-  return "/"
+export function homePathForUser(modules: readonly string[]): string {
+  if (modules.length === 0) return "/login"
+  if (modules.length === 1) {
+    return MODULE_HOME_PATHS[modules[0]] ?? "/login"
+  }
+  return "/valj-modul"
 }

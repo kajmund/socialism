@@ -128,7 +128,8 @@ Still hardcoded (next slices): OASIS simulation prompts (intentionally Swedish).
 
 | Path | Status |
 |------|--------|
-| `/login` | Sign-in (static admin/user) |
+| `/login` | Sign-in (static admin/user/bolag) |
+| `/valj-modul` | Module picker (accounts with 2+ modules) |
 | `/` | Dashboard (startsida) |
 | `/runs` | Körningar list |
 | `/runs/new`, `/runs/:id/edit` | Körning (wizard / quick + Resultat) |
