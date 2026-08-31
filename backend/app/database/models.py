@@ -51,6 +51,30 @@ class Kund(Base):
     prompt_overrides: Mapped[list["PromptOverride"]] = relationship(
         back_populates="kund"
     )
+    user_accounts: Mapped[list["UserAccount"]] = relationship(back_populates="kund")
+
+
+class UserAccount(Base):
+    """Roll + kund-koppling för en Supabase-autentiserad användare."""
+
+    __tablename__ = "user_accounts"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)  # Supabase auth.users.id
+    email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
+    role: Mapped[str] = mapped_column(String(16), nullable=False)  # "admin" | "user" | "bolag"
+    kund_id: Mapped[int | None] = mapped_column(
+        ForeignKey("kunder.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    invited_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    kund: Mapped[Kund | None] = relationship(back_populates="user_accounts")
 
 
 class Projekt(Base):
