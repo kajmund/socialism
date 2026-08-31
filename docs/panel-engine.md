@@ -15,11 +15,24 @@ Domain layer for multi-expert panel sessions, separate from OASIS tick-loop / `s
 ```text
 POST /panel/sessions          → PanelSession row (draft)
 POST /panel/sessions/{id}/run → Job kind panel_session_run (202)
-jobs.py                       → panel.engine.run_generic_panel()
+jobs.py                       → panel.engine / panel.dd_engine (live turns via panel.watch)
+/ws/panels                    → panel_watch replay + fan-out (panel.replay, turn.*, panel.finished)
 prompt_store                  → panel.* keys in active configuration
 ```
 
-Reuses existing job worker, prompt store, and LLM `complete_text` — not the OASIS simulation engine.
+Reuses existing job worker, prompt store, LLM `complete_text`, and the same realtime pattern as run watch — not the OASIS simulation engine.
+
+## Live watch (WebSocket)
+
+Connect to `/ws/panels` with hello scope `panel_watch` and `session_id`. Server sends `panel.replay` immediately (status, expert slots, transcript turns), then streams:
+
+| Event | When |
+| ----- | ---- |
+| `turn.started` | Before LLM produces a turn |
+| `turn.completed` | After turn persisted to `panel_sessions.transcript` |
+| `panel.finished` | Job succeeded or failed (`status`, optional `error`) |
+
+Implementation: `app/realtime/panel_broadcast.py`, `app/services/panel/watch.py`, frontend `usePanelWatchSocket` + `PanelLiveFeedPanel`.
 
 ## generic_panel flow
 
@@ -35,19 +48,21 @@ Scratchpads are stored on the session row and included in expert prompts but omi
 
 ## dd_panel flow (Fas 2)
 
-1. Create via `POST /dd/campaigns/{id}/panel-sessions` (candidate + expert roles from `dd_expertpanel` catalog)
-2. Spinndoktor (`spinndoctor.system`) moderates — not `panel.moderator.system`
+1. Create via `POST /dd/campaigns/{id}/panel-sessions` (candidate + expert panel from campaign `expert_panel_id`, or legacy `expert_role_keys`)
+2. Spinndoktor opens and introduces each sub-question
 3. Four sub-questions (finansiell hälsa, legal risk, marknadsposition, integrationsrisk)
-4. Each expert scores each sub-question (1–10) with motivation + source badge
-5. Structured output in `panel_sessions.result` (`DdPanelResult`: scores matrix, dissensus notes, summary)
+4. Per sub-question: each expert raise-hand (`panel.dd.expert.raise_hand`) — only those who answer JA score that question
+5. If nobody raises a hand: skip scoring, Spinndoktor explains the coverage gap (`panel.dd.moderator.no_answer`, phase `unanswered`)
+6. Participating experts score 1–10 with motivation + source badge
+7. Structured output in `panel_sessions.result` (`DdPanelResult`: scores matrix, dissensus notes, unanswered notes, summary)
 
 ### Source attribution (explicit priority chain)
 
 Implemented in `app/services/dd/source_attribution.py` — **not** silent fallbacks:
 
-1. OKF manual (`knowledge/manual`)
-2. Web (DuckDuckGo)
-3. `llm` — labeled **Modellbedömning** when no external source is found
+1. Candidate figures already in the brief — labeled **Grunddata** for every sub-question that uses those numbers. Do not run a parallel web search to decorate the badge.
+2. An actual web/wiki tool result from the scoring turn — labeled **Webb** (only when grunddata figures are missing)
+3. `llm` — labeled **Modellbedömning** when no figures and no web tool result
 
 Badges are stored per score in `result.scores[].source`.
 
@@ -58,7 +73,7 @@ Badges are stored per score in `result.scores[].source`.
 3. Job `report_generate` renders `panel_sessions.result` via `app/services/report/dd_report.py` (no SSR / no new scoring)
 4. Artifacts: `report.html`, `report.slots.json`, `report.dd.json` under `data/reports/{id}/`
 
-Source badge colors in HTML: `okf` → green (`confirmed`), `web` → blue (`web`), `llm` → gray (`single`).
+Source badge colors in HTML: `web` → blue (`web`), `llm` → gray (`single`).
 
 ## Persistence
 

@@ -118,6 +118,62 @@ async def test_require_active_prompts_backfills_missing_help_keys(
     assert "help.system.feedback" in (row.prompts or {})
 
 
+async def test_require_active_prompts_refreshes_stale_panel_dd_raise_hand(
+    session: AsyncSession,
+):
+    result = await session.execute(
+        select(Configuration).where(Configuration.is_active.is_(True))
+    )
+    row = result.scalar_one()
+    stored = dict(row.prompts or {})
+    stored["panel.dd.expert.raise_hand"] = (
+        "Vanligtvis bedömd av: {typical_owner}. Räck upp handen om delfrågan är din."
+    )
+    stored["panel.dd.moderator.sub_question"] = (
+        "Introducera delfrågan kort. Be inte alla om poäng — bara den som räcker upp handen."
+    )
+    stored["panel.dd.moderator.opening"] = (
+        "Öppna panelen kort. Förklara att varje expert snart bedömer finansiell hälsa, "
+        "legal risk, marknadsposition och integrationsrisk med poäng 1–10."
+    )
+    stored["panel.dd.expert.score"] = (
+        "Slå upp bolaget med lookup_company om du behöver nyckeltal."
+    )
+    stored["panel.expert.tools"] = (
+        "Du har search_companies — slå upp nyckeltal när grunddata saknar omsättning."
+    )
+    stored["chat.expert.search_tools"] = "search_duckduckgo (nyheter, lagar, siffror)"
+    stored["chat.expert.company_tools"] = (
+        "Använd dem när du behöver organisationsnummer, omsättning, resultat."
+    )
+    row.prompts = stored
+    await session.commit()
+
+    prompts = await require_active_prompts(session)
+    assert "kärnkompetens" in prompts["panel.dd.expert.raise_hand"]
+    assert "hela bedömningen" in prompts["panel.dd.expert.raise_hand"]
+    assert "Första raden: JA eller NEJ" in prompts["panel.dd.expert.raise_hand"]
+    assert "varför delfrågan är" in prompts["panel.dd.expert.raise_hand"]
+    assert "{typical_owner}" not in prompts["panel.dd.expert.raise_hand"]
+    assert "avgör själv" not in prompts["panel.dd.expert.raise_hand"]
+    assert "Svara ENDAST JA eller NEJ" not in prompts["panel.dd.expert.raise_hand"]
+    assert "Skriv inte **Namn:**-repliker" in prompts["panel.dd.moderator.sub_question"]
+    assert "Be inte alla om poäng" not in prompts["panel.dd.moderator.sub_question"]
+    assert "Tilldela inte första frågan" in prompts["panel.dd.moderator.opening"]
+    assert "varje expert snart bedömer" not in prompts["panel.dd.moderator.opening"]
+    assert "Slå inte upp" in prompts["panel.dd.expert.score"]
+    assert "hitta inte på en webbkälla" in prompts["panel.dd.expert.score"]
+    assert "max 80" not in prompts["panel.dd.expert.score"]
+    assert "Slå upp bolaget med lookup_company" not in prompts["panel.dd.expert.score"]
+    assert "Sök inte efter samma siffror" in prompts["panel.expert.tools"]
+    assert "Sök inte efter nyckeltal du redan har fått" in prompts[
+        "chat.expert.search_tools"
+    ]
+    assert "Slå inte upp siffror du redan har fått" in prompts[
+        "chat.expert.company_tools"
+    ]
+
+
 async def test_require_active_prompts_refreshes_stale_spindoctor_stock_text(
     session: AsyncSession,
 ):

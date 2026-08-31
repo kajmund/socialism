@@ -14,9 +14,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import Persona, PersonaMessage, Run
 from app.llm.chat import (
     build_run_interview_prompt,
+    stream_reply_as_expert,
     stream_reply_as_persona,
     suggest_follow_up_questions,
 )
+from app.realtime.interview_broadcast import interview_broadcast, interview_key_tuple
 from app.schemas.domain import (
     ChatMode,
     EditablePersona,
@@ -24,11 +26,11 @@ from app.schemas.domain import (
     PersonaMessageOut,
 )
 from app.serializers import format_date, profile_from_dict, utcnow
+from app.services.dd.company_mcp import CompanyMcpError
 from app.services.district_context import area_block_for_name
 from app.services.oasis_run import previous_attempts
 from app.services.prompt_store import require_active_prompts
 from app.services.run_tick_context import build_persona_feed_context
-from app.realtime.interview_broadcast import interview_broadcast, interview_key_tuple
 
 logger = logging.getLogger(__name__)
 
@@ -230,17 +232,32 @@ async def stream_library_chat_turn(
         session.add(user_row)
         await session.commit()
 
+        if persona.kind == "expert":
+            stream = stream_reply_as_expert(
+                profile,
+                mode,
+                history,
+                message,
+                prompts=prompts,
+                area_block=area_block,
+                tools=persona.tools,
+            )
+        else:
+            stream = stream_reply_as_persona(
+                profile,
+                mode,
+                history,
+                message,
+                prompts=prompts,
+                area_block=area_block,
+            )
         parts: list[str] = []
-        async for chunk in stream_reply_as_persona(
-            profile,
-            mode,
-            history,
-            message,
-            prompts=prompts,
-            area_block=area_block,
-        ):
-            parts.append(chunk)
-            yield chunk
+        try:
+            async for chunk in stream:
+                parts.append(chunk)
+                yield chunk
+        except CompanyMcpError as exc:
+            raise ChatTurnError(str(exc), status_code=502) from exc
 
         reply = "".join(parts).strip()
         if not reply:

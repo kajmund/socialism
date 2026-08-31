@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
-import { listLibraryPersonas } from "@/api/personas"
+import { listExpertPersonas, listLibraryPersonas } from "@/api/personas"
 import { personaInitials } from "@/data/library"
-import type { LibraryPersona } from "@/data/library-types"
+import type { LibraryPersona, PersonaKind } from "@/data/library-types"
 import { useLocale } from "@/i18n"
 import { ApiError } from "@/lib/api"
 
 type AddFromLibraryPanelProps = {
+  personaKind?: PersonaKind
   excludeNames?: string[]
   excludeIds?: string[]
   onAdd: (persona: LibraryPersona) => void
@@ -14,6 +15,7 @@ type AddFromLibraryPanelProps = {
 }
 
 export function AddFromLibraryPanel({
+  personaKind = "persona",
   excludeNames = [],
   excludeIds = [],
   onAdd,
@@ -26,7 +28,8 @@ export function AddFromLibraryPanel({
 
   useEffect(() => {
     let cancelled = false
-    listLibraryPersonas()
+    const loader = personaKind === "expert" ? listExpertPersonas : listLibraryPersonas
+    loader()
       .then((data) => {
         if (!cancelled) {
           setPersonas(data)
@@ -41,7 +44,7 @@ export function AddFromLibraryPanel({
     return () => {
       cancelled = true
     }
-  }, [t])
+  }, [personaKind, t])
 
   const excludeNameSet = useMemo(
     () => new Set(excludeNames.map((n) => n.toLowerCase())),
@@ -103,7 +106,9 @@ export function AddFromLibraryPanel({
                       <span className="origin">{originLabel(p.origin)}</span>
                     </div>
                     <div className="sub">
-                      {p.age} · {p.occ} · {p.district}
+                      {personaKind === "expert"
+                        ? p.occ
+                        : `${p.age} · ${p.occ} · ${p.district}`}
                       {p.pops.length > 0
                         ? t("populations.libPanel.alreadyIn", { count: p.pops.length })
                         : t("populations.libPanel.unassigned")}

@@ -37,3 +37,10 @@ async def test_dd_campaign_crud_and_sourcing_run(client: AsyncClient):
     listed = await client.get("/dd/campaigns?module=dd")
     assert listed.status_code == 200
     assert any(row["id"] == campaign_id for row in listed.json())
+
+    deleted = await client.delete(f"/dd/campaigns/{campaign_id}")
+    assert deleted.status_code == 204
+    missing = await client.get(f"/dd/campaigns/{campaign_id}")
+    assert missing.status_code == 404
+    gone = await client.delete(f"/dd/campaigns/{campaign_id}")
+    assert gone.status_code == 404

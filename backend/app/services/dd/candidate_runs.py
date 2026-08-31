@@ -2,18 +2,26 @@
 
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import DdCandidateRun
-from app.services.dd.schemas import DdCandidateRunOut
+from app.database.models import DdCandidateRun, PanelSession
+from app.serializers import format_date
+from app.services.dd.schemas import DdCandidateRunOut, DdResearchDossier
 
 
 def serialize_candidate_run(row: DdCandidateRun) -> DdCandidateRunOut:
+    research = None
+    if isinstance(row.research, dict) and row.research:
+        research = DdResearchDossier.model_validate(row.research)
     return DdCandidateRunOut(
         candidate_id=row.candidate_id,
         panel_session_id=row.panel_session_id,
         report_id=row.report_id,
+        research=research,
+        research_job_id=row.research_job_id,
+        created_at=format_date(row.created_at) if row.created_at else "",
+        updated_at=format_date(row.updated_at) if row.updated_at else "",
     )
 
 
@@ -64,6 +72,7 @@ async def upsert_panel_session(
         session.add(row)
     else:
         row.panel_session_id = panel_session_id
+        row.report_id = None
     await session.flush()
     await session.refresh(row)
     return serialize_candidate_run(row)
@@ -90,3 +99,91 @@ async def upsert_report(
     await session.flush()
     await session.refresh(row)
     return serialize_candidate_run(row)
+
+
+async def upsert_research_job(
+    session: AsyncSession,
+    *,
+    campaign_id: int,
+    candidate_id: str,
+    job_id: str,
+) -> DdCandidateRunOut:
+    row = await get_candidate_run(session, campaign_id=campaign_id, candidate_id=candidate_id)
+    if row is None:
+        row = DdCandidateRun(
+            campaign_id=campaign_id,
+            candidate_id=candidate_id,
+            panel_session_id=None,
+            report_id=None,
+            research_job_id=job_id,
+        )
+        session.add(row)
+    else:
+        row.research_job_id = job_id
+    await session.flush()
+    await session.refresh(row)
+    return serialize_candidate_run(row)
+
+
+async def upsert_research(
+    session: AsyncSession,
+    *,
+    campaign_id: int,
+    candidate_id: str,
+    dossier: DdResearchDossier,
+    job_id: str,
+) -> DdCandidateRunOut:
+    row = await get_candidate_run(session, campaign_id=campaign_id, candidate_id=candidate_id)
+    payload = dossier.model_dump(mode="json")
+    if row is None:
+        row = DdCandidateRun(
+            campaign_id=campaign_id,
+            candidate_id=candidate_id,
+            panel_session_id=None,
+            report_id=None,
+            research=payload,
+            research_job_id=job_id,
+        )
+        session.add(row)
+    else:
+        row.research = payload
+        row.research_job_id = job_id
+    await session.flush()
+    await session.refresh(row)
+    return serialize_candidate_run(row)
+
+
+async def clear_research(
+    session: AsyncSession,
+    *,
+    campaign_id: int,
+    candidate_id: str,
+) -> DdCandidateRunOut | None:
+    """Drop the research dossier; keep panel/report links on the run row."""
+    row = await get_candidate_run(session, campaign_id=campaign_id, candidate_id=candidate_id)
+    if row is None:
+        return None
+    row.research = None
+    row.research_job_id = None
+    await session.flush()
+    await session.refresh(row)
+    return serialize_candidate_run(row)
+
+
+async def delete_candidate_run(
+    session: AsyncSession,
+    *,
+    campaign_id: int,
+    candidate_id: str,
+) -> bool:
+    row = await get_candidate_run(session, campaign_id=campaign_id, candidate_id=candidate_id)
+    if row is None:
+        return False
+    if row.panel_session_id:
+        await session.execute(
+            update(PanelSession)
+            .where(PanelSession.id == row.panel_session_id)
+            .values(campaign_id=None)
+        )
+    await session.delete(row)
+    return True

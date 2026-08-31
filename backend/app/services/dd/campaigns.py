@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import DdCampaign
+from app.database.models import DdCampaign, DdCandidateRun, PanelSession, Population
 from app.serializers import format_date
+from app.services.dd import allabolag as allabolag_svc
 from app.services.dd.allabolag_mock import search_companies
 from app.services.dd.candidate_runs import list_candidate_runs, list_run_candidate_ids
-from app.services.kund_store import bolag_demo_customer_id
+from app.services.dd.company_mcp import uses_bolagsapi
 from app.services.dd.schemas import (
     DdCampaignCreate,
     DdCampaignOut,
@@ -18,10 +19,38 @@ from app.services.dd.schemas import (
     DdCandidateRunOut,
     DdSourcingCriteria,
 )
+from app.services.kund_store import bolag_demo_customer_id
 
 
 def _default_criteria() -> dict:
     return DdSourcingCriteria().model_dump(mode="json")
+
+
+def _panel_assignments(raw: object) -> dict[str, int]:
+    if not isinstance(raw, dict):
+        return {}
+    out: dict[str, int] = {}
+    for key, value in raw.items():
+        if isinstance(value, bool) or not isinstance(value, int):
+            continue
+        out[str(key)] = value
+    return out
+
+
+def resolve_expert_panel_id(row: DdCampaign, candidate_id: str) -> int | None:
+    assigned = _panel_assignments(row.panel_assignments).get(candidate_id)
+    if assigned is not None:
+        return assigned
+    return row.expert_panel_id
+
+
+def clear_panel_assignment(row: DdCampaign, candidate_id: str) -> bool:
+    assignments = _panel_assignments(row.panel_assignments)
+    if candidate_id not in assignments:
+        return False
+    del assignments[candidate_id]
+    row.panel_assignments = assignments
+    return True
 
 
 def serialize_campaign(
@@ -40,6 +69,8 @@ def serialize_campaign(
         candidates=[DdCandidateCompany.model_validate(c) for c in candidates_raw],
         selected_candidate_ids=list(row.selected_candidate_ids or []),
         expert_role_keys=list(row.expert_role_keys or []),
+        expert_panel_id=row.expert_panel_id,
+        panel_assignments=_panel_assignments(row.panel_assignments),
         customer_id=row.customer_id,
         candidate_runs=list(candidate_runs or []),
         created_at=format_date(row.created_at) if row.created_at else "",
@@ -71,6 +102,14 @@ async def get_campaign(session: AsyncSession, campaign_id: int) -> DdCampaign | 
     return await session.get(DdCampaign, campaign_id)
 
 
+async def delete_campaign(session: AsyncSession, row: DdCampaign) -> None:
+    await session.execute(delete(DdCandidateRun).where(DdCandidateRun.campaign_id == row.id))
+    await session.execute(
+        update(PanelSession).where(PanelSession.campaign_id == row.id).values(campaign_id=None)
+    )
+    await session.delete(row)
+
+
 async def create_campaign(session: AsyncSession, body: DdCampaignCreate) -> DdCampaignOut:
     criteria = body.criteria or DdSourcingCriteria()
     customer_id = await bolag_demo_customer_id(session)
@@ -83,6 +122,7 @@ async def create_campaign(session: AsyncSession, body: DdCampaignCreate) -> DdCa
         candidates=[],
         selected_candidate_ids=[],
         expert_role_keys=[],
+        panel_assignments={},
     )
     session.add(row)
     await session.flush()
@@ -102,14 +142,38 @@ async def update_campaign(
     if body.criteria is not None:
         row.criteria = body.criteria.model_dump(mode="json")
     if body.candidates is not None:
-        row.candidates = [c.model_dump(mode="json") for c in body.candidates]
+        candidates = list(body.candidates)
+        if body.enrich_from_allabolag and not uses_bolagsapi():
+            try:
+                candidates = await allabolag_svc.enrich_candidates(candidates)
+            except allabolag_svc.AllabolagError as exc:
+                raise ValueError(str(exc)) from exc
+        row.candidates = [c.model_dump(mode="json") for c in candidates]
     if body.selected_candidate_ids is not None:
         row.selected_candidate_ids = list(body.selected_candidate_ids)
     if body.expert_role_keys is not None:
         row.expert_role_keys = list(body.expert_role_keys)
+    if body.expert_panel_id is not None:
+        await _require_expert_panel(session, body.expert_panel_id)
+        row.expert_panel_id = body.expert_panel_id
+    if body.panel_assignments is not None:
+        validated: dict[str, int] = {}
+        for candidate_id, panel_id in body.panel_assignments.items():
+            await _require_expert_panel(session, panel_id)
+            validated[str(candidate_id)] = panel_id
+        row.panel_assignments = validated
     await session.flush()
     await session.refresh(row)
     return await serialize_campaign_detail(session, row)
+
+
+async def _require_expert_panel(session: AsyncSession, panel_id: int) -> Population:
+    panel = await session.get(Population, panel_id)
+    if panel is None:
+        raise ValueError(f"Expert panel not found: {panel_id}")
+    if panel.kind != "expert_panel":
+        raise ValueError(f"Population {panel_id} is not an expert panel")
+    return panel
 
 
 def run_sourcing(criteria: DdSourcingCriteria) -> list[DdCandidateCompany]:

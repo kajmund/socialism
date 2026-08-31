@@ -22,6 +22,7 @@ from app.llm import set_structured_completer, set_text_completer, set_text_strea
 from app.main import create_app
 from app.schemas.domain import FollowUpQuestions
 from app.services import jobs as jobs_service
+from app.services.kund_store import BOLAG_DEMO_KUND_SLUG, ensure_default_kunder
 from app.services.prompt_store import ensure_default_configurations
 
 
@@ -98,6 +99,8 @@ def ws_client():
             await conn.run_sync(Base.metadata.create_all)
         async with session_factory() as seed_session:
             await ensure_default_configurations(seed_session)
+            await ensure_default_kunder(seed_session)
+            await seed_session.commit()
 
     loop.run_until_complete(_prepare())
 
@@ -126,9 +129,30 @@ def ws_client():
     loop.close()
 
 
+def _jobs_hello(*, customer_id: int | None = None) -> dict:
+    hello: dict = {"type": "hello", "scope": "jobs_watch"}
+    if customer_id is not None:
+        hello["customer_id"] = customer_id
+    return hello
+
+
+def _reports_hello(*, customer_id: int | None = None) -> dict:
+    hello: dict = {"type": "hello", "scope": "reports_watch"}
+    if customer_id is not None:
+        hello["customer_id"] = customer_id
+    return hello
+
+
+def _bolag_customer_id(client) -> int:
+    listed = client.get("/kunder")
+    assert listed.status_code == 200
+    return next(row["id"] for row in listed.json() if row["slug"] == BOLAG_DEMO_KUND_SLUG)
+
+
 def test_jobs_websocket_snapshot_and_update(ws_client):
     client, loop = ws_client
     with client.websocket_connect("/ws/jobs") as ws:
+        ws.send_json(_jobs_hello())
         snap = ws.receive_json()
         assert snap["type"] == "jobs.snapshot"
         assert snap["jobs"] == []
@@ -172,6 +196,7 @@ def test_reports_websocket_snapshot_update_and_delete(ws_client):
         async with factory() as session:
             report = Report(
                 id="rpt_ws_test",
+                customer_id=1,
                 status="pending",
                 title="WS report",
                 locale="sv",
@@ -191,6 +216,7 @@ def test_reports_websocket_snapshot_update_and_delete(ws_client):
             return report.id
 
     with client.websocket_connect("/ws/reports") as ws:
+        ws.send_json(_reports_hello())
         snap = ws.receive_json()
         assert snap["type"] == "reports.snapshot"
         assert snap["reports"] == []
@@ -221,6 +247,165 @@ def test_reports_websocket_snapshot_update_and_delete(ws_client):
         deleted_event = ws.receive_json()
         assert deleted_event["type"] == "report.deleted"
         assert deleted_event["ids"] == [report_id]
+        assert deleted_event["customer_id"] == 1
+
+
+def test_jobs_websocket_customer_scope_filters_push(ws_client):
+    from app.database.models import Job
+    from app.serializers import utcnow
+    from app.services.jobs import publish_job
+
+    client, loop = ws_client
+    bolag_id = _bolag_customer_id(client)
+    os_id = 1
+
+    async def _seed_jobs() -> None:
+        factory = jobs_service.job_session_factory()
+        async with factory() as session:
+            os_job = Job(
+                id="job-ws-os",
+                customer_id=os_id,
+                kind="panel_session_run",
+                status="pending",
+                label="OS job",
+                request={"session_id": "panel_os"},
+                created_at=utcnow(),
+                updated_at=utcnow(),
+            )
+            bolag_job = Job(
+                id="job-ws-bolag",
+                customer_id=bolag_id,
+                kind="panel_session_run",
+                status="pending",
+                label="Bolag job",
+                request={"session_id": "panel_bolag"},
+                created_at=utcnow(),
+                updated_at=utcnow(),
+            )
+            session.add_all([os_job, bolag_job])
+            await session.commit()
+            await session.refresh(os_job)
+            await session.refresh(bolag_job)
+            await publish_job(os_job)
+            await publish_job(bolag_job)
+
+    with client.websocket_connect("/ws/jobs") as admin_ws:
+        admin_ws.send_json(_jobs_hello())
+        admin_snap = admin_ws.receive_json()
+        assert admin_snap["type"] == "jobs.snapshot"
+
+        loop.run_until_complete(_seed_jobs())
+
+        admin_os = admin_ws.receive_json()
+        assert admin_os["type"] == "job.updated"
+        assert admin_os["job"]["id"] == "job-ws-os"
+
+        admin_bolag = admin_ws.receive_json()
+        assert admin_bolag["type"] == "job.updated"
+        assert admin_bolag["job"]["id"] == "job-ws-bolag"
+
+    with client.websocket_connect("/ws/jobs") as bolag_ws:
+        bolag_ws.send_json(_jobs_hello(customer_id=bolag_id))
+        bolag_snap = bolag_ws.receive_json()
+        assert bolag_snap["type"] == "jobs.snapshot"
+        snap_ids = {row["id"] for row in bolag_snap["jobs"]}
+        assert "job-ws-bolag" in snap_ids
+        assert "job-ws-os" not in snap_ids
+
+        async def _publish_os_only() -> None:
+            factory = jobs_service.job_session_factory()
+            async with factory() as session:
+                job = await session.get(Job, "job-ws-os")
+                assert job is not None
+                job.status = "running"
+                job.updated_at = utcnow()
+                await session.commit()
+                await publish_job(job)
+
+        loop.run_until_complete(_publish_os_only())
+
+        with pytest.raises(Exception):
+            bolag_ws.receive_json(timeout=0.2)
+
+
+def test_reports_websocket_customer_scope_filters_push(ws_client):
+    from app.database.models import Report
+    from app.serializers import utcnow
+    from app.services.report_realtime import publish_report
+
+    client, loop = ws_client
+    bolag_id = _bolag_customer_id(client)
+    os_id = 1
+
+    async def _seed_reports() -> None:
+        factory = jobs_service.job_session_factory()
+        async with factory() as session:
+            os_report = Report(
+                id="rpt-ws-os",
+                customer_id=os_id,
+                status="pending",
+                title="OS report",
+                locale="sv",
+                mode="quick",
+                sources=[],
+                created_at=utcnow(),
+                updated_at=utcnow(),
+            )
+            bolag_report = Report(
+                id="rpt-ws-bolag",
+                customer_id=bolag_id,
+                status="pending",
+                title="Bolag report",
+                locale="sv",
+                mode="dd",
+                sources=[],
+                created_at=utcnow(),
+                updated_at=utcnow(),
+            )
+            session.add_all([os_report, bolag_report])
+            await session.commit()
+            await session.refresh(os_report)
+            await session.refresh(bolag_report)
+            await publish_report(os_report)
+            await publish_report(bolag_report)
+
+    with client.websocket_connect("/ws/reports") as admin_ws:
+        admin_ws.send_json(_reports_hello())
+        admin_snap = admin_ws.receive_json()
+        assert admin_snap["type"] == "reports.snapshot"
+
+        loop.run_until_complete(_seed_reports())
+
+        admin_os = admin_ws.receive_json()
+        assert admin_os["type"] == "report.updated"
+        assert admin_os["report"]["id"] == "rpt-ws-os"
+
+        admin_bolag = admin_ws.receive_json()
+        assert admin_bolag["type"] == "report.updated"
+        assert admin_bolag["report"]["id"] == "rpt-ws-bolag"
+
+    with client.websocket_connect("/ws/reports") as bolag_ws:
+        bolag_ws.send_json(_reports_hello(customer_id=bolag_id))
+        bolag_snap = bolag_ws.receive_json()
+        assert bolag_snap["type"] == "reports.snapshot"
+        snap_ids = {row["id"] for row in bolag_snap["reports"]}
+        assert "rpt-ws-bolag" in snap_ids
+        assert "rpt-ws-os" not in snap_ids
+
+        async def _publish_os_only() -> None:
+            factory = jobs_service.job_session_factory()
+            async with factory() as session:
+                report = await session.get(Report, "rpt-ws-os")
+                assert report is not None
+                report.status = "running"
+                report.updated_at = utcnow()
+                await session.commit()
+                await publish_report(report)
+
+        loop.run_until_complete(_publish_os_only())
+
+        with pytest.raises(Exception):
+            bolag_ws.receive_json(timeout=0.2)
 
 
 def test_chat_websocket_streams_tokens(ws_client):

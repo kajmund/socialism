@@ -32,6 +32,8 @@ _EMBED_CACHE_ROOT = tempfile.mkdtemp(prefix="ssr-embed-cache-")
 settings.embedding_cache_dir = _EMBED_CACHE_ROOT
 _IMAGE_CACHE_ROOT = tempfile.mkdtemp(prefix="image-cache-")
 settings.image_cache_dir = _IMAGE_CACHE_ROOT
+_BOLAGSAPI_CACHE_ROOT = tempfile.mkdtemp(prefix="bolagsapi-cache-")
+settings.bolagsapi_cache_dir = _BOLAGSAPI_CACHE_ROOT
 settings.log_dir = ""
 
 # Seeded by ensure_default_kunder() as Devbrains (primary OS tenant).
@@ -94,6 +96,8 @@ async def client():
         ensure_default_anchor_sets,
     )
     from app.services.label_vocabulary import ensure_vocabularies_seeded
+    from app.services.dd.default_experts import ensure_default_expert_personas
+    from app.services.panel.module_defaults import ensure_module_panel_defaults
     from app.services.prompt_store import ensure_default_configurations
 
     async with session_factory() as seed_session:
@@ -101,6 +105,9 @@ async def client():
         await ensure_vocabularies_seeded(seed_session)
         await ensure_default_configurations(seed_session)
         await backfill_configuration_anchor_sets(seed_session)
+        await ensure_module_panel_defaults(seed_session)
+        await ensure_default_expert_personas(seed_session)
+        await seed_session.commit()
 
     jobs_service.set_job_session_factory(session_factory)
     jobs_service.set_schedule_hook(None)

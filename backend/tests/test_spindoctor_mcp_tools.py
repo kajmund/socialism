@@ -84,6 +84,7 @@ async def _seed_interview_report(session: AsyncSession) -> tuple[str, str]:
     )
     report = Report(
         id="rpt_interview",
+        customer_id=1,
         status="succeeded",
         title="Intervjurapport",
         locale="sv",
@@ -118,7 +119,7 @@ async def session():
 def test_spindoctor_mcp_tool_specs_include_widgets_and_search():
     names = {
         spec["function"]["name"]
-        for spec in spindoctor_mcp_tool_specs()
+        for spec in spindoctor_mcp_tool_specs("politik")
         if isinstance(spec, dict)
     }
     assert "render_chart" in names
@@ -132,12 +133,36 @@ def test_spindoctor_mcp_tool_specs_include_widgets_and_search():
     assert "list_runs" in names
     assert "list_reports" in names
     assert "list_populations" in names
+    assert "get_report_ssr" in names
+    assert "get_test_message" in names
+    assert "get_report_dd" not in names
+    assert "search_companies" not in names
+    assert "lookup_company" not in names
+
+
+def test_spindoctor_mcp_tool_specs_dd_excludes_interview():
+    names = {
+        spec["function"]["name"]
+        for spec in spindoctor_mcp_tool_specs("dd")
+        if isinstance(spec, dict)
+    }
     assert "get_report_dd" in names
+    assert "search_companies" in names
+    assert "lookup_company" in names
+    assert "validate_orgnr" in names
+    assert "render_chart" in names
+    assert "place_note" in names
+    assert "list_runs" in names
+    assert "start_interview" not in names
+    assert "ask_interview_question" not in names
+    assert "read_interview_transcript" not in names
+    assert "get_report_ssr" not in names
+    assert "get_test_message" not in names
 
 
 @pytest.mark.asyncio
 async def test_render_chart_emits_widget(session):
-    ctx = SpindoctorToolContext(report_id="rpt_x")
+    ctx = SpindoctorToolContext(report_id="rpt_x", module_id="politik")
     result = await run_spindoctor_mcp_tool(
         session,
         "render_chart",
@@ -156,7 +181,7 @@ async def test_render_chart_emits_widget(session):
 
 @pytest.mark.asyncio
 async def test_place_note_emits_widget(session):
-    ctx = SpindoctorToolContext(report_id="rpt_x")
+    ctx = SpindoctorToolContext(report_id="rpt_x", module_id="politik")
     await run_spindoctor_mcp_tool(
         session,
         "place_note",
@@ -189,6 +214,7 @@ async def test_list_runs_reports_populations(session):
     session.add(
         Report(
             id="rpt_list",
+            customer_id=1,
             status="succeeded",
             title="Lista",
             locale="sv",
@@ -200,12 +226,12 @@ async def test_list_runs_reports_populations(session):
     )
     await session.commit()
 
-    runs = await run_spindoctor_mcp_tool(session, "list_runs", {}, ctx=SpindoctorToolContext())
+    runs = await run_spindoctor_mcp_tool(session, "list_runs", {}, ctx=SpindoctorToolContext(module_id="politik"))
     reports = await run_spindoctor_mcp_tool(
-        session, "list_reports", {}, ctx=SpindoctorToolContext()
+        session, "list_reports", {}, ctx=SpindoctorToolContext(module_id="politik")
     )
     pops = await run_spindoctor_mcp_tool(
-        session, "list_populations", {}, ctx=SpindoctorToolContext()
+        session, "list_populations", {}, ctx=SpindoctorToolContext(module_id="politik")
     )
     assert "Testkörning" in runs
     assert "rpt_list" in reports
@@ -215,7 +241,7 @@ async def test_list_runs_reports_populations(session):
 @pytest.mark.asyncio
 async def test_start_interview_emits_widget(session):
     report_id, persona_id = await _seed_interview_report(session)
-    ctx = SpindoctorToolContext(report_id=report_id)
+    ctx = SpindoctorToolContext(report_id=report_id, module_id="politik")
     result = await run_spindoctor_mcp_tool(
         session,
         "start_interview",
@@ -238,7 +264,7 @@ async def test_start_interview_emits_widget(session):
 @pytest.mark.asyncio
 async def test_start_interview_opening_question(session, monkeypatch):
     report_id, persona_id = await _seed_interview_report(session)
-    ctx = SpindoctorToolContext(report_id=report_id)
+    ctx = SpindoctorToolContext(report_id=report_id, module_id="politik")
 
     async def fake_turn(_session, **kwargs):
         assert kwargs["asked_by"] == "doctor"
@@ -289,7 +315,7 @@ async def test_start_interview_opening_question(session, monkeypatch):
 @pytest.mark.asyncio
 async def test_ask_interview_question(session, monkeypatch):
     report_id, persona_id = await _seed_interview_report(session)
-    ctx = SpindoctorToolContext(report_id=report_id)
+    ctx = SpindoctorToolContext(report_id=report_id, module_id="politik")
     start = json.loads(
         await run_spindoctor_mcp_tool(
             session,
@@ -329,7 +355,7 @@ async def test_ask_interview_question(session, monkeypatch):
 @pytest.mark.asyncio
 async def test_read_interview_transcript_by_widget_id(session):
     report_id, persona_id = await _seed_interview_report(session)
-    ctx = SpindoctorToolContext(report_id=report_id)
+    ctx = SpindoctorToolContext(report_id=report_id, module_id="politik")
     start = json.loads(
         await run_spindoctor_mcp_tool(
             session,
@@ -410,7 +436,7 @@ async def test_read_interview_transcript_by_coordinates(session):
                 "variant_id": "main",
                 "through_tick_index": 1,
             },
-            ctx=SpindoctorToolContext(report_id=report_id),
+            ctx=SpindoctorToolContext(report_id=report_id, module_id="politik"),
         )
     )
     assert len(transcript["messages"]) == 1

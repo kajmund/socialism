@@ -10,9 +10,10 @@ import httpx
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import SpindoctorMessage
+from app.database.models import Report, SpindoctorMessage
 from app.llm import complete_with_tools, stream_text
 from app.llm.tool_messages import assistant_message_dict, tool_result_message
+from app.modules.registry import module_id_for_report_mode
 from app.schemas.domain import (
     SpindoctorChatResponse,
     SpindoctorMessageOut,
@@ -101,7 +102,9 @@ async def _run_spindoctor_tool_loop(
     *,
     ctx: SpindoctorToolContext,
 ) -> tuple[list[dict[str, object]], list[SpindoctorWidgetOut]]:
-    tools = spindoctor_mcp_tool_specs()
+    if not ctx.module_id:
+        raise ValueError("SpindoctorToolContext.module_id is required")
+    tools = spindoctor_mcp_tool_specs(ctx.module_id)
     working = list(messages)
     emitted = len(ctx.widgets)
     new_widgets: list[SpindoctorWidgetOut] = []
@@ -224,8 +227,13 @@ async def stream_spindoctor_chat_turn(
         prior = list((await session.execute(stmt)).scalars().all())
 
         question_sent_at = utcnow()
+        report_row = await session.get(Report, report_id)
+        module_id = module_id_for_report_mode(
+            report_row.mode if report_row is not None else "quick"
+        )
         ctx = SpindoctorToolContext(
             report_id=report_id,
+            module_id=module_id,
             question_sent_at=question_sent_at,
         )
 

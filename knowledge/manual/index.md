@@ -8,7 +8,7 @@ Guider för dig som använder Opinionssimulator i webbläsaren. Teknisk setup oc
 
 # Kom igång
 
-* [Logga in](logga-in.md) — Logga in som administratör eller användare
+* [Logga in](logga-in.md) — Logga in som administratör, användare eller bolag
 * [Översikt av ytorna](oversikt.md) — Var du hittar huvudfunktionerna i admin
 * [Använda startsidan](anvanda-startsidan.md) — Dashboard med snabbstart, jobb och biblioteksstatistik
 * [Byta gränssnittsspråk](byta-granssnittssprak.md) — Växla mellan svenska och engelska i menyn
@@ -52,6 +52,8 @@ Guider för dig som använder Opinionssimulator i webbläsaren. Teknisk setup oc
 # Grunddata och jobb
 
 * [Hantera konfigurationer](hantera-konfigurationer.md) — Prompts och grunddata per konfiguration
+* [Hantera kundmoduler](hantera-kundmoduler.md) — Slå på och av produktmoduler per kund
+* [Redigera panelkatalog](redigera-panelkatalog.md) — Sub-frågor och default-expertprofiler för expertpanelen
 * [Hantera SSR-ankare](hantera-ssr-ankare.md) — Skapa, testa och publicera ton- och stilankare för rapporter
 * [Redigera grunddata](redigera-grunddata.md) — Kataloglistor och distriktskartor under en konfiguration
 * [Använda playground](anvanda-playground.md) — Kalibrera anchors, jämföra SSR och prova promptvarianter
@@ -59,13 +61,18 @@ Guider för dig som använder Opinionssimulator i webbläsaren. Teknisk setup oc
 * [Hantera embedding-cache](hantera-embedding-cache.md) — Visa och rensa cachade SSR-ankarembeddings och budskapsbilder
 * [Följa bakgrundsjobb](folja-bakgrundsjobb.md) — Status för generering, simulering och rapporter
 
+# Due diligence (bolag)
+
+* [Skapa och redigera expert](skapa-och-redigera-expert.md) — Profil, chatt och vilka verktyg experten får använda
+* [Komponera en expertpanel](komponera-expertpanel.md) — Välj experter och spara panelen direkt
+* [Köra en DD-kampanj](kora-dd-kampanj.md) — Skapa kampanj, chatta fram bolag och köra DD per kandidat
+
 # Rapporter
 
 * [Hantera rapporter](hantera-rapporter.md) — Lista och öppna beställda rapporter
 * [Beställa en rapport](bestalla-rapport.md) — Sammanfattning eller jämförelse från resultat
 * [Läsa simuleringsrapport](lasa-simuleringsrapport.md) — Öppna och läsa HTML-rapporten
 * [Spinndoktor — rapportchatt](spinndoktor-rapportchatt.md) — Resonera kring en klar rapport med Spinndoktor
-* [Konfigurera DD-experter](konfigurera-dd-experter.md) — Skapa och redigera expertroller för due diligence-panelen
 
 # Taggar
 

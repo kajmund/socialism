@@ -28,7 +28,7 @@ Rutnätet töms när du lämnar Spinndoktor-vyn.
 
 - Skriv frågor på vanlig svenska, t.ex. *Vad säger siffrorna om mottagandet?*, *Hur landade budskapet?* eller *Vilken budskapsstil funkade bäst?*
 - Spinndoktorn ser rapportens översiktssiffror direkt. Hen hämtar själv **testbudskapet**, citat från flödet, intervjusvar och namngivna medborgare med verktyg — utan att fråga dig först.
-- Hen kan också slå upp **SCB-statistik** och söka på **Wikipedia** eller **webben**, och lägger grafer, anteckningar och intervjuer på rutnätet i samma svar.
+- Hen kan också slå upp **SCB-statistik**, **svenska bolag** (organisationsnummer, omsättning, resultat) och söka på **Wikipedia** eller **webben**, och lägger grafer, anteckningar och intervjuer på rutnätet i samma svar.
 - Hen har **inte** hela transkriptet i ett svep — hen söker fram det som gör svaret bättre.
 - Chatthistoriken sparas **per rapport**. En annan rapport har en egen historik.
 

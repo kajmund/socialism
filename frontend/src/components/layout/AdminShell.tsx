@@ -1,28 +1,48 @@
-import { useEffect, useRef, useState, type ReactNode } from "react"
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom"
 import type { Job, JobStatus } from "@/api/jobs"
 import { useAuth } from "@/auth/AuthProvider"
 import { LocaleSwitcher } from "@/components/layout/LocaleSwitcher"
 import { useLocale, type MessageKey } from "@/i18n"
 import type { Role } from "@/lib/auth"
+import { campaignJobHref } from "@/lib/dd-runs"
+import {
+  matchesCustomerScope,
+  type CustomerScope,
+} from "@/lib/scoping"
 import { cn } from "@/lib/utils"
 import { useJobsRealtime } from "@/realtime/JobsRealtimeProvider"
 
-const NAV_ITEMS = [
-  { key: "nav.personas" as const, to: "/personas", match: "/personas" },
-  { key: "nav.populations" as const, to: "/populations", match: "/populations" },
-  { key: "nav.messages" as const, to: "/messages", match: "/messages" },
-  { key: "nav.tools" as const, to: "/tools", match: "/tools" },
-  { key: "nav.runs" as const, to: "/runs", match: "/runs" },
-  { key: "nav.reports" as const, to: "/reports", match: "/reports" },
-  { key: "nav.feedback" as const, to: "/feedback", match: "/feedback" },
-  { key: "nav.jobs" as const, to: "/jobs", match: "/jobs" },
+export type ShellNavItem = {
+  key: MessageKey
+  to: string
+  match: string
+  showActiveJobBadge?: boolean
+}
+
+const DEFAULT_NAV_ITEMS: ShellNavItem[] = [
+  { key: "nav.personas", to: "/personas", match: "/personas" },
+  { key: "nav.populations", to: "/populations", match: "/populations" },
+  { key: "nav.messages", to: "/messages", match: "/messages" },
+  { key: "nav.tools", to: "/tools", match: "/tools" },
+  { key: "nav.runs", to: "/runs", match: "/runs" },
+  { key: "nav.reports", to: "/reports", match: "/reports" },
+  { key: "nav.feedback", to: "/feedback", match: "/feedback" },
+  { key: "nav.jobs", to: "/jobs", match: "/jobs", showActiveJobBadge: true },
 ]
 
 const SEEN_KEY = "opinionssimulator.jobStatusSeen"
 
-type AdminShellProps = {
+export type AdminShellProps = {
   children: ReactNode
+  navItems?: ShellNavItem[]
+  brandTo?: string
+  navAriaLabelKey?: MessageKey
+  mobileMenuTitleKey?: MessageKey
+  showTools?: boolean
+  jobToasts?: boolean
+  menuId?: string
+  customerScope?: CustomerScope
 }
 
 type ToastState = {
@@ -64,18 +84,31 @@ function toastFromTransition(
   job: Job,
   prev: JobStatus | undefined,
   t: Translate,
+  scope: CustomerScope,
 ): ToastState | null {
   if (job.status !== "succeeded" && job.status !== "failed") return null
-  // Only notify when we observed a non-terminal status first (or never saw it and it's fresh).
   if (prev === "succeeded" || prev === "failed") return null
   if (prev == null && (job.status === "succeeded" || job.status === "failed")) {
-    // First sight of an already-finished job: don't toast (page refresh / history).
     return null
   }
   if (job.status === "succeeded") {
     const popId = job.result?.population_id
+    const populationKind = job.result?.population_kind
     const runId = job.result?.run_id
     const reportId = job.result?.report_id
+    const campaignId =
+      typeof job.result?.campaign_id === "number"
+        ? job.result.campaign_id
+        : typeof job.request.campaign_id === "number"
+          ? job.request.campaign_id
+          : null
+    const candidateId =
+      typeof job.result?.candidate_id === "string"
+        ? job.result.candidate_id
+        : typeof job.request.candidate_id === "string"
+          ? job.request.candidate_id
+          : null
+    const bolag = scope === "bolag"
     if (job.kind === "run_simulate" && runId != null) {
       return {
         kind: "ok",
@@ -88,14 +121,39 @@ function toastFromTransition(
       return {
         kind: "ok",
         message: t("toast.reportDone", { label: job.label }),
-        href: `/reports/${reportId}`,
+        href: bolag ? `/bolag/reports/${reportId}` : `/reports/${reportId}`,
         hrefLabel: t("toast.openReport"),
       }
     }
+    if (
+      job.kind === "panel_session_run" ||
+      job.kind === "dd_sourcing_run" ||
+      job.kind === "dd_research"
+    ) {
+      const href = campaignJobHref(campaignId, candidateId)
+      if (href) {
+        return {
+          kind: "ok",
+          message: t("toast.jobDone", { label: job.label }),
+          href,
+          hrefLabel: candidateId ? t("toast.openResults") : t("toast.openCampaign"),
+        }
+      }
+    }
+    const populationHref =
+      popId != null
+        ? populationKind === "expert_panel"
+          ? `/bolag/expertpaneler/${popId}`
+          : bolag
+            ? `/bolag/expertpaneler/${popId}`
+            : `/populations/${popId}`
+        : bolag
+          ? "/bolag/jobs"
+          : "/jobs"
     return {
       kind: "ok",
       message: t("toast.jobDone", { label: job.label }),
-      href: popId != null ? `/populations/${popId}` : "/jobs",
+      href: populationHref,
       hrefLabel: popId != null ? t("toast.openPopulation") : t("toast.viewJobs"),
     }
   }
@@ -114,14 +172,14 @@ function toastFromTransition(
     return {
       kind: "err",
       message: t("toast.reportFailed", { label: job.label, detail }),
-      href: `/reports/${reportId}`,
+      href: scope === "bolag" ? `/bolag/reports/${reportId}` : `/reports/${reportId}`,
       hrefLabel: t("toast.openReport"),
     }
   }
   return {
     kind: "err",
     message: t("toast.jobFailed", { label: job.label, detail }),
-    href: "/jobs",
+    href: scope === "bolag" ? "/bolag/jobs" : "/jobs",
     hrefLabel: t("toast.viewJobs"),
   }
 }
@@ -131,17 +189,16 @@ function NavItems({
   activeCount,
   variant,
   t,
-  showTools,
+  items,
   onNavigate,
 }: {
   pathname: string
   activeCount: number
   variant: "inline" | "panel"
   t: Translate
-  showTools: boolean
+  items: ShellNavItem[]
   onNavigate?: () => void
 }) {
-  const items = showTools ? NAV_ITEMS : NAV_ITEMS.filter((link) => link.to !== "/tools")
   return (
     <>
       {items.map((link) => {
@@ -160,7 +217,7 @@ function NavItems({
             onClick={onNavigate}
           >
             {t(link.key)}
-            {link.to === "/jobs" && activeCount > 0 ? (
+            {link.showActiveJobBadge && activeCount > 0 ? (
               <span
                 className="inline-grid h-5 min-w-5 place-items-center rounded-full bg-[#fbd37b] px-1.5 text-[11px] font-semibold text-[#1b1e2a]"
                 aria-label={t("nav.activeJobs", { count: activeCount })}
@@ -246,21 +303,53 @@ function SessionActions({
   )
 }
 
-export function AdminShell({ children }: AdminShellProps) {
+export function AdminShell({
+  children,
+  navItems = DEFAULT_NAV_ITEMS,
+  brandTo = "/",
+  navAriaLabelKey = "nav.ariaMain",
+  mobileMenuTitleKey = "brand.product",
+  showTools: showToolsProp,
+  jobToasts = true,
+  menuId = "admin-main-menu",
+  customerScope = "admin",
+}: AdminShellProps) {
   const { pathname } = useLocation()
   const { t } = useLocale()
   const { isAdmin } = useAuth()
-  const { jobs, activeCount } = useJobsRealtime()
+  const showTools = showToolsProp ?? isAdmin
+  const visibleNavItems = showTools
+    ? navItems
+    : navItems.filter((link) => link.to !== "/tools")
+  const { jobs } = useJobsRealtime()
+  const scopedJobs = useMemo(
+    () => jobs.filter((job) => matchesCustomerScope(job, customerScope)),
+    [jobs, customerScope],
+  )
+  const activeCount = useMemo(
+    () =>
+      scopedJobs.filter((job) => job.status === "pending" || job.status === "running").length,
+    [scopedJobs],
+  )
   const [toast, setToast] = useState<ToastState | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
-  const jobsRef = useRef(jobs)
-  jobsRef.current = jobs
+  const jobsRef = useRef(scopedJobs)
+  jobsRef.current = scopedJobs
 
   useEffect(() => {
     setMenuOpen(false)
   }, [pathname])
 
-  // Nav is inline from xl up — drop the mobile panel (and its scroll lock) there.
+  useLayoutEffect(() => {
+    const root = document.documentElement
+    root.classList.add("admin-scroll-lock")
+    document.body.classList.add("admin-scroll-lock")
+    return () => {
+      root.classList.remove("admin-scroll-lock")
+      document.body.classList.remove("admin-scroll-lock")
+    }
+  }, [])
+
   useEffect(() => {
     const desktop = window.matchMedia("(min-width: 1280px)")
     function sync() {
@@ -277,22 +366,18 @@ export function AdminShell({ children }: AdminShellProps) {
       if (e.key === "Escape") setMenuOpen(false)
     }
     window.addEventListener("keydown", onKey)
-    const prev = document.body.style.overflow
-    document.body.style.overflow = "hidden"
-    return () => {
-      window.removeEventListener("keydown", onKey)
-      document.body.style.overflow = prev
-    }
+    return () => window.removeEventListener("keydown", onKey)
   }, [menuOpen])
 
   useEffect(() => {
+    if (!jobToasts) return
     const rows = jobsRef.current
     const seen = readSeen()
     const nextSeen = { ...seen }
     let notify: ToastState | null = null
     for (const job of rows) {
       const prev = seen[job.id]
-      const toastCandidate = toastFromTransition(job, prev, t)
+      const toastCandidate = toastFromTransition(job, prev, t, customerScope)
       if (toastCandidate && !notify) notify = toastCandidate
       nextSeen[job.id] = job.status
     }
@@ -302,14 +387,14 @@ export function AdminShell({ children }: AdminShellProps) {
       const hide = window.setTimeout(() => setToast(null), 6000)
       return () => window.clearTimeout(hide)
     }
-  }, [jobs, t])
+  }, [customerScope, jobToasts, scopedJobs, t])
 
   return (
-    <div className="theme-admin">
-      <header className="admin-topnav relative sticky top-0 z-50 text-white">
+    <div className="theme-admin admin-shell">
+      <header className="admin-topnav relative text-white">
         <div className="mx-auto flex h-[88px] max-w-[1440px] items-center justify-between gap-8 px-6 md:h-[100px] md:px-10 2xl:px-[90px]">
           <NavLink
-            to="/"
+            to={brandTo}
             className="admin-topnav-brand no-underline"
             onClick={() => setMenuOpen(false)}
           >
@@ -320,13 +405,13 @@ export function AdminShell({ children }: AdminShellProps) {
             />
           </NavLink>
           <div className="hidden items-center gap-6 xl:flex">
-            <nav className="flex items-center gap-6" aria-label={t("nav.ariaMain")}>
+            <nav className="flex items-center gap-6" aria-label={t(navAriaLabelKey)}>
               <NavItems
                 pathname={pathname}
                 activeCount={activeCount}
                 variant="inline"
                 t={t}
-                showTools={isAdmin}
+                items={visibleNavItems}
               />
             </nav>
             <SessionActions />
@@ -335,7 +420,7 @@ export function AdminShell({ children }: AdminShellProps) {
             type="button"
             className="admin-topnav-burger flex xl:hidden"
             aria-expanded={menuOpen}
-            aria-controls="admin-main-menu"
+            aria-controls={menuId}
             aria-label={menuOpen ? t("nav.closeMenu") : t("nav.openMenu")}
             onClick={() => setMenuOpen((open) => !open)}
           >
@@ -344,20 +429,20 @@ export function AdminShell({ children }: AdminShellProps) {
         </div>
         {menuOpen ? (
           <div
-            id="admin-main-menu"
+            id={menuId}
             className="admin-topnav-panel absolute inset-x-0 top-full z-50 max-h-[calc(100vh-88px)] overflow-y-auto md:max-h-[calc(100vh-100px)] xl:hidden"
           >
             <div className="mx-auto flex max-w-[1440px] flex-col gap-8 px-6 py-10 md:px-10 md:py-12">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#fbd37b]">
-                {t("brand.product")}
+                {t(mobileMenuTitleKey)}
               </p>
-              <nav className="flex flex-col gap-1" aria-label={t("nav.ariaMain")}>
+              <nav className="flex flex-col gap-1" aria-label={t(navAriaLabelKey)}>
                 <NavItems
                   pathname={pathname}
                   activeCount={activeCount}
                   variant="panel"
                   t={t}
-                  showTools={isAdmin}
+                  items={visibleNavItems}
                   onNavigate={() => setMenuOpen(false)}
                 />
               </nav>
@@ -366,6 +451,7 @@ export function AdminShell({ children }: AdminShellProps) {
           </div>
         ) : null}
       </header>
+      <main className="admin-main-scroll">{children}</main>
       {menuOpen ? (
         <button
           type="button"
@@ -374,7 +460,6 @@ export function AdminShell({ children }: AdminShellProps) {
           onClick={() => setMenuOpen(false)}
         />
       ) : null}
-      {children}
       {toast && (
         <div className="toast" role="status">
           <div className="ck">{toast.kind === "ok" ? "✓" : "!"}</div>

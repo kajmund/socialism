@@ -16,15 +16,22 @@ from app.services.population_fingerprint import (
     infer_slots_from_profile,
     slots_from_persona,
 )
+from app.services.population_generate import library_candidate, load_library_personas
 from app.services.population_generation_store import get_generation, pop_generation
 
 _DEFAULT_POPULATION_NAME = "Namnlös population"
 
 
-def member_row(population_id: int, body: PopulationMemberCreate) -> PopulationMember:
+def member_row(
+    population_id: int,
+    body: PopulationMemberCreate,
+    *,
+    member_kind: str = "persona",
+) -> PopulationMember:
     return PopulationMember(
         population_id=population_id,
         persona_id=body.persona_id,
+        kind=member_kind,
         name=body.name,
         initials=body.initials,
         age=body.age,
@@ -42,10 +49,15 @@ def _member_create_from_candidate(
     *,
     persona_id: str | None,
     recipe_dist: dict,
+    population_kind: str = "persona",
 ) -> PopulationMemberCreate:
     persona = candidate.persona
     slots = slots_from_persona(persona)
-    if candidate.source == "library" and persona_id:
+    if (
+        population_kind == "persona"
+        and candidate.source == "library"
+        and persona_id
+    ):
         inferred = infer_slots_from_profile(
             age=persona.age,
             district=persona.district,
@@ -80,6 +92,8 @@ async def members_from_generation(
     generation_id: str,
     keep_keys: list[str] | None = None,
     extra_members: list[PopulationMemberCreate] | None = None,
+    *,
+    population_kind: str = "persona",
 ) -> tuple[list[PopulationMemberCreate], list[list[int]], dict]:
     stored = await get_generation(session, generation_id)
     if stored is None:
@@ -126,6 +140,7 @@ async def members_from_generation(
                 candidate,
                 persona_id=persona_id,
                 recipe_dist=recipe_dist,
+                population_kind=population_kind,
             )
         )
 
@@ -160,16 +175,67 @@ async def allocate_unique_population_name(
         n += 1
 
 
+async def create_expert_panel(
+    session: AsyncSession,
+    *,
+    name: str,
+    persona_ids: list[str],
+    recipe: dict | None = None,
+) -> Population:
+    ids = list(dict.fromkeys(pid.strip() for pid in persona_ids if pid and pid.strip()))
+    if not ids:
+        raise ValueError("Expert panel requires at least one expert persona")
+    library = await load_library_personas(session, ids, required_kind="expert")
+    members: list[PopulationMemberCreate] = []
+    for persona_id in ids:
+        candidate = library_candidate(persona_id, *library[persona_id])
+        members.append(
+            _member_create_from_candidate(
+                candidate,
+                persona_id=persona_id,
+                recipe_dist={},
+                population_kind="expert_panel",
+            )
+        )
+    unique_name = await allocate_unique_population_name(session, name)
+    stored_recipe = dict(recipe) if recipe else {}
+    stored_recipe["size"] = len(members)
+    stored_recipe.setdefault("dist", {})
+    population = Population(
+        kind="expert_panel",
+        name=unique_name,
+        size=len(members),
+        versions=1,
+        fingerprint=[[], [], []],
+        fingerprint_inferred=True,
+        recipe=stored_recipe,
+        updated_at=utcnow(),
+    )
+    session.add(population)
+    await session.flush()
+    for member in members:
+        session.add(member_row(population.id, member, member_kind="expert"))
+    await session.flush()
+    return population
+
+
 async def create_population_from_generation(
     session: AsyncSession,
     *,
     name: str,
     generation_id: str,
+    kind: str = "persona",
 ) -> Population:
     unique_name = await allocate_unique_population_name(session, name)
 
-    members, fingerprint, recipe = await members_from_generation(session, generation_id)
+    members, fingerprint, recipe = await members_from_generation(
+        session,
+        generation_id,
+        population_kind=kind,
+    )
+    member_kind = "expert" if kind == "expert_panel" else "persona"
     population = Population(
+        kind=kind,
         name=unique_name,
         size=len(members),
         versions=1,
@@ -181,7 +247,7 @@ async def create_population_from_generation(
     session.add(population)
     await session.flush()
     for member in members:
-        session.add(member_row(population.id, member))
+        session.add(member_row(population.id, member, member_kind=member_kind))
     await session.flush()
     await pop_generation(session, generation_id)
     return population
@@ -194,6 +260,7 @@ async def update_population_from_generation(
     name: str,
     generation_id: str,
     recipe: PopulationRecipe | None = None,
+    kind: str | None = None,
 ) -> Population:
     result = await session.execute(
         select(Population)
@@ -211,16 +278,24 @@ async def update_population_from_generation(
             exclude_id=population_id,
         )
 
-    members, fingerprint, recipe_dump = await members_from_generation(session, generation_id)
+    population_kind = kind or population.kind
+    members, fingerprint, recipe_dump = await members_from_generation(
+        session,
+        generation_id,
+        population_kind=population_kind,
+    )
+    member_kind = "expert" if population_kind == "expert_panel" else "persona"
     for existing_member in list(population.members):
         await session.delete(existing_member)
     await session.flush()
     for member in members:
-        session.add(member_row(population.id, member))
+        session.add(member_row(population.id, member, member_kind=member_kind))
     population.size = len(members)
     population.fingerprint = fingerprint
     population.fingerprint_inferred = False
     population.recipe = recipe.model_dump() if recipe is not None else recipe_dump
+    if kind is not None:
+        population.kind = kind
     population.versions += 1
     population.updated_at = utcnow()
     await session.flush()
