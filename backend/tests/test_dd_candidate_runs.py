@@ -8,8 +8,12 @@ import json
 import pytest
 from httpx import AsyncClient
 
+from app.database.models import DdCampaign, PanelSession, Report
 from app.llm import set_text_completer
+from app.serializers import utcnow
 from app.services import jobs as jobs_service
+from app.services.dd.candidate_runs import get_candidate_run, upsert_panel_session, upsert_report
+from app.services.kund_store import bolag_demo_customer_id
 
 
 @pytest.fixture
@@ -197,3 +201,92 @@ async def test_candidate_run_links_panel_and_report(
     assert after_delete.json()["candidate_runs"] == []
     missing = await client.delete(f"/dd/campaigns/{campaign_id}/runs/{candidate_id}")
     assert missing.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_concurrent_candidate_run_upserts_merge_links(client_db):
+    """Parallel panel/report upserts must not 500 or drop links on unique constraint races."""
+    client, factory = client_db
+
+    create = await client.post(
+        "/dd/campaigns",
+        json={"title": "Race test", "criteria": {"alder_min": 0, "alder_max": 50, "omrade": ""}},
+    )
+    assert create.status_code == 201
+    campaign_id = create.json()["id"]
+    candidate_id = "race_candidate_1"
+
+    async with factory() as session:
+        campaign = await session.get(DdCampaign, campaign_id)
+        assert campaign is not None
+        campaign.candidates = [
+            {
+                "id": candidate_id,
+                "namn": "Race AB",
+                "organisationsnummer": "556999-9999",
+                "alder_ar": 12,
+                "omrade": "Test",
+                "resultat": "vinst",
+                "omsattning_sek": 1_000_000,
+                "anstallda": 3,
+                "beskrivning": "Test",
+            }
+        ]
+        bolag_id = await bolag_demo_customer_id(session)
+        session.add(
+            PanelSession(
+                id="panel_race",
+                protocol="dd_panel",
+                status="draft",
+                config={"protocol": "dd_panel", "topic": "t", "expert_slots": [{"slot_id": "a", "label": "A"}]},
+                transcript=[],
+                scratchpads={},
+                campaign_id=campaign_id,
+            )
+        )
+        session.add(
+            Report(
+                id="rpt_race",
+                customer_id=bolag_id,
+                status="pending",
+                title="Race report",
+                locale="sv",
+                mode="dd",
+                sources=[],
+                created_at=utcnow(),
+                updated_at=utcnow(),
+            )
+        )
+        await session.commit()
+
+    async def _upsert_panel() -> None:
+        async with factory() as session:
+            await upsert_panel_session(
+                session,
+                campaign_id=campaign_id,
+                candidate_id=candidate_id,
+                panel_session_id="panel_race",
+            )
+            await session.commit()
+
+    async def _upsert_report() -> None:
+        async with factory() as session:
+            await upsert_report(
+                session,
+                campaign_id=campaign_id,
+                candidate_id=candidate_id,
+                report_id="rpt_race",
+            )
+            await session.commit()
+
+    await asyncio.gather(_upsert_panel(), _upsert_report())
+
+    async with factory() as session:
+        row = await get_candidate_run(
+            session,
+            campaign_id=campaign_id,
+            candidate_id=candidate_id,
+        )
+        assert row is not None
+        assert row.panel_session_id == "panel_race"
+        assert row.report_id == "rpt_race"
