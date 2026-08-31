@@ -39,7 +39,7 @@ router = APIRouter(prefix="/panel", tags=["panel-catalog"])
 
 _SORT_ORDER_CONFLICT = "Sort order already used for this module"
 _SUB_QUESTION_KEY_CONFLICT = "Sub-question key already exists for this module"
-_EXPERT_KEY_CONFLICT = "Expert profile key already exists for this module"
+_EXPERT_KEY_CONFLICT = "Expert profile key already exists"
 
 
 def _conflict_from_integrity(exc: IntegrityError, *, key_detail: str) -> HTTPException:
@@ -72,10 +72,15 @@ def _serialize_sub_question(row: PanelSubQuestion) -> PanelSubQuestionOut:
     )
 
 
-def _serialize_expert_profile(row: PanelExpertProfile) -> PanelExpertProfileOut:
+def _serialize_expert_profile(
+    row: PanelExpertProfile, *, viewed_module: str | None = None
+) -> PanelExpertProfileOut:
+    modules = [str(item) for item in (row.modules or [])]
+    module = viewed_module if viewed_module is not None else (modules[0] if modules else "")
     return PanelExpertProfileOut(
         id=row.id,
-        module=row.module,
+        module=module,
+        modules=modules,
         key=row.key,
         name=row.name,
         description=row.description,
@@ -160,7 +165,7 @@ async def list_expert_profiles(
 ) -> list[PanelExpertProfileOut]:
     _require_module(module)
     rows = await get_expert_profiles(session, module, active_only=not include_inactive)
-    return [_serialize_expert_profile(row) for row in rows]
+    return [_serialize_expert_profile(row, viewed_module=module) for row in rows]
 
 
 @router.post("/expert-profiles", response_model=PanelExpertProfileOut, status_code=201)
@@ -172,7 +177,7 @@ async def post_expert_profile(
     key = body.key or expert_role_key(body.name)
     sort_order = body.sort_order
     if sort_order is None:
-        sort_order = await next_expert_profile_sort_order(session, body.module)
+        sort_order = await next_expert_profile_sort_order(session)
     try:
         row = await create_expert_profile(
             session,
@@ -191,7 +196,7 @@ async def post_expert_profile(
     except IntegrityError as exc:
         await session.rollback()
         raise _conflict_from_integrity(exc, key_detail=_EXPERT_KEY_CONFLICT) from exc
-    return _serialize_expert_profile(row)
+    return _serialize_expert_profile(row, viewed_module=body.module)
 
 
 @router.patch("/expert-profiles/{row_id}", response_model=PanelExpertProfileOut)
