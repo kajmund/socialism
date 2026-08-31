@@ -40,6 +40,12 @@ async def lifespan(_app: FastAPI):
         raise RuntimeError("DEEPSEEK_API_KEY is required")
     if not settings.openai_api_key.strip():
         raise RuntimeError("OPENAI_API_KEY is required (embeddings / SSR)")
+    if not settings.supabase_jwt_secret.strip():
+        raise RuntimeError("SUPABASE_JWT_SECRET is required")
+    if not settings.supabase_url.strip():
+        raise RuntimeError("SUPABASE_URL is required")
+    if not settings.supabase_service_role_key.strip():
+        raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY is required")
     settings.apply_oasis_env()
     factory = jobs_service.job_session_factory()
     try:
@@ -66,6 +72,12 @@ def create_app() -> FastAPI:
         raise RuntimeError("DEEPSEEK_API_KEY is required")
     if not settings.openai_api_key.strip():
         raise RuntimeError("OPENAI_API_KEY is required (embeddings / SSR)")
+    if not settings.supabase_jwt_secret.strip():
+        raise RuntimeError("SUPABASE_JWT_SECRET is required")
+    if not settings.supabase_url.strip():
+        raise RuntimeError("SUPABASE_URL is required")
+    if not settings.supabase_service_role_key.strip():
+        raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY is required")
     app = FastAPI(title="Opinionssimulator", version="0.1.0", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,

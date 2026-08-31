@@ -7,6 +7,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.dependencies import require_admin
 from app.database.models import SsrLabelVocabulary
 from app.database.session import get_session
 from app.schemas.domain import (
@@ -27,7 +28,11 @@ from app.services.label_vocabulary import (
     usage_by_key,
 )
 
-router = APIRouter(prefix="/label-vocabularies", tags=["label-vocabularies"])
+router = APIRouter(
+    prefix="/label-vocabularies",
+    tags=["label-vocabularies"],
+    dependencies=[Depends(require_admin)],
+)
 
 
 def _dt(value: datetime | None) -> str:

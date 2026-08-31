@@ -5,7 +5,9 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import Report
+from app.auth.dependencies import get_current_user
+from app.auth.scope import assert_kund_access
+from app.database.models import Report, UserAccount
 from app.database.session import get_session
 from app.schemas.domain import (
     SpindoctorMessageOut,
@@ -26,10 +28,15 @@ from app.services.spindoctor_chat import (
 router = APIRouter(prefix="/spindoctor", tags=["spindoctor"])
 
 
-async def _require_succeeded_report(session: AsyncSession, report_id: str) -> Report:
+async def _require_succeeded_report(
+    session: AsyncSession,
+    report_id: str,
+    user: UserAccount,
+) -> Report:
     report = await session.get(Report, report_id)
     if report is None:
         raise HTTPException(status_code=404, detail="Report not found")
+    assert_kund_access(user, report.customer_id)
     if report.status != "succeeded":
         raise HTTPException(status_code=400, detail="Report is not ready for Spinndoktor")
     return report
@@ -39,8 +46,9 @@ async def _require_succeeded_report(session: AsyncSession, report_id: str) -> Re
 async def get_spindoctor_messages(
     report_id: str,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> list[SpindoctorMessageOut]:
-    await _require_succeeded_report(session, report_id)
+    await _require_succeeded_report(session, report_id, user)
     return await list_spindoctor_messages(session, report_id)
 
 
@@ -48,8 +56,9 @@ async def get_spindoctor_messages(
 async def delete_spindoctor_messages(
     report_id: str,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> None:
-    await _require_succeeded_report(session, report_id)
+    await _require_succeeded_report(session, report_id, user)
     await clear_spindoctor_messages(session, report_id)
 
 
@@ -57,8 +66,9 @@ async def delete_spindoctor_messages(
 async def get_spindoctor_widgets(
     report_id: str,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> list[SpindoctorWidgetOut]:
-    await _require_succeeded_report(session, report_id)
+    await _require_succeeded_report(session, report_id, user)
     return await list_spindoctor_widgets(session, report_id)
 
 
@@ -67,8 +77,9 @@ async def patch_spindoctor_widget(
     widget_id: str,
     body: SpindoctorWidgetPositionIn,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> SpindoctorWidgetOut:
-    await _require_succeeded_report(session, body.report_id)
+    await _require_succeeded_report(session, body.report_id, user)
     try:
         return await update_spindoctor_widget_position(
             session,
@@ -86,8 +97,9 @@ async def remove_spindoctor_widget(
     widget_id: str,
     report_id: str,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> None:
-    await _require_succeeded_report(session, report_id)
+    await _require_succeeded_report(session, report_id, user)
     try:
         await delete_spindoctor_widget(session, report_id, widget_id)
     except ValueError as exc:
@@ -98,6 +110,7 @@ async def remove_spindoctor_widget(
 async def delete_spindoctor_widgets(
     report_id: str,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> None:
-    await _require_succeeded_report(session, report_id)
+    await _require_succeeded_report(session, report_id, user)
     await clear_spindoctor_widgets(session, report_id)

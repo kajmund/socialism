@@ -7,7 +7,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.database.models import Kund, Projekt
+from app.auth.dependencies import get_current_user, require_admin
+from app.auth.scope import assert_kund_access
+from app.database.models import Kund, Projekt, UserAccount
 from app.database.session import get_session
 from app.modules.registry import MODULE_REGISTRY
 from app.schemas.kund import KundOut, KundUpdate, ProjektOut
@@ -70,13 +72,14 @@ def _normalize_available_modules(ids: list[str]) -> list[str]:
 @router.get("", response_model=list[KundOut])
 async def list_kunder(
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> list[KundOut]:
     await ensure_default_kunder(session)
-    result = await session.execute(
-        select(Kund)
-        .options(selectinload(Kund.projekt))
-        .order_by(Kund.id.asc())
-    )
+    stmt = select(Kund).options(selectinload(Kund.projekt)).order_by(Kund.id.asc())
+    if user.role != "admin":
+        assert_kund_access(user, user.kund_id)
+        stmt = stmt.where(Kund.id == user.kund_id)
+    result = await session.execute(stmt)
     rows = list(result.scalars().unique().all())
     return [_serialize_kund(row, include_projekt=True) for row in rows]
 
@@ -85,7 +88,9 @@ async def list_kunder(
 async def get_kund(
     kund_id: int,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> KundOut:
+    assert_kund_access(user, kund_id)
     await ensure_default_kunder(session)
     result = await session.execute(
         select(Kund)
@@ -103,6 +108,7 @@ async def patch_kund(
     kund_id: int,
     body: KundUpdate,
     session: AsyncSession = Depends(get_session),
+    _admin: UserAccount = Depends(require_admin),
 ) -> KundOut:
     await ensure_default_kunder(session)
     result = await session.execute(
@@ -126,7 +132,9 @@ async def patch_kund(
 async def list_projekt_for_kund(
     kund_id: int,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> list[ProjektOut]:
+    assert_kund_access(user, kund_id)
     await ensure_default_kunder(session)
     kund = await session.get(Kund, kund_id)
     if kund is None:

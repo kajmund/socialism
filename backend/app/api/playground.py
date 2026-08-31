@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.dependencies import require_admin
 from app.database.models import Configuration, Persona
 from app.database.session import get_session
 from app.llm import complete_text
@@ -30,7 +31,11 @@ from app.services.report.sampling import (
 )
 from app.services.ssr import ANCHOR_SET_VERSION, style_anchors, tone_anchors
 
-router = APIRouter(prefix="/playground", tags=["playground"])
+router = APIRouter(
+    prefix="/playground",
+    tags=["playground"],
+    dependencies=[Depends(require_admin)],
+)
 
 Dimension = Literal["tone", "style"]
 Locale = Literal["sv", "en"]
