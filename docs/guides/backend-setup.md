@@ -40,6 +40,9 @@ cp .env.example .env
 | `BOLAGSAPI_API_KEY` | for DD company tools | — | When set, company tools use BolagsAPI MCP. When empty, the same tools scrape Allabolag.se |
 | `BOLAGSAPI_MCP_URL` | no | `https://mcp.bolagsapi.se/mcp` | BolagsAPI remote MCP |
 | `BOLAGSAPI_CACHE_DIR` | no | `data/bolagsapi_cache` | Disk cache for MCP tool results. Entries expire after 10 months |
+| `SUPABASE_URL` | **yes** | — | Supabase project URL (Auth + Admin invite) |
+| `SUPABASE_JWT_SECRET` | **yes** | — | HS256 JWT secret for verifying access tokens |
+| `SUPABASE_SERVICE_ROLE_KEY` | **yes** | — | Backend-only; Admin invite API (never ship to the SPA) |
 
 `.env` example:
 
@@ -62,12 +65,16 @@ LOG_DIR=data/logs
 LOG_MAX_BYTES=2000000
 LOG_BACKUP_COUNT=5
 LOG_LEVEL=INFO
+SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+SUPABASE_JWT_SECRET=your-jwt-secret
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```
 
 Constraints:
 
 - `DEEPSEEK_API_KEY` is required at startup even when `PERSONA_GENERATOR=stub`. There is no keyword/heuristic LLM fallback for chat or reports.
 - `OPENAI_API_KEY` is required for Semantic Similarity Rating (report tone/style). The SSR embeddings client reads `settings.openai_api_key` explicitly — not the process env after OASIS mirrors DeepSeek into `OPENAI_API_KEY`.
+- `SUPABASE_URL`, `SUPABASE_JWT_SECRET`, and `SUPABASE_SERVICE_ROLE_KEY` are required at startup (Auth verify + Admin invite). The service role key must never be exposed to the frontend.
 - Settings live only in `app/config.py` — do not call `os.getenv` / `load_dotenv` in app code.
 - `BOLAGSAPI_API_KEY` selects the company-data backend: BolagsAPI MCP when set, Allabolag scrape when empty. One path per process — a BolagsAPI failure does not fall through to Allabolag. Successful tool results (and Allabolag HTML) are cached on disk for 10 months.
 
