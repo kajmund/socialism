@@ -73,13 +73,14 @@ export default function App() {
           <Route path="/valj-modul" element={<ValjModulPage />} />
 
           <Route element={<RequireAdmin />}>
+            <Route path="/anvandare" element={<AnvandarePage />} />
+            <Route path="/tools/anvandare" element={<Navigate to="/anvandare" replace />} />
             <Route path="/tools" element={<ToolsShell />}>
               <Route index element={<Navigate to="configurations" replace />} />
               <Route path="configurations" element={<ConfigurationsPage />} />
               <Route path="configurations/new" element={<ConfigurationEditorPage />} />
               <Route path="configurations/:id/edit" element={<ConfigurationEditorPage />} />
               <Route path="kunder" element={<KunderPage />} />
-              <Route path="anvandare" element={<AnvandarePage />} />
               <Route path="panel-catalog" element={<PanelCatalogPage />} />
               <Route path="anchor-sets" element={<AnchorSetsPage />} />
               <Route path="anchor-sets/new" element={<AnchorSetEditorPage />} />

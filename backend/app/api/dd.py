@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import shutil
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -46,6 +49,8 @@ from app.services.dd.schemas import (
 )
 from app.services.panel.schemas import DdPanelSessionCreateRequest, PanelSessionOut
 from app.services.panel.sessions import create_panel_session
+from app.services.report import ARTIFACT_ROOT
+from app.services.report_realtime import publish_reports_deleted
 
 router = APIRouter(prefix="/dd", tags=["dd"])
 
@@ -163,7 +168,7 @@ async def delete_campaign_run(
     user: UserAccount = Depends(get_current_user),
 ) -> None:
     row = await _require_campaign(session, campaign_id, user)
-    removed_run = await delete_candidate_run(
+    removed_run, deleted_report_id = await delete_candidate_run(
         session,
         campaign_id=campaign_id,
         candidate_id=candidate_id,
@@ -172,6 +177,11 @@ async def delete_campaign_run(
     if not removed_run and not removed_assignment:
         raise HTTPException(status_code=404, detail="Run not found")
     await session.commit()
+    if deleted_report_id:
+        path = Path(ARTIFACT_ROOT) / deleted_report_id
+        if path.is_dir():
+            shutil.rmtree(path)
+        await publish_reports_deleted([(deleted_report_id, row.customer_id)])
 
 
 @router.post("/sourcing/search", response_model=DdSourcingSearchResponse)

@@ -8,8 +8,9 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import PanelSubQuestion
+from app.database.models import PanelSession, PanelSubQuestion, Report
 from app.serializers import utcnow
+from app.services.spindoctor_dd import load_dd_report_json
 
 
 def _unused_sort_order(taken: set[int], preferred: int) -> int:
@@ -91,6 +92,53 @@ async def update_sub_question(
     await session.flush()
     await session.refresh(row)
     return row
+
+
+def _dict_list_uses_key(rows: object, key: str) -> bool:
+    if not isinstance(rows, list):
+        return False
+    for row in rows:
+        if isinstance(row, dict) and row.get("sub_question_id") == key:
+            return True
+    return False
+
+
+def panel_payload_uses_sub_question_key(
+    result: object,
+    transcript: object,
+    key: str,
+) -> bool:
+    if isinstance(result, dict):
+        for bucket in ("scores", "dissensus", "unanswered"):
+            if _dict_list_uses_key(result.get(bucket), key):
+                return True
+    if isinstance(transcript, list):
+        for turn in transcript:
+            if isinstance(turn, dict) and turn.get("sub_question_id") == key:
+                return True
+    return False
+
+
+async def sub_question_key_in_use(session: AsyncSession, key: str) -> bool:
+    """True if any panel session or DD report still references the catalog key."""
+    panel_rows = await session.execute(
+        select(PanelSession.result, PanelSession.transcript)
+    )
+    for result, transcript in panel_rows.all():
+        if panel_payload_uses_sub_question_key(result, transcript, key):
+            return True
+
+    report_ids = await session.execute(select(Report.id))
+    for (report_id,) in report_ids.all():
+        doc = load_dd_report_json(report_id)
+        if isinstance(doc, dict) and panel_payload_uses_sub_question_key(doc, None, key):
+            return True
+    return False
+
+
+async def delete_sub_question(session: AsyncSession, row: PanelSubQuestion) -> None:
+    await session.delete(row)
+    await session.flush()
 
 
 async def ensure_sub_question_defaults(

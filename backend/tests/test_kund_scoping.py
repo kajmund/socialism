@@ -134,6 +134,63 @@ async def test_kunder_api_lists_seeded_tenants():
     await engine.dispose()
 
 
+async def test_admin_can_create_kund():
+    engine = create_async_engine(
+        "sqlite+aiosqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    async with factory() as s:
+        await ensure_default_kunder(s)
+        s.add(
+            UserAccount(
+                id=ADMIN_USER_ID,
+                email="admin@test.local",
+                role="admin",
+                kund_id=None,
+            )
+        )
+        await s.commit()
+
+    app = create_app()
+
+    async def override_get_session():
+        async with factory() as s:
+            yield s
+
+    app.dependency_overrides[get_session] = override_get_session
+    transport = ASGITransport(app=app)
+    token = mint_access_token(sub=ADMIN_USER_ID, email="admin@test.local")
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers={"Authorization": f"Bearer {token}"},
+    ) as client:
+        created = await client.post(
+            "/kunder",
+            json={"name": "Norrköping", "slug": "Norr Köping", "available_modules": ["dd"]},
+        )
+        assert created.status_code == 201, created.text
+        body = created.json()
+        assert body["name"] == "Norrköping"
+        assert body["slug"] == "norr-köping"
+        assert body["available_modules"] == ["dd"]
+        assert body["projekt"]
+        assert body["projekt"][0]["slug"] == DEFAULT_PROJEKT_SLUG
+
+        dup = await client.post(
+            "/kunder",
+            json={"name": "Other", "slug": "norr-köping", "available_modules": []},
+        )
+        assert dup.status_code == 409
+
+    await engine.dispose()
+
+
 async def test_persona_row_requires_customer_id(session: AsyncSession):
     customer_id = await default_os_customer_id(session)
     session.add(

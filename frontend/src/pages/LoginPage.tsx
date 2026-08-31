@@ -11,7 +11,7 @@ type LoginLocationState = {
 
 export function LoginPage() {
   const { t, locale, setLocale } = useLocale()
-  const { session, loading, requestMagicLink, resolvedModules } = useAuth()
+  const { session, loading, requestMagicLink, resolvedModules, profileError } = useAuth()
   const location = useLocation()
   const from = (location.state as LoginLocationState | null)?.from
   const [email, setEmail] = useState("")
@@ -19,6 +19,15 @@ export function LoginPage() {
   const [submitting, setSubmitting] = useState(false)
   const [linkSent, setLinkSent] = useState(false)
   const noModules = Boolean(session) && resolvedModules.length === 0
+
+  const profileErrorMessage =
+    profileError === "not_provisioned"
+      ? t("auth.notProvisioned")
+      : profileError === "invalid_token"
+        ? t("auth.invalidToken")
+        : profileError === "unknown"
+          ? t("auth.profileFailed")
+          : null
 
   if (loading) return <div className="min-h-svh bg-db-black" aria-hidden="true" />
   if (session && resolvedModules.length > 0) {
@@ -124,9 +133,9 @@ export function LoginPage() {
                     />
                   </label>
 
-                  {error || noModules ? (
+                  {error || noModules || profileErrorMessage ? (
                     <p className="text-sm text-[#ffb4b4]" role="alert">
-                      {error ?? t("auth.noModules")}
+                      {error ?? profileErrorMessage ?? t("auth.noModules")}
                     </p>
                   ) : null}
 

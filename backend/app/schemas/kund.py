@@ -23,6 +23,7 @@ class KundOut(BaseModel):
 class KundCreate(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     slug: str = Field(min_length=1, max_length=64)
+    available_modules: list[str] = Field(default_factory=list)
 
 
 class KundUpdate(BaseModel):

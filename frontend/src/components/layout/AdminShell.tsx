@@ -25,7 +25,7 @@ const DEFAULT_NAV_ITEMS: ShellNavItem[] = [
   { key: "nav.populations", to: "/populations", match: "/populations" },
   { key: "nav.messages", to: "/messages", match: "/messages" },
   { key: "nav.tools", to: "/tools", match: "/tools" },
-  { key: "nav.users", to: "/tools/anvandare", match: "/tools/anvandare" },
+  { key: "nav.users", to: "/anvandare", match: "/anvandare" },
   { key: "nav.runs", to: "/runs", match: "/runs" },
   { key: "nav.reports", to: "/reports", match: "/reports" },
   { key: "nav.feedback", to: "/feedback", match: "/feedback" },
@@ -321,7 +321,7 @@ export function AdminShell({
   const showTools = showToolsProp ?? isAdmin
   const visibleNavItems = showTools
     ? navItems
-    : navItems.filter((link) => link.to !== "/tools" && link.to !== "/tools/anvandare")
+    : navItems.filter((link) => link.to !== "/tools" && link.to !== "/anvandare")
   const { jobs } = useJobsRealtime()
   const scopedJobs = useMemo(
     () => jobs.filter((job) => matchesCustomerScope(job, customerScope)),

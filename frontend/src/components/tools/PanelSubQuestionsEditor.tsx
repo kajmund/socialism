@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import {
   createPanelSubQuestion,
+  deletePanelSubQuestion,
   isSortOrderConflict,
   listPanelSubQuestions,
   sortOrderInUse,
@@ -28,7 +29,7 @@ export function PanelSubQuestionsEditor({ moduleId }: PanelSubQuestionsEditorPro
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    listPanelSubQuestions(moduleId, true)
+    listPanelSubQuestions(moduleId, false)
       .then((data) => {
         if (cancelled) return
         setRows(data)
@@ -89,14 +90,25 @@ export function PanelSubQuestionsEditor({ moduleId }: PanelSubQuestionsEditorPro
     }
   }
 
-  async function toggleActive(row: PanelSubQuestion, active: boolean) {
+  async function removeRow(row: PanelSubQuestion) {
     setSavingId(row.id)
     setError(null)
     try {
-      const updated = await updatePanelSubQuestion(row.id, { active })
-      setRows((prev) => prev.map((item) => (item.id === updated.id ? updated : item)))
+      await deletePanelSubQuestion(row.id)
+      setRows((prev) => prev.filter((item) => item.id !== row.id))
+      setDrafts((prev) => {
+        const next = { ...prev }
+        delete next[row.id]
+        return next
+      })
     } catch (err: unknown) {
-      setError(err instanceof ApiError ? err.message : t("common.saveError"))
+      setError(
+        err instanceof ApiError && /used in a run/i.test(err.message)
+          ? t("tools.panelCatalog.removeInUse")
+          : err instanceof ApiError
+            ? err.message
+            : t("common.saveError"),
+      )
     } finally {
       setSavingId(null)
     }
@@ -139,13 +151,12 @@ export function PanelSubQuestionsEditor({ moduleId }: PanelSubQuestionsEditorPro
         </p>
       ) : null}
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[40rem] border-collapse text-left text-sm">
+        <table className="w-full min-w-[36rem] border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-[color:var(--border-hairline)]">
               <th className="px-2 py-1.5 font-medium">{t("tools.panelCatalog.colKey")}</th>
               <th className="px-2 py-1.5 font-medium">{t("tools.panelCatalog.colLabel")}</th>
               <th className="px-2 py-1.5 font-medium">{t("tools.panelCatalog.colSort")}</th>
-              <th className="px-2 py-1.5 font-medium">{t("tools.panelCatalog.colActive")}</th>
               <th className="px-2 py-1.5 font-medium">{t("tools.panelCatalog.colActions")}</th>
             </tr>
           </thead>
@@ -183,24 +194,26 @@ export function PanelSubQuestionsEditor({ moduleId }: PanelSubQuestionsEditorPro
                     />
                   </td>
                   <td className="px-2 py-1.5">
-                    <input
-                      type="checkbox"
-                      checked={row.active}
-                      disabled={savingId === row.id}
-                      aria-label={t("tools.panelCatalog.colActive")}
-                      onChange={(event) => void toggleActive(row, event.target.checked)}
-                    />
-                  </td>
-                  <td className="px-2 py-1.5">
-                    <AdminButton
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      disabled={savingId === row.id}
-                      onClick={() => void saveRow(row)}
-                    >
-                      {savingId === row.id ? t("common.saving") : t("common.save")}
-                    </AdminButton>
+                    <div className="flex flex-wrap gap-2">
+                      <AdminButton
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        disabled={savingId === row.id}
+                        onClick={() => void saveRow(row)}
+                      >
+                        {savingId === row.id ? t("common.saving") : t("common.save")}
+                      </AdminButton>
+                      <AdminButton
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        disabled={savingId === row.id}
+                        onClick={() => void removeRow(row)}
+                      >
+                        {t("tools.panelCatalog.removeSubQuestion")}
+                      </AdminButton>
+                    </div>
                   </td>
                 </tr>
               )
