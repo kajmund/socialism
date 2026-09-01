@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from app.modules.report_binding import ReportGenerateContext, ReportGenerateResult
 from app.services.dd.sub_questions import SubQuestionRef
-from app.services.panel.schemas import DdPanelResult
+from app.services.panel.result import dd_panel_result_from_stored
 from app.services.panel.sessions import get_panel_session
 from app.services.panel.sub_questions_store import get_sub_questions
 from app.services.report.dd_report import generate_dd_report_html
@@ -30,7 +30,7 @@ async def generate_dd_module_report(ctx: ReportGenerateContext) -> ReportGenerat
             raise ValueError("Panel session has not succeeded")
         if not isinstance(panel.result, dict):
             raise ValueError("Panel session has no result")
-        result = DdPanelResult.model_validate(panel.result)
+        result = dd_panel_result_from_stored(panel.result)
         await ensure_module_panel_defaults(session)
         sq_rows = await get_sub_questions(session, "dd")
         sub_questions = [SubQuestionRef(id=row.key, label=row.label) for row in sq_rows]

@@ -34,7 +34,7 @@ from app.services.dd.candidate_runs import (
 )
 from app.services.spindoctor_board import clear_spindoctor_widgets
 from app.services.spindoctor_chat import clear_spindoctor_messages
-from app.services.panel.schemas import DdPanelResult
+from app.services.panel.result import dd_panel_result_from_stored
 from app.services.report import ARTIFACT_ROOT
 from app.services.report.dd_report import render_dd_html_from_artifact
 from app.services.report.locale import (
@@ -107,7 +107,7 @@ async def _validate_dd_session_source(session: AsyncSession, src) -> dict:
         raise HTTPException(status_code=400, detail="Panel session has not succeeded")
     if not isinstance(panel.result, dict):
         raise HTTPException(status_code=400, detail="Panel session has no result payload")
-    result = DdPanelResult.model_validate(panel.result)
+    result = dd_panel_result_from_stored(panel.result)
     if result.candidate.id != src.candidate_id:
         raise HTTPException(
             status_code=400,

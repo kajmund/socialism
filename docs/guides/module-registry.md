@@ -47,5 +47,16 @@ mode, or `report_modes` without a `ReportBinding`, fail boot.
 1. Backend `ModuleManifest` with `report_modes` + `ReportBinding` (if it produces reports).
 2. Frontend manifest with the same `reportModes`.
 3. Spinndoktor `source_loader` / `context_builder` — no `if report.mode` in `spindoctor_context.py`.
-4. Panel protocol via the deliberation-method registry (see Fas 3), not a new `jobs.py` branch.
+4. Panel protocol via `DELIBERATION_METHODS` (`generic_panel`, `structured_scoring`), not a new `jobs.py` branch.
 5. Seed expert profiles by `key` (`ensure_expert_profile_defaults`) so existing experts gain the new module instead of duplicating rows.
+
+## Deliberation methods (Fas 3+4)
+
+Two complete methods, not a composable raise-hand strategy:
+
+| Method               | First protocol     | Output                          |
+| -------------------- | ------------------ | ------------------------------- |
+| `generic_panel`      | `generic_panel`    | `PanelResult` (claims empty)    |
+| `structured_scoring` | `dd_panel` (after switch) | `PanelResult` envelope; DD reports adapt to `DdPanelResult` |
+
+DD production still runs `dd_engine.py` until `tests/test_structured_scoring_equivalence.py` is green. Then `PROTOCOL_METHODS["dd_panel"] = "structured_scoring"` and `dd_engine.py` is deleted in its own commit.
