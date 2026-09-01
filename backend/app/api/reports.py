@@ -34,7 +34,7 @@ from app.services.dd.candidate_runs import (
 )
 from app.services.spindoctor_board import clear_spindoctor_widgets
 from app.services.spindoctor_chat import clear_spindoctor_messages
-from app.services.panel.schemas import DdPanelResult
+from app.services.panel.result import dd_panel_result_from_stored
 from app.services.report import ARTIFACT_ROOT
 from app.services.report.dd_report import render_dd_html_from_artifact
 from app.services.report.locale import (
@@ -42,6 +42,8 @@ from app.services.report.locale import (
     download_filename,
     normalize_locale,
 )
+from app.modules.registry import resolve_report_mode, source_types_for_registry
+from app.modules.report_binding import UnknownReportModeError
 from app.services.customer_scope import customer_id_for_new_report
 from app.services.report.bundles import attempt_has_data, find_attempt
 from app.services.report.verdict_calibration import (
@@ -107,7 +109,7 @@ async def _validate_dd_session_source(session: AsyncSession, src) -> dict:
         raise HTTPException(status_code=400, detail="Panel session has not succeeded")
     if not isinstance(panel.result, dict):
         raise HTTPException(status_code=400, detail="Panel session has no result payload")
-    result = DdPanelResult.model_validate(panel.result)
+    result = dd_panel_result_from_stored(panel.result)
     if result.candidate.id != src.candidate_id:
         raise HTTPException(
             status_code=400,
@@ -125,13 +127,28 @@ async def _validate_dd_session_source(session: AsyncSession, src) -> dict:
 
 
 async def _validate_sources(session: AsyncSession, body: ReportCreate) -> tuple[list[dict], str]:
+    source_type = body.sources[0].type
+    known = source_types_for_registry()
+    if source_type not in known:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown report source type {source_type!r}",
+        )
+    try:
+        mode = resolve_report_mode(source_type, body.mode)
+    except (UnknownReportModeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     sources: list[dict] = []
-    mode = body.mode or "quick"
     for i, src in enumerate(body.sources):
         if src.type == "dd_session":
             sources.append(await _validate_dd_session_source(session, src))
-        else:
+        elif src.type == "oasis":
             sources.append(await _validate_oasis_source(session, src, index=i))
+        else:
+            payload = {key: value for key, value in src.model_dump().items() if value is not None}
+            payload.setdefault("label", src.type)
+            sources.append(payload)
     return sources, mode
 
 

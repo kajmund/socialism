@@ -7,6 +7,7 @@ export type ProductModule = {
   prompt_namespace: string
   frontend_entry: string
   components: string[]
+  report_modes: string[]
   has_sub_questions: boolean
   has_expert_defaults: boolean
   supports_interview: boolean

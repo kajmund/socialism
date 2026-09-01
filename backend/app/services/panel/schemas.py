@@ -38,6 +38,7 @@ class PanelExpertSlot(BaseModel):
 
 class PanelSessionConfig(BaseModel):
     protocol: PanelProtocol = "generic_panel"
+    module: str | None = None
     topic: str = Field(min_length=1, max_length=4000)
     brief: str = ""
     expert_slots: list[PanelExpertSlot] = Field(min_length=1, max_length=6)

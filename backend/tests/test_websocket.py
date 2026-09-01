@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import os
+import shutil
+import tempfile
+from pathlib import Path
 
 os.environ.setdefault("DEEPSEEK_API_KEY", "test-key-not-real")
 os.environ.setdefault("OPENAI_API_KEY", "test-openai-key-not-real")
@@ -12,7 +15,7 @@ from collections.abc import AsyncIterator
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.pool import NullPool
 from starlette.testclient import TestClient
 
 from app.config import settings
@@ -85,10 +88,15 @@ def ws_client():
     set_text_streamer(_mock_stream)
     set_structured_completer(_mock_structured)
 
+    # File-backed SQLite so the fixture loop (seed/publish) and TestClient's
+    # anyio loop (snapshot queries) share one durable DB. :memory: + StaticPool
+    # can hide committed rows across those loops.
+    tmpdir = tempfile.mkdtemp(prefix="ws-client-db-")
+    db_path = Path(tmpdir) / "ws.db"
     engine = create_async_engine(
-        "sqlite+aiosqlite://",
+        f"sqlite+aiosqlite:///{db_path}",
         connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
+        poolclass=NullPool,
     )
     session_factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
@@ -117,16 +125,18 @@ def ws_client():
 
     app.dependency_overrides[get_session] = override_get_session
 
-    with TestClient(app) as client:
-        yield client, loop
-
-    jobs_service.set_job_session_factory(None)
-    jobs_service.set_schedule_hook(None)
-    set_text_completer(None)
-    set_text_streamer(None)
-    set_structured_completer(None)
-    loop.run_until_complete(engine.dispose())
-    loop.close()
+    try:
+        with TestClient(app) as client:
+            yield client, loop
+    finally:
+        jobs_service.set_job_session_factory(None)
+        jobs_service.set_schedule_hook(None)
+        set_text_completer(None)
+        set_text_streamer(None)
+        set_structured_completer(None)
+        loop.run_until_complete(engine.dispose())
+        loop.close()
+        shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 def _jobs_hello(*, customer_id: int | None = None) -> dict:
@@ -211,7 +221,6 @@ def test_reports_websocket_snapshot_update_and_delete(ws_client):
             )
             session.add(report)
             await session.commit()
-            await session.refresh(report)
             await publish_report(report)
             return report.id
 
@@ -284,8 +293,6 @@ def test_jobs_websocket_customer_scope_filters_push(ws_client):
             )
             session.add_all([os_job, bolag_job])
             await session.commit()
-            await session.refresh(os_job)
-            await session.refresh(bolag_job)
             await publish_job(os_job)
             await publish_job(bolag_job)
 
@@ -364,8 +371,6 @@ def test_reports_websocket_customer_scope_filters_push(ws_client):
             )
             session.add_all([os_report, bolag_report])
             await session.commit()
-            await session.refresh(os_report)
-            await session.refresh(bolag_report)
             await publish_report(os_report)
             await publish_report(bolag_report)
 

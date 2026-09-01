@@ -11,11 +11,13 @@ from sqlalchemy.pool import StaticPool
 
 from app.database.base import Base
 from app.database.models import Report
+from app.modules.manifest import SpindoctorSource
 from app.serializers import utcnow
 from app.services.spindoctor_context import build_spindoctor_context, load_spindoctor_source
 from app.services.spindoctor_dd import (
     average_scores_by_sub_question,
     build_dd_spindoctor_context_block,
+    build_dd_spindoctor_context_from_source,
     load_dd_report_json,
 )
 from app.services.spindoctor_mcp_tools import SpindoctorToolContext, run_spindoctor_mcp_tool
@@ -92,6 +94,26 @@ def test_build_dd_spindoctor_context_block_includes_candidate_and_radar_hint():
     assert "Finansiell hälsa" in context
     assert "radar" in context
     assert "get_report_dd" in context
+
+
+def test_dd_context_from_source_matches_legacy_block():
+    doc = _dd_doc()
+    now = utcnow()
+    report = Report(
+        id="rpt_src",
+        customer_id=1,
+        status="succeeded",
+        title="DD Test",
+        locale="sv",
+        mode="dd",
+        sources=[{"type": "dd_session", "session_id": "panel_test"}],
+        created_at=now,
+        updated_at=now,
+    )
+    source = SpindoctorSource(report=report, payload=doc, bundles=[])
+    assert build_dd_spindoctor_context_from_source(
+        source, locale="sv", title="DD Test"
+    ) == build_dd_spindoctor_context_block(doc, locale="sv", title="DD Test")
 
 
 @pytest.mark.asyncio

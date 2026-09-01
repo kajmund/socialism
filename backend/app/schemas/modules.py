@@ -12,6 +12,7 @@ class ModuleOut(BaseModel):
     prompt_namespace: str
     frontend_entry: str
     components: list[str] = Field(default_factory=list)
+    report_modes: list[str] = Field(default_factory=list)
     has_sub_questions: bool
     has_expert_defaults: bool
     supports_interview: bool

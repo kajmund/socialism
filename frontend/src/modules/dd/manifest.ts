@@ -7,4 +7,5 @@ export const ddManifest: ModuleManifest = {
   frontendEntry: "dd",
   homePath: "/bolag",
   components: ["personas", "panel_engine", "spindoctor", "campaigns"],
+  reportModes: ["dd"],
 }

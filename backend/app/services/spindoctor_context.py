@@ -5,18 +5,13 @@ from __future__ import annotations
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Report
+from app.modules.manifest import SpindoctorSource
 from app.modules.registry import MODULE_REGISTRY, module_id_for_report_mode
-from app.services.report.bundles import RunBundle, build_bundles
+from app.services.report.bundles import RunBundle
 from app.services.report.locale import normalize_locale
-from app.services.spindoctor_dd import load_dd_report_json
 
 
-async def load_spindoctor_source(
-    session: AsyncSession,
-    *,
-    report_id: str,
-) -> tuple[Report, list[RunBundle]]:
-    """Load a ready report and its run bundles. Raises ValueError if not usable."""
+async def _ready_report(session: AsyncSession, report_id: str) -> Report:
     report = await session.get(Report, report_id)
     if report is None:
         raise ValueError(f"Report {report_id!r} not found")
@@ -25,11 +20,36 @@ async def load_spindoctor_source(
     sources = report.sources if isinstance(report.sources, list) else []
     if not sources:
         raise ValueError(f"Report {report_id!r} has no sources")
-    if report.mode == "dd":
-        if load_dd_report_json(report_id) is None:
-            raise ValueError(f"report.dd.json not found for {report_id!r}")
-        return report, []
-    return report, await build_bundles(session, sources)
+    return report
+
+
+def _spindoctor_binding(mode: str):
+    module_id = module_id_for_report_mode(mode)
+    binding = MODULE_REGISTRY[module_id].spindoctor
+    if binding is None:
+        raise RuntimeError(f"Module {module_id!r} has no spindoctor binding")
+    return binding
+
+
+async def load_ready_spindoctor_source(
+    session: AsyncSession,
+    *,
+    report_id: str,
+) -> SpindoctorSource:
+    """Load a ready report through the owning module's source_loader."""
+    report = await _ready_report(session, report_id)
+    binding = _spindoctor_binding(report.mode)
+    return await binding.source_loader(session, report)
+
+
+async def load_spindoctor_source(
+    session: AsyncSession,
+    *,
+    report_id: str,
+) -> tuple[Report, list[RunBundle]]:
+    """Compat wrapper for MCP/tools that still want (report, bundles)."""
+    source = await load_ready_spindoctor_source(session, report_id=report_id)
+    return source.report, source.bundles
 
 
 async def build_spindoctor_context(
@@ -38,30 +58,12 @@ async def build_spindoctor_context(
     report_id: str,
 ) -> tuple[Report, str]:
     """Return report row and formatted context block for the system prompt."""
-    report, bundles = await load_spindoctor_source(session, report_id=report_id)
-    locale = normalize_locale(report.locale or "sv")
-    module_id = module_id_for_report_mode(report.mode)
-    binding = MODULE_REGISTRY[module_id].spindoctor
-    if binding is None:
-        raise RuntimeError(f"Module {module_id!r} has no spindoctor binding")
-
-    if report.mode == "dd":
-        dd_doc = load_dd_report_json(report_id)
-        if dd_doc is None:
-            raise ValueError(f"report.dd.json not found for {report_id!r}")
-        context = binding.context_builder(
-            dd_doc,
-            locale=locale,
-            title=report.title or report_id,
-        )
-        return report, context
-
-    sources = report.sources if isinstance(report.sources, list) else []
+    source = await load_ready_spindoctor_source(session, report_id=report_id)
+    locale = normalize_locale(source.report.locale or "sv")
+    binding = _spindoctor_binding(source.report.mode)
     context = binding.context_builder(
-        title=report.title or report_id,
+        source,
         locale=locale,
-        sources=sources,
-        bundles=bundles,
-        report_id=report_id,
+        title=source.report.title or report_id,
     )
-    return report, context
+    return source.report, context

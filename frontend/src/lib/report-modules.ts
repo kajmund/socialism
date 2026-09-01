@@ -7,11 +7,23 @@ export const REPORT_MODULES = ["politik", "dd"] as const
 export type ReportModuleId = (typeof REPORT_MODULES)[number]
 
 export function isReportModuleId(value: string | null | undefined): value is ReportModuleId {
-  return value === "politik" || value === "dd"
+  if (!value) return false
+  const manifest = MODULE_REGISTRY[value]
+  return manifest != null && manifest.reportModes.length > 0
 }
 
 export function moduleForReport(report: { mode: ReportMode }): ReportModuleId {
-  return report.mode === "dd" ? "dd" : "politik"
+  const matches = Object.values(MODULE_REGISTRY).filter((manifest) =>
+    manifest.reportModes.includes(report.mode),
+  )
+  if (matches.length !== 1) {
+    throw new Error(`Unknown or ambiguous report mode: ${report.mode}`)
+  }
+  const id = matches[0].id
+  if (!isReportModuleId(id)) {
+    throw new Error(`Module ${id} is not a report module`)
+  }
+  return id
 }
 
 export function reportModulesFromIds(ids: readonly string[]): ReportModuleId[] {
