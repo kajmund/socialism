@@ -218,7 +218,19 @@ async def ensure_default_configurations(session: AsyncSession) -> int:
     from app.services.catalog_store import ensure_catalogs_for_all_configurations
 
     catalog_added = await ensure_catalogs_for_all_configurations(session)
-    return changed + backfill_changed + catalog_added
+
+    from app.services.prompt_defaults import dd_prompt_defaults, politik_prompt_defaults
+    from app.services.prompt_fields_store import (
+        ensure_prompt_field_defaults,
+        ensure_prompt_overrides_from_configurations,
+    )
+
+    fields_added = await ensure_prompt_field_defaults(session, "dd", dd_prompt_defaults())
+    fields_added += await ensure_prompt_field_defaults(
+        session, "politik", politik_prompt_defaults()
+    )
+    fields_added += await ensure_prompt_overrides_from_configurations(session)
+    return changed + backfill_changed + catalog_added + fields_added
 
 
 async def set_active_configuration(

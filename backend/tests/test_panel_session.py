@@ -65,6 +65,7 @@ async def test_panel_session_run_job(client: AsyncClient, mock_panel_llm):
         json={
             "config": {
                 "protocol": "generic_panel",
+                "module": "politik",
                 "topic": "Förvärv av målbolag X",
                 "brief": "Demo-session",
                 "max_rounds": 1,
