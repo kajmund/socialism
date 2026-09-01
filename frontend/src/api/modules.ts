@@ -10,6 +10,7 @@ export type ProductModule = {
   report_modes: string[]
   has_sub_questions: boolean
   has_expert_defaults: boolean
+  has_prompt_defaults: boolean
   supports_interview: boolean
 }
 

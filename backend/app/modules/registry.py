@@ -18,6 +18,7 @@ from app.services.dd.company_mcp import COMPANY_TOOL_NAMES
 from app.services.dd.default_experts import DEFAULT_EXPERT_SPECS
 from app.services.dd.module_report import generate_dd_module_report
 from app.services.dd.sub_questions import DD_SUB_QUESTION_DEFAULTS
+from app.services.prompt_defaults import dd_prompt_defaults, politik_prompt_defaults
 from app.services.report.politik_module_report import generate_politik_module_report
 from app.services.spindoctor_dd import (
     build_dd_spindoctor_context_from_source,
@@ -53,6 +54,7 @@ MODULE_REGISTRY: dict[str, ModuleManifest] = {
         ),
         sub_questions_provider=lambda: list(DD_SUB_QUESTION_DEFAULTS),
         expert_defaults_provider=lambda: list(DEFAULT_EXPERT_SPECS),
+        prompt_defaults_provider=dd_prompt_defaults,
         spindoctor=SpindoctorBinding(
             source_loader=load_dd_spindoctor_source,
             context_builder=build_dd_spindoctor_context_from_source,
@@ -73,6 +75,7 @@ MODULE_REGISTRY: dict[str, ModuleManifest] = {
             source_types=frozenset({"oasis"}),
             generate=generate_politik_module_report,
         ),
+        prompt_defaults_provider=politik_prompt_defaults,
         spindoctor=SpindoctorBinding(
             source_loader=load_politik_spindoctor_source,
             context_builder=build_politik_spindoctor_context_from_source,
@@ -168,6 +171,7 @@ def serialize_module(module: ModuleManifest) -> dict[str, object]:
         "report_modes": sorted(module.report_modes),
         "has_sub_questions": module.sub_questions_provider is not None,
         "has_expert_defaults": module.expert_defaults_provider is not None,
+        "has_prompt_defaults": module.prompt_defaults_provider is not None,
         "supports_interview": bool(module.spindoctor and module.spindoctor.supports_interview),
     }
 

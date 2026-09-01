@@ -48,6 +48,9 @@ class Kund(Base):
     dd_campaigns: Mapped[list["DdCampaign"]] = relationship(back_populates="kund")
     jobs: Mapped[list["Job"]] = relationship(back_populates="kund")
     reports: Mapped[list["Report"]] = relationship(back_populates="kund")
+    prompt_overrides: Mapped[list["PromptOverride"]] = relationship(
+        back_populates="kund"
+    )
 
 
 class Projekt(Base):
@@ -906,3 +909,81 @@ class PanelExpertProfile(Base):
         onupdate=func.now(),
         nullable=False,
     )
+
+
+class PromptField(Base):
+    """Catalog of prompt keys and defaults. One row per key; many modules."""
+
+    __tablename__ = "prompt_fields"
+    __table_args__ = (UniqueConstraint("key", name="uq_prompt_fields_key"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    key: Mapped[str] = mapped_column(String(128), nullable=False)
+    modules: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    section: Mapped[str] = mapped_column(String(32), nullable=False)
+    label_sv: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    label_en: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    hint_sv: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    hint_en: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    default_sv: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    default_en: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    default_nb: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    overrides: Mapped[list["PromptOverride"]] = relationship(
+        back_populates="prompt_field",
+        cascade="all, delete-orphan",
+    )
+
+
+class PromptOverride(Base):
+    """Sparse per-customer prompt text. One row per (customer, field, language)."""
+
+    __tablename__ = "prompt_overrides"
+    __table_args__ = (
+        UniqueConstraint(
+            "customer_id",
+            "prompt_field_id",
+            "language",
+            name="uq_prompt_overrides_customer_field_language",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("kunder.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    prompt_field_id: Mapped[int] = mapped_column(
+        ForeignKey("prompt_fields.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    language: Mapped[str] = mapped_column(String(8), nullable=False)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    kund: Mapped[Kund] = relationship(back_populates="prompt_overrides")
+    prompt_field: Mapped[PromptField] = relationship(back_populates="overrides")

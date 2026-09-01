@@ -60,6 +60,19 @@ def fixture_manifest() -> ModuleManifest:
             source_types=frozenset({"fixture_session"}),
             generate=generate_fixture_report,
         ),
+        prompt_defaults_provider=lambda: [
+            {
+                "key": "fixture.prompt.hello",
+                "section": "panel",
+                "label": {"sv": "Fixture-hälsning", "en": "Fixture greeting"},
+                "hint": {"sv": "", "en": ""},
+                "defaults": {
+                    "sv": "Hej från fixture-modulen.",
+                    "en": "Hello from the fixture module.",
+                    "nb": "Hej från fixture-modulen.",
+                },
+            }
+        ],
         spindoctor=SpindoctorBinding(
             source_loader=load_fixture_spindoctor_source,
             context_builder=build_fixture_spindoctor_context,
