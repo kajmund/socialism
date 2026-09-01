@@ -26,6 +26,7 @@ Stack is locked unless explicitly changed. Phase 1 deliberately uses SQLite befo
 socialism/
 ├── AGENTS.md           # this file
 ├── README.md
+├── .github/workflows/  # CI (pytest, frontend checks, OKF validate)
 ├── okf.project.yaml    # OKF project (end-user manuals → MCP later)
 ├── data/               # local corpus + download script (payloads gitignored)
 ├── docs/               # developer specs, briefs, setup, architecture
@@ -110,6 +111,10 @@ Fail fast on startup if required config is missing. No silent fallbacks that hid
 - One configured path per concern. If it fails, **fail loudly** with a clear error — do not try an alternate model, provider, heuristic, stub, or degraded mode unless the user explicitly asked for that alternate.
 - Do not suggest "if X fails, try Y" in code, scripts, or docs for this repo unless the user requested Y.
 - Tests may mock boundaries; production and benchmark code must not mask missing config or API errors with substitutes.
+
+## CI
+
+GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs on every pull request and on every push to `main` (including merges). Jobs: backend `pytest` (no smoke), frontend oxlint + vitest, and `make knowledge-validate`. The required status check is named **CI**. Do not merge a PR while it is red or pending. Setup and the merge-gate ruleset: [docs/guides/ci.md](docs/guides/ci.md). Local: `make test`.
 
 ## Project tracking (Trello)
 

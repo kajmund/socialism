@@ -29,7 +29,8 @@ Phase 1: admin CRUD is API-backed (SQLite). Simulation start defaults to status-
 ```text
 socialism/
 ├── AGENTS.md          # conventions for coding agents
-├── Makefile           # make start | backend | frontend | install | knowledge-validate
+├── Makefile           # make start | backend | frontend | install | test | knowledge-validate
+├── .github/workflows/ # CI on PR and push to main
 ├── okf.project.yaml   # OKF project (end-user manuals)
 ├── data/              # local corpus helpers
 ├── docs/              # developer brief, setup guides, architecture
@@ -108,7 +109,7 @@ Useful env knobs (see `backend/.env.example`):
 OASIS model comparison (after `uv sync --extra oasis`):  
 `uv run python scripts/benchmark_simulation_models.py --run-id N` — see [docs/guides/backend-setup.md](docs/guides/backend-setup.md#benchmark-deepseek-models).
 
-Tests: `cd backend && uv run pytest`.
+Tests: `make test` (backend `pytest` + frontend lint/vitest). CI runs the same suite on every pull request and on push to `main` — see [docs/guides/ci.md](docs/guides/ci.md). A PR must not merge while the **CI** check is red.
 
 ## Docs
 
@@ -117,6 +118,7 @@ Tests: `cd backend && uv run pytest`.
 | [knowledge/manual/](knowledge/manual/) | End-user OKF guides (Swedish UI) |
 | [knowledge/README.md](knowledge/README.md) | OKF bundle conventions + validate/MCP |
 | [docs/client-brief.md](docs/client-brief.md) | Product brief |
+| [docs/guides/ci.md](docs/guides/ci.md) | GitHub Actions tests + merge gate |
 | [docs/guides/backend-setup.md](docs/guides/backend-setup.md) | Backend setup, jobs, OASIS, troubleshooting |
 | [docs/guides/frontend-setup.md](docs/guides/frontend-setup.md) | Frontend setup, routes, env |
 | [docs/guides/runs-interviews-and-quality.md](docs/guides/runs-interviews-and-quality.md) | Interviews, branches, quality warnings |

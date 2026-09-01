@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+import importlib.util
 from unittest.mock import patch
 
 import pytest
 
 from app.services.playground_tools import list_tool_catalog, run_agent_tool
+
+
+def _require_camel() -> None:
+    if importlib.util.find_spec("camel") is None:
+        pytest.skip("camel is not installed — run: uv sync --extra oasis")
 
 
 def test_list_tool_catalog_includes_search():
@@ -30,6 +36,7 @@ def test_run_search_wiki_mocked():
 
 
 def test_run_unknown_tool():
+    _require_camel()
     with pytest.raises(ValueError, match="Unknown tool"):
         run_agent_tool("not_a_real_tool", {})
 
@@ -63,6 +70,7 @@ async def test_tools_run_api_mocked(client):
 
 @pytest.mark.asyncio
 async def test_tools_run_unknown_api(client):
+    _require_camel()
     res = await client.post(
         "/playground/tools/run",
         json={"tool_name": "nope", "arguments": {}},

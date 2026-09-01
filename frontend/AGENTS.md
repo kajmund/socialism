@@ -183,7 +183,7 @@ Home is `/` (dashboard). Unknown routes redirect to `/`.
 
 ## Testing
 
-**No frontend tests.** Do not write `*.test.ts` / `*.test.tsx` files or introduce a test runner. We verify the frontend manually in the browser plus `pnpm tsc --noEmit` and `pnpm lint` (**oxlint** — not Biome/ESLint). If you find yourself reaching for vitest, Playwright, or Cypress — stop. That's not what this project does. Correctness for shared logic comes from keeping it simple and well-typed, not from a test suite.
+CI and `make test-frontend` run `pnpm lint` (**oxlint** — not Biome/ESLint) and `pnpm test` (vitest, existing `src/**/*.test.ts`). Verify UI in the browser. Do not introduce Playwright, Cypress, or a broad component-test suite. Keep any new unit check small and on shared logic — not page-level UI.
 
 ## Anti-patterns (rejected)
 
