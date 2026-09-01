@@ -17,6 +17,7 @@ export type ModuleManifest = {
   frontendEntry: string
   homePath: string
   components: readonly ModuleComponentId[]
+  reportModes: readonly string[]
 }
 
 export function moduleHasComponent(

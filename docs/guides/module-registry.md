@@ -1,0 +1,40 @@
+# Module registry
+
+Product modules (`dd`, `politik`, later a third) declare themselves in
+`backend/app/modules/registry.py`. Shared orchestration (`jobs.py`, Spinndoktor,
+panel engine) looks up the registry — it does not `if mode == "dd" else politik`.
+
+## Report.mode → module
+
+`Report.mode` is a pipeline discriminator (`quick` / `full` / `dd`), not a module
+id. Each `ModuleManifest` lists the modes it owns in `report_modes`:
+
+| Module   | `report_modes`     |
+| -------- | ------------------ |
+| politik  | `quick`, `full`    |
+| dd       | `dd`               |
+
+`module_id_for_report_mode(mode)` returns the unique owner. Unknown or colliding
+modes raise — there is no fallback to `politik`.
+
+`ReportBinding.generate` is the report job implementation for those modes. Adding
+a third module means adding a manifest entry (and a frontend `reportModes` list),
+not another branch in `jobs.py`.
+
+## Startup guard
+
+`assert_unique_report_modes()` runs at import. Two modules claiming the same
+mode, or `report_modes` without a `ReportBinding`, fail boot.
+
+## Frontend
+
+`frontend/src/modules/*/manifest.ts` mirrors `reportModes`.
+`moduleForReport()` looks up that field and throws on an unknown mode.
+
+## Adding a module (checklist)
+
+1. Backend `ModuleManifest` with `report_modes` + `ReportBinding` (if it produces reports).
+2. Frontend manifest with the same `reportModes`.
+3. Spinndoktor `source_loader` / `context_builder` (see Fas 2) — no `if report.mode` in `spindoctor_context.py`.
+4. Panel protocol via the deliberation-method registry (see Fas 3), not a new `jobs.py` branch.
+5. Seed expert profiles by `key` (`ensure_expert_profile_defaults`) so existing experts gain the new module instead of duplicating rows.

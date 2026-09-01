@@ -2,8 +2,18 @@
 
 from __future__ import annotations
 
+import pytest
+
 from app.main import create_app
-from app.modules.registry import MODULE_REGISTRY, module_has_component, module_id_for_report_mode
+from app.modules.manifest import ModuleManifest
+from app.modules.registry import (
+    MODULE_REGISTRY,
+    assert_unique_report_modes,
+    module_has_component,
+    module_id_for_report_mode,
+    report_binding_for_mode,
+)
+from app.modules.report_binding import UnknownReportModeError
 
 
 def test_module_registry_keys():
@@ -14,6 +24,39 @@ def test_module_id_for_report_mode():
     assert module_id_for_report_mode("dd") == "dd"
     assert module_id_for_report_mode("quick") == "politik"
     assert module_id_for_report_mode("full") == "politik"
+
+
+def test_module_id_for_report_mode_unknown_fails_loud():
+    with pytest.raises(UnknownReportModeError, match="upphandling"):
+        module_id_for_report_mode("upphandling")
+
+
+def test_report_binding_for_known_modes():
+    dd_binding = report_binding_for_mode("dd")
+    assert "dd_session" in dd_binding.source_types
+    politik_binding = report_binding_for_mode("quick")
+    assert "oasis" in politik_binding.source_types
+    assert report_binding_for_mode("full") is politik_binding
+
+
+def test_assert_unique_report_modes_rejects_collision():
+    from fastapi import APIRouter
+
+    colliding = {
+        "dd": MODULE_REGISTRY["dd"],
+        "other": ModuleManifest(
+            id="other",
+            name="Other",
+            icon="?",
+            router=APIRouter(),
+            prompt_namespace="other",
+            frontend_entry="other",
+            report_modes=frozenset({"dd"}),
+            report=MODULE_REGISTRY["dd"].report,
+        ),
+    }
+    with pytest.raises(RuntimeError, match="claimed by both"):
+        assert_unique_report_modes(colliding)
 
 
 def test_module_routes_keep_existing_urls():
@@ -38,6 +81,8 @@ def test_module_manifest_shapes():
     assert dd.frontend_entry == "dd"
     assert dd.prompt_namespace == "dd"
     assert dd.components == frozenset({"personas", "panel_engine", "spindoctor", "campaigns"})
+    assert dd.report_modes == frozenset({"dd"})
+    assert dd.report is not None
     assert dd.spindoctor is not None
     assert dd.spindoctor.supports_interview is False
     assert "get_report_dd" in dd.spindoctor.mcp_tool_names
@@ -50,6 +95,8 @@ def test_module_manifest_shapes():
     assert politik.id == "politik"
     assert politik.frontend_entry == "politik"
     assert politik.components == frozenset({"personas", "interview", "spindoctor"})
+    assert politik.report_modes == frozenset({"quick", "full"})
+    assert politik.report is not None
     assert politik.spindoctor is not None
     assert politik.spindoctor.supports_interview is True
     assert "get_report_ssr" in politik.spindoctor.mcp_tool_names
