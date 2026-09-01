@@ -237,7 +237,7 @@ async def test_sourcing_chat_turn_parses_mcp_hits(client_db, monkeypatch):
 
     set_tools_completer(_tools)
     async with factory() as session:
-        reply, candidates = await run_sourcing_chat_turn(session, message="IT-bolag i Stockholm")
+        reply, candidates = await run_sourcing_chat_turn(session, customer_id=1, message="IT-bolag i Stockholm")
     assert "Spotify" in reply
     assert len(candidates) == 1
     assert candidates[0].organisationsnummer == "556703-7485"
@@ -254,7 +254,7 @@ async def test_sourcing_chat_turn_rejects_empty_message(client_db):
     _client, factory = client_db
     async with factory() as session:
         with pytest.raises(SourcingChatError, match="required"):
-            await run_sourcing_chat_turn(session, message="   ")
+            await run_sourcing_chat_turn(session, customer_id=1, message="   ")
 
 
 @pytest.mark.asyncio
@@ -278,7 +278,7 @@ async def test_sourcing_chat_asks_for_reply_after_empty_tool_turn(client_db, mon
 
     set_tools_completer(_tools)
     async with factory() as session:
-        reply, candidates = await run_sourcing_chat_turn(session, message="IT-bolag i Stockholm")
+        reply, candidates = await run_sourcing_chat_turn(session, customer_id=1, message="IT-bolag i Stockholm")
     assert reply == "Spotify AB i Stockholm passar."
     assert candidates[0].organisationsnummer == "556703-7485"
     assert turns["n"] == 3
@@ -316,6 +316,7 @@ async def test_sourcing_chat_continues_when_allabolag_has_no_company(client_db, 
     async with factory() as session:
         reply, candidates = await run_sourcing_chat_turn(
             session,
+            customer_id=1,
             message="Slå upp 556332-8753",
         )
     assert "556332-8753" in reply
@@ -342,7 +343,7 @@ async def test_sourcing_chat_fails_loud_on_rate_limit(client_db, monkeypatch):
     set_tools_completer(_tools)
     async with factory() as session:
         with pytest.raises(SourcingChatError, match="rate limit"):
-            await run_sourcing_chat_turn(session, message="Spotify")
+            await run_sourcing_chat_turn(session, customer_id=1, message="Spotify")
 
 
 @pytest.mark.asyncio
@@ -368,7 +369,7 @@ async def test_sourcing_chat_runs_leaked_invoke_as_tool(client_db, monkeypatch):
 
     set_tools_completer(_tools)
     async with factory() as session:
-        reply, candidates = await run_sourcing_chat_turn(session, message="IT-bolag")
+        reply, candidates = await run_sourcing_chat_turn(session, customer_id=1, message="IT-bolag")
     assert "Spotify" in reply
     assert candidates[0].organisationsnummer == "556703-7485"
     assert fake.calls == [("search_companies", {"query": "IT Stockholm"})]
@@ -386,7 +387,7 @@ async def test_sourcing_chat_rejects_leaked_tool_markup(client_db, monkeypatch):
     set_tools_completer(_tools)
     async with factory() as session:
         with pytest.raises(SourcingChatError, match="invalid reply"):
-            await run_sourcing_chat_turn(session, message="IT-bolag")
+            await run_sourcing_chat_turn(session, customer_id=1, message="IT-bolag")
 
 
 @pytest.mark.asyncio
@@ -426,7 +427,7 @@ async def test_sourcing_chat_uses_allabolag_when_key_missing(client_db, monkeypa
 
     set_tools_completer(_tools)
     async with factory() as session:
-        reply, candidates = await run_sourcing_chat_turn(session, message="IT-bolag")
+        reply, candidates = await run_sourcing_chat_turn(session, customer_id=1, message="IT-bolag")
     assert "Spotify" in reply
     assert called["n"] == 1
     assert candidates[0].organisationsnummer == "556703-7485"

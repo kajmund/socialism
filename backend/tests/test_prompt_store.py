@@ -1,4 +1,4 @@
-"""Prompt configuration loading."""
+"""Scoped prompt loader: customer × module × language."""
 
 from __future__ import annotations
 
@@ -8,11 +8,18 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 
 from app.database.base import Base
-from app.database.models import Configuration
-from app.serializers import utcnow
+from app.database.models import Configuration, Kund, PromptOverride
+from app.services.kund_store import default_os_customer_id, ensure_default_kunder
+from app.services.panel.module_defaults import ensure_module_panel_defaults
 from app.services.prompt_catalog import default_prompts
+from app.services.prompt_fields_store import (
+    MissingPromptCatalogError,
+    MissingPromptCustomerError,
+    filled_prompts,
+    get_prompt_field_by_key,
+    replace_prompt_overrides,
+)
 from app.services.prompt_store import (
-    MissingActiveConfigurationError,
     ensure_default_configurations,
     require_active_prompts,
     require_prompts_for_language,
@@ -32,194 +39,128 @@ async def session():
         await conn.run_sync(Base.metadata.create_all)
     async with factory() as s:
         await ensure_default_configurations(s)
+        await ensure_module_panel_defaults(s)
         yield s
     await engine.dispose()
 
 
-async def test_require_prompts_for_language_uses_active_matching_language(
-    session: AsyncSession,
-):
-    result = await session.execute(select(Configuration))
-    rows = list(result.scalars().all())
-    sv_row = next(r for r in rows if r.language == "sv")
-    await set_active_configuration(session, sv_row.id)
-
-    prompts = await require_prompts_for_language(session, "sv")
-    active = await require_active_prompts(session)
-
-    assert prompts["oasis.env.empty_posts"] == active["oasis.env.empty_posts"]
-    assert prompts["oasis.env.empty_posts"] == default_prompts("sv")["oasis.env.empty_posts"]
-
-
-async def test_require_prompts_for_language_rejects_active_other_language(
-    session: AsyncSession,
-):
-    result = await session.execute(select(Configuration))
-    rows = list(result.scalars().all())
-    en_row = next(r for r in rows if r.language == "en")
-    await set_active_configuration(session, en_row.id)
-
-    with pytest.raises(MissingActiveConfigurationError, match="language 'en'"):
-        await require_prompts_for_language(session, "sv")
-
-
-async def test_require_prompts_for_language_prefers_active_not_oldest(
-    session: AsyncSession,
-):
-    """Multiple sv configs: always the active one, never the oldest inactive."""
-    now = utcnow()
-    custom_prompts = dict(default_prompts("sv"))
-    custom_prompts["oasis.env.empty_posts"] = "CUSTOM_ACTIVE_SV_MARKER"
-    custom = Configuration(
-        customer_id=1,
-        name="Custom active sv",
+@pytest.mark.asyncio
+async def test_two_customers_load_different_overrides(session: AsyncSession):
+    os_id = await default_os_customer_id(session)
+    other = Kund(name="Annan", slug="annan", available_modules=["politik"])
+    session.add(other)
+    await session.flush()
+    await replace_prompt_overrides(
+        session,
+        customer_id=os_id,
         language="sv",
-        prompts=custom_prompts,
-        ssr_temperature=0.1,
-        anchor_sets={},
-        is_active=False,
-        created_at=now,
-        updated_at=now,
+        prompts={"help.system": "OS-hjälp"},
     )
-    session.add(custom)
-    await session.commit()
-    await session.refresh(custom)
-
-    await set_active_configuration(session, custom.id)
-    prompts = await require_prompts_for_language(session, "sv")
-    assert prompts["oasis.env.empty_posts"] == "CUSTOM_ACTIVE_SV_MARKER"
-
-
-async def test_require_active_prompts_backfills_missing_help_keys(
-    session: AsyncSession,
-):
-    """Configs created before help.* keys existed should get catalog defaults."""
-    result = await session.execute(
-        select(Configuration).where(Configuration.is_active.is_(True))
+    await replace_prompt_overrides(
+        session,
+        customer_id=other.id,
+        language="sv",
+        prompts={"help.system": "Annan-hjälp"},
     )
-    row = result.scalar_one()
-    stored = dict(row.prompts or {})
-    for key in (
-        "help.system",
-        "help.system.scb",
-        "help.system.scb_population",
-        "help.system.feedback",
-    ):
-        stored.pop(key, None)
-    row.prompts = stored
     await session.commit()
 
-    prompts = await require_active_prompts(session)
-    assert prompts["help.system"].strip()
-    assert prompts["help.system.feedback"].strip()
+    os_prompts = await require_active_prompts(
+        session, customer_id=os_id, module="politik", language="sv"
+    )
+    other_prompts = await require_active_prompts(
+        session, customer_id=other.id, module="politik", language="sv"
+    )
+    assert os_prompts["help.system"] == "OS-hjälp"
+    assert other_prompts["help.system"] == "Annan-hjälp"
+    assert os_prompts["persona.field_guide"] == default_prompts("sv")["persona.field_guide"]
 
-    await session.refresh(row)
-    assert "help.system" in (row.prompts or {})
-    assert "help.system.feedback" in (row.prompts or {})
+
+@pytest.mark.asyncio
+async def test_missing_customer_fails_loud(session: AsyncSession):
+    with pytest.raises(MissingPromptCustomerError, match="99999"):
+        await require_active_prompts(
+            session, customer_id=99999, module="politik", language="sv"
+        )
 
 
-async def test_require_active_prompts_refreshes_stale_panel_dd_raise_hand(
-    session: AsyncSession,
-):
-    result = await session.execute(
-        select(Configuration).where(Configuration.is_active.is_(True))
+@pytest.mark.asyncio
+async def test_module_filter_excludes_other_module_keys(session: AsyncSession):
+    os_id = await default_os_customer_id(session)
+    politik = await require_active_prompts(
+        session, customer_id=os_id, module="politik", language="sv"
     )
-    row = result.scalar_one()
-    stored = dict(row.prompts or {})
-    stored["panel.dd.expert.raise_hand"] = (
-        "Vanligtvis bedömd av: {typical_owner}. Räck upp handen om delfrågan är din."
+    dd = await require_active_prompts(
+        session, customer_id=os_id, module="dd", language="sv"
     )
-    stored["panel.dd.moderator.sub_question"] = (
-        "Introducera delfrågan kort. Be inte alla om poäng — bara den som räcker upp handen."
+    assert "persona.field_guide" in politik
+    assert "persona.field_guide" not in dd
+    assert "panel.dd.moderator.system" in dd
+    assert "panel.dd.moderator.system" not in politik
+    assert "help.system" in politik
+    assert "help.system" in dd
+
+
+@pytest.mark.asyncio
+async def test_activate_does_not_change_loaded_prompt_text(session: AsyncSession):
+    os_id = await default_os_customer_id(session)
+    await replace_prompt_overrides(
+        session,
+        customer_id=os_id,
+        language="sv",
+        prompts={"help.system": "Kvar efter aktivering"},
     )
-    stored["panel.dd.moderator.opening"] = (
-        "Öppna panelen kort. Förklara att varje expert snart bedömer finansiell hälsa, "
-        "legal risk, marknadsposition och integrationsrisk med poäng 1–10."
-    )
-    stored["panel.dd.moderator.system"] = (
-        "Du är Spinndoktor och modererar en bolags-DD-panel.\n"
-        "Skriv BARA din egen replik som moderator."
-    )
-    stored["panel.dd.expert.score"] = (
-        "Slå upp bolaget med lookup_company om du behöver nyckeltal."
-    )
-    stored["panel.expert.tools"] = (
-        "Du har search_companies — slå upp nyckeltal när grunddata saknar omsättning."
-    )
-    stored["chat.expert.search_tools"] = "search_duckduckgo (nyheter, lagar, siffror)"
-    stored["chat.expert.company_tools"] = (
-        "Använd dem när du behöver organisationsnummer, omsättning, resultat."
-    )
-    row.prompts = stored
     await session.commit()
-
-    prompts = await require_active_prompts(session)
-    assert "kärnkompetens" in prompts["panel.dd.expert.raise_hand"]
-    assert "hela bedömningen" in prompts["panel.dd.expert.raise_hand"]
-    assert "Första raden: JA eller NEJ" in prompts["panel.dd.expert.raise_hand"]
-    assert "varför delfrågan är" in prompts["panel.dd.expert.raise_hand"]
-    assert "{typical_owner}" not in prompts["panel.dd.expert.raise_hand"]
-    assert "avgör själv" not in prompts["panel.dd.expert.raise_hand"]
-    assert "Svara ENDAST JA eller NEJ" not in prompts["panel.dd.expert.raise_hand"]
-    assert "Skriv inte **Namn:**-repliker" in prompts["panel.dd.moderator.sub_question"]
-    assert "Be inte alla om poäng" not in prompts["panel.dd.moderator.sub_question"]
-    assert "Tilldela inte första frågan" in prompts["panel.dd.moderator.opening"]
-    assert "varje expert snart bedömer" not in prompts["panel.dd.moderator.opening"]
-    assert "Du modererar panelen" in prompts["panel.dd.moderator.system"]
-    assert "Du är Spinndoktor och modererar en bolags-DD-panel" not in prompts[
-        "panel.dd.moderator.system"
-    ]
-    assert "Slå inte upp" in prompts["panel.dd.expert.score"]
-    assert "hitta inte på en webbkälla" in prompts["panel.dd.expert.score"]
-    assert "max 80" not in prompts["panel.dd.expert.score"]
-    assert "Slå upp bolaget med lookup_company" not in prompts["panel.dd.expert.score"]
-    assert "Sök inte efter samma siffror" in prompts["panel.expert.tools"]
-    assert "Sök inte efter nyckeltal du redan har fått" in prompts[
-        "chat.expert.search_tools"
-    ]
-    assert "Slå inte upp siffror du redan har fått" in prompts[
-        "chat.expert.company_tools"
-    ]
-
-
-async def test_require_active_prompts_refreshes_stale_spindoctor_stock_text(
-    session: AsyncSession,
-):
-    result = await session.execute(
-        select(Configuration).where(Configuration.is_active.is_(True))
-    )
-    row = result.scalar_one()
-    stored = dict(row.prompts or {})
-    stored["spinndoctor.system"] = (
-        "Gammal text. Svara kort om möjligt, utveckla när användaren ber om det."
-    )
-    stored["spinndoctor.system.tools"] = (
-        "Egen verktygstext. Be inte om tillåtelse att använda ett verktyg."
-    )
-    row.prompts = stored
-    await session.commit()
-
-    prompts = await require_active_prompts(session)
-    assert "Fråga inte användaren om något du kan slå upp" in prompts["spinndoctor.system"]
-    assert "Svara kort om möjligt" not in prompts["spinndoctor.system"]
-    assert prompts["spinndoctor.system.tools"].startswith("Egen verktygstext.")
-
-
-async def test_require_active_prompts_refreshes_older_english_spindoctor_tools(
-    session: AsyncSession,
-):
     result = await session.execute(select(Configuration))
     rows = list(result.scalars().all())
     en_row = next(r for r in rows if r.language == "en")
     await set_active_configuration(session, en_row.id)
-    stored = dict(en_row.prompts or {})
-    stored["spinndoctor.system.tools"] = (
-        "You have get_test_message. Call them when the question needs the "
-        "message wording. Do not call tools if the context numbers are enough."
-    )
-    en_row.prompts = stored
-    await session.commit()
 
-    prompts = await require_active_prompts(session)
-    assert "Do not ask permission to use a tool" in prompts["spinndoctor.system.tools"]
-    assert "Do not call tools if" not in prompts["spinndoctor.system.tools"]
+    prompts = await require_active_prompts(
+        session, customer_id=os_id, module="politik", language="sv"
+    )
+    assert prompts["help.system"] == "Kvar efter aktivering"
+
+
+@pytest.mark.asyncio
+async def test_empty_catalog_fails_loud(session: AsyncSession):
+    os_id = await default_os_customer_id(session)
+    with pytest.raises(MissingPromptCatalogError, match="okand"):
+        await require_active_prompts(
+            session, customer_id=os_id, module="okand", language="sv"
+        )
+
+
+@pytest.mark.asyncio
+async def test_override_matching_default_is_not_stored(session: AsyncSession):
+    os_id = await default_os_customer_id(session)
+    default_help = default_prompts("sv")["help.system"]
+    await replace_prompt_overrides(
+        session,
+        customer_id=os_id,
+        language="sv",
+        prompts={"help.system": default_help},
+    )
+    await session.commit()
+    field = await get_prompt_field_by_key(session, "help.system")
+    assert field is not None
+    remaining = (
+        await session.execute(
+            select(PromptOverride).where(
+                PromptOverride.customer_id == os_id,
+                PromptOverride.prompt_field_id == field.id,
+            )
+        )
+    ).scalars().all()
+    assert remaining == []
+    prompts = await filled_prompts(session, customer_id=os_id, language="sv", module="politik")
+    assert prompts["help.system"] == default_help
+
+
+@pytest.mark.asyncio
+async def test_require_prompts_for_language_is_scoped(session: AsyncSession):
+    await ensure_default_kunder(session)
+    os_id = await default_os_customer_id(session)
+    prompts = await require_prompts_for_language(
+        session, "sv", customer_id=os_id, module="politik"
+    )
+    assert prompts["oasis.env.empty_posts"] == default_prompts("sv")["oasis.env.empty_posts"]

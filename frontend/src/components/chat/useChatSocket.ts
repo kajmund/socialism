@@ -14,7 +14,14 @@ export type ChatHello =
       persona_id: string
       through_tick_index: number
     }
-  | { scope: "help"; session_id: string; locale: "sv" | "en"; view: HelpViewPayload }
+  | {
+      scope: "help"
+      session_id: string
+      locale: "sv" | "en"
+      view: HelpViewPayload
+      customer_id: number
+      module: string
+    }
   | {
       scope: "spinndoctor"
       session_id: string
@@ -68,7 +75,7 @@ function helloKey(hello: ChatHello | null): string {
       JSON.stringify(hello.view.params),
       JSON.stringify(hello.view.search),
     ].join("|")
-    return `help:${hello.session_id}:${hello.locale}:${viewKey}`
+    return `help:${hello.session_id}:${hello.locale}:${hello.customer_id}:${hello.module}:${viewKey}`
   }
   if (hello.scope === "spinndoctor") {
     return `spinndoctor:${hello.session_id}:${hello.report_id}:${hello.locale}`

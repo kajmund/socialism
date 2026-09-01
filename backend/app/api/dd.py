@@ -182,6 +182,7 @@ async def post_campaign_sourcing_chat(
             session,
             message=body.message,
             history=body.history,
+            customer_id=row.customer_id,
         )
     except SourcingChatError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc

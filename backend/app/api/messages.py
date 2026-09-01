@@ -30,7 +30,7 @@ from app.serializers import utcnow
 from app.api.message_images import router as message_images_router
 from app.api.message_images import message_image_sha256
 from app.services.image_cache import get_entry
-from app.services.kund_store import default_os_project_id
+from app.services.kund_store import default_os_customer_id, default_os_project_id
 from app.services.prompt_store import require_active_prompts
 
 router = APIRouter(prefix="/messages", tags=["messages"])
@@ -91,7 +91,12 @@ async def summarize_url(
     session: AsyncSession = Depends(get_session),
 ) -> SummarizeUrlResponse:
     url = normalize_url(body.url)
-    prompts = await require_active_prompts(session)
+    prompts = await require_active_prompts(
+        session,
+        customer_id=await default_os_customer_id(session),
+        module="politik",
+        language="sv",
+    )
     try:
         summary = await summarize_url_content(url, body.message_type, prompts=prompts)
     except Exception as exc:  # noqa: BLE001 — surface fetch/LLM errors as 400
@@ -108,7 +113,12 @@ async def generate_variants(
     body: GenerateVariantsRequest,
     session: AsyncSession = Depends(get_session),
 ) -> GenerateVariantsResponse:
-    prompts = await require_active_prompts(session)
+    prompts = await require_active_prompts(
+        session,
+        customer_id=await default_os_customer_id(session),
+        module="politik",
+        language="sv",
+    )
     try:
         variants = await generate_message_variants(body, prompts=prompts)
     except Exception as exc:  # noqa: BLE001 — surface generation errors as 400

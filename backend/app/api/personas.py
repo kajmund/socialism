@@ -49,7 +49,7 @@ from app.services.population_generate import stub_persona
 from app.services.dd.default_experts import ensure_default_expert_personas
 from app.services.expert_tools import resolve_expert_tools
 from app.services.kund_store import bolag_demo_customer_id, default_os_customer_id
-from app.services.prompt_store import require_active_prompts
+from app.services.prompt_store import require_active_prompts, require_prompts_for_persona
 
 router = APIRouter(prefix="/personas", tags=["personas"])
 
@@ -195,11 +195,19 @@ async def generate_personas(
             detail="PERSONA_GENERATOR must be deepseek or stub",
         )
     demografi = body.demografi if body.mode == "demografi" else None
+    customer_id = await default_os_customer_id(session)
+    prompts = await require_active_prompts(
+        session,
+        customer_id=customer_id,
+        module="politik",
+        language="sv",
+    )
     candidates = await llm_personas_from_description(
         free_text=body.freeText,
         count=body.count,
         demografi=demografi,
         session=session,
+        prompts=prompts,
     )
     return PersonaGenerateResponse(candidates=candidates)
 
@@ -391,7 +399,7 @@ async def chat_with_persona(
     history = [(row.role, row.content) for row in history_rows.scalars().all()]
 
     area_block = await area_block_for_name(session, profile.ort or persona.district)
-    prompts = await require_active_prompts(session)
+    prompts = await require_prompts_for_persona(session, persona)
     reply = await reply_as_persona(
         profile,
         body.mode,
@@ -533,7 +541,7 @@ async def resend_message(
     await session.flush()
 
     area_block = await area_block_for_name(session, profile.ort or persona.district)
-    prompts = await require_active_prompts(session)
+    prompts = await require_prompts_for_persona(session, persona)
     mode = target.mode
 
     if target.role == "user":

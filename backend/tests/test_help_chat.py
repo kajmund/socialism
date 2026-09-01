@@ -27,7 +27,10 @@ from app.services.help_chat import (
     stream_help_chat_turn,
 )
 from app.services.okf_corpus import search_manual
+from app.services.panel.module_defaults import ensure_module_panel_defaults
 from app.services.prompt_store import ensure_default_configurations
+
+_HELP_TENANT = {"customer_id": 1, "module": "politik"}
 
 
 def test_looks_like_leaked_tool_markup_detects_dsml_and_invoke():
@@ -79,6 +82,7 @@ def help_client():
             await conn.run_sync(Base.metadata.create_all)
         async with session_factory() as seed_session:
             await ensure_default_configurations(seed_session)
+            await ensure_module_panel_defaults(seed_session)
 
     loop.run_until_complete(_prepare())
 
@@ -108,6 +112,22 @@ def test_search_manual_finds_korning_guide():
     assert "starta-simulering" in slugs or "skapa-korning" in slugs
 
 
+def test_help_chat_websocket_rejects_hello_without_tenant(help_client):
+    client, _loop, _factory, _tools_calls = help_client
+    with client.websocket_connect("/ws/chat") as ws:
+        ws.send_json(
+            {
+                "type": "hello",
+                "scope": "help",
+                "session_id": "no-tenant",
+                "locale": "sv",
+            }
+        )
+        event = ws.receive_json()
+        assert event["type"] == "error"
+        assert "customer_id" in event["detail"] or "Field required" in event["detail"]
+
+
 def test_help_chat_websocket_streams(help_client):
     client, _loop, _factory, tools_calls = help_client
     session_id = "test-help-session"
@@ -127,6 +147,8 @@ def test_help_chat_websocket_streams(help_client):
                 "session_id": session_id,
                 "locale": "sv",
                 "view": view,
+                "customer_id": 1,
+                "module": "politik",
             }
         )
         ready = ws.receive_json()
@@ -166,6 +188,7 @@ def test_help_messages_rest(help_client):
                 session_id=session_id,
                 locale="sv",
                 message="Vad är en population?",
+                **_HELP_TENANT,
             ):
                 if not isinstance(item, str):
                     assert item.reply
@@ -219,6 +242,7 @@ def test_help_chat_rejects_leaked_tool_markup_as_final_reply(help_client):
                     session_id=session_id,
                     locale="sv",
                     message="hur är norrköping fördelat enligt scb?",
+                    **_HELP_TENANT,
                 ):
                     pass
 
@@ -265,6 +289,7 @@ def test_help_chat_streams_clean_reply_when_tool_turn_leaked(help_client):
                 session_id=session_id,
                 locale="sv",
                 message="hur är norrköping fördelat?",
+                **_HELP_TENANT,
             ):
                 if isinstance(item, str):
                     reply += item

@@ -44,13 +44,19 @@ async def run_sourcing_chat_turn(
     *,
     message: str,
     history: Sequence[DdSourcingChatMessage] = (),
+    customer_id: int,
 ) -> tuple[str, list[DdCandidateCompany]]:
     text = message.strip()
     if not text:
         raise SourcingChatError("Message is required")
 
     try:
-        prompts = await require_active_prompts(session)
+        prompts = await require_active_prompts(
+            session,
+            customer_id=customer_id,
+            module="dd",
+            language="sv",
+        )
         system_prompt = render_prompt(prompts, "dd.sourcing.chat.system")
     except Exception as exc:
         raise SourcingChatError(str(exc), status_code=503) from exc
