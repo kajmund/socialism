@@ -42,6 +42,8 @@ mode, or `report_modes` without a `ReportBinding`, fail boot.
 
 `load_spindoctor_source` remains a compat wrapper that returns `(report, source.bundles)` for MCP/tools (DD: empty list).
 
+A test-only third module lives in `backend/tests/fixture_module.py`. It must not import `app.services.dd`, `spindoctor_dd`, or `spindoctor_politik`. See `tests/test_fixture_module.py`.
+
 ## Adding a module (checklist)
 
 1. Backend `ModuleManifest` with `report_modes` + `ReportBinding` (if it produces reports).
