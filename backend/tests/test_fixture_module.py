@@ -15,6 +15,7 @@ from app.modules.registry import (
 )
 from app.modules.report_binding import ReportGenerateContext
 from app.serializers import utcnow
+from app.services import jobs as jobs_service
 from app.services.panel.expert_profiles_store import (
     ensure_expert_profile_defaults,
     get_expert_profile_by_key,
@@ -139,6 +140,21 @@ async def test_third_module_report_panel_and_spindoctor(client_db, tmp_path):
         )
         assert generated.html_path.is_file()
         assert "Fixture-rapport" in generated.html_path.read_text(encoding="utf-8")
+
+        jobs_service.set_schedule_hook(lambda _job_id: None)
+        try:
+            created = await _client.post(
+                "/reports",
+                json={
+                    "sources": [{"type": "fixture_session", "session_id": "panel_fix"}],
+                    "title": "Via API",
+                    "mode": "fixture",
+                },
+            )
+        finally:
+            jobs_service.set_schedule_hook(None)
+        assert created.status_code == 202, created.text
+        assert created.json()["mode"] == "fixture"
     finally:
         uninstall_fixture_module()
         assert "fixture" not in MODULE_REGISTRY

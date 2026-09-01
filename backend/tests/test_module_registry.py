@@ -12,6 +12,8 @@ from app.modules.registry import (
     module_has_component,
     module_id_for_report_mode,
     report_binding_for_mode,
+    resolve_report_mode,
+    source_types_for_registry,
 )
 from app.modules.report_binding import UnknownReportModeError
 
@@ -29,6 +31,18 @@ def test_module_id_for_report_mode():
 def test_module_id_for_report_mode_unknown_fails_loud():
     with pytest.raises(UnknownReportModeError, match="upphandling"):
         module_id_for_report_mode("upphandling")
+
+
+def test_resolve_report_mode_from_source_type():
+    assert resolve_report_mode("dd_session", None) == "dd"
+    assert resolve_report_mode("oasis", None) == "quick"
+    assert resolve_report_mode("oasis", "full") == "full"
+    with pytest.raises(ValueError, match="not valid"):
+        resolve_report_mode("oasis", "dd")
+    with pytest.raises(ValueError, match="not valid"):
+        resolve_report_mode("dd_session", "quick")
+    assert "dd_session" in source_types_for_registry()
+    assert "oasis" in source_types_for_registry()
 
 
 def test_report_binding_for_known_modes():

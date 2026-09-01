@@ -1185,11 +1185,8 @@ class RunSimulateJobRequest(BaseModel):
     run_id: int
 
 
-ReportSourceType = Literal["oasis", "dd_session"]
-
-
 class ReportSource(BaseModel):
-    type: ReportSourceType = "oasis"
+    type: str = "oasis"
     run_id: int | None = None
     attempt_id: str | None = None
     session_id: str | None = None
@@ -1216,20 +1213,13 @@ class ReportCreate(BaseModel):
     sources: list[ReportSource] = Field(min_length=1)
     title: str = ""
     locale: Literal["sv", "en"] = "sv"
-    mode: Literal["quick", "dd"] | None = None
+    mode: str | None = None
 
     @model_validator(mode="after")
-    def validate_mode_matches_sources(self) -> Self:
+    def validate_sources_share_type(self) -> Self:
         types = {src.type for src in self.sources}
         if len(types) > 1:
             raise ValueError("All report sources must share the same type")
-        source_type = next(iter(types))
-        if self.mode is None:
-            self.mode = "dd" if source_type == "dd_session" else "quick"
-        elif source_type == "dd_session" and self.mode != "dd":
-            raise ValueError("dd_session sources require mode=dd")
-        elif source_type == "oasis" and self.mode == "dd":
-            raise ValueError("oasis sources require mode=quick")
         return self
 
 
@@ -1239,7 +1229,7 @@ class ReportOut(BaseModel):
     status: ReportStatus
     title: str
     locale: Literal["sv", "en"] = "sv"
-    mode: Literal["full", "quick", "dd"] = "quick"
+    mode: str = "quick"
     sources: list[ReportSource]
     html_path: str | None = None
     slots_path: str | None = None

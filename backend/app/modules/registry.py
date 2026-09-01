@@ -91,6 +91,38 @@ def module_id_for_report_mode(mode: str) -> str:
     return matches[0]
 
 
+def source_types_for_registry(
+    registry: dict[str, ModuleManifest] | None = None,
+) -> dict[str, frozenset[str]]:
+    """Map each report source type to the report_modes that accept it."""
+    source = registry if registry is not None else MODULE_REGISTRY
+    mapping: dict[str, set[str]] = {}
+    for module in source.values():
+        if module.report is None:
+            continue
+        for source_type in module.report.source_types:
+            mapping.setdefault(source_type, set()).update(module.report_modes)
+    return {key: frozenset(modes) for key, modes in mapping.items()}
+
+
+def resolve_report_mode(source_type: str, requested: str | None) -> str:
+    """Infer or validate Report.mode from a source type via the registry."""
+    modes = source_types_for_registry().get(source_type)
+    if not modes:
+        raise UnknownReportModeError(requested or source_type)
+    if requested is None:
+        if len(modes) == 1:
+            return next(iter(modes))
+        if "quick" in modes:
+            return "quick"
+        raise ValueError(f"mode is required for source type {source_type!r}")
+    if requested not in modes:
+        raise ValueError(
+            f"mode {requested!r} is not valid for source type {source_type!r}"
+        )
+    return requested
+
+
 def report_binding_for_mode(mode: str) -> ReportBinding:
     module_id = module_id_for_report_mode(mode)
     binding = MODULE_REGISTRY[module_id].report
