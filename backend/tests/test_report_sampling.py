@@ -194,6 +194,7 @@ async def test_generate_report_writes_sampling_block(tmp_path):
         assert doc["report_thresholds"]["recommendation"]["score_triggers"]["strong_pos"] == 0.45
         html = (tmp_path / "rpt" / "report.html").read_text(encoding="utf-8")
         assert "SSR-sampling" in html or "SSR sampling" in html
-        assert "Direkta reaktioner" in html or "direct reactions" in html.lower()
+        lowered = html.lower()
+        assert "direkta reaktioner" in lowered or "direct reactions" in lowered
     finally:
         set_embedder(None)
