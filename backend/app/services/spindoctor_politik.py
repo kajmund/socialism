@@ -7,8 +7,14 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from dataclasses import dataclass
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database.models import Report
+from app.modules.manifest import SpindoctorSource
 from app.services.report import ARTIFACT_ROOT
-from app.services.report.bundles import RunBundle
+from app.services.report.bundles import RunBundle, build_bundles
 from app.services.report.classify import TONE_LABELS
 from app.services.report.locale import display_style_label
 from app.services.report.metrics import compute_report_metrics, pct
@@ -21,6 +27,37 @@ from app.services.report.thresholds import (
 )
 from app.services.report.verdict_calibration import load_recommendation_snapshot
 from app.services.ssr import STYLE_LABELS
+
+
+@dataclass
+class PolitikSpindoctorPayload:
+    sources: list
+    bundles: list[RunBundle]
+
+
+async def load_politik_spindoctor_source(
+    session: AsyncSession, report: Report
+) -> SpindoctorSource:
+    sources = report.sources if isinstance(report.sources, list) else []
+    bundles = await build_bundles(session, sources)
+    return SpindoctorSource(
+        report=report,
+        payload=PolitikSpindoctorPayload(sources=sources, bundles=bundles),
+        bundles=bundles,
+    )
+
+
+def build_politik_spindoctor_context_from_source(
+    source: SpindoctorSource, *, locale: str, title: str
+) -> str:
+    payload = source.payload
+    return build_politik_spindoctor_context_block(
+        title=title,
+        locale=locale,
+        sources=payload.sources,
+        bundles=payload.bundles,
+        report_id=source.report.id,
+    )
 
 
 def _load_ssr_json(report_id: str) -> dict[str, Any] | None:

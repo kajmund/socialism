@@ -8,6 +8,10 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Protocol
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database.models import Report
+from app.modules.manifest import SpindoctorSource
 from app.services.dd.sub_questions import SubQuestionRef
 from app.services.report import ARTIFACT_ROOT
 from app.services.report.locale import ReportLocale
@@ -106,6 +110,23 @@ def _format_candidate(candidate: dict[str, Any], *, locale: ReportLocale) -> lis
     if desc:
         lines.append(desc)
     return lines
+
+
+async def load_dd_spindoctor_source(
+    session: AsyncSession, report: Report
+) -> SpindoctorSource:
+    """Load report.dd.json into a uniform Spinndoktor source. session unused (file artifact)."""
+    del session
+    dd_doc = load_dd_report_json(report.id)
+    if dd_doc is None:
+        raise ValueError(f"report.dd.json not found for {report.id!r}")
+    return SpindoctorSource(report=report, payload=dd_doc, bundles=[])
+
+
+def build_dd_spindoctor_context_from_source(
+    source: SpindoctorSource, *, locale: str, title: str
+) -> str:
+    return build_dd_spindoctor_context_block(source.payload, locale=locale, title=title)
 
 
 def build_dd_spindoctor_context_block(

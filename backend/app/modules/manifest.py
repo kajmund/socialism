@@ -1,18 +1,35 @@
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Callable
+from typing import Any
 
 from fastapi import APIRouter
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.database.models import Report
 from app.modules.report_binding import ReportBinding
+
+
+@dataclass(frozen=True)
+class SpindoctorSource:
+    """Module-owned report payload for Spinndoktor. Orchestration never inspects mode."""
+
+    report: Report
+    payload: Any
+    bundles: list[Any] = field(default_factory=list)
+
+
+SpindoctorSourceLoader = Callable[[AsyncSession, Report], Awaitable[SpindoctorSource]]
+SpindoctorContextBuilder = Callable[..., str]
 
 
 @dataclass(frozen=True)
 class SpindoctorBinding:
     """Per-modul koppling in i Spinndoktor-lagret."""
 
-    context_builder: Callable[..., str]  # same signature as build_dd_spindoctor_context_block
+    source_loader: SpindoctorSourceLoader
+    context_builder: SpindoctorContextBuilder  # (source, *, locale, title) -> str
     mcp_tool_names: frozenset[str] = field(default_factory=frozenset)
     supports_interview: bool = False
 
