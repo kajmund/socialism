@@ -28,13 +28,24 @@ async def customer_id_for_run(session: AsyncSession, run_id: int) -> int:
 
 
 async def customer_id_for_panel_session(session: AsyncSession, session_id: str) -> int:
+    """Resolve tenant for a panel job/report.
+
+    Prefer ``project_id`` (module-agnostic) over ``campaign_id`` (DD extra).
+    Generic sessions have no campaign — falling through to the OS default
+    would put those jobs on the wrong customer list.
+    """
     panel = await session.get(PanelSession, session_id)
-    if panel is None or panel.campaign_id is None:
+    if panel is None:
         return await default_os_customer_id(session)
-    campaign = await session.get(DdCampaign, panel.campaign_id)
-    if campaign is None:
-        return await default_os_customer_id(session)
-    return campaign.customer_id
+    if panel.project_id is not None:
+        projekt = await session.get(Projekt, panel.project_id)
+        if projekt is not None:
+            return projekt.customer_id
+    if panel.campaign_id is not None:
+        campaign = await session.get(DdCampaign, panel.campaign_id)
+        if campaign is not None:
+            return campaign.customer_id
+    return await default_os_customer_id(session)
 
 
 async def customer_id_for_new_report(
