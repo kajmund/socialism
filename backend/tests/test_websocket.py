@@ -211,7 +211,6 @@ def test_reports_websocket_snapshot_update_and_delete(ws_client):
             )
             session.add(report)
             await session.commit()
-            await session.refresh(report)
             await publish_report(report)
             return report.id
 
@@ -284,8 +283,6 @@ def test_jobs_websocket_customer_scope_filters_push(ws_client):
             )
             session.add_all([os_job, bolag_job])
             await session.commit()
-            await session.refresh(os_job)
-            await session.refresh(bolag_job)
             await publish_job(os_job)
             await publish_job(bolag_job)
 
@@ -364,8 +361,6 @@ def test_reports_websocket_customer_scope_filters_push(ws_client):
             )
             session.add_all([os_report, bolag_report])
             await session.commit()
-            await session.refresh(os_report)
-            await session.refresh(bolag_report)
             await publish_report(os_report)
             await publish_report(bolag_report)
 
