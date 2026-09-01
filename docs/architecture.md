@@ -175,6 +175,7 @@ Fail fast on missing required config.
 ## Related docs
 
 - [Runs: interviews, branches, quality](guides/runs-interviews-and-quality.md)
+- [CI](guides/ci.md)
 - [Backend setup](guides/backend-setup.md)
 - [Frontend setup](guides/frontend-setup.md)
 - [Supabase (later)](guides/supabase-setup.md)

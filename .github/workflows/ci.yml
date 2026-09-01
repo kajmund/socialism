@@ -1,0 +1,83 @@
+# Required check name for branch protection / rulesets: "CI"
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  merge_group:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --frozen
+      - name: Run pytest
+        run: uv run pytest
+
+  frontend:
+    name: Frontend tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Lint
+        run: pnpm lint
+      - name: Run vitest
+        run: pnpm test
+
+  knowledge:
+    name: Knowledge validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate OKF manuals
+        run: make knowledge-validate
+
+  ci:
+    name: CI
+    if: always()
+    needs: [backend, frontend, knowledge]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require all jobs
+        run: |
+          if [ "${{ needs.backend.result }}" != "success" ] \
+          || [ "${{ needs.frontend.result }}" != "success" ] \
+          || [ "${{ needs.knowledge.result }}" != "success" ]; then
+            echo "Required jobs: backend=${{ needs.backend.result }} frontend=${{ needs.frontend.result }} knowledge=${{ needs.knowledge.result }}"
+            exit 1
+          fi

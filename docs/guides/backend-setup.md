@@ -242,7 +242,7 @@ cd backend
 uv run pytest
 ```
 
-Uses in-memory SQLite; no network required. Tests set a dummy `DEEPSEEK_API_KEY` and mock the LLM client.
+Uses in-memory SQLite; no network required. Tests set a dummy `DEEPSEEK_API_KEY` and mock the LLM client. GitHub Actions runs this on every PR and on push to `main` (see [ci.md](ci.md)). Smoke (`-m smoke`) stays opt-in.
 
 ## Troubleshooting
 
