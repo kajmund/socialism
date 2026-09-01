@@ -81,6 +81,7 @@ Source badge colors in HTML: `web` → blue (`web`), `llm` → gray (`single`).
 - Optional FKs: `panel_id` → `populations` (`kind=expert_panel`), `project_id` → `projekt` (module-agnostic), `campaign_id` → `dd_campaigns` (DD extra only), `job_id`
 - Create with `panel_id` to reuse a saved expert panel; `protocol` stays per session. No silent backfill of `project_id` on legacy rows.
 - Prompts live in the database (`prompt_catalog.py` defaults, active configuration at runtime)
+- DD-panel Spinndoktor identity comes from the shared `spinndoctor` catalog row (`panel.expert.system`); the session brief is a separate system message, not merged into the identity prompt
 
 ## API
 

@@ -25,7 +25,7 @@ from app.services.jobs import job_session_factory
 from app.services.prompt_catalog import ConfigurationLanguage, render_prompt
 from app.services.prompt_store import require_active_prompts
 from app.services.panel.spinndoctor_profile import (
-    catalog_profile_text,
+    render_spinndoctor_identity,
     require_spinndoctor_profile,
 )
 from app.services.spindoctor_context import build_spindoctor_context
@@ -162,12 +162,7 @@ async def _build_identity_prompt(
 ) -> str:
     prompts = await require_active_prompts(session)
     row = await require_spinndoctor_profile(session)
-    identity = render_prompt(
-        prompts,
-        "panel.expert.system",
-        label=row.name,
-        profile=catalog_profile_text(row),
-    )
+    identity = render_spinndoctor_identity(prompts, row)
     parts = [
         identity,
         render_prompt(prompts, "spinndoctor.system"),

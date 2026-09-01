@@ -1,4 +1,4 @@
-"""Shared Spinndoktor catalog row (report-chat identity). Not the DD panel moderator."""
+"""Shared Spinndoktor catalog row — report-chat and DD-panel moderator identity."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from app.services.panel.expert_profiles_store import (
     ensure_expert_profile_defaults,
     get_expert_profile_by_key,
 )
+from app.services.prompt_catalog import render_prompt
 
 SPINNDOCTOR_KEY = "spinndoctor"
 SPINNDOCTOR_MODULES = ("dd", "politik")
@@ -17,8 +18,8 @@ SPINNDOCTOR_SPEC: dict[str, str] = {
     "key": SPINNDOCTOR_KEY,
     "name": "Spinndoktor",
     "description": (
-        "Erfaren svensk kommunikationsrådgivare som hjälper användaren tolka "
-        "en specifik simulerings- eller DD-rapport. Agerar först, frågar sist."
+        "Erfaren svensk kommunikationsrådgivare. Tolkar simulerings- och "
+        "DD-rapporter, och modererar expertpaneler. Agerar först, frågar sist."
     ),
     "kompetensomrade": "Politisk kommunikation och rapporttolkning",
     "radgivningsstil": "Konkret, jordnära, slutsats först",
@@ -36,6 +37,18 @@ def catalog_profile_text(row: PanelExpertProfile) -> str:
         f"Anekdot: {row.professionell_anekdot}" if row.professionell_anekdot else "",
     ]
     return "\n".join(line for line in lines if line).strip()
+
+
+def render_spinndoctor_identity(
+    prompts: dict[str, str],
+    row: PanelExpertProfile,
+) -> str:
+    return render_prompt(
+        prompts,
+        "panel.expert.system",
+        label=row.name,
+        profile=catalog_profile_text(row),
+    )
 
 
 async def ensure_spinndoctor_profile(session: AsyncSession) -> int:

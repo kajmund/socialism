@@ -1,4 +1,4 @@
-"""Fas 5: report-chat Spinndoktor is a catalog persona; context is a separate message."""
+"""Fas 5: Spinndoktor is a catalog persona; report context and panel brief stay separate."""
 
 from __future__ import annotations
 
@@ -8,6 +8,11 @@ from app.services.panel.spinndoctor_profile import (
     SPINNDOCTOR_KEY,
     require_spinndoctor_profile,
 )
+from app.services.panel.structured_scoring import (
+    assemble_dd_moderator_messages,
+    build_dd_moderator_identity,
+)
+from app.services.prompt_store import require_active_prompts
 from app.services.spindoctor_chat import (
     _build_identity_prompt,
     assemble_spindoctor_messages,
@@ -26,6 +31,18 @@ def test_assemble_spindoctor_messages_keeps_context_separate():
     assert messages[0]["content"] != messages[1]["content"]
     assert "DD-rapport" not in str(messages[0]["content"])
     assert messages[-1] == {"role": "user", "content": "Hur ser poängen ut?"}
+
+
+def test_assemble_dd_moderator_messages_keeps_brief_separate():
+    messages = assemble_dd_moderator_messages(
+        identity="Du deltar som Spinndoktor",
+        brief="Test AB i Stockholm",
+        user_content="Öppna panelen kort.",
+    )
+    assert messages[0] == {"role": "system", "content": "Du deltar som Spinndoktor"}
+    assert messages[1] == {"role": "system", "content": "Test AB i Stockholm"}
+    assert "Test AB" not in messages[0]["content"]
+    assert messages[2] == {"role": "user", "content": "Öppna panelen kort."}
 
 
 @pytest.mark.asyncio
@@ -63,3 +80,16 @@ async def test_identity_prompt_uses_panel_expert_system(client_db):
         assert "Du har dataverktyg" in identity
         assert "## Kandidat" not in identity
         assert "## Körning" not in identity
+
+
+@pytest.mark.asyncio
+async def test_dd_moderator_identity_uses_catalog_and_policy(client_db):
+    _client, factory = client_db
+    async with factory() as db:
+        prompts = await require_active_prompts(db)
+        identity = await build_dd_moderator_identity(db, prompts)
+        assert "Du deltar som Spinndoktor" in identity
+        assert "Politisk kommunikation" in identity
+        assert "Hitta inte på namn" in identity
+        assert "Du är Spinndoktor och modererar en bolags-DD-panel" not in identity
+        assert "Test AB" not in identity
