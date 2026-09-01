@@ -48,4 +48,5 @@ class ModuleManifest:
     report: ReportBinding | None = None
     sub_questions_provider: Callable[[], list] | None = None
     expert_defaults_provider: Callable[[], list] | None = None
+    prompt_defaults_provider: Callable[[], list] | None = None
     spindoctor: SpindoctorBinding | None = None
