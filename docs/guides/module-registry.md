@@ -57,6 +57,6 @@ Two complete methods, not a composable raise-hand strategy:
 | Method               | First protocol     | Output                          |
 | -------------------- | ------------------ | ------------------------------- |
 | `generic_panel`      | `generic_panel`    | `PanelResult` (claims empty)    |
-| `structured_scoring` | `dd_panel` (after switch) | `PanelResult` envelope; DD reports adapt to `DdPanelResult` |
+| `structured_scoring` | `dd_panel` | `PanelResult` envelope; DD reports adapt to `DdPanelResult` |
 
-`PROTOCOL_METHODS["dd_panel"]` is `structured_scoring` after the dual-run equivalence test went green. `dd_engine.py` is removed in a follow-up commit.
+`PROTOCOL_METHODS["dd_panel"]` is `structured_scoring`. The dual-run against `dd_engine.py` is in git history; that file is gone.

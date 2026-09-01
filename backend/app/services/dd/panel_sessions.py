@@ -8,7 +8,7 @@ from app.services.dd.campaigns import get_campaign, resolve_expert_panel_id
 from app.services.dd.candidate_runs import get_candidate_run
 from app.services.dd.expert_roles import load_expert_slots, load_expert_slots_from_population
 from app.services.dd.schemas import DdCandidateCompany, DdResearchDossier
-from app.services.panel.dd_engine import _candidate_brief
+from app.services.panel.structured_scoring import _candidate_brief
 from app.services.panel.schemas import DdPanelSessionCreateRequest, PanelSessionConfig, PanelSessionCreate
 from app.services.panel.sessions import create_panel_session
 
