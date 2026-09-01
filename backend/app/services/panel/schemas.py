@@ -41,7 +41,7 @@ class PanelSessionConfig(BaseModel):
     module: str | None = None
     topic: str = Field(min_length=1, max_length=4000)
     brief: str = ""
-    expert_slots: list[PanelExpertSlot] = Field(min_length=1, max_length=6)
+    expert_slots: list[PanelExpertSlot] = Field(default_factory=list, max_length=6)
     max_rounds: int = Field(default=2, ge=1, le=5)
     campaign_id: int | None = None
     candidate: DdCandidateCompany | None = None
@@ -110,6 +110,14 @@ class DdPanelResult(BaseModel):
 
 class PanelSessionCreate(BaseModel):
     config: PanelSessionConfig
+    panel_id: int | None = None
+    project_id: int | None = None
+
+    @model_validator(mode="after")
+    def require_slots_or_panel(self) -> "PanelSessionCreate":
+        if not self.config.expert_slots and self.panel_id is None:
+            raise ValueError("expert_slots or panel_id is required")
+        return self
 
 
 class PanelSessionOut(BaseModel):
@@ -121,6 +129,8 @@ class PanelSessionOut(BaseModel):
     scratchpads: dict[str, str]
     analysis: str | None
     result: DdPanelResult | None = None
+    panel_id: int | None
+    project_id: int | None
     campaign_id: int | None
     job_id: str | None
     error: str | None

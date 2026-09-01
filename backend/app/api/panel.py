@@ -23,7 +23,14 @@ async def post_panel_session(
 ) -> PanelSessionOut:
     if body.config.protocol not in _SUPPORTED_PROTOCOLS:
         raise HTTPException(status_code=400, detail="Unsupported protocol")
-    out = await create_panel_session(session, body)
+    try:
+        out = await create_panel_session(session, body)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     await session.commit()
     return out
 
