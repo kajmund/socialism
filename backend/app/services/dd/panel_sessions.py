@@ -52,6 +52,7 @@ async def create_dd_panel_session_from_campaign(
 
     config = PanelSessionConfig(
         protocol="dd_panel",
+        module="dd",
         topic=f"Due diligence: {candidate.namn}",
         brief=_candidate_brief(candidate, research=research),
         expert_slots=expert_slots,

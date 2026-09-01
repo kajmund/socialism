@@ -8,6 +8,7 @@ from app.database.models import PanelSession
 from app.llm import complete_text
 from app.services.dd.company_mcp import complete_text_with_company_tools
 from app.services.expert_tools import expert_tool_prompt_extra
+from app.services.panel.result import PanelResult
 from app.services.panel.schemas import (
     PanelExpertSlot,
     PanelSessionConfig,
@@ -281,6 +282,13 @@ async def run_generic_panel(
 
     panel.scratchpads = scratchpads
     panel.analysis = summary_turn.content
+    panel.result = PanelResult(
+        protocol="generic_panel",
+        summary=summary_turn.content,
+        claims=[],
+        unanswered=[],
+        payload={},
+    ).model_dump(mode="json")
     panel.status = "succeeded"
     panel.error = None
     await db.flush()

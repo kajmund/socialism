@@ -93,6 +93,17 @@ async def test_panel_session_run_job(client: AsyncClient, mock_panel_llm):
     body = session.json()
     assert body["status"] == "succeeded"
     assert body["analysis"]
+    factory = jobs_service.job_session_factory()
+    assert factory is not None
+    async with factory() as db:
+        from app.services.panel.sessions import get_panel_session
+
+        row = await get_panel_session(db, session_id)
+        assert row is not None
+        assert row.result is not None
+        assert row.result["protocol"] == "generic_panel"
+        assert row.result["summary"] == body["analysis"]
+        assert row.result["claims"] == []
     assert len(body["transcript"]) >= 4
     assert any(t["phase"] == "opening" for t in body["transcript"])
     assert any(t["phase"] == "expert" for t in body["transcript"])
