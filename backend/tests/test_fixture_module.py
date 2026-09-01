@@ -21,6 +21,8 @@ from app.services.panel.expert_profiles_store import (
     get_expert_profile_by_key,
     get_expert_profiles,
 )
+from app.services.panel.module_defaults import ensure_module_panel_defaults
+from app.services.prompt_fields_store import get_prompt_field_by_key
 from app.services.panel.methods import PROTOCOL_METHODS, deliberation_method
 from app.services.panel.schemas import PanelExpertSlot, PanelSessionConfig, PanelSessionCreate
 from app.services.panel.sessions import create_panel_session, get_panel_session
@@ -73,6 +75,17 @@ async def test_third_module_report_panel_and_spindoctor(client_db, tmp_path):
             assert "dd" in row.modules
             fixture_experts = await get_expert_profiles(db, "fixture")
             assert any(item.key == "spinndoctor" for item in fixture_experts)
+
+            await ensure_module_panel_defaults(db)
+            fixture_prompt = await get_prompt_field_by_key(db, "fixture.prompt.hello")
+            assert fixture_prompt is not None
+            assert fixture_prompt.modules == ["fixture"]
+            assert fixture_prompt.default_sv == "Hej från fixture-modulen."
+            help_prompt = await get_prompt_field_by_key(db, "help.system")
+            assert help_prompt is not None
+            assert "dd" in help_prompt.modules
+            assert "politik" in help_prompt.modules
+            assert "fixture" not in help_prompt.modules
 
             now = utcnow()
             report_id = "rpt_fixture"

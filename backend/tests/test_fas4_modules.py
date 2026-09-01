@@ -18,6 +18,8 @@ async def test_modules_api_lists_registry(client: AsyncClient):
     assert "campaigns" in by_id["dd"]["components"]
     assert "panel_engine" in by_id["dd"]["components"]
     assert by_id["dd"]["has_sub_questions"] is True
+    assert by_id["dd"]["has_prompt_defaults"] is True
+    assert by_id["politik"]["has_prompt_defaults"] is True
     assert by_id["dd"]["report_modes"] == ["dd"]
     assert "campaigns" not in by_id["politik"]["components"]
     assert set(by_id["politik"]["report_modes"]) == {"quick", "full"}

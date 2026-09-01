@@ -68,9 +68,9 @@ Optional dependency extra `oasis` (`camel-oasis`) — not installed by default (
 
 **All LLM prompt text used at runtime must come from the active configuration in the database** — not from hardcoded strings in call sites.
 
-- Load via `require_active_prompts` / `render_prompt` (`app/services/prompt_store.py`, `prompt_catalog.py`). The active configuration’s `prompts` map is the source of truth.
-- New prompt keys: add the key + defaults in `PROMPT_FIELDS` (`prompt_catalog.py`) so seed/admin/UI know about them, then ensure the active configuration has the text (seed or Tools → Konfigurationer). Do not invent one-off prompt strings in `app/llm/` or services.
-- Defaults in `prompt_catalog.py` exist only as catalog/seed for new configs and missing keys — not as a parallel production path that bypasses the DB.
+- Load via `require_active_prompts` / `render_prompt` (`app/services/prompt_store.py`, `prompt_catalog.py`). Runtime still reads the active configuration’s `prompts` map (Fas 2 will switch to `prompt_fields` + `prompt_overrides`).
+- Catalog keys and defaults live in `prompt_fields` (seeded by each module’s `prompt_defaults_provider`). `prompt_overrides` holds sparse per-customer deviations. `PROMPT_FIELDS` remains seed input until Fas 2.
+- New prompt keys: add them to the owning module’s `prompt_defaults_provider` (shared keys: both `dd` and `politik`). Do not invent one-off prompt strings in `app/llm/` or services.
 - Fail loudly if the active configuration or a required prompt key is missing. Do not fall back to a hardcoded Swedish/English prompt body in Python.
 
 ## Database

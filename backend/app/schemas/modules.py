@@ -15,4 +15,5 @@ class ModuleOut(BaseModel):
     report_modes: list[str] = Field(default_factory=list)
     has_sub_questions: bool
     has_expert_defaults: bool
+    has_prompt_defaults: bool = False
     supports_interview: bool
