@@ -17,7 +17,7 @@ from app.services.playground_image_models import (
     resolve_reaction_model,
     resolve_vision_selection,
 )
-from app.services.prompt_store import require_active_prompts
+from app.services.prompt_store import require_prompts_for_persona
 from app.services.sentiment_lexicon import classify_text
 
 Locale = Literal["sv", "en"]
@@ -96,7 +96,7 @@ async def react_to_image(
     )
     profile = profile_from_dict(persona.profile, persona.name)
     area_block = await area_block_for_name(session, profile.ort or persona.district)
-    prompts = await require_active_prompts(session)
+    prompts = await require_prompts_for_persona(session, persona, language=locale)
     reaction = await reply_as_persona(
         profile,
         "character",

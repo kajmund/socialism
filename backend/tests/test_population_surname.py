@@ -185,7 +185,7 @@ async def test_llm_batch_uses_preassigned_names_and_waves(monkeypatch, gen_sessi
     monkeypatch.setattr(gen.settings, "persona_generator", "deepseek")
     monkeypatch.setattr(gen.settings, "persona_generate_concurrency", 2)
 
-    async def fake_prompts(session):
+    async def fake_prompts(session, **_kwargs):
         return {}
 
     monkeypatch.setattr(gen, "require_active_prompts", fake_prompts)

@@ -32,3 +32,17 @@ export function realtimeCustomerIdForRole(
   if (role === "bolag") return BOLAG_DEMO_CUSTOMER_ID
   return undefined
 }
+
+export type HelpChatTenant = {
+  customer_id: number
+  module: "dd" | "politik"
+}
+
+/** Help chat tenant from the logged-in role. No silent Devbrains fallback. */
+export function helpChatTenantForRole(role: string | null): HelpChatTenant | null {
+  if (role == null) return null
+  if (role === "bolag") {
+    return { customer_id: BOLAG_DEMO_CUSTOMER_ID, module: "dd" }
+  }
+  return { customer_id: OS_CUSTOMER_ID, module: "politik" }
+}

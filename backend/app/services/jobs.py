@@ -26,7 +26,10 @@ from app.schemas.domain import (
 )
 from app.serializers import utcnow
 from app.services import population_generate as gen
-from app.services.customer_scope import customer_id_for_new_job
+from app.services.customer_scope import (
+    customer_id_for_new_job,
+    customer_id_for_panel_session,
+)
 from app.services.dd.allabolag import AllabolagError
 from app.services.dd.campaigns import get_campaign
 from app.services.dd.candidate_runs import get_candidate_run, upsert_research
@@ -42,7 +45,7 @@ from app.services.oasis_run import (
     simulate_run,
 )
 from app.services.panel.methods import PROTOCOL_METHODS, deliberation_method
-from app.services.panel.schemas import PanelSessionRunJobRequest
+from app.services.panel.schemas import PanelSessionConfig, PanelSessionRunJobRequest
 from app.services.panel.watch import publish_panel_finished
 from app.services.population_persist import (
     create_population_from_generation,
@@ -324,7 +327,13 @@ async def _run_population_generate(job_id: str) -> None:
                 include_persona_ids=payload.include_persona_ids,
                 mode="replace",
             )
-            response = await gen.run_generate(gen_req, library, session=session)
+            response = await gen.run_generate(
+                gen_req,
+                library,
+                session=session,
+                customer_id=job.customer_id,
+                kind=population_kind,
+            )
 
         if payload.population_id is not None:
             population = await update_population_from_generation(
@@ -583,7 +592,19 @@ async def _run_panel_session(job_id: str) -> None:
             if panel is None:
                 await _fail(session, job_id, f"Panel session not found: {payload.session_id}")
                 return
-            prompts = await require_active_prompts(session)
+            config = PanelSessionConfig.model_validate(panel.config or {})
+            module = config.module
+            if not module:
+                raise RuntimeError(
+                    f"Panel session {panel.id!r} is missing config.module"
+                )
+            customer_id = await customer_id_for_panel_session(session, panel.id)
+            prompts = await require_active_prompts(
+                session,
+                customer_id=customer_id,
+                module=module,
+                language="sv",
+            )
             method_name = PROTOCOL_METHODS.get(panel.protocol)
             if method_name is None:
                 raise RuntimeError(f"Unsupported panel protocol: {panel.protocol}")
