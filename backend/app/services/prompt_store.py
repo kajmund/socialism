@@ -156,6 +156,13 @@ _STALE_PANEL_DD_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
         ),
     ),
     (
+        "panel.dd.moderator.system",
+        (
+            "Du är Spinndoktor och modererar en bolags-DD-panel",
+            "You are Spinndoktor moderating a company DD panel",
+        ),
+    ),
+    (
         "panel.dd.moderator.summary",
         (
             "Avsluta med en kort DD-sammanfattning: styrkor, risker, oenigheter, "

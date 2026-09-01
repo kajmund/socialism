@@ -136,6 +136,10 @@ async def test_require_active_prompts_refreshes_stale_panel_dd_raise_hand(
         "Öppna panelen kort. Förklara att varje expert snart bedömer finansiell hälsa, "
         "legal risk, marknadsposition och integrationsrisk med poäng 1–10."
     )
+    stored["panel.dd.moderator.system"] = (
+        "Du är Spinndoktor och modererar en bolags-DD-panel.\n"
+        "Skriv BARA din egen replik som moderator."
+    )
     stored["panel.dd.expert.score"] = (
         "Slå upp bolaget med lookup_company om du behöver nyckeltal."
     )
@@ -161,6 +165,10 @@ async def test_require_active_prompts_refreshes_stale_panel_dd_raise_hand(
     assert "Be inte alla om poäng" not in prompts["panel.dd.moderator.sub_question"]
     assert "Tilldela inte första frågan" in prompts["panel.dd.moderator.opening"]
     assert "varje expert snart bedömer" not in prompts["panel.dd.moderator.opening"]
+    assert "Du modererar panelen" in prompts["panel.dd.moderator.system"]
+    assert "Du är Spinndoktor och modererar en bolags-DD-panel" not in prompts[
+        "panel.dd.moderator.system"
+    ]
     assert "Slå inte upp" in prompts["panel.dd.expert.score"]
     assert "hitta inte på en webbkälla" in prompts["panel.dd.expert.score"]
     assert "max 80" not in prompts["panel.dd.expert.score"]

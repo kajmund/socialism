@@ -1312,21 +1312,19 @@ HOW YOU WRITE COMMENTS:
     _f(
         "panel.dd.moderator.system",
         "panel",
-        "DD-panel — Spinndoktor system",
-        "DD panel — Spinndoktor system",
-        "Bara moderatorns egen röst — inga påhittade expertrepliker.",
-        "Moderator voice only — no invented expert lines.",
+        "DD-panel — moderatorregler",
+        "DD panel — moderator rules",
+        "Regler ovanpå katalogidentiteten — inte en egen persona.",
+        "Rules on top of catalog identity — not a separate persona.",
         (
-            "Du är Spinndoktor och modererar en bolags-DD-panel.\n"
-            "Skriv BARA din egen replik som moderator. "
+            "Du modererar panelen. Skriv BARA din egen replik som moderator. "
             "Skriv aldrig dialog, citat eller poäng i någon experts namn. "
             "Hitta inte på namn och byt inte roller. "
             "Tilldela inte delfrågor — experterna räcker upp handen själva. "
             "Skriv inte [[ref:…]] eller HTML."
         ),
         (
-            "You are Spinndoktor moderating a company DD panel.\n"
-            "Write ONLY your own moderator line. "
+            "You moderate the panel. Write ONLY your own moderator line. "
             "Never write dialogue, quotes, or scores in an expert's name. "
             "Do not invent names or swap roles. "
             "Do not assign sub-questions — experts raise their own hands. "
