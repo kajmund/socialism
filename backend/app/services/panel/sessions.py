@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import PanelSession
 from app.serializers import format_date
+from app.services.panel.result import dd_panel_result_from_stored
 from app.services.panel.schemas import (
     DdPanelResult,
     PanelSessionConfig,
@@ -27,8 +28,8 @@ def serialize_panel_session(row: PanelSession) -> PanelSessionOut:
     scratchpads_raw = row.scratchpads if isinstance(row.scratchpads, dict) else {}
     result_raw = row.result if isinstance(row.result, dict) else None
     result: DdPanelResult | None = None
-    if result_raw:
-        result = DdPanelResult.model_validate(result_raw)
+    if result_raw and row.protocol == "dd_panel":
+        result = dd_panel_result_from_stored(result_raw)
     return PanelSessionOut(
         id=row.id,
         protocol=row.protocol,  # type: ignore[arg-type]

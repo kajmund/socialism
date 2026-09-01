@@ -12,6 +12,7 @@ from app.services.dd.default_experts import ensure_default_expert_personas
 from app.services.dd.expert_keys import expert_role_key
 from app.services.expert_tools import resolve_expert_tools
 from app.services.panel.schemas import PanelExpertSlot
+from app.services.panel.spinndoctor_profile import SPINNDOCTOR_KEY
 
 
 def _profile_text(persona: Persona) -> str:
@@ -51,7 +52,7 @@ async def load_expert_slots(
         raise RuntimeError(f"No expert personas for customer_id={customer_id}")
 
     by_key = {expert_role_key(p.name): p for p in personas}
-    selected_keys = role_keys or list(by_key.keys())
+    selected_keys = role_keys or [key for key in by_key if key != SPINNDOCTOR_KEY]
     slots: list[PanelExpertSlot] = []
     for key in selected_keys:
         persona = by_key.get(key)

@@ -14,6 +14,7 @@ from app.services.panel.expert_profiles_store import (
     ensure_expert_profile_defaults,
     get_expert_profiles,
 )
+from app.services.panel.spinndoctor_profile import SPINNDOCTOR_KEY
 
 # Seed data for PanelExpertProfile (and MODULE_REGISTRY.expert_defaults_provider).
 DEFAULT_EXPERT_SPECS: list[dict[str, str]] = [
@@ -85,7 +86,11 @@ async def ensure_default_expert_personas(
 ) -> list[Persona]:
     """Idempotently seed default DD experts as Persona rows from the catalog store."""
     await ensure_expert_profile_defaults(session, "dd", DEFAULT_EXPERT_SPECS)
-    profiles = await get_expert_profiles(session, "dd")
+    profiles = [
+        row
+        for row in await get_expert_profiles(session, "dd")
+        if row.key != SPINNDOCTOR_KEY
+    ]
     if not profiles:
         raise RuntimeError("No active panel expert profiles for module 'dd'")
 

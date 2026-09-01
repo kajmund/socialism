@@ -1,4 +1,4 @@
-"""Run dd_panel sessions — Spinndoktor moderator, structured scoring matrix."""
+"""structured_scoring method — expert × sub-question matrix with raise-hand gate."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ from app.services.dd.research import format_research_brief
 from app.services.dd.schemas import DdCandidateCompany, DdResearchDossier
 from app.services.dd.source_attribution import SourceBadge, resolve_source_badge
 from app.services.dd.sub_questions import SubQuestionRef
+from app.services.panel.result import envelope_from_dd_panel_result
 from app.services.panel.schemas import (
     DdDissensusNote,
     DdExpertScore,
@@ -353,15 +354,18 @@ async def _moderator_summary(
     return _visible_moderator_text(await complete_text(messages))
 
 
-async def run_dd_panel(
+async def run_structured_scoring(
     db: AsyncSession,
     panel: PanelSession,
     prompts: dict[str, str],
 ) -> PanelSession:
-    """Execute dd_panel protocol — structured expert × sub-question scoring."""
+    """Execute structured scoring — expert × sub-question matrix with raise-hand gate."""
     config = PanelSessionConfig.model_validate(panel.config or {})
     if config.candidate is None:
-        raise RuntimeError("dd_panel session missing candidate in config")
+        raise RuntimeError("structured_scoring session missing candidate in config")
+    module_id = config.module
+    if not module_id:
+        raise RuntimeError("structured_scoring requires config.module")
 
     candidate = config.candidate
     transcript: list[PanelTurn] = []
@@ -380,9 +384,9 @@ async def run_dd_panel(
 
     scores: list[DdExpertScore] = []
     unanswered: list[DdUnansweredNote] = []
-    rows = await get_sub_questions(db, "dd")
+    rows = await get_sub_questions(db, module_id)
     if not rows:
-        raise RuntimeError("No active panel sub-questions for module 'dd'")
+        raise RuntimeError(f"No active panel sub-questions for module {module_id!r}")
     sub_questions = [SubQuestionRef(id=row.key, label=row.label) for row in rows]
     for round_index, sub_question in enumerate(sub_questions, start=1):
         await run_turn(
@@ -502,7 +506,7 @@ async def run_dd_panel(
 
     panel.scratchpads = scratchpads
     panel.analysis = summary
-    panel.result = result.model_dump(mode="json")
+    panel.result = envelope_from_dd_panel_result(result).model_dump(mode="json")
     panel.status = "succeeded"
     panel.error = None
     await db.flush()

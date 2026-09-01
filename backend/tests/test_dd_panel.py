@@ -145,7 +145,7 @@ async def test_dd_panel_session_from_campaign(client: AsyncClient, mock_dd_panel
 
 
 def test_parse_score_payload_skips_invalid_object_and_reads_score():
-    from app.services.panel.dd_engine import _parse_score_payload
+    from app.services.panel.structured_scoring import _parse_score_payload
 
     score, motivation = _parse_score_payload(
         'Bolaget: {"orgnr": "556703-7485"}\n\n'
@@ -156,7 +156,7 @@ def test_parse_score_payload_skips_invalid_object_and_reads_score():
 
 
 def test_parse_score_payload_rejects_non_numeric_score():
-    from app.services.panel.dd_engine import _parse_score_payload
+    from app.services.panel.structured_scoring import _parse_score_payload
 
     with pytest.raises(ValueError, match="not valid JSON"):
         _parse_score_payload('{"score": insert, "motivation": "väntar på uppslag"}')
@@ -167,7 +167,7 @@ async def test_expert_score_asks_for_json_after_invalid_tool_reply():
     from app.llm import set_text_completer, set_tools_completer
     from app.services.dd.source_attribution import SourceBadge
     from app.services.dd.sub_questions import DD_SUB_QUESTION_DEFAULTS, SubQuestionRef
-    from app.services.panel.dd_engine import _expert_score
+    from app.services.panel.structured_scoring import _expert_score
     from app.services.panel.schemas import PanelExpertSlot, PanelSessionConfig
     from app.services.prompt_catalog import default_prompts
 
@@ -206,7 +206,7 @@ async def test_expert_score_asks_for_json_after_invalid_tool_reply():
 
 
 def test_candidate_brief_format():
-    from app.services.panel.dd_engine import _candidate_brief
+    from app.services.panel.structured_scoring import _candidate_brief
 
     text = _candidate_brief(
         DdCandidateCompany(
@@ -227,7 +227,7 @@ def test_candidate_brief_format():
 
 
 def test_candidate_has_figures_from_accounts():
-    from app.services.panel.dd_engine import _candidate_has_figures
+    from app.services.panel.structured_scoring import _candidate_has_figures
 
     empty = DdCandidateCompany(
         id="c1",
@@ -252,7 +252,7 @@ def test_candidate_has_figures_from_accounts():
 async def test_expert_raise_hand_dd_accepts_ja_and_yes():
     from app.llm import set_text_completer
     from app.services.dd.sub_questions import DD_SUB_QUESTION_DEFAULTS, SubQuestionRef
-    from app.services.panel.dd_engine import _expert_raise_hand_dd
+    from app.services.panel.structured_scoring import _expert_raise_hand_dd
     from app.services.panel.schemas import PanelExpertSlot, PanelSessionConfig
     from app.services.prompt_catalog import default_prompts
 
@@ -373,7 +373,7 @@ async def test_dd_panel_skips_score_when_no_expert_raises_hand(
 
 
 def test_parse_raise_hand_reply_keeps_reason():
-    from app.services.panel.dd_engine import parse_raise_hand_reply
+    from app.services.panel.structured_scoring import parse_raise_hand_reply
 
     wants, text = parse_raise_hand_reply(
         "JA\nMarknadsposition är min kärnkompetens — jag bedömer konkurrens och prissättning."
@@ -386,7 +386,7 @@ def test_parse_raise_hand_reply_keeps_reason():
 
 
 def test_transcript_text_skips_raise_hand():
-    from app.services.panel.dd_engine import _transcript_text
+    from app.services.panel.structured_scoring import _transcript_text
     from app.services.panel.schemas import PanelTurn
 
     text = _transcript_text(
@@ -402,7 +402,7 @@ def test_transcript_text_skips_raise_hand():
 
 
 def test_visible_moderator_text_strips_report_refs():
-    from app.services.panel.dd_engine import _visible_moderator_text
+    from app.services.panel.structured_scoring import _visible_moderator_text
 
     text = _visible_moderator_text(
         "Vi börjar med era bedömningar — ni har ordet. [[ref:mottagande]]"
@@ -414,7 +414,7 @@ def test_visible_moderator_text_strips_report_refs():
 @pytest.mark.asyncio
 async def test_dd_moderator_opening_uses_panel_system_and_strips_refs(monkeypatch):
     from app.llm import set_text_completer
-    from app.services.panel.dd_engine import _moderator_opening
+    from app.services.panel.structured_scoring import _moderator_opening
     from app.services.panel.schemas import PanelExpertSlot, PanelSessionConfig
     from app.services.prompt_catalog import default_prompts
 

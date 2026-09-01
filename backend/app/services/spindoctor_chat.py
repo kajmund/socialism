@@ -24,6 +24,10 @@ from app.services.help_chat import looks_like_leaked_tool_markup
 from app.services.jobs import job_session_factory
 from app.services.prompt_catalog import ConfigurationLanguage, render_prompt
 from app.services.prompt_store import require_active_prompts
+from app.services.panel.spinndoctor_profile import (
+    catalog_profile_text,
+    require_spinndoctor_profile,
+)
 from app.services.spindoctor_context import build_spindoctor_context
 from app.services.spindoctor_board import save_spindoctor_widget
 from app.services.spindoctor_mcp_tools import (
@@ -151,25 +155,46 @@ async def _run_spindoctor_tool_loop(
     return working, new_widgets
 
 
-async def _build_system_prompt(
+async def _build_identity_prompt(
     session: AsyncSession,
     *,
-    report_id: str,
     locale: ConfigurationLanguage,
 ) -> str:
     prompts = await require_active_prompts(session)
-    _report, context = await build_spindoctor_context(session, report_id=report_id)
+    row = await require_spinndoctor_profile(session)
+    identity = render_prompt(
+        prompts,
+        "panel.expert.system",
+        label=row.name,
+        profile=catalog_profile_text(row),
+    )
     parts = [
+        identity,
         render_prompt(prompts, "spinndoctor.system"),
         render_prompt(prompts, "spinndoctor.system.tools"),
         render_prompt(prompts, "spinndoctor.system.widgets"),
-        context,
     ]
     if locale == "en":
         parts.append("Answer in English unless the user writes in Swedish.")
     else:
         parts.append("Svara på svenska om användaren inte skriver på engelska.")
     return "\n\n".join(parts)
+
+
+def assemble_spindoctor_messages(
+    *,
+    identity: str,
+    context: str,
+    history: list[dict[str, str]],
+    user_message: str,
+) -> list[dict[str, object]]:
+    """Identity and report context are separate messages — not concatenated."""
+    return [
+        {"role": "system", "content": identity},
+        {"role": "system", "content": context},
+        *history,
+        {"role": "user", "content": user_message},
+    ]
 
 
 def _section_title(section_id: str, *, locale: ConfigurationLanguage) -> str:
@@ -215,7 +240,7 @@ async def stream_spindoctor_chat_turn(
     lock = await _spindoctor_turn_lock(report_id)
     async with lock:
         try:
-            await build_spindoctor_context(session, report_id=report_id)
+            _report, context = await build_spindoctor_context(session, report_id=report_id)
         except ValueError as exc:
             raise SpindoctorChatTurnError(str(exc)) from exc
 
@@ -242,16 +267,13 @@ async def stream_spindoctor_chat_turn(
         await session.commit()
         await session.refresh(user_row)
 
-        system_prompt = await _build_system_prompt(
-            session,
-            report_id=report_id,
-            locale=locale,
+        identity = await _build_identity_prompt(session, locale=locale)
+        messages = assemble_spindoctor_messages(
+            identity=identity,
+            context=context,
+            history=_history_rows(prior),
+            user_message=message,
         )
-        messages = [
-            {"role": "system", "content": system_prompt},
-            *_history_rows(prior),
-            {"role": "user", "content": message},
-        ]
 
         working, tool_widgets = await _run_spindoctor_tool_loop(
             session,

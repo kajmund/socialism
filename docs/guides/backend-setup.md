@@ -87,7 +87,7 @@ uv sync --extra oasis   # heavy: CAMEL + torch
 
 Then `POST /runs/{id}/start` queues `run_simulate` and runs the full population + injectors across all configured ticks. Per-run `oasis_options.platform` selects `twitter` (default) or `reddit`.
 
-Adapter layers, phased decoupling from camel-oasis internals, and an upgrade checklist: [simulation-engine-layers.md](simulation-engine-layers.md).
+Adapter layers, phased decoupling from camel-oasis internals, and an upgrade checklist: [simulation-engine-layers.md](simulation-engine-layers.md). Product-module dispatch (`report_modes`, no politik fallback): [module-registry.md](module-registry.md).
 
 CLI smoke (persists attempt on the körning): `uv run python -m app.services.oasis_run --run-id N`.
 
