@@ -59,4 +59,4 @@ Two complete methods, not a composable raise-hand strategy:
 | `generic_panel`      | `generic_panel`    | `PanelResult` (claims empty)    |
 | `structured_scoring` | `dd_panel` (after switch) | `PanelResult` envelope; DD reports adapt to `DdPanelResult` |
 
-DD production still runs `dd_engine.py` until `tests/test_structured_scoring_equivalence.py` is green. Then `PROTOCOL_METHODS["dd_panel"] = "structured_scoring"` and `dd_engine.py` is deleted in its own commit.
+`PROTOCOL_METHODS["dd_panel"]` is `structured_scoring` after the dual-run equivalence test went green. `dd_engine.py` is removed in a follow-up commit.

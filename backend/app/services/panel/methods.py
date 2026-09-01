@@ -19,9 +19,9 @@ DELIBERATION_METHODS: dict[str, PanelMethod] = {
     "structured_scoring": run_structured_scoring,
 }
 
-# dd_panel stays off this map until the dual-run equivalence test is green.
 PROTOCOL_METHODS: dict[str, str] = {
     "generic_panel": "generic_panel",
+    "dd_panel": "structured_scoring",
 }
 
 
