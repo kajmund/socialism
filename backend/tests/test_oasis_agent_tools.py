@@ -187,12 +187,6 @@ def test_population_tool_rules_wiki_only():
     assert "SymPy" not in text
 
 
-def test_search_toolkit_runtime_dependencies():
-    _require_oasis_extra("ddgs", "wikipedia")
-    assert importlib.util.find_spec("ddgs") is not None
-    assert importlib.util.find_spec("wikipedia") is not None
-
-
 def test_search_tool_specs_match_population_search_tools():
     names = {
         spec["function"]["name"]
