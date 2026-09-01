@@ -7,4 +7,5 @@ export const politikManifest: ModuleManifest = {
   frontendEntry: "politik",
   homePath: "/",
   components: ["personas", "interview", "spindoctor"],
+  reportModes: ["quick", "full"],
 }
