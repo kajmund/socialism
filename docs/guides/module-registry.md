@@ -49,6 +49,7 @@ mode, or `report_modes` without a `ReportBinding`, fail boot.
 3. Spinndoktor `source_loader` / `context_builder` — no `if report.mode` in `spindoctor_context.py`.
 4. Panel protocol via `DELIBERATION_METHODS` (`generic_panel`, `structured_scoring`), not a new `jobs.py` branch.
 5. Seed expert profiles by `key` (`ensure_expert_profile_defaults`) so existing experts gain the new module instead of duplicating rows.
+6. Report-chat Spinndoktor is catalog key `spinndoctor` (modules `dd` + `politik`). Identity uses `panel.expert.system`; report context is a **separate** message. `spinndoctor.system.tools` / `.widgets` stay as policy prompts. DD panel moderator is still `panel.dd.moderator.*` (not migrated).
 
 ## Deliberation methods (Fas 3+4)
 
@@ -60,3 +61,7 @@ Two complete methods, not a composable raise-hand strategy:
 | `structured_scoring` | `dd_panel` | `PanelResult` envelope; DD reports adapt to `DdPanelResult` |
 
 `PROTOCOL_METHODS["dd_panel"]` is `structured_scoring`. The dual-run against `dd_engine.py` is in git history; that file is gone.
+
+## Spinndoktor catalog (Fas 5)
+
+Report-chat identity is `PanelExpertProfile` key `spinndoctor` (seeded onto `dd` and `politik`). The chat sends two system messages: catalog identity (`panel.expert.system` + tools/widgets policy) and the Fas 2 context block. DD panel moderator stays on `panel.dd.moderator.*`.

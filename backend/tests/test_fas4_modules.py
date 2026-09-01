@@ -162,9 +162,10 @@ async def test_panel_catalog_rejects_duplicate_sort_order(client: AsyncClient):
         "/panel/expert-profiles", params={"module": "dd", "include_inactive": True}
     )
     assert experts.status_code == 200
-    assert experts.json()[0]["module"] == "dd"
-    assert experts.json()[0]["modules"] == ["dd"]
-    expert_key = experts.json()[0]["key"]
+    scoring = next(row for row in experts.json() if row["key"] != "spinndoctor")
+    assert scoring["module"] == "dd"
+    assert scoring["modules"] == ["dd"]
+    expert_key = scoring["key"]
     expert_clash = await client.post(
         "/panel/expert-profiles",
         json={"module": "politik", "key": expert_key, "name": "Dup-nyckel"},
@@ -176,8 +177,11 @@ async def test_panel_catalog_rejects_duplicate_sort_order(client: AsyncClient):
 async def test_panel_expert_profile_crud_api(client: AsyncClient):
     listed = await client.get("/panel/expert-profiles", params={"module": "dd"})
     assert listed.status_code == 200
-    assert len(listed.json()) == 4
-    assert all(row["module"] == "dd" and row["modules"] == ["dd"] for row in listed.json())
+    spin = next(row for row in listed.json() if row["key"] == "spinndoctor")
+    assert set(spin["modules"]) == {"dd", "politik"}
+    scoring = [row for row in listed.json() if row["key"] != "spinndoctor"]
+    assert len(scoring) == 4
+    assert all(row["module"] == "dd" and row["modules"] == ["dd"] for row in scoring)
 
     created = await client.post(
         "/panel/expert-profiles",

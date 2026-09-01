@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.registry import MODULE_REGISTRY
 from app.services.panel.expert_profiles_store import ensure_expert_profile_defaults
+from app.services.panel.spinndoctor_profile import ensure_spinndoctor_profile
 from app.services.panel.sub_questions_store import ensure_sub_question_defaults
 
 
@@ -19,4 +20,5 @@ async def ensure_module_panel_defaults(session: AsyncSession) -> int:
         if module.expert_defaults_provider is not None:
             defaults = module.expert_defaults_provider()
             added += await ensure_expert_profile_defaults(session, module.id, defaults)
+    added += await ensure_spinndoctor_profile(session)
     return added
