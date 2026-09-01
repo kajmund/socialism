@@ -21,6 +21,7 @@ from app.services.playground import (
 from app.services.playground_tools import list_tool_catalog, run_agent_tool
 from app.services.playground_image import MAX_IMAGE_BYTES, react_to_image
 from app.services.playground_image_models import image_model_catalog
+from app.services.prompt_fields_store import filled_prompts
 from app.services.prompt_store import require_active_ssr_temperature
 from app.services.report.bundles import RunBundle, build_bundles_for_attempt
 from app.services.report.classify import clip_texts_for_embed
@@ -366,7 +367,11 @@ async def post_prompts_run(
     row = await session.get(Configuration, body.configuration_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Configuration not found")
-    prompts = dict(row.prompts or {})
+    prompts = await filled_prompts(
+        session,
+        customer_id=row.customer_id,
+        language=str(row.language),
+    )
     source_a = prompts.get(body.prompt_key)
     if source_a is None:
         raise HTTPException(

@@ -46,7 +46,8 @@ from app.services.population_generation_store import (
     pop_generation,
     put_generation,
 )
-from app.services.prompt_store import require_active_prompts
+from app.services.kund_store import default_os_customer_id
+from app.services.prompt_store import module_for_population_kind, require_active_prompts
 
 LibraryPersonaRow = tuple[str, int, str, str, str]
 
@@ -446,6 +447,8 @@ async def _make_generated_batch(
     *,
     session: AsyncSession | None = None,
     used_surnames: set[str] | None = None,
+    customer_id: int | None = None,
+    module: str = "politik",
 ) -> tuple[list[GeneratedPersonaOut], list[str]]:
     if count <= 0:
         return [], []
@@ -499,7 +502,17 @@ async def _make_generated_batch(
         used_full_names=used_full,
     )
     warnings.extend(name_warnings)
-    prompts = await require_active_prompts(session) if session is not None else None
+    prompts = None
+    if session is not None:
+        resolved_customer = (
+            customer_id if customer_id is not None else await default_os_customer_id(session)
+        )
+        prompts = await require_active_prompts(
+            session,
+            customer_id=resolved_customer,
+            module=module,
+            language="sv",
+        )
     concurrency = settings.persona_generate_concurrency
     sem = asyncio.Semaphore(concurrency)
 
@@ -621,10 +634,16 @@ async def run_generate(
     library_personas: dict[str, tuple[str, int, str, str, str]],
     *,
     session: AsyncSession | None = None,
+    customer_id: int | None = None,
+    kind: str = "population",
 ) -> PopulationGenerateResponse:
     """library_personas: id -> (name, age, occ, district, quote)."""
     if session is None:
         raise ValueError("session is required for population generation staging")
+    resolved_customer = (
+        customer_id if customer_id is not None else await default_os_customer_id(session)
+    )
+    module = module_for_population_kind(kind)
 
     recipe = body.recipe
     rng = Random(recipe.seed if recipe.seed is not None else secrets.randbits(32))
@@ -660,6 +679,8 @@ async def run_generate(
             replace_count,
             session=session,
             used_surnames=used_surnames,
+            customer_id=resolved_customer,
+            module=module,
         )
         gen_warnings.extend(batch_warnings)
         persona_iter = iter(personas)
@@ -685,6 +706,8 @@ async def run_generate(
             need,
             session=session,
             used_surnames=used_surnames,
+            customer_id=resolved_customer,
+            module=module,
         )
         gen_warnings.extend(batch_warnings)
         for persona in personas:
@@ -706,6 +729,8 @@ async def run_generate(
             need,
             session=session,
             used_surnames=used_surnames,
+            customer_id=resolved_customer,
+            module=module,
         )
         gen_warnings.extend(batch_warnings)
         for persona in personas:

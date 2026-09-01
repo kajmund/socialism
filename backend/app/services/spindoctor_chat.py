@@ -159,8 +159,15 @@ async def _build_identity_prompt(
     session: AsyncSession,
     *,
     locale: ConfigurationLanguage,
+    customer_id: int,
+    module: str,
 ) -> str:
-    prompts = await require_active_prompts(session)
+    prompts = await require_active_prompts(
+        session,
+        customer_id=customer_id,
+        module=module,
+        language=locale,
+    )
     row = await require_spinndoctor_profile(session)
     identity = render_spinndoctor_identity(prompts, row)
     parts = [
@@ -248,9 +255,9 @@ async def stream_spindoctor_chat_turn(
 
         question_sent_at = utcnow()
         report_row = await session.get(Report, report_id)
-        module_id = module_id_for_report_mode(
-            report_row.mode if report_row is not None else "quick"
-        )
+        if report_row is None:
+            raise SpindoctorChatTurnError("Report not found", status_code=404)
+        module_id = module_id_for_report_mode(report_row.mode)
         ctx = SpindoctorToolContext(
             report_id=report_id,
             module_id=module_id,
@@ -262,7 +269,12 @@ async def stream_spindoctor_chat_turn(
         await session.commit()
         await session.refresh(user_row)
 
-        identity = await _build_identity_prompt(session, locale=locale)
+        identity = await _build_identity_prompt(
+            session,
+            locale=locale,
+            customer_id=report_row.customer_id,
+            module=module_id,
+        )
         messages = assemble_spindoctor_messages(
             identity=identity,
             context=context,

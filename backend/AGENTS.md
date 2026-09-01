@@ -66,12 +66,13 @@ Optional dependency extra `oasis` (`camel-oasis`) — not installed by default (
 
 ## Prompts (database, not code)
 
-**All LLM prompt text used at runtime must come from the active configuration in the database** — not from hardcoded strings in call sites.
+**All LLM prompt text used at runtime must come from `prompt_fields` + `prompt_overrides`** — not from hardcoded strings in call sites, and not from `Configuration.prompts`.
 
-- Load via `require_active_prompts` / `render_prompt` (`app/services/prompt_store.py`, `prompt_catalog.py`). Runtime still reads the active configuration’s `prompts` map (Fas 2 will switch to `prompt_fields` + `prompt_overrides`).
-- Catalog keys and defaults live in `prompt_fields` (seeded by each module’s `prompt_defaults_provider`). `prompt_overrides` holds sparse per-customer deviations. `PROMPT_FIELDS` remains seed input until Fas 2.
+- Load via `require_active_prompts(session, customer_id=…, module=…, language=…)` / `render_prompt` (`app/services/prompt_store.py`, `prompt_fields_store.py`). One live set per customer × language; **Aktivera** does not select prompt text.
+- Catalog keys and defaults live in `prompt_fields` (seeded by each module’s `prompt_defaults_provider`). `prompt_overrides` holds sparse per-customer deviations. The configuration editor writes overrides, not the JSON blob.
+- SSR temperature, report thresholds, and anchors still come from the global active `Configuration`.
 - New prompt keys: add them to the owning module’s `prompt_defaults_provider` (shared keys: both `dd` and `politik`). Do not invent one-off prompt strings in `app/llm/` or services.
-- Fail loudly if the active configuration or a required prompt key is missing. Do not fall back to a hardcoded Swedish/English prompt body in Python.
+- Fail loudly if the kund, module catalog, or a required prompt key is missing. Do not fall back to a hardcoded Swedish/English prompt body in Python.
 
 ## Database
 

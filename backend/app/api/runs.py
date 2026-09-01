@@ -10,7 +10,7 @@ from app.config import settings
 from app.database.models import Message, Persona, PersonaMessage, Population, Run
 from app.database.session import get_session
 from app.llm.chat import build_run_interview_prompt, reply_as_persona
-from app.services.prompt_store import require_active_prompts
+from app.services.prompt_store import require_prompts_for_persona
 from app.schemas.domain import (
     JobCreate,
     OasisRunOptions,
@@ -541,7 +541,7 @@ async def run_persona_interview(
 
     profile = profile_from_dict(persona.profile, persona.name)
     area_block = await area_block_for_name(session, profile.ort or persona.district)
-    prompts = await require_active_prompts(session)
+    prompts = await require_prompts_for_persona(session, persona)
     system_prompt = build_run_interview_prompt(
         profile,
         feed_context,

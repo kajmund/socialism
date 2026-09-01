@@ -53,7 +53,7 @@ A test-only third module lives in `backend/tests/fixture_module.py`. It must not
 3. Spinndoktor `source_loader` / `context_builder` — no `if report.mode` in `spindoctor_context.py`.
 4. Panel protocol via `DELIBERATION_METHODS` (`generic_panel`, `structured_scoring`), not a new `jobs.py` branch.
 5. Seed expert profiles by `key` (`ensure_expert_profile_defaults`) so existing experts gain the new module instead of duplicating rows.
-6. Register `prompt_defaults_provider` for module-owned prompt keys. Shared keys are listed by both `dd` and `politik`; `ensure_prompt_field_defaults` attaches the second module instead of duplicating the row. Runtime still reads `Configuration.prompts` until Fas 2.
+6. Register `prompt_defaults_provider` for module-owned prompt keys. Shared keys are listed by both `dd` and `politik`; `ensure_prompt_field_defaults` attaches the second module instead of duplicating the row. Runtime loads `require_active_prompts(session, customer_id=…, module=…, language=…)`.
 7. Spinndoktor is catalog key `spinndoctor` (modules `dd` + `politik`). Identity uses `panel.expert.system`. Report context and DD panel brief are **separate** messages. `spinndoctor.system` / `.tools` / `.widgets` stay as report-chat policy; `panel.dd.moderator.system` is DD moderator policy on top of the same catalog row.
 
 ## Deliberation methods (Fas 3+4)
@@ -76,4 +76,4 @@ Identity is `PanelExpertProfile` key `spinndoctor` (seeded onto `dd` and `politi
 
 ## Prompt catalog (Fas 1+3)
 
-`prompt_fields` is the key catalog (unique `key`, JSON `modules`). `prompt_overrides` is sparse `(customer_id, prompt_field_id, language)` text. Seed via `prompt_defaults_provider` on each manifest — insert missing keys, attach extra modules, never overwrite existing text. Runtime still reads `Configuration.prompts` until Fas 2.
+`prompt_fields` is the key catalog (unique `key`, JSON `modules`). `prompt_overrides` is sparse `(customer_id, prompt_field_id, language)` text. Seed via `prompt_defaults_provider` on each manifest — insert missing keys, attach extra modules, never overwrite existing text. Runtime loads catalog defaults plus that customer's overrides (`require_active_prompts`). `Configuration.prompts` is unused.

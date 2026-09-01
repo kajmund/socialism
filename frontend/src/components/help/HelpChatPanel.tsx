@@ -3,9 +3,11 @@ import { clearHelpMessages, listHelpMessages, type HelpMessage } from "@/api/hel
 import { MessengerChat } from "@/components/chat/MessengerChat"
 import { useChatSocket } from "@/components/chat/useChatSocket"
 import { AdminButton } from "@/components/ui/admin-button"
+import { useAuth } from "@/auth/AuthProvider"
 import { useLocale } from "@/i18n"
 import { ApiError } from "@/lib/api"
 import { useHelpView } from "@/lib/helpView"
+import { helpChatTenantForRole } from "@/lib/scoping"
 
 type HelpChatPanelProps = {
   sessionId: string
@@ -25,6 +27,8 @@ function doneToHelpMessages(
 
 export function HelpChatPanel({ sessionId, onClose }: HelpChatPanelProps) {
   const { t, locale } = useLocale()
+  const { role } = useAuth()
+  const tenant = helpChatTenantForRole(role)
   const view = useHelpView()
   const [messages, setMessages] = useState<HelpMessage[]>([])
   const [draft, setDraft] = useState("")
@@ -34,10 +38,17 @@ export function HelpChatPanel({ sessionId, onClose }: HelpChatPanelProps) {
 
   const chatHello = useMemo(
     () =>
-      sessionId
-        ? ({ scope: "help" as const, session_id: sessionId, locale, view })
+      sessionId && tenant
+        ? ({
+            scope: "help" as const,
+            session_id: sessionId,
+            locale,
+            view,
+            customer_id: tenant.customer_id,
+            module: tenant.module,
+          })
         : null,
-    [sessionId, locale, view],
+    [sessionId, locale, tenant, view],
   )
 
   const sendExtras = useCallback(() => ({ view }), [view])

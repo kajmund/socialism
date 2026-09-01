@@ -9,8 +9,16 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import Configuration, PromptField, PromptOverride
+from app.database.models import Configuration, Kund, PromptField, PromptOverride
 from app.serializers import utcnow
+
+
+class MissingPromptCustomerError(RuntimeError):
+    """Raised when the requested kund does not exist."""
+
+
+class MissingPromptCatalogError(RuntimeError):
+    """Raised when no active prompt fields exist for the requested module."""
 
 
 def _row_modules(row: PromptField) -> list[str]:
@@ -157,3 +165,96 @@ async def ensure_prompt_overrides_from_configurations(session: AsyncSession) -> 
         await session.rollback()
         return 0
     return added
+
+
+async def _require_kund(session: AsyncSession, customer_id: int) -> Kund:
+    kund = await session.get(Kund, customer_id)
+    if kund is None:
+        raise MissingPromptCustomerError(f"Kund {customer_id} saknas")
+    return kund
+
+
+async def filled_prompts(
+    session: AsyncSession,
+    *,
+    customer_id: int,
+    language: str,
+    module: str | None = None,
+) -> dict[str, str]:
+    """Catalog defaults for ``module`` (or all modules) overlaid with sparse overrides.
+
+    Does not read or write ``Configuration.prompts``.
+    """
+    await _require_kund(session, customer_id)
+    fields = await get_prompt_fields(session, module, active_only=True)
+    if not fields:
+        scope = module if module is not None else "alla moduler"
+        raise MissingPromptCatalogError(f"Inga aktiva promptfält för {scope}")
+    field_ids = [field.id for field in fields]
+    stmt = select(PromptOverride).where(
+        PromptOverride.customer_id == customer_id,
+        PromptOverride.language == language,
+        PromptOverride.prompt_field_id.in_(field_ids),
+    )
+    overrides = {
+        row.prompt_field_id: row.text
+        for row in (await session.execute(stmt)).scalars().all()
+    }
+    out: dict[str, str] = {}
+    for field in fields:
+        override = overrides.get(field.id)
+        if override is not None and override.strip():
+            out[field.key] = override
+        else:
+            out[field.key] = field_default_text(field, language)
+    return out
+
+
+async def replace_prompt_overrides(
+    session: AsyncSession,
+    *,
+    customer_id: int,
+    language: str,
+    prompts: Mapping[str, str],
+) -> None:
+    """Replace overrides for ``customer_id`` × ``language`` with sparse deviations.
+
+    Keys equal to the catalog default (or empty) drop any existing override.
+    Caller commits.
+    """
+    await _require_kund(session, customer_id)
+    fields = await get_prompt_fields(session, active_only=True)
+    if not fields:
+        raise MissingPromptCatalogError("Inga aktiva promptfält")
+    existing = (
+        await session.execute(
+            select(PromptOverride).where(
+                PromptOverride.customer_id == customer_id,
+                PromptOverride.language == language,
+            )
+        )
+    ).scalars().all()
+    by_field_id = {row.prompt_field_id: row for row in existing}
+    incoming = {str(key): str(value) for key, value in prompts.items()}
+    now = utcnow()
+    for field in fields:
+        body = incoming.get(field.key, "").strip()
+        current = by_field_id.get(field.id)
+        if not body or body == field_default_text(field, language):
+            if current is not None:
+                await session.delete(current)
+            continue
+        if current is None:
+            session.add(
+                PromptOverride(
+                    customer_id=customer_id,
+                    prompt_field_id=field.id,
+                    language=language,
+                    text=body,
+                    updated_at=now,
+                )
+            )
+        else:
+            current.text = body
+            current.updated_at = now
+    await session.flush()

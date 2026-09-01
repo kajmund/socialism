@@ -17,7 +17,12 @@ from app.schemas.domain import HelpChatResponse, HelpMessageOut, HelpViewContext
 from app.serializers import format_date
 from app.services.feedback_tools import help_feedback_tool_specs, run_feedback_tool
 from app.services.help_read_context import build_help_context
-from app.services.prompt_catalog import ConfigurationLanguage, default_prompts, render_prompt
+from app.services.prompt_catalog import ConfigurationLanguage, render_prompt
+from app.services.prompt_store import (
+    MissingPromptCatalogError,
+    MissingPromptCustomerError,
+    require_active_prompts,
+)
 from app.services.scb_tools import help_scb_tool_specs, run_scb_tool
 
 _FEEDBACK_TOOL_NAMES = frozenset({"feedback_create", "feedback_list", "feedback_get"})
@@ -105,10 +110,20 @@ async def _build_system_prompt(
     locale: ConfigurationLanguage,
     query: str,
     view: HelpViewContext | None,
+    customer_id: int,
+    module: str,
     ground_population: bool = False,
 ) -> str:
     del ground_population  # legacy WS/REST flag; SCB dist is always available
-    prompts = default_prompts(locale)
+    try:
+        prompts = await require_active_prompts(
+            session,
+            customer_id=customer_id,
+            module=module,
+            language=locale,
+        )
+    except (MissingPromptCustomerError, MissingPromptCatalogError) as exc:
+        raise ChatTurnError(str(exc), status_code=503) from exc
     parts = [
         render_prompt(prompts, "help.system"),
         render_prompt(prompts, "help.system.scb"),
@@ -182,6 +197,8 @@ async def stream_help_chat_turn(
     session_id: str,
     locale: ConfigurationLanguage,
     message: str,
+    customer_id: int,
+    module: str,
     view: HelpViewContext | None = None,
     ground_population: bool = False,
 ) -> AsyncIterator[str | HelpChatResponse]:
@@ -204,6 +221,8 @@ async def stream_help_chat_turn(
             locale=locale,
             query=message,
             view=view,
+            customer_id=customer_id,
+            module=module,
             ground_population=ground_population,
         )
         messages = [

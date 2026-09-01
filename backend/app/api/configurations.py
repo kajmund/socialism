@@ -44,6 +44,7 @@ from app.services.anchor_store import (
     validate_configuration_anchor_refs,
 )
 from app.services.kund_store import default_os_customer_id
+from app.services.prompt_fields_store import filled_prompts, replace_prompt_overrides
 from app.services.prompt_store import ensure_default_configurations, set_active_configuration
 from app.services.report.thresholds import (
     ReportThresholds,
@@ -61,9 +62,19 @@ def _dt(value: datetime | None) -> str:
     return value.isoformat()
 
 
-def _serialize(row: Configuration) -> ConfigurationOut:
+async def _serialize(
+    session: AsyncSession,
+    row: Configuration,
+    *,
+    prompts: dict[str, str] | None = None,
+) -> ConfigurationOut:
     language: ConfigurationLanguage = row.language  # type: ignore[assignment]
-    prompts = normalize_prompts(dict(row.prompts or {}), language=language, fill_missing=True)
+    if prompts is None:
+        prompts = await filled_prompts(
+            session,
+            customer_id=row.customer_id,
+            language=language,
+        )
     return ConfigurationOut(
         id=row.id,
         name=row.name,
@@ -158,7 +169,19 @@ async def list_configurations(
         Configuration.updated_at.desc(),
     )
     result = await session.execute(stmt)
-    return [_serialize(row) for row in result.scalars().all()]
+    rows = list(result.scalars().all())
+    cache: dict[tuple[int, str], dict[str, str]] = {}
+    out: list[ConfigurationOut] = []
+    for row in rows:
+        key = (row.customer_id, str(row.language))
+        if key not in cache:
+            cache[key] = await filled_prompts(
+                session,
+                customer_id=row.customer_id,
+                language=str(row.language),
+            )
+        out.append(await _serialize(session, row, prompts=cache[key]))
+    return out
 
 
 @router.get("/{configuration_id}", response_model=ConfigurationOut)
@@ -166,7 +189,7 @@ async def get_configuration(
     configuration_id: int,
     session: AsyncSession = Depends(get_session),
 ) -> ConfigurationOut:
-    return _serialize(await _get_configuration(session, configuration_id))
+    return await _serialize(session, await _get_configuration(session, configuration_id))
 
 
 @router.post("", response_model=ConfigurationOut, status_code=201)
@@ -193,7 +216,7 @@ async def create_configuration(
         customer_id=customer_id,
         name=body.name,
         language=body.language,
-        prompts=prompts,
+        prompts={},
         ssr_temperature=body.ssr_temperature,
         report_thresholds=report_thresholds_to_dict(
             body.report_thresholds
@@ -206,10 +229,17 @@ async def create_configuration(
         updated_at=now,
     )
     session.add(row)
+    await session.flush()
+    await replace_prompt_overrides(
+        session,
+        customer_id=customer_id,
+        language=body.language,
+        prompts=prompts,
+    )
     await session.commit()
     await session.refresh(row)
     await ensure_catalog_defaults(session, row.id)
-    return _serialize(row)
+    return await _serialize(session, row)
 
 
 @router.get(
@@ -280,10 +310,15 @@ async def update_configuration(
         row.language = data["language"]
     language: ConfigurationLanguage = row.language  # type: ignore[assignment]
     if "prompts" in data and data["prompts"] is not None:
-        row.prompts = normalize_prompts(
-            data["prompts"],
+        await replace_prompt_overrides(
+            session,
+            customer_id=row.customer_id,
             language=language,
-            fill_missing=True,
+            prompts=normalize_prompts(
+                data["prompts"],
+                language=language,
+                fill_missing=True,
+            ),
         )
     if "ssr_temperature" in data and data["ssr_temperature"] is not None:
         row.ssr_temperature = float(data["ssr_temperature"])
@@ -308,7 +343,7 @@ async def update_configuration(
     row.updated_at = utcnow()
     await session.commit()
     await session.refresh(row)
-    return _serialize(row)
+    return await _serialize(session, row)
 
 
 @router.post("/{configuration_id}/activate", response_model=ConfigurationOut)
@@ -320,7 +355,7 @@ async def activate_configuration(
         row = await set_active_configuration(session, configuration_id)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    return _serialize(row)
+    return await _serialize(session, row)
 
 
 @router.delete("/{configuration_id}", status_code=204)

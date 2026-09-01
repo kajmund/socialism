@@ -68,6 +68,8 @@ class HelpHello(BaseModel):
     session_id: str = Field(min_length=1, max_length=64)
     locale: Literal["sv", "en"] = "sv"
     view: HelpViewContext | None = None
+    customer_id: int = Field(ge=1)
+    module: str = Field(min_length=1, max_length=32)
 
 
 class SpindoctorHello(BaseModel):
@@ -390,6 +392,8 @@ async def chat_websocket(websocket: WebSocket) -> None:
                             locale=hello.locale,
                             message=send.message,
                             view=turn_view,
+                            customer_id=hello.customer_id,
+                            module=hello.module,
                             ground_population=send.ground_population,
                         )
                         async for item in stream:

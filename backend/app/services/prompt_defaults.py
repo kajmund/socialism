@@ -1,4 +1,4 @@
-"""Module-owned prompt default lists for seed (Fas 3). Runtime still uses Configuration.prompts."""
+"""Module-owned prompt default lists for seed. Runtime reads prompt_fields + prompt_overrides."""
 
 from __future__ import annotations
 
