@@ -58,6 +58,8 @@ async def test_identity_prompt_uses_panel_expert_system(client_db):
         identity = await _build_identity_prompt(db, locale="sv")
         assert "Du deltar som Spinndoktor" in identity
         assert "Politisk kommunikation" in identity
+        assert "Du är Spinndoktorn" in identity
+        assert "Förbjudna ord" in identity
         assert "Du har dataverktyg" in identity
         assert "## Kandidat" not in identity
         assert "## Körning" not in identity

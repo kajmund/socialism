@@ -170,6 +170,7 @@ async def _build_identity_prompt(
     )
     parts = [
         identity,
+        render_prompt(prompts, "spinndoctor.system"),
         render_prompt(prompts, "spinndoctor.system.tools"),
         render_prompt(prompts, "spinndoctor.system.widgets"),
     ]

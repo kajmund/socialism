@@ -14,12 +14,10 @@ from app.services.report.locale import normalize_locale
 
 
 def _normalize_mode(value: str | None) -> str:
-    """Pass through legacy ``full`` rows; recognize ``dd`` and default to ``quick``."""
-    if value == "full":
-        return "full"
-    if value == "dd":
-        return "dd"
-    return "quick"
+    """Keep stored mode as-is. Empty/missing defaults to quick."""
+    if not value:
+        return "quick"
+    return value
 
 
 def _normalize_sources(raw: list | None) -> list[dict]:
@@ -27,7 +25,8 @@ def _normalize_sources(raw: list | None) -> list[dict]:
     for item in raw or []:
         if not isinstance(item, dict):
             continue
-        if item.get("type") == "dd_session":
+        source_type = str(item.get("type") or "oasis")
+        if source_type == "dd_session":
             out.append(
                 {
                     "type": "dd_session",
@@ -35,7 +34,7 @@ def _normalize_sources(raw: list | None) -> list[dict]:
                     "candidate_id": item.get("candidate_id"),
                 }
             )
-        else:
+        elif source_type == "oasis":
             out.append(
                 {
                     "type": "oasis",
@@ -43,6 +42,8 @@ def _normalize_sources(raw: list | None) -> list[dict]:
                     "attempt_id": item.get("attempt_id"),
                 }
             )
+        else:
+            out.append(dict(item))
     return out
 
 

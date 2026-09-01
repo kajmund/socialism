@@ -544,3 +544,27 @@ async def test_bulk_delete_reports(client, tmp_path, monkeypatch):
         json={"ids": ["rpt_bulk_missing", "rpt_never"]},
     )
     assert empty.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_report_create_rejects_unknown_source_type(client):
+    resp = await client.post(
+        "/reports",
+        json={"sources": [{"type": "upphandling_session"}], "title": "Nope"},
+    )
+    assert resp.status_code == 400
+    assert "Unknown report source type" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_report_create_rejects_mode_not_owned_by_source(client):
+    resp = await client.post(
+        "/reports",
+        json={
+            "sources": [{"type": "oasis", "run_id": 1, "attempt_id": "att_1"}],
+            "mode": "dd",
+            "title": "Nope",
+        },
+    )
+    assert resp.status_code == 400
+    assert "not valid" in resp.json()["detail"]

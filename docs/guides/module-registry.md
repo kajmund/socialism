@@ -40,6 +40,8 @@ mode, or `report_modes` without a `ReportBinding`, fail boot.
 
 `build_spindoctor_context` looks up the module via `report_modes`, loads the source, and builds context. It does not branch on `report.mode`. DD payload is `report.dd.json`; politik payload is OASIS bundles.
 
+`POST /reports` resolves `mode` and source type through the registry (`resolve_report_mode`). A third module's `report_modes` / `source_types` are accepted without a new schema literal.
+
 `load_spindoctor_source` remains a compat wrapper that returns `(report, source.bundles)` for MCP/tools (DD: empty list).
 
 A test-only third module lives in `backend/tests/fixture_module.py`. It must not import `app.services.dd`, `spindoctor_dd`, or `spindoctor_politik`. See `tests/test_fixture_module.py`.
@@ -66,4 +68,4 @@ Two complete methods, not a composable raise-hand strategy:
 
 ## Spinndoktor catalog (Fas 5)
 
-Report-chat identity is `PanelExpertProfile` key `spinndoctor` (seeded onto `dd` and `politik`). The chat sends two system messages: catalog identity (`panel.expert.system` + tools/widgets policy) and the Fas 2 context block. DD panel moderator stays on `panel.dd.moderator.*`.
+Report-chat identity is `PanelExpertProfile` key `spinndoctor` (seeded onto `dd` and `politik`). The chat sends two system messages: catalog identity (`panel.expert.system`) plus policy prompts (`spinndoctor.system`, `.tools`, `.widgets`), then the Fas 2 context block. DD panel moderator stays on `panel.dd.moderator.*`.
