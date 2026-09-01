@@ -62,7 +62,6 @@ There are **no documented extension hooks** for LLM tool recording or per-round 
 
 - **`simulation/llm_runtime.py`** — `camel_llm_runtime()` context manager applies combined DeepSeek reasoning + external-tool trace patches; reference counting supports concurrent A/B variants; restores CAMEL originals when the last scope exits.
 - **`simulation/agent_tool_policy.py`** — `CamelCommentToolPolicy` gates `create_comment` via `_internal_tools`; tick loop uses the policy instead of direct CAMEL access.
-- **`oasis_deepseek_reasoning.py`** — thin backward-compatible re-export shim (deprecated `apply_deepseek_reasoning_patch()` context manager).
 - **`oasis_tool_trace.py`** — trace buffer ContextVars only; patching moved to `llm_runtime`.
 
 **Patch order (encoded in llm_runtime):** DeepSeek `_record_tool_calling` replacement → external-tool trace append on the same hook.
@@ -126,8 +125,7 @@ uv run pytest tests/test_action_catalog.py \
   tests/test_oasis_profiles.py \
   tests/test_oasis_tool_trace.py \
   tests/test_llm_runtime.py \
-  tests/test_agent_tool_policy.py \
-  tests/test_oasis_deepseek_reasoning.py
+  tests/test_agent_tool_policy.py
 ```
 
 ### Manual smoke (live engine)
