@@ -1,4 +1,4 @@
-.PHONY: help backend frontend start install knowledge-validate
+.PHONY: help backend frontend start install test test-backend test-frontend knowledge-validate
 
 # Pinned OKF CLI (validate + future MCP). Not a runtime app dependency.
 OKF_MCP_PKG := @mfdaves/okf-mcp@0.3.3
@@ -9,6 +9,9 @@ help:
 	@echo "  make backend             Start FastAPI (uvicorn --reload) on :8000"
 	@echo "  make frontend            Start Vite dev server on :5173"
 	@echo "  make install             Install backend + frontend deps"
+	@echo "  make test                Backend pytest + frontend lint/vitest"
+	@echo "  make test-backend        Backend pytest (excludes smoke)"
+	@echo "  make test-frontend       Frontend oxlint + vitest"
 	@echo "  make knowledge-validate  Validate OKF manual bundle"
 	@echo "  make knowledge-mcp       Run OKF MCP server (stdio)"
 
@@ -27,6 +30,15 @@ start:
 install:
 	cd backend && uv sync
 	cd frontend && pnpm install
+
+test: test-backend test-frontend
+
+test-backend:
+	cd backend && uv run pytest
+
+test-frontend:
+	cd frontend && pnpm lint
+	cd frontend && pnpm test
 
 knowledge-validate:
 	npx -y $(OKF_MCP_PKG) --project ./okf.project.yaml validate

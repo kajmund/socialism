@@ -61,11 +61,11 @@ Admin surfaces call FastAPI.
 ## Check
 
 ```bash
-pnpm exec tsc -p tsconfig.app.json --noEmit
 pnpm lint
+pnpm test
 ```
 
-No frontend unit-test runner by project policy — typecheck + lint + manual browser checks.
+oxlint and existing vitest files (`src/**/*.test.ts`). Verify UI in the browser. GitHub Actions runs the same commands on every PR (see [ci.md](ci.md)). `pnpm exec tsc -p tsconfig.app.json --noEmit` is a local typecheck; it is not a merge-gate check. Do not introduce Playwright, Cypress, or a broad component-test suite.
 
 ## Themes
 
