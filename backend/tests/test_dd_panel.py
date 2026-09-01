@@ -440,12 +440,20 @@ async def test_dd_moderator_opening_uses_panel_system_and_strips_refs(monkeypatc
                 resultat="vinst",
             ),
         )
-        text = await _moderator_opening(config, default_prompts("sv"))
+        text = await _moderator_opening(
+            config,
+            default_prompts("sv"),
+            "Du deltar som Spinndoktor\n\nHitta inte på namn.",
+        )
     finally:
         set_text_completer(None)
 
     assert seen
-    assert "Spinndoktor" in seen[0][0]["content"]
-    assert "Hitta inte på namn" in seen[0][0]["content"]
+    assert seen[0][0] == {
+        "role": "system",
+        "content": "Du deltar som Spinndoktor\n\nHitta inte på namn.",
+    }
+    assert seen[0][1] == {"role": "system", "content": "Test AB i Stockholm"}
+    assert "Test AB i Stockholm" not in seen[0][0]["content"]
     assert "[[ref:mottagande]]" not in text
     assert "DD-panelen" in text
