@@ -1,20 +1,22 @@
-"""Load active prompt configurations from the database."""
+"""Load scoped prompts and the global active configuration (SSR / anchors / thresholds)."""
 
 from __future__ import annotations
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm.attributes import flag_modified
 
-from app.database.models import Configuration
+from app.database.models import Configuration, Persona
 from app.services.kund_store import default_os_customer_id, ensure_default_kunder
 from app.schemas.domain import DEFAULT_SSR_TEMPERATURE
 from app.serializers import utcnow
 from app.services.prompt_catalog import (
     ConfigurationLanguage,
-    default_prompts,
-    normalize_prompts,
     render_prompt,
+)
+from app.services.prompt_fields_store import (
+    MissingPromptCatalogError,
+    MissingPromptCustomerError,
+    filled_prompts,
 )
 from app.services.report.thresholds import (
     ReportThresholds,
@@ -28,6 +30,14 @@ class MissingActiveConfigurationError(RuntimeError):
     """Raised when no active configuration exists."""
 
 
+def module_for_persona_kind(kind: str) -> str:
+    return "dd" if kind == "expert" else "politik"
+
+
+def module_for_population_kind(kind: str) -> str:
+    return "dd" if kind == "expert_panel" else "politik"
+
+
 async def get_active_configuration(session: AsyncSession) -> Configuration | None:
     stmt = (
         select(Configuration)
@@ -39,219 +49,54 @@ async def get_active_configuration(session: AsyncSession) -> Configuration | Non
     return result.scalar_one_or_none()
 
 
-def _filled_prompts(row: Configuration) -> dict[str, str]:
-    language: ConfigurationLanguage = row.language  # type: ignore[assignment]
-    return normalize_prompts(dict(row.prompts or {}), language=language, fill_missing=True)
+async def require_active_prompts(
+    session: AsyncSession,
+    *,
+    customer_id: int,
+    module: str,
+    language: str,
+) -> dict[str, str]:
+    """Load catalog defaults for ``module`` overlaid with this customer's overrides.
 
-
-_SPINNDOCTOR_PROMPT_KEYS = (
-    "spinndoctor.system",
-    "spinndoctor.system.tools",
-    "spinndoctor.system.widgets",
-)
-
-# Stock phrasing from the previous cautious catalog. Custom text without
-# these markers is left alone.
-_STALE_SPINNDOCTOR_MARKERS = (
-    "hämtar du med verktyg när du behöver dem",
-    "Svara kort om möjligt, utveckla när användaren ber om det",
-    "Anropa dem när frågan kräver",
-    "Anropa inte i onödan",
-    "Du kan lägga saker på arbetsytan med render_chart",
-    "with tools when needed",
-    "Keep answers short unless the user asks for depth",
-    "Call them when the question needs",
-    "Do not call tools if",
-    "You can place items on the workspace with render_chart",
-)
-
-
-def _refresh_stale_spindoctor_prompts(row: Configuration) -> bool:
-    """Replace stock cautious Spinndoktor prompts with the current catalog."""
-    language: ConfigurationLanguage = row.language  # type: ignore[assignment]
-    defaults = default_prompts(language)
-    stored = dict(row.prompts or {})
-    changed = False
-    for key in _SPINNDOCTOR_PROMPT_KEYS:
-        current = stored.get(key) or ""
-        if any(marker in current for marker in _STALE_SPINNDOCTOR_MARKERS):
-            stored[key] = defaults[key]
-            changed = True
-    if not changed:
-        return False
-    row.prompts = stored
-    flag_modified(row, "prompts")
-    row.updated_at = utcnow()
-    return True
-
-
-_STALE_PANEL_DD_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
-    (
-        "panel.dd.expert.raise_hand",
-        (
-            "{typical_owner}",
-            "men avgör själv utifrån din faktiska kompetens",
-            "but decide from your actual competence",
-            "det du är här för att bedöma",
-            "what you are here to assess",
-            "Svara ENDAST JA eller NEJ",
-            "Reply ONLY YES or NO",
-        ),
-    ),
-    (
-        "panel.dd.moderator.sub_question",
-        (
-            "be experterna ge poäng 1–10",
-            "ask experts for a 1–10 score",
-            "Be inte alla om poäng",
-            "Do not ask everyone to score",
-        ),
-    ),
-    (
-        "panel.dd.moderator.opening",
-        (
-            "varje expert snart bedömer finansiell hälsa",
-            "each expert will score financial health",
-        ),
-    ),
-    (
-        "panel.dd.expert.score",
-        (
-            "Slå upp bolaget med lookup_company om du behöver nyckeltal",
-            "Look up the company with lookup_company if you need figures",
-            "max 80 ord, svenska",
-            "max 80 words",
-            "Poängen ska spegla din expertroll och kandidatens data",
-            "Score from your expert role and candidate facts",
-            "Nämn källan om relevant",
-            "Mention the source when relevant",
-        ),
-    ),
-    (
-        "panel.dd.expert.score_json",
-        (
-            "max 80 ord, svenska",
-            "max 80 words",
-        ),
-    ),
-    (
-        "panel.expert.tools",
-        (
-            "slå upp nyckeltal när grunddata saknar omsättning",
-            "look up figures when the brief lacks revenue",
-        ),
-    ),
-    (
-        "chat.expert.search_tools",
-        (
-            "(nyheter, lagar, siffror)",
-            "search_duckduckgo (news, laws, figures)",
-        ),
-    ),
-    (
-        "chat.expert.company_tools",
-        (
-            "Använd dem när du behöver organisationsnummer, omsättning, resultat",
-            "Use them when you need an organization number, revenue, profit/loss",
-        ),
-    ),
-    (
-        "panel.dd.moderator.system",
-        (
-            "Du är Spinndoktor och modererar en bolags-DD-panel",
-            "You are Spinndoktor moderating a company DD panel",
-        ),
-    ),
-    (
-        "panel.dd.moderator.summary",
-        (
-            "Avsluta med en kort DD-sammanfattning: styrkor, risker, oenigheter, "
-            "täckningsluckor och rekommenderade nästa steg. Inga tekniska termer.",
-            "Avsluta med en kort DD-sammanfattning utifrån poängtabellen",
-            "Close with a brief DD summary: strengths, risks, disagreements, "
-            "coverage gaps, and next steps.",
-            "Close with a brief DD summary from the score table",
-        ),
-    ),
-)
-
-
-def _refresh_stale_panel_dd_prompts(row: Configuration) -> bool:
-    """Replace stock DD-panel prompts that still use dropped placeholders or old scoring copy."""
-    language: ConfigurationLanguage = row.language  # type: ignore[assignment]
-    defaults = default_prompts(language)
-    stored = dict(row.prompts or {})
-    changed = False
-    for key, markers in _STALE_PANEL_DD_MARKERS:
-        current = stored.get(key) or ""
-        if any(marker in current for marker in markers):
-            stored[key] = defaults[key]
-            changed = True
-    if not changed:
-        return False
-    row.prompts = stored
-    flag_modified(row, "prompts")
-    row.updated_at = utcnow()
-    return True
-
-
-def _sync_stored_prompts(row: Configuration) -> bool:
-    """Fill missing catalog keys and refresh stale stock prompt text."""
-    changed = _merge_missing_catalog_prompts(row)
-    changed = _refresh_stale_spindoctor_prompts(row) or changed
-    return _refresh_stale_panel_dd_prompts(row) or changed
-
-
-def _merge_missing_catalog_prompts(row: Configuration) -> bool:
-    """Persist new catalog keys into a stored config. Returns True if row changed."""
-    before = dict(row.prompts or {})
-    merged = _filled_prompts(row)
-    if merged == before:
-        return False
-    row.prompts = merged
-    flag_modified(row, "prompts")
-    row.updated_at = utcnow()
-    return True
-
-
-async def require_active_prompts(session: AsyncSession) -> dict[str, str]:
-    row = await get_active_configuration(session)
-    if row is None:
-        raise MissingActiveConfigurationError(
-            "No active prompt configuration. Activate one under Konfigurationer."
-        )
-    if _sync_stored_prompts(row):
-        await session.commit()
-        await session.refresh(row)
-
-    return _filled_prompts(row)
+    Activate no longer selects prompt text. One live set per customer × language.
+    Does not read or write ``Configuration.prompts``.
+    """
+    return await filled_prompts(
+        session,
+        customer_id=customer_id,
+        language=language,
+        module=module,
+    )
 
 
 async def require_prompts_for_language(
     session: AsyncSession,
     language: ConfigurationLanguage,
+    *,
+    customer_id: int,
+    module: str,
 ) -> dict[str, str]:
-    """Load prompts from the active configuration when its language matches.
+    return await require_active_prompts(
+        session,
+        customer_id=customer_id,
+        module=module,
+        language=language,
+    )
 
-    Fails loud if there is no active configuration or it uses another language —
-    never falls back to an inactive config of the requested language.
-    Missing catalog keys are backfilled from defaults and persisted.
-    """
-    row = await get_active_configuration(session)
-    if row is None:
-        raise MissingActiveConfigurationError(
-            "No active prompt configuration. Activate one under Konfigurationer."
-        )
-    if row.language != language:
-        raise MissingActiveConfigurationError(
-            f"Active configuration '{row.name}' (id={row.id}) is language "
-            f"'{row.language}', but '{language}' prompts were required. "
-            f"Activate a {language} configuration under Konfigurationer."
-        )
-    if _sync_stored_prompts(row):
-        await session.commit()
-        await session.refresh(row)
-    return _filled_prompts(row)
+
+async def require_prompts_for_persona(
+    session: AsyncSession,
+    persona: Persona,
+    *,
+    language: str = "sv",
+) -> dict[str, str]:
+    return await require_active_prompts(
+        session,
+        customer_id=persona.customer_id,
+        module=module_for_persona_kind(persona.kind),
+        language=language,
+    )
+
 
 async def require_active_ssr_temperature(session: AsyncSession) -> float:
     """SSR softmax temperature from the active configuration (fail loud if missing)."""
@@ -299,10 +144,11 @@ def _backfill_report_thresholds(row: Configuration) -> bool:
 
 
 async def ensure_default_configurations(session: AsyncSession) -> int:
-    """Seed Standard configs for sv/en and backfill incomplete prompt maps.
+    """Seed Standard configs for sv/en. Prompt text lives in prompt_fields / overrides.
 
     Exactly one configuration may be active globally. New seeds activate Swedish
-    by default; English is inactive until chosen.
+    by default; English is inactive until chosen. ``Configuration.prompts`` is
+    left empty — runtime no longer reads it.
     """
     changed = 0
     from app.services.anchor_store import (
@@ -330,7 +176,7 @@ async def ensure_default_configurations(session: AsyncSession) -> int:
                     customer_id=customer_id,
                     name=name,
                     language=language,
-                    prompts=default_prompts(language),  # type: ignore[arg-type]
+                    prompts={},
                     ssr_temperature=DEFAULT_SSR_TEMPERATURE,
                     report_thresholds=report_thresholds_to_dict(default_report_thresholds()),
                     anchor_sets=default_refs,
@@ -342,14 +188,6 @@ async def ensure_default_configurations(session: AsyncSession) -> int:
             changed += 1
             continue
         for row in rows:
-            merged = normalize_prompts(dict(row.prompts or {}), language=language, fill_missing=True)
-            if merged != dict(row.prompts or {}):
-                row.prompts = merged
-                flag_modified(row, "prompts")
-                row.updated_at = utcnow()
-                changed += 1
-            if _refresh_stale_spindoctor_prompts(row):
-                changed += 1
             if _backfill_report_thresholds(row):
                 changed += 1
 
@@ -362,8 +200,6 @@ async def ensure_default_configurations(session: AsyncSession) -> int:
             preferred = next((r for r in all_rows if r.language == "sv"), all_rows[0])
             preferred.is_active = True
             preferred.updated_at = utcnow()
-            if not preferred.prompts:
-                preferred.prompts = default_prompts(preferred.language)  # type: ignore[arg-type]
             changed += 1
         elif len(active) > 1:
             keep = next((r for r in active if r.language == "sv"), active[0])
@@ -382,7 +218,19 @@ async def ensure_default_configurations(session: AsyncSession) -> int:
     from app.services.catalog_store import ensure_catalogs_for_all_configurations
 
     catalog_added = await ensure_catalogs_for_all_configurations(session)
-    return changed + backfill_changed + catalog_added
+
+    from app.services.prompt_defaults import dd_prompt_defaults, politik_prompt_defaults
+    from app.services.prompt_fields_store import (
+        ensure_prompt_field_defaults,
+        ensure_prompt_overrides_from_configurations,
+    )
+
+    fields_added = await ensure_prompt_field_defaults(session, "dd", dd_prompt_defaults())
+    fields_added += await ensure_prompt_field_defaults(
+        session, "politik", politik_prompt_defaults()
+    )
+    fields_added += await ensure_prompt_overrides_from_configurations(session)
+    return changed + backfill_changed + catalog_added + fields_added
 
 
 async def set_active_configuration(
@@ -409,12 +257,17 @@ async def set_active_configuration(
 
 __all__ = [
     "MissingActiveConfigurationError",
+    "MissingPromptCatalogError",
+    "MissingPromptCustomerError",
     "ensure_default_configurations",
     "get_active_configuration",
+    "module_for_persona_kind",
+    "module_for_population_kind",
     "render_prompt",
     "require_active_prompts",
     "require_active_report_thresholds",
     "require_active_ssr_temperature",
     "require_prompts_for_language",
+    "require_prompts_for_persona",
     "set_active_configuration",
 ]

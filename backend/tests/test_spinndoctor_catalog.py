@@ -12,6 +12,7 @@ from app.services.panel.structured_scoring import (
     assemble_dd_moderator_messages,
     build_dd_moderator_identity,
 )
+from app.services.kund_store import default_os_customer_id
 from app.services.prompt_store import require_active_prompts
 from app.services.spindoctor_chat import (
     _build_identity_prompt,
@@ -72,7 +73,10 @@ async def test_spinndoctor_is_not_a_default_dd_scoring_slot(client_db):
 async def test_identity_prompt_uses_panel_expert_system(client_db):
     _client, factory = client_db
     async with factory() as db:
-        identity = await _build_identity_prompt(db, locale="sv")
+        customer_id = await default_os_customer_id(db)
+        identity = await _build_identity_prompt(
+            db, locale="sv", customer_id=customer_id, module="politik"
+        )
         assert "Du deltar som Spinndoktor" in identity
         assert "Politisk kommunikation" in identity
         assert "Du är Spinndoktorn" in identity
@@ -86,7 +90,10 @@ async def test_identity_prompt_uses_panel_expert_system(client_db):
 async def test_dd_moderator_identity_uses_catalog_and_policy(client_db):
     _client, factory = client_db
     async with factory() as db:
-        prompts = await require_active_prompts(db)
+        customer_id = await default_os_customer_id(db)
+        prompts = await require_active_prompts(
+            db, customer_id=customer_id, module="dd", language="sv"
+        )
         identity = await build_dd_moderator_identity(db, prompts)
         assert "Du deltar som Spinndoktor" in identity
         assert "Politisk kommunikation" in identity

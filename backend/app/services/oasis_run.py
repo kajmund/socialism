@@ -22,7 +22,9 @@ from app.database.models import Population, PopulationMember, Run
 from app.database.session import SessionLocal
 from app.schemas.domain import Injection, OasisPlatform, OasisRunOptions, Tick
 from app.serializers import utcnow
+from app.services.customer_scope import customer_id_for_run
 from app.services.district_context import format_area_block, list_district_contexts
+from app.services.prompt_store import require_active_prompts
 from app.services.lexical_convergence import analyze_lexical_convergence
 from app.services.oasis_agent_tools import apply_population_agent_tools
 from app.services.oasis_engagement import (
@@ -302,27 +304,16 @@ async def run_oasis_simulation(
     from oasis import ActionType, LLMAction, ManualAction
 
     from app.services import jobs as jobs_service
-    from app.services.prompt_store import (
-        MissingActiveConfigurationError,
-        get_active_configuration,
-        require_active_prompts,
-    )
 
     factory = jobs_service.job_session_factory()
     async with factory() as prompt_session:
-        # OASIS simulates Swedish political messaging — active config must be sv.
-        active = await get_active_configuration(prompt_session)
-        if active is None:
-            raise MissingActiveConfigurationError(
-                "No active prompt configuration. Activate one under Konfigurationer."
-            )
-        if active.language != "sv":
-            raise MissingActiveConfigurationError(
-                f"Active configuration '{active.name}' (id={active.id}) is language "
-                f"'{active.language}', but OASIS requires Swedish (sv). "
-                "Activate a sv configuration under Konfigurationer."
-            )
-        prompts = await require_active_prompts(prompt_session)
+        customer_id = await customer_id_for_run(prompt_session, run_id)
+        prompts = await require_active_prompts(
+            prompt_session,
+            customer_id=customer_id,
+            module="politik",
+            language="sv",
+        )
 
     apply_swedish_social_environment_prompts(prompts)
 

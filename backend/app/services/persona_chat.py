@@ -29,7 +29,7 @@ from app.serializers import format_date, profile_from_dict, utcnow
 from app.services.dd.company_mcp import CompanyMcpError
 from app.services.district_context import area_block_for_name
 from app.services.oasis_run import previous_attempts
-from app.services.prompt_store import require_active_prompts
+from app.services.prompt_store import require_prompts_for_persona
 from app.services.run_tick_context import build_persona_feed_context
 
 logger = logging.getLogger(__name__)
@@ -220,7 +220,7 @@ async def stream_library_chat_turn(
         )
         history = [(row.role, row.content) for row in history_rows.scalars().all()]
         area_block = await area_block_for_name(session, profile.ort or persona.district)
-        prompts = await require_active_prompts(session)
+        prompts = await require_prompts_for_persona(session, persona)
 
         user_row = PersonaMessage(
             persona_id=persona_id,
@@ -341,7 +341,7 @@ async def stream_run_interview_turn(
 
         profile = profile_from_dict(persona.profile, persona.name)
         area_block = await area_block_for_name(session, profile.ort or persona.district)
-        prompts = await require_active_prompts(session)
+        prompts = await require_prompts_for_persona(session, persona)
         system_prompt = build_run_interview_prompt(
             profile,
             feed_context,
@@ -483,7 +483,7 @@ async def library_follow_up_questions(
         .order_by(PersonaMessage.id.asc())
     )
     history = [(row.role, row.content) for row in history_rows.scalars().all()]
-    prompts = await require_active_prompts(session)
+    prompts = await require_prompts_for_persona(session, persona)
     return await safe_library_follow_ups(
         profile,
         mode,

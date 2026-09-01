@@ -25,6 +25,7 @@ from app.services.panel.result import dd_panel_result_from_stored, is_panel_resu
 from app.services.panel.schemas import PanelExpertSlot, PanelSessionConfig, PanelSessionCreate
 from app.services.panel.sessions import create_panel_session, get_panel_session
 from app.services.panel.structured_scoring import run_structured_scoring
+from app.services.kund_store import default_os_customer_id
 from app.services.prompt_store import require_active_prompts
 
 
@@ -92,7 +93,10 @@ async def test_structured_scoring_coverage_dissensus_and_motivations(client_db):
     config = _dd_config()
     _install_dd_mock()
     async with factory() as db:
-        prompts = await require_active_prompts(db)
+        customer_id = await default_os_customer_id(db)
+        prompts = await require_active_prompts(
+            db, customer_id=customer_id, module="dd", language="sv"
+        )
         created = await create_panel_session(db, PanelSessionCreate(config=config))
         row = await get_panel_session(db, created.id)
         assert row is not None
@@ -148,7 +152,10 @@ async def test_structured_scoring_unanswered_when_no_raise_hand(client_db):
     set_tools_completer(_tools)
 
     async with factory() as db:
-        prompts = await require_active_prompts(db)
+        customer_id = await default_os_customer_id(db)
+        prompts = await require_active_prompts(
+            db, customer_id=customer_id, module="dd", language="sv"
+        )
         created = await create_panel_session(db, PanelSessionCreate(config=config))
         row = await get_panel_session(db, created.id)
         assert row is not None
@@ -170,7 +177,10 @@ async def test_structured_scoring_requires_module(client_db):
     config.module = None
     _install_dd_mock()
     async with factory() as db:
-        prompts = await require_active_prompts(db)
+        customer_id = await default_os_customer_id(db)
+        prompts = await require_active_prompts(
+            db, customer_id=customer_id, module="dd", language="sv"
+        )
         created = await create_panel_session(db, PanelSessionCreate(config=config))
         row = await get_panel_session(db, created.id)
         assert row is not None

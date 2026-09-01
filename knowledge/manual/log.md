@@ -1,5 +1,10 @@
 # Manual update log
 
+## 2026-09-01
+
+* **Verktyg**: Prompttexter i konfigurationer gäller direkt per kund och språk. **Aktivera** styr bara SSR-temperatur, ankare och grunddata — inte LLM-promptarna.
+* **Hjälpchatten**: Assistenten använder prompttexterna för den organisation du är inloggad som (administratör/användare respektive bolag).
+
 ## 2026-08-31
 
 * **Inloggning**: Vilken yta du landar på styrs av kundens tilldelade moduler under **Verktyg** → **Kunder**. Två eller fler moduler ger sidan **Välj modul**. Inga tilldelade moduler visas som ett fel på inloggningen.

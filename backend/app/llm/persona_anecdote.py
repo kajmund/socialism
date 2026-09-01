@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.llm import complete_structured
 from app.schemas.domain import EditablePersona, PersonaAnecdoteOut
 from app.services.district_context import area_block_for_name
+from app.services.kund_store import default_os_customer_id
 from app.services.prompt_catalog import render_prompt
 from app.services.prompt_store import require_active_prompts
 
@@ -102,7 +103,12 @@ async def llm_persona_anecdote(
     if prompts is None:
         if session is None:
             raise RuntimeError("session or prompts is required for anecdote generation")
-        prompts = await require_active_prompts(session)
+        prompts = await require_active_prompts(
+            session,
+            customer_id=await default_os_customer_id(session),
+            module="politik",
+            language="sv",
+        )
     area_block = ""
     if session is not None:
         area_block = await area_block_for_name(session, profile.ort)

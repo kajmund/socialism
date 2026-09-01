@@ -1864,7 +1864,7 @@ export const en: LocalizedTree<SvMessages> = {
     list: {
       title: "Configurations",
       intro:
-        "Saved sets of prompts and base data. Only one configuration can be active at a time — it is used by backend LLM calls and dropdowns. The active configuration is controlled here, not by the menu language switcher.",
+        "Saved sets of prompt texts, SSR temperature, report thresholds, anchors, and base data. Prompt texts apply immediately per customer and language — Activate only controls SSR, anchors, and base data, not LLM prompts. The active configuration is controlled here, not by the menu language switcher.",
       searchPlaceholder: "Search name…",
       allLanguages: "All languages",
       new: "+ New configuration",
@@ -1886,7 +1886,7 @@ export const en: LocalizedTree<SvMessages> = {
       newIntro:
         "Name, prompt language, prompt fields, and base data. Save first to edit base data. Prefilled with defaults.",
       editIntro:
-        "Prompt settings and base data belong to the same configuration. Activate it for the backend to use it (only one active at a time).",
+        "Prompt texts are stored as customer-and-language overrides and used immediately by LLM calls. Activate controls SSR temperature, report thresholds, anchors, and base data (only one active at a time).",
       loading: "Loading configuration…",
       loadError: "Could not load the configuration",
       nameLabel: "Name",
@@ -1898,7 +1898,7 @@ export const en: LocalizedTree<SvMessages> = {
       langSv: "SV",
       langEn: "EN",
       langNb: "NB",
-      activeLabel: "Active (used by backend; only one at a time)",
+      activeLabel: "Active (SSR, anchors, and base data; only one at a time)",
       activeOn: "Active",
       activeOff: "Inactive",
       nameRequired: "Enter a name",

@@ -1863,7 +1863,7 @@ export const sv = {
     list: {
       title: "Konfigurationer",
       intro:
-        "Sparade uppsättningar med prompts och grunddata. Endast en konfiguration kan vara aktiv åt gången — den används av LLM-anrop och dropdowns i backend. Aktiv konfiguration styrs här, inte av språkvalet i menyn.",
+        "Sparade uppsättningar med prompttexter, SSR-temperatur, rapporttrösklar, ankare och grunddata. Prompttexterna gäller direkt per kund och språk — Aktivera styr bara SSR, ankare och grunddata, inte LLM-promptarna. Aktiv konfiguration styrs här, inte av språkvalet i menyn.",
       searchPlaceholder: "Sök namn…",
       allLanguages: "Alla språk",
       new: "+ Ny konfiguration",
@@ -1885,7 +1885,7 @@ export const sv = {
       newIntro:
         "Namn, promptspråk, promptfält och grunddata. Spara först för att redigera grunddata. Förifyllt med standardtexter.",
       editIntro:
-        "Promptinställningar och grunddata hör till samma konfiguration. Aktivera för att backend ska använda den (en aktiv åt gången).",
+        "Prompttexterna sparas som avvikelser för kunden och språket och används direkt av LLM-anrop. Aktivera styr SSR-temperatur, rapporttrösklar, ankare och grunddata (en aktiv åt gången).",
       loading: "Hämtar konfiguration…",
       loadError: "Kunde inte hämta konfigurationen",
       nameLabel: "Namn",
@@ -1897,7 +1897,7 @@ export const sv = {
       langSv: "SV",
       langEn: "EN",
       langNb: "NB",
-      activeLabel: "Aktiv (används av backend; endast en åt gången)",
+      activeLabel: "Aktiv (SSR, ankare och grunddata; endast en åt gången)",
       activeOn: "Aktiv",
       activeOff: "Inaktiv",
       nameRequired: "Ange ett namn",

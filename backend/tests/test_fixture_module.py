@@ -26,7 +26,8 @@ from app.services.prompt_fields_store import get_prompt_field_by_key
 from app.services.panel.methods import PROTOCOL_METHODS, deliberation_method
 from app.services.panel.schemas import PanelExpertSlot, PanelSessionConfig, PanelSessionCreate
 from app.services.panel.sessions import create_panel_session, get_panel_session
-from app.services.prompt_store import require_active_prompts
+from app.services.kund_store import default_os_customer_id
+from app.services.prompt_fields_store import filled_prompts
 from app.services.spindoctor_context import build_spindoctor_context
 from tests.fixture_module import install_fixture_module, uninstall_fixture_module
 
@@ -110,7 +111,10 @@ async def test_third_module_report_panel_and_spindoctor(client_db, tmp_path):
             assert "Kandidat" not in context
             assert "Körning" not in context
 
-            prompts = await require_active_prompts(db)
+            customer_id = await default_os_customer_id(db)
+            prompts = await filled_prompts(
+                db, customer_id=customer_id, language="sv"
+            )
             created = await create_panel_session(
                 db,
                 PanelSessionCreate(
