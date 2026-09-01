@@ -77,11 +77,13 @@ Source badge colors in HTML: `web` → blue (`web`), `llm` → gray (`single`).
 
 ## Persistence
 
-- `panel_sessions` — config, transcript JSON, scratchpads, analysis, **result** (dd_panel), optional `campaign_id`, `job_id`
+- `panel_sessions` — config (including frozen `expert_slots` snapshot), transcript JSON, scratchpads, analysis, **result** (dd_panel)
+- Optional FKs: `panel_id` → `populations` (`kind=expert_panel`), `project_id` → `projekt` (module-agnostic), `campaign_id` → `dd_campaigns` (DD extra only), `job_id`
+- Create with `panel_id` to reuse a saved expert panel; `protocol` stays per session. No silent backfill of `project_id` on legacy rows.
 - Prompts live in the database (`prompt_catalog.py` defaults, active configuration at runtime)
 
 ## API
 
-- `POST /panel/sessions` — create session
+- `POST /panel/sessions` — create session (`panel_id` and/or inline `expert_slots`, optional `project_id`)
 - `GET /panel/sessions/{id}` — fetch session + transcript
 - `POST /panel/sessions/{id}/run` — enqueue `panel_session_run` job
