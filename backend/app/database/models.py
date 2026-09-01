@@ -811,6 +811,19 @@ class PanelSession(Base):
     scratchpads: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     analysis: Mapped[str | None] = mapped_column(Text, nullable=True)
     result: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    panel_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("populations.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    project_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("projekt.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    # DD-specific extra — generic modules use project_id, not this.
     campaign_id: Mapped[int | None] = mapped_column(
         Integer,
         ForeignKey("dd_campaigns.id", ondelete="SET NULL"),

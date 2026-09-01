@@ -26,11 +26,21 @@ export type PanelSession = {
   protocol: "generic_panel" | "dd_panel"
   status: PanelSessionStatus
   config: PanelSessionConfig
+  panel_id: number | null
+  project_id: number | null
   campaign_id: number | null
   job_id: string | null
   error: string | null
   created_at: string
   updated_at: string
+}
+
+export function createPanelSession(body: {
+  config: Omit<PanelSessionConfig, "expert_slots"> & { expert_slots?: PanelExpertSlot[] }
+  panel_id?: number | null
+  project_id?: number | null
+}): Promise<PanelSession> {
+  return api.post<PanelSession>("/panel/sessions", body)
 }
 
 export function createDdPanelSession(
