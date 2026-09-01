@@ -1,10 +1,5 @@
 """Unit tests for lexical convergence detection."""
 
-import json
-from pathlib import Path
-
-import pytest
-
 from app.services.lexical_convergence import (
     CONVERGENCE_AGENT_SHARE_THRESHOLD,
     analyze_lexical_convergence,
@@ -187,27 +182,3 @@ def test_kollektiv_bestraffning_merges_case_and_inflection_variants():
     top = max(kollektiv_hits, key=lambda w: w["agent_count"])
     assert top["agent_count"] == 5
     assert top["agent_share"] == round(5 / 12, 3)
-
-
-def test_run6_control_transcript_triggers_warning():
-    """Verify stored run 6 control variant after normalization fix."""
-    run_path = Path("/tmp/run6.json")
-    if not run_path.exists():
-        pytest.skip("run 6 export not present locally")
-    data = json.loads(run_path.read_text())
-    att = data["results"]["attempts"][0]
-    variant = next(v for v in att["variants"] if v["id"] == "b")
-    result = analyze_lexical_convergence(
-        posts=variant.get("posts"),
-        comments=variant.get("comments"),
-        agents=variant.get("agents"),
-    )
-    kollektiv = [
-        w
-        for w in result["warnings"]
-        if "kollektiv" in w["phrase"].casefold()
-        and "bestraff" in w["phrase"].casefold()
-    ]
-    assert kollektiv
-    assert kollektiv[0]["agent_count"] == 5
-    assert kollektiv[0]["agent_share"] >= 0.40
