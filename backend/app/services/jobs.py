@@ -593,11 +593,12 @@ async def _run_panel_session(job_id: str) -> None:
                 await _fail(session, job_id, f"Panel session not found: {payload.session_id}")
                 return
             config = PanelSessionConfig.model_validate(panel.config or {})
-            module = config.module
-            if not module:
-                raise RuntimeError(
-                    f"Panel session {panel.id!r} is missing config.module"
-                )
+            if config.module:
+                module = config.module
+            elif panel.campaign_id is not None:
+                module = "dd"
+            else:
+                module = "politik"
             customer_id = await customer_id_for_panel_session(session, panel.id)
             prompts = await require_active_prompts(
                 session,
