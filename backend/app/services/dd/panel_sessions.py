@@ -6,7 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.dd.campaigns import get_campaign, resolve_expert_panel_id
 from app.services.dd.candidate_runs import get_candidate_run
-from app.services.dd.expert_roles import load_expert_slots, load_expert_slots_from_population
+from app.services.dd.expert_roles import load_expert_slots
+from app.services.panel.expert_slots import load_expert_slots_from_population
 from app.services.dd.schemas import DdCandidateCompany, DdResearchDossier
 from app.services.panel.structured_scoring import _candidate_brief
 from app.services.panel.schemas import DdPanelSessionCreateRequest, PanelSessionConfig, PanelSessionCreate
@@ -61,4 +62,4 @@ async def create_dd_panel_session_from_campaign(
         candidate_id=candidate.id,
         expert_role_keys=role_keys,
     )
-    return PanelSessionCreate(config=config), candidate
+    return PanelSessionCreate(config=config, panel_id=expert_panel_id), candidate
