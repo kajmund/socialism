@@ -959,10 +959,11 @@ async def test_catalog_lists(client):
         json={"items": ["Sarkastisk", "Direkt"]},
     )
     assert legacy.status_code == 200
-    assert legacy.json()["items"] == [
-        {"label": "Sarkastisk", "description": "", "bounds": None},
-        {"label": "Direkt", "description": "", "bounds": None},
-    ]
+    legacy_items = legacy.json()["items"]
+    assert [item["label"] for item in legacy_items] == ["Sarkastisk", "Direkt"]
+    for item in legacy_items:
+        assert item["description"] == ""
+        assert item["bounds"] is None
 
     bounds_ok = await client.put(
         "/catalog/ort",

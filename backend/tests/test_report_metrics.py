@@ -476,7 +476,9 @@ async def test_generate_report_escapes_hostile_title(tmp_path: Path):
         )
         html = html_path.read_text(encoding="utf-8")
         assert slots["page_title"] == hostile
-        assert "<script>" not in html
+        # The report chrome has its own <script>; the injected payload must stay escaped.
+        assert "</title><script>" not in html
+        assert "<script>alert" not in html
         assert "<img " not in html
         assert "&lt;/title&gt;&lt;script&gt;" in html
         assert "&lt;img src=x onerror=alert(1)&gt;" in html

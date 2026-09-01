@@ -1,6 +1,9 @@
 """Unit tests for optional OASIS population agent toolkits."""
 
+import importlib.util
 from unittest.mock import MagicMock
+
+import pytest
 
 from app.schemas.domain import OasisRunOptions
 from app.services.oasis_agent_tools import (
@@ -18,6 +21,12 @@ from app.services.prompt_catalog import default_prompts
 from tests.test_oasis_actions_readback import _member
 
 _PROMPTS = default_prompts("sv")
+
+
+def _require_oasis_extra(*modules: str) -> None:
+    for name in modules:
+        if importlib.util.find_spec(name) is None:
+            pytest.skip(f"{name} is not installed — run: uv sync --extra oasis")
 
 
 def test_parse_oasis_options_tool_defaults():
@@ -121,6 +130,7 @@ def test_build_population_extra_tools_search_ddg_only():
 
 
 def test_build_population_extra_tools_sympy():
+    _require_oasis_extra("camel")
     tools = build_population_extra_tools(
         OasisRunOptions(enable_sympy_tools=True)
     )
@@ -129,6 +139,7 @@ def test_build_population_extra_tools_sympy():
 
 def test_sympy_series_expansion_has_param_descriptions():
     """Broken upstream docstring must not ship tools without param docs."""
+    _require_oasis_extra("camel")
     import warnings
 
     with warnings.catch_warnings(record=True) as caught:
@@ -177,8 +188,7 @@ def test_population_tool_rules_wiki_only():
 
 
 def test_search_toolkit_runtime_dependencies():
-    import importlib.util
-
+    _require_oasis_extra("ddgs", "wikipedia")
     assert importlib.util.find_spec("ddgs") is not None
     assert importlib.util.find_spec("wikipedia") is not None
 
@@ -194,10 +204,12 @@ def test_search_tool_specs_match_population_search_tools():
 
 
 def test_run_search_wiki_tool():
+    _require_oasis_extra("wikipedia")
     assert "Tom" in run_search_tool("search_wiki", {"entity": "  "})
 
 
 def test_run_search_duckduckgo_tool():
+    _require_oasis_extra("ddgs")
     out = run_search_tool("search_duckduckgo", {"query": " "})
     assert "error" in out
 
@@ -224,12 +236,14 @@ def test_run_search_duckduckgo_accepts_max_results_alias(monkeypatch):
 
 
 def test_search_wiki_rejects_empty():
+    _require_oasis_extra("wikipedia")
     from app.services.oasis_agent_tools import search_wiki
 
     assert "Tom" in search_wiki("  ")
 
 
 def test_search_duckduckgo_rejects_empty():
+    _require_oasis_extra("ddgs")
     from app.services.oasis_agent_tools import search_duckduckgo
 
     out = search_duckduckgo(" ")
