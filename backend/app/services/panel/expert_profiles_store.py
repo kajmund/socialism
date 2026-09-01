@@ -53,6 +53,15 @@ async def get_expert_profile(session: AsyncSession, row_id: int) -> PanelExpertP
     return await session.get(PanelExpertProfile, row_id)
 
 
+async def get_expert_profile_by_key(
+    session: AsyncSession, key: str
+) -> PanelExpertProfile | None:
+    result = await session.execute(
+        select(PanelExpertProfile).where(PanelExpertProfile.key == key)
+    )
+    return result.scalar_one_or_none()
+
+
 async def next_expert_profile_sort_order(session: AsyncSession) -> int:
     result = await session.execute(select(PanelExpertProfile.sort_order))
     orders = list(result.scalars().all())
