@@ -28,7 +28,7 @@ from app.services.dd.schemas import (
     DdResearchDossier,
     DdResearchPerson,
 )
-from app.services.panel.dd_engine import _candidate_brief
+from app.services.panel.structured_scoring import _candidate_brief
 
 
 async def _empty_group(_orgnr: str) -> list[GroupCompany]:

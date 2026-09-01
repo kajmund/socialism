@@ -1,4 +1,4 @@
-"""structured_scoring method — new code beside dd_engine.py (do not import from it)."""
+"""structured_scoring method — expert × sub-question matrix with raise-hand gate."""
 
 from __future__ import annotations
 

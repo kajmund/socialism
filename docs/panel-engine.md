@@ -15,7 +15,7 @@ Domain layer for multi-expert panel sessions, separate from OASIS tick-loop / `s
 ```text
 POST /panel/sessions          → PanelSession row (draft)
 POST /panel/sessions/{id}/run → Job kind panel_session_run (202)
-jobs.py                       → panel.engine / panel.dd_engine (live turns via panel.watch)
+jobs.py                       → PROTOCOL_METHODS → generic_panel / structured_scoring (live turns via panel.watch)
 /ws/panels                    → panel_watch replay + fan-out (panel.replay, turn.*, panel.finished)
 prompt_store                  → panel.* keys in active configuration
 ```
