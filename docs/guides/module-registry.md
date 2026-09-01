@@ -31,10 +31,21 @@ mode, or `report_modes` without a `ReportBinding`, fail boot.
 `frontend/src/modules/*/manifest.ts` mirrors `reportModes`.
 `moduleForReport()` looks up that field and throws on an unknown mode.
 
+## Spinndoktor source (Fas 2)
+
+`SpindoctorBinding` has a uniform pair:
+
+- `source_loader(session, report) -> SpindoctorSource`
+- `context_builder(source, *, locale, title) -> str`
+
+`build_spindoctor_context` looks up the module via `report_modes`, loads the source, and builds context. It does not branch on `report.mode`. DD payload is `report.dd.json`; politik payload is OASIS bundles.
+
+`load_spindoctor_source` remains a compat wrapper that returns `(report, source.bundles)` for MCP/tools (DD: empty list).
+
 ## Adding a module (checklist)
 
 1. Backend `ModuleManifest` with `report_modes` + `ReportBinding` (if it produces reports).
 2. Frontend manifest with the same `reportModes`.
-3. Spinndoktor `source_loader` / `context_builder` (see Fas 2) — no `if report.mode` in `spindoctor_context.py`.
+3. Spinndoktor `source_loader` / `context_builder` — no `if report.mode` in `spindoctor_context.py`.
 4. Panel protocol via the deliberation-method registry (see Fas 3), not a new `jobs.py` branch.
 5. Seed expert profiles by `key` (`ensure_expert_profile_defaults`) so existing experts gain the new module instead of duplicating rows.

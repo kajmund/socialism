@@ -84,6 +84,8 @@ def test_module_manifest_shapes():
     assert dd.report_modes == frozenset({"dd"})
     assert dd.report is not None
     assert dd.spindoctor is not None
+    assert dd.spindoctor.source_loader is not None
+    assert dd.spindoctor.context_builder is not None
     assert dd.spindoctor.supports_interview is False
     assert "get_report_dd" in dd.spindoctor.mcp_tool_names
     assert dd.sub_questions_provider is not None
@@ -98,9 +100,21 @@ def test_module_manifest_shapes():
     assert politik.report_modes == frozenset({"quick", "full"})
     assert politik.report is not None
     assert politik.spindoctor is not None
+    assert politik.spindoctor.source_loader is not None
+    assert politik.spindoctor.context_builder is not None
     assert politik.spindoctor.supports_interview is True
     assert "get_report_ssr" in politik.spindoctor.mcp_tool_names
     assert politik.sub_questions_provider is None
+
+
+def test_spindoctor_context_has_no_report_mode_branch():
+    from pathlib import Path
+
+    text = (
+        Path(__file__).resolve().parents[1] / "app/services/spindoctor_context.py"
+    ).read_text(encoding="utf-8")
+    assert "if report.mode" not in text
+    assert 'report.mode == "dd"' not in text
 
 
 def test_module_has_component():
