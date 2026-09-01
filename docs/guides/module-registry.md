@@ -53,7 +53,7 @@ A test-only third module lives in `backend/tests/fixture_module.py`. It must not
 3. Spinndoktor `source_loader` / `context_builder` — no `if report.mode` in `spindoctor_context.py`.
 4. Panel protocol via `DELIBERATION_METHODS` (`generic_panel`, `structured_scoring`), not a new `jobs.py` branch.
 5. Seed expert profiles by `key` (`ensure_expert_profile_defaults`) so existing experts gain the new module instead of duplicating rows.
-6. Report-chat Spinndoktor is catalog key `spinndoctor` (modules `dd` + `politik`). Identity uses `panel.expert.system`; report context is a **separate** message. `spinndoctor.system.tools` / `.widgets` stay as policy prompts. DD panel moderator is still `panel.dd.moderator.*` (not migrated).
+6. Spinndoktor is catalog key `spinndoctor` (modules `dd` + `politik`). Identity uses `panel.expert.system`. Report context and DD panel brief are **separate** messages. `spinndoctor.system` / `.tools` / `.widgets` stay as report-chat policy; `panel.dd.moderator.system` is DD moderator policy on top of the same catalog row.
 
 ## Deliberation methods (Fas 3+4)
 
@@ -68,4 +68,7 @@ Two complete methods, not a composable raise-hand strategy:
 
 ## Spinndoktor catalog (Fas 5)
 
-Report-chat identity is `PanelExpertProfile` key `spinndoctor` (seeded onto `dd` and `politik`). The chat sends two system messages: catalog identity (`panel.expert.system`) plus policy prompts (`spinndoctor.system`, `.tools`, `.widgets`), then the Fas 2 context block. DD panel moderator stays on `panel.dd.moderator.*`.
+Identity is `PanelExpertProfile` key `spinndoctor` (seeded onto `dd` and `politik`), rendered with `panel.expert.system`.
+
+- Report chat sends two system messages: catalog identity plus policy (`spinndoctor.system`, `.tools`, `.widgets`), then the Fas 2 context block.
+- DD panel moderator uses the same catalog row plus policy (`panel.dd.moderator.system`), then the panel brief as a **separate** system message. Phase prompts (`opening` / `sub_question` / `no_answer` / `summary`) stay as user turns.

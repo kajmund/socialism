@@ -24,6 +24,10 @@ from app.services.panel.schemas import (
     PanelSessionConfig,
     PanelTurn,
 )
+from app.services.panel.spinndoctor_profile import (
+    render_spinndoctor_identity,
+    require_spinndoctor_profile,
+)
 from app.services.panel.sub_questions_store import get_sub_questions
 from app.services.panel.watch import run_turn
 from app.services.prompt_catalog import render_prompt
@@ -105,6 +109,37 @@ def _visible_moderator_text(text: str) -> str:
     return strip_spindoctor_refs(text)
 
 
+def _panel_brief(config: PanelSessionConfig) -> str:
+    brief = (config.brief or config.topic or "").strip()
+    if not brief:
+        raise RuntimeError("structured_scoring session missing panel brief")
+    return brief
+
+
+def assemble_dd_moderator_messages(
+    *,
+    identity: str,
+    brief: str,
+    user_content: str,
+) -> list[dict[str, str]]:
+    """Catalog identity and panel brief are separate messages — not concatenated."""
+    return [
+        {"role": "system", "content": identity},
+        {"role": "system", "content": brief},
+        {"role": "user", "content": user_content},
+    ]
+
+
+async def build_dd_moderator_identity(
+    session: AsyncSession,
+    prompts: dict[str, str],
+) -> str:
+    row = await require_spinndoctor_profile(session)
+    identity = render_spinndoctor_identity(prompts, row)
+    policy = render_prompt(prompts, "panel.dd.moderator.system")
+    return f"{identity}\n\n{policy}"
+
+
 def _slot_by_id(config: PanelSessionConfig, slot_id: str) -> PanelExpertSlot:
     for slot in config.expert_slots:
         if slot.slot_id == slot_id:
@@ -169,20 +204,22 @@ def _dissensus_notes(scores: list[DdExpertScore]) -> list[DdDissensusNote]:
     return notes
 
 
-async def _moderator_opening(config: PanelSessionConfig, prompts: dict[str, str]) -> str:
-    messages = [
-        {"role": "system", "content": render_prompt(prompts, "panel.dd.moderator.system")},
-        {
-            "role": "user",
-            "content": render_prompt(
-                prompts,
-                "panel.dd.moderator.opening",
-                topic=config.topic,
-                brief=config.brief or config.topic,
-                expert_list=_expert_list(config.expert_slots),
-            ),
-        },
-    ]
+async def _moderator_opening(
+    config: PanelSessionConfig,
+    prompts: dict[str, str],
+    identity: str,
+) -> str:
+    messages = assemble_dd_moderator_messages(
+        identity=identity,
+        brief=_panel_brief(config),
+        user_content=render_prompt(
+            prompts,
+            "panel.dd.moderator.opening",
+            topic=config.topic,
+            brief=config.brief or config.topic,
+            expert_list=_expert_list(config.expert_slots),
+        ),
+    )
     return _visible_moderator_text(await complete_text(messages))
 
 
@@ -191,21 +228,20 @@ async def _moderator_sub_question(
     sub_question: SubQuestionRef,
     transcript: list[PanelTurn],
     prompts: dict[str, str],
+    identity: str,
 ) -> str:
-    messages = [
-        {"role": "system", "content": render_prompt(prompts, "panel.dd.moderator.system")},
-        {
-            "role": "user",
-            "content": render_prompt(
-                prompts,
-                "panel.dd.moderator.sub_question",
-                topic=config.topic,
-                sub_question=sub_question.label,
-                expert_list=_expert_list(config.expert_slots),
-                transcript=_transcript_text(transcript),
-            ),
-        },
-    ]
+    messages = assemble_dd_moderator_messages(
+        identity=identity,
+        brief=_panel_brief(config),
+        user_content=render_prompt(
+            prompts,
+            "panel.dd.moderator.sub_question",
+            topic=config.topic,
+            sub_question=sub_question.label,
+            expert_list=_expert_list(config.expert_slots),
+            transcript=_transcript_text(transcript),
+        ),
+    )
     return _visible_moderator_text(await complete_text(messages))
 
 
@@ -298,20 +334,19 @@ async def _moderator_no_answer(
     sub_question: SubQuestionRef,
     expert_slots: list[PanelExpertSlot],
     prompts: dict[str, str],
+    identity: str,
 ) -> str:
-    messages = [
-        {"role": "system", "content": render_prompt(prompts, "panel.dd.moderator.system")},
-        {
-            "role": "user",
-            "content": render_prompt(
-                prompts,
-                "panel.dd.moderator.no_answer",
-                topic=config.topic,
-                sub_question=sub_question.label,
-                expert_list=", ".join(s.label for s in expert_slots),
-            ),
-        },
-    ]
+    messages = assemble_dd_moderator_messages(
+        identity=identity,
+        brief=_panel_brief(config),
+        user_content=render_prompt(
+            prompts,
+            "panel.dd.moderator.no_answer",
+            topic=config.topic,
+            sub_question=sub_question.label,
+            expert_list=", ".join(s.label for s in expert_slots),
+        ),
+    )
     return _visible_moderator_text((await complete_text(messages)).strip())
 
 
@@ -322,6 +357,7 @@ async def _moderator_summary(
     dissensus: list[DdDissensusNote],
     unanswered: list[DdUnansweredNote],
     prompts: dict[str, str],
+    identity: str,
 ) -> str:
     score_lines = [
         f"- {row.expert_label} / {row.sub_question_label}: {row.score}/10 ({row.source.label})"
@@ -336,21 +372,19 @@ async def _moderator_summary(
         for note in unanswered
     ] or ["- Inga obesvarade delfrågor"]
 
-    messages = [
-        {"role": "system", "content": render_prompt(prompts, "panel.dd.moderator.system")},
-        {
-            "role": "user",
-            "content": render_prompt(
-                prompts,
-                "panel.dd.moderator.summary",
-                topic=config.topic,
-                transcript=_transcript_text(transcript),
-                score_table="\n".join(score_lines),
-                dissensus="\n".join(dissensus_lines),
-                unanswered="\n".join(unanswered_lines),
-            ),
-        },
-    ]
+    messages = assemble_dd_moderator_messages(
+        identity=identity,
+        brief=_panel_brief(config),
+        user_content=render_prompt(
+            prompts,
+            "panel.dd.moderator.summary",
+            topic=config.topic,
+            transcript=_transcript_text(transcript),
+            score_table="\n".join(score_lines),
+            dissensus="\n".join(dissensus_lines),
+            unanswered="\n".join(unanswered_lines),
+        ),
+    )
     return _visible_moderator_text(await complete_text(messages))
 
 
@@ -373,13 +407,15 @@ async def run_structured_scoring(
     for slot in config.expert_slots:
         scratchpads.setdefault(slot.slot_id, "")
 
+    identity = await build_dd_moderator_identity(db, prompts)
+
     await run_turn(
         db,
         panel,
         transcript,
         speaker="Spinndoktor",
         phase="opening",
-        produce_content=lambda: _moderator_opening(config, prompts),
+        produce_content=lambda: _moderator_opening(config, prompts, identity),
     )
 
     scores: list[DdExpertScore] = []
@@ -398,7 +434,7 @@ async def run_structured_scoring(
             round_index=round_index,
             sub_question_id=sub_question.id,
             produce_content=lambda sq=sub_question: _moderator_sub_question(
-                config, sq, transcript, prompts
+                config, sq, transcript, prompts, identity
             ),
         )
 
@@ -433,7 +469,7 @@ async def run_structured_scoring(
                 round_index=round_index,
                 sub_question_id=sub_question.id,
                 produce_content=lambda sq=sub_question: _moderator_no_answer(
-                    config, sq, config.expert_slots, prompts
+                    config, sq, config.expert_slots, prompts, identity
                 ),
             )
             unanswered.append(
@@ -491,7 +527,7 @@ async def run_structured_scoring(
         speaker="Spinndoktor",
         phase="analysis",
         produce_content=lambda: _moderator_summary(
-            config, transcript, scores, dissensus, unanswered, prompts
+            config, transcript, scores, dissensus, unanswered, prompts, identity
         ),
     )
     summary = summary_turn.content
