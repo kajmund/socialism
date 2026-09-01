@@ -33,5 +33,5 @@ def test_adapter_round_trips_legacy_and_envelope():
 
 def test_deliberation_methods_register_both_complete_methods():
     assert set(DELIBERATION_METHODS) == {"generic_panel", "structured_scoring"}
-    assert PROTOCOL_METHODS == {"generic_panel": "generic_panel"}
-    assert "dd_panel" not in PROTOCOL_METHODS
+    assert PROTOCOL_METHODS["generic_panel"] == "generic_panel"
+    assert PROTOCOL_METHODS["dd_panel"] == "structured_scoring"
