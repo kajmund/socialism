@@ -135,6 +135,14 @@ async def test_panel_session_without_scope_uses_os_default(session: AsyncSession
 
 
 @pytest.mark.asyncio
+async def test_panel_session_missing_project_fails_loud(session: AsyncSession):
+    await _add_panel(session, "ps_dangling_project", project_id=9_999_999)
+
+    with pytest.raises(RuntimeError, match="missing project_id=9999999"):
+        await customer_id_for_panel_session(session, "ps_dangling_project")
+
+
+@pytest.mark.asyncio
 async def test_panel_session_job_uses_project_customer(session: AsyncSession):
     bolag_id = await bolag_demo_customer_id(session)
     projekt = await _add_project(session, bolag_id, "job-scope")
