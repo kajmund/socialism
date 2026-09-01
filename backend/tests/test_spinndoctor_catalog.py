@@ -39,6 +39,19 @@ async def test_spinndoctor_profile_seeded_for_dd_and_politik(client_db):
 
 
 @pytest.mark.asyncio
+async def test_spinndoctor_is_not_a_default_dd_scoring_slot(client_db):
+    from app.services.dd.expert_roles import load_expert_slots
+    from app.services.kund_store import bolag_demo_customer_id
+
+    _client, factory = client_db
+    async with factory() as db:
+        customer_id = await bolag_demo_customer_id(db)
+        slots = await load_expert_slots(db, customer_id=customer_id)
+        assert len(slots) == 4
+        assert "spinndoctor" not in {slot.slot_id for slot in slots}
+
+
+@pytest.mark.asyncio
 async def test_identity_prompt_uses_panel_expert_system(client_db):
     _client, factory = client_db
     async with factory() as db:
