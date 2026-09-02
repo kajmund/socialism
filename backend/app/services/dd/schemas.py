@@ -203,6 +203,18 @@ class DdCandidateRunOut(BaseModel):
     updated_at: str = ""
 
 
+class StoredObjectOut(BaseModel):
+    id: str
+    kind: str
+    filename: str
+    content_type: str
+    size_bytes: int
+    campaign_id: int | None = None
+    candidate_id: str | None = None
+    report_id: str | None = None
+    created_at: str = ""
+
+
 class DdCampaignOut(BaseModel):
     id: int
     module: str

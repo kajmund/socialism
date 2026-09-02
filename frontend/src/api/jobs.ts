@@ -49,6 +49,7 @@ export type Job = {
   created_at: string
   started_at: string | null
   finished_at: string | null
+  archived_at?: string | null
   updated_at: string
 }
 
@@ -65,11 +66,15 @@ export function createJob(body: JobCreate): Promise<Job> {
 export function listJobs(params?: {
   status?: JobStatus
   customer_id?: number
+  include_archived?: boolean
+  archived_only?: boolean
   limit?: number
 }): Promise<Job[]> {
   const qs = new URLSearchParams()
   if (params?.status) qs.set("status", params.status)
   if (params?.customer_id != null) qs.set("customer_id", String(params.customer_id))
+  if (params?.include_archived) qs.set("include_archived", "true")
+  if (params?.archived_only) qs.set("archived_only", "true")
   if (params?.limit != null) qs.set("limit", String(params.limit))
   const suffix = qs.toString() ? `?${qs}` : ""
   return api.get<Job[]>(`/jobs${suffix}`)
@@ -77,4 +82,12 @@ export function listJobs(params?: {
 
 export function getJob(id: string): Promise<Job> {
   return api.get<Job>(`/jobs/${id}`)
+}
+
+export function setJobArchived(id: string, archived: boolean): Promise<Job> {
+  return api.patch<Job>(`/jobs/${id}`, { archived })
+}
+
+export function archiveFinishedJobs(): Promise<Job[]> {
+  return api.post<Job[]>("/jobs/archive-finished", {})
 }

@@ -18,36 +18,37 @@ from app.database.models import PanelSession, Report, Run, UserAccount
 from app.database.session import get_session
 from app.schemas.domain import (
     JobCreate,
+    RecommendationSnapshot,
     ReportBulkDelete,
     ReportBulkDeleteResult,
     ReportCreate,
     ReportGenerateJobRequest,
     ReportOut,
     ReportStatus,
-    RecommendationSnapshot,
     VerdictCalibrationOut,
     VerdictCalibrationWrite,
 )
 from app.serializers import utcnow
 from app.services import jobs as jobs_service
+from app.services.customer_scope import customer_id_for_new_report
 from app.services.dd.candidate_runs import (
     get_candidate_run,
+)
+from app.services.dd.candidate_runs import (
     upsert_report as upsert_dd_candidate_report,
 )
-from app.services.spindoctor_board import clear_spindoctor_widgets
-from app.services.spindoctor_chat import clear_spindoctor_messages
+from app.modules.registry import resolve_report_mode, source_types_for_registry
+from app.modules.report_binding import UnknownReportModeError
+from app.services.object_storage import ObjectStorageError
 from app.services.panel.result import dd_panel_result_from_stored
 from app.services.report import ARTIFACT_ROOT
+from app.services.report.bundles import attempt_has_data, find_attempt
 from app.services.report.dd_report import render_dd_html_from_artifact
 from app.services.report.locale import (
     default_report_title,
     download_filename,
     normalize_locale,
 )
-from app.modules.registry import resolve_report_mode, source_types_for_registry
-from app.modules.report_binding import UnknownReportModeError
-from app.services.customer_scope import customer_id_for_new_report
-from app.services.report.bundles import attempt_has_data, find_attempt
 from app.services.report.verdict_calibration import (
     get_calibration_row,
     load_recommendation_snapshot,
@@ -56,9 +57,18 @@ from app.services.report.verdict_calibration import (
 )
 from app.services.report_realtime import (
     list_reports as list_report_rows,
+)
+from app.services.report_realtime import (
     publish_report,
     publish_reports_deleted,
     serialize_report,
+)
+from app.services.spindoctor_board import clear_spindoctor_widgets
+from app.services.spindoctor_chat import clear_spindoctor_messages
+from app.services.stored_objects import (
+    delete_objects_for_report,
+    read_stored_bytes,
+    report_html_object,
 )
 
 logger = logging.getLogger(__name__)
@@ -182,6 +192,7 @@ async def _reuse_dd_report(
     flag_modified(report, "sources")
     report.html_path = None
     report.slots_path = None
+    await delete_objects_for_report(session, report.id)
     report.job_id = None
     report.error = None
     report.created_at = utcnow()
@@ -320,6 +331,10 @@ async def _delete_reports_by_ids(
         if report is None:
             continue
         deleted_entries.append((report_id, report.customer_id))
+        try:
+            await delete_objects_for_report(session, report_id)
+        except ObjectStorageError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
         await session.delete(report)
         deleted.append(report_id)
     if deleted:
@@ -447,8 +462,19 @@ async def get_report_html(
     if report is None:
         raise HTTPException(status_code=404, detail="Report not found")
     assert_kund_access(user, report.customer_id)
-    if report.status != "succeeded" or not report.html_path:
+    if report.status != "succeeded":
         raise HTTPException(status_code=404, detail="Report HTML not ready")
+    filename = download_filename(normalize_locale(getattr(report, "locale", None)))
+    stored = await report_html_object(session, report_id)
+    if stored is not None:
+        try:
+            data, _content_type = await read_stored_bytes(stored)
+        except ObjectStorageError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+        return HTMLResponse(
+            content=data.decode("utf-8"),
+            headers={"Content-Disposition": f'inline; filename="{filename}"'},
+        )
     if getattr(report, "mode", None) == "dd":
         fresh = render_dd_html_from_artifact(
             Path(ARTIFACT_ROOT) / report_id,
@@ -456,11 +482,12 @@ async def get_report_html(
             locale=getattr(report, "locale", None) or "sv",
         )
         if fresh:
-            filename = download_filename(normalize_locale(getattr(report, "locale", None)))
             return HTMLResponse(
                 content=fresh,
                 headers={"Content-Disposition": f'inline; filename="{filename}"'},
             )
+    if not report.html_path:
+        raise HTTPException(status_code=404, detail="Report HTML not ready")
     path = Path(report.html_path)
     if not path.is_file():
         alt = Path(ARTIFACT_ROOT) / report_id / "report.html"
@@ -468,7 +495,6 @@ async def get_report_html(
             path = alt
         else:
             raise HTTPException(status_code=404, detail="Report file missing")
-    filename = download_filename(normalize_locale(getattr(report, "locale", None)))
     return HTMLResponse(
         content=path.read_text(encoding="utf-8"),
         headers={"Content-Disposition": f'inline; filename="{filename}"'},

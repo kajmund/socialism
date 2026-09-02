@@ -31,7 +31,10 @@ export function LoginPage() {
 
   if (loading) return <div className="min-h-svh bg-db-black" aria-hidden="true" />
   if (session && resolvedModules.length > 0) {
-    const dest = from && from !== "/login" ? from : homePathForUser(resolvedModules)
+    const dest =
+      from && from !== "/login" && from !== "/valj-modul"
+        ? from
+        : homePathForUser(resolvedModules)
     return <Navigate to={dest} replace />
   }
 

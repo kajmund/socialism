@@ -7,7 +7,7 @@ tags: [populationer]
 
 # Hantera expertpaneler
 
-Under **Expertpaneler** ligger sparade grupper av experter som du återanvänder i DD-kampanjer.
+Under **Expertpaneler** ligger sparade grupper av experter som du återanvänder i Due Diligence-kampanjer.
 
 ## Steg
 
@@ -26,4 +26,4 @@ Paneler sparas direkt utan bakgrundsjobb.
 
 - [Komponera en expertpanel](komponera-expertpanel.md)
 - [Visa och redigera expertpanel](visa-och-redigera-expertpanel.md)
-- [Köra en DD-kampanj](kora-dd-kampanj.md)
+- [Köra en Due Diligence-kampanj](kora-dd-kampanj.md)

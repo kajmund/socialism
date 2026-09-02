@@ -13,7 +13,8 @@ from app.database.models import Population, PopulationMember, Run
 from app.services.report.persona_bio import persona_record_from_member
 from app.schemas.domain import Tick
 from app.services.oasis_profiles import injection_body, injection_has_content
-from app.services.oasis_run import previous_attempts, variant_plans
+from app.services.run_plans import variant_plans
+from app.services.run_results import previous_attempts
 
 
 @dataclass

@@ -43,6 +43,9 @@ cp .env.example .env
 | `SUPABASE_URL` | **yes** | — | Supabase project URL (Auth + Admin invite) |
 | `SUPABASE_JWT_SECRET` | **yes** | — | HS256 JWT secret for verifying access tokens |
 | `SUPABASE_SERVICE_ROLE_KEY` | **yes** | — | Backend-only; Admin invite API (never ship to the SPA) |
+| `SUPABASE_S3_ACCESS_KEY_ID` | for Storage | — | S3 access key from Dashboard → Storage → S3. Required to upload annual reports or persist report artifacts |
+| `SUPABASE_S3_SECRET_ACCESS_KEY` | for Storage | — | Matching S3 secret. Backend only |
+| `SUPABASE_S3_REGION` | for Storage | — | Project region shown on the Storage S3 page |
 
 `.env` example:
 
@@ -68,6 +71,9 @@ LOG_LEVEL=INFO
 SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 SUPABASE_JWT_SECRET=your-jwt-secret
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+SUPABASE_S3_ACCESS_KEY_ID=your-s3-access-key
+SUPABASE_S3_SECRET_ACCESS_KEY=your-s3-secret
+SUPABASE_S3_REGION=eu-central-1
 ```
 
 Constraints:
@@ -75,6 +81,7 @@ Constraints:
 - `DEEPSEEK_API_KEY` is required at startup even when `PERSONA_GENERATOR=stub`. There is no keyword/heuristic LLM fallback for chat or reports.
 - `OPENAI_API_KEY` is required for Semantic Similarity Rating (report tone/style). The SSR embeddings client reads `settings.openai_api_key` explicitly — not the process env after OASIS mirrors DeepSeek into `OPENAI_API_KEY`.
 - `SUPABASE_URL`, `SUPABASE_JWT_SECRET`, and `SUPABASE_SERVICE_ROLE_KEY` are required at startup (Auth verify + Admin invite). The service role key must never be exposed to the frontend.
+- `SUPABASE_S3_*` are required when storing files (annual reports, generated report HTML). Missing keys fail the upload or report job — there is no disk fallback for new artifacts. See [Supabase setup](supabase-setup.md#storage-s3).
 - Settings live only in `app/config.py` — do not call `os.getenv` / `load_dotenv` in app code.
 - `BOLAGSAPI_API_KEY` selects the company-data backend: BolagsAPI MCP when set, Allabolag scrape when empty. One path per process — a BolagsAPI failure does not fall through to Allabolag. Successful tool results (and Allabolag HTML) are cached on disk for 10 months.
 

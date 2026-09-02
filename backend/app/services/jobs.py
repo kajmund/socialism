@@ -110,6 +110,7 @@ def serialize_job(job: Job) -> JobOut:
         created_at=_dt(job.created_at) or "",
         started_at=_dt(job.started_at),
         finished_at=_dt(job.finished_at),
+        archived_at=_dt(job.archived_at),
         updated_at=_dt(job.updated_at) or "",
     )
 
@@ -481,9 +482,10 @@ async def _run_simulate(job_id: str) -> None:
 async def _run_report_generate(job_id: str) -> None:
     from pathlib import Path
 
-    from app.modules.registry import report_binding_for_mode
+    from app.modules.registry import module_id_for_report_mode, report_binding_for_mode
     from app.modules.report_binding import ReportGenerateContext
     from app.services.report import ARTIFACT_ROOT
+    from app.services.stored_objects import store_report_artifacts
 
     factory = job_session_factory()
     report_id: str | None = None
@@ -530,6 +532,17 @@ async def _run_report_generate(job_id: str) -> None:
         html_path = generated.html_path
         slots_path = generated.slots_path
         timing = generated.timing
+        async with factory() as session:
+            report = await session.get(Report, report_id)
+            if report is None:
+                raise ValueError(f"Report disappeared: {report_id}")
+            await store_report_artifacts(
+                session,
+                report,
+                out_dir,
+                module=module_id_for_report_mode(report.mode),
+            )
+            await session.commit()
     except Exception as exc:  # noqa: BLE001 — mark report failed
         async with factory() as session:
             report = await session.get(Report, report_id)
@@ -711,18 +724,65 @@ async def list_jobs(
     status: JobStatus | None = None,
     customer_id: int | None = None,
     limit: int = 50,
+    include_archived: bool = False,
+    archived_only: bool = False,
 ) -> list[Job]:
     stmt = select(Job).order_by(Job.created_at.desc()).limit(min(max(limit, 1), 100))
     if status is not None:
         stmt = stmt.where(Job.status == status)
     if customer_id is not None:
         stmt = stmt.where(Job.customer_id == customer_id)
+    if archived_only:
+        stmt = stmt.where(Job.archived_at.is_not(None))
+    elif not include_archived:
+        stmt = stmt.where(Job.archived_at.is_(None))
     result = await session.execute(stmt)
     return list(result.scalars().all())
 
 
 async def get_job(session: AsyncSession, job_id: str) -> Job | None:
     return await session.get(Job, job_id)
+
+
+async def set_job_archived(session: AsyncSession, job: Job, archived: bool) -> Job:
+    if archived:
+        if job.status not in {"succeeded", "failed"}:
+            raise ValueError("Only finished jobs can be archived")
+        if job.archived_at is None:
+            job.archived_at = utcnow()
+    else:
+        job.archived_at = None
+    job.updated_at = utcnow()
+    await session.commit()
+    await session.refresh(job)
+    await publish_job(job)
+    return job
+
+
+async def archive_finished_jobs(
+    session: AsyncSession,
+    *,
+    customer_id: int | None = None,
+) -> list[Job]:
+    stmt = select(Job).where(
+        Job.status.in_(("succeeded", "failed")),
+        Job.archived_at.is_(None),
+    )
+    if customer_id is not None:
+        stmt = stmt.where(Job.customer_id == customer_id)
+    stmt = stmt.order_by(Job.created_at.desc())
+    rows = list((await session.execute(stmt)).scalars().all())
+    if not rows:
+        return []
+    now = utcnow()
+    for job in rows:
+        job.archived_at = now
+        job.updated_at = now
+    await session.commit()
+    for job in rows:
+        await session.refresh(job)
+        await publish_job(job)
+    return rows
 
 
 async def fail_interrupted_jobs(

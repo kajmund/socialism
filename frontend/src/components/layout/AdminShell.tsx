@@ -11,26 +11,16 @@ import {
   type CustomerScope,
 } from "@/lib/scoping"
 import { cn } from "@/lib/utils"
+import {
+  brandToForModules,
+  buildSidebarNav,
+  type ShellNavItem,
+  type ShellNavSection,
+} from "@/modules/nav"
+import { useKundModules } from "@/modules/useKundModules"
 import { useJobsRealtime } from "@/realtime/JobsRealtimeProvider"
 
-export type ShellNavItem = {
-  key: MessageKey
-  to: string
-  match: string
-  showActiveJobBadge?: boolean
-}
-
-const DEFAULT_NAV_ITEMS: ShellNavItem[] = [
-  { key: "nav.personas", to: "/personas", match: "/personas" },
-  { key: "nav.populations", to: "/populations", match: "/populations" },
-  { key: "nav.messages", to: "/messages", match: "/messages" },
-  { key: "nav.tools", to: "/tools", match: "/tools" },
-  { key: "nav.users", to: "/anvandare", match: "/anvandare" },
-  { key: "nav.runs", to: "/runs", match: "/runs" },
-  { key: "nav.reports", to: "/reports", match: "/reports" },
-  { key: "nav.feedback", to: "/feedback", match: "/feedback" },
-  { key: "nav.jobs", to: "/jobs", match: "/jobs", showActiveJobBadge: true },
-]
+export type { ShellNavItem }
 
 const SEEN_KEY = "opinionssimulator.jobStatusSeen"
 
@@ -188,14 +178,12 @@ function toastFromTransition(
 function NavItems({
   pathname,
   activeCount,
-  variant,
   t,
   items,
   onNavigate,
 }: {
   pathname: string
   activeCount: number
-  variant: "inline" | "panel"
   t: Translate
   items: ShellNavItem[]
   onNavigate?: () => void
@@ -208,13 +196,7 @@ function NavItems({
           <NavLink
             key={link.to}
             to={link.to}
-            className={cn(
-              "admin-topnav-link",
-              variant === "inline"
-                ? "admin-topnav-link-inline"
-                : "admin-topnav-link-panel",
-              active && "is-active",
-            )}
+            className={cn("admin-sidenav-link", active && "is-active")}
             onClick={onNavigate}
           >
             {t(link.key)}
@@ -229,6 +211,39 @@ function NavItems({
           </NavLink>
         )
       })}
+    </>
+  )
+}
+
+function NavSections({
+  pathname,
+  activeCount,
+  t,
+  sections,
+  onNavigate,
+}: {
+  pathname: string
+  activeCount: number
+  t: Translate
+  sections: ShellNavSection[]
+  onNavigate?: () => void
+}) {
+  return (
+    <>
+      {sections.map((section) => (
+        <div key={section.id} className="admin-sidenav-section">
+          {section.titleKey ? (
+            <p className="admin-sidenav-heading">{t(section.titleKey)}</p>
+          ) : null}
+          <NavItems
+            pathname={pathname}
+            activeCount={activeCount}
+            t={t}
+            items={section.items}
+            onNavigate={onNavigate}
+          />
+        </div>
+      ))}
     </>
   )
 }
@@ -268,11 +283,7 @@ function roleLabel(role: Role, t: Translate): string {
   }
 }
 
-function SessionActions({
-  compact,
-}: {
-  compact?: boolean
-}) {
+function SessionActions() {
   const { t, locale, setLocale } = useLocale()
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
@@ -283,16 +294,16 @@ function SessionActions({
   }
 
   return (
-    <div className={cn("flex items-center gap-4", compact && "flex-wrap")}>
+    <div className="admin-sidenav-session">
       {user ? (
-        <div className="flex items-baseline gap-2.5 text-xs text-white/45">
-          <span>
+        <div className="flex flex-col gap-1 text-xs text-white/45">
+          <span className="break-all">
             {t("auth.signedInAs", { name: user.username })}
             <span className="text-white/30"> · {roleLabel(user.role, t)}</span>
           </span>
           <button
             type="button"
-            className="bg-transparent p-0 text-xs text-white/40 underline-offset-2 hover:text-white/75 hover:underline"
+            className="self-start bg-transparent p-0 text-xs text-white/40 underline-offset-2 hover:text-white/75 hover:underline"
             onClick={() => void onSignOut()}
           >
             {t("auth.signOut")}
@@ -306,22 +317,27 @@ function SessionActions({
 
 export function AdminShell({
   children,
-  navItems = DEFAULT_NAV_ITEMS,
-  brandTo = "/",
+  navItems,
+  brandTo: brandToProp,
   navAriaLabelKey = "nav.ariaMain",
   mobileMenuTitleKey = "brand.product",
   showTools: showToolsProp,
   jobToasts = true,
   menuId = "admin-main-menu",
-  customerScope = "admin",
+  customerScope: customerScopeProp,
 }: AdminShellProps) {
   const { pathname } = useLocation()
   const { t } = useLocale()
-  const { isAdmin } = useAuth()
+  const { isAdmin, resolvedModules } = useAuth()
+  const { moduleIds, loading: modulesLoading } = useKundModules()
   const showTools = showToolsProp ?? isAdmin
-  const visibleNavItems = showTools
-    ? navItems
-    : navItems.filter((link) => link.to !== "/tools" && link.to !== "/anvandare")
+  const activeModuleIds = modulesLoading ? resolvedModules : moduleIds
+  const sections = useMemo(() => {
+    if (navItems) return [{ id: "custom", items: navItems }]
+    return buildSidebarNav({ moduleIds: activeModuleIds, showTools })
+  }, [activeModuleIds, navItems, showTools])
+  const brandTo = brandToProp ?? brandToForModules(activeModuleIds)
+  const customerScope = customerScopeProp ?? (pathname.startsWith("/bolag") ? "bolag" : "admin")
   const { jobs } = useJobsRealtime()
   const scopedJobs = useMemo(
     () => jobs.filter((job) => matchesCustomerScope(job, customerScope)),
@@ -352,7 +368,7 @@ export function AdminShell({
   }, [])
 
   useEffect(() => {
-    const desktop = window.matchMedia("(min-width: 1280px)")
+    const desktop = window.matchMedia("(min-width: 1024px)")
     function sync() {
       if (desktop.matches) setMenuOpen(false)
     }
@@ -392,71 +408,61 @@ export function AdminShell({
 
   return (
     <div className="theme-admin admin-shell">
-      <header className="admin-topnav relative text-white">
-        <div className="mx-auto flex h-[88px] max-w-[1440px] items-center justify-between gap-8 px-6 md:h-[100px] md:px-10 2xl:px-[90px]">
-          <NavLink
-            to={brandTo}
-            className="admin-topnav-brand no-underline"
-            onClick={() => setMenuOpen(false)}
-          >
-            <img
-              src="/devbrains-logo-white.png"
-              alt="Devbrains"
-              className="h-10 w-auto md:h-[50px]"
-            />
-          </NavLink>
-          <div className="hidden items-center gap-6 xl:flex">
-            <nav className="flex items-center gap-6" aria-label={t(navAriaLabelKey)}>
-              <NavItems
-                pathname={pathname}
-                activeCount={activeCount}
-                variant="inline"
-                t={t}
-                items={visibleNavItems}
-              />
-            </nav>
-            <SessionActions />
-          </div>
-          <button
-            type="button"
-            className="admin-topnav-burger flex xl:hidden"
-            aria-expanded={menuOpen}
-            aria-controls={menuId}
-            aria-label={menuOpen ? t("nav.closeMenu") : t("nav.openMenu")}
-            onClick={() => setMenuOpen((open) => !open)}
-          >
-            <MenuIcon open={menuOpen} />
-          </button>
-        </div>
-        {menuOpen ? (
-          <div
-            id={menuId}
-            className="admin-topnav-panel absolute inset-x-0 top-full z-50 max-h-[calc(100vh-88px)] overflow-y-auto md:max-h-[calc(100vh-100px)] xl:hidden"
-          >
-            <div className="mx-auto flex max-w-[1440px] flex-col gap-8 px-6 py-10 md:px-10 md:py-12">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#fbd37b]">
-                {t(mobileMenuTitleKey)}
-              </p>
-              <nav className="flex flex-col gap-1" aria-label={t(navAriaLabelKey)}>
-                <NavItems
-                  pathname={pathname}
-                  activeCount={activeCount}
-                  variant="panel"
-                  t={t}
-                  items={visibleNavItems}
-                  onNavigate={() => setMenuOpen(false)}
-                />
-              </nav>
-              <SessionActions compact />
-            </div>
-          </div>
-        ) : null}
+      <header className="admin-mobilebar text-white">
+        <NavLink
+          to={brandTo}
+          className="admin-sidenav-brand no-underline"
+          onClick={() => setMenuOpen(false)}
+        >
+          <img
+            src="/devbrains-logo-white.png"
+            alt="Devbrains"
+            className="h-8 w-auto"
+          />
+        </NavLink>
+        <button
+          type="button"
+          className="admin-sidenav-burger"
+          aria-expanded={menuOpen}
+          aria-controls={menuId}
+          aria-label={menuOpen ? t("nav.closeMenu") : t("nav.openMenu")}
+          onClick={() => setMenuOpen((open) => !open)}
+        >
+          <MenuIcon open={menuOpen} />
+        </button>
       </header>
+      <aside
+        id={menuId}
+        className={cn("admin-sidenav text-white", menuOpen && "is-open")}
+      >
+        <NavLink
+          to={brandTo}
+          className="admin-sidenav-brand admin-sidenav-brand-desktop no-underline"
+          onClick={() => setMenuOpen(false)}
+        >
+          <img
+            src="/devbrains-logo-white.png"
+            alt="Devbrains"
+            className="h-8 w-auto"
+          />
+        </NavLink>
+        <p className="admin-sidenav-product lg:hidden">{t(mobileMenuTitleKey)}</p>
+        <nav className="admin-sidenav-nav" aria-label={t(navAriaLabelKey)}>
+          <NavSections
+            pathname={pathname}
+            activeCount={activeCount}
+            t={t}
+            sections={sections}
+            onNavigate={() => setMenuOpen(false)}
+          />
+        </nav>
+        <SessionActions />
+      </aside>
       <main className="admin-main-scroll">{children}</main>
       {menuOpen ? (
         <button
           type="button"
-          className="fixed inset-0 z-40 bg-black/40 xl:hidden"
+          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
           aria-label={t("nav.closeMenu")}
           onClick={() => setMenuOpen(false)}
         />

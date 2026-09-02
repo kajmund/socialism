@@ -58,4 +58,28 @@ export const api = {
   delete<T = void>(path: string, query?: Query): Promise<T> {
     return call<T>(path, { method: "DELETE", query })
   },
+  async getBlob(path: string): Promise<Blob> {
+    const token = await accessToken()
+    const headers: Record<string, string> = { Accept: "*/*" }
+    if (token) headers.Authorization = `Bearer ${token}`
+    const response = await fetch(buildUrl(path), { headers })
+    if (!response.ok) {
+      let detail = `HTTP ${response.status}`
+      try {
+        const body: unknown = await response.json()
+        if (
+          typeof body === "object" &&
+          body !== null &&
+          "detail" in body &&
+          typeof (body as { detail: unknown }).detail === "string"
+        ) {
+          detail = (body as { detail: string }).detail
+        }
+      } catch {
+        /* keep status text */
+      }
+      throw new ApiError(detail, { status: response.status })
+    }
+    return response.blob()
+  },
 }
