@@ -7,11 +7,11 @@ tags: [grunddata]
 
 # Byta gränssnittsspråk
 
-Opinionssimulator kan visa menyer, knappar och meddelanden på **svenska** eller **engelska**. Valet gäller bara gränssnittet — det påverkar inte promptspråk i konfigurationer eller språk på SSR-ankare.
+Socialism kan visa menyer, knappar och meddelanden på **svenska** eller **engelska**. Valet gäller bara gränssnittet — det påverkar inte promptspråk i konfigurationer eller språk på SSR-ankare.
 
 ## Steg
 
-1. Titta längst upp till höger i menyraden, bredvid navigationslänkarna — eller på inloggningssidan. På en liten skärm öppnar du först menyknappen med de tre strecken.
+1. Titta längst ned i vänstermenyn — eller på inloggningssidan. På en liten skärm öppnar du först menyknappen uppe till höger.
 2. Öppna rullgardinsmenyn **Språk**.
 3. Välj **Svenska** eller **English**.
 4. Sidan behåller ditt val nästa gång du öppnar appen i samma webbläsare.

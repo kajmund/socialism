@@ -15,8 +15,11 @@ help:
 	@echo "  make knowledge-validate  Validate OKF manual bundle"
 	@echo "  make knowledge-mcp       Run OKF MCP server (stdio)"
 
+# uv run without --extra oasis uninstalls camel-oasis. Keep it when .env asks for OASIS.
+BACKEND_UV_EXTRA := $(shell grep -E '^SIMULATION_ENGINE=oasis$$' backend/.env 2>/dev/null >/dev/null && echo --extra oasis)
+
 backend:
-	cd backend && uv run uvicorn app.main:app --reload
+	cd backend && uv run $(BACKEND_UV_EXTRA) uvicorn app.main:app --reload
 
 frontend:
 	cd frontend && pnpm dev
@@ -40,19 +43,19 @@ start:
 	    done; \
 	  }; \
 	  trap cleanup EXIT INT TERM HUP; \
-	  (cd backend && uv run uvicorn app.main:app --reload) & \
+	  (cd backend && uv run $(BACKEND_UV_EXTRA) uvicorn app.main:app --reload) & \
 	  (cd frontend && pnpm dev) & \
 	  wait \
 	'
 
 install:
-	cd backend && uv sync
+	cd backend && uv sync $(BACKEND_UV_EXTRA)
 	cd frontend && pnpm install
 
 test: test-backend test-frontend
 
 test-backend:
-	cd backend && uv run pytest
+	cd backend && uv run $(BACKEND_UV_EXTRA) pytest
 
 test-frontend:
 	cd frontend && pnpm lint

@@ -80,6 +80,8 @@ from app.services.run_trace_enrich import (
 from app.realtime.run_broadcast import run_broadcast
 from app.services.run_measurements import build_measurements
 from app.services.simulation.action_catalog import population_action_names
+from app.services.run_plans import variant_plans
+from app.services.run_results import previous_attempts
 
 ARTIFACT_ROOT = Path("data/oasis")
 DEFAULT_SIMULATION_START = date(2026, 8, 1)
@@ -90,8 +92,14 @@ class OasisUnavailable(RuntimeError):
 
 
 def oasis_installed() -> bool:
+    """True only when camel-oasis is actually importable.
+
+    A leftover empty ``oasis`` namespace in site-packages must not count —
+    report/sim code then hits ``No module named 'camel'``.
+    """
     try:
-        import oasis  # noqa: F401
+        import camel  # noqa: F401
+        import oasis.social_agent  # noqa: F401
     except ImportError:
         return False
     return True
@@ -154,95 +162,6 @@ def _artifact_dir(run_id: int, variant_id: str = "main") -> Path:
     path = ARTIFACT_ROOT / f"run_{run_id}" / variant_id
     path.mkdir(parents=True, exist_ok=True)
     return path
-
-
-def _parse_ticks(raw: list | None) -> list[Tick]:
-    return [Tick.model_validate(t) for t in (raw or [])]
-
-
-def variant_plans(run: Run) -> list[tuple[str, str, list[Tick]]]:
-    """Return (variant_id, label, ticks) for each simulation to run.
-
-    Without a branch: one plan over main_ticks.
-    With a branch: Version A and B, each = stem (through afterIndex) + branch ticks.
-    """
-    main = _parse_ticks(run.main_ticks)
-    branch = run.branch
-    if not branch:
-        return [("main", "Huvudtidslinje", main)]
-
-    if isinstance(branch, dict):
-        raw_after = branch.get("afterIndex", 0)
-        after = int(raw_after) if raw_after is not None else 0
-        a_raw = branch.get("a") or []
-        b_raw = branch.get("b") or []
-    else:
-        after = branch.afterIndex
-        a_raw = branch.a
-        b_raw = branch.b
-
-    mode = branch.get("mode", "ab") if isinstance(branch, dict) else getattr(branch, "mode", "ab")
-    if mode == "stimulus_control":
-        label_a, label_b = "Med stimulus", "Kontroll (ingen injektion)"
-    else:
-        label_a, label_b = "Version A", "Version B"
-
-    stem = main[: max(0, after + 1)]
-    return [
-        ("a", label_a, stem + _parse_ticks(a_raw)),
-        ("b", label_b, stem + _parse_ticks(b_raw)),
-    ]
-
-
-def previous_attempts(results: dict[str, Any] | None) -> list[dict[str, Any]]:
-    """Normalize stored results into an attempts list (newest first)."""
-    if not results:
-        return []
-    attempts = results.get("attempts")
-    if isinstance(attempts, list):
-        return [a for a in attempts if isinstance(a, dict)]
-
-    if isinstance(results.get("variants"), list):
-        return [
-            {
-                "id": "legacy",
-                "finished_at": None,
-                "seed": results.get("seed"),
-                "engine": results.get("engine"),
-                "variants": results["variants"],
-                "error": results.get("error"),
-            }
-        ]
-
-    if (
-        results.get("posts") is not None
-        or results.get("comments") is not None
-        or results.get("error")
-        or results.get("agents") is not None
-    ):
-        return [
-            {
-                "id": "legacy",
-                "finished_at": None,
-                "seed": results.get("seed"),
-                "engine": results.get("engine"),
-                "error": results.get("error"),
-                "variants": [
-                    {
-                        "id": "main",
-                        "label": "Huvudtidslinje",
-                        "error": results.get("error"),
-                        "ticks_run": results.get("ticks_run"),
-                        "agents": results.get("agents") or [],
-                        "posts": results.get("posts") or [],
-                        "comments": results.get("comments") or [],
-                        "artifact_db": results.get("artifact_db"),
-                        "profile_csv": results.get("profile_csv"),
-                    }
-                ],
-            }
-        ]
-    return []
 
 
 def _max_event_time(db_path: Path) -> int:
@@ -722,7 +641,6 @@ async def _attach_live_feed_snapshot(
     Live feed is auxiliary UI data — a snapshot failure must not discard a
     successful OASIS variant payload.
     """
-    # Circular: run_watch imports variant_plans from this module.
     from app.services.run_watch import snapshot_live_feed_rounds
 
     log = logging.getLogger(__name__)

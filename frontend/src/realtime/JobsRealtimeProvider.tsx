@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -17,6 +18,7 @@ type JobsRealtimeValue = {
   connected: boolean
   status: WsStatus
   error: string | null
+  applyJob: (job: Job) => void
 }
 
 const JobsRealtimeContext = createContext<JobsRealtimeValue | null>(null)
@@ -27,7 +29,14 @@ function isJob(value: unknown): value is Job {
   return typeof j.id === "string" && typeof j.status === "string"
 }
 
+function isArchived(job: Job): boolean {
+  return Boolean(job.archived_at)
+}
+
 function upsertJob(list: Job[], job: Job): Job[] {
+  if (isArchived(job)) {
+    return list.filter((j) => j.id !== job.id)
+  }
   const idx = list.findIndex((j) => j.id === job.id)
   if (idx === -1) return [job, ...list].slice(0, 50)
   const next = list.slice()
@@ -70,7 +79,7 @@ export function JobsRealtimeProvider({ children }: { children: ReactNode }) {
         if (!data || typeof data !== "object") return
         const msg = data as Record<string, unknown>
         if (msg.type === "jobs.snapshot" && Array.isArray(msg.jobs)) {
-          const rows = msg.jobs.filter(isJob)
+          const rows = msg.jobs.filter(isJob).filter((job) => !isArchived(job))
           setJobs(rows)
           setError(null)
           return
@@ -91,6 +100,10 @@ export function JobsRealtimeProvider({ children }: { children: ReactNode }) {
     }
   }, [customerId, loading])
 
+  const applyJob = useCallback((job: Job) => {
+    setJobs((prev) => upsertJob(prev, job))
+  }, [])
+
   const value = useMemo<JobsRealtimeValue>(() => {
     const activeCount = jobs.filter(
       (j) => j.status === "pending" || j.status === "running",
@@ -101,8 +114,9 @@ export function JobsRealtimeProvider({ children }: { children: ReactNode }) {
       connected: status === "open",
       status,
       error,
+      applyJob,
     }
-  }, [jobs, status, error])
+  }, [applyJob, jobs, status, error])
 
   return (
     <JobsRealtimeContext.Provider value={value}>{children}</JobsRealtimeContext.Provider>

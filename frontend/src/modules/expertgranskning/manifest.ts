@@ -8,4 +8,7 @@ export const expertgranskningManifest: ModuleManifest = {
   homePath: "/expertgranskning",
   components: ["panel_engine", "spindoctor"],
   reportModes: ["expertgranskning"],
+  navItems: [
+    { key: "nav.expertgranskning", to: "/expertgranskning", match: "/expertgranskning" },
+  ],
 }

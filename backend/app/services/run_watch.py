@@ -9,7 +9,7 @@ from app.database.models import PopulationMember, Run
 from app.schemas.domain import Tick
 from app.services.oasis_engagement import read_trace_range
 from app.services.oasis_profiles import watch_agent_roster
-from app.services.oasis_run import variant_plans
+from app.services.run_plans import variant_plans
 from app.services.run_live_progress import read_live_progress
 from app.services.run_trace_enrich import (
     activity_items_from_trace_rows,
