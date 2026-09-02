@@ -7,6 +7,7 @@ import { useKundModules } from "@/modules/useKundModules"
 const BOLAG_NAV_ITEMS: ShellNavItem[] = [
   { key: "bolag.nav.experter", to: "/bolag/experter", match: "/bolag/experter" },
   { key: "bolag.nav.expertPanels", to: "/bolag/expertpaneler", match: "/bolag/expertpaneler" },
+  { key: "bolag.nav.expertgranskning", to: "/bolag/expertgranskning", match: "/bolag/expertgranskning" },
   { key: "bolag.nav.campaigns", to: "/bolag/campaigns", match: "/bolag/campaigns" },
   { key: "bolag.nav.reports", to: "/bolag/reports", match: "/bolag/reports" },
   { key: "bolag.nav.feedback", to: "/bolag/feedback", match: "/bolag/feedback" },
@@ -26,6 +27,18 @@ function navComponent(match: string): ModuleComponentId | null {
   }
 }
 
+function navVisible(
+  match: string,
+  manifests: { id: string; components: readonly string[] }[],
+): boolean {
+  if (match === "/bolag/expertgranskning") {
+    return manifests.some((manifest) => manifest.id === "expertgranskning")
+  }
+  const component = navComponent(match)
+  if (component == null) return true
+  return manifests.some((manifest) => manifest.components.includes(component))
+}
+
 type BolagShellProps = {
   children?: React.ReactNode
 }
@@ -39,11 +52,7 @@ export function BolagShell({ children }: BolagShellProps) {
   const { manifests, loading } = useKundModules()
   const navItems = useMemo(() => {
     if (loading) return BOLAG_NAV_ITEMS
-    return BOLAG_NAV_ITEMS.filter((item) => {
-      const component = navComponent(item.match)
-      if (component == null) return true
-      return manifests.some((manifest) => manifest.components.includes(component))
-    })
+    return BOLAG_NAV_ITEMS.filter((item) => navVisible(item.match, manifests))
   }, [loading, manifests])
   return (
     <AdminShell
