@@ -200,7 +200,7 @@ async def post_campaign_sourcing_chat(
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> DdSourcingChatResponse:
-    await _require_campaign(session, campaign_id, user)
+    row = await _require_campaign(session, campaign_id, user)
     try:
         reply, candidates = await run_sourcing_chat_turn(
             session,
