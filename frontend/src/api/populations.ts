@@ -35,6 +35,7 @@ export type PopulationRecipe = {
   dist: Record<string, DistGroup>
   locale?: string
   seed?: number | null
+  modules?: string[]
 }
 
 export type GeneratedPersona = {
@@ -104,11 +105,16 @@ export type PopulationUpdate = {
   bump_version?: boolean
   generation_id?: string
   keep_keys?: string[]
+  modules?: string[]
 }
 
-export function listPopulations(params?: { kind?: "persona" | "expert_panel" }): Promise<PopulationSummary[]> {
+export function listPopulations(params?: {
+  kind?: "persona" | "expert_panel"
+  module?: string
+}): Promise<PopulationSummary[]> {
   const search = new URLSearchParams()
   if (params?.kind) search.set("kind", params.kind)
+  if (params?.module) search.set("module", params.module)
   const q = search.toString()
   return api.get<PopulationSummary[]>(`/populations${q ? `?${q}` : ""}`)
 }

@@ -19,13 +19,14 @@ from app.modules.report_binding import UnknownReportModeError
 
 
 def test_module_registry_keys():
-    assert set(MODULE_REGISTRY.keys()) == {"dd", "politik"}
+    assert set(MODULE_REGISTRY.keys()) == {"dd", "politik", "expertgranskning"}
 
 
 def test_module_id_for_report_mode():
     assert module_id_for_report_mode("dd") == "dd"
     assert module_id_for_report_mode("quick") == "politik"
     assert module_id_for_report_mode("full") == "politik"
+    assert module_id_for_report_mode("expertgranskning") == "expertgranskning"
 
 
 def test_module_id_for_report_mode_unknown_fails_loud():
@@ -37,12 +38,14 @@ def test_resolve_report_mode_from_source_type():
     assert resolve_report_mode("dd_session", None) == "dd"
     assert resolve_report_mode("oasis", None) == "quick"
     assert resolve_report_mode("oasis", "full") == "full"
+    assert resolve_report_mode("expertgranskning_session", None) == "expertgranskning"
     with pytest.raises(ValueError, match="not valid"):
         resolve_report_mode("oasis", "dd")
     with pytest.raises(ValueError, match="not valid"):
         resolve_report_mode("dd_session", "quick")
     assert "dd_session" in source_types_for_registry()
     assert "oasis" in source_types_for_registry()
+    assert "expertgranskning_session" in source_types_for_registry()
 
 
 def test_report_binding_for_known_modes():
@@ -51,6 +54,8 @@ def test_report_binding_for_known_modes():
     politik_binding = report_binding_for_mode("quick")
     assert "oasis" in politik_binding.source_types
     assert report_binding_for_mode("full") is politik_binding
+    expert_binding = report_binding_for_mode("expertgranskning")
+    assert "expertgranskning_session" in expert_binding.source_types
 
 
 def test_assert_unique_report_modes_rejects_collision():
@@ -119,6 +124,20 @@ def test_module_manifest_shapes():
     assert politik.spindoctor.supports_interview is True
     assert "get_report_ssr" in politik.spindoctor.mcp_tool_names
     assert politik.sub_questions_provider is None
+
+    expert = MODULE_REGISTRY["expertgranskning"]
+    assert expert.id == "expertgranskning"
+    assert expert.frontend_entry == "expertgranskning"
+    assert expert.components == frozenset({"panel_engine", "spindoctor"})
+    assert expert.report_modes == frozenset({"expertgranskning"})
+    assert expert.report is not None
+    assert expert.spindoctor is not None
+    assert expert.spindoctor.source_loader is not None
+    assert expert.spindoctor.context_builder is not None
+    assert expert.spindoctor.supports_interview is False
+    assert expert.sub_questions_provider is None
+    assert expert.expert_defaults_provider is None
+    assert expert.prompt_defaults_provider is not None
 
 
 def test_spindoctor_context_has_no_report_mode_branch():

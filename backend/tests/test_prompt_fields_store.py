@@ -13,6 +13,7 @@ from app.serializers import utcnow
 from app.services.prompt_catalog import PROMPT_FIELDS, default_prompts
 from app.services.prompt_defaults import (
     dd_prompt_defaults,
+    expertgranskning_prompt_defaults,
     modules_for_prompt_key,
     politik_prompt_defaults,
 )
@@ -46,8 +47,16 @@ def test_modules_for_prompt_key_follows_prefix_convention():
     assert modules_for_prompt_key("messages.variant.system") == ["politik"]
     assert modules_for_prompt_key("oasis.env.main") == ["politik"]
     assert modules_for_prompt_key("help.system") == ["dd", "politik"]
-    assert modules_for_prompt_key("spinndoctor.system") == ["dd", "politik"]
-    assert modules_for_prompt_key("panel.expert.system") == ["dd", "politik"]
+    assert modules_for_prompt_key("spinndoctor.system") == [
+        "dd",
+        "politik",
+        "expertgranskning",
+    ]
+    assert modules_for_prompt_key("panel.expert.system") == [
+        "dd",
+        "politik",
+        "expertgranskning",
+    ]
 
 
 def test_module_providers_cover_all_catalog_keys_without_overlap_gaps():
@@ -60,6 +69,12 @@ def test_module_providers_cover_all_catalog_keys_without_overlap_gaps():
     assert "persona.field_guide" in politik_keys
     assert "persona.field_guide" not in dd_keys
     assert "help.system" in dd_keys & politik_keys
+    expert_keys = {field["key"] for field in expertgranskning_prompt_defaults()}
+    assert expert_keys < all_keys
+    assert "panel.expert.system" in expert_keys
+    assert "spinndoctor.system" in expert_keys
+    assert "help.system" not in expert_keys
+    assert "panel.dd.moderator.system" not in expert_keys
 
 
 @pytest.mark.asyncio
@@ -202,5 +217,8 @@ async def test_startup_seed_fills_catalog_without_default_overrides(client_db):
         help_row = await get_prompt_field_by_key(db, "help.system")
         assert help_row is not None
         assert set(help_row.modules) == {"dd", "politik"}
+        shared = await get_prompt_field_by_key(db, "panel.expert.system")
+        assert shared is not None
+        assert set(shared.modules) == {"dd", "politik", "expertgranskning"}
         overrides = (await db.execute(select(PromptOverride))).scalars().all()
         assert overrides == []

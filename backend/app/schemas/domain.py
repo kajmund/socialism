@@ -231,6 +231,7 @@ class PopulationSummary(BaseModel):
     updated: str
     versions: int
     fp: list[list[int]]
+    modules: list[str] = Field(default_factory=list)
 
 
 class PopulationDetail(PopulationSummary):
@@ -261,6 +262,7 @@ class PopulationUpdate(BaseModel):
     bump_version: bool = False
     generation_id: str | None = None
     keep_keys: list[str] | None = None
+    modules: list[str] | None = None
 
 
 class PersonaGenerateRequest(BaseModel):
@@ -1202,6 +1204,9 @@ class ReportSource(BaseModel):
         elif self.type == "dd_session":
             if not (self.session_id or "").strip() or not (self.candidate_id or "").strip():
                 raise ValueError("dd_session source requires session_id and candidate_id")
+        elif self.type == "expertgranskning_session":
+            if not (self.session_id or "").strip():
+                raise ValueError("expertgranskning_session source requires session_id")
         return self
 
 

@@ -5,6 +5,7 @@
 export const MODULE_HOME_PATHS: Record<string, string> = {
   dd: "/bolag",
   politik: "/",
+  expertgranskning: "/expertgranskning",
 }
 
 const HOME_MODULE_PRIORITY = ["politik", "dd"] as const

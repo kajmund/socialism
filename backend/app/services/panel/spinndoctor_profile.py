@@ -12,7 +12,7 @@ from app.services.panel.expert_profiles_store import (
 from app.services.prompt_catalog import render_prompt
 
 SPINNDOCTOR_KEY = "spinndoctor"
-SPINNDOCTOR_MODULES = ("dd", "politik")
+SPINNDOCTOR_MODULES = ("dd", "politik", "expertgranskning")
 
 SPINNDOCTOR_SPEC: dict[str, str] = {
     "key": SPINNDOCTOR_KEY,

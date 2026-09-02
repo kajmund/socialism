@@ -18,10 +18,16 @@ export type DdReportSource = {
   label?: string
 }
 
-export type ReportSource = OasisReportSource | DdReportSource
+export type ExpertgranskningReportSource = {
+  type: "expertgranskning_session"
+  session_id: string
+  label?: string
+}
+
+export type ReportSource = OasisReportSource | DdReportSource | ExpertgranskningReportSource
 
 /** Legacy rows may still be `"full"`; new OASIS reports are `"quick"`. */
-export type ReportMode = "full" | "quick" | "dd"
+export type ReportMode = "full" | "quick" | "dd" | "expertgranskning"
 
 export type Report = {
   id: string
@@ -58,7 +64,17 @@ export type DdReportCreate = {
   mode?: "dd"
 }
 
-export type ReportCreate = OasisReportCreate | DdReportCreate
+export type ExpertgranskningReportCreate = {
+  sources: Array<{
+    type: "expertgranskning_session"
+    session_id: string
+  }>
+  title?: string
+  locale?: Locale
+  mode?: "expertgranskning"
+}
+
+export type ReportCreate = OasisReportCreate | DdReportCreate | ExpertgranskningReportCreate
 
 export function createReport(body: OasisReportCreate): Promise<Report> {
   return api.post<Report>("/reports", body)
@@ -79,6 +95,24 @@ export function createDdReport(body: {
         type: "dd_session",
         session_id: body.session_id,
         candidate_id: body.candidate_id,
+      },
+    ],
+  })
+}
+
+export function createExpertgranskningReport(body: {
+  session_id: string
+  title?: string
+  locale?: Locale
+}): Promise<Report> {
+  return api.post<Report>("/reports", {
+    mode: "expertgranskning",
+    title: body.title,
+    locale: body.locale,
+    sources: [
+      {
+        type: "expertgranskning_session",
+        session_id: body.session_id,
       },
     ],
   })
