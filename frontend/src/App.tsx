@@ -1,8 +1,10 @@
 import { Navigate, Outlet, Route, Routes, useParams } from "react-router-dom"
+import { useAuth } from "@/auth/AuthProvider"
 import { RequireAdmin } from "@/auth/RequireAdmin"
 import { RequireAuth } from "@/auth/RequireAuth"
 import { RequireBolag } from "@/auth/RequireBolag"
 import { RequireOsUser } from "@/auth/RequireOsUser"
+import { homePathForUser } from "@/lib/auth"
 import { BolagShell } from "@/components/layout/BolagShell"
 import { HelpChatWidget } from "@/components/help/HelpChatWidget"
 import { ToolsShell } from "@/components/layout/ToolsShell"
@@ -26,7 +28,6 @@ import { BolagJobsPage, JobsPage } from "@/pages/JobsPage"
 import { KunderPage } from "@/pages/KunderPage"
 import { AnvandarePage } from "@/pages/AnvandarePage"
 import { LoginPage } from "@/pages/LoginPage"
-import { ValjModulPage } from "@/pages/ValjModulPage"
 import { MessagesPage } from "@/pages/MessagesPage"
 import { MessagesWorkshopPage } from "@/pages/MessagesWorkshopPage"
 import { PanelCatalogPage } from "@/pages/PanelCatalogPage"
@@ -52,6 +53,11 @@ function RedirectConfigurationEdit() {
   return <Navigate to={`/tools/configurations/${id}/edit`} replace />
 }
 
+function RedirectToHome() {
+  const { resolvedModules } = useAuth()
+  return <Navigate to={homePathForUser(resolvedModules)} replace />
+}
+
 function AuthenticatedShell() {
   return (
     <JobsRealtimeProvider>
@@ -70,7 +76,7 @@ export default function App() {
 
       <Route element={<RequireAuth />}>
         <Route element={<AuthenticatedShell />}>
-          <Route path="/valj-modul" element={<ValjModulPage />} />
+          <Route path="/valj-modul" element={<RedirectToHome />} />
 
           <Route element={<RequireAdmin />}>
             <Route path="/anvandare" element={<AnvandarePage />} />

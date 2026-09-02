@@ -625,6 +625,11 @@ class Job(Base):
     )
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    archived_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        index=True,
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -669,6 +674,46 @@ class Report(Base):
     )
 
     kund: Mapped[Kund] = relationship(back_populates="reports")
+
+
+class StoredObject(Base):
+    """Metadata for an object in the kund+module Supabase S3 bucket."""
+
+    __tablename__ = "stored_objects"
+    __table_args__ = (
+        UniqueConstraint("bucket", "object_key", name="uq_stored_objects_bucket_key"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("kunder.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    module: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    bucket: Mapped[str] = mapped_column(String(63), nullable=False)
+    object_key: Mapped[str] = mapped_column(String(512), nullable=False)
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(128), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    campaign_id: Mapped[int | None] = mapped_column(
+        ForeignKey("dd_campaigns.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    candidate_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    report_id: Mapped[str | None] = mapped_column(
+        String(64),
+        ForeignKey("reports.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
 
 
 class SpindoctorMessage(Base):

@@ -1276,6 +1276,10 @@ class JobCreate(BaseModel):
     request: dict[str, Any] = Field(default_factory=dict)
 
 
+class JobArchiveUpdate(BaseModel):
+    archived: bool
+
+
 class JobOut(BaseModel):
     id: str
     customer_id: int
@@ -1288,4 +1292,5 @@ class JobOut(BaseModel):
     created_at: str
     started_at: str | None = None
     finished_at: str | None = None
+    archived_at: str | None = None
     updated_at: str

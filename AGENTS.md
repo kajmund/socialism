@@ -4,7 +4,7 @@ This file is the source of truth for any coding agent (Claude Code, Cursor, Code
 
 ## Product
 
-**Opinionssimulator** — internal tool for testing political messaging against AI agent populations (personas grounded in local context). Swedish UI by default.
+**Socialism** — internal tool for political messaging simulation and due diligence against AI agent populations (personas grounded in local context). Swedish UI by default.
 
 ## Stack
 
@@ -63,7 +63,7 @@ OKF MCP (later): `npx -y @mfdaves/okf-mcp@0.3.3 --project ./okf.project.yaml mcp
 - **Visual source of truth:** [`frontend/mockup/extracted/`](frontend/mockup/extracted/) (HTML/CSS/JSX mockup + Devbrains tokens under `_ds/`). Match that look and density for **all admin pages and reports** — do not invent a parallel visual language.
 - **Admin surfaces** (Personas, Populationer, Körningar, Jobs, Tools, …): Devbrains charcoal + gold — Tailwind tokens in `frontend/src/index.css` + shadcn, aligned with the mockup. Dense run-config chrome lives in `frontend/src/styles/admin-runs.css`.
 - **Reports** (HTML under `/reports/:id` and backend-generated `report.html`): same visual system as the mockup/admin chrome (typography, charcoal/gold, spacing, hierarchy) — not a generic document stylesheet.
-- **Admin scrolling:** nothing may scroll under the top nav. See [frontend/AGENTS.md](frontend/AGENTS.md) → **Admin shell / scrolling** (`admin-page` / `admin-page-body`). Do not reintroduce sticky/fixed topnav over page content.
+- **Admin scrolling:** nothing may scroll under the left sidenav (or the mobile top bar). See [frontend/AGENTS.md](frontend/AGENTS.md) → **Admin shell / scrolling** (`admin-page` / `admin-page-body`). Do not reintroduce sticky/fixed nav over page content.
 
 ## Frontend i18n (mandatory)
 

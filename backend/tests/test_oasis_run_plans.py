@@ -1,7 +1,8 @@
 """Unit tests for OASIS run planning (no camel-oasis required)."""
 
 from app.database.models import Run
-from app.services.oasis_run import previous_attempts, variant_plans
+from app.services.run_plans import variant_plans
+from app.services.run_results import previous_attempts
 
 
 def _tick(key: str, day: int, text: str = "", *, silent: bool = False) -> dict:

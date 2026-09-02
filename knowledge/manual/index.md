@@ -2,9 +2,9 @@
 okf_version: "0.2"
 ---
 
-# Användarmanual — Opinionssimulator
+# Användarmanual — Socialism
 
-Guider för dig som använder Opinionssimulator i webbläsaren. Teknisk setup och arkitektur finns i `docs/` (för utvecklare).
+Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkitektur finns i `docs/` (för utvecklare).
 
 # Kom igång
 
@@ -62,16 +62,16 @@ Guider för dig som använder Opinionssimulator i webbläsaren. Teknisk setup oc
 * [Hantera embedding-cache](hantera-embedding-cache.md) — Visa och rensa cachade SSR-ankarembeddings och budskapsbilder
 * [Följa bakgrundsjobb](folja-bakgrundsjobb.md) — Status för generering, simulering och rapporter
 
-# Due diligence (bolag)
+# Due Diligence (bolag)
 
-* [Använda due diligence-ytan](anvanda-due-diligence-ytan.md) — Meny, flöde och skillnad mot politisk simulering
+* [Använda Due Diligence-ytan](anvanda-due-diligence-ytan.md) — Meny, flöde och skillnad mot politisk simulering
 * [Hantera experter](hantera-experter.md) — Sök, öppna och ta bort experter i biblioteket
 * [Skapa och redigera expert](skapa-och-redigera-expert.md) — Profil, chatt och vilka verktyg experten får använda
 * [Hantera expertpaneler](hantera-expertpaneler.md) — Lista, duplicera och ta bort sparade paneler
 * [Komponera en expertpanel](komponera-expertpanel.md) — Välj experter och spara panelen direkt
 * [Visa och redigera expertpanel](visa-och-redigera-expertpanel.md) — Medlemmar och lägg till från biblioteket
-* [Hantera kampanjer](hantera-kampanjer.md) — Sök, öppna och ta bort DD-kampanjer
-* [Köra en DD-kampanj](kora-dd-kampanj.md) — Skapa kampanj, chatta fram bolag och köra DD per kandidat
+* [Hantera kampanjer](hantera-kampanjer.md) — Sök, öppna och ta bort Due Diligence-kampanjer
+* [Köra en Due Diligence-kampanj](kora-dd-kampanj.md) — Skapa kampanj, chatta fram bolag och köra Due Diligence per kandidat
 
 # Rapporter
 
