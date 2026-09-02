@@ -7,6 +7,7 @@ from fastapi import APIRouter
 from app.api import (
     anchor_sets,
     dd,
+    expertgranskning,
     label_vocabularies,
     messages,
     playground,
@@ -18,7 +19,16 @@ from app.services.dd.company_mcp import COMPANY_TOOL_NAMES
 from app.services.dd.default_experts import DEFAULT_EXPERT_SPECS
 from app.services.dd.module_report import generate_dd_module_report
 from app.services.dd.sub_questions import DD_SUB_QUESTION_DEFAULTS
-from app.services.prompt_defaults import dd_prompt_defaults, politik_prompt_defaults
+from app.services.expertgranskning.module_report import generate_expertgranskning_module_report
+from app.services.expertgranskning.spindoctor import (
+    build_expertgranskning_spindoctor_context_from_source,
+    load_expertgranskning_spindoctor_source,
+)
+from app.services.prompt_defaults import (
+    dd_prompt_defaults,
+    expertgranskning_prompt_defaults,
+    politik_prompt_defaults,
+)
 from app.services.report.politik_module_report import generate_politik_module_report
 from app.services.spindoctor_dd import (
     build_dd_spindoctor_context_from_source,
@@ -81,6 +91,26 @@ MODULE_REGISTRY: dict[str, ModuleManifest] = {
             context_builder=build_politik_spindoctor_context_from_source,
             mcp_tool_names=frozenset({"get_report_ssr"}) | SPINDOCTOR_OASIS_TOOL_NAMES,
             supports_interview=True,
+        ),
+    ),
+    "expertgranskning": ModuleManifest(
+        id="expertgranskning",
+        name="Expertgranskning",
+        icon="📝",
+        router=expertgranskning.router,
+        prompt_namespace="expertgranskning",
+        frontend_entry="expertgranskning",
+        components=frozenset({"panel_engine", "spindoctor"}),
+        report_modes=frozenset({"expertgranskning"}),
+        report=ReportBinding(
+            source_types=frozenset({"expertgranskning_session"}),
+            generate=generate_expertgranskning_module_report,
+        ),
+        prompt_defaults_provider=expertgranskning_prompt_defaults,
+        spindoctor=SpindoctorBinding(
+            source_loader=load_expertgranskning_spindoctor_source,
+            context_builder=build_expertgranskning_spindoctor_context_from_source,
+            supports_interview=False,
         ),
     ),
 }

@@ -96,6 +96,30 @@ async def bolag_demo_customer_id(session: AsyncSession) -> int:
     return int(row.id)
 
 
+async def require_default_project_id(session: AsyncSession, customer_id: int) -> int:
+    """Return the kund's default project, creating it if the seed never did."""
+    result = await session.execute(
+        select(Projekt)
+        .where(Projekt.customer_id == customer_id)
+        .order_by(Projekt.id.asc())
+        .limit(1)
+    )
+    row = result.scalar_one_or_none()
+    if row is not None:
+        return int(row.id)
+    now = utcnow()
+    row = Projekt(
+        customer_id=customer_id,
+        name="Default",
+        slug=DEFAULT_PROJEKT_SLUG,
+        created_at=now,
+        updated_at=now,
+    )
+    session.add(row)
+    await session.flush()
+    return int(row.id)
+
+
 async def default_os_project_id(session: AsyncSession) -> int:
     """Default project under the OS tenant — fail loud if seed was not run."""
     customer_id = await default_os_customer_id(session)

@@ -16,38 +16,40 @@ from app.auth.dependencies import get_current_user
 from app.auth.scope import assert_kund_access, effective_customer_id
 from app.database.models import PanelSession, Report, Run, UserAccount
 from app.database.session import get_session
+from app.modules.registry import resolve_report_mode, source_types_for_registry
+from app.modules.report_binding import UnknownReportModeError
 from app.schemas.domain import (
     JobCreate,
+    RecommendationSnapshot,
     ReportBulkDelete,
     ReportBulkDeleteResult,
     ReportCreate,
     ReportGenerateJobRequest,
     ReportOut,
     ReportStatus,
-    RecommendationSnapshot,
     VerdictCalibrationOut,
     VerdictCalibrationWrite,
 )
 from app.serializers import utcnow
 from app.services import jobs as jobs_service
+from app.services.customer_scope import customer_id_for_new_report
 from app.services.dd.candidate_runs import (
     get_candidate_run,
+)
+from app.services.dd.candidate_runs import (
     upsert_report as upsert_dd_candidate_report,
 )
-from app.services.spindoctor_board import clear_spindoctor_widgets
-from app.services.spindoctor_chat import clear_spindoctor_messages
+from app.services.expertgranskning import SOURCE_TYPE as EXPERTGRANSKNING_SOURCE
+from app.services.expertgranskning.sessions import is_expertgranskning_session
 from app.services.panel.result import dd_panel_result_from_stored
 from app.services.report import ARTIFACT_ROOT
+from app.services.report.bundles import attempt_has_data, find_attempt
 from app.services.report.dd_report import render_dd_html_from_artifact
 from app.services.report.locale import (
     default_report_title,
     download_filename,
     normalize_locale,
 )
-from app.modules.registry import resolve_report_mode, source_types_for_registry
-from app.modules.report_binding import UnknownReportModeError
-from app.services.customer_scope import customer_id_for_new_report
-from app.services.report.bundles import attempt_has_data, find_attempt
 from app.services.report.verdict_calibration import (
     get_calibration_row,
     load_recommendation_snapshot,
@@ -56,10 +58,14 @@ from app.services.report.verdict_calibration import (
 )
 from app.services.report_realtime import (
     list_reports as list_report_rows,
+)
+from app.services.report_realtime import (
     publish_report,
     publish_reports_deleted,
     serialize_report,
 )
+from app.services.spindoctor_board import clear_spindoctor_widgets
+from app.services.spindoctor_chat import clear_spindoctor_messages
 
 logger = logging.getLogger(__name__)
 
@@ -128,6 +134,27 @@ async def _validate_dd_session_source(session: AsyncSession, src) -> dict:
     }
 
 
+async def _validate_expertgranskning_session_source(session: AsyncSession, src) -> dict:
+    panel = await session.get(PanelSession, src.session_id)
+    if panel is None:
+        raise HTTPException(status_code=400, detail=f"Panel session not found: {src.session_id}")
+    if not is_expertgranskning_session(panel):
+        raise HTTPException(
+            status_code=400,
+            detail="Report source must be an expertgranskning generic_panel session",
+        )
+    if panel.status != "succeeded":
+        raise HTTPException(status_code=400, detail="Panel session has not succeeded")
+    if not isinstance(panel.result, dict):
+        raise HTTPException(status_code=400, detail="Panel session has no result payload")
+    config = panel.config if isinstance(panel.config, dict) else {}
+    return {
+        "type": EXPERTGRANSKNING_SOURCE,
+        "session_id": src.session_id,
+        "label": str(config.get("topic") or "Expertgranskning"),
+    }
+
+
 async def _validate_sources(session: AsyncSession, body: ReportCreate) -> tuple[list[dict], str]:
     source_type = body.sources[0].type
     known = source_types_for_registry()
@@ -147,6 +174,8 @@ async def _validate_sources(session: AsyncSession, body: ReportCreate) -> tuple[
             sources.append(await _validate_dd_session_source(session, src))
         elif src.type == "oasis":
             sources.append(await _validate_oasis_source(session, src, index=i))
+        elif src.type == EXPERTGRANSKNING_SOURCE:
+            sources.append(await _validate_expertgranskning_session_source(session, src))
         else:
             payload = {key: value for key, value in src.model_dump().items() if value is not None}
             payload.setdefault("label", src.type)
@@ -206,7 +235,7 @@ async def create_report(
         ab_source = run is not None and bool(run.branch)
     if (body.title or "").strip():
         title = body.title.strip()
-    elif mode == "dd" and sources:
+    elif mode in {"dd", "expertgranskning"} and sources:
         title = str(sources[0]["label"])
     else:
         source_label = sources[0]["label"].rsplit(" (", 1)[0] if sources else ""
