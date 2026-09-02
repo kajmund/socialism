@@ -1202,6 +1202,9 @@ class ReportSource(BaseModel):
         elif self.type == "dd_session":
             if not (self.session_id or "").strip() or not (self.candidate_id or "").strip():
                 raise ValueError("dd_session source requires session_id and candidate_id")
+        elif self.type == "expertgranskning_session":
+            if not (self.session_id or "").strip():
+                raise ValueError("expertgranskning_session source requires session_id")
         return self
 
 

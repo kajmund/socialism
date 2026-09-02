@@ -7,15 +7,13 @@ from app.services.prompt_catalog import PROMPT_FIELDS, PromptFieldDef
 
 def modules_for_prompt_key(key: str) -> list[str]:
     """Assign catalog keys to modules from the implicit prefix convention."""
-    if key.startswith("panel.dd.") or key.startswith("dd."):
+    if key.startswith(("panel.dd.", "dd.")):
         return ["dd"]
-    if (
-        key.startswith("persona.")
-        or key.startswith("messages.")
-        or key.startswith("oasis.")
-    ):
+    if key.startswith(("persona.", "messages.", "oasis.")):
         return ["politik"]
-    return ["dd", "politik"]
+    if key.startswith("help."):
+        return ["dd", "politik"]
+    return ["dd", "politik", "expertgranskning"]
 
 
 def prompt_defaults_for_module(module: str) -> list[PromptFieldDef]:
@@ -28,3 +26,7 @@ def dd_prompt_defaults() -> list[PromptFieldDef]:
 
 def politik_prompt_defaults() -> list[PromptFieldDef]:
     return prompt_defaults_for_module("politik")
+
+
+def expertgranskning_prompt_defaults() -> list[PromptFieldDef]:
+    return prompt_defaults_for_module("expertgranskning")

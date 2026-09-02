@@ -12,8 +12,8 @@ from app.schemas.domain import (
     ReportGenerateJobRequest,
     RunSimulateJobRequest,
 )
-from app.services.kund_store import bolag_demo_customer_id, default_os_customer_id
 from app.services.dd.schemas import DdResearchJobRequest
+from app.services.kund_store import bolag_demo_customer_id, default_os_customer_id
 from app.services.panel.schemas import PanelSessionRunJobRequest
 
 
@@ -58,7 +58,7 @@ async def customer_id_for_new_report(
     sources: list[dict],
     mode: str,
 ) -> int:
-    if mode == "dd" and body.sources:
+    if body.sources and (body.sources[0].session_id or "").strip():
         return await customer_id_for_panel_session(session, body.sources[0].session_id or "")
     if sources and sources[0].get("type") == "oasis":
         run_id = sources[0].get("run_id")
