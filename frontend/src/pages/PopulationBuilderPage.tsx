@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react"
-import { Link, useNavigate } from "react-router-dom"
+import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import { listCatalog, type CatalogList } from "@/api/catalog"
 import { createJob } from "@/api/jobs"
 import { createPopulation, type DistRow, type PopulationRecipe } from "@/api/populations"
 import { AdminShell, rememberJobPending } from "@/components/layout/AdminShell"
 import { AddFromLibraryPanel } from "@/components/populations/AddFromLibraryPanel"
+import { ExpertPanelModulePicker } from "@/components/populations/ExpertPanelModulePicker"
 import { AdminButton } from "@/components/ui/admin-button"
 import { Card, CardContent } from "@/components/ui/card"
 import { personaInitials } from "@/data/library"
 import type { LibraryPersona, PersonaKind } from "@/data/library-types"
 import { useAuth } from "@/auth/AuthProvider"
+import { modulesWith } from "@/modules/moduleRegistry"
 import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
 import { ApiError } from "@/lib/api"
 
@@ -207,8 +209,14 @@ export function PopulationBuilderPage({
   const stepKeys = isExpertPanel ? EXPERT_PANEL_STEP_TITLES : PERSONA_STEP_TITLES
   const maxStep = stepKeys.length
   const { t } = useLocale()
-  const { isAdmin } = useAuth()
+  const { isAdmin, resolvedModules } = useAuth()
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const panelModules = useMemo(
+    () => modulesWith("panel_engine", resolvedModules),
+    [resolvedModules],
+  )
+  const [selectedModules, setSelectedModules] = useState<string[]>([])
 
   const [cur, setCur] = useState(1)
   const [maxReached, setMaxReached] = useState(1)
@@ -234,6 +242,19 @@ export function PopulationBuilderPage({
     [selectedPersonas],
   )
   const stepTitles = useMemo(() => stepKeys.map((key) => t(key)), [stepKeys, t])
+
+  useEffect(() => {
+    if (!isExpertPanel) return
+    setSelectedModules((current) => {
+      if (current.length > 0) return current
+      const requested = searchParams.get("module")
+      if (requested && panelModules.some((mod) => mod.id === requested)) {
+        return [requested]
+      }
+      if (panelModules.some((mod) => mod.id === "dd")) return ["dd"]
+      return panelModules[0] ? [panelModules[0].id] : []
+    })
+  }, [isExpertPanel, panelModules, searchParams])
 
   useEffect(() => {
     if (isExpertPanel) return
@@ -263,6 +284,7 @@ export function PopulationBuilderPage({
         size: Math.max(1, selectedPersonas.length),
         dist: {},
         locale: "local",
+        modules: selectedModules,
       }
     }
     return {
@@ -461,6 +483,13 @@ export function PopulationBuilderPage({
                 </div>
               ) : null}
             </div>
+            {isExpertPanel ? (
+              <ExpertPanelModulePicker
+                value={selectedModules}
+                onChange={setSelectedModules}
+                disabled={submitting}
+              />
+            ) : null}
           </section>
         )}
 

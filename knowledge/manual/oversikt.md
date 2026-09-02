@@ -1,13 +1,13 @@
 ---
 type: guide
 title: Översikt av ytorna
-description: Var du hittar adminytorna i Opinionssimulator.
+description: Var du hittar adminytorna i Socialism.
 tags: [korningar, personas, populationer, budskap, grunddata, jobb, rapporter]
 ---
 
 # Översikt av ytorna
 
-Opinionssimulator är en adminyta (mörk Devbrains-stil) för det dagliga arbetet med personas, populationer och körningar. Du måste [logga in](logga-in.md) innan du kommer in.
+Socialism är en adminyta (mörk Devbrains-stil) för det dagliga arbetet med personas, populationer och körningar. Du måste [logga in](logga-in.md) innan du kommer in.
 
 ## Startsida (dashboard)
 
@@ -15,16 +15,18 @@ När du öppnar appen och är inloggad landar du på **dashboard** (`/`). Där s
 
 ## Admin (det du använder till vardags)
 
-Från menyn når du bland annat:
+Huvudmenyn ligger som en **vertikal list till vänster**. Vilka länkar som syns styrs av vilka **moduler** kunden har påslagna — till exempel Personas och Körningar för politisk simulering, eller Experter och Kampanjer för Due Diligence. Från menyn når du bland annat:
 
 1. **Körningar** — skapa, redigera och läsa resultat från simuleringar
 2. **Personas** — biblioteket av AI-agenter
 3. **Populationer** — grupper av personas
 4. **Budskap** — budskapsbibliotek och verkstad
 5. **Verktyg** — konfigurationer (prompts, SSR-temperatur, grunddata), kunder och panelkatalog, playground och embedding-cache. Bara **administratör** ser den här ytan.
-6. **Rapporter** — beställda rapporter, uppdelade per modul om kontot har både politik och due diligence
+6. **Rapporter** — beställda rapporter, uppdelade per modul om kontot har både politik och Due Diligence
 7. **Återkoppling** — buggar, idéer och åsikter sparade från hjälpchatten
 8. **Jobb** — bakgrundsjobb (generering, simulering, rapporter)
+
+På en liten skärm öppnar du menyn med knappen uppe till höger.
 
 Rapporter beställs från en körnings resultat och listas under **Rapporter**.
 

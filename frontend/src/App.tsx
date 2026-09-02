@@ -1,8 +1,11 @@
 import { Navigate, Outlet, Route, Routes, useParams } from "react-router-dom"
+import { useAuth } from "@/auth/AuthProvider"
 import { RequireAdmin } from "@/auth/RequireAdmin"
 import { RequireAuth } from "@/auth/RequireAuth"
 import { RequireBolag } from "@/auth/RequireBolag"
+import { RequireExpertgranskning } from "@/auth/RequireExpertgranskning"
 import { RequireOsUser } from "@/auth/RequireOsUser"
+import { homePathForUser } from "@/lib/auth"
 import { BolagShell } from "@/components/layout/BolagShell"
 import { HelpChatWidget } from "@/components/help/HelpChatWidget"
 import { ToolsShell } from "@/components/layout/ToolsShell"
@@ -21,12 +24,15 @@ import { DdCampaignEditorPage } from "@/pages/DdCampaignEditorPage"
 import { DdCampaignRunPage } from "@/pages/DdCampaignRunPage"
 import { DdCampaignsPage } from "@/pages/DdCampaignsPage"
 import { EmbeddingCachePage } from "@/pages/EmbeddingCachePage"
+import {
+  BolagExpertgranskningPage,
+  ExpertgranskningPage,
+} from "@/pages/ExpertgranskningPage"
 import { BolagFeedbackPage, FeedbackPage } from "@/pages/FeedbackPage"
 import { BolagJobsPage, JobsPage } from "@/pages/JobsPage"
 import { KunderPage } from "@/pages/KunderPage"
 import { AnvandarePage } from "@/pages/AnvandarePage"
 import { LoginPage } from "@/pages/LoginPage"
-import { ValjModulPage } from "@/pages/ValjModulPage"
 import { MessagesPage } from "@/pages/MessagesPage"
 import { MessagesWorkshopPage } from "@/pages/MessagesWorkshopPage"
 import { PanelCatalogPage } from "@/pages/PanelCatalogPage"
@@ -52,6 +58,11 @@ function RedirectConfigurationEdit() {
   return <Navigate to={`/tools/configurations/${id}/edit`} replace />
 }
 
+function RedirectToHome() {
+  const { resolvedModules } = useAuth()
+  return <Navigate to={homePathForUser(resolvedModules)} replace />
+}
+
 function AuthenticatedShell() {
   return (
     <JobsRealtimeProvider>
@@ -70,7 +81,7 @@ export default function App() {
 
       <Route element={<RequireAuth />}>
         <Route element={<AuthenticatedShell />}>
-          <Route path="/valj-modul" element={<ValjModulPage />} />
+          <Route path="/valj-modul" element={<RedirectToHome />} />
 
           <Route element={<RequireAdmin />}>
             <Route path="/anvandare" element={<AnvandarePage />} />
@@ -108,6 +119,7 @@ export default function App() {
               <Route path="expertpaneler" element={<ExpertPanelsPage />} />
               <Route path="expertpaneler/new" element={<ExpertPanelBuilderPage />} />
               <Route path="expertpaneler/:id" element={<ExpertPanelDetailPage />} />
+              <Route path="expertgranskning" element={<BolagExpertgranskningPage />} />
               <Route path="campaigns" element={<DdCampaignsPage />} />
               <Route path="campaigns/new" element={<DdCampaignEditorPage />} />
               <Route path="campaigns/:id/runs/:candidateId" element={<DdCampaignRunPage />} />
@@ -117,6 +129,10 @@ export default function App() {
               <Route path="reports/:id" element={<ReportPage />} />
               <Route path="feedback" element={<BolagFeedbackPage />} />
             </Route>
+          </Route>
+
+          <Route element={<RequireExpertgranskning />}>
+            <Route path="/expertgranskning" element={<ExpertgranskningPage />} />
           </Route>
 
           <Route element={<RequireOsUser />}>

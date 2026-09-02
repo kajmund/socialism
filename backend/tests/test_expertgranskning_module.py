@@ -283,6 +283,72 @@ async def test_expertgranskning_shares_spinndoctor_catalog(client_db):
 
 
 @pytest.mark.asyncio
+async def test_non_admin_denied_when_panel_experts_span_kunder(client: AsyncClient):
+    from app.services.kund_store import OS_DEFAULT_KUND_SLUG
+    from tests.conftest import BOLAG_USER_ID, mint_access_token
+
+    listed = await client.get("/kunder")
+    assert listed.status_code == 200
+    kunder = {row["slug"]: row["id"] for row in listed.json()}
+    os_id = kunder[OS_DEFAULT_KUND_SLUG]
+    bolag_id = kunder[BOLAG_DEMO_KUND_SLUG]
+
+    os_expert = await client.post(
+        "/personas",
+        json={
+            "kind": "expert",
+            "customer_id": os_id,
+            "name": "OS-expert blandad panel",
+            "occ": "Jurist",
+            "district": "—",
+            "quote": "Granskar text.",
+        },
+    )
+    assert os_expert.status_code == 201, os_expert.text
+    experts = await client.get("/personas", params={"kind": "expert", "customer_id": bolag_id})
+    assert experts.status_code == 200
+    bolag_expert_id = experts.json()[0]["id"]
+
+    created = await client.post(
+        "/populations",
+        json={
+            "kind": "expert_panel",
+            "name": "Mixed-kund panel",
+            "include_persona_ids": [os_expert.json()["id"], bolag_expert_id],
+            "recipe": {"size": 2, "dist": {}, "modules": ["expertgranskning"]},
+        },
+    )
+    assert created.status_code == 201, created.text
+    panel_id = created.json()["id"]
+
+    client.headers["Authorization"] = (
+        f"Bearer {mint_access_token(sub=BOLAG_USER_ID, email='bolag@test.local')}"
+    )
+    denied = await client.post(
+        "/expertgranskning/sessions",
+        json={"document_text": "En text", "panel_id": panel_id},
+    )
+    assert denied.status_code == 403
+    assert denied.json()["detail"] == "kund_access_denied"
+
+
+@pytest.mark.asyncio
+async def test_bolag_user_can_create_session_for_own_kund_panel(client: AsyncClient):
+    from tests.conftest import BOLAG_USER_ID, mint_access_token
+
+    panel_id = await _create_expert_panel(client)
+    client.headers["Authorization"] = (
+        f"Bearer {mint_access_token(sub=BOLAG_USER_ID, email='bolag@test.local')}"
+    )
+    created = await client.post(
+        "/expertgranskning/sessions",
+        json={"document_text": "Egen kundtext", "panel_id": panel_id},
+    )
+    assert created.status_code == 201, created.text
+    assert created.json()["document_text"] == "Egen kundtext"
+
+
+@pytest.mark.asyncio
 async def test_expertgranskning_session_requires_document_and_panel(client: AsyncClient):
     missing_text = await client.post(
         "/expertgranskning/sessions",

@@ -231,6 +231,7 @@ class PopulationSummary(BaseModel):
     updated: str
     versions: int
     fp: list[list[int]]
+    modules: list[str] = Field(default_factory=list)
 
 
 class PopulationDetail(PopulationSummary):
@@ -261,6 +262,7 @@ class PopulationUpdate(BaseModel):
     bump_version: bool = False
     generation_id: str | None = None
     keep_keys: list[str] | None = None
+    modules: list[str] | None = None
 
 
 class PersonaGenerateRequest(BaseModel):
@@ -1279,6 +1281,10 @@ class JobCreate(BaseModel):
     request: dict[str, Any] = Field(default_factory=dict)
 
 
+class JobArchiveUpdate(BaseModel):
+    archived: bool
+
+
 class JobOut(BaseModel):
     id: str
     customer_id: int
@@ -1291,4 +1297,5 @@ class JobOut(BaseModel):
     created_at: str
     started_at: str | None = None
     finished_at: str | None = None
+    archived_at: str | None = None
     updated_at: str

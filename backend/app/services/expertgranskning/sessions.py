@@ -88,7 +88,7 @@ async def resolve_customer_id(
         if user_customer_id is None:
             raise PermissionError("kund_access_denied")
         panel_customer_id = await customer_id_for_expert_panel(session, panel_id)
-        if panel_customer_id is not None and panel_customer_id != user_customer_id:
+        if panel_customer_id != user_customer_id:
             raise PermissionError("kund_access_denied")
         if project_id is not None:
             projekt = await require_project(session, project_id)

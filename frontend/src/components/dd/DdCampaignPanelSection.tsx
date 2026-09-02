@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react"
 import { ChevronDown } from "lucide-react"
 import type { DdCampaign, DdCandidateCompany } from "@/api/dd"
+import { DdCandidateAnnualReports } from "@/components/dd/DdCandidateAnnualReports"
 import { DdCandidateFacts } from "@/components/dd/DdCandidateFacts"
 import { useLocale } from "@/i18n"
 import { cn } from "@/lib/utils"
@@ -100,6 +101,7 @@ export function DdCampaignPanelSection({
                 </button>
                 {open ? (
                   <div id={panelId} className="border-t border-[color:var(--border-hairline)] px-4 py-4">
+                    <DdCandidateAnnualReports campaignId={campaign.id} candidateId={candidate.id} />
                     <DdCandidateFacts candidate={candidate} />
                   </div>
                 ) : null}
