@@ -7,7 +7,7 @@ tags: [korningar, personas, populationer, budskap, jobb, rapporter]
 
 # Använda startsidan
 
-**Startsidan** (dashboard) är det första du ser när du öppnar Opinionssimulator. Den ger en snabb överblick och genvägar till det du oftast gör härnäst.
+**Startsidan** (dashboard) är det första du ser när du öppnar Socialism. Den ger en snabb överblick och genvägar till det du oftast gör härnäst.
 
 ## Snabbstart
 

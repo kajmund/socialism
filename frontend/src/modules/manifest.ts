@@ -10,6 +10,13 @@ export const MODULE_COMPONENT_IDS = [
 
 export type ModuleComponentId = (typeof MODULE_COMPONENT_IDS)[number]
 
+export type ModuleNavItem = {
+  key: MessageKey
+  to: string
+  match: string
+  component?: ModuleComponentId
+}
+
 export type ModuleManifest = {
   id: string
   nameKey: MessageKey
@@ -18,6 +25,7 @@ export type ModuleManifest = {
   homePath: string
   components: readonly ModuleComponentId[]
   reportModes: readonly string[]
+  navItems: readonly ModuleNavItem[]
 }
 
 export function moduleHasComponent(

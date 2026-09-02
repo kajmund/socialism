@@ -8,4 +8,14 @@ export const ddManifest: ModuleManifest = {
   homePath: "/bolag",
   components: ["personas", "panel_engine", "spindoctor", "campaigns"],
   reportModes: ["dd"],
+  navItems: [
+    { key: "bolag.nav.experter", to: "/bolag/experter", match: "/bolag/experter", component: "personas" },
+    {
+      key: "bolag.nav.expertPanels",
+      to: "/bolag/expertpaneler",
+      match: "/bolag/expertpaneler",
+      component: "panel_engine",
+    },
+    { key: "bolag.nav.campaigns", to: "/bolag/campaigns", match: "/bolag/campaigns", component: "campaigns" },
+  ],
 }

@@ -32,6 +32,7 @@ from app.schemas.domain import FollowUpQuestions
 from app.services import jobs as jobs_service
 from app.services.image_cache import clear_image_cache
 from app.services.kund_store import bolag_demo_customer_id, ensure_default_kunder
+from app.services.object_storage import MemoryObjectStorage, set_object_storage
 from app.services.ssr import clear_embedding_cache, set_embedder
 
 # Isolate disk cache / rotating logs from developer machine data/.
@@ -70,6 +71,13 @@ def mint_access_token(
         "exp": int((now + timedelta(hours=1)).timestamp()),
     }
     return jwt.encode(payload, secret, algorithm="HS256")
+
+
+@pytest.fixture(autouse=True)
+def _memory_object_storage():
+    set_object_storage(MemoryObjectStorage())
+    yield
+    set_object_storage(None)
 
 
 @pytest.fixture(autouse=True)

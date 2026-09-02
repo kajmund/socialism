@@ -15,6 +15,8 @@ from app.modules.registry import MODULE_REGISTRY
 from app.schemas.kund import KundCreate, KundOut, KundUpdate, ProjektOut
 from app.serializers import utcnow
 from app.services.kund_store import DEFAULT_PROJEKT_SLUG, ensure_default_kunder
+from app.services.object_storage import ObjectStorageError
+from app.services.stored_objects import ensure_kund_bucket
 
 router = APIRouter(prefix="/kunder", tags=["kunder"])
 
@@ -127,6 +129,10 @@ async def create_kund(
             updated_at=now,
         )
     )
+    try:
+        await ensure_kund_bucket(row)
+    except ObjectStorageError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     await session.commit()
     result = await session.execute(
         select(Kund).where(Kund.id == row.id).options(selectinload(Kund.projekt))
@@ -174,6 +180,10 @@ async def patch_kund(
         raise HTTPException(status_code=400, detail="PATCH body must include available_modules")
     row.available_modules = _normalize_available_modules(body.available_modules)
     row.updated_at = utcnow()
+    try:
+        await ensure_kund_bucket(row)
+    except ObjectStorageError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     await session.commit()
     await session.refresh(row)
     return _serialize_kund(row, include_projekt=True)

@@ -1,11 +1,18 @@
-import { useMemo, useState, type ComponentType, type ReactNode } from "react"
+import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react"
 import { Link } from "react-router-dom"
-import type { Job, JobStatus } from "@/api/jobs"
+import {
+  archiveFinishedJobs,
+  listJobs,
+  setJobArchived,
+  type Job,
+  type JobStatus,
+} from "@/api/jobs"
 import { AdminShell } from "@/components/layout/AdminShell"
 import { NestedBolagPage } from "@/components/layout/BolagShell"
 import { Card, CardContent } from "@/components/ui/card"
 import { ViewToggle, type ListViewMode } from "@/components/ui/view-toggle"
 import { useLocale, type MessageKey } from "@/i18n"
+import { ApiError } from "@/lib/api"
 import {
   matchesCustomerScope,
   type CustomerScope,
@@ -200,6 +207,36 @@ function populationHref(
   return `${paths.populations}/${popId}`
 }
 
+function isFinished(job: Job): boolean {
+  return job.status === "succeeded" || job.status === "failed"
+}
+
+function JobArchiveButton({
+  job,
+  busy,
+  onArchive,
+  t,
+}: {
+  job: Job
+  busy: boolean
+  onArchive: (job: Job, archived: boolean) => void
+  t: Translate
+}) {
+  if (job.archived_at) {
+    return (
+      <button type="button" disabled={busy} onClick={() => onArchive(job, false)}>
+        {t("jobs.unarchive")}
+      </button>
+    )
+  }
+  if (!isFinished(job)) return null
+  return (
+    <button type="button" disabled={busy} onClick={() => onArchive(job, true)}>
+      {t("jobs.archive")}
+    </button>
+  )
+}
+
 function JobActionLinks({
   job,
   t,
@@ -296,11 +333,15 @@ function JobCard({
   t,
   intl,
   paths,
+  busy,
+  onArchive,
 }: {
   job: Job
   t: Translate
   intl: string
   paths: JobLinkPaths
+  busy: boolean
+  onArchive: (job: Job, archived: boolean) => void
 }) {
   const { popId, runId, reportId } = jobIds(job)
   const ddHref = ddCampaignHref(job)
@@ -327,7 +368,14 @@ function JobCard({
               {duration ? ` · ${t("jobs.took", { duration })}` : null}
             </div>
           </div>
-          <span className={statusClass(job.status)}>{statusLabel(job.status, t)}</span>
+          <div style={{ display: "flex", gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
+            {job.archived_at ? (
+              <span style={{ font: "var(--text-body-sm)", color: "var(--text-muted)" }}>
+                {t("jobs.archived")}
+              </span>
+            ) : null}
+            <span className={statusClass(job.status)}>{statusLabel(job.status, t)}</span>
+          </div>
         </div>
 
         {job.status === "succeeded" && popId != null && (
@@ -419,6 +467,20 @@ function JobCard({
             ) : null}
           </div>
         )}
+        {isFinished(job) || job.archived_at ? (
+          <div
+            style={{
+              marginTop: 12,
+              font: "var(--text-body-sm)",
+              display: "flex",
+              gap: 16,
+              flexWrap: "wrap",
+              alignItems: "center",
+            }}
+          >
+            <JobArchiveButton job={job} busy={busy} onArchive={onArchive} t={t} />
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   )
@@ -429,11 +491,15 @@ function JobListRow({
   t,
   intl,
   paths,
+  busy,
+  onArchive,
 }: {
   job: Job
   t: Translate
   intl: string
   paths: JobLinkPaths
+  busy: boolean
+  onArchive: (job: Job, archived: boolean) => void
 }) {
   const duration = formatJobDuration(job, t)
   const whenCreated = formatWhen(job.created_at, intl, t("common.emDash"))
@@ -452,10 +518,14 @@ function JobListRow({
       <div>
         <div className="nm">{job.label || job.id}</div>
       </div>
-      <span className={statusClass(job.status)}>{statusLabel(job.status, t)}</span>
+      <span className={statusClass(job.status)}>
+        {job.archived_at ? `${t("jobs.archived")} · ` : null}
+        {statusLabel(job.status, t)}
+      </span>
       <div className="cell">{meta}</div>
       <div className="admin-list-actions">
         <JobActionLinks job={job} t={t} paths={paths} />
+        <JobArchiveButton job={job} busy={busy} onArchive={onArchive} t={t} />
       </div>
     </div>
   )
@@ -468,16 +538,114 @@ export type JobsPageProps = {
 
 export function JobsPage({ scope = "admin", Shell = AdminShell }: JobsPageProps) {
   const { t, intl } = useLocale()
-  const { jobs: allJobs, connected, status } = useJobsRealtime()
-  const jobs = useMemo(
-    () => allJobs.filter((job) => matchesCustomerScope(job, scope)),
-    [allJobs, scope],
-  )
-  const paths = useMemo(() => jobLinkPaths(scope), [scope])
+  const { jobs: liveJobs, applyJob, connected, status } = useJobsRealtime()
+  const [showArchived, setShowArchived] = useState(false)
+  const [archivedJobs, setArchivedJobs] = useState<Job[]>([])
+  const [busyId, setBusyId] = useState<string | null>(null)
+  const [bulkBusy, setBulkBusy] = useState(false)
+  const [bulkConfirm, setBulkConfirm] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
   const [view, setView] = useState<ListViewMode>("grid")
+
+  useEffect(() => {
+    if (!showArchived) {
+      setArchivedJobs([])
+      return
+    }
+    let cancelled = false
+    void listJobs({ archived_only: true, limit: 100 })
+      .then((rows) => {
+        if (!cancelled) {
+          setArchivedJobs(rows.filter((job) => matchesCustomerScope(job, scope)))
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setToast(t("jobs.loadError"))
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [scope, showArchived, t])
+
+  const jobs = useMemo(() => {
+    const live = liveJobs.filter(
+      (job) => matchesCustomerScope(job, scope) && !job.archived_at,
+    )
+    if (!showArchived) return live
+    const byId = new Map<string, Job>()
+    for (const job of live) byId.set(job.id, job)
+    for (const job of archivedJobs) {
+      if (matchesCustomerScope(job, scope)) byId.set(job.id, job)
+    }
+    return [...byId.values()].sort((a, b) => {
+      const ta = new Date(a.created_at).getTime()
+      const tb = new Date(b.created_at).getTime()
+      return tb - ta
+    })
+  }, [archivedJobs, liveJobs, scope, showArchived])
+
+  const finishedCount = useMemo(
+    () => jobs.filter((job) => !job.archived_at && isFinished(job)).length,
+    [jobs],
+  )
+
+  const paths = useMemo(() => jobLinkPaths(scope), [scope])
   const error =
-    status === "closed" && jobs.length === 0 ? t("jobs.loadError") : null
+    status === "closed" && liveJobs.length === 0 && !showArchived
+      ? t("jobs.loadError")
+      : null
   const reconnecting = !connected && status !== "open"
+
+  async function onArchive(job: Job, archived: boolean) {
+    setBusyId(job.id)
+    try {
+      const updated = await setJobArchived(job.id, archived)
+      applyJob(updated)
+      setArchivedJobs((prev) => {
+        if (updated.archived_at) {
+          if (!showArchived) return prev.filter((row) => row.id !== updated.id)
+          const idx = prev.findIndex((row) => row.id === updated.id)
+          if (idx === -1) return [updated, ...prev]
+          const next = prev.slice()
+          next[idx] = updated
+          return next
+        }
+        return prev.filter((row) => row.id !== updated.id)
+      })
+      setToast(archived ? t("jobs.archivedToast") : t("jobs.unarchivedToast"))
+    } catch (err) {
+      setToast(err instanceof ApiError ? err.message : t("jobs.archiveError"))
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function onArchiveFinished() {
+    setBulkBusy(true)
+    try {
+      const updated = await archiveFinishedJobs()
+      for (const job of updated) applyJob(job)
+      if (showArchived) {
+        setArchivedJobs((prev) => {
+          const byId = new Map(prev.map((row) => [row.id, row]))
+          for (const job of updated) byId.set(job.id, job)
+          return [...byId.values()]
+        })
+      }
+      setBulkConfirm(false)
+      setToast(t("jobs.archivedMany", { count: updated.length }))
+    } catch (err) {
+      setToast(err instanceof ApiError ? err.message : t("jobs.archiveError"))
+    } finally {
+      setBulkBusy(false)
+    }
+  }
+
+  const emptyCopy = showArchived
+    ? t("jobs.emptyArchived")
+    : scope === "bolag"
+      ? t("jobs.emptyBolag")
+      : t("jobs.empty")
 
   return (
     <Shell>
@@ -498,11 +666,51 @@ export function JobsPage({ scope = "admin", Shell = AdminShell }: JobsPageProps)
           </div>
 
           <div className="controls-row">
-            <div className="controls-left" />
+            <div className="controls-left" style={{ alignItems: "center", gap: 12 }}>
+              <label style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
+                <input
+                  type="checkbox"
+                  checked={showArchived}
+                  onChange={(e) => setShowArchived(e.target.checked)}
+                />
+                {t("jobs.showArchived")}
+              </label>
+              {finishedCount > 0 ? (
+                bulkConfirm ? (
+                  <div className="confirm-row">
+                    <button
+                      type="button"
+                      disabled={bulkBusy}
+                      onClick={() => setBulkConfirm(false)}
+                    >
+                      {t("common.cancel")}
+                    </button>
+                    <button
+                      type="button"
+                      className="yes"
+                      disabled={bulkBusy}
+                      onClick={() => void onArchiveFinished()}
+                    >
+                      {t("jobs.archiveFinishedConfirm")}
+                    </button>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => setBulkConfirm(true)}>
+                    {t("jobs.archiveFinished")}
+                  </button>
+                )
+              ) : null}
+            </div>
             <div className="controls-right">
               <ViewToggle value={view} onChange={setView} />
             </div>
           </div>
+
+          {toast ? (
+            <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
+              {toast}
+            </div>
+          ) : null}
 
           {reconnecting && (
             <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
@@ -520,18 +728,34 @@ export function JobsPage({ scope = "admin", Shell = AdminShell }: JobsPageProps)
         <div className="admin-page-body">
           {jobs.length === 0 && !error ? (
             <div className="no-match" style={{ textAlign: "left" }}>
-              {scope === "bolag" ? t("jobs.emptyBolag") : t("jobs.empty")}
+              {emptyCopy}
             </div>
           ) : view === "grid" ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {jobs.map((job) => (
-                <JobCard key={job.id} job={job} t={t} intl={intl} paths={paths} />
+                <JobCard
+                  key={job.id}
+                  job={job}
+                  t={t}
+                  intl={intl}
+                  paths={paths}
+                  busy={busyId === job.id}
+                  onArchive={onArchive}
+                />
               ))}
             </div>
           ) : (
             <div className="admin-list-stack">
               {jobs.map((job) => (
-                <JobListRow key={job.id} job={job} t={t} intl={intl} paths={paths} />
+                <JobListRow
+                  key={job.id}
+                  job={job}
+                  t={t}
+                  intl={intl}
+                  paths={paths}
+                  busy={busyId === job.id}
+                  onArchive={onArchive}
+                />
               ))}
             </div>
           )}

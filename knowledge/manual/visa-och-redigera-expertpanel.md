@@ -7,7 +7,7 @@ tags: [populationer, personas]
 
 # Visa och redigera expertpanel
 
-På **expertpanelens detaljsida** ser du vilka experter som ingår och kan justera sammansättningen innan du kör en DD-kampanj.
+På **expertpanelens detaljsida** ser du vilka experter som ingår och kan justera sammansättningen innan du kör en Due Diligence-kampanj.
 
 ## Steg
 
@@ -25,4 +25,4 @@ På **expertpanelens detaljsida** ser du vilka experter som ingår och kan juste
 - [Hantera expertpaneler](hantera-expertpaneler.md)
 - [Komponera en expertpanel](komponera-expertpanel.md)
 - [Skapa och redigera expert](skapa-och-redigera-expert.md)
-- [Köra en DD-kampanj](kora-dd-kampanj.md)
+- [Köra en Due Diligence-kampanj](kora-dd-kampanj.md)
