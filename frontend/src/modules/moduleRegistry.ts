@@ -1,4 +1,5 @@
 import { ddManifest } from "@/modules/dd/manifest"
+import { expertgranskningManifest } from "@/modules/expertgranskning/manifest"
 import {
   moduleHasComponent,
   type ModuleComponentId,
@@ -9,6 +10,7 @@ import { politikManifest } from "@/modules/politik/manifest"
 export const MODULE_REGISTRY: Record<string, ModuleManifest> = {
   dd: ddManifest,
   politik: politikManifest,
+  expertgranskning: expertgranskningManifest,
 }
 
 export const MODULE_IDS = Object.keys(MODULE_REGISTRY)
