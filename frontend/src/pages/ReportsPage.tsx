@@ -77,6 +77,7 @@ function formatReportDuration(report: Report, job: Job | undefined, t: Translate
 
 function modeLabel(mode: Report["mode"], t: Translate): string {
   if (mode === "dd") return t("reports.list.modeDd")
+  if (mode === "expertgranskning") return t("reports.list.modeExpertgranskning")
   return mode === "full"
     ? t("reports.list.modeFullLegacy")
     : t("reports.list.modeQuick")
@@ -306,12 +307,14 @@ export type ReportsPageProps = {
 const MODULE_TABS: readonly { id: ReportModuleId; labelKey: MessageKey }[] = [
   { id: "politik", labelKey: "reports.list.tabPolitik" },
   { id: "dd", labelKey: "reports.list.tabDd" },
+  { id: "expertgranskning", labelKey: "reports.list.tabExpertgranskning" },
 ]
 
 function introKey(module: ReportModuleId, scope: CustomerScope): MessageKey {
   if (module === "dd") {
     return scope === "bolag" ? "reports.list.introBolag" : "reports.list.introDd"
   }
+  if (module === "expertgranskning") return "reports.list.introExpertgranskning"
   return "reports.list.intro"
 }
 
@@ -319,6 +322,7 @@ function emptyKey(module: ReportModuleId, scope: CustomerScope): MessageKey {
   if (module === "dd") {
     return scope === "bolag" ? "reports.list.emptyBolag" : "reports.list.emptyDd"
   }
+  if (module === "expertgranskning") return "reports.list.emptyExpertgranskning"
   return "reports.list.empty"
 }
 
