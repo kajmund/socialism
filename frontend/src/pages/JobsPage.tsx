@@ -30,6 +30,7 @@ type JobLinkPaths = {
   expertPanels: string
   campaigns: string
   runs: string
+  expertgranskning: string
 }
 
 function jobLinkPaths(scope: CustomerScope): JobLinkPaths {
@@ -40,6 +41,7 @@ function jobLinkPaths(scope: CustomerScope): JobLinkPaths {
       expertPanels: "/bolag/expertpaneler",
       campaigns: "/bolag/campaigns",
       runs: "/runs",
+      expertgranskning: "/bolag/expertgranskning",
     }
   }
   return {
@@ -48,6 +50,7 @@ function jobLinkPaths(scope: CustomerScope): JobLinkPaths {
     expertPanels: "/populations",
     campaigns: "/bolag/campaigns",
     runs: "/runs",
+    expertgranskning: "/expertgranskning",
   }
 }
 
@@ -278,6 +281,12 @@ function JobActionLinks({
       links.push(
         <Link key="campaign" to={href}>
           {ddCampaignLinkLabel(job, t)}
+        </Link>,
+      )
+    } else if (job.kind === "panel_session_run") {
+      links.push(
+        <Link key="expertgranskning" to={paths.expertgranskning}>
+          {t("jobs.openExpertgranskning")}
         </Link>,
       )
     }

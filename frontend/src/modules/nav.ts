@@ -17,7 +17,7 @@ export type ShellNavSection = {
   items: ShellNavItem[]
 }
 
-const NAV_MODULE_ORDER = ["politik", "dd"] as const
+const NAV_MODULE_ORDER = ["politik", "dd", "expertgranskning"] as const
 
 function sortManifestsForNav(manifests: ModuleManifest[]): ModuleManifest[] {
   return [...manifests].sort((a, b) => {
@@ -27,10 +27,23 @@ function sortManifestsForNav(manifests: ModuleManifest[]): ModuleManifest[] {
   })
 }
 
-function moduleSectionItems(manifest: ModuleManifest): ShellNavItem[] {
+function moduleSectionItems(
+  manifest: ModuleManifest,
+  moduleIds: readonly string[],
+): ShellNavItem[] {
+  const bolagOnly = moduleIds.includes("dd") && !moduleIds.includes("politik")
   return manifest.navItems
     .filter((item) => item.component == null || moduleHasComponent(manifest, item.component))
-    .map((item) => ({ key: item.key, to: item.to, match: item.match }))
+    .map((item) => {
+      if (manifest.id === "expertgranskning" && bolagOnly) {
+        return {
+          key: item.key,
+          to: "/bolag/expertgranskning",
+          match: "/bolag/expertgranskning",
+        }
+      }
+      return { key: item.key, to: item.to, match: item.match }
+    })
 }
 
 function sharedNavItems(moduleIds: readonly string[]): ShellNavItem[] {
@@ -65,7 +78,7 @@ export function buildSidebarNav(opts: {
 }): ShellNavSection[] {
   const sections: ShellNavSection[] = []
   for (const manifest of sortManifestsForNav(manifestsForIds(opts.moduleIds))) {
-    const items = moduleSectionItems(manifest)
+    const items = moduleSectionItems(manifest, opts.moduleIds)
     if (items.length === 0) continue
     sections.push({ id: manifest.id, titleKey: manifest.nameKey, items })
   }

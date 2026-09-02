@@ -36,7 +36,7 @@ class SpindoctorBinding:
 
 @dataclass(frozen=True)
 class ModuleManifest:
-    id: str  # "dd", "politik", framtida "upphandling"
+    id: str  # "dd", "politik", "expertgranskning"
     name: str  # visningsnamn i GUI
     icon: str  # emoji eller ikon-key, för nav
     router: APIRouter  # monteras utan extra prefix (router bär sina egna)

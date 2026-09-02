@@ -14,7 +14,7 @@ async def test_modules_api_lists_registry(client: AsyncClient):
     assert listed.status_code == 200
     body = listed.json()
     by_id = {row["id"]: row for row in body}
-    assert set(by_id) == {"dd", "politik"}
+    assert set(by_id) == {"dd", "politik", "expertgranskning"}
     assert "campaigns" in by_id["dd"]["components"]
     assert "panel_engine" in by_id["dd"]["components"]
     assert by_id["dd"]["has_sub_questions"] is True
@@ -24,6 +24,11 @@ async def test_modules_api_lists_registry(client: AsyncClient):
     assert "campaigns" not in by_id["politik"]["components"]
     assert set(by_id["politik"]["report_modes"]) == {"quick", "full"}
     assert by_id["politik"]["supports_interview"] is True
+    assert "panel_engine" in by_id["expertgranskning"]["components"]
+    assert "campaigns" not in by_id["expertgranskning"]["components"]
+    assert by_id["expertgranskning"]["report_modes"] == ["expertgranskning"]
+    assert by_id["expertgranskning"]["has_prompt_defaults"] is True
+    assert by_id["expertgranskning"]["supports_interview"] is False
 
 
 @pytest.mark.asyncio
@@ -197,7 +202,7 @@ async def test_panel_expert_profile_crud_api(client: AsyncClient):
     listed = await client.get("/panel/expert-profiles", params={"module": "dd"})
     assert listed.status_code == 200
     spin = next(row for row in listed.json() if row["key"] == "spinndoctor")
-    assert set(spin["modules"]) == {"dd", "politik"}
+    assert set(spin["modules"]) == {"dd", "politik", "expertgranskning"}
     scoring = [row for row in listed.json() if row["key"] != "spinndoctor"]
     assert len(scoring) == 4
     assert all(row["module"] == "dd" and row["modules"] == ["dd"] for row in scoring)

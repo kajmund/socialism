@@ -3,6 +3,7 @@ import { useAuth } from "@/auth/AuthProvider"
 import { RequireAdmin } from "@/auth/RequireAdmin"
 import { RequireAuth } from "@/auth/RequireAuth"
 import { RequireBolag } from "@/auth/RequireBolag"
+import { RequireExpertgranskning } from "@/auth/RequireExpertgranskning"
 import { RequireOsUser } from "@/auth/RequireOsUser"
 import { homePathForUser } from "@/lib/auth"
 import { BolagShell } from "@/components/layout/BolagShell"
@@ -23,6 +24,10 @@ import { DdCampaignEditorPage } from "@/pages/DdCampaignEditorPage"
 import { DdCampaignRunPage } from "@/pages/DdCampaignRunPage"
 import { DdCampaignsPage } from "@/pages/DdCampaignsPage"
 import { EmbeddingCachePage } from "@/pages/EmbeddingCachePage"
+import {
+  BolagExpertgranskningPage,
+  ExpertgranskningPage,
+} from "@/pages/ExpertgranskningPage"
 import { BolagFeedbackPage, FeedbackPage } from "@/pages/FeedbackPage"
 import { BolagJobsPage, JobsPage } from "@/pages/JobsPage"
 import { KunderPage } from "@/pages/KunderPage"
@@ -114,6 +119,7 @@ export default function App() {
               <Route path="expertpaneler" element={<ExpertPanelsPage />} />
               <Route path="expertpaneler/new" element={<ExpertPanelBuilderPage />} />
               <Route path="expertpaneler/:id" element={<ExpertPanelDetailPage />} />
+              <Route path="expertgranskning" element={<BolagExpertgranskningPage />} />
               <Route path="campaigns" element={<DdCampaignsPage />} />
               <Route path="campaigns/new" element={<DdCampaignEditorPage />} />
               <Route path="campaigns/:id/runs/:candidateId" element={<DdCampaignRunPage />} />
@@ -123,6 +129,10 @@ export default function App() {
               <Route path="reports/:id" element={<ReportPage />} />
               <Route path="feedback" element={<BolagFeedbackPage />} />
             </Route>
+          </Route>
+
+          <Route element={<RequireExpertgranskning />}>
+            <Route path="/expertgranskning" element={<ExpertgranskningPage />} />
           </Route>
 
           <Route element={<RequireOsUser />}>

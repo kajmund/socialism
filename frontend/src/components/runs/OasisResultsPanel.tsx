@@ -2706,7 +2706,7 @@ export function OasisResultsPanel({
     for (const r of reports) {
       if (r.status !== "pending" && r.status !== "running") continue
       for (const s of r.sources) {
-        if (s.run_id === runId) next.add(s.attempt_id)
+        if ("run_id" in s && s.run_id === runId && s.attempt_id) next.add(s.attempt_id)
       }
     }
     return next

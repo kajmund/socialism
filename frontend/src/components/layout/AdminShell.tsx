@@ -130,6 +130,14 @@ function toastFromTransition(
           hrefLabel: candidateId ? t("toast.openResults") : t("toast.openCampaign"),
         }
       }
+      if (job.kind === "panel_session_run") {
+        return {
+          kind: "ok",
+          message: t("toast.jobDone", { label: job.label }),
+          href: bolag ? "/bolag/expertgranskning" : "/expertgranskning",
+          hrefLabel: t("toast.openResults"),
+        }
+      }
     }
     const populationHref =
       popId != null

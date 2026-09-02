@@ -52,7 +52,7 @@ async def test_spinndoctor_profile_seeded_for_dd_and_politik(client_db):
     async with factory() as db:
         row = await require_spinndoctor_profile(db)
         assert row.key == SPINNDOCTOR_KEY
-        assert set(row.modules) == {"dd", "politik"}
+        assert set(row.modules) == {"dd", "politik", "expertgranskning"}
         assert row.name == "Spinndoktor"
 
 

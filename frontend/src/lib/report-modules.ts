@@ -2,7 +2,7 @@ import type { ReportMode } from "@/api/reports"
 import type { AuthUser } from "@/lib/auth"
 import { MODULE_REGISTRY } from "@/modules/moduleRegistry"
 
-export const REPORT_MODULES = ["politik", "dd"] as const
+export const REPORT_MODULES = ["politik", "dd", "expertgranskning"] as const
 
 export type ReportModuleId = (typeof REPORT_MODULES)[number]
 
