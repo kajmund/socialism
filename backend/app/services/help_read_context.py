@@ -16,6 +16,7 @@ from app.database.models import (
     Message,
     Persona,
     Population,
+    Projekt,
     Report,
     Run,
     SsrAnchorSet,
@@ -38,16 +39,26 @@ async def build_help_context(
     *,
     view: HelpViewContext | None,
     query: str,
+    customer_id: int,
 ) -> str:
     sections: list[str] = []
     if view is not None:
         sections.append(_format_view(view))
-        entity = await _load_view_entity(session, view)
+        entity = await _load_view_entity(session, view, customer_id=customer_id)
         if entity:
             sections.append(entity)
-    sections.append(await _load_library_snapshot(session))
+    sections.append(await _load_library_snapshot(session, customer_id=customer_id))
     sections.append(f"# Manual (OKF)\n\n{manual_context(query)}")
     return "\n\n".join(sections)
+
+
+def _tenant_denied(entity: str, entity_id: object) -> str:
+    return f"# {entity}\n\nNot available for this tenant (id={entity_id})."
+
+
+async def _project_customer_id(session: AsyncSession, project_id: int) -> int | None:
+    projekt = await session.get(Projekt, project_id)
+    return None if projekt is None else projekt.customer_id
 
 
 def _format_view(view: HelpViewContext) -> str:
@@ -303,18 +314,36 @@ async def _active_tone_sections(session: AsyncSession, active: Configuration | N
     return lines
 
 
-async def _load_library_snapshot(session: AsyncSession) -> str:
-    persona_count = await session.scalar(select(func.count()).select_from(Persona)) or 0
+async def _load_library_snapshot(session: AsyncSession, *, customer_id: int) -> str:
+    persona_count = await session.scalar(
+        select(func.count()).select_from(Persona).where(Persona.customer_id == customer_id)
+    ) or 0
+    run_count = await session.scalar(
+        select(func.count())
+        .select_from(Run)
+        .join(Projekt, Run.project_id == Projekt.id)
+        .where(Projekt.customer_id == customer_id)
+    ) or 0
+    message_count = await session.scalar(
+        select(func.count())
+        .select_from(Message)
+        .join(Projekt, Message.project_id == Projekt.id)
+        .where(Projekt.customer_id == customer_id)
+    ) or 0
+    report_count = await session.scalar(
+        select(func.count()).select_from(Report).where(Report.customer_id == customer_id)
+    ) or 0
+    config_count = await session.scalar(
+        select(func.count())
+        .select_from(Configuration)
+        .where(Configuration.customer_id == customer_id)
+    ) or 0
     population_count = await session.scalar(select(func.count()).select_from(Population)) or 0
-    run_count = await session.scalar(select(func.count()).select_from(Run)) or 0
-    message_count = await session.scalar(select(func.count()).select_from(Message)) or 0
-    report_count = await session.scalar(select(func.count()).select_from(Report)) or 0
     anchor_count = await session.scalar(select(func.count()).select_from(SsrAnchorSet)) or 0
-    config_count = await session.scalar(select(func.count()).select_from(Configuration)) or 0
 
     active = await session.scalar(
         select(Configuration)
-        .where(Configuration.is_active.is_(True))
+        .where(Configuration.is_active.is_(True), Configuration.customer_id == customer_id)
         .order_by(Configuration.id.asc())
         .limit(1)
     )
@@ -322,7 +351,7 @@ async def _load_library_snapshot(session: AsyncSession) -> str:
     jobs = (
         await session.execute(
             select(Job)
-            .where(Job.archived_at.is_(None))
+            .where(Job.customer_id == customer_id, Job.archived_at.is_(None))
             .order_by(Job.created_at.desc())
             .limit(_RECENT_JOBS_LIMIT)
         )
@@ -353,11 +382,11 @@ async def _load_library_snapshot(session: AsyncSession) -> str:
     )
 
 
-async def _load_jobs_snapshot(session: AsyncSession) -> str:
+async def _load_jobs_snapshot(session: AsyncSession, *, customer_id: int) -> str:
     jobs = (
         await session.execute(
             select(Job)
-            .where(Job.archived_at.is_(None))
+            .where(Job.customer_id == customer_id, Job.archived_at.is_(None))
             .order_by(Job.created_at.desc())
             .limit(_RECENT_JOBS_LIMIT)
         )
@@ -369,17 +398,24 @@ async def _load_jobs_snapshot(session: AsyncSession) -> str:
     return "\n".join(lines)
 
 
-async def _load_view_entity(session: AsyncSession, view: HelpViewContext) -> str | None:
+async def _load_view_entity(
+    session: AsyncSession,
+    view: HelpViewContext,
+    *,
+    customer_id: int,
+) -> str | None:
     key = view.view_key
     params = view.params
 
     if key == "jobs.list":
-        return await _load_jobs_snapshot(session)
+        return await _load_jobs_snapshot(session, customer_id=customer_id)
 
     if key == "personas.detail" and (persona_id := params.get("id")):
         row = await session.get(Persona, persona_id)
         if row is None:
             return f"# Open persona\n\nPersona `{persona_id}` was not found."
+        if row.customer_id != customer_id:
+            return _tenant_denied("Open persona", persona_id)
         return "\n".join(
             [
                 "# Open persona (read-only)",
@@ -400,6 +436,9 @@ async def _load_view_entity(session: AsyncSession, view: HelpViewContext) -> str
         row = result.scalar_one_or_none()
         if row is None:
             return f"# Open run\n\nRun `{run_id}` was not found."
+        run_customer_id = await _project_customer_id(session, row.project_id)
+        if run_customer_id != customer_id:
+            return _tenant_denied("Open run", run_id)
         return _format_run_troubleshooting(row, tab=view.search.get("tab"))
 
     if key.startswith("populations.") and (pop_id := params.get("id")):
@@ -420,6 +459,9 @@ async def _load_view_entity(session: AsyncSession, view: HelpViewContext) -> str
         row = await session.get(Message, message_id)
         if row is None:
             return f"# Open message\n\nMessage `{message_id}` was not found."
+        message_customer_id = await _project_customer_id(session, row.project_id)
+        if message_customer_id != customer_id:
+            return _tenant_denied("Open message", message_id)
         body_preview = row.body[:280].replace("\n", " ")
         return "\n".join(
             [
@@ -435,6 +477,8 @@ async def _load_view_entity(session: AsyncSession, view: HelpViewContext) -> str
         row = await session.get(Configuration, int(config_id))
         if row is None:
             return f"# Open configuration\n\nConfiguration `{config_id}` was not found."
+        if row.customer_id != customer_id:
+            return _tenant_denied("Open configuration", config_id)
         return "\n".join(
             [
                 "# Open configuration (read-only)",
@@ -468,6 +512,8 @@ async def _load_view_entity(session: AsyncSession, view: HelpViewContext) -> str
         row = await session.get(Report, report_id)
         if row is None:
             return f"# Open report\n\nReport `{report_id}` was not found."
+        if row.customer_id != customer_id:
+            return _tenant_denied("Open report", report_id)
         return "\n".join(
             [
                 "# Open report (read-only)",
