@@ -20,6 +20,13 @@ def _modules_from_kund(kund: Kund | None) -> list[str]:
     return [item for item in kund.available_modules if isinstance(item, str)]
 
 
+def _with_admin_modules(modules: list[str], role: str) -> list[str]:
+    """Admin always has Expertgranskning, even before a kund checkbox is ticked."""
+    if role != "admin" or "expertgranskning" in modules:
+        return modules
+    return [*modules, "expertgranskning"]
+
+
 @router.get("/me", response_model=MeOut)
 async def get_me(
     user: UserAccount = Depends(get_current_user),
@@ -42,17 +49,18 @@ async def get_me(
             role="admin",
             kund_id=None,
             kund_slug=None,
-            available_modules=modules,
+            available_modules=_with_admin_modules(modules, "admin"),
         )
 
     kund: Kund | None = None
     if user.kund_id is not None:
         kund = await session.get(Kund, user.kund_id)
+    modules = _modules_from_kund(kund)
     return MeOut(
         id=user.id,
         email=user.email,
         role=user.role,  # type: ignore[arg-type]
         kund_id=user.kund_id,
         kund_slug=kund.slug if kund is not None else None,
-        available_modules=_modules_from_kund(kund),
+        available_modules=_with_admin_modules(modules, user.role),
     )

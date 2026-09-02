@@ -73,6 +73,10 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 * [Hantera kampanjer](hantera-kampanjer.md) — Sök, öppna och ta bort Due Diligence-kampanjer
 * [Köra en Due Diligence-kampanj](kora-dd-kampanj.md) — Skapa kampanj, chatta fram bolag och köra Due Diligence per kandidat
 
+# Expertgranskning
+
+* [Använda expertgranskning](anvanda-expertgranskning.md) — Klistra in text, välj panel och kör en granskning
+
 # Rapporter
 
 * [Hantera rapporter](hantera-rapporter.md) — Lista och öppna beställda rapporter

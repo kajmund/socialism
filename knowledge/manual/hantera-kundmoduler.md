@@ -9,7 +9,9 @@ tags: [grunddata]
 
 Ytan **Verktyg** → **Kunder** syns bara för **administratör**.
 
-Varje kund har en uppsättning **tillgängliga moduler** (till exempel politisk simulering och Due Diligence). Det styr vilka ytor inloggningen öppnar, vilka länkar som syns i vänstermenyn och vilka rapportflikar som visas — inte bara inloggningsrollen.
+Varje kund har en uppsättning **tillgängliga moduler** (till exempel politisk simulering, Due Diligence och Expertgranskning). Det styr vilka ytor inloggningen öppnar, vilka länkar som syns i vänstermenyn och vilka rapportflikar som visas — inte bara inloggningsrollen.
+
+**Administratör** ser alltid **Expertgranskning** i vänstermenyn, även om rutan inte är ikryssad för någon kund.
 
 ## Steg
 

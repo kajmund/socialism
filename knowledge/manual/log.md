@@ -1,5 +1,9 @@
 # Manual update log
 
+## 2026-09-02
+
+* **Expertgranskning**: Ny yta i vänstermenyn. Klistra in en text, välj en märkt expertpanel och kör en granskning. Rapporten öppnas med Spinndoktor. Administratör ser länken alltid.
+
 ## 2026-09-01
 
 * **Verktyg**: Prompttexter i konfigurationer gäller direkt per kund och språk. **Aktivera** styr bara SSR-temperatur, ankare och grunddata — inte LLM-promptarna.

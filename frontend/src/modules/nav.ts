@@ -76,8 +76,12 @@ export function buildSidebarNav(opts: {
   moduleIds: readonly string[]
   showTools: boolean
 }): ShellNavSection[] {
+  const moduleIds = [...opts.moduleIds]
+  if (opts.showTools && !moduleIds.includes("expertgranskning")) {
+    moduleIds.push("expertgranskning")
+  }
   const sections: ShellNavSection[] = []
-  for (const manifest of sortManifestsForNav(manifestsForIds(opts.moduleIds))) {
+  for (const manifest of sortManifestsForNav(manifestsForIds(moduleIds))) {
     const items = moduleSectionItems(manifest, opts.moduleIds)
     if (items.length === 0) continue
     sections.push({ id: manifest.id, titleKey: manifest.nameKey, items })
