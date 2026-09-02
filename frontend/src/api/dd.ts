@@ -227,6 +227,53 @@ export function chatDdSourcing(
   return api.post(`/dd/campaigns/${campaignId}/sourcing/chat`, body, { timeoutMs: 120_000 })
 }
 
+export type StoredObject = {
+  id: string
+  kind: string
+  filename: string
+  content_type: string
+  size_bytes: number
+  campaign_id: number | null
+  candidate_id: string | null
+  report_id: string | null
+  created_at: string
+}
+
+export function listCandidateFiles(
+  campaignId: number,
+  candidateId: string,
+): Promise<StoredObject[]> {
+  return api.get(`/dd/campaigns/${campaignId}/candidates/${candidateId}/files`)
+}
+
+export function uploadCandidateFile(
+  campaignId: number,
+  candidateId: string,
+  file: File,
+): Promise<StoredObject> {
+  const form = new FormData()
+  form.append("file", file)
+  return api.postForm(`/dd/campaigns/${campaignId}/candidates/${candidateId}/files`, form, {
+    timeoutMs: 120_000,
+  })
+}
+
+export function downloadCandidateFile(
+  campaignId: number,
+  candidateId: string,
+  fileId: string,
+): Promise<Blob> {
+  return api.getBlob(`/dd/campaigns/${campaignId}/candidates/${candidateId}/files/${fileId}`)
+}
+
+export function deleteCandidateFile(
+  campaignId: number,
+  candidateId: string,
+  fileId: string,
+): Promise<void> {
+  return api.delete(`/dd/campaigns/${campaignId}/candidates/${candidateId}/files/${fileId}`)
+}
+
 export function defaultDdCriteria(): DdSourcingCriteria {
   return { alder_min: 0, alder_max: 40, omrade: "", resultat: "oavsett", fritext: "" }
 }

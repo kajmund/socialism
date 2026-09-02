@@ -5,6 +5,8 @@ requires-python = ">=3.12"
 dependencies = [
     "aiosqlite>=0.22.1",
     "alembic>=1.18.5",
+    # AWS SigV4 + S3 protocol for Supabase Storage; not something we write in <30 lines.
+    "boto3==1.43.85",
     "fastapi>=0.140.7",
     "greenlet==3.5.4",
     "httpx>=0.28.1",

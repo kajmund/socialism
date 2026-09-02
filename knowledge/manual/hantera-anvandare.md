@@ -26,7 +26,7 @@ Administratörer hanterar bolag och bjuder in användare under **Användare** i 
 
 - **Administratör** — ingen bolagskoppling; ser alla ytor och **Verktyg**.
 - **Användare** — knuten till ett bolag; får bolagets tilldelade moduler.
-- **Bolag** — knuten till ett bolag; används för due diligence-ytan när bolaget har den modulen.
+- **Bolag** — knuten till ett bolag; används för Due Diligence-ytan när bolaget har den modulen.
 
 ## Relaterade guider
 

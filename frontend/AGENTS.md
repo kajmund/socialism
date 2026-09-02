@@ -1,6 +1,6 @@
 # Frontend — agent notes
 
-This is the React SPA for **Opinionssimulator**. Read [../AGENTS.md](../AGENTS.md) first — universal building rules live there. This file adds frontend-specific conventions.
+This is the React SPA for **Socialism**. Read [../AGENTS.md](../AGENTS.md) first — universal building rules live there. This file adds frontend-specific conventions.
 
 ## Stack
 
@@ -66,15 +66,16 @@ Keep imports consistent with the `@/*` alias (e.g. `@/lib/api`, `@/components/ui
 
 ## Admin shell / scrolling (mandatory)
 
-**Nothing may scroll under the top nav.** The document/`body` must not scroll on admin pages. Content scrolls *inline* in a pane below the header.
+**Nothing may scroll under the sidebar (or the mobile top bar).** The document/`body` must not scroll on admin pages. Content scrolls *inline* in `.admin-main-scroll`.
 
 ### Shell contract (`AdminShell` + `admin-runs.css`)
 
-1. **`AdminShell`** is a fixed viewport column: topnav + `.admin-main-scroll`.
-2. **Topnav is not sticky/fixed** and does not use `backdrop-filter` over scrolling content. Use an opaque composite that matches the mockup frosted look (`background-color` + semi-transparent gradient), never `position: sticky` on the nav.
-3. **`.admin-main-scroll`** fills the remaining height (`flex: 1; min-height: 0; overflow: hidden`). Page roots scroll themselves.
-4. Direct page roots under main (`.wrap`, `.shell`) get `flex: 1; min-height: 0` and the shared content column `max-width: 1240px` (centered). Default `.wrap` uses `overflow: auto` (whole page scrolls *below* the nav, never behind it). Composer roots (`.shell`) keep `overflow: hidden` and scroll inside their panes.
+1. **`AdminShell`** is a fixed viewport: left `.admin-sidenav` + `.admin-main-scroll`. Below `lg` a slim `.admin-mobilebar` sits above main and the sidebar is an overlay drawer.
+2. **Sidenav is not sticky/fixed over scrolling content on desktop** — it is an in-flow column. Do not use `backdrop-filter` over page content. Keep the opaque charcoal rail.
+3. **`.admin-main-scroll`** fills the remaining width/height (`flex: 1; min-width: 0; min-height: 0; overflow: hidden`). Page roots scroll themselves.
+4. Direct page roots under main (`.wrap`, `.shell`) get `flex: 1; min-height: 0` and the shared content column `max-width: 1240px` (centered). Default `.wrap` uses `overflow: auto` (whole page scrolls *beside* the sidebar, never behind it). Composer roots (`.shell`) keep `overflow: hidden` and scroll inside their panes.
 5. **Full width exception:** only `.wrap.spinndoctor-page` (SpinnDoktorn) may use `max-width: none`. Do not add other full-bleed page roots.
+6. **Module links** in the sidenav come from `MODULE_REGISTRY` (`navItems` on each manifest), filtered by the kund’s `available_modules`. Shared links (rapporter, återkoppling, jobb) plus admin (verktyg, användare) stay in the same rail.
 
 ### List / long pages — `admin-page`
 
@@ -88,21 +89,22 @@ When a page has a title/filters **and** a long list, do **not** let the list cli
 ```
 
 - `.admin-page` → `overflow: hidden` flex column filling main.
-- `.admin-page-chrome` → `flex-shrink: 0` (stays visible under the nav).
+- `.admin-page-chrome` → `flex-shrink: 0` (stays visible beside the sidebar).
 - `.admin-page-body` → `flex: 1; min-height: 0; overflow: auto` (inline scroll).
 
 Examples: Kampanjer (lista + kampanjdetalj med flikar), Experter, Expertpaneler (lista + detalj), Jobb, Rapporter, Återkoppling, DD-körning (`dd-run-page admin-page` with Research/Resultat in the body).
 
-Plain `.wrap` (without `admin-page`) still scrolls *below* the nav, but title/tabs scroll away with the content — that looks like content disappearing under the header. Prefer `admin-page` whenever the page has chrome that should stay put.
+Plain `.wrap` (without `admin-page`) still scrolls *beside* the sidebar, but title/tabs scroll away with the content. Prefer `admin-page` whenever the page has chrome that should stay put.
 
-All page roots (`.wrap`, `.shell`, `.admin-page`) share the same content column: `max-width: 1240px`, full main height under the nav. Do not override with inline `maxWidth` / ad‑hoc padding. The only full-bleed exception is SpinnDoktorn (`.wrap.spinndoctor-page`).
+All page roots (`.wrap`, `.shell`, `.admin-page`) share the same content column: `max-width: 1240px`, full main height beside the sidebar. Do not override with inline `maxWidth` / ad‑hoc padding. The only full-bleed exception is SpinnDoktorn (`.wrap.spinndoctor-page`).
 
 ### Do not
 
-- Put `sticky` / `fixed` on `.admin-topnav` so main content paints underneath it.
+- Put `sticky` / `fixed` on `.admin-sidenav` so main content paints underneath it on desktop.
 - Rely on window/`body` scroll for admin routes.
 - Use translucent nav + `backdrop-filter` without an opaque underlay (content will show through when scrolling).
 - Invent a second page chrome pattern — extend `admin-page` / `admin-page-body` instead.
+- Hardcode module nav links in `AdminShell` — add them on the module manifest.
 
 ## i18n / L10n
 
@@ -113,7 +115,7 @@ Swedish is the default UI locale. Do **not** add `react-i18next` / `lingui` unle
 - Catalogs: `src/i18n/messages/sv.ts` (source of truth for keys) and `en.ts` (same shape).
 - Runtime: `LocaleProvider` + `useLocale()` from `@/i18n` (`t(key, params?)`, `locale`, `setLocale`, `intl` for `Intl.*`).
 - Persist choice in `localStorage` (`opinionssimulator.locale`); sync `document.documentElement.lang`.
-- Language switcher lives in `AdminShell` (admin chrome) and on `/login`. Migrated so far: nav, login, Jobs, Runs list/detail/configure/results, Populations list/detail/builder + job toasts, Personas list/composer/card-fields/profile, Messages list/workshop/variants, Config page/map.
+- Language switcher lives in `AdminShell` (bottom of the left sidenav) and on `/login`. Migrated so far: nav, login, Jobs, Runs list/detail/configure/results, Populations list/detail/builder + job toasts, Personas list/composer/card-fields/profile, Messages list/workshop/variants, Config page/map.
 
 **Adding a string**
 
@@ -129,7 +131,7 @@ Still hardcoded (next slices): OASIS simulation prompts (intentionally Swedish).
 | Path | Status |
 |------|--------|
 | `/login` | Sign-in (magic link) |
-| `/valj-modul` | Module picker (accounts with 2+ modules) |
+| `/valj-modul` | Redirect → module home (sidebar is how you switch) |
 | `/` | Dashboard (startsida) |
 | `/runs` | Körningar list |
 | `/runs/new`, `/runs/:id/edit` | Körning (wizard / quick + Resultat) |

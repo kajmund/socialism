@@ -7,7 +7,7 @@ tags: [personas]
 
 # Skapa och redigera expert
 
-**Experter** är rådgivare i due diligence — samma kompositör och chatt som personas, men med kompetens, bakgrund och verktyg i stället för politisk profil.
+**Experter** är rådgivare i Due Diligence — samma kompositör och chatt som personas, men med kompetens, bakgrund och verktyg i stället för politisk profil.
 
 ## Skapa ny expert
 
@@ -35,4 +35,4 @@ I chattpanelen kan du intervjua experten eller prata in-character. Experten anv�
 
 - [Hantera experter](hantera-experter.md)
 - [Komponera en expertpanel](komponera-expertpanel.md)
-- [Köra en DD-kampanj](kora-dd-kampanj.md)
+- [Köra en Due Diligence-kampanj](kora-dd-kampanj.md)

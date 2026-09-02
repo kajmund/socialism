@@ -3,7 +3,7 @@
  * Keep this module as the only import surface for session + token.
  */
 
-import { MODULE_HOME_PATHS } from "@/lib/moduleHomePaths"
+import { homePathForModules } from "@/lib/moduleHomePaths"
 import { supabase } from "@/lib/supabaseClient"
 
 export type Role = "admin" | "user" | "bolag"
@@ -110,9 +110,5 @@ export function hasModule(user: AuthUser | null | undefined, moduleId: string): 
 }
 
 export function homePathForUser(modules: readonly string[]): string {
-  if (modules.length === 0) return "/login"
-  if (modules.length === 1) {
-    return MODULE_HOME_PATHS[modules[0]] ?? "/login"
-  }
-  return "/valj-modul"
+  return homePathForModules(modules) ?? "/login"
 }
