@@ -1,6 +1,6 @@
 # Knowledge bundles (OKF)
 
-End-user knowledge for Opinionssimulator, stored as [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/tree/main/okf) (OKF) bundles.
+End-user knowledge for Socialism, stored as [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/tree/main/okf) (OKF) bundles.
 
 | Path | Audience | Purpose |
 | ---- | -------- | ------- |

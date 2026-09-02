@@ -321,7 +321,10 @@ async def _load_library_snapshot(session: AsyncSession) -> str:
 
     jobs = (
         await session.execute(
-            select(Job).order_by(Job.created_at.desc()).limit(_RECENT_JOBS_LIMIT)
+            select(Job)
+            .where(Job.archived_at.is_(None))
+            .order_by(Job.created_at.desc())
+            .limit(_RECENT_JOBS_LIMIT)
         )
     ).scalars().all()
     job_lines = [_format_job_line(job) for job in jobs] or ["  - (no jobs yet)"]
@@ -353,7 +356,10 @@ async def _load_library_snapshot(session: AsyncSession) -> str:
 async def _load_jobs_snapshot(session: AsyncSession) -> str:
     jobs = (
         await session.execute(
-            select(Job).order_by(Job.created_at.desc()).limit(_RECENT_JOBS_LIMIT)
+            select(Job)
+            .where(Job.archived_at.is_(None))
+            .order_by(Job.created_at.desc())
+            .limit(_RECENT_JOBS_LIMIT)
         )
     ).scalars().all()
     if not jobs:

@@ -1,7 +1,7 @@
 ---
 type: guide
 title: Använda hjälpchatten
-description: Fråga hur Opinionssimulator fungerar direkt i adminytan.
+description: Fråga hur Socialism fungerar direkt i adminytan.
 tags: [grunddata]
 ---
 

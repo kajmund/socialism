@@ -1,13 +1,13 @@
 ---
 type: guide
 title: Hantera experter
-description: Så söker, öppnar och tar du bort experter i due diligence-biblioteket.
+description: Så söker, öppnar och tar du bort experter i Due Diligence-biblioteket.
 tags: [personas]
 ---
 
 # Hantera experter
 
-Under **Experter** ligger biblioteket med rådgivare som du sätter ihop till expertpaneler och använder i DD-kampanjer.
+Under **Experter** ligger biblioteket med rådgivare som du sätter ihop till expertpaneler och använder i Due Diligence-kampanjer.
 
 ## Steg
 
@@ -23,4 +23,4 @@ Under **Experter** ligger biblioteket med rådgivare som du sätter ihop till ex
 
 - [Skapa och redigera expert](skapa-och-redigera-expert.md)
 - [Komponera en expertpanel](komponera-expertpanel.md)
-- [Använda due diligence-ytan](anvanda-due-diligence-ytan.md)
+- [Använda Due Diligence-ytan](anvanda-due-diligence-ytan.md)
