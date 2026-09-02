@@ -140,6 +140,14 @@ function toastFromTransition(
           hrefLabel: candidateId ? t("toast.openResults") : t("toast.openCampaign"),
         }
       }
+      if (job.kind === "panel_session_run") {
+        return {
+          kind: "ok",
+          message: t("toast.jobDone", { label: job.label }),
+          href: bolag ? "/bolag/expertgranskning" : "/expertgranskning",
+          hrefLabel: t("toast.openResults"),
+        }
+      }
     }
     const populationHref =
       popId != null
@@ -317,11 +325,29 @@ export function AdminShell({
 }: AdminShellProps) {
   const { pathname } = useLocation()
   const { t } = useLocale()
-  const { isAdmin } = useAuth()
+  const { isAdmin, hasModule } = useAuth()
   const showTools = showToolsProp ?? isAdmin
+  const resolvedNavItems = useMemo(() => {
+    const items = [...navItems]
+    if (
+      customerScope !== "bolag" &&
+      hasModule("expertgranskning") &&
+      !items.some((item) => item.match === "/expertgranskning")
+    ) {
+      const extra: ShellNavItem = {
+        key: "nav.expertgranskning",
+        to: "/expertgranskning",
+        match: "/expertgranskning",
+      }
+      const reportsIndex = items.findIndex((item) => item.match === "/reports")
+      if (reportsIndex >= 0) items.splice(reportsIndex, 0, extra)
+      else items.push(extra)
+    }
+    return items
+  }, [customerScope, hasModule, navItems])
   const visibleNavItems = showTools
-    ? navItems
-    : navItems.filter((link) => link.to !== "/tools" && link.to !== "/anvandare")
+    ? resolvedNavItems
+    : resolvedNavItems.filter((link) => link.to !== "/tools" && link.to !== "/anvandare")
   const { jobs } = useJobsRealtime()
   const scopedJobs = useMemo(
     () => jobs.filter((job) => matchesCustomerScope(job, customerScope)),

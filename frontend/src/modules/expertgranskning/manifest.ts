@@ -5,7 +5,7 @@ export const expertgranskningManifest: ModuleManifest = {
   nameKey: "modules.expertgranskning.name",
   icon: "📝",
   frontendEntry: "expertgranskning",
-  homePath: "/reports",
+  homePath: "/expertgranskning",
   components: ["panel_engine", "spindoctor"],
   reportModes: ["expertgranskning"],
 }
