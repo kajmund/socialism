@@ -46,7 +46,7 @@ async def test_ensure_default_kunder_seeds_os_and_bolag(session: AsyncSession):
     kunder = list((await session.execute(select(Kund).order_by(Kund.id))).scalars().all())
     assert len(kunder) == 2
     assert kunder[0].slug == OS_DEFAULT_KUND_SLUG
-    assert kunder[0].available_modules == ["politik"]
+    assert kunder[0].available_modules == ["politik", "expertgranskning"]
     assert kunder[1].slug == BOLAG_DEMO_KUND_SLUG
     assert kunder[1].available_modules == ["dd"]
 
@@ -57,6 +57,28 @@ async def test_ensure_default_kunder_seeds_os_and_bolag(session: AsyncSession):
     )
     assert len(projekt) == 1
     assert projekt[0].slug == DEFAULT_PROJEKT_SLUG
+
+
+async def test_ensure_default_kunder_backfills_expertgranskning(session: AsyncSession):
+    from app.serializers import utcnow
+
+    now = utcnow()
+    session.add(
+        Kund(
+            name="Devbrains",
+            slug=OS_DEFAULT_KUND_SLUG,
+            available_modules=["politik"],
+            created_at=now,
+            updated_at=now,
+        )
+    )
+    await session.commit()
+
+    await ensure_default_kunder(session)
+    row = (
+        await session.execute(select(Kund).where(Kund.slug == OS_DEFAULT_KUND_SLUG))
+    ).scalar_one()
+    assert row.available_modules == ["politik", "expertgranskning"]
 
 
 async def test_default_os_customer_id_is_idempotent(session: AsyncSession):
@@ -127,7 +149,7 @@ async def test_kunder_api_lists_seeded_tenants():
         devbrains = next(row for row in body if row["slug"] == OS_DEFAULT_KUND_SLUG)
         assert devbrains["projekt"]
         assert devbrains["projekt"][0]["slug"] == DEFAULT_PROJEKT_SLUG
-        assert devbrains["available_modules"] == ["politik"]
+        assert devbrains["available_modules"] == ["politik", "expertgranskning"]
         bolag = next(row for row in body if row["slug"] == BOLAG_DEMO_KUND_SLUG)
         assert bolag["available_modules"] == ["dd"]
 

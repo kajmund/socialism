@@ -14,9 +14,15 @@ BOLAG_DEMO_KUND_SLUG = "bolag-demo"
 DEFAULT_PROJEKT_SLUG = "default"
 
 _SEED_KUNDER: tuple[tuple[str, str, tuple[str, ...]], ...] = (
-    (OS_DEFAULT_KUND_SLUG, "Devbrains", ("politik",)),
+    (OS_DEFAULT_KUND_SLUG, "Devbrains", ("politik", "expertgranskning")),
     (BOLAG_DEMO_KUND_SLUG, "Bolag demo", ("dd",)),
 )
+
+
+def _module_ids(raw: object) -> list[str]:
+    if not isinstance(raw, list):
+        return []
+    return [item for item in raw if isinstance(item, str)]
 
 
 async def ensure_default_kunder(session: AsyncSession) -> bool:
@@ -39,6 +45,13 @@ async def ensure_default_kunder(session: AsyncSession) -> bool:
                 )
             )
             changed = True
+        elif slug == OS_DEFAULT_KUND_SLUG:
+            current = _module_ids(row.available_modules)
+            missing = [mid for mid in modules if mid not in current]
+            if missing:
+                row.available_modules = [*current, *missing]
+                row.updated_at = now
+                changed = True
 
     if changed:
         await session.flush()
