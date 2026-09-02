@@ -56,6 +56,10 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_jwt_secret: str = ""
     supabase_service_role_key: str = ""
+    # Supabase Storage S3-compatible API (Dashboard → Storage → S3 access keys).
+    supabase_s3_access_key_id: str = ""
+    supabase_s3_secret_access_key: str = ""
+    supabase_s3_region: str = ""
 
     # none = status-only start; oasis = live CAMEL OASIS spike (optional dep group)
     simulation_engine: SimulationEngine = "none"

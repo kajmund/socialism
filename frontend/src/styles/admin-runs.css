@@ -77,26 +77,63 @@ html:has(.admin-shell) #root {
   overflow: hidden;
   background: var(--surface-page);
 }
-.theme-admin.admin-shell > .admin-topnav {
+.theme-admin.admin-shell > .admin-mobilebar {
   flex: 0 0 auto;
   position: relative;
-  z-index: 1;
-  /*
-   * Same visual as mockup rgba(0,0,0,0.54) over white — opaque layers so
-   * scrolling content cannot show through (no sticky, no backdrop-filter).
-   */
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 64px;
+  padding: 0 16px;
   background-color: var(--surface-page);
   background-image: linear-gradient(rgba(0, 0, 0, 0.54), rgba(0, 0, 0, 0.54));
+}
+.theme-admin.admin-shell > .admin-sidenav {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  width: min(280px, 86vw);
+  height: 100%;
+  padding: 20px 16px 16px;
+  overflow: hidden;
+  transform: translateX(-105%);
+  transition: transform 0.2s ease;
+  background-color: #14161b;
+  background-image: linear-gradient(rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.28));
+}
+.theme-admin.admin-shell > .admin-sidenav.is-open {
+  transform: translateX(0);
 }
 .theme-admin.admin-shell > .admin-main-scroll {
   flex: 1 1 0%;
   min-height: 0;
+  min-width: 0;
   overflow: hidden; /* page roots scroll themselves */
   display: flex;
   flex-direction: column;
   background: var(--surface-page);
   position: relative;
   z-index: 0;
+}
+@media (min-width: 1024px) {
+  .theme-admin.admin-shell {
+    flex-direction: row;
+  }
+  .theme-admin.admin-shell > .admin-mobilebar {
+    display: none;
+  }
+  .theme-admin.admin-shell > .admin-sidenav {
+    position: relative;
+    inset: auto;
+    z-index: 1;
+    flex: 0 0 240px;
+    width: 240px;
+    transform: none;
+  }
 }
 /* Default page root: fills main and scrolls inline below the header */
 .theme-admin.admin-shell > .admin-main-scroll > .wrap,
@@ -146,60 +183,107 @@ html:has(.admin-shell) #root {
   overflow: auto;
   overscroll-behavior: contain;
 }
-/* Keep brand link colors */
-.theme-admin .admin-topnav a.admin-topnav-brand {
+.theme-admin a.admin-sidenav-brand {
   color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
 }
-.theme-admin .admin-topnav a.admin-topnav-brand:hover {
+.theme-admin a.admin-sidenav-brand:hover {
   color: #ffffff;
   opacity: 0.9;
 }
-.theme-admin .admin-topnav-burger {
+.theme-admin .admin-sidenav-brand-desktop {
+  display: none;
+  margin-bottom: 20px;
+  padding: 0 8px;
+}
+.theme-admin .admin-sidenav-product {
+  margin: 0 0 16px;
+  padding: 0 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #fbd37b;
+}
+.theme-admin .admin-sidenav-nav {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-bottom: 16px;
+}
+.theme-admin .admin-sidenav-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.theme-admin .admin-sidenav-heading {
+  margin: 0 0 6px;
+  padding: 0 8px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #fbd37b;
+}
+.theme-admin .admin-sidenav-section + .admin-sidenav-section {
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+.theme-admin a.admin-sidenav-link {
+  color: #ffffff;
+  font-weight: 400;
+  font-size: 0.875rem;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.45rem 8px;
+  border-radius: 6px;
+  border-left: 2px solid transparent;
+}
+.theme-admin a.admin-sidenav-link:hover {
+  color: #fbd37b;
+  background: rgba(255, 255, 255, 0.04);
+}
+.theme-admin a.admin-sidenav-link.is-active {
+  color: #fbd37b;
+  border-left-color: #fbd37b;
+  background: rgba(251, 211, 123, 0.08);
+}
+.theme-admin .admin-sidenav-session {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 8px 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+.theme-admin .admin-sidenav-burger {
   color: #fbd37b;
   background: transparent;
   border: 0;
   padding: 8px;
   cursor: pointer;
+  display: flex;
   align-items: center;
   justify-content: center;
   line-height: 0;
 }
-.theme-admin .admin-topnav-burger:hover {
+.theme-admin .admin-sidenav-burger:hover {
   color: #f3ce73;
 }
-/* Opened menu must stay legible over page content — keep it opaque */
-.theme-admin .admin-topnav-panel {
-  background: #000000;
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
-}
-.theme-admin .admin-topnav a.admin-topnav-link {
-  color: #ffffff;
-  font-weight: 400;
-  letter-spacing: 0.02em;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-.theme-admin .admin-topnav a.admin-topnav-link:hover {
-  color: #fbd37b;
-}
-.theme-admin .admin-topnav a.admin-topnav-link.is-active {
-  color: #fbd37b;
-}
-/* Inline row (desktop) */
-.theme-admin .admin-topnav a.admin-topnav-link-inline {
-  font-size: 0.875rem;
-  padding-bottom: 3px;
-  border-bottom: 2px solid transparent;
-}
-.theme-admin .admin-topnav a.admin-topnav-link-inline.is-active {
-  border-bottom-color: #fbd37b;
-}
-/* Stacked panel (mobile menu) */
-.theme-admin .admin-topnav a.admin-topnav-link-panel {
-  font-size: 1.15rem;
-  padding: 0.55rem 0;
+@media (min-width: 1024px) {
+  .theme-admin .admin-sidenav-brand-desktop {
+    display: inline-flex;
+  }
 }
 .theme-admin .mono { font-family: "JetBrains Mono", ui-monospace, Menlo, monospace; }
 
@@ -1110,11 +1194,8 @@ table.lt.pol .lock.on{background:var(--db-gold-700);border-color:var(--db-gold-7
 .help-chat-panel-close:hover{background:var(--db-ink-100);color:var(--text-body)}
 
 .spinndoctor-panel-header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
-.wrap.spinndoctor-page{max-width:none;width:100%;height:calc(100vh - 88px);box-sizing:border-box;padding:0;margin:0;overflow:hidden}
+.wrap.spinndoctor-page{max-width:none;width:100%;height:100%;box-sizing:border-box;padding:0;margin:0;overflow:hidden}
 .wrap.spinndoctor-page.is-embedded{height:calc(100vh - 220px);min-height:480px}
-@media (min-width: 768px){
-  .wrap.spinndoctor-page{height:calc(100vh - 100px)}
-}
 .spinndoctor-workspace{position:relative;height:100%;min-height:0}
 .spinndoctor-workspace-grid{position:absolute;inset:0;display:flex;flex-direction:column;background:#fafafa}
 .spinndoctor-workspace-overlays{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;padding:12px 16px;pointer-events:none}

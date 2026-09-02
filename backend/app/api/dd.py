@@ -5,13 +5,16 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
 from app.auth.scope import assert_kund_access, effective_customer_id, require_user_kund_id
 from app.database.models import DdCampaign, UserAccount
 from app.database.session import get_session
+from app.schemas.domain import JobCreate, JobOut
+from app.services import jobs as jobs_service
 from app.services.dd.campaigns import (
     apply_sourcing_run,
     clear_panel_assignment,
@@ -23,9 +26,6 @@ from app.services.dd.campaigns import (
     serialize_campaign_detail,
     update_campaign,
 )
-from app.services.dd.sourcing_chat import SourcingChatError, run_sourcing_chat_turn
-from app.schemas.domain import JobCreate, JobOut
-from app.services import jobs as jobs_service
 from app.services.dd.candidate_runs import (
     clear_research,
     delete_candidate_run,
@@ -41,16 +41,28 @@ from app.services.dd.schemas import (
     DdResearchDossier,
     DdResearchPerson,
     DdResearchStartRequest,
-    DdSourcingCriteria,
     DdSourcingChatRequest,
     DdSourcingChatResponse,
+    DdSourcingCriteria,
     DdSourcingSearchRequest,
     DdSourcingSearchResponse,
+    StoredObjectOut,
 )
+from app.services.dd.sourcing_chat import SourcingChatError, run_sourcing_chat_turn
+from app.services.object_storage import MAX_ANNUAL_REPORT_BYTES, ObjectStorageError
 from app.services.panel.schemas import DdPanelSessionCreateRequest, PanelSessionOut
 from app.services.panel.sessions import create_panel_session
 from app.services.report import ARTIFACT_ROOT
 from app.services.report_realtime import publish_reports_deleted
+from app.services.stored_objects import (
+    delete_objects_for_campaign,
+    delete_stored_object,
+    get_stored_object,
+    list_candidate_files,
+    read_stored_bytes,
+    serialize_stored_object,
+    upload_annual_report,
+)
 
 router = APIRouter(prefix="/dd", tags=["dd"])
 
@@ -156,6 +168,10 @@ async def delete_campaign_by_id(
     user: UserAccount = Depends(get_current_user),
 ) -> None:
     row = await _require_campaign(session, campaign_id, user)
+    try:
+        await delete_objects_for_campaign(session, row.id)
+    except ObjectStorageError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     await delete_campaign(session, row)
     await session.commit()
 
@@ -200,7 +216,7 @@ async def post_campaign_sourcing_chat(
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> DdSourcingChatResponse:
-    await _require_campaign(session, campaign_id, user)
+    row = await _require_campaign(session, campaign_id, user)
     try:
         reply, candidates = await run_sourcing_chat_turn(
             session,
@@ -333,6 +349,125 @@ async def delete_candidate_research(
         await session.commit()
         return
     await session.commit()
+
+
+def _require_candidate(campaign: DdCampaign, candidate_id: str) -> dict:
+    candidates = campaign.candidates if isinstance(campaign.candidates, list) else []
+    match = next(
+        (item for item in candidates if isinstance(item, dict) and item.get("id") == candidate_id),
+        None,
+    )
+    if match is None:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    return match
+
+
+@router.get(
+    "/campaigns/{campaign_id}/candidates/{candidate_id}/files",
+    response_model=list[StoredObjectOut],
+)
+async def list_candidate_annual_reports(
+    campaign_id: int,
+    candidate_id: str,
+    session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
+) -> list[StoredObjectOut]:
+    campaign = await _require_campaign(session, campaign_id, user)
+    _require_candidate(campaign, candidate_id)
+    rows = await list_candidate_files(
+        session, campaign_id=campaign_id, candidate_id=candidate_id
+    )
+    return [StoredObjectOut(**serialize_stored_object(row)) for row in rows]
+
+
+@router.post(
+    "/campaigns/{campaign_id}/candidates/{candidate_id}/files",
+    response_model=StoredObjectOut,
+    status_code=201,
+)
+async def upload_candidate_annual_report(
+    campaign_id: int,
+    candidate_id: str,
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
+) -> StoredObjectOut:
+    campaign = await _require_campaign(session, campaign_id, user)
+    _require_candidate(campaign, candidate_id)
+    raw = await file.read(MAX_ANNUAL_REPORT_BYTES + 1)
+    try:
+        row = await upload_annual_report(
+            session,
+            customer_id=campaign.customer_id,
+            module=campaign.module,
+            campaign_id=campaign.id,
+            candidate_id=candidate_id,
+            filename=file.filename or "file",
+            content_type=file.content_type or "application/octet-stream",
+            data=raw,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except ObjectStorageError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    await session.commit()
+    return StoredObjectOut(**serialize_stored_object(row))
+
+
+@router.get("/campaigns/{campaign_id}/candidates/{candidate_id}/files/{file_id}")
+async def download_candidate_annual_report(
+    campaign_id: int,
+    candidate_id: str,
+    file_id: str,
+    session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
+) -> Response:
+    campaign = await _require_campaign(session, campaign_id, user)
+    _require_candidate(campaign, candidate_id)
+    row = await get_stored_object(session, file_id)
+    if (
+        row is None
+        or row.campaign_id != campaign_id
+        or row.candidate_id != candidate_id
+    ):
+        raise HTTPException(status_code=404, detail="File not found")
+    try:
+        data, content_type = await read_stored_bytes(row)
+    except ObjectStorageError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return Response(
+        content=data,
+        media_type=content_type,
+        headers={"Content-Disposition": f'attachment; filename="{row.filename}"'},
+    )
+
+
+@router.delete(
+    "/campaigns/{campaign_id}/candidates/{candidate_id}/files/{file_id}",
+    status_code=204,
+)
+async def delete_candidate_annual_report(
+    campaign_id: int,
+    candidate_id: str,
+    file_id: str,
+    session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
+) -> Response:
+    campaign = await _require_campaign(session, campaign_id, user)
+    _require_candidate(campaign, candidate_id)
+    row = await get_stored_object(session, file_id)
+    if (
+        row is None
+        or row.campaign_id != campaign_id
+        or row.candidate_id != candidate_id
+    ):
+        raise HTTPException(status_code=404, detail="File not found")
+    try:
+        await delete_stored_object(session, row)
+    except ObjectStorageError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    await session.commit()
+    return Response(status_code=204)
 
 
 @router.post(

@@ -131,7 +131,8 @@ def test_search_manual_finds_korning_guide():
 
 def test_help_chat_websocket_rejects_hello_without_tenant(help_client):
     client, _loop, _factory, _tools_calls = help_client
-    with client.websocket_connect("/ws/chat") as ws:
+    token = mint_access_token(sub=ADMIN_USER_ID, email="admin@test.local")
+    with client.websocket_connect(f"/ws/chat?access_token={token}") as ws:
         ws.send_json(
             {
                 "type": "hello",

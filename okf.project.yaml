@@ -1,8 +1,8 @@
-# OKF project config for Opinionssimulator end-user manuals.
+# OKF project config for Socialism end-user manuals.
 # Validate: npx -y @mfdaves/okf-mcp@0.3.3 --project ./okf.project.yaml validate
 # MCP later: npx -y @mfdaves/okf-mcp@0.3.3 --project ./okf.project.yaml mcp
 
-project: Opinionssimulator
+project: Socialism
 bundles:
   - id: manual
     root: knowledge/manual
