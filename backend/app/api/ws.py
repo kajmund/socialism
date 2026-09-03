@@ -419,6 +419,7 @@ async def chat_websocket(websocket: WebSocket) -> None:
     if user is None:
         return
     hello: LibraryHello | RunInterviewHello | HelpHello | SpindoctorHello | None = None
+    help_customer_id: int | None = None
     try:
         raw = await websocket.receive_json()
         if not isinstance(raw, dict):
@@ -471,7 +472,8 @@ async def chat_websocket(websocket: WebSocket) -> None:
                         await websocket.close(code=1003)
                         return
                     assert_kund_access(user, report.customer_id)
-                # HelpHello: authenticated user is enough
+                elif isinstance(hello, HelpHello):
+                    help_customer_id = effective_customer_id(user, hello.customer_id)
             except HTTPException as exc:
                 await _close_auth_error(websocket, exc)
                 return
@@ -518,7 +520,7 @@ async def chat_websocket(websocket: WebSocket) -> None:
                             locale=hello.locale,
                             message=send.message,
                             view=turn_view,
-                            customer_id=hello.customer_id,
+                            customer_id=help_customer_id,
                             module=hello.module,
                             ground_population=send.ground_population,
                         )

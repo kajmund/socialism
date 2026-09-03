@@ -129,7 +129,9 @@ async def _build_system_prompt(
         render_prompt(prompts, "help.system.scb"),
         render_prompt(prompts, "help.system.feedback"),
     ]
-    context = await build_help_context(session, view=view, query=query)
+    context = await build_help_context(
+        session, view=view, query=query, customer_id=customer_id
+    )
     parts.append(context)
     return "\n\n".join(parts)
 
