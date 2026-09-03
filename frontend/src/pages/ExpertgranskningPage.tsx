@@ -12,6 +12,7 @@ import { useAuth } from "@/auth/AuthProvider"
 import { AdminShell, rememberJobPending } from "@/components/layout/AdminShell"
 import { NestedBolagPage } from "@/components/layout/BolagShell"
 import { PanelLiveFeedPanel } from "@/components/panel/PanelLiveFeedPanel"
+import { UnderlagPicker, type UnderlagSelection } from "@/components/underlag/UnderlagPicker"
 import { Card, CardContent } from "@/components/ui/card"
 import type { PopulationSummary } from "@/data/library-types"
 import { useLocale, type MessageKey } from "@/i18n"
@@ -64,6 +65,7 @@ export function ExpertgranskningPage({
 
   const [title, setTitle] = useState("")
   const [documentText, setDocumentText] = useState("")
+  const [selectedUnderlag, setSelectedUnderlag] = useState<UnderlagSelection | null>(null)
   const [panelId, setPanelId] = useState<number | null>(null)
   const [expertPanels, setExpertPanels] = useState<PopulationSummary[]>([])
   const [loadingPanels, setLoadingPanels] = useState(true)
@@ -281,8 +283,18 @@ export function ExpertgranskningPage({
                 <label htmlFor="expertgranskning-document">
                   {t("expertgranskning.page.documentLabel")}
                 </label>
+                <UnderlagPicker
+                  module="expertgranskning"
+                  value={selectedUnderlag}
+                  disabled={isRunning}
+                  onChange={(next) => {
+                    setSelectedUnderlag(next)
+                    if (next?.extractedText) setDocumentText(next.extractedText)
+                  }}
+                />
                 <textarea
                   id="expertgranskning-document"
+                  className="mt-2"
                   rows={12}
                   value={documentText}
                   disabled={isRunning}

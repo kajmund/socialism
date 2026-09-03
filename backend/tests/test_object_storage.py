@@ -5,12 +5,14 @@ import pytest
 from app.database.models import Report
 from app.services.object_storage import (
     ObjectStorageError,
+    UNDERLAG_DOCX_TYPE,
     bucket_name,
     get_object_storage,
     module_prefix,
     safe_filename,
     supabase_s3_endpoint,
     validate_annual_report,
+    validate_underlag,
 )
 from app.services.stored_objects import store_report_artifacts
 from tests.conftest import TEST_CUSTOMER_ID
@@ -51,6 +53,30 @@ def test_validate_annual_report_rejects_empty():
         validate_annual_report("x.pdf", "application/pdf", b"")
     except ValueError as exc:
         assert "empty" in str(exc)
+    else:
+        raise AssertionError("expected ValueError")
+
+
+def test_validate_underlag_txt_md_pdf_docx():
+    assert validate_underlag("not.txt", "text/plain", b"hej") == "text/plain"
+    assert validate_underlag("brief.md", "text/markdown", b"# x") == "text/markdown"
+    assert validate_underlag("x.pdf", "application/pdf", b"%PDF-1.4 x") == "application/pdf"
+    assert (
+        validate_underlag("pm.docx", UNDERLAG_DOCX_TYPE, b"PK\x03\x04fake") == UNDERLAG_DOCX_TYPE
+    )
+
+
+def test_validate_underlag_rejects_empty_and_wrong_type():
+    try:
+        validate_underlag("x.txt", "text/plain", b"")
+    except ValueError as exc:
+        assert "empty" in str(exc)
+    else:
+        raise AssertionError("expected ValueError")
+    try:
+        validate_underlag("notes.exe", "application/octet-stream", b"MZ")
+    except ValueError as exc:
+        assert "txt" in str(exc)
     else:
         raise AssertionError("expected ValueError")
 
