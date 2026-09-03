@@ -16,6 +16,7 @@ from app.database.models import (
     Message,
     Persona,
     Population,
+    PopulationMember,
     Projekt,
     Report,
     Run,
@@ -59,6 +60,58 @@ def _tenant_denied(entity: str, entity_id: object) -> str:
 async def _project_customer_id(session: AsyncSession, project_id: int) -> int | None:
     projekt = await session.get(Projekt, project_id)
     return None if projekt is None else projekt.customer_id
+
+
+async def _population_visible_to_customer(
+    session: AsyncSession,
+    population_id: int,
+    *,
+    customer_id: int,
+) -> bool:
+    """Same kund rule as assert_population_access: ownership is via linked personas."""
+    persona_ids = list(
+        (
+            await session.execute(
+                select(PopulationMember.persona_id).where(
+                    PopulationMember.population_id == population_id,
+                    PopulationMember.persona_id.is_not(None),
+                )
+            )
+        ).scalars().all()
+    )
+    if not persona_ids:
+        return False
+    customer_ids = set(
+        (
+            await session.execute(
+                select(Persona.customer_id).where(Persona.id.in_(persona_ids))
+            )
+        ).scalars().all()
+    )
+    return bool(customer_ids) and all(cid == customer_id for cid in customer_ids)
+
+
+async def _count_visible_populations(session: AsyncSession, *, customer_id: int) -> int:
+    own_ids = (
+        select(PopulationMember.population_id)
+        .join(Persona, Persona.id == PopulationMember.persona_id)
+        .where(Persona.customer_id == customer_id)
+        .distinct()
+    )
+    foreign_ids = (
+        select(PopulationMember.population_id)
+        .join(Persona, Persona.id == PopulationMember.persona_id)
+        .where(Persona.customer_id != customer_id)
+        .distinct()
+    )
+    return (
+        await session.scalar(
+            select(func.count())
+            .select_from(Population)
+            .where(Population.id.in_(own_ids), Population.id.not_in(foreign_ids))
+        )
+        or 0
+    )
 
 
 def _format_view(view: HelpViewContext) -> str:
@@ -338,7 +391,7 @@ async def _load_library_snapshot(session: AsyncSession, *, customer_id: int) -> 
         .select_from(Configuration)
         .where(Configuration.customer_id == customer_id)
     ) or 0
-    population_count = await session.scalar(select(func.count()).select_from(Population)) or 0
+    population_count = await _count_visible_populations(session, customer_id=customer_id)
     anchor_count = await session.scalar(select(func.count()).select_from(SsrAnchorSet)) or 0
 
     active = await session.scalar(
@@ -445,6 +498,10 @@ async def _load_view_entity(
         row = await session.get(Population, int(pop_id))
         if row is None:
             return f"# Open population\n\nPopulation `{pop_id}` was not found."
+        if not await _population_visible_to_customer(
+            session, row.id, customer_id=customer_id
+        ):
+            return _tenant_denied("Open population", pop_id)
         return "\n".join(
             [
                 "# Open population (read-only)",
