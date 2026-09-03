@@ -6,6 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
+from app.auth.scope import effective_customer_id
+from app.database.models import UserAccount
 from app.database.session import get_session
 from app.schemas.domain import HelpChatRequest, HelpChatResponse, HelpMessageOut
 from app.services.help_chat import (
@@ -42,7 +44,9 @@ async def delete_help_messages(
 async def post_help_chat(
     body: HelpChatRequest,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
 ) -> HelpChatResponse:
+    customer_id = effective_customer_id(user, body.customer_id)
     done: HelpChatResponse | None = None
     try:
         async for item in stream_help_chat_turn(
@@ -51,7 +55,7 @@ async def post_help_chat(
             locale=body.locale,
             message=body.message,
             view=body.view,
-            customer_id=body.customer_id,
+            customer_id=customer_id,
             module=body.module,
             ground_population=body.ground_population,
         ):

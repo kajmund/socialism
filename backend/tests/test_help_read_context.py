@@ -57,7 +57,9 @@ def test_build_help_context_includes_view_and_snapshot(help_session):
 
     async def _run() -> str:
         async with session_factory() as session:
-            return await build_help_context(session, view=view, query="starta simulering")
+            return await build_help_context(
+                session, view=view, query="starta simulering", customer_id=1
+            )
 
     text = loop.run_until_complete(_run())
     assert "Current view" in text
@@ -94,7 +96,9 @@ def test_build_help_context_includes_failed_job_error(help_session):
                 params={},
                 search={},
             )
-            return await build_help_context(session, view=view, query="varför misslyckades jobbet")
+            return await build_help_context(
+                session, view=view, query="varför misslyckades jobbet", customer_id=1
+            )
 
     text = loop.run_until_complete(_seed_and_run())
     assert "Open jobs view" in text
@@ -170,7 +174,9 @@ def test_build_help_context_includes_run_troubleshooting(help_session, tmp_path,
                 params={"id": str(run_id)},
                 search={"tab": "resultat"},
             )
-            return await build_help_context(session, view=view, query="varför failade körningen")
+            return await build_help_context(
+                session, view=view, query="varför failade körningen", customer_id=1
+            )
 
     text = loop.run_until_complete(_seed_and_run())
     assert "Attempt att_demo" in text
