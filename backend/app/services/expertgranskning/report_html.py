@@ -83,7 +83,6 @@ def render_expertgranskning_html(
 <style>
 /*@@REPORT_THEME_CSS@@*/
 .ag-card {{ background: var(--surface-page); border: 1px solid var(--border-hairline); border-radius: var(--radius-md); padding: 16px 18px; margin-bottom: 14px; }}
-.document-body {{ white-space: pre-wrap; }}
 </style>
 </head>
 <body>
@@ -93,7 +92,7 @@ def render_expertgranskning_html(
   <section class="section" id="dokument">
     <div class="eyebrow">{labels["document"]}</div>
     <h2>{labels["document"]}</h2>
-    <div class="explainer document-body">{escape(document_text)}</div>
+    <div class="explainer md-body">{markdown_to_html(document_text)}</div>
   </section>
   <section class="section" id="sammanfattning">
     <div class="eyebrow">{labels["summary"]}</div>
