@@ -235,7 +235,6 @@ async def store_report_artifacts(
     *,
     module: str,
 ) -> None:
-    await delete_objects_for_report(session, report.id)
     _kund, bucket = await kund_bucket(session, report.customer_id)
     files: list[tuple[Path, str, str]] = [
         (out_dir / "report.html", KIND_REPORT_HTML, "text/html; charset=utf-8"),
@@ -249,13 +248,28 @@ async def store_report_artifacts(
     if not sidecars:
         raise ObjectStorageError("Report artifacts missing JSON sidecar")
     files.extend((path, KIND_REPORT_JSON, "application/json") for path in sidecars)
-    now = utcnow()
+
+    uploaded: list[tuple[str, str, str, str, int]] = []
     for path, kind, content_type in files:
         if not path.is_file():
             raise ObjectStorageError(f"Report artifact missing: {path.name}")
         data = path.read_bytes()
         key = f"{module_prefix(module)}/reports/{report.id}/{path.name}"
         await put_object(bucket, key, data, content_type)
+        uploaded.append((key, kind, path.name, content_type, len(data)))
+
+    result = await session.execute(
+        select(StoredObject).where(StoredObject.report_id == report.id)
+    )
+    old_rows = list(result.scalars().all())
+    new_keys = {key for key, *_ in uploaded}
+    for row in old_rows:
+        if row.object_key not in new_keys:
+            await delete_object(row.bucket, row.object_key)
+        await session.delete(row)
+
+    now = utcnow()
+    for key, kind, filename, content_type, size_bytes in uploaded:
         session.add(
             StoredObject(
                 id=secrets.token_hex(16),
@@ -264,9 +278,9 @@ async def store_report_artifacts(
                 kind=kind,
                 bucket=bucket,
                 object_key=key,
-                filename=path.name,
+                filename=filename,
                 content_type=content_type,
-                size_bytes=len(data),
+                size_bytes=size_bytes,
                 report_id=report.id,
                 created_at=now,
             )
