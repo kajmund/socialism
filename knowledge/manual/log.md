@@ -2,6 +2,7 @@
 
 ## 2026-09-03
 
+* **Expertgranskning / Due Diligence**: I live-panelen visas experternas turer formaterade (listor, fetstil, länkar), inte som rå markdown-text.
 * **Expertgranskning**: Du kan ladda upp ett eget underlag (txt, md, PDF eller Word) i stället för att bara klistra in text. Filerna är personliga. I rapporten visas dokumentet formaterat.
 
 ## 2026-09-02

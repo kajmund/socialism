@@ -1,4 +1,5 @@
 import { Loader2 } from "lucide-react"
+import { Markdown } from "@/components/ui/markdown"
 import type {
   PanelWatchPendingTurn,
   PanelWatchTurn,
@@ -53,7 +54,7 @@ function TurnRow({
         ) : null}
       </div>
       {content ? (
-        <p className="mt-2 whitespace-pre-wrap text-foreground">{content}</p>
+        <Markdown className="mt-2 text-foreground" content={content} />
       ) : null}
     </li>
   )

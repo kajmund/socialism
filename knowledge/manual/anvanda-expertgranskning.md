@@ -16,7 +16,7 @@ tags: [rapporter]
    - **Välj underlag** och ladda upp eller återanvänd en egen fil (txt, md, PDF eller Word). Den extraherade texten fylls i automatiskt.
    - Klistra in text direkt i dokumentfältet. Titel är valfritt.
 3. Välj en **expertpanel** som är märkt för expertgranskning. Finns ingen panel skapar du en under **Expertpaneler** och kryssar i Expertgranskning.
-4. Klicka **Kör expertgranskning**. Live-panelen syns medan jobbet körs.
+4. Klicka **Kör expertgranskning**. Live-panelen syns medan jobbet körs. Experternas turer visas formaterade (listor, fetstil, länkar) om de skriver markdown.
 5. När panelen är klar öppnas rapporten. Dokumentet visas formaterat. Därifrån kan du prata med **Spinndoktor**.
 
 Underlag du laddar upp är personliga — andra på samma kund ser inte dina filer.
