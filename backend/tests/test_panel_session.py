@@ -10,7 +10,15 @@ from httpx import AsyncClient
 
 from app.llm import set_text_completer, set_tools_completer
 from app.services import jobs as jobs_service
+from app.services.panel.engine import (
+    _expert_raise_hand,
+    _expert_scratchpad,
+    _expert_turn,
+    _moderator_analysis,
+    _moderator_opening,
+)
 from app.services.panel.schemas import PanelSessionCreate, PanelSessionConfig, PanelExpertSlot
+from app.services.prompt_catalog import default_prompts
 
 
 @pytest.fixture
@@ -125,3 +133,51 @@ async def test_panel_session_config_validation():
     )
     assert cfg.protocol == "generic_panel"
     assert PanelSessionCreate(config=cfg).config.max_rounds == 2
+
+
+@pytest.mark.asyncio
+async def test_generic_panel_turns_include_brief_as_system_message():
+    """Document brief must stay visible after the opening — not just topic."""
+    seen: list[list[dict]] = []
+
+    async def _complete(messages, *, model=None):
+        seen.append([dict(item) for item in messages])
+        user = messages[-1]["content"]
+        if "JA eller NEJ" in user or "YES or NO" in user:
+            return "JA"
+        return "ok"
+
+    async def _tools(messages, tools=None):
+        seen.append([dict(item) for item in messages])
+        return SimpleNamespace(content="ok", tool_calls=None)
+
+    set_text_completer(_complete)
+    set_tools_completer(_tools)
+    document = (
+        "Första raden som annars blir topic.\n\n"
+        "Andra stycket måste synas i varje tur, inte bara öppningen."
+    )
+    try:
+        prompts = default_prompts("sv")
+        config = PanelSessionConfig(
+            topic="Första raden som annars blir topic.",
+            brief=document,
+            expert_slots=[
+                PanelExpertSlot(slot_id="a", label="Expert A", profile="Profil"),
+            ],
+        )
+        slot = config.expert_slots[0]
+        transcript: list = []
+        await _moderator_opening(config, prompts)
+        await _expert_raise_hand(slot, config, transcript, "", prompts)
+        await _expert_scratchpad(slot, config, transcript, "", prompts)
+        await _expert_turn(slot, config, transcript, "", prompts)
+        await _moderator_analysis(config, transcript, prompts)
+        assert len(seen) == 5
+        for messages in seen:
+            system_texts = [item["content"] for item in messages if item["role"] == "system"]
+            assert document in system_texts
+            assert system_texts[0] != document
+    finally:
+        set_text_completer(None)
+        set_tools_completer(None)

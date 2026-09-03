@@ -47,20 +47,36 @@ def _transcript_text(transcript: list[PanelTurn]) -> str:
     return "\n".join(lines)
 
 
+def _session_brief(config: PanelSessionConfig) -> str:
+    return (config.brief or "").strip()
+
+
+def _messages_with_brief(
+    *,
+    identity: str,
+    brief: str,
+    user_content: str,
+) -> list[dict[str, str]]:
+    """Keep document brief as its own system message — same as structured_scoring."""
+    messages = [{"role": "system", "content": identity}]
+    if brief:
+        messages.append({"role": "system", "content": brief})
+    messages.append({"role": "user", "content": user_content})
+    return messages
+
+
 async def _moderator_opening(config: PanelSessionConfig, prompts: dict[str, str]) -> str:
-    messages = [
-        {"role": "system", "content": render_prompt(prompts, "panel.moderator.system")},
-        {
-            "role": "user",
-            "content": render_prompt(
-                prompts,
-                "panel.moderator.opening",
-                topic=config.topic,
-                brief=config.brief or config.topic,
-                expert_list=_expert_list(config),
-            ),
-        },
-    ]
+    messages = _messages_with_brief(
+        identity=render_prompt(prompts, "panel.moderator.system"),
+        brief=_session_brief(config),
+        user_content=render_prompt(
+            prompts,
+            "panel.moderator.opening",
+            topic=config.topic,
+            brief=config.brief or config.topic,
+            expert_list=_expert_list(config),
+        ),
+    )
     return (await complete_text(messages)).strip()
 
 
@@ -71,19 +87,17 @@ async def _expert_raise_hand(
     scratchpad: str,
     prompts: dict[str, str],
 ) -> bool:
-    messages = [
-        {"role": "system", "content": _expert_system(prompts, slot)},
-        {
-            "role": "user",
-            "content": render_prompt(
-                prompts,
-                "panel.expert.raise_hand",
-                topic=config.topic,
-                transcript=_transcript_text(transcript),
-                scratchpad=scratchpad or "(tom)",
-            ),
-        },
-    ]
+    messages = _messages_with_brief(
+        identity=_expert_system(prompts, slot),
+        brief=_session_brief(config),
+        user_content=render_prompt(
+            prompts,
+            "panel.expert.raise_hand",
+            topic=config.topic,
+            transcript=_transcript_text(transcript),
+            scratchpad=scratchpad or "(tom)",
+        ),
+    )
     answer = (await complete_text(messages)).strip().upper()
     return answer.startswith("JA") or answer.startswith("YES") or answer.startswith("RAISE")
 
@@ -95,19 +109,17 @@ async def _expert_scratchpad(
     scratchpad: str,
     prompts: dict[str, str],
 ) -> str:
-    messages = [
-        {"role": "system", "content": _expert_system(prompts, slot, with_tools=True)},
-        {
-            "role": "user",
-            "content": render_prompt(
-                prompts,
-                "panel.expert.scratchpad",
-                topic=config.topic,
-                transcript=_transcript_text(transcript),
-                scratchpad=scratchpad or "(tom)",
-            ),
-        },
-    ]
+    messages = _messages_with_brief(
+        identity=_expert_system(prompts, slot, with_tools=True),
+        brief=_session_brief(config),
+        user_content=render_prompt(
+            prompts,
+            "panel.expert.scratchpad",
+            topic=config.topic,
+            transcript=_transcript_text(transcript),
+            scratchpad=scratchpad or "(tom)",
+        ),
+    )
     return (
         await complete_text_with_company_tools(
             messages, allowed_tools=frozenset(slot.tools)
@@ -122,19 +134,17 @@ async def _expert_turn(
     scratchpad: str,
     prompts: dict[str, str],
 ) -> str:
-    messages = [
-        {"role": "system", "content": _expert_system(prompts, slot, with_tools=True)},
-        {
-            "role": "user",
-            "content": render_prompt(
-                prompts,
-                "panel.expert.turn",
-                topic=config.topic,
-                transcript=_transcript_text(transcript),
-                scratchpad=scratchpad or "(tom)",
-            ),
-        },
-    ]
+    messages = _messages_with_brief(
+        identity=_expert_system(prompts, slot, with_tools=True),
+        brief=_session_brief(config),
+        user_content=render_prompt(
+            prompts,
+            "panel.expert.turn",
+            topic=config.topic,
+            transcript=_transcript_text(transcript),
+            scratchpad=scratchpad or "(tom)",
+        ),
+    )
     return (
         await complete_text_with_company_tools(
             messages, allowed_tools=frozenset(slot.tools)
@@ -147,18 +157,16 @@ async def _moderator_analysis(
     transcript: list[PanelTurn],
     prompts: dict[str, str],
 ) -> str:
-    messages = [
-        {"role": "system", "content": render_prompt(prompts, "panel.moderator.system")},
-        {
-            "role": "user",
-            "content": render_prompt(
-                prompts,
-                "panel.moderator.analysis",
-                topic=config.topic,
-                transcript=_transcript_text(transcript),
-            ),
-        },
-    ]
+    messages = _messages_with_brief(
+        identity=render_prompt(prompts, "panel.moderator.system"),
+        brief=_session_brief(config),
+        user_content=render_prompt(
+            prompts,
+            "panel.moderator.analysis",
+            topic=config.topic,
+            transcript=_transcript_text(transcript),
+        ),
+    )
     return (await complete_text(messages)).strip()
 
 
