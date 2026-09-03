@@ -162,14 +162,14 @@ async def store_report_artifacts(
         (out_dir / "report.html", KIND_REPORT_HTML, "text/html; charset=utf-8"),
         (out_dir / "report.slots.json", KIND_REPORT_SLOTS, "application/json"),
     ]
-    dd_path = out_dir / "report.dd.json"
-    ssr_path = out_dir / "report.ssr.json"
-    if dd_path.is_file():
-        files.append((dd_path, KIND_REPORT_JSON, "application/json"))
-    elif ssr_path.is_file():
-        files.append((ssr_path, KIND_REPORT_JSON, "application/json"))
-    else:
+    sidecars = [
+        path
+        for path in sorted(out_dir.glob("report.*.json"))
+        if path.name != "report.slots.json" and path.is_file()
+    ]
+    if not sidecars:
         raise ObjectStorageError("Report artifacts missing JSON sidecar")
+    files.extend((path, KIND_REPORT_JSON, "application/json") for path in sidecars)
     now = utcnow()
     for path, kind, content_type in files:
         if not path.is_file():
