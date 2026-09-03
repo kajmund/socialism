@@ -75,7 +75,7 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 
 # Expertgranskning
 
-* [Använda expertgranskning](anvanda-expertgranskning.md) — Klistra in text, välj panel och kör en granskning
+* [Använda expertgranskning](anvanda-expertgranskning.md) — Ladda upp eller klistra in text, välj panel och kör en granskning
 
 # Rapporter
 

@@ -1,5 +1,9 @@
 # Manual update log
 
+## 2026-09-03
+
+* **Expertgranskning**: Du kan ladda upp ett eget underlag (txt, md, PDF eller Word) i stället för att bara klistra in text. Filerna är personliga. I rapporten visas dokumentet formaterat.
+
 ## 2026-09-02
 
 * **Expertgranskning**: Ny yta i vänstermenyn. Klistra in en text, välj en märkt expertpanel och kör en granskning. Rapporten öppnas med Spinndoktor. Administratör ser länken alltid.
