@@ -10,7 +10,10 @@ dependencies = [
     "fastapi>=0.140.7",
     "greenlet==3.5.4",
     "httpx>=0.28.1",
+    # PDF text extraction for personal underlag; not something we write correctly in <30 lines.
+    "mammoth==1.11.0",
     "openai==2.48.0",
+    "pdfplumber==0.11.9",
     "pydantic>=2.13.4",
     "pydantic-settings>=2.14.2",
     "pyjwt>=2.10.1",

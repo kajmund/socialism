@@ -22,6 +22,7 @@ from app.api import (
     populations,
     reports,
     spindoctor,
+    underlag,
     users,
     ws,
 )
@@ -107,6 +108,7 @@ def create_app() -> FastAPI:
     app.include_router(feedback.router)
     app.include_router(help.router)
     app.include_router(spindoctor.router)
+    app.include_router(underlag.router)
     app.include_router(ws.router)
     return app
 

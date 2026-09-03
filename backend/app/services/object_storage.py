@@ -21,8 +21,10 @@ KIND_ANNUAL_REPORT = "annual_report"
 KIND_REPORT_HTML = "report_html"
 KIND_REPORT_SLOTS = "report_slots"
 KIND_REPORT_JSON = "report_json"
+KIND_UNDERLAG = "underlag"
 
 MAX_ANNUAL_REPORT_BYTES = 25 * 1024 * 1024
+MAX_UNDERLAG_BYTES = 20 * 1024 * 1024
 
 _TOKEN = re.compile(r"[^a-z0-9-]+")
 _FILENAME_SAFE = re.compile(r"[^\w.\-]+", re.UNICODE)
@@ -32,6 +34,18 @@ _ANNUAL_REPORT_TYPES = {
     "image/jpeg": (".jpg", ".jpeg"),
     "image/png": (".png",),
     "image/webp": (".webp",),
+}
+
+UNDERLAG_DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+_UNDERLAG_TYPES = {
+    "text/plain": (".txt",),
+    "text/markdown": (".md", ".markdown"),
+    "application/pdf": (".pdf",),
+    UNDERLAG_DOCX_TYPE: (".docx",),
+}
+_UNDERLAG_ALIAS_TYPES = {
+    "text/x-markdown": "text/markdown",
+    "text/md": "text/markdown",
 }
 
 
@@ -206,6 +220,37 @@ def _type_from_name(filename: str) -> str:
         if filename.endswith(suffixes):
             return mime
     return ""
+
+
+def _underlag_type_from_name(filename: str) -> str:
+    for mime, suffixes in _UNDERLAG_TYPES.items():
+        if filename.endswith(suffixes):
+            return mime
+    return ""
+
+
+def validate_underlag(filename: str, content_type: str, data: bytes) -> str:
+    if not data:
+        raise ValueError("empty file")
+    if len(data) > MAX_UNDERLAG_BYTES:
+        mb = MAX_UNDERLAG_BYTES // (1024 * 1024)
+        raise ValueError(f"file exceeds {mb} MB limit")
+    ctype = (content_type or "").split(";")[0].strip().lower()
+    ctype = _UNDERLAG_ALIAS_TYPES.get(ctype, ctype)
+    lower_name = filename.lower()
+    if ctype == "application/octet-stream" or not ctype:
+        ctype = _underlag_type_from_name(lower_name)
+    if ctype == "application/pdf" or lower_name.endswith(".pdf"):
+        if not data.startswith(b"%PDF"):
+            raise ValueError("file is not a PDF")
+        return "application/pdf"
+    if ctype == UNDERLAG_DOCX_TYPE or lower_name.endswith(".docx"):
+        if not data.startswith(b"PK"):
+            raise ValueError("file is not a Word document")
+        return UNDERLAG_DOCX_TYPE
+    if ctype in _UNDERLAG_TYPES:
+        return ctype
+    raise ValueError("only txt, md, PDF, and docx are allowed")
 
 
 async def ensure_bucket(name: str) -> None:
