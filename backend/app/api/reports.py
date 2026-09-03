@@ -204,7 +204,7 @@ async def _reuse_dd_report(
     run = await get_candidate_run(
         session, campaign_id=panel.campaign_id, candidate_id=src.candidate_id
     )
-    if run is None or not run.report_id:
+    if run is None or not run.report_id or run.panel_session_id != src.session_id:
         return None
     report = await session.get(Report, run.report_id)
     if report is None or report.mode != "dd":
@@ -283,12 +283,18 @@ async def create_report(
             src = body.sources[0]
             panel = await session.get(PanelSession, src.session_id)
             if panel is not None and panel.campaign_id is not None and src.candidate_id:
-                await upsert_dd_candidate_report(
+                run = await get_candidate_run(
                     session,
                     campaign_id=panel.campaign_id,
                     candidate_id=src.candidate_id,
-                    report_id=report_id,
                 )
+                if run is not None and run.panel_session_id == src.session_id:
+                    await upsert_dd_candidate_report(
+                        session,
+                        campaign_id=panel.campaign_id,
+                        candidate_id=src.candidate_id,
+                        report_id=report_id,
+                    )
     await session.commit()
     await session.refresh(report)
     if reused is not None:
