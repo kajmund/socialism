@@ -61,7 +61,7 @@ async def _seed_interview_report(session: AsyncSession) -> tuple[str, str]:
         profile={"name": "Johan Lindqvist", "age": "44"},
         updated_at=now,
     )
-    pop = Population(id=1, name="Testpop", size=1, recipe={}, fingerprint=[])
+    pop = Population(id=1, customer_id=1, name="Testpop", size=1, recipe={}, fingerprint=[])
     run = Run(
         id=7,
         project_id=1,
@@ -196,7 +196,11 @@ async def test_place_note_emits_widget(session):
 @pytest.mark.asyncio
 async def test_list_runs_reports_populations(session):
     now = utcnow()
-    session.add(Population(id=1, name="Testpop", size=3, recipe={}, fingerprint=[]))
+    session.add(
+        Population(
+            id=1, customer_id=1, name="Testpop", size=3, recipe={}, fingerprint=[]
+        )
+    )
     session.add(
         Run(
             id=7,

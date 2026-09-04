@@ -9,7 +9,6 @@ from sqlalchemy.orm import selectinload
 from app.database.models import Persona, Population, PopulationMember
 from app.schemas.domain import PopulationMemberCreate, PopulationRecipe
 from app.serializers import slug_id, utcnow
-from app.services.kund_store import default_os_customer_id
 from app.services.population_fingerprint import (
     compare_target_vs_achieved,
     fingerprint_from_members,
@@ -94,6 +93,7 @@ async def members_from_generation(
     extra_members: list[PopulationMemberCreate] | None = None,
     *,
     population_kind: str = "persona",
+    customer_id: int,
 ) -> tuple[list[PopulationMemberCreate], list[list[int]], dict]:
     stored = await get_generation(session, generation_id)
     if stored is None:
@@ -113,7 +113,6 @@ async def members_from_generation(
             persona_id = slug_id(persona.name)
             while await session.get(Persona, persona_id) is not None:
                 persona_id = slug_id(persona.name)
-            customer_id = await default_os_customer_id(session)
             session.add(
                 Persona(
                     id=persona_id,
@@ -158,14 +157,18 @@ async def allocate_unique_population_name(
     session: AsyncSession,
     desired: str,
     *,
+    customer_id: int,
     exclude_id: int | None = None,
 ) -> str:
-    """Return desired name, or «Name (2)», «Name (3)», … if taken."""
+    """Return desired name, or «Name (2)», «Name (3)», … if taken for this kund."""
     base = desired.strip() or _DEFAULT_POPULATION_NAME
     candidate = base
     n = 2
     while True:
-        stmt = select(Population.id).where(Population.name == candidate)
+        stmt = select(Population.id).where(
+            Population.customer_id == customer_id,
+            Population.name == candidate,
+        )
         if exclude_id is not None:
             stmt = stmt.where(Population.id != exclude_id)
         taken = (await session.execute(stmt)).scalar_one_or_none()
@@ -181,6 +184,7 @@ async def create_expert_panel(
     name: str,
     persona_ids: list[str],
     recipe: dict | None = None,
+    customer_id: int,
 ) -> Population:
     ids = list(dict.fromkeys(pid.strip() for pid in persona_ids if pid and pid.strip()))
     if not ids:
@@ -197,11 +201,14 @@ async def create_expert_panel(
                 population_kind="expert_panel",
             )
         )
-    unique_name = await allocate_unique_population_name(session, name)
+    unique_name = await allocate_unique_population_name(
+        session, name, customer_id=customer_id
+    )
     stored_recipe = dict(recipe) if recipe else {}
     stored_recipe["size"] = len(members)
     stored_recipe.setdefault("dist", {})
     population = Population(
+        customer_id=customer_id,
         kind="expert_panel",
         name=unique_name,
         size=len(members),
@@ -225,16 +232,21 @@ async def create_population_from_generation(
     name: str,
     generation_id: str,
     kind: str = "persona",
+    customer_id: int,
 ) -> Population:
-    unique_name = await allocate_unique_population_name(session, name)
+    unique_name = await allocate_unique_population_name(
+        session, name, customer_id=customer_id
+    )
 
     members, fingerprint, recipe = await members_from_generation(
         session,
         generation_id,
         population_kind=kind,
+        customer_id=customer_id,
     )
     member_kind = "expert" if kind == "expert_panel" else "persona"
     population = Population(
+        customer_id=customer_id,
         kind=kind,
         name=unique_name,
         size=len(members),
@@ -275,6 +287,7 @@ async def update_population_from_generation(
         population.name = await allocate_unique_population_name(
             session,
             name,
+            customer_id=population.customer_id,
             exclude_id=population_id,
         )
 
@@ -283,6 +296,7 @@ async def update_population_from_generation(
         session,
         generation_id,
         population_kind=population_kind,
+        customer_id=population.customer_id,
     )
     member_kind = "expert" if population_kind == "expert_panel" else "persona"
     for existing_member in list(population.members):

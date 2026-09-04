@@ -79,7 +79,9 @@ async def session():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     async with session_factory() as s:
-        pop = Population(name="Livepop", size=0, versions=1, fingerprint=[], recipe={})
+        pop = Population(
+            customer_id=1, name="Livepop", size=0, versions=1, fingerprint=[], recipe={}
+        )
         s.add(pop)
         await s.commit()
         yield s

@@ -51,6 +51,7 @@ async def seed_smoke_run(
     """Minimal 5-persona, 2-tick, 1-injection körning for live OASIS smoke."""
     districts = ("Centrum", "Norra", "Södra", "Östra", "Västra")
     pop = Population(
+        customer_id=1,
         name="Smoke-population",
         size=5,
         versions=1,

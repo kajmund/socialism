@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import Persona
+from app.database.models import Kund, Persona
 from app.schemas.domain import EditablePersona
 from app.serializers import persona_initials, utcnow
-from app.services.dd.expert_keys import expert_role_key
+from app.services.dd.expert_keys import expert_persona_id
 from app.services.expert_tools import default_expert_tools
-from app.services.kund_store import bolag_demo_customer_id
+from app.services.kund_store import ensure_default_kunder
 from app.services.panel.expert_profiles_store import (
     ensure_expert_profile_defaults,
     get_expert_profiles,
@@ -53,10 +54,6 @@ DEFAULT_EXPERT_SPECS: list[dict[str, str]] = [
 ]
 
 
-def _expert_persona_id(name: str) -> str:
-    return f"exp_{expert_role_key(name)}"
-
-
 def _profile_from_fields(
     *,
     name: str,
@@ -84,20 +81,38 @@ async def ensure_default_expert_personas(
     *,
     customer_id: int | None = None,
 ) -> list[Persona]:
-    """Idempotently seed default DD experts as Persona rows from the catalog store."""
-    await ensure_expert_profile_defaults(session, "dd", DEFAULT_EXPERT_SPECS)
+    """Idempotently seed default DD experts as Persona rows from the catalog store.
+
+    ``customer_id=None`` seeds every kund (startup / admin list-all).
+    """
+    if customer_id is None:
+        await ensure_default_kunder(session)
+        ids = [
+            int(row)
+            for row in (await session.execute(select(Kund.id).order_by(Kund.id))).scalars()
+        ]
+        created: list[Persona] = []
+        for cid in ids:
+            created.extend(await ensure_default_expert_personas(session, customer_id=cid))
+        return created
+
+    cid = customer_id
+    await ensure_expert_profile_defaults(
+        session, "dd", DEFAULT_EXPERT_SPECS, customer_id=cid
+    )
     profiles = [
         row
-        for row in await get_expert_profiles(session, "dd")
+        for row in await get_expert_profiles(session, "dd", customer_id=cid)
         if row.key != SPINNDOCTOR_KEY
     ]
     if not profiles:
-        raise RuntimeError("No active panel expert profiles for module 'dd'")
+        raise RuntimeError(
+            f"No active panel expert profiles for module 'dd' customer_id={cid}"
+        )
 
-    cid = customer_id if customer_id is not None else await bolag_demo_customer_id(session)
     created: list[Persona] = []
     for profile in profiles:
-        persona_id = _expert_persona_id(profile.name)
+        persona_id = expert_persona_id(cid, profile.name)
         existing = await session.get(Persona, persona_id)
         if existing is not None:
             if existing.tools is None:

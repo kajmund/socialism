@@ -53,7 +53,7 @@ A test-only third module lives in `backend/tests/fixture_module.py`. It must not
 2. Frontend manifest with the same `reportModes`.
 3. Spinndoktor `source_loader` / `context_builder` — no `if report.mode` in `spindoctor_context.py`.
 4. Panel protocol via `DELIBERATION_METHODS` (`generic_panel`, `structured_scoring`), not a new `jobs.py` branch.
-5. Seed expert profiles by `key` (`ensure_expert_profile_defaults`) so existing experts gain the new module instead of duplicating rows.
+5. Seed expert profiles by `(customer_id, key)` (`ensure_expert_profile_defaults`) so an existing expert for that kund gains the new module instead of duplicating rows. Startup and `create_kund` seed catalog defaults per kund.
 6. Register `prompt_defaults_provider` for module-owned prompt keys. Shared keys are listed by both `dd` and `politik`; `ensure_prompt_field_defaults` attaches the second module instead of duplicating the row. Runtime loads `require_active_prompts(session, customer_id=…, module=…, language=…)`.
 7. Spinndoktor is catalog key `spinndoctor` (modules `dd` + `politik` + `expertgranskning`). Identity uses `panel.expert.system`. Report context and DD panel brief are **separate** messages. `spinndoctor.system` / `.tools` / `.widgets` stay as report-chat policy; `panel.dd.moderator.system` is DD moderator policy on top of the same catalog row.
 

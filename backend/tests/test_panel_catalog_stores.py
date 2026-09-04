@@ -13,6 +13,7 @@ from app.database.models import PanelExpertProfile, PanelSubQuestion
 from app.services.dd.default_experts import DEFAULT_EXPERT_SPECS
 from app.services.dd.expert_keys import expert_role_key
 from app.services.dd.sub_questions import DD_SUB_QUESTION_DEFAULTS
+from app.services.kund_store import default_os_customer_id, ensure_default_kunder
 from app.services.panel.expert_profiles_store import (
     create_expert_profile,
     ensure_expert_profile_defaults,
@@ -38,8 +39,13 @@ async def session():
         await conn.run_sync(Base.metadata.create_all)
     factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
     async with factory() as db:
+        await ensure_default_kunder(db)
         yield db
     await engine.dispose()
+
+
+async def _customer_id(session: AsyncSession) -> int:
+    return await default_os_customer_id(session)
 
 
 @pytest.mark.asyncio
@@ -75,33 +81,46 @@ async def test_ensure_sub_question_defaults_does_not_overwrite(session: AsyncSes
 
 @pytest.mark.asyncio
 async def test_ensure_expert_profile_defaults_inserts_once(session: AsyncSession):
-    added = await ensure_expert_profile_defaults(session, "dd", DEFAULT_EXPERT_SPECS)
+    cid = await _customer_id(session)
+    added = await ensure_expert_profile_defaults(
+        session, "dd", DEFAULT_EXPERT_SPECS, customer_id=cid
+    )
     assert added == len(DEFAULT_EXPERT_SPECS)
 
-    again = await ensure_expert_profile_defaults(session, "dd", DEFAULT_EXPERT_SPECS)
+    again = await ensure_expert_profile_defaults(
+        session, "dd", DEFAULT_EXPERT_SPECS, customer_id=cid
+    )
     assert again == 0
 
-    rows = await get_expert_profiles(session, "dd")
+    rows = await get_expert_profiles(session, "dd", customer_id=cid)
     assert len(rows) == 4
     assert rows[0].key == expert_role_key(DEFAULT_EXPERT_SPECS[0]["name"])
     assert rows[0].name == DEFAULT_EXPERT_SPECS[0]["name"]
     assert rows[0].kompetensomrade == DEFAULT_EXPERT_SPECS[0]["kompetensomrade"]
     assert rows[0].modules == ["dd"]
-    assert await get_expert_profiles(session, "politik") == []
+    assert await get_expert_profiles(session, "politik", customer_id=cid) == []
 
 
 @pytest.mark.asyncio
 async def test_ensure_expert_profile_defaults_does_not_overwrite(session: AsyncSession):
-    await ensure_expert_profile_defaults(session, "dd", DEFAULT_EXPERT_SPECS)
+    cid = await _customer_id(session)
+    await ensure_expert_profile_defaults(
+        session, "dd", DEFAULT_EXPERT_SPECS, customer_id=cid
+    )
     key = expert_role_key(DEFAULT_EXPERT_SPECS[0]["name"])
     result = await session.execute(
-        select(PanelExpertProfile).where(PanelExpertProfile.key == key)
+        select(PanelExpertProfile).where(
+            PanelExpertProfile.customer_id == cid,
+            PanelExpertProfile.key == key,
+        )
     )
     row = result.scalar_one()
     row.description = "Edited description"
     await session.commit()
 
-    await ensure_expert_profile_defaults(session, "dd", DEFAULT_EXPERT_SPECS)
+    await ensure_expert_profile_defaults(
+        session, "dd", DEFAULT_EXPERT_SPECS, customer_id=cid
+    )
     await session.refresh(row)
     assert row.description == "Edited description"
 
@@ -110,26 +129,36 @@ async def test_ensure_expert_profile_defaults_does_not_overwrite(session: AsyncS
 async def test_ensure_expert_profile_defaults_attaches_module_without_duplicate(
     session: AsyncSession,
 ):
-    await ensure_expert_profile_defaults(session, "dd", DEFAULT_EXPERT_SPECS)
+    cid = await _customer_id(session)
+    await ensure_expert_profile_defaults(
+        session, "dd", DEFAULT_EXPERT_SPECS, customer_id=cid
+    )
     key = expert_role_key(DEFAULT_EXPERT_SPECS[0]["name"])
     result = await session.execute(
-        select(PanelExpertProfile).where(PanelExpertProfile.key == key)
+        select(PanelExpertProfile).where(
+            PanelExpertProfile.customer_id == cid,
+            PanelExpertProfile.key == key,
+        )
     )
     row = result.scalar_one()
     row.description = "Edited description"
     await session.commit()
 
-    attached = await ensure_expert_profile_defaults(session, "politik", DEFAULT_EXPERT_SPECS)
+    attached = await ensure_expert_profile_defaults(
+        session, "politik", DEFAULT_EXPERT_SPECS, customer_id=cid
+    )
     assert attached == len(DEFAULT_EXPERT_SPECS)
-    again = await ensure_expert_profile_defaults(session, "politik", DEFAULT_EXPERT_SPECS)
+    again = await ensure_expert_profile_defaults(
+        session, "politik", DEFAULT_EXPERT_SPECS, customer_id=cid
+    )
     assert again == 0
 
     await session.refresh(row)
     assert row.description == "Edited description"
     assert row.modules == ["dd", "politik"]
 
-    dd_rows = await get_expert_profiles(session, "dd")
-    politik_rows = await get_expert_profiles(session, "politik")
+    dd_rows = await get_expert_profiles(session, "dd", customer_id=cid)
+    politik_rows = await get_expert_profiles(session, "politik", customer_id=cid)
     assert [r.key for r in dd_rows] == [r.key for r in politik_rows]
     assert len({r.id for r in dd_rows} | {r.id for r in politik_rows}) == 4
 
@@ -159,9 +188,13 @@ async def test_create_and_update_sub_question(session: AsyncSession):
 
 @pytest.mark.asyncio
 async def test_create_and_update_expert_profile(session: AsyncSession):
-    await ensure_expert_profile_defaults(session, "dd", DEFAULT_EXPERT_SPECS)
+    cid = await _customer_id(session)
+    await ensure_expert_profile_defaults(
+        session, "dd", DEFAULT_EXPERT_SPECS, customer_id=cid
+    )
     row = await create_expert_profile(
         session,
+        customer_id=cid,
         module="dd",
         key="esg_expert",
         name="ESG-expert",
@@ -171,7 +204,7 @@ async def test_create_and_update_expert_profile(session: AsyncSession):
     await session.commit()
     row = await update_expert_profile(session, row, description="Klimat")
     await session.commit()
-    listed = await get_expert_profiles(session, "dd")
+    listed = await get_expert_profiles(session, "dd", customer_id=cid)
     found = next(item for item in listed if item.key == "esg_expert")
     assert found.description == "Klimat"
 
@@ -189,11 +222,15 @@ async def test_duplicate_sort_order_is_rejected(session: AsyncSession):
         )
     await session.rollback()
 
-    await ensure_expert_profile_defaults(session, "dd", DEFAULT_EXPERT_SPECS)
-    first = (await get_expert_profiles(session, "dd"))[0]
+    cid = await _customer_id(session)
+    await ensure_expert_profile_defaults(
+        session, "dd", DEFAULT_EXPERT_SPECS, customer_id=cid
+    )
+    first = (await get_expert_profiles(session, "dd", customer_id=cid))[0]
     with pytest.raises(IntegrityError):
         await create_expert_profile(
             session,
+            customer_id=cid,
             module="politik",
             key=first.key,
             name="Duplicate key",
