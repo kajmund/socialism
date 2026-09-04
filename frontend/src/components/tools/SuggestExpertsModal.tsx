@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/dialog"
 import { useLocale, type MessageKey } from "@/i18n"
 import { ApiError } from "@/lib/api"
-import { uniqueExpertKey } from "@/lib/expertKey"
 
 type Step = "pick" | "loading" | "review"
 
@@ -59,17 +58,15 @@ function statusVariant(
 export function SuggestExpertsModal({
   open,
   moduleId,
-  existingKeys,
   onOpenChange,
   onAdded,
 }: {
   open: boolean
   moduleId: string
-  existingKeys: readonly string[]
   onOpenChange: (open: boolean) => void
   onAdded: () => void
 }) {
-  const { t, intl } = useLocale()
+  const { t, intl, locale } = useLocale()
   const dateFmt = new Intl.DateTimeFormat(intl, { dateStyle: "medium" })
   const [step, setStep] = useState<Step>("pick")
   const [rows, setRows] = useState<UnderlagFile[]>([])
@@ -125,6 +122,7 @@ export function SuggestExpertsModal({
       const suggested = await suggestPanelExperts({
         underlag_id: selectedId,
         module: moduleId,
+        language: locale,
       })
       if (token !== requestGen.current) return
       setCandidates(suggested)
@@ -145,14 +143,12 @@ export function SuggestExpertsModal({
     }
     setSaving(true)
     setError(null)
-    const taken = new Set(existingKeys)
+    const saved = new Set<number>()
     try {
-      for (const candidate of chosen) {
-        const key = uniqueExpertKey(candidate.name, taken)
-        taken.add(key)
+      for (const [index, candidate] of candidates.entries()) {
+        if (!checked[index]) continue
         await createPanelExpertProfile({
           module: moduleId,
-          key,
           name: candidate.name,
           description: candidate.description,
           kompetensomrade: candidate.kompetensomrade,
@@ -160,10 +156,20 @@ export function SuggestExpertsModal({
           yrkesbakgrund: candidate.yrkesbakgrund,
           professionell_anekdot: candidate.professionell_anekdot,
         })
+        saved.add(index)
       }
       onAdded()
       onOpenChange(false)
     } catch (err: unknown) {
+      const leftover = candidates
+        .map((candidate, index) => ({
+          candidate,
+          checked: checked[index] ?? false,
+          saved: saved.has(index),
+        }))
+        .filter((row) => !row.saved)
+      setCandidates(leftover.map((row) => row.candidate))
+      setChecked(leftover.map((row) => row.checked))
       onAdded()
       setError(err instanceof ApiError ? err.message : t("tools.panelCatalog.suggestSaveError"))
     } finally {

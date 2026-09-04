@@ -10,6 +10,8 @@ from app.services.prompt_catalog import render_prompt
 from app.services.prompt_store import require_active_prompts
 
 DEFAULT_SUGGEST_COUNT = 4
+# Leave room for templates + JSON schema inside a single DeepSeek completion.
+MAX_EXPERT_UNDERLAG_CHARS = 80_000
 
 
 class ExpertCandidate(BaseModel):
@@ -29,6 +31,11 @@ def _require_text(text: str) -> str:
     cleaned = text.strip()
     if not cleaned:
         raise ValueError("Underlag has no extracted text")
+    if len(cleaned) > MAX_EXPERT_UNDERLAG_CHARS:
+        raise ValueError(
+            f"Underlag text is {len(cleaned)} characters; "
+            f"maximum is {MAX_EXPERT_UNDERLAG_CHARS}"
+        )
     return cleaned
 
 

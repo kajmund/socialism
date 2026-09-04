@@ -56,6 +56,23 @@ async def get_expert_profile(session: AsyncSession, row_id: int) -> PanelExpertP
     return await session.get(PanelExpertProfile, row_id)
 
 
+async def unused_expert_profile_key(
+    session: AsyncSession, *, customer_id: int, name: str
+) -> str:
+    """Next free catalog key for this customer (module-independent)."""
+    base = expert_role_key(name)
+    result = await session.execute(
+        select(PanelExpertProfile.key).where(PanelExpertProfile.customer_id == customer_id)
+    )
+    taken = set(result.scalars().all())
+    if base not in taken:
+        return base
+    n = 2
+    while f"{base}_{n}" in taken:
+        n += 1
+    return f"{base}_{n}"
+
+
 async def get_expert_profile_by_key(
     session: AsyncSession,
     key: str,

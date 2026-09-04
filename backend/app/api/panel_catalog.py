@@ -14,7 +14,6 @@ from app.database.models import PanelExpertProfile, PanelSubQuestion, StoredObje
 from app.database.session import get_session
 from app.llm.expert_gen import ExpertCandidate, llm_experts_from_underlag
 from app.modules.registry import MODULE_REGISTRY
-from app.services.dd.expert_keys import expert_role_key
 from app.services.object_storage import KIND_UNDERLAG
 from app.services.panel.catalog_schemas import (
     ExpertSuggestIn,
@@ -30,6 +29,7 @@ from app.services.panel.expert_profiles_store import (
     get_expert_profile,
     get_expert_profiles,
     next_expert_profile_sort_order,
+    unused_expert_profile_key,
     update_expert_profile,
 )
 from app.services.panel.sub_questions_store import (
@@ -247,6 +247,7 @@ async def suggest_experts_from_underlag(
             body.module,
             session,
             customer_id=customer_id,
+            language=body.language,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -260,7 +261,9 @@ async def post_expert_profile(
 ) -> PanelExpertProfileOut:
     _require_module(body.module)
     customer_id = await customer_id_for_user(session, user)
-    key = body.key or expert_role_key(body.name)
+    key = body.key or await unused_expert_profile_key(
+        session, customer_id=customer_id, name=body.name
+    )
     sort_order = body.sort_order
     if sort_order is None:
         sort_order = await next_expert_profile_sort_order(

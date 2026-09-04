@@ -18,6 +18,7 @@ from app.services.panel.expert_profiles_store import (
     create_expert_profile,
     ensure_expert_profile_defaults,
     get_expert_profiles,
+    unused_expert_profile_key,
     update_expert_profile,
 )
 from app.services.panel.sub_questions_store import (
@@ -207,6 +208,22 @@ async def test_create_and_update_expert_profile(session: AsyncSession):
     listed = await get_expert_profiles(session, "dd", customer_id=cid)
     found = next(item for item in listed if item.key == "esg_expert")
     assert found.description == "Klimat"
+
+
+@pytest.mark.asyncio
+async def test_unused_expert_profile_key_is_customer_wide(session: AsyncSession):
+    cid = await _customer_id(session)
+    await ensure_expert_profile_defaults(
+        session, "dd", DEFAULT_EXPERT_SPECS, customer_id=cid
+    )
+    first = (await get_expert_profiles(session, "dd", customer_id=cid))[0]
+    assert await unused_expert_profile_key(
+        session, customer_id=cid, name=first.name
+    ) == f"{first.key}_2"
+    assert (
+        await unused_expert_profile_key(session, customer_id=cid, name="Ny roll")
+        == "ny_roll"
+    )
 
 
 @pytest.mark.asyncio

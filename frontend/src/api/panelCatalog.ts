@@ -82,6 +82,7 @@ export function suggestPanelExperts(body: {
   underlag_id: string
   module: string
   count?: number
+  language?: "sv" | "en"
 }): Promise<ExpertCandidate[]> {
   return api.post<ExpertCandidate[]>("/panel/experts/suggest", body, { timeoutMs: 120_000 })
 }

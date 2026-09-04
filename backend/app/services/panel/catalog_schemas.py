@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field, field_validator
 
 _KEY_PATTERN = r"^[a-z0-9_]+$"
@@ -97,6 +99,7 @@ class ExpertSuggestIn(BaseModel):
     underlag_id: str = Field(min_length=1, max_length=64)
     module: str = Field(min_length=1, max_length=32)
     count: int = Field(default=4, ge=1, le=20)
+    language: Literal["sv", "en", "nb"] = "sv"
 
     @field_validator("underlag_id", "module", mode="before")
     @classmethod

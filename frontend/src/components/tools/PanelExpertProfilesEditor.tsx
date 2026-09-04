@@ -344,7 +344,6 @@ export function PanelExpertProfilesEditor({ moduleId }: PanelExpertProfilesEdito
       <SuggestExpertsModal
         open={suggestOpen}
         moduleId={moduleId}
-        existingKeys={rows.map((row) => row.key)}
         onOpenChange={setSuggestOpen}
         onAdded={() => {
           void reload().catch((err: unknown) => {
