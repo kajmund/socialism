@@ -9,7 +9,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import require_admin
-from app.database.models import PanelExpertProfile, PanelSubQuestion
+from app.auth.scope import customer_id_for_user
+from app.database.models import PanelExpertProfile, PanelSubQuestion, UserAccount
 from app.database.session import get_session
 from app.modules.registry import MODULE_REGISTRY
 from app.services.dd.expert_keys import expert_role_key
@@ -186,9 +187,13 @@ async def list_expert_profiles(
     module: str = Query(min_length=1, max_length=32),
     include_inactive: bool = Query(default=False),
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(require_admin),
 ) -> list[PanelExpertProfileOut]:
     _require_module(module)
-    rows = await get_expert_profiles(session, module, active_only=not include_inactive)
+    customer_id = await customer_id_for_user(session, user)
+    rows = await get_expert_profiles(
+        session, module, customer_id=customer_id, active_only=not include_inactive
+    )
     return [_serialize_expert_profile(row, viewed_module=module) for row in rows]
 
 
@@ -196,15 +201,20 @@ async def list_expert_profiles(
 async def post_expert_profile(
     body: PanelExpertProfileCreate,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(require_admin),
 ) -> PanelExpertProfileOut:
     _require_module(body.module)
+    customer_id = await customer_id_for_user(session, user)
     key = body.key or expert_role_key(body.name)
     sort_order = body.sort_order
     if sort_order is None:
-        sort_order = await next_expert_profile_sort_order(session)
+        sort_order = await next_expert_profile_sort_order(
+            session, customer_id=customer_id
+        )
     try:
         row = await create_expert_profile(
             session,
+            customer_id=customer_id,
             module=body.module,
             key=key,
             name=body.name,
@@ -228,9 +238,11 @@ async def patch_expert_profile(
     row_id: int,
     body: PanelExpertProfileUpdate,
     session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(require_admin),
 ) -> PanelExpertProfileOut:
+    customer_id = await customer_id_for_user(session, user)
     row = await get_expert_profile(session, row_id)
-    if row is None:
+    if row is None or row.customer_id != customer_id:
         raise HTTPException(status_code=404, detail="Expert profile not found")
     if body.model_dump(exclude_unset=True) == {}:
         raise HTTPException(status_code=400, detail="PATCH body is empty")

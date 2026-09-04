@@ -351,6 +351,7 @@ async def _run_population_generate(job_id: str) -> None:
                 name=payload.name,
                 generation_id=response.generation_id,
                 kind=population_kind,
+                customer_id=job.customer_id,
             )
         await session.commit()
         await _succeed(

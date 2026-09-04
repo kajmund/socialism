@@ -34,14 +34,17 @@ async def get_expert_profiles(
     session: AsyncSession,
     module: str,
     *,
+    customer_id: int,
     active_only: bool = True,
 ) -> list[PanelExpertProfile]:
-    """Return expert profiles that include ``module``, ordered by sort_order then key.
+    """Return this customer's expert profiles that include ``module``.
 
     Membership is filtered in Python — the catalog is small, and SQLite JSON
     contains-queries are not worth a dialect-specific path.
     """
-    stmt = select(PanelExpertProfile)
+    stmt = select(PanelExpertProfile).where(
+        PanelExpertProfile.customer_id == customer_id
+    )
     if active_only:
         stmt = stmt.where(PanelExpertProfile.active.is_(True))
     result = await session.execute(stmt)
@@ -54,16 +57,28 @@ async def get_expert_profile(session: AsyncSession, row_id: int) -> PanelExpertP
 
 
 async def get_expert_profile_by_key(
-    session: AsyncSession, key: str
+    session: AsyncSession,
+    key: str,
+    *,
+    customer_id: int,
 ) -> PanelExpertProfile | None:
     result = await session.execute(
-        select(PanelExpertProfile).where(PanelExpertProfile.key == key)
+        select(PanelExpertProfile).where(
+            PanelExpertProfile.customer_id == customer_id,
+            PanelExpertProfile.key == key,
+        )
     )
     return result.scalar_one_or_none()
 
 
-async def next_expert_profile_sort_order(session: AsyncSession) -> int:
-    result = await session.execute(select(PanelExpertProfile.sort_order))
+async def next_expert_profile_sort_order(
+    session: AsyncSession, *, customer_id: int
+) -> int:
+    result = await session.execute(
+        select(PanelExpertProfile.sort_order).where(
+            PanelExpertProfile.customer_id == customer_id
+        )
+    )
     orders = list(result.scalars().all())
     if not orders:
         return 0
@@ -73,6 +88,7 @@ async def next_expert_profile_sort_order(session: AsyncSession) -> int:
 async def create_expert_profile(
     session: AsyncSession,
     *,
+    customer_id: int,
     module: str,
     key: str,
     name: str,
@@ -85,6 +101,7 @@ async def create_expert_profile(
     active: bool = True,
 ) -> PanelExpertProfile:
     row = PanelExpertProfile(
+        customer_id=customer_id,
         modules=[module],
         key=key,
         name=name,
@@ -142,18 +159,22 @@ async def ensure_expert_profile_defaults(
     session: AsyncSession,
     module: str,
     defaults: list[Mapping[str, str]] | tuple[Mapping[str, str], ...],
+    *,
+    customer_id: int,
 ) -> int:
-    """Insert missing keys, or attach ``module`` to an existing shared row.
+    """Insert missing keys for ``customer_id``, or attach ``module`` to an existing row.
 
-    A later provider that seeds the same ``key`` adds its module to the
-    existing row instead of inserting a duplicate. Fields on an existing
-    row are never overwritten.
+    A later provider that seeds the same ``key`` for the same customer adds
+    its module to the existing row instead of inserting a duplicate. Fields
+    on an existing row are never overwritten.
 
     Each default mapping must include name, description, kompetensomrade,
     radgivningsstil, yrkesbakgrund, professionell_anekdot. key is derived
     from name via expert_role_key when not provided.
     """
-    result = await session.execute(select(PanelExpertProfile))
+    result = await session.execute(
+        select(PanelExpertProfile).where(PanelExpertProfile.customer_id == customer_id)
+    )
     existing_rows = list(result.scalars().all())
     by_key = {row.key: row for row in existing_rows}
     taken_orders = {row.sort_order for row in existing_rows}
@@ -165,6 +186,7 @@ async def ensure_expert_profile_defaults(
         if row is None:
             sort_order = _unused_sort_order(taken_orders, index)
             row = PanelExpertProfile(
+                customer_id=customer_id,
                 modules=[module],
                 key=key,
                 name=name,
@@ -186,7 +208,7 @@ async def ensure_expert_profile_defaults(
             changed += 1
     if changed:
         try:
-            await session.commit()
+            await session.flush()
         except IntegrityError:
             await session.rollback()
             return 0

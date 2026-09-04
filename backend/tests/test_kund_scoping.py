@@ -314,7 +314,14 @@ async def test_os_job_gets_devbrains_customer_id(session: AsyncSession):
     from app.schemas.domain import JobCreate, RunSimulateJobRequest
     from app.services import jobs as jobs_service
 
-    pop = Population(name="JobScopePop", size=0, versions=1, fingerprint=[], recipe={})
+    pop = Population(
+        customer_id=await default_os_customer_id(session),
+        name="JobScopePop",
+        size=0,
+        versions=1,
+        fingerprint=[],
+        recipe={},
+    )
     session.add(pop)
     await session.flush()
     run = Run(

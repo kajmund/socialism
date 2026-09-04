@@ -168,7 +168,7 @@ async def _build_identity_prompt(
         module=module,
         language=locale,
     )
-    row = await require_spinndoctor_profile(session)
+    row = await require_spinndoctor_profile(session, customer_id=customer_id)
     identity = render_spinndoctor_identity(prompts, row)
     parts = [
         identity,

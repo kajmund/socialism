@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from fastapi import HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import UserAccount
+from app.services.kund_store import default_os_customer_id
 
 
 def assert_kund_access(user: UserAccount, customer_id: int | None) -> None:
@@ -37,3 +39,15 @@ def require_user_kund_id(user: UserAccount) -> int:
     if user.kund_id is None:
         raise HTTPException(status_code=403, detail="kund_access_denied")
     return user.kund_id
+
+
+async def customer_id_for_user(session: AsyncSession, user: UserAccount) -> int:
+    """Resolve the logged-in user's kund. Admin without kund_id uses the OS tenant."""
+    if user.kund_id is not None:
+        assert_kund_access(user, user.kund_id)
+        return user.kund_id
+    if user.role == "admin":
+        customer_id = await default_os_customer_id(session)
+        assert_kund_access(user, customer_id)
+        return customer_id
+    raise HTTPException(status_code=403, detail="kund_access_denied")

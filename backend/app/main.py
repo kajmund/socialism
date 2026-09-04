@@ -62,6 +62,7 @@ async def lifespan(_app: FastAPI):
             await ensure_default_kunder(session)
             await ensure_default_configurations(session)
             await ensure_module_panel_defaults(session)
+            await session.commit()
     except (OperationalError, ProgrammingError) as exc:
         logger.warning("Skipping configuration prompt backfill on startup: %s", exc)
     yield

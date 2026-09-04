@@ -73,6 +73,7 @@ async def _seed_foreign_population(session: AsyncSession) -> int:
         )
     )
     pop = Population(
+        customer_id=2,
         name="SECRET_BOLAG_POP_NAME",
         size=17,
         versions=3,
@@ -160,6 +161,7 @@ async def test_help_context_includes_own_kund_population() -> None:
             )
         )
         pop = Population(
+            customer_id=1,
             name="Egen synlig pop",
             size=4,
             versions=1,

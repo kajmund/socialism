@@ -16,7 +16,6 @@ from app.database.models import (
     Message,
     Persona,
     Population,
-    PopulationMember,
     Projekt,
     Report,
     Run,
@@ -68,47 +67,16 @@ async def _population_visible_to_customer(
     *,
     customer_id: int,
 ) -> bool:
-    """Same kund rule as assert_population_access: ownership is via linked personas."""
-    persona_ids = list(
-        (
-            await session.execute(
-                select(PopulationMember.persona_id).where(
-                    PopulationMember.population_id == population_id,
-                    PopulationMember.persona_id.is_not(None),
-                )
-            )
-        ).scalars().all()
-    )
-    if not persona_ids:
-        return False
-    customer_ids = set(
-        (
-            await session.execute(
-                select(Persona.customer_id).where(Persona.id.in_(persona_ids))
-            )
-        ).scalars().all()
-    )
-    return bool(customer_ids) and all(cid == customer_id for cid in customer_ids)
+    population = await session.get(Population, population_id)
+    return population is not None and population.customer_id == customer_id
 
 
 async def _count_visible_populations(session: AsyncSession, *, customer_id: int) -> int:
-    own_ids = (
-        select(PopulationMember.population_id)
-        .join(Persona, Persona.id == PopulationMember.persona_id)
-        .where(Persona.customer_id == customer_id)
-        .distinct()
-    )
-    foreign_ids = (
-        select(PopulationMember.population_id)
-        .join(Persona, Persona.id == PopulationMember.persona_id)
-        .where(Persona.customer_id != customer_id)
-        .distinct()
-    )
     return (
         await session.scalar(
             select(func.count())
             .select_from(Population)
-            .where(Population.id.in_(own_ids), Population.id.not_in(foreign_ids))
+            .where(Population.customer_id == customer_id)
         )
         or 0
     )

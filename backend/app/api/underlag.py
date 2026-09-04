@@ -6,11 +6,10 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
-from app.auth.scope import assert_kund_access
+from app.auth.scope import customer_id_for_user
 from app.database.models import StoredObject, UserAccount
 from app.database.session import get_session
 from app.modules.registry import MODULE_REGISTRY
-from app.services.kund_store import default_os_customer_id
 from app.services.object_storage import KIND_UNDERLAG, MAX_UNDERLAG_BYTES, ObjectStorageError
 from app.services.stored_objects import (
     get_stored_object,
@@ -27,17 +26,6 @@ def _require_module(module: str) -> str:
     if module not in MODULE_REGISTRY:
         raise HTTPException(status_code=400, detail="unknown module")
     return module
-
-
-async def _customer_id_for_user(session: AsyncSession, user: UserAccount) -> int:
-    if user.kund_id is not None:
-        assert_kund_access(user, user.kund_id)
-        return user.kund_id
-    if user.role == "admin":
-        customer_id = await default_os_customer_id(session)
-        assert_kund_access(user, customer_id)
-        return customer_id
-    raise HTTPException(status_code=403, detail="kund_access_denied")
 
 
 def _own_underlag(row: StoredObject | None, *, customer_id: int, user_id: str) -> StoredObject:
@@ -58,7 +46,7 @@ async def get_underlag_list(
     user: UserAccount = Depends(get_current_user),
 ) -> list[UnderlagOut]:
     module = _require_module(module)
-    customer_id = await _customer_id_for_user(session, user)
+    customer_id = await customer_id_for_user(session, user)
     rows = await list_underlag(
         session,
         customer_id=customer_id,
@@ -76,7 +64,7 @@ async def post_underlag(
     user: UserAccount = Depends(get_current_user),
 ) -> UnderlagOut:
     module = _require_module(module)
-    customer_id = await _customer_id_for_user(session, user)
+    customer_id = await customer_id_for_user(session, user)
     raw = await file.read(MAX_UNDERLAG_BYTES + 1)
     try:
         row = await upload_underlag(
@@ -102,7 +90,7 @@ async def get_underlag(
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> UnderlagOut:
-    customer_id = await _customer_id_for_user(session, user)
+    customer_id = await customer_id_for_user(session, user)
     row = _own_underlag(
         await get_stored_object(session, object_id),
         customer_id=customer_id,

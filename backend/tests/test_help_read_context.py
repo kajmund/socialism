@@ -115,7 +115,7 @@ def test_build_help_context_includes_run_troubleshooting(help_session, tmp_path,
 
     async def _seed_and_run() -> str:
         async with session_factory() as session:
-            pop = Population(name="Testpop", size=0, versions=1)
+            pop = Population(customer_id=1, name="Testpop", size=0, versions=1)
             session.add(pop)
             await session.flush()
             session.add(

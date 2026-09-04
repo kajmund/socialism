@@ -130,6 +130,7 @@ async def interview_client():
             updated_at=utcnow(),
         )
         pop = Population(
+            customer_id=1,
             name="InterviewPop",
             size=1,
             versions=1,

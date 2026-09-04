@@ -51,15 +51,23 @@ def render_spinndoctor_identity(
     )
 
 
-async def ensure_spinndoctor_profile(session: AsyncSession) -> int:
+async def ensure_spinndoctor_profile(session: AsyncSession, *, customer_id: int) -> int:
     added = 0
     for module_id in SPINNDOCTOR_MODULES:
-        added += await ensure_expert_profile_defaults(session, module_id, [SPINNDOCTOR_SPEC])
+        added += await ensure_expert_profile_defaults(
+            session, module_id, [SPINNDOCTOR_SPEC], customer_id=customer_id
+        )
     return added
 
 
-async def require_spinndoctor_profile(session: AsyncSession) -> PanelExpertProfile:
-    row = await get_expert_profile_by_key(session, SPINNDOCTOR_KEY)
+async def require_spinndoctor_profile(
+    session: AsyncSession, *, customer_id: int
+) -> PanelExpertProfile:
+    row = await get_expert_profile_by_key(
+        session, SPINNDOCTOR_KEY, customer_id=customer_id
+    )
     if row is None or not row.active:
-        raise RuntimeError("Spinndoktor expert profile is not seeded")
+        raise RuntimeError(
+            f"Spinndoktor expert profile is not seeded for customer_id={customer_id}"
+        )
     return row

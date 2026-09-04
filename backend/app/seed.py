@@ -1249,6 +1249,7 @@ async def seed(*, reset: bool = True) -> None:
         for row in POPULATIONS:
             recipe = dict(row["recipe"])
             population = Population(
+                customer_id=customer_id,
                 name=row["name"],
                 size=int(recipe["size"]),
                 versions=row["versions"],

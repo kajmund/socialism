@@ -14,8 +14,10 @@ from app.database.session import get_session
 from app.modules.registry import MODULE_REGISTRY
 from app.schemas.kund import KundCreate, KundOut, KundUpdate, ProjektOut
 from app.serializers import utcnow
+from app.services.dd.default_experts import ensure_default_expert_personas
 from app.services.kund_store import DEFAULT_PROJEKT_SLUG, ensure_default_kunder
 from app.services.object_storage import ObjectStorageError
+from app.services.panel.module_defaults import ensure_module_panel_defaults
 from app.services.stored_objects import ensure_kund_bucket
 
 router = APIRouter(prefix="/kunder", tags=["kunder"])
@@ -133,6 +135,8 @@ async def create_kund(
         await ensure_kund_bucket(row)
     except ObjectStorageError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+    await ensure_module_panel_defaults(session, customer_id=row.id)
+    await ensure_default_expert_personas(session, customer_id=row.id)
     await session.commit()
     result = await session.execute(
         select(Kund).where(Kund.id == row.id).options(selectinload(Kund.projekt))

@@ -5,7 +5,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.auth.dependencies import get_current_user
-from app.auth.scope import require_user_kund_id
+from app.auth.scope import customer_id_for_user, require_user_kund_id
 from app.database.models import Persona, Population, PopulationMember, Run, UserAccount
 from app.database.session import get_session
 from app.schemas.domain import (
@@ -68,24 +68,12 @@ async def assert_population_access(
     user: UserAccount,
     population_id: int,
 ) -> Population:
-    """Enforce kund scope via linked personas (Population has no customer_id)."""
+    """Enforce kund scope via Population.customer_id. Admin may open any row."""
     population = await _get_population(session, population_id)
-    persona_ids = [m.persona_id for m in population.members if m.persona_id]
-    if not persona_ids:
-        if user.role != "admin":
-            raise HTTPException(status_code=403, detail="kund_access_denied")
+    if user.role == "admin":
         return population
-
-    result = await session.execute(select(Persona).where(Persona.id.in_(persona_ids)))
-    personas = list(result.scalars().all())
-    customer_ids = {p.customer_id for p in personas}
-    if user.role != "admin":
-        if (
-            user.kund_id is None
-            or not customer_ids
-            or any(cid != user.kund_id for cid in customer_ids)
-        ):
-            raise HTTPException(status_code=403, detail="kund_access_denied")
+    if user.kund_id is None or population.customer_id != user.kund_id:
+        raise HTTPException(status_code=403, detail="kund_access_denied")
     return population
 
 
@@ -159,10 +147,16 @@ async def _members_from_generation(
     generation_id: str,
     keep_keys: list[str] | None,
     extra_members: list[PopulationMemberCreate],
+    *,
+    customer_id: int,
 ) -> tuple[list[PopulationMemberCreate], list[list[int]], dict]:
     try:
         return await members_from_generation(
-            session, generation_id, keep_keys, extra_members
+            session,
+            generation_id,
+            keep_keys,
+            extra_members,
+            customer_id=customer_id,
         )
     except ValueError as exc:
         msg = str(exc)
@@ -171,20 +165,10 @@ async def _members_from_generation(
 
 
 def _population_visible_to_user(population: Population, user: UserAccount) -> bool:
-    """Non-admin: every linked persona in kund AND at least one persona member."""
+    """Admin sees all; others only their kund's rows."""
     if user.role == "admin":
         return True
-    if user.kund_id is None:
-        return False
-    persona_ids: list[str] = []
-    for member in population.members:
-        if not member.persona_id:
-            continue
-        persona_ids.append(member.persona_id)
-        persona = member.persona
-        if persona is None or persona.customer_id != user.kund_id:
-            return False
-    return bool(persona_ids)
+    return user.kund_id is not None and population.customer_id == user.kund_id
 
 
 @router.get("", response_model=list[PopulationSummary])
@@ -258,6 +242,7 @@ async def create_population(
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> PopulationDetail:
+    owner_customer_id = await customer_id_for_user(session, user)
     if body.kind == "expert_panel":
         persona_ids = list(body.include_persona_ids)
         if not persona_ids:
@@ -270,6 +255,7 @@ async def create_population(
                 name=body.name,
                 persona_ids=persona_ids,
                 recipe=recipe,
+                customer_id=owner_customer_id,
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -277,7 +263,12 @@ async def create_population(
         population = await _get_population(session, population.id)
         return serialize_population_detail(population, 0, list(population.members))
 
-    existing = await session.execute(select(Population).where(Population.name == body.name))
+    existing = await session.execute(
+        select(Population).where(
+            Population.customer_id == owner_customer_id,
+            Population.name == body.name,
+        )
+    )
     if existing.scalar_one_or_none() is not None:
         raise HTTPException(status_code=409, detail="Population name already exists")
 
@@ -290,11 +281,13 @@ async def create_population(
             body.generation_id,
             body.keep_keys,
             body.members,
+            customer_id=owner_customer_id,
         )
 
     await _assert_personas_in_kund(session, user, _persona_ids_from_members(members))
 
     population = Population(
+        customer_id=owner_customer_id,
         kind=body.kind,
         name=body.name,
         size=len(members),
@@ -348,6 +341,7 @@ async def update_population(
     if "name" in data and data["name"] != population.name:
         clash = await session.execute(
             select(Population).where(
+                Population.customer_id == population.customer_id,
                 Population.name == data["name"],
                 Population.id != population_id,
             )
@@ -372,6 +366,7 @@ async def update_population(
             generation_id,
             keep_keys,
             extras,
+            customer_id=population.customer_id,
         )
         await _assert_personas_in_kund(session, user, _persona_ids_from_members(built))
         for existing_member in list(population.members):
@@ -450,13 +445,19 @@ async def duplicate_population(
     name = base_name
     suffix = 2
     while True:
-        clash = await session.execute(select(Population).where(Population.name == name))
+        clash = await session.execute(
+            select(Population).where(
+                Population.customer_id == source.customer_id,
+                Population.name == name,
+            )
+        )
         if clash.scalar_one_or_none() is None:
             break
         name = f"{base_name} {suffix}"
         suffix += 1
 
     population = Population(
+        customer_id=source.customer_id,
         kind=source.kind,
         name=name,
         size=source.size,

@@ -41,7 +41,9 @@ async def session_factory():
 
 async def _seed_pending_sim_job(factory: async_sessionmaker[AsyncSession], name: str) -> str:
     async with factory() as session:
-        pop = Population(name=name, size=0, versions=1, fingerprint=[], recipe={})
+        pop = Population(
+            customer_id=1, name=name, size=0, versions=1, fingerprint=[], recipe={}
+        )
         session.add(pop)
         await session.flush()
         run = Run(

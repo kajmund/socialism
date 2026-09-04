@@ -50,7 +50,8 @@ def test_assemble_dd_moderator_messages_keeps_brief_separate():
 async def test_spinndoctor_profile_seeded_for_dd_and_politik(client_db):
     _client, factory = client_db
     async with factory() as db:
-        row = await require_spinndoctor_profile(db)
+        customer_id = await default_os_customer_id(db)
+        row = await require_spinndoctor_profile(db, customer_id=customer_id)
         assert row.key == SPINNDOCTOR_KEY
         assert set(row.modules) == {"dd", "politik", "expertgranskning"}
         assert row.name == "Spinndoktor"
@@ -94,7 +95,9 @@ async def test_dd_moderator_identity_uses_catalog_and_policy(client_db):
         prompts = await require_active_prompts(
             db, customer_id=customer_id, module="dd", language="sv"
         )
-        identity = await build_dd_moderator_identity(db, prompts)
+        identity = await build_dd_moderator_identity(
+            db, prompts, customer_id=customer_id
+        )
         assert "Du deltar som Spinndoktor" in identity
         assert "Politisk kommunikation" in identity
         assert "Hitta inte på namn" in identity

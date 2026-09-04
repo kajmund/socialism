@@ -20,7 +20,7 @@ from app.modules.registry import (
 from app.modules.report_binding import ReportGenerateContext
 from app.services import jobs as jobs_service
 from app.services.expertgranskning import MODULE_ID, REPORT_MODE, SOURCE_TYPE
-from app.services.kund_store import BOLAG_DEMO_KUND_SLUG
+from app.services.kund_store import BOLAG_DEMO_KUND_SLUG, default_os_customer_id
 from app.services.panel.expert_profiles_store import get_expert_profile_by_key
 from app.services.prompt_fields_store import get_prompt_field_by_key
 from app.services.spindoctor_context import build_spindoctor_context
@@ -265,7 +265,10 @@ async def test_expertgranskning_spindoctor_reads_freetext(client_db, tmp_path, m
 async def test_expertgranskning_shares_spinndoctor_catalog(client_db):
     _client, factory = client_db
     async with factory() as db:
-        row = await get_expert_profile_by_key(db, "spinndoctor")
+        customer_id = await default_os_customer_id(db)
+        row = await get_expert_profile_by_key(
+            db, "spinndoctor", customer_id=customer_id
+        )
         assert row is not None
         assert MODULE_ID in row.modules
         assert "dd" in row.modules

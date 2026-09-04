@@ -52,6 +52,10 @@ class Kund(Base):
         back_populates="kund"
     )
     user_accounts: Mapped[list["UserAccount"]] = relationship(back_populates="kund")
+    populations: Mapped[list["Population"]] = relationship(back_populates="kund")
+    expert_profiles: Mapped[list["PanelExpertProfile"]] = relationship(
+        back_populates="kund"
+    )
 
 
 class UserAccount(Base):
@@ -145,10 +149,18 @@ class Persona(Base):
 
 class Population(Base):
     __tablename__ = "populations"
+    __table_args__ = (
+        UniqueConstraint("customer_id", "name", name="uq_populations_customer_name"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("kunder.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
     kind: Mapped[str] = mapped_column(String(32), nullable=False, default="persona", server_default="persona")
-    name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
     size: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     versions: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     fingerprint: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
@@ -166,6 +178,7 @@ class Population(Base):
         nullable=False,
     )
 
+    kund: Mapped["Kund"] = relationship(back_populates="populations")
     members: Mapped[list["PopulationMember"]] = relationship(
         back_populates="population",
         cascade="all, delete-orphan",
@@ -959,12 +972,21 @@ class PanelSubQuestion(Base):
 
 
 class PanelExpertProfile(Base):
-    """Shared default-expert profiles (katalog/seed). One row per key; many modules."""
+    """Per-customer expert catalog. One row per (customer, key); many modules."""
 
     __tablename__ = "panel_expert_profiles"
-    __table_args__ = (UniqueConstraint("key", name="uq_panel_expert_profiles_key"),)
+    __table_args__ = (
+        UniqueConstraint(
+            "customer_id", "key", name="uq_panel_expert_profiles_customer_key"
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("kunder.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
     modules: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     key: Mapped[str] = mapped_column(String(64), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -986,6 +1008,8 @@ class PanelExpertProfile(Base):
         onupdate=func.now(),
         nullable=False,
     )
+
+    kund: Mapped["Kund"] = relationship(back_populates="expert_profiles")
 
 
 class PromptField(Base):

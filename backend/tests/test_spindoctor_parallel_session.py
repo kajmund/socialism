@@ -76,7 +76,16 @@ async def session():
                     updated_at=now,
                 )
             )
-        db.add(Population(id=1, name="Testpop", size=2, recipe={}, fingerprint=[]))
+        db.add(
+            Population(
+                id=1,
+                customer_id=1,
+                name="Testpop",
+                size=2,
+                recipe={},
+                fingerprint=[],
+            )
+        )
         db.add(
             Run(
                 id=7,
