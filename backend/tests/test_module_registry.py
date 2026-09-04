@@ -86,6 +86,7 @@ def test_module_routes_keep_existing_urls():
     assert "/kunder" in paths
     assert "/panel/sub-questions" in paths
     assert "/panel/expert-profiles" in paths
+    assert "/panel/experts/suggest" in paths
     assert "/runs" in paths
     assert "/personas" in paths
     assert "/populations" in paths

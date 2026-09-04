@@ -1,5 +1,9 @@
 # Manual update log
 
+## 2026-09-04
+
+* **Verktyg**: Under **Panelkatalog** kan administratören föreslå expertprofiler från ett redan uppladdat underlag och lägga till de som passar.
+
 ## 2026-09-03
 
 * **Expertgranskning / Due Diligence**: I live-panelen visas experternas turer formaterade (listor, fetstil, länkar), inte som rå markdown-text.
