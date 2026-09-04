@@ -20,6 +20,7 @@ Placeholders in templates:
   {day}, {tick_number}
   {display}, {type_label}  — injector
   {pack_list}, {other}
+  {underlag_text} — extracted underlag body for expert suggestions
   $num_followers, $posts, … — OASIS string.Template variables
 """
 
@@ -1220,6 +1221,52 @@ HOW YOU WRITE COMMENTS:
             "Topic: {topic}\n\nTranscript:\n{transcript}\n\n"
             "Close with a structured synthesis: consensus, disagreement, risks, and recommended next steps."
         ),
+    ),
+    _f(
+        "expert.from_underlag.system",
+        "panel",
+        "Experter från underlag — systemprompt",
+        "Experts from underlag — system prompt",
+        "Platshållare: {count}, {module}",
+        "Placeholders: {count}, {module}",
+        (
+            "Du föreslår {count} distinkta expertprofiler för en expertpanel "
+            "(modul: {module}). Varje expert ska kunna granska underlaget från "
+            "en unik kompetensvinkel. Namn är en yrkesroll, inte ett personnamn. "
+            "Svara endast med JSON."
+        ),
+        (
+            "You propose {count} distinct expert profiles for an expert panel "
+            "(module: {module}). Each expert should review the source material "
+            "from a unique competence angle. Names are professional roles, not "
+            "personal names. Reply only with JSON."
+        ),
+    ),
+    _f(
+        "expert.from_underlag.user",
+        "panel",
+        "Experter från underlag — användarprompt",
+        "Experts from underlag — user prompt",
+        "Platshållare: {count}, {module}, {underlag_text}",
+        "Placeholders: {count}, {module}, {underlag_text}",
+        """Föreslå {count} expertprofiler utifrån underlaget.
+
+Modul: {module}
+
+Underlag:
+{underlag_text}
+
+Varje profil behöver fälten: name, description, kompetensomrade, radgivningsstil, yrkesbakgrund, professionell_anekdot.
+Description är 1–2 meningar. Returnera exakt {count} kandidater.""",
+        """Propose {count} expert profiles from the source material.
+
+Module: {module}
+
+Source material:
+{underlag_text}
+
+Each profile needs the fields: name, description, kompetensomrade, radgivningsstil, yrkesbakgrund, professionell_anekdot.
+Description is 1–2 sentences. Return exactly {count} candidates.""",
     ),
     _f(
         "panel.expert.system",

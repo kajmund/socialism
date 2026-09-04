@@ -2262,6 +2262,21 @@ export const en: LocalizedTree<SvMessages> = {
       removeInUse:
         "This sub-question is used in a run or report. Delete that run first, then you can remove the question.",
       addExpert: "Add expert profile",
+      suggestExperts: "Suggest experts",
+      suggestTitle: "Suggest experts from source material",
+      suggestIntro:
+        "Pick a file you have already uploaded. The model proposes expert profiles you can add to the catalog.",
+      suggestEmptyUnderlag:
+        "No source files for this module. Upload a file in Expert review first.",
+      suggestNeedUnderlag: "Select a source file.",
+      suggestNeedCandidate: "Select at least one expert to add.",
+      suggestGenerate: "Suggest",
+      suggestGenerating: "Suggesting experts…",
+      suggestAdd: "Add",
+      suggestAdding: "Adding…",
+      suggestError: "Could not suggest experts.",
+      suggestSaveError: "Could not save the suggested experts.",
+      suggestUnavailable: "Cannot be used — no extracted text.",
       needKeyAndLabel: "Enter a key and a label.",
       needName: "Enter a name.",
       invalidRow: "Label and order are required.",
