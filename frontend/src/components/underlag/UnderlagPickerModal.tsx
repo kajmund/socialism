@@ -42,6 +42,10 @@ function statusKey(status: UnderlagExtractionStatus | null): MessageKey {
   }
 }
 
+function canUseUnderlag(file: UnderlagFile): boolean {
+  return file.extraction_status === "ok" && Boolean(file.extracted_text?.trim())
+}
+
 function statusVariant(
   status: UnderlagExtractionStatus | null,
 ): "default" | "secondary" | "destructive" | "outline" {
@@ -242,9 +246,9 @@ export function UnderlagPickerModal({
             <AdminButton
               variant="primary"
               size="sm"
-              disabled={preview == null}
+              disabled={preview == null || !canUseUnderlag(preview)}
               onClick={() => {
-                if (!preview) return
+                if (!preview || !canUseUnderlag(preview)) return
                 onSelect(preview)
                 onOpenChange(false)
               }}
