@@ -57,6 +57,11 @@ def test_modules_for_prompt_key_follows_prefix_convention():
         "politik",
         "expertgranskning",
     ]
+    assert modules_for_prompt_key("expert.from_underlag.system") == [
+        "dd",
+        "politik",
+        "expertgranskning",
+    ]
 
 
 def test_module_providers_cover_all_catalog_keys_without_overlap_gaps():

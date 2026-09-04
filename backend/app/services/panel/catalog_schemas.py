@@ -93,6 +93,19 @@ class PanelExpertProfileCreate(BaseModel):
         return value
 
 
+class ExpertSuggestIn(BaseModel):
+    underlag_id: str = Field(min_length=1, max_length=64)
+    module: str = Field(min_length=1, max_length=32)
+    count: int = Field(default=4, ge=1, le=20)
+
+    @field_validator("underlag_id", "module", mode="before")
+    @classmethod
+    def strip_suggest(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip()
+        return value
+
+
 class PanelExpertProfileUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = None
