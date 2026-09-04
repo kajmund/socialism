@@ -11,6 +11,8 @@ from app.llm.expert_gen import (
     ExpertCandidatesOut,
     llm_experts_from_underlag,
 )
+
+
 def _candidates(count: int = DEFAULT_SUGGEST_COUNT) -> list[ExpertCandidate]:
     return [
         ExpertCandidate(

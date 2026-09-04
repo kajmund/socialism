@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { createPanelExpertProfile, suggestPanelExperts, type ExpertCandidate } from "@/api/panelCatalog"
 import { listUnderlag, type UnderlagExtractionStatus, type UnderlagFile } from "@/api/underlag"
 import { AdminButton } from "@/components/ui/admin-button"
@@ -79,9 +79,11 @@ export function SuggestExpertsModal({
   const [checked, setChecked] = useState<boolean[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const requestGen = useRef(0)
 
   useEffect(() => {
     if (!open) {
+      requestGen.current += 1
       setStep("pick")
       setRows([])
       setSelectedId(null)
@@ -116,6 +118,7 @@ export function SuggestExpertsModal({
       setError(t("tools.panelCatalog.suggestNeedUnderlag"))
       return
     }
+    const token = ++requestGen.current
     setStep("loading")
     setError(null)
     try {
@@ -123,10 +126,12 @@ export function SuggestExpertsModal({
         underlag_id: selectedId,
         module: moduleId,
       })
+      if (token !== requestGen.current) return
       setCandidates(suggested)
       setChecked(suggested.map(() => true))
       setStep("review")
     } catch (err: unknown) {
+      if (token !== requestGen.current) return
       setError(err instanceof ApiError ? err.message : t("tools.panelCatalog.suggestError"))
       setStep("pick")
     }
