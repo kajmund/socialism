@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react"
+import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react"
 import { Link, Navigate } from "react-router-dom"
 import {
   createExpertgranskningSession,
@@ -75,6 +75,7 @@ export function ExpertgranskningPage({
   const [sessionStatus, setSessionStatus] = useState<ExpertgranskningSessionStatus | null>(null)
   const [localReportId, setLocalReportId] = useState<string | null>(null)
   const [resultsView, setResultsView] = useState<ResultsView>("live")
+  const reportCreateStartedRef = useRef(false)
 
   const inferredReportId = reports.find((row) =>
     row.sources.some(
@@ -146,6 +147,8 @@ export function ExpertgranskningPage({
     if (!sessionId) return
     if (liveStatus !== "succeeded") return
     if (reportId) return
+    if (reportCreateStartedRef.current) return
+    reportCreateStartedRef.current = true
     let cancelled = false
     void (async () => {
       try {
@@ -159,6 +162,7 @@ export function ExpertgranskningPage({
         setResultsView("report")
       } catch (err: unknown) {
         if (cancelled) return
+        reportCreateStartedRef.current = false
         setError(
           err instanceof ApiError ? err.message : t("expertgranskning.page.reportCreateError"),
         )
@@ -167,7 +171,7 @@ export function ExpertgranskningPage({
     return () => {
       cancelled = true
     }
-  }, [locale, liveStatus, reportId, sessionId, t, title])
+  }, [locale, liveStatus, reportId, sessionId, t])
 
   async function startRun() {
     const text = documentText.trim()
@@ -192,6 +196,7 @@ export function ExpertgranskningPage({
       setSessionId(session.id)
       setSessionStatus("pending")
       setLocalReportId(null)
+      reportCreateStartedRef.current = false
       setResultsView("live")
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("expertgranskning.page.runError"))
@@ -289,7 +294,10 @@ export function ExpertgranskningPage({
                   disabled={isRunning}
                   onChange={(next) => {
                     setSelectedUnderlag(next)
-                    if (next?.extractedText) setDocumentText(next.extractedText)
+                    if (next == null) return
+                    if (next.status === "ok" && next.extractedText.trim()) {
+                      setDocumentText(next.extractedText)
+                    }
                   }}
                 />
                 <textarea
