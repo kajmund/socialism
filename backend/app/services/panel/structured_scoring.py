@@ -28,6 +28,7 @@ from app.services.panel.spinndoctor_profile import (
     render_spinndoctor_identity,
     require_spinndoctor_profile,
 )
+from app.services.customer_scope import customer_id_for_panel_session
 from app.services.panel.sub_questions_store import get_sub_questions
 from app.services.panel.watch import run_turn
 from app.services.prompt_catalog import render_prompt
@@ -133,8 +134,10 @@ def assemble_dd_moderator_messages(
 async def build_dd_moderator_identity(
     session: AsyncSession,
     prompts: dict[str, str],
+    *,
+    customer_id: int,
 ) -> str:
-    row = await require_spinndoctor_profile(session)
+    row = await require_spinndoctor_profile(session, customer_id=customer_id)
     identity = render_spinndoctor_identity(prompts, row)
     policy = render_prompt(prompts, "panel.dd.moderator.system")
     return f"{identity}\n\n{policy}"
@@ -407,7 +410,8 @@ async def run_structured_scoring(
     for slot in config.expert_slots:
         scratchpads.setdefault(slot.slot_id, "")
 
-    identity = await build_dd_moderator_identity(db, prompts)
+    customer_id = await customer_id_for_panel_session(db, panel.id)
+    identity = await build_dd_moderator_identity(db, prompts, customer_id=customer_id)
 
     await run_turn(
         db,

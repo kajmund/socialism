@@ -76,6 +76,7 @@ async def _seed_ab_run(session: AsyncSession) -> Run:
         )
     )
     pop = Population(
+        customer_id=1,
         name="Parallellpop",
         size=1,
         versions=1,

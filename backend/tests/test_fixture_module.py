@@ -64,17 +64,23 @@ async def test_third_module_report_panel_and_spindoctor(client_db, tmp_path):
         assert MODULE_REGISTRY["fixture"].spindoctor is not None
 
         async with factory() as db:
+            customer_id = await default_os_customer_id(db)
             attached = await ensure_expert_profile_defaults(
                 db,
                 "fixture",
                 [{"key": "spinndoctor", "name": "Spinndoktor"}],
+                customer_id=customer_id,
             )
             assert attached == 1
-            row = await get_expert_profile_by_key(db, "spinndoctor")
+            row = await get_expert_profile_by_key(
+                db, "spinndoctor", customer_id=customer_id
+            )
             assert row is not None
             assert "fixture" in row.modules
             assert "dd" in row.modules
-            fixture_experts = await get_expert_profiles(db, "fixture")
+            fixture_experts = await get_expert_profiles(
+                db, "fixture", customer_id=customer_id
+            )
             assert any(item.key == "spinndoctor" for item in fixture_experts)
 
             await ensure_module_panel_defaults(db)
