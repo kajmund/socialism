@@ -52,6 +52,53 @@ async def test_user_cannot_get_other_kund_report(client_db, user_client) -> None
 
 
 @pytest.mark.asyncio
+async def test_user_cannot_create_job_for_other_kund_run(client_db, user_client) -> None:
+    _client, session_factory = client_db
+    from sqlalchemy import func, select
+
+    from app.database.models import Job, Population, Projekt, Run
+    from app.serializers import utcnow
+    from app.services.kund_store import bolag_demo_customer_id
+
+    async with session_factory() as session:
+        bolag_id = await bolag_demo_customer_id(session)
+        projekt = Projekt(
+            customer_id=bolag_id,
+            name="Bolag proj",
+            slug="bolag-proj-scope",
+            created_at=utcnow(),
+            updated_at=utcnow(),
+        )
+        session.add(projekt)
+        await session.flush()
+        pop = Population(name="BolagPop", size=0, versions=1, fingerprint=[], recipe={})
+        session.add(pop)
+        await session.flush()
+        run = Run(
+            project_id=projekt.id,
+            name="BolagRun",
+            status="draft",
+            population_id=pop.id,
+            seed="",
+        )
+        session.add(run)
+        await session.commit()
+        await session.refresh(run)
+        run_id = run.id
+        before = (await session.execute(select(func.count()).select_from(Job))).scalar_one()
+
+    response = await user_client.post(
+        "/jobs",
+        json={"kind": "run_simulate", "request": {"run_id": run_id}},
+    )
+    assert response.status_code == 403
+
+    async with session_factory() as session:
+        after = (await session.execute(select(func.count()).select_from(Job))).scalar_one()
+    assert after == before
+
+
+@pytest.mark.asyncio
 async def test_user_cannot_get_other_kund_job(client_db, user_client) -> None:
     _client, session_factory = client_db
     async with session_factory() as session:
