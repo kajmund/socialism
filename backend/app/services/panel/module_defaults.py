@@ -49,4 +49,5 @@ async def ensure_module_panel_defaults(
                     session, module.id, defaults, customer_id=cid
                 )
         added += await ensure_spinndoctor_profile(session, customer_id=cid)
+    await session.commit()
     return added

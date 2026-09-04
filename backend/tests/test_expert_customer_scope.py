@@ -43,6 +43,31 @@ async def session():
 
 
 @pytest.mark.asyncio
+async def test_module_panel_defaults_persist_after_session_close():
+    engine = create_async_engine(
+        "sqlite+aiosqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    async with factory() as seed:
+        await ensure_module_panel_defaults(seed)
+        os_id = await default_os_customer_id(seed)
+        bolag_id = await bolag_demo_customer_id(seed)
+    async with factory() as later:
+        os_spin = await require_spinndoctor_profile(later, customer_id=os_id)
+        bolag_spin = await require_spinndoctor_profile(later, customer_id=bolag_id)
+        assert os_spin.id != bolag_spin.id
+        os_rows = await get_expert_profiles(later, "dd", customer_id=os_id)
+        bolag_rows = await get_expert_profiles(later, "dd", customer_id=bolag_id)
+        assert os_rows
+        assert bolag_rows
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_startup_seeds_catalog_per_customer(session: AsyncSession):
     await ensure_module_panel_defaults(session)
     os_id = await default_os_customer_id(session)

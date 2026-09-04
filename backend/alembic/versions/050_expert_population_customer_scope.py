@@ -33,18 +33,27 @@ def _os_customer_id(conn) -> int:
 
 
 def _rename_expert_persona_ids(conn) -> None:
-    rows = conn.execute(
-        sa.text("SELECT id, customer_id FROM personas WHERE kind = 'expert'")
-    ).fetchall()
-    for old_id, customer_id in rows:
-        text_id = str(old_id)
-        prefix = f"exp_{int(customer_id)}_"
+    """Copy the parent row first so FK children never point at a missing id."""
+    column_names = [col["name"] for col in sa.inspect(conn).get_columns("personas")]
+    select_sql = sa.text(
+        "SELECT " + ", ".join(column_names) + " FROM personas WHERE kind = 'expert'"
+    )
+    rows = conn.execute(select_sql).mappings().all()
+    insert_cols = ", ".join(column_names)
+    insert_vals = ", ".join(f":{name}" for name in column_names)
+    insert_sql = sa.text(f"INSERT INTO personas ({insert_cols}) VALUES ({insert_vals})")
+    for row in rows:
+        text_id = str(row["id"])
+        prefix = f"exp_{int(row['customer_id'])}_"
         if text_id.startswith(prefix):
             continue
         key = text_id[4:] if text_id.startswith("exp_") else text_id
         new_id = f"{prefix}{key}"
         if new_id == text_id:
             continue
+        payload = {name: row[name] for name in column_names}
+        payload["id"] = new_id
+        conn.execute(insert_sql, payload)
         conn.execute(
             sa.text("UPDATE population_members SET persona_id = :new WHERE persona_id = :old"),
             {"new": new_id, "old": text_id},
@@ -54,8 +63,8 @@ def _rename_expert_persona_ids(conn) -> None:
             {"new": new_id, "old": text_id},
         )
         conn.execute(
-            sa.text("UPDATE personas SET id = :new WHERE id = :old"),
-            {"new": new_id, "old": text_id},
+            sa.text("DELETE FROM personas WHERE id = :old"),
+            {"old": text_id},
         )
 
 
