@@ -2262,6 +2262,21 @@ export const sv = {
       removeInUse:
         "Sub-frågan används i en körning eller rapport. Ta bort den körningen först, sedan kan du ta bort frågan.",
       addExpert: "Lägg till expertprofil",
+      suggestExperts: "Föreslå experter",
+      suggestTitle: "Föreslå experter från underlag",
+      suggestIntro:
+        "Välj ett underlag du redan har laddat upp. Modellen föreslår expertprofiler som du kan lägga till i katalogen.",
+      suggestEmptyUnderlag:
+        "Inga underlag för den här modulen. Ladda upp ett underlag i Expertgranskning först.",
+      suggestNeedUnderlag: "Välj ett underlag.",
+      suggestNeedCandidate: "Välj minst en expert att lägga till.",
+      suggestGenerate: "Föreslå",
+      suggestGenerating: "Föreslår experter…",
+      suggestAdd: "Lägg till",
+      suggestAdding: "Lägger till…",
+      suggestError: "Kunde inte föreslå experter.",
+      suggestSaveError: "Kunde inte spara de föreslagna experterna.",
+      suggestUnavailable: "Kan inte användas — text saknas.",
       needKeyAndLabel: "Ange nyckel och etikett.",
       needName: "Ange ett namn.",
       invalidRow: "Etikett och ordning måste vara ifyllda.",
