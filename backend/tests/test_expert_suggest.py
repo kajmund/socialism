@@ -7,6 +7,7 @@ from app.database.models import PanelExpertProfile, StoredObject
 from app.llm import set_structured_completer
 from app.llm.expert_gen import (
     DEFAULT_SUGGEST_COUNT,
+    MAX_EXPERT_UNDERLAG_CHARS,
     ExpertCandidate,
     ExpertCandidatesOut,
     llm_experts_from_underlag,
@@ -57,6 +58,19 @@ async def test_llm_experts_from_underlag_one_structured_call():
     assert model is ExpertCandidatesOut
     assert "2" in messages[0]["content"]
     assert "Bolaget har hög skuldsättning." in messages[1]["content"]
+
+
+@pytest.mark.asyncio
+async def test_llm_experts_from_underlag_rejects_oversized_text():
+    with pytest.raises(ValueError, match="maximum is"):
+        await llm_experts_from_underlag(
+            "x" * (MAX_EXPERT_UNDERLAG_CHARS + 1),
+            4,
+            "dd",
+            session=None,  # type: ignore[arg-type]
+            customer_id=1,
+            prompts=_prompts(),
+        )
 
 
 @pytest.mark.asyncio
@@ -232,3 +246,40 @@ async def test_suggest_experts_rejects_non_admin(user_client: AsyncClient):
         json={"underlag_id": "x", "module": "dd"},
     )
     assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_suggest_experts_uses_request_language(client: AsyncClient):
+    underlag_id = await _upload_underlag(client)
+    seen: list[list[dict[str, str]]] = []
+
+    async def stub(messages: list[dict[str, str]], response_model: type):
+        seen.append(messages)
+        return ExpertCandidatesOut(candidates=_candidates())
+
+    set_structured_completer(stub)
+    resp = await client.post(
+        "/panel/experts/suggest",
+        json={"underlag_id": underlag_id, "module": "dd", "language": "en"},
+    )
+    assert resp.status_code == 200, resp.text
+    assert seen
+    assert "You propose" in seen[0][0]["content"]
+
+
+@pytest.mark.asyncio
+async def test_create_expert_profile_suffixes_auto_key_across_modules(
+    client: AsyncClient,
+):
+    first = await client.post(
+        "/panel/expert-profiles",
+        json={"module": "dd", "name": "Nyckeltest"},
+    )
+    assert first.status_code == 201, first.text
+    assert first.json()["key"] == "nyckeltest"
+    second = await client.post(
+        "/panel/expert-profiles",
+        json={"module": "politik", "name": "Nyckeltest"},
+    )
+    assert second.status_code == 201, second.text
+    assert second.json()["key"] == "nyckeltest_2"
