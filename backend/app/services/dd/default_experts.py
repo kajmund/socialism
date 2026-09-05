@@ -112,7 +112,7 @@ async def ensure_default_expert_personas(
 
     created: list[Persona] = []
     for profile in profiles:
-        persona_id = expert_persona_id(cid, profile.name)
+        persona_id = expert_persona_id(cid, profile.key)
         existing = await session.get(Persona, persona_id)
         if existing is not None:
             if existing.tools is None:
