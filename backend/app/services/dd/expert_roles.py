@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Persona
 from app.services.dd.default_experts import ensure_default_expert_personas
-from app.services.dd.expert_keys import expert_role_key
+from app.services.dd.expert_keys import persona_catalog_key
 from app.services.expert_tools import resolve_expert_tools
 from app.services.panel.expert_slots import profile_text_for_expert
 from app.services.panel.schemas import PanelExpertSlot
@@ -33,7 +33,7 @@ async def load_expert_slots(
     if not personas:
         raise RuntimeError(f"No expert personas for customer_id={customer_id}")
 
-    by_key = {expert_role_key(p.name): p for p in personas}
+    by_key = {persona_catalog_key(p): p for p in personas}
     selected_keys = role_keys or [key for key in by_key if key != SPINNDOCTOR_KEY]
     slots: list[PanelExpertSlot] = []
     for key in selected_keys:
