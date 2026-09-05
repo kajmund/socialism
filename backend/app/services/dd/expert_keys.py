@@ -12,6 +12,19 @@ def expert_role_key(label: str) -> str:
     return slug or "expert"
 
 
-def expert_persona_id(customer_id: int, name: str) -> str:
-    """Stable Persona.id for a seeded expert, unique per customer."""
-    return f"exp_{customer_id}_{expert_role_key(name)}"
+def expert_persona_id(customer_id: int, catalog_key: str) -> str:
+    """Stable Persona.id for a catalog expert, unique per customer × key."""
+    key = catalog_key.strip()
+    if not key:
+        raise ValueError("catalog_key is required")
+    return f"exp_{customer_id}_{key}"
+
+
+def persona_catalog_key(persona) -> str:
+    """Catalog role key encoded in a seeded expert Persona.id."""
+    prefix = f"exp_{persona.customer_id}_"
+    if persona.id.startswith(prefix):
+        return persona.id[len(prefix) :]
+    if persona.id.startswith("exp_"):
+        return persona.id[4:]
+    return expert_role_key(persona.name)

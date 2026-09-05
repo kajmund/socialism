@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from app.database.models import Persona, Population, PopulationMember, Projekt
 from app.serializers import profile_from_dict
-from app.services.dd.expert_keys import expert_role_key
+from app.services.dd.expert_keys import persona_catalog_key
 from app.services.expert_tools import resolve_expert_tools
 from app.services.panel.schemas import PanelExpertSlot
 
@@ -62,7 +62,7 @@ async def load_expert_slots_from_population(
         persona = member.persona
         if persona is None:
             raise RuntimeError(f"Expert panel member missing persona: {member.id}")
-        key = expert_role_key(persona.name)
+        key = persona_catalog_key(persona)
         slots.append(
             PanelExpertSlot(
                 slot_id=key,
