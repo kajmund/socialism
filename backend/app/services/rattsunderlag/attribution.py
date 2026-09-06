@@ -12,7 +12,10 @@ from app.services.rattsunderlag.schemas import (
 )
 
 _REF_MARK = re.compile(r"\[\[ref:([^\]]+)\]\]")
-_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
+_SENTENCE_UNIT = re.compile(
+    r".+?(?:[.!?]+|\Z)(?:\s*\[\[ref:[^\]]+\]\])*",
+    re.DOTALL,
+)
 
 
 def known_source_ids(
@@ -31,7 +34,7 @@ def split_sentences(text: str) -> list[str]:
     stripped = text.strip()
     if not stripped:
         return []
-    return [part.strip() for part in _SENTENCE_SPLIT.split(stripped) if part.strip()]
+    return [part.strip() for part in _SENTENCE_UNIT.findall(stripped) if part.strip()]
 
 
 def apply_attribution(

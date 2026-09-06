@@ -49,7 +49,7 @@ async def test_research_job_writes_underlag_visible_without_module_filter(
         fetched = await user_client.get(f"/rattsunderlag/research/{job_id}")
         assert fetched.status_code == 200, fetched.text
         body = fetched.json()
-        assert body["status"] == "succeeded"
+        assert body["status"] == "succeeded", body.get("error")
         assert body["result"]["result"]["sourcing_status"] in {
             "complete",
             "partial",

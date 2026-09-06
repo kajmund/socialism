@@ -272,12 +272,14 @@ def write_rattsutredning_artifacts(
     source_type: str,
     session_id: str,
     mode: str,
+    artifact_name: str = "report.rattsutredning.json",
 ) -> tuple[Path, Path, dict[str, object]]:
     loc = normalize_locale(locale)
     out_dir.mkdir(parents=True, exist_ok=True)
     html = render_rattsutredning_html(payload, title=title, locale=loc)
     html_path = out_dir / "report.html"
     slots_path = out_dir / "report.slots.json"
+    payload_path = out_dir / artifact_name
     doc = payload.model_dump()
     slots_doc = {
         "title": title,
@@ -289,4 +291,5 @@ def write_rattsutredning_artifacts(
     }
     html_path.write_text(html, encoding="utf-8")
     slots_path.write_text(json.dumps(slots_doc, ensure_ascii=False, indent=2), encoding="utf-8")
+    payload_path.write_text(json.dumps(doc, ensure_ascii=False, indent=2), encoding="utf-8")
     return html_path, slots_path, slots_doc

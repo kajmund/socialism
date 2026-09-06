@@ -75,5 +75,6 @@ def test_write_artifacts(tmp_path: Path):
     )
     assert html_path.is_file()
     assert slots_path.is_file()
+    assert (tmp_path / "report.rattsutredning.json").is_file()
     assert doc["report_format"] == "rattsutredning"
     assert "Tillämplig lagstiftning" in html_path.read_text(encoding="utf-8")
