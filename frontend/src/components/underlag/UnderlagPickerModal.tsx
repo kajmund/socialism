@@ -407,9 +407,9 @@ export function UnderlagPickerModal({
             <AdminButton
               variant="primary"
               size="sm"
-              disabled={preview == null}
+              disabled={preview == null || preview.extraction_status !== "ok"}
               onClick={() => {
-                if (!preview) return
+                if (!preview || preview.extraction_status !== "ok") return
                 onSelect(preview)
                 onOpenChange(false)
               }}
