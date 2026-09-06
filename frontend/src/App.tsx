@@ -28,6 +28,10 @@ import {
   BolagExpertgranskningPage,
   ExpertgranskningPage,
 } from "@/pages/ExpertgranskningPage"
+import {
+  BolagExpertgranskningRunPage,
+  ExpertgranskningRunPage,
+} from "@/pages/ExpertgranskningRunPage"
 import { BolagFeedbackPage, FeedbackPage } from "@/pages/FeedbackPage"
 import { BolagJobsPage, JobsPage } from "@/pages/JobsPage"
 import { KunderPage } from "@/pages/KunderPage"
@@ -120,6 +124,8 @@ export default function App() {
               <Route path="expertpaneler/new" element={<ExpertPanelBuilderPage />} />
               <Route path="expertpaneler/:id" element={<ExpertPanelDetailPage />} />
               <Route path="expertgranskning" element={<BolagExpertgranskningPage />} />
+              <Route path="expertgranskning/new" element={<BolagExpertgranskningRunPage />} />
+              <Route path="expertgranskning/:id" element={<BolagExpertgranskningRunPage />} />
               <Route path="campaigns" element={<DdCampaignsPage />} />
               <Route path="campaigns/new" element={<DdCampaignEditorPage />} />
               <Route path="campaigns/:id/runs/:candidateId" element={<DdCampaignRunPage />} />
@@ -133,6 +139,8 @@ export default function App() {
 
           <Route element={<RequireExpertgranskning />}>
             <Route path="/expertgranskning" element={<ExpertgranskningPage />} />
+            <Route path="/expertgranskning/new" element={<ExpertgranskningRunPage />} />
+            <Route path="/expertgranskning/:id" element={<ExpertgranskningRunPage />} />
           </Route>
 
           <Route element={<RequireOsUser />}>

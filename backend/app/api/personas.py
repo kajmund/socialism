@@ -7,12 +7,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.auth.dependencies import get_current_user
-from app.auth.scope import assert_kund_access, effective_customer_id, require_user_kund_id
+from app.auth.scope import (
+    assert_kund_access,
+    customer_id_for_user,
+    effective_customer_id,
+    require_user_kund_id,
+)
 from app.config import settings
-from app.database.models import Persona, PersonaMessage, Population, PopulationMember, UserAccount
+from app.database.models import (
+    Persona,
+    PersonaMessage,
+    Population,
+    PopulationMember,
+    StoredObject,
+    UserAccount,
+)
 from app.database.session import get_session
 from app.llm.chat import reply_as_persona
+from app.llm.expert_gen import ExpertCandidate, llm_experts_from_underlag
 from app.llm.persona_gen import llm_personas_from_description
+from app.modules.registry import MODULE_REGISTRY
 from app.schemas.domain import (
     ChatMode,
     DistGroup,
@@ -51,9 +65,37 @@ from app.services.population_generate import stub_persona
 from app.services.dd.default_experts import ensure_default_expert_personas
 from app.services.expert_tools import resolve_expert_tools
 from app.services.kund_store import bolag_demo_customer_id, default_os_customer_id
+from app.services.object_storage import KIND_UNDERLAG
+from app.services.panel.catalog_schemas import ExpertSuggestIn
 from app.services.prompt_store import require_active_prompts, require_prompts_for_persona
+from app.services.stored_objects import get_stored_object
 
 router = APIRouter(prefix="/personas", tags=["personas"])
+
+
+def _own_underlag(row: StoredObject | None, *, customer_id: int, user_id: str) -> StoredObject:
+    if (
+        row is None
+        or row.kind != KIND_UNDERLAG
+        or row.customer_id != customer_id
+        or row.owner_user_id != user_id
+    ):
+        raise HTTPException(status_code=404, detail="File not found")
+    return row
+
+
+def _underlag_text_for_suggest(row: StoredObject, *, module: str) -> str:
+    if row.module != module:
+        raise HTTPException(status_code=400, detail="Underlag module does not match")
+    if row.extraction_status != "ok":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Underlag extraction status is {row.extraction_status!r}",
+        )
+    text = (row.extracted_text or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Underlag has no extracted text")
+    return text
 
 
 async def _population_names_for_persona(
@@ -215,6 +257,33 @@ async def generate_personas(
         prompts=prompts,
     )
     return PersonaGenerateResponse(candidates=candidates)
+
+
+@router.post("/suggest-from-underlag", response_model=list[ExpertCandidate])
+async def suggest_experts_from_underlag(
+    body: ExpertSuggestIn,
+    session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
+) -> list[ExpertCandidate]:
+    if body.module not in MODULE_REGISTRY:
+        raise HTTPException(status_code=400, detail=f"Unknown module {body.module!r}")
+    customer_id = await customer_id_for_user(session, user)
+    row = _own_underlag(
+        await get_stored_object(session, body.underlag_id),
+        customer_id=customer_id,
+        user_id=user.id,
+    )
+    text = _underlag_text_for_suggest(row, module=body.module)
+    try:
+        return await llm_experts_from_underlag(
+            text,
+            body.count,
+            body.module,
+            session,
+            customer_id=customer_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get("/{persona_id}", response_model=PersonaDetail)

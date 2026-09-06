@@ -1199,11 +1199,37 @@ HOW YOU WRITE COMMENTS:
         "Placeholders: {topic}, {brief}, {expert_list}.",
         (
             "Ämne: {topic}\n\nBakgrund:\n{brief}\n\nExperter:\n{expert_list}\n\n"
-            "Öppna panelen med en kort introduktion och ställ en tydlig inledande fråga."
+            "Öppna panelen med en kort introduktion och ställ en tydlig inledande fråga. "
+            "Lista inte senare frågor."
         ),
         (
             "Topic: {topic}\n\nBackground:\n{brief}\n\nExperts:\n{expert_list}\n\n"
-            "Open the panel with a brief introduction and one clear starting question."
+            "Open the panel with a brief introduction and one clear starting question. "
+            "Do not list later questions."
+        ),
+    ),
+    _f(
+        "panel.moderator.next_question",
+        "panel",
+        "Moderator — nästa delfråga",
+        "Moderator — next sub-question",
+        "Platshållare: {topic}, {transcript}, {expert_list}, {round_index}.",
+        "Placeholders: {topic}, {transcript}, {expert_list}, {round_index}.",
+        (
+            "Ämne: {topic}\n\n"
+            "Experter:\n{expert_list}\n\n"
+            "Hittills:\n{transcript}\n\n"
+            "Det här är delfråga {round_index}. Ställ EN ny, tydlig fråga till panelen. "
+            "Bygg på det som redan sagts. Lista inte kommande frågor. "
+            "Skriv bara din egen replik — inte experternas svar."
+        ),
+        (
+            "Topic: {topic}\n\n"
+            "Experts:\n{expert_list}\n\n"
+            "So far:\n{transcript}\n\n"
+            "This is sub-question {round_index}. Ask ONE new, clear question to the panel. "
+            "Build on what has already been said. Do not list later questions. "
+            "Write only your own line — not the experts' answers."
         ),
     ),
     _f(
@@ -1349,11 +1375,13 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         "Public panel contribution.",
         (
             "Ämne: {topic}\n\nHittills:\n{transcript}\n\nDina anteckningar:\n{scratchpad}\n\n"
-            "Ge ditt offentliga inlägg (max 150 ord)."
+            "Ge ditt offentliga inlägg (max 150 ord). "
+            "Svara bara på moderatorns senaste fråga. Ta inte upp frågor som inte har ställts."
         ),
         (
             "Topic: {topic}\n\nSo far:\n{transcript}\n\nYour notes:\n{scratchpad}\n\n"
-            "Give your public contribution (max 150 words)."
+            "Give your public contribution (max 150 words). "
+            "Answer only the moderator's latest question. Do not raise questions that have not been asked."
         ),
     ),
     _f(
@@ -1387,8 +1415,8 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         "Placeholders: {topic}, {brief}, {expert_list}.",
         (
             "Målbolag:\n{brief}\n\nExperter i panelen (använd exakt dessa, räkna dem):\n{expert_list}\n\n"
-            "Öppna panelen kort. Förklara att vi tar en delfråga i taget "
-            "(finansiell hälsa, legal risk, marknadsposition, integrationsrisk). "
+            "Öppna panelen kort. Förklara att vi tar en delfråga i taget. "
+            "Nämn inte vilka delfrågor som kommer. "
             "Bara den vars kärnkompetens matchar räcker upp handen och ger poäng 1–10 "
             "(10 = låg risk). Tilldela inte första frågan till någon. "
             "Skriv inte expertrepliker. "
@@ -1397,8 +1425,8 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         ),
         (
             "Target:\n{brief}\n\nExperts on the panel (use exactly these, count them):\n{expert_list}\n\n"
-            "Open briefly. Explain we take one sub-question at a time "
-            "(financial health, legal risk, market position, integration risk). "
+            "Open briefly. Explain we take one sub-question at a time. "
+            "Do not name the upcoming sub-questions. "
             "Only the expert whose core competence matches raises a hand and scores 1–10 "
             "(10 = low risk). Do not assign the first question to anyone. "
             "Do not write expert lines. "

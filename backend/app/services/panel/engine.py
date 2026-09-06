@@ -80,6 +80,28 @@ async def _moderator_opening(config: PanelSessionConfig, prompts: dict[str, str]
     return (await complete_text(messages)).strip()
 
 
+async def _moderator_next_question(
+    config: PanelSessionConfig,
+    transcript: list[PanelTurn],
+    prompts: dict[str, str],
+    *,
+    round_index: int,
+) -> str:
+    messages = _messages_with_brief(
+        identity=render_prompt(prompts, "panel.moderator.system"),
+        brief=_session_brief(config),
+        user_content=render_prompt(
+            prompts,
+            "panel.moderator.next_question",
+            topic=config.topic,
+            transcript=_transcript_text(transcript),
+            expert_list=_expert_list(config),
+            round_index=round_index,
+        ),
+    )
+    return (await complete_text(messages)).strip()
+
+
 async def _expert_raise_hand(
     slot: PanelExpertSlot,
     config: PanelSessionConfig,
@@ -199,6 +221,18 @@ async def run_generic_panel(
     )
 
     for round_index in range(1, config.max_rounds + 1):
+        if round_index > 1:
+            await run_turn(
+                db,
+                panel,
+                transcript,
+                speaker="moderator",
+                phase="sub_question",
+                round_index=round_index,
+                produce_content=lambda r=round_index: _moderator_next_question(
+                    config, transcript, prompts, round_index=r
+                ),
+            )
         raise_hand_queue: list[str] = []
         for slot in config.expert_slots:
             async def produce_raise_hand(

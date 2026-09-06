@@ -15,6 +15,10 @@ export type ModuleNavItem = {
   to: string
   match: string
   component?: ModuleComponentId
+  /** When set, these items render under this sidenav heading instead of the module name. */
+  sectionKey?: MessageKey
+  /** Place the section immediately above reports / feedback / jobs. */
+  beforeShared?: boolean
 }
 
 export type ModuleManifest = {

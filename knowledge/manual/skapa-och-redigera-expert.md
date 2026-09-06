@@ -12,7 +12,7 @@ tags: [personas]
 ## Skapa ny expert
 
 1. Öppna **Experter** i menyn.
-2. Välj **Ny expert**.
+2. Välj **Ny expert**, eller **Föreslå experter** och välj underlag på samma sätt som i Expertgranskning.
 3. Fyll i namn, kompetensområde, rådgivningsstil, yrkesbakgrund och en kort professionell anekdot.
 4. Välj **Spara**.
 

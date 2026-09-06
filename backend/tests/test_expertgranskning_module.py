@@ -96,6 +96,8 @@ def mock_panel_llm():
             return "Syntes: dokumentet är tydligt men behöver skärpas."
         if "Öppna panelen" in user or "Open the panel" in user:
             return "Välkommen till dokumentgranskningen."
+        if "Det här är delfråga" in user or "This is sub-question" in user:
+            return "Nästa fråga: håller underlaget?"
         return f"Svar {counters['n']}"
 
     async def _tools(messages, tools=None):
@@ -318,7 +320,7 @@ async def test_non_admin_denied_when_panel_experts_span_kunder(client: AsyncClie
             "kind": "expert_panel",
             "name": "Mixed-kund panel",
             "include_persona_ids": [os_expert.json()["id"], bolag_expert_id],
-            "recipe": {"size": 2, "dist": {}, "modules": ["expertgranskning"]},
+            "recipe": {"size": 2, "dist": {}},
         },
     )
     assert created.status_code == 201, created.text
@@ -352,18 +354,119 @@ async def test_bolag_user_can_create_session_for_own_kund_panel(client: AsyncCli
 
 
 @pytest.mark.asyncio
-async def test_expertgranskning_session_requires_document_and_panel(client: AsyncClient):
-    missing_text = await client.post(
+async def test_expertgranskning_draft_without_panel_and_missing_panel(client: AsyncClient):
+    draft = await client.post(
         "/expertgranskning/sessions",
-        json={"document_text": "   ", "panel_id": 1},
+        json={"document_text": "", "title": "Tomt utkast"},
     )
-    assert missing_text.status_code == 422
+    assert draft.status_code == 201, draft.text
+    body = draft.json()
+    assert body["status"] == "draft"
+    assert body["panel_id"] is None
+    assert body["topic"] == "Tomt utkast"
+    assert body["document_text"] == ""
 
     missing_panel = await client.post(
         "/expertgranskning/sessions",
         json={"document_text": "En text", "panel_id": 999999},
     )
     assert missing_panel.status_code == 404
+
+    run = await client.post(f"/expertgranskning/sessions/{body['id']}/run")
+    assert run.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_expertgranskning_list_patch_delete(client: AsyncClient):
+    panel_id = await _create_expert_panel(client)
+    created = await client.post(
+        "/expertgranskning/sessions",
+        json={"document_text": "Första version", "panel_id": panel_id, "title": "Lista-test"},
+    )
+    assert created.status_code == 201, created.text
+    session_id = created.json()["id"]
+
+    listed = await client.get("/expertgranskning/sessions")
+    assert listed.status_code == 200
+    rows = listed.json()
+    assert any(row["id"] == session_id for row in rows)
+    match = next(row for row in rows if row["id"] == session_id)
+    assert match["topic"] == "Lista-test"
+    assert match["status"] == "draft"
+    assert match["panel_id"] == panel_id
+    assert match["panel_name"]
+
+    patched = await client.patch(
+        f"/expertgranskning/sessions/{session_id}",
+        json={"document_text": "Uppdaterad text", "title": "Nytt namn"},
+    )
+    assert patched.status_code == 200, patched.text
+    assert patched.json()["document_text"] == "Uppdaterad text"
+    assert patched.json()["topic"] == "Nytt namn"
+
+    deleted = await client.delete(f"/expertgranskning/sessions/{session_id}")
+    assert deleted.status_code == 204
+    gone = await client.get(f"/expertgranskning/sessions/{session_id}")
+    assert gone.status_code == 404
+    listed_after = await client.get("/expertgranskning/sessions")
+    assert all(row["id"] != session_id for row in listed_after.json())
+
+
+@pytest.mark.asyncio
+async def test_bolag_user_session_list_is_scoped(client: AsyncClient):
+    from tests.conftest import BOLAG_USER_ID, mint_access_token
+
+    panel_id = await _create_expert_panel(client)
+    bolag_session = await client.post(
+        "/expertgranskning/sessions",
+        json={"document_text": "Bolag-text", "panel_id": panel_id, "title": "Bolag"},
+    )
+    assert bolag_session.status_code == 201
+
+    os_draft = await client.post(
+        "/expertgranskning/sessions",
+        json={"document_text": "OS-text", "title": "OS-utkast"},
+    )
+    assert os_draft.status_code == 201
+    os_id = os_draft.json()["id"]
+
+    client.headers["Authorization"] = (
+        f"Bearer {mint_access_token(sub=BOLAG_USER_ID, email='bolag@test.local')}"
+    )
+    listed = await client.get("/expertgranskning/sessions")
+    assert listed.status_code == 200
+    ids = {row["id"] for row in listed.json()}
+    assert bolag_session.json()["id"] in ids
+    assert os_id not in ids
+
+
+@pytest.mark.asyncio
+async def test_bolag_user_can_watch_expertgranskning_panel_ws(client_db):
+    from app.api.ws import _assert_panel_ws_access
+    from app.database.models import UserAccount
+    from tests.conftest import BOLAG_USER_ID
+
+    client, factory = client_db
+    panel_id = await _create_expert_panel(client)
+    client.headers["Authorization"] = (
+        f"Bearer {__import__('tests.conftest', fromlist=['mint_access_token']).mint_access_token(sub=BOLAG_USER_ID, email='bolag@test.local')}"
+    )
+    created = await client.post(
+        "/expertgranskning/sessions",
+        json={"document_text": "WS-text", "panel_id": panel_id},
+    )
+    assert created.status_code == 201, created.text
+    session_id = created.json()["id"]
+
+    async with factory() as session:
+        bolag = await session.get(UserAccount, BOLAG_USER_ID)
+        assert bolag is not None
+        await _assert_panel_ws_access(
+            session,
+            bolag,
+            session_id=session_id,
+            campaign_id=None,
+        )
 
 
 @pytest.mark.asyncio

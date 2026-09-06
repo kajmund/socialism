@@ -7,7 +7,6 @@ import {
   updatePanelExpertProfile,
   type PanelExpertProfile,
 } from "@/api/panelCatalog"
-import { SuggestExpertsModal } from "@/components/tools/SuggestExpertsModal"
 import { AdminButton } from "@/components/ui/admin-button"
 import { useLocale } from "@/i18n"
 import { ApiError } from "@/lib/api"
@@ -56,13 +55,6 @@ export function PanelExpertProfilesEditor({ moduleId }: PanelExpertProfilesEdito
   const [savingId, setSavingId] = useState<number | "new" | null>(null)
   const [drafts, setDrafts] = useState<Record<number, ProfileDraft>>({})
   const [newDraft, setNewDraft] = useState<ProfileDraft>(EMPTY_DRAFT)
-  const [suggestOpen, setSuggestOpen] = useState(false)
-
-  async function reload() {
-    const data = await listPanelExpertProfiles(moduleId, true)
-    setRows(data)
-    setDrafts(Object.fromEntries(data.map((row) => [row.id, draftFromRow(row)])))
-  }
 
   useEffect(() => {
     let cancelled = false
@@ -172,14 +164,9 @@ export function PanelExpertProfilesEditor({ moduleId }: PanelExpertProfilesEdito
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-medium">{t("tools.panelCatalog.expertsTitle")}</h2>
-          <p className="text-sm text-muted-foreground">{t("tools.panelCatalog.expertsIntro")}</p>
-        </div>
-        <AdminButton type="button" variant="secondary" size="sm" onClick={() => setSuggestOpen(true)}>
-          {t("tools.panelCatalog.suggestExperts")}
-        </AdminButton>
+      <div>
+        <h2 className="text-lg font-medium">{t("tools.panelCatalog.expertsTitle")}</h2>
+        <p className="text-sm text-muted-foreground">{t("tools.panelCatalog.expertsIntro")}</p>
       </div>
       {error ? (
         <p className="text-sm text-destructive" role="alert">
@@ -341,17 +328,6 @@ export function PanelExpertProfilesEditor({ moduleId }: PanelExpertProfilesEdito
           {savingId === "new" ? t("common.saving") : t("tools.panelCatalog.addExpert")}
         </AdminButton>
       </form>
-      <SuggestExpertsModal
-        open={suggestOpen}
-        moduleId={moduleId}
-        existingKeys={rows.map((row) => row.key)}
-        onOpenChange={setSuggestOpen}
-        onAdded={() => {
-          void reload().catch((err: unknown) => {
-            setError(err instanceof ApiError ? err.message : t("tools.panelCatalog.loadError"))
-          })
-        }}
-      />
     </div>
   )
 }

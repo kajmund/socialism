@@ -17,9 +17,17 @@ Bolagsanvändare som har Due Diligence-modulen landar i Due Diligence-ytan. Har 
 
 Från vänstermenyn når du:
 
-1. **Experter** — biblioteket med rådgivare till paneler
-2. **Expertpaneler** — sparade grupper av experter
-3. **Kampanjer** — Due Diligence-kampanjer med kandidatbolag och körningar
+Under **Due Diligence**:
+
+1. **Kampanjer** — Due Diligence-kampanjer med kandidatbolag och körningar
+
+Under **Experter**, direkt ovanför rapporter och jobb:
+
+2. **Experter** — biblioteket med rådgivare till paneler
+3. **Expertpaneler** — sparade grupper av experter
+
+Därefter, utan egen rubrik:
+
 4. **Rapporter** — färdiga Due Diligence-rapporter från panelkörningar
 5. **Återkoppling** — buggar, idéer och åsikter från hjälpchatten
 6. **Jobb** — bakgrundsjobb (research, panelkörning, rapporter)

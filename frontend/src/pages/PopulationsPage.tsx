@@ -172,7 +172,7 @@ export function PopulationsPage() {
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    listPopulations()
+    listPopulations({ kind: "persona" })
       .then((data) => {
         if (!cancelled) {
           setPops(data)

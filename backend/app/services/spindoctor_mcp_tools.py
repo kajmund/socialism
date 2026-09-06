@@ -460,7 +460,12 @@ async def _list_reports(session: AsyncSession, arguments: dict[str, Any]) -> str
 
 async def _list_populations(session: AsyncSession, arguments: dict[str, Any]) -> str:
     limit = _clamp_limit(arguments.get("limit"))
-    stmt = select(Population).order_by(Population.updated_at.desc()).limit(limit)
+    stmt = (
+        select(Population)
+        .where(Population.kind == "persona")
+        .order_by(Population.updated_at.desc())
+        .limit(limit)
+    )
     rows = (await session.execute(stmt)).scalars().all()
     payload = [
         {"id": row.id, "name": row.name, "size": row.size} for row in rows

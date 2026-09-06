@@ -1,9 +1,17 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
-import { deletePersona, listExpertPersonas } from "@/api/personas"
+import {
+  createPersona,
+  deletePersona,
+  editableToWrite,
+  listExpertPersonas,
+  type ExpertCandidate,
+} from "@/api/personas"
+import { SuggestExpertsModal } from "@/components/experts/SuggestExpertsModal"
+import { AdminButton } from "@/components/ui/admin-button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ViewToggle, type ListViewMode } from "@/components/ui/view-toggle"
-import { formatLibraryDate, personaInitials } from "@/data/library"
+import { blankEditableExpert, formatLibraryDate, personaInitials } from "@/data/library"
 import type { LibraryPersona } from "@/data/library-types"
 import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
 import { ApiError } from "@/lib/api"
@@ -12,6 +20,19 @@ type Translate = (key: MessageKey, params?: TranslateParams) => string
 
 const CTA_CLASS =
   "admin-cta inline-flex h-9 items-center rounded-[var(--radius-md)] bg-db-black px-[18px] text-[0.85rem] text-db-ink-0 no-underline hover:bg-db-ink-800"
+
+function expertWriteFromCandidate(candidate: ExpertCandidate) {
+  const profile = blankEditableExpert()
+  profile.name = candidate.name
+  profile.initials = personaInitials(candidate.name)
+  profile.beskrivning = candidate.description || "—"
+  profile.kompetensomrade = candidate.kompetensomrade || "—"
+  profile.radgivningsstil = candidate.radgivningsstil || "—"
+  profile.yrkesbakgrund = candidate.yrkesbakgrund || "—"
+  profile.professionell_anekdot = candidate.professionell_anekdot || "—"
+  profile.yrke = candidate.yrkesbakgrund || "—"
+  return editableToWrite(profile, "beskrivning", candidate.description, { kind: "expert" })
+}
 
 type ExpertItemProps = {
   expert: LibraryPersona
@@ -113,17 +134,20 @@ export function ExpertsPage() {
   const [query, setQuery] = useState("")
   const [view, setView] = useState<ListViewMode>("grid")
   const [toast, setToast] = useState<string | null>(null)
+  const [suggestOpen, setSuggestOpen] = useState(false)
+
+  function loadExperts() {
+    return listExpertPersonas().then((items) => {
+      setRows(items)
+      setError(null)
+      return items
+    })
+  }
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    void listExpertPersonas()
-      .then((items) => {
-        if (!cancelled) {
-          setRows(items)
-          setError(null)
-        }
-      })
+    void loadExperts()
       .catch((err: unknown) => {
         if (!cancelled) {
           setError(err instanceof ApiError ? err.message : t("experts.list.loadError"))
@@ -163,6 +187,14 @@ export function ExpertsPage() {
     }
   }
 
+  async function handleSuggested(candidates: ExpertCandidate[]) {
+    for (const candidate of candidates) {
+      await createPersona(expertWriteFromCandidate(candidate))
+    }
+    await loadExperts()
+    setToast(t("experts.suggest.added", { count: candidates.length }))
+  }
+
   return (
     <div className="wrap admin-page">
       <div className="admin-page-chrome">
@@ -191,6 +223,9 @@ export function ExpertsPage() {
             </div>
             <div className="controls-right">
               <ViewToggle value={view} onChange={setView} />
+              <AdminButton type="button" variant="secondary" size="sm" onClick={() => setSuggestOpen(true)}>
+                {t("experts.suggest.action")}
+              </AdminButton>
               <Link to="/bolag/experter/new" className={CTA_CLASS}>
                 {t("experts.list.newExpert")}
               </Link>
@@ -238,12 +273,23 @@ export function ExpertsPage() {
             <p style={{ color: "var(--text-muted)", marginBottom: 24 }}>
               {t("experts.list.emptyBody")}
             </p>
-            <Link to="/bolag/experter/new" className={CTA_CLASS}>
-              {t("experts.list.newExpert")}
-            </Link>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <AdminButton type="button" variant="secondary" size="sm" onClick={() => setSuggestOpen(true)}>
+                {t("experts.suggest.action")}
+              </AdminButton>
+              <Link to="/bolag/experter/new" className={CTA_CLASS}>
+                {t("experts.list.newExpert")}
+              </Link>
+            </div>
           </div>
         )}
       </div>
+
+      <SuggestExpertsModal
+        open={suggestOpen}
+        onOpenChange={setSuggestOpen}
+        onConfirm={handleSuggested}
+      />
 
       {toast ? (
         <div className="fixed bottom-6 right-6 z-50 rounded-md bg-db-ink-950 px-4 py-3 text-sm text-db-ink-0 shadow-lg">

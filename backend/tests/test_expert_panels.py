@@ -67,64 +67,6 @@ async def test_create_expert_panel_requires_experts(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_expert_panel_modules_tag_and_filter(client: AsyncClient):
-    bolag_id = await _bolag_customer_id(client)
-    experts = await client.get("/personas", params={"kind": "expert", "customer_id": bolag_id})
-    expert_id = experts.json()[0]["id"]
-
-    tagged = await client.post(
-        "/populations",
-        json={
-            "kind": "expert_panel",
-            "name": "Tagged expertgranskning panel",
-            "include_persona_ids": [expert_id],
-            "recipe": {
-                "size": 1,
-                "dist": {},
-                "modules": ["expertgranskning", "dd", "expertgranskning"],
-            },
-        },
-    )
-    assert tagged.status_code == 201, tagged.text
-    assert tagged.json()["modules"] == ["expertgranskning", "dd"]
-
-    untagged = await _create_expert_panel(
-        client, name="Untagged filter panel", expert_ids=[expert_id]
-    )
-    assert untagged["modules"] == []
-
-    listed = await client.get(
-        "/populations",
-        params={"kind": "expert_panel", "module": "expertgranskning"},
-    )
-    assert listed.status_code == 200
-    ids = {row["id"] for row in listed.json()}
-    assert tagged.json()["id"] in ids
-    assert untagged["id"] not in ids
-    assert all(row["kind"] == "expert_panel" for row in listed.json())
-    assert all("expertgranskning" in row["modules"] for row in listed.json())
-
-    updated = await client.put(
-        f"/populations/{untagged['id']}",
-        json={"modules": ["expertgranskning"]},
-    )
-    assert updated.status_code == 200, updated.text
-    assert updated.json()["modules"] == ["expertgranskning"]
-
-    blocked = await client.put(
-        f"/populations/{untagged['id']}",
-        json={"modules": ["politik"]},
-    )
-    assert blocked.status_code == 400
-
-    recipe_blocked = await client.put(
-        f"/populations/{untagged['id']}",
-        json={"recipe": {"size": 1, "dist": {}, "modules": ["dd"]}},
-    )
-    assert recipe_blocked.status_code == 400
-
-
-@pytest.mark.asyncio
 async def test_list_expert_panels_filter(client: AsyncClient):
     bolag_id = await _bolag_customer_id(client)
     experts = await client.get("/personas", params={"kind": "expert", "customer_id": bolag_id})
@@ -137,6 +79,15 @@ async def test_list_expert_panels_filter(client: AsyncClient):
     rows = listed.json()
     assert rows
     assert all(row["kind"] == "expert_panel" for row in rows)
+
+    persona_list = await client.get("/populations")
+    assert persona_list.status_code == 200
+    assert all(row["kind"] == "persona" for row in persona_list.json())
+    assert all(row["name"] != "Filter test panel" for row in persona_list.json())
+
+    run_options = await client.get("/runs/populations")
+    assert run_options.status_code == 200
+    assert all(row["name"] != "Filter test panel" for row in run_options.json())
 
 
 @pytest.mark.asyncio

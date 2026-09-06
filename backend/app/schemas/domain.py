@@ -231,7 +231,6 @@ class PopulationSummary(BaseModel):
     updated: str
     versions: int
     fp: list[list[int]]
-    modules: list[str] = Field(default_factory=list)
 
 
 class PopulationDetail(PopulationSummary):
@@ -262,7 +261,6 @@ class PopulationUpdate(BaseModel):
     bump_version: bool = False
     generation_id: str | None = None
     keep_keys: list[str] | None = None
-    modules: list[str] | None = None
 
 
 class PersonaGenerateRequest(BaseModel):

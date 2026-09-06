@@ -222,6 +222,7 @@ async def list_run_populations(
         .options(
             selectinload(Population.members).selectinload(PopulationMember.persona),
         )
+        .where(Population.kind == "persona")
         .order_by(Population.name)
     )
     populations = list(result.scalars().all())

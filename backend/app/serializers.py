@@ -27,7 +27,6 @@ from app.services.population_fingerprint import (
     dist_qa_rows,
     fingerprint_from_dist,
 )
-from app.services.population_modules import modules_from_recipe
 
 
 def utcnow() -> datetime:
@@ -108,7 +107,6 @@ def serialize_population_summary(population: Population, run_count: int) -> Popu
         updated=format_date(population.updated_at),
         versions=population.versions,
         fp=population.fingerprint or [],
-        modules=modules_from_recipe(population.recipe),
     )
 
 

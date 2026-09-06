@@ -131,10 +131,13 @@ function toastFromTransition(
         }
       }
       if (job.kind === "panel_session_run") {
+        const sessionId =
+          typeof job.request?.session_id === "string" ? job.request.session_id : null
+        const home = bolag ? "/bolag/expertgranskning" : "/expertgranskning"
         return {
           kind: "ok",
           message: t("toast.jobDone", { label: job.label }),
-          href: bolag ? "/bolag/expertgranskning" : "/expertgranskning",
+          href: sessionId ? `${home}/${sessionId}?tab=results` : home,
           hrefLabel: t("toast.openResults"),
         }
       }

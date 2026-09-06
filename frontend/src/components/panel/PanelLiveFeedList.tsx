@@ -18,17 +18,31 @@ const PHASE_LABEL_KEYS: Record<PanelWatchTurnPhase, MessageKey> = {
   unanswered: "dd.panel.live.phase.unanswered",
 }
 
+export function revealedPanelRounds(turns: PanelWatchTurn[]): Set<number> {
+  const revealed = new Set<number>()
+  for (const turn of turns) {
+    if (!turn.content.trim()) continue
+    if (turn.phase === "opening") revealed.add(1)
+    if (turn.phase === "sub_question" && turn.round_index != null) {
+      revealed.add(turn.round_index)
+    }
+  }
+  return revealed
+}
+
 function TurnRow({
   speaker,
   phase,
   content,
   roundIndex,
+  showRound,
   inProgress,
 }: {
   speaker: string
   phase: PanelWatchTurnPhase
   content: string | null
   roundIndex?: number | null
+  showRound?: boolean
   inProgress?: boolean
 }) {
   const { t } = useLocale()
@@ -41,7 +55,7 @@ function TurnRow({
         <span className="rounded border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
           {phaseLabel}
         </span>
-        {roundIndex != null ? (
+        {showRound && roundIndex != null ? (
           <span className="text-xs text-muted-foreground">
             {t("dd.panel.live.round", { round: roundIndex })}
           </span>
@@ -71,6 +85,7 @@ export function PanelLiveFeedList({
 }) {
   const showPending =
     pendingTurn != null && !turns.some((turn) => turn.turn_id === pendingTurn.turn_id)
+  const revealedRounds = revealedPanelRounds(turns)
 
   if (turns.length === 0 && !showPending) {
     return <p className="text-sm text-muted-foreground">{emptyLabel}</p>
@@ -85,6 +100,9 @@ export function PanelLiveFeedList({
           phase={turn.phase}
           content={turn.content}
           roundIndex={turn.round_index}
+          showRound={
+            turn.round_index != null && revealedRounds.has(turn.round_index)
+          }
         />
       ))}
       {showPending && pendingTurn ? (
@@ -93,6 +111,10 @@ export function PanelLiveFeedList({
           phase={pendingTurn.phase}
           content={null}
           roundIndex={pendingTurn.round_index}
+          showRound={
+            pendingTurn.round_index != null &&
+            revealedRounds.has(pendingTurn.round_index)
+          }
           inProgress
         />
       ) : null}

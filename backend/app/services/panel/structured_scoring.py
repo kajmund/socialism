@@ -96,7 +96,7 @@ def _candidate_has_figures(candidate: DdCandidateCompany) -> bool:
 def _transcript_text(transcript: list[PanelTurn]) -> str:
     lines: list[str] = []
     for turn in transcript:
-        if turn.phase not in ("opening", "score", "unanswered"):
+        if turn.phase not in ("score", "unanswered"):
             continue
         lines.append(f"{turn.speaker}: {turn.content}")
     return "\n".join(lines) or "(inga poäng ännu)"

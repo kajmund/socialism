@@ -401,6 +401,30 @@ def test_transcript_text_skips_raise_hand():
     assert "JA" not in text
 
 
+def test_transcript_text_skips_opening_preview():
+    from app.services.panel.structured_scoring import _transcript_text
+    from app.services.panel.schemas import PanelTurn
+
+    text = _transcript_text(
+        [
+            PanelTurn(
+                turn_id="1",
+                speaker="Spinndoktor",
+                phase="opening",
+                content="Vi tar en delfråga i taget (legal risk, marknadsposition).",
+            ),
+            PanelTurn(
+                turn_id="2",
+                speaker="Lisa (Legal/Skatte)",
+                phase="score",
+                content="Poäng 7/10",
+            ),
+        ]
+    )
+    assert "legal risk" not in text
+    assert "Poäng 7/10" in text
+
+
 def test_visible_moderator_text_strips_report_refs():
     from app.services.panel.structured_scoring import _visible_moderator_text
 

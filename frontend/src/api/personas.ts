@@ -163,6 +163,25 @@ export function generatePersonas(
   return api.post<{ candidates: EditablePersona[] }>("/personas/generate", body)
 }
 
+export type ExpertCandidate = {
+  name: string
+  description: string
+  kompetensomrade: string
+  radgivningsstil: string
+  yrkesbakgrund: string
+  professionell_anekdot: string
+}
+
+export function suggestExpertsFromUnderlag(body: {
+  underlag_id: string
+  module: string
+  count?: number
+}): Promise<ExpertCandidate[]> {
+  return api.post<ExpertCandidate[]>("/personas/suggest-from-underlag", body, {
+    timeoutMs: 120_000,
+  })
+}
+
 export function listPersonaMessages(
   id: string,
   mode: ChatMode,
