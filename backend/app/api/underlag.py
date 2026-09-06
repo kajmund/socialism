@@ -76,20 +76,33 @@ async def post_underlag_folder(
 
 @router.get("", response_model=UnderlagListingOut)
 async def get_underlag_list(
-    module: str = Query(...),
+    module: str | None = Query(None),
     folder_id: str | None = Query(None),
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> UnderlagListingOut:
-    module = _require_module(module)
+    scoped_module = _require_module(module) if module is not None else None
     customer_id = await customer_id_for_user(session, user)
+    if scoped_module is None:
+        rows = await list_underlag(
+            session,
+            customer_id=customer_id,
+            owner_user_id=user.id,
+            module=None,
+            folder_id=None,
+        )
+        return UnderlagListingOut(
+            folder_id=None,
+            folders=[],
+            files=[UnderlagOut(**serialize_underlag(row, include_text=False)) for row in rows],
+        )
     if folder_id is not None:
         try:
             await own_underlag_folder(
                 await get_underlag_folder(session, folder_id),
                 customer_id=customer_id,
                 owner_user_id=user.id,
-                module=module,
+                module=scoped_module,
             )
         except LookupError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -97,14 +110,14 @@ async def get_underlag_list(
         session,
         customer_id=customer_id,
         owner_user_id=user.id,
-        module=module,
+        module=scoped_module,
         parent_id=folder_id,
     )
     rows = await list_underlag(
         session,
         customer_id=customer_id,
         owner_user_id=user.id,
-        module=module,
+        module=scoped_module,
         folder_id=folder_id,
     )
     return UnderlagListingOut(

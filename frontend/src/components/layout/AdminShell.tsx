@@ -142,6 +142,14 @@ function toastFromTransition(
         }
       }
     }
+    if (job.kind === "rattsunderlag_research") {
+      return {
+        kind: "ok",
+        message: t("toast.jobDone", { label: job.label }),
+        href: `/rattsunderlag/${job.id}`,
+        hrefLabel: t("jobs.openRattsunderlag"),
+      }
+    }
     const populationHref =
       popId != null
         ? populationKind === "expert_panel"

@@ -77,6 +77,10 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 
 * [Använda expertgranskning](anvanda-expertgranskning.md) — Ladda upp eller klistra in text, välj panel och kör en granskning
 
+# Rättsunderlag
+
+* [Använda rättsunderlag](anvanda-rattsunderlag.md) — Ställ en rättsfråga och hämta lagtext, praxis och förarbeten
+
 # Rapporter
 
 * [Hantera rapporter](hantera-rapporter.md) — Lista och öppna beställda rapporter

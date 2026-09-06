@@ -13,6 +13,8 @@ def modules_for_prompt_key(key: str) -> list[str]:
         return ["politik"]
     if key.startswith("help."):
         return ["dd", "politik"]
+    if key.startswith("rattsunderlag."):
+        return ["rattsunderlag"]
     return ["dd", "politik", "expertgranskning"]
 
 
@@ -30,3 +32,7 @@ def politik_prompt_defaults() -> list[PromptFieldDef]:
 
 def expertgranskning_prompt_defaults() -> list[PromptFieldDef]:
     return prompt_defaults_for_module("expertgranskning")
+
+
+def rattsunderlag_prompt_defaults() -> list[PromptFieldDef]:
+    return prompt_defaults_for_module("rattsunderlag")

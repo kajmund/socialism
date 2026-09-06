@@ -1,5 +1,9 @@
 # Manual update log
 
+## 2026-09-06
+
+* **Rättsunderlag**: Ny yta i vänstermenyn. Du ställer en rättsfråga och får ett juridiskt PM med lagtext, praxis och förarbeten. Resultatet sparas som personligt underlag och syns i **Välj underlag** i Expertgranskning.
+
 ## 2026-09-05
 
 * **Underlag**: I **Välj underlag** kan du skapa mappar, gå in i dem och ladda upp filer där. Mapparna är personliga, precis som filerna.

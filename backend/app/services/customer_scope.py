@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import DdCampaign, PanelSession, Projekt, Report, Run
+from app.database.models import DdCampaign, Job, PanelSession, Projekt, Report, Run
 from app.schemas.domain import (
     JobCreate,
     PopulationGenerateJobRequest,
@@ -13,6 +13,7 @@ from app.schemas.domain import (
     RunSimulateJobRequest,
 )
 from app.services.dd.schemas import DdResearchJobRequest
+from app.services.rattsunderlag.schemas import RattsunderlagResearchJobRequest
 from app.services.kund_store import bolag_demo_customer_id, default_os_customer_id
 from app.services.panel.schemas import PanelSessionRunJobRequest
 
@@ -58,6 +59,11 @@ async def customer_id_for_new_report(
     sources: list[dict],
     mode: str,
 ) -> int:
+    if body.sources and body.sources[0].type == "rattsunderlag":
+        job = await session.get(Job, body.sources[0].session_id or "")
+        if job is None:
+            return await default_os_customer_id(session)
+        return job.customer_id
     if body.sources and (body.sources[0].session_id or "").strip():
         return await customer_id_for_panel_session(session, body.sources[0].session_id or "")
     if sources and sources[0].get("type") == "oasis":
@@ -93,4 +99,7 @@ async def customer_id_for_new_job(session: AsyncSession, body: JobCreate) -> int
         if campaign is None:
             return await default_os_customer_id(session)
         return campaign.customer_id
+    if body.kind == "rattsunderlag_research":
+        payload = RattsunderlagResearchJobRequest.model_validate(body.request)
+        return payload.customer_id
     return await default_os_customer_id(session)
