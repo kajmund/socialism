@@ -47,7 +47,7 @@ function jobLinkPaths(scope: CustomerScope): JobLinkPaths {
   return {
     reports: "/reports",
     populations: "/populations",
-    expertPanels: "/populations",
+    expertPanels: "/bolag/expertpaneler",
     campaigns: "/bolag/campaigns",
     runs: "/runs",
     expertgranskning: "/expertgranskning",
@@ -246,7 +246,7 @@ function JobActionLinks({
   t: Translate
   paths: JobLinkPaths
 }) {
-  const { popId, runId, reportId } = jobIds(job)
+  const { popId, runId, reportId, sessionId } = jobIds(job)
   const links: ReactNode[] = []
 
   if (job.status === "succeeded" && popId != null) {
@@ -284,8 +284,11 @@ function JobActionLinks({
         </Link>,
       )
     } else if (job.kind === "panel_session_run") {
+      const href = sessionId
+        ? `${paths.expertgranskning}/${sessionId}?tab=results`
+        : paths.expertgranskning
       links.push(
-        <Link key="expertgranskning" to={paths.expertgranskning}>
+        <Link key="expertgranskning" to={href}>
           {t("jobs.openExpertgranskning")}
         </Link>,
       )
@@ -320,6 +323,15 @@ function JobActionLinks({
       links.push(
         <Link key="campaign-live" to={href}>
           {ddCampaignLinkLabel(job, t)}
+        </Link>,
+      )
+    } else if (job.kind === "panel_session_run") {
+      const liveHref = sessionId
+        ? `${paths.expertgranskning}/${sessionId}?tab=results`
+        : paths.expertgranskning
+      links.push(
+        <Link key="expertgranskning-live" to={liveHref}>
+          {t("jobs.openExpertgranskning")}
         </Link>,
       )
     }

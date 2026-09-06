@@ -1,11 +1,22 @@
 # Manual update log
 
+## 2026-09-05
+
+* **Underlag**: I **Välj underlag** kan du skapa mappar, gå in i dem och ladda upp filer där. Mapparna är personliga, precis som filerna.
+
 ## 2026-09-04
 
-* **Verktyg**: Under **Panelkatalog** kan administratören föreslå expertprofiler från ett redan uppladdat underlag och lägga till de som passar.
+* **Expertgranskning**: Modulen har lista över körningar, utkast som kan sparas och öppnas igen, samt körningssida med flikarna **Konfiguration** och **Resultat** (live-panel och rapport). Jobb och toasts länkar till den specifika körningen.
+
+* **Populationer**: Expertpaneler visas inte längre i populationslistan eller när du väljer population till en körning. De ligger bara under **Expertpaneler**.
+* **Navigering**: **Experter** och **Expertpaneler** ligger under en egen rubrik **Experter** i vänstermenyn, direkt ovanför **Rapporter**, **Återkoppling** och **Bakgrundsjobb**.
+* **Experter**: **Föreslå experter** ligger under **Experter**. Du väljer underlag med samma **Välj underlag** som i Expertgranskning och lägger till de föreslagna profilerna i expertbiblioteket.
 
 ## 2026-09-03
 
+* **Expertpaneler**: Modulmärkning (**Används i**) är borttagen. En panel kan användas i både Due Diligence och Expertgranskning.
+* **Expertgranskning**: Du kan välja bland alla sparade expertpaneler, inte bara de som är märkta för Expertgranskning.
+* **Expertgranskning / Due Diligence**: I live-panelen visas nästa delfråga först när moderatorn har ställt den. Experterna går inte vidare till delfråga 2 av sig själva.
 * **Expertgranskning / Due Diligence**: I live-panelen visas experternas turer formaterade (listor, fetstil, länkar), inte som rå markdown-text.
 * **Expertgranskning**: Du kan ladda upp ett eget underlag (txt, md, PDF eller Word) i stället för att bara klistra in text. Filerna är personliga. I rapporten visas dokumentet formaterat.
 

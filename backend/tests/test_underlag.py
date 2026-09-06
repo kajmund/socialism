@@ -106,8 +106,12 @@ async def test_underlag_upload_list_get_is_owner_scoped(
 
     listed = await client.get("/underlag", params={"module": "expertgranskning"})
     assert listed.status_code == 200
-    assert [row["id"] for row in listed.json()] == [object_id]
-    assert "extracted_text" not in listed.json()[0] or listed.json()[0].get("extracted_text") is None
+    listing = listed.json()
+    assert listing["folder_id"] is None
+    assert listing["folders"] == []
+    assert [row["id"] for row in listing["files"]] == [object_id]
+    assert listing["files"][0]["folder_id"] is None
+    assert "extracted_text" not in listing["files"][0] or listing["files"][0].get("extracted_text") is None
 
     fetched = await client.get(f"/underlag/{object_id}")
     assert fetched.status_code == 200
@@ -116,7 +120,8 @@ async def test_underlag_upload_list_get_is_owner_scoped(
     client.headers["Authorization"] = f"Bearer {admin_token}"
     admin_listed = await client.get("/underlag", params={"module": "expertgranskning"})
     assert admin_listed.status_code == 200
-    assert admin_listed.json() == []
+    assert admin_listed.json()["files"] == []
+    assert admin_listed.json()["folders"] == []
 
     admin_get = await client.get(f"/underlag/{object_id}")
     assert admin_get.status_code == 404
@@ -148,6 +153,76 @@ async def test_underlag_rejects_oversize(user_client: AsyncClient):
     )
     assert resp.status_code == 400
     assert "20 MB" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_underlag_folders_are_owner_scoped_and_hold_files(
+    client: AsyncClient, user_token: str, admin_token: str
+):
+    client.headers["Authorization"] = f"Bearer {user_token}"
+    created = await client.post(
+        "/underlag/folders",
+        json={"module": "expertgranskning", "name": "  Kampanj 2024  "},
+    )
+    assert created.status_code == 201, created.text
+    folder = created.json()
+    assert folder["name"] == "Kampanj 2024"
+    assert folder["parent_id"] is None
+    folder_id = folder["id"]
+
+    duplicate = await client.post(
+        "/underlag/folders",
+        json={"module": "expertgranskning", "name": "Kampanj 2024"},
+    )
+    assert duplicate.status_code == 400
+
+    slash = await client.post(
+        "/underlag/folders",
+        json={"module": "expertgranskning", "name": "a/b"},
+    )
+    assert slash.status_code == 400
+
+    nested = await client.post(
+        "/underlag/folders",
+        json={"module": "expertgranskning", "name": "Q3", "parent_id": folder_id},
+    )
+    assert nested.status_code == 201, nested.text
+
+    uploaded = await client.post(
+        "/underlag",
+        params={"module": "expertgranskning", "folder_id": folder_id},
+        files={"file": ("inside.txt", b"I mappen\n", "text/plain")},
+    )
+    assert uploaded.status_code == 201, uploaded.text
+    assert uploaded.json()["folder_id"] == folder_id
+
+    root = await client.get("/underlag", params={"module": "expertgranskning"})
+    assert root.status_code == 200
+    assert [row["id"] for row in root.json()["folders"]] == [folder_id]
+    assert root.json()["files"] == []
+
+    inside = await client.get(
+        "/underlag",
+        params={"module": "expertgranskning", "folder_id": folder_id},
+    )
+    assert inside.status_code == 200
+    assert [row["name"] for row in inside.json()["folders"]] == ["Q3"]
+    assert [row["filename"] for row in inside.json()["files"]] == ["inside.txt"]
+
+    missing_parent = await client.post(
+        "/underlag/folders",
+        json={"module": "expertgranskning", "name": "x", "parent_id": "missing"},
+    )
+    assert missing_parent.status_code == 404
+
+    client.headers["Authorization"] = f"Bearer {admin_token}"
+    admin_root = await client.get("/underlag", params={"module": "expertgranskning"})
+    assert admin_root.json()["folders"] == []
+    admin_inside = await client.get(
+        "/underlag",
+        params={"module": "expertgranskning", "folder_id": folder_id},
+    )
+    assert admin_inside.status_code == 404
 
 
 def test_expertgranskning_report_renders_document_as_markdown():

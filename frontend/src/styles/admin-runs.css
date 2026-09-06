@@ -1149,7 +1149,9 @@ table.lt.pol .lock.on{background:var(--db-gold-700);border-color:var(--db-gold-7
 .entry-card:hover>div{border-color:var(--db-ink-400)!important}
 .field{margin-bottom:16px}
 .field label{font:var(--text-label);color:var(--text-muted);display:block;margin-bottom:6px}
-.field input,.field textare.field textare.cand-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:24px}
+.field input,.field textarea{width:100%;font:inherit;font-size:15px;padding:11px 14px;border:1.5px solid var(--border-hairline);border-radius:var(--radius-md);background:var(--db-ink-0);box-sizing:border-box}
+.field textarea{min-height:12rem;resize:vertical;line-height:1.45}
+.cand-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:24px}
 .cand-card{cursor:pointer}
 .cand-card:hover>div{border-color:var(--db-ink-950)!important;box-shadow:0 0 0 2px var(--db-ink-950)}
 .cand-card.is-variant{cursor:default}

@@ -10,14 +10,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import require_admin
 from app.auth.scope import customer_id_for_user
-from app.database.models import PanelExpertProfile, PanelSubQuestion, StoredObject, UserAccount
+from app.database.models import PanelExpertProfile, PanelSubQuestion, UserAccount
 from app.database.session import get_session
-from app.llm.expert_gen import ExpertCandidate, llm_experts_from_underlag
 from app.modules.registry import MODULE_REGISTRY
 from app.services.dd.expert_keys import expert_role_key
-from app.services.object_storage import KIND_UNDERLAG
 from app.services.panel.catalog_schemas import (
-    ExpertSuggestIn,
     PanelExpertProfileCreate,
     PanelExpertProfileOut,
     PanelExpertProfileUpdate,
@@ -41,7 +38,6 @@ from app.services.panel.sub_questions_store import (
     sub_question_key_in_use,
     update_sub_question,
 )
-from app.services.stored_objects import get_stored_object
 
 router = APIRouter(
     prefix="/panel",
@@ -69,31 +65,6 @@ def _dt(value: datetime | None) -> str:
 def _require_module(module: str) -> None:
     if module not in MODULE_REGISTRY:
         raise HTTPException(status_code=400, detail=f"Unknown module {module!r}")
-
-
-def _own_underlag(row: StoredObject | None, *, customer_id: int, user_id: str) -> StoredObject:
-    if (
-        row is None
-        or row.kind != KIND_UNDERLAG
-        or row.customer_id != customer_id
-        or row.owner_user_id != user_id
-    ):
-        raise HTTPException(status_code=404, detail="File not found")
-    return row
-
-
-def _underlag_text_for_suggest(row: StoredObject, *, module: str) -> str:
-    if row.module != module:
-        raise HTTPException(status_code=400, detail="Underlag module does not match")
-    if row.extraction_status != "ok":
-        raise HTTPException(
-            status_code=400,
-            detail=f"Underlag extraction status is {row.extraction_status!r}",
-        )
-    text = (row.extracted_text or "").strip()
-    if not text:
-        raise HTTPException(status_code=400, detail="Underlag has no extracted text")
-    return text
 
 
 def _serialize_sub_question(row: PanelSubQuestion) -> PanelSubQuestionOut:
@@ -224,32 +195,6 @@ async def list_expert_profiles(
         session, module, customer_id=customer_id, active_only=not include_inactive
     )
     return [_serialize_expert_profile(row, viewed_module=module) for row in rows]
-
-
-@router.post("/experts/suggest", response_model=list[ExpertCandidate])
-async def suggest_experts_from_underlag(
-    body: ExpertSuggestIn,
-    session: AsyncSession = Depends(get_session),
-    user: UserAccount = Depends(require_admin),
-) -> list[ExpertCandidate]:
-    _require_module(body.module)
-    customer_id = await customer_id_for_user(session, user)
-    row = _own_underlag(
-        await get_stored_object(session, body.underlag_id),
-        customer_id=customer_id,
-        user_id=user.id,
-    )
-    text = _underlag_text_for_suggest(row, module=body.module)
-    try:
-        return await llm_experts_from_underlag(
-            text,
-            body.count,
-            body.module,
-            session,
-            customer_id=customer_id,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/expert-profiles", response_model=PanelExpertProfileOut, status_code=201)

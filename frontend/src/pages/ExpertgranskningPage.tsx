@@ -1,42 +1,39 @@
 import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react"
 import { Link, Navigate } from "react-router-dom"
 import {
-  createExpertgranskningSession,
-  getExpertgranskningSession,
-  runExpertgranskningSession,
+  deleteExpertgranskningSession,
+  listExpertgranskningSessions,
   type ExpertgranskningSessionStatus,
+  type ExpertgranskningSessionSummary,
 } from "@/api/expertgranskning"
-import { listPopulations } from "@/api/populations"
-import { createExpertgranskningReport } from "@/api/reports"
 import { useAuth } from "@/auth/AuthProvider"
-import { AdminShell, rememberJobPending } from "@/components/layout/AdminShell"
+import { AdminShell } from "@/components/layout/AdminShell"
 import { NestedBolagPage } from "@/components/layout/BolagShell"
-import { PanelLiveFeedPanel } from "@/components/panel/PanelLiveFeedPanel"
-import { UnderlagPicker, type UnderlagSelection } from "@/components/underlag/UnderlagPicker"
 import { Card, CardContent } from "@/components/ui/card"
-import type { PopulationSummary } from "@/data/library-types"
+import { ViewToggle, type ListViewMode } from "@/components/ui/view-toggle"
+import { formatLibraryDate } from "@/data/library"
 import { useLocale, type MessageKey } from "@/i18n"
 import { ApiError } from "@/lib/api"
-import { cn } from "@/lib/utils"
-import { ReportPage } from "@/pages/ReportPage"
-import { useJobsRealtime } from "@/realtime/JobsRealtimeProvider"
-import { useReportsRealtime } from "@/realtime/ReportsRealtimeProvider"
 
-type ResultsView = "live" | "report"
 type ShellComponent = ComponentType<{ children: ReactNode }>
+type Translate = (key: MessageKey, params?: Record<string, string | number>) => string
+type ListStatus = "all" | "draft" | "running" | "done" | "failed"
 
-function statusLabelKey(status: ExpertgranskningSessionStatus): MessageKey {
+function expertgranskningBase(bolag: boolean): string {
+  return bolag ? "/bolag/expertgranskning" : "/expertgranskning"
+}
+
+function toListStatus(status: ExpertgranskningSessionStatus): Exclude<ListStatus, "all"> {
   switch (status) {
     case "draft":
-      return "expertgranskning.page.status.draft"
+      return "draft"
     case "pending":
-      return "expertgranskning.page.status.pending"
     case "running":
-      return "expertgranskning.page.status.running"
+      return "running"
     case "succeeded":
-      return "expertgranskning.page.status.succeeded"
+      return "done"
     case "failed":
-      return "expertgranskning.page.status.failed"
+      return "failed"
     default: {
       const _exhaustive: never = status
       return _exhaustive
@@ -44,171 +41,211 @@ function statusLabelKey(status: ExpertgranskningSessionStatus): MessageKey {
   }
 }
 
-function statusClass(status: ExpertgranskningSessionStatus | null): string {
-  if (status === "succeeded") return "job-status succeeded"
-  if (status === "failed") return "job-status failed"
-  if (status === "running" || status === "pending") return "job-status running"
-  return "job-status"
+function statusLabel(status: Exclude<ListStatus, "all">, t: Translate): string {
+  switch (status) {
+    case "done":
+      return t("runs.status.done")
+    case "running":
+      return t("runs.status.running")
+    case "draft":
+      return t("runs.status.draft")
+    case "failed":
+      return t("runs.status.failed")
+    default: {
+      const _exhaustive: never = status
+      return _exhaustive
+    }
+  }
+}
+
+function primaryResultsLabel(status: Exclude<ListStatus, "all">, t: Translate): string {
+  switch (status) {
+    case "running":
+      return t("runs.list.seeStatus")
+    case "failed":
+      return t("runs.list.seeError")
+    default:
+      return t("runs.list.openResults")
+  }
+}
+
+type RowProps = {
+  row: ExpertgranskningSessionSummary
+  base: string
+  intl: string
+  t: Translate
+  confirming: boolean
+  onAskDelete: () => void
+  onCancelDelete: () => void
+  onConfirmDelete: () => void
+}
+
+function SessionActions({
+  row,
+  base,
+  t,
+  confirming,
+  onAskDelete,
+  onCancelDelete,
+  onConfirmDelete,
+}: Omit<RowProps, "intl">) {
+  const listStatus = toListStatus(row.status)
+  if (confirming) {
+    return (
+      <>
+        <button type="button" onClick={onCancelDelete}>
+          {t("common.cancel")}
+        </button>
+        <button type="button" className="yes" onClick={onConfirmDelete}>
+          {t("common.deleteConfirm")}
+        </button>
+      </>
+    )
+  }
+  if (listStatus === "draft") {
+    return (
+      <>
+        <Link className="primary full" to={`${base}/${row.id}?tab=config`}>
+          {t("runs.list.continueConfig")}
+        </Link>
+        <button type="button" onClick={onAskDelete}>
+          {t("common.delete")}
+        </button>
+      </>
+    )
+  }
+  return (
+    <>
+      <Link className="primary" to={`${base}/${row.id}?tab=results`}>
+        {primaryResultsLabel(listStatus, t)}
+      </Link>
+      <Link to={`${base}/${row.id}?tab=config`}>{t("runs.list.configuration")}</Link>
+      <button type="button" onClick={onAskDelete}>
+        {t("common.delete")}
+      </button>
+    </>
+  )
+}
+
+function SessionCard(props: RowProps) {
+  const { row, intl, t, confirming } = props
+  const listStatus = toListStatus(row.status)
+  return (
+    <div className="run-card">
+      <Card className="relative h-full gap-0 rounded-[var(--radius-md)] py-4">
+        <span className={"status-tag absolute right-4 top-4 " + listStatus}>
+          {statusLabel(listStatus, t)}
+        </span>
+        <CardContent className="run-inner px-4">
+          <div className="run-top">
+            <div className="run-nm">{row.topic}</div>
+          </div>
+          <div className="run-meta">
+            {t("expertgranskning.list.panel")}{" "}
+            <b>{row.panel_name || t("common.emDash")}</b>
+          </div>
+          <div className="run-details">
+            <div className="row">
+              <span>{t("runs.list.updated")}</span>
+              <span className="v">{formatLibraryDate(row.updated_at, intl)}</span>
+            </div>
+          </div>
+          <div className={confirming ? "confirm-row" : "run-actions"}>
+            <SessionActions {...props} />
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+function SessionListRow(props: RowProps) {
+  const { row, intl, t, confirming } = props
+  const listStatus = toListStatus(row.status)
+  return (
+    <div className="admin-list-row admin-list-runs">
+      <div>
+        <div className="nm">{row.topic}</div>
+        <div className="meta">{row.panel_name || t("common.emDash")}</div>
+      </div>
+      <span className={"status-tag " + listStatus}>{statusLabel(listStatus, t)}</span>
+      <div className="cell">{formatLibraryDate(row.updated_at, intl)}</div>
+      <div className={confirming ? "confirm-row" : "admin-list-actions"}>
+        <SessionActions {...props} />
+      </div>
+    </div>
+  )
 }
 
 export function ExpertgranskningPage({
   Shell = AdminShell,
   redirectBolag = true,
+  bolag = false,
 }: {
   Shell?: ShellComponent
   redirectBolag?: boolean
+  bolag?: boolean
 } = {}) {
-  const { t, locale } = useLocale()
+  const { t, intl } = useLocale()
   const { role, hasModule } = useAuth()
-  const { jobs } = useJobsRealtime()
-  const { reports } = useReportsRealtime()
+  const base = expertgranskningBase(bolag)
 
-  const [title, setTitle] = useState("")
-  const [documentText, setDocumentText] = useState("")
-  const [selectedUnderlag, setSelectedUnderlag] = useState<UnderlagSelection | null>(null)
-  const [panelId, setPanelId] = useState<number | null>(null)
-  const [expertPanels, setExpertPanels] = useState<PopulationSummary[]>([])
-  const [loadingPanels, setLoadingPanels] = useState(true)
-  const [starting, setStarting] = useState(false)
+  const [rows, setRows] = useState<ExpertgranskningSessionSummary[]>([])
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [sessionId, setSessionId] = useState<string | null>(null)
-  const [sessionStatus, setSessionStatus] = useState<ExpertgranskningSessionStatus | null>(null)
-  const [localReportId, setLocalReportId] = useState<string | null>(null)
-  const [resultsView, setResultsView] = useState<ResultsView>("live")
-
-  const inferredReportId = reports.find((row) =>
-    row.sources.some(
-      (src) =>
-        src.type === "expertgranskning_session" &&
-        sessionId != null &&
-        src.session_id === sessionId,
-    ),
-  )?.id
-  const reportId = localReportId ?? inferredReportId ?? null
-
-  const jobStatus = jobs.find(
-    (job) => job.kind === "panel_session_run" && job.request?.session_id === sessionId,
-  )?.status
-  const liveStatus: ExpertgranskningSessionStatus | null =
-    jobStatus === "succeeded"
-      ? "succeeded"
-      : jobStatus === "failed"
-        ? "failed"
-        : jobStatus === "running"
-          ? "running"
-          : jobStatus === "pending"
-            ? "pending"
-            : sessionStatus
-  const isRunning =
-    starting || liveStatus === "pending" || liveStatus === "running"
-  const showLiveFeed =
-    sessionId != null &&
-    (isRunning || liveStatus === "succeeded" || liveStatus === "failed")
+  const [query, setQuery] = useState("")
+  const [status, setStatus] = useState<ListStatus>("all")
+  const [view, setView] = useState<ListViewMode>("grid")
+  const [toast, setToast] = useState<string | null>(null)
+  const [confirmId, setConfirmId] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
-    setLoadingPanels(true)
-    listPopulations({ kind: "expert_panel", module: "expertgranskning" })
-      .then((panels) => {
+    setLoading(true)
+    listExpertgranskningSessions()
+      .then((data) => {
         if (cancelled) return
-        setExpertPanels(panels)
+        setRows(data)
         setError(null)
       })
       .catch((err: unknown) => {
         if (cancelled) return
-        setError(err instanceof ApiError ? err.message : t("expertgranskning.page.loadPanelsError"))
+        setError(err instanceof ApiError ? err.message : t("expertgranskning.list.loadError"))
       })
       .finally(() => {
-        if (!cancelled) setLoadingPanels(false)
+        if (!cancelled) setLoading(false)
       })
     return () => {
       cancelled = true
     }
   }, [t])
 
-  useEffect(() => {
-    if (!sessionId) return
-    if (liveStatus !== "succeeded" && liveStatus !== "failed") return
-    let cancelled = false
-    getExpertgranskningSession(sessionId)
-      .then((row) => {
-        if (!cancelled) setSessionStatus(row.status)
-      })
-      .catch(() => {
-        /* job status is already shown */
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [liveStatus, sessionId])
+  const list = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return rows.filter((row) => {
+      const listStatus = toListStatus(row.status)
+      if (status !== "all" && listStatus !== status) return false
+      if (!q) return true
+      const haystack = `${row.topic} ${row.panel_name ?? ""}`.toLowerCase()
+      return haystack.includes(q)
+    })
+  }, [query, rows, status])
 
-  useEffect(() => {
-    if (!sessionId) return
-    if (liveStatus !== "succeeded") return
-    if (reportId) return
-    let cancelled = false
-    void (async () => {
-      try {
-        const created = await createExpertgranskningReport({
-          session_id: sessionId,
-          title: title.trim() || undefined,
-          locale,
-        })
-        if (cancelled) return
-        setLocalReportId(created.id)
-        setResultsView("report")
-      } catch (err: unknown) {
-        if (cancelled) return
-        setError(
-          err instanceof ApiError ? err.message : t("expertgranskning.page.reportCreateError"),
-        )
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [locale, liveStatus, reportId, sessionId, t, title])
-
-  async function startRun() {
-    const text = documentText.trim()
-    if (!text) {
-      setError(t("expertgranskning.page.missingDocument"))
-      return
-    }
-    if (panelId == null) {
-      setError(t("expertgranskning.page.missingPanel"))
-      return
-    }
-    setStarting(true)
-    setError(null)
-    try {
-      const session = await createExpertgranskningSession({
-        document_text: text,
-        panel_id: panelId,
-        title: title.trim() || undefined,
-      })
-      const started = await runExpertgranskningSession(session.id)
-      rememberJobPending(started.job_id)
-      setSessionId(session.id)
-      setSessionStatus("pending")
-      setLocalReportId(null)
-      setResultsView("live")
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : t("expertgranskning.page.runError"))
-    } finally {
-      setStarting(false)
-    }
+  function showToast(message: string) {
+    setToast(message)
+    window.setTimeout(() => setToast(null), 2400)
   }
 
-  const canCreatePanel = hasModule("dd")
-  const tabs = useMemo(
-    () =>
-      [
-        { id: "live" as const, label: t("expertgranskning.page.liveTab") },
-        { id: "report" as const, label: t("expertgranskning.page.reportTab") },
-      ],
-    [t],
-  )
+  async function handleDelete(id: string) {
+    try {
+      await deleteExpertgranskningSession(id)
+      setRows((prev) => prev.filter((row) => row.id !== id))
+      setConfirmId(null)
+      showToast(t("expertgranskning.list.deleted"))
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : t("common.deleteError"))
+    }
+  }
 
   if (redirectBolag && role === "bolag" && hasModule("dd")) {
     return <Navigate to="/bolag/expertgranskning" replace />
@@ -216,184 +253,99 @@ export function ExpertgranskningPage({
 
   return (
     <Shell>
-      <div className="wrap dd-run-page admin-page">
-        <div className="admin-page-chrome">
-          <div className="dd-run-chrome">
-            <div>
-              <span className="kicker">{t("modules.expertgranskning.name")}</span>
-              <h1
-                style={{
-                  font: "var(--text-h1)",
-                  fontFamily: "'Bai Jamjuree', sans-serif",
-                  fontWeight: 400,
-                  margin: 0,
-                }}
-              >
-                {t("expertgranskning.page.title")}
-              </h1>
-            </div>
-            <div className="dd-run-chrome-aside">
-              {reportId &&
-              (role === "bolag" ? hasModule("dd") : hasModule("politik")) ? (
-                <Link
-                  to={
-                    role === "bolag"
-                      ? `/bolag/reports/${reportId}`
-                      : `/reports/${reportId}`
-                  }
-                  className="btn-save"
-                >
-                  {t("spinndoctor.viewSpinndoktor")}
-                </Link>
-              ) : null}
-              <button
-                type="button"
-                className="btn-run"
-                disabled={isRunning || loadingPanels}
-                onClick={() => void startRun()}
-              >
-                {isRunning ? t("expertgranskning.page.running") : t("expertgranskning.page.run")}
-              </button>
-            </div>
+      <div className="wrap">
+        <div className="head-row">
+          <div>
+            <h1>{t("expertgranskning.list.title")}</h1>
+            <p>{t("expertgranskning.list.intro")}</p>
           </div>
-          <p className="mb-4 text-sm text-muted-foreground">{t("expertgranskning.page.intro")}</p>
-          {error ? (
-            <div className="no-match mb-4 text-left" role="alert">
-              {error}
-            </div>
-          ) : null}
         </div>
 
-        <div className="admin-page-body">
-          <Card className="id-card mb-9 gap-0 overflow-visible py-0 ring-1 ring-border">
-            <CardContent className="space-y-5 px-5 py-5">
-              <div className="field">
-                <label htmlFor="expertgranskning-title">
-                  {t("expertgranskning.page.titleLabel")}
-                </label>
-                <input
-                  id="expertgranskning-title"
-                  value={title}
-                  disabled={isRunning}
-                  placeholder={t("expertgranskning.page.titlePlaceholder")}
-                  onChange={(event) => setTitle(event.target.value)}
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="expertgranskning-document">
-                  {t("expertgranskning.page.documentLabel")}
-                </label>
-                <UnderlagPicker
-                  module="expertgranskning"
-                  value={selectedUnderlag}
-                  disabled={isRunning}
-                  onChange={(next) => {
-                    setSelectedUnderlag(next)
-                    if (next?.extractedText) setDocumentText(next.extractedText)
-                  }}
-                />
-                <textarea
-                  id="expertgranskning-document"
-                  className="mt-2"
-                  rows={12}
-                  value={documentText}
-                  disabled={isRunning}
-                  placeholder={t("expertgranskning.page.documentPlaceholder")}
-                  onChange={(event) => setDocumentText(event.target.value)}
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="expertgranskning-panel">
-                  {t("expertgranskning.page.panelLabel")}
-                </label>
-                {loadingPanels ? (
-                  <p className="text-sm text-muted-foreground">{t("expertPanels.list.loading")}</p>
-                ) : expertPanels.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    {t("expertgranskning.page.panelsEmpty")}{" "}
-                    {canCreatePanel ? (
-                      <Link to="/bolag/expertpaneler/new?module=expertgranskning">
-                        {t("expertgranskning.page.createPanel")}
-                      </Link>
-                    ) : null}
-                  </p>
-                ) : (
-                  <select
-                    id="expertgranskning-panel"
-                    className="dsel w-full"
-                    value={panelId ?? ""}
-                    disabled={isRunning}
-                    onChange={(event) => {
-                      const value = event.target.value
-                      setPanelId(value ? Number(value) : null)
-                    }}
-                  >
-                    <option value="">{t("expertgranskning.page.panelPlaceholder")}</option>
-                    {expertPanels.map((panel) => (
-                      <option key={panel.id} value={panel.id}>
-                        {panel.name} ({panel.size})
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+        {error ? (
+          <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
+            {error}
+          </div>
+        ) : null}
 
-          <div className="dd-run-chrome-tabs mb-4 flex flex-wrap gap-1">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                className={cn(resultsView === tab.id && "is-active")}
-                onClick={() => setResultsView(tab.id)}
-              >
-                {tab.label}
-                {tab.id === "live" && isRunning ? (
-                  <span className="ml-2 inline-block h-1.5 w-1.5 rounded-full bg-db-gold-500 align-middle" />
-                ) : null}
-              </button>
+        <div className="controls-row">
+          <div className="controls-left">
+            <input
+              className="dsearch"
+              placeholder={t("expertgranskning.list.searchPlaceholder")}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+            <select
+              className="dsel"
+              value={status}
+              onChange={(event) => setStatus(event.target.value as ListStatus)}
+            >
+              <option value="all">{t("runs.list.statusAll")}</option>
+              <option value="done">{t("runs.list.statusDone")}</option>
+              <option value="running">{t("runs.list.statusRunning")}</option>
+              <option value="draft">{t("runs.list.statusDraft")}</option>
+              <option value="failed">{t("runs.list.statusFailed")}</option>
+            </select>
+          </div>
+          <div className="controls-right">
+            <ViewToggle value={view} onChange={setView} />
+            <Link
+              to={`${base}/new`}
+              className="admin-cta inline-flex h-9 items-center rounded-[var(--radius-md)] bg-db-black px-[18px] text-[0.85rem] text-db-ink-0 no-underline hover:bg-db-ink-800"
+            >
+              {t("expertgranskning.list.newRun")}
+            </Link>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="no-match">{t("expertgranskning.list.loading")}</div>
+        ) : list.length === 0 ? (
+          <div className="no-match">{t("expertgranskning.list.emptyFilter")}</div>
+        ) : view === "grid" ? (
+          <div className="run-grid">
+            {list.map((row) => (
+              <SessionCard
+                key={row.id}
+                row={row}
+                base={base}
+                intl={intl}
+                t={t}
+                confirming={confirmId === row.id}
+                onAskDelete={() => setConfirmId(row.id)}
+                onCancelDelete={() => setConfirmId(null)}
+                onConfirmDelete={() => void handleDelete(row.id)}
+              />
             ))}
           </div>
-
-          {resultsView === "live" ? (
-            sessionId ? (
-              <div className="space-y-4">
-                {liveStatus ? (
-                  <span className={statusClass(liveStatus)}>{t(statusLabelKey(liveStatus))}</span>
-                ) : null}
-                <PanelLiveFeedPanel
-                  key={sessionId}
-                  sessionId={sessionId}
-                  enabled={showLiveFeed}
-                />
-              </div>
-            ) : (
-              <div className="no-match text-left">
-                <p className="font-medium">{t("expertgranskning.page.emptyLiveTitle")}</p>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {t("expertgranskning.page.emptyLiveBody")}
-                </p>
-              </div>
-            )
-          ) : reportId ? (
-            <ReportPage reportId={reportId} embedded initialViewMode="spinndoctor" />
-          ) : (
-            <div className="no-match text-left">
-              <p className="font-medium">{t("expertgranskning.page.emptyReportTitle")}</p>
-              <p className="mt-2 text-sm text-muted-foreground">
-                {isRunning
-                  ? t("expertgranskning.page.generatingReport")
-                  : t("expertgranskning.page.emptyReportBody")}
-              </p>
-            </div>
-          )}
-        </div>
+        ) : (
+          <div className="admin-list-stack">
+            {list.map((row) => (
+              <SessionListRow
+                key={row.id}
+                row={row}
+                base={base}
+                intl={intl}
+                t={t}
+                confirming={confirmId === row.id}
+                onAskDelete={() => setConfirmId(row.id)}
+                onCancelDelete={() => setConfirmId(null)}
+                onConfirmDelete={() => void handleDelete(row.id)}
+              />
+            ))}
+          </div>
+        )}
       </div>
+
+      {toast ? (
+        <div className="fixed bottom-6 right-6 rounded-md bg-db-ink-950 px-4 py-3 text-sm text-db-ink-0 shadow-lg">
+          {toast}
+        </div>
+      ) : null}
     </Shell>
   )
 }
 
 export function BolagExpertgranskningPage() {
-  return <ExpertgranskningPage Shell={NestedBolagPage} redirectBolag={false} />
+  return <ExpertgranskningPage Shell={NestedBolagPage} redirectBolag={false} bolag />
 }

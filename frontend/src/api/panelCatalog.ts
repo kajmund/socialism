@@ -69,23 +69,6 @@ export function listPanelExpertProfiles(
   })
 }
 
-export type ExpertCandidate = {
-  name: string
-  description: string
-  kompetensomrade: string
-  radgivningsstil: string
-  yrkesbakgrund: string
-  professionell_anekdot: string
-}
-
-export function suggestPanelExperts(body: {
-  underlag_id: string
-  module: string
-  count?: number
-}): Promise<ExpertCandidate[]> {
-  return api.post<ExpertCandidate[]>("/panel/experts/suggest", body, { timeoutMs: 120_000 })
-}
-
 export function createPanelExpertProfile(body: {
   module: string
   key?: string

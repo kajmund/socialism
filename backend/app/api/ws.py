@@ -168,12 +168,10 @@ async def _assert_panel_ws_access(
     session_id: str,
     campaign_id: int | None,
 ) -> None:
-    if campaign_id is not None:
-        customer_id = await customer_id_for_panel_session(session, session_id)
-        assert_kund_access(user, customer_id)
-        return
-    if user.role != "admin":
-        raise HTTPException(status_code=403, detail="admin_required")
+    # Same kund check for DD campaign panels and module sessions (expertgranskning).
+    del campaign_id
+    customer_id = await customer_id_for_panel_session(session, session_id)
+    assert_kund_access(user, customer_id)
 
 
 @router.websocket("/ws/jobs")

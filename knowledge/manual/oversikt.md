@@ -15,7 +15,7 @@ När du öppnar appen och är inloggad landar du på **dashboard** (`/`). Där s
 
 ## Admin (det du använder till vardags)
 
-Huvudmenyn ligger som en **vertikal list till vänster**. Vilka länkar som syns styrs av vilka **moduler** kunden har påslagna — till exempel Personas och Körningar för politisk simulering, Experter och Kampanjer för Due Diligence, eller **Expertgranskning**. Administratör ser Expertgranskning även utan att rutan är ikryssad. Från menyn når du bland annat:
+Huvudmenyn ligger som en **vertikal list till vänster**. Vilka länkar som syns styrs av vilka **moduler** kunden har påslagna — till exempel Personas och Körningar för politisk simulering, Kampanjer för Due Diligence, eller **Expertgranskning**. **Experter** och **Expertpaneler** ligger under rubriken **Experter**, precis ovanför Rapporter, Återkoppling och Bakgrundsjobb. Administratör ser Expertgranskning även utan att rutan är ikryssad. Från menyn når du bland annat:
 
 1. **Körningar** — skapa, redigera och läsa resultat från simuleringar
 2. **Personas** — biblioteket av AI-agenter

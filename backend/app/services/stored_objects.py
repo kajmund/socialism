@@ -8,7 +8,7 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import Kund, Report, StoredObject
+from app.database.models import Kund, Report, StoredObject, UnderlagFolder
 from app.serializers import format_date, utcnow
 from app.services.object_storage import (
     KIND_ANNUAL_REPORT,
@@ -53,12 +53,33 @@ def serialize_underlag(row: StoredObject, *, include_text: bool) -> dict:
         "size_bytes": row.size_bytes,
         "module": row.module,
         "owner_user_id": row.owner_user_id,
+        "folder_id": row.folder_id,
         "extraction_status": row.extraction_status,
         "created_at": format_date(row.created_at) if row.created_at else "",
     }
     if include_text:
         payload["extracted_text"] = row.extracted_text
     return payload
+
+
+def serialize_underlag_folder(row: UnderlagFolder) -> dict:
+    return {
+        "id": row.id,
+        "name": row.name,
+        "parent_id": row.parent_id,
+        "created_at": format_date(row.created_at) if row.created_at else "",
+    }
+
+
+def normalize_folder_name(name: str) -> str:
+    cleaned = " ".join(name.split())
+    if not cleaned:
+        raise ValueError("Folder name is required")
+    if len(cleaned) > 80:
+        raise ValueError("Folder name is too long")
+    if "/" in cleaned or "\\" in cleaned or cleaned in {".", ".."}:
+        raise ValueError("Invalid folder name")
+    return cleaned
 
 
 async def kund_bucket(session: AsyncSession, customer_id: int) -> tuple[Kund, str]:
@@ -128,12 +149,97 @@ async def upload_annual_report(
     return row
 
 
+async def get_underlag_folder(session: AsyncSession, folder_id: str) -> UnderlagFolder | None:
+    return await session.get(UnderlagFolder, folder_id)
+
+
+async def own_underlag_folder(
+    row: UnderlagFolder | None,
+    *,
+    customer_id: int,
+    owner_user_id: str,
+    module: str,
+) -> UnderlagFolder:
+    if (
+        row is None
+        or row.customer_id != customer_id
+        or row.owner_user_id != owner_user_id
+        or row.module != module
+    ):
+        raise LookupError("Folder not found")
+    return row
+
+
+async def list_underlag_folders(
+    session: AsyncSession,
+    *,
+    customer_id: int,
+    owner_user_id: str,
+    module: str,
+    parent_id: str | None,
+) -> list[UnderlagFolder]:
+    result = await session.execute(
+        select(UnderlagFolder)
+        .where(
+            UnderlagFolder.customer_id == customer_id,
+            UnderlagFolder.owner_user_id == owner_user_id,
+            UnderlagFolder.module == module,
+            UnderlagFolder.parent_id == parent_id,
+        )
+        .order_by(UnderlagFolder.name.asc())
+    )
+    return list(result.scalars().all())
+
+
+async def create_underlag_folder(
+    session: AsyncSession,
+    *,
+    customer_id: int,
+    owner_user_id: str,
+    module: str,
+    name: str,
+    parent_id: str | None,
+) -> UnderlagFolder:
+    name = normalize_folder_name(name)
+    if parent_id is not None:
+        await own_underlag_folder(
+            await get_underlag_folder(session, parent_id),
+            customer_id=customer_id,
+            owner_user_id=owner_user_id,
+            module=module,
+        )
+    existing = await session.execute(
+        select(UnderlagFolder).where(
+            UnderlagFolder.customer_id == customer_id,
+            UnderlagFolder.owner_user_id == owner_user_id,
+            UnderlagFolder.module == module,
+            UnderlagFolder.parent_id == parent_id,
+            UnderlagFolder.name == name,
+        )
+    )
+    if existing.scalar_one_or_none() is not None:
+        raise ValueError("Folder already exists")
+    row = UnderlagFolder(
+        id=secrets.token_hex(16),
+        customer_id=customer_id,
+        owner_user_id=owner_user_id,
+        module=module,
+        name=name,
+        parent_id=parent_id,
+        created_at=utcnow(),
+    )
+    session.add(row)
+    await session.flush()
+    return row
+
+
 async def list_underlag(
     session: AsyncSession,
     *,
     customer_id: int,
     owner_user_id: str,
     module: str,
+    folder_id: str | None = None,
 ) -> list[StoredObject]:
     result = await session.execute(
         select(StoredObject)
@@ -142,6 +248,7 @@ async def list_underlag(
             StoredObject.owner_user_id == owner_user_id,
             StoredObject.kind == KIND_UNDERLAG,
             StoredObject.module == module,
+            StoredObject.folder_id == folder_id,
         )
         .order_by(StoredObject.created_at.desc())
     )
@@ -157,11 +264,19 @@ async def upload_underlag(
     filename: str,
     content_type: str,
     data: bytes,
+    folder_id: str | None = None,
 ) -> StoredObject:
     resolved_type = validate_underlag(filename, content_type, data)
     extracted, status = extract_underlag_text(resolved_type, data)
     if status != "ok":
         extracted = None
+    if folder_id is not None:
+        await own_underlag_folder(
+            await get_underlag_folder(session, folder_id),
+            customer_id=customer_id,
+            owner_user_id=owner_user_id,
+            module=module,
+        )
     _kund, bucket = await kund_bucket(session, customer_id)
     object_id = secrets.token_hex(16)
     name = safe_filename(filename)
@@ -178,6 +293,7 @@ async def upload_underlag(
         content_type=resolved_type,
         size_bytes=len(data),
         owner_user_id=owner_user_id,
+        folder_id=folder_id,
         extracted_text=extracted,
         extraction_status=status,
         created_at=utcnow(),

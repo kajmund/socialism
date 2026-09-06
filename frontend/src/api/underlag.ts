@@ -10,21 +10,59 @@ export type UnderlagFile = {
   size_bytes: number
   module: string
   owner_user_id: string | null
+  folder_id: string | null
   extraction_status: UnderlagExtractionStatus | null
   extracted_text?: string | null
   created_at: string
 }
 
-export function listUnderlag(module: string): Promise<UnderlagFile[]> {
-  return api.get<UnderlagFile[]>("/underlag", { module })
+export type UnderlagFolder = {
+  id: string
+  name: string
+  parent_id: string | null
+  created_at: string
 }
 
-export function uploadUnderlag(file: File, module: string): Promise<UnderlagFile> {
+export type UnderlagListing = {
+  folder_id: string | null
+  folders: UnderlagFolder[]
+  files: UnderlagFile[]
+}
+
+export function listUnderlag(module: string, folderId?: string | null): Promise<UnderlagListing> {
+  return api.get<UnderlagListing>("/underlag", {
+    module,
+    folder_id: folderId ?? undefined,
+  })
+}
+
+export function createUnderlagFolder(body: {
+  module: string
+  name: string
+  parent_id?: string | null
+}): Promise<UnderlagFolder> {
+  return api.post<UnderlagFolder>("/underlag/folders", {
+    module: body.module,
+    name: body.name,
+    parent_id: body.parent_id ?? null,
+  })
+}
+
+export function uploadUnderlag(
+  file: File,
+  module: string,
+  folderId?: string | null,
+): Promise<UnderlagFile> {
   const form = new FormData()
   form.append("file", file)
-  return api.postForm<UnderlagFile>(`/underlag?module=${encodeURIComponent(module)}`, form, {
-    timeoutMs: 120_000,
-  })
+  const folderQuery = folderId ? `&folder_id=${encodeURIComponent(folderId)}` : ""
+  return api.postForm<UnderlagFile>(
+    `/underlag?module=${encodeURIComponent(module)}${folderQuery}`,
+    form,
+    {
+      timeoutMs: 120_000,
+    },
+  )
 }
 
 export function getUnderlag(id: string): Promise<UnderlagFile> {
