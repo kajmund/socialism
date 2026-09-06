@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from app.database.models import Job
 from app.modules.report_binding import ReportGenerateContext, ReportGenerateResult
-from app.services.rattsunderlag import REPORT_MODE, SOURCE_TYPE
+from app.services.rattsunderlag import ARTIFACT_NAME, REPORT_MODE, SOURCE_TYPE
 from app.services.rattsunderlag.schemas import RattsunderlagResult
 from app.services.report.rattsutredning import write_rattsutredning_artifacts
 
@@ -35,6 +35,7 @@ async def generate_rattsunderlag_module_report(
         source_type=SOURCE_TYPE,
         session_id=job_id,
         mode=ctx.mode or REPORT_MODE,
+        artifact_name=ARTIFACT_NAME,
     )
     return ReportGenerateResult(
         html_path=html_path,
