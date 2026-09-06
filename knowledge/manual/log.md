@@ -1,5 +1,9 @@
 # Manual update log
 
+## 2026-09-06
+
+* **Underlag**: I **Välj underlag** syns kundens moduler med **underlag** (personliga filer) och **rapporter** (sparade rapporter från varje modul). Du kan förhandsgranska rapporter och använda dem som underlag, dra filer mellan mappar och ta bort underlag.
+
 ## 2026-09-05
 
 * **Underlag**: I **Välj underlag** kan du skapa mappar, gå in i dem och ladda upp filer där. Mapparna är personliga, precis som filerna.

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
@@ -13,11 +13,15 @@ from app.modules.registry import MODULE_REGISTRY
 from app.services.object_storage import KIND_UNDERLAG, MAX_UNDERLAG_BYTES, ObjectStorageError
 from app.services.stored_objects import (
     create_underlag_folder,
+    delete_stored_object,
     get_stored_object,
     get_underlag_folder,
+    list_all_underlag_folders,
     list_underlag,
     list_underlag_folders,
+    move_underlag,
     own_underlag_folder,
+    read_stored_bytes,
     serialize_underlag,
     serialize_underlag_folder,
     upload_underlag,
@@ -26,6 +30,7 @@ from app.services.underlag_schemas import (
     UnderlagFolderCreate,
     UnderlagFolderOut,
     UnderlagListingOut,
+    UnderlagMove,
     UnderlagOut,
 )
 
@@ -72,6 +77,23 @@ async def post_underlag_folder(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     await session.commit()
     return UnderlagFolderOut(**serialize_underlag_folder(row))
+
+
+@router.get("/folders", response_model=list[UnderlagFolderOut])
+async def get_underlag_folders(
+    module: str = Query(...),
+    session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
+) -> list[UnderlagFolderOut]:
+    module = _require_module(module)
+    customer_id = await customer_id_for_user(session, user)
+    folders = await list_all_underlag_folders(
+        session,
+        customer_id=customer_id,
+        owner_user_id=user.id,
+        module=module,
+    )
+    return [UnderlagFolderOut(**serialize_underlag_folder(folder)) for folder in folders]
 
 
 @router.get("", response_model=UnderlagListingOut)
@@ -159,3 +181,67 @@ async def get_underlag(
         user_id=user.id,
     )
     return UnderlagOut(**serialize_underlag(row, include_text=True))
+
+
+@router.get("/{object_id}/file")
+async def get_underlag_file(
+    object_id: str,
+    session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
+) -> Response:
+    customer_id = await customer_id_for_user(session, user)
+    row = _own_underlag(
+        await get_stored_object(session, object_id),
+        customer_id=customer_id,
+        user_id=user.id,
+    )
+    try:
+        data, content_type = await read_stored_bytes(row)
+    except ObjectStorageError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return Response(
+        content=data,
+        media_type=content_type,
+        headers={"Content-Disposition": f'inline; filename="{row.filename}"'},
+    )
+
+
+@router.patch("/{object_id}", response_model=UnderlagOut)
+async def patch_underlag(
+    object_id: str,
+    body: UnderlagMove,
+    session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
+) -> UnderlagOut:
+    customer_id = await customer_id_for_user(session, user)
+    row = _own_underlag(
+        await get_stored_object(session, object_id),
+        customer_id=customer_id,
+        user_id=user.id,
+    )
+    try:
+        row = await move_underlag(session, row, folder_id=body.folder_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    await session.commit()
+    return UnderlagOut(**serialize_underlag(row, include_text=True))
+
+
+@router.delete("/{object_id}", status_code=204)
+async def delete_underlag(
+    object_id: str,
+    session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
+) -> Response:
+    customer_id = await customer_id_for_user(session, user)
+    row = _own_underlag(
+        await get_stored_object(session, object_id),
+        customer_id=customer_id,
+        user_id=user.id,
+    )
+    try:
+        await delete_stored_object(session, row)
+    except ObjectStorageError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    await session.commit()
+    return Response(status_code=204)
