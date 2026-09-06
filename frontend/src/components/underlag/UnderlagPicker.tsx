@@ -42,11 +42,13 @@ export function UnderlagPicker({
   value,
   onChange,
   module,
+  listAllModules = false,
   disabled = false,
 }: {
   value: UnderlagSelection | null
   onChange: (value: UnderlagSelection | null) => void
   module: string
+  listAllModules?: boolean
   disabled?: boolean
 }) {
   const { t } = useLocale()
@@ -81,6 +83,7 @@ export function UnderlagPicker({
       <UnderlagPickerModal
         open={open}
         module={module}
+        listAllModules={listAllModules}
         onOpenChange={setOpen}
         onSelect={(file) => onChange(toSelection(file))}
       />

@@ -134,6 +134,8 @@ function kindLabel(kind: string, t: Translate): string {
       return t("jobs.kind.dd_sourcing_run")
     case "dd_research":
       return t("jobs.kind.dd_research")
+    case "rattsunderlag_research":
+      return t("jobs.kind.rattsunderlag_research")
     default:
       return kind
   }
@@ -290,6 +292,20 @@ function JobActionLinks({
       links.push(
         <Link key="expertgranskning" to={href}>
           {t("jobs.openExpertgranskning")}
+        </Link>,
+      )
+    }
+  }
+  if (job.status === "succeeded" && job.kind === "rattsunderlag_research") {
+    links.push(
+      <Link key="rattsunderlag" to={`/rattsunderlag/${job.id}`}>
+        {t("jobs.openRattsunderlag")}
+      </Link>,
+    )
+    if (reportId != null) {
+      links.push(
+        <Link key="rattsunderlag-report" to={`${paths.reports}/${reportId}`}>
+          {t("jobs.openReport")}
         </Link>,
       )
     }

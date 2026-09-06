@@ -6,11 +6,13 @@ import {
   type ModuleManifest,
 } from "@/modules/manifest"
 import { politikManifest } from "@/modules/politik/manifest"
+import { rattsunderlagManifest } from "@/modules/rattsunderlag/manifest"
 
 export const MODULE_REGISTRY: Record<string, ModuleManifest> = {
   dd: ddManifest,
   politik: politikManifest,
   expertgranskning: expertgranskningManifest,
+  rattsunderlag: rattsunderlagManifest,
 }
 
 export const MODULE_IDS = Object.keys(MODULE_REGISTRY)
