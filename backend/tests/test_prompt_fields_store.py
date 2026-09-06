@@ -16,6 +16,7 @@ from app.services.prompt_defaults import (
     expertgranskning_prompt_defaults,
     modules_for_prompt_key,
     politik_prompt_defaults,
+    rattsunderlag_prompt_defaults,
 )
 from app.services.prompt_fields_store import (
     ensure_prompt_field_defaults,
@@ -62,13 +63,17 @@ def test_modules_for_prompt_key_follows_prefix_convention():
         "politik",
         "expertgranskning",
     ]
+    assert modules_for_prompt_key("rattsunderlag.search_terms.system") == ["rattsunderlag"]
 
 
 def test_module_providers_cover_all_catalog_keys_without_overlap_gaps():
     dd_keys = {field["key"] for field in dd_prompt_defaults()}
     politik_keys = {field["key"] for field in politik_prompt_defaults()}
+    ratts_keys = {field["key"] for field in rattsunderlag_prompt_defaults()}
     all_keys = {field["key"] for field in PROMPT_FIELDS}
-    assert dd_keys | politik_keys == all_keys
+    assert dd_keys | politik_keys | ratts_keys == all_keys
+    assert ratts_keys.isdisjoint(dd_keys)
+    assert "rattsunderlag.search_terms.system" in ratts_keys
     assert "panel.dd.moderator.system" in dd_keys
     assert "panel.dd.moderator.system" not in politik_keys
     assert "persona.field_guide" in politik_keys
