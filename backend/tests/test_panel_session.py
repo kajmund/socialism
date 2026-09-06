@@ -39,6 +39,8 @@ def mock_panel_llm():
             return "Syntes: panelen enades om fortsatt DD."
         if "Öppna panelen" in user or "Open the panel" in user:
             return "Välkommen till panelen."
+        if "Det här är delfråga" in user or "This is sub-question" in user:
+            return f"Delfråga {counters['n']}: hur håller underlaget?"
         return f"Svar {counters['n']}"
 
     async def _tools(messages, tools=None):
@@ -123,6 +125,59 @@ async def test_panel_session_run_job(client: AsyncClient, mock_panel_llm):
     assert "search_wiki" in offered
 
     jobs_service.set_schedule_hook(None)
+
+
+@pytest.mark.asyncio
+async def test_generic_panel_second_round_waits_for_moderator_question(
+    client: AsyncClient, mock_panel_llm
+):
+    done = asyncio.Event()
+
+    def _schedule(job_id: str) -> None:
+        async def _run() -> None:
+            await jobs_service._run_job(job_id)
+            done.set()
+
+        asyncio.create_task(_run())
+
+    jobs_service.set_schedule_hook(_schedule)
+    create = await client.post(
+        "/panel/sessions",
+        json={
+            "config": {
+                "protocol": "generic_panel",
+                "module": "expertgranskning",
+                "topic": "Granska utkastet",
+                "brief": "1. Är tonen rätt?\n2. Är fakta korrekta?",
+                "max_rounds": 2,
+                "expert_slots": [
+                    {"slot_id": "fin", "label": "Finansiell analytiker", "profile": "Siffror"},
+                ],
+            }
+        },
+    )
+    assert create.status_code == 201
+    session_id = create.json()["id"]
+    run = await client.post(f"/panel/sessions/{session_id}/run")
+    assert run.status_code == 202
+    await asyncio.wait_for(done.wait(), timeout=10)
+    jobs_service.set_schedule_hook(None)
+
+    session = await client.get(f"/panel/sessions/{session_id}")
+    transcript = session.json()["transcript"]
+    phases = [(row["phase"], row.get("round_index"), row["speaker"]) for row in transcript]
+    second_question = next(
+        i
+        for i, (phase, round_index, speaker) in enumerate(phases)
+        if phase == "sub_question" and round_index == 2 and speaker == "moderator"
+    )
+    first_round_two_expert = next(
+        i
+        for i, (phase, round_index, _speaker) in enumerate(phases)
+        if phase in {"raise_hand", "expert", "scratchpad"} and round_index == 2
+    )
+    assert second_question < first_round_two_expert
+    assert "Delfråga" in transcript[second_question]["content"]
 
 
 @pytest.mark.asyncio

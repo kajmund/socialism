@@ -8,8 +8,10 @@ from app.services.panel.schemas import PanelSessionStatus
 
 
 class ExpertgranskningSessionCreate(BaseModel):
-    document_text: str = Field(min_length=1, max_length=200_000)
-    panel_id: int
+    """Create a session. Empty document/panel is allowed for drafts."""
+
+    document_text: str = Field(default="", max_length=200_000)
+    panel_id: int | None = None
     title: str = ""
     project_id: int | None = None
 
@@ -21,6 +23,21 @@ class ExpertgranskningSessionCreate(BaseModel):
         return str(value).strip()
 
 
+class ExpertgranskningSessionUpdate(BaseModel):
+    document_text: str | None = Field(default=None, max_length=200_000)
+    panel_id: int | None = None
+    title: str | None = None
+    project_id: int | None = None
+    clear_panel: bool = False
+
+    @field_validator("document_text", "title", mode="before")
+    @classmethod
+    def strip_optional_text(cls, value: object) -> object:
+        if value is None:
+            return None
+        return str(value).strip()
+
+
 class ExpertgranskningSessionOut(BaseModel):
     id: str
     protocol: str
@@ -29,8 +46,20 @@ class ExpertgranskningSessionOut(BaseModel):
     topic: str
     document_text: str
     panel_id: int | None
+    panel_name: str | None = None
     project_id: int | None
     job_id: str | None
     error: str | None
+    created_at: str
+    updated_at: str
+
+
+class ExpertgranskningSessionSummary(BaseModel):
+    id: str
+    topic: str
+    status: PanelSessionStatus
+    panel_id: int | None
+    panel_name: str | None
+    job_id: str | None
     created_at: str
     updated_at: str

@@ -730,6 +730,43 @@ class StoredObject(Base):
     )
     extracted_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     extraction_status: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    folder_id: Mapped[str | None] = mapped_column(
+        String(64),
+        ForeignKey("underlag_folders.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+
+class UnderlagFolder(Base):
+    """Personal folder for underlag files (owner-scoped, per module)."""
+
+    __tablename__ = "underlag_folders"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("kunder.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    owner_user_id: Mapped[str] = mapped_column(
+        String(64),
+        ForeignKey("user_accounts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    module: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    parent_id: Mapped[str | None] = mapped_column(
+        ForeignKey("underlag_folders.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

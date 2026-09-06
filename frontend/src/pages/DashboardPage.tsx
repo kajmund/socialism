@@ -268,7 +268,7 @@ export function DashboardPage() {
         const [runs, personas, populations, messages] = await Promise.all([
           listRuns(),
           listLibraryPersonas(),
-          listPopulations(),
+          listPopulations({ kind: "persona" }),
           listMessages(),
         ])
         if (cancelled) return

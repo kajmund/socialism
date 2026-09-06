@@ -123,7 +123,7 @@ async def test_suggest_experts_returns_list_and_does_not_persist(client_db):
     assert listed_before.status_code == 200
 
     resp = await client.post(
-        "/panel/experts/suggest",
+        "/personas/suggest-from-underlag",
         json={"underlag_id": underlag_id, "module": "dd"},
     )
     assert resp.status_code == 200, resp.text
@@ -150,7 +150,7 @@ async def test_suggest_experts_returns_list_and_does_not_persist(client_db):
 @pytest.mark.asyncio
 async def test_suggest_experts_unknown_file_is_404(client: AsyncClient):
     resp = await client.post(
-        "/panel/experts/suggest",
+        "/personas/suggest-from-underlag",
         json={"underlag_id": "missing-underlag", "module": "dd"},
     )
     assert resp.status_code == 404
@@ -171,7 +171,7 @@ async def test_suggest_experts_other_owners_file_is_404(
 
     client.headers["Authorization"] = f"Bearer {admin_token}"
     resp = await client.post(
-        "/panel/experts/suggest",
+        "/personas/suggest-from-underlag",
         json={"underlag_id": underlag_id, "module": "dd"},
     )
     assert resp.status_code == 404
@@ -189,7 +189,7 @@ async def test_suggest_experts_failed_extraction_is_400(client_db):
         await session.commit()
 
     resp = await client.post(
-        "/panel/experts/suggest",
+        "/personas/suggest-from-underlag",
         json={"underlag_id": underlag_id, "module": "dd"},
     )
     assert resp.status_code == 400
@@ -207,7 +207,7 @@ async def test_suggest_experts_empty_text_is_400(client_db):
         await session.commit()
 
     resp = await client.post(
-        "/panel/experts/suggest",
+        "/personas/suggest-from-underlag",
         json={"underlag_id": underlag_id, "module": "dd"},
     )
     assert resp.status_code == 400
@@ -218,7 +218,7 @@ async def test_suggest_experts_empty_text_is_400(client_db):
 async def test_suggest_experts_module_mismatch_is_400(client: AsyncClient):
     underlag_id = await _upload_underlag(client, module="dd")
     resp = await client.post(
-        "/panel/experts/suggest",
+        "/personas/suggest-from-underlag",
         json={"underlag_id": underlag_id, "module": "expertgranskning"},
     )
     assert resp.status_code == 400
@@ -226,9 +226,9 @@ async def test_suggest_experts_module_mismatch_is_400(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_suggest_experts_rejects_non_admin(user_client: AsyncClient):
+async def test_suggest_experts_unknown_file_is_404_for_user(user_client: AsyncClient):
     resp = await user_client.post(
-        "/panel/experts/suggest",
+        "/personas/suggest-from-underlag",
         json={"underlag_id": "x", "module": "dd"},
     )
-    assert resp.status_code == 403
+    assert resp.status_code == 404

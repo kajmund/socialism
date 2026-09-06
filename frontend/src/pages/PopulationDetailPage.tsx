@@ -5,13 +5,11 @@ import {
   duplicatePopulation,
   getPopulation,
   removePopulationMember,
-  updatePopulation,
   type PopulationDetail,
 } from "@/api/populations"
 import { AdminShell } from "@/components/layout/AdminShell"
 import { PersonaLibrarySaveAction } from "@/components/personas/PersonaLibrarySaveAction"
 import { AddFromLibraryPanel } from "@/components/populations/AddFromLibraryPanel"
-import { ExpertPanelModulePicker } from "@/components/populations/ExpertPanelModulePicker"
 import { AdminButton } from "@/components/ui/admin-button"
 import { Card, CardContent } from "@/components/ui/card"
 import { FP_COLORS, formatLibraryDate, libraryPersonaToMember } from "@/data/library"
@@ -96,7 +94,7 @@ type PopulationDetailPageProps = {
 export function PopulationDetailPage({
   Shell = AdminShell,
   basePath = "/populations",
-  expectedKind,
+  expectedKind = "persona",
 }: PopulationDetailPageProps) {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -110,8 +108,6 @@ export function PopulationDetailPage({
   const [showAdd, setShowAdd] = useState(false)
   const [memberView, setMemberView] = useState<"grid" | "lista">("grid")
   const [toast, setToast] = useState<string | null>(null)
-  const [panelModules, setPanelModules] = useState<string[]>([])
-  const [savingModules, setSavingModules] = useState(false)
 
   function showToast(message: string) {
     setToast(message)
@@ -148,7 +144,6 @@ export function PopulationDetailPage({
         if (cancelled) return
         setPop(data)
         setMembers(data.members)
-        setPanelModules(data.modules ?? [])
         setNotFound(false)
       })
       .catch((err: unknown) => {
@@ -256,46 +251,6 @@ export function PopulationDetailPage({
             </span>
           )}
         </div>
-
-        {isExpertPanel ? (
-          <Card className="mb-6 gap-0 py-5 ring-1 ring-border">
-            <CardContent className="px-5">
-              <ExpertPanelModulePicker
-                value={panelModules}
-                onChange={setPanelModules}
-                disabled={savingModules}
-              />
-              <div className="mt-4">
-                <AdminButton
-                  variant="secondary"
-                  size="sm"
-                  disabled={savingModules}
-                  onClick={() => {
-                    setSavingModules(true)
-                    void updatePopulation(pop.id, { modules: [...panelModules] })
-                      .then((data) => {
-                        setPop(data)
-                        setPanelModules(data.modules ?? [])
-                        showToast(t("expertPanels.detail.modulesSaved"))
-                      })
-                      .catch((err: unknown) =>
-                        showToast(
-                          err instanceof ApiError
-                            ? err.message
-                            : t("expertPanels.detail.modulesSaveError"),
-                        ),
-                      )
-                      .finally(() => setSavingModules(false))
-                  }}
-                >
-                  {savingModules
-                    ? t("expertPanels.detail.modulesSaving")
-                    : t("expertPanels.detail.modulesSave")}
-                </AdminButton>
-              </div>
-            </CardContent>
-          </Card>
-        ) : null}
 
         {!isExpertPanel && pop.qa_warnings.length > 0 && (
           <div

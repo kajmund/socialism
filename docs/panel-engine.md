@@ -36,8 +36,9 @@ Implementation: `app/realtime/panel_broadcast.py`, `app/services/panel/watch.py`
 
 ## generic_panel flow
 
-1. Moderator opening (`panel.moderator.opening`)
+1. Moderator opening (`panel.moderator.opening`) — one starting question only
 2. For each round (default 2):
+   - Round 2+: moderator asks the next question (`panel.moderator.next_question`, phase `sub_question`) before any expert speaks
    - Each expert: raise-hand (`panel.expert.raise_hand`) → JA/NEJ queue
    - Turn order: experts who raised hand first, then the rest (round-robin among non-queued)
    - **All experts speak every round** — raise-hand only affects speaking order, not whether an expert gets the floor. Intentional for DD-style panels where every role should contribute each round.
@@ -49,7 +50,7 @@ Scratchpads are stored on the session row and included in expert prompts but omi
 ## dd_panel flow (Fas 2)
 
 1. Create via `POST /dd/campaigns/{id}/panel-sessions` (candidate + expert panel from campaign `expert_panel_id`, or legacy `expert_role_keys`)
-2. Spinndoktor opens and introduces each sub-question
+2. Spinndoktor opens without naming upcoming sub-questions, then introduces each one when it is that round
 3. Four sub-questions (finansiell hälsa, legal risk, marknadsposition, integrationsrisk)
 4. Per sub-question: each expert raise-hand (`panel.dd.expert.raise_hand`) — only those who answer JA score that question
 5. If nobody raises a hand: skip scoring, Spinndoktor explains the coverage gap (`panel.dd.moderator.no_answer`, phase `unanswered`)

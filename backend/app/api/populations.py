@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from sqlalchemy.orm.attributes import flag_modified
 
 from app.auth.dependencies import get_current_user
 from app.auth.scope import customer_id_for_user, require_user_kund_id
@@ -13,6 +12,7 @@ from app.schemas.domain import (
     PopulationDetail,
     PopulationGenerateRequest,
     PopulationGenerateResponse,
+    PopulationKind,
     PopulationMemberCreate,
     PopulationMemberOut,
     PopulationSummary,
@@ -33,11 +33,6 @@ from app.services.population_persist import (
     reconcile_population_metadata,
 )
 from app.services.population_fingerprint import infer_slots_from_profile
-from app.services.population_modules import (
-    modules_from_recipe,
-    normalize_panel_modules,
-    recipe_with_normalized_modules,
-)
 
 router = APIRouter(prefix="/populations", tags=["populations"])
 
@@ -173,8 +168,7 @@ def _population_visible_to_user(population: Population, user: UserAccount) -> bo
 
 @router.get("", response_model=list[PopulationSummary])
 async def list_populations(
-    kind: str | None = None,
-    module: str | None = None,
+    kind: PopulationKind = "persona",
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> list[PopulationSummary]:
@@ -185,16 +179,12 @@ async def list_populations(
         )
         .order_by(Population.updated_at.desc())
     )
-    if kind is not None:
-        stmt = stmt.where(Population.kind == kind)
+    stmt = stmt.where(Population.kind == kind)
     result = await session.execute(stmt)
     populations = list(result.scalars().all())
-    wanted_module = (module or "").strip()
     out: list[PopulationSummary] = []
     for population in populations:
         if not _population_visible_to_user(population, user):
-            continue
-        if wanted_module and wanted_module not in modules_from_recipe(population.recipe):
             continue
         out.append(
             serialize_population_summary(population, await _run_count(session, population.id))
@@ -249,7 +239,8 @@ async def create_population(
             persona_ids = [member.persona_id for member in body.members if member.persona_id]
         await _assert_personas_in_kund(session, user, [pid for pid in persona_ids if pid])
         try:
-            recipe = recipe_with_normalized_modules(body.recipe)
+            recipe = dict(body.recipe or {})
+            recipe.pop("modules", None)
             population = await create_expert_panel(
                 session,
                 name=body.name,
@@ -322,21 +313,6 @@ async def update_population(
     bump = data.pop("bump_version", False)
     generation_id = data.pop("generation_id", None)
     keep_keys = data.pop("keep_keys", None)
-    modules = data.pop("modules", None)
-
-    if modules is not None:
-        if population.kind != "expert_panel":
-            raise HTTPException(
-                status_code=400,
-                detail="modules can only be set on expert panels",
-            )
-        try:
-            recipe = dict(population.recipe or {})
-            recipe["modules"] = normalize_panel_modules(modules)
-            population.recipe = recipe
-            flag_modified(population, "recipe")
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     if "name" in data and data["name"] != population.name:
         clash = await session.execute(
