@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <id>https://lagen.nu/dataset/sfs/feed.atom</id>
+  <title>Alla författningar</title>
+  <updated>2026-09-03T06:19:02-00:00</updated>
+  <entry>
+    <title>Förordning (2026:1735) om ändring i förordningen (2017:193)</title>
+    <id>https://lagen.nu/2017:193</id>
+    <updated>2026-09-03T06:17:58-00:00</updated>
+  </entry>
+  <entry>
+    <title>Lag (1999:99) om gammalt</title>
+    <id>https://lagen.nu/1999:99</id>
+    <updated>2026-01-01T00:00:00-00:00</updated>
+  </entry>
+</feed>
