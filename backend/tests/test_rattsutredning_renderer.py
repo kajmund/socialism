@@ -37,7 +37,7 @@ def _payload() -> RattsutredningPayload:
                 utdrag="samma förutsättningar",
             )
         ],
-        sammanfattning="Ja, likabehandlingsprincipen gäller. [[ref:2016:1145]]",
+        sammanfattning="Ja, likabehandlingsprincipen gäller.",
         sourcing_status="complete",
     )
 
@@ -61,6 +61,7 @@ def test_html_uses_same_headings_not_scores():
     assert "Bedömning" in html
     assert "sub-question" not in html.lower()
     assert "delfråga" not in html.lower()
+    assert "[[ref:" not in html
 
 
 def test_write_artifacts(tmp_path: Path):
