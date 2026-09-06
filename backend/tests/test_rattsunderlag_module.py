@@ -75,5 +75,7 @@ async def test_research_job_writes_underlag_visible_without_module_filter(
         assert "Praxis" in page
         assert "Förarbeten" in page
         assert "Bedömning" in page
+        assert "[[ref:" not in page
+        assert "[[ref:" not in body["result"]["result"]["sammanfattning"]
     finally:
         jobs_service.set_schedule_hook(None)
