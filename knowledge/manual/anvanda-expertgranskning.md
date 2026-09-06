@@ -21,7 +21,7 @@ tags: [rapporter]
 
 1. Öppna fliken **Konfiguration** (via **Ny** eller en sparad körning).
 2. Lägg in texten som ska granskas på ett av två sätt:
-   - **Välj underlag** och ladda upp eller återanvänd en egen fil (txt, md, PDF eller Word). Du kan skapa mappar och lägga filer i dem. Den extraherade texten fylls i automatiskt.
+   - **Välj underlag** och ladda upp eller återanvänd en egen fil (txt, md, PDF eller Word), eller öppna **rapporter** under bolagets övriga moduler. Du kan förhandsgranska PDF och rapporter, dra filer mellan mappar och ta bort underlag. Den extraherade texten fylls i automatiskt.
    - Klistra in text direkt i dokumentfältet. Titel är valfritt.
 3. Välj en **expertpanel**. Finns ingen panel skapar du en under **Expertpaneler**.
 4. **Spara utkast** om du vill fortsätta senare, eller **Kör expertgranskning** när text och panel är klara.

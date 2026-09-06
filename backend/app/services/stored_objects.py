@@ -191,6 +191,25 @@ async def list_underlag_folders(
     return list(result.scalars().all())
 
 
+async def list_all_underlag_folders(
+    session: AsyncSession,
+    *,
+    customer_id: int,
+    owner_user_id: str,
+    module: str,
+) -> list[UnderlagFolder]:
+    result = await session.execute(
+        select(UnderlagFolder)
+        .where(
+            UnderlagFolder.customer_id == customer_id,
+            UnderlagFolder.owner_user_id == owner_user_id,
+            UnderlagFolder.module == module,
+        )
+        .order_by(UnderlagFolder.name.asc())
+    )
+    return list(result.scalars().all())
+
+
 async def create_underlag_folder(
     session: AsyncSession,
     *,
@@ -299,6 +318,26 @@ async def upload_underlag(
         created_at=utcnow(),
     )
     session.add(row)
+    await session.flush()
+    return row
+
+
+async def move_underlag(
+    session: AsyncSession,
+    row: StoredObject,
+    *,
+    folder_id: str | None,
+) -> StoredObject:
+    if row.owner_user_id is None:
+        raise LookupError("File not found")
+    if folder_id is not None:
+        await own_underlag_folder(
+            await get_underlag_folder(session, folder_id),
+            customer_id=row.customer_id,
+            owner_user_id=row.owner_user_id,
+            module=row.module,
+        )
+    row.folder_id = folder_id
     await session.flush()
     return row
 
