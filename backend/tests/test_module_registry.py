@@ -19,7 +19,12 @@ from app.modules.report_binding import UnknownReportModeError
 
 
 def test_module_registry_keys():
-    assert set(MODULE_REGISTRY.keys()) == {"dd", "politik", "expertgranskning"}
+    assert set(MODULE_REGISTRY.keys()) == {
+        "dd",
+        "politik",
+        "expertgranskning",
+        "rattsunderlag",
+    }
 
 
 def test_module_id_for_report_mode():
@@ -27,6 +32,7 @@ def test_module_id_for_report_mode():
     assert module_id_for_report_mode("quick") == "politik"
     assert module_id_for_report_mode("full") == "politik"
     assert module_id_for_report_mode("expertgranskning") == "expertgranskning"
+    assert module_id_for_report_mode("rattsunderlag") == "rattsunderlag"
 
 
 def test_module_id_for_report_mode_unknown_fails_loud():
@@ -46,6 +52,8 @@ def test_resolve_report_mode_from_source_type():
     assert "dd_session" in source_types_for_registry()
     assert "oasis" in source_types_for_registry()
     assert "expertgranskning_session" in source_types_for_registry()
+    assert "rattsunderlag" in source_types_for_registry()
+    assert resolve_report_mode("rattsunderlag", None) == "rattsunderlag"
 
 
 def test_report_binding_for_known_modes():
@@ -56,6 +64,8 @@ def test_report_binding_for_known_modes():
     assert report_binding_for_mode("full") is politik_binding
     expert_binding = report_binding_for_mode("expertgranskning")
     assert "expertgranskning_session" in expert_binding.source_types
+    ratts_binding = report_binding_for_mode("rattsunderlag")
+    assert "rattsunderlag" in ratts_binding.source_types
 
 
 def test_assert_unique_report_modes_rejects_collision():
@@ -87,6 +97,7 @@ def test_module_routes_keep_existing_urls():
     assert "/panel/sub-questions" in paths
     assert "/panel/expert-profiles" in paths
     assert "/personas/suggest-from-underlag" in paths
+    assert "/rattsunderlag/research" in paths
     assert "/runs" in paths
     assert "/personas" in paths
     assert "/populations" in paths
@@ -139,6 +150,17 @@ def test_module_manifest_shapes():
     assert expert.sub_questions_provider is None
     assert expert.expert_defaults_provider is None
     assert expert.prompt_defaults_provider is not None
+
+    ratts = MODULE_REGISTRY["rattsunderlag"]
+    assert ratts.id == "rattsunderlag"
+    assert ratts.frontend_entry == "modules/rattsunderlag"
+    assert ratts.components == frozenset()
+    assert ratts.report_modes == frozenset({"rattsunderlag"})
+    assert ratts.report is not None
+    assert ratts.spindoctor is not None
+    assert ratts.prompt_defaults_provider is not None
+    assert ratts.sub_questions_provider is None
+    assert ratts.expert_defaults_provider is None
 
 
 def test_spindoctor_context_has_no_report_mode_branch():
