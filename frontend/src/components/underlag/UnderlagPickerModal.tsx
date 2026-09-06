@@ -70,11 +70,13 @@ function statusVariant(
 export function UnderlagPickerModal({
   open,
   module,
+  listAllModules = false,
   onOpenChange,
   onSelect,
 }: {
   open: boolean
   module: string
+  listAllModules?: boolean
   onOpenChange: (open: boolean) => void
   onSelect: (file: UnderlagFile) => void
 }) {
@@ -121,7 +123,7 @@ export function UnderlagPickerModal({
     setLoading(true)
     setError(null)
     setPreview(null)
-    listUnderlag(module, folderId)
+    listUnderlag(listAllModules ? null : module, listAllModules ? null : folderId)
       .then((listed) => {
         if (!cancelled) {
           setFolders(listed.folders)
@@ -139,7 +141,7 @@ export function UnderlagPickerModal({
     return () => {
       cancelled = true
     }
-  }, [folderId, module, open, t])
+  }, [folderId, listAllModules, module, open, t])
 
   useEffect(() => {
     if (namingFolder) folderNameRef.current?.focus()

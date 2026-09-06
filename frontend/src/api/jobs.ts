@@ -7,6 +7,7 @@ export type JobKind =
   | "report_generate"
   | "panel_session_run"
   | "dd_research"
+  | "rattsunderlag_research"
 export type JobStatus = "pending" | "running" | "succeeded" | "failed"
 
 export type PopulationGenerateJobRequest = {

@@ -238,19 +238,19 @@ async def list_underlag(
     *,
     customer_id: int,
     owner_user_id: str,
-    module: str,
+    module: str | None,
     folder_id: str | None = None,
 ) -> list[StoredObject]:
+    filters = [
+        StoredObject.customer_id == customer_id,
+        StoredObject.owner_user_id == owner_user_id,
+        StoredObject.kind == KIND_UNDERLAG,
+    ]
+    if module is not None:
+        filters.append(StoredObject.module == module)
+        filters.append(StoredObject.folder_id == folder_id)
     result = await session.execute(
-        select(StoredObject)
-        .where(
-            StoredObject.customer_id == customer_id,
-            StoredObject.owner_user_id == owner_user_id,
-            StoredObject.kind == KIND_UNDERLAG,
-            StoredObject.module == module,
-            StoredObject.folder_id == folder_id,
-        )
-        .order_by(StoredObject.created_at.desc())
+        select(StoredObject).where(*filters).order_by(StoredObject.created_at.desc())
     )
     return list(result.scalars().all())
 

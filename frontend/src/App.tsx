@@ -4,6 +4,7 @@ import { RequireAdmin } from "@/auth/RequireAdmin"
 import { RequireAuth } from "@/auth/RequireAuth"
 import { RequireBolag } from "@/auth/RequireBolag"
 import { RequireExpertgranskning } from "@/auth/RequireExpertgranskning"
+import { RequireRattsunderlag } from "@/auth/RequireRattsunderlag"
 import { RequireOsUser } from "@/auth/RequireOsUser"
 import { homePathForUser } from "@/lib/auth"
 import { BolagShell } from "@/components/layout/BolagShell"
@@ -46,6 +47,7 @@ import { PlaygroundPage } from "@/pages/PlaygroundPage"
 import { PopulationBuilderPage } from "@/pages/PopulationBuilderPage"
 import { PopulationDetailPage } from "@/pages/PopulationDetailPage"
 import { PopulationsPage } from "@/pages/PopulationsPage"
+import { RattsunderlagPage } from "@/pages/RattsunderlagPage"
 import { ReportPage } from "@/pages/ReportPage"
 import { BolagReportsPage, ReportsPage } from "@/pages/ReportsPage"
 import { RunsPage } from "@/pages/RunsPage"
@@ -141,6 +143,11 @@ export default function App() {
             <Route path="/expertgranskning" element={<ExpertgranskningPage />} />
             <Route path="/expertgranskning/new" element={<ExpertgranskningRunPage />} />
             <Route path="/expertgranskning/:id" element={<ExpertgranskningRunPage />} />
+          </Route>
+
+          <Route element={<RequireRattsunderlag />}>
+            <Route path="/rattsunderlag" element={<RattsunderlagPage />} />
+            <Route path="/rattsunderlag/:jobId" element={<RattsunderlagPage />} />
           </Route>
 
           <Route element={<RequireOsUser />}>

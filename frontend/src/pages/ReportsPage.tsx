@@ -76,11 +76,22 @@ function formatReportDuration(report: Report, job: Job | undefined, t: Translate
 }
 
 function modeLabel(mode: Report["mode"], t: Translate): string {
-  if (mode === "dd") return t("reports.list.modeDd")
-  if (mode === "expertgranskning") return t("reports.list.modeExpertgranskning")
-  return mode === "full"
-    ? t("reports.list.modeFullLegacy")
-    : t("reports.list.modeQuick")
+  switch (mode) {
+    case "dd":
+      return t("reports.list.modeDd")
+    case "expertgranskning":
+      return t("reports.list.modeExpertgranskning")
+    case "rattsunderlag":
+      return t("reports.list.modeRattsunderlag")
+    case "full":
+      return t("reports.list.modeFullLegacy")
+    case "quick":
+      return t("reports.list.modeQuick")
+    default: {
+      const _exhaustive: never = mode
+      return _exhaustive
+    }
+  }
 }
 
 function sourcesLabel(report: Report, t: Translate): string {
@@ -308,22 +319,41 @@ const MODULE_TABS: readonly { id: ReportModuleId; labelKey: MessageKey }[] = [
   { id: "politik", labelKey: "reports.list.tabPolitik" },
   { id: "dd", labelKey: "reports.list.tabDd" },
   { id: "expertgranskning", labelKey: "reports.list.tabExpertgranskning" },
+  { id: "rattsunderlag", labelKey: "reports.list.tabRattsunderlag" },
 ]
 
 function introKey(module: ReportModuleId, scope: CustomerScope): MessageKey {
-  if (module === "dd") {
-    return scope === "bolag" ? "reports.list.introBolag" : "reports.list.introDd"
+  switch (module) {
+    case "dd":
+      return scope === "bolag" ? "reports.list.introBolag" : "reports.list.introDd"
+    case "expertgranskning":
+      return "reports.list.introExpertgranskning"
+    case "rattsunderlag":
+      return "reports.list.introRattsunderlag"
+    case "politik":
+      return "reports.list.intro"
+    default: {
+      const _exhaustive: never = module
+      return _exhaustive
+    }
   }
-  if (module === "expertgranskning") return "reports.list.introExpertgranskning"
-  return "reports.list.intro"
 }
 
 function emptyKey(module: ReportModuleId, scope: CustomerScope): MessageKey {
-  if (module === "dd") {
-    return scope === "bolag" ? "reports.list.emptyBolag" : "reports.list.emptyDd"
+  switch (module) {
+    case "dd":
+      return scope === "bolag" ? "reports.list.emptyBolag" : "reports.list.emptyDd"
+    case "expertgranskning":
+      return "reports.list.emptyExpertgranskning"
+    case "rattsunderlag":
+      return "reports.list.emptyRattsunderlag"
+    case "politik":
+      return "reports.list.empty"
+    default: {
+      const _exhaustive: never = module
+      return _exhaustive
+    }
   }
-  if (module === "expertgranskning") return "reports.list.emptyExpertgranskning"
-  return "reports.list.empty"
 }
 
 export function ReportsPage({ scope = "admin", Shell = AdminShell }: ReportsPageProps) {
