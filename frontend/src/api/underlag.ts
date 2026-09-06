@@ -36,6 +36,10 @@ export function listUnderlag(module: string, folderId?: string | null): Promise<
   })
 }
 
+export function listUnderlagFolders(module: string): Promise<UnderlagFolder[]> {
+  return api.get<UnderlagFolder[]>("/underlag/folders", { module })
+}
+
 export function createUnderlagFolder(body: {
   module: string
   name: string
@@ -67,4 +71,16 @@ export function uploadUnderlag(
 
 export function getUnderlag(id: string): Promise<UnderlagFile> {
   return api.get<UnderlagFile>(`/underlag/${id}`)
+}
+
+export function getUnderlagFile(id: string): Promise<Blob> {
+  return api.getBlob(`/underlag/${id}/file`)
+}
+
+export function moveUnderlag(id: string, folderId: string | null): Promise<UnderlagFile> {
+  return api.patch<UnderlagFile>(`/underlag/${id}`, { folder_id: folderId })
+}
+
+export function deleteUnderlag(id: string): Promise<void> {
+  return api.delete(`/underlag/${id}`)
 }
