@@ -19,6 +19,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import type { PopulationSummary } from "@/data/library-types"
 import { useLocale, type MessageKey } from "@/i18n"
 import { ApiError } from "@/lib/api"
+import { inferExpertgranskningReportId } from "@/lib/expertgranskningReport"
 import { cn } from "@/lib/utils"
 import { ReportPage } from "@/pages/ReportPage"
 import { useJobsRealtime } from "@/realtime/JobsRealtimeProvider"
@@ -94,23 +95,18 @@ function ExpertgranskningRunInner({ bolag }: { bolag: boolean }) {
   const [confirmRerun, setConfirmRerun] = useState(false)
   const [localReportId, setLocalReportId] = useState<string | null>(null)
   const defaultedTab = useRef(false)
+  const autoReportStarted = useRef(false)
+  const titleForReport = useRef(title)
+  titleForReport.current = title
 
   const sessionId = isNew ? null : (routeId ?? null)
   const sessionStatus = session?.status ?? (isNew ? ("draft" as const) : null)
 
-  const inferredReportId = reports.find((row) =>
-    row.sources.some(
-      (src) =>
-        src.type === "expertgranskning_session" &&
-        sessionId != null &&
-        src.session_id === sessionId,
-    ),
-  )?.id
+  const panelJob = session?.job_id ? jobs.find((job) => job.id === session.job_id) : undefined
+  const inferredReportId = inferExpertgranskningReportId(reports, sessionId, panelJob)
   const reportId = localReportId ?? inferredReportId ?? null
 
-  const jobStatus = jobs.find(
-    (job) => job.kind === "panel_session_run" && job.request?.session_id === sessionId,
-  )?.status
+  const jobStatus = panelJob?.status
   const liveStatus: ExpertgranskningSessionStatus | null =
     jobStatus === "succeeded"
       ? "succeeded"
@@ -231,14 +227,18 @@ function ExpertgranskningRunInner({ bolag }: { bolag: boolean }) {
 
   useEffect(() => {
     if (!sessionId) return
-    if (liveStatus !== "succeeded") return
-    if (reportId) return
+    if (liveStatus !== "succeeded") {
+      autoReportStarted.current = false
+      return
+    }
+    if (reportId || autoReportStarted.current) return
+    autoReportStarted.current = true
     let cancelled = false
     void (async () => {
       try {
         const created = await createExpertgranskningReport({
           session_id: sessionId,
-          title: title.trim() || undefined,
+          title: titleForReport.current.trim() || undefined,
           locale,
         })
         if (cancelled) return
@@ -246,6 +246,7 @@ function ExpertgranskningRunInner({ bolag }: { bolag: boolean }) {
         setSearchParams({ tab: "results", view: "report" }, { replace: true })
       } catch (err: unknown) {
         if (cancelled) return
+        autoReportStarted.current = false
         setError(
           err instanceof ApiError ? err.message : t("expertgranskning.page.reportCreateError"),
         )
@@ -254,7 +255,7 @@ function ExpertgranskningRunInner({ bolag }: { bolag: boolean }) {
     return () => {
       cancelled = true
     }
-  }, [locale, liveStatus, reportId, sessionId, setSearchParams, t, title])
+  }, [locale, liveStatus, reportId, sessionId, setSearchParams, t])
 
   async function persistSession(): Promise<ExpertgranskningSession> {
     if (isNew || !sessionId) {
@@ -314,6 +315,7 @@ function ExpertgranskningRunInner({ bolag }: { bolag: boolean }) {
       rememberJobPending(started.job_id)
       setSession({ ...saved, status: "pending", job_id: started.job_id })
       setLocalReportId(null)
+      autoReportStarted.current = false
       navigate(`${base}/${saved.id}?tab=results&view=live`, { replace: true })
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("expertgranskning.page.runError"))
@@ -475,7 +477,11 @@ function ExpertgranskningRunInner({ bolag }: { bolag: boolean }) {
                   disabled={!canEdit}
                   onChange={(next) => {
                     setSelectedUnderlag(next)
-                    if (next?.extractedText) setDocumentText(next.extractedText)
+                    if (next?.extractedText) {
+                      setDocumentText(next.extractedText)
+                    } else if (next) {
+                      setDocumentText("")
+                    }
                   }}
                 />
                 <textarea
