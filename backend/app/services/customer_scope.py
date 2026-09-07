@@ -13,6 +13,7 @@ from app.schemas.domain import (
     RunSimulateJobRequest,
 )
 from app.services.dd.schemas import DdResearchJobRequest
+from app.services.expertgranskning.schemas import ExpertgranskningWordJobRequest
 from app.services.rattsunderlag.schemas import RattsunderlagResearchJobRequest
 from app.services.kund_store import bolag_demo_customer_id, default_os_customer_id
 from app.services.panel.schemas import PanelSessionRunJobRequest
@@ -101,5 +102,8 @@ async def customer_id_for_new_job(session: AsyncSession, body: JobCreate) -> int
         return campaign.customer_id
     if body.kind == "rattsunderlag_research":
         payload = RattsunderlagResearchJobRequest.model_validate(body.request)
+        return payload.customer_id
+    if body.kind == "expertgranskning_word_review":
+        payload = ExpertgranskningWordJobRequest.model_validate(body.request)
         return payload.customer_id
     return await default_os_customer_id(session)

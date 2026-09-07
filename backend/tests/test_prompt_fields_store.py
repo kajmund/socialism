@@ -64,25 +64,32 @@ def test_modules_for_prompt_key_follows_prefix_convention():
         "expertgranskning",
     ]
     assert modules_for_prompt_key("rattsunderlag.search_terms.system") == ["rattsunderlag"]
+    assert modules_for_prompt_key("expertgranskning.word.paragraph") == ["expertgranskning"]
+    assert modules_for_prompt_key("expertgranskning.word.heading") == ["expertgranskning"]
 
 
 def test_module_providers_cover_all_catalog_keys_without_overlap_gaps():
     dd_keys = {field["key"] for field in dd_prompt_defaults()}
     politik_keys = {field["key"] for field in politik_prompt_defaults()}
     ratts_keys = {field["key"] for field in rattsunderlag_prompt_defaults()}
+    expert_keys = {field["key"] for field in expertgranskning_prompt_defaults()}
     all_keys = {field["key"] for field in PROMPT_FIELDS}
-    assert dd_keys | politik_keys | ratts_keys == all_keys
+    assert dd_keys | politik_keys | ratts_keys | expert_keys == all_keys
     assert ratts_keys.isdisjoint(dd_keys)
+    assert {"expertgranskning.word.paragraph", "expertgranskning.word.heading"}.isdisjoint(
+        dd_keys | politik_keys | ratts_keys
+    )
     assert "rattsunderlag.search_terms.system" in ratts_keys
     assert "panel.dd.moderator.system" in dd_keys
     assert "panel.dd.moderator.system" not in politik_keys
     assert "persona.field_guide" in politik_keys
     assert "persona.field_guide" not in dd_keys
     assert "help.system" in dd_keys & politik_keys
-    expert_keys = {field["key"] for field in expertgranskning_prompt_defaults()}
     assert expert_keys < all_keys
     assert "panel.expert.system" in expert_keys
     assert "spinndoctor.system" in expert_keys
+    assert "expertgranskning.word.paragraph" in expert_keys
+    assert "expertgranskning.word.heading" in expert_keys
     assert "help.system" not in expert_keys
     assert "panel.dd.moderator.system" not in expert_keys
 
