@@ -374,7 +374,7 @@ async def test_word_result_patch_writes_comment_id(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_word_job_rejects_foreign_panel(user_client: AsyncClient, client: AsyncClient):
+async def test_word_job_rejects_foreign_panel(client: AsyncClient, user_token: str):
     listed = await client.get("/kunder")
     bolag_id = next(row["id"] for row in listed.json() if row["slug"] == BOLAG_DEMO_KUND_SLUG)
     experts = await client.get("/personas", params={"kind": "expert", "customer_id": bolag_id})
@@ -391,8 +391,9 @@ async def test_word_job_rejects_foreign_panel(user_client: AsyncClient, client: 
         },
     )
     assert bolag_created.status_code == 201, bolag_created.text
-    denied = await user_client.post(
+    denied = await client.post(
         "/expertgranskning/word-jobs",
+        headers={"Authorization": f"Bearer {user_token}"},
         json={
             "panel_id": bolag_created.json()["id"],
             "sections": [
