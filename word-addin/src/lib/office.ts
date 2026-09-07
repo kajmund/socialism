@@ -88,6 +88,95 @@ export async function readDocumentParagraphs(): Promise<WordParagraph[]> {
   })
 }
 
+export function normalizeParagraphText(text: string): string {
+  return text.replace(/\r/g, "").trim()
+}
+
+export function paragraphTextMatchesReviewed(
+  current: string,
+  reviewed: string | null | undefined,
+): boolean {
+  if (reviewed == null || !reviewed.trim()) return false
+  return normalizeParagraphText(current) === normalizeParagraphText(reviewed)
+}
+
+export function findRewriteTargetIndex(
+  paragraphTexts: readonly string[],
+  requestedIndex: number,
+  reviewedText: string | null | undefined,
+): number | null {
+  if (reviewedText == null || !reviewedText.trim()) return null
+  const requested = paragraphTexts[requestedIndex]
+  if (
+    requested != null &&
+    paragraphTextMatchesReviewed(requested, reviewedText)
+  ) {
+    return requestedIndex
+  }
+  const matches: number[] = []
+  for (let index = 0; index < paragraphTexts.length; index += 1) {
+    if (paragraphTextMatchesReviewed(paragraphTexts[index], reviewedText)) {
+      matches.push(index)
+    }
+  }
+  return matches.length === 1 ? matches[0] : null
+}
+
+function changeTrackingSupported(): boolean {
+  return typeof Word !== "undefined" && typeof Word.ChangeTrackingMode !== "undefined"
+}
+
+export async function applyRewriteSuggestion(args: {
+  paragraphIndex: number
+  foreslagenText: string
+  motivering: string
+  reviewedText: string | null | undefined
+  fallbackComment: string
+}): Promise<string | null> {
+  if (typeof Word === "undefined") {
+    throw new Error("Word API is not available")
+  }
+  return Word.run(async (context) => {
+    const paragraphs = context.document.body.paragraphs
+    paragraphs.load("items/text")
+    const canTrack = changeTrackingSupported()
+    if (canTrack) {
+      context.document.load("changeTrackingMode")
+    }
+    await context.sync()
+
+    const targetIndex = findRewriteTargetIndex(
+      paragraphs.items.map((item) => item.text),
+      args.paragraphIndex,
+      args.reviewedText,
+    )
+    if (targetIndex == null) {
+      return null
+    }
+    const paragraph = paragraphs.items[targetIndex]
+    if (!canTrack) {
+      const comment = paragraph.getRange().insertComment(args.fallbackComment)
+      comment.load("id")
+      await context.sync()
+      return comment.id
+    }
+
+    const previousMode = context.document.changeTrackingMode
+    try {
+      context.document.changeTrackingMode = Word.ChangeTrackingMode.trackAll
+      paragraph.insertText(args.foreslagenText, Word.InsertLocation.replace)
+      await context.sync()
+      const comment = paragraph.getRange().insertComment(args.motivering)
+      comment.load("id")
+      await context.sync()
+      return comment.id
+    } finally {
+      context.document.changeTrackingMode = previousMode
+      await context.sync()
+    }
+  })
+}
+
 export async function insertCommentAt(
   paragraphIndex: number,
   text: string,

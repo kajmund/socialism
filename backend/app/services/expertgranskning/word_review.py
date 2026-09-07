@@ -20,6 +20,7 @@ from app.services.expertgranskning.schemas import (
     WordDocumentSection,
     WordHeadingAssessment,
     WordParagraphComments,
+    WordRewriteSuggestion,
 )
 from app.services.expertgranskning.watch import (
     publish_expertgranskning_finished,
@@ -79,6 +80,9 @@ async def _write_result(
     expert_namn: str,
     kommentar: str,
     is_heading_suggestion: bool,
+    is_rewrite_suggestion: bool = False,
+    foreslagen_text: str | None = None,
+    request: dict | None = None,
 ) -> ExpertgranskningResult:
     row = ExpertgranskningResult(
         id=_new_result_id(),
@@ -90,6 +94,8 @@ async def _write_result(
         expert_namn=expert_namn,
         kommentar=kommentar,
         is_heading_suggestion=is_heading_suggestion,
+        is_rewrite_suggestion=is_rewrite_suggestion,
+        foreslagen_text=foreslagen_text,
         comment_id=None,
         status="pending",
         created_at=utcnow(),
@@ -97,8 +103,21 @@ async def _write_result(
     session.add(row)
     await session.commit()
     await session.refresh(row)
-    await publish_result_created(row)
+    await publish_result_created(row, request=request)
     return row
+
+
+def rewrite_suggestion_or_none(
+    parsed: WordParagraphComments,
+) -> WordRewriteSuggestion | None:
+    suggestion = parsed.omskrivning_forslag
+    if suggestion is None:
+        return None
+    if not suggestion.ny_text.strip():
+        return None
+    if "\n" in suggestion.ny_text.replace("\r\n", "\n").replace("\r", "\n"):
+        return None
+    return suggestion
 
 
 async def _review_paragraph(
@@ -187,6 +206,24 @@ async def run_word_paragraph_review(
                     expert_namn=slot.label,
                     kommentar=text,
                     is_heading_suggestion=False,
+                    request=job.request,
+                )
+                result_count += 1
+            suggestion = rewrite_suggestion_or_none(reviewed)
+            if suggestion is not None:
+                await _write_result(
+                    session,
+                    job_id=job.id,
+                    customer_id=payload.customer_id,
+                    section_index=section_index,
+                    paragraph_index=paragraph.index,
+                    expert_id="",
+                    expert_namn="",
+                    kommentar=suggestion.motivering.strip(),
+                    is_heading_suggestion=False,
+                    is_rewrite_suggestion=True,
+                    foreslagen_text=suggestion.ny_text.strip(),
+                    request=job.request,
                 )
                 result_count += 1
 
@@ -204,6 +241,7 @@ async def run_word_paragraph_review(
                 expert_namn="",
                 kommentar=suggestion,
                 is_heading_suggestion=True,
+                request=job.request,
             )
             result_count += 1
 

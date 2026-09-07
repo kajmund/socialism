@@ -264,7 +264,7 @@ async def get_latest_expertgranskning_word_job(
     return ExpertgranskningLatestWordJobOut(
         job_id=job.id,
         status=job.status,
-        results=[serialize_result(row) for row in rows],
+        results=[serialize_result(row, request=job.request) for row in rows],
     )
 
 
@@ -274,9 +274,9 @@ async def get_expertgranskning_word_job_results(
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> list[ExpertgranskningResultOut]:
-    await _require_word_job(session, user, job_id)
+    job = await _require_word_job(session, user, job_id)
     rows = await load_expertgranskning_results(session, job_id)
-    return [serialize_result(row) for row in rows]
+    return [serialize_result(row, request=job.request) for row in rows]
 
 
 @router.patch(
@@ -290,7 +290,7 @@ async def patch_expertgranskning_word_result(
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> ExpertgranskningResultOut:
-    await _require_word_job(session, user, job_id)
+    job = await _require_word_job(session, user, job_id)
     row = await session.get(ExpertgranskningResult, result_id)
     if row is None or row.job_id != job_id:
         raise HTTPException(status_code=404, detail="Word review result not found")
@@ -298,5 +298,5 @@ async def patch_expertgranskning_word_result(
     row.status = "posted"
     await session.commit()
     await session.refresh(row)
-    await publish_result_updated(row)
-    return serialize_result(row)
+    await publish_result_updated(row, request=job.request)
+    return serialize_result(row, request=job.request)

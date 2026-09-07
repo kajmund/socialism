@@ -16,8 +16,10 @@ export const messages = {
     reviewing: "Granskar…",
     statusIdle: "Välj en panel och klicka Granska.",
     statusConnecting: "Startar granskning…",
-    statusLive: "Kommentarer kommer in i dokumentet.",
-    statusResume: "Återanslöt till pågående granskning. Kommentarer kommer in i dokumentet.",
+    statusLive:
+      "Kommentarer och spårade omskrivningar kommer in i dokumentet. Godkänn eller avvisa ändringarna i Word.",
+    statusResume:
+      "Återanslöt till pågående granskning. Kommentarer och spårade omskrivningar kommer in i dokumentet. Godkänn eller avvisa ändringarna i Word.",
     statusDone: "Granskningen är klar.",
     statusFailed: "Granskningen misslyckades: {error}",
     commentsUnsupported:
@@ -25,7 +27,8 @@ export const messages = {
     officeMissing: "Öppna tillägget i Word. Webbläsaren kan inte läsa dokumentet.",
     noParagraphs: "Dokumentet har inga stycken att granska.",
     noSections: "Kunde inte bygga en sektionsstruktur av dokumentet.",
-    inserted: "Infogade kommentarer: {count}",
+    inserted: "Infogade kommentarer och omskrivningar: {count}",
+    rewritePrefix: "Föreslagen omskrivning:",
     language: "Språk",
   },
   en: {
@@ -41,8 +44,10 @@ export const messages = {
     reviewing: "Reviewing…",
     statusIdle: "Choose a panel and click Review.",
     statusConnecting: "Starting review…",
-    statusLive: "Comments are appearing in the document.",
-    statusResume: "Reconnected to the running review. Comments are appearing in the document.",
+    statusLive:
+      "Comments and tracked rewrites are appearing in the document. Accept or reject the changes in Word.",
+    statusResume:
+      "Reconnected to the running review. Comments and tracked rewrites are appearing in the document. Accept or reject the changes in Word.",
     statusDone: "The review is finished.",
     statusFailed: "The review failed: {error}",
     commentsUnsupported:
@@ -50,7 +55,8 @@ export const messages = {
     officeMissing: "Open the add-in in Word. The browser cannot read the document.",
     noParagraphs: "The document has no paragraphs to review.",
     noSections: "Could not build a section structure from the document.",
-    inserted: "Comments inserted: {count}",
+    inserted: "Comments and rewrites inserted: {count}",
+    rewritePrefix: "Suggested rewrite:",
     language: "Language",
   },
 } as const
