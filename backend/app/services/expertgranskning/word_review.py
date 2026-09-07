@@ -115,6 +115,8 @@ def rewrite_suggestion_or_none(
         return None
     if not suggestion.ny_text.strip():
         return None
+    if "\n" in suggestion.ny_text.replace("\r\n", "\n").replace("\r", "\n"):
+        return None
     return suggestion
 
 
