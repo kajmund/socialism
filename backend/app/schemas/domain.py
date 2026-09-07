@@ -1165,6 +1165,7 @@ JobKind = Literal[
     "report_generate",
     "panel_session_run",
     "dd_research",
+    "rattsunderlag_research",
 ]
 JobStatus = Literal["pending", "running", "succeeded", "failed"]
 ReportStatus = Literal["pending", "running", "succeeded", "failed"]
@@ -1205,6 +1206,9 @@ class ReportSource(BaseModel):
         elif self.type == "expertgranskning_session":
             if not (self.session_id or "").strip():
                 raise ValueError("expertgranskning_session source requires session_id")
+        elif self.type == "rattsunderlag":
+            if not (self.session_id or "").strip():
+                raise ValueError("rattsunderlag source requires session_id")
         return self
 
 
