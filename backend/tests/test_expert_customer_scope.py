@@ -11,12 +11,14 @@ from app.database.base import Base
 from app.database.models import PanelExpertProfile, Persona, Population
 from app.services.dd.default_experts import DEFAULT_EXPERT_SPECS, ensure_default_expert_personas
 from app.services.dd.expert_keys import expert_persona_id, expert_role_key
+from app.services.dd.expert_roles import load_expert_slots
 from app.services.kund_store import (
     bolag_demo_customer_id,
     default_os_customer_id,
     ensure_default_kunder,
 )
 from app.services.panel.expert_profiles_store import (
+    create_expert_profile,
     ensure_expert_profile_defaults,
     get_expert_profiles,
 )
@@ -112,8 +114,9 @@ async def test_expert_persona_ids_include_customer(session: AsyncSession):
     await ensure_default_expert_personas(session, customer_id=os_id)
     await ensure_default_expert_personas(session, customer_id=bolag_id)
     name = DEFAULT_EXPERT_SPECS[0]["name"]
-    os_persona = await session.get(Persona, expert_persona_id(os_id, name))
-    bolag_persona = await session.get(Persona, expert_persona_id(bolag_id, name))
+    key = expert_role_key(name)
+    os_persona = await session.get(Persona, expert_persona_id(os_id, key))
+    bolag_persona = await session.get(Persona, expert_persona_id(bolag_id, key))
     assert os_persona is not None
     assert bolag_persona is not None
     assert os_persona.id != bolag_persona.id
@@ -158,3 +161,39 @@ async def test_population_name_unique_per_customer(session: AsyncSession):
         )
         == "Samma namn (2)"
     )
+
+
+@pytest.mark.asyncio
+async def test_suffixed_catalog_key_gets_distinct_persona_and_loads(session: AsyncSession):
+    """Suggest-experts can suffix catalog keys; personas must follow profile.key."""
+    cid = await default_os_customer_id(session)
+    await ensure_expert_profile_defaults(
+        session, "dd", DEFAULT_EXPERT_SPECS, customer_id=cid
+    )
+    base_name = DEFAULT_EXPERT_SPECS[0]["name"]
+    base_key = expert_role_key(base_name)
+    duplicate = await create_expert_profile(
+        session,
+        customer_id=cid,
+        module="dd",
+        key=f"{base_key}_2",
+        name=base_name,
+        description="Second profile with the same display name.",
+        sort_order=99,
+    )
+    await session.commit()
+    assert duplicate.key == f"{base_key}_2"
+
+    await ensure_default_expert_personas(session, customer_id=cid)
+    await session.commit()
+
+    base_persona = await session.get(Persona, expert_persona_id(cid, base_key))
+    suffixed = await session.get(Persona, expert_persona_id(cid, duplicate.key))
+    assert base_persona is not None
+    assert suffixed is not None
+    assert base_persona.id != suffixed.id
+
+    slots = await load_expert_slots(session, customer_id=cid, role_keys=[duplicate.key])
+    assert len(slots) == 1
+    assert slots[0].slot_id == duplicate.key
+    assert slots[0].label == base_name
