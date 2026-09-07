@@ -26,6 +26,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Markdown } from "@/components/ui/markdown"
+import { canUseUnderlag } from "@/components/underlag/canUseUnderlag"
 import { htmlToPlainText } from "@/components/underlag/htmlToPlainText"
 import { useLocale, type MessageKey } from "@/i18n"
 import { ApiError } from "@/lib/api"
@@ -456,6 +457,7 @@ export function UnderlagPickerModal({
   async function handleUse() {
     if (!preview) return
     if (preview.kind === "underlag") {
+      if (!canUseUnderlag(preview.file)) return
       onSelect(preview.file)
       onOpenChange(false)
       return
@@ -561,7 +563,7 @@ export function UnderlagPickerModal({
   const showPdfTabs = underlagPreview != null && isPdf(underlagPreview)
   const showReportTabs = reportPreview != null
   const canUse =
-    underlagPreview != null ||
+    (underlagPreview != null && canUseUnderlag(underlagPreview)) ||
     (reportPreview != null && !reportPreview.loading && Boolean(reportPreview.text?.trim()))
 
   return (
