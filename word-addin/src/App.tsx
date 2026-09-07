@@ -155,6 +155,7 @@ export function App() {
           fallbackComment: `${t("rewritePrefix")} ${(result.foreslagen_text ?? "").trim()}`.trim(),
         })
       : await insertCommentAt(result.paragraph_index, formatCommentBody(result))
+    if (!commentId) return
     await patchResultCommentId(token, jobId, result.id, commentId)
     setInsertedCount((count) => count + 1)
   }
