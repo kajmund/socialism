@@ -3,6 +3,7 @@
 ## 2026-09-06
 
 * **Rättsunderlag**: Ny yta i vänstermenyn. Du ställer en rättsfråga och får ett juridiskt PM med lagtext, praxis och förarbeten. Resultatet sparas som personligt underlag och syns i **Välj underlag** i Expertgranskning.
+* **Underlag**: I **Välj underlag** syns kundens moduler med **underlag** (personliga filer) och **rapporter** (sparade rapporter från varje modul). Du kan förhandsgranska rapporter och använda dem som underlag, dra filer mellan mappar och ta bort underlag.
 
 ## 2026-09-05
 

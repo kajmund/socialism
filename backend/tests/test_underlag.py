@@ -209,6 +209,13 @@ async def test_underlag_folders_are_owner_scoped_and_hold_files(
     assert [row["name"] for row in inside.json()["folders"]] == ["Q3"]
     assert [row["filename"] for row in inside.json()["files"]] == ["inside.txt"]
 
+    tree = await client.get("/underlag/folders", params={"module": "expertgranskning"})
+    assert tree.status_code == 200
+    tree_names = sorted(row["name"] for row in tree.json())
+    assert tree_names == ["Kampanj 2024", "Q3"]
+    nested_row = next(row for row in tree.json() if row["name"] == "Q3")
+    assert nested_row["parent_id"] == folder_id
+
     missing_parent = await client.post(
         "/underlag/folders",
         json={"module": "expertgranskning", "name": "x", "parent_id": "missing"},
@@ -218,11 +225,89 @@ async def test_underlag_folders_are_owner_scoped_and_hold_files(
     client.headers["Authorization"] = f"Bearer {admin_token}"
     admin_root = await client.get("/underlag", params={"module": "expertgranskning"})
     assert admin_root.json()["folders"] == []
+    admin_tree = await client.get("/underlag/folders", params={"module": "expertgranskning"})
+    assert admin_tree.status_code == 200
+    assert admin_tree.json() == []
     admin_inside = await client.get(
         "/underlag",
         params={"module": "expertgranskning", "folder_id": folder_id},
     )
     assert admin_inside.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_underlag_move_delete_and_file_download(
+    client: AsyncClient, user_token: str, admin_token: str
+):
+    client.headers["Authorization"] = f"Bearer {user_token}"
+    folder = await client.post(
+        "/underlag/folders",
+        json={"module": "expertgranskning", "name": "Arkiv"},
+    )
+    assert folder.status_code == 201, folder.text
+    folder_id = folder.json()["id"]
+
+    uploaded = await client.post(
+        "/underlag",
+        params={"module": "expertgranskning"},
+        files={"file": ("doc.pdf", b"%PDF-1.4 fake", "application/pdf")},
+    )
+    assert uploaded.status_code == 201, uploaded.text
+    object_id = uploaded.json()["id"]
+    assert uploaded.json()["folder_id"] is None
+
+    moved_in = await client.patch(f"/underlag/{object_id}", json={"folder_id": folder_id})
+    assert moved_in.status_code == 200, moved_in.text
+    assert moved_in.json()["folder_id"] == folder_id
+
+    root = await client.get("/underlag", params={"module": "expertgranskning"})
+    assert root.status_code == 200
+    assert root.json()["files"] == []
+
+    inside = await client.get(
+        "/underlag",
+        params={"module": "expertgranskning", "folder_id": folder_id},
+    )
+    assert inside.status_code == 200
+    assert [row["id"] for row in inside.json()["files"]] == [object_id]
+
+    moved_out = await client.patch(f"/underlag/{object_id}", json={"folder_id": None})
+    assert moved_out.status_code == 200, moved_out.text
+    assert moved_out.json()["folder_id"] is None
+
+    missing_folder = await client.patch(
+        f"/underlag/{object_id}", json={"folder_id": "missing"}
+    )
+    assert missing_folder.status_code == 404
+
+    file_resp = await client.get(f"/underlag/{object_id}/file")
+    assert file_resp.status_code == 200
+    assert file_resp.content == b"%PDF-1.4 fake"
+    assert "application/pdf" in (file_resp.headers.get("content-type") or "")
+    assert "inline" in (file_resp.headers.get("content-disposition") or "")
+
+    client.headers["Authorization"] = f"Bearer {admin_token}"
+    admin_move = await client.patch(f"/underlag/{object_id}", json={"folder_id": folder_id})
+    assert admin_move.status_code == 404
+    admin_file = await client.get(f"/underlag/{object_id}/file")
+    assert admin_file.status_code == 404
+    admin_delete = await client.delete(f"/underlag/{object_id}")
+    assert admin_delete.status_code == 404
+
+    client.headers["Authorization"] = f"Bearer {user_token}"
+    deleted = await client.delete(f"/underlag/{object_id}")
+    assert deleted.status_code == 204
+
+    gone = await client.get(f"/underlag/{object_id}")
+    assert gone.status_code == 404
+    gone_file = await client.get(f"/underlag/{object_id}/file")
+    assert gone_file.status_code == 404
+
+    storage = get_object_storage()
+    keys = set(storage.buckets.get("devbrains", {}))
+    assert not any(
+        key.startswith(f"expertgranskning/underlag/{USER_USER_ID}/{object_id}/") for key in keys
+    )
 
 
 def test_expertgranskning_report_renders_document_as_markdown():

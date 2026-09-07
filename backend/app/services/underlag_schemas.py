@@ -40,3 +40,7 @@ class UnderlagFolderCreate(BaseModel):
     module: str
     name: str = Field(min_length=1, max_length=80)
     parent_id: str | None = None
+
+
+class UnderlagMove(BaseModel):
+    folder_id: str | None = None
