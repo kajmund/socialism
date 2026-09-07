@@ -22,6 +22,8 @@ Kommentarer från experterna dyker upp löpande i dokumentet. Panelen visar när
 
 Klicka **Granska** en gång till i samma dokument. Föregående körnings kommentarer markeras som lösta i Word. En ny granskning startar automatiskt — du får ingen extra bekräftelse.
 
+Om du stänger sidopanelen medan en granskning fortfarande körs, och öppnar den igen, fortsätter samma jobb. Ett nytt jobb startas inte förrän det pågående är klart.
+
 ## Relaterade guider
 
 - [Använda expertgranskning](anvanda-expertgranskning.md)
