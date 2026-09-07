@@ -2,7 +2,7 @@
 
 ## 2026-09-07
 
-* **Expertgranskning i Word**: Nytt tillägg i Word på datorn. Du väljer en expertpanel, klickar **Granska** och ser kommentarer dyka upp i dokumentet. **Granska** igen löser förra körningens kommentarer och startar en ny.
+* **Expertgranskning i Word**: Nytt tillägg i Word på datorn. Du väljer en expertpanel, klickar **Granska** och ser kommentarer dyka upp i dokumentet. **Granska** igen löser förra körningens kommentarer och startar en ny. Om du stänger panelen mitt i en körning och öppnar den igen fortsätter samma jobb.
 
 ## 2026-09-06
 
