@@ -145,6 +145,9 @@ async def test_ensure_prompt_field_defaults_attaches_module_without_duplicate(
     await ensure_prompt_field_defaults(
         session, "rattsunderlag", rattsunderlag_prompt_defaults()
     )
+    await ensure_prompt_field_defaults(
+        session, "expertgranskning", expertgranskning_prompt_defaults()
+    )
     all_rows = (await session.execute(select(PromptField))).scalars().all()
     assert len(all_rows) == len(PROMPT_FIELDS)
     dd_only = await get_prompt_field_by_key(session, "panel.dd.moderator.system")
