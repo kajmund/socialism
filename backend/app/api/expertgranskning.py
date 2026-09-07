@@ -217,6 +217,15 @@ async def post_expertgranskning_word_job(
     if not _panel_visible_to_user(panel, user):
         raise HTTPException(status_code=403, detail="kund_access_denied")
 
+    if body.doc_id:
+        existing = await find_latest_word_job_for_doc(
+            session,
+            doc_id=body.doc_id,
+            customer_id=panel.customer_id,
+        )
+        if existing is not None and existing.status in {"pending", "running"}:
+            raise HTTPException(status_code=409, detail="word_review_already_running")
+
     request = ExpertgranskningWordJobRequest(
         panel_id=body.panel_id,
         customer_id=panel.customer_id,
