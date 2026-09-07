@@ -153,3 +153,27 @@ async def test_panel_session_job_uses_project_customer(session: AsyncSession):
         JobCreate(kind="panel_session_run", request={"session_id": "ps_job"}),
     )
     assert resolved == bolag_id
+
+
+@pytest.mark.asyncio
+async def test_word_review_job_uses_request_customer(session: AsyncSession):
+    bolag_id = await bolag_demo_customer_id(session)
+    resolved = await customer_id_for_new_job(
+        session,
+        JobCreate(
+            kind="expertgranskning_word_review",
+            request={
+                "panel_id": 1,
+                "customer_id": bolag_id,
+                "owner_user_id": "user-1",
+                "sections": [
+                    {
+                        "heading": "Inledning",
+                        "heading_paragraph_index": 0,
+                        "paragraphs": [],
+                    }
+                ],
+            },
+        ),
+    )
+    assert resolved == bolag_id

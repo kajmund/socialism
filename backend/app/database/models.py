@@ -1125,3 +1125,39 @@ class PromptOverride(Base):
 
     kund: Mapped[Kund] = relationship(back_populates="prompt_overrides")
     prompt_field: Mapped[PromptField] = relationship(back_populates="overrides")
+
+
+class ExpertgranskningResult(Base):
+    """Incremental Word-review comment from word_paragraph_review."""
+
+    __tablename__ = "expertgranskning_results"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    job_id: Mapped[str] = mapped_column(
+        ForeignKey("jobs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("kunder.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    section_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    paragraph_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    expert_id: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    expert_namn: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    kommentar: Mapped[str] = mapped_column(Text, nullable=False)
+    is_heading_suggestion: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="0",
+    )
+    comment_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )

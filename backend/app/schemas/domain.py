@@ -1166,6 +1166,7 @@ JobKind = Literal[
     "panel_session_run",
     "dd_research",
     "rattsunderlag_research",
+    "expertgranskning_word_review",
 ]
 JobStatus = Literal["pending", "running", "succeeded", "failed"]
 ReportStatus = Literal["pending", "running", "succeeded", "failed"]

@@ -35,6 +35,9 @@ from app.services.dd.campaigns import get_campaign
 from app.services.dd.candidate_runs import get_candidate_run, upsert_research
 from app.services.dd.research import DdResearchError, run_dd_research
 from app.services.dd.schemas import DdCandidateCompany, DdResearchDossier, DdResearchJobRequest
+from app.services.expertgranskning import WORD_JOB_KIND
+from app.services.expertgranskning.schemas import ExpertgranskningWordJobRequest
+from app.services.expertgranskning.word_review import run_word_paragraph_review_for_job
 from app.services.rattsunderlag.run_job import run_rattsunderlag_research_job
 from app.services.rattsunderlag.schemas import RattsunderlagResearchJobRequest
 from app.services.oasis_run import (
@@ -175,6 +178,11 @@ async def create_job(session: AsyncSession, body: JobCreate) -> Job:
     elif body.kind == "rattsunderlag_research":
         payload = RattsunderlagResearchJobRequest.model_validate(body.request)
         label = (body.label or "").strip() or f"Rättsunderlag: {payload.fraga[:80]}"
+    elif body.kind == WORD_JOB_KIND:
+        payload = ExpertgranskningWordJobRequest.model_validate(body.request)
+        label = (body.label or "").strip() or (
+            f"Word-granskning: {payload.doc_id}" if payload.doc_id else "Word-granskning"
+        )
     else:
         raise ValueError(f"Unsupported job kind: {body.kind}")
 
@@ -240,6 +248,8 @@ async def _execute_job_kind(job_id: str, kind: str) -> None:
         await _run_dd_research(job_id)
     elif kind == "rattsunderlag_research":
         await run_rattsunderlag_research_job(job_id)
+    elif kind == WORD_JOB_KIND:
+        await run_word_paragraph_review_for_job(job_id)
     else:
         factory = job_session_factory()
         async with factory() as session:
