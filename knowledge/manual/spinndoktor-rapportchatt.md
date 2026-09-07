@@ -1,6 +1,7 @@
 ---
 type: guide
 title: Spinndoktor — resonera kring en rapport
+description: Så chattar du med Spinndoktor kring en klar rapport och använder rutnätet med grafer och klipp.
 tags:
   - rapporter
 ---
