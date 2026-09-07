@@ -20,6 +20,7 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 
 * [Hantera körningar](hantera-korningar.md) — Söka, filtrera, duplicera och ta bort körningar
 * [Skapa en ny körning](skapa-korning.md) — Grunduppgifter, tidslinje och gren
+* [Välja plattform och läge för en körning](valja-plattform-och-lage-for-korning.md) — Twitter/Reddit, egna inlägg och guidat vs snabbläge
 * [Konfigurera en dag i tidslinjen](konfigurera-dag-i-tidslinjen.md) — Injektioner, ronder och intervjuer per dag
 * [Starta en simulering](starta-simulering.md) — Starta en sparad körning och följ jobbet
 * [Reaktionsmodell i simuleringen](reaktionsmodell-i-simulering.md) — Vem reagerar, vem får kommentera och när nollställs reglerna
@@ -55,12 +56,13 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 * [Hantera konfigurationer](hantera-konfigurationer.md) — Prompts och grunddata per konfiguration
 * [Hantera kundmoduler](hantera-kundmoduler.md) — Slå på och av produktmoduler per kund
 * [Redigera panelkatalog](redigera-panelkatalog.md) — Sub-frågor, default-expertprofiler och förslag från underlag
+* [Konfigurera panelkatalog för Expertgranskning](konfigurera-panelkatalog-for-expertgranskning.md) — Sub-frågor för expertgranskningens panel
 * [Hantera SSR-ankare](hantera-ssr-ankare.md) — Skapa, testa och publicera ton- och stilankare för rapporter
 * [Redigera grunddata](redigera-grunddata.md) — Kataloglistor och distriktskartor under en konfiguration
 * [Använda playground](anvanda-playground.md) — Kalibrera anchors, jämföra SSR och prova promptvarianter
 * [Prova bildreaktion i playground](prova-bildreaktion-i-playground.md) — Testa persona-reaktion och SSR på uppladdad bild
 * [Hantera embedding-cache](hantera-embedding-cache.md) — Visa och rensa cachade SSR-ankarembeddings och budskapsbilder
-* [Följa bakgrundsjobb](folja-bakgrundsjobb.md) — Status för generering, simulering och rapporter
+* [Följa bakgrundsjobb](folja-bakgrundsjobb.md) — Status för generering, simulering, sourcing, rättsunderlag och rapporter
 
 # Due Diligence (bolag)
 
@@ -76,6 +78,7 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 # Expertgranskning
 
 * [Använda expertgranskning](anvanda-expertgranskning.md) — Ladda upp eller klistra in text, välj panel och kör en granskning
+* [Använda expertgranskning i bolagsytan](anvanda-expertgranskning-i-bolagsytan.md) — Samma funktion under Bolag-menyn för DD-only-konton
 * [Granska ett dokument i Word](granska-dokument-i-word.md) — Välj panel i Word-tillägget och få kommentarer och föreslagna omskrivningar i dokumentet
 
 # Rättsunderlag

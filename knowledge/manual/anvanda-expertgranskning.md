@@ -38,6 +38,8 @@ Underlag du laddar upp är personliga — andra på samma kund ser inte dina fil
 ## Relaterade guider
 
 - [Hantera kundmoduler](hantera-kundmoduler.md)
+- [Använda expertgranskning i bolagsytan](anvanda-expertgranskning-i-bolagsytan.md)
+- [Granska ett dokument i Word](granska-dokument-i-word.md)
 - [Hantera expertpaneler](hantera-expertpaneler.md)
 - [Spinndoktor — rapportchatt](spinndoktor-rapportchatt.md)
 - [Hantera rapporter](hantera-rapporter.md)
