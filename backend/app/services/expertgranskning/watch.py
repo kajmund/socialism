@@ -22,7 +22,30 @@ def _result_created_at(value: datetime | None) -> str:
     return value.isoformat()
 
 
-def serialize_result(row: ExpertgranskningResult) -> ExpertgranskningResultOut:
+def reviewed_text_from_job_request(
+    request: dict | None, paragraph_index: int
+) -> str | None:
+    if not request:
+        return None
+    for section in request.get("sections") or []:
+        if not isinstance(section, dict):
+            continue
+        if section.get("heading_paragraph_index") == paragraph_index:
+            heading = section.get("heading")
+            return heading if isinstance(heading, str) else None
+        for paragraph in section.get("paragraphs") or []:
+            if not isinstance(paragraph, dict):
+                continue
+            if paragraph.get("index") == paragraph_index:
+                text = paragraph.get("text")
+                return text if isinstance(text, str) else None
+    return None
+
+
+def serialize_result(
+    row: ExpertgranskningResult,
+    request: dict | None = None,
+) -> ExpertgranskningResultOut:
     return ExpertgranskningResultOut(
         id=row.id,
         job_id=row.job_id,
@@ -33,6 +56,9 @@ def serialize_result(row: ExpertgranskningResult) -> ExpertgranskningResultOut:
         expert_namn=row.expert_namn,
         kommentar=row.kommentar,
         is_heading_suggestion=row.is_heading_suggestion,
+        is_rewrite_suggestion=row.is_rewrite_suggestion,
+        foreslagen_text=row.foreslagen_text,
+        reviewed_text=reviewed_text_from_job_request(request, row.paragraph_index),
         comment_id=row.comment_id,
         status=row.status,
         created_at=_result_created_at(row.created_at),
@@ -47,7 +73,10 @@ def build_expertgranskning_replay_payload(
         "type": "expertgranskning.replay",
         "job_id": job.id,
         "status": job.status,
-        "results": [serialize_result(row).model_dump(mode="json") for row in results],
+        "results": [
+            serialize_result(row, request=job.request).model_dump(mode="json")
+            for row in results
+        ],
     }
 
 
@@ -89,24 +118,30 @@ async def load_expertgranskning_results(
     return list(result.scalars().all())
 
 
-async def publish_result_created(row: ExpertgranskningResult) -> None:
+async def publish_result_created(
+    row: ExpertgranskningResult,
+    request: dict | None = None,
+) -> None:
     await expertgranskning_broadcast.publish(
         row.job_id,
         {
             "type": "expertgranskning.result.created",
             "job_id": row.job_id,
-            "result": serialize_result(row).model_dump(mode="json"),
+            "result": serialize_result(row, request=request).model_dump(mode="json"),
         },
     )
 
 
-async def publish_result_updated(row: ExpertgranskningResult) -> None:
+async def publish_result_updated(
+    row: ExpertgranskningResult,
+    request: dict | None = None,
+) -> None:
     await expertgranskning_broadcast.publish(
         row.job_id,
         {
             "type": "expertgranskning.result.updated",
             "job_id": row.job_id,
-            "result": serialize_result(row).model_dump(mode="json"),
+            "result": serialize_result(row, request=request).model_dump(mode="json"),
         },
     )
 

@@ -15,10 +15,13 @@ from app.services.expertgranskning.schemas import (
     WordHeadingAssessment,
     WordParagraphComment,
     WordParagraphComments,
+    WordRewriteSuggestion,
 )
+from app.services.expertgranskning.watch import reviewed_text_from_job_request
 from app.services.expertgranskning.word_review import (
     is_heading_1_to_3,
     paragraph_word_count,
+    rewrite_suggestion_or_none,
     should_review_paragraph,
     word_paragraph_review,
 )
@@ -67,12 +70,61 @@ async def test_word_paragraph_review_rejects_panel_session_dispatch():
         await word_paragraph_review(None, PanelSession(id="ps_word"), {})  # type: ignore[arg-type]
 
 
-def _first_slot_id(prompt: str) -> str:
+def _slot_ids(prompt: str) -> list[str]:
+    ids: list[str] = []
     for line in prompt.splitlines():
         stripped = line.strip()
         if stripped.startswith("- ") and " (" in stripped:
-            return stripped[2:].split(" (", 1)[0].strip()
-    raise AssertionError(f"No expert slot in prompt:\n{prompt}")
+            ids.append(stripped[2:].split(" (", 1)[0].strip())
+    if not ids:
+        raise AssertionError(f"No expert slot in prompt:\n{prompt}")
+    return ids
+
+
+def _first_slot_id(prompt: str) -> str:
+    return _slot_ids(prompt)[0]
+
+
+def test_rewrite_suggestion_or_none_requires_ny_text():
+    assert rewrite_suggestion_or_none(WordParagraphComments()) is None
+    assert (
+        rewrite_suggestion_or_none(
+            WordParagraphComments(
+                omskrivning_forslag=WordRewriteSuggestion(ny_text="  ", motivering="x")
+            )
+        )
+        is None
+    )
+    kept = rewrite_suggestion_or_none(
+        WordParagraphComments(
+            omskrivning_forslag=WordRewriteSuggestion(
+                ny_text=" Ny formulering. ",
+                motivering="Samma rättning.",
+            )
+        )
+    )
+    assert kept is not None
+    assert kept.ny_text == " Ny formulering. "
+
+
+def test_reviewed_text_from_job_request_walks_sections():
+    request = {
+        "sections": [
+            {
+                "heading": "Inledning",
+                "heading_paragraph_index": 0,
+                "paragraphs": [
+                    {"index": 1, "text": "Första stycket."},
+                    {"index": 4, "text": "Andra stycket."},
+                ],
+            }
+        ]
+    }
+    assert reviewed_text_from_job_request(request, 0) == "Inledning"
+    assert reviewed_text_from_job_request(request, 1) == "Första stycket."
+    assert reviewed_text_from_job_request(request, 4) == "Andra stycket."
+    assert reviewed_text_from_job_request(request, 9) is None
+    assert reviewed_text_from_job_request(None, 1) is None
 
 
 async def _create_expert_panel(client: AsyncClient) -> int:
@@ -733,5 +785,137 @@ async def test_word_job_rejects_second_active_job_for_same_doc(client: AsyncClie
         second = await client.post("/expertgranskning/word-jobs", json=payload)
         assert second.status_code == 409
         assert second.json()["detail"] == "word_review_already_running"
+    finally:
+        jobs_service.set_schedule_hook(None)
+
+
+def _one_body_paragraph_payload() -> dict:
+    return {
+        "sections": [
+            {
+                "heading": "Inledning",
+                "heading_paragraph_index": 0,
+                "paragraphs": [
+                    {
+                        "index": 1,
+                        "text": "Detta stycke är tillräckligt långt för granskning.",
+                        "style": "Normal",
+                    }
+                ],
+            }
+        ],
+    }
+
+
+@pytest.mark.asyncio
+async def test_word_review_split_opinions_do_not_write_rewrite(client: AsyncClient):
+    panel_id = await _create_expert_panel(client)
+
+    async def completer(messages, response_model):
+        if response_model is WordHeadingAssessment:
+            return WordHeadingAssessment(forslag=None)
+        ids = _slot_ids(messages[-1]["content"])
+        return WordParagraphComments(
+            comments=[
+                WordParagraphComment(
+                    expert_id=ids[0],
+                    expert_namn="ignored",
+                    kommentar="Skärp meningen om kostnad.",
+                ),
+                WordParagraphComment(
+                    expert_id=ids[1],
+                    expert_namn="ignored",
+                    kommentar="Behåll meningen, lägg till en fotnot.",
+                ),
+            ],
+            omskrivning_forslag=None,
+        )
+
+    set_structured_completer(completer)
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    try:
+        started = await client.post(
+            "/expertgranskning/word-jobs",
+            json={"panel_id": panel_id, **_one_body_paragraph_payload()},
+        )
+        assert started.status_code == 202, started.text
+        job_id = started.json()["job_id"]
+        await jobs_service._run_job(job_id)
+        listed = await client.get(f"/expertgranskning/word-jobs/{job_id}/results")
+        assert listed.status_code == 200
+        rows = listed.json()
+        assert [row["is_rewrite_suggestion"] for row in rows] == [False, False]
+        assert {row["kommentar"] for row in rows} == {
+            "Skärp meningen om kostnad.",
+            "Behåll meningen, lägg till en fotnot.",
+        }
+        assert all(row["foreslagen_text"] is None for row in rows)
+        assert all(
+            row["reviewed_text"] == "Detta stycke är tillräckligt långt för granskning."
+            for row in rows
+        )
+    finally:
+        jobs_service.set_schedule_hook(None)
+
+
+@pytest.mark.asyncio
+async def test_word_review_converging_opinions_write_rewrite_row(client: AsyncClient):
+    panel_id = await _create_expert_panel(client)
+    rewritten = "Detta stycke är tillräckligt långt och tydligt om kostnaden."
+
+    async def completer(messages, response_model):
+        if response_model is WordHeadingAssessment:
+            return WordHeadingAssessment(forslag=None)
+        ids = _slot_ids(messages[-1]["content"])
+        return WordParagraphComments(
+            comments=[
+                WordParagraphComment(
+                    expert_id=ids[0],
+                    expert_namn="ignored",
+                    kommentar="Säg 'tillräckligt långt och tydligt om kostnaden'.",
+                ),
+                WordParagraphComment(
+                    expert_id=ids[1],
+                    expert_namn="ignored",
+                    kommentar="Samma: skriv in kostnaden i meningen.",
+                ),
+            ],
+            omskrivning_forslag=WordRewriteSuggestion(
+                ny_text=rewritten,
+                motivering="Båda experterna vill samma konkreta formulering.",
+            ),
+        )
+
+    set_structured_completer(completer)
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    try:
+        started = await client.post(
+            "/expertgranskning/word-jobs",
+            json={"panel_id": panel_id, **_one_body_paragraph_payload()},
+        )
+        assert started.status_code == 202, started.text
+        job_id = started.json()["job_id"]
+        await jobs_service._run_job(job_id)
+        listed = await client.get(f"/expertgranskning/word-jobs/{job_id}/results")
+        assert listed.status_code == 200
+        rows = listed.json()
+        comments = [row for row in rows if not row["is_rewrite_suggestion"]]
+        rewrites = [row for row in rows if row["is_rewrite_suggestion"]]
+        assert len(comments) == 2
+        assert {row["kommentar"] for row in comments} == {
+            "Säg 'tillräckligt långt och tydligt om kostnaden'.",
+            "Samma: skriv in kostnaden i meningen.",
+        }
+        assert len(rewrites) == 1
+        rewrite = rewrites[0]
+        assert rewrite["foreslagen_text"] == rewritten
+        assert rewrite["kommentar"] == "Båda experterna vill samma konkreta formulering."
+        assert rewrite["expert_id"] == ""
+        assert rewrite["expert_namn"] == ""
+        assert rewrite["is_heading_suggestion"] is False
+        assert (
+            rewrite["reviewed_text"]
+            == "Detta stycke är tillräckligt långt för granskning."
+        )
     finally:
         jobs_service.set_schedule_hook(None)
