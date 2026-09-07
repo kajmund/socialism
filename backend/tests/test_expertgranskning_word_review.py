@@ -656,6 +656,12 @@ async def test_latest_word_job_returns_newest_for_doc_id(client: AsyncClient):
             },
         )
         assert first.status_code == 202, first.text
+        factory = jobs_service.job_session_factory()
+        async with factory() as session:
+            finished = await session.get(Job, first.json()["job_id"])
+            assert finished is not None
+            finished.status = "succeeded"
+            await session.commit()
         second = await client.post(
             "/expertgranskning/word-jobs",
             json={
@@ -708,5 +714,24 @@ async def test_latest_word_job_hides_foreign_customer(client: AsyncClient):
             headers={"Authorization": f"Bearer {bolag_token}"},
         )
         assert hidden.status_code == 404
+    finally:
+        jobs_service.set_schedule_hook(None)
+
+
+@pytest.mark.asyncio
+async def test_word_job_rejects_second_active_job_for_same_doc(client: AsyncClient):
+    panel_id = await _create_expert_panel(client)
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    payload = {
+        "panel_id": panel_id,
+        **_document_with_two_body_paragraphs(),
+        "doc_id": "doc-no-overlap",
+    }
+    try:
+        first = await client.post("/expertgranskning/word-jobs", json=payload)
+        assert first.status_code == 202, first.text
+        second = await client.post("/expertgranskning/word-jobs", json=payload)
+        assert second.status_code == 409
+        assert second.json()["detail"] == "word_review_already_running"
     finally:
         jobs_service.set_schedule_hook(None)
