@@ -162,14 +162,24 @@ async def run_word_paragraph_review(
                 text = comment.kommentar.strip()
                 if not text:
                     continue
+                slot = next(
+                    (
+                        row
+                        for row in slots
+                        if row.slot_id == comment.expert_id.strip()
+                    ),
+                    None,
+                )
+                if slot is None:
+                    continue
                 await _write_result(
                     session,
                     job_id=job.id,
                     customer_id=payload.customer_id,
                     section_index=section_index,
                     paragraph_index=paragraph.index,
-                    expert_id=comment.expert_id.strip(),
-                    expert_namn=comment.expert_namn.strip() or comment.expert_id.strip(),
+                    expert_id=slot.slot_id,
+                    expert_namn=slot.label,
                     kommentar=text,
                     is_heading_suggestion=False,
                 )
