@@ -6,6 +6,9 @@ export function shouldInsertComment(
 ): boolean {
   if (insertedIds.has(result.id)) return false
   if (result.comment_id) return false
+  if (result.is_rewrite_suggestion) {
+    return Boolean(result.foreslagen_text?.trim())
+  }
   return result.kommentar.trim().length > 0
 }
 

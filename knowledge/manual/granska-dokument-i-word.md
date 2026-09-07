@@ -16,7 +16,7 @@ Tillägget **Socialism expertgranskning** sitter i Word, inte i webbläsaren. De
 3. Välj en **expertpanel**. Listan visar bara panelerna för din kund.
 4. Klicka **Granska**. Tillägget läser dokumentets stycken och startar en granskning. Inget mer behöver fyllas i.
 
-Kommentarer från experterna dyker upp löpande i dokumentet. Panelen visar när jobbet är klart.
+Kommentarer från experterna dyker upp löpande i dokumentet. När flera experter är överens om en konkret ny formulering kan tillägget också föreslå en **omskrivning** som spårad ändring. Du måste själv **godkänna** eller **avvisa** den i Word. Panelen visar när jobbet är klart.
 
 ## Granska igen
 

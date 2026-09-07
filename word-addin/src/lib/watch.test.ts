@@ -31,6 +31,29 @@ describe("shouldInsertComment", () => {
       shouldInsertComment(new Set(), result({ comment_id: "c1", status: "posted" })),
     ).toBe(false)
   })
+
+  it("inserts rewrite rows when foreslagen_text is present", () => {
+    expect(
+      shouldInsertComment(
+        new Set(),
+        result({
+          is_rewrite_suggestion: true,
+          foreslagen_text: "Ny formulering.",
+          kommentar: "",
+          expert_namn: "",
+        }),
+      ),
+    ).toBe(true)
+  })
+
+  it("skips rewrite rows without foreslagen_text", () => {
+    expect(
+      shouldInsertComment(
+        new Set(),
+        result({ is_rewrite_suggestion: true, foreslagen_text: "  ", kommentar: "x" }),
+      ),
+    ).toBe(false)
+  })
 })
 
 describe("actionsForWatchEvent", () => {
