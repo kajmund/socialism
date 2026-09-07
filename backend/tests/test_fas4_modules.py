@@ -14,7 +14,7 @@ async def test_modules_api_lists_registry(client: AsyncClient):
     assert listed.status_code == 200
     body = listed.json()
     by_id = {row["id"]: row for row in body}
-    assert set(by_id) == {"dd", "politik", "expertgranskning"}
+    assert set(by_id) == {"dd", "politik", "expertgranskning", "rattsunderlag"}
     assert "campaigns" in by_id["dd"]["components"]
     assert "panel_engine" in by_id["dd"]["components"]
     assert by_id["dd"]["has_sub_questions"] is True
@@ -29,6 +29,10 @@ async def test_modules_api_lists_registry(client: AsyncClient):
     assert by_id["expertgranskning"]["report_modes"] == ["expertgranskning"]
     assert by_id["expertgranskning"]["has_prompt_defaults"] is True
     assert by_id["expertgranskning"]["supports_interview"] is False
+    assert by_id["rattsunderlag"]["components"] == []
+    assert by_id["rattsunderlag"]["report_modes"] == ["rattsunderlag"]
+    assert by_id["rattsunderlag"]["has_prompt_defaults"] is True
+    assert by_id["rattsunderlag"]["supports_interview"] is False
 
 
 @pytest.mark.asyncio

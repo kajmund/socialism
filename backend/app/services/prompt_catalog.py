@@ -1617,6 +1617,60 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "Do not say everyone scored every question."
         ),
     ),
+    _f(
+        "rattsunderlag.search_terms.system",
+        "report",
+        "Rättsunderlag — söktermer (system)",
+        "Legal brief — search terms (system)",
+        "Delar upp frågan i sökfrågor mot lagen.nu.",
+        "Splits the question into lagen.nu search queries.",
+        "Du planerar sökningar i svensk rättskälla. Hitta inte på lagrum eller målnummer. "
+        "Returnera 1–5 korta sökfrågor som kan användas mot lagtext och praxis. "
+        "Fråga: {fraga}",
+        "You plan searches in Swedish legal sources. Do not invent statutes or case cites. "
+        "Return 1–5 short queries for statute and case-law search. "
+        "Question: {fraga}",
+    ),
+    _f(
+        "rattsunderlag.search_terms.user",
+        "report",
+        "Rättsunderlag — söktermer (user)",
+        "Legal brief — search terms (user)",
+        "Användarprompt för söktermerna.",
+        "User prompt for search terms.",
+        "Dela in frågan i sökfrågor.\n\n{fraga}",
+        "Split the question into search queries.\n\n{fraga}",
+    ),
+    _f(
+        "rattsunderlag.sammanfattning.system",
+        "report",
+        "Rättsunderlag — bedömning (system)",
+        "Legal brief — assessment (system)",
+        "Skriver bedömningen. Får bara citera hämtade källor.",
+        "Writes the assessment. May cite retrieved sources only.",
+        "Du skriver ett kort juridiskt PM på svenska. Använd bara källorna nedan. "
+        "Hitta inte på lagrum, rättsfall eller förarbeten. "
+        "Efter varje mening som vilar på en källa, skriv [[ref:ID]] där ID är sfs_id "
+        "eller referens exakt som i listan. "
+        "Om en del av frågan saknar källa, säg det uttryckligen utan att gissa.\n\n"
+        "Fråga: {fraga}\n\nKällor:\n{kallor}",
+        "You write a short legal memorandum in English. Use only the sources below. "
+        "Do not invent statutes, cases, or travaux. "
+        "After every sentence that relies on a source, write [[ref:ID]] where ID is the "
+        "exact sfs_id or referens from the list. "
+        "If part of the question has no source, say so explicitly. Do not guess.\n\n"
+        "Question: {fraga}\n\nSources:\n{kallor}",
+    ),
+    _f(
+        "rattsunderlag.sammanfattning.user",
+        "report",
+        "Rättsunderlag — bedömning (user)",
+        "Legal brief — assessment (user)",
+        "Användarprompt för bedömningen.",
+        "User prompt for the assessment.",
+        "Skriv bedömningen utifrån källorna.\n\nFråga: {fraga}\n\nKällor:\n{kallor}",
+        "Write the assessment from the sources.\n\nQuestion: {fraga}\n\nSources:\n{kallor}",
+    ),
 ]
 
 PROMPT_KEYS: tuple[str, ...] = tuple(f["key"] for f in PROMPT_FIELDS)

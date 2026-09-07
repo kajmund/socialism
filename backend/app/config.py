@@ -52,6 +52,10 @@ class Settings(BaseSettings):
     bolagsapi_mcp_url: str = "https://mcp.bolagsapi.se/mcp"
     bolagsapi_cache_dir: str = "data/bolagsapi_cache"
 
+    # lagen-nu-mcp. Empty URL uses the mock corpus. Set URL to talk live (fail loud).
+    lagen_nu_mcp_url: str = ""
+    lagen_nu_mcp_key: str = ""
+
     # Supabase Auth — JWT verify + Admin invite (service_role never goes to the SPA).
     supabase_url: str = ""
     supabase_jwt_secret: str = ""

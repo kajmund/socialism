@@ -9,6 +9,13 @@ describe("buildSidebarNav", () => {
     expect(item?.to).toBe("/expertgranskning")
   })
 
+  it("includes rattsunderlag for admin even when no kund has it", () => {
+    const sections = buildSidebarNav({ moduleIds: ["politik"], showTools: true })
+    expect(sections.map((section) => section.id)).toContain("rattsunderlag")
+    const item = sections.find((section) => section.id === "rattsunderlag")?.items[0]
+    expect(item?.to).toBe("/rattsunderlag")
+  })
+
   it("does not inject expertgranskning for non-admin shells", () => {
     const sections = buildSidebarNav({ moduleIds: ["dd"], showTools: false })
     expect(sections.map((section) => section.id)).not.toContain("expertgranskning")

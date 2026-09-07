@@ -11,6 +11,7 @@ from app.api import (
     label_vocabularies,
     messages,
     playground,
+    rattsunderlag,
     runs,
 )
 from app.modules.manifest import ModuleManifest, SpindoctorBinding
@@ -24,10 +25,16 @@ from app.services.expertgranskning.spindoctor import (
     build_expertgranskning_spindoctor_context_from_source,
     load_expertgranskning_spindoctor_source,
 )
+from app.services.rattsunderlag.module_report import generate_rattsunderlag_module_report
+from app.services.rattsunderlag.spindoctor import (
+    build_rattsunderlag_spindoctor_context_from_source,
+    load_rattsunderlag_spindoctor_source,
+)
 from app.services.prompt_defaults import (
     dd_prompt_defaults,
     expertgranskning_prompt_defaults,
     politik_prompt_defaults,
+    rattsunderlag_prompt_defaults,
 )
 from app.services.report.politik_module_report import generate_politik_module_report
 from app.services.spindoctor_dd import (
@@ -110,6 +117,26 @@ MODULE_REGISTRY: dict[str, ModuleManifest] = {
         spindoctor=SpindoctorBinding(
             source_loader=load_expertgranskning_spindoctor_source,
             context_builder=build_expertgranskning_spindoctor_context_from_source,
+            supports_interview=False,
+        ),
+    ),
+    "rattsunderlag": ModuleManifest(
+        id="rattsunderlag",
+        name="Rättsunderlag",
+        icon="⚖️",
+        router=rattsunderlag.router,
+        prompt_namespace="rattsunderlag",
+        frontend_entry="modules/rattsunderlag",
+        components=frozenset(),
+        report_modes=frozenset({"rattsunderlag"}),
+        report=ReportBinding(
+            source_types=frozenset({"rattsunderlag"}),
+            generate=generate_rattsunderlag_module_report,
+        ),
+        prompt_defaults_provider=rattsunderlag_prompt_defaults,
+        spindoctor=SpindoctorBinding(
+            source_loader=load_rattsunderlag_spindoctor_source,
+            context_builder=build_rattsunderlag_spindoctor_context_from_source,
             supports_interview=False,
         ),
     ),

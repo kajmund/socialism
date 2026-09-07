@@ -18,7 +18,7 @@ export type ShellNavSection = {
   beforeShared?: boolean
 }
 
-const NAV_MODULE_ORDER = ["politik", "dd", "expertgranskning"] as const
+const NAV_MODULE_ORDER = ["politik", "dd", "expertgranskning", "rattsunderlag"] as const
 
 function sortManifestsForNav(manifests: ModuleManifest[]): ModuleManifest[] {
   return [...manifests].sort((a, b) => {
@@ -99,6 +99,9 @@ export function buildSidebarNav(opts: {
   const moduleIds = [...opts.moduleIds]
   if (opts.showTools && !moduleIds.includes("expertgranskning")) {
     moduleIds.push("expertgranskning")
+  }
+  if (opts.showTools && !moduleIds.includes("rattsunderlag")) {
+    moduleIds.push("rattsunderlag")
   }
   const moduleSections: ShellNavSection[] = []
   const beforeSharedSections: ShellNavSection[] = []

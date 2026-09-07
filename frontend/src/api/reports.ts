@@ -24,10 +24,20 @@ export type ExpertgranskningReportSource = {
   label?: string
 }
 
-export type ReportSource = OasisReportSource | DdReportSource | ExpertgranskningReportSource
+export type RattsunderlagReportSource = {
+  type: "rattsunderlag"
+  session_id: string
+  label?: string
+}
+
+export type ReportSource =
+  | OasisReportSource
+  | DdReportSource
+  | ExpertgranskningReportSource
+  | RattsunderlagReportSource
 
 /** Legacy rows may still be `"full"`; new OASIS reports are `"quick"`. */
-export type ReportMode = "full" | "quick" | "dd" | "expertgranskning"
+export type ReportMode = "full" | "quick" | "dd" | "expertgranskning" | "rattsunderlag"
 
 export type Report = {
   id: string

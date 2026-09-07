@@ -114,12 +114,14 @@ function safeUploadName(title: string): string {
 export function UnderlagPickerModal({
   open,
   module,
+  listAllModules = false,
   onOpenChange,
   onSelect,
   onDeleted,
 }: {
   open: boolean
   module: string
+  listAllModules?: boolean
   onOpenChange: (open: boolean) => void
   onSelect: (file: UnderlagFile) => void
   onDeleted?: (objectId: string) => void
@@ -272,7 +274,8 @@ export function UnderlagPickerModal({
     let cancelled = false
     setLoading(true)
     setError(null)
-    listUnderlag(module, folderId)
+    setPreview(null)
+    listUnderlag(listAllModules ? null : module, listAllModules ? null : folderId)
       .then((listed) => {
         if (!cancelled) setRows(listed.files)
       })
@@ -287,7 +290,7 @@ export function UnderlagPickerModal({
     return () => {
       cancelled = true
     }
-  }, [browsingUnderlag, folderId, module, open, t])
+  }, [browsingUnderlag, folderId, listAllModules, module, open, t])
 
   useEffect(() => {
     if (namingFolder) folderNameRef.current?.focus()

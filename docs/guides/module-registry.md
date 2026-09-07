@@ -14,6 +14,7 @@ id. Each `ModuleManifest` lists the modes it owns in `report_modes`:
 | politik           | `quick`, `full`    |
 | dd                | `dd`               |
 | expertgranskning  | `expertgranskning` |
+| rattsunderlag     | `rattsunderlag`    |
 
 `module_id_for_report_mode(mode)` returns the unique owner. Unknown or colliding
 modes raise — there is no fallback to `politik`.

@@ -471,6 +471,7 @@ function ExpertgranskningRunInner({ bolag }: { bolag: boolean }) {
                 </label>
                 <UnderlagPicker
                   module="expertgranskning"
+                  listAllModules
                   value={selectedUnderlag}
                   disabled={!canEdit}
                   onChange={(next) => {

@@ -29,10 +29,13 @@ export type UnderlagListing = {
   files: UnderlagFile[]
 }
 
-export function listUnderlag(module: string, folderId?: string | null): Promise<UnderlagListing> {
+export function listUnderlag(
+  module?: string | null,
+  folderId?: string | null,
+): Promise<UnderlagListing> {
   return api.get<UnderlagListing>("/underlag", {
-    module,
-    folder_id: folderId ?? undefined,
+    module: module ?? undefined,
+    folder_id: module ? (folderId ?? undefined) : undefined,
   })
 }
 
