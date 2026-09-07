@@ -34,7 +34,8 @@ socialism/
 ├── knowledge/          # OKF bundles (end-user manuals)
 │   └── manual/         # Swedish operator guides
 ├── backend/            # FastAPI service (see backend/AGENTS.md)
-└── frontend/           # React SPA (see frontend/AGENTS.md)
+├── frontend/           # React SPA (see frontend/AGENTS.md)
+└── word-addin/         # Word desktop task pane (expertgranskning)
 ```
 
 ## Documentation split

@@ -56,6 +56,31 @@ jobs:
       - name: Run vitest
         run: pnpm test
 
+  word-addin:
+    name: Word add-in tests
+    runs-on: ubuntu-latest
+    env:
+      VITE_API_BASE_URL: http://127.0.0.1:8000
+    defaults:
+      run:
+        working-directory: word-addin
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: word-addin/pnpm-lock.yaml
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Lint
+        run: pnpm lint
+      - name: Typecheck and test
+        run: pnpm test && pnpm exec tsc -b --pretty false
+
   knowledge:
     name: Knowledge validate
     runs-on: ubuntu-latest
@@ -70,14 +95,15 @@ jobs:
   ci:
     name: CI
     if: always()
-    needs: [backend, frontend, knowledge]
+    needs: [backend, frontend, word-addin, knowledge]
     runs-on: ubuntu-latest
     steps:
       - name: Require all jobs
         run: |
           if [ "${{ needs.backend.result }}" != "success" ] \
           || [ "${{ needs.frontend.result }}" != "success" ] \
+          || [ "${{ needs.word-addin.result }}" != "success" ] \
           || [ "${{ needs.knowledge.result }}" != "success" ]; then
-            echo "Required jobs: backend=${{ needs.backend.result }} frontend=${{ needs.frontend.result }} knowledge=${{ needs.knowledge.result }}"
+            echo "Required jobs: backend=${{ needs.backend.result }} frontend=${{ needs.frontend.result }} word-addin=${{ needs.word-addin.result }} knowledge=${{ needs.knowledge.result }}"
             exit 1
           fi

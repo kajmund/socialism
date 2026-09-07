@@ -11,6 +11,7 @@ This document describes the **current phase 1** system: FastAPI + React SPA + SQ
 ```mermaid
 flowchart LR
     user[Operator] --> browser[Browser<br/>React SPA]
+    word[Word desktop<br/>add-in] --> backend
 
     subgraph railway[Deploy target]
         frontend[Frontend service<br/>Vite static]
@@ -92,7 +93,8 @@ Registered in `backend/app/main.py`:
 | Catalog | `/catalog` | Editable grunddata lists |
 | Jobs | `/jobs` | Create/list/get background jobs |
 | Jobs WS | `WS /ws/jobs` | Snapshot + live `job.updated` fan-out (admin UI) |
-| Expertgranskning WS | `WS /ws/expertgranskning` | Word-review replay + `result.created` / `result.updated` / `finished` (add-in) |
+| Expertgranskning WS | `WS /ws/expertgranskning` | Word-review replay + `result.created` / `result.updated` / `finished` (`word-addin/`) |
+| Word add-in | `word-addin/` | Office task pane: panel dropdown, live comments, Granska igen |
 | Chat WS | `WS /ws/chat` | Streaming library / run-interview chat |
 | Reports | `/reports` | Queue report, list, get, `GET /reports/{id}/html` |
 | Playground | `/playground` | Admin calibration: default anchors, SSR rate/compare, prompt side-by-side, agent tools (web search / SymPy; no persistence) |

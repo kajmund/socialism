@@ -46,7 +46,7 @@ Server sends `expertgranskning.replay` immediately (`job_id`, `status`, `results
 | `expertgranskning.result.updated` | After PATCH `comment_id` (status `posted`) |
 | `expertgranskning.finished` | Job succeeded or failed (`status`, optional `error` / `stats`) |
 
-Implementation: `app/realtime/expertgranskning_broadcast.py`, `app/services/expertgranskning/watch.py`. Consumer is the Word add-in (not the admin SPA).
+Implementation: `app/realtime/expertgranskning_broadcast.py`, `app/services/expertgranskning/watch.py`. Consumer is `word-addin/` (not the admin SPA). Sideload and host limits: [guides/word-addin.md](guides/word-addin.md).
 
 ## generic_panel flow
 
