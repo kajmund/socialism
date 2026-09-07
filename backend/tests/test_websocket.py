@@ -20,15 +20,20 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 from starlette.testclient import TestClient
+from starlette.websockets import WebSocketDisconnect
 
 from app.config import settings
 from app.database.base import Base
-from app.database.models import UserAccount
+from app.database.models import ExpertgranskningResult, Job, UserAccount
 from app.database.session import get_session
 from app.llm import set_structured_completer, set_text_completer, set_text_streamer
 from app.main import create_app
 from app.schemas.domain import FollowUpQuestions
+from app.serializers import utcnow
+from app.realtime.expertgranskning_broadcast import expertgranskning_broadcast
 from app.services import jobs as jobs_service
+from app.services.expertgranskning import WORD_JOB_KIND
+from app.services.expertgranskning.watch import publish_result_created
 from app.services.kund_store import (
     BOLAG_DEMO_KUND_SLUG,
     bolag_demo_customer_id,
@@ -525,3 +530,263 @@ def test_chat_websocket_streams_tokens(ws_client):
             "Kan du ge ett exempel?",
             "Hur känner du inför det?",
         ]
+
+
+def _expertgranskning_hello(job_id: str) -> dict:
+    return {
+        "type": "hello",
+        "scope": "expertgranskning_watch",
+        "job_id": job_id,
+    }
+
+
+def test_expertgranskning_websocket_replay_live_push_and_patch(ws_client):
+    client, loop = ws_client
+
+    async def _seed() -> tuple[str, str]:
+        factory = jobs_service.job_session_factory()
+        async with factory() as session:
+            job = Job(
+                id="job-ws-egr-replay",
+                customer_id=1,
+                kind=WORD_JOB_KIND,
+                status="running",
+                label="Word WS replay",
+                request={"panel_id": 1},
+                created_at=utcnow(),
+                updated_at=utcnow(),
+            )
+            row = ExpertgranskningResult(
+                id="egr_ws_replay",
+                job_id=job.id,
+                customer_id=1,
+                section_index=0,
+                paragraph_index=1,
+                expert_id="slot_1",
+                expert_namn="Anna",
+                kommentar="Första live-raden.",
+                is_heading_suggestion=False,
+                comment_id=None,
+                status="pending",
+                created_at=utcnow(),
+            )
+            session.add_all([job, row])
+            await session.commit()
+            return job.id, row.id
+
+    job_id, result_id = loop.run_until_complete(_seed())
+    token = _admin_token()
+    with client.websocket_connect(f"/ws/expertgranskning?access_token={token}") as ws:
+        ws.send_json(_expertgranskning_hello(job_id))
+        replay = ws.receive_json()
+        assert replay["type"] == "expertgranskning.replay"
+        assert replay["job_id"] == job_id
+        assert replay["status"] == "running"
+        assert len(replay["results"]) == 1
+        assert replay["results"][0]["id"] == result_id
+        assert replay["results"][0]["kommentar"] == "Första live-raden."
+
+        async def _push_created() -> None:
+            factory = jobs_service.job_session_factory()
+            async with factory() as session:
+                created = ExpertgranskningResult(
+                    id="egr_ws_live",
+                    job_id=job_id,
+                    customer_id=1,
+                    section_index=0,
+                    paragraph_index=2,
+                    expert_id="slot_1",
+                    expert_namn="Anna",
+                    kommentar="Andra live-raden.",
+                    is_heading_suggestion=True,
+                    comment_id=None,
+                    status="pending",
+                    created_at=utcnow(),
+                )
+                session.add(created)
+                await session.commit()
+                await session.refresh(created)
+                await publish_result_created(created)
+
+        loop.run_until_complete(_push_created())
+        created_event = ws.receive_json()
+        assert created_event["type"] == "expertgranskning.result.created"
+        assert created_event["result"]["id"] == "egr_ws_live"
+        assert created_event["result"]["is_heading_suggestion"] is True
+
+        patched = client.patch(
+            f"/expertgranskning/word-jobs/{job_id}/results/{result_id}",
+            json={"comment_id": "word-cmt-1"},
+        )
+        assert patched.status_code == 200, patched.text
+        updated_event = ws.receive_json()
+        assert updated_event["type"] == "expertgranskning.result.updated"
+        assert updated_event["result"]["id"] == result_id
+        assert updated_event["result"]["comment_id"] == "word-cmt-1"
+        assert updated_event["result"]["status"] == "posted"
+
+
+def test_expertgranskning_websocket_subscribe_before_snapshot_keeps_race_write(
+    ws_client, monkeypatch
+):
+    """A write between subscribe and snapshot must land as created + replay."""
+    client, loop = ws_client
+
+    async def _seed() -> str:
+        factory = jobs_service.job_session_factory()
+        async with factory() as session:
+            job = Job(
+                id="job-ws-egr-race",
+                customer_id=1,
+                kind=WORD_JOB_KIND,
+                status="running",
+                label="Word WS race",
+                request={"panel_id": 1},
+                created_at=utcnow(),
+                updated_at=utcnow(),
+            )
+            session.add(job)
+            await session.commit()
+            return job.id
+
+    job_id = loop.run_until_complete(_seed())
+    real_subscribe = expertgranskning_broadcast.subscribe
+
+    async def _subscribe_then_write(subscribed_job_id: str, websocket) -> None:
+        await real_subscribe(subscribed_job_id, websocket)
+        factory = jobs_service.job_session_factory()
+        async with factory() as session:
+            created = ExpertgranskningResult(
+                id="egr_ws_race",
+                job_id=subscribed_job_id,
+                customer_id=1,
+                section_index=0,
+                paragraph_index=3,
+                expert_id="slot_1",
+                expert_namn="Anna",
+                kommentar="Skrivet mellan subscribe och snapshot.",
+                is_heading_suggestion=False,
+                comment_id=None,
+                status="pending",
+                created_at=utcnow(),
+            )
+            session.add(created)
+            await session.commit()
+            await session.refresh(created)
+            await publish_result_created(created)
+
+    monkeypatch.setattr(expertgranskning_broadcast, "subscribe", _subscribe_then_write)
+
+    token = _admin_token()
+    with client.websocket_connect(f"/ws/expertgranskning?access_token={token}") as ws:
+        ws.send_json(_expertgranskning_hello(job_id))
+        first = ws.receive_json()
+        second = ws.receive_json()
+
+    by_type = {event["type"]: event for event in (first, second)}
+    assert set(by_type) == {
+        "expertgranskning.result.created",
+        "expertgranskning.replay",
+    }
+    assert by_type["expertgranskning.result.created"]["result"]["id"] == "egr_ws_race"
+    replay_ids = [row["id"] for row in by_type["expertgranskning.replay"]["results"]]
+    assert replay_ids == ["egr_ws_race"]
+
+
+def test_expertgranskning_websocket_bolag_denied_foreign_job(ws_client):
+    client, loop = ws_client
+
+    async def _seed() -> str:
+        factory = jobs_service.job_session_factory()
+        async with factory() as session:
+            job = Job(
+                id="job-ws-egr-os",
+                customer_id=1,
+                kind=WORD_JOB_KIND,
+                status="pending",
+                label="OS word job",
+                request={"panel_id": 1},
+                created_at=utcnow(),
+                updated_at=utcnow(),
+            )
+            session.add(job)
+            await session.commit()
+            return job.id
+
+    job_id = loop.run_until_complete(_seed())
+    bolag_token = _bolag_token()
+    with pytest.raises(WebSocketDisconnect) as exc:
+        with client.websocket_connect(
+            f"/ws/expertgranskning?access_token={bolag_token}"
+        ) as ws:
+            ws.send_json(_expertgranskning_hello(job_id))
+            ws.receive_json()
+    assert exc.value.code == 4403
+
+
+def test_expertgranskning_websocket_bolag_can_watch_own_job(ws_client):
+    client, loop = ws_client
+    bolag_id = _bolag_customer_id(client)
+
+    async def _seed() -> str:
+        factory = jobs_service.job_session_factory()
+        async with factory() as session:
+            job = Job(
+                id="job-ws-egr-bolag",
+                customer_id=bolag_id,
+                kind=WORD_JOB_KIND,
+                status="pending",
+                label="Bolag word job",
+                request={"panel_id": 1},
+                created_at=utcnow(),
+                updated_at=utcnow(),
+            )
+            session.add(job)
+            await session.commit()
+            return job.id
+
+    job_id = loop.run_until_complete(_seed())
+    bolag_token = _bolag_token()
+    with client.websocket_connect(
+        f"/ws/expertgranskning?access_token={bolag_token}"
+    ) as ws:
+        ws.send_json(_expertgranskning_hello(job_id))
+        replay = ws.receive_json()
+        assert replay["type"] == "expertgranskning.replay"
+        assert replay["job_id"] == job_id
+        assert replay["results"] == []
+
+
+def test_expertgranskning_websocket_unknown_or_wrong_kind_closes(ws_client):
+    client, loop = ws_client
+
+    async def _seed_other_kind() -> str:
+        factory = jobs_service.job_session_factory()
+        async with factory() as session:
+            job = Job(
+                id="job-ws-egr-wrong-kind",
+                customer_id=1,
+                kind="panel_session_run",
+                status="pending",
+                label="Not a word job",
+                request={"session_id": "panel_x"},
+                created_at=utcnow(),
+                updated_at=utcnow(),
+            )
+            session.add(job)
+            await session.commit()
+            return job.id
+
+    other_id = loop.run_until_complete(_seed_other_kind())
+    token = _admin_token()
+    for job_id in ("job-does-not-exist", other_id):
+        with client.websocket_connect(
+            f"/ws/expertgranskning?access_token={token}"
+        ) as ws:
+            ws.send_json(_expertgranskning_hello(job_id))
+            error = ws.receive_json()
+            assert error["type"] == "error"
+            assert error["detail"] == "Word review job not found"
+            with pytest.raises(WebSocketDisconnect) as exc:
+                ws.receive_json()
+            assert exc.value.code == 1003

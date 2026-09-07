@@ -14,6 +14,7 @@ from sqlalchemy.orm import selectinload
 from app.auth.scope import assert_kund_access, effective_customer_id
 from app.auth.tokens import user_from_bearer_token
 from app.database.models import (
+    Job,
     PanelSession,
     Persona,
     Population,
@@ -23,10 +24,16 @@ from app.database.models import (
     Run,
     UserAccount,
 )
+from app.realtime.expertgranskning_broadcast import expertgranskning_broadcast
 from app.realtime.hub import job_hub, report_hub
 from app.realtime.interview_broadcast import interview_broadcast, interview_key_tuple
 from app.realtime.panel_broadcast import panel_broadcast
 from app.realtime.run_broadcast import run_broadcast
+from app.services.expertgranskning import WORD_JOB_KIND
+from app.services.expertgranskning.watch import (
+    build_expertgranskning_replay_payload,
+    load_expertgranskning_results,
+)
 from app.schemas.domain import (
     ChatMode,
     HelpChatResponse,
@@ -104,6 +111,12 @@ class PanelWatchHello(BaseModel):
     type: Literal["hello"] = "hello"
     scope: Literal["panel_watch"]
     session_id: str = Field(min_length=1)
+
+
+class ExpertgranskningWatchHello(BaseModel):
+    type: Literal["hello"] = "hello"
+    scope: Literal["expertgranskning_watch"]
+    job_id: str = Field(min_length=1)
 
 
 class JobsWatchHello(BaseModel):
@@ -408,6 +421,64 @@ async def panels_websocket(websocket: WebSocket) -> None:
             pass
     finally:
         await panel_broadcast.unsubscribe(websocket)
+
+
+@router.websocket("/ws/expertgranskning")
+async def expertgranskning_websocket(websocket: WebSocket) -> None:
+    await websocket.accept()
+    user = await _authenticate_websocket(websocket)
+    if user is None:
+        return
+    hello: ExpertgranskningWatchHello | None = None
+    try:
+        raw = await websocket.receive_json()
+        if not isinstance(raw, dict):
+            await _send_error(websocket, "Expected JSON object")
+            await websocket.close(code=1003)
+            return
+        try:
+            hello = ExpertgranskningWatchHello.model_validate(raw)
+        except ValidationError as exc:
+            await _send_error(websocket, str(exc.errors()[0]["msg"]))
+            await websocket.close(code=1003)
+            return
+
+        factory = jobs_service.job_session_factory()
+        async with factory() as session:
+            job = await session.get(Job, hello.job_id)
+            if job is None or job.kind != WORD_JOB_KIND:
+                await _send_error(websocket, "Word review job not found")
+                await websocket.close(code=1003)
+                return
+            try:
+                assert_kund_access(user, job.customer_id)
+            except HTTPException as exc:
+                await _close_auth_error(websocket, exc)
+                return
+
+        # Subscribe before the snapshot so a result published in that window
+        # is delivered (possibly also in replay) instead of dropped.
+        await expertgranskning_broadcast.subscribe(hello.job_id, websocket)
+        async with factory() as session:
+            job = await session.get(Job, hello.job_id)
+            assert job is not None
+            results = await load_expertgranskning_results(session, job.id)
+            replay = build_expertgranskning_replay_payload(job, results)
+        await websocket.send_json(replay)
+
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        logger.exception("Expertgranskning watch WebSocket failed")
+        try:
+            await _send_error(websocket, "WebSocket error")
+            await websocket.close(code=1011)
+        except Exception:
+            pass
+    finally:
+        await expertgranskning_broadcast.unsubscribe(websocket)
 
 
 @router.websocket("/ws/chat")

@@ -38,6 +38,7 @@ from app.services.dd.research import DdResearchError, run_dd_research
 from app.services.dd.schemas import DdCandidateCompany, DdResearchDossier, DdResearchJobRequest
 from app.services.expertgranskning import WORD_JOB_KIND
 from app.services.expertgranskning.schemas import ExpertgranskningWordJobRequest
+from app.services.expertgranskning.watch import publish_expertgranskning_finished
 from app.services.expertgranskning.word_review import run_word_paragraph_review_for_job
 from app.services.rattsunderlag.run_job import run_rattsunderlag_research_job
 from app.services.rattsunderlag.schemas import RattsunderlagResearchJobRequest
@@ -309,6 +310,10 @@ async def _fail(session: AsyncSession, job_id: str, message: str) -> None:
     await session.commit()
     await session.refresh(job)
     await publish_job(job)
+    if job.kind == WORD_JOB_KIND:
+        await publish_expertgranskning_finished(
+            job_id, status="failed", error=job.error
+        )
 
 
 async def _succeed(session: AsyncSession, job_id: str, result: dict) -> None:

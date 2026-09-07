@@ -21,6 +21,10 @@ from app.services.expertgranskning.schemas import (
     WordHeadingAssessment,
     WordParagraphComments,
 )
+from app.services.expertgranskning.watch import (
+    publish_expertgranskning_finished,
+    publish_result_created,
+)
 from app.services.panel.expert_slots import load_expert_slots_from_population
 from app.services.panel.schemas import PanelExpertSlot
 from app.services.prompt_catalog import render_prompt
@@ -93,6 +97,7 @@ async def _write_result(
     session.add(row)
     await session.commit()
     await session.refresh(row)
+    await publish_result_created(row)
     return row
 
 
@@ -247,3 +252,4 @@ async def run_word_paragraph_review_for_job(job_id: str) -> None:
                 **stats,
             },
         )
+        await publish_expertgranskning_finished(job_id, status="succeeded", stats=stats)
