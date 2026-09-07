@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
@@ -14,6 +14,7 @@ from app.services import jobs as jobs_service
 from app.services.customer_scope import customer_id_for_panel_session
 from app.services.expertgranskning import WORD_JOB_KIND
 from app.services.expertgranskning.schemas import (
+    ExpertgranskningLatestWordJobOut,
     ExpertgranskningResultOut,
     ExpertgranskningResultPatch,
     ExpertgranskningSessionCreate,
@@ -34,6 +35,7 @@ from app.services.expertgranskning.sessions import (
     update_expertgranskning_session,
 )
 from app.services.expertgranskning.watch import (
+    find_latest_word_job_for_doc,
     load_expertgranskning_results,
     publish_result_updated,
     serialize_result,
@@ -233,6 +235,28 @@ async def post_expertgranskning_word_job(
     )
     jobs_service.enqueue_job(job.id)
     return {"job_id": job.id}
+
+
+@router.get("/word-jobs/latest", response_model=ExpertgranskningLatestWordJobOut)
+async def get_latest_expertgranskning_word_job(
+    doc_id: str = Query(min_length=1, max_length=128),
+    session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
+) -> ExpertgranskningLatestWordJobOut:
+    job = await find_latest_word_job_for_doc(
+        session,
+        doc_id=doc_id.strip(),
+        customer_id=None if user.role == "admin" else user.kund_id,
+    )
+    if job is None:
+        raise HTTPException(status_code=404, detail="Word review job not found")
+    assert_kund_access(user, job.customer_id)
+    rows = await load_expertgranskning_results(session, job.id)
+    return ExpertgranskningLatestWordJobOut(
+        job_id=job.id,
+        status=job.status,
+        results=[serialize_result(row) for row in rows],
+    )
 
 
 @router.get("/word-jobs/{job_id}/results", response_model=list[ExpertgranskningResultOut])

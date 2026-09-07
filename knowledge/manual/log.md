@@ -1,5 +1,9 @@
 # Manual update log
 
+## 2026-09-07
+
+* **Expertgranskning i Word**: Nytt tillägg i Word på datorn. Du väljer en expertpanel, klickar **Granska** och ser kommentarer dyka upp i dokumentet. **Granska** igen löser förra körningens kommentarer och startar en ny.
+
 ## 2026-09-06
 
 * **Rättsunderlag**: Ny yta i vänstermenyn. Du ställer en rättsfråga och får ett juridiskt PM med lagtext, praxis och förarbeten. Resultatet sparas som personligt underlag och syns i **Välj underlag** i Expertgranskning.

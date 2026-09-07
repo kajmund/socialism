@@ -8,6 +8,7 @@ GitHub Actions runs the test suite on every pull request, on every push to `main
 | --- | --- | --- |
 | Backend tests | `cd backend && uv sync --frozen && uv run pytest` | In-memory SQLite. Smoke tests (`-m smoke`) stay opt-in and are not run. |
 | Frontend tests | `pnpm install --frozen-lockfile`, then `pnpm lint`, `pnpm test` | oxlint + existing vitest files. |
+| Word add-in tests | `cd word-addin && pnpm install --frozen-lockfile`, then lint + vitest + `tsc -b` | No Word host; section/dedupe unit tests only. |
 | Knowledge validate | `make knowledge-validate` | OKF manuals must stay valid. |
 | **CI** | Aggregates the jobs above | This is the required status check. It fails if any job failed or was skipped. |
 

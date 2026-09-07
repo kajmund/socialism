@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import ExpertgranskningResult, Job
+from app.services.expertgranskning import WORD_JOB_KIND
 from app.realtime.expertgranskning_broadcast import expertgranskning_broadcast
 from app.services.expertgranskning.schemas import ExpertgranskningResultOut
 
@@ -48,6 +49,29 @@ def build_expertgranskning_replay_payload(
         "status": job.status,
         "results": [serialize_result(row).model_dump(mode="json") for row in results],
     }
+
+
+async def find_latest_word_job_for_doc(
+    session: AsyncSession,
+    *,
+    doc_id: str,
+    customer_id: int | None,
+) -> Job | None:
+    stmt = (
+        select(Job)
+        .where(
+            Job.kind == WORD_JOB_KIND,
+            Job.archived_at.is_(None),
+        )
+        .order_by(Job.created_at.desc(), Job.updated_at.desc())
+    )
+    if customer_id is not None:
+        stmt = stmt.where(Job.customer_id == customer_id)
+    jobs = list((await session.execute(stmt)).scalars().all())
+    return next(
+        (job for job in jobs if (job.request or {}).get("doc_id") == doc_id),
+        None,
+    )
 
 
 async def load_expertgranskning_results(
