@@ -86,6 +86,9 @@ export function UnderlagPicker({
         listAllModules={listAllModules}
         onOpenChange={setOpen}
         onSelect={(file) => onChange(toSelection(file))}
+        onDeleted={(objectId) => {
+          if (value?.objectId === objectId) onChange(null)
+        }}
       />
     </div>
   )
