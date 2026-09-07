@@ -2,6 +2,7 @@
 
 ## 2026-09-07
 
+* **Manual**: Nya guider för plattform och läge på körning, panelkatalog för Expertgranskning och expertgranskning i bolagsytan. **Bakgrundsjobb** nämner även Due Diligence-sourcing och Rättsunderlag.
 * **Expertgranskning i Word**: När flera experter är överens om samma formulering kan tillägget föreslå en omskrivning som spårad ändring. Du godkänner eller avvisar den i Word, precis som andra ändringar.
 * **Expertgranskning i Word**: Nytt tillägg i Word på datorn. Du väljer en expertpanel, klickar **Granska** och ser kommentarer dyka upp i dokumentet. **Granska** igen löser förra körningens kommentarer och startar en ny. Om du stänger panelen mitt i en körning och öppnar den igen fortsätter samma jobb.
 
