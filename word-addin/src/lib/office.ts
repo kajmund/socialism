@@ -88,6 +88,72 @@ export async function readDocumentParagraphs(): Promise<WordParagraph[]> {
   })
 }
 
+export function normalizeParagraphText(text: string): string {
+  return text.replace(/\r/g, "").trim()
+}
+
+export function paragraphTextMatchesReviewed(
+  current: string,
+  reviewed: string | null | undefined,
+): boolean {
+  if (reviewed == null || !reviewed.trim()) return false
+  return normalizeParagraphText(current) === normalizeParagraphText(reviewed)
+}
+
+function changeTrackingSupported(): boolean {
+  return typeof Word !== "undefined" && typeof Word.ChangeTrackingMode !== "undefined"
+}
+
+export async function applyRewriteSuggestion(args: {
+  paragraphIndex: number
+  foreslagenText: string
+  motivering: string
+  reviewedText: string | null | undefined
+  fallbackComment: string
+}): Promise<string> {
+  if (typeof Word === "undefined") {
+    throw new Error("Word API is not available")
+  }
+  return Word.run(async (context) => {
+    const paragraphs = context.document.body.paragraphs
+    paragraphs.load("items")
+    const canTrack = changeTrackingSupported()
+    if (canTrack) {
+      context.document.load("changeTrackingMode")
+    }
+    await context.sync()
+
+    const paragraph = paragraphs.items[args.paragraphIndex]
+    if (!paragraph) {
+      throw new Error(`Paragraph ${args.paragraphIndex} not found`)
+    }
+    paragraph.load("text")
+    await context.sync()
+
+    const matches = paragraphTextMatchesReviewed(paragraph.text, args.reviewedText)
+    if (!matches || !canTrack) {
+      const comment = paragraph.getRange().insertComment(args.fallbackComment)
+      comment.load("id")
+      await context.sync()
+      return comment.id
+    }
+
+    const previousMode = context.document.changeTrackingMode
+    try {
+      context.document.changeTrackingMode = Word.ChangeTrackingMode.trackAll
+      paragraph.getRange().insertText(args.foreslagenText, Word.InsertLocation.replace)
+      await context.sync()
+      const comment = paragraph.getRange().insertComment(args.motivering)
+      comment.load("id")
+      await context.sync()
+      return comment.id
+    } finally {
+      context.document.changeTrackingMode = previousMode
+      await context.sync()
+    }
+  })
+}
+
 export async function insertCommentAt(
   paragraphIndex: number,
   text: string,
