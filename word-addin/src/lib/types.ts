@@ -25,6 +25,9 @@ export type ReviewResult = {
   expert_namn: string
   kommentar: string
   is_heading_suggestion: boolean
+  is_rewrite_suggestion?: boolean
+  foreslagen_text?: string | null
+  reviewed_text?: string | null
   comment_id: string | null
   status: string
 }

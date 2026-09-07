@@ -9,6 +9,7 @@ import {
 } from "@/lib/api"
 import { ApiError } from "@/lib/http"
 import {
+  applyRewriteSuggestion,
   commentsApiSupported,
   getOrCreateDocId,
   getRoamingToken,
@@ -145,10 +146,15 @@ export function App() {
 
   async function insertOne(jobId: string, result: ReviewResult) {
     insertedIds.current.add(result.id)
-    const commentId = await insertCommentAt(
-      result.paragraph_index,
-      formatCommentBody(result),
-    )
+    const commentId = result.is_rewrite_suggestion
+      ? await applyRewriteSuggestion({
+          paragraphIndex: result.paragraph_index,
+          foreslagenText: (result.foreslagen_text ?? "").trim(),
+          motivering: formatCommentBody(result) || t("rewritePrefix"),
+          reviewedText: result.reviewed_text,
+          fallbackComment: `${t("rewritePrefix")} ${(result.foreslagen_text ?? "").trim()}`.trim(),
+        })
+      : await insertCommentAt(result.paragraph_index, formatCommentBody(result))
     await patchResultCommentId(token, jobId, result.id, commentId)
     setInsertedCount((count) => count + 1)
   }
