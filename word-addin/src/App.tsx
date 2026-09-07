@@ -7,16 +7,19 @@ import {
   listExpertPanels,
   patchResultCommentId,
 } from "@/lib/api"
+import { ApiError } from "@/lib/http"
 import {
   commentsApiSupported,
   getOrCreateDocId,
   getRoamingToken,
+  getStoredDocId,
   insertCommentAt,
   officeReady,
   readDocumentParagraphs,
   resolveComment,
   saveRoamingToken,
 } from "@/lib/office"
+import { planReviewStart } from "@/lib/resume"
 import { buildSections } from "@/lib/sections"
 import { connectExpertgranskningWatch } from "@/lib/socket"
 import type { ExpertPanelSummary, ReviewResult } from "@/lib/types"
@@ -31,12 +34,41 @@ export function App() {
   const [panels, setPanels] = useState<ExpertPanelSummary[]>([])
   const [panelId, setPanelId] = useState("")
   const [phase, setPhase] = useState<Phase>("idle")
+  const [watchSource, setWatchSource] = useState<"new" | "resume">("new")
   const [error, setError] = useState("")
   const [insertedCount, setInsertedCount] = useState(0)
   const [inWord, setInWord] = useState(false)
   const insertedIds = useRef(new Set<string>())
   const socketRef = useRef<{ close: () => void } | null>(null)
+  const watchJobId = useRef<string | null>(null)
   const applyQueue = useRef(Promise.resolve())
+
+  function attachWatch(jobId: string, source: "new" | "resume") {
+    if (watchJobId.current === jobId && socketRef.current) {
+      setPhase("running")
+      setWatchSource(source)
+      return
+    }
+    socketRef.current?.close()
+    socketRef.current = null
+    watchJobId.current = jobId
+    insertedIds.current = new Set()
+    setInsertedCount(0)
+    setWatchSource(source)
+    setPhase("running")
+    socketRef.current = connectExpertgranskningWatch({
+      token,
+      jobId,
+      onMessage(data) {
+        applyQueue.current = applyQueue.current
+          .then(() => applyWatchPayload(jobId, data))
+          .catch((err: unknown) => {
+            setPhase("failed")
+            setError(err instanceof Error ? err.message : String(err))
+          })
+      },
+    })
+  }
 
   useEffect(() => {
     void officeReady().then(() => {
@@ -78,6 +110,27 @@ export function App() {
       cancelled = true
     }
   }, [token])
+
+  useEffect(() => {
+    if (!token || !inWord || !commentsApiSupported()) return
+    const docId = getStoredDocId().trim()
+    if (!docId) return
+    let cancelled = false
+    void getLatestWordJob(token, docId)
+      .then((latest) => {
+        const plan = planReviewStart(latest)
+        if (cancelled || plan.action !== "resume") return
+        attachWatch(plan.jobId, "resume")
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : String(err))
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [token, inWord])
 
   async function handleSaveToken(event: FormEvent) {
     event.preventDefault()
@@ -127,6 +180,7 @@ export function App() {
           }
           socketRef.current?.close()
           socketRef.current = null
+          watchJobId.current = null
           break
         default: {
           const _exhaustive: never = action
@@ -148,23 +202,27 @@ export function App() {
     }
     if (!token || !panelId) return
 
-    socketRef.current?.close()
-    socketRef.current = null
-    insertedIds.current = new Set()
-    setInsertedCount(0)
-    setPhase("running")
-
     try {
       const docId = await getOrCreateDocId()
-      const previous = await getLatestWordJob(token, docId)
-      if (previous) {
-        for (const row of previous.results) {
-          if (!row.comment_id) continue
-          try {
-            await resolveComment(row.comment_id)
-          } catch {
-            // Already resolved or missing in this document.
-          }
+      const latest = await getLatestWordJob(token, docId)
+      const plan = planReviewStart(latest)
+      switch (plan.action) {
+        case "resume":
+          attachWatch(plan.jobId, "resume")
+          return
+        case "startNew":
+          break
+        default: {
+          const _exhaustive: never = plan
+          return _exhaustive
+        }
+      }
+
+      for (const commentId of plan.resolveCommentIds) {
+        try {
+          await resolveComment(commentId)
+        } catch {
+          // Already resolved or missing in this document.
         }
       }
 
@@ -181,25 +239,25 @@ export function App() {
         return
       }
 
-      const jobId = await createWordJob(token, {
-        panel_id: Number(panelId),
-        doc_id: docId,
-        sections,
-        locale: locale === "en" ? "en" : "sv",
-      })
-
-      socketRef.current = connectExpertgranskningWatch({
-        token,
-        jobId,
-        onMessage(data) {
-          applyQueue.current = applyQueue.current
-            .then(() => applyWatchPayload(jobId, data))
-            .catch((err: unknown) => {
-              setPhase("failed")
-              setError(err instanceof Error ? err.message : String(err))
-            })
-        },
-      })
+      try {
+        const jobId = await createWordJob(token, {
+          panel_id: Number(panelId),
+          doc_id: docId,
+          sections,
+          locale: locale === "en" ? "en" : "sv",
+        })
+        attachWatch(jobId, "new")
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 409) {
+          const again = await getLatestWordJob(token, docId)
+          const retry = planReviewStart(again)
+          if (retry.action === "resume") {
+            attachWatch(retry.jobId, "resume")
+            return
+          }
+        }
+        throw err
+      }
     } catch (err) {
       setPhase("failed")
       setError(err instanceof Error ? err.message : String(err))
@@ -207,6 +265,7 @@ export function App() {
   }
 
   const canReview = Boolean(token && panelId) && phase !== "running"
+  const runningStatus = watchSource === "resume" ? t("statusResume") : t("statusLive")
 
   return (
     <div className="pane">
@@ -268,7 +327,7 @@ export function App() {
 
       <p className="status" data-phase={phase}>
         {phase === "idle" ? t("statusIdle") : null}
-        {phase === "running" ? t("statusLive") : null}
+        {phase === "running" ? runningStatus : null}
         {phase === "done" ? t("statusDone") : null}
         {phase === "failed" ? t("statusFailed", { error }) : null}
       </p>

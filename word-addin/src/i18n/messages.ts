@@ -17,6 +17,7 @@ export const messages = {
     statusIdle: "Välj en panel och klicka Granska.",
     statusConnecting: "Startar granskning…",
     statusLive: "Kommentarer kommer in i dokumentet.",
+    statusResume: "Återanslöt till pågående granskning. Kommentarer kommer in i dokumentet.",
     statusDone: "Granskningen är klar.",
     statusFailed: "Granskningen misslyckades: {error}",
     commentsUnsupported:
@@ -41,6 +42,7 @@ export const messages = {
     statusIdle: "Choose a panel and click Review.",
     statusConnecting: "Starting review…",
     statusLive: "Comments are appearing in the document.",
+    statusResume: "Reconnected to the running review. Comments are appearing in the document.",
     statusDone: "The review is finished.",
     statusFailed: "The review failed: {error}",
     commentsUnsupported:
