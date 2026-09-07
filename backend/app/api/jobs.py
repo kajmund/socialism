@@ -11,6 +11,7 @@ from app.database.models import UserAccount
 from app.database.session import get_session
 from app.schemas.domain import JobArchiveUpdate, JobCreate, JobOut, JobStatus
 from app.services import jobs as jobs_service
+from app.services.customer_scope import customer_id_for_new_job
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -23,10 +24,14 @@ async def create_job(
     user: UserAccount = Depends(get_current_user),
 ) -> JobOut:
     try:
+        customer_id = await customer_id_for_new_job(session, body)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    assert_kund_access(user, customer_id)
+    try:
         job = await jobs_service.create_job(session, body)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    assert_kund_access(user, job.customer_id)
     jobs_service.enqueue_job(job.id)
     response.status_code = 202
     return jobs_service.serialize_job(job)
