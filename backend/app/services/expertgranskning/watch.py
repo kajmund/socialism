@@ -27,19 +27,21 @@ def reviewed_text_from_job_request(
 ) -> str | None:
     if not request:
         return None
+    heading_hit: str | None = None
     for section in request.get("sections") or []:
         if not isinstance(section, dict):
             continue
-        if section.get("heading_paragraph_index") == paragraph_index:
-            heading = section.get("heading")
-            return heading if isinstance(heading, str) else None
         for paragraph in section.get("paragraphs") or []:
             if not isinstance(paragraph, dict):
                 continue
             if paragraph.get("index") == paragraph_index:
                 text = paragraph.get("text")
                 return text if isinstance(text, str) else None
-    return None
+        if section.get("heading_paragraph_index") == paragraph_index:
+            heading = section.get("heading")
+            if isinstance(heading, str):
+                heading_hit = heading
+    return heading_hit
 
 
 def serialize_result(

@@ -105,6 +105,18 @@ def test_rewrite_suggestion_or_none_requires_ny_text():
     )
     assert kept is not None
     assert kept.ny_text == " Ny formulering. "
+    assert (
+        rewrite_suggestion_or_none(
+            WordParagraphComments(
+                omskrivning_forslag=WordRewriteSuggestion(
+                    ny_text="Första raden.\nAndra raden.",
+                    motivering="Flerradig.",
+                )
+            )
+        )
+        is None
+    )
+    assert WordRewriteSuggestion(ny_text="Ett stycke.\r\nNästa stycke.").ny_text == ""
 
 
 def test_reviewed_text_from_job_request_walks_sections():
@@ -125,6 +137,16 @@ def test_reviewed_text_from_job_request_walks_sections():
     assert reviewed_text_from_job_request(request, 4) == "Andra stycket."
     assert reviewed_text_from_job_request(request, 9) is None
     assert reviewed_text_from_job_request(None, 1) is None
+    implicit = {
+        "sections": [
+            {
+                "heading": "",
+                "heading_paragraph_index": 0,
+                "paragraphs": [{"index": 0, "text": "Ingress utan rubrik."}],
+            }
+        ]
+    }
+    assert reviewed_text_from_job_request(implicit, 0) == "Ingress utan rubrik."
 
 
 async def _create_expert_panel(client: AsyncClient) -> int:

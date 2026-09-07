@@ -168,6 +168,14 @@ class WordRewriteSuggestion(BaseModel):
     ny_text: str = ""
     motivering: str = ""
 
+    @field_validator("ny_text")
+    @classmethod
+    def single_paragraph(cls, value: object) -> str:
+        text = "" if value is None else str(value)
+        if "\n" in text.replace("\r\n", "\n").replace("\r", "\n"):
+            return ""
+        return text
+
 
 class WordParagraphComments(BaseModel):
     comments: list[WordParagraphComment] = Field(default_factory=list)
