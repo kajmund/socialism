@@ -76,7 +76,7 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 # Expertgranskning
 
 * [Använda expertgranskning](anvanda-expertgranskning.md) — Ladda upp eller klistra in text, välj panel och kör en granskning
-* [Granska ett dokument i Word](granska-dokument-i-word.md) — Välj panel i Word-tillägget och få kommentarer i dokumentet
+* [Granska ett dokument i Word](granska-dokument-i-word.md) — Välj panel i Word-tillägget och få kommentarer och föreslagna omskrivningar i dokumentet
 
 # Rättsunderlag
 
