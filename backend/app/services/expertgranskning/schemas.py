@@ -2,9 +2,18 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.schemas.domain import ConfigurationLanguage
 from app.services.panel.schemas import PanelSessionStatus
+
+WORD_MAX_SECTIONS = 200
+WORD_MAX_PARAGRAPHS_PER_SECTION = 200
+WORD_MAX_PARAGRAPHS = 400
+WORD_MAX_HEADING_LEN = 4_000
+WORD_MAX_STYLE_LEN = 128
+WORD_MAX_PARAGRAPH_LEN = 20_000
+WORD_MAX_DOCUMENT_CHARS = 200_000
 
 
 class ExpertgranskningSessionCreate(BaseModel):
@@ -69,8 +78,8 @@ class WordDocumentParagraph(BaseModel):
     """Raw Word paragraph. Server owns the skip filter."""
 
     index: int
-    text: str
-    style: str = ""
+    text: str = Field(max_length=WORD_MAX_PARAGRAPH_LEN)
+    style: str = Field(default="", max_length=WORD_MAX_STYLE_LEN)
 
     @field_validator("text", "style", mode="before")
     @classmethod
@@ -81,10 +90,13 @@ class WordDocumentParagraph(BaseModel):
 
 
 class WordDocumentSection(BaseModel):
-    heading: str = ""
-    heading_style: str = ""
+    heading: str = Field(default="", max_length=WORD_MAX_HEADING_LEN)
+    heading_style: str = Field(default="", max_length=WORD_MAX_STYLE_LEN)
     heading_paragraph_index: int
-    paragraphs: list[WordDocumentParagraph] = Field(default_factory=list)
+    paragraphs: list[WordDocumentParagraph] = Field(
+        default_factory=list,
+        max_length=WORD_MAX_PARAGRAPHS_PER_SECTION,
+    )
 
     @field_validator("heading", "heading_style", mode="before")
     @classmethod
@@ -94,11 +106,27 @@ class WordDocumentSection(BaseModel):
         return str(value)
 
 
+def _bound_word_sections(sections: list[WordDocumentSection]) -> None:
+    total_paragraphs = sum(len(section.paragraphs) for section in sections)
+    if total_paragraphs > WORD_MAX_PARAGRAPHS:
+        raise ValueError(
+            f"Document has {total_paragraphs} paragraphs; max is {WORD_MAX_PARAGRAPHS}"
+        )
+    total_chars = sum(
+        len(section.heading) + sum(len(paragraph.text) for paragraph in section.paragraphs)
+        for section in sections
+    )
+    if total_chars > WORD_MAX_DOCUMENT_CHARS:
+        raise ValueError(
+            f"Document has {total_chars} characters; max is {WORD_MAX_DOCUMENT_CHARS}"
+        )
+
+
 class ExpertgranskningWordJobCreate(BaseModel):
     panel_id: int
-    doc_id: str | None = None
-    sections: list[WordDocumentSection] = Field(min_length=1)
-    locale: str = "sv"
+    doc_id: str | None = Field(default=None, max_length=128)
+    sections: list[WordDocumentSection] = Field(min_length=1, max_length=WORD_MAX_SECTIONS)
+    locale: ConfigurationLanguage = "sv"
 
     @field_validator("doc_id", mode="before")
     @classmethod
@@ -108,6 +136,11 @@ class ExpertgranskningWordJobCreate(BaseModel):
         text = str(value).strip()
         return text or None
 
+    @model_validator(mode="after")
+    def bound_document(self) -> ExpertgranskningWordJobCreate:
+        _bound_word_sections(self.sections)
+        return self
+
 
 class ExpertgranskningWordJobRequest(BaseModel):
     """Payload stored on an expertgranskning_word_review job."""
@@ -115,9 +148,14 @@ class ExpertgranskningWordJobRequest(BaseModel):
     panel_id: int
     customer_id: int
     owner_user_id: str
-    doc_id: str | None = None
-    sections: list[WordDocumentSection]
-    locale: str = "sv"
+    doc_id: str | None = Field(default=None, max_length=128)
+    sections: list[WordDocumentSection] = Field(min_length=1, max_length=WORD_MAX_SECTIONS)
+    locale: ConfigurationLanguage = "sv"
+
+    @model_validator(mode="after")
+    def bound_document(self) -> ExpertgranskningWordJobRequest:
+        _bound_word_sections(self.sections)
+        return self
 
 
 class WordParagraphComment(BaseModel):

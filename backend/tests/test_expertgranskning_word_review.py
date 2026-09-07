@@ -11,6 +11,7 @@ from app.llm import set_structured_completer
 from app.services import jobs as jobs_service
 from app.services.expertgranskning import WORD_JOB_KIND, WORD_REVIEW_METHOD
 from app.services.expertgranskning.schemas import (
+    WORD_MAX_PARAGRAPHS,
     WordHeadingAssessment,
     WordParagraphComment,
     WordParagraphComments,
@@ -23,7 +24,7 @@ from app.services.expertgranskning.word_review import (
 )
 from app.services.kund_store import BOLAG_DEMO_KUND_SLUG
 from app.services.panel.methods import DELIBERATION_METHODS
-from tests.conftest import BOLAG_USER_ID, mint_access_token
+from tests.conftest import BOLAG_USER_ID, TEST_CUSTOMER_ID, USER_USER_ID, mint_access_token
 
 
 def test_filter_skips_short_and_heading_styles():
@@ -64,6 +65,14 @@ def test_word_paragraph_review_is_registered_and_not_a_panel_session_method():
 async def test_word_paragraph_review_rejects_panel_session_dispatch():
     with pytest.raises(ValueError, match="expertgranskning_word_review"):
         await word_paragraph_review(None, PanelSession(id="ps_word"), {})  # type: ignore[arg-type]
+
+
+def _first_slot_id(prompt: str) -> str:
+    for line in prompt.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("- ") and " (" in stripped:
+            return stripped[2:].split(" (", 1)[0].strip()
+    raise AssertionError(f"No expert slot in prompt:\n{prompt}")
 
 
 async def _create_expert_panel(client: AsyncClient) -> int:
@@ -168,12 +177,13 @@ async def test_word_review_is_sequential_and_commits_before_next_call(client_db)
             )
         user = messages[-1]["content"]
         if response_model is WordParagraphComments:
+            slot_id = _first_slot_id(user)
             if "Första stycket" in user:
                 return WordParagraphComments(
                     comments=[
                         WordParagraphComment(
-                            expert_id="jurist",
-                            expert_namn="Juristen",
+                            expert_id=slot_id,
+                            expert_namn="ignored",
                             kommentar="Första stycket behöver skärpas.",
                         )
                     ]
@@ -182,8 +192,8 @@ async def test_word_review_is_sequential_and_commits_before_next_call(client_db)
                 return WordParagraphComments(
                     comments=[
                         WordParagraphComment(
-                            expert_id="ekonom",
-                            expert_namn="Ekonomen",
+                            expert_id=slot_id,
+                            expert_namn="ignored",
                             kommentar="Andra stycket är otydligt om kostnad.",
                         )
                     ]
@@ -268,8 +278,8 @@ async def test_word_review_heading_once_per_section_after_last_paragraph(client_
         return WordParagraphComments(
             comments=[
                 WordParagraphComment(
-                    expert_id="jurist",
-                    expert_namn="Juristen",
+                    expert_id=_first_slot_id(messages[-1]["content"]),
+                    expert_namn="ignored",
                     kommentar="En kommentar.",
                 )
             ]
@@ -319,14 +329,14 @@ async def test_word_review_heading_once_per_section_after_last_paragraph(client_
 async def test_word_result_patch_writes_comment_id(client: AsyncClient):
     panel_id = await _create_expert_panel(client)
 
-    async def completer(_messages, response_model):
+    async def completer(messages, response_model):
         if response_model is WordHeadingAssessment:
             return WordHeadingAssessment(forslag=None)
         return WordParagraphComments(
             comments=[
                 WordParagraphComment(
-                    expert_id="jurist",
-                    expert_namn="Juristen",
+                    expert_id=_first_slot_id(messages[-1]["content"]),
+                    expert_namn="ignored",
                     kommentar="En kommentar att fästa.",
                 )
             ]
@@ -412,3 +422,173 @@ async def test_word_job_rejects_foreign_panel(client: AsyncClient, user_token: s
         },
     )
     assert denied.status_code == 403
+
+
+def test_word_job_rejects_unsupported_locale_and_oversized_document():
+    from pydantic import ValidationError
+
+    from app.services.expertgranskning.schemas import (
+        WORD_MAX_PARAGRAPH_LEN,
+        ExpertgranskningWordJobCreate,
+    )
+
+    section = {
+        "heading": "X",
+        "heading_paragraph_index": 0,
+        "paragraphs": [
+            {
+                "index": 1,
+                "text": "Detta stycke är tillräckligt långt för granskning.",
+                "style": "Normal",
+            }
+        ],
+    }
+    with pytest.raises(ValidationError):
+        ExpertgranskningWordJobCreate(panel_id=1, locale="en-US", sections=[section])
+    with pytest.raises(ValidationError):
+        ExpertgranskningWordJobCreate(
+            panel_id=1,
+            sections=[
+                {
+                    "heading": "X",
+                    "heading_paragraph_index": 0,
+                    "paragraphs": [
+                        {
+                            "index": i,
+                            "text": "Detta stycke är tillräckligt långt för granskning.",
+                            "style": "Normal",
+                        }
+                        for i in range(WORD_MAX_PARAGRAPHS + 1)
+                    ],
+                }
+            ],
+        )
+    with pytest.raises(ValidationError):
+        ExpertgranskningWordJobCreate(
+            panel_id=1,
+            sections=[
+                {
+                    "heading": "X",
+                    "heading_paragraph_index": 0,
+                    "paragraphs": [
+                        {
+                            "index": 1,
+                            "text": "x" * (WORD_MAX_PARAGRAPH_LEN + 1),
+                            "style": "Normal",
+                        }
+                    ],
+                }
+            ],
+        )
+
+
+@pytest.mark.asyncio
+async def test_word_review_drops_unknown_expert_ids(client: AsyncClient):
+    panel_id = await _create_expert_panel(client)
+    kept_names: list[str] = []
+
+    async def completer(messages, response_model):
+        if response_model is WordHeadingAssessment:
+            return WordHeadingAssessment(forslag=None)
+        slot_id = _first_slot_id(messages[-1]["content"])
+        return WordParagraphComments(
+            comments=[
+                WordParagraphComment(
+                    expert_id="not-in-panel",
+                    expert_namn="Påhittad expert",
+                    kommentar="Ska inte sparas.",
+                ),
+                WordParagraphComment(
+                    expert_id=slot_id,
+                    expert_namn="Fel namn från modellen",
+                    kommentar="Riktig panelkommentar.",
+                ),
+            ]
+        )
+
+    set_structured_completer(completer)
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    try:
+        started = await client.post(
+            "/expertgranskning/word-jobs",
+            json={
+                "panel_id": panel_id,
+                "sections": [
+                    {
+                        "heading": "X",
+                        "heading_paragraph_index": 0,
+                        "paragraphs": [
+                            {
+                                "index": 1,
+                                "text": "Detta stycke är tillräckligt långt för granskning.",
+                                "style": "Normal",
+                            }
+                        ],
+                    }
+                ],
+            },
+        )
+        assert started.status_code == 202, started.text
+        await jobs_service._run_job(started.json()["job_id"])
+        listed = await client.get(
+            f"/expertgranskning/word-jobs/{started.json()['job_id']}/results"
+        )
+        assert listed.status_code == 200
+        rows = listed.json()
+        assert len(rows) == 1
+        assert rows[0]["kommentar"] == "Riktig panelkommentar."
+        assert rows[0]["expert_id"] != "not-in-panel"
+        assert rows[0]["expert_namn"] != "Fel namn från modellen"
+        kept_names.append(rows[0]["expert_namn"])
+        assert kept_names[0]
+    finally:
+        jobs_service.set_schedule_hook(None)
+
+
+@pytest.mark.asyncio
+async def test_generic_jobs_path_rejects_foreign_panel(
+    client: AsyncClient, user_token: str
+):
+    listed = await client.get("/kunder")
+    bolag_id = next(row["id"] for row in listed.json() if row["slug"] == BOLAG_DEMO_KUND_SLUG)
+    experts = await client.get("/personas", params={"kind": "expert", "customer_id": bolag_id})
+    expert_ids = [row["id"] for row in experts.json()[:1]]
+    bolag_token = mint_access_token(sub=BOLAG_USER_ID, email="bolag@test.local")
+    bolag_created = await client.post(
+        "/populations",
+        headers={"Authorization": f"Bearer {bolag_token}"},
+        json={
+            "kind": "expert_panel",
+            "name": "Bolag panel for generic jobs",
+            "include_persona_ids": expert_ids,
+            "recipe": {"size": 1, "dist": {}},
+        },
+    )
+    assert bolag_created.status_code == 201, bolag_created.text
+    stolen = await client.post(
+        "/jobs",
+        headers={"Authorization": f"Bearer {user_token}"},
+        json={
+            "kind": WORD_JOB_KIND,
+            "request": {
+                "panel_id": bolag_created.json()["id"],
+                "customer_id": TEST_CUSTOMER_ID,
+                "owner_user_id": USER_USER_ID,
+                "sections": [
+                    {
+                        "heading": "X",
+                        "heading_paragraph_index": 0,
+                        "paragraphs": [
+                            {
+                                "index": 1,
+                                "text": "Detta stycke är tillräckligt långt för granskning.",
+                                "style": "Normal",
+                            }
+                        ],
+                    }
+                ],
+            },
+        },
+    )
+    assert stolen.status_code == 422
+    assert "panel_id" in stolen.text

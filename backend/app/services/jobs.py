@@ -8,6 +8,7 @@ import secrets
 from collections.abc import Callable
 from datetime import UTC, datetime
 
+from pydantic import ValidationError
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -49,6 +50,7 @@ from app.services.oasis_run import (
     previous_attempts,
     simulate_run,
 )
+from app.services.panel.expert_slots import require_expert_panel
 from app.services.panel.methods import PROTOCOL_METHODS, deliberation_method
 from app.services.panel.schemas import PanelSessionConfig, PanelSessionRunJobRequest
 from app.services.panel.watch import publish_panel_finished
@@ -179,7 +181,16 @@ async def create_job(session: AsyncSession, body: JobCreate) -> Job:
         payload = RattsunderlagResearchJobRequest.model_validate(body.request)
         label = (body.label or "").strip() or f"Rättsunderlag: {payload.fraga[:80]}"
     elif body.kind == WORD_JOB_KIND:
-        payload = ExpertgranskningWordJobRequest.model_validate(body.request)
+        try:
+            payload = ExpertgranskningWordJobRequest.model_validate(body.request)
+        except ValidationError as exc:
+            raise ValueError(str(exc)) from exc
+        try:
+            panel = await require_expert_panel(session, payload.panel_id)
+        except LookupError as exc:
+            raise ValueError(str(exc)) from exc
+        if panel.customer_id != payload.customer_id:
+            raise ValueError("panel_id does not belong to this customer")
         label = (body.label or "").strip() or (
             f"Word-granskning: {payload.doc_id}" if payload.doc_id else "Word-granskning"
         )
