@@ -964,6 +964,7 @@ export const sv = {
       dd_sourcing_run: "Due Diligence-sourcing",
       dd_research: "Due Diligence-research",
       rattsunderlag_research: "Rättsunderlag",
+      expertgranskning_word_review: "Word-granskning",
     },
     progress: {
       queued: "I kö…",

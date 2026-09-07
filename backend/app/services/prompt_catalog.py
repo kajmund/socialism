@@ -1671,6 +1671,64 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         "Skriv bedömningen utifrån källorna.\n\nFråga: {fraga}\n\nKällor:\n{kallor}",
         "Write the assessment from the sources.\n\nQuestion: {fraga}\n\nSources:\n{kallor}",
     ),
+    _f(
+        "expertgranskning.word.paragraph",
+        "panel",
+        "Word — styckesgranskning",
+        "Word — paragraph review",
+        "Platshållare: {expert_list}, {section_heading}, {paragraph_text}, {style}.",
+        "Placeholders: {expert_list}, {section_heading}, {paragraph_text}, {style}.",
+        (
+            "Du modererar en expertpanel som granskar ett Word-dokument stycke för stycke. "
+            "Ingen poängsättning. Skriv bara kommentarer som en expert faktiskt skulle fästa "
+            "vid stycket. Hoppa över experter som inte har något att tillföra.\n\n"
+            "Experter:\n{expert_list}\n\n"
+            "Avsnitt: {section_heading}\n"
+            "Word-stil: {style}\n\n"
+            "Stycke:\n{paragraph_text}\n\n"
+            "Returnera en lista comments med expert_id, expert_namn och kommentar. "
+            "Listan får vara tom."
+        ),
+        (
+            "You moderate an expert panel reviewing a Word document paragraph by paragraph. "
+            "No scoring. Only write comments an expert would actually attach to the paragraph. "
+            "Skip experts who have nothing to add.\n\n"
+            "Experts:\n{expert_list}\n\n"
+            "Section: {section_heading}\n"
+            "Word style: {style}\n\n"
+            "Paragraph:\n{paragraph_text}\n\n"
+            "Return a comments list with expert_id, expert_namn, and kommentar. "
+            "The list may be empty."
+        ),
+    ),
+    _f(
+        "expertgranskning.word.heading",
+        "panel",
+        "Word — rubrikbedömning",
+        "Word — heading assessment",
+        "Platshållare: {expert_list}, {heading}, {section_text}.",
+        "Placeholders: {expert_list}, {heading}, {section_text}.",
+        (
+            "Du bedömer om avsnittsrubriken stämmer med innehållet. "
+            "Föreslå en bättre rubrik bara om den nuvarande är otydlig, vilseledande "
+            "eller för svag. Annars lämna förslaget tomt.\n\n"
+            "Experter:\n{expert_list}\n\n"
+            "Nuvarande rubrik: {heading}\n\n"
+            "Avsnittets text (alla stycken, även de som inte granskats var för sig):\n"
+            "{section_text}\n\n"
+            "Returnera forslag: en rubriksträng eller tomt."
+        ),
+        (
+            "Assess whether the section heading matches the content. "
+            "Suggest a better heading only if the current one is unclear, misleading, "
+            "or too weak. Otherwise leave the suggestion empty.\n\n"
+            "Experts:\n{expert_list}\n\n"
+            "Current heading: {heading}\n\n"
+            "Section text (all paragraphs, including those not reviewed individually):\n"
+            "{section_text}\n\n"
+            "Return forslag: a heading string or empty."
+        ),
+    ),
 ]
 
 PROMPT_KEYS: tuple[str, ...] = tuple(f["key"] for f in PROMPT_FIELDS)

@@ -965,6 +965,7 @@ export const en: LocalizedTree<SvMessages> = {
       dd_sourcing_run: "Due Diligence sourcing",
       dd_research: "Due Diligence research",
       rattsunderlag_research: "Legal brief",
+      expertgranskning_word_review: "Word review",
     },
     progress: {
       queued: "Queued…",
