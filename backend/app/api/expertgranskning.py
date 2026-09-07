@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-
 from fastapi import APIRouter, Depends, HTTPException, Response
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
@@ -35,6 +32,11 @@ from app.services.expertgranskning.sessions import (
     prepare_session_for_run,
     resolve_customer_id,
     update_expertgranskning_session,
+)
+from app.services.expertgranskning.watch import (
+    load_expertgranskning_results,
+    publish_result_updated,
+    serialize_result,
 )
 from app.services.panel.expert_slots import require_expert_panel
 from app.services.panel.sessions import get_panel_session
@@ -180,31 +182,6 @@ async def post_expertgranskning_session_run(
     return {"job_id": job.id, "session_id": session_id}
 
 
-def _result_created_at(value: datetime | None) -> str:
-    if value is None:
-        return ""
-    if value.tzinfo is None:
-        value = value.replace(tzinfo=UTC)
-    return value.isoformat()
-
-
-def _serialize_result(row: ExpertgranskningResult) -> ExpertgranskningResultOut:
-    return ExpertgranskningResultOut(
-        id=row.id,
-        job_id=row.job_id,
-        customer_id=row.customer_id,
-        section_index=row.section_index,
-        paragraph_index=row.paragraph_index,
-        expert_id=row.expert_id,
-        expert_namn=row.expert_namn,
-        kommentar=row.kommentar,
-        is_heading_suggestion=row.is_heading_suggestion,
-        comment_id=row.comment_id,
-        status=row.status,
-        created_at=_result_created_at(row.created_at),
-    )
-
-
 async def _require_word_job(
     session: AsyncSession,
     user: UserAccount,
@@ -265,16 +242,8 @@ async def get_expertgranskning_word_job_results(
     user: UserAccount = Depends(get_current_user),
 ) -> list[ExpertgranskningResultOut]:
     await _require_word_job(session, user, job_id)
-    result = await session.execute(
-        select(ExpertgranskningResult)
-        .where(ExpertgranskningResult.job_id == job_id)
-        .order_by(
-            ExpertgranskningResult.section_index,
-            ExpertgranskningResult.paragraph_index,
-            ExpertgranskningResult.created_at,
-        )
-    )
-    return [_serialize_result(row) for row in result.scalars().all()]
+    rows = await load_expertgranskning_results(session, job_id)
+    return [serialize_result(row) for row in rows]
 
 
 @router.patch(
@@ -296,4 +265,5 @@ async def patch_expertgranskning_word_result(
     row.status = "posted"
     await session.commit()
     await session.refresh(row)
-    return _serialize_result(row)
+    await publish_result_updated(row)
+    return serialize_result(row)

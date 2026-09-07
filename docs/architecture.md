@@ -92,6 +92,7 @@ Registered in `backend/app/main.py`:
 | Catalog | `/catalog` | Editable grunddata lists |
 | Jobs | `/jobs` | Create/list/get background jobs |
 | Jobs WS | `WS /ws/jobs` | Snapshot + live `job.updated` fan-out (admin UI) |
+| Expertgranskning WS | `WS /ws/expertgranskning` | Word-review replay + `result.created` / `result.updated` / `finished` (add-in) |
 | Chat WS | `WS /ws/chat` | Streaming library / run-interview chat |
 | Reports | `/reports` | Queue report, list, get, `GET /reports/{id}/html` |
 | Playground | `/playground` | Admin calibration: default anchors, SSR rate/compare, prompt side-by-side, agent tools (web search / SymPy; no persistence) |
