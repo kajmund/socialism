@@ -424,6 +424,54 @@ async def test_word_job_rejects_foreign_panel(client: AsyncClient, user_token: s
     assert denied.status_code == 403
 
 
+@pytest.mark.asyncio
+async def test_admin_word_job_uses_panel_customer(client: AsyncClient):
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    listed = await client.get("/kunder")
+    bolag_id = next(row["id"] for row in listed.json() if row["slug"] == BOLAG_DEMO_KUND_SLUG)
+    experts = await client.get("/personas", params={"kind": "expert", "customer_id": bolag_id})
+    expert_ids = [row["id"] for row in experts.json()[:1]]
+    bolag_token = mint_access_token(sub=BOLAG_USER_ID, email="bolag@test.local")
+    bolag_created = await client.post(
+        "/populations",
+        headers={"Authorization": f"Bearer {bolag_token}"},
+        json={
+            "kind": "expert_panel",
+            "name": "Admin cross-tenant word panel",
+            "include_persona_ids": expert_ids,
+            "recipe": {"size": 1, "dist": {}},
+        },
+    )
+    assert bolag_created.status_code == 201, bolag_created.text
+    try:
+        started = await client.post(
+            "/expertgranskning/word-jobs",
+            json={
+                "panel_id": bolag_created.json()["id"],
+                "sections": [
+                    {
+                        "heading": "X",
+                        "heading_paragraph_index": 0,
+                        "paragraphs": [
+                            {
+                                "index": 1,
+                                "text": "Detta stycke är tillräckligt långt för granskning.",
+                                "style": "Normal",
+                            }
+                        ],
+                    }
+                ],
+            },
+        )
+        assert started.status_code == 202, started.text
+        job = await client.get(f"/jobs/{started.json()['job_id']}")
+        assert job.status_code == 200
+        assert job.json()["customer_id"] == bolag_id
+        assert job.json()["status"] == "pending"
+    finally:
+        jobs_service.set_schedule_hook(None)
+
+
 def test_word_job_rejects_unsupported_locale_and_oversized_document():
     from pydantic import ValidationError
 

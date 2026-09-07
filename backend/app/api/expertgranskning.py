@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
-from app.auth.scope import assert_kund_access, customer_id_for_user, effective_customer_id
+from app.auth.scope import assert_kund_access, effective_customer_id
 from app.database.models import ExpertgranskningResult, Job, Population, UserAccount
 from app.database.session import get_session
 from app.schemas.domain import JobCreate
@@ -229,7 +229,6 @@ async def post_expertgranskning_word_job(
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> dict[str, str]:
-    customer_id = await customer_id_for_user(session, user)
     try:
         panel = await require_expert_panel(session, body.panel_id)
     except LookupError as exc:
@@ -241,7 +240,7 @@ async def post_expertgranskning_word_job(
 
     request = ExpertgranskningWordJobRequest(
         panel_id=body.panel_id,
-        customer_id=customer_id,
+        customer_id=panel.customer_id,
         owner_user_id=user.id,
         doc_id=body.doc_id,
         sections=body.sections,
