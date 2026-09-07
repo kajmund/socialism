@@ -1,4 +1,4 @@
-.PHONY: help backend frontend start install test test-backend test-frontend knowledge-validate
+.PHONY: help backend frontend word-addin start install test test-backend test-frontend test-word-addin knowledge-validate
 
 # Pinned OKF CLI (validate + future MCP). Not a runtime app dependency.
 OKF_MCP_PKG := @mfdaves/okf-mcp@0.3.3
@@ -8,10 +8,12 @@ help:
 	@echo "  make start               Start backend + frontend together"
 	@echo "  make backend             Start FastAPI (uvicorn --reload) on :8000"
 	@echo "  make frontend            Start Vite dev server on :5173"
-	@echo "  make install             Install backend + frontend deps"
-	@echo "  make test                Backend pytest + frontend lint/vitest"
+	@echo "  make word-addin          Start Word add-in Vite server on :3000"
+	@echo "  make install             Install backend + frontend + word-addin deps"
+	@echo "  make test                Backend pytest + frontend and word-addin lint/vitest"
 	@echo "  make test-backend        Backend pytest (excludes smoke)"
 	@echo "  make test-frontend       Frontend oxlint + vitest"
+	@echo "  make test-word-addin     Word add-in oxlint + vitest"
 	@echo "  make knowledge-validate  Validate OKF manual bundle"
 	@echo "  make knowledge-mcp       Run OKF MCP server (stdio)"
 
@@ -23,6 +25,9 @@ backend:
 
 frontend:
 	cd frontend && pnpm dev
+
+word-addin:
+	cd word-addin && pnpm dev
 
 start:
 	@bash -eu -c '\
@@ -51,8 +56,9 @@ start:
 install:
 	cd backend && uv sync $(BACKEND_UV_EXTRA)
 	cd frontend && pnpm install
+	cd word-addin && pnpm install
 
-test: test-backend test-frontend
+test: test-backend test-frontend test-word-addin
 
 test-backend:
 	cd backend && uv run $(BACKEND_UV_EXTRA) pytest
@@ -60,6 +66,10 @@ test-backend:
 test-frontend:
 	cd frontend && pnpm lint
 	cd frontend && pnpm test
+
+test-word-addin:
+	cd word-addin && pnpm lint
+	cd word-addin && pnpm test
 
 knowledge-validate:
 	npx -y $(OKF_MCP_PKG) --project ./okf.project.yaml validate
