@@ -1154,6 +1154,13 @@ class ExpertgranskningResult(Base):
         default=False,
         server_default="0",
     )
+    is_rewrite_suggestion: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="0",
+    )
+    foreslagen_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     comment_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
     created_at: Mapped[datetime] = mapped_column(

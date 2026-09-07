@@ -164,8 +164,21 @@ class WordParagraphComment(BaseModel):
     kommentar: str
 
 
+class WordRewriteSuggestion(BaseModel):
+    ny_text: str = ""
+    motivering: str = ""
+
+
 class WordParagraphComments(BaseModel):
     comments: list[WordParagraphComment] = Field(default_factory=list)
+    omskrivning_forslag: WordRewriteSuggestion | None = Field(
+        default=None,
+        description=(
+            "Set only when expert comments converge on the same concrete wording "
+            "fix. Null on disagreement, partial overlap, or a single wording "
+            "opinion. Never invent a compromise rewrite."
+        ),
+    )
 
 
 class WordHeadingAssessment(BaseModel):
@@ -194,6 +207,9 @@ class ExpertgranskningResultOut(BaseModel):
     expert_namn: str
     kommentar: str
     is_heading_suggestion: bool
+    is_rewrite_suggestion: bool = False
+    foreslagen_text: str | None = None
+    reviewed_text: str | None = None
     comment_id: str | None
     status: str
     created_at: str

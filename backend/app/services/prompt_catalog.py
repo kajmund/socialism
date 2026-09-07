@@ -1687,7 +1687,11 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "Word-stil: {style}\n\n"
             "Stycke:\n{paragraph_text}\n\n"
             "Returnera en lista comments med expert_id, expert_namn och kommentar. "
-            "Listan får vara tom."
+            "Listan får vara tom.\n\n"
+            "Sätt omskrivning_forslag till {{ny_text, motivering}} bara när experterna "
+            "konvergerar på samma konkreta formulering. Lämna fältet tomt (null) vid "
+            "oenighet, delvis överlapp eller om bara en expert bryr sig om ordalydelsen "
+            "och inte innehållet. Hitta aldrig på en kompromissomskrivning."
         ),
         (
             "You moderate an expert panel reviewing a Word document paragraph by paragraph. "
@@ -1698,7 +1702,11 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "Word style: {style}\n\n"
             "Paragraph:\n{paragraph_text}\n\n"
             "Return a comments list with expert_id, expert_namn, and kommentar. "
-            "The list may be empty."
+            "The list may be empty.\n\n"
+            "Set omskrivning_forslag to {{ny_text, motivering}} only when the experts "
+            "converge on the same concrete wording. Leave it null on disagreement, "
+            "partial overlap, or when only one expert cares about wording rather than "
+            "content. Never invent a compromise rewrite."
         ),
     ),
     _f(
