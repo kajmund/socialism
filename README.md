@@ -36,7 +36,8 @@ socialism/
 ├── docs/              # developer brief, setup guides, architecture
 ├── knowledge/manual/  # OKF end-user guides (Swedish UI)
 ├── backend/           # FastAPI admin API
-└── frontend/          # React SPA
+├── frontend/          # React SPA
+└── word-addin/        # Word desktop task pane
 ```
 
 ## Prerequisites
@@ -72,7 +73,7 @@ make start
 
 Open [http://localhost:5173/login](http://localhost:5173/login) (`admin`/`admin` or `user`/`user`). API docs: [http://localhost:8000/docs](http://localhost:8000/docs).
 
-Or start services separately: `make backend` / `make frontend`.
+Or start services separately: `make backend` / `make frontend` / `make word-addin`. Word add-in sideload: [docs/guides/word-addin.md](docs/guides/word-addin.md).
 
 ## Frontend
 

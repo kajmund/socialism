@@ -640,3 +640,73 @@ async def test_generic_jobs_path_rejects_foreign_panel(
     )
     assert stolen.status_code == 422
     assert "panel_id" in stolen.text
+
+
+@pytest.mark.asyncio
+async def test_latest_word_job_returns_newest_for_doc_id(client: AsyncClient):
+    panel_id = await _create_expert_panel(client)
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    try:
+        first = await client.post(
+            "/expertgranskning/word-jobs",
+            json={
+                "panel_id": panel_id,
+                **_document_with_two_body_paragraphs(),
+                "doc_id": "doc-history-1",
+            },
+        )
+        assert first.status_code == 202, first.text
+        second = await client.post(
+            "/expertgranskning/word-jobs",
+            json={
+                "panel_id": panel_id,
+                **_document_with_two_body_paragraphs(),
+                "doc_id": "doc-history-1",
+            },
+        )
+        assert second.status_code == 202, second.text
+        latest = await client.get(
+            "/expertgranskning/word-jobs/latest",
+            params={"doc_id": "doc-history-1"},
+        )
+        assert latest.status_code == 200, latest.text
+        body = latest.json()
+        assert body["job_id"] == second.json()["job_id"]
+        assert body["status"] == "pending"
+        assert body["results"] == []
+    finally:
+        jobs_service.set_schedule_hook(None)
+
+
+@pytest.mark.asyncio
+async def test_latest_word_job_404_when_unknown(client: AsyncClient):
+    missing = await client.get(
+        "/expertgranskning/word-jobs/latest",
+        params={"doc_id": "doc-does-not-exist"},
+    )
+    assert missing.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_latest_word_job_hides_foreign_customer(client: AsyncClient):
+    panel_id = await _create_expert_panel(client)
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    try:
+        started = await client.post(
+            "/expertgranskning/word-jobs",
+            json={
+                "panel_id": panel_id,
+                **_document_with_two_body_paragraphs(),
+                "doc_id": "doc-os-only",
+            },
+        )
+        assert started.status_code == 202, started.text
+        bolag_token = mint_access_token(sub=BOLAG_USER_ID, email="bolag@test.local")
+        hidden = await client.get(
+            "/expertgranskning/word-jobs/latest",
+            params={"doc_id": "doc-os-only"},
+            headers={"Authorization": f"Bearer {bolag_token}"},
+        )
+        assert hidden.status_code == 404
+    finally:
+        jobs_service.set_schedule_hook(None)

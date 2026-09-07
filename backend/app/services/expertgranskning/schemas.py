@@ -197,3 +197,9 @@ class ExpertgranskningResultOut(BaseModel):
     comment_id: str | None
     status: str
     created_at: str
+
+
+class ExpertgranskningLatestWordJobOut(BaseModel):
+    job_id: str
+    status: str
+    results: list[ExpertgranskningResultOut]

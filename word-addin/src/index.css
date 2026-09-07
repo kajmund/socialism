@@ -1,0 +1,121 @@
+:root {
+  color-scheme: dark;
+  --bg: #161513;
+  --panel: #1f1d1a;
+  --ink: #f4efe6;
+  --muted: #b7b0a4;
+  --gold: #c9a227;
+  --line: #3a362f;
+  --danger: #d36b5a;
+  --ok: #8fbf7a;
+  font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+}
+
+.pane-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.block,
+.lang {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+textarea,
+select,
+button {
+  font: inherit;
+}
+
+textarea,
+select {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  border-radius: 4px;
+  padding: 8px;
+}
+
+button {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  border-radius: 4px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+button.primary {
+  background: var(--gold);
+  color: #1a160c;
+  border-color: var(--gold);
+  font-weight: 600;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.hint,
+.status {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.status[data-phase="done"] {
+  color: var(--ok);
+}
+
+.status[data-phase="failed"],
+.error {
+  color: var(--danger);
+}
+
+.ok {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ok);
+}
+
+.error {
+  margin: 0;
+  font-size: 12px;
+}
