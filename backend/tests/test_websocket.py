@@ -30,6 +30,7 @@ from app.llm import set_structured_completer, set_text_completer, set_text_strea
 from app.main import create_app
 from app.schemas.domain import FollowUpQuestions
 from app.serializers import utcnow
+from app.realtime.expertgranskning_broadcast import expertgranskning_broadcast
 from app.services import jobs as jobs_service
 from app.services.expertgranskning import WORD_JOB_KIND
 from app.services.expertgranskning.watch import publish_result_created
@@ -623,6 +624,73 @@ def test_expertgranskning_websocket_replay_live_push_and_patch(ws_client):
         assert updated_event["result"]["id"] == result_id
         assert updated_event["result"]["comment_id"] == "word-cmt-1"
         assert updated_event["result"]["status"] == "posted"
+
+
+def test_expertgranskning_websocket_subscribe_before_snapshot_keeps_race_write(
+    ws_client, monkeypatch
+):
+    """A write between subscribe and snapshot must land as created + replay."""
+    client, loop = ws_client
+
+    async def _seed() -> str:
+        factory = jobs_service.job_session_factory()
+        async with factory() as session:
+            job = Job(
+                id="job-ws-egr-race",
+                customer_id=1,
+                kind=WORD_JOB_KIND,
+                status="running",
+                label="Word WS race",
+                request={"panel_id": 1},
+                created_at=utcnow(),
+                updated_at=utcnow(),
+            )
+            session.add(job)
+            await session.commit()
+            return job.id
+
+    job_id = loop.run_until_complete(_seed())
+    real_subscribe = expertgranskning_broadcast.subscribe
+
+    async def _subscribe_then_write(subscribed_job_id: str, websocket) -> None:
+        await real_subscribe(subscribed_job_id, websocket)
+        factory = jobs_service.job_session_factory()
+        async with factory() as session:
+            created = ExpertgranskningResult(
+                id="egr_ws_race",
+                job_id=subscribed_job_id,
+                customer_id=1,
+                section_index=0,
+                paragraph_index=3,
+                expert_id="slot_1",
+                expert_namn="Anna",
+                kommentar="Skrivet mellan subscribe och snapshot.",
+                is_heading_suggestion=False,
+                comment_id=None,
+                status="pending",
+                created_at=utcnow(),
+            )
+            session.add(created)
+            await session.commit()
+            await session.refresh(created)
+            await publish_result_created(created)
+
+    monkeypatch.setattr(expertgranskning_broadcast, "subscribe", _subscribe_then_write)
+
+    token = _admin_token()
+    with client.websocket_connect(f"/ws/expertgranskning?access_token={token}") as ws:
+        ws.send_json(_expertgranskning_hello(job_id))
+        first = ws.receive_json()
+        second = ws.receive_json()
+
+    by_type = {event["type"]: event for event in (first, second)}
+    assert set(by_type) == {
+        "expertgranskning.result.created",
+        "expertgranskning.replay",
+    }
+    assert by_type["expertgranskning.result.created"]["result"]["id"] == "egr_ws_race"
+    replay_ids = [row["id"] for row in by_type["expertgranskning.replay"]["results"]]
+    assert replay_ids == ["egr_ws_race"]
 
 
 def test_expertgranskning_websocket_bolag_denied_foreign_job(ws_client):

@@ -455,10 +455,15 @@ async def expertgranskning_websocket(websocket: WebSocket) -> None:
             except HTTPException as exc:
                 await _close_auth_error(websocket, exc)
                 return
+
+        # Subscribe before the snapshot so a result published in that window
+        # is delivered (possibly also in replay) instead of dropped.
+        await expertgranskning_broadcast.subscribe(hello.job_id, websocket)
+        async with factory() as session:
+            job = await session.get(Job, hello.job_id)
+            assert job is not None
             results = await load_expertgranskning_results(session, job.id)
             replay = build_expertgranskning_replay_payload(job, results)
-
-        await expertgranskning_broadcast.subscribe(hello.job_id, websocket)
         await websocket.send_json(replay)
 
         while True:
