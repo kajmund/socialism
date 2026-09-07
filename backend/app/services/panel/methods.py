@@ -7,6 +7,7 @@ from collections.abc import Awaitable, Callable
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import PanelSession
+from app.services.expertgranskning.word_review import word_paragraph_review
 from app.services.panel.engine import run_generic_panel
 from app.services.panel.structured_scoring import run_structured_scoring
 
@@ -17,6 +18,7 @@ PanelMethod = Callable[
 DELIBERATION_METHODS: dict[str, PanelMethod] = {
     "generic_panel": run_generic_panel,
     "structured_scoring": run_structured_scoring,
+    "word_paragraph_review": word_paragraph_review,
 }
 
 PROTOCOL_METHODS: dict[str, str] = {
