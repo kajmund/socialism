@@ -282,7 +282,7 @@ async def update_expertgranskning_session(
 
     if panel_id is not None:
         panel_customer_id = await customer_id_for_expert_panel(session, panel_id)
-        if panel_customer_id is not None and panel_customer_id != customer_id:
+        if panel_customer_id != customer_id:
             raise PermissionError("kund_access_denied")
 
     project_id = row.project_id

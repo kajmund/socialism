@@ -135,6 +135,7 @@ export function UnderlagPickerModal({
   const folderNameRef = useRef<HTMLInputElement>(null)
   const pdfObjectUrlRef = useRef<string | null>(null)
   const draggingFileIdRef = useRef<string | null>(null)
+  const previewRequestRef = useRef(0)
   const [browse, setBrowse] = useState<BrowseLoc>({ kind: "underlag", folderId: null })
   const [allFolders, setAllFolders] = useState<UnderlagFolder[]>([])
   const [rows, setRows] = useState<UnderlagFile[]>([])
@@ -329,22 +330,26 @@ export function UnderlagPickerModal({
   }, [preview, previewTab, t])
 
   async function loadPreview(id: string) {
+    const requestId = ++previewRequestRef.current
     setPreviewLoading(true)
     setError(null)
     setConfirmDelete(false)
     try {
       const row = await getUnderlag(id)
+      if (requestId !== previewRequestRef.current) return
       setPreview({ kind: "underlag", file: row })
       setPreviewTab(isPdf(row) ? "pdf" : "text")
       setRows((current) => current.map((item) => (item.id === row.id ? { ...item, ...row } : item)))
     } catch (err: unknown) {
+      if (requestId !== previewRequestRef.current) return
       setError(err instanceof ApiError ? err.message : t("underlag.loadError"))
     } finally {
-      setPreviewLoading(false)
+      if (requestId === previewRequestRef.current) setPreviewLoading(false)
     }
   }
 
   async function loadReportPreview(report: Report) {
+    const requestId = ++previewRequestRef.current
     setPreviewLoading(true)
     setConfirmDelete(false)
     setPreview({
@@ -358,6 +363,7 @@ export function UnderlagPickerModal({
     setPreviewTab("html")
     try {
       const html = await getReportHtml(report.id)
+      if (requestId !== previewRequestRef.current) return
       const text = htmlToPlainText(html)
       setPreview({
         kind: "report",
@@ -368,6 +374,7 @@ export function UnderlagPickerModal({
         error: null,
       })
     } catch (err: unknown) {
+      if (requestId !== previewRequestRef.current) return
       setPreview({
         kind: "report",
         report,
@@ -377,7 +384,7 @@ export function UnderlagPickerModal({
         error: err instanceof ApiError ? err.message : t("underlag.previewReportError"),
       })
     } finally {
-      setPreviewLoading(false)
+      if (requestId === previewRequestRef.current) setPreviewLoading(false)
     }
   }
 

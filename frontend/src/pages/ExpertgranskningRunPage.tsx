@@ -94,7 +94,7 @@ function ExpertgranskningRunInner({ bolag }: { bolag: boolean }) {
   const [error, setError] = useState<string | null>(null)
   const [confirmRerun, setConfirmRerun] = useState(false)
   const [localReportId, setLocalReportId] = useState<string | null>(null)
-  const defaultedTab = useRef(false)
+  const defaultedTabForSession = useRef<string | null>(null)
   const autoReportStarted = useRef(false)
   const titleForReport = useRef(title)
   titleForReport.current = title
@@ -143,6 +143,14 @@ function ExpertgranskningRunInner({ bolag }: { bolag: boolean }) {
   }
 
   useEffect(() => {
+    setLocalReportId(null)
+    autoReportStarted.current = false
+    if (sessionId !== defaultedTabForSession.current) {
+      defaultedTabForSession.current = null
+    }
+  }, [sessionId])
+
+  useEffect(() => {
     let cancelled = false
     setLoadingPanels(true)
     listPopulations({ kind: "expert_panel" })
@@ -189,11 +197,11 @@ function ExpertgranskningRunInner({ bolag }: { bolag: boolean }) {
     return () => {
       cancelled = true
     }
-  }, [isNew, sessionId, t])
+  }, [isNew, sessionId])
 
   useEffect(() => {
-    if (isNew || !session || defaultedTab.current) return
-    defaultedTab.current = true
+    if (isNew || !session || defaultedTabForSession.current === sessionId) return
+    defaultedTabForSession.current = sessionId
     if (searchParams.has("tab")) return
     if (session.status === "draft") return
     if (session.status === "pending" || session.status === "running") {
@@ -204,7 +212,7 @@ function ExpertgranskningRunInner({ bolag }: { bolag: boolean }) {
       { tab: "results", view: reportId ? "report" : "live" },
       { replace: true },
     )
-  }, [isNew, reportId, searchParams, session, setSearchParams])
+  }, [isNew, reportId, searchParams, session, sessionId, setSearchParams])
 
   useEffect(() => {
     if (activeTab !== "results") return

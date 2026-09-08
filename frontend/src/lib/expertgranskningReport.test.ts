@@ -79,6 +79,16 @@ describe("inferExpertgranskningReportId", () => {
     expect(inferExpertgranskningReportId(reports, SESSION, job)).toBeUndefined()
   })
 
+  it("returns undefined after a failed rerun with no new report", () => {
+    const reports = [report("rpt_old", "2026-09-01T10:00:00Z")]
+    const job = panelJob({
+      id: "job_rerun",
+      created_at: "2026-09-03T11:00:00Z",
+      status: "failed",
+    })
+    expect(inferExpertgranskningReportId(reports, SESSION, job)).toBeUndefined()
+  })
+
   it("returns undefined when the current job is known but not in the list yet", () => {
     const reports = [report("rpt_old", "2026-09-01T10:00:00Z")]
     expect(inferExpertgranskningReportId(reports, SESSION, undefined, "job_rerun")).toBeUndefined()
