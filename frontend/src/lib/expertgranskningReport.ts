@@ -45,7 +45,8 @@ export function inferExpertgranskningReportId(
   if (
     panelJob.status === "pending" ||
     panelJob.status === "running" ||
-    panelJob.status === "succeeded"
+    panelJob.status === "succeeded" ||
+    panelJob.status === "failed"
   ) {
     return undefined
   }
