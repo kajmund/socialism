@@ -1,7 +1,7 @@
 """Add knowledge_documents index for the read-only knowledge layer.
 
-Revision ID: 057_knowledge_documents
-Revises: 056_word_moderator_batch
+Revision ID: 058_knowledge_documents
+Revises: 057_panel_session_research_plan
 """
 
 from __future__ import annotations
@@ -11,8 +11,8 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "057_knowledge_documents"
-down_revision: Union[str, Sequence[str], None] = "056_word_moderator_batch"
+revision: str = "058_knowledge_documents"
+down_revision: Union[str, Sequence[str], None] = "057_panel_session_research_plan"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -23,7 +23,7 @@ def upgrade() -> None:
         sa.Column("document_id", sa.String(length=64), nullable=False),
         sa.Column("provider", sa.String(length=32), nullable=False),
         sa.Column("external_id", sa.String(length=512), nullable=False),
-        sa.Column("customer_id", sa.Integer(), nullable=True),
+        sa.Column("customer_id", sa.Integer(), nullable=False),
         sa.Column("case_id", sa.String(length=64), nullable=True),
         sa.Column("module", sa.String(length=32), nullable=True),
         sa.Column("title", sa.String(length=512), nullable=False),
