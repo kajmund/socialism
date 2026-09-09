@@ -5,11 +5,11 @@ import { buildSections, isHeading1 } from "./sections"
 describe("buildSections", () => {
   it("starts a section on Heading 1 and keeps H2 as a raw paragraph", () => {
     const sections = buildSections([
-      { index: 0, text: "Inledning", style: "Heading 1" },
-      { index: 1, text: "Första stycket är tillräckligt långt.", style: "Normal" },
-      { index: 2, text: "kort", style: "Normal" },
-      { index: 3, text: "Detta ser ut som en underrubrik.", style: "Heading 2" },
-      { index: 4, text: "Andra stycket är också tillräckligt långt.", style: "Normal" },
+      { index: 0, text: "Inledning", style: "Heading 1", list_string: "1." },
+      { index: 1, text: "Första stycket är tillräckligt långt.", style: "Normal", list_string: "" },
+      { index: 2, text: "kort", style: "Normal", list_string: "" },
+      { index: 3, text: "Detta ser ut som en underrubrik.", style: "Heading 2", list_string: "1.1." },
+      { index: 4, text: "Andra stycket är också tillräckligt långt.", style: "Normal", list_string: "" },
     ])
     expect(sections).toEqual([
       {
@@ -17,10 +17,10 @@ describe("buildSections", () => {
         heading_style: "Heading 1",
         heading_paragraph_index: 0,
         paragraphs: [
-          { index: 1, text: "Första stycket är tillräckligt långt.", style: "Normal" },
-          { index: 2, text: "kort", style: "Normal" },
-          { index: 3, text: "Detta ser ut som en underrubrik.", style: "Heading 2" },
-          { index: 4, text: "Andra stycket är också tillräckligt långt.", style: "Normal" },
+          { index: 1, text: "Första stycket är tillräckligt långt.", style: "Normal", list_string: "" },
+          { index: 2, text: "kort", style: "Normal", list_string: "" },
+          { index: 3, text: "Detta ser ut som en underrubrik.", style: "Heading 2", list_string: "1.1." },
+          { index: 4, text: "Andra stycket är också tillräckligt långt.", style: "Normal", list_string: "" },
         ],
       },
     ])
@@ -28,9 +28,9 @@ describe("buildSections", () => {
 
   it("opens an implicit section before the first heading", () => {
     const sections = buildSections([
-      { index: 0, text: "Ingress utan rubrik.", style: "Normal" },
-      { index: 1, text: "Nästa del", style: "Rubrik 1" },
-      { index: 2, text: "Brödtext efter rubrik.", style: "Normal" },
+      { index: 0, text: "Ingress utan rubrik.", style: "Normal", list_string: "" },
+      { index: 1, text: "Nästa del", style: "Rubrik 1", list_string: "2." },
+      { index: 2, text: "Brödtext efter rubrik.", style: "Normal", list_string: "" },
     ])
     expect(sections).toHaveLength(2)
     expect(sections[0]).toMatchObject({
