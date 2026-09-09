@@ -17,6 +17,7 @@ describe("buildSections", () => {
         heading_style: "Heading 1",
         heading_paragraph_index: 0,
         paragraphs: [
+          { index: 0, text: "Inledning", style: "Heading 1" },
           { index: 1, text: "Första stycket är tillräckligt långt.", style: "Normal" },
           { index: 2, text: "kort", style: "Normal" },
           { index: 3, text: "Detta ser ut som en underrubrik.", style: "Heading 2" },
@@ -41,6 +42,11 @@ describe("buildSections", () => {
       heading: "Nästa del",
       heading_style: "Rubrik 1",
       heading_paragraph_index: 1,
+    })
+    expect(sections[1].paragraphs[0]).toMatchObject({
+      index: 1,
+      text: "Nästa del",
+      style: "Rubrik 1",
     })
   })
 

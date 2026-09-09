@@ -1712,17 +1712,121 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         ),
     ),
     _f(
+        "expertgranskning.word.raise_hand",
+        "panel",
+        "Word — handuppräckning",
+        "Word — raise hand",
+        "Platshållare: {expert_list}, {expert_id}, {document_text}, {disposition}, {batch}.",
+        "Placeholders: {expert_list}, {expert_id}, {document_text}, {disposition}, {batch}.",
+        (
+            "Du är en expert i en panel som granskar ett Word-dokument. "
+            "Du ser hela dokumentet och en dispositionsöversikt. "
+            "Räck upp handen bara för de stycken i den här batchen som du faktiskt "
+            "vill kommentera. En tom lista är förväntad och korrekt när du inte har "
+            "något att tillföra. Kommentera inte här — bara välj index.\n\n"
+            "Aktuell expert: {expert_id}\n"
+            "Experter:\n{expert_list}\n\n"
+            "Dispositionsöversikt:\n{disposition}\n\n"
+            "Hela dokumentet:\n{document_text}\n\n"
+            "Batch (endast dessa index är giltiga):\n{batch}\n\n"
+            "Returnera paragraph_indexes: en lista med index från batchen. "
+            "Listan får vara tom. Ta inte med index utanför batchen."
+        ),
+        (
+            "You are an expert on a panel reviewing a Word document. "
+            "You see the full document and an outline. "
+            "Raise your hand only for paragraphs in this batch that you actually "
+            "want to comment. An empty list is expected and correct when you have "
+            "nothing to add. Do not comment here — only pick indexes.\n\n"
+            "Current expert: {expert_id}\n"
+            "Experts:\n{expert_list}\n\n"
+            "Outline:\n{disposition}\n\n"
+            "Full document:\n{document_text}\n\n"
+            "Batch (only these indexes are valid):\n{batch}\n\n"
+            "Return paragraph_indexes: a list of indexes from the batch. "
+            "The list may be empty. Do not include indexes outside the batch."
+        ),
+    ),
+    _f(
+        "expertgranskning.word.comment",
+        "panel",
+        "Word — styckeskommentar",
+        "Word — paragraph comment",
+        "Platshållare: {expert_list}, {expert_id}, {document_text}, {disposition}, {batch}, {raised_indexes}.",
+        "Placeholders: {expert_list}, {expert_id}, {document_text}, {disposition}, {batch}, {raised_indexes}.",
+        (
+            "Du har räckt upp handen för ett eller flera stycken i batchen. "
+            "Skriv bara kommentarer för de index du räckte upp handen för. "
+            "Ingen poängsättning. Hoppa över stycken du inte räckte upp handen för.\n\n"
+            "Aktuell expert: {expert_id}\n"
+            "Du räckte upp handen för: {raised_indexes}\n"
+            "Experter:\n{expert_list}\n\n"
+            "Dispositionsöversikt:\n{disposition}\n\n"
+            "Hela dokumentet:\n{document_text}\n\n"
+            "Batch:\n{batch}\n\n"
+            "Returnera comments: en lista med paragraph_index och kommentar. "
+            "Kommentera bara index du räckte upp handen för."
+        ),
+        (
+            "You raised your hand for one or more paragraphs in this batch. "
+            "Write comments only for the indexes you raised your hand for. "
+            "No scoring. Skip paragraphs you did not raise for.\n\n"
+            "Current expert: {expert_id}\n"
+            "You raised your hand for: {raised_indexes}\n"
+            "Experts:\n{expert_list}\n\n"
+            "Outline:\n{disposition}\n\n"
+            "Full document:\n{document_text}\n\n"
+            "Batch:\n{batch}\n\n"
+            "Return comments: a list of paragraph_index and kommentar. "
+            "Comment only on indexes you raised your hand for."
+        ),
+    ),
+    _f(
+        "expertgranskning.word.rewrite",
+        "panel",
+        "Word — omskrivning",
+        "Word — rewrite",
+        "Platshållare: {expert_list}, {document_text}, {disposition}, {paragraph_text}, {comments}.",
+        "Placeholders: {expert_list}, {document_text}, {disposition}, {paragraph_text}, {comments}.",
+        (
+            "Flera experter har kommenterat samma stycke. "
+            "Sätt omskrivning_forslag till {{ny_text, motivering}} bara om de konvergerar "
+            "på samma konkreta formulering. ny_text måste vara ett enda stycke utan "
+            "radbrytning. Lämna null vid oenighet, delvis överlapp eller om bara en "
+            "expert bryr sig om formuleringen. Hitta aldrig på en kompromissomskrivning.\n\n"
+            "Experter:\n{expert_list}\n\n"
+            "Dispositionsöversikt:\n{disposition}\n\n"
+            "Hela dokumentet:\n{document_text}\n\n"
+            "Stycke:\n{paragraph_text}\n\n"
+            "Kommentarer:\n{comments}\n"
+        ),
+        (
+            "Several experts commented on the same paragraph. "
+            "Set omskrivning_forslag to {{ny_text, motivering}} only when they "
+            "converge on the same concrete wording. ny_text must be a single paragraph "
+            "with no line breaks. Leave it null on disagreement, partial overlap, or "
+            "when only one expert cares about wording. Never invent a compromise rewrite.\n\n"
+            "Experts:\n{expert_list}\n\n"
+            "Outline:\n{disposition}\n\n"
+            "Full document:\n{document_text}\n\n"
+            "Paragraph:\n{paragraph_text}\n\n"
+            "Comments:\n{comments}\n"
+        ),
+    ),
+    _f(
         "expertgranskning.word.heading",
         "panel",
         "Word — rubrikbedömning",
         "Word — heading assessment",
-        "Platshållare: {expert_list}, {heading}, {section_text}.",
-        "Placeholders: {expert_list}, {heading}, {section_text}.",
+        "Platshållare: {expert_list}, {heading}, {section_text}, {document_text}, {disposition}.",
+        "Placeholders: {expert_list}, {heading}, {section_text}, {document_text}, {disposition}.",
         (
             "Du bedömer om avsnittsrubriken stämmer med innehållet. "
             "Föreslå en bättre rubrik bara om den nuvarande är otydlig, vilseledande "
             "eller för svag. Annars lämna förslaget tomt.\n\n"
             "Experter:\n{expert_list}\n\n"
+            "Dispositionsöversikt:\n{disposition}\n\n"
+            "Hela dokumentet:\n{document_text}\n\n"
             "Nuvarande rubrik: {heading}\n\n"
             "Avsnittets text (alla stycken, även de som inte granskats var för sig):\n"
             "{section_text}\n\n"
@@ -1733,6 +1837,8 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "Suggest a better heading only if the current one is unclear, misleading, "
             "or too weak. Otherwise leave the suggestion empty.\n\n"
             "Experts:\n{expert_list}\n\n"
+            "Outline:\n{disposition}\n\n"
+            "Full document:\n{document_text}\n\n"
             "Current heading: {heading}\n\n"
             "Section text (all paragraphs, including those not reviewed individually):\n"
             "{section_text}\n\n"

@@ -1,5 +1,9 @@
 # Manual update log
 
+## 2026-09-09
+
+* **Expertgranskning i Word**: Experterna får hela dokumentet som underlag. De räcker upp handen för de stycken de vill kommentera; övriga stycken lämnas utan kommentar från den experten.
+
 ## 2026-09-07
 
 * **Manual**: Nya guider för plattform och läge på körning, panelkatalog för Expertgranskning och expertgranskning i bolagsytan. **Bakgrundsjobb** nämner även Due Diligence-sourcing och Rättsunderlag.

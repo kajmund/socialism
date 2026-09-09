@@ -78,12 +78,19 @@ export async function readDocumentParagraphs(): Promise<WordParagraph[]> {
   }
   return Word.run(async (context) => {
     const paragraphs = context.document.body.paragraphs
-    paragraphs.load("items/text,items/style")
+    paragraphs.load("items/text,items/style,items/isListItem")
+    await context.sync()
+    for (const paragraph of paragraphs.items) {
+      if (paragraph.isListItem) {
+        paragraph.listItem.load("listString")
+      }
+    }
     await context.sync()
     return paragraphs.items.map((paragraph, index) => ({
       index,
       text: paragraph.text.replace(/\r/g, "").trimEnd(),
       style: paragraph.style ?? "",
+      list_string: paragraph.isListItem ? (paragraph.listItem.listString ?? "") : "",
     }))
   })
 }

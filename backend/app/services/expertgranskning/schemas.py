@@ -14,6 +14,7 @@ WORD_MAX_HEADING_LEN = 4_000
 WORD_MAX_STYLE_LEN = 128
 WORD_MAX_PARAGRAPH_LEN = 20_000
 WORD_MAX_DOCUMENT_CHARS = 200_000
+WORD_MAX_LIST_STRING = 64
 
 
 class ExpertgranskningSessionCreate(BaseModel):
@@ -80,8 +81,9 @@ class WordDocumentParagraph(BaseModel):
     index: int
     text: str = Field(max_length=WORD_MAX_PARAGRAPH_LEN)
     style: str = Field(default="", max_length=WORD_MAX_STYLE_LEN)
+    list_string: str = Field(default="", max_length=WORD_MAX_LIST_STRING)
 
-    @field_validator("text", "style", mode="before")
+    @field_validator("text", "style", "list_string", mode="before")
     @classmethod
     def strip_text(cls, value: object) -> str:
         if value is None:
@@ -187,6 +189,25 @@ class WordParagraphComments(BaseModel):
             "opinion. Never invent a compromise rewrite."
         ),
     )
+
+
+class WordRaiseHand(BaseModel):
+    """Indexes the expert wants to comment on in this batch. Empty is valid."""
+
+    paragraph_indexes: list[int] = Field(default_factory=list)
+
+
+class WordExpertParagraphComment(BaseModel):
+    paragraph_index: int
+    kommentar: str
+
+
+class WordExpertBatchComments(BaseModel):
+    comments: list[WordExpertParagraphComment] = Field(default_factory=list)
+
+
+class WordRewriteAssessment(BaseModel):
+    omskrivning_forslag: WordRewriteSuggestion | None = None
 
 
 class WordHeadingAssessment(BaseModel):

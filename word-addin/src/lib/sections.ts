@@ -21,7 +21,7 @@ export function buildSections(paragraphs: WordParagraph[]): WordDocumentSection[
         heading: paragraph.text,
         heading_style: paragraph.style,
         heading_paragraph_index: paragraph.index,
-        paragraphs: [],
+        paragraphs: [paragraph],
       }
       sections.push(current)
       continue

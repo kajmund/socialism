@@ -1,11 +1,14 @@
-"""word_paragraph_review — sequential per-paragraph Word review.
+"""word_paragraph_review — batch raise-hand + comment, then heading.
 
-Not generic_panel: one moderator call per kept paragraph, then one heading
-assessment per section. Results are committed before the next LLM call.
+Each expert sees the full document plus disposition. Paragraphs are batched
+(~4, clause-aware). An expert comments only on paragraphs they raised for.
+Batches within a section run in parallel; sections stay sequential so heading
+assessment still runs after the last body paragraph.
 """
 
 from __future__ import annotations
 
+import asyncio
 import re
 import secrets
 
@@ -14,12 +17,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import ExpertgranskningResult, Job, PanelSession
 from app.llm import complete_structured
 from app.serializers import utcnow
+from app.services.expertgranskning.disposition import (
+    batch_reviewable_paragraphs,
+    build_disposition,
+    document_text_from_sections,
+    flatten_paragraphs,
+    format_batch_paragraphs,
+)
 from app.services.expertgranskning.schemas import (
     ExpertgranskningWordJobRequest,
     WordDocumentParagraph,
     WordDocumentSection,
+    WordExpertBatchComments,
     WordHeadingAssessment,
     WordParagraphComments,
+    WordRaiseHand,
+    WordRewriteAssessment,
     WordRewriteSuggestion,
 )
 from app.services.expertgranskning.watch import (
@@ -120,24 +133,106 @@ def rewrite_suggestion_or_none(
     return suggestion
 
 
-async def _review_paragraph(
+def _in_batch_indexes(raised: list[int], batch: list[WordDocumentParagraph]) -> list[int]:
+    allowed = {paragraph.index for paragraph in batch}
+    seen: set[int] = set()
+    kept: list[int] = []
+    for index in raised:
+        if index not in allowed or index in seen:
+            continue
+        seen.add(index)
+        kept.append(index)
+    return kept
+
+
+async def _raise_hand(
     *,
     prompts: dict[str, str],
     slots: list[PanelExpertSlot],
-    section: WordDocumentSection,
-    paragraph: WordDocumentParagraph,
-) -> WordParagraphComments:
+    slot: PanelExpertSlot,
+    document_text: str,
+    disposition: str,
+    batch: list[WordDocumentParagraph],
+) -> list[int]:
     user = render_prompt(
         prompts,
-        "expertgranskning.word.paragraph",
+        "expertgranskning.word.raise_hand",
         expert_list=_expert_list(slots),
-        section_heading=section.heading,
-        paragraph_text=paragraph.text,
-        style=paragraph.style,
+        expert_id=slot.slot_id,
+        document_text=document_text,
+        disposition=disposition,
+        batch=format_batch_paragraphs(batch),
     )
-    return await complete_structured(
+    parsed = await complete_structured(
         [{"role": "user", "content": user}],
-        WordParagraphComments,
+        WordRaiseHand,
+    )
+    return _in_batch_indexes(parsed.paragraph_indexes, batch)
+
+
+async def _comment_raised(
+    *,
+    prompts: dict[str, str],
+    slots: list[PanelExpertSlot],
+    slot: PanelExpertSlot,
+    document_text: str,
+    disposition: str,
+    batch: list[WordDocumentParagraph],
+    raised: list[int],
+) -> list[tuple[int, str]]:
+    if not raised:
+        return []
+    raised_set = set(raised)
+    user = render_prompt(
+        prompts,
+        "expertgranskning.word.comment",
+        expert_list=_expert_list(slots),
+        expert_id=slot.slot_id,
+        document_text=document_text,
+        disposition=disposition,
+        batch=format_batch_paragraphs(batch),
+        raised_indexes=", ".join(str(index) for index in raised),
+    )
+    parsed = await complete_structured(
+        [{"role": "user", "content": user}],
+        WordExpertBatchComments,
+    )
+    written: list[tuple[int, str]] = []
+    for comment in parsed.comments:
+        text = comment.kommentar.strip()
+        if not text or comment.paragraph_index not in raised_set:
+            continue
+        written.append((comment.paragraph_index, text))
+    return written
+
+
+async def _rewrite_if_converged(
+    *,
+    prompts: dict[str, str],
+    slots: list[PanelExpertSlot],
+    document_text: str,
+    disposition: str,
+    paragraph: WordDocumentParagraph,
+    comments: list[tuple[str, str]],
+) -> WordRewriteSuggestion | None:
+    if len(comments) < 2:
+        return None
+    comment_block = "\n".join(f"- {name}: {text}" for name, text in comments)
+    user = render_prompt(
+        prompts,
+        "expertgranskning.word.rewrite",
+        expert_list=_expert_list(slots),
+        document_text=document_text,
+        disposition=disposition,
+        paragraph_text=paragraph.text,
+        comments=comment_block,
+    )
+    parsed = await complete_structured(
+        [{"role": "user", "content": user}],
+        WordRewriteAssessment,
+    )
+    return rewrite_suggestion_or_none(
+        WordParagraphComments(comments=[], omskrivning_forslag=parsed.omskrivning_forslag)
     )
 
 
@@ -146,6 +241,8 @@ async def _review_heading(
     prompts: dict[str, str],
     slots: list[PanelExpertSlot],
     section: WordDocumentSection,
+    document_text: str,
+    disposition: str,
 ) -> WordHeadingAssessment:
     user = render_prompt(
         prompts,
@@ -153,11 +250,128 @@ async def _review_heading(
         expert_list=_expert_list(slots),
         heading=section.heading,
         section_text=_section_body(section),
+        document_text=document_text,
+        disposition=disposition,
     )
     return await complete_structured(
         [{"role": "user", "content": user}],
         WordHeadingAssessment,
     )
+
+
+async def _persist_result(
+    write_lock: asyncio.Lock,
+    *,
+    job_id: str,
+    customer_id: int,
+    section_index: int,
+    paragraph_index: int,
+    expert_id: str,
+    expert_namn: str,
+    kommentar: str,
+    is_heading_suggestion: bool,
+    request: dict | None,
+    is_rewrite_suggestion: bool = False,
+    foreslagen_text: str | None = None,
+) -> None:
+    from app.services.jobs import job_session_factory
+
+    factory = job_session_factory()
+    async with write_lock:
+        async with factory() as session:
+            await _write_result(
+                session,
+                job_id=job_id,
+                customer_id=customer_id,
+                section_index=section_index,
+                paragraph_index=paragraph_index,
+                expert_id=expert_id,
+                expert_namn=expert_namn,
+                kommentar=kommentar,
+                is_heading_suggestion=is_heading_suggestion,
+                is_rewrite_suggestion=is_rewrite_suggestion,
+                foreslagen_text=foreslagen_text,
+                request=request,
+            )
+
+
+async def _review_batch(
+    *,
+    write_lock: asyncio.Lock,
+    job_id: str,
+    request: dict,
+    payload: ExpertgranskningWordJobRequest,
+    prompts: dict[str, str],
+    slots: list[PanelExpertSlot],
+    section_index: int,
+    batch: list[WordDocumentParagraph],
+    document_text: str,
+    disposition: str,
+) -> int:
+    comments_by_index: dict[int, list[tuple[str, str]]] = {paragraph.index: [] for paragraph in batch}
+    written = 0
+
+    for slot in slots:
+        raised = await _raise_hand(
+            prompts=prompts,
+            slots=slots,
+            slot=slot,
+            document_text=document_text,
+            disposition=disposition,
+            batch=batch,
+        )
+        comments = await _comment_raised(
+            prompts=prompts,
+            slots=slots,
+            slot=slot,
+            document_text=document_text,
+            disposition=disposition,
+            batch=batch,
+            raised=raised,
+        )
+        for paragraph_index, text in comments:
+            await _persist_result(
+                write_lock,
+                job_id=job_id,
+                customer_id=payload.customer_id,
+                section_index=section_index,
+                paragraph_index=paragraph_index,
+                expert_id=slot.slot_id,
+                expert_namn=slot.label,
+                kommentar=text,
+                is_heading_suggestion=False,
+                request=request,
+            )
+            written += 1
+            comments_by_index[paragraph_index].append((slot.label, text))
+
+    for paragraph in batch:
+        suggestion = await _rewrite_if_converged(
+            prompts=prompts,
+            slots=slots,
+            document_text=document_text,
+            disposition=disposition,
+            paragraph=paragraph,
+            comments=comments_by_index[paragraph.index],
+        )
+        if suggestion is None:
+            continue
+        await _persist_result(
+            write_lock,
+            job_id=job_id,
+            customer_id=payload.customer_id,
+            section_index=section_index,
+            paragraph_index=paragraph.index,
+            expert_id="",
+            expert_namn="",
+            kommentar=suggestion.motivering.strip(),
+            is_heading_suggestion=False,
+            is_rewrite_suggestion=True,
+            foreslagen_text=suggestion.ny_text.strip(),
+            request=request,
+        )
+        written += 1
+    return written
 
 
 async def run_word_paragraph_review(
@@ -167,72 +381,49 @@ async def run_word_paragraph_review(
     prompts: dict[str, str],
 ) -> dict[str, int]:
     slots = await load_expert_slots_from_population(session, payload.panel_id)
+    document_text = document_text_from_sections(payload.sections)
+    disposition = build_disposition(flatten_paragraphs(payload.sections))
+    write_lock = asyncio.Lock()
     paragraph_reviews = 0
     heading_reviews = 0
     result_count = 0
 
     for section_index, section in enumerate(payload.sections):
-        for paragraph in section.paragraphs:
-            if not should_review_paragraph(paragraph):
-                continue
-            reviewed = await _review_paragraph(
-                prompts=prompts,
-                slots=slots,
-                section=section,
-                paragraph=paragraph,
+        reviewable = [paragraph for paragraph in section.paragraphs if should_review_paragraph(paragraph)]
+        batches = batch_reviewable_paragraphs(reviewable)
+        paragraph_reviews += len(reviewable)
+        if batches:
+            written = await asyncio.gather(
+                *[
+                    _review_batch(
+                        write_lock=write_lock,
+                        job_id=job.id,
+                        request=job.request or {},
+                        payload=payload,
+                        prompts=prompts,
+                        slots=slots,
+                        section_index=section_index,
+                        batch=batch,
+                        document_text=document_text,
+                        disposition=disposition,
+                    )
+                    for batch in batches
+                ]
             )
-            paragraph_reviews += 1
-            for comment in reviewed.comments:
-                text = comment.kommentar.strip()
-                if not text:
-                    continue
-                slot = next(
-                    (
-                        row
-                        for row in slots
-                        if row.slot_id == comment.expert_id.strip()
-                    ),
-                    None,
-                )
-                if slot is None:
-                    continue
-                await _write_result(
-                    session,
-                    job_id=job.id,
-                    customer_id=payload.customer_id,
-                    section_index=section_index,
-                    paragraph_index=paragraph.index,
-                    expert_id=slot.slot_id,
-                    expert_namn=slot.label,
-                    kommentar=text,
-                    is_heading_suggestion=False,
-                    request=job.request,
-                )
-                result_count += 1
-            suggestion = rewrite_suggestion_or_none(reviewed)
-            if suggestion is not None:
-                await _write_result(
-                    session,
-                    job_id=job.id,
-                    customer_id=payload.customer_id,
-                    section_index=section_index,
-                    paragraph_index=paragraph.index,
-                    expert_id="",
-                    expert_namn="",
-                    kommentar=suggestion.motivering.strip(),
-                    is_heading_suggestion=False,
-                    is_rewrite_suggestion=True,
-                    foreslagen_text=suggestion.ny_text.strip(),
-                    request=job.request,
-                )
-                result_count += 1
+            result_count += sum(written)
 
-        heading = await _review_heading(prompts=prompts, slots=slots, section=section)
+        heading = await _review_heading(
+            prompts=prompts,
+            slots=slots,
+            section=section,
+            document_text=document_text,
+            disposition=disposition,
+        )
         heading_reviews += 1
         suggestion = (heading.forslag or "").strip()
         if suggestion:
-            await _write_result(
-                session,
+            await _persist_result(
+                write_lock,
                 job_id=job.id,
                 customer_id=payload.customer_id,
                 section_index=section_index,
@@ -261,6 +452,9 @@ async def word_paragraph_review(
         "word_paragraph_review körs via jobbkind expertgranskning_word_review, "
         "inte via panel-session"
     )
+
+
+word_paragraph_review.protocol = "word_paragraph_review"
 
 
 async def run_word_paragraph_review_for_job(job_id: str) -> None:

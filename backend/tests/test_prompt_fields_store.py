@@ -65,6 +65,9 @@ def test_modules_for_prompt_key_follows_prefix_convention():
     ]
     assert modules_for_prompt_key("rattsunderlag.search_terms.system") == ["rattsunderlag"]
     assert modules_for_prompt_key("expertgranskning.word.paragraph") == ["expertgranskning"]
+    assert modules_for_prompt_key("expertgranskning.word.raise_hand") == ["expertgranskning"]
+    assert modules_for_prompt_key("expertgranskning.word.comment") == ["expertgranskning"]
+    assert modules_for_prompt_key("expertgranskning.word.rewrite") == ["expertgranskning"]
     assert modules_for_prompt_key("expertgranskning.word.heading") == ["expertgranskning"]
 
 
@@ -76,9 +79,13 @@ def test_module_providers_cover_all_catalog_keys_without_overlap_gaps():
     all_keys = {field["key"] for field in PROMPT_FIELDS}
     assert dd_keys | politik_keys | ratts_keys | expert_keys == all_keys
     assert ratts_keys.isdisjoint(dd_keys)
-    assert {"expertgranskning.word.paragraph", "expertgranskning.word.heading"}.isdisjoint(
-        dd_keys | politik_keys | ratts_keys
-    )
+    assert {
+        "expertgranskning.word.paragraph",
+        "expertgranskning.word.raise_hand",
+        "expertgranskning.word.comment",
+        "expertgranskning.word.rewrite",
+        "expertgranskning.word.heading",
+    }.isdisjoint(dd_keys | politik_keys | ratts_keys)
     assert "rattsunderlag.search_terms.system" in ratts_keys
     assert "panel.dd.moderator.system" in dd_keys
     assert "panel.dd.moderator.system" not in politik_keys
@@ -89,6 +96,9 @@ def test_module_providers_cover_all_catalog_keys_without_overlap_gaps():
     assert "panel.expert.system" in expert_keys
     assert "spinndoctor.system" in expert_keys
     assert "expertgranskning.word.paragraph" in expert_keys
+    assert "expertgranskning.word.raise_hand" in expert_keys
+    assert "expertgranskning.word.comment" in expert_keys
+    assert "expertgranskning.word.rewrite" in expert_keys
     assert "expertgranskning.word.heading" in expert_keys
     assert "help.system" not in expert_keys
     assert "panel.dd.moderator.system" not in expert_keys
