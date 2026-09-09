@@ -9,6 +9,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.llm import set_structured_completer, set_text_completer, set_tools_completer
+from app.services import research as shared_research
 from app.services.panel.engine import run_generic_panel
 from app.services.panel.research import (
     ConsolidatedResearchNeed,
@@ -145,6 +146,11 @@ async def _run_panel(factory, config: PanelSessionConfig):
         await run_generic_panel(db, row, prompts)
         await db.commit()
         return row
+
+
+def test_panel_reuses_shared_research_need_and_source_types():
+    assert ResearchNeed is shared_research.ResearchNeed
+    assert RESEARCH_SOURCE_TYPES is shared_research.RESEARCH_SOURCE_TYPES
 
 
 def test_source_types_include_case_law_and_web():

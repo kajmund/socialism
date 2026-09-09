@@ -53,7 +53,7 @@ Implementation: `app/realtime/expertgranskning_broadcast.py`, `app/services/expe
 1. Moderator opening (`panel.moderator.opening`) — one starting question only
 2. Research-plan phase (once, before any raise-hand):
    - Each expert identifies research needs (`panel.expert.research_need`, phase `research_need`). Structured output. Zero needs is valid. Experts do not assess here and do not call tools/MCP.
-   - Moderator consolidates a `ResearchPlan` (`panel.moderator.research_plan`, phase `research_plan`): semantic dedup, concrete questions, `proposal_ids`, `source_types`. Permanent IDs (`research_1`, …) and `requested_by` are assigned in code from those proposal IDs.
+   - Moderator consolidates a `ResearchPlan` (`panel.moderator.research_plan`, phase `research_plan`): semantic dedup, concrete questions, `proposal_ids`, `source_types`. Permanent IDs (`research_1`, …) and `requested_by` are assigned in code from those proposal IDs. Persisted needs use the shared `ResearchNeed` / source-type taxonomy in `app.services.research`.
    - Persist on `panel_sessions.research_plan`. An empty plan is valid and the session continues to raise-hand.
    - `source_types` are logical (`case_knowledge`, `customer_knowledge`, `domain_knowledge`, `swedish_law`, `swedish_preparatory_works`, `web`) — not a concrete MCP/server. `web` is allowed but not the default. No research execution in this phase.
 3. For each round (default 2):
