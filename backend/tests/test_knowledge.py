@@ -92,6 +92,7 @@ async def _index_document(
     *,
     customer_id: int,
     document_id: str = "doc-brief",
+    provider: str = SUPABASE_PROVIDER_ID,
     case_id: str | None = "case-1",
     module: str | None = "dd",
     bucket: str = "acme",
@@ -101,7 +102,7 @@ async def _index_document(
 ) -> KnowledgeDocumentRecord:
     row = KnowledgeDocumentRecord(
         document_id=document_id,
-        provider=SUPABASE_PROVIDER_ID,
+        provider=provider,
         external_id=supabase_external_id(bucket, key),
         customer_id=customer_id,
         case_id=case_id,
@@ -468,6 +469,68 @@ async def test_vector_store_is_replaceable(session: AsyncSession):
 def test_query_rejects_unscoped_global_retrieval():
     with pytest.raises(KnowledgeScopeRequiredError):
         KnowledgeQuery(query="anything", scope=KnowledgeScope())
+    with pytest.raises(KnowledgeScopeRequiredError):
+        KnowledgeQuery(query="anything", scope=KnowledgeScope(module="dd"))
+    with pytest.raises(KnowledgeScopeRequiredError):
+        KnowledgeQuery(query="anything", scope=KnowledgeScope(case_id="case-1"))
+
+
+async def test_module_only_scope_does_not_cross_kunders(session: AsyncSession):
+    owner = await _customer(session, "acme")
+    await _index_document(session, customer_id=owner.id)
+    await put_object("acme", "dd/files/brief.pdf", b"secret", "application/pdf")
+    calls: list[tuple[str, str]] = []
+
+    async def tracking_get(bucket: str, key: str) -> tuple[bytes, str]:
+        calls.append((bucket, key))
+        return await get_object(bucket, key)
+
+    provider = SupabaseKnowledgeProvider(
+        session,
+        vector_store=MemoryKnowledgeVectorStore(),
+        fetch_object=tracking_get,
+    )
+    module_only = KnowledgeScope(module="dd")
+    with pytest.raises(KnowledgeScopeRequiredError):
+        await provider.get_document("doc-brief", module_only)
+    with pytest.raises(KnowledgeScopeRequiredError):
+        await provider.fetch_content("doc-brief", module_only)
+    assert calls == []
+
+
+async def test_provider_lookup_ignores_other_provider_rows(session: AsyncSession):
+    kund = await _customer(session, "acme")
+    await _index_document(
+        session,
+        customer_id=kund.id,
+        document_id="doc-drive",
+        provider="gdrive",
+        bucket="drive",
+        key="files/brief.pdf",
+    )
+    await put_object("drive", "files/brief.pdf", b"drive-bytes", "application/pdf")
+    store = MemoryKnowledgeVectorStore()
+    await store.upsert_chunks(
+        [
+            KnowledgeChunk(
+                document_id="doc-drive",
+                chunk_id="c1",
+                text="skattesats från drive",
+                customer_id=kund.id,
+                case_id="case-1",
+                module="dd",
+                title="Brief",
+                locator="p1",
+                provider=SUPABASE_PROVIDER_ID,
+            )
+        ]
+    )
+    provider = SupabaseKnowledgeProvider(session, vector_store=store)
+    scope = _scope(customer_id=kund.id)
+    assert await provider.get_document("doc-drive", scope) is None
+    with pytest.raises(KnowledgeNotFoundError):
+        await provider.fetch_content("doc-drive", scope)
+    assert await provider.search(KnowledgeQuery(query="skattesats", scope=scope)) == []
 
 
 def test_registry_starts_empty_until_register():

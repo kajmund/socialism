@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 
 class KnowledgeScopeRequiredError(ValueError):
-    """Retrieval requires a non-empty scope; global search is not allowed."""
+    """Retrieval requires a kund. Module-only or empty scope is not allowed."""
 
 
 @dataclass(frozen=True)
@@ -14,9 +14,6 @@ class KnowledgeScope:
     customer_id: int | None = None
     case_id: str | None = None
     module: str | None = None
-
-    def is_empty(self) -> bool:
-        return self.customer_id is None and self.case_id is None and self.module is None
 
 
 @dataclass(frozen=True)
@@ -73,9 +70,9 @@ class KnowledgeChunk:
 
 
 def require_scope(scope: KnowledgeScope) -> None:
-    if scope.is_empty():
+    if scope.customer_id is None:
         raise KnowledgeScopeRequiredError(
-            "Knowledge retrieval requires scope (customer_id, case_id, or module)"
+            "Knowledge retrieval requires customer_id; module-only scope cannot cross kunders"
         )
 
 
@@ -89,13 +86,11 @@ def scope_of(
 
 
 def scope_allows(*, owned: KnowledgeScope, requested: KnowledgeScope) -> bool:
-    """Fail closed: every field set on the request must match the record."""
-    if requested.is_empty():
+    """Fail closed: kund is required; other set fields must match the record."""
+    if requested.customer_id is None or owned.customer_id != requested.customer_id:
         return False
-    return (
-        _field_allows(owned.customer_id, requested.customer_id)
-        and _field_allows(owned.case_id, requested.case_id)
-        and _field_allows(owned.module, requested.module)
+    return _field_allows(owned.case_id, requested.case_id) and _field_allows(
+        owned.module, requested.module
     )
 
 
