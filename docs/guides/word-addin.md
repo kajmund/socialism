@@ -24,7 +24,7 @@ Paste a Supabase magic-link access token once. It is stored in `Office.context.r
 ## Review flow
 
 1. Dropdown: `GET /populations?kind=expert_panel` (already kund-filtered).
-2. **Granska** reads `context.document.body.paragraphs`, groups sections on Heading 1 / Rubrik 1, and `POST /expertgranskning/word-jobs` with every raw paragraph (the server owns the skip filter).
+2. **Granska** reads `context.document.body.paragraphs` (text, style, and `listItem.listString` when the paragraph is a list item), groups sections on Heading 1 / Rubrik 1 (the heading stays in `paragraphs` so disposition can use it), and `POST /expertgranskning/word-jobs` with every raw paragraph (the server owns the skip filter).
 3. The pane opens `/ws/expertgranskning` with hello `{ type: "hello", scope: "expertgranskning_watch", job_id }`.
 4. Replay and `result.created` insert Word comments. `result.id` is deduped so a row that appears in both is inserted once. After `insertComment`, the add-in `PATCH`es `comment_id` (the echoed `result.updated` must not insert again).
 5. Rows with `is_rewrite_suggestion` are not ordinary comments. The add-in locates the paragraph by `reviewed_text` (the stored index only if that paragraph still matches; otherwise a unique text match). It turns on `changeTrackingMode = trackAll` temporarily and replaces **paragraph content** (`insertText(..., Replace)`), so the paragraph mark stays. If change tracking is unavailable, it comments on the located paragraph (`Föreslagen omskrivning: …`). If the reviewed text cannot be found uniquely, the rewrite is skipped rather than attached to a stale index. The original tracking mode is always restored.

@@ -1,943 +1,610 @@
-"""Word paragraph review: sequential method, jobs table, incremental results."""
-
 from __future__ import annotations
+
+from collections.abc import Callable
+from typing import Any
+from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 
-from app.database.models import ExpertgranskningResult, Job, PanelSession
+from app.database.models import (
+    ExpertgranskningResult,
+    Job,
+)
 from app.llm import set_structured_completer
-from app.services import jobs as jobs_service
-from app.services.expertgranskning import WORD_JOB_KIND, WORD_REVIEW_METHOD
+from app.services.expertgranskning.disposition import (
+    DEFAULT_BATCH_SIZE,
+    batch_reviewable_paragraphs,
+    build_disposition,
+    clause_group_key,
+    extract_written_number,
+    flatten_paragraphs,
+    normalize_number,
+)
 from app.services.expertgranskning.schemas import (
-    WORD_MAX_PARAGRAPHS,
+    ExpertgranskningWordJobCreate,
+    ExpertgranskningWordJobRequest,
+    WordDocumentParagraph,
+    WordDocumentSection,
+    WordExpertBatchComments,
+    WordExpertParagraphComment,
     WordHeadingAssessment,
     WordParagraphComment,
     WordParagraphComments,
+    WordRaiseHand,
+    WordRewriteAssessment,
     WordRewriteSuggestion,
 )
-from app.services.expertgranskning.watch import reviewed_text_from_job_request
 from app.services.expertgranskning.word_review import (
     is_heading_1_to_3,
     paragraph_word_count,
     rewrite_suggestion_or_none,
+    run_word_paragraph_review,
+    run_word_paragraph_review_for_job,
     should_review_paragraph,
     word_paragraph_review,
 )
-from app.services.kund_store import BOLAG_DEMO_KUND_SLUG
-from app.services.panel.methods import DELIBERATION_METHODS
-from tests.conftest import BOLAG_USER_ID, TEST_CUSTOMER_ID, USER_USER_ID, mint_access_token
+from app.services import jobs as jobs_service
+from app.services.kund_store import bolag_demo_customer_id, default_os_customer_id
+from app.services.prompt_store import require_active_prompts
+from tests.conftest import TEST_CUSTOMER_ID
 
 
-def test_filter_skips_short_and_heading_styles():
-    from app.services.expertgranskning.schemas import WordDocumentParagraph
+def _para(
+    index: int,
+    text: str,
+    *,
+    style: str = "Normal",
+    list_string: str | None = None,
+) -> WordDocumentParagraph:
+    return WordDocumentParagraph(index=index, text=text, style=style, list_string=list_string)
 
-    assert paragraph_word_count("en två tre") == 3
-    assert paragraph_word_count("en två tre fyra") == 4
-    assert is_heading_1_to_3("Heading 1")
-    assert is_heading_1_to_3("heading 2")
-    assert is_heading_1_to_3("Rubrik 3")
-    assert not is_heading_1_to_3("Normal")
-    assert not is_heading_1_to_3("Heading 4")
-    assert not should_review_paragraph(
-        WordDocumentParagraph(index=1, text="för kort", style="Normal")
+
+def _section(
+    heading: str,
+    heading_index: int,
+    bodies: list[tuple[int, str]],
+    *,
+    heading_style: str = "Heading 1",
+) -> WordDocumentSection:
+    return WordDocumentSection(
+        heading=heading,
+        heading_paragraph_index=heading_index,
+        paragraphs=[
+            _para(heading_index, heading, style=heading_style),
+            *[_para(index, text) for index, text in bodies],
+        ],
     )
-    assert not should_review_paragraph(
-        WordDocumentParagraph(
-            index=2,
-            text="Detta är en tillräckligt lång brödtext.",
-            style="Heading 2",
-        )
-    )
-    assert should_review_paragraph(
-        WordDocumentParagraph(
-            index=3,
-            text="Detta är en tillräckligt lång brödtext.",
-            style="Normal",
-        )
-    )
 
 
-def test_word_paragraph_review_is_registered_and_not_a_panel_session_method():
-    assert WORD_REVIEW_METHOD in DELIBERATION_METHODS
-    assert DELIBERATION_METHODS[WORD_REVIEW_METHOD] is word_paragraph_review
+def _parse_batch_indexes(content: str) -> list[int]:
+    start = content.rfind("Batch (endast dessa index är giltiga):")
+    if start < 0:
+        start = content.rfind("Batch:")
+    if start < 0:
+        start = content.rfind("Stycken att bedöma:")
+    chunk = content[start:] if start >= 0 else content
+    return [
+        int(line[1 : line.index("]")])
+        for line in chunk.splitlines()
+        if line.startswith("[") and "]" in line
+    ]
 
 
-@pytest.mark.asyncio
-async def test_word_paragraph_review_rejects_panel_session_dispatch():
-    with pytest.raises(ValueError, match="expertgranskning_word_review"):
-        await word_paragraph_review(None, PanelSession(id="ps_word"), {})  # type: ignore[arg-type]
+def _completer_factory(
+    *,
+    raise_indexes: list[int] | None = None,
+    raise_all_experts: bool = False,
+    comment_text: str = "En kommentar.",
+    rewrite_suggestion: WordRewriteSuggestion | None = None,
+    heading_text: str = "",
+    fail_on_heading: bool = False,
+) -> Callable[..., Any]:
+    first_slot: str | None = None
+    count = 0
 
-
-def _slot_ids(prompt: str) -> list[str]:
-    ids: list[str] = []
-    for line in prompt.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("- ") and " (" in stripped:
-            ids.append(stripped[2:].split(" (", 1)[0].strip())
-    if not ids:
-        raise AssertionError(f"No expert slot in prompt:\n{prompt}")
-    return ids
-
-
-def _first_slot_id(prompt: str) -> str:
-    return _slot_ids(prompt)[0]
-
-
-def test_rewrite_suggestion_or_none_requires_ny_text():
-    assert rewrite_suggestion_or_none(WordParagraphComments()) is None
-    assert (
-        rewrite_suggestion_or_none(
-            WordParagraphComments(
-                omskrivning_forslag=WordRewriteSuggestion(ny_text="  ", motivering="x")
+    async def completer(messages: list[dict[str, str]], response_model: type) -> Any:
+        nonlocal count, first_slot
+        count += 1
+        content = messages[-1]["content"]
+        if response_model is WordRaiseHand:
+            slot = ""
+            for line in content.splitlines():
+                if line.startswith("Aktuell expert:"):
+                    slot = line.split(":", 1)[1].strip()
+                    break
+            if first_slot is None:
+                first_slot = slot
+            if raise_indexes is not None:
+                return WordRaiseHand(paragraph_indexes=raise_indexes)
+            if raise_all_experts or slot == first_slot:
+                return WordRaiseHand(paragraph_indexes=_parse_batch_indexes(content))
+            return WordRaiseHand(paragraph_indexes=[])
+        if response_model is WordExpertBatchComments:
+            indexes = raise_indexes if raise_indexes is not None else _parse_batch_indexes(content)
+            return WordExpertBatchComments(
+                comments=[
+                    WordExpertParagraphComment(paragraph_index=index, kommentar=comment_text)
+                    for index in indexes
+                ]
             )
-        )
-        is None
-    )
-    kept = rewrite_suggestion_or_none(
-        WordParagraphComments(
-            omskrivning_forslag=WordRewriteSuggestion(
-                ny_text=" Ny formulering. ",
-                motivering="Samma rättning.",
-            )
-        )
-    )
-    assert kept is not None
-    assert kept.ny_text == " Ny formulering. "
-    assert (
-        rewrite_suggestion_or_none(
-            WordParagraphComments(
-                omskrivning_forslag=WordRewriteSuggestion(
-                    ny_text="Första raden.\nAndra raden.",
-                    motivering="Flerradig.",
-                )
-            )
-        )
-        is None
-    )
-    assert WordRewriteSuggestion(ny_text="Ett stycke.\r\nNästa stycke.").ny_text == ""
+        if response_model is WordRewriteAssessment:
+            return WordRewriteAssessment(omskrivning_forslag=rewrite_suggestion)
+        if response_model is WordHeadingAssessment:
+            if fail_on_heading:
+                raise RuntimeError("heading failed")
+            return WordHeadingAssessment(forslag=heading_text or None)
+        raise AssertionError(f"unexpected model {response_model}")
 
-
-def test_reviewed_text_from_job_request_walks_sections():
-    request = {
-        "sections": [
-            {
-                "heading": "Inledning",
-                "heading_paragraph_index": 0,
-                "paragraphs": [
-                    {"index": 1, "text": "Första stycket."},
-                    {"index": 4, "text": "Andra stycket."},
-                ],
-            }
-        ]
-    }
-    assert reviewed_text_from_job_request(request, 0) == "Inledning"
-    assert reviewed_text_from_job_request(request, 1) == "Första stycket."
-    assert reviewed_text_from_job_request(request, 4) == "Andra stycket."
-    assert reviewed_text_from_job_request(request, 9) is None
-    assert reviewed_text_from_job_request(None, 1) is None
-    implicit = {
-        "sections": [
-            {
-                "heading": "",
-                "heading_paragraph_index": 0,
-                "paragraphs": [{"index": 0, "text": "Ingress utan rubrik."}],
-            }
-        ]
-    }
-    assert reviewed_text_from_job_request(implicit, 0) == "Ingress utan rubrik."
+    completer.call_count = lambda: count  # type: ignore[attr-defined]
+    return completer
 
 
 async def _create_expert_panel(client: AsyncClient) -> int:
-    listed = await client.get("/kunder")
-    assert listed.status_code == 200
-    bolag_id = next(row["id"] for row in listed.json() if row["slug"] == BOLAG_DEMO_KUND_SLUG)
-    experts = await client.get("/personas", params={"kind": "expert", "customer_id": bolag_id})
-    assert experts.status_code == 200
+    experts = await client.get(
+        "/personas",
+        params={"kind": "expert", "customer_id": TEST_CUSTOMER_ID},
+    )
+    assert experts.status_code == 200, experts.text
     expert_ids = [row["id"] for row in experts.json()[:2]]
-    assert len(expert_ids) >= 2
+    assert len(expert_ids) >= 2, experts.text
     created = await client.post(
         "/populations",
         json={
+            "name": f"Expertgranskning testpanel {uuid4().hex[:8]}",
             "kind": "expert_panel",
-            "name": "Word-review testpanel",
             "include_persona_ids": expert_ids,
             "recipe": {"size": len(expert_ids), "dist": {}},
         },
     )
     assert created.status_code == 201, created.text
-    return created.json()["id"]
+    return int(created.json()["id"])
 
 
-def _document_with_two_body_paragraphs() -> dict:
-    return {
-        "doc_id": "doc-word-1",
-        "sections": [
-            {
-                "heading": "Inledning",
-                "heading_style": "Heading 1",
-                "heading_paragraph_index": 0,
-                "paragraphs": [
-                    {
-                        "index": 1,
-                        "text": "Första stycket är tillräckligt långt för granskning.",
-                        "style": "Normal",
-                    },
-                    {
-                        "index": 2,
-                        "text": "kort",
-                        "style": "Normal",
-                    },
-                    {
-                        "index": 3,
-                        "text": "Detta ser ut som en underrubrik i dokumentet.",
-                        "style": "Heading 2",
-                    },
-                    {
-                        "index": 4,
-                        "text": "Andra stycket är också tillräckligt långt för granskning.",
-                        "style": "Normal",
-                    },
-                ],
-            }
-        ],
-    }
+def _job_payload(
+    *,
+    panel_id: int,
+    customer_id: int,
+    sections: list[WordDocumentSection],
+) -> ExpertgranskningWordJobRequest:
+    return ExpertgranskningWordJobRequest(
+        panel_id=panel_id,
+        customer_id=customer_id,
+        owner_user_id="test-user",
+        sections=sections,
+    )
+
+
+async def _job_row(session, job_id: str) -> Job:
+    job = await session.get(Job, job_id)
+    assert job is not None
+    return job
+
+
+async def _results_for_job(session, job_id: str) -> list[ExpertgranskningResult]:
+    result = await session.execute(
+        select(ExpertgranskningResult)
+        .where(ExpertgranskningResult.job_id == job_id)
+        .order_by(ExpertgranskningResult.created_at, ExpertgranskningResult.id)
+    )
+    return list(result.scalars().all())
 
 
 @pytest.mark.asyncio
-async def test_word_job_post_returns_job_id_without_running(client: AsyncClient):
-    panel_id = await _create_expert_panel(client)
-    jobs_service.set_schedule_hook(lambda _job_id: None)
-    try:
-        started = await client.post(
-            "/expertgranskning/word-jobs",
-            json={"panel_id": panel_id, **_document_with_two_body_paragraphs()},
+async def test_filter_skips_short_and_heading_paragraphs() -> None:
+    assert paragraph_word_count("ett två tre fyra") == 4
+    assert is_heading_1_to_3("Heading 2")
+    assert is_heading_1_to_3("Rubrik 3")
+    assert not should_review_paragraph(_para(0, "Kort", style="Normal"))
+    assert not should_review_paragraph(_para(1, "Lång nog för granskning här", style="Heading 1"))
+    assert should_review_paragraph(_para(2, "Detta stycke är tillräckligt långt", style="Normal"))
+
+
+@pytest.mark.asyncio
+async def test_word_paragraph_review_is_registered() -> None:
+    assert word_paragraph_review.protocol == "word_paragraph_review"
+    with pytest.raises(ValueError, match="expertgranskning_word_review"):
+        await word_paragraph_review(object(), object(), {})  # type: ignore[arg-type]
+
+
+@pytest.mark.asyncio
+async def test_reviewable_batches_keep_clause_groups() -> None:
+    paragraphs = [
+        _para(0, "Ingress som är tillräckligt lång", style="Heading 1"),
+        *[_para(i, f"Punkt {i} är tillräckligt långt") for i in range(1, 5)],
+        _para(5, "8.1 Första underraden är tillräckligt lång", list_string="8.1"),
+        _para(6, "8.2 Andra underraden är också tillräckligt lång", list_string="8.2"),
+        _para(7, "9 Fristående punkt är tillräckligt lång", list_string="9"),
+    ]
+    reviewable = [p for p in paragraphs if should_review_paragraph(p)]
+    batches = batch_reviewable_paragraphs(reviewable, size=4)
+    assert [[p.index for p in batch] for batch in batches] == [[1, 2, 3, 4], [5, 6], [7]]
+
+
+@pytest.mark.asyncio
+async def test_disposition_uses_style_and_list_string() -> None:
+    paragraphs = [
+        _para(0, "Bakgrund", style="Heading 1"),
+        _para(1, "8.1 Detta är tillräckligt långt", style="Normal", list_string="7.1"),
+        _para(2, "Detta är också tillräckligt långt", style="Normal"),
+    ]
+    text = build_disposition(paragraphs)
+    assert 'written="8.1"' in text
+    assert 'list="7.1"' in text
+    assert 'computed="7.1"' in text
+    assert "MISMATCH" in text
+    assert "Heading 1" in text
+
+
+@pytest.mark.asyncio
+async def test_extract_written_number_from_text_or_list_string() -> None:
+    assert extract_written_number("7.1 Ansvar") == "7.1"
+    assert extract_written_number("Ingen siffra här") == ""
+    assert normalize_number("7.1") == "7.1"
+    assert clause_group_key(_para(0, "text", list_string="8.2")) == "8"
+
+
+@pytest.mark.asyncio
+async def test_rewrite_suggestion_requires_single_paragraph() -> None:
+    assert (
+        rewrite_suggestion_or_none(
+            WordParagraphComments(
+                comments=[],
+                omskrivning_forslag=WordRewriteSuggestion(
+                    ny_text=" Ny formulering. ",
+                    motivering="Samma riktning.",
+                ),
+            )
         )
-        assert started.status_code == 202, started.text
-        job_id = started.json()["job_id"]
-        assert job_id.startswith("job_")
-        fetched = await client.get(f"/jobs/{job_id}")
-        assert fetched.status_code == 200
-        body = fetched.json()
-        assert body["kind"] == WORD_JOB_KIND
-        assert body["status"] == "pending"
-        assert "kund_id" not in started.json()
-    finally:
-        jobs_service.set_schedule_hook(None)
+        is not None
+    )
+    assert (
+        rewrite_suggestion_or_none(
+            WordParagraphComments(
+                comments=[],
+                omskrivning_forslag=WordRewriteSuggestion(
+                    ny_text="rad ett\nrad två",
+                    motivering="Samma riktning.",
+                ),
+            )
+        )
+        is None
+    )
 
 
 @pytest.mark.asyncio
-async def test_word_review_is_sequential_and_commits_before_next_call(client_db):
+async def test_empty_raise_writes_no_comments(client_db) -> None:
     client, factory = client_db
     panel_id = await _create_expert_panel(client)
-    call_log: list[tuple[str, int, list[int]]] = []
-
-    async def completer(messages, response_model):
-        async with factory() as session:
-            rows = (
-                await session.execute(
-                    select(ExpertgranskningResult).order_by(
-                        ExpertgranskningResult.created_at
-                    )
-                )
-            ).scalars().all()
-            call_log.append(
-                (
-                    response_model.__name__,
-                    len(rows),
-                    [row.paragraph_index for row in rows],
-                )
-            )
-        user = messages[-1]["content"]
-        if response_model is WordParagraphComments:
-            slot_id = _first_slot_id(user)
-            if "Första stycket" in user:
-                return WordParagraphComments(
-                    comments=[
-                        WordParagraphComment(
-                            expert_id=slot_id,
-                            expert_namn="ignored",
-                            kommentar="Första stycket behöver skärpas.",
-                        )
-                    ]
-                )
-            if "Andra stycket" in user:
-                return WordParagraphComments(
-                    comments=[
-                        WordParagraphComment(
-                            expert_id=slot_id,
-                            expert_namn="ignored",
-                            kommentar="Andra stycket är otydligt om kostnad.",
-                        )
-                    ]
-                )
-            raise AssertionError(f"Unexpected paragraph prompt: {user}")
-        if response_model is WordHeadingAssessment:
-            assert "Första stycket" in user
-            assert "kort" in user
-            assert "underrubrik" in user
-            assert "Andra stycket" in user
-            return WordHeadingAssessment(forslag="Tydligare inledning")
-        raise RuntimeError(f"Unexpected structured model {response_model}")
-
+    payload = _job_payload(
+        panel_id=panel_id,
+        customer_id=TEST_CUSTOMER_ID,
+        sections=[_section("Avsnitt", 0, [(1, "Detta stycke är tillräckligt långt")])],
+    )
+    completer = _completer_factory(raise_indexes=[])
     set_structured_completer(completer)
-    jobs_service.set_schedule_hook(lambda _job_id: None)
     try:
-        started = await client.post(
-            "/expertgranskning/word-jobs",
-            json={"panel_id": panel_id, **_document_with_two_body_paragraphs()},
-        )
-        assert started.status_code == 202, started.text
-        job_id = started.json()["job_id"]
-        await jobs_service._run_job(job_id)
+        async with factory() as session:
+            job = Job(
+                id="job_empty_raise",
+                kind="expertgranskning_word_review",
+                status="running",
+                customer_id=TEST_CUSTOMER_ID,
+                request=payload.model_dump(),
+            )
+            session.add(job)
+            await session.commit()
+            prompts = await require_active_prompts(
+                session, customer_id=TEST_CUSTOMER_ID, module="expertgranskning", language="sv"
+            )
+            stats = await run_word_paragraph_review(session, job, payload, prompts)
+            rows = await _results_for_job(session, job.id)
+        assert stats["result_count"] == 0
+        assert rows == []
+    finally:
+        set_structured_completer(None)
 
+
+@pytest.mark.asyncio
+async def test_out_of_batch_raise_is_dropped(client_db) -> None:
+    client, factory = client_db
+    panel_id = await _create_expert_panel(client)
+    payload = _job_payload(
+        panel_id=panel_id,
+        customer_id=TEST_CUSTOMER_ID,
+        sections=[_section("Avsnitt", 0, [(1, "Detta stycke är tillräckligt långt")])],
+    )
+    completer = _completer_factory(raise_indexes=[99])
+    set_structured_completer(completer)
+    try:
+        async with factory() as session:
+            job = Job(
+                id="job_oob_raise",
+                kind="expertgranskning_word_review",
+                status="running",
+                customer_id=TEST_CUSTOMER_ID,
+                request=payload.model_dump(),
+            )
+            session.add(job)
+            await session.commit()
+            prompts = await require_active_prompts(
+                session, customer_id=TEST_CUSTOMER_ID, module="expertgranskning", language="sv"
+            )
+            stats = await run_word_paragraph_review(session, job, payload, prompts)
+            rows = await _results_for_job(session, job.id)
+        assert stats["result_count"] == 0
+        assert rows == []
+    finally:
+        set_structured_completer(None)
+
+
+@pytest.mark.asyncio
+async def test_word_review_runs_reviewable_paragraphs_then_heading(client_db) -> None:
+    client, factory = client_db
+    panel_id = await _create_expert_panel(client)
+    payload = _job_payload(
+        panel_id=panel_id,
+        customer_id=TEST_CUSTOMER_ID,
+        sections=[
+            _section(
+                "Inledning",
+                0,
+                [(1, "Detta stycke är tillräckligt långt"), (2, "Nej"), (3, "Kort")],
+            ),
+            _section("Slut", 4, [(5, "Också detta stycke är tillräckligt långt")]),
+        ],
+    )
+    completer = _completer_factory(heading_text="Ny rubrik")
+    set_structured_completer(completer)
+    try:
+        async with factory() as session:
+            job = Job(
+                id="job_seq",
+                kind="expertgranskning_word_review",
+                status="running",
+                customer_id=TEST_CUSTOMER_ID,
+                request=payload.model_dump(),
+            )
+            session.add(job)
+            await session.commit()
+            prompts = await require_active_prompts(
+                session, customer_id=TEST_CUSTOMER_ID, module="expertgranskning", language="sv"
+            )
+            await run_word_paragraph_review(session, job, payload, prompts)
+            rows = await _results_for_job(session, job.id)
+        comments = [row for row in rows if not row.is_heading_suggestion]
+        headings = [row for row in rows if row.is_heading_suggestion]
+        assert {row.paragraph_index for row in comments} == {1, 5}
+        assert {row.paragraph_index for row in headings} == {0, 4}
+        assert headings[0].kommentar == "Ny rubrik"
+    finally:
+        set_structured_completer(None)
+
+
+@pytest.mark.asyncio
+async def test_heading_review_runs_once_after_last_raw_paragraph(client_db) -> None:
+    client, factory = client_db
+    panel_id = await _create_expert_panel(client)
+    payload = _job_payload(
+        panel_id=panel_id,
+        customer_id=TEST_CUSTOMER_ID,
+        sections=[
+            _section("Ett", 0, [(1, "Detta stycke är tillräckligt långt")]),
+            _section("Två", 2, [(3, "Också detta stycke är tillräckligt långt")]),
+        ],
+    )
+    completer = _completer_factory(heading_text="Ny rubrik")
+    set_structured_completer(completer)
+    try:
+        async with factory() as session:
+            job = Job(
+                id="job_head",
+                kind="expertgranskning_word_review",
+                status="running",
+                customer_id=TEST_CUSTOMER_ID,
+                request=payload.model_dump(),
+            )
+            session.add(job)
+            await session.commit()
+            prompts = await require_active_prompts(
+                session, customer_id=TEST_CUSTOMER_ID, module="expertgranskning", language="sv"
+            )
+            stats = await run_word_paragraph_review(session, job, payload, prompts)
+        assert stats["heading_reviews"] == 2
+        assert stats["paragraph_reviews"] == 2
+    finally:
+        set_structured_completer(None)
+
+
+@pytest.mark.asyncio
+async def test_rewrite_is_additive_when_experts_converge(client_db) -> None:
+    client, factory = client_db
+    panel_id = await _create_expert_panel(client)
+    payload = _job_payload(
+        panel_id=panel_id,
+        customer_id=TEST_CUSTOMER_ID,
+        sections=[_section("Avsnitt", 0, [(1, "Detta stycke är tillräckligt långt")])],
+    )
+    completer = _completer_factory(
+        raise_all_experts=True,
+        rewrite_suggestion=WordRewriteSuggestion(
+            ny_text="Ny formulering.",
+            motivering="Samma riktning.",
+        ),
+    )
+    set_structured_completer(completer)
+    try:
+        async with factory() as session:
+            job = Job(
+                id="job_rw_yes",
+                kind="expertgranskning_word_review",
+                status="running",
+                customer_id=TEST_CUSTOMER_ID,
+                request=payload.model_dump(),
+            )
+            session.add(job)
+            await session.commit()
+            prompts = await require_active_prompts(
+                session, customer_id=TEST_CUSTOMER_ID, module="expertgranskning", language="sv"
+            )
+            await run_word_paragraph_review(session, job, payload, prompts)
+            rows = await _results_for_job(session, job.id)
+        comments = [row for row in rows if not row.is_rewrite_suggestion]
+        rewrites = [row for row in rows if row.is_rewrite_suggestion]
+        assert len(comments) == 2
+        assert len(rewrites) == 1
+        assert rewrites[0].foreslagen_text == "Ny formulering."
+        assert rewrites[0].kommentar == "Samma riktning."
+    finally:
+        set_structured_completer(None)
+
+
+@pytest.mark.asyncio
+async def test_rewrite_skipped_when_experts_split(client_db) -> None:
+    client, factory = client_db
+    panel_id = await _create_expert_panel(client)
+    payload = _job_payload(
+        panel_id=panel_id,
+        customer_id=TEST_CUSTOMER_ID,
+        sections=[_section("Avsnitt", 0, [(1, "Detta stycke är tillräckligt långt")])],
+    )
+    completer = _completer_factory(raise_all_experts=True, rewrite_suggestion=None)
+    set_structured_completer(completer)
+    try:
+        async with factory() as session:
+            job = Job(
+                id="job_rw_no",
+                kind="expertgranskning_word_review",
+                status="running",
+                customer_id=TEST_CUSTOMER_ID,
+                request=payload.model_dump(),
+            )
+            session.add(job)
+            await session.commit()
+            prompts = await require_active_prompts(
+                session, customer_id=TEST_CUSTOMER_ID, module="expertgranskning", language="sv"
+            )
+            await run_word_paragraph_review(session, job, payload, prompts)
+            rows = await _results_for_job(session, job.id)
+        assert [row.is_rewrite_suggestion for row in rows] == [False, False]
+    finally:
+        set_structured_completer(None)
+
+
+@pytest.mark.asyncio
+async def test_word_job_writes_results_incrementally(client: AsyncClient) -> None:
+    panel_id = await _create_expert_panel(client)
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    completer = _completer_factory()
+    set_structured_completer(completer)
+    try:
+        created = await client.post(
+            "/expertgranskning/word-jobs",
+            json=ExpertgranskningWordJobCreate(
+                panel_id=panel_id,
+                sections=[_section("Avsnitt", 0, [(1, "Detta stycke är tillräckligt långt")])],
+            ).model_dump(),
+        )
+        assert created.status_code == 202, created.text
+        job_id = created.json()["job_id"]
+        await run_word_paragraph_review_for_job(job_id)
+        rows = await client.get(f"/expertgranskning/word-jobs/{job_id}/results")
+        assert rows.status_code == 200
+        assert len(rows.json()) == 1
+        assert rows.json()[0]["reviewed_text"].startswith("Detta stycke")
         job = await client.get(f"/jobs/{job_id}")
         assert job.status_code == 200
-        payload = job.json()
-        assert payload["status"] == "succeeded", payload.get("error")
-        assert payload["result"]["method"] == WORD_REVIEW_METHOD
-        assert payload["result"]["paragraph_reviews"] == 2
-        assert payload["result"]["heading_reviews"] == 1
-        assert payload["kind"] == WORD_JOB_KIND
-
-        results = await client.get(f"/expertgranskning/word-jobs/{job_id}/results")
-        assert results.status_code == 200
-        rows = results.json()
-        assert [row["paragraph_index"] for row in rows] == [0, 1, 4]
-        assert [row["is_heading_suggestion"] for row in rows] == [True, False, False]
-        heading = next(row for row in rows if row["is_heading_suggestion"])
-        body_rows = [row for row in rows if not row["is_heading_suggestion"]]
-        assert body_rows[0]["kommentar"] == "Första stycket behöver skärpas."
-        assert body_rows[1]["kommentar"] == "Andra stycket är otydligt om kostnad."
-        assert heading["kommentar"] == "Tydligare inledning"
-        assert all(row["comment_id"] is None for row in rows)
-        assert all(row["status"] == "pending" for row in rows)
-
-        assert [name for name, _count, _indexes in call_log] == [
-            "WordParagraphComments",
-            "WordParagraphComments",
-            "WordHeadingAssessment",
-        ]
-        assert call_log[0][1] == 0
-        assert call_log[1][2] == [1]
-        assert call_log[2][2] == [1, 4]
-
-        async with factory() as session:
-            stored = await session.get(Job, job_id)
-            assert stored is not None
-            assert stored.kind == WORD_JOB_KIND
-            panels = (await session.execute(select(PanelSession))).scalars().all()
-            assert panels == []
+        assert job.json()["status"] == "succeeded"
+        assert job.json()["result"]["paragraph_reviews"] == 1
     finally:
         jobs_service.set_schedule_hook(None)
+        set_structured_completer(None)
 
 
 @pytest.mark.asyncio
-async def test_word_review_heading_once_per_section_after_last_paragraph(client_db):
-    client, factory = client_db
+async def test_word_job_fails_loudly_and_keeps_written_rows(client: AsyncClient) -> None:
     panel_id = await _create_expert_panel(client)
-    heading_seen_at: list[int] = []
-
-    async def completer(messages, response_model):
-        async with factory() as session:
-            count = len(
-                (
-                    await session.execute(select(ExpertgranskningResult))
-                ).scalars().all()
-            )
-        if response_model is WordHeadingAssessment:
-            heading_seen_at.append(count)
-            return WordHeadingAssessment(forslag=None)
-        return WordParagraphComments(
-            comments=[
-                WordParagraphComment(
-                    expert_id=_first_slot_id(messages[-1]["content"]),
-                    expert_namn="ignored",
-                    kommentar="En kommentar.",
-                )
-            ]
-        )
-
-    set_structured_completer(completer)
     jobs_service.set_schedule_hook(lambda _job_id: None)
+    completer = _completer_factory(fail_on_heading=True)
+    set_structured_completer(completer)
     try:
-        started = await client.post(
+        created = await client.post(
             "/expertgranskning/word-jobs",
-            json={
-                "panel_id": panel_id,
-                "sections": [
-                    {
-                        "heading": "A",
-                        "heading_paragraph_index": 0,
-                        "paragraphs": [
-                            {
-                                "index": 1,
-                                "text": "Första avsnittets enda granskningsbara stycke här.",
-                                "style": "Normal",
-                            }
-                        ],
-                    },
-                    {
-                        "heading": "B",
-                        "heading_paragraph_index": 2,
-                        "paragraphs": [
-                            {
-                                "index": 3,
-                                "text": "Andra avsnittets enda granskningsbara stycke här.",
-                                "style": "Normal",
-                            }
-                        ],
-                    },
+            json=ExpertgranskningWordJobCreate(
+                panel_id=panel_id,
+                sections=[
+                    _section("Ett", 0, [(1, "Detta stycke är tillräckligt långt")]),
+                    _section("Två", 2, [(3, "Också detta stycke är tillräckligt långt")]),
                 ],
-            },
+            ).model_dump(),
         )
-        assert started.status_code == 202, started.text
-        await jobs_service._run_job(started.json()["job_id"])
-        assert heading_seen_at == [1, 2]
+        job_id = created.json()["job_id"]
+        with pytest.raises(RuntimeError, match="heading failed"):
+            await run_word_paragraph_review_for_job(job_id)
+        rows = await client.get(f"/expertgranskning/word-jobs/{job_id}/results")
+        assert rows.status_code == 200
+        assert len(rows.json()) == 1
     finally:
         jobs_service.set_schedule_hook(None)
+        set_structured_completer(None)
 
 
 @pytest.mark.asyncio
-async def test_word_result_patch_writes_comment_id(client: AsyncClient):
+async def test_word_review_rejects_oversized_document(client: AsyncClient) -> None:
     panel_id = await _create_expert_panel(client)
-
-    async def completer(messages, response_model):
-        if response_model is WordHeadingAssessment:
-            return WordHeadingAssessment(forslag=None)
-        return WordParagraphComments(
-            comments=[
-                WordParagraphComment(
-                    expert_id=_first_slot_id(messages[-1]["content"]),
-                    expert_namn="ignored",
-                    kommentar="En kommentar att fästa.",
-                )
-            ]
-        )
-
-    set_structured_completer(completer)
-    jobs_service.set_schedule_hook(lambda _job_id: None)
-    try:
-        started = await client.post(
-            "/expertgranskning/word-jobs",
-            json={
-                "panel_id": panel_id,
-                "sections": [
-                    {
-                        "heading": "Inledning",
-                        "heading_paragraph_index": 0,
-                        "paragraphs": [
-                            {
-                                "index": 1,
-                                "text": "Detta stycke är tillräckligt långt för en kommentar.",
-                                "style": "Normal",
-                            }
-                        ],
-                    }
-                ],
-            },
-        )
-        assert started.status_code == 202, started.text
-        job_id = started.json()["job_id"]
-        await jobs_service._run_job(job_id)
-        listed = await client.get(f"/expertgranskning/word-jobs/{job_id}/results")
-        assert listed.status_code == 200
-        rows = listed.json()
-        assert len(rows) == 1
-        patched = await client.patch(
-            f"/expertgranskning/word-jobs/{job_id}/results/{rows[0]['id']}",
-            json={"comment_id": "word-comment-42"},
-        )
-        assert patched.status_code == 200, patched.text
-        body = patched.json()
-        assert body["comment_id"] == "word-comment-42"
-        assert body["status"] == "posted"
-    finally:
-        jobs_service.set_schedule_hook(None)
-
-
-@pytest.mark.asyncio
-async def test_word_job_rejects_foreign_panel(client: AsyncClient, user_token: str):
-    listed = await client.get("/kunder")
-    bolag_id = next(row["id"] for row in listed.json() if row["slug"] == BOLAG_DEMO_KUND_SLUG)
-    experts = await client.get("/personas", params={"kind": "expert", "customer_id": bolag_id})
-    expert_ids = [row["id"] for row in experts.json()[:1]]
-    bolag_token = mint_access_token(sub=BOLAG_USER_ID, email="bolag@test.local")
-    bolag_created = await client.post(
-        "/populations",
-        headers={"Authorization": f"Bearer {bolag_token}"},
-        json={
-            "kind": "expert_panel",
-            "name": "Bolag word panel",
-            "include_persona_ids": expert_ids,
-            "recipe": {"size": 1, "dist": {}},
-        },
-    )
-    assert bolag_created.status_code == 201, bolag_created.text
-    denied = await client.post(
+    huge = "ord " * 6_000
+    response = await client.post(
         "/expertgranskning/word-jobs",
-        headers={"Authorization": f"Bearer {user_token}"},
         json={
-            "panel_id": bolag_created.json()["id"],
+            "panel_id": panel_id,
             "sections": [
                 {
-                    "heading": "X",
+                    "heading": "Stort",
                     "heading_paragraph_index": 0,
                     "paragraphs": [
-                        {
-                            "index": 1,
-                            "text": "Detta stycke är tillräckligt långt för granskning.",
-                            "style": "Normal",
-                        }
+                        {"index": 0, "text": "Stort", "style": "Heading 1"},
+                        {"index": 1, "text": huge, "style": "Normal"},
                     ],
                 }
             ],
         },
     )
-    assert denied.status_code == 403
+    assert response.status_code == 422
 
 
 @pytest.mark.asyncio
-async def test_admin_word_job_uses_panel_customer(client: AsyncClient):
-    jobs_service.set_schedule_hook(lambda _job_id: None)
-    listed = await client.get("/kunder")
-    bolag_id = next(row["id"] for row in listed.json() if row["slug"] == BOLAG_DEMO_KUND_SLUG)
-    experts = await client.get("/personas", params={"kind": "expert", "customer_id": bolag_id})
-    expert_ids = [row["id"] for row in experts.json()[:1]]
-    bolag_token = mint_access_token(sub=BOLAG_USER_ID, email="bolag@test.local")
-    bolag_created = await client.post(
-        "/populations",
-        headers={"Authorization": f"Bearer {bolag_token}"},
-        json={
-            "kind": "expert_panel",
-            "name": "Admin cross-tenant word panel",
-            "include_persona_ids": expert_ids,
-            "recipe": {"size": 1, "dist": {}},
-        },
-    )
-    assert bolag_created.status_code == 201, bolag_created.text
-    try:
-        started = await client.post(
-            "/expertgranskning/word-jobs",
-            json={
-                "panel_id": bolag_created.json()["id"],
-                "sections": [
-                    {
-                        "heading": "X",
-                        "heading_paragraph_index": 0,
-                        "paragraphs": [
-                            {
-                                "index": 1,
-                                "text": "Detta stycke är tillräckligt långt för granskning.",
-                                "style": "Normal",
-                            }
-                        ],
-                    }
-                ],
-            },
-        )
-        assert started.status_code == 202, started.text
-        job = await client.get(f"/jobs/{started.json()['job_id']}")
-        assert job.status_code == 200
-        assert job.json()["customer_id"] == bolag_id
-        assert job.json()["status"] == "pending"
-    finally:
-        jobs_service.set_schedule_hook(None)
-
-
-def test_word_job_rejects_unsupported_locale_and_oversized_document():
-    from pydantic import ValidationError
-
-    from app.services.expertgranskning.schemas import (
-        WORD_MAX_PARAGRAPH_LEN,
-        ExpertgranskningWordJobCreate,
-    )
-
-    section = {
-        "heading": "X",
-        "heading_paragraph_index": 0,
-        "paragraphs": [
-            {
-                "index": 1,
-                "text": "Detta stycke är tillräckligt långt för granskning.",
-                "style": "Normal",
-            }
-        ],
-    }
-    with pytest.raises(ValidationError):
-        ExpertgranskningWordJobCreate(panel_id=1, locale="en-US", sections=[section])
-    with pytest.raises(ValidationError):
-        ExpertgranskningWordJobCreate(
-            panel_id=1,
-            sections=[
-                {
-                    "heading": "X",
-                    "heading_paragraph_index": 0,
-                    "paragraphs": [
-                        {
-                            "index": i,
-                            "text": "Detta stycke är tillräckligt långt för granskning.",
-                            "style": "Normal",
-                        }
-                        for i in range(WORD_MAX_PARAGRAPHS + 1)
-                    ],
-                }
-            ],
-        )
-    with pytest.raises(ValidationError):
-        ExpertgranskningWordJobCreate(
-            panel_id=1,
-            sections=[
-                {
-                    "heading": "X",
-                    "heading_paragraph_index": 0,
-                    "paragraphs": [
-                        {
-                            "index": 1,
-                            "text": "x" * (WORD_MAX_PARAGRAPH_LEN + 1),
-                            "style": "Normal",
-                        }
-                    ],
-                }
-            ],
-        )
-
-
-@pytest.mark.asyncio
-async def test_word_review_drops_unknown_expert_ids(client: AsyncClient):
+async def test_word_review_rejects_cross_tenant_panel_via_jobs(
+    client: AsyncClient, client_db
+) -> None:
+    _client, factory = client_db
     panel_id = await _create_expert_panel(client)
-    kept_names: list[str] = []
-
-    async def completer(messages, response_model):
-        if response_model is WordHeadingAssessment:
-            return WordHeadingAssessment(forslag=None)
-        slot_id = _first_slot_id(messages[-1]["content"])
-        return WordParagraphComments(
-            comments=[
-                WordParagraphComment(
-                    expert_id="not-in-panel",
-                    expert_namn="Påhittad expert",
-                    kommentar="Ska inte sparas.",
-                ),
-                WordParagraphComment(
-                    expert_id=slot_id,
-                    expert_namn="Fel namn från modellen",
-                    kommentar="Riktig panelkommentar.",
-                ),
-            ]
-        )
-
-    set_structured_completer(completer)
-    jobs_service.set_schedule_hook(lambda _job_id: None)
-    try:
-        started = await client.post(
-            "/expertgranskning/word-jobs",
-            json={
-                "panel_id": panel_id,
-                "sections": [
-                    {
-                        "heading": "X",
-                        "heading_paragraph_index": 0,
-                        "paragraphs": [
-                            {
-                                "index": 1,
-                                "text": "Detta stycke är tillräckligt långt för granskning.",
-                                "style": "Normal",
-                            }
-                        ],
-                    }
-                ],
-            },
-        )
-        assert started.status_code == 202, started.text
-        await jobs_service._run_job(started.json()["job_id"])
-        listed = await client.get(
-            f"/expertgranskning/word-jobs/{started.json()['job_id']}/results"
-        )
-        assert listed.status_code == 200
-        rows = listed.json()
-        assert len(rows) == 1
-        assert rows[0]["kommentar"] == "Riktig panelkommentar."
-        assert rows[0]["expert_id"] != "not-in-panel"
-        assert rows[0]["expert_namn"] != "Fel namn från modellen"
-        kept_names.append(rows[0]["expert_namn"])
-        assert kept_names[0]
-    finally:
-        jobs_service.set_schedule_hook(None)
-
-
-@pytest.mark.asyncio
-async def test_generic_jobs_path_rejects_foreign_panel(
-    client: AsyncClient, user_token: str
-):
-    listed = await client.get("/kunder")
-    bolag_id = next(row["id"] for row in listed.json() if row["slug"] == BOLAG_DEMO_KUND_SLUG)
-    experts = await client.get("/personas", params={"kind": "expert", "customer_id": bolag_id})
-    expert_ids = [row["id"] for row in experts.json()[:1]]
-    bolag_token = mint_access_token(sub=BOLAG_USER_ID, email="bolag@test.local")
-    bolag_created = await client.post(
-        "/populations",
-        headers={"Authorization": f"Bearer {bolag_token}"},
-        json={
-            "kind": "expert_panel",
-            "name": "Bolag panel for generic jobs",
-            "include_persona_ids": expert_ids,
-            "recipe": {"size": 1, "dist": {}},
-        },
-    )
-    assert bolag_created.status_code == 201, bolag_created.text
-    stolen = await client.post(
-        "/jobs",
-        headers={"Authorization": f"Bearer {user_token}"},
-        json={
-            "kind": WORD_JOB_KIND,
-            "request": {
-                "panel_id": bolag_created.json()["id"],
-                "customer_id": TEST_CUSTOMER_ID,
-                "owner_user_id": USER_USER_ID,
-                "sections": [
-                    {
-                        "heading": "X",
-                        "heading_paragraph_index": 0,
-                        "paragraphs": [
-                            {
-                                "index": 1,
-                                "text": "Detta stycke är tillräckligt långt för granskning.",
-                                "style": "Normal",
-                            }
-                        ],
-                    }
-                ],
-            },
-        },
-    )
-    assert stolen.status_code == 422
-    assert "panel_id" in stolen.text
-
-
-@pytest.mark.asyncio
-async def test_latest_word_job_returns_newest_for_doc_id(client: AsyncClient):
-    panel_id = await _create_expert_panel(client)
-    jobs_service.set_schedule_hook(lambda _job_id: None)
-    try:
-        first = await client.post(
-            "/expertgranskning/word-jobs",
-            json={
-                "panel_id": panel_id,
-                **_document_with_two_body_paragraphs(),
-                "doc_id": "doc-history-1",
-            },
-        )
-        assert first.status_code == 202, first.text
-        factory = jobs_service.job_session_factory()
-        async with factory() as session:
-            finished = await session.get(Job, first.json()["job_id"])
-            assert finished is not None
-            finished.status = "succeeded"
-            await session.commit()
-        second = await client.post(
-            "/expertgranskning/word-jobs",
-            json={
-                "panel_id": panel_id,
-                **_document_with_two_body_paragraphs(),
-                "doc_id": "doc-history-1",
-            },
-        )
-        assert second.status_code == 202, second.text
-        latest = await client.get(
-            "/expertgranskning/word-jobs/latest",
-            params={"doc_id": "doc-history-1"},
-        )
-        assert latest.status_code == 200, latest.text
-        body = latest.json()
-        assert body["job_id"] == second.json()["job_id"]
-        assert body["status"] == "pending"
-        assert body["results"] == []
-    finally:
-        jobs_service.set_schedule_hook(None)
-
-
-@pytest.mark.asyncio
-async def test_latest_word_job_404_when_unknown(client: AsyncClient):
-    missing = await client.get(
-        "/expertgranskning/word-jobs/latest",
-        params={"doc_id": "doc-does-not-exist"},
-    )
-    assert missing.status_code == 404
-
-
-@pytest.mark.asyncio
-async def test_latest_word_job_hides_foreign_customer(client: AsyncClient):
-    panel_id = await _create_expert_panel(client)
-    jobs_service.set_schedule_hook(lambda _job_id: None)
-    try:
-        started = await client.post(
-            "/expertgranskning/word-jobs",
-            json={
-                "panel_id": panel_id,
-                **_document_with_two_body_paragraphs(),
-                "doc_id": "doc-os-only",
-            },
-        )
-        assert started.status_code == 202, started.text
-        bolag_token = mint_access_token(sub=BOLAG_USER_ID, email="bolag@test.local")
-        hidden = await client.get(
-            "/expertgranskning/word-jobs/latest",
-            params={"doc_id": "doc-os-only"},
-            headers={"Authorization": f"Bearer {bolag_token}"},
-        )
-        assert hidden.status_code == 404
-    finally:
-        jobs_service.set_schedule_hook(None)
-
-
-@pytest.mark.asyncio
-async def test_word_job_rejects_second_active_job_for_same_doc(client: AsyncClient):
-    panel_id = await _create_expert_panel(client)
-    jobs_service.set_schedule_hook(lambda _job_id: None)
+    async with factory() as session:
+        bolag_id = await bolag_demo_customer_id(session)
+        os_id = await default_os_customer_id(session)
+        assert bolag_id != os_id
     payload = {
-        "panel_id": panel_id,
-        **_document_with_two_body_paragraphs(),
-        "doc_id": "doc-no-overlap",
+        "kind": "expertgranskning_word_review",
+        "customer_id": bolag_id,
+        "request": _job_payload(
+            panel_id=panel_id,
+            customer_id=bolag_id,
+            sections=[_section("Avsnitt", 0, [(1, "Detta stycke är tillräckligt långt")])],
+        ).model_dump(),
     }
-    try:
-        first = await client.post("/expertgranskning/word-jobs", json=payload)
-        assert first.status_code == 202, first.text
-        second = await client.post("/expertgranskning/word-jobs", json=payload)
-        assert second.status_code == 409
-        assert second.json()["detail"] == "word_review_already_running"
-    finally:
-        jobs_service.set_schedule_hook(None)
-
-
-def _one_body_paragraph_payload() -> dict:
-    return {
-        "sections": [
-            {
-                "heading": "Inledning",
-                "heading_paragraph_index": 0,
-                "paragraphs": [
-                    {
-                        "index": 1,
-                        "text": "Detta stycke är tillräckligt långt för granskning.",
-                        "style": "Normal",
-                    }
-                ],
-            }
-        ],
-    }
+    response = await client.post("/jobs", json=payload)
+    assert response.status_code == 422
+    assert "panel" in response.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
-async def test_word_review_split_opinions_do_not_write_rewrite(client: AsyncClient):
-    panel_id = await _create_expert_panel(client)
+async def test_flatten_and_document_text_helpers() -> None:
+    sections = [_section("Avsnitt", 0, [(1, "Detta stycke är tillräckligt långt")])]
+    paragraphs = flatten_paragraphs(sections)
+    assert [p.index for p in paragraphs] == [0, 1]
+    from app.services.expertgranskning.disposition import document_text_from_sections
 
-    async def completer(messages, response_model):
-        if response_model is WordHeadingAssessment:
-            return WordHeadingAssessment(forslag=None)
-        ids = _slot_ids(messages[-1]["content"])
-        return WordParagraphComments(
-            comments=[
-                WordParagraphComment(
-                    expert_id=ids[0],
-                    expert_namn="ignored",
-                    kommentar="Skärp meningen om kostnad.",
-                ),
-                WordParagraphComment(
-                    expert_id=ids[1],
-                    expert_namn="ignored",
-                    kommentar="Behåll meningen, lägg till en fotnot.",
-                ),
-            ],
-            omskrivning_forslag=None,
-        )
-
-    set_structured_completer(completer)
-    jobs_service.set_schedule_hook(lambda _job_id: None)
-    try:
-        started = await client.post(
-            "/expertgranskning/word-jobs",
-            json={"panel_id": panel_id, **_one_body_paragraph_payload()},
-        )
-        assert started.status_code == 202, started.text
-        job_id = started.json()["job_id"]
-        await jobs_service._run_job(job_id)
-        listed = await client.get(f"/expertgranskning/word-jobs/{job_id}/results")
-        assert listed.status_code == 200
-        rows = listed.json()
-        assert [row["is_rewrite_suggestion"] for row in rows] == [False, False]
-        assert {row["kommentar"] for row in rows} == {
-            "Skärp meningen om kostnad.",
-            "Behåll meningen, lägg till en fotnot.",
-        }
-        assert all(row["foreslagen_text"] is None for row in rows)
-        assert all(
-            row["reviewed_text"] == "Detta stycke är tillräckligt långt för granskning."
-            for row in rows
-        )
-    finally:
-        jobs_service.set_schedule_hook(None)
-
-
-@pytest.mark.asyncio
-async def test_word_review_converging_opinions_write_rewrite_row(client: AsyncClient):
-    panel_id = await _create_expert_panel(client)
-    rewritten = "Detta stycke är tillräckligt långt och tydligt om kostnaden."
-
-    async def completer(messages, response_model):
-        if response_model is WordHeadingAssessment:
-            return WordHeadingAssessment(forslag=None)
-        ids = _slot_ids(messages[-1]["content"])
-        return WordParagraphComments(
-            comments=[
-                WordParagraphComment(
-                    expert_id=ids[0],
-                    expert_namn="ignored",
-                    kommentar="Säg 'tillräckligt långt och tydligt om kostnaden'.",
-                ),
-                WordParagraphComment(
-                    expert_id=ids[1],
-                    expert_namn="ignored",
-                    kommentar="Samma: skriv in kostnaden i meningen.",
-                ),
-            ],
-            omskrivning_forslag=WordRewriteSuggestion(
-                ny_text=rewritten,
-                motivering="Båda experterna vill samma konkreta formulering.",
-            ),
-        )
-
-    set_structured_completer(completer)
-    jobs_service.set_schedule_hook(lambda _job_id: None)
-    try:
-        started = await client.post(
-            "/expertgranskning/word-jobs",
-            json={"panel_id": panel_id, **_one_body_paragraph_payload()},
-        )
-        assert started.status_code == 202, started.text
-        job_id = started.json()["job_id"]
-        await jobs_service._run_job(job_id)
-        listed = await client.get(f"/expertgranskning/word-jobs/{job_id}/results")
-        assert listed.status_code == 200
-        rows = listed.json()
-        comments = [row for row in rows if not row["is_rewrite_suggestion"]]
-        rewrites = [row for row in rows if row["is_rewrite_suggestion"]]
-        assert len(comments) == 2
-        assert {row["kommentar"] for row in comments} == {
-            "Säg 'tillräckligt långt och tydligt om kostnaden'.",
-            "Samma: skriv in kostnaden i meningen.",
-        }
-        assert len(rewrites) == 1
-        rewrite = rewrites[0]
-        assert rewrite["foreslagen_text"] == rewritten
-        assert rewrite["kommentar"] == "Båda experterna vill samma konkreta formulering."
-        assert rewrite["expert_id"] == ""
-        assert rewrite["expert_namn"] == ""
-        assert rewrite["is_heading_suggestion"] is False
-        assert (
-            rewrite["reviewed_text"]
-            == "Detta stycke är tillräckligt långt för granskning."
-        )
-    finally:
-        jobs_service.set_schedule_hook(None)
+    text = document_text_from_sections(sections)
+    assert "Avsnitt" in text
+    assert "Detta stycke" in text
+    assert DEFAULT_BATCH_SIZE == 4
