@@ -18,8 +18,8 @@ from app.services.knowledge.models import (
     scope_of,
 )
 from app.services.knowledge.provider import (
-    KnowledgeNotFoundError,
     SUPABASE_PROVIDER_ID,
+    KnowledgeNotFoundError,
 )
 from app.services.knowledge.vector_store import KnowledgeVectorStore
 from app.services.object_storage import get_object

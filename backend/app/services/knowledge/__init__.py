@@ -9,12 +9,12 @@ from app.services.knowledge.models import (
     KnowledgeScopeRequiredError,
 )
 from app.services.knowledge.provider import (
+    SUPABASE_PROVIDER_ID,
     KnowledgeError,
     KnowledgeNotFoundError,
     KnowledgeProvider,
     KnowledgeProviderNotFoundError,
     KnowledgeVectorStoreError,
-    SUPABASE_PROVIDER_ID,
 )
 from app.services.knowledge.registry import (
     KnowledgeProviderRegistry,

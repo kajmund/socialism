@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.knowledge.provider import (
     KnowledgeProvider,
     KnowledgeProviderNotFoundError,
-    SUPABASE_PROVIDER_ID,
 )
 from app.services.knowledge.supabase_provider import SupabaseKnowledgeProvider
 from app.services.knowledge.vector_store import KnowledgeVectorStore
@@ -37,7 +36,3 @@ def build_knowledge_registry(
     registry = KnowledgeProviderRegistry()
     registry.register(SupabaseKnowledgeProvider(session, vector_store=vector_store))
     return registry
-
-
-def registered_provider_id() -> str:
-    return SUPABASE_PROVIDER_ID

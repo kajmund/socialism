@@ -92,10 +92,12 @@ def scope_allows(*, owned: KnowledgeScope, requested: KnowledgeScope) -> bool:
     """Fail closed: every field set on the request must match the record."""
     if requested.is_empty():
         return False
-    if requested.customer_id is not None and owned.customer_id != requested.customer_id:
-        return False
-    if requested.case_id is not None and owned.case_id != requested.case_id:
-        return False
-    if requested.module is not None and owned.module != requested.module:
-        return False
-    return True
+    return (
+        _field_allows(owned.customer_id, requested.customer_id)
+        and _field_allows(owned.case_id, requested.case_id)
+        and _field_allows(owned.module, requested.module)
+    )
+
+
+def _field_allows[T](owned: T | None, requested: T | None) -> bool:
+    return requested is None or owned == requested

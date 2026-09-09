@@ -5,8 +5,9 @@ Analytics Buckets are a later warehouse concern and are not on this path.
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Mapping, Protocol, Sequence
+from typing import Any, Protocol
 
 from app.services.knowledge.models import (
     KnowledgeChunk,
@@ -17,7 +18,7 @@ from app.services.knowledge.models import (
     scope_allows,
     scope_of,
 )
-from app.services.knowledge.provider import KnowledgeVectorStoreError, SUPABASE_PROVIDER_ID
+from app.services.knowledge.provider import SUPABASE_PROVIDER_ID, KnowledgeVectorStoreError
 
 
 class KnowledgeVectorStore(Protocol):
