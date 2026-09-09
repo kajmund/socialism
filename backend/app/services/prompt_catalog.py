@@ -1187,6 +1187,70 @@ HOW YOU WRITE COMMENTS:
         ),
     ),
     _f(
+        "panel.generic.synthesis",
+        "panel",
+        "Generic panel — strukturerad syntes",
+        "Generic panel — structured synthesis",
+        "Platshållare: {topic}, {brief}, {expert_list}, {transcript}, {moderator_analysis}.",
+        "Placeholders: {topic}, {brief}, {expert_list}, {transcript}, {moderator_analysis}.",
+        (
+            "Ämne: {topic}\n\n"
+            "Bakgrund:\n{brief}\n\n"
+            "Experter:\n{expert_list}\n\n"
+            "Offentligt transkript (utan scratchpads):\n{transcript}\n\n"
+            "Moderatorns fria analys:\n{moderator_analysis}\n\n"
+            "Extrahera beslutsrelevanta slutsatser till ett strukturerat resultat.\n\n"
+            "Regler:\n"
+            "- En claim är en faktisk slutsats eller bedömningspunkt, inte mötesreferat.\n"
+            "- evidence beskriver stöd som faktiskt finns i underlag eller offentligt resonemang.\n"
+            "- judgment beskriver bedömningen eller osäkerheten. Blanda inte ihop evidence och judgment.\n"
+            "- Lägg inte till externa fakta, källor, säkerhetsnivåer eller scores.\n"
+            "- Hitta inte på konsensus. Om bara en expert gör ett påstående får det bli en claim, "
+            "men skriv inte att panelen är enig.\n"
+            "- dissensus=true endast vid verklig materiell oenighet om samma substantiella fråga. "
+            "Olika fokus eller kompletterande resonemang är inte dissensus. "
+            "Bevara oenigheten i judgment i stället för att rösta bort den.\n"
+            "- unanswered är genuina luckor: ingen expert besvarade en relevant fråga, "
+            "alla relevanta experter avstod, avgörande fakta eller evidens saknas, "
+            "eller panelen säger att frågan inte går att avgöra. Lista inte hypotetiska följdfrågor.\n"
+            "- Använd inte scratchpads. De hör inte till underlaget.\n"
+            "- Raise-hand JA/NEJ är turordning, inte evidence och inte claim. "
+            "Avstå (NEJ) är varken stöd eller avslag. "
+            "Om alla avstår, fabricera inte claims; det kan vara unanswered.\n"
+            "- Var konservativ: få starka claims hellre än många svaga.\n"
+            "- Om underlaget är tomt eller för svagt: returnera tomma claims och eventuellt unanswered. "
+            "Hitta inte på slutsatser."
+        ),
+        (
+            "Topic: {topic}\n\n"
+            "Background:\n{brief}\n\n"
+            "Experts:\n{expert_list}\n\n"
+            "Public transcript (no scratchpads):\n{transcript}\n\n"
+            "Moderator free-text analysis:\n{moderator_analysis}\n\n"
+            "Extract decision-relevant conclusions into a structured result.\n\n"
+            "Rules:\n"
+            "- A claim is an actual conclusion or assessment point, not meeting minutes.\n"
+            "- evidence describes support that is actually present in the brief or public reasoning.\n"
+            "- judgment describes the assessment or uncertainty. Do not mix evidence and judgment.\n"
+            "- Do not add external facts, sources, confidence levels, or scores.\n"
+            "- Do not invent consensus. If only one expert makes a statement it may be a claim, "
+            "but do not say the panel agrees.\n"
+            "- dissensus=true only for real material disagreement on the same substantive question. "
+            "Different focus or complementary reasoning is not dissensus. "
+            "Preserve the disagreement in judgment instead of voting it away.\n"
+            "- unanswered is for genuine gaps: no expert answered a relevant question, "
+            "all relevant experts abstained, decisive facts or evidence are missing, "
+            "or the panel says the question cannot be settled. Do not list hypothetical follow-ups.\n"
+            "- Do not use scratchpads. They are not part of the record.\n"
+            "- Raise-hand YES/NO is turn-taking, not evidence and not a claim. "
+            "Abstention (NO) is neither support nor rejection. "
+            "If everyone abstains, do not fabricate claims; that may be unanswered.\n"
+            "- Be conservative: few strong claims rather than many weak ones.\n"
+            "- If the record is empty or too weak: return empty claims and optionally unanswered. "
+            "Do not invent conclusions."
+        ),
+    ),
+    _f(
         "expert.from_underlag.system",
         "panel",
         "Experter från underlag — systemprompt",

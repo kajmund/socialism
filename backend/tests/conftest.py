@@ -30,6 +30,7 @@ from app.llm.vision import set_vision_completer
 from app.main import create_app
 from app.schemas.domain import FollowUpQuestions
 from app.services import jobs as jobs_service
+from app.services.panel.synthesis import GenericPanelSynthesis
 from app.services.image_cache import clear_image_cache
 from app.services.kund_store import bolag_demo_customer_id, ensure_default_kunder
 from app.services.object_storage import MemoryObjectStorage, set_object_storage
@@ -115,6 +116,8 @@ async def client():
                     "Har du ändrat åsikt med åren?",
                 ]
             )
+        if response_model is GenericPanelSynthesis:
+            return GenericPanelSynthesis(summary="", claims=[], unanswered=[])
         raise RuntimeError(f"Unexpected structured model {response_model}")
 
     set_text_completer(_mock_text)
