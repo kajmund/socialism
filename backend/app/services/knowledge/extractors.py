@@ -103,7 +103,7 @@ def _extract_pdf(content: bytes) -> ExtractedDocument:
                 return ExtractedDocument(blocks=[], status="empty")
             for page in pdf.pages:
                 pages.append(page.extract_text() or "")
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 — malformed PDF is an ingest outcome
         return ExtractedDocument(blocks=[], status="failed", message=str(exc))
 
     blocks = [
@@ -124,7 +124,7 @@ def _extract_docx(content: bytes) -> ExtractedDocument:
     try:
         result = mammoth.convert_to_html(BytesIO(content))
         html = str(result.value or "")
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 — malformed DOCX is an ingest outcome
         return ExtractedDocument(blocks=[], status="failed", message=str(exc))
     paragraphs = _html_blocks(html)
     blocks = [
