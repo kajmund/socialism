@@ -1,17 +1,17 @@
 ---
 type: guide
 title: Granska ett dokument i Word
-description: Öppna Socialism-tillägget i Word, välj expertpanel och låt kommentarer dyka upp i dokumentet.
+description: Öppna tillägget i Word, välj expertpanel och låt kommentarer dyka upp i dokumentet.
 tags: [jobb, rapporter]
 ---
 
 # Granska ett dokument i Word
 
-Tillägget **Socialism expertgranskning** sitter i Word, inte i webbläsaren. Det använder samma expertpaneler som i admin.
+Tillägget **Expertgranskning** sitter i Word, inte i webbläsaren. Det använder samma expertpaneler som i admin.
 
 ## Första gången
 
-1. Öppna dokumentet i **Word på datorn** och öppna tillägget från fliken **Start**.
+1. Öppna dokumentet i **Word på datorn** och öppna tillägget från fliken **Start** (Devbrains-huvudet, knappen **Granska**).
 2. Klistra in din inloggningstoken (samma som efter inloggningslänken) och spara den. Token stannar i Word.
 3. Välj en **expertpanel**. Listan visar bara panelerna för din kund.
 4. Klicka **Granska**. Tillägget läser dokumentets stycken och startar en granskning. Inget mer behöver fyllas i.
