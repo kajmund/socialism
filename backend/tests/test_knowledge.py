@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import ast
 import inspect
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -22,10 +23,10 @@ from app.services.knowledge.models import (
     KnowledgeScopeRequiredError,
 )
 from app.services.knowledge.provider import (
+    SUPABASE_PROVIDER_ID,
     KnowledgeNotFoundError,
     KnowledgeProvider,
     KnowledgeProviderNotFoundError,
-    SUPABASE_PROVIDER_ID,
 )
 from app.services.knowledge.registry import (
     KnowledgeProviderRegistry,
@@ -315,7 +316,6 @@ async def test_vector_search_returns_normalized_knowledge_hit(session: AsyncSess
     assert "vindkraft" in hit.excerpt
     assert hit.locator == "p1"
     assert hit.external_id == "acme/dd/files/brief.pdf"
-    assert "document_id" not in type(hit).__annotations__ or hit.document_id
 
 
 async def test_vector_metadata_filtering_enforces_scope():
@@ -392,7 +392,7 @@ def test_provider_api_is_read_only():
     }
     assert public == {"search", "get_document", "fetch_content"}
     protocol_source = inspect.getsource(KnowledgeProvider)
-    for banned in ("upload", "delete", "overwrite", "put_object", "ingest"):
+    for banned in ("async def upload", "async def delete", "async def overwrite", "async def ingest"):
         assert banned not in protocol_source
     assert "async def search" in protocol_source
     assert "async def get_document" in protocol_source

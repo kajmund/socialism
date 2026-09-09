@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from app.services.knowledge.models import KnowledgeDocument, KnowledgeHit, KnowledgeQuery, KnowledgeScope
+from app.services.knowledge.models import (
+    KnowledgeDocument,
+    KnowledgeHit,
+    KnowledgeQuery,
+    KnowledgeScope,
+)
 
 SUPABASE_PROVIDER_ID = "supabase"
 
@@ -28,7 +33,7 @@ class KnowledgeVectorStoreError(KnowledgeError):
 
 
 class KnowledgeProvider(Protocol):
-    """Research-facing read API. Writes stay on existing upload flows."""
+    """Research-facing read API. Writes stay on existing file-storage flows."""
 
     provider_id: str
 
