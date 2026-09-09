@@ -6,10 +6,10 @@
   xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides"
   xsi:type="TaskPaneApp">
   <Id>7c3e9a1b-5d24-4f8e-9b6a-2e1c0d4f8a71</Id>
-  <Version>1.0.0</Version>
-  <ProviderName>Socialism</ProviderName>
+  <Version>1.0.1</Version>
+  <ProviderName>Devbrains</ProviderName>
   <DefaultLocale>sv-SE</DefaultLocale>
-  <DisplayName DefaultValue="Socialism expertgranskning" />
+  <DisplayName DefaultValue="Expertgranskning" />
   <Description DefaultValue="Granska Word-dokument mot en expertpanel." />
   <IconUrl DefaultValue="https://localhost:3000/assets/icon-32.png" />
   <HighResolutionIconUrl DefaultValue="https://localhost:3000/assets/icon-80.png" />
@@ -36,7 +36,7 @@
           <FunctionFile resid="Commands.Url" />
           <ExtensionPoint xsi:type="PrimaryCommandSurface">
             <OfficeTab id="TabHome">
-              <Group id="SocialismGroup">
+              <Group id="DevbrainsGroup">
                 <Label resid="GroupLabel" />
                 <Icon>
                   <bt:Image size="16" resid="Icon.16" />
@@ -77,13 +77,13 @@
         <bt:Url id="Taskpane.Url" DefaultValue="https://localhost:3000/index.html" />
       </bt:Urls>
       <bt:ShortStrings>
-        <bt:String id="GetStarted.Title" DefaultValue="Socialism expertgranskning" />
-        <bt:String id="GroupLabel" DefaultValue="Socialism" />
+        <bt:String id="GetStarted.Title" DefaultValue="Expertgranskning" />
+        <bt:String id="GroupLabel" DefaultValue="Devbrains" />
         <bt:String id="TaskpaneButton.Label" DefaultValue="Granska" />
       </bt:ShortStrings>
       <bt:LongStrings>
         <bt:String id="GetStarted.Description" DefaultValue="Öppna sidopanelen och granska dokumentet mot en expertpanel." />
-        <bt:String id="TaskpaneButton.Tooltip" DefaultValue="Öppna Socialism-granskning" />
+        <bt:String id="TaskpaneButton.Tooltip" DefaultValue="Öppna expertgranskning" />
       </bt:LongStrings>
     </Resources>
   </VersionOverrides>
