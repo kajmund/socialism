@@ -9,14 +9,32 @@ from app.llm import set_structured_completer
 from app.realtime.expertgranskning_broadcast import expertgranskning_broadcast
 from app.services import jobs as jobs_service
 from app.services.expertgranskning.schemas import (
+    WordExpertComment,
+    WordExpertRaiseHand,
     WordHeadingAssessment,
-    WordParagraphComment,
-    WordParagraphComments,
+    WordRewriteSuggestion,
 )
 from tests.test_expertgranskning_word_review import (
+    DEFAULT_EXPERT_LABELS,
     _create_expert_panel,
-    _first_slot_id,
+    _identity_label,
 )
+
+
+def _sections(text: str = "Detta stycke är tillräckligt långt för granskning.") -> list[dict]:
+    return [
+        {
+            "heading": "Inledning",
+            "heading_paragraph_index": 0,
+            "paragraphs": [
+                {
+                    "index": 1,
+                    "text": text,
+                    "style": "Normal",
+                }
+            ],
+        }
+    ]
 
 
 @pytest.mark.asyncio
@@ -35,15 +53,16 @@ async def test_word_review_emits_result_created_then_finished(
     async def completer(messages, response_model):
         if response_model is WordHeadingAssessment:
             return WordHeadingAssessment(forslag="Tydligare rubrik")
-        return WordParagraphComments(
-            comments=[
-                WordParagraphComment(
-                    expert_id=_first_slot_id(messages[-1]["content"]),
-                    expert_namn="ignored",
-                    kommentar="En live-kommentar.",
-                )
-            ]
-        )
+        if response_model is WordRewriteSuggestion:
+            return WordRewriteSuggestion(ny_text="", motivering="")
+        if response_model is WordExpertRaiseHand:
+            label = _identity_label(messages)
+            if label == DEFAULT_EXPERT_LABELS[0]:
+                return WordExpertRaiseHand(paragraph_indexes=[1])
+            return WordExpertRaiseHand(paragraph_indexes=[])
+        if response_model is WordExpertComment:
+            return WordExpertComment(kommentar="En live-kommentar.")
+        raise AssertionError(f"unexpected model {response_model}")
 
     panel_id = await _create_expert_panel(client)
     set_structured_completer(completer)
@@ -51,22 +70,7 @@ async def test_word_review_emits_result_created_then_finished(
     try:
         started = await client.post(
             "/expertgranskning/word-jobs",
-            json={
-                "panel_id": panel_id,
-                "sections": [
-                    {
-                        "heading": "Inledning",
-                        "heading_paragraph_index": 0,
-                        "paragraphs": [
-                            {
-                                "index": 1,
-                                "text": "Detta stycke är tillräckligt långt för granskning.",
-                                "style": "Normal",
-                            }
-                        ],
-                    }
-                ],
-            },
+            json={"panel_id": panel_id, "sections": _sections()},
         )
         assert started.status_code == 202, started.text
         job_id = started.json()["job_id"]
@@ -97,16 +101,13 @@ async def test_word_review_emits_finished_on_failure(client: AsyncClient, monkey
     monkeypatch.setattr(expertgranskning_broadcast, "publish", capture)
 
     async def completer(messages, response_model):
-        if response_model is WordParagraphComments:
-            return WordParagraphComments(
-                comments=[
-                    WordParagraphComment(
-                        expert_id=_first_slot_id(messages[-1]["content"]),
-                        expert_namn="ignored",
-                        kommentar="Sparad innan kraschen.",
-                    )
-                ]
-            )
+        if response_model is WordExpertRaiseHand:
+            label = _identity_label(messages)
+            if label == DEFAULT_EXPERT_LABELS[0]:
+                return WordExpertRaiseHand(paragraph_indexes=[1])
+            return WordExpertRaiseHand(paragraph_indexes=[])
+        if response_model is WordExpertComment:
+            return WordExpertComment(kommentar="Sparad innan kraschen.")
         raise RuntimeError("heading boom")
 
     panel_id = await _create_expert_panel(client)
@@ -115,22 +116,7 @@ async def test_word_review_emits_finished_on_failure(client: AsyncClient, monkey
     try:
         started = await client.post(
             "/expertgranskning/word-jobs",
-            json={
-                "panel_id": panel_id,
-                "sections": [
-                    {
-                        "heading": "Inledning",
-                        "heading_paragraph_index": 0,
-                        "paragraphs": [
-                            {
-                                "index": 1,
-                                "text": "Detta stycke är tillräckligt långt för granskning.",
-                                "style": "Normal",
-                            }
-                        ],
-                    }
-                ],
-            },
+            json={"panel_id": panel_id, "sections": _sections()},
         )
         assert started.status_code == 202, started.text
         await jobs_service._run_job(started.json()["job_id"])
@@ -157,15 +143,16 @@ async def test_word_result_patch_emits_updated(client: AsyncClient, monkeypatch)
     async def completer(messages, response_model):
         if response_model is WordHeadingAssessment:
             return WordHeadingAssessment(forslag=None)
-        return WordParagraphComments(
-            comments=[
-                WordParagraphComment(
-                    expert_id=_first_slot_id(messages[-1]["content"]),
-                    expert_namn="ignored",
-                    kommentar="Kommentar att fästa live.",
-                )
-            ]
-        )
+        if response_model is WordRewriteSuggestion:
+            return WordRewriteSuggestion(ny_text="", motivering="")
+        if response_model is WordExpertRaiseHand:
+            label = _identity_label(messages)
+            if label == DEFAULT_EXPERT_LABELS[0]:
+                return WordExpertRaiseHand(paragraph_indexes=[1])
+            return WordExpertRaiseHand(paragraph_indexes=[])
+        if response_model is WordExpertComment:
+            return WordExpertComment(kommentar="Kommentar att fästa live.")
+        raise AssertionError(f"unexpected model {response_model}")
 
     panel_id = await _create_expert_panel(client)
     set_structured_completer(completer)
@@ -175,19 +162,9 @@ async def test_word_result_patch_emits_updated(client: AsyncClient, monkeypatch)
             "/expertgranskning/word-jobs",
             json={
                 "panel_id": panel_id,
-                "sections": [
-                    {
-                        "heading": "Inledning",
-                        "heading_paragraph_index": 0,
-                        "paragraphs": [
-                            {
-                                "index": 1,
-                                "text": "Detta stycke är tillräckligt långt för en kommentar.",
-                                "style": "Normal",
-                            }
-                        ],
-                    }
-                ],
+                "sections": _sections(
+                    "Detta stycke är tillräckligt långt för en kommentar."
+                ),
             },
         )
         assert started.status_code == 202, started.text
@@ -202,7 +179,11 @@ async def test_word_result_patch_emits_updated(client: AsyncClient, monkeypatch)
             json={"comment_id": "word-comment-ws"},
         )
         assert patched.status_code == 200, patched.text
-        updated = [event for event in events if event["type"] == "expertgranskning.result.updated"]
+        updated = [
+            event
+            for event in events
+            if event["type"] == "expertgranskning.result.updated"
+        ]
         assert len(updated) == 1
         assert updated[0]["job_id"] == job_id
         assert updated[0]["result"]["comment_id"] == "word-comment-ws"

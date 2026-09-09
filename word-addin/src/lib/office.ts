@@ -19,6 +19,14 @@ export function officeReady(): Promise<void> {
   })
 }
 
+export function listStringFromLoaded(paragraph: {
+  listItemOrNullObject: { isNullObject: boolean; listString?: string }
+}): string {
+  const item = paragraph.listItemOrNullObject
+  if (item.isNullObject) return ""
+  return typeof item.listString === "string" ? item.listString : ""
+}
+
 export function commentsApiSupported(): boolean {
   if (typeof Office === "undefined") return false
   return Office.context.requirements.isSetSupported("WordApi", "1.4")
@@ -78,12 +86,13 @@ export async function readDocumentParagraphs(): Promise<WordParagraph[]> {
   }
   return Word.run(async (context) => {
     const paragraphs = context.document.body.paragraphs
-    paragraphs.load("items/text,items/style")
+    paragraphs.load("items/text,items/style,items/listItemOrNullObject/listString")
     await context.sync()
     return paragraphs.items.map((paragraph, index) => ({
       index,
       text: paragraph.text.replace(/\r/g, "").trimEnd(),
       style: paragraph.style ?? "",
+      list_string: listStringFromLoaded(paragraph),
     }))
   })
 }
