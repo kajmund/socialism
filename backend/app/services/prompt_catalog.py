@@ -1744,13 +1744,13 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         "panel",
         "Word — expert räck upp handen",
         "Word — expert raise hand",
-        "Platshållare: {label}, {profile}, {document_brief}, {batch_text}.",
-        "Placeholders: {label}, {profile}, {document_brief}, {batch_text}.",
+        "Platshållare: {label}, {profile}, {batch_text}.",
+        "Placeholders: {label}, {profile}, {batch_text}.",
         (
             "Din roll: {label}\n"
             "Profil: {profile}\n\n"
-            "Dokumentet i sin helhet (index i hakparentes, klausulnummer om det finns):\n"
-            "{document_brief}\n\n"
+            "Hela dokumentet ligger i systemmeddelandet (index i hakparentes, "
+            "klausulnummer om det finns).\n\n"
             "Den här batchen (bara dessa index får du räcka upp handen för):\n"
             "{batch_text}\n\n"
             "Räck upp handen bara för de stycken där din kärnkompetens ger dig något konkret "
@@ -1760,8 +1760,8 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         (
             "Your role: {label}\n"
             "Profile: {profile}\n\n"
-            "The full document (index in brackets, clause number if present):\n"
-            "{document_brief}\n\n"
+            "The full document is in the system message (index in brackets, "
+            "clause number if present).\n\n"
             "This batch (you may raise a hand only for these indexes):\n"
             "{batch_text}\n\n"
             "Raise your hand only for paragraphs where your core competence gives you "
@@ -1775,12 +1775,12 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         "panel",
         "Word — expertkommentar",
         "Word — expert comment",
-        "Platshållare: {label}, {profile}, {document_brief}, {paragraph_text}, {list_string}, {section_heading}.",
-        "Placeholders: {label}, {profile}, {document_brief}, {paragraph_text}, {list_string}, {section_heading}.",
+        "Platshållare: {label}, {profile}, {paragraph_text}, {list_string}, {section_heading}.",
+        "Placeholders: {label}, {profile}, {paragraph_text}, {list_string}, {section_heading}.",
         (
             "Din roll: {label}\n"
             "Profil: {profile}\n\n"
-            "Dokumentet i sin helhet:\n{document_brief}\n\n"
+            "Hela dokumentet ligger i systemmeddelandet.\n\n"
             "Avsnitt: {section_heading}\n"
             "Klausulnummer (internt): {list_string}\n\n"
             "Stycke du räckt upp handen för:\n{paragraph_text}\n\n"
@@ -1790,7 +1790,7 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         (
             "Your role: {label}\n"
             "Profile: {profile}\n\n"
-            "The full document:\n{document_brief}\n\n"
+            "The full document is in the system message.\n\n"
             "Section: {section_heading}\n"
             "Clause number (internal): {list_string}\n\n"
             "Paragraph you raised a hand for:\n{paragraph_text}\n\n"
