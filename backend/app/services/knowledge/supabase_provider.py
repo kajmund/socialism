@@ -25,6 +25,7 @@ from app.services.knowledge.vector_store import KnowledgeVectorStore
 from app.services.object_storage import get_object
 
 ObjectFetcher = Callable[[str, str], Awaitable[tuple[bytes, str]]]
+_SEARCH_OVERFETCH_FACTOR = 8
 
 
 def supabase_external_id(bucket: str, key: str) -> str:
@@ -47,30 +48,28 @@ class SupabaseKnowledgeProvider:
 
     async def search(self, query: KnowledgeQuery) -> list[KnowledgeHit]:
         require_scope(query.scope)
-        raw_hits = await self._vector_store.search(query)
         allowed: list[KnowledgeHit] = []
-        for hit in raw_hits:
-            if hit.provider != self.provider_id:
-                continue
-            row = await self._row(hit.document_id)
-            if row is None:
-                continue
-            if not self._visible(row, query.scope):
-                continue
-            allowed.append(
-                KnowledgeHit(
-                    document_id=row.document_id,
-                    provider=row.provider,
-                    title=hit.title or row.title,
-                    excerpt=hit.excerpt,
-                    score=hit.score,
-                    locator=hit.locator,
-                    external_id=row.external_id,
-                    metadata={**dict(row.extra or {}), **hit.metadata},
-                )
+        seen: set[tuple[str, str | None]] = set()
+        fetch_limit = query.limit
+        max_fetch = query.limit * _SEARCH_OVERFETCH_FACTOR
+        while len(allowed) < query.limit:
+            raw_hits = await self._vector_store.search(
+                KnowledgeQuery(query=query.query, scope=query.scope, limit=fetch_limit)
             )
-            if len(allowed) >= query.limit:
+            for hit in raw_hits:
+                key = (hit.document_id, hit.locator)
+                if key in seen:
+                    continue
+                seen.add(key)
+                visible = await self._accepted_hit(hit, query.scope)
+                if visible is None:
+                    continue
+                allowed.append(visible)
+                if len(allowed) >= query.limit:
+                    return allowed
+            if len(raw_hits) < fetch_limit or fetch_limit >= max_fetch:
                 break
+            fetch_limit = min(fetch_limit * 2, max_fetch)
         return allowed
 
     async def get_document(
@@ -93,6 +92,27 @@ class SupabaseKnowledgeProvider:
             raise KnowledgeNotFoundError(document_id)
         data, _content_type = await self._fetch_object(row.storage_bucket, row.storage_key)
         return data
+
+    async def _accepted_hit(
+        self,
+        hit: KnowledgeHit,
+        scope: KnowledgeScope,
+    ) -> KnowledgeHit | None:
+        if hit.provider != self.provider_id:
+            return None
+        row = await self._row(hit.document_id)
+        if row is None or not self._visible(row, scope):
+            return None
+        return KnowledgeHit(
+            document_id=row.document_id,
+            provider=row.provider,
+            title=hit.title or row.title,
+            excerpt=hit.excerpt,
+            score=hit.score,
+            locator=hit.locator,
+            external_id=row.external_id,
+            metadata={**dict(row.extra or {}), **hit.metadata},
+        )
 
     async def _row(self, document_id: str) -> KnowledgeDocumentRecord | None:
         result = await self._session.execute(
