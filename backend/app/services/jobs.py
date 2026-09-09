@@ -827,6 +827,7 @@ async def archive_finished_jobs(
     session: AsyncSession,
     *,
     customer_id: int | None = None,
+    include_job: Callable[[Job], bool] | None = None,
 ) -> list[Job]:
     stmt = select(Job).where(
         Job.status.in_(("succeeded", "failed")),
@@ -836,6 +837,8 @@ async def archive_finished_jobs(
         stmt = stmt.where(Job.customer_id == customer_id)
     stmt = stmt.order_by(Job.created_at.desc())
     rows = list((await session.execute(stmt)).scalars().all())
+    if include_job is not None:
+        rows = [job for job in rows if include_job(job)]
     if not rows:
         return []
     now = utcnow()
@@ -862,6 +865,7 @@ async def fail_interrupted_jobs(
     run_ids: list[int] = []
     report_ids: list[str] = []
     panel_session_ids: list[str] = []
+    word_job_ids: list[str] = []
     for job in active.scalars().all():
         if job.kind == "run_simulate":
             rid = (job.request or {}).get("run_id")
@@ -875,6 +879,8 @@ async def fail_interrupted_jobs(
             sid = (job.request or {}).get("session_id")
             if isinstance(sid, str):
                 panel_session_ids.append(sid)
+        elif job.kind == WORD_JOB_KIND:
+            word_job_ids.append(job.id)
 
     result = await session.execute(
         update(Job)
@@ -920,6 +926,8 @@ async def fail_interrupted_jobs(
     await session.commit()
     for report in failed_reports:
         await publish_report(report)
+    for job_id in word_job_ids:
+        await publish_expertgranskning_finished(job_id, status="failed", error=message)
     return int(result.rowcount or 0)
 
 

@@ -11,7 +11,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.auth.scope import assert_kund_access, effective_customer_id
+from app.auth.scope import (
+    assert_job_owner_access,
+    assert_kund_access,
+    effective_customer_id,
+)
 from app.auth.tokens import user_from_bearer_token
 from app.database.models import (
     Job,
@@ -452,6 +456,7 @@ async def expertgranskning_websocket(websocket: WebSocket) -> None:
                 return
             try:
                 assert_kund_access(user, job.customer_id)
+                assert_job_owner_access(user, job)
             except HTTPException as exc:
                 await _close_auth_error(websocket, exc)
                 return

@@ -6,7 +6,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
-from app.auth.scope import assert_kund_access, effective_customer_id
+from app.auth.scope import (
+    assert_job_owner_access,
+    assert_kund_access,
+    effective_customer_id,
+    job_visible_to_user,
+)
 from app.database.models import UserAccount
 from app.database.session import get_session
 from app.schemas.domain import JobArchiveUpdate, JobCreate, JobOut, JobStatus
@@ -56,7 +61,11 @@ async def list_jobs(
         include_archived=include_archived or archived_only,
         archived_only=archived_only,
     )
-    return [jobs_service.serialize_job(row) for row in rows]
+    return [
+        jobs_service.serialize_job(row)
+        for row in rows
+        if job_visible_to_user(user, row)
+    ]
 
 
 @router.post("/archive-finished", response_model=list[JobOut])
@@ -65,7 +74,11 @@ async def archive_finished_jobs(
     user: UserAccount = Depends(get_current_user),
 ) -> list[JobOut]:
     customer_id = effective_customer_id(user, None)
-    rows = await jobs_service.archive_finished_jobs(session, customer_id=customer_id)
+    rows = await jobs_service.archive_finished_jobs(
+        session,
+        customer_id=customer_id,
+        include_job=lambda job: job_visible_to_user(user, job),
+    )
     return [jobs_service.serialize_job(row) for row in rows]
 
 
@@ -80,6 +93,7 @@ async def patch_job(
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
     assert_kund_access(user, job.customer_id)
+    assert_job_owner_access(user, job)
     try:
         job = await jobs_service.set_job_archived(session, job, body.archived)
     except ValueError as exc:
@@ -97,4 +111,5 @@ async def get_job(
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
     assert_kund_access(user, job.customer_id)
+    assert_job_owner_access(user, job)
     return jobs_service.serialize_job(job)

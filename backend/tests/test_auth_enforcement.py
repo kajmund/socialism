@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import pytest
 
-from app.database.models import DdCampaign, Job, Report
+from app.database.models import DdCampaign, Job, Report, UserAccount
 from app.serializers import utcnow
 from tests.conftest import TEST_CUSTOMER_ID, mint_access_token, USER_USER_ID
+
+OTHER_KUND_USER_ID = "00000000-0000-4000-8000-dddddddddddd"
 
 
 @pytest.mark.asyncio
@@ -122,6 +124,47 @@ async def test_user_cannot_create_job_for_other_kund_run(client_db, user_client)
     async with session_factory() as session:
         after = (await session.execute(select(func.count()).select_from(Job))).scalar_one()
     assert after == before
+
+
+@pytest.mark.asyncio
+async def test_user_cannot_read_other_users_owner_scoped_job(client_db, client) -> None:
+    _client, session_factory = client_db
+    async with session_factory() as session:
+        session.add(
+            UserAccount(
+                id=OTHER_KUND_USER_ID,
+                email="other@test.local",
+                role="user",
+                kund_id=TEST_CUSTOMER_ID,
+            )
+        )
+        session.add(
+            Job(
+                id="job-owner-scoped",
+                kind="rattsunderlag_research",
+                status="succeeded",
+                request={
+                    "owner_user_id": USER_USER_ID,
+                    "fraga": "Konfidentiell fråga",
+                    "customer_id": TEST_CUSTOMER_ID,
+                },
+                customer_id=TEST_CUSTOMER_ID,
+                created_at=utcnow(),
+                updated_at=utcnow(),
+            )
+        )
+        await session.commit()
+
+    other_token = mint_access_token(sub=OTHER_KUND_USER_ID, email="other@test.local")
+    headers = {"Authorization": f"Bearer {other_token}"}
+
+    get_response = await client.get("/jobs/job-owner-scoped", headers=headers)
+    assert get_response.status_code == 403
+    assert get_response.json()["detail"] == "job_access_denied"
+
+    list_response = await client.get("/jobs", headers=headers)
+    assert list_response.status_code == 200
+    assert "job-owner-scoped" not in {row["id"] for row in list_response.json()}
 
 
 @pytest.mark.asyncio
