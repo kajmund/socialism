@@ -9,7 +9,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.llm import set_structured_completer, set_text_completer, set_tools_completer
-from app.services.panel.engine import run_generic_panel
+from app.services.panel.engine import _moderator_analysis, run_generic_panel
 from app.services.panel.result import PanelResult
 from app.services.panel.schemas import (
     PanelExpertSlot,
@@ -210,6 +210,7 @@ async def test_all_abstain_does_not_fabricate_claims():
     assert result.claims == []
     assert result.unanswered == ["Ingen expert besvarade frågan om dold risk."]
     assert "ingen dold risk" not in result.summary.lower()
+    assert result.payload["synthesis"]["claims"] == []
 
 
 @pytest.mark.asyncio
@@ -278,6 +279,7 @@ async def test_scratchpad_only_statement_is_not_sent_and_not_a_claim():
     assert secret not in prompt_blob
     assert "scratchpad" not in public_transcript_text(_expert_transcript(scratchpad=secret)).lower()
     assert result.claims == []
+    assert secret not in str(result.payload)
 
 
 @pytest.mark.asyncio
@@ -305,6 +307,7 @@ async def test_raise_hand_yes_no_is_not_kept_as_evidence():
     prompt_blob = "\n".join(item["content"] for item in captured[0])
     assert "raise_hand" in prompt_blob
     assert result.claims == []
+    assert result.payload["synthesis"]["claims"] == []
 
 
 @pytest.mark.asyncio
@@ -332,6 +335,8 @@ async def test_weak_transcript_yields_valid_result_without_hallucinated_claims()
     assert result.claims == []
     assert result.unanswered == ["För svagt underlag för att dra slutsatser."]
     assert "transcript" not in result.payload
+    assert result.payload["synthesis"]["claims"] == []
+    assert "Påhittad slutsats" not in str(result.payload)
 
 
 def test_claim_ids_are_assigned_by_code():
@@ -349,6 +354,51 @@ def test_claim_ids_are_assigned_by_code():
     assert "synthesis" in result.payload
     dumped = result.model_dump(mode="json")
     assert "transcript" not in dumped["payload"]
+    assert [row["claim"] for row in dumped["payload"]["synthesis"]["claims"]] == [
+        "Första slutsatsen.",
+        "Andra slutsatsen.",
+    ]
+
+
+def test_claim_without_evidence_or_judgment_is_rejected():
+    synthesis = GenericPanelSynthesis(
+        summary="Svag rad.",
+        claims=[
+            SynthesizedClaim(claim="Kassan räcker.", evidence="", judgment="Bedömning."),
+            SynthesizedClaim(claim="Avtalen håller.", evidence="Juristen sade så.", judgment=""),
+            SynthesizedClaim(
+                claim="Bra underlag.",
+                evidence="Offentlig tur.",
+                judgment="Bedömd slutsats.",
+            ),
+        ],
+    )
+    result = panel_result_from_synthesis(synthesis, transcript=_expert_transcript())
+    assert [row.claim for row in result.claims] == ["Bra underlag."]
+    assert [row["claim"] for row in result.payload["synthesis"]["claims"]] == [
+        "Bra underlag."
+    ]
+
+
+@pytest.mark.asyncio
+async def test_moderator_analysis_does_not_see_scratchpads():
+    secret = "Hemlig scratchpad-slutsats: dold skatteskuld på 40 miljoner."
+    seen: list[list[dict]] = []
+
+    async def _complete(messages, *, model=None):
+        seen.append([dict(item) for item in messages])
+        return "Analys utan scratchpad."
+
+    set_text_completer(_complete)
+    text = await _moderator_analysis(
+        _config(),
+        _expert_transcript(scratchpad=secret),
+        default_prompts("sv"),
+    )
+    assert text == "Analys utan scratchpad."
+    blob = "\n".join(item["content"] for item in seen[0])
+    assert secret not in blob
+    assert "(scratchpad)" not in blob
 
 
 def test_synthesis_prompt_renders_placeholders():

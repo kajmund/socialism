@@ -13,7 +13,10 @@ from app.services.panel.schemas import (
     PanelSessionConfig,
     PanelTurn,
 )
-from app.services.panel.synthesis import synthesize_generic_panel_result
+from app.services.panel.synthesis import (
+    public_transcript_text,
+    synthesize_generic_panel_result,
+)
 from app.services.panel.watch import run_turn
 from app.services.prompt_catalog import render_prompt
 
@@ -186,7 +189,7 @@ async def _moderator_analysis(
             prompts,
             "panel.moderator.analysis",
             topic=config.topic,
-            transcript=_transcript_text(transcript),
+            transcript=public_transcript_text(transcript),
         ),
     )
     return (await complete_text(messages)).strip()
