@@ -104,13 +104,7 @@ def _document_brief(payload: ExpertgranskningWordJobRequest) -> str:
     lines: list[str] = []
     for section in payload.sections:
         heading = section.heading.strip()
-        first_index = section.paragraphs[0].index if section.paragraphs else None
-        implicit = (
-            not heading
-            and first_index is not None
-            and section.heading_paragraph_index == first_index
-        )
-        if heading and not implicit:
+        if heading:
             lines.append(
                 _format_brief_line(
                     section.heading_paragraph_index,
@@ -317,7 +311,6 @@ async def _raise_hand(
         "expertgranskning.word.expert.raise_hand",
         label=slot.label,
         profile=slot.profile or slot.label,
-        document_brief=brief,
         batch_text=_batch_text(batch),
     )
     parsed = await complete_structured(
@@ -353,7 +346,6 @@ async def _comment_paragraph(
         "expertgranskning.word.expert.comment",
         label=slot.label,
         profile=slot.profile or slot.label,
-        document_brief=brief,
         paragraph_text=paragraph.text,
         list_string=paragraph.list_string,
         section_heading=section.heading,
@@ -439,6 +431,31 @@ async def run_word_paragraph_review(
                 comments_by_index.setdefault(paragraph.index, []).append(
                     (slot.label, text)
                 )
+
+            rewrite_targets = [
+                paragraph
+                for paragraph in batch
+                if len(comments_by_index.get(paragraph.index, [])) >= 2
+            ]
+            suggestions = (
+                await asyncio.gather(
+                    *[
+                        _rewrite_convergence(
+                            prompts=prompts,
+                            section=section,
+                            paragraph=paragraph,
+                            comments=comments_by_index[paragraph.index],
+                        )
+                        for paragraph in rewrite_targets
+                    ]
+                )
+                if rewrite_targets
+                else []
+            )
+
+            for slot, paragraph, text in comments:
+                if not text:
+                    continue
                 pending.append(
                     await _write_result(
                         session,
@@ -456,16 +473,7 @@ async def run_word_paragraph_review(
                 )
                 result_count += 1
 
-            for paragraph in batch:
-                items = comments_by_index.get(paragraph.index, [])
-                if len(items) < 2:
-                    continue
-                suggestion = await _rewrite_convergence(
-                    prompts=prompts,
-                    section=section,
-                    paragraph=paragraph,
-                    comments=items,
-                )
+            for paragraph, suggestion in zip(rewrite_targets, suggestions, strict=True):
                 if suggestion is None:
                     continue
                 pending.append(

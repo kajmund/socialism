@@ -171,13 +171,17 @@ class WordRewriteSuggestion(BaseModel):
 
     @field_validator("ny_text", "motivering", mode="before")
     @classmethod
-    def single_paragraph(cls, value: object) -> str:
+    def none_to_empty(cls, value: object) -> str:
         if value is None:
             return ""
-        text = str(value).strip()
-        if "\n" in text.replace("\r\n", "\n").replace("\r", "\n"):
+        return str(value).strip()
+
+    @field_validator("ny_text")
+    @classmethod
+    def single_paragraph(cls, value: str) -> str:
+        if "\n" in value.replace("\r\n", "\n").replace("\r", "\n"):
             return ""
-        return text
+        return value
 
 
 class WordExpertRaiseHand(BaseModel):
