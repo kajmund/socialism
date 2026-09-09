@@ -1,7 +1,6 @@
 import type { WordParagraph } from "@/lib/types"
 
 const DOC_ID_KEY = "socialism_doc_id"
-const TOKEN_KEY = "access_token"
 
 function requireOffice(): typeof Office {
   if (typeof Office === "undefined") {
@@ -30,34 +29,6 @@ export function listStringFromLoaded(paragraph: {
 export function commentsApiSupported(): boolean {
   if (typeof Office === "undefined") return false
   return Office.context.requirements.isSetSupported("WordApi", "1.4")
-}
-
-export function getRoamingToken(): string {
-  if (typeof Office === "undefined") return ""
-  const value = Office.context.roamingSettings.get(TOKEN_KEY)
-  return typeof value === "string" ? value : ""
-}
-
-export function saveRoamingToken(token: string): Promise<void> {
-  const office = requireOffice()
-  const settings = office.context.roamingSettings
-  if (!settings) {
-    throw new Error("Office roamingSettings is not available")
-  }
-  settings.set(TOKEN_KEY, token)
-  return new Promise((resolve, reject) => {
-    const timer = window.setTimeout(() => {
-      reject(new Error("Timed out saving token to Word"))
-    }, 5000)
-    settings.saveAsync((result) => {
-      window.clearTimeout(timer)
-      if (result.status === Office.AsyncResultStatus.Failed) {
-        reject(new Error(result.error.message))
-        return
-      }
-      resolve()
-    })
-  })
 }
 
 export function getStoredDocId(): string {
