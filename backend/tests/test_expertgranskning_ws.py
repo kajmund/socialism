@@ -9,11 +9,13 @@ from app.llm import set_structured_completer
 from app.realtime.expertgranskning_broadcast import expertgranskning_broadcast
 from app.services import jobs as jobs_service
 from app.services.expertgranskning.schemas import (
+    WordBatchModeration,
     WordExpertComment,
     WordExpertRaiseHand,
     WordHeadingAssessment,
     WordRewriteSuggestion,
 )
+from tests.test_expertgranskning_word_review import _moderation_for_batch
 from tests.test_expertgranskning_word_review import (
     DEFAULT_EXPERT_LABELS,
     _create_expert_panel,
@@ -55,11 +57,13 @@ async def test_word_review_emits_result_created_then_finished(
             return WordHeadingAssessment(forslag="Tydligare rubrik")
         if response_model is WordRewriteSuggestion:
             return WordRewriteSuggestion(ny_text="", motivering="")
+        if response_model is WordBatchModeration:
+            return _moderation_for_batch(messages[-1]["content"])
         if response_model is WordExpertRaiseHand:
             label = _identity_label(messages)
             if label == DEFAULT_EXPERT_LABELS[0]:
-                return WordExpertRaiseHand(paragraph_indexes=[1])
-            return WordExpertRaiseHand(paragraph_indexes=[])
+                return WordExpertRaiseHand(question_ids=["q1"])
+            return WordExpertRaiseHand(question_ids=[])
         if response_model is WordExpertComment:
             return WordExpertComment(kommentar="En live-kommentar.")
         raise AssertionError(f"unexpected model {response_model}")
@@ -101,11 +105,13 @@ async def test_word_review_emits_finished_on_failure(client: AsyncClient, monkey
     monkeypatch.setattr(expertgranskning_broadcast, "publish", capture)
 
     async def completer(messages, response_model):
+        if response_model is WordBatchModeration:
+            return _moderation_for_batch(messages[-1]["content"])
         if response_model is WordExpertRaiseHand:
             label = _identity_label(messages)
             if label == DEFAULT_EXPERT_LABELS[0]:
-                return WordExpertRaiseHand(paragraph_indexes=[1])
-            return WordExpertRaiseHand(paragraph_indexes=[])
+                return WordExpertRaiseHand(question_ids=["q1"])
+            return WordExpertRaiseHand(question_ids=[])
         if response_model is WordExpertComment:
             return WordExpertComment(kommentar="Sparad innan kraschen.")
         raise RuntimeError("heading boom")
@@ -145,11 +151,13 @@ async def test_word_result_patch_emits_updated(client: AsyncClient, monkeypatch)
             return WordHeadingAssessment(forslag=None)
         if response_model is WordRewriteSuggestion:
             return WordRewriteSuggestion(ny_text="", motivering="")
+        if response_model is WordBatchModeration:
+            return _moderation_for_batch(messages[-1]["content"])
         if response_model is WordExpertRaiseHand:
             label = _identity_label(messages)
             if label == DEFAULT_EXPERT_LABELS[0]:
-                return WordExpertRaiseHand(paragraph_indexes=[1])
-            return WordExpertRaiseHand(paragraph_indexes=[])
+                return WordExpertRaiseHand(question_ids=["q1"])
+            return WordExpertRaiseHand(question_ids=[])
         if response_model is WordExpertComment:
             return WordExpertComment(kommentar="Kommentar att fästa live.")
         raise AssertionError(f"unexpected model {response_model}")
