@@ -184,8 +184,42 @@ class WordRewriteSuggestion(BaseModel):
         return value
 
 
-class WordExpertRaiseHand(BaseModel):
+class WordReviewQuestion(BaseModel):
+    id: str
     paragraph_indexes: list[int] = Field(default_factory=list)
+    question: str
+    why_it_matters: str = ""
+
+    @field_validator("id", "question", "why_it_matters", mode="before")
+    @classmethod
+    def strip_text(cls, value: object) -> str:
+        if value is None:
+            return ""
+        return str(value).strip()
+
+
+class WordBatchModeration(BaseModel):
+    needs_review: bool
+    reason: str = ""
+    questions: list[WordReviewQuestion] = Field(default_factory=list)
+
+    @field_validator("reason", mode="before")
+    @classmethod
+    def strip_reason(cls, value: object) -> str:
+        if value is None:
+            return ""
+        return str(value).strip()
+
+
+class WordExpertRaiseHand(BaseModel):
+    question_ids: list[str] = Field(default_factory=list)
+
+    @field_validator("question_ids", mode="before")
+    @classmethod
+    def strip_ids(cls, value: object) -> object:
+        if not isinstance(value, list):
+            return value
+        return [str(item).strip() for item in value if str(item).strip()]
 
 
 class WordExpertComment(BaseModel):
