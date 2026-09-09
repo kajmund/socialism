@@ -299,8 +299,11 @@ function JobActionLinks({
     }
   }
   if (job.status === "succeeded" && job.kind === "rattsunderlag_research") {
+    const href = sessionId
+      ? `/rattsunderlag/${sessionId}?tab=results`
+      : `/rattsunderlag/${job.id}?tab=results`
     links.push(
-      <Link key="rattsunderlag" to={`/rattsunderlag/${job.id}`}>
+      <Link key="rattsunderlag" to={href}>
         {t("jobs.openRattsunderlag")}
       </Link>,
     )
@@ -353,6 +356,19 @@ function JobActionLinks({
         </Link>,
       )
     }
+  }
+  if (
+    (job.status === "pending" || job.status === "running" || job.status === "failed") &&
+    job.kind === "rattsunderlag_research"
+  ) {
+    const href = sessionId
+      ? `/rattsunderlag/${sessionId}?tab=results`
+      : `/rattsunderlag/${job.id}?tab=results`
+    links.push(
+      <Link key="rattsunderlag-live" to={href}>
+        {t("jobs.openRattsunderlag")}
+      </Link>,
+    )
   }
 
   return <>{links}</>

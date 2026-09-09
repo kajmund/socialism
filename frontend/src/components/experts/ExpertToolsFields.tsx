@@ -28,6 +28,8 @@ export type ExpertToolsFieldsProps = {
   tools: ExpertToolId[]
   onChange: (tools: ExpertToolId[]) => void
   disabled?: boolean
+  titleKey?: MessageKey
+  introKey?: MessageKey
 }
 
 function ExpertToolsTable({
@@ -119,6 +121,8 @@ export function ExpertToolsFields({
   tools,
   onChange,
   disabled = false,
+  titleKey = "experts.composer.layerTools",
+  introKey = "experts.tools.intro",
 }: ExpertToolsFieldsProps) {
   const { t } = useLocale()
   const [open, setOpen] = useState(false)
@@ -182,10 +186,10 @@ export function ExpertToolsFields({
                     id="expert-tools-title"
                     className="text-base font-medium text-foreground"
                   >
-                    {t("experts.composer.layerTools")}
+                    {t(titleKey)}
                   </h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {t("experts.tools.intro")}
+                    {t(introKey)}
                   </p>
                 </div>
                 <div className="px-5 py-4">

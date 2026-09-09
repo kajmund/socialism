@@ -23,6 +23,7 @@ from app.services.prompt_fields_store import (
     ensure_prompt_overrides_from_configurations,
     get_prompt_field_by_key,
     get_prompt_fields,
+    retire_unknown_prompt_fields,
 )
 
 
@@ -52,11 +53,13 @@ def test_modules_for_prompt_key_follows_prefix_convention():
         "dd",
         "politik",
         "expertgranskning",
+        "rattsunderlag",
     ]
     assert modules_for_prompt_key("panel.expert.system") == [
         "dd",
         "politik",
         "expertgranskning",
+        "rattsunderlag",
     ]
     assert modules_for_prompt_key("expert.from_underlag.system") == [
         "dd",
@@ -84,7 +87,10 @@ def test_module_providers_cover_all_catalog_keys_without_overlap_gaps():
     expert_keys = {field["key"] for field in expertgranskning_prompt_defaults()}
     all_keys = {field["key"] for field in PROMPT_FIELDS}
     assert dd_keys | politik_keys | ratts_keys | expert_keys == all_keys
-    assert ratts_keys.isdisjoint(dd_keys)
+    spinndoctor_keys = {key for key in all_keys if key.startswith("spinndoctor.")}
+    shared_with_dd = spinndoctor_keys | {"panel.expert.system"}
+    assert shared_with_dd <= ratts_keys
+    assert ratts_keys.isdisjoint(dd_keys - shared_with_dd)
     assert {
         "expertgranskning.word.paragraph",
         "expertgranskning.word.heading",
@@ -101,6 +107,8 @@ def test_module_providers_cover_all_catalog_keys_without_overlap_gaps():
     assert expert_keys < all_keys
     assert "panel.expert.system" in expert_keys
     assert "spinndoctor.system" in expert_keys
+    assert "spinndoctor.system" in ratts_keys
+    assert "panel.expert.system" in ratts_keys
     assert "expertgranskning.word.paragraph" in expert_keys
     assert "expertgranskning.word.heading" in expert_keys
     assert "expertgranskning.word.expert.raise_hand" in expert_keys
@@ -248,6 +256,64 @@ async def test_two_customers_can_store_different_overrides(session: AsyncSession
 
 
 @pytest.mark.asyncio
+async def test_retire_unknown_prompt_fields_deletes_rows_overrides_and_config_keys(
+    session: AsyncSession,
+):
+    await ensure_prompt_field_defaults(session, "politik", politik_prompt_defaults())
+    await ensure_prompt_field_defaults(session, "dd", dd_prompt_defaults())
+    customer = Kund(name="Acme", slug="acme", available_modules=["politik"])
+    session.add(customer)
+    await session.flush()
+    leftover = PromptField(
+        key="persona.from_slot.system",
+        modules=["politik"],
+        section="persona",
+        label_sv="Legacy",
+        label_en="Legacy",
+        default_sv="old",
+        default_en="old",
+        default_nb="old",
+        active=True,
+        updated_at=utcnow(),
+    )
+    session.add(leftover)
+    await session.flush()
+    session.add(
+        PromptOverride(
+            customer_id=customer.id,
+            prompt_field_id=leftover.id,
+            language="sv",
+            text="kundtext",
+            updated_at=utcnow(),
+        )
+    )
+    now = utcnow()
+    session.add(
+        Configuration(
+            customer_id=customer.id,
+            name="Standard (svenska)",
+            language="sv",
+            prompts={
+                "persona.from_slot.system": "kvar i blob",
+                "help.system": "behålls",
+            },
+            is_active=True,
+            created_at=now,
+            updated_at=now,
+        )
+    )
+    await session.commit()
+
+    removed = await retire_unknown_prompt_fields(session)
+    assert removed == 1
+    assert await get_prompt_field_by_key(session, "persona.from_slot.system") is None
+    assert (await session.execute(select(PromptOverride))).scalars().all() == []
+    config = (await session.execute(select(Configuration))).scalar_one()
+    assert config.prompts == {"help.system": "behålls"}
+    assert await retire_unknown_prompt_fields(session) == 0
+
+
+@pytest.mark.asyncio
 async def test_startup_seed_fills_catalog_without_default_overrides(client_db):
     _client, factory = client_db
     async with factory() as db:
@@ -258,6 +324,6 @@ async def test_startup_seed_fills_catalog_without_default_overrides(client_db):
         assert set(help_row.modules) == {"dd", "politik"}
         shared = await get_prompt_field_by_key(db, "panel.expert.system")
         assert shared is not None
-        assert set(shared.modules) == {"dd", "politik", "expertgranskning"}
+        assert set(shared.modules) == {"dd", "politik", "expertgranskning", "rattsunderlag"}
         overrides = (await db.execute(select(PromptOverride))).scalars().all()
         assert overrides == []

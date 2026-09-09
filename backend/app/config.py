@@ -64,6 +64,8 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_jwt_secret: str = ""
     supabase_service_role_key: str = ""
+    # Local-only shortcut: POST /auth/local-login. Never enable in production.
+    allow_local_login: bool = False
     # Supabase Storage S3-compatible API (Dashboard → Storage → S3 access keys).
     supabase_s3_access_key_id: str = ""
     supabase_s3_secret_access_key: str = ""

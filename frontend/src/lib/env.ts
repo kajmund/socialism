@@ -30,4 +30,5 @@ export const env = {
   wsBaseUrl: wsBaseFromHttp(apiBaseUrl),
   supabaseUrl: required("VITE_SUPABASE_URL"),
   supabaseAnonKey: required("VITE_SUPABASE_ANON_KEY"),
+  isDev: import.meta.env.DEV,
 }

@@ -752,3 +752,112 @@ async def test_expert_library_chat_without_tools_skips_tool_loop():
         await engine.dispose()
 
     assert tool_calls == 0
+
+
+@pytest.mark.asyncio
+async def test_persona_library_chat_uses_configured_tools():
+    engine = create_async_engine(
+        "sqlite+aiosqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    seen_tools: list[list[str] | None] = []
+
+    async def _tools(messages: list, tools: list | None = None):
+        if tools:
+            seen_tools.append(
+                [item["function"]["name"] for item in tools if item.get("function")]
+            )
+        blob = " ".join(str(row.get("content") or "") for row in messages)
+        assert "search_wiki" in blob
+        assert "search_companies" not in blob
+        return SimpleNamespace(content="Jag slår upp Wikipedia.", tool_calls=None)
+
+    set_tools_completer(_tools)
+    try:
+        async with factory() as session:
+            await ensure_default_configurations(session)
+            session.add(
+                Persona(
+                    id="p-wiki",
+                    customer_id=1,
+                    kind="persona",
+                    name="Wiki-persona",
+                    age=42,
+                    occ="Lärare",
+                    district="Malmö",
+                    profile={"name": "Wiki-persona", "yrke": "Lärare"},
+                    tools=["search_wiki"],
+                )
+            )
+            await session.commit()
+            async for item in stream_library_chat_turn(
+                session,
+                persona_id="p-wiki",
+                mode="interview",
+                message="Vad är Spotify?",
+            ):
+                if isinstance(item, PersonaChatResponse):
+                    assert "Wikipedia" in item.reply
+    finally:
+        set_tools_completer(None)
+        await engine.dispose()
+
+    assert seen_tools == [["search_wiki"]]
+
+
+@pytest.mark.asyncio
+async def test_persona_library_chat_without_tools_skips_tool_loop():
+    engine = create_async_engine(
+        "sqlite+aiosqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    tool_calls = 0
+
+    async def _tools(_messages: list, _tools: list | None = None):
+        nonlocal tool_calls
+        tool_calls += 1
+        return SimpleNamespace(content="borde inte anropas", tool_calls=None)
+
+    async def _complete(_messages, *, model=None):
+        return "Inga verktyg här."
+
+    set_tools_completer(_tools)
+    set_text_completer(_complete)
+    try:
+        async with factory() as session:
+            await ensure_default_configurations(session)
+            session.add(
+                Persona(
+                    id="p-none",
+                    customer_id=1,
+                    kind="persona",
+                    name="Utan verktyg",
+                    age=30,
+                    occ="Testare",
+                    district="Göteborg",
+                    profile={"name": "Utan verktyg"},
+                )
+            )
+            await session.commit()
+            async for item in stream_library_chat_turn(
+                session,
+                persona_id="p-none",
+                mode="character",
+                message="Hej",
+            ):
+                if isinstance(item, PersonaChatResponse):
+                    assert item.reply == "Inga verktyg här."
+    finally:
+        set_tools_completer(None)
+        set_text_completer(None)
+        await engine.dispose()
+
+    assert tool_calls == 0

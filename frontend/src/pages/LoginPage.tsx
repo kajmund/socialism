@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from "react"
-import { Navigate, useLocation } from "react-router-dom"
+import { Link, Navigate, useLocation } from "react-router-dom"
 import { useAuth } from "@/auth/AuthProvider"
 import { homePathForUser } from "@/lib/auth"
+import { env } from "@/lib/env"
 import { LocaleSwitcher } from "@/components/layout/LocaleSwitcher"
 import { useLocale } from "@/i18n"
 
@@ -149,6 +150,14 @@ export function LoginPage() {
                   >
                     {submitting ? t("auth.submittingLink") : t("auth.sendLink")}
                   </button>
+                  {env.isDev ? (
+                    <Link
+                      to="/dev-in"
+                      className="text-center text-sm text-db-gold-500/80 underline-offset-2 hover:text-db-gold-500 hover:underline"
+                    >
+                      {t("auth.localLoginLink")}
+                    </Link>
+                  ) : null}
                 </form>
               )}
             </div>

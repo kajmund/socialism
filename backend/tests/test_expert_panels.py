@@ -53,6 +53,28 @@ async def test_create_expert_panel_is_synchronous(client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_rename_expert_panel(client: AsyncClient):
+    bolag_id = await _bolag_customer_id(client)
+    experts = await client.get("/personas", params={"kind": "expert", "customer_id": bolag_id})
+    assert experts.status_code == 200
+    expert_id = experts.json()[0]["id"]
+
+    panel = await _create_expert_panel(
+        client,
+        name="Original panel name",
+        expert_ids=[expert_id],
+    )
+    renamed = await client.put(
+        f"/populations/{panel['id']}",
+        json={"name": "Renamed expert panel"},
+    )
+    assert renamed.status_code == 200
+    assert renamed.json()["name"] == "Renamed expert panel"
+    assert renamed.json()["kind"] == "expert_panel"
+    assert len(renamed.json()["members"]) == 1
+
+
+@pytest.mark.asyncio
 async def test_create_expert_panel_requires_experts(client: AsyncClient):
     created = await client.post(
         "/populations",

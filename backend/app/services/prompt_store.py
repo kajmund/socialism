@@ -223,12 +223,14 @@ async def ensure_default_configurations(session: AsyncSession) -> int:
     from app.services.prompt_fields_store import (
         ensure_prompt_field_defaults,
         ensure_prompt_overrides_from_configurations,
+        retire_unknown_prompt_fields,
     )
 
     fields_added = await ensure_prompt_field_defaults(session, "dd", dd_prompt_defaults())
     fields_added += await ensure_prompt_field_defaults(
         session, "politik", politik_prompt_defaults()
     )
+    fields_added += await retire_unknown_prompt_fields(session)
     fields_added += await ensure_prompt_overrides_from_configurations(session)
     return changed + backfill_changed + catalog_added + fields_added
 

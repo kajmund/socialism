@@ -39,13 +39,16 @@ Phase 1 uses a **static login** (`admin` / `admin`, `user` / `user`) in `src/lib
 
 Start the backend first (see [backend-setup.md](backend-setup.md)).
 
-Open http://localhost:5173/login, then sign in. The app redirects unknown routes to `/`.
+Open http://localhost:5173/login, then sign in with a magic-link email. Locally you can skip the inbox: set `ALLOW_LOCAL_LOGIN=true` in `backend/.env` and open http://localhost:5173/dev-in — that signs you in as `erik@fremred.se` on Devbrains and sends you to `/`. The login page also shows the shortcut while Vite is in dev mode.
+
+The app redirects unknown routes to `/`.
 
 ## Routes
 
 | Path | Page |
 | ---- | ---- |
-| `/login` | Sign-in (static admin/user) |
+| `/login` | Sign-in (magic link) |
+| `/dev-in` | Local-only shortcut → Devbrains / `erik@fremred.se` → `/` |
 | `/` | Dashboard |
 | `/runs` | Körningar list |
 | `/runs/new`, `/runs/:id/edit` | Configure run (wizard or `?mode=quick`) + results (incl. post-hoc interviews / quality warnings) |

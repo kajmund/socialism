@@ -14,6 +14,7 @@ from app.services.panel.sub_questions_store import ensure_sub_question_defaults
 from app.services.prompt_fields_store import (
     ensure_prompt_field_defaults,
     ensure_prompt_overrides_from_configurations,
+    retire_unknown_prompt_fields,
 )
 
 
@@ -39,6 +40,7 @@ async def ensure_module_panel_defaults(
         if module.prompt_defaults_provider is not None:
             defaults = module.prompt_defaults_provider()
             added += await ensure_prompt_field_defaults(session, module.id, defaults)
+    added += await retire_unknown_prompt_fields(session)
     added += await ensure_prompt_overrides_from_configurations(session)
 
     for cid in await _customer_ids(session, customer_id):

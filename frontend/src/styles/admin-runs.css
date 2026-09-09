@@ -1042,6 +1042,10 @@ textarea.free{width:100%;min-height:90px;font:inherit;font-size:14px;padding:12p
 
 .work{display:flex;flex:1;min-height:0;overflow:hidden}
 .layers-col{width:480px;border-right:1px solid var(--border-hairline);overflow:auto;padding:16px 22px;flex-shrink:0;min-height:0}
+.layers-col.is-collapsed{width:0;padding:0;border-right:none;overflow:hidden}
+.chat-top-lead,.chat-top-actions{display:flex;align-items:center;gap:8px;min-width:0}
+.layers-toggle{font-family:'Bai Jamjuree',sans-serif;font-weight:400;font-size:12px;padding:6px 12px;border:1px solid var(--border-hairline);background:var(--db-ink-0);border-radius:4px;cursor:pointer;color:var(--text-muted)}
+.layers-toggle:hover{border-color:var(--db-ink-950);color:var(--text-body)}
 .layer-h{font:var(--text-label);color:var(--text-muted);margin:16px 0 8px}
 .layer-h:first-child{margin-top:2px}
 table.lt{width:100%;border-collapse:collapse;font-size:13px}

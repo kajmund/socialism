@@ -9,6 +9,8 @@ const rootDir = path.dirname(fileURLToPath(import.meta.url))
 const backendTarget = 'http://127.0.0.1:8000'
 
 const apiPrefixes = [
+  'auth',
+  'rattsunderlag',
   'health',
   'help',
   'personas',
