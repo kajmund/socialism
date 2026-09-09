@@ -991,6 +991,7 @@ class PanelSession(Base):
     transcript: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     scratchpads: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     analysis: Mapped[str | None] = mapped_column(Text, nullable=True)
+    research_plan: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     result: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     panel_id: Mapped[int | None] = mapped_column(
         Integer,

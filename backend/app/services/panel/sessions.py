@@ -13,6 +13,7 @@ from app.services.panel.expert_slots import (
     require_expert_panel,
     require_project,
 )
+from app.services.panel.research import research_plan_from_stored
 from app.services.panel.result import dd_panel_result_from_stored
 from app.services.panel.schemas import (
     DdPanelResult,
@@ -43,6 +44,9 @@ def serialize_panel_session(row: PanelSession) -> PanelSessionOut:
         transcript=[PanelTurn.model_validate(t) for t in transcript_raw],
         scratchpads={str(k): str(v) for k, v in scratchpads_raw.items()},
         analysis=row.analysis,
+        research_plan=research_plan_from_stored(row.research_plan).model_dump(mode="json")
+        if row.research_plan is not None
+        else None,
         result=result,
         panel_id=row.panel_id,
         project_id=row.project_id,

@@ -29,6 +29,8 @@ function asTurnPhase(value: unknown): PanelWatchTurnPhase | null {
   if (typeof value !== "string") return null
   switch (value) {
     case "opening":
+    case "research_need":
+    case "research_plan":
     case "raise_hand":
     case "expert":
     case "scratchpad":

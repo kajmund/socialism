@@ -21,11 +21,24 @@ export type PanelSessionConfig = {
   expert_role_keys: string[]
 }
 
+export type PanelResearchNeed = {
+  id: string
+  question: string
+  why_needed: string
+  requested_by: string[]
+  source_types: string[]
+}
+
+export type PanelResearchPlan = {
+  needs: PanelResearchNeed[]
+}
+
 export type PanelSession = {
   id: string
   protocol: "generic_panel" | "dd_panel"
   status: PanelSessionStatus
   config: PanelSessionConfig
+  research_plan?: PanelResearchPlan | null
   panel_id: number | null
   project_id: number | null
   campaign_id: number | null

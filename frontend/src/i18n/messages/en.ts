@@ -755,6 +755,8 @@ export const en: LocalizedTree<SvMessages> = {
         round: "Sub-question {round}",
         phase: {
           opening: "Opening",
+          researchNeed: "Research need",
+          researchPlan: "Research plan",
           subQuestion: "Sub-question",
           score: "Score",
           analysis: "Summary",

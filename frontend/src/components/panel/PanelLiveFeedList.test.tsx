@@ -68,6 +68,35 @@ describe("PanelLiveFeedList", () => {
     expect(html).not.toContain("Delfråga 2")
   })
 
+  it("renders research-need and research-plan phase labels", () => {
+    const html = renderToStaticMarkup(
+      <LocaleProvider>
+        <PanelLiveFeedList
+          emptyLabel="empty"
+          pendingTurn={null}
+          turns={[
+            {
+              turn_id: "t-need",
+              speaker: "Jurist",
+              phase: "research_need",
+              content: "Vilka avtalsbestämmelser reglerar hävning?",
+            },
+            {
+              turn_id: "t-plan",
+              speaker: "moderator",
+              phase: "research_plan",
+              content: "Inga researchbehov.",
+            },
+          ]}
+        />
+      </LocaleProvider>,
+    )
+
+    expect(html).toContain("Researchbehov")
+    expect(html).toContain("Researchplan")
+    expect(html).toContain("Vilka avtalsbestämmelser reglerar hävning?")
+  })
+
   it("shows the sub-question label after the moderator has asked it", () => {
     const html = renderToStaticMarkup(
       <LocaleProvider>
