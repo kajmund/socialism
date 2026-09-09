@@ -2,6 +2,7 @@
 
 ## 2026-09-09
 
+* **Expertgranskning i Word**: En moderator filtrerar först bort trivialt innehåll (till exempel kontaktuppgifter) och formulerar granskningsfrågor. Experterna räcker upp handen för frågor, inte för godtyckliga stycken, och kan avstå helt.
 * **Rättsunderlag**: Ytan fungerar som Expertgranskning. Du ser en lista över körningar, sparar utkast under **Konfiguration** och läser källor eller PM under **Resultat**.
 * **Personas**: I kompositören kan du välja samma verktyg som för experter (bolagssök och webbsök). De används i intervju och in-character-chatt.
 * **Personas / Experter**: I arbetslägets intervju och in-character kan du fälla in profillagren (demografi, kompetens med mera) så chatten får mer plats.
