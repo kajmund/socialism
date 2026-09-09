@@ -57,11 +57,7 @@ class KnowledgeIngestService:
         content = await self._provider.fetch_content(document_id, scope)
         content_hash = hashlib.sha256(content).hexdigest()
 
-        try:
-            extracted = await self._extractor.extract(content, document.mime_type)
-        except Exception as exc:
-            return _result(document_id, "failed", content_hash, message=str(exc))
-
+        extracted = await self._extractor.extract(content, document.mime_type)
         outcome = _extraction_outcome(extracted)
         if outcome is not None:
             return _result(document_id, outcome, content_hash, message=extracted.message)
@@ -72,7 +68,7 @@ class KnowledgeIngestService:
 
         try:
             vectors = await self._embeddings.embed([chunk.text for chunk in chunks])
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 — keep the previous index searchable
             return _result(document_id, "failed", content_hash, message=str(exc))
 
         if len(vectors) != len(chunks):

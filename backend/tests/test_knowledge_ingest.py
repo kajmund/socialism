@@ -420,7 +420,7 @@ async def test_chunk_metadata_uses_verified_document_scope(session: AsyncSession
     provider = SupabaseKnowledgeProvider(session, vector_store=store)
     await _ingest(provider, store, FakeEmbeddingProvider()).ingest_document(
         document_id="doc-txt",
-        scope=_scope(customer_id=kund.id),
+        scope=KnowledgeScope(customer_id=kund.id),
     )
     assert store.chunks
     for item in store.chunks:
@@ -527,6 +527,39 @@ async def test_openai_embedding_provider_batches_one_request_per_window():
     vectors = await provider.embed(["a", "b", "c"])
     assert requests == [["a", "b"], ["c"]]
     assert vectors == [[0.0], [1.0], [0.0]]
+
+
+async def test_extraction_failure_leaves_old_vectors(session: AsyncSession):
+    kund = await _customer(session, "acme")
+    await _index_document(
+        session,
+        customer_id=kund.id,
+        document_id="doc-pdf",
+        mime_type="application/pdf",
+        key="dd/files/brief.pdf",
+    )
+    await put_object(
+        "acme",
+        "dd/files/brief.pdf",
+        build_text_pdf("ursprunglig skattesats"),
+        "application/pdf",
+    )
+    store = MemoryKnowledgeVectorStore()
+    embeddings = FakeEmbeddingProvider()
+    provider = SupabaseKnowledgeProvider(session, vector_store=store)
+    service = _ingest(provider, store, embeddings)
+    first = await service.ingest_document(document_id="doc-pdf", scope=_scope(customer_id=kund.id))
+    assert first.status == "indexed"
+    old_ids = {item.chunk.chunk_id for item in store.chunks}
+
+    await put_object("acme", "dd/files/brief.pdf", b"%PDF-1.4 not-a-real-pdf", "application/pdf")
+    failed = await service.ingest_document(document_id="doc-pdf", scope=_scope(customer_id=kund.id))
+    assert failed.status == "failed"
+    assert {item.chunk.chunk_id for item in store.chunks} == old_ids
+    hits = await provider.search(
+        KnowledgeQuery(query="skattesats", scope=_scope(customer_id=kund.id))
+    )
+    assert [hit.document_id for hit in hits] == ["doc-pdf"]
 
 
 async def test_embedding_failure_leaves_old_vectors(session: AsyncSession):
