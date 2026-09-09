@@ -18,12 +18,14 @@ from app.services.panel.research import (
     ResearchNeed,
     ResearchNeedDraft,
     ResearchPlan,
+    assign_proposal_ids,
     assign_research_need_ids,
     build_research_plan,
     collect_expert_research_needs,
     empty_research_structured,
     format_expert_proposals,
     plan_from_moderator_draft,
+    requested_by_from_proposals,
 )
 from app.services.panel.schemas import (
     PanelExpertSlot,
@@ -189,7 +191,8 @@ def test_ids_are_assigned_in_code_not_by_llm():
                 requested_by=["legal"],
                 source_types=["case_knowledge"],
             ),
-            ConsolidatedResearchNeed(
+            ResearchNeed(
+                id="also_ignored",
                 question="Hur har svensk praxis behandlat väsentlighetskravet?",
                 why_needed="Rättslig bedömning.",
                 requested_by=["legal"],
@@ -200,24 +203,79 @@ def test_ids_are_assigned_in_code_not_by_llm():
     assert [need.id for need in plan.needs] == ["research_1", "research_2"]
 
 
-def test_plan_from_moderator_draft_keeps_requested_by_and_known_slots():
-    config = _config()
+def _proposals_legal_property():
+    numbered, empty = assign_proposal_ids(
+        [
+            (
+                PanelExpertSlot(slot_id="legal", label="Jurist"),
+                ExpertResearchNeeds(needs=[_draft()]),
+            ),
+            (
+                PanelExpertSlot(slot_id="property", label="Fastighet"),
+                ExpertResearchNeeds(needs=[_draft(question="Samma hävningsfråga")]),
+            ),
+        ]
+    )
+    assert [item.proposal_id for item in numbered] == ["proposal_1", "proposal_2"]
+    assert empty == []
+    return numbered
+
+
+def test_requested_by_is_derived_from_proposal_ids():
+    numbered = _proposals_legal_property()
+    assert requested_by_from_proposals(
+        ["proposal_2", "proposal_1", "proposal_99"], numbered
+    ) == ["property", "legal"]
     plan = plan_from_moderator_draft(
         ModeratorResearchPlan(
             needs=[
                 ConsolidatedResearchNeed(
                     question="Vilka avtalsbestämmelser reglerar hävning?",
                     why_needed="Behövs för att fastställa avtalsförutsättningarna.",
-                    requested_by=["legal", "property", "unknown"],
+                    proposal_ids=["proposal_1", "proposal_2", "proposal_99"],
                     source_types=["case_knowledge"],
                 )
             ]
         ),
-        config,
+        numbered,
     )
     assert plan.needs[0].id == "research_1"
     assert plan.needs[0].requested_by == ["legal", "property"]
     assert plan.needs[0].source_types == ["case_knowledge"]
+
+
+def test_moderator_cannot_reassign_or_invent_requested_by():
+    numbered = _proposals_legal_property()
+    dropped = plan_from_moderator_draft(
+        ModeratorResearchPlan(
+            needs=[
+                ConsolidatedResearchNeed(
+                    question="Vilka avtalsbestämmelser reglerar hävning?",
+                    why_needed="Bara ett av förslagen.",
+                    proposal_ids=["proposal_1"],
+                    source_types=["case_knowledge"],
+                )
+            ]
+        ),
+        numbered,
+    )
+    assert dropped.needs[0].requested_by == ["legal"]
+    invented = plan_from_moderator_draft(
+        ModeratorResearchPlan(
+            needs=[
+                ConsolidatedResearchNeed(
+                    question="Påhittat behov",
+                    why_needed="Saknar förslag.",
+                    proposal_ids=["proposal_99"],
+                    source_types=["web"],
+                )
+            ]
+        ),
+        numbered,
+    )
+    assert invented.needs == []
+    schema = ConsolidatedResearchNeed.model_json_schema()
+    assert "requested_by" not in schema.get("properties", {})
 
 
 @pytest.mark.asyncio
@@ -257,6 +315,7 @@ async def test_empty_expert_proposals_skip_moderator_and_stay_empty():
                     ConsolidatedResearchNeed(
                         question="Påhittat behov",
                         why_needed="Ska inte skapas.",
+                        proposal_ids=["proposal_1"],
                         source_types=["web"],
                     )
                 ]
@@ -353,9 +412,9 @@ def test_research_prompts_render_and_forbid_service_names():
     assert "källtyp" in expert
     assert "web är tillåten men inte default" in expert
     assert "inte lagen.nu" in expert
-    assert "requested_by" in moderator
+    assert "proposal_ids" in moderator
+    assert "Sätt inte requested_by" in moderator
     assert "web sparsamt" in moderator
-    assert "Sätt inga permanenta id" in moderator
 
 
 def test_public_transcript_excludes_research_phases():
@@ -377,6 +436,7 @@ def test_public_transcript_excludes_research_phases():
 @pytest.mark.asyncio
 async def test_one_expert_need_lands_in_persisted_plan(client_db):
     _client, factory = client_db
+    captured: list[tuple[type, list[dict]]] = []
     _install_research_llm(
         expert_needs={
             "Jurist": ExpertResearchNeeds(needs=[_draft()]),
@@ -387,11 +447,12 @@ async def test_one_expert_need_lands_in_persisted_plan(client_db):
                 ConsolidatedResearchNeed(
                     question="Vilka avtalsbestämmelser reglerar hävning?",
                     why_needed="Behövs för att fastställa avtalsförutsättningarna.",
-                    requested_by=["legal"],
+                    proposal_ids=["proposal_1"],
                     source_types=["case_knowledge"],
                 )
             ]
         ),
+        captured=captured,
     )
     row = await _run_panel(factory, _config())
     plan = ResearchPlan.model_validate(row.research_plan)
@@ -400,6 +461,13 @@ async def test_one_expert_need_lands_in_persisted_plan(client_db):
     assert plan.needs[0].question == "Vilka avtalsbestämmelser reglerar hävning?"
     assert plan.needs[0].requested_by == ["legal"]
     assert plan.needs[0].source_types == ["case_knowledge"]
+    moderator_prompt = next(
+        messages[-1]["content"]
+        for model, messages in captured
+        if model is ModeratorResearchPlan
+    )
+    assert "[proposal_1] slot_id=legal" in moderator_prompt
+    assert "Sätt inte requested_by" in moderator_prompt
     assert [turn["phase"] for turn in row.transcript[:4]] == [
         "opening",
         "research_need",
@@ -441,7 +509,7 @@ async def test_three_overlapping_expert_needs_become_one(client_db):
                 ConsolidatedResearchNeed(
                     question="Vilka avtalsbestämmelser reglerar hävning?",
                     why_needed="Behövs för att fastställa avtalsförutsättningarna.",
-                    requested_by=["legal", "property", "fin"],
+                    proposal_ids=["proposal_1", "proposal_2", "proposal_3"],
                     source_types=["case_knowledge"],
                 )
             ]
@@ -465,6 +533,7 @@ async def test_all_experts_zero_needs_empty_plan_continues_to_raise_hand(client_
                 ConsolidatedResearchNeed(
                     question="Ska inte skapas",
                     why_needed="Tom plan.",
+                    proposal_ids=["proposal_1"],
                     source_types=["web"],
                 )
             ]
@@ -530,8 +599,8 @@ async def test_research_uses_brief_and_opening_without_tools(client_db):
     assert row.research_plan == {"needs": []}
 
 
-def test_format_expert_proposals_keeps_slot_ids():
-    text = format_expert_proposals(
+def test_format_expert_proposals_uses_code_assigned_proposal_ids():
+    numbered, empty = assign_proposal_ids(
         [
             (
                 PanelExpertSlot(slot_id="legal", label="Jurist"),
@@ -543,6 +612,8 @@ def test_format_expert_proposals_keeps_slot_ids():
             ),
         ]
     )
-    assert "[legal] Jurist" in text
-    assert "[property] Fastighet" in text
+    text = format_expert_proposals(numbered, empty)
+    assert "[proposal_1] slot_id=legal Jurist" in text
+    assert "slot_id=property Fastighet" in text
     assert "inga behov" in text
+    assert "[proposal_2]" not in text
