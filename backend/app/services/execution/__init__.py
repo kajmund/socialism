@@ -1,0 +1,89 @@
+"""Generic execution domain: Run → Attempt → EvidenceSet.
+
+Persistence uses ``execution_runs`` / ``execution_attempts`` because simulation
+already owns ``Run`` / ``runs``. Isolated from panel, Word, and research routing.
+"""
+
+from app.services.execution.errors import (
+    ExecutionError,
+    ExecutionFrozenError,
+    ExecutionImmutableError,
+    ExecutionNotFoundError,
+    ExecutionScopeError,
+    ExecutionStatusError,
+)
+from app.services.execution.models import (
+    ALLOWED_ATTEMPT_TRANSITIONS,
+    ATTEMPT_STATUSES,
+    EVIDENCE_SET_STATUSES,
+    KNOWN_ATTEMPT_TYPES,
+    PREPARATION_STATUSES,
+    SNAPSHOT_LOCKED_STATUSES,
+    TERMINAL_STATUSES,
+    AttemptStatus,
+    EvidenceSetStatus,
+)
+from app.services.execution.service import (
+    add_evidence_items,
+    attach_evidence_set,
+    clone_attempt,
+    complete_attempt,
+    create_attempt,
+    create_evidence_set,
+    create_run,
+    fail_attempt,
+    freeze_evidence_set,
+    get_attempt,
+    get_evidence_set,
+    get_run,
+    list_evidence_items,
+    mark_ready,
+    mark_researching,
+    set_attempt_snapshots,
+    start_attempt,
+    transition_attempt,
+)
+from app.services.execution.snapshots import (
+    EvidenceItemSnapshot,
+    compute_content_hash,
+    snapshot_research_evidence,
+)
+
+__all__ = [
+    "ALLOWED_ATTEMPT_TRANSITIONS",
+    "ATTEMPT_STATUSES",
+    "EVIDENCE_SET_STATUSES",
+    "KNOWN_ATTEMPT_TYPES",
+    "PREPARATION_STATUSES",
+    "SNAPSHOT_LOCKED_STATUSES",
+    "TERMINAL_STATUSES",
+    "AttemptStatus",
+    "EvidenceItemSnapshot",
+    "EvidenceSetStatus",
+    "ExecutionError",
+    "ExecutionFrozenError",
+    "ExecutionImmutableError",
+    "ExecutionNotFoundError",
+    "ExecutionScopeError",
+    "ExecutionStatusError",
+    "add_evidence_items",
+    "attach_evidence_set",
+    "clone_attempt",
+    "complete_attempt",
+    "compute_content_hash",
+    "create_attempt",
+    "create_evidence_set",
+    "create_run",
+    "fail_attempt",
+    "freeze_evidence_set",
+    "get_attempt",
+    "get_evidence_set",
+    "get_run",
+    "list_evidence_items",
+    "mark_ready",
+    "mark_researching",
+    "set_attempt_snapshots",
+    "snapshot_research_evidence",
+    "start_attempt",
+    "transition_attempt",
+]
