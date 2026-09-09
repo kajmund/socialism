@@ -147,6 +147,24 @@ def _chunk(
     )
 
 
+class RankedVectorStore:
+    """Returns pre-ranked hits and honors limit so over-fetch can be observed."""
+
+    def __init__(self, hits: list[KnowledgeHit]) -> None:
+        self.hits = hits
+        self.requested_limits: list[int] = []
+
+    async def search(self, query: KnowledgeQuery) -> list[KnowledgeHit]:
+        self.requested_limits.append(query.limit)
+        return self.hits[: query.limit]
+
+    async def upsert_chunks(self, chunks: Sequence[KnowledgeChunk]) -> None:
+        return None
+
+    async def delete_document(self, document_id: str) -> None:
+        return None
+
+
 class FakeVectorBucketClient:
     """Stand-in for the alpha Vector Bucket transport."""
 
@@ -531,6 +549,65 @@ async def test_provider_lookup_ignores_other_provider_rows(session: AsyncSession
     with pytest.raises(KnowledgeNotFoundError):
         await provider.fetch_content("doc-drive", scope)
     assert await provider.search(KnowledgeQuery(query="skattesats", scope=scope)) == []
+
+
+async def test_search_overfetches_when_top_hits_are_not_visible(session: AsyncSession):
+    kund = await _customer(session, "acme")
+    await _index_document(session, customer_id=kund.id, document_id="doc-valid")
+    store = RankedVectorStore(
+        [
+            KnowledgeHit(
+                document_id="doc-stale",
+                provider=SUPABASE_PROVIDER_ID,
+                title="Stale",
+                excerpt="skattesats stale",
+                locator="p0",
+            ),
+            KnowledgeHit(
+                document_id="doc-valid",
+                provider=SUPABASE_PROVIDER_ID,
+                title="Brief",
+                excerpt="skattesats valid",
+                locator="p1",
+            ),
+        ]
+    )
+    provider = SupabaseKnowledgeProvider(session, vector_store=store)
+    hits = await provider.search(
+        KnowledgeQuery(query="skattesats", scope=_scope(customer_id=kund.id), limit=1)
+    )
+    assert [hit.document_id for hit in hits] == ["doc-valid"]
+    assert store.requested_limits[0] == 1
+    assert store.requested_limits[-1] >= 2
+
+
+async def test_search_stops_when_first_page_fills_limit(session: AsyncSession):
+    kund = await _customer(session, "acme")
+    await _index_document(session, customer_id=kund.id, document_id="doc-valid")
+    store = RankedVectorStore(
+        [
+            KnowledgeHit(
+                document_id="doc-valid",
+                provider=SUPABASE_PROVIDER_ID,
+                title="Brief",
+                excerpt="skattesats valid",
+                locator="p1",
+            ),
+            KnowledgeHit(
+                document_id="doc-extra",
+                provider=SUPABASE_PROVIDER_ID,
+                title="Extra",
+                excerpt="skattesats extra",
+                locator="p2",
+            ),
+        ]
+    )
+    provider = SupabaseKnowledgeProvider(session, vector_store=store)
+    hits = await provider.search(
+        KnowledgeQuery(query="skattesats", scope=_scope(customer_id=kund.id), limit=1)
+    )
+    assert [hit.document_id for hit in hits] == ["doc-valid"]
+    assert store.requested_limits == [1]
 
 
 def test_registry_starts_empty_until_register():
