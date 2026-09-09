@@ -1,8 +1,9 @@
-"""word_paragraph_review — batched raise-hand Word review.
+"""word_paragraph_review — moderator-led batched Word review.
 
-Experts see the full document brief, raise a hand per batch, and only
-comment on paragraphs they opted into. Rewrite suggestions are a separate
-moderator step when at least two comments converge.
+A moderator filters each batch and writes review questions. Experts raise
+a hand per question and comment only on questions they opted into. Rewrite
+suggestions are a separate step when at least two experts comment on the
+same paragraph.
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ from app.llm import complete_structured
 from app.serializers import utcnow
 from app.services.expertgranskning.schemas import (
     ExpertgranskningWordJobRequest,
+    WordBatchModeration,
     WordDocumentParagraph,
     WordDocumentSection,
     WordExpertComment,
@@ -26,6 +28,7 @@ from app.services.expertgranskning.schemas import (
     WordHeadingAssessment,
     WordParagraphComments,
     WordRewriteSuggestion,
+    WordReviewQuestion,
 )
 from app.services.expertgranskning.watch import (
     publish_expertgranskning_finished,
@@ -182,11 +185,84 @@ def build_batches(
 
 
 def _messages_with_brief(*, identity: str, brief: str, user: str) -> list[dict[str, str]]:
-    messages = [{"role": "system", "content": identity}]
+    messages: list[dict[str, str]] = []
+    if identity.strip():
+        messages.append({"role": "system", "content": identity})
     if brief.strip():
         messages.append({"role": "system", "content": brief})
     messages.append({"role": "user", "content": user})
     return messages
+
+
+def _questions_text(questions: list[WordReviewQuestion]) -> str:
+    blocks: list[str] = []
+    for question in questions:
+        indexes = ", ".join(str(index) for index in question.paragraph_indexes)
+        block = f"[{question.id}] stycken {indexes}: {question.question}"
+        if question.why_it_matters:
+            block += f"\n  {question.why_it_matters}"
+        blocks.append(block)
+    return "\n".join(blocks)
+
+
+def accepted_review_questions(
+    parsed: WordBatchModeration,
+    batch: list[WordDocumentParagraph],
+) -> list[WordReviewQuestion]:
+    """Keep in-batch questions; drop a batch that does not need review."""
+    if not parsed.needs_review:
+        return []
+    allowed = {paragraph.index for paragraph in batch}
+    kept: list[WordReviewQuestion] = []
+    seen_ids: set[str] = set()
+    for question in parsed.questions:
+        question_id = question.id.strip()
+        if not question_id or question_id in seen_ids:
+            continue
+        if not question.question.strip():
+            continue
+        indexes: list[int] = []
+        for index in question.paragraph_indexes:
+            if index in allowed and index not in indexes:
+                indexes.append(index)
+        if not indexes:
+            continue
+        seen_ids.add(question_id)
+        kept.append(
+            WordReviewQuestion(
+                id=question_id,
+                paragraph_indexes=indexes,
+                question=question.question.strip(),
+                why_it_matters=question.why_it_matters.strip(),
+            )
+        )
+    return kept
+
+
+def selected_review_questions(
+    question_ids: list[str],
+    questions: list[WordReviewQuestion],
+    *,
+    expert_id: str,
+) -> list[WordReviewQuestion]:
+    by_id = {question.id: question for question in questions}
+    kept: list[WordReviewQuestion] = []
+    seen: set[str] = set()
+    for raw_id in question_ids:
+        question_id = raw_id.strip()
+        question = by_id.get(question_id)
+        if question is None:
+            logger.info(
+                "Dropped unknown question id %s from expert %s",
+                question_id,
+                expert_id,
+            )
+            continue
+        if question_id in seen:
+            continue
+        seen.add(question_id)
+        kept.append(question)
+    return kept
 
 
 def _expert_identity(prompts: dict[str, str], slot: PanelExpertSlot) -> str:
@@ -298,13 +374,36 @@ async def _review_heading(
     )
 
 
+async def _moderate_batch(
+    *,
+    prompts: dict[str, str],
+    slots: list[PanelExpertSlot],
+    brief: str,
+    section: WordDocumentSection,
+    batch: list[WordDocumentParagraph],
+) -> list[WordReviewQuestion]:
+    user = render_prompt(
+        prompts,
+        "expertgranskning.word.moderator.batch",
+        expert_list=_expert_list(slots),
+        section_heading=section.heading,
+        batch_text=_batch_text(batch),
+    )
+    parsed = await complete_structured(
+        _messages_with_brief(identity="", brief=brief, user=user),
+        WordBatchModeration,
+    )
+    return accepted_review_questions(parsed, batch)
+
+
 async def _raise_hand(
     *,
     prompts: dict[str, str],
     slot: PanelExpertSlot,
     brief: str,
     batch: list[WordDocumentParagraph],
-) -> tuple[PanelExpertSlot, list[int]]:
+    questions: list[WordReviewQuestion],
+) -> tuple[PanelExpertSlot, list[WordReviewQuestion]]:
     identity = _expert_identity(prompts, slot)
     user = render_prompt(
         prompts,
@@ -312,49 +411,49 @@ async def _raise_hand(
         label=slot.label,
         profile=slot.profile or slot.label,
         batch_text=_batch_text(batch),
+        questions=_questions_text(questions),
     )
     parsed = await complete_structured(
         _messages_with_brief(identity=identity, brief=brief, user=user),
         WordExpertRaiseHand,
     )
-    allowed = {paragraph.index for paragraph in batch}
-    kept: list[int] = []
-    for index in parsed.paragraph_indexes:
-        if index in allowed:
-            if index not in kept:
-                kept.append(index)
-            continue
-        logger.info(
-            "Dropped out-of-batch paragraph index %s from expert %s",
-            index,
-            slot.slot_id,
-        )
-    return slot, kept
+    return slot, selected_review_questions(
+        parsed.question_ids,
+        questions,
+        expert_id=slot.slot_id,
+    )
 
 
-async def _comment_paragraph(
+async def _comment_question(
     *,
     prompts: dict[str, str],
     slot: PanelExpertSlot,
     brief: str,
     section: WordDocumentSection,
-    paragraph: WordDocumentParagraph,
-) -> tuple[PanelExpertSlot, WordDocumentParagraph, str]:
+    question: WordReviewQuestion,
+    paragraphs: list[WordDocumentParagraph],
+) -> tuple[PanelExpertSlot, WordReviewQuestion, str]:
     identity = _expert_identity(prompts, slot)
     user = render_prompt(
         prompts,
         "expertgranskning.word.expert.comment",
         label=slot.label,
         profile=slot.profile or slot.label,
-        paragraph_text=paragraph.text,
-        list_string=paragraph.list_string,
+        paragraph_text=_batch_text(paragraphs),
+        list_string=", ".join(
+            paragraph.list_string
+            for paragraph in paragraphs
+            if paragraph.list_string.strip()
+        ),
         section_heading=section.heading,
+        question=question.question,
+        why_it_matters=question.why_it_matters,
     )
     parsed = await complete_structured(
         _messages_with_brief(identity=identity, brief=brief, user=user),
         WordExpertComment,
     )
-    return slot, paragraph, parsed.kommentar.strip()
+    return slot, question, parsed.kommentar.strip()
 
 
 async def _rewrite_convergence(
@@ -396,6 +495,15 @@ async def run_word_paragraph_review(
     for section_index, section in enumerate(payload.sections):
         for batch in build_batches(section):
             paragraph_reviews += len(batch)
+            questions = await _moderate_batch(
+                prompts=prompts,
+                slots=slots,
+                brief=brief,
+                section=section,
+                batch=batch,
+            )
+            if not questions:
+                continue
             raised = await asyncio.gather(
                 *[
                     _raise_hand(
@@ -403,21 +511,27 @@ async def run_word_paragraph_review(
                         slot=slot,
                         brief=brief,
                         batch=batch,
+                        questions=questions,
                     )
                     for slot in slots
                 ]
             )
             by_index = {paragraph.index: paragraph for paragraph in batch}
             comment_tasks = [
-                _comment_paragraph(
+                _comment_question(
                     prompts=prompts,
                     slot=slot,
                     brief=brief,
                     section=section,
-                    paragraph=by_index[index],
+                    question=question,
+                    paragraphs=[
+                        by_index[index]
+                        for index in question.paragraph_indexes
+                        if index in by_index
+                    ],
                 )
-                for slot, indexes in raised
-                for index in indexes
+                for slot, selected in raised
+                for question in selected
             ]
             comments = (
                 await asyncio.gather(*comment_tasks) if comment_tasks else []
@@ -425,17 +539,24 @@ async def run_word_paragraph_review(
 
             pending: list[ExpertgranskningResult] = []
             comments_by_index: dict[int, list[tuple[str, str]]] = {}
-            for slot, paragraph, text in comments:
+            written: list[tuple[PanelExpertSlot, WordDocumentParagraph, str]] = []
+            for slot, question, text in comments:
                 if not text:
                     continue
-                comments_by_index.setdefault(paragraph.index, []).append(
-                    (slot.label, text)
-                )
+                for index in question.paragraph_indexes:
+                    paragraph = by_index.get(index)
+                    if paragraph is None:
+                        continue
+                    comments_by_index.setdefault(paragraph.index, []).append(
+                        (slot.label, text)
+                    )
+                    written.append((slot, paragraph, text))
 
             rewrite_targets = [
                 paragraph
                 for paragraph in batch
-                if len(comments_by_index.get(paragraph.index, [])) >= 2
+                if len({name for name, _ in comments_by_index.get(paragraph.index, [])})
+                >= 2
             ]
             suggestions = (
                 await asyncio.gather(
@@ -453,9 +574,7 @@ async def run_word_paragraph_review(
                 else []
             )
 
-            for slot, paragraph, text in comments:
-                if not text:
-                    continue
+            for slot, paragraph, text in written:
                 pending.append(
                     await _write_result(
                         session,

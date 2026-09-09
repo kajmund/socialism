@@ -1678,34 +1678,93 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         ),
     ),
     _f(
+        "expertgranskning.word.moderator.batch",
+        "panel",
+        "Word — moderator batch",
+        "Word — moderator batch",
+        "Platshållare: {expert_list}, {section_heading}, {batch_text}.",
+        "Placeholders: {expert_list}, {section_heading}, {batch_text}.",
+        (
+            "Du är moderator för en expertgranskning av ett Word-dokument. "
+            "Förstå batchen i dokumentets helhet. Avgör om expertbedömning behövs "
+            "och formulera i så fall konkreta granskningsfrågor. "
+            "Gör inte specialistbedömningen och välj inte vilka experter som ska svara. "
+            "Använd panelinformationen bara för att formulera relevanta frågor.\n\n"
+            "Var konservativ. Skapa inte frågor bara för att text finns. "
+            "Namn, telefon, e-post, kontaktuppgifter, ren metadata och trivial administration "
+            "ska normalt inte granskas. Identifiera däremot sådant som kräver bedömning: "
+            "oklarheter, motsägelser, risker, betydelsefulla antaganden, saknad information "
+            "med faktisk betydelse, potentiella konsekvenser och genomförbarhetsproblem. "
+            "Det är exempel, inte en domänspecifik checklista.\n\n"
+            "Panel:\n{expert_list}\n\n"
+            "Avsnitt: {section_heading}\n\n"
+            "Den här batchen:\n{batch_text}\n\n"
+            "Hela dokumentet ligger i systemmeddelandet.\n\n"
+            "Returnera needs_review, reason och questions. "
+            "Varje fråga ska ha id, paragraph_indexes (bara index från batchen), "
+            "question och why_it_matters. "
+            "Om needs_review är false: tom questions-lista."
+        ),
+        (
+            "You moderate an expert review of a Word document. "
+            "Understand the batch in the full document context. Decide whether expert "
+            "assessment is needed and, if so, write concrete review questions. "
+            "Do not make the specialist assessment and do not choose which experts should answer. "
+            "Use the panel information only to formulate relevant questions.\n\n"
+            "Be conservative. Do not create questions just because text exists. "
+            "Names, phone numbers, email, contact details, pure metadata, and trivial "
+            "administration should normally not be reviewed. Do identify things that need "
+            "judgment: ambiguities, contradictions, risks, material assumptions, missing "
+            "information that actually matters, potential consequences, and feasibility problems. "
+            "These are examples, not a domain-specific checklist.\n\n"
+            "Panel:\n{expert_list}\n\n"
+            "Section: {section_heading}\n\n"
+            "This batch:\n{batch_text}\n\n"
+            "The full document is in the system message.\n\n"
+            "Return needs_review, reason, and questions. "
+            "Each question must have id, paragraph_indexes (only indexes from the batch), "
+            "question, and why_it_matters. "
+            "If needs_review is false: empty questions list."
+        ),
+    ),
+    _f(
         "expertgranskning.word.expert.raise_hand",
         "panel",
         "Word — expert räck upp handen",
         "Word — expert raise hand",
-        "Platshållare: {label}, {profile}, {batch_text}.",
-        "Placeholders: {label}, {profile}, {batch_text}.",
+        "Platshållare: {label}, {profile}, {batch_text}, {questions}.",
+        "Placeholders: {label}, {profile}, {batch_text}, {questions}.",
         (
             "Din roll: {label}\n"
             "Profil: {profile}\n\n"
             "Hela dokumentet ligger i systemmeddelandet (index i hakparentes, "
             "klausulnummer om det finns).\n\n"
-            "Den här batchen (bara dessa index får du räcka upp handen för):\n"
+            "Den här batchen:\n"
             "{batch_text}\n\n"
-            "Räck upp handen bara för de stycken där din kärnkompetens ger dig något konkret "
-            "att säga. En tom lista är det normala och förväntade svaret. Vid tvekan: hoppa över.\n"
-            "Returnera paragraph_indexes: en lista med styckesindex från batchen. Inga andra index."
+            "Moderatorfrågor (bara dessa id får du räcka upp handen för):\n"
+            "{questions}\n\n"
+            "Räck upp handen bara för frågor där din specifika expertkompetens kan tillföra "
+            "faktisk analys, riskbedömning, invändning, förbättring eller professionellt omdöme. "
+            "Det är korrekt och ofta rätt att välja noll frågor. "
+            "Räck inte upp handen för rena fakta, kontaktuppgifter, administrativ information, "
+            "återberättande eller frågor utanför din kompetens. Vid tvekan: hoppa över.\n"
+            "Returnera question_ids: en lista med fråge-id från listan ovan. Inga andra id."
         ),
         (
             "Your role: {label}\n"
             "Profile: {profile}\n\n"
             "The full document is in the system message (index in brackets, "
             "clause number if present).\n\n"
-            "This batch (you may raise a hand only for these indexes):\n"
+            "This batch:\n"
             "{batch_text}\n\n"
-            "Raise your hand only for paragraphs where your core competence gives you "
-            "something concrete to say. An empty list is the normal, expected answer. "
-            "When in doubt: skip.\n"
-            "Return paragraph_indexes: a list of paragraph indexes from the batch. No others."
+            "Moderator questions (you may raise a hand only for these ids):\n"
+            "{questions}\n\n"
+            "Raise your hand only for questions where your specific expertise can add "
+            "actual analysis, risk assessment, objection, improvement, or professional judgment. "
+            "Choosing zero questions is correct and often the right answer. "
+            "Do not raise a hand for plain facts, contact details, administrative information, "
+            "retelling, or questions outside your competence. When in doubt: skip.\n"
+            "Return question_ids: a list of question ids from the list above. No others."
         ),
     ),
     _f(
@@ -1713,16 +1772,26 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         "panel",
         "Word — expertkommentar",
         "Word — expert comment",
-        "Platshållare: {label}, {profile}, {paragraph_text}, {list_string}, {section_heading}.",
-        "Placeholders: {label}, {profile}, {paragraph_text}, {list_string}, {section_heading}.",
+        (
+            "Platshållare: {label}, {profile}, {paragraph_text}, {list_string}, "
+            "{section_heading}, {question}, {why_it_matters}."
+        ),
+        (
+            "Placeholders: {label}, {profile}, {paragraph_text}, {list_string}, "
+            "{section_heading}, {question}, {why_it_matters}."
+        ),
         (
             "Din roll: {label}\n"
             "Profil: {profile}\n\n"
             "Hela dokumentet ligger i systemmeddelandet.\n\n"
             "Avsnitt: {section_heading}\n"
             "Klausulnummer (internt): {list_string}\n\n"
-            "Stycke du räckt upp handen för:\n{paragraph_text}\n\n"
-            "Skriv en konkret kommentar till juristen. Tom kommentar betyder att du hoppar över. "
+            "Granskningsfråga: {question}\n"
+            "Varför det spelar roll: {why_it_matters}\n\n"
+            "Relevant dokumenttext:\n{paragraph_text}\n\n"
+            "Ge en konkret expertbedömning. Återberätta inte texten och kommentera inte "
+            "enbart att information finns. Förklara vad som är relevant, problematiskt, "
+            "osäkert eller bör förbättras. Tom kommentar betyder att du hoppar över. "
             "Inga tekniska termer. Prefixera inte med klausulnummer."
         ),
         (
@@ -1731,8 +1800,12 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "The full document is in the system message.\n\n"
             "Section: {section_heading}\n"
             "Clause number (internal): {list_string}\n\n"
-            "Paragraph you raised a hand for:\n{paragraph_text}\n\n"
-            "Write a concrete comment for the lawyer. An empty comment means skip. "
+            "Review question: {question}\n"
+            "Why it matters: {why_it_matters}\n\n"
+            "Relevant document text:\n{paragraph_text}\n\n"
+            "Give a concrete expert assessment. Do not retell the text and do not only "
+            "note that the information exists. Explain what is relevant, problematic, "
+            "uncertain, or should be improved. An empty comment means skip. "
             "No technical terms. Do not prefix with the clause number."
         ),
     ),
