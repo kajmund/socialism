@@ -8,12 +8,12 @@ from app.database.models import PanelSession
 from app.llm import complete_text
 from app.services.dd.company_mcp import complete_text_with_company_tools
 from app.services.expert_tools import expert_tool_prompt_extra
-from app.services.panel.result import PanelResult
 from app.services.panel.schemas import (
     PanelExpertSlot,
     PanelSessionConfig,
     PanelTurn,
 )
+from app.services.panel.synthesis import synthesize_generic_panel_result
 from app.services.panel.watch import run_turn
 from app.services.prompt_catalog import render_prompt
 
@@ -317,12 +317,13 @@ async def run_generic_panel(
 
     panel.scratchpads = scratchpads
     panel.analysis = summary_turn.content
-    panel.result = PanelResult(
-        protocol="generic_panel",
-        summary=summary_turn.content,
-        claims=[],
-        unanswered=[],
-        payload={},
+    panel.result = (
+        await synthesize_generic_panel_result(
+            config=config,
+            transcript=transcript,
+            moderator_analysis=summary_turn.content,
+            prompts=prompts,
+        )
     ).model_dump(mode="json")
     panel.status = "succeeded"
     panel.error = None
