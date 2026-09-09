@@ -111,3 +111,69 @@ async def test_auth_probe_provisioned_user_returns_200(auth_probe_client) -> Non
     body = response.json()
     assert body["id"] == user_id
     assert body["role"] == "admin"
+
+
+@pytest.mark.asyncio
+async def test_auth_probe_skips_last_seen_write_when_fresh(auth_probe_client) -> None:
+    client, session_factory = auth_probe_client
+    user_id = "00000000-0000-4000-8000-000000000003"
+    stamped = datetime.now(UTC) - timedelta(seconds=30)
+    async with session_factory() as session:
+        session.add(
+            UserAccount(
+                id=user_id,
+                email="seen@example.com",
+                role="admin",
+                kund_id=None,
+                last_seen_at=stamped,
+            )
+        )
+        await session.commit()
+
+    token = _mint_token(sub=user_id, email="seen@example.com")
+    response = await client.get(
+        "/_auth_probe",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    async with session_factory() as session:
+        row = await session.get(UserAccount, user_id)
+        assert row is not None
+        stored = row.last_seen_at
+        assert stored is not None
+        if stored.tzinfo is None:
+            stored = stored.replace(tzinfo=UTC)
+        assert abs((stored - stamped).total_seconds()) < 2
+
+
+@pytest.mark.asyncio
+async def test_auth_probe_refreshes_stale_last_seen(auth_probe_client) -> None:
+    client, session_factory = auth_probe_client
+    user_id = "00000000-0000-4000-8000-000000000004"
+    stale = datetime.now(UTC) - timedelta(minutes=5)
+    async with session_factory() as session:
+        session.add(
+            UserAccount(
+                id=user_id,
+                email="stale@example.com",
+                role="admin",
+                kund_id=None,
+                last_seen_at=stale,
+            )
+        )
+        await session.commit()
+
+    token = _mint_token(sub=user_id, email="stale@example.com")
+    response = await client.get(
+        "/_auth_probe",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    async with session_factory() as session:
+        row = await session.get(UserAccount, user_id)
+        assert row is not None
+        stored = row.last_seen_at
+        assert stored is not None
+        if stored.tzinfo is None:
+            stored = stored.replace(tzinfo=UTC)
+        assert stored > stale

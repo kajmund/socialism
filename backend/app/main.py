@@ -28,6 +28,7 @@ from app.api import (
     ws,
 )
 from app.config import settings
+from app.database.session import ensure_sqlite_wal
 from app.logging import configure_logging
 from app.modules.registry import MODULE_REGISTRY
 from app.services import jobs as jobs_service
@@ -51,6 +52,7 @@ async def lifespan(_app: FastAPI):
     if not settings.supabase_service_role_key.strip():
         raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY is required")
     settings.apply_oasis_env()
+    await ensure_sqlite_wal()
     factory = jobs_service.job_session_factory()
     try:
         async with factory() as session:
