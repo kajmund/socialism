@@ -2,6 +2,7 @@
 
 ## 2026-09-09
 
+* **Bolagsytan**: Rubriken för en modul visas bara om bolaget har den modulen påslagen. Administratör ser fortfarande Expertgranskning och Rättsunderlag i huvudmenyn.
 * **Rättsunderlag**: Ytan fungerar som Expertgranskning. Du ser en lista över körningar, sparar utkast under **Konfiguration** och läser källor eller PM under **Resultat**.
 * **Personas**: I kompositören kan du välja samma verktyg som för experter (bolagssök och webbsök). De används i intervju och in-character-chatt.
 * **Personas / Experter**: I arbetslägets intervju och in-character kan du fälla in profillagren (demografi, kompetens med mera) så chatten får mer plats.

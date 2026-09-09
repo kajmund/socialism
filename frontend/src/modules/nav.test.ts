@@ -21,6 +21,20 @@ describe("buildSidebarNav", () => {
     expect(sections.map((section) => section.id)).not.toContain("expertgranskning")
   })
 
+  it("does not inject tool modules on bolag shells even when tools stay visible", () => {
+    const sections = buildSidebarNav({
+      moduleIds: ["dd"],
+      showTools: true,
+      injectToolModules: false,
+    })
+    const ids = sections.map((section) => section.id)
+    expect(ids).not.toContain("expertgranskning")
+    expect(ids).not.toContain("rattsunderlag")
+    expect(ids).not.toContain("politik")
+    expect(ids).toContain("admin")
+    expect(ids).toContain("dd")
+  })
+
   it("groups experts and expert panels under Experter", () => {
     const sections = buildSidebarNav({ moduleIds: ["dd"], showTools: false })
     const experts = sections.find((section) => section.id === "dd:bolag.nav.experter")

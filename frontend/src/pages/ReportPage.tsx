@@ -75,9 +75,9 @@ export function ReportPage({
   const navigate = useNavigate()
   const { t } = useLocale()
   const { user } = useAuth()
-  const { moduleIds, loading: kundLoading } = useKundModules()
-  const { jobs } = useJobsRealtime()
   const isBolagReport = embedded || location.pathname.startsWith("/bolag/reports/")
+  const { moduleIds, loading: kundLoading } = useKundModules(isBolagReport ? "bolag" : "admin")
+  const { jobs } = useJobsRealtime()
   const reportsListLabel = isBolagReport ? t("bolag.nav.reports") : t("reports.backToList")
   const { reports } = useReportsRealtime()
   const [fetchedReport, setFetchedReport] = useState<Report | null>(null)
@@ -86,9 +86,9 @@ export function ReportPage({
   const wsReport = id ? reports.find((r) => r.id === id) ?? null : null
   const report = wsReport ?? fetchedReport
   const reportModules = useMemo(() => {
-    if (kundLoading) return reportModulesForUser(user)
+    if (kundLoading) return reportModulesForUser(user, isBolagReport ? "bolag" : "admin")
     return reportModulesFromIds(moduleIds)
-  }, [kundLoading, moduleIds, user])
+  }, [isBolagReport, kundLoading, moduleIds, user])
   const reportsListPath = isBolagReport
     ? "/bolag/reports"
     : report && reportModules.length > 1

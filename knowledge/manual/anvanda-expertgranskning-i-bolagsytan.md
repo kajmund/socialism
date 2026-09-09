@@ -7,7 +7,7 @@ tags: [rapporter]
 
 # Använda expertgranskning i bolagsytan
 
-Har kunden **Due Diligence** men inte politisk simulering ligger **Expertgranskning** under **Bolag**-menyn i stället för som en fristående modullänk.
+Har kunden **Expertgranskning** och **Due Diligence** men inte politisk simulering ligger **Expertgranskning** under bolagsmenyn i stället för som en fristående modullänk. Har bolaget inte Expertgranskning visas inte rubriken.
 
 Funktionen är densamma — lista, konfiguration, live-panel och rapport — men URL:en börjar med `/bolag/expertgranskning`.
 
