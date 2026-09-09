@@ -11,7 +11,7 @@ tags: [jobb, rapporter]
 
 ## Logga in
 
-Bolagsanvändare som har Due Diligence-modulen landar i Due Diligence-ytan. Har kontot också politisk simulering syns båda modulernas länkar i samma vänstermeny. Se [Logga in](logga-in.md).
+Bolagsanvändare som har Due Diligence-modulen landar i Due Diligence-ytan. Har kontot också politisk simulering syns båda modulernas länkar i samma vänstermeny. Saknar bolaget en modul visas inte den modulens rubrik. Se [Logga in](logga-in.md).
 
 ## Menyn
 
