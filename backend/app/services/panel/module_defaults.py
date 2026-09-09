@@ -11,9 +11,11 @@ from app.services.kund_store import ensure_default_kunder
 from app.services.panel.expert_profiles_store import ensure_expert_profile_defaults
 from app.services.panel.spinndoctor_profile import ensure_spinndoctor_profile
 from app.services.panel.sub_questions_store import ensure_sub_question_defaults
+from app.services.prompt_catalog import PROMPT_KEY_SET
 from app.services.prompt_fields_store import (
     ensure_prompt_field_defaults,
     ensure_prompt_overrides_from_configurations,
+    retire_unknown_prompt_fields,
 )
 
 
@@ -32,6 +34,7 @@ async def ensure_module_panel_defaults(
 ) -> int:
     """Seed missing sub-questions, prompt catalog rows, and per-customer experts."""
     added = 0
+    known_prompt_keys = set(PROMPT_KEY_SET)
     for module in MODULE_REGISTRY.values():
         if module.sub_questions_provider is not None:
             defaults = module.sub_questions_provider()
@@ -39,6 +42,10 @@ async def ensure_module_panel_defaults(
         if module.prompt_defaults_provider is not None:
             defaults = module.prompt_defaults_provider()
             added += await ensure_prompt_field_defaults(session, module.id, defaults)
+            known_prompt_keys.update(str(field["key"]) for field in defaults)
+    added += await retire_unknown_prompt_fields(
+        session, known_keys=frozenset(known_prompt_keys)
+    )
     added += await ensure_prompt_overrides_from_configurations(session)
 
     for cid in await _customer_ids(session, customer_id):

@@ -13,10 +13,11 @@ På **expertpanelens detaljsida** ser du vilka experter som ingår och kan juste
 
 1. Öppna en panel från listan med **Öppna**.
 2. Granska metadata: antal experter och senast uppdaterad.
-3. **Duplicera** skapar en kopia av hela panelen.
-4. Under **Experter** växlar du mellan **Rutnät** och **Lista** för medlemmarna.
-5. Välj **+ Lägg till från bibliotek** för att söka bland experter och lägga till fler.
-6. Per expert:
+3. **Ändra namn** byter panelnamnet. Spara eller avbryt.
+4. **Duplicera** skapar en kopia av hela panelen.
+5. Under **Experter** växlar du mellan **Rutnät** och **Lista** för medlemmarna.
+6. Välj **+ Lägg till från bibliotek** för att söka bland experter och lägga till fler.
+7. Per expert:
    - **Öppna** går till expertens profil och chatt.
    - **Ta bort** tar bort experten från panelen (experten finns kvar i biblioteket).
 

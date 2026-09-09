@@ -5,6 +5,7 @@ import {
   duplicatePopulation,
   getPopulation,
   removePopulationMember,
+  updatePopulation,
   type PopulationDetail,
 } from "@/api/populations"
 import { AdminShell } from "@/components/layout/AdminShell"
@@ -108,6 +109,9 @@ export function PopulationDetailPage({
   const [showAdd, setShowAdd] = useState(false)
   const [memberView, setMemberView] = useState<"grid" | "lista">("grid")
   const [toast, setToast] = useState<string | null>(null)
+  const [editingName, setEditingName] = useState(false)
+  const [nameDraft, setNameDraft] = useState("")
+  const [savingName, setSavingName] = useState(false)
 
   function showToast(message: string) {
     setToast(message)
@@ -180,7 +184,49 @@ export function PopulationDetailPage({
   }
 
   const isExpertPanel = pop.kind === "expert_panel"
+  const memberBasePath = isExpertPanel ? "/bolag/experter" : "/personas"
+  const memberHref = (personaId?: string) =>
+    personaId ? `${memberBasePath}/${personaId}` : memberBasePath
   const excludeNames = members.map((m) => m.name)
+
+  function startRename() {
+    setNameDraft(pop.name)
+    setEditingName(true)
+  }
+
+  function cancelRename() {
+    setEditingName(false)
+    setNameDraft(pop.name)
+  }
+
+  async function savePanelName() {
+    const name = nameDraft.trim()
+    if (!name) {
+      showToast(t("expertPanels.detail.nameEmpty"))
+      return
+    }
+    if (name === pop.name) {
+      setEditingName(false)
+      return
+    }
+    setSavingName(true)
+    try {
+      const updated = await updatePopulation(pop.id, { name })
+      setPop(updated)
+      setMembers(updated.members)
+      setEditingName(false)
+      showToast(t("expertPanels.detail.nameSaved"))
+    } catch (err: unknown) {
+      if (err instanceof ApiError && err.status === 409) {
+        showToast(t("expertPanels.detail.nameTaken"))
+      } else {
+        showToast(err instanceof ApiError ? err.message : t("expertPanels.detail.renameError"))
+      }
+    } finally {
+      setSavingName(false)
+    }
+  }
+
   const sectionLabels = fpSectionLabels(t)
   const legendFallback = fpLegendFallback(t)
 
@@ -192,19 +238,73 @@ export function PopulationDetailPage({
           </Link>
         </div>
         <div className="head-row">
-          <div>
-            <h1
-              style={{
-                font: "var(--text-h1)",
-                fontFamily: "'Bai Jamjuree', sans-serif",
-                fontWeight: 400,
-                margin: 0,
-              }}
-            >
-              {pop.name}
-            </h1>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            {isExpertPanel && editingName ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  void savePanelName()
+                }}
+                style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}
+              >
+                <label className="sr-only" htmlFor="expert-panel-name">
+                  {t("expertPanels.detail.nameLabel")}
+                </label>
+                <input
+                  id="expert-panel-name"
+                  value={nameDraft}
+                  onChange={(e) => setNameDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") cancelRename()
+                  }}
+                  autoFocus
+                  disabled={savingName}
+                  style={{
+                    font: "var(--text-h1)",
+                    fontFamily: "'Bai Jamjuree', sans-serif",
+                    fontWeight: 400,
+                    margin: 0,
+                    minWidth: 0,
+                    flex: "1 1 220px",
+                  }}
+                />
+                <AdminButton
+                  type="submit"
+                  variant="accent"
+                  size="sm"
+                  disabled={savingName || !nameDraft.trim()}
+                >
+                  {savingName ? t("common.saving") : t("common.save")}
+                </AdminButton>
+                <AdminButton
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={savingName}
+                  onClick={cancelRename}
+                >
+                  {t("common.cancel")}
+                </AdminButton>
+              </form>
+            ) : (
+              <h1
+                style={{
+                  font: "var(--text-h1)",
+                  fontFamily: "'Bai Jamjuree', sans-serif",
+                  fontWeight: 400,
+                  margin: 0,
+                }}
+              >
+                {pop.name}
+              </h1>
+            )}
           </div>
           <div className="head-actions">
+            {isExpertPanel && !editingName ? (
+              <AdminButton variant="secondary" size="sm" onClick={startRename}>
+                {t("expertPanels.detail.rename")}
+              </AdminButton>
+            ) : null}
             <AdminButton
               variant="secondary"
               size="sm"
@@ -212,7 +312,7 @@ export function PopulationDetailPage({
                 void duplicatePopulation(pop.id)
                   .then((copy) => {
                     showToast(t("populations.detail.duplicated", { name: pop.name }))
-                    navigate(`/populations/${copy.id}`)
+                    navigate(`${basePath}/${copy.id}`)
                   })
                   .catch((err: unknown) =>
                     showToast(
@@ -489,7 +589,7 @@ export function PopulationDetailPage({
                         }}
                         onToast={showToast}
                       />
-                      <Link to={p.id ? `/personas/${p.id}` : "/personas"}>
+                      <Link to={memberHref(p.id)}>
                         {t("common.openArrow")}
                       </Link>
                       <button
@@ -513,7 +613,7 @@ export function PopulationDetailPage({
                 key={p.member_id ?? `${p.name}-${p.id ?? "x"}`}
               >
                 <Link
-                  to={p.id ? `/personas/${p.id}` : "/personas"}
+                  to={memberHref(p.id)}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -547,7 +647,7 @@ export function PopulationDetailPage({
                     }}
                     onToast={showToast}
                   />
-                  <Link to={p.id ? `/personas/${p.id}` : "/personas"}>
+                  <Link to={memberHref(p.id)}>
                     {t("common.open")}
                   </Link>
                   <button

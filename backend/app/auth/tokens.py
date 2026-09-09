@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+
 import jwt
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +11,28 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database.models import UserAccount
 from app.serializers import utcnow
+
+_TOKEN_ALGORITHM = "HS256"
+_TOKEN_AUDIENCE = "authenticated"
+
+
+def mint_access_token(
+    *,
+    user_id: str,
+    email: str,
+    expires_delta: timedelta = timedelta(days=7),
+) -> str:
+    """HS256 access token accepted by user_from_bearer_token (same secret as Supabase)."""
+    now = datetime.now(UTC)
+    payload = {
+        "sub": user_id,
+        "email": email,
+        "aud": _TOKEN_AUDIENCE,
+        "role": "authenticated",
+        "iat": int(now.timestamp()),
+        "exp": int((now + expires_delta).timestamp()),
+    }
+    return jwt.encode(payload, settings.supabase_jwt_secret, algorithm=_TOKEN_ALGORITHM)
 
 
 async def user_from_bearer_token(session: AsyncSession, token: str | None) -> UserAccount:
@@ -21,8 +45,8 @@ async def user_from_bearer_token(session: AsyncSession, token: str | None) -> Us
         payload = jwt.decode(
             raw,
             settings.supabase_jwt_secret,
-            algorithms=["HS256"],
-            audience="authenticated",
+            algorithms=[_TOKEN_ALGORITHM],
+            audience=_TOKEN_AUDIENCE,
         )
     except jwt.PyJWTError as exc:
         raise HTTPException(status_code=401, detail="invalid_token") from exc

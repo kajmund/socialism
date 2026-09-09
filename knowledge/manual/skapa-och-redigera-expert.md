@@ -29,7 +29,7 @@ tags: [personas]
 
 ## Chatt
 
-I chattpanelen kan du intervjua experten eller prata in-character. Experten använder bara de verktyg du valt. Om ett bolagsuppslag saknar organisationsnummer eller inte hittas fortsätter chatten — den avbryts inte.
+I chattpanelen kan du intervjua experten eller prata in-character. **Fäll in profil** döljer kompetens- och bakgrundsfälten så chatten får mer plats. **Visa profil** tar fram dem igen. Experten använder bara de verktyg du valt. Om ett bolagsuppslag saknar organisationsnummer eller inte hittas fortsätter chatten — den avbryts inte.
 
 ## Relaterade guider
 

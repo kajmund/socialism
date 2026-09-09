@@ -37,6 +37,7 @@ import { BolagFeedbackPage, FeedbackPage } from "@/pages/FeedbackPage"
 import { BolagJobsPage, JobsPage } from "@/pages/JobsPage"
 import { KunderPage } from "@/pages/KunderPage"
 import { AnvandarePage } from "@/pages/AnvandarePage"
+import { LocalLoginPage } from "@/pages/LocalLoginPage"
 import { LoginPage } from "@/pages/LoginPage"
 import { MessagesPage } from "@/pages/MessagesPage"
 import { MessagesWorkshopPage } from "@/pages/MessagesWorkshopPage"
@@ -48,6 +49,7 @@ import { PopulationBuilderPage } from "@/pages/PopulationBuilderPage"
 import { PopulationDetailPage } from "@/pages/PopulationDetailPage"
 import { PopulationsPage } from "@/pages/PopulationsPage"
 import { RattsunderlagPage } from "@/pages/RattsunderlagPage"
+import { RattsunderlagRunPage } from "@/pages/RattsunderlagRunPage"
 import { ReportPage } from "@/pages/ReportPage"
 import { BolagReportsPage, ReportsPage } from "@/pages/ReportsPage"
 import { RunsPage } from "@/pages/RunsPage"
@@ -84,6 +86,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/dev-in" element={<LocalLoginPage />} />
 
       <Route element={<RequireAuth />}>
         <Route element={<AuthenticatedShell />}>
@@ -147,7 +150,8 @@ export default function App() {
 
           <Route element={<RequireRattsunderlag />}>
             <Route path="/rattsunderlag" element={<RattsunderlagPage />} />
-            <Route path="/rattsunderlag/:jobId" element={<RattsunderlagPage />} />
+            <Route path="/rattsunderlag/new" element={<RattsunderlagRunPage />} />
+            <Route path="/rattsunderlag/:id" element={<RattsunderlagRunPage />} />
           </Route>
 
           <Route element={<RequireOsUser />}>

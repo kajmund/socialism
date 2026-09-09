@@ -46,6 +46,19 @@ def resolve_expert_tools(raw: list[str] | None) -> list[str]:
     return normalize_expert_tools(raw)
 
 
+def resolve_persona_tools(raw: list[str] | None) -> list[str]:
+    """Stored None (typical persona row) → no tools. [] is also no tools."""
+    if raw is None:
+        return []
+    return normalize_expert_tools(raw)
+
+
+def resolve_chat_tools(raw: list[str] | None, *, kind: str) -> list[str]:
+    if kind == "expert":
+        return resolve_expert_tools(raw)
+    return resolve_persona_tools(raw)
+
+
 def filter_openai_tools(
     specs: list[dict[str, Any]],
     allowed: frozenset[str],

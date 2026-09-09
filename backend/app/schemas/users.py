@@ -19,6 +19,13 @@ class MeOut(BaseModel):
     available_modules: list[str]
 
 
+class LocalLoginOut(BaseModel):
+    access_token: str
+    email: str
+    user_id: str
+    kund_slug: str
+
+
 class UserAccountOut(BaseModel):
     id: str
     email: str

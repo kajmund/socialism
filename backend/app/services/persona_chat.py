@@ -14,7 +14,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import Persona, PersonaMessage, Run
 from app.llm.chat import (
     build_run_interview_prompt,
-    stream_reply_as_expert,
     stream_reply_as_persona,
     suggest_follow_up_questions,
 )
@@ -232,25 +231,16 @@ async def stream_library_chat_turn(
         session.add(user_row)
         await session.commit()
 
-        if persona.kind == "expert":
-            stream = stream_reply_as_expert(
-                profile,
-                mode,
-                history,
-                message,
-                prompts=prompts,
-                area_block=area_block,
-                tools=persona.tools,
-            )
-        else:
-            stream = stream_reply_as_persona(
-                profile,
-                mode,
-                history,
-                message,
-                prompts=prompts,
-                area_block=area_block,
-            )
+        stream = stream_reply_as_persona(
+            profile,
+            mode,
+            history,
+            message,
+            prompts=prompts,
+            area_block=area_block,
+            profile_kind=persona.kind,
+            tools=persona.tools,
+        )
         parts: list[str] = []
         try:
             async for chunk in stream:
@@ -384,16 +374,21 @@ async def stream_run_interview_turn(
         await _publish_interview_message(user_row)
 
         parts: list[str] = []
-        async for chunk in stream_reply_as_persona(
-            profile,
-            "interview",
-            history,
-            message,
-            prompts=prompts,
-            system_prompt=system_prompt,
-        ):
-            parts.append(chunk)
-            yield chunk
+        try:
+            async for chunk in stream_reply_as_persona(
+                profile,
+                "interview",
+                history,
+                message,
+                prompts=prompts,
+                system_prompt=system_prompt,
+                profile_kind=persona.kind,
+                tools=persona.tools,
+            ):
+                parts.append(chunk)
+                yield chunk
+        except CompanyMcpError as exc:
+            raise ChatTurnError(str(exc), status_code=502) from exc
 
         reply = "".join(parts).strip()
         if not reply:

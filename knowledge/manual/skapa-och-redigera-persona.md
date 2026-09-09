@@ -1,7 +1,7 @@
 ---
 type: guide
 title: Skapa och redigera persona
-description: Så skapar du en ny persona och redigerar profil, chatt och intervju.
+description: Så skapar du en ny persona och redigerar profil, verktyg, chatt och intervju.
 tags: [personas]
 ---
 
@@ -25,13 +25,23 @@ I **persona-kompositören** bygger du en agents profil och testar den genom chat
 3. Växla till **Presentationsläge** för en skrivskyddad presentation av profilen.
 4. Välj **Spara persona** när du är nöjd.
 
+## Välj verktyg
+
+Öppna skiftnyckeln i topbaren och kryssa i vad personen får använda i **Intervju** och **In-character**:
+
+- **Bolag** — sök bolag, slå upp ett bolag, validera organisationsnummer.
+- **Sök** — webbsökning (DuckDuckGo) och Wikipedia.
+
+**Alla verktyg** markerar eller avmarkerar allt. En persona utan verktyg svarar bara utifrån sin profil. Ändringen gäller efter **Spara persona**.
+
 ## Chatt och intervju
 
 1. I chattpanelen växlar du mellan **In-character** (agenten svarar som sig själv) och **Intervju** (du ställer frågor).
-2. Skriv meddelanden och skicka — persona måste vara sparad.
-3. Efter varje svar (och när chatten är tom) föreslår assistenten **tre knappar** — följdfrågor i intervju, vardagsrepliker i in-character. Klicka för att skicka.
-4. **Rensa** tar bort chatthistoriken efter bekräftelse.
-5. **Regenerera svar** ger ett nytt svar på senaste meddelandet.
+2. **Fäll in profil** döljer demografi och övriga lager så chatten får mer plats. **Visa profil** tar fram dem igen.
+3. Skriv meddelanden och skicka — persona måste vara sparad. Valda verktyg används i båda lägena.
+4. Efter varje svar (och när chatten är tom) föreslår assistenten **tre knappar** — följdfrågor i intervju, vardagsrepliker i in-character. Klicka för att skicka.
+5. **Rensa** tar bort chatthistoriken efter bekräftelse.
+6. **Regenerera svar** ger ett nytt svar på senaste meddelandet.
 
 ## Övriga åtgärder
 

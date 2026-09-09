@@ -2,6 +2,10 @@
 
 ## 2026-09-09
 
+* **Rättsunderlag**: Ytan fungerar som Expertgranskning. Du ser en lista över körningar, sparar utkast under **Konfiguration** och läser källor eller PM under **Resultat**.
+* **Personas**: I kompositören kan du välja samma verktyg som för experter (bolagssök och webbsök). De används i intervju och in-character-chatt.
+* **Personas / Experter**: I arbetslägets intervju och in-character kan du fälla in profillagren (demografi, kompetens med mera) så chatten får mer plats.
+* **Expertpaneler**: Du kan byta namn på en sparad panel från detaljsidan med **Ändra namn**.
 * **Expertgranskning i Word**: Experterna får hela dokumentet som underlag och kommenterar bara stycken där de räcker upp handen. Klausulnummer används internt och syns inte i kommentaren. Omskrivning föreslås bara när minst två experter är överens om samma formulering.
 
 ## 2026-09-07

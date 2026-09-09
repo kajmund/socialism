@@ -9,6 +9,8 @@ from app.services.expert_tools import (
     expert_tool_prompt_extra,
     filter_openai_tools,
     normalize_expert_tools,
+    resolve_chat_tools,
+    resolve_persona_tools,
 )
 from app.services.prompt_catalog import default_prompts
 
@@ -19,6 +21,12 @@ def test_normalize_none_is_catalog_default():
 
 def test_normalize_empty_is_no_tools():
     assert normalize_expert_tools([]) == []
+
+
+def test_persona_none_is_no_tools():
+    assert resolve_persona_tools(None) == []
+    assert resolve_chat_tools(None, kind="persona") == []
+    assert resolve_chat_tools(None, kind="expert") == list(DEFAULT_EXPERT_TOOL_IDS)
 
 
 def test_normalize_rejects_unknown():

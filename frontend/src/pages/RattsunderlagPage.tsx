@@ -1,48 +1,34 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react"
-import { Link, useNavigate, useParams } from "react-router-dom"
+import { useEffect, useMemo, useState } from "react"
+import { Link } from "react-router-dom"
 import {
-  getRattsunderlagResearch,
-  listRattsunderlagResearch,
-  resultFromJob,
-  startRattsunderlagResearch,
-  type ForarbeteRef,
-  type LagtextRef,
-  type PraxisRef,
-  type RattsunderlagJob,
-  type SourcingStatus,
+  deleteRattsunderlagSession,
+  listRattsunderlagSessions,
+  type RattsunderlagSessionStatus,
+  type RattsunderlagSessionSummary,
 } from "@/api/rattsunderlag"
 import { AdminShell } from "@/components/layout/AdminShell"
-import { AdminButton } from "@/components/ui/admin-button"
+import { Card, CardContent } from "@/components/ui/card"
+import { ViewToggle, type ListViewMode } from "@/components/ui/view-toggle"
+import { formatLibraryDate } from "@/data/library"
 import { useLocale, type MessageKey } from "@/i18n"
 import { ApiError } from "@/lib/api"
 
-type ResultTab = "law" | "praxis" | "travaux"
+const BASE = "/rattsunderlag"
 
-function statusKey(status: SourcingStatus): MessageKey {
-  switch (status) {
-    case "complete":
-      return "rattsunderlag.status.complete"
-    case "partial":
-      return "rattsunderlag.status.partial"
-    case "no_sources_found":
-      return "rattsunderlag.status.none"
-    default: {
-      const _exhaustive: never = status
-      return _exhaustive
-    }
-  }
-}
+type Translate = (key: MessageKey, params?: Record<string, string | number>) => string
+type ListStatus = "all" | "draft" | "running" | "done" | "failed"
 
-function jobStatusKey(status: RattsunderlagJob["status"]): MessageKey {
+function toListStatus(status: RattsunderlagSessionStatus): Exclude<ListStatus, "all"> {
   switch (status) {
+    case "draft":
+      return "draft"
     case "pending":
-      return "jobs.status.pending"
     case "running":
-      return "jobs.status.running"
+      return "running"
     case "succeeded":
-      return "jobs.status.succeeded"
+      return "done"
     case "failed":
-      return "jobs.status.failed"
+      return "failed"
     default: {
       const _exhaustive: never = status
       return _exhaustive
@@ -50,294 +36,282 @@ function jobStatusKey(status: RattsunderlagJob["status"]): MessageKey {
   }
 }
 
-function SourceCard({
-  heading,
-  body,
-  href,
-}: {
-  heading: string
-  body: string
-  href?: string | null
-}) {
+function statusLabel(status: Exclude<ListStatus, "all">, t: Translate): string {
+  switch (status) {
+    case "done":
+      return t("runs.status.done")
+    case "running":
+      return t("runs.status.running")
+    case "draft":
+      return t("runs.status.draft")
+    case "failed":
+      return t("runs.status.failed")
+    default: {
+      const _exhaustive: never = status
+      return _exhaustive
+    }
+  }
+}
+
+function primaryResultsLabel(status: Exclude<ListStatus, "all">, t: Translate): string {
+  switch (status) {
+    case "running":
+      return t("runs.list.seeStatus")
+    case "failed":
+      return t("runs.list.seeError")
+    default:
+      return t("runs.list.openResults")
+  }
+}
+
+type RowProps = {
+  row: RattsunderlagSessionSummary
+  intl: string
+  t: Translate
+  confirming: boolean
+  onAskDelete: () => void
+  onCancelDelete: () => void
+  onConfirmDelete: () => void
+}
+
+function SessionActions({
+  row,
+  t,
+  confirming,
+  onAskDelete,
+  onCancelDelete,
+  onConfirmDelete,
+}: Omit<RowProps, "intl">) {
+  const listStatus = toListStatus(row.status)
+  if (confirming) {
+    return (
+      <>
+        <button type="button" onClick={onCancelDelete}>
+          {t("common.cancel")}
+        </button>
+        <button type="button" className="yes" onClick={onConfirmDelete}>
+          {t("common.deleteConfirm")}
+        </button>
+      </>
+    )
+  }
+  if (listStatus === "draft") {
+    return (
+      <>
+        <Link className="primary full" to={`${BASE}/${row.id}?tab=config`}>
+          {t("runs.list.continueConfig")}
+        </Link>
+        <button type="button" onClick={onAskDelete}>
+          {t("common.delete")}
+        </button>
+      </>
+    )
+  }
   return (
-    <article className="rounded-md border border-[color:var(--border-hairline)] bg-muted/30 p-3">
-      <h3 className="text-sm font-medium">{heading}</h3>
-      {body ? <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{body}</p> : null}
-      {href ? (
-        <a className="mt-2 inline-block text-xs underline" href={href} target="_blank" rel="noreferrer">
-          {href}
-        </a>
-      ) : null}
-    </article>
+    <>
+      <Link className="primary" to={`${BASE}/${row.id}?tab=results`}>
+        {primaryResultsLabel(listStatus, t)}
+      </Link>
+      <Link to={`${BASE}/${row.id}?tab=config`}>{t("runs.list.configuration")}</Link>
+      <button type="button" onClick={onAskDelete}>
+        {t("common.delete")}
+      </button>
+    </>
   )
 }
 
-function LawList({ rows }: { rows: LagtextRef[] }) {
+function SessionCard(props: RowProps) {
+  const { row, intl, t, confirming } = props
+  const listStatus = toListStatus(row.status)
   return (
-    <div className="grid gap-3">
-      {rows.map((row) => (
-        <SourceCard
-          key={row.sfs_id}
-          heading={row.rubrik ? `${row.sfs_id} — ${row.rubrik}` : row.sfs_id}
-          body={row.utdrag}
-          href={row.url}
-        />
-      ))}
+    <div className="run-card">
+      <Card className="relative h-full gap-0 rounded-[var(--radius-md)] py-4">
+        <span className={"status-tag absolute right-4 top-4 " + listStatus}>
+          {statusLabel(listStatus, t)}
+        </span>
+        <CardContent className="run-inner px-4">
+          <div className="run-top">
+            <div className="run-nm">{row.topic}</div>
+          </div>
+          <div className="run-details">
+            <div className="row">
+              <span>{t("runs.list.updated")}</span>
+              <span className="v">{formatLibraryDate(row.updated_at, intl)}</span>
+            </div>
+          </div>
+          <div className={confirming ? "confirm-row" : "run-actions"}>
+            <SessionActions {...props} />
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
 
-function PraxisList({ rows }: { rows: PraxisRef[] }) {
+function SessionListRow(props: RowProps) {
+  const { row, intl, t, confirming } = props
+  const listStatus = toListStatus(row.status)
   return (
-    <div className="grid gap-3">
-      {rows.map((row) => (
-        <SourceCard
-          key={row.referens}
-          heading={row.instans ? `${row.referens} (${row.instans})` : row.referens}
-          body={row.utdrag}
-          href={row.url}
-        />
-      ))}
-    </div>
-  )
-}
-
-function TravauxList({ rows }: { rows: ForarbeteRef[] }) {
-  return (
-    <div className="grid gap-3">
-      {rows.map((row) => (
-        <SourceCard
-          key={row.referens}
-          heading={row.titel ? `${row.referens} — ${row.titel}` : row.referens}
-          body={row.utdrag}
-          href={row.url}
-        />
-      ))}
+    <div className="admin-list-row admin-list-runs">
+      <div>
+        <div className="nm">{row.topic}</div>
+      </div>
+      <span className={"status-tag " + listStatus}>{statusLabel(listStatus, t)}</span>
+      <div className="cell">{formatLibraryDate(row.updated_at, intl)}</div>
+      <div className={confirming ? "confirm-row" : "admin-list-actions"}>
+        <SessionActions {...props} />
+      </div>
     </div>
   )
 }
 
 export function RattsunderlagPage() {
-  const { t, locale } = useLocale()
-  const navigate = useNavigate()
-  const { jobId } = useParams<{ jobId?: string }>()
-  const [fraga, setFraga] = useState("")
-  const [jobs, setJobs] = useState<RattsunderlagJob[]>([])
-  const [active, setActive] = useState<RattsunderlagJob | null>(null)
-  const [tab, setTab] = useState<ResultTab>("law")
+  const { t, intl } = useLocale()
+  const [rows, setRows] = useState<RattsunderlagSessionSummary[]>([])
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
+  const [query, setQuery] = useState("")
+  const [status, setStatus] = useState<ListStatus>("all")
+  const [view, setView] = useState<ListViewMode>("grid")
+  const [toast, setToast] = useState<string | null>(null)
+  const [confirmId, setConfirmId] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
-    listRattsunderlagResearch()
-      .then((rows) => {
-        if (!cancelled) setJobs(rows)
+    setLoading(true)
+    listRattsunderlagSessions()
+      .then((data) => {
+        if (cancelled) return
+        setRows(data)
+        setError(null)
       })
       .catch((err: unknown) => {
-        if (!cancelled) {
-          setError(err instanceof ApiError ? err.message : t("rattsunderlag.loadError"))
-        }
+        if (cancelled) return
+        setError(err instanceof ApiError ? err.message : t("rattsunderlag.list.loadError"))
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
       })
     return () => {
       cancelled = true
     }
   }, [t])
 
-  useEffect(() => {
-    if (!jobId) {
-      setActive(null)
-      return
-    }
-    let cancelled = false
-    getRattsunderlagResearch(jobId)
-      .then((row) => {
-        if (!cancelled) setActive(row)
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setError(err instanceof ApiError ? err.message : t("rattsunderlag.loadError"))
-        }
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [jobId, t])
+  const list = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return rows.filter((row) => {
+      const listStatus = toListStatus(row.status)
+      if (status !== "all" && listStatus !== status) return false
+      if (!q) return true
+      return row.topic.toLowerCase().includes(q)
+    })
+  }, [query, rows, status])
 
-  useEffect(() => {
-    if (!active || (active.status !== "pending" && active.status !== "running")) return
-    const timer = window.setInterval(() => {
-      getRattsunderlagResearch(active.id)
-        .then((row) => {
-          setActive(row)
-          setJobs((current) => current.map((item) => (item.id === row.id ? row : item)))
-        })
-        .catch(() => undefined)
-    }, 2000)
-    return () => window.clearInterval(timer)
-  }, [active])
+  function showToast(message: string) {
+    setToast(message)
+    window.setTimeout(() => setToast(null), 2400)
+  }
 
-  const result = active ? resultFromJob(active) : null
-  const emptyLabel = useMemo(() => {
-    switch (tab) {
-      case "law":
-        return t("rattsunderlag.emptyLaw")
-      case "praxis":
-        return t("rattsunderlag.emptyPraxis")
-      case "travaux":
-        return t("rattsunderlag.emptyTravaux")
-      default: {
-        const _exhaustive: never = tab
-        return _exhaustive
-      }
-    }
-  }, [t, tab])
-
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault()
-    const question = fraga.trim()
-    if (!question) {
-      setError(t("rattsunderlag.missingQuestion"))
-      return
-    }
-    setSubmitting(true)
-    setError(null)
+  async function handleDelete(id: string) {
     try {
-      const job = await startRattsunderlagResearch({
-        fraga: question,
-        locale: locale === "en" ? "en" : "sv",
-      })
-      setJobs((current) => [job, ...current.filter((row) => row.id !== job.id)])
-      setActive(job)
-      setFraga("")
-      navigate(`/rattsunderlag/${job.id}`)
-    } catch (err: unknown) {
-      setError(err instanceof ApiError ? err.message : t("rattsunderlag.startError"))
-    } finally {
-      setSubmitting(false)
+      await deleteRattsunderlagSession(id)
+      setRows((prev) => prev.filter((row) => row.id !== id))
+      setConfirmId(null)
+      showToast(t("rattsunderlag.list.deleted"))
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : t("common.deleteError"))
     }
   }
 
   return (
     <AdminShell>
-      <div className="wrap admin-page">
-        <div className="admin-page-chrome">
-          <span className="kicker">{t("modules.rattsunderlag.name")}</span>
-          <h1>{t("rattsunderlag.title")}</h1>
-          <p className="explainer">{t("rattsunderlag.intro")}</p>
+      <div className="wrap">
+        <div className="head-row">
+          <div>
+            <h1>{t("rattsunderlag.list.title")}</h1>
+            <p>{t("rattsunderlag.list.intro")}</p>
+          </div>
         </div>
-        <div className="admin-page-body grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
-          <section className="grid gap-4">
-            <form className="grid gap-3" onSubmit={(event) => void onSubmit(event)}>
-              <label htmlFor="rattsunderlag-fraga">{t("rattsunderlag.questionLabel")}</label>
-              <textarea
-                id="rattsunderlag-fraga"
-                rows={6}
-                value={fraga}
-                onChange={(event) => setFraga(event.target.value)}
-                placeholder={t("rattsunderlag.questionPlaceholder")}
+
+        {error ? (
+          <div className="no-match" style={{ textAlign: "left", marginBottom: 16 }}>
+            {error}
+          </div>
+        ) : null}
+
+        <div className="controls-row">
+          <div className="controls-left">
+            <input
+              className="dsearch"
+              placeholder={t("rattsunderlag.list.searchPlaceholder")}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+            <select
+              className="dsel"
+              value={status}
+              onChange={(event) => setStatus(event.target.value as ListStatus)}
+            >
+              <option value="all">{t("runs.list.statusAll")}</option>
+              <option value="done">{t("runs.list.statusDone")}</option>
+              <option value="running">{t("runs.list.statusRunning")}</option>
+              <option value="draft">{t("runs.list.statusDraft")}</option>
+              <option value="failed">{t("runs.list.statusFailed")}</option>
+            </select>
+          </div>
+          <div className="controls-right">
+            <ViewToggle value={view} onChange={setView} />
+            <Link
+              to={`${BASE}/new`}
+              className="admin-cta inline-flex h-9 items-center rounded-[var(--radius-md)] bg-db-black px-[18px] text-[0.85rem] text-db-ink-0 no-underline hover:bg-db-ink-800"
+            >
+              {t("rattsunderlag.list.newRun")}
+            </Link>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="no-match">{t("rattsunderlag.list.loading")}</div>
+        ) : list.length === 0 ? (
+          <div className="no-match">{t("rattsunderlag.list.emptyFilter")}</div>
+        ) : view === "grid" ? (
+          <div className="run-grid">
+            {list.map((row) => (
+              <SessionCard
+                key={row.id}
+                row={row}
+                intl={intl}
+                t={t}
+                confirming={confirmId === row.id}
+                onAskDelete={() => setConfirmId(row.id)}
+                onCancelDelete={() => setConfirmId(null)}
+                onConfirmDelete={() => void handleDelete(row.id)}
               />
-              <AdminButton type="submit" disabled={submitting}>
-                {submitting ? t("rattsunderlag.starting") : t("rattsunderlag.start")}
-              </AdminButton>
-            </form>
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
-            <div>
-              <h2 className="mb-2 text-sm font-medium">{t("rattsunderlag.historyTitle")}</h2>
-              {jobs.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{t("rattsunderlag.historyEmpty")}</p>
-              ) : (
-                <ul className="grid gap-2">
-                  {jobs.map((job) => (
-                    <li key={job.id}>
-                      <Link
-                        className="block rounded-md border border-[color:var(--border-hairline)] px-3 py-2 text-sm hover:bg-muted/40"
-                        to={`/rattsunderlag/${job.id}`}
-                      >
-                        <span className="block truncate">{job.label}</span>
-                        <span className="text-xs text-muted-foreground">{t(jobStatusKey(job.status))}</span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </section>
-          <section className="grid gap-4">
-            {!active ? (
-              <p className="text-sm text-muted-foreground">{t("rattsunderlag.resultEmpty")}</p>
-            ) : (
-              <>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm text-muted-foreground">{t(jobStatusKey(active.status))}</span>
-                  {result ? <span className="text-sm">{t(statusKey(result.sourcing_status))}</span> : null}
-                </div>
-                {active.status === "failed" && active.error ? (
-                  <p className="text-sm text-destructive">{active.error}</p>
-                ) : null}
-                {result ? (
-                  <>
-                    <div>
-                      <h2 className="text-sm font-medium">{t("rattsunderlag.assessment")}</h2>
-                      <p className="mt-2 whitespace-pre-wrap text-sm">{result.sammanfattning}</p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {(
-                        [
-                          ["law", "rattsunderlag.tabLaw"],
-                          ["praxis", "rattsunderlag.tabPraxis"],
-                          ["travaux", "rattsunderlag.tabTravaux"],
-                        ] as const
-                      ).map(([id, key]) => (
-                        <AdminButton
-                          key={id}
-                          type="button"
-                          size="sm"
-                          variant={tab === id ? "default" : "secondary"}
-                          onClick={() => setTab(id)}
-                        >
-                          {t(key)}
-                        </AdminButton>
-                      ))}
-                    </div>
-                    {tab === "law" ? (
-                      result.lagtext.length ? (
-                        <LawList rows={result.lagtext} />
-                      ) : (
-                        <p className="text-sm text-muted-foreground">{emptyLabel}</p>
-                      )
-                    ) : null}
-                    {tab === "praxis" ? (
-                      result.praxis.length ? (
-                        <PraxisList rows={result.praxis} />
-                      ) : (
-                        <p className="text-sm text-muted-foreground">{emptyLabel}</p>
-                      )
-                    ) : null}
-                    {tab === "travaux" ? (
-                      result.forarbeten.length ? (
-                        <TravauxList rows={result.forarbeten} />
-                      ) : (
-                        <p className="text-sm text-muted-foreground">{emptyLabel}</p>
-                      )
-                    ) : null}
-                    <div className="flex flex-wrap gap-3">
-                      {active.result?.report_id ? (
-                        <Link className="text-sm underline" to={`/reports/${active.result.report_id}`}>
-                          {t("rattsunderlag.openReport")}
-                        </Link>
-                      ) : null}
-                      <Link className="text-sm underline" to="/expertgranskning/new">
-                        {t("rattsunderlag.sendToReview")}
-                      </Link>
-                    </div>
-                  </>
-                ) : null}
-              </>
-            )}
-          </section>
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="admin-list-stack">
+            {list.map((row) => (
+              <SessionListRow
+                key={row.id}
+                row={row}
+                intl={intl}
+                t={t}
+                confirming={confirmId === row.id}
+                onAskDelete={() => setConfirmId(row.id)}
+                onCancelDelete={() => setConfirmId(null)}
+                onConfirmDelete={() => void handleDelete(row.id)}
+              />
+            ))}
+          </div>
+        )}
       </div>
+
+      {toast ? (
+        <div className="fixed bottom-6 right-6 rounded-md bg-db-ink-950 px-4 py-3 text-sm text-db-ink-0 shadow-lg">
+          {toast}
+        </div>
+      ) : null}
     </AdminShell>
   )
 }
