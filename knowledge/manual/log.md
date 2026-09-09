@@ -1,5 +1,9 @@
 # Manual update log
 
+## 2026-09-09
+
+* **Expertgranskning i Word**: Experterna får hela dokumentet som underlag och kommenterar bara stycken där de räcker upp handen. Klausulnummer används internt och syns inte i kommentaren. Omskrivning föreslås bara när minst två experter är överens om samma formulering.
+
 ## 2026-09-07
 
 * **Manual**: Nya guider för plattform och läge på körning, panelkatalog för Expertgranskning och expertgranskning i bolagsytan. **Bakgrundsjobb** nämner även Due Diligence-sourcing och Rättsunderlag.

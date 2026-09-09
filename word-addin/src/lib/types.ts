@@ -2,6 +2,7 @@ export type WordParagraph = {
   index: number
   text: string
   style: string
+  list_string: string
 }
 
 export type WordDocumentSection = {

@@ -1739,6 +1739,95 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "Return forslag: a heading string or empty."
         ),
     ),
+    _f(
+        "expertgranskning.word.expert.raise_hand",
+        "panel",
+        "Word — expert räck upp handen",
+        "Word — expert raise hand",
+        "Platshållare: {label}, {profile}, {document_brief}, {batch_text}.",
+        "Placeholders: {label}, {profile}, {document_brief}, {batch_text}.",
+        (
+            "Din roll: {label}\n"
+            "Profil: {profile}\n\n"
+            "Dokumentet i sin helhet (index i hakparentes, klausulnummer om det finns):\n"
+            "{document_brief}\n\n"
+            "Den här batchen (bara dessa index får du räcka upp handen för):\n"
+            "{batch_text}\n\n"
+            "Räck upp handen bara för de stycken där din kärnkompetens ger dig något konkret "
+            "att säga. En tom lista är det normala och förväntade svaret. Vid tvekan: hoppa över.\n"
+            "Returnera paragraph_indexes: en lista med styckesindex från batchen. Inga andra index."
+        ),
+        (
+            "Your role: {label}\n"
+            "Profile: {profile}\n\n"
+            "The full document (index in brackets, clause number if present):\n"
+            "{document_brief}\n\n"
+            "This batch (you may raise a hand only for these indexes):\n"
+            "{batch_text}\n\n"
+            "Raise your hand only for paragraphs where your core competence gives you "
+            "something concrete to say. An empty list is the normal, expected answer. "
+            "When in doubt: skip.\n"
+            "Return paragraph_indexes: a list of paragraph indexes from the batch. No others."
+        ),
+    ),
+    _f(
+        "expertgranskning.word.expert.comment",
+        "panel",
+        "Word — expertkommentar",
+        "Word — expert comment",
+        "Platshållare: {label}, {profile}, {document_brief}, {paragraph_text}, {list_string}, {section_heading}.",
+        "Placeholders: {label}, {profile}, {document_brief}, {paragraph_text}, {list_string}, {section_heading}.",
+        (
+            "Din roll: {label}\n"
+            "Profil: {profile}\n\n"
+            "Dokumentet i sin helhet:\n{document_brief}\n\n"
+            "Avsnitt: {section_heading}\n"
+            "Klausulnummer (internt): {list_string}\n\n"
+            "Stycke du räckt upp handen för:\n{paragraph_text}\n\n"
+            "Skriv en konkret kommentar till juristen. Tom kommentar betyder att du hoppar över. "
+            "Inga tekniska termer. Prefixera inte med klausulnummer."
+        ),
+        (
+            "Your role: {label}\n"
+            "Profile: {profile}\n\n"
+            "The full document:\n{document_brief}\n\n"
+            "Section: {section_heading}\n"
+            "Clause number (internal): {list_string}\n\n"
+            "Paragraph you raised a hand for:\n{paragraph_text}\n\n"
+            "Write a concrete comment for the lawyer. An empty comment means skip. "
+            "No technical terms. Do not prefix with the clause number."
+        ),
+    ),
+    _f(
+        "expertgranskning.word.rewrite_convergence",
+        "panel",
+        "Word — omskrivningskonvergens",
+        "Word — rewrite convergence",
+        "Platshållare: {section_heading}, {paragraph_text}, {comments}.",
+        "Placeholders: {section_heading}, {paragraph_text}, {comments}.",
+        (
+            "Du avgör om experternas kommentarer konvergerar på samma konkreta formulering. "
+            "Sätt ny_text bara när minst två kommentarer pekar på samma ordalydelse. "
+            "ny_text måste vara ett enda stycke utan radbrytningar. "
+            "Vid oenighet, delvis överlapp eller om bara en expert bryr sig om formuleringen: "
+            "lämna ny_text tom. Hitta aldrig på en kompromissomskrivning.\n\n"
+            "Avsnitt: {section_heading}\n\n"
+            "Stycke:\n{paragraph_text}\n\n"
+            "Kommentarer:\n{comments}\n\n"
+            "Returnera ny_text och motivering."
+        ),
+        (
+            "Decide whether the expert comments converge on the same concrete wording. "
+            "Set ny_text only when at least two comments point to the same wording. "
+            "ny_text must be a single paragraph with no line breaks. "
+            "On disagreement, partial overlap, or when only one expert cares about wording: "
+            "leave ny_text empty. Never invent a compromise rewrite.\n\n"
+            "Section: {section_heading}\n\n"
+            "Paragraph:\n{paragraph_text}\n\n"
+            "Comments:\n{comments}\n\n"
+            "Return ny_text and motivering."
+        ),
+    ),
 ]
 
 PROMPT_KEYS: tuple[str, ...] = tuple(f["key"] for f in PROMPT_FIELDS)
