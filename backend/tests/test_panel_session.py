@@ -8,7 +8,7 @@ from types import SimpleNamespace
 import pytest
 from httpx import AsyncClient
 
-from app.llm import set_text_completer, set_tools_completer
+from app.llm import set_structured_completer, set_text_completer, set_tools_completer
 from app.services import jobs as jobs_service
 from app.services.panel.engine import (
     _expert_raise_hand,
@@ -20,6 +20,7 @@ from app.services.panel.engine import (
 )
 from app.services.panel.schemas import PanelSessionCreate, PanelSessionConfig, PanelExpertSlot
 from app.services.panel.sessions import create_panel_session, get_panel_session
+from app.services.panel.synthesis import GenericPanelSynthesis, SynthesizedClaim
 from app.services.prompt_catalog import default_prompts
 
 
@@ -52,11 +53,27 @@ def mock_panel_llm():
             )
         return SimpleNamespace(content=await _complete(messages), tool_calls=None)
 
+    async def _structured(messages, response_model):
+        if response_model is GenericPanelSynthesis:
+            return GenericPanelSynthesis(
+                summary="Panelen bedömde att DD bör fortsätta.",
+                claims=[
+                    SynthesizedClaim(
+                        claim="Fortsatt DD är motiverad.",
+                        evidence="Experterna pekade på samma luckor i underlaget.",
+                        judgment="Bedömd slutsats.",
+                    )
+                ],
+            )
+        raise RuntimeError(f"Unexpected structured model {response_model}")
+
     set_text_completer(_complete)
     set_tools_completer(_tools)
+    set_structured_completer(_structured)
     yield {"seen_tools": seen_tools}
     set_text_completer(None)
     set_tools_completer(None)
+    set_structured_completer(None)
 
 
 @pytest.mark.asyncio
@@ -113,8 +130,11 @@ async def test_panel_session_run_job(client: AsyncClient, mock_panel_llm):
         assert row is not None
         assert row.result is not None
         assert row.result["protocol"] == "generic_panel"
-        assert row.result["summary"] == body["analysis"]
-        assert row.result["claims"] == []
+        assert body["analysis"]
+        assert row.result["summary"] == "Panelen bedömde att DD bör fortsätta."
+        assert row.result["summary"] != body["analysis"]
+        assert row.result["claims"][0]["claim_id"] == "claim_1"
+        assert row.result["claims"][0]["score"] is None
     assert len(body["transcript"]) >= 4
     assert any(t["phase"] == "opening" for t in body["transcript"])
     assert any(t["phase"] == "expert" for t in body["transcript"])
@@ -410,7 +430,8 @@ async def test_generic_panel_empty_raise_hand_queue_still_runs_analysis(client_d
     assert row.error is None
     assert row.analysis == "Syntes: panelen summerade utan tvångsdeltagande."
     assert row.result["protocol"] == "generic_panel"
-    assert row.result["summary"] == row.analysis
+    assert row.result["claims"] == []
+    assert row.result["summary"] != row.analysis
     assert _turns_by_phase(transcript, "opening")
     assert _turns_by_phase(transcript, "sub_question", round_index=2)
     assert len(_turns_by_phase(transcript, "raise_hand", round_index=1)) == 2
