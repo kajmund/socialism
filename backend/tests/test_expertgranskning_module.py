@@ -20,7 +20,12 @@ from app.modules.registry import (
 from app.modules.report_binding import ReportGenerateContext
 from app.services import jobs as jobs_service
 from app.services.expertgranskning import MODULE_ID, REPORT_MODE, SOURCE_TYPE
-from app.services.kund_store import BOLAG_DEMO_KUND_SLUG, default_os_customer_id
+from app.services.kund_store import (
+    BOLAG_DEMO_KUND_SLUG,
+    OS_DEFAULT_KUND_SLUG,
+    default_os_customer_id,
+)
+from tests.conftest import BOLAG_USER_ID, mint_access_token
 from app.services.panel.expert_profiles_store import get_expert_profile_by_key
 from app.services.prompt_fields_store import get_prompt_field_by_key
 from app.services.spindoctor_context import build_spindoctor_context
@@ -332,6 +337,61 @@ async def test_non_admin_denied_when_panel_experts_span_kunder(client: AsyncClie
     denied = await client.post(
         "/expertgranskning/sessions",
         json={"document_text": "En text", "panel_id": panel_id},
+    )
+    assert denied.status_code == 403
+    assert denied.json()["detail"] == "kund_access_denied"
+
+
+@pytest.mark.asyncio
+async def test_non_admin_denied_when_patch_attaches_mixed_kund_panel(client: AsyncClient):
+    listed = await client.get("/kunder")
+    assert listed.status_code == 200
+    kunder = {row["slug"]: row["id"] for row in listed.json()}
+    os_id = kunder[OS_DEFAULT_KUND_SLUG]
+    bolag_id = kunder[BOLAG_DEMO_KUND_SLUG]
+
+    os_expert = await client.post(
+        "/personas",
+        json={
+            "kind": "expert",
+            "customer_id": os_id,
+            "name": "OS-expert patch-test",
+            "occ": "Jurist",
+            "district": "—",
+            "quote": "Granskar text.",
+        },
+    )
+    assert os_expert.status_code == 201, os_expert.text
+    experts = await client.get("/personas", params={"kind": "expert", "customer_id": bolag_id})
+    assert experts.status_code == 200
+    bolag_expert_id = experts.json()[0]["id"]
+
+    mixed_panel = await client.post(
+        "/populations",
+        json={
+            "kind": "expert_panel",
+            "name": "Mixed-kund panel patch",
+            "include_persona_ids": [os_expert.json()["id"], bolag_expert_id],
+            "recipe": {"size": 2, "dist": {}},
+        },
+    )
+    assert mixed_panel.status_code == 201, mixed_panel.text
+    mixed_panel_id = mixed_panel.json()["id"]
+
+    own_panel_id = await _create_expert_panel(client)
+    client.headers["Authorization"] = (
+        f"Bearer {mint_access_token(sub=BOLAG_USER_ID, email='bolag@test.local')}"
+    )
+    created = await client.post(
+        "/expertgranskning/sessions",
+        json={"document_text": "Egen kundtext", "panel_id": own_panel_id},
+    )
+    assert created.status_code == 201, created.text
+    session_id = created.json()["id"]
+
+    denied = await client.patch(
+        f"/expertgranskning/sessions/{session_id}",
+        json={"panel_id": mixed_panel_id},
     )
     assert denied.status_code == 403
     assert denied.json()["detail"] == "kund_access_denied"
