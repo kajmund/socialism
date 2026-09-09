@@ -15,6 +15,7 @@ from app.database.base import Base
 from app.database.models import ExecutionAttempt, ExecutionRun, Kund, Run
 from app.services.execution import (
     ATTEMPT_STATUSES,
+    ExecutionError,
     ExecutionFrozenError,
     ExecutionImmutableError,
     ExecutionNotFoundError,
@@ -39,6 +40,7 @@ from app.services.execution import (
     set_attempt_snapshots,
     start_attempt,
 )
+from app.services.execution.snapshots import snapshot_research_evidence
 from app.services.research.models import research_evidence
 
 EXECUTION_ROOT = Path(__file__).resolve().parents[1] / "app" / "services" / "execution"
@@ -356,6 +358,35 @@ async def test_execution_run_is_not_simulation_run():
     assert Run.__tablename__ == "runs"
     assert ExecutionRun.__tablename__ == "execution_runs"
     assert ExecutionRun.__tablename__ != Run.__tablename__
+
+
+@pytest.mark.asyncio
+async def test_mixed_explicit_ordinals_do_not_collide(session):
+    customer = await _customer(session, "ordinal-co")
+    run = await create_run(session, customer_id=customer.id, module="dd", title="R")
+    evidence_set = await create_evidence_set(session, run_id=run.id)
+    first = snapshot_research_evidence(
+        _evidence(need="research_1", excerpt="first", locator="p1"),
+        ordinal=1,
+    )
+    second = _evidence(need="research_2", excerpt="second", locator="p2")
+    stored = await add_evidence_items(
+        session, evidence_set_id=evidence_set.id, items=[first, second]
+    )
+    assert [row.ordinal for row in stored] == [1, 2]
+    listed = await list_evidence_items(session, evidence_set.id)
+    assert [row.research_need_id for row in listed] == ["research_1", "research_2"]
+    with pytest.raises(ExecutionError, match="duplicate evidence ordinal"):
+        await add_evidence_items(
+            session,
+            evidence_set_id=evidence_set.id,
+            items=[
+                snapshot_research_evidence(
+                    _evidence(need="research_3", excerpt="dup", locator="p3"),
+                    ordinal=1,
+                )
+            ],
+        )
 
 
 def test_execution_package_has_no_panel_word_or_api_imports():

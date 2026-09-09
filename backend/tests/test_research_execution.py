@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 import ast
+import asyncio
 import inspect
+import os
+import subprocess
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -505,6 +509,74 @@ async def test_frozen_set_rejects_item_mutation(db):
                 )
             ],
         )
+
+
+@pytest.mark.asyncio
+async def test_cancellation_marks_claimed_attempt_and_set_failed(db):
+    session, _factory = db
+    _customer_row, _run, attempt = await _created_attempt(session, slug="cancel-co")
+    started = asyncio.Event()
+
+    class BlockingSource:
+        source_type = "case_knowledge"
+        provider_id = "fake"
+
+        async def research(self, need: ResearchNeed, context: ResearchContext):
+            started.set()
+            await asyncio.sleep(3600)
+            return []
+
+    registry = ResearchSourceRegistry()
+    registry.register(BlockingSource())
+    router = ResearchRouter(registry)
+    task = asyncio.create_task(
+        execute_attempt_research(
+            session,
+            attempt_id=attempt.id,
+            research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
+            router=router,
+        )
+    )
+    await started.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    reloaded = await get_attempt(session, attempt.id)
+    evidence_set = await get_evidence_set(session, reloaded.evidence_set_id)
+    assert reloaded.status == "failed"
+    assert evidence_set.status == "failed"
+
+
+def test_execution_package_import_is_not_circular():
+    backend = Path(__file__).resolve().parents[1]
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "from app.services.execution import create_run, clone_attempt; print('ok')",
+        ],
+        cwd=backend,
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "ok" in result.stdout
+
+
+def test_research_package_init_does_not_eagerly_import_orchestration():
+    init = Path(__file__).resolve().parents[1] / "app" / "services" / "research" / "__init__.py"
+    source = init.read_text(encoding="utf-8")
+    assert "def __getattr__" in source
+    tree = ast.parse(source)
+    runtime_imports: list[str] = []
+    for node in tree.body:
+        if isinstance(node, ast.If):
+            continue
+        if isinstance(node, ast.ImportFrom) and node.module:
+            runtime_imports.append(node.module)
+    assert "app.services.research.execution" not in runtime_imports
 
 
 def test_execute_attempt_research_has_no_panel_or_ui_imports():

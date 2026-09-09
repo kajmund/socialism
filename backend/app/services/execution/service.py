@@ -6,7 +6,7 @@ from copy import deepcopy
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from sqlalchemy import func, select, update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -160,13 +160,37 @@ def _assert_building(evidence_set: EvidenceSet) -> None:
         )
 
 
-async def _next_ordinal(session: AsyncSession, evidence_set_id: str) -> int:
+async def _used_ordinals(session: AsyncSession, evidence_set_id: str) -> set[int]:
     result = await session.execute(
-        select(func.coalesce(func.max(EvidenceSetItem.ordinal), -1)).where(
+        select(EvidenceSetItem.ordinal).where(
             EvidenceSetItem.evidence_set_id == evidence_set_id
         )
     )
-    return int(result.scalar_one()) + 1
+    return set(result.scalars().all())
+
+
+def _allocate_ordinals(items: list[EvidenceItemSnapshot], used: set[int]) -> list[int]:
+    """Preserve batch order. Explicit ordinals win; implicit values skip used ones."""
+    cursor = max(used) + 1 if used else 0
+    allocated: list[int] = []
+    claimed = set(used)
+    for snapshot in items:
+        if snapshot.ordinal is not None:
+            if snapshot.ordinal in claimed:
+                raise ExecutionError(
+                    f"duplicate evidence ordinal {snapshot.ordinal} on set item"
+                )
+            claimed.add(snapshot.ordinal)
+            allocated.append(snapshot.ordinal)
+            if snapshot.ordinal >= cursor:
+                cursor = snapshot.ordinal + 1
+            continue
+        while cursor in claimed:
+            cursor += 1
+        claimed.add(cursor)
+        allocated.append(cursor)
+        cursor += 1
+    return allocated
 
 
 async def add_evidence_items(
@@ -178,15 +202,15 @@ async def add_evidence_items(
     evidence_set = await get_evidence_set(session, evidence_set_id)
     _assert_building(evidence_set)
     stored: list[EvidenceSetItem] = []
-    next_ordinal = await _next_ordinal(session, evidence_set.id)
-    for offset, raw in enumerate(items):
-        snapshot = (
-            raw
-            if isinstance(raw, EvidenceItemSnapshot)
-            else snapshot_research_evidence(raw)
-        )
+    snapshots = [
+        raw if isinstance(raw, EvidenceItemSnapshot) else snapshot_research_evidence(raw)
+        for raw in items
+    ]
+    ordinals = _allocate_ordinals(
+        snapshots, await _used_ordinals(session, evidence_set.id)
+    )
+    for snapshot, ordinal in zip(snapshots, ordinals, strict=True):
         provenance = require_json_object(snapshot.provenance, field="provenance")
-        ordinal = snapshot.ordinal if snapshot.ordinal is not None else next_ordinal + offset
         row = EvidenceSetItem(
             id=new_id(),
             evidence_set_id=evidence_set.id,
