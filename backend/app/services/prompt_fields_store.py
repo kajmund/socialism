@@ -168,13 +168,22 @@ async def ensure_prompt_overrides_from_configurations(session: AsyncSession) -> 
     return added
 
 
-async def retire_unknown_prompt_fields(session: AsyncSession) -> int:
-    """Delete catalog rows whose key is no longer in PROMPT_KEY_SET.
+async def retire_unknown_prompt_fields(
+    session: AsyncSession,
+    *,
+    known_keys: frozenset[str] | None = None,
+) -> int:
+    """Delete catalog rows whose key is no longer in the live catalog.
+
+    ``known_keys`` defaults to the static ``PROMPT_KEY_SET``. Callers that seed
+    extra registered modules (tests, extra MODULE_REGISTRY entries) should pass
+    the union of those provider keys so they are not wiped.
 
     Cascades overrides. Also strips retired keys from Configuration.prompts.
     """
+    keep = known_keys if known_keys is not None else PROMPT_KEY_SET
     rows = list((await session.execute(select(PromptField))).scalars().all())
-    retired = [row for row in rows if row.key not in PROMPT_KEY_SET]
+    retired = [row for row in rows if row.key not in keep]
     retired_keys = {row.key for row in retired}
     if not retired_keys:
         return 0
