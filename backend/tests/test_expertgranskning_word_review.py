@@ -17,19 +17,23 @@ from app.services.expertgranskning.schemas import (
     WORD_MAX_PARAGRAPHS,
     ExpertgranskningWordJobCreate,
     ExpertgranskningWordJobRequest,
+    WordBatchModeration,
     WordDocumentParagraph,
     WordDocumentSection,
     WordExpertComment,
     WordExpertRaiseHand,
     WordHeadingAssessment,
     WordRewriteSuggestion,
+    WordReviewQuestion,
 )
 from app.services.expertgranskning.watch import reviewed_text_from_job_request
 from app.services.expertgranskning.word_review import (
     _document_brief,
+    accepted_review_questions,
     build_batches,
     is_heading_1_to_3,
     rewrite_suggestion_or_none,
+    selected_review_questions,
     should_review_paragraph,
     word_paragraph_review,
 )
@@ -63,8 +67,48 @@ def _batch_indexes_from_user(user: str) -> list[int]:
     return [
         int(line.split("]", 1)[0].lstrip("["))
         for line in chunk.splitlines()
+        if line.startswith("[") and "]" in line and line[1:2].isdigit()
+    ]
+
+
+def _question_ids_from_user(user: str) -> list[str]:
+    marker = "Moderatorfrågor"
+    if marker not in user:
+        marker = "Moderator questions"
+    chunk = user.split(marker, 1)[-1]
+    return [
+        line.split("]", 1)[0].lstrip("[")
+        for line in chunk.splitlines()
         if line.startswith("[") and "]" in line
     ]
+
+
+def _moderation_for_batch(
+    user: str,
+    *,
+    needs_review: bool = True,
+    reason: str = "Batchen kräver bedömning.",
+) -> WordBatchModeration:
+    indexes = _batch_indexes_from_user(user)
+    if not needs_review:
+        return WordBatchModeration(
+            needs_review=False,
+            reason=reason,
+            questions=[],
+        )
+    return WordBatchModeration(
+        needs_review=True,
+        reason=reason,
+        questions=[
+            WordReviewQuestion(
+                id=f"q{offset}",
+                paragraph_indexes=[index],
+                question=f"Är stycke {index} tillräckligt tydligt?",
+                why_it_matters="Otydlighet kan skapa tolkningsrisk.",
+            )
+            for offset, index in enumerate(indexes, start=1)
+        ],
+    )
 
 
 async def _create_expert_panel(client: AsyncClient, *, n: int = 2) -> int:
@@ -290,6 +334,61 @@ def test_should_review_and_heading_helpers_unchanged():
     assert rewrite_suggestion_or_none(kept) is not None
 
 
+def test_accepted_review_questions_skips_trivial_and_invalid():
+    batch = [_para(1, "Detta är ett giltigt stycke att granska.")]
+    skipped = accepted_review_questions(
+        WordBatchModeration(
+            needs_review=False,
+            reason="Endast kontaktuppgifter.",
+            questions=[
+                WordReviewQuestion(
+                    id="q1",
+                    paragraph_indexes=[1],
+                    question="Ska inte användas.",
+                )
+            ],
+        ),
+        batch,
+    )
+    assert skipped == []
+
+    kept = accepted_review_questions(
+        WordBatchModeration(
+            needs_review=True,
+            reason="Villkor.",
+            questions=[
+                WordReviewQuestion(
+                    id="q1",
+                    paragraph_indexes=[1, 99],
+                    question="Är tidsfristen tydlig?",
+                    why_it_matters="Tolkningsrisk.",
+                ),
+                WordReviewQuestion(id="", paragraph_indexes=[1], question="Tomt id."),
+                WordReviewQuestion(id="q2", paragraph_indexes=[99], question="Utom batch."),
+                WordReviewQuestion(id="q1", paragraph_indexes=[1], question="Dublett."),
+                WordReviewQuestion(id="q3", paragraph_indexes=[1], question="   "),
+            ],
+        ),
+        batch,
+    )
+    assert [question.id for question in kept] == ["q1"]
+    assert kept[0].paragraph_indexes == [1]
+
+
+def test_selected_review_questions_ignores_unknown_and_duplicates():
+    questions = [
+        WordReviewQuestion(id="q1", paragraph_indexes=[1], question="En?"),
+        WordReviewQuestion(id="q2", paragraph_indexes=[2], question="Två?"),
+    ]
+    assert selected_review_questions([], questions, expert_id="e1") == []
+    kept = selected_review_questions(
+        ["q2", "missing", "q2", "q1"],
+        questions,
+        expert_id="e1",
+    )
+    assert [question.id for question in kept] == ["q2", "q1"]
+
+
 @pytest.mark.asyncio
 async def test_word_paragraph_review_rejects_panel_session_dispatch():
     with pytest.raises(ValueError, match="expertgranskning_word_review"):
@@ -419,9 +518,12 @@ async def test_word_review_raise_hand_then_comment_and_heading(client: AsyncClie
 
     async def completer(messages, response_model):
         user = messages[-1]["content"]
+        if response_model is WordBatchModeration:
+            calls.append("moderate")
+            return _moderation_for_batch(user)
         if response_model is WordExpertRaiseHand:
             calls.append("raise")
-            return WordExpertRaiseHand(paragraph_indexes=_batch_indexes_from_user(user)[:1])
+            return WordExpertRaiseHand(question_ids=_question_ids_from_user(user)[:1])
         if response_model is WordExpertComment:
             calls.append(f"comment:{_identity_label(messages)}")
             return WordExpertComment(kommentar="En konkret kommentar.")
@@ -458,6 +560,7 @@ async def test_word_review_raise_hand_then_comment_and_heading(client: AsyncClie
     assert {row["expert_namn"] for row in comments} == set(DEFAULT_EXPERT_LABELS)
     assert headings[0]["kommentar"] == "Tydligare rubrik"
     assert rewrites[0]["foreslagen_text"] == "Ny formulering."
+    assert calls.count("moderate") == 1
     assert calls.count("raise") == 2
     assert calls.count("heading") == 1
     assert calls.count("rewrite") == 1
@@ -473,8 +576,10 @@ async def test_word_review_sends_document_brief_once_per_call(client: AsyncClien
 
     async def completer(messages, response_model):
         captured.append(messages)
+        if response_model is WordBatchModeration:
+            return _moderation_for_batch(messages[-1]["content"])
         if response_model is WordExpertRaiseHand:
-            return WordExpertRaiseHand(paragraph_indexes=[])
+            return WordExpertRaiseHand(question_ids=[])
         if response_model is WordHeadingAssessment:
             return WordHeadingAssessment(forslag=None)
         raise AssertionError(response_model)
@@ -493,13 +598,19 @@ async def test_word_review_sends_document_brief_once_per_call(client: AsyncClien
     raise_payloads = [
         messages
         for messages in captured
-        if "Den här batchen" in messages[-1]["content"]
-        or "This batch" in messages[-1]["content"]
+        if "Moderatorfrågor" in messages[-1]["content"]
+        or "Moderator questions" in messages[-1]["content"]
     ]
     assert raise_payloads
+    moderate_payloads = [
+        messages
+        for messages in captured
+        if "needs_review" in messages[-1]["content"]
+    ]
+    assert moderate_payloads
     heading_line = "[0] Heading 1 Avtal"
     body_line = "[1] Detta stycke är tillräckligt långt för granskning."
-    for messages in raise_payloads:
+    for messages in raise_payloads + moderate_payloads:
         systems = [
             str(message.get("content") or "")
             for message in messages
@@ -518,8 +629,10 @@ async def test_word_review_empty_raise_hand_writes_no_comment(client: AsyncClien
 
     async def completer(messages, response_model):
         nonlocal comment_calls
+        if response_model is WordBatchModeration:
+            return _moderation_for_batch(messages[-1]["content"])
         if response_model is WordExpertRaiseHand:
-            return WordExpertRaiseHand(paragraph_indexes=[])
+            return WordExpertRaiseHand(question_ids=[])
         if response_model is WordExpertComment:
             comment_calls += 1
             return WordExpertComment(kommentar="borde inte köras")
@@ -553,8 +666,10 @@ async def test_word_review_out_of_batch_indexes_are_dropped(client: AsyncClient)
 
     async def completer(messages, response_model):
         nonlocal comment_calls
+        if response_model is WordBatchModeration:
+            return _moderation_for_batch(messages[-1]["content"])
         if response_model is WordExpertRaiseHand:
-            return WordExpertRaiseHand(paragraph_indexes=[99])
+            return WordExpertRaiseHand(question_ids=["missing-q"])
         if response_model is WordExpertComment:
             comment_calls += 1
             return WordExpertComment(kommentar="fel ankare")
@@ -577,10 +692,185 @@ async def test_word_review_out_of_batch_indexes_are_dropped(client: AsyncClient)
 
 
 @pytest.mark.asyncio
+async def test_word_review_trivial_batch_skips_experts(client: AsyncClient):
+    calls: list[str] = []
+
+    async def completer(messages, response_model):
+        if response_model is WordBatchModeration:
+            calls.append("moderate")
+            return WordBatchModeration(
+                needs_review=False,
+                reason="Endast kontaktuppgifter/administrativ information.",
+                questions=[],
+            )
+        if response_model is WordExpertRaiseHand:
+            calls.append("raise")
+            return WordExpertRaiseHand(question_ids=["q1"])
+        if response_model is WordExpertComment:
+            calls.append("comment")
+            return WordExpertComment(kommentar="borde inte köras")
+        if response_model is WordHeadingAssessment:
+            calls.append("heading")
+            return WordHeadingAssessment(forslag=None)
+        raise AssertionError(response_model)
+
+    panel_id = await _create_expert_panel(client)
+    set_structured_completer(completer)
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    created = await client.post(
+        "/expertgranskning/word-jobs",
+        json=_payload(
+            panel_id=panel_id,
+            paragraphs=[_para(1, "Kontakt: Anna Andersson, 070-123 45 67.")],
+        ),
+    )
+    job_id = created.json()["job_id"]
+    await jobs_service._run_job(job_id)
+    rows = (await client.get(f"/expertgranskning/word-jobs/{job_id}/results")).json()
+    assert calls == ["moderate", "heading"]
+    assert [row for row in rows if not row["is_heading_suggestion"]] == []
+
+
+@pytest.mark.asyncio
+async def test_word_review_experts_select_subset_of_questions(client: AsyncClient):
+    comment_questions: list[str] = []
+
+    async def completer(messages, response_model):
+        user = messages[-1]["content"]
+        if response_model is WordBatchModeration:
+            return WordBatchModeration(
+                needs_review=True,
+                reason="Villkor och tidsfrister.",
+                questions=[
+                    WordReviewQuestion(
+                        id="q1",
+                        paragraph_indexes=[1],
+                        question="Är tidsfristen tydligt definierad?",
+                        why_it_matters="Tolkningsrisk.",
+                    ),
+                    WordReviewQuestion(
+                        id="q2",
+                        paragraph_indexes=[2],
+                        question="Är ansvarsfördelningen genomförbar?",
+                        why_it_matters="Genomföranderisk.",
+                    ),
+                ],
+            )
+        if response_model is WordExpertRaiseHand:
+            label = _identity_label(messages)
+            if label == DEFAULT_EXPERT_LABELS[0]:
+                return WordExpertRaiseHand(question_ids=["q1", "q2"])
+            if label == DEFAULT_EXPERT_LABELS[1]:
+                return WordExpertRaiseHand(question_ids=["q2"])
+            return WordExpertRaiseHand(question_ids=[])
+        if response_model is WordExpertComment:
+            comment_questions.append(user)
+            return WordExpertComment(kommentar="Konkret expertbedömning.")
+        if response_model is WordHeadingAssessment:
+            return WordHeadingAssessment(forslag=None)
+        if response_model is WordRewriteSuggestion:
+            return WordRewriteSuggestion(ny_text=None, motivering=None)
+        raise AssertionError(response_model)
+
+    panel_id = await _create_expert_panel(client)
+    set_structured_completer(completer)
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    created = await client.post(
+        "/expertgranskning/word-jobs",
+        json=_payload(
+            panel_id=panel_id,
+            paragraphs=[
+                _para(1, "Leverans ska ske inom skälig tid efter beställning."),
+                _para(2, "Leverantören ansvarar ensamt för följderna av försening."),
+            ],
+        ),
+    )
+    job_id = created.json()["job_id"]
+    await jobs_service._run_job(job_id)
+    rows = (await client.get(f"/expertgranskning/word-jobs/{job_id}/results")).json()
+    comments = [
+        row
+        for row in rows
+        if not row["is_heading_suggestion"] and not row["is_rewrite_suggestion"]
+    ]
+    assert len(comments) == 3
+    assert {(row["expert_namn"], row["paragraph_index"]) for row in comments} == {
+        (DEFAULT_EXPERT_LABELS[0], 1),
+        (DEFAULT_EXPERT_LABELS[0], 2),
+        (DEFAULT_EXPERT_LABELS[1], 2),
+    }
+    assert any("Är tidsfristen tydligt definierad?" in text for text in comment_questions)
+    assert any("Varför det spelar roll: Tolkningsrisk." in text for text in comment_questions)
+    assert any("Är ansvarsfördelningen genomförbar?" in text for text in comment_questions)
+
+
+@pytest.mark.asyncio
+async def test_word_review_question_can_span_paragraphs(client: AsyncClient):
+    async def completer(messages, response_model):
+        if response_model is WordBatchModeration:
+            return WordBatchModeration(
+                needs_review=True,
+                reason="Samma villkor över två stycken.",
+                questions=[
+                    WordReviewQuestion(
+                        id="q1",
+                        paragraph_indexes=[1, 2],
+                        question="Hänger tidsfrist och påföljd ihop?",
+                        why_it_matters="Motsägelse mellan styckena.",
+                    )
+                ],
+            )
+        if response_model is WordExpertRaiseHand:
+            return WordExpertRaiseHand(question_ids=["q1"])
+        if response_model is WordExpertComment:
+            return WordExpertComment(kommentar="Tidsfrist och påföljd behöver samordnas.")
+        if response_model is WordHeadingAssessment:
+            return WordHeadingAssessment(forslag=None)
+        if response_model is WordRewriteSuggestion:
+            return WordRewriteSuggestion(
+                ny_text="Ny samordnad formulering.",
+                motivering="Båda vill samma sak.",
+            )
+        raise AssertionError(response_model)
+
+    panel_id = await _create_expert_panel(client)
+    set_structured_completer(completer)
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    created = await client.post(
+        "/expertgranskning/word-jobs",
+        json=_payload(
+            panel_id=panel_id,
+            paragraphs=[
+                _para(1, "Leverans ska ske inom skälig tid efter beställning."),
+                _para(2, "Vid försening utgår vite om tiotusen kronor per dag."),
+            ],
+        ),
+    )
+    job_id = created.json()["job_id"]
+    await jobs_service._run_job(job_id)
+    rows = (await client.get(f"/expertgranskning/word-jobs/{job_id}/results")).json()
+    comments = [
+        row
+        for row in rows
+        if not row["is_heading_suggestion"] and not row["is_rewrite_suggestion"]
+    ]
+    rewrites = [row for row in rows if row["is_rewrite_suggestion"]]
+    assert {(row["expert_namn"], row["paragraph_index"]) for row in comments} == {
+        (DEFAULT_EXPERT_LABELS[0], 1),
+        (DEFAULT_EXPERT_LABELS[0], 2),
+        (DEFAULT_EXPERT_LABELS[1], 1),
+        (DEFAULT_EXPERT_LABELS[1], 2),
+    }
+    assert {row["paragraph_index"] for row in rewrites} == {1, 2}
+
+
+@pytest.mark.asyncio
 async def test_word_review_empty_comment_is_not_written(client: AsyncClient):
     async def completer(messages, response_model):
+        if response_model is WordBatchModeration:
+            return _moderation_for_batch(messages[-1]["content"])
         if response_model is WordExpertRaiseHand:
-            return WordExpertRaiseHand(paragraph_indexes=_batch_indexes_from_user(messages[-1]["content"]))
+            return WordExpertRaiseHand(question_ids=_question_ids_from_user(messages[-1]["content"]))
         if response_model is WordExpertComment:
             return WordExpertComment(kommentar="   ")
         if response_model is WordHeadingAssessment:
@@ -610,9 +900,11 @@ async def test_word_review_commits_after_batch_not_after_each_call(client: Async
     job_holder: dict[str, str] = {}
 
     async def completer(messages, response_model):
+        if response_model is WordBatchModeration:
+            return _moderation_for_batch(messages[-1]["content"])
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(
-                paragraph_indexes=_batch_indexes_from_user(messages[-1]["content"])[:1]
+                question_ids=_question_ids_from_user(messages[-1]["content"])[:1]
             )
         if response_model is WordExpertComment:
             return WordExpertComment(
@@ -649,10 +941,12 @@ async def test_word_review_no_rewrite_with_one_comment(client: AsyncClient):
     async def completer(messages, response_model):
         nonlocal rewrite_calls
         label = _identity_label(messages)
+        if response_model is WordBatchModeration:
+            return _moderation_for_batch(messages[-1]["content"])
         if response_model is WordExpertRaiseHand:
             if label == DEFAULT_EXPERT_LABELS[0]:
-                return WordExpertRaiseHand(paragraph_indexes=[1])
-            return WordExpertRaiseHand(paragraph_indexes=[])
+                return WordExpertRaiseHand(question_ids=["q1"])
+            return WordExpertRaiseHand(question_ids=[])
         if response_model is WordExpertComment:
             return WordExpertComment(kommentar="Bara en röst.")
         if response_model is WordHeadingAssessment:
@@ -683,8 +977,10 @@ async def test_word_review_no_rewrite_with_one_comment(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_word_review_split_opinions_do_not_rewrite(client: AsyncClient):
     async def completer(messages, response_model):
+        if response_model is WordBatchModeration:
+            return _moderation_for_batch(messages[-1]["content"])
         if response_model is WordExpertRaiseHand:
-            return WordExpertRaiseHand(paragraph_indexes=[1])
+            return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
             return WordExpertComment(kommentar=f"Olika syn från {_identity_label(messages)}.")
         if response_model is WordHeadingAssessment:
@@ -713,10 +1009,12 @@ async def test_word_review_split_opinions_do_not_rewrite(client: AsyncClient):
 async def test_word_review_converging_comments_write_rewrite(client: AsyncClient):
     async def completer(messages, response_model):
         user = messages[-1]["content"]
-        if response_model is WordExpertRaiseHand:
-            return WordExpertRaiseHand(paragraph_indexes=[1])
+        if response_model is WordBatchModeration:
+            return _moderation_for_batch(messages[-1]["content"])
         if response_model is WordExpertComment:
             return WordExpertComment(kommentar="Skriv om till tydligare mening.")
+        if response_model is WordExpertRaiseHand:
+            return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordHeadingAssessment:
             return WordHeadingAssessment(forslag=None)
         if response_model is WordRewriteSuggestion:
@@ -748,8 +1046,10 @@ async def test_word_review_converging_comments_write_rewrite(client: AsyncClient
 @pytest.mark.asyncio
 async def test_word_review_patch_comment_id(client: AsyncClient):
     async def completer(messages, response_model):
+        if response_model is WordBatchModeration:
+            return _moderation_for_batch(messages[-1]["content"])
         if response_model is WordExpertRaiseHand:
-            return WordExpertRaiseHand(paragraph_indexes=[1])
+            return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
             return WordExpertComment(kommentar="ok")
         if response_model is WordHeadingAssessment:
