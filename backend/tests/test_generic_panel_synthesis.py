@@ -18,6 +18,7 @@ from app.services.panel.schemas import (
     PanelTurn,
 )
 from app.services.panel.sessions import create_panel_session, get_panel_session
+from app.services.panel.research import empty_research_structured
 from app.services.panel.synthesis import (
     GenericPanelSynthesis,
     SynthesizedClaim,
@@ -101,9 +102,12 @@ def _install_synthesis(result: GenericPanelSynthesis, captured: list[list[dict]]
     async def _complete(messages, response_model):
         if captured is not None:
             captured.append([dict(item) for item in messages])
-        if response_model is not GenericPanelSynthesis:
-            raise RuntimeError(f"Unexpected structured model {response_model}")
-        return result
+        if response_model is GenericPanelSynthesis:
+            return result
+        empty_research = empty_research_structured(response_model)
+        if empty_research is not None:
+            return empty_research
+        raise RuntimeError(f"Unexpected structured model {response_model}")
 
     set_structured_completer(_complete)
 

@@ -9,6 +9,8 @@ import { useLocale, type MessageKey } from "@/i18n"
 
 const PHASE_LABEL_KEYS: Record<PanelWatchTurnPhase, MessageKey> = {
   opening: "dd.panel.live.phase.opening",
+  research_need: "dd.panel.live.phase.researchNeed",
+  research_plan: "dd.panel.live.phase.researchPlan",
   sub_question: "dd.panel.live.phase.subQuestion",
   score: "dd.panel.live.phase.score",
   analysis: "dd.panel.live.phase.analysis",
