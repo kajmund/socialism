@@ -40,9 +40,17 @@ export function getRoamingToken(): string {
 
 export function saveRoamingToken(token: string): Promise<void> {
   const office = requireOffice()
-  office.context.roamingSettings.set(TOKEN_KEY, token)
+  const settings = office.context.roamingSettings
+  if (!settings) {
+    throw new Error("Office roamingSettings is not available")
+  }
+  settings.set(TOKEN_KEY, token)
   return new Promise((resolve, reject) => {
-    office.context.roamingSettings.saveAsync((result) => {
+    const timer = window.setTimeout(() => {
+      reject(new Error("Timed out saving token to Word"))
+    }, 5000)
+    settings.saveAsync((result) => {
+      window.clearTimeout(timer)
       if (result.status === Office.AsyncResultStatus.Failed) {
         reject(new Error(result.error.message))
         return

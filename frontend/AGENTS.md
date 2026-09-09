@@ -131,12 +131,15 @@ Still hardcoded (next slices): OASIS simulation prompts (intentionally Swedish).
 | Path | Status |
 |------|--------|
 | `/login` | Sign-in (magic link) |
+| `/dev-in` | Local-only login as Devbrains / `erik@fremred.se` (requires `ALLOW_LOCAL_LOGIN`) |
 | `/valj-modul` | Redirect → module home (sidebar is how you switch) |
 | `/` | Dashboard (startsida) |
 | `/runs` | Körningar list |
 | `/runs/new`, `/runs/:id/edit` | Körning (wizard / quick + Resultat) |
 | `/jobs` | Bakgrundsjobb (population, simulering, report) |
 | `/feedback` | Återkoppling (buggar/idéer/åsikter från hjälpchatten) |
+| `/rattsunderlag` | Rättsunderlag — lista över körningar |
+| `/rattsunderlag/new`, `/rattsunderlag/:id` | Rättsunderlag (Konfiguration / Resultat) |
 | `/reports` | Rapportlista |
 | `/reports/:id` | HTML-rapport |
 | `/personas` | Persona library (grid/list) |
@@ -179,7 +182,7 @@ Home is `/` (dashboard). Unknown routes redirect to `/`.
 
 - Talks to a separate Python backend over JSON. URL comes from `VITE_API_BASE_URL`.
 - Always use `api.get/post/put/patch/delete` from `@/lib/api` — it handles base URL, JSON, bearer token from `authAdapter.getAccessToken()`, timeouts, and typed `ApiError`s (including the `isNetworkError` flag that distinguishes CORS/network from HTTP errors).
-- Auth uses the Supabase magic-link adapter (`authAdapter`). The API client reads the bearer token from `getAccessToken()` — never thread tokens through component props.
+- Auth uses the Supabase magic-link adapter (`authAdapter`). The API client reads the bearer token from `getAccessToken()` — never thread tokens through component props. Locally, `/dev-in` installs a backend-minted token when `ALLOW_LOCAL_LOGIN` is on.
 - Hide **Verktyg** / configuration routes for `user`. Use `useAuth().isAdmin` (or `canAccessConfiguration`) — do not sprinkle role strings in pages.
 - Admin surfaces (personas / populations / runs) talk to the FastAPI backend.
 

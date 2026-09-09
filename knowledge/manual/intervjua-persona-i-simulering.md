@@ -17,7 +17,7 @@ Efter en avslutad simulering kan du **intervjua** en persona direkt i resultatet
 4. I intervjurutan:
    - Välj **persona** om flera finns i populationen.
    - Välj **efter tick** — vilken simuleringsdag kontexten ska gälla till och med. Personan ser inte inlägg från senare dagar.
-5. Skriv frågor och skicka. Personan svarar i intervjuläge utifrån flödeskontexten.
+5. Skriv frågor och skicka. Personan svarar i intervjuläge utifrån flödeskontexten. Verktyg du valt i persona-kompositören används här också.
 6. Välj **Rensa** om du vill börja om chatten för samma persona och tick.
 
 Intervjun sparas per körning, försök, variant, persona och tick — du kan återkomma senare.

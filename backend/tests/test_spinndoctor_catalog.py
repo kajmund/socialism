@@ -53,7 +53,7 @@ async def test_spinndoctor_profile_seeded_for_dd_and_politik(client_db):
         customer_id = await default_os_customer_id(db)
         row = await require_spinndoctor_profile(db, customer_id=customer_id)
         assert row.key == SPINNDOCTOR_KEY
-        assert set(row.modules) == {"dd", "politik", "expertgranskning"}
+        assert set(row.modules) == {"dd", "politik", "expertgranskning", "rattsunderlag"}
         assert row.name == "Spinndoktor"
 
 
@@ -85,6 +85,18 @@ async def test_identity_prompt_uses_panel_expert_system(client_db):
         assert "Du har dataverktyg" in identity
         assert "## Kandidat" not in identity
         assert "## Körning" not in identity
+
+
+@pytest.mark.asyncio
+async def test_identity_prompt_works_for_rattsunderlag(client_db):
+    _client, factory = client_db
+    async with factory() as db:
+        customer_id = await default_os_customer_id(db)
+        identity = await _build_identity_prompt(
+            db, locale="sv", customer_id=customer_id, module="rattsunderlag"
+        )
+        assert "Du deltar som Spinndoktor" in identity
+        assert "Du är Spinndoktorn" in identity
 
 
 @pytest.mark.asyncio

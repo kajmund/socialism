@@ -143,10 +143,12 @@ function toastFromTransition(
       }
     }
     if (job.kind === "rattsunderlag_research") {
+      const sessionId =
+        typeof job.request?.session_id === "string" ? job.request.session_id : null
       return {
         kind: "ok",
         message: t("toast.jobDone", { label: job.label }),
-        href: `/rattsunderlag/${job.id}`,
+        href: `/rattsunderlag/${sessionId ?? job.id}?tab=results`,
         hrefLabel: t("jobs.openRattsunderlag"),
       }
     }

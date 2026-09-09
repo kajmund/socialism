@@ -136,12 +136,20 @@ export function App() {
   async function handleSaveToken(event: FormEvent) {
     event.preventDefault()
     const next = tokenDraft.trim()
-    if (!next) return
-    if (typeof Office !== "undefined") {
-      await saveRoamingToken(next)
+    if (!next) {
+      setError(t("tokenEmpty"))
+      return
     }
     setToken(next)
     setError("")
+    if (typeof Office === "undefined") {
+      return
+    }
+    try {
+      await saveRoamingToken(next)
+    } catch {
+      setError(t("tokenPersistFailed"))
+    }
   }
 
   async function insertOne(jobId: string, result: ReviewResult) {

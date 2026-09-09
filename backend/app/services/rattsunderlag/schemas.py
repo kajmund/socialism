@@ -20,11 +20,18 @@ __all__ = [
     "PraxisRef",
     "RattsunderlagResearchJobRequest",
     "RattsunderlagResult",
+    "RattsunderlagSessionCreate",
+    "RattsunderlagSessionOut",
+    "RattsunderlagSessionStatus",
+    "RattsunderlagSessionSummary",
+    "RattsunderlagSessionUpdate",
     "RattsunderlagStart",
     "SearchPlan",
     "SourcingStatus",
     "SummaryClaim",
 ]
+
+RattsunderlagSessionStatus = Literal["draft", "pending", "running", "succeeded", "failed"]
 
 
 class SummaryClaim(BaseModel):
@@ -85,3 +92,55 @@ class RattsunderlagResearchJobRequest(BaseModel):
     customer_id: int
     owner_user_id: str
     locale: Literal["sv", "en"] = "sv"
+    session_id: str | None = None
+
+
+class RattsunderlagSessionCreate(BaseModel):
+    fraga: str = Field(default="", max_length=8000)
+    title: str = Field(default="", max_length=4000)
+    locale: Literal["sv", "en"] = "sv"
+
+    @field_validator("fraga", "title", mode="before")
+    @classmethod
+    def strip_text(cls, value: object) -> str:
+        if value is None:
+            return ""
+        return str(value).strip()
+
+
+class RattsunderlagSessionUpdate(BaseModel):
+    fraga: str | None = Field(default=None, max_length=8000)
+    title: str | None = Field(default=None, max_length=4000)
+    locale: Literal["sv", "en"] | None = None
+
+    @field_validator("fraga", "title", mode="before")
+    @classmethod
+    def strip_optional_text(cls, value: object) -> object:
+        if value is None:
+            return None
+        return str(value).strip()
+
+
+class RattsunderlagSessionOut(BaseModel):
+    id: str
+    title: str
+    fraga: str
+    locale: Literal["sv", "en"]
+    status: RattsunderlagSessionStatus
+    job_id: str | None
+    report_id: str | None
+    underlag_id: str | None
+    error: str | None
+    created_at: str
+    updated_at: str
+
+
+class RattsunderlagSessionSummary(BaseModel):
+    id: str
+    title: str
+    topic: str
+    status: RattsunderlagSessionStatus
+    job_id: str | None
+    report_id: str | None
+    created_at: str
+    updated_at: str

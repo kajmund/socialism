@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Configuration, Kund, PromptField, PromptOverride
 from app.serializers import utcnow
+from app.services.prompt_catalog import PROMPT_KEY_SET
 
 
 class MissingPromptCustomerError(RuntimeError):
@@ -165,6 +166,32 @@ async def ensure_prompt_overrides_from_configurations(session: AsyncSession) -> 
         await session.rollback()
         return 0
     return added
+
+
+async def retire_unknown_prompt_fields(session: AsyncSession) -> int:
+    """Delete catalog rows whose key is no longer in PROMPT_KEY_SET.
+
+    Cascades overrides. Also strips retired keys from Configuration.prompts.
+    """
+    rows = list((await session.execute(select(PromptField))).scalars().all())
+    retired = [row for row in rows if row.key not in PROMPT_KEY_SET]
+    retired_keys = {row.key for row in retired}
+    if not retired_keys:
+        return 0
+    for row in retired:
+        await session.delete(row)
+    configs = (await session.execute(select(Configuration))).scalars().all()
+    now = utcnow()
+    for config in configs:
+        stored = dict(config.prompts or {})
+        if not any(key in stored for key in retired_keys):
+            continue
+        for key in retired_keys:
+            stored.pop(key, None)
+        config.prompts = stored
+        config.updated_at = now
+    await session.commit()
+    return len(retired)
 
 
 async def _require_kund(session: AsyncSession, customer_id: int) -> Kund:

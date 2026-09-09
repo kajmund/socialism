@@ -1,8 +1,8 @@
 ---
 type: guide
 title: Använda rättsunderlag
-description: Ställ en rättsfråga, hämta lagtext, praxis och förarbeten, och spara resultatet som underlag.
-tags: [grunddata, rapporter]
+description: Skapa och öppna rättsunderlagskörningar — spara utkast, sök källor och läs PM:et.
+tags: [grunddata, rapporter, korningar]
 ---
 
 # Använda rättsunderlag
@@ -11,13 +11,27 @@ tags: [grunddata, rapporter]
 
 Modulen samlar källor. Den ersätter inte en jurist och hittar inte på lagrum eller rättsfall.
 
-## Ta fram ett underlag
+## Lista
 
-1. Öppna **Rättsunderlag** i vänstermenyn.
-2. Skriv den rättsfråga du vill ha belyst.
-3. Klicka **Ta fram underlag**. Jobbet syns i listan och under **Bakgrundsjobb**.
-4. När sökningen är klar ser du **Bedömning** plus flikarna **Tillämplig lagstiftning**, **Praxis** och **Förarbeten**.
-5. Öppna **Öppna PM** för det juridiska memorandot, eller **Skicka till Expertgranskning** om en panel ska läsa samma underlag.
+1. Öppna **Rättsunderlag** i vänstermenyn. Du ser en lista över dina körningar (sök och filtrera på status).
+2. Klicka **Ny körning** för att skapa ett utkast, eller öppna en befintlig:
+   - **Utkast** → **Fortsätt konfigurera**
+   - Påbörjad eller klar → **Öppna resultat** (eller **Konfiguration** om du vill ändra och köra om)
+3. **Ta bort** tar bort körningen från listan. Eventuellt PM ligger kvar under **Rapporter**.
+
+## Konfiguration
+
+1. Öppna fliken **Konfiguration** (via **Ny** eller en sparad körning).
+2. Skriv den rättsfråga du vill ha belyst. Titel är valfritt.
+3. **Spara utkast** om du vill fortsätta senare, eller **Ta fram underlag** när frågan är klar.
+4. Har du redan ett PM och kör om, bekräfta först — den nya sökningen ersätter källorna.
+
+## Resultat
+
+1. Fliken **Resultat** öppnas automatiskt när en körning inte längre är utkast.
+2. **Källor** visar **Bedömning** plus **Tillämplig lagstiftning**, **Praxis** och **Förarbeten** när sökningen är klar. Jobbet syns också under **Bakgrundsjobb**.
+3. **Rapport** öppnar det juridiska PM:et. Därifrån kan du prata med **Spinndoktor**.
+4. **Skicka till Expertgranskning** om en panel ska läsa samma underlag.
 
 ## I Expertgranskning
 

@@ -28,8 +28,7 @@ export function isExpertToolId(value: string): value is ExpertToolId {
   return (EXPERT_TOOL_IDS as readonly string[]).includes(value)
 }
 
-export function normalizeExpertTools(raw: string[] | null | undefined): ExpertToolId[] {
-  if (raw == null) return [...DEFAULT_EXPERT_TOOLS]
+function filterKnownTools(raw: string[]): ExpertToolId[] {
   const seen = new Set<ExpertToolId>()
   const out: ExpertToolId[] = []
   for (const name of raw) {
@@ -38,4 +37,14 @@ export function normalizeExpertTools(raw: string[] | null | undefined): ExpertTo
     out.push(name)
   }
   return out
+}
+
+export function normalizeExpertTools(raw: string[] | null | undefined): ExpertToolId[] {
+  if (raw == null) return [...DEFAULT_EXPERT_TOOLS]
+  return filterKnownTools(raw)
+}
+
+export function normalizePersonaTools(raw: string[] | null | undefined): ExpertToolId[] {
+  if (raw == null) return []
+  return filterKnownTools(raw)
 }

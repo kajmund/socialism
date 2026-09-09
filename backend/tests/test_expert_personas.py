@@ -101,6 +101,55 @@ async def test_create_and_update_expert_tools(client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_create_and_update_persona_tools(client: AsyncClient):
+    create = await client.post(
+        "/personas",
+        json={
+            "kind": "persona",
+            "name": "Sökpersona",
+            "age": 42,
+            "occ": "Lärare",
+            "district": "Malmö",
+            "tools": ["search_wiki", "search_duckduckgo", "search_wiki"],
+        },
+    )
+    assert create.status_code == 201, create.text
+    body = create.json()
+    assert body["kind"] == "persona"
+    assert body["tools"] == ["search_wiki", "search_duckduckgo"]
+
+    updated = await client.put(
+        f"/personas/{body['id']}",
+        json={"tools": ["lookup_company"]},
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["tools"] == ["lookup_company"]
+
+    cleared = await client.put(
+        f"/personas/{body['id']}",
+        json={"tools": []},
+    )
+    assert cleared.status_code == 200, cleared.text
+    assert cleared.json()["tools"] == []
+
+
+@pytest.mark.asyncio
+async def test_persona_without_tools_defaults_to_empty(client: AsyncClient):
+    create = await client.post(
+        "/personas",
+        json={
+            "kind": "persona",
+            "name": "Utan verktyg",
+            "age": 30,
+            "occ": "Testare",
+            "district": "Göteborg",
+        },
+    )
+    assert create.status_code == 201, create.text
+    assert create.json()["tools"] == []
+
+
+@pytest.mark.asyncio
 async def test_reject_unknown_expert_tool(client: AsyncClient):
     create = await client.post(
         "/personas",

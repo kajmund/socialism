@@ -8,7 +8,7 @@ from pathlib import Path
 from app.database.models import Job, Report
 from app.modules.report_binding import ReportGenerateContext
 from app.serializers import utcnow
-from app.services.rattsunderlag import JOB_KIND, MODULE_ID, REPORT_MODE, SOURCE_TYPE
+from app.services.rattsunderlag import MODULE_ID, REPORT_MODE, SOURCE_TYPE
 from app.services.rattsunderlag.module_report import generate_rattsunderlag_module_report
 from app.services.rattsunderlag.persist import save_rattsunderlag_underlag
 from app.services.rattsunderlag.research import run_rattsunderlag_research
@@ -30,6 +30,7 @@ async def run_rattsunderlag_research_job(job_id: str) -> None:
             return
         payload = RattsunderlagResearchJobRequest.model_validate(job.request or {})
         locale = normalize_locale(payload.locale)
+        source_id = payload.session_id or job_id
         result = await run_rattsunderlag_research(
             fraga=payload.fraga,
             customer_id=payload.customer_id,
@@ -51,7 +52,7 @@ async def run_rattsunderlag_research_job(job_id: str) -> None:
             title=payload.fraga[:255],
             locale=locale,
             mode=REPORT_MODE,
-            sources=[{"type": SOURCE_TYPE, "session_id": job_id}],
+            sources=[{"type": SOURCE_TYPE, "session_id": source_id}],
             job_id=job_id,
             created_at=utcnow(),
             updated_at=utcnow(),
@@ -74,7 +75,7 @@ async def run_rattsunderlag_research_job(job_id: str) -> None:
                 report_id=report_id,
                 title=payload.fraga[:255],
                 locale=locale,
-                sources=[{"type": SOURCE_TYPE, "session_id": job_id}],
+                sources=[{"type": SOURCE_TYPE, "session_id": source_id}],
                 mode=REPORT_MODE,
                 out_dir=out_dir,
                 session_factory=factory,

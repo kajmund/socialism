@@ -35,7 +35,7 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 # Personas
 
 * [Hantera personas](hantera-personas.md) — Bibliotek, sökning och snabbredigering
-* [Skapa och redigera persona](skapa-och-redigera-persona.md) — Kompositör, profil och chatt
+* [Skapa och redigera persona](skapa-och-redigera-persona.md) — Kompositör, profil, verktyg och chatt
 * [Hantera meddelanden i personachatt](hantera-meddelanden-i-personachatt.md) — Ta bort eller skicka om enskilda meddelanden
 * [Generera personavarianter](generera-personavarianter.md) — Fem varianter från en baspersona
 
@@ -83,7 +83,7 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 
 # Rättsunderlag
 
-* [Använda rättsunderlag](anvanda-rattsunderlag.md) — Ställ en rättsfråga och hämta lagtext, praxis och förarbeten
+* [Använda rättsunderlag](anvanda-rattsunderlag.md) — Spara utkast, sök källor och läs PM:et
 
 # Rapporter
 

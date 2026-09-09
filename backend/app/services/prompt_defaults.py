@@ -17,6 +17,8 @@ def modules_for_prompt_key(key: str) -> list[str]:
         return ["rattsunderlag"]
     if key.startswith("expertgranskning."):
         return ["expertgranskning"]
+    if key.startswith("spinndoctor.") or key == "panel.expert.system":
+        return ["dd", "politik", "expertgranskning", "rattsunderlag"]
     return ["dd", "politik", "expertgranskning"]
 
 

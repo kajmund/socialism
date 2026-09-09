@@ -269,12 +269,15 @@ async def stream_spindoctor_chat_turn(
         await session.commit()
         await session.refresh(user_row)
 
-        identity = await _build_identity_prompt(
-            session,
-            locale=locale,
-            customer_id=report_row.customer_id,
-            module=module_id,
-        )
+        try:
+            identity = await _build_identity_prompt(
+                session,
+                locale=locale,
+                customer_id=report_row.customer_id,
+                module=module_id,
+            )
+        except RuntimeError as exc:
+            raise SpindoctorChatTurnError(str(exc)) from exc
         messages = assemble_spindoctor_messages(
             identity=identity,
             context=context,

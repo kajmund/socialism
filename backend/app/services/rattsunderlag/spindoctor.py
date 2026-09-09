@@ -4,31 +4,32 @@ from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import Job, Report
+from app.database.models import Report
 from app.modules.manifest import SpindoctorSource
 from app.services.rattsunderlag import SOURCE_TYPE
 from app.services.rattsunderlag.schemas import RattsunderlagResult
+from app.services.rattsunderlag.sessions import get_research_job
 from app.services.report.rattsutredning import render_rattsutredning_markdown
 
 
-def _job_id_from_report(report: Report) -> str:
+def _source_id_from_report(report: Report) -> str:
     sources = report.sources if isinstance(report.sources, list) else []
     if not sources or not isinstance(sources[0], dict):
         raise ValueError("Rättsunderlag report is missing sources")
     source = sources[0]
     if source.get("type") != SOURCE_TYPE:
         raise ValueError(f"Unexpected report source type: {source.get('type')}")
-    job_id = str(source.get("session_id") or "").strip()
-    if not job_id:
+    source_id = str(source.get("session_id") or "").strip()
+    if not source_id:
         raise ValueError("Rättsunderlag report source is missing session_id")
-    return job_id
+    return source_id
 
 
 async def load_rattsunderlag_spindoctor_source(
     session: AsyncSession,
     report: Report,
 ) -> SpindoctorSource:
-    job = await session.get(Job, _job_id_from_report(report))
+    job = await get_research_job(session, _source_id_from_report(report))
     if job is None:
         raise ValueError("Rättsunderlag research job not found")
     raw = job.result if isinstance(job.result, dict) else None
