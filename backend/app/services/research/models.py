@@ -44,6 +44,10 @@ class ResearchSourceNotRegisteredError(ResearchError):
         self.source_type = source_type
 
 
+class InvalidResearchPlanError(ResearchError, ValueError):
+    """ResearchPlan failed validation before an Attempt may start research."""
+
+
 @dataclass(frozen=True)
 class ResearchNeed:
     id: str
@@ -55,6 +59,19 @@ class ResearchNeed:
     def __post_init__(self) -> None:
         object.__setattr__(self, "requested_by", list(self.requested_by))
         object.__setattr__(self, "source_types", list(self.source_types))
+
+
+@dataclass(frozen=True)
+class ResearchPlan:
+    """Executable plan of shared ResearchNeed rows. Empty plan is valid.
+
+    This is the execution-domain plan, not PanelSession.research_plan.
+    """
+
+    needs: list[ResearchNeed] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "needs", list(self.needs))
 
 
 @dataclass(frozen=True)

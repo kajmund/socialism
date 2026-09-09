@@ -1302,7 +1302,7 @@ class ExecutionRun(Base):
 
 
 class EvidenceSet(Base):
-    """Frozen (or building) knowledge snapshot scoped to one ExecutionRun."""
+    """Building, frozen, or failed knowledge snapshot scoped to one ExecutionRun."""
 
     __tablename__ = "evidence_sets"
 
@@ -1355,6 +1355,7 @@ class ExecutionAttempt(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="created")
     configuration_snapshot: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     input_snapshot: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    research_plan_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     evidence_set_id: Mapped[str | None] = mapped_column(
         ForeignKey("evidence_sets.id", ondelete="RESTRICT"),
         nullable=True,
@@ -1399,6 +1400,8 @@ class EvidenceSetItem(Base):
         index=True,
     )
     research_need_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    original_evidence_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    ordinal: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     source_type: Mapped[str] = mapped_column(String(64), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     title: Mapped[str | None] = mapped_column(String(512), nullable=True)
