@@ -1219,3 +1219,43 @@ class ExpertgranskningResult(Base):
         server_default=func.now(),
         nullable=False,
     )
+
+
+class KnowledgeDocumentRecord(Base):
+    """Provider-neutral index: internal document_id → source location.
+
+    Storage path (bucket/key) is not the canonical document id.
+    """
+
+    __tablename__ = "knowledge_documents"
+    __table_args__ = (
+        UniqueConstraint("provider", "external_id", name="uq_knowledge_documents_provider_external"),
+    )
+
+    document_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    provider: Mapped[str] = mapped_column(String(32), nullable=False)
+    external_id: Mapped[str] = mapped_column(String(512), nullable=False)
+    customer_id: Mapped[int | None] = mapped_column(
+        ForeignKey("kunder.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
+    case_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    module: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    title: Mapped[str] = mapped_column(String(512), nullable=False)
+    mime_type: Mapped[str] = mapped_column(String(128), nullable=False)
+    storage_bucket: Mapped[str | None] = mapped_column(String(63), nullable=True)
+    storage_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    version: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    extra: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
