@@ -1,6 +1,21 @@
-"""Read-only knowledge layer. Isolated from panel / research-router / MCP."""
+"""Knowledge layer: read API plus ingest. Isolated from panel / research-router / MCP."""
 
+from app.services.knowledge.chunking import KnowledgeChunker
+from app.services.knowledge.embeddings import (
+    EmbeddingProvider,
+    EmbeddingSpec,
+    OpenAIEmbeddingProvider,
+)
+from app.services.knowledge.extractors import (
+    DefaultTextExtractor,
+    ExtractedBlock,
+    ExtractedDocument,
+    TextExtractor,
+)
+from app.services.knowledge.ingest import KnowledgeIngestResult, KnowledgeIngestService
 from app.services.knowledge.models import (
+    EmbeddedKnowledgeChunk,
+    EmbeddedKnowledgeQuery,
     KnowledgeChunk,
     KnowledgeDocument,
     KnowledgeHit,
@@ -30,10 +45,20 @@ from app.services.knowledge.vector_store import (
 
 __all__ = [
     "SUPABASE_PROVIDER_ID",
+    "DefaultTextExtractor",
+    "EmbeddedKnowledgeChunk",
+    "EmbeddedKnowledgeQuery",
+    "EmbeddingProvider",
+    "EmbeddingSpec",
+    "ExtractedBlock",
+    "ExtractedDocument",
     "KnowledgeChunk",
+    "KnowledgeChunker",
     "KnowledgeDocument",
     "KnowledgeError",
     "KnowledgeHit",
+    "KnowledgeIngestResult",
+    "KnowledgeIngestService",
     "KnowledgeNotFoundError",
     "KnowledgeProvider",
     "KnowledgeProviderNotFoundError",
@@ -44,8 +69,10 @@ __all__ = [
     "KnowledgeVectorStore",
     "KnowledgeVectorStoreError",
     "MemoryKnowledgeVectorStore",
+    "OpenAIEmbeddingProvider",
     "SupabaseKnowledgeProvider",
     "SupabaseVectorBucketStore",
+    "TextExtractor",
     "VectorBucketClient",
     "build_knowledge_registry",
 ]

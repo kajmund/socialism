@@ -63,7 +63,7 @@ class KnowledgeHit:
 
 @dataclass(frozen=True)
 class KnowledgeChunk:
-    """Vector-store unit. Ingest (parse/embed) is a later PR."""
+    """Vector-store unit produced by ingest. Embeddings live on EmbeddedKnowledgeChunk."""
 
     document_id: str
     chunk_id: str
@@ -75,7 +75,28 @@ class KnowledgeChunk:
     locator: str | None = None
     provider: str | None = None
     version: str | None = None
+    content_hash: str | None = None
     metadata: dict[str, object] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class EmbeddedKnowledgeChunk:
+    """Chunk plus an explicit embedding. VectorStore stores; EmbeddingProvider creates."""
+
+    chunk: KnowledgeChunk
+    embedding: list[float]
+
+
+@dataclass(frozen=True)
+class EmbeddedKnowledgeQuery:
+    """Query plus an explicit embedding. VectorStore searches vectors, not raw text."""
+
+    query: KnowledgeQuery
+    embedding: list[float]
+
+    def __post_init__(self) -> None:
+        if not self.embedding:
+            raise ValueError("EmbeddedKnowledgeQuery.embedding must not be empty")
 
 
 def require_scope(scope: KnowledgeScope) -> None:

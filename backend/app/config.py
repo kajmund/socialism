@@ -1,9 +1,15 @@
 import os
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+
+EMBEDDING_MODEL_DIMENSIONS = {
+    "text-embedding-3-large": 3072,
+    "text-embedding-3-small": 1536,
+    "text-embedding-ada-002": 1536,
+}
 
 _LOG_LEVELS = frozenset({"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"})
 
@@ -31,9 +37,10 @@ class Settings(BaseSettings):
     # stub = weighted random (tests only); deepseek = call DeepSeek
     persona_generator: PersonaGenerator = "deepseek"
 
-    # OpenAI embeddings for SSR (separate from DeepSeek chat / CAMEL env mirror).
+    # OpenAI embeddings for SSR and knowledge ingest (separate from DeepSeek / CAMEL).
     openai_api_key: str = ""
     embedding_model: str = "text-embedding-3-large"
+    embedding_dimension: int = 3072
     embedding_base_url: str = "https://api.openai.com/v1"
     embedding_timeout_seconds: float = 60.0
     # OpenAI vision for playground image understanding (same API key as embeddings).
@@ -110,6 +117,18 @@ class Settings(BaseSettings):
                 "(no heuristic/stub LLM fallback)"
             )
         return key
+
+    @model_validator(mode="after")
+    def require_embedding_model_matches_dimension(self) -> Self:
+        expected = EMBEDDING_MODEL_DIMENSIONS.get(self.embedding_model)
+        if expected is not None and self.embedding_dimension != expected:
+            raise ValueError(
+                f"EMBEDDING_MODEL {self.embedding_model!r} requires "
+                f"EMBEDDING_DIMENSION={expected}, got {self.embedding_dimension}"
+            )
+        if self.embedding_dimension < 1:
+            raise ValueError("EMBEDDING_DIMENSION must be >= 1")
+        return self
 
     @field_validator("openai_api_key")
     @classmethod

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.knowledge.embeddings import EmbeddingProvider
 from app.services.knowledge.provider import (
     KnowledgeProvider,
     KnowledgeProviderNotFoundError,
@@ -32,7 +33,10 @@ class KnowledgeProviderRegistry:
 def build_knowledge_registry(
     session: AsyncSession,
     vector_store: KnowledgeVectorStore,
+    embeddings: EmbeddingProvider,
 ) -> KnowledgeProviderRegistry:
     registry = KnowledgeProviderRegistry()
-    registry.register(SupabaseKnowledgeProvider(session, vector_store=vector_store))
+    registry.register(
+        SupabaseKnowledgeProvider(session, vector_store=vector_store, embeddings=embeddings)
+    )
     return registry

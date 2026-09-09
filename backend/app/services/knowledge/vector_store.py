@@ -5,14 +5,16 @@ Analytics Buckets are a later warehouse concern and are not on this path.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 from app.services.knowledge.models import (
+    EmbeddedKnowledgeChunk,
+    EmbeddedKnowledgeQuery,
     KnowledgeChunk,
     KnowledgeHit,
-    KnowledgeQuery,
     KnowledgeScope,
     require_scope,
     scope_allows,
@@ -22,9 +24,15 @@ from app.services.knowledge.provider import SUPABASE_PROVIDER_ID, KnowledgeVecto
 
 
 class KnowledgeVectorStore(Protocol):
-    async def upsert_chunks(self, chunks: Sequence[KnowledgeChunk]) -> None: ...
+    async def upsert_chunks(self, chunks: Sequence[EmbeddedKnowledgeChunk]) -> None: ...
 
-    async def search(self, query: KnowledgeQuery) -> list[KnowledgeHit]: ...
+    async def replace_document_chunks(
+        self,
+        document_id: str,
+        chunks: Sequence[EmbeddedKnowledgeChunk],
+    ) -> None: ...
+
+    async def search(self, query: EmbeddedKnowledgeQuery) -> list[KnowledgeHit]: ...
 
     async def delete_document(self, document_id: str) -> None: ...
 
@@ -42,6 +50,7 @@ class VectorBucketRecord:
     provider: str | None = None
     version: str | None = None
     external_id: str | None = None
+    embedding: list[float] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
@@ -50,10 +59,16 @@ class VectorBucketClient(Protocol):
 
     async def upsert(self, records: Sequence[VectorBucketRecord]) -> None: ...
 
+    async def replace(
+        self,
+        document_id: str,
+        records: Sequence[VectorBucketRecord],
+    ) -> None: ...
+
     async def query(
         self,
         *,
-        query: str,
+        vector: Sequence[float],
         filters: Mapping[str, Any],
         limit: int,
     ) -> Sequence[VectorBucketRecord]: ...
@@ -107,15 +122,19 @@ def _optional_str(value: object) -> str | None:
     return None
 
 
-def _lexical_score(query: str, text: str) -> float:
-    words = [part for part in query.lower().split() if part]
-    if not words:
+def cosine_score(left: Sequence[float], right: Sequence[float]) -> float:
+    if len(left) != len(right):
+        raise KnowledgeVectorStoreError(
+            f"Query embedding dimension {len(left)} does not match stored dimension {len(right)}"
+        )
+    if not left:
+        raise KnowledgeVectorStoreError("Embedding must not be empty")
+    dot = math.fsum(a * b for a, b in zip(left, right, strict=True))
+    left_norm = math.sqrt(math.fsum(value * value for value in left))
+    right_norm = math.sqrt(math.fsum(value * value for value in right))
+    if left_norm == 0 or right_norm == 0:
         return 0.0
-    haystack = text.lower()
-    if query.strip().lower() in haystack:
-        return 1.0
-    hits = sum(1 for word in words if word in haystack)
-    return hits / len(words)
+    return dot / (left_norm * right_norm)
 
 
 def hit_from_chunk(chunk: KnowledgeChunk, *, score: float | None) -> KnowledgeHit:
@@ -143,7 +162,11 @@ def hit_from_record(record: VectorBucketRecord) -> KnowledgeHit:
     )
 
 
-def chunk_to_record(chunk: KnowledgeChunk) -> VectorBucketRecord:
+def chunk_to_record(
+    chunk: KnowledgeChunk,
+    *,
+    embedding: Sequence[float] | None = None,
+) -> VectorBucketRecord:
     metadata = {
         **chunk.metadata,
         "document_id": chunk.document_id,
@@ -155,6 +178,7 @@ def chunk_to_record(chunk: KnowledgeChunk) -> VectorBucketRecord:
         "locator": chunk.locator,
         "provider": chunk.provider,
         "version": chunk.version,
+        "content_hash": chunk.content_hash,
     }
     return VectorBucketRecord(
         document_id=chunk.document_id,
@@ -164,40 +188,58 @@ def chunk_to_record(chunk: KnowledgeChunk) -> VectorBucketRecord:
         locator=chunk.locator,
         provider=chunk.provider,
         version=chunk.version,
+        embedding=list(embedding or ()),
         metadata=metadata,
     )
+
+
+def embedded_chunk_to_record(item: EmbeddedKnowledgeChunk) -> VectorBucketRecord:
+    return chunk_to_record(item.chunk, embedding=item.embedding)
 
 
 class MemoryKnowledgeVectorStore:
     """In-process store for tests. Same contract as the Vector Bucket adapter."""
 
     def __init__(self) -> None:
-        self._chunks: list[KnowledgeChunk] = []
+        self._chunks: list[EmbeddedKnowledgeChunk] = []
 
-    async def upsert_chunks(self, chunks: Sequence[KnowledgeChunk]) -> None:
-        ids = {(chunk.document_id, chunk.chunk_id) for chunk in chunks}
+    @property
+    def chunks(self) -> list[EmbeddedKnowledgeChunk]:
+        return list(self._chunks)
+
+    async def upsert_chunks(self, chunks: Sequence[EmbeddedKnowledgeChunk]) -> None:
+        ids = {(item.chunk.document_id, item.chunk.chunk_id) for item in chunks}
         self._chunks = [
             existing
             for existing in self._chunks
-            if (existing.document_id, existing.chunk_id) not in ids
+            if (existing.chunk.document_id, existing.chunk.chunk_id) not in ids
         ]
         self._chunks.extend(chunks)
 
-    async def search(self, query: KnowledgeQuery) -> list[KnowledgeHit]:
-        require_scope(query.scope)
+    async def replace_document_chunks(
+        self,
+        document_id: str,
+        chunks: Sequence[EmbeddedKnowledgeChunk],
+    ) -> None:
+        kept = [item for item in self._chunks if item.chunk.document_id != document_id]
+        self._chunks = kept + list(chunks)
+
+    async def search(self, query: EmbeddedKnowledgeQuery) -> list[KnowledgeHit]:
+        require_scope(query.query.scope)
         scored: list[tuple[float, KnowledgeChunk]] = []
-        for chunk in self._chunks:
-            if not chunk_in_scope(chunk, query.scope):
+        for item in self._chunks:
+            chunk = item.chunk
+            if not chunk_in_scope(chunk, query.query.scope):
                 continue
-            score = _lexical_score(query.query, chunk.text)
+            score = cosine_score(query.embedding, item.embedding)
             if score <= 0:
                 continue
             scored.append((score, chunk))
         scored.sort(key=lambda item: item[0], reverse=True)
-        return [hit_from_chunk(chunk, score=score) for score, chunk in scored[: query.limit]]
+        return [hit_from_chunk(chunk, score=score) for score, chunk in scored[: query.query.limit]]
 
     async def delete_document(self, document_id: str) -> None:
-        self._chunks = [chunk for chunk in self._chunks if chunk.document_id != document_id]
+        self._chunks = [item for item in self._chunks if item.chunk.document_id != document_id]
 
 
 class SupabaseVectorBucketStore:
@@ -206,16 +248,26 @@ class SupabaseVectorBucketStore:
     def __init__(self, client: VectorBucketClient) -> None:
         self._client = client
 
-    async def upsert_chunks(self, chunks: Sequence[KnowledgeChunk]) -> None:
-        await self._client.upsert([chunk_to_record(chunk) for chunk in chunks])
+    async def upsert_chunks(self, chunks: Sequence[EmbeddedKnowledgeChunk]) -> None:
+        await self._client.upsert([embedded_chunk_to_record(item) for item in chunks])
 
-    async def search(self, query: KnowledgeQuery) -> list[KnowledgeHit]:
-        filters = scope_filters(query.scope)
+    async def replace_document_chunks(
+        self,
+        document_id: str,
+        chunks: Sequence[EmbeddedKnowledgeChunk],
+    ) -> None:
+        await self._client.replace(
+            document_id,
+            [embedded_chunk_to_record(item) for item in chunks],
+        )
+
+    async def search(self, query: EmbeddedKnowledgeQuery) -> list[KnowledgeHit]:
+        filters = scope_filters(query.query.scope)
         try:
             records = await self._client.query(
-                query=query.query,
+                vector=query.embedding,
                 filters=filters,
-                limit=query.limit,
+                limit=query.query.limit,
             )
         except KnowledgeVectorStoreError:
             raise
@@ -223,10 +275,10 @@ class SupabaseVectorBucketStore:
             raise KnowledgeVectorStoreError(f"Vector Bucket query failed: {exc}") from exc
         hits: list[KnowledgeHit] = []
         for record in records:
-            if not record_in_scope(record, query.scope):
+            if not record_in_scope(record, query.query.scope):
                 continue
             hits.append(hit_from_record(record))
-            if len(hits) >= query.limit:
+            if len(hits) >= query.query.limit:
                 break
         return hits
 
