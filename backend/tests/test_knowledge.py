@@ -55,6 +55,7 @@ _FORBIDDEN_IMPORT_PREFIXES = (
     "app.services.panel",
     "app.services.rattsunderlag",
     "app.services.dd.research",
+    "app.services.research",
     "app.services.ssr",
     "app.services.underlag_extract",
     "app.services.spindoctor_mcp_tools",
