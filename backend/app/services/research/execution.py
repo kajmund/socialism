@@ -162,7 +162,7 @@ async def execute_attempt_research(
         await mark_ready(session, attempt.id)
         await session.commit()
         return await _result_from_attempt(session, await get_attempt(session, attempt.id))
-    except Exception as exc:
+    except BaseException as exc:
         if isinstance(exc, ExecutionStatusError) and not claimed:
             raise
         await session.rollback()
@@ -172,4 +172,6 @@ async def execute_attempt_research(
                 attempt_id=attempt_id,
                 evidence_set_id=evidence_set_id,
             )
-        raise ResearchExecutionError(f"Attempt {attempt_id} research failed") from exc
+        if isinstance(exc, Exception):
+            raise ResearchExecutionError(f"Attempt {attempt_id} research failed") from exc
+        raise
