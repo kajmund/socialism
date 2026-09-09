@@ -1,7 +1,8 @@
 """Research-plan phase for generic_panel — identify needs and consolidate.
 
-No search, MCP, or evidence execution lives here. A later router consumes
-the persisted ``ResearchPlan``.
+Need / source-type taxonomy comes from ``app.services.research``. This module
+only owns panel draft, proposal, and consolidation types. No search, MCP, or
+evidence execution lives here.
 """
 
 from __future__ import annotations
@@ -13,28 +14,22 @@ from pydantic import BaseModel, Field, field_validator
 from app.llm import complete_structured
 from app.services.panel.schemas import PanelExpertSlot, PanelSessionConfig
 from app.services.prompt_catalog import render_prompt
+from app.services.research import RESEARCH_SOURCE_TYPES, ResearchNeed, ResearchSourceType
 
-RESEARCH_SOURCE_TYPES = (
-    "case_knowledge",
-    "customer_knowledge",
-    "domain_knowledge",
-    "swedish_law",
-    "swedish_preparatory_works",
-    "web",
-)
-
-_ALLOWED_SOURCE_TYPES = frozenset(RESEARCH_SOURCE_TYPES)
+_SOURCE_TYPE_BY_VALUE: dict[str, ResearchSourceType] = {
+    item: item for item in RESEARCH_SOURCE_TYPES
+}
 
 
-def normalize_source_types(values: Sequence[str]) -> list[str]:
+def normalize_source_types(values: Sequence[str]) -> list[ResearchSourceType]:
     seen: set[str] = set()
-    out: list[str] = []
+    out: list[ResearchSourceType] = []
     for raw in values:
-        item = str(raw).strip()
-        if item not in _ALLOWED_SOURCE_TYPES or item in seen:
+        known = _SOURCE_TYPE_BY_VALUE.get(str(raw).strip())
+        if known is None or known in seen:
             continue
-        seen.add(item)
-        out.append(item)
+        seen.add(known)
+        out.append(known)
     return out
 
 
@@ -68,34 +63,13 @@ class ResearchNeedDraft(BaseModel):
 
     @field_validator("source_types")
     @classmethod
-    def keep_known_source_types(cls, value: list[str]) -> list[str]:
-        return normalize_source_types(value)
-
-
-class ResearchNeed(BaseModel):
-    id: str
-    question: str
-    why_needed: str
-    requested_by: list[str] = Field(default_factory=list)
-    source_types: list[str] = Field(default_factory=list)
-
-    @field_validator("id", "question", "why_needed", mode="before")
-    @classmethod
-    def strip_required_text(cls, value: object) -> str:
-        return _strip_text(value)
-
-    @field_validator("requested_by")
-    @classmethod
-    def keep_unique_requesters(cls, value: list[str]) -> list[str]:
-        return _unique_ids(value)
-
-    @field_validator("source_types")
-    @classmethod
-    def keep_known_source_types(cls, value: list[str]) -> list[str]:
+    def keep_known_source_types(cls, value: list[str]) -> list[ResearchSourceType]:
         return normalize_source_types(value)
 
 
 class ResearchPlan(BaseModel):
+    """Persisted session plan — needs use the shared ``ResearchNeed`` dataclass."""
+
     needs: list[ResearchNeed] = Field(default_factory=list)
 
 
@@ -132,7 +106,7 @@ class ConsolidatedResearchNeed(BaseModel):
 
     @field_validator("source_types")
     @classmethod
-    def keep_known_source_types(cls, value: list[str]) -> list[str]:
+    def keep_known_source_types(cls, value: list[str]) -> list[ResearchSourceType]:
         return normalize_source_types(value)
 
 
@@ -180,12 +154,18 @@ def requested_by_from_proposals(
 
 def assign_research_need_ids(needs: Sequence[ResearchNeed]) -> ResearchPlan:
     """Permanent IDs are assigned in code — the LLM does not own them."""
-    return ResearchPlan(
-        needs=[
-            need.model_copy(update={"id": f"research_{index}"})
-            for index, need in enumerate(needs, start=1)
-        ]
-    )
+    assigned: list[ResearchNeed] = []
+    for index, need in enumerate(needs, start=1):
+        assigned.append(
+            ResearchNeed(
+                id=f"research_{index}",
+                question=need.question,
+                why_needed=need.why_needed,
+                requested_by=list(need.requested_by),
+                source_types=list(need.source_types),
+            )
+        )
+    return ResearchPlan(needs=assigned)
 
 
 def research_plan_from_stored(raw: object) -> ResearchPlan:
