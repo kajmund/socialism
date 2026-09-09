@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import type { Kund } from "@/api/kunder"
-import { kunderForScope, uniqueModuleIds } from "@/modules/useKundModules"
+import { kunderForScope, uniqueModuleIds } from "@/modules/kundModules"
 
 function kund(slug: string, available_modules: string[], id: number): Kund {
   return { id, name: slug, slug, available_modules, projekt: [] }
