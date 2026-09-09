@@ -260,15 +260,8 @@ async def run_generic_panel(
             if turn.content == "JA":
                 raise_hand_queue.append(slot.slot_id)
 
-        spoken: set[str] = set()
-        turn_order = raise_hand_queue + [
-            slot.slot_id for slot in config.expert_slots if slot.slot_id not in raise_hand_queue
-        ]
-
-        for slot_id in turn_order:
-            if slot_id in spoken:
-                continue
-            spoken.add(slot_id)
+        # Only raisers get scratchpad + expert-turn. An empty queue is valid.
+        for slot_id in raise_hand_queue:
             slot = _slot_by_id(config, slot_id)
 
             async def produce_scratchpad(
