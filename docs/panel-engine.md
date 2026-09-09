@@ -54,12 +54,15 @@ Implementation: `app/realtime/expertgranskning_broadcast.py`, `app/services/expe
 2. For each round (default 2):
    - Round 2+: moderator asks the next question (`panel.moderator.next_question`, phase `sub_question`) before any expert speaks
    - Each expert: raise-hand (`panel.expert.raise_hand`) → JA/NEJ queue
-   - Turn order: experts who raised hand first, then the rest (round-robin among non-queued)
-   - **All experts speak every round** — raise-hand only affects speaking order, not whether an expert gets the floor. Intentional for DD-style panels where every role should contribute each round.
-   - Per expert: scratchpad update → public turn
-3. Moderator analysis (`panel.moderator.analysis`)
+   - **Only JA speaks** — raisers get scratchpad + public turn. NEJ is a real abstention. An empty queue is valid.
+3. Moderator analysis (`panel.moderator.analysis`) — free text stored on `panel.analysis`
+4. Structured synthesis (`panel.generic.synthesis` via `complete_structured`) → `panel.result` as `PanelResult`
+   - Claims are decision-relevant conclusions (`claim_1`, `claim_2`, …), not minutes. `score` is always `None`.
+   - `dissensus=true` only for material disagreement on the same question.
+   - `unanswered` is for genuine gaps (no answer, all abstained, missing evidence) — not hypothetical follow-ups.
+   - Scratchpads are excluded. Raise-hand JA/NEJ is context, never evidence or a claim.
 
-Scratchpads are stored on the session row and included in expert prompts but omitted from the public transcript flow order (recorded as `scratchpad` phase turns).
+Scratchpads are stored on the session row and included in expert prompts but omitted from the public transcript used for synthesis (recorded as `scratchpad` phase turns).
 
 ## dd_panel flow (Fas 2)
 

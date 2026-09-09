@@ -64,7 +64,7 @@ Two complete methods, not a composable raise-hand strategy:
 
 | Method               | First protocol     | Output                          |
 | -------------------- | ------------------ | ------------------------------- |
-| `generic_panel`      | `generic_panel`    | `PanelResult` (claims empty)    |
+| `generic_panel`      | `generic_panel`    | `PanelResult` (structured claims, `score=None`) |
 | `structured_scoring` | `dd_panel` | `PanelResult` envelope; DD reports adapt to `DdPanelResult` |
 
 `PROTOCOL_METHODS["dd_panel"]` is `structured_scoring`. The dual-run against `dd_engine.py` is in git history; that file is gone.
