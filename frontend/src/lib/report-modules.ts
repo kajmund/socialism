@@ -1,5 +1,6 @@
 import type { ReportMode } from "@/api/reports"
 import type { AuthUser } from "@/lib/auth"
+import type { CustomerScope } from "@/lib/scoping"
 import { MODULE_REGISTRY } from "@/modules/moduleRegistry"
 
 export const REPORT_MODULES = ["politik", "dd", "expertgranskning", "rattsunderlag"] as const
@@ -31,8 +32,18 @@ export function reportModulesFromIds(ids: readonly string[]): ReportModuleId[] {
 }
 
 /** Fallback when kund modules have not loaded yet. Empty `modules` is a legacy session. */
-export function reportModulesForUser(user: AuthUser | null | undefined): ReportModuleId[] {
+export function reportModulesForUser(
+  user: AuthUser | null | undefined,
+  scope?: CustomerScope,
+): ReportModuleId[] {
   if (!user) return []
+  if (scope === "bolag") {
+    if (user.role === "bolag") {
+      const declared = reportModulesFromIds(user.modules)
+      return declared.length > 0 ? declared : ["dd"]
+    }
+    return ["dd"]
+  }
   const declared = reportModulesFromIds(user.modules)
   if (declared.length > 0) return declared
   if (user.role === "bolag") return ["dd"]

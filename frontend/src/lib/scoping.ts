@@ -11,6 +11,10 @@ export const BOLAG_DEMO_CUSTOMER_SLUG = "bolag-demo"
 /** Which customer slice a shared list page shows. */
 export type CustomerScope = "admin" | "bolag"
 
+export function customerScopeFromPathname(pathname: string): CustomerScope {
+  return pathname.startsWith("/bolag") ? "bolag" : "admin"
+}
+
 export function customerIdForScope(scope: CustomerScope): number | null {
   if (scope === "bolag") return BOLAG_DEMO_CUSTOMER_ID
   return null

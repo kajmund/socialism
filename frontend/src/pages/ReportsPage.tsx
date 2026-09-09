@@ -359,21 +359,21 @@ function emptyKey(module: ReportModuleId, scope: CustomerScope): MessageKey {
 export function ReportsPage({ scope = "admin", Shell = AdminShell }: ReportsPageProps) {
   const { t, intl } = useLocale()
   const { user } = useAuth()
-  const { moduleIds, loading: kundLoading } = useKundModules()
+  const { moduleIds, loading: kundLoading } = useKundModules(scope)
   const [searchParams, setSearchParams] = useSearchParams()
   const { reports: allReports, connected, status: wsStatus } = useReportsRealtime()
   const { jobs } = useJobsRealtime()
   const availableModules = useMemo(() => {
-    if (kundLoading) return reportModulesForUser(user)
+    if (kundLoading) return reportModulesForUser(user, scope)
     return reportModulesFromIds(moduleIds)
-  }, [kundLoading, moduleIds, user])
+  }, [kundLoading, moduleIds, scope, user])
   const showModuleTabs = availableModules.length > 1
   const activeModule = useMemo<ReportModuleId>(() => {
     if (availableModules.length === 1) return availableModules[0]
     const fromUrl = searchParams.get("tab")
     if (isReportModuleId(fromUrl) && availableModules.includes(fromUrl)) return fromUrl
-    return availableModules[0] ?? "politik"
-  }, [availableModules, searchParams])
+    return availableModules[0] ?? (scope === "bolag" ? "dd" : "politik")
+  }, [availableModules, scope, searchParams])
   const reports = useMemo(
     () =>
       allReports.filter(

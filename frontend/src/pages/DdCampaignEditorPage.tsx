@@ -45,7 +45,7 @@ export function DdCampaignEditorPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
-  const { moduleIds, loading: kundLoading } = useKundModules()
+  const { moduleIds, loading: kundLoading } = useKundModules("bolag")
   const campaignModule = primaryCampaignModuleId(moduleIds)
 
   useEffect(() => {

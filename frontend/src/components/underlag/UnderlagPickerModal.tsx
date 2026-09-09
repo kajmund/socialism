@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react"
+import { useLocation } from "react-router-dom"
 import { FileText, Folder } from "lucide-react"
 import { getReportHtml, listReports, type Report } from "@/api/reports"
 import {
@@ -30,9 +31,11 @@ import { canUseUnderlag } from "@/components/underlag/canUseUnderlag"
 import { htmlToPlainText } from "@/components/underlag/htmlToPlainText"
 import { useLocale, type MessageKey } from "@/i18n"
 import { ApiError } from "@/lib/api"
-import { moduleForReport, reportModulesForUser } from "@/lib/report-modules"
+import { moduleForReport } from "@/lib/report-modules"
+import { customerScopeFromPathname } from "@/lib/scoping"
 import { cn } from "@/lib/utils"
 import { MODULE_REGISTRY } from "@/modules/moduleRegistry"
+import { useKundModules } from "@/modules/useKundModules"
 
 const ACCEPT = ".txt,.md,.markdown,.pdf,.docx"
 
@@ -128,7 +131,10 @@ export function UnderlagPickerModal({
   onDeleted?: (objectId: string) => void
 }) {
   const { t, intl } = useLocale()
-  const { user, resolvedModules } = useAuth()
+  const { pathname } = useLocation()
+  const { user } = useAuth()
+  const customerScope = customerScopeFromPathname(pathname)
+  const { moduleIds: kundModuleIds, loading: kundLoading } = useKundModules(customerScope)
   const kundSlug = user?.kundSlug?.trim() || t("underlag.treeKundFallback")
   const dateFmt = new Intl.DateTimeFormat(intl, { dateStyle: "medium" })
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -162,14 +168,19 @@ export function UnderlagPickerModal({
   const browsingReports = browse.kind === "reports"
 
   const moduleIds = useMemo(() => {
-    const ids = new Set<string>()
-    for (const id of reportModulesForUser(user)) ids.add(id)
-    for (const id of resolvedModules) {
-      if (id in MODULE_REGISTRY) ids.add(id)
+    const ids: string[] = []
+    const seen = new Set<string>()
+    const source = kundLoading ? [] : kundModuleIds
+    for (const id of source) {
+      if (!(id in MODULE_REGISTRY) || seen.has(id)) continue
+      seen.add(id)
+      ids.push(id)
     }
-    if (module in MODULE_REGISTRY) ids.add(module)
-    return [...ids]
-  }, [module, resolvedModules, user])
+    if (module in MODULE_REGISTRY && !seen.has(module)) {
+      ids.push(module)
+    }
+    return ids
+  }, [kundLoading, kundModuleIds, module])
 
   const reportsByModule = useMemo(() => {
     const map = new Map<string, Report[]>()
