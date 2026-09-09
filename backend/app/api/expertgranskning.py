@@ -6,7 +6,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
-from app.auth.scope import assert_kund_access, effective_customer_id
+from app.auth.scope import (
+    assert_job_owner_access,
+    assert_kund_access,
+    effective_customer_id,
+)
 from app.database.models import ExpertgranskningResult, Job, Population, UserAccount
 from app.database.session import get_session
 from app.schemas.domain import JobCreate
@@ -193,6 +197,7 @@ async def _require_word_job(
     if job is None or job.kind != WORD_JOB_KIND:
         raise HTTPException(status_code=404, detail="Word review job not found")
     assert_kund_access(user, job.customer_id)
+    assert_job_owner_access(user, job)
     return job
 
 
@@ -260,6 +265,7 @@ async def get_latest_expertgranskning_word_job(
     if job is None:
         raise HTTPException(status_code=404, detail="Word review job not found")
     assert_kund_access(user, job.customer_id)
+    assert_job_owner_access(user, job)
     rows = await load_expertgranskning_results(session, job.id)
     return ExpertgranskningLatestWordJobOut(
         job_id=job.id,
