@@ -25,6 +25,7 @@ from app.services.execution import (
     fail_attempt,
     get_attempt,
     get_evidence_set,
+    list_evidence_items,
     mark_researching,
     start_attempt,
 )
@@ -198,7 +199,7 @@ async def test_acceptance_found_and_not_found_reach_ready(db):
 
     reloaded = await get_attempt(session, attempt.id)
     evidence_set = await get_evidence_set(session, reloaded.evidence_set_id)
-    items = evidence_set.items
+    items = await list_evidence_items(session, evidence_set.id)
     items_by_need = {row.research_need_id: row for row in items}
 
     assert result.status == "ready"
@@ -263,7 +264,7 @@ async def test_empty_plan_freezes_empty_set_and_is_ready(db):
     assert reloaded.status == "ready"
     assert reloaded.research_plan_snapshot == {"needs": []}
     assert evidence_set.status == "frozen"
-    assert evidence_set.items == []
+    assert await list_evidence_items(session, evidence_set.id) == []
 
 
 @pytest.mark.asyncio
@@ -279,12 +280,13 @@ async def test_source_error_is_stored_and_attempt_is_ready(db):
         router=router,
     )
     evidence_set = await get_evidence_set(session, result.evidence_set_id)
+    items = await list_evidence_items(session, evidence_set.id)
     assert result.status == "ready"
     assert result.error_count == 1
     assert result.found_count == 0
     assert evidence_set.status == "frozen"
-    assert evidence_set.items[0].status == "error"
-    assert evidence_set.items[0].source_type == "swedish_law"
+    assert items[0].status == "error"
+    assert items[0].source_type == "swedish_law"
 
 
 @pytest.mark.asyncio
@@ -334,8 +336,8 @@ async def test_ready_second_execution_is_idempotent(db):
     assert source.calls == 1
     assert first.evidence_set_id == second.evidence_set_id
     assert first.status == second.status == "ready"
-    evidence_set = await get_evidence_set(session, first.evidence_set_id)
-    assert len(evidence_set.items) == 1
+    items = await list_evidence_items(session, first.evidence_set_id)
+    assert len(items) == 1
 
 
 @pytest.mark.asyncio
