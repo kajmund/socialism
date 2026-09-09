@@ -8,6 +8,13 @@ from app.database.models import PanelSession
 from app.llm import complete_text
 from app.services.dd.company_mcp import complete_text_with_company_tools
 from app.services.expert_tools import expert_tool_prompt_extra
+from app.services.panel.research import (
+    ExpertResearchNeeds,
+    build_research_plan,
+    collect_expert_research_needs,
+    format_expert_research_need_turn,
+    format_research_plan_turn,
+)
 from app.services.panel.schemas import (
     PanelExpertSlot,
     PanelSessionConfig,
@@ -202,6 +209,53 @@ def _slot_by_id(config: PanelSessionConfig, slot_id: str) -> PanelExpertSlot:
     raise RuntimeError(f"Unknown expert slot: {slot_id}")
 
 
+async def _run_research_plan_phase(
+    db: AsyncSession,
+    panel: PanelSession,
+    transcript: list[PanelTurn],
+    config: PanelSessionConfig,
+    prompts: dict[str, str],
+    *,
+    opening: str,
+) -> None:
+    proposals: list[tuple[PanelExpertSlot, ExpertResearchNeeds]] = []
+    for slot in config.expert_slots:
+
+        async def produce_research_need(
+            expert_slot: PanelExpertSlot = slot,
+        ) -> str:
+            bundle = await collect_expert_research_needs(
+                expert_slot, config, opening, prompts
+            )
+            proposals.append((expert_slot, bundle))
+            return format_expert_research_need_turn(bundle.needs)
+
+        await run_turn(
+            db,
+            panel,
+            transcript,
+            speaker=slot.label,
+            phase="research_need",
+            slot_id=slot.slot_id,
+            produce_content=produce_research_need,
+        )
+
+    async def produce_research_plan() -> str:
+        plan = await build_research_plan(config, opening, proposals, prompts)
+        panel.research_plan = plan.model_dump(mode="json")
+        await db.flush()
+        return format_research_plan_turn(plan)
+
+    await run_turn(
+        db,
+        panel,
+        transcript,
+        speaker="moderator",
+        phase="research_plan",
+        produce_content=produce_research_plan,
+    )
+
+
 async def run_generic_panel(
     db: AsyncSession,
     panel: PanelSession,
@@ -214,13 +268,21 @@ async def run_generic_panel(
     for slot in config.expert_slots:
         scratchpads.setdefault(slot.slot_id, "")
 
-    await run_turn(
+    opening_turn = await run_turn(
         db,
         panel,
         transcript,
         speaker="moderator",
         phase="opening",
         produce_content=lambda: _moderator_opening(config, prompts),
+    )
+    await _run_research_plan_phase(
+        db,
+        panel,
+        transcript,
+        config,
+        prompts,
+        opening=opening_turn.content,
     )
 
     for round_index in range(1, config.max_rounds + 1):

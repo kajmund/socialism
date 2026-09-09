@@ -51,12 +51,17 @@ Implementation: `app/realtime/expertgranskning_broadcast.py`, `app/services/expe
 ## generic_panel flow
 
 1. Moderator opening (`panel.moderator.opening`) — one starting question only
-2. For each round (default 2):
+2. Research-plan phase (once, before any raise-hand):
+   - Each expert identifies research needs (`panel.expert.research_need`, phase `research_need`). Structured output. Zero needs is valid. Experts do not assess here and do not call tools/MCP.
+   - Moderator consolidates a `ResearchPlan` (`panel.moderator.research_plan`, phase `research_plan`): semantic dedup, concrete questions, `requested_by`, `source_types`. Permanent IDs (`research_1`, …) are assigned in code.
+   - Persist on `panel_sessions.research_plan`. An empty plan is valid and the session continues to raise-hand.
+   - `source_types` are logical (`case_knowledge`, `customer_knowledge`, `domain_knowledge`, `swedish_law`, `swedish_preparatory_works`, `web`) — not a concrete MCP/server. `web` is allowed but not the default. No research execution in this phase.
+3. For each round (default 2):
    - Round 2+: moderator asks the next question (`panel.moderator.next_question`, phase `sub_question`) before any expert speaks
    - Each expert: raise-hand (`panel.expert.raise_hand`) → JA/NEJ queue
    - **Only JA speaks** — raisers get scratchpad + public turn. NEJ is a real abstention. An empty queue is valid.
-3. Moderator analysis (`panel.moderator.analysis`) — free text stored on `panel.analysis`
-4. Structured synthesis (`panel.generic.synthesis` via `complete_structured`) → `panel.result` as `PanelResult`
+4. Moderator analysis (`panel.moderator.analysis`) — free text stored on `panel.analysis`
+5. Structured synthesis (`panel.generic.synthesis` via `complete_structured`) → `panel.result` as `PanelResult`
    - Claims are decision-relevant conclusions (`claim_1`, `claim_2`, …), not minutes. `score` is always `None`.
    - `dissensus=true` only for material disagreement on the same question.
    - `unanswered` is for genuine gaps (no answer, all abstained, missing evidence) — not hypothetical follow-ups.
@@ -95,7 +100,7 @@ Source badge colors in HTML: `web` → blue (`web`), `llm` → gray (`single`).
 
 ## Persistence
 
-- `panel_sessions` — config (including frozen `expert_slots` snapshot), transcript JSON, scratchpads, analysis, **result** (dd_panel)
+- `panel_sessions` — config (including frozen `expert_slots` snapshot), transcript JSON, scratchpads, analysis, **research_plan** (generic_panel), **result**
 - Optional FKs: `panel_id` → `populations` (`kind=expert_panel`), `project_id` → `projekt` (module-agnostic), `campaign_id` → `dd_campaigns` (DD extra only), `job_id`
 - Create with `panel_id` to reuse a saved expert panel; `protocol` stays per session. No silent backfill of `project_id` on legacy rows.
 - Prompts live in the database (`prompt_catalog.py` defaults, active configuration at runtime)
