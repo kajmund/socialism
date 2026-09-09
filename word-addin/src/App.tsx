@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react"
 
+import headMark from "@/assets/devbrains-head.png"
 import { useLocale } from "@/i18n/LocaleContext"
 import {
   createWordJob,
@@ -289,75 +290,111 @@ export function App() {
 
   return (
     <div className="pane">
+      {phase === "running" ? (
+        <div className="progress" role="progressbar" aria-label={t("reviewing")}>
+          <span />
+        </div>
+      ) : null}
+
       <header className="pane-head">
-        <h1>{t("title")}</h1>
+        <div className="brand">
+          <img
+            src={headMark}
+            alt=""
+            className="brand-mark"
+            width={25}
+            height={40}
+            draggable={false}
+          />
+          <div className="brand-copy">
+            <h1>{t("title")}</h1>
+            <p className="brand-name">{t("brandName")}</p>
+          </div>
+        </div>
         <label className="lang">
-          <span>{t("language")}</span>
+          <span className="vh">{t("language")}</span>
           <select
+            className="lang-control"
             value={locale}
             onChange={(event) => setLocale(event.target.value === "en" ? "en" : "sv")}
           >
-            <option value="sv">Svenska</option>
-            <option value="en">English</option>
+            <option value="sv">{t("languageSv")}</option>
+            <option value="en">{t("languageEn")}</option>
           </select>
         </label>
       </header>
 
-      {token ? (
-        <button type="button" className="link" onClick={handleChangeToken}>
-          {t("tokenChange")}
-        </button>
-      ) : (
-        <form className="block" onSubmit={(event) => void handleSaveToken(event)}>
-          <label htmlFor="token">{t("tokenLabel")}</label>
-          <textarea
-            id="token"
-            rows={3}
-            value={tokenDraft}
-            onChange={(event) => setTokenDraft(event.target.value)}
-          />
-          <p className="hint">{t("tokenHint")}</p>
-          <button type="submit">{t("tokenSave")}</button>
-        </form>
-      )}
+      <div className="pane-body">
+        {token ? null : (
+          <form className="stack" onSubmit={(event) => void handleSaveToken(event)}>
+            <label htmlFor="token">{t("tokenLabel")}</label>
+            <textarea
+              id="token"
+              rows={3}
+              value={tokenDraft}
+              onChange={(event) => setTokenDraft(event.target.value)}
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <p className="hint">{t("tokenHint")}</p>
+            <button type="submit">{t("tokenSave")}</button>
+          </form>
+        )}
 
-      <div className="block">
-        <label htmlFor="panel">{t("panelLabel")}</label>
-        <select
-          id="panel"
-          value={panelId}
-          onChange={(event) => setPanelId(event.target.value)}
-          disabled={!token || panels.length === 0}
+        <div className="field">
+          <label htmlFor="panel">{t("panelLabel")}</label>
+          <select
+            id="panel"
+            className="field-control"
+            value={panelId}
+            onChange={(event) => setPanelId(event.target.value)}
+            disabled={!token || panels.length === 0}
+          >
+            {panels.length === 0 ? (
+              <option value="">{t("panelPlaceholder")}</option>
+            ) : null}
+            {panels.map((panel) => (
+              <option key={panel.id} value={panel.id}>
+                {panel.name}
+              </option>
+            ))}
+          </select>
+          {token && panels.length === 0 ? <p className="hint">{t("panelEmpty")}</p> : null}
+        </div>
+
+        <button
+          type="button"
+          className="primary"
+          disabled={!canReview}
+          onClick={() => void handleReview()}
         >
-          {panels.length === 0 ? (
-            <option value="">{t("panelPlaceholder")}</option>
-          ) : null}
-          {panels.map((panel) => (
-            <option key={panel.id} value={panel.id}>
-              {panel.name}
-            </option>
-          ))}
-        </select>
-        {token && panels.length === 0 ? <p className="hint">{t("panelEmpty")}</p> : null}
+          {phase === "running" ? (
+            <>
+              <span className="spinner" aria-hidden="true" />
+              {t("reviewing")}
+            </>
+          ) : (
+            t("review")
+          )}
+        </button>
+
+        <p className="status" data-phase={phase} aria-live="polite">
+          {phase === "idle" ? t("statusIdle") : null}
+          {phase === "running" ? runningStatus : null}
+          {phase === "done" ? t("statusDone") : null}
+          {phase === "failed" ? t("statusFailed", { error }) : null}
+        </p>
+        {phase !== "failed" && error ? <p className="error">{error}</p> : null}
+        {insertedCount > 0 ? <p className="hint">{t("inserted", { count: insertedCount })}</p> : null}
+
+        {token ? (
+          <div className="pane-foot">
+            <button type="button" className="link" onClick={handleChangeToken}>
+              {t("tokenChange")}
+            </button>
+          </div>
+        ) : null}
       </div>
-
-      <button
-        type="button"
-        className="primary"
-        disabled={!canReview}
-        onClick={() => void handleReview()}
-      >
-        {phase === "running" ? t("reviewing") : t("review")}
-      </button>
-
-      <p className="status" data-phase={phase}>
-        {phase === "idle" ? t("statusIdle") : null}
-        {phase === "running" ? runningStatus : null}
-        {phase === "done" ? t("statusDone") : null}
-        {phase === "failed" ? t("statusFailed", { error }) : null}
-      </p>
-      {phase !== "failed" && error ? <p className="error">{error}</p> : null}
-      {insertedCount > 0 ? <p className="hint">{t("inserted", { count: insertedCount })}</p> : null}
     </div>
   )
 }

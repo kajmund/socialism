@@ -5,6 +5,9 @@ export const DEFAULT_LOCALE: Locale = "sv"
 export const messages = {
   sv: {
     title: "Expertgranskning",
+    brandName: "Devbrains",
+    languageSv: "Svenska",
+    languageEn: "English",
     tokenLabel: "Åtkomsttoken",
     tokenHint: "Klistra in token från inloggningslänken. Den sparas i tillägget.",
     tokenSave: "Spara token",
@@ -36,6 +39,9 @@ export const messages = {
   },
   en: {
     title: "Expert review",
+    brandName: "Devbrains",
+    languageSv: "Svenska",
+    languageEn: "English",
     tokenLabel: "Access token",
     tokenHint: "Paste the token from the magic-link sign-in. It is stored in the add-in.",
     tokenSave: "Save token",
