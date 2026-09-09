@@ -348,10 +348,9 @@ async def transition_attempt(
         raise ExecutionStatusError(
             f"Cannot transition attempt {attempt.id} from {current} to {target}"
         )
-    if target in SNAPSHOT_LOCKED_STATUSES:
-        if attempt.evidence_set_id is not None:
-            evidence_set = await get_evidence_set(session, attempt.evidence_set_id)
-            _assert_evidence_ready_for_execution(evidence_set)
+    if target in SNAPSHOT_LOCKED_STATUSES and attempt.evidence_set_id is not None:
+        evidence_set = await get_evidence_set(session, attempt.evidence_set_id)
+        _assert_evidence_ready_for_execution(evidence_set)
     now = utc_now()
     if target == "running" and attempt.started_at is None:
         attempt.started_at = now
