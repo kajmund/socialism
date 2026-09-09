@@ -2,33 +2,12 @@ import { useEffect, useMemo, useState } from "react"
 import { listKunder, type Kund } from "@/api/kunder"
 import { useAuth } from "@/auth/AuthProvider"
 import { ApiError } from "@/lib/api"
-import type { Role } from "@/lib/auth"
-import { BOLAG_DEMO_CUSTOMER_SLUG, OS_CUSTOMER_SLUG } from "@/lib/scoping"
+import type { CustomerScope } from "@/lib/scoping"
 import type { ModuleManifest } from "@/modules/manifest"
+import { kunderForScope, uniqueModuleIds } from "@/modules/kundModules"
 import { manifestsForIds } from "@/modules/moduleRegistry"
 
-function kunderForRole(kunder: Kund[], role: Role | null): Kund[] {
-  if (role === "bolag") {
-    return kunder.filter((row) => row.slug === BOLAG_DEMO_CUSTOMER_SLUG)
-  }
-  if (role === "admin") return kunder
-  return kunder.filter((row) => row.slug === OS_CUSTOMER_SLUG)
-}
-
-function uniqueModuleIds(kunder: Kund[]): string[] {
-  const seen = new Set<string>()
-  const out: string[] = []
-  for (const kund of kunder) {
-    for (const id of kund.available_modules) {
-      if (seen.has(id)) continue
-      seen.add(id)
-      out.push(id)
-    }
-  }
-  return out
-}
-
-export function useKundModules(): {
+export function useKundModules(scope?: CustomerScope): {
   loading: boolean
   error: string | null
   kunder: Kund[]
@@ -62,7 +41,10 @@ export function useKundModules(): {
     }
   }, [])
 
-  const kunder = useMemo(() => kunderForRole(allKunder, role), [allKunder, role])
+  const kunder = useMemo(
+    () => kunderForScope(allKunder, role, scope),
+    [allKunder, role, scope],
+  )
   const moduleIds = useMemo(() => uniqueModuleIds(kunder), [kunder])
   const manifests = useMemo(() => manifestsForIds(moduleIds), [moduleIds])
 

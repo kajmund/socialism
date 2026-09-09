@@ -2,6 +2,7 @@
 
 ## 2026-09-09
 
+* **Bolagsytan**: Rubriken för en modul visas bara om bolaget har den modulen påslagen. Administratör ser fortfarande Expertgranskning och Rättsunderlag i huvudmenyn.
 * **Expertgranskning i Word**: En moderator filtrerar först bort trivialt innehåll (till exempel kontaktuppgifter) och formulerar granskningsfrågor. Experterna räcker upp handen för frågor, inte för godtyckliga stycken, och kan avstå helt.
 * **Rättsunderlag**: Ytan fungerar som Expertgranskning. Du ser en lista över körningar, sparar utkast under **Konfiguration** och läser källor eller PM under **Resultat**.
 * **Personas**: I kompositören kan du välja samma verktyg som för experter (bolagssök och webbsök). De används i intervju och in-character-chatt.

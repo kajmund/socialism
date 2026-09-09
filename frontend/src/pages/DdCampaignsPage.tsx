@@ -118,7 +118,7 @@ function CampaignListRow({ campaign, intl, t, onDelete }: CampaignItemProps) {
 
 export function DdCampaignsPage() {
   const { t, intl } = useLocale()
-  const { moduleIds, loading: kundLoading } = useKundModules()
+  const { moduleIds, loading: kundLoading } = useKundModules("bolag")
   const campaignModule = primaryCampaignModuleId(kundLoading ? ["dd"] : moduleIds)
   const [rows, setRows] = useState<DdCampaign[]>([])
   const [loading, setLoading] = useState(true)

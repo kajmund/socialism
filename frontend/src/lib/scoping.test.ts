@@ -2,8 +2,16 @@ import { describe, expect, it } from "vitest"
 import {
   BOLAG_DEMO_CUSTOMER_ID,
   OS_CUSTOMER_ID,
+  customerScopeFromPathname,
   helpChatTenantForRole,
 } from "@/lib/scoping"
+
+describe("customerScopeFromPathname", () => {
+  it("treats /bolag routes as the bolag customer", () => {
+    expect(customerScopeFromPathname("/bolag/campaigns")).toBe("bolag")
+    expect(customerScopeFromPathname("/reports")).toBe("admin")
+  })
+})
 
 describe("helpChatTenantForRole", () => {
   it("maps bolag to the bolag-demo tenant and dd module", () => {

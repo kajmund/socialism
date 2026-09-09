@@ -7,6 +7,7 @@ import { useLocale, type MessageKey } from "@/i18n"
 import type { Role } from "@/lib/auth"
 import { campaignJobHref } from "@/lib/dd-runs"
 import {
+  customerScopeFromPathname,
   matchesCustomerScope,
   type CustomerScope,
 } from "@/lib/scoping"
@@ -23,6 +24,7 @@ import { useJobsRealtime } from "@/realtime/JobsRealtimeProvider"
 export type { ShellNavItem }
 
 const SEEN_KEY = "opinionssimulator.jobStatusSeen"
+const BOLAG_LOADING_MODULES = ["dd"]
 
 export type AdminShellProps = {
   children: ReactNode
@@ -350,15 +352,20 @@ export function AdminShell({
   const { pathname } = useLocation()
   const { t } = useLocale()
   const { isAdmin, resolvedModules } = useAuth()
-  const { moduleIds, loading: modulesLoading } = useKundModules()
+  const customerScope = customerScopeProp ?? customerScopeFromPathname(pathname)
+  const { moduleIds, loading: modulesLoading } = useKundModules(customerScope)
   const showTools = showToolsProp ?? isAdmin
-  const activeModuleIds = modulesLoading ? resolvedModules : moduleIds
+  const injectToolModules = showTools && customerScope !== "bolag"
+  const activeModuleIds = useMemo(() => {
+    if (!modulesLoading) return moduleIds
+    if (customerScope === "bolag" && isAdmin) return BOLAG_LOADING_MODULES
+    return resolvedModules
+  }, [customerScope, isAdmin, moduleIds, modulesLoading, resolvedModules])
   const sections = useMemo(() => {
     if (navItems) return [{ id: "custom", items: navItems }]
-    return buildSidebarNav({ moduleIds: activeModuleIds, showTools })
-  }, [activeModuleIds, navItems, showTools])
+    return buildSidebarNav({ moduleIds: activeModuleIds, showTools, injectToolModules })
+  }, [activeModuleIds, injectToolModules, navItems, showTools])
   const brandTo = brandToProp ?? brandToForModules(activeModuleIds)
-  const customerScope = customerScopeProp ?? (pathname.startsWith("/bolag") ? "bolag" : "admin")
   const { jobs } = useJobsRealtime()
   const scopedJobs = useMemo(
     () => jobs.filter((job) => matchesCustomerScope(job, customerScope)),
