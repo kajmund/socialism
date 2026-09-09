@@ -2,9 +2,28 @@ import { describe, expect, it } from "vitest"
 
 import {
   findRewriteTargetIndex,
+  listStringFromLoaded,
   normalizeParagraphText,
   paragraphTextMatchesReviewed,
 } from "./office"
+
+describe("listStringFromLoaded", () => {
+  it("returns an empty string when the paragraph is not in a list", () => {
+    expect(
+      listStringFromLoaded({
+        listItemOrNullObject: { isNullObject: true, listString: "1." },
+      }),
+    ).toBe("")
+  })
+
+  it("returns Word's rendered list label when present", () => {
+    expect(
+      listStringFromLoaded({
+        listItemOrNullObject: { isNullObject: false, listString: "2.1." },
+      }),
+    ).toBe("2.1.")
+  })
+})
 
 describe("normalizeParagraphText", () => {
   it("strips carriage returns and surrounding space", () => {

@@ -80,8 +80,9 @@ class WordDocumentParagraph(BaseModel):
     index: int
     text: str = Field(max_length=WORD_MAX_PARAGRAPH_LEN)
     style: str = Field(default="", max_length=WORD_MAX_STYLE_LEN)
+    list_string: str = Field(default="", max_length=64)
 
-    @field_validator("text", "style", mode="before")
+    @field_validator("text", "style", "list_string", mode="before")
     @classmethod
     def strip_text(cls, value: object) -> str:
         if value is None:
@@ -168,13 +169,27 @@ class WordRewriteSuggestion(BaseModel):
     ny_text: str = ""
     motivering: str = ""
 
+    @field_validator("ny_text", "motivering", mode="before")
+    @classmethod
+    def none_to_empty(cls, value: object) -> str:
+        if value is None:
+            return ""
+        return str(value).strip()
+
     @field_validator("ny_text")
     @classmethod
-    def single_paragraph(cls, value: object) -> str:
-        text = "" if value is None else str(value)
-        if "\n" in text.replace("\r\n", "\n").replace("\r", "\n"):
+    def single_paragraph(cls, value: str) -> str:
+        if "\n" in value.replace("\r\n", "\n").replace("\r", "\n"):
             return ""
-        return text
+        return value
+
+
+class WordExpertRaiseHand(BaseModel):
+    paragraph_indexes: list[int] = Field(default_factory=list)
+
+
+class WordExpertComment(BaseModel):
+    kommentar: str = ""
 
 
 class WordParagraphComments(BaseModel):

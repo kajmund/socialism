@@ -66,6 +66,15 @@ def test_modules_for_prompt_key_follows_prefix_convention():
     assert modules_for_prompt_key("rattsunderlag.search_terms.system") == ["rattsunderlag"]
     assert modules_for_prompt_key("expertgranskning.word.paragraph") == ["expertgranskning"]
     assert modules_for_prompt_key("expertgranskning.word.heading") == ["expertgranskning"]
+    assert modules_for_prompt_key("expertgranskning.word.expert.raise_hand") == [
+        "expertgranskning"
+    ]
+    assert modules_for_prompt_key("expertgranskning.word.expert.comment") == [
+        "expertgranskning"
+    ]
+    assert modules_for_prompt_key("expertgranskning.word.rewrite_convergence") == [
+        "expertgranskning"
+    ]
 
 
 def test_module_providers_cover_all_catalog_keys_without_overlap_gaps():
@@ -76,9 +85,13 @@ def test_module_providers_cover_all_catalog_keys_without_overlap_gaps():
     all_keys = {field["key"] for field in PROMPT_FIELDS}
     assert dd_keys | politik_keys | ratts_keys | expert_keys == all_keys
     assert ratts_keys.isdisjoint(dd_keys)
-    assert {"expertgranskning.word.paragraph", "expertgranskning.word.heading"}.isdisjoint(
-        dd_keys | politik_keys | ratts_keys
-    )
+    assert {
+        "expertgranskning.word.paragraph",
+        "expertgranskning.word.heading",
+        "expertgranskning.word.expert.raise_hand",
+        "expertgranskning.word.expert.comment",
+        "expertgranskning.word.rewrite_convergence",
+    }.isdisjoint(dd_keys | politik_keys | ratts_keys)
     assert "rattsunderlag.search_terms.system" in ratts_keys
     assert "panel.dd.moderator.system" in dd_keys
     assert "panel.dd.moderator.system" not in politik_keys
@@ -90,6 +103,9 @@ def test_module_providers_cover_all_catalog_keys_without_overlap_gaps():
     assert "spinndoctor.system" in expert_keys
     assert "expertgranskning.word.paragraph" in expert_keys
     assert "expertgranskning.word.heading" in expert_keys
+    assert "expertgranskning.word.expert.raise_hand" in expert_keys
+    assert "expertgranskning.word.expert.comment" in expert_keys
+    assert "expertgranskning.word.rewrite_convergence" in expert_keys
     assert "help.system" not in expert_keys
     assert "panel.dd.moderator.system" not in expert_keys
 
