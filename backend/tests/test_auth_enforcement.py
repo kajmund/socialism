@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.database.models import DdCampaign, Job, Report
+from app.database.models import DdCampaign, Job, Report, UserAccount
 from app.serializers import utcnow
 from tests.conftest import TEST_CUSTOMER_ID, mint_access_token, USER_USER_ID
 
@@ -129,8 +129,6 @@ async def test_user_cannot_create_job_for_other_kund_run(client_db, user_client)
 @pytest.mark.asyncio
 async def test_user_cannot_read_other_users_owner_scoped_job(client_db, client) -> None:
     _client, session_factory = client_db
-    from app.database.models import UserAccount
-
     async with session_factory() as session:
         session.add(
             UserAccount(
