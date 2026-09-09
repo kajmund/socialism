@@ -1,7 +1,11 @@
 """Knowledge layer: read API plus ingest. Isolated from panel / research-router / MCP."""
 
 from app.services.knowledge.chunking import KnowledgeChunker
-from app.services.knowledge.embeddings import EmbeddingProvider, OpenAIEmbeddingProvider
+from app.services.knowledge.embeddings import (
+    EmbeddingProvider,
+    EmbeddingSpec,
+    OpenAIEmbeddingProvider,
+)
 from app.services.knowledge.extractors import (
     DefaultTextExtractor,
     ExtractedBlock,
@@ -11,6 +15,7 @@ from app.services.knowledge.extractors import (
 from app.services.knowledge.ingest import KnowledgeIngestResult, KnowledgeIngestService
 from app.services.knowledge.models import (
     EmbeddedKnowledgeChunk,
+    EmbeddedKnowledgeQuery,
     KnowledgeChunk,
     KnowledgeDocument,
     KnowledgeHit,
@@ -42,7 +47,9 @@ __all__ = [
     "SUPABASE_PROVIDER_ID",
     "DefaultTextExtractor",
     "EmbeddedKnowledgeChunk",
+    "EmbeddedKnowledgeQuery",
     "EmbeddingProvider",
+    "EmbeddingSpec",
     "ExtractedBlock",
     "ExtractedDocument",
     "KnowledgeChunk",

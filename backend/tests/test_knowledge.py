@@ -16,6 +16,7 @@ from app.database.base import Base
 from app.database.models import KnowledgeDocumentRecord, Kund
 from app.services.knowledge.models import (
     EmbeddedKnowledgeChunk,
+    EmbeddedKnowledgeQuery,
     KnowledgeChunk,
     KnowledgeDocument,
     KnowledgeHit,
@@ -28,6 +29,7 @@ from app.services.knowledge.provider import (
     KnowledgeNotFoundError,
     KnowledgeProvider,
     KnowledgeProviderNotFoundError,
+    KnowledgeVectorStoreError,
 )
 from app.services.knowledge.registry import (
     KnowledgeProviderRegistry,
@@ -42,8 +44,10 @@ from app.services.knowledge.vector_store import (
     SupabaseVectorBucketStore,
     VectorBucketRecord,
     chunk_in_scope,
+    cosine_score,
 )
 from app.services.object_storage import get_object, get_object_storage, put_object
+from tests.knowledge_fakes import FakeEmbeddingProvider, fake_embed_text
 
 KNOWLEDGE_ROOT = Path(__file__).resolve().parents[1] / "app" / "services" / "knowledge"
 
@@ -147,7 +151,35 @@ def _chunk(
 
 
 def _embedded(chunk: KnowledgeChunk) -> EmbeddedKnowledgeChunk:
-    return EmbeddedKnowledgeChunk(chunk=chunk, embedding=[0.1, 0.2, 0.3])
+    return EmbeddedKnowledgeChunk(chunk=chunk, embedding=fake_embed_text(chunk.text))
+
+
+def _provider(
+    session: AsyncSession,
+    store: MemoryKnowledgeVectorStore | SupabaseVectorBucketStore | RankedVectorStore | None = None,
+    *,
+    embeddings: FakeEmbeddingProvider | None = None,
+    fetch_object=None,
+) -> SupabaseKnowledgeProvider:
+    return SupabaseKnowledgeProvider(
+        session,
+        vector_store=store or MemoryKnowledgeVectorStore(),
+        embeddings=embeddings or FakeEmbeddingProvider(),
+        fetch_object=fetch_object,
+    )
+
+
+async def _embedded_query(
+    text: str,
+    scope: KnowledgeScope,
+    *,
+    limit: int = 10,
+) -> EmbeddedKnowledgeQuery:
+    vectors = await FakeEmbeddingProvider().embed([text])
+    return EmbeddedKnowledgeQuery(
+        query=KnowledgeQuery(query=text, scope=scope, limit=limit),
+        embedding=vectors[0],
+    )
 
 
 class RankedVectorStore:
@@ -157,9 +189,9 @@ class RankedVectorStore:
         self.hits = hits
         self.requested_limits: list[int] = []
 
-    async def search(self, query: KnowledgeQuery) -> list[KnowledgeHit]:
-        self.requested_limits.append(query.limit)
-        return self.hits[: query.limit]
+    async def search(self, query: EmbeddedKnowledgeQuery) -> list[KnowledgeHit]:
+        self.requested_limits.append(query.query.limit)
+        return self.hits[: query.query.limit]
 
     async def upsert_chunks(self, chunks: Sequence[EmbeddedKnowledgeChunk]) -> None:
         return None
@@ -180,6 +212,7 @@ class FakeVectorBucketClient:
 
     def __init__(self) -> None:
         self.records: list[VectorBucketRecord] = []
+        self.last_query: dict[str, Any] | None = None
 
     async def upsert(self, records: Sequence[VectorBucketRecord]) -> None:
         ids = {(record.document_id, record.chunk_id) for record in records}
@@ -197,15 +230,16 @@ class FakeVectorBucketClient:
     async def query(
         self,
         *,
-        query: str,
+        vector: Sequence[float],
         filters: Mapping[str, Any],
         limit: int,
     ) -> Sequence[VectorBucketRecord]:
+        self.last_query = {"vector": list(vector), "filters": dict(filters), "limit": limit}
         matched: list[VectorBucketRecord] = []
         for record in self.records:
             if any(record.metadata.get(key) != value for key, value in filters.items()):
                 continue
-            score = 1.0 if query.lower() in record.text.lower() else 0.0
+            score = cosine_score(vector, record.embedding)
             if score <= 0:
                 continue
             matched.append(
@@ -228,7 +262,11 @@ class FakeVectorBucketClient:
 
 
 async def test_registry_resolves_supabase(session: AsyncSession):
-    registry = build_knowledge_registry(session, vector_store=MemoryKnowledgeVectorStore())
+    registry = build_knowledge_registry(
+        session,
+        vector_store=MemoryKnowledgeVectorStore(),
+        embeddings=FakeEmbeddingProvider(),
+    )
     provider = registry.get("supabase")
     assert provider.provider_id == SUPABASE_PROVIDER_ID
     assert isinstance(provider, SupabaseKnowledgeProvider)
@@ -240,7 +278,7 @@ async def test_registry_resolves_supabase(session: AsyncSession):
 async def test_known_document_resolves_to_generic_document(session: AsyncSession):
     kund = await _customer(session, "acme")
     await _index_document(session, customer_id=kund.id)
-    provider = SupabaseKnowledgeProvider(session, vector_store=MemoryKnowledgeVectorStore())
+    provider = _provider(session)
     doc = await provider.get_document("doc-brief", _scope(customer_id=kund.id))
     assert isinstance(doc, KnowledgeDocument)
     assert doc.document_id == "doc-brief"
@@ -263,7 +301,7 @@ async def test_fetch_uses_existing_object_storage(session: AsyncSession):
     assert stored == b"%PDF-1.4 original"
     assert content_type == "application/pdf"
 
-    provider = SupabaseKnowledgeProvider(session, vector_store=MemoryKnowledgeVectorStore())
+    provider = _provider(session)
     content = await provider.fetch_content("doc-brief", _scope(customer_id=kund.id))
     assert content == b"%PDF-1.4 original"
     via_helper, _ = await get_object(row.storage_bucket, row.storage_key)
@@ -278,7 +316,7 @@ async def test_correct_customer_case_scope_succeeds(session: AsyncSession):
     await store.upsert_chunks(
         [_embedded(_chunk(document_id="doc-brief", text="kommunens skattesats", customer_id=kund.id))]
     )
-    provider = SupabaseKnowledgeProvider(session, vector_store=store)
+    provider = _provider(session, store)
     scope = _scope(customer_id=kund.id, case_id="case-1")
     doc = await provider.get_document("doc-brief", scope)
     assert doc is not None
@@ -302,11 +340,7 @@ async def test_wrong_customer_and_case_scope_fails_closed(session: AsyncSession)
     await store.upsert_chunks(
         [_embedded(_chunk(document_id="doc-brief", text="kommunens skattesats", customer_id=owner.id))]
     )
-    provider = SupabaseKnowledgeProvider(
-        session,
-        vector_store=store,
-        fetch_object=tracking_get,
-    )
+    provider = _provider(session, store, fetch_object=tracking_get)
     wrong_customer = _scope(customer_id=other.id, case_id="case-1")
     wrong_case = _scope(customer_id=owner.id, case_id="case-9")
     assert await provider.get_document("doc-brief", wrong_customer) is None
@@ -322,7 +356,7 @@ async def test_wrong_customer_and_case_scope_fails_closed(session: AsyncSession)
 
 async def test_unknown_document_has_defined_not_found(session: AsyncSession):
     kund = await _customer(session, "acme")
-    provider = SupabaseKnowledgeProvider(session, vector_store=MemoryKnowledgeVectorStore())
+    provider = _provider(session)
     scope = _scope(customer_id=kund.id)
     assert await provider.get_document("missing-doc", scope) is None
     with pytest.raises(KnowledgeNotFoundError):
@@ -336,7 +370,7 @@ async def test_vector_search_returns_normalized_knowledge_hit(session: AsyncSess
     await store.upsert_chunks(
         [_embedded(_chunk(document_id="doc-brief", text="vindkraft i kommunen", customer_id=kund.id))]
     )
-    provider = SupabaseKnowledgeProvider(session, vector_store=store)
+    provider = _provider(session, store)
     hits = await provider.search(
         KnowledgeQuery(query="vindkraft", scope=_scope(customer_id=kund.id))
     )
@@ -374,10 +408,7 @@ async def test_vector_metadata_filtering_enforces_scope():
         ]
     )
     hits = await store.search(
-        KnowledgeQuery(
-            query="skola",
-            scope=KnowledgeScope(customer_id=1, case_id="case-a"),
-        )
+        await _embedded_query("skola", KnowledgeScope(customer_id=1, case_id="case-a"))
     )
     assert [hit.document_id for hit in hits] == ["doc-a"]
     assert all(isinstance(hit, KnowledgeHit) for hit in hits)
@@ -409,17 +440,16 @@ async def test_supabase_vector_bucket_store_normalizes_and_filters():
             ),
         ]
     )
-    hits = await store.search(
-        KnowledgeQuery(
-            query="vatten",
-            scope=KnowledgeScope(customer_id=1, case_id="case-a"),
-        )
-    )
+    query = await _embedded_query("vatten", KnowledgeScope(customer_id=1, case_id="case-a"))
+    hits = await store.search(query)
     assert [hit.document_id for hit in hits] == ["doc-a"]
     assert isinstance(hits[0], KnowledgeHit)
     assert hits[0].excerpt == "vatten och avlopp"
     assert hits[0].locator == "p1"
     assert not any(type(hit).__name__ == "VectorBucketRecord" for hit in hits)
+    assert client.last_query is not None
+    assert client.last_query["vector"] == query.embedding
+    assert "query" not in client.last_query
 
 
 def test_provider_api_is_read_only():
@@ -493,8 +523,8 @@ async def test_vector_store_is_replaceable(session: AsyncSession):
     )
     scope = _scope(customer_id=kund.id)
     query = KnowledgeQuery(query="cykelbana", scope=scope)
-    via_memory = SupabaseKnowledgeProvider(session, vector_store=memory)
-    via_bucket = SupabaseKnowledgeProvider(session, vector_store=bucket_store)
+    via_memory = _provider(session, memory)
+    via_bucket = _provider(session, bucket_store)
     memory_hits = await via_memory.search(query)
     bucket_hits = await via_bucket.search(query)
     assert [hit.document_id for hit in memory_hits] == ["doc-brief"]
@@ -557,7 +587,7 @@ async def test_provider_lookup_ignores_other_provider_rows(session: AsyncSession
             )
         ]
     )
-    provider = SupabaseKnowledgeProvider(session, vector_store=store)
+    provider = _provider(session, store)
     scope = _scope(customer_id=kund.id)
     assert await provider.get_document("doc-drive", scope) is None
     with pytest.raises(KnowledgeNotFoundError):
@@ -586,13 +616,15 @@ async def test_search_overfetches_when_top_hits_are_not_visible(session: AsyncSe
             ),
         ]
     )
-    provider = SupabaseKnowledgeProvider(session, vector_store=store)
+    embeddings = FakeEmbeddingProvider()
+    provider = _provider(session, store, embeddings=embeddings)
     hits = await provider.search(
         KnowledgeQuery(query="skattesats", scope=_scope(customer_id=kund.id), limit=1)
     )
     assert [hit.document_id for hit in hits] == ["doc-valid"]
     assert store.requested_limits[0] == 1
     assert store.requested_limits[-1] >= 2
+    assert embeddings.calls == [("skattesats",)]
 
 
 async def test_search_stops_when_first_page_fills_limit(session: AsyncSession):
@@ -616,7 +648,7 @@ async def test_search_stops_when_first_page_fills_limit(session: AsyncSession):
             ),
         ]
     )
-    provider = SupabaseKnowledgeProvider(session, vector_store=store)
+    provider = _provider(session, store)
     hits = await provider.search(
         KnowledgeQuery(query="skattesats", scope=_scope(customer_id=kund.id), limit=1)
     )
@@ -629,3 +661,38 @@ def test_registry_starts_empty_until_register():
     assert registry.list_ids() == []
     with pytest.raises(KnowledgeProviderNotFoundError):
         registry.get("supabase")
+
+
+def test_embedded_query_rejects_empty_vector():
+    with pytest.raises(ValueError, match="embedding"):
+        EmbeddedKnowledgeQuery(
+            query=KnowledgeQuery(query="x", scope=KnowledgeScope(customer_id=1)),
+            embedding=[],
+        )
+
+
+async def test_search_rejects_dimension_mismatch():
+    store = MemoryKnowledgeVectorStore()
+    await store.upsert_chunks(
+        [_embedded(_chunk(document_id="doc-a", text="skola", customer_id=1))]
+    )
+    with pytest.raises(KnowledgeVectorStoreError, match="dimension"):
+        await store.search(
+            EmbeddedKnowledgeQuery(
+                query=KnowledgeQuery(query="skola", scope=KnowledgeScope(customer_id=1)),
+                embedding=[0.1, 0.2],
+            )
+        )
+
+
+def test_vector_store_does_not_create_embeddings():
+    source = (
+        Path(__file__).resolve().parents[1]
+        / "app"
+        / "services"
+        / "knowledge"
+        / "vector_store.py"
+    ).read_text(encoding="utf-8")
+    assert "EmbeddingProvider" not in source
+    assert "embed(" not in source
+    assert "query=query.query" not in source

@@ -17,7 +17,7 @@ from sqlalchemy.pool import StaticPool
 from app.database.base import Base
 from app.database.models import KnowledgeDocumentRecord, Kund
 from app.services.knowledge.chunking import KnowledgeChunker, hash_text, make_chunk_id
-from app.services.knowledge.embeddings import OpenAIEmbeddingProvider
+from app.services.knowledge.embeddings import EmbeddingSpec, OpenAIEmbeddingProvider
 from app.services.knowledge.extractors import DOCX_MIME, DefaultTextExtractor
 from app.services.knowledge.ingest import KnowledgeIngestService
 from app.services.knowledge.models import (
@@ -35,6 +35,7 @@ from app.services.knowledge.supabase_provider import (
 )
 from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
 from app.services.object_storage import put_object
+from tests.knowledge_fakes import FakeEmbeddingProvider
 
 KNOWLEDGE_ROOT = Path(__file__).resolve().parents[1] / "app" / "services" / "knowledge"
 
@@ -68,21 +69,6 @@ async def session():
     await engine.dispose()
 
 
-class FakeEmbeddingProvider:
-    provider_id = "fake"
-    dimension = 8
-
-    def __init__(self) -> None:
-        self.calls: list[tuple[str, ...]] = []
-        self.fail = False
-
-    async def embed(self, texts: Sequence[str]) -> list[list[float]]:
-        self.calls.append(tuple(texts))
-        if self.fail:
-            raise RuntimeError("embedding failed")
-        return [_vector(text) for text in texts]
-
-
 class TrackingProvider:
     def __init__(self, inner: SupabaseKnowledgeProvider) -> None:
         self.provider_id = inner.provider_id
@@ -98,11 +84,6 @@ class TrackingProvider:
     async def fetch_content(self, document_id: str, scope: KnowledgeScope) -> bytes:
         self.fetch_calls.append((document_id, scope))
         return await self._inner.fetch_content(document_id, scope)
-
-
-def _vector(text: str) -> list[float]:
-    digest = hashlib.sha256(text.encode()).digest()
-    return [byte / 255.0 for byte in digest[:8]]
 
 
 def _scope(*, customer_id: int, case_id: str | None = "case-1", module: str | None = "dd") -> KnowledgeScope:
@@ -146,6 +127,14 @@ async def _index_document(
     session.add(row)
     await session.flush()
     return row
+
+
+def _provider(
+    session: AsyncSession,
+    store: MemoryKnowledgeVectorStore,
+    embeddings: FakeEmbeddingProvider,
+) -> SupabaseKnowledgeProvider:
+    return SupabaseKnowledgeProvider(session, vector_store=store, embeddings=embeddings)
 
 
 def _ingest(
@@ -247,7 +236,7 @@ async def test_plaintext_ingest_searchable_with_locator(session: AsyncSession):
     await put_object("acme", "dd/files/brief.txt", body.encode(), "text/plain")
     store = MemoryKnowledgeVectorStore()
     embeddings = FakeEmbeddingProvider()
-    provider = SupabaseKnowledgeProvider(session, vector_store=store)
+    provider = _provider(session, store, embeddings)
     result = await _ingest(provider, store, embeddings).ingest_document(
         document_id="doc-txt",
         scope=_scope(customer_id=kund.id),
@@ -279,8 +268,9 @@ async def test_text_pdf_is_indexed(session: AsyncSession):
     pdf = build_text_pdf("kommunens skattesats")
     await put_object("acme", "dd/files/brief.pdf", pdf, "application/pdf")
     store = MemoryKnowledgeVectorStore()
-    provider = SupabaseKnowledgeProvider(session, vector_store=store)
-    result = await _ingest(provider, store, FakeEmbeddingProvider()).ingest_document(
+    embeddings = FakeEmbeddingProvider()
+    provider = _provider(session, store, embeddings)
+    result = await _ingest(provider, store, embeddings).ingest_document(
         document_id="doc-pdf",
         scope=_scope(customer_id=kund.id),
     )
@@ -303,8 +293,9 @@ async def test_docx_is_indexed(session: AsyncSession):
     )
     await put_object("acme", "dd/files/brief.docx", build_docx("vatten och avlopp"), DOCX_MIME)
     store = MemoryKnowledgeVectorStore()
-    provider = SupabaseKnowledgeProvider(session, vector_store=store)
-    result = await _ingest(provider, store, FakeEmbeddingProvider()).ingest_document(
+    embeddings = FakeEmbeddingProvider()
+    provider = _provider(session, store, embeddings)
+    result = await _ingest(provider, store, embeddings).ingest_document(
         document_id="doc-docx",
         scope=_scope(customer_id=kund.id),
     )
@@ -328,7 +319,7 @@ async def test_empty_document_returns_empty(session: AsyncSession):
     await put_object("acme", "dd/files/empty.txt", b"   \n", "text/plain")
     store = MemoryKnowledgeVectorStore()
     embeddings = FakeEmbeddingProvider()
-    provider = SupabaseKnowledgeProvider(session, vector_store=store)
+    provider = _provider(session, store, embeddings)
     result = await _ingest(provider, store, embeddings).ingest_document(
         document_id="doc-empty",
         scope=_scope(customer_id=kund.id),
@@ -351,7 +342,7 @@ async def test_scanned_pdf_returns_needs_ocr(session: AsyncSession):
     await put_object("acme", "dd/files/scan.pdf", build_text_pdf("", with_text=False), "application/pdf")
     store = MemoryKnowledgeVectorStore()
     embeddings = FakeEmbeddingProvider()
-    provider = SupabaseKnowledgeProvider(session, vector_store=store)
+    provider = _provider(session, store, embeddings)
     result = await _ingest(provider, store, embeddings).ingest_document(
         document_id="doc-scan",
         scope=_scope(customer_id=kund.id),
@@ -373,7 +364,7 @@ async def test_unsupported_mime_returns_unsupported(session: AsyncSession):
     await put_object("acme", "dd/files/shot.png", b"\x89PNG", "image/png")
     store = MemoryKnowledgeVectorStore()
     embeddings = FakeEmbeddingProvider()
-    provider = SupabaseKnowledgeProvider(session, vector_store=store)
+    provider = _provider(session, store, embeddings)
     result = await _ingest(provider, store, embeddings).ingest_document(
         document_id="doc-png",
         scope=_scope(customer_id=kund.id),
@@ -394,7 +385,8 @@ async def test_wrong_customer_scope_denied_before_fetch(session: AsyncSession):
     )
     await put_object("acme", "dd/files/brief.txt", b"hemligt", "text/plain")
     store = MemoryKnowledgeVectorStore()
-    inner = SupabaseKnowledgeProvider(session, vector_store=store)
+    embeddings = FakeEmbeddingProvider()
+    inner = _provider(session, store, embeddings)
     provider = TrackingProvider(inner)
     with pytest.raises(KnowledgeNotFoundError):
         await _ingest(provider, store, FakeEmbeddingProvider()).ingest_document(
@@ -417,8 +409,9 @@ async def test_chunk_metadata_uses_verified_document_scope(session: AsyncSession
     )
     await put_object("acme", "dd/files/brief.txt", b"skattesats i kommunen", "text/plain")
     store = MemoryKnowledgeVectorStore()
-    provider = SupabaseKnowledgeProvider(session, vector_store=store)
-    await _ingest(provider, store, FakeEmbeddingProvider()).ingest_document(
+    embeddings = FakeEmbeddingProvider()
+    provider = _provider(session, store, embeddings)
+    await _ingest(provider, store, embeddings).ingest_document(
         document_id="doc-txt",
         scope=KnowledgeScope(customer_id=kund.id),
     )
@@ -495,7 +488,7 @@ async def test_embeddings_are_batched(session: AsyncSession):
     await put_object("acme", "dd/files/brief.txt", body.encode(), "text/plain")
     store = MemoryKnowledgeVectorStore()
     embeddings = FakeEmbeddingProvider()
-    provider = SupabaseKnowledgeProvider(session, vector_store=store)
+    provider = _provider(session, store, embeddings)
     result = await _ingest(
         provider,
         store,
@@ -523,10 +516,36 @@ async def test_openai_embedding_provider_batches_one_request_per_window():
                     ]
                 )
 
-    provider = OpenAIEmbeddingProvider(client=_Client(), batch_size=2, dimension=1)
+    provider = OpenAIEmbeddingProvider(
+        client=_Client(),
+        model="custom-test",
+        dimension=1,
+        batch_size=2,
+    )
     vectors = await provider.embed(["a", "b", "c"])
     assert requests == [["a", "b"], ["c"]]
     assert vectors == [[0.0], [1.0], [0.0]]
+
+
+def test_known_embedding_model_rejects_mismatched_dimension():
+    with pytest.raises(ValueError, match="3072"):
+        EmbeddingSpec(model="text-embedding-3-large", dimension=1536)
+    with pytest.raises(ValueError, match="3072"):
+        OpenAIEmbeddingProvider(model="text-embedding-3-large", dimension=1536)
+
+
+async def test_openai_embed_rejects_wrong_vector_dimension():
+    class _Client:
+        class embeddings:
+            @staticmethod
+            async def create(*, model: str, input: list[str]):
+                return SimpleNamespace(
+                    data=[SimpleNamespace(index=0, embedding=[1.0, 2.0])]
+                )
+
+    provider = OpenAIEmbeddingProvider(client=_Client(), model="custom-test", dimension=3)
+    with pytest.raises(RuntimeError, match="dimension"):
+        await provider.embed(["hello"])
 
 
 async def test_extraction_failure_leaves_old_vectors(session: AsyncSession):
@@ -546,7 +565,7 @@ async def test_extraction_failure_leaves_old_vectors(session: AsyncSession):
     )
     store = MemoryKnowledgeVectorStore()
     embeddings = FakeEmbeddingProvider()
-    provider = SupabaseKnowledgeProvider(session, vector_store=store)
+    provider = _provider(session, store, embeddings)
     service = _ingest(provider, store, embeddings)
     first = await service.ingest_document(document_id="doc-pdf", scope=_scope(customer_id=kund.id))
     assert first.status == "indexed"
@@ -574,7 +593,7 @@ async def test_embedding_failure_leaves_old_vectors(session: AsyncSession):
     await put_object("acme", "dd/files/brief.txt", b"ursprunglig skattesats", "text/plain")
     store = MemoryKnowledgeVectorStore()
     embeddings = FakeEmbeddingProvider()
-    provider = SupabaseKnowledgeProvider(session, vector_store=store)
+    provider = _provider(session, store, embeddings)
     service = _ingest(provider, store, embeddings)
     first = await service.ingest_document(document_id="doc-txt", scope=_scope(customer_id=kund.id))
     assert first.status == "indexed"
@@ -585,6 +604,7 @@ async def test_embedding_failure_leaves_old_vectors(session: AsyncSession):
     failed = await service.ingest_document(document_id="doc-txt", scope=_scope(customer_id=kund.id))
     assert failed.status == "failed"
     assert {item.chunk.chunk_id for item in store.chunks} == old_ids
+    embeddings.fail = False
     hits = await provider.search(
         KnowledgeQuery(query="skattesats", scope=_scope(customer_id=kund.id))
     )
@@ -603,7 +623,7 @@ async def test_successful_reindex_replaces_old_chunks(session: AsyncSession):
     await put_object("acme", "dd/files/brief.txt", b"ursprunglig skattesats", "text/plain")
     store = MemoryKnowledgeVectorStore()
     embeddings = FakeEmbeddingProvider()
-    provider = SupabaseKnowledgeProvider(session, vector_store=store)
+    provider = _provider(session, store, embeddings)
     service = _ingest(provider, store, embeddings)
     first = await service.ingest_document(document_id="doc-txt", scope=_scope(customer_id=kund.id))
     assert first.status == "indexed"
@@ -650,7 +670,7 @@ async def test_vector_store_and_embeddings_are_replaceable(session: AsyncSession
 
     store = AlternateStore()
     embeddings = FakeEmbeddingProvider()
-    provider = SupabaseKnowledgeProvider(session, vector_store=store)
+    provider = _provider(session, store, embeddings)
     result = await KnowledgeIngestService(
         provider=provider,
         vector_store=store,

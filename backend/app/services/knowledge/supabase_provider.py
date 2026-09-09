@@ -8,7 +8,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import KnowledgeDocumentRecord
+from app.services.knowledge.embeddings import EmbeddingProvider
 from app.services.knowledge.models import (
+    EmbeddedKnowledgeQuery,
     KnowledgeDocument,
     KnowledgeHit,
     KnowledgeQuery,
@@ -39,22 +41,31 @@ class SupabaseKnowledgeProvider:
         self,
         session: AsyncSession,
         vector_store: KnowledgeVectorStore,
+        embeddings: EmbeddingProvider,
         *,
         fetch_object: ObjectFetcher | None = None,
     ) -> None:
         self._session = session
         self._vector_store = vector_store
+        self._embeddings = embeddings
         self._fetch_object = fetch_object or get_object
 
     async def search(self, query: KnowledgeQuery) -> list[KnowledgeHit]:
         require_scope(query.scope)
+        vectors = await self._embeddings.embed([query.query])
+        if len(vectors) != 1:
+            raise RuntimeError(f"EmbeddingProvider returned {len(vectors)} vectors for 1 query")
+        embedding = vectors[0]
         allowed: list[KnowledgeHit] = []
         seen: set[tuple[str, str | None]] = set()
         fetch_limit = query.limit
         max_fetch = query.limit * _SEARCH_OVERFETCH_FACTOR
         while len(allowed) < query.limit:
             raw_hits = await self._vector_store.search(
-                KnowledgeQuery(query=query.query, scope=query.scope, limit=fetch_limit)
+                EmbeddedKnowledgeQuery(
+                    query=KnowledgeQuery(query=query.query, scope=query.scope, limit=fetch_limit),
+                    embedding=embedding,
+                )
             )
             for hit in raw_hits:
                 key = (hit.document_id, hit.locator)
