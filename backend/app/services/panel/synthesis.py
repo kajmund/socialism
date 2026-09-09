@@ -72,7 +72,8 @@ def _text_only_in_scratchpad(text: str, transcript: list[PanelTurn]) -> bool:
 def _usable_claim(item: SynthesizedClaim, transcript: list[PanelTurn]) -> bool:
     claim = item.claim.strip()
     evidence = item.evidence.strip()
-    if not claim:
+    judgment = item.judgment.strip()
+    if not claim or not evidence or not judgment:
         return False
     if _is_raise_hand_only(claim) or _is_raise_hand_only(evidence):
         return False
@@ -83,14 +84,21 @@ def _usable_claim(item: SynthesizedClaim, transcript: list[PanelTurn]) -> bool:
     return True
 
 
+def _accepted_claims(
+    synthesis: GenericPanelSynthesis,
+    transcript: list[PanelTurn],
+) -> list[SynthesizedClaim]:
+    if not _has_public_expert_substance(transcript):
+        return []
+    return [row for row in synthesis.claims if _usable_claim(row, transcript)]
+
+
 def panel_result_from_synthesis(
     synthesis: GenericPanelSynthesis,
     *,
     transcript: list[PanelTurn],
 ) -> PanelResult:
-    raw_claims = synthesis.claims
-    if not _has_public_expert_substance(transcript):
-        raw_claims = []
+    accepted = _accepted_claims(synthesis, transcript)
     claims = [
         PanelClaim(
             claim_id=f"claim_{index}",
@@ -100,18 +108,28 @@ def panel_result_from_synthesis(
             score=None,
             dissensus=item.dissensus,
         )
-        for index, item in enumerate(
-            (row for row in raw_claims if _usable_claim(row, transcript)),
-            start=1,
-        )
+        for index, item in enumerate(accepted, start=1)
     ]
     unanswered = [note.strip() for note in synthesis.unanswered if note.strip()]
+    filtered = GenericPanelSynthesis(
+        summary=synthesis.summary.strip(),
+        claims=[
+            SynthesizedClaim(
+                claim=item.claim.strip(),
+                evidence=item.evidence.strip(),
+                judgment=item.judgment.strip(),
+                dissensus=item.dissensus,
+            )
+            for item in accepted
+        ],
+        unanswered=unanswered,
+    )
     return PanelResult(
         protocol="generic_panel",
-        summary=synthesis.summary.strip(),
+        summary=filtered.summary,
         claims=claims,
         unanswered=unanswered,
-        payload={"synthesis": synthesis.model_dump(mode="json")},
+        payload={"synthesis": filtered.model_dump(mode="json")},
     )
 
 
