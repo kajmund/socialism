@@ -6,7 +6,7 @@ from copy import deepcopy
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -103,7 +103,7 @@ async def list_evidence_items(
     result = await session.execute(
         select(EvidenceSetItem)
         .where(EvidenceSetItem.evidence_set_id == evidence_set_id)
-        .order_by(EvidenceSetItem.retrieved_at, EvidenceSetItem.id)
+        .order_by(EvidenceSetItem.ordinal, EvidenceSetItem.id)
     )
     return list(result.scalars().all())
 
@@ -160,6 +160,39 @@ def _assert_building(evidence_set: EvidenceSet) -> None:
         )
 
 
+async def _used_ordinals(session: AsyncSession, evidence_set_id: str) -> set[int]:
+    result = await session.execute(
+        select(EvidenceSetItem.ordinal).where(
+            EvidenceSetItem.evidence_set_id == evidence_set_id
+        )
+    )
+    return set(result.scalars().all())
+
+
+def _allocate_ordinals(items: list[EvidenceItemSnapshot], used: set[int]) -> list[int]:
+    """Preserve batch order. Explicit ordinals win; implicit values skip used ones."""
+    cursor = max(used) + 1 if used else 0
+    allocated: list[int] = []
+    claimed = set(used)
+    for snapshot in items:
+        if snapshot.ordinal is not None:
+            if snapshot.ordinal in claimed:
+                raise ExecutionError(
+                    f"duplicate evidence ordinal {snapshot.ordinal} on set item"
+                )
+            claimed.add(snapshot.ordinal)
+            allocated.append(snapshot.ordinal)
+            if snapshot.ordinal >= cursor:
+                cursor = snapshot.ordinal + 1
+            continue
+        while cursor in claimed:
+            cursor += 1
+        claimed.add(cursor)
+        allocated.append(cursor)
+        cursor += 1
+    return allocated
+
+
 async def add_evidence_items(
     session: AsyncSession,
     *,
@@ -169,17 +202,21 @@ async def add_evidence_items(
     evidence_set = await get_evidence_set(session, evidence_set_id)
     _assert_building(evidence_set)
     stored: list[EvidenceSetItem] = []
-    for raw in items:
-        snapshot = (
-            raw
-            if isinstance(raw, EvidenceItemSnapshot)
-            else snapshot_research_evidence(raw)
-        )
+    snapshots = [
+        raw if isinstance(raw, EvidenceItemSnapshot) else snapshot_research_evidence(raw)
+        for raw in items
+    ]
+    ordinals = _allocate_ordinals(
+        snapshots, await _used_ordinals(session, evidence_set.id)
+    )
+    for snapshot, ordinal in zip(snapshots, ordinals, strict=True):
         provenance = require_json_object(snapshot.provenance, field="provenance")
         row = EvidenceSetItem(
             id=new_id(),
             evidence_set_id=evidence_set.id,
             research_need_id=snapshot.research_need_id,
+            original_evidence_id=snapshot.original_evidence_id,
+            ordinal=ordinal,
             source_type=_require_non_empty(snapshot.source_type, field="source_type"),
             status=_require_non_empty(snapshot.status, field="status"),
             title=snapshot.title,
@@ -191,14 +228,8 @@ async def add_evidence_items(
             score=snapshot.score,
             provenance=provenance,
             retrieved_at=snapshot.retrieved_at,
-            content_hash=compute_content_hash(
-                title=snapshot.title,
-                excerpt=snapshot.excerpt,
-                locator=snapshot.locator,
-                source_id=snapshot.source_id,
-                source_url=snapshot.source_url,
-                provenance=provenance,
-            ),
+            content_hash=snapshot.content_hash
+            or compute_content_hash(excerpt=snapshot.excerpt, provenance=provenance),
         )
         session.add(row)
         stored.append(row)
@@ -211,6 +242,16 @@ async def freeze_evidence_set(session: AsyncSession, evidence_set_id: str) -> Ev
     _assert_building(evidence_set)
     evidence_set.status = "frozen"
     evidence_set.frozen_at = utc_now()
+    await session.flush()
+    return evidence_set
+
+
+async def fail_evidence_set(session: AsyncSession, evidence_set_id: str) -> EvidenceSet:
+    evidence_set = await get_evidence_set(session, evidence_set_id)
+    if evidence_set.status == "failed":
+        return evidence_set
+    _assert_building(evidence_set)
+    evidence_set.status = "failed"
     await session.flush()
     return evidence_set
 
@@ -281,6 +322,7 @@ async def create_attempt(
             configuration_snapshot or {}, field="configuration_snapshot"
         ),
         input_snapshot=require_json_object(input_snapshot or {}, field="input_snapshot"),
+        research_plan_snapshot=None,
         evidence_set_id=attached_id,
     )
     session.add(attempt)
@@ -311,6 +353,7 @@ async def set_attempt_snapshots(
     attempt_id: str,
     configuration_snapshot: dict[str, object] | None = None,
     input_snapshot: dict[str, object] | None = None,
+    research_plan_snapshot: dict[str, object] | None = None,
 ) -> ExecutionAttempt:
     attempt = await get_attempt(session, attempt_id)
     _assert_snapshots_mutable(attempt)
@@ -322,8 +365,46 @@ async def set_attempt_snapshots(
         attempt.input_snapshot = require_json_object(
             input_snapshot, field="input_snapshot"
         )
+    if research_plan_snapshot is not None:
+        attempt.research_plan_snapshot = require_json_object(
+            research_plan_snapshot, field="research_plan_snapshot"
+        )
     await session.flush()
     return attempt
+
+
+async def claim_attempt_researching(
+    session: AsyncSession,
+    attempt_id: str,
+    *,
+    research_plan_snapshot: dict[str, object],
+) -> ExecutionAttempt:
+    """Compare-and-set created → researching and persist the executed plan."""
+    snapshot = require_json_object(
+        research_plan_snapshot, field="research_plan_snapshot"
+    )
+    result = await session.execute(
+        update(ExecutionAttempt)
+        .where(
+            ExecutionAttempt.id == attempt_id,
+            ExecutionAttempt.status == "created",
+        )
+        .values(status="researching", research_plan_snapshot=snapshot)
+    )
+    if result.rowcount == 1:
+        attempt = await get_attempt(session, attempt_id)
+        await session.refresh(attempt)
+        return attempt
+    attempt = await get_attempt(session, attempt_id)
+    if attempt.status == "ready":
+        return attempt
+    if attempt.status == "researching":
+        raise ExecutionStatusError(
+            f"Attempt {attempt_id} research is already in progress"
+        )
+    raise ExecutionStatusError(
+        f"Cannot start research on attempt {attempt_id} with status={attempt.status}"
+    )
 
 
 def _assert_evidence_ready_for_execution(evidence_set: EvidenceSet | None) -> None:
@@ -396,6 +477,7 @@ async def clone_attempt(
     source = await get_attempt(session, source_attempt_id)
     source_config = deepcopy(source.configuration_snapshot)
     source_input = deepcopy(source.input_snapshot)
+    source_plan = deepcopy(source.research_plan_snapshot)
     source_status = source.status
     source_started = source.started_at
     source_completed = source.completed_at
@@ -421,11 +503,14 @@ async def clone_attempt(
         evidence_set_id=reused_evidence_id,
         parent_attempt_id=source.id,
     )
+    clone.research_plan_snapshot = deepcopy(source_plan)
+    await session.flush()
 
     reloaded = await get_attempt(session, source.id)
     if (
         reloaded.configuration_snapshot != source_config
         or reloaded.input_snapshot != source_input
+        or reloaded.research_plan_snapshot != source_plan
         or reloaded.status != source_status
         or reloaded.started_at != source_started
         or reloaded.completed_at != source_completed

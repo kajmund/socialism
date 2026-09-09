@@ -65,7 +65,7 @@ Phase 1 deliberately uses SQLite before Supabase. Models/migrations stay portabl
 | **Run** | Simulation körning: timeline (`main_ticks`), optional branch, OASIS options, status, results. Table `runs`. |
 | **ExecutionRun** | Generic work/investigation container (product name: Run). Table `execution_runs`. Not a legal case and not a simulation körning. |
 | **ExecutionAttempt** | One concrete execution of an ExecutionRun (product: Attempt), with immutable snapshots once started. Table `execution_attempts`. |
-| **EvidenceSet** | Frozen (or building) knowledge snapshot reused by Attempts in the same ExecutionRun. |
+| **EvidenceSet** | Building, frozen, or failed knowledge snapshot reused by Attempts in the same ExecutionRun. |
 | **PersonaMessage** | Chat turns — library chat (`run_id` null) or run-scoped interview |
 | **Job** | Background work: `population_generate`, `run_simulate`, `report_generate` |
 | **Report** | Hybrid HTML report over one or more run attempts |
@@ -74,9 +74,9 @@ Simulation `Run` and execution `ExecutionRun` are different models. Do not reuse
 
 ### Execution domain (Run → Attempt → EvidenceSet)
 
-Platform-level lifecycle in `backend/app/services/execution/`. An **ExecutionRun** is a long-lived investigation (mandatory `customer_id`, plus `module`, `title`, `context`). An **ExecutionAttempt** is one execution: `configuration_snapshot` and `input_snapshot` are historical JSON, not pointers to live config. An **EvidenceSet** snapshots `ResearchEvidence` into `evidence_set_items` (excerpt, locator, provenance, content hash) and becomes immutable when frozen. `clone_attempt` creates a new Attempt with `parent_attempt_id` and may reuse the source's frozen EvidenceSet.
+Platform-level lifecycle in `backend/app/services/execution/`. An **ExecutionRun** is a long-lived investigation (mandatory `customer_id`, plus `module`, `title`, `context`). An **ExecutionAttempt** is one execution: `configuration_snapshot`, `input_snapshot`, and `research_plan_snapshot` are historical JSON, not pointers to live config. An **EvidenceSet** snapshots `ResearchEvidence` into `evidence_set_items` (excerpt, locator, provenance, original evidence id, ordinal, content hash) and becomes immutable when frozen. `clone_attempt` creates a new Attempt with `parent_attempt_id` and may reuse the source's frozen EvidenceSet.
 
-Statuses on Attempt: `created`, `researching`, `ready`, `running`, `completed`, `failed`. `researching` is reserved for a future ResearchPlan → ResearchRouter path. Attached EvidenceSet must be frozen before `ready` / `running` / `completed`; `failed` is allowed while the set is still building (fatal research). This layer does not execute research, panels, or Word review.
+Statuses on Attempt: `created`, `researching`, `ready`, `running`, `completed`, `failed`. `execute_attempt_research` (`app/services/research/execution.py`) claims `created → researching`, runs the shared `ResearchRouter`, persists every `found` / `not_found` / `error` item, freezes the EvidenceSet, and marks the Attempt `ready`. Tenant scope always comes from the Run. Source-level errors do not fail the Attempt; orchestration failure marks EvidenceSet `failed` and Attempt `failed` without requiring a freeze. No panel, Word, or UI integration.
 
 ### Run timeline shape
 
