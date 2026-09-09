@@ -6,14 +6,23 @@ from dataclasses import dataclass, field
 
 
 class KnowledgeScopeRequiredError(ValueError):
-    """Retrieval requires a kund. Module-only or empty scope is not allowed."""
+    """Private/customer knowledge requires a kund tenant boundary."""
 
 
 @dataclass(frozen=True)
 class KnowledgeScope:
+    """Tenant-scoped knowledge access. customer_id is the required boundary.
+
+    case_id and module only narrow further. Global domain_knowledge is a
+    later, explicit namespace — not customer_id=None.
+    """
+
     customer_id: int | None = None
     case_id: str | None = None
     module: str | None = None
+
+    def __post_init__(self) -> None:
+        require_scope(self)
 
 
 @dataclass(frozen=True)
@@ -59,7 +68,7 @@ class KnowledgeChunk:
     document_id: str
     chunk_id: str
     text: str
-    customer_id: int | None
+    customer_id: int
     case_id: str | None
     module: str | None
     title: str
@@ -72,13 +81,13 @@ class KnowledgeChunk:
 def require_scope(scope: KnowledgeScope) -> None:
     if scope.customer_id is None:
         raise KnowledgeScopeRequiredError(
-            "Knowledge retrieval requires customer_id; module-only scope cannot cross kunders"
+            "Knowledge retrieval requires customer_id; module or case alone is not a tenant"
         )
 
 
 def scope_of(
     *,
-    customer_id: int | None,
+    customer_id: int,
     case_id: str | None,
     module: str | None,
 ) -> KnowledgeScope:

@@ -63,9 +63,7 @@ class VectorBucketClient(Protocol):
 
 def scope_filters(scope: KnowledgeScope) -> dict[str, Any]:
     require_scope(scope)
-    filters: dict[str, Any] = {}
-    if scope.customer_id is not None:
-        filters["customer_id"] = scope.customer_id
+    filters: dict[str, Any] = {"customer_id": scope.customer_id}
     if scope.case_id is not None:
         filters["case_id"] = scope.case_id
     if scope.module is not None:
@@ -75,8 +73,11 @@ def scope_filters(scope: KnowledgeScope) -> dict[str, Any]:
 
 def record_in_scope(record: VectorBucketRecord, scope: KnowledgeScope) -> bool:
     meta = record.metadata
+    customer_id = _optional_int(meta.get("customer_id"))
+    if customer_id is None:
+        return False
     owned = scope_of(
-        customer_id=_optional_int(meta.get("customer_id")),
+        customer_id=customer_id,
         case_id=_optional_str(meta.get("case_id")),
         module=_optional_str(meta.get("module")),
     )
