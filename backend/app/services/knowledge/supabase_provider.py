@@ -97,7 +97,8 @@ class SupabaseKnowledgeProvider:
     async def _row(self, document_id: str) -> KnowledgeDocumentRecord | None:
         result = await self._session.execute(
             select(KnowledgeDocumentRecord).where(
-                KnowledgeDocumentRecord.document_id == document_id
+                KnowledgeDocumentRecord.document_id == document_id,
+                KnowledgeDocumentRecord.provider == self.provider_id,
             )
         )
         return result.scalar_one_or_none()
