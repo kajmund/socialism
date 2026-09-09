@@ -753,6 +753,8 @@ export const sv = {
         round: "Delfråga {round}",
         phase: {
           opening: "Öppning",
+          researchNeed: "Researchbehov",
+          researchPlan: "Researchplan",
           subQuestion: "Delfråga",
           score: "Poäng",
           analysis: "Sammanfattning",

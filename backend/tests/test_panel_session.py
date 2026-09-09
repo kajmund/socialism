@@ -20,6 +20,7 @@ from app.services.panel.engine import (
 )
 from app.services.panel.schemas import PanelSessionCreate, PanelSessionConfig, PanelExpertSlot
 from app.services.panel.sessions import create_panel_session, get_panel_session
+from app.services.panel.research import empty_research_structured
 from app.services.panel.synthesis import GenericPanelSynthesis, SynthesizedClaim
 from app.services.prompt_catalog import default_prompts
 
@@ -65,6 +66,9 @@ def mock_panel_llm():
                     )
                 ],
             )
+        empty_research = empty_research_structured(response_model)
+        if empty_research is not None:
+            return empty_research
         raise RuntimeError(f"Unexpected structured model {response_model}")
 
     set_text_completer(_complete)
@@ -137,6 +141,9 @@ async def test_panel_session_run_job(client: AsyncClient, mock_panel_llm):
         assert row.result["claims"][0]["score"] is None
     assert len(body["transcript"]) >= 4
     assert any(t["phase"] == "opening" for t in body["transcript"])
+    assert any(t["phase"] == "research_need" for t in body["transcript"])
+    assert any(t["phase"] == "research_plan" for t in body["transcript"])
+    assert body["research_plan"] == {"needs": []}
     assert any(t["phase"] == "expert" for t in body["transcript"])
     assert mock_panel_llm["seen_tools"]
     offered = mock_panel_llm["seen_tools"][0]

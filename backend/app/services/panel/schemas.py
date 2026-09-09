@@ -14,6 +14,8 @@ PanelProtocol = Literal["generic_panel", "dd_panel"]
 PanelSessionStatus = Literal["draft", "pending", "running", "succeeded", "failed"]
 PanelTurnPhase = Literal[
     "opening",
+    "research_need",
+    "research_plan",
     "raise_hand",
     "expert",
     "scratchpad",
@@ -128,6 +130,7 @@ class PanelSessionOut(BaseModel):
     transcript: list[PanelTurn]
     scratchpads: dict[str, str]
     analysis: str | None
+    research_plan: dict[str, Any] | None = None
     result: DdPanelResult | None = None
     panel_id: int | None
     project_id: int | None

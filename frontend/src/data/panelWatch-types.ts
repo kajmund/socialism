@@ -2,6 +2,8 @@
 
 export type PanelWatchTurnPhase =
   | "opening"
+  | "research_need"
+  | "research_plan"
   | "raise_hand"
   | "expert"
   | "scratchpad"

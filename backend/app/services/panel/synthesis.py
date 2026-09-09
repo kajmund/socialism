@@ -26,11 +26,14 @@ class GenericPanelSynthesis(BaseModel):
     unanswered: list[str] = Field(default_factory=list)
 
 
+_PLANNING_PHASES = frozenset({"scratchpad", "research_need", "research_plan"})
+
+
 def public_transcript_text(transcript: list[PanelTurn]) -> str:
-    """Public turns only — scratchpads are never synthesis evidence."""
+    """Public turns only — scratchpads and research planning are not evidence."""
     lines: list[str] = []
     for turn in transcript:
-        if turn.phase == "scratchpad":
+        if turn.phase in _PLANNING_PHASES:
             continue
         if turn.phase == "raise_hand":
             lines.append(f"{turn.speaker} (raise_hand): {turn.content}")

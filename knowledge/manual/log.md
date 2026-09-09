@@ -2,6 +2,7 @@
 
 ## 2026-09-09
 
+* **Expertgranskning**: I **Live-panel** anger experterna först vilka underlag som behövs. Moderatorn slår ihop det till en researchplan innan någon räcker upp handen. Tom plan är normalt — då går panelen vidare som vanligt.
 * **Expertgranskning i Word**: Sidopanelen följer Words ljusa utseende, med Devbrains-huvudet som märke. På fliken **Start** är ikonen Devbrains-huvudet i stället för en färgad ruta.
 * **Bolagsytan**: Rubriken för en modul visas bara om bolaget har den modulen påslagen. Administratör ser fortfarande Expertgranskning och Rättsunderlag i huvudmenyn.
 * **Expertgranskning i Word**: En moderator filtrerar först bort trivialt innehåll (till exempel kontaktuppgifter) och formulerar granskningsfrågor. Experterna räcker upp handen för frågor, inte för godtyckliga stycken, och kan avstå helt.

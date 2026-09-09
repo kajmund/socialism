@@ -30,7 +30,7 @@ tags: [rapporter]
 ## Resultat
 
 1. Fliken **Resultat** öppnas automatiskt när en körning inte längre är utkast.
-2. **Live-panel** visar moderator och experter medan jobbet körs. Moderatorn ställer en fråga i taget — nästa delfråga syns först när den har ställts. Experternas turer visas formaterade (listor, fetstil, länkar) om de skriver markdown.
+2. **Live-panel** visar moderator och experter medan jobbet körs. Efter öppningen anger varje expert vilka underlag som behövs; moderatorn slår ihop det till en researchplan. Därefter räcker experterna upp handen. Moderatorn ställer en fråga i taget — nästa delfråga syns först när den har ställts. Experternas turer visas formaterade (listor, fetstil, länkar) om de skriver markdown.
 3. När panelen är klar öppnas **Rapport**. Dokumentet visas formaterat. Därifrån kan du prata med **Spinndoktor**.
 
 Underlag du laddar upp är personliga — andra på samma kund ser inte dina filer eller mappar.
