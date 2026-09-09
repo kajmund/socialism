@@ -103,10 +103,21 @@ class ExpertResearchNeeds(BaseModel):
     needs: list[ResearchNeedDraft] = Field(default_factory=list)
 
 
+class ResearchProposal(BaseModel):
+    """Temporary expert draft with a code-assigned proposal id."""
+
+    proposal_id: str
+    slot_id: str
+    label: str = ""
+    question: str
+    why_needed: str
+    source_types: list[str] = Field(default_factory=list)
+
+
 class ConsolidatedResearchNeed(BaseModel):
     question: str
     why_needed: str
-    requested_by: list[str] = Field(default_factory=list)
+    proposal_ids: list[str] = Field(default_factory=list)
     source_types: list[str] = Field(default_factory=list)
 
     @field_validator("question", "why_needed", mode="before")
@@ -114,9 +125,9 @@ class ConsolidatedResearchNeed(BaseModel):
     def strip_required_text(cls, value: object) -> str:
         return _strip_text(value)
 
-    @field_validator("requested_by")
+    @field_validator("proposal_ids")
     @classmethod
-    def keep_unique_requesters(cls, value: list[str]) -> list[str]:
+    def keep_unique_proposal_ids(cls, value: list[str]) -> list[str]:
         return _unique_ids(value)
 
     @field_validator("source_types")
@@ -129,22 +140,52 @@ class ModeratorResearchPlan(BaseModel):
     needs: list[ConsolidatedResearchNeed] = Field(default_factory=list)
 
 
-def assign_research_need_ids(
-    needs: Sequence[ConsolidatedResearchNeed | ResearchNeed],
-) -> ResearchPlan:
-    """Permanent IDs are assigned in code — the LLM does not own them."""
-    assigned: list[ResearchNeed] = []
-    for index, need in enumerate(needs, start=1):
-        assigned.append(
-            ResearchNeed(
-                id=f"research_{index}",
-                question=need.question,
-                why_needed=need.why_needed,
-                requested_by=list(need.requested_by),
-                source_types=list(need.source_types),
+def assign_proposal_ids(
+    proposals: Sequence[tuple[PanelExpertSlot, ExpertResearchNeeds]],
+) -> tuple[list[ResearchProposal], list[PanelExpertSlot]]:
+    """Temporary proposal IDs are assigned in code — the LLM does not own them."""
+    numbered: list[ResearchProposal] = []
+    empty_slots: list[PanelExpertSlot] = []
+    index = 1
+    for slot, bundle in proposals:
+        if not bundle.needs:
+            empty_slots.append(slot)
+            continue
+        for draft in bundle.needs:
+            numbered.append(
+                ResearchProposal(
+                    proposal_id=f"proposal_{index}",
+                    slot_id=slot.slot_id,
+                    label=slot.label,
+                    question=draft.question,
+                    why_needed=draft.why_needed,
+                    source_types=list(draft.source_types),
+                )
             )
-        )
-    return ResearchPlan(needs=assigned)
+            index += 1
+    return numbered, empty_slots
+
+
+def requested_by_from_proposals(
+    proposal_ids: Sequence[str],
+    proposals: Sequence[ResearchProposal],
+) -> list[str]:
+    by_id = {item.proposal_id: item.slot_id for item in proposals}
+    return _unique_ids(
+        by_id[proposal_id]
+        for proposal_id in _unique_ids(proposal_ids)
+        if proposal_id in by_id
+    )
+
+
+def assign_research_need_ids(needs: Sequence[ResearchNeed]) -> ResearchPlan:
+    """Permanent IDs are assigned in code — the LLM does not own them."""
+    return ResearchPlan(
+        needs=[
+            need.model_copy(update={"id": f"research_{index}"})
+            for index, need in enumerate(needs, start=1)
+        ]
+    )
 
 
 def research_plan_from_stored(raw: object) -> ResearchPlan:
@@ -192,20 +233,22 @@ def source_types_prompt() -> str:
 
 
 def format_expert_proposals(
-    proposals: Sequence[tuple[PanelExpertSlot, ExpertResearchNeeds]],
+    proposals: Sequence[ResearchProposal],
+    empty_slots: Sequence[PanelExpertSlot] = (),
 ) -> str:
     blocks: list[str] = []
-    for slot, bundle in proposals:
-        if not bundle.needs:
-            blocks.append(f"[{slot.slot_id}] {slot.label}\n- (inga behov)")
-            continue
-        lines = [f"[{slot.slot_id}] {slot.label}"]
-        for draft in bundle.needs:
-            types = ", ".join(draft.source_types) if draft.source_types else "—"
-            lines.append(f"- question: {draft.question}")
-            lines.append(f"  why_needed: {draft.why_needed}")
-            lines.append(f"  source_types: {types}")
+    for item in proposals:
+        types = ", ".join(item.source_types) if item.source_types else "—"
+        label = f" {item.label}" if item.label else ""
+        lines = [
+            f"[{item.proposal_id}] slot_id={item.slot_id}{label}",
+            f"- question: {item.question}",
+            f"  why_needed: {item.why_needed}",
+            f"  source_types: {types}",
+        ]
         blocks.append("\n".join(lines))
+    for slot in empty_slots:
+        blocks.append(f"[inga förslag] slot_id={slot.slot_id} {slot.label}\n- (inga behov)")
     return "\n\n".join(blocks)
 
 
@@ -224,14 +267,6 @@ def _messages_with_brief(
 
 def _session_brief(config: PanelSessionConfig) -> str:
     return (config.brief or "").strip()
-
-
-def _known_slot_ids(config: PanelSessionConfig) -> set[str]:
-    return {slot.slot_id for slot in config.expert_slots}
-
-
-def _filter_requested_by(requested_by: Sequence[str], known: set[str]) -> list[str]:
-    return [item for item in _unique_ids(requested_by) if item in known]
 
 
 async def collect_expert_research_needs(
@@ -262,7 +297,8 @@ async def collect_expert_research_needs(
 async def consolidate_research_plan(
     config: PanelSessionConfig,
     opening: str,
-    proposals: Sequence[tuple[PanelExpertSlot, ExpertResearchNeeds]],
+    proposals: Sequence[ResearchProposal],
+    empty_slots: Sequence[PanelExpertSlot],
     prompts: dict[str, str],
 ) -> ModeratorResearchPlan:
     brief = _session_brief(config)
@@ -275,7 +311,7 @@ async def consolidate_research_plan(
             topic=config.topic,
             brief=brief or config.topic,
             opening=opening,
-            expert_proposals=format_expert_proposals(proposals),
+            expert_proposals=format_expert_proposals(proposals, empty_slots),
             source_types=source_types_prompt(),
         ),
     )
@@ -284,18 +320,22 @@ async def consolidate_research_plan(
 
 def plan_from_moderator_draft(
     draft: ModeratorResearchPlan,
-    config: PanelSessionConfig,
+    proposals: Sequence[ResearchProposal],
 ) -> ResearchPlan:
-    known = _known_slot_ids(config)
-    kept: list[ConsolidatedResearchNeed] = []
+    known = {item.proposal_id for item in proposals}
+    kept: list[ResearchNeed] = []
     for need in draft.needs:
         if not need.question:
             continue
+        proposal_ids = [item for item in need.proposal_ids if item in known]
+        if not proposal_ids:
+            continue
         kept.append(
-            ConsolidatedResearchNeed(
+            ResearchNeed(
+                id="",
                 question=need.question,
                 why_needed=need.why_needed,
-                requested_by=_filter_requested_by(need.requested_by, known),
+                requested_by=requested_by_from_proposals(proposal_ids, proposals),
                 source_types=need.source_types,
             )
         )
@@ -308,7 +348,10 @@ async def build_research_plan(
     proposals: Sequence[tuple[PanelExpertSlot, ExpertResearchNeeds]],
     prompts: dict[str, str],
 ) -> ResearchPlan:
-    if not any(bundle.needs for _slot, bundle in proposals):
+    numbered, empty_slots = assign_proposal_ids(proposals)
+    if not numbered:
         return ResearchPlan()
-    draft = await consolidate_research_plan(config, opening, proposals, prompts)
-    return plan_from_moderator_draft(draft, config)
+    draft = await consolidate_research_plan(
+        config, opening, numbered, empty_slots, prompts
+    )
+    return plan_from_moderator_draft(draft, numbered)
