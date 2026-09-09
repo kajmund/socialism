@@ -76,7 +76,7 @@ Simulation `Run` and execution `ExecutionRun` are different models. Do not reuse
 
 Platform-level lifecycle in `backend/app/services/execution/`. An **ExecutionRun** is a long-lived investigation (mandatory `customer_id`, plus `module`, `title`, `context`). An **ExecutionAttempt** is one execution: `configuration_snapshot` and `input_snapshot` are historical JSON, not pointers to live config. An **EvidenceSet** snapshots `ResearchEvidence` into `evidence_set_items` (excerpt, locator, provenance, content hash) and becomes immutable when frozen. `clone_attempt` creates a new Attempt with `parent_attempt_id` and may reuse the source's frozen EvidenceSet.
 
-Statuses on Attempt: `created`, `researching`, `ready`, `running`, `completed`, `failed`. `researching` is reserved for a future ResearchPlan → ResearchRouter path. This layer does not execute research, panels, or Word review.
+Statuses on Attempt: `created`, `researching`, `ready`, `running`, `completed`, `failed`. `researching` is reserved for a future ResearchPlan → ResearchRouter path. Attached EvidenceSet must be frozen before `ready` / `running` / `completed`; `failed` is allowed while the set is still building (fatal research). This layer does not execute research, panels, or Word review.
 
 ### Run timeline shape
 
