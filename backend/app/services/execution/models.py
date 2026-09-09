@@ -32,6 +32,11 @@ PREPARATION_STATUSES: frozenset[AttemptStatus] = frozenset({"created", "research
 SNAPSHOT_LOCKED_STATUSES: frozenset[AttemptStatus] = frozenset(
     {"ready", "running", "completed", "failed"}
 )
+# Failed research may leave EvidenceSet building; only execution-ready
+# statuses require a frozen set.
+EVIDENCE_REQUIRED_FROZEN_STATUSES: frozenset[AttemptStatus] = frozenset(
+    {"ready", "running", "completed"}
+)
 TERMINAL_STATUSES: frozenset[AttemptStatus] = frozenset({"completed", "failed"})
 
 # Researching is reserved for a future ResearchPlan lifecycle; do not remove it.
