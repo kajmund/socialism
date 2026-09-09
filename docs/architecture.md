@@ -62,10 +62,21 @@ Phase 1 deliberately uses SQLite before Supabase. Models/migrations stay portabl
 | **Population** | Named set of persona members (+ recipe/fingerprint for generation) |
 | **Message** | Budskapsbibliotek entry; can be linked into tick injections |
 | **CatalogList** | Editable grunddata lists (orter, occupations, …) with district LLM context |
-| **Run** | Timeline (`main_ticks`), optional branch, OASIS options, status, results |
+| **Run** | Simulation körning: timeline (`main_ticks`), optional branch, OASIS options, status, results. Table `runs`. |
+| **ExecutionRun** | Generic work/investigation container (product name: Run). Table `execution_runs`. Not a legal case and not a simulation körning. |
+| **ExecutionAttempt** | One concrete execution of an ExecutionRun (product: Attempt), with immutable snapshots once started. Table `execution_attempts`. |
+| **EvidenceSet** | Frozen (or building) knowledge snapshot reused by Attempts in the same ExecutionRun. |
 | **PersonaMessage** | Chat turns — library chat (`run_id` null) or run-scoped interview |
 | **Job** | Background work: `population_generate`, `run_simulate`, `report_generate` |
 | **Report** | Hybrid HTML report over one or more run attempts |
+
+Simulation `Run` and execution `ExecutionRun` are different models. Do not reuse `runs` for panel / Word / DD / procurement work.
+
+### Execution domain (Run → Attempt → EvidenceSet)
+
+Platform-level lifecycle in `backend/app/services/execution/`. An **ExecutionRun** is a long-lived investigation (mandatory `customer_id`, plus `module`, `title`, `context`). An **ExecutionAttempt** is one execution: `configuration_snapshot` and `input_snapshot` are historical JSON, not pointers to live config. An **EvidenceSet** snapshots `ResearchEvidence` into `evidence_set_items` (excerpt, locator, provenance, content hash) and becomes immutable when frozen. `clone_attempt` creates a new Attempt with `parent_attempt_id` and may reuse the source's frozen EvidenceSet.
+
+Statuses on Attempt: `created`, `researching`, `ready`, `running`, `completed`, `failed`. `researching` is reserved for a future ResearchPlan → ResearchRouter path. Attached EvidenceSet must be frozen before `ready` / `running` / `completed`; `failed` is allowed while the set is still building (fatal research). This layer does not execute research, panels, or Word review.
 
 ### Run timeline shape
 
