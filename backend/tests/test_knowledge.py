@@ -484,36 +484,30 @@ async def test_vector_store_is_replaceable(session: AsyncSession):
     assert all(isinstance(hit, KnowledgeHit) for hit in memory_hits + bucket_hits)
 
 
+def test_knowledge_scope_requires_customer_id():
+    with pytest.raises(KnowledgeScopeRequiredError):
+        KnowledgeScope(module="legal")
+    with pytest.raises(KnowledgeScopeRequiredError):
+        KnowledgeScope(case_id="case-1")
+    with pytest.raises(KnowledgeScopeRequiredError):
+        KnowledgeScope()
+    scoped = KnowledgeScope(customer_id=7)
+    assert scoped.customer_id == 7
+    assert scoped.case_id is None
+    assert scoped.module is None
+    narrowed = KnowledgeScope(customer_id=7, case_id="case-1", module="legal")
+    assert narrowed.customer_id == 7
+    assert narrowed.case_id == "case-1"
+    assert narrowed.module == "legal"
+
+
 def test_query_rejects_unscoped_global_retrieval():
     with pytest.raises(KnowledgeScopeRequiredError):
         KnowledgeQuery(query="anything", scope=KnowledgeScope())
     with pytest.raises(KnowledgeScopeRequiredError):
-        KnowledgeQuery(query="anything", scope=KnowledgeScope(module="dd"))
+        KnowledgeQuery(query="anything", scope=KnowledgeScope(module="legal"))
     with pytest.raises(KnowledgeScopeRequiredError):
         KnowledgeQuery(query="anything", scope=KnowledgeScope(case_id="case-1"))
-
-
-async def test_module_only_scope_does_not_cross_kunders(session: AsyncSession):
-    owner = await _customer(session, "acme")
-    await _index_document(session, customer_id=owner.id)
-    await put_object("acme", "dd/files/brief.pdf", b"secret", "application/pdf")
-    calls: list[tuple[str, str]] = []
-
-    async def tracking_get(bucket: str, key: str) -> tuple[bytes, str]:
-        calls.append((bucket, key))
-        return await get_object(bucket, key)
-
-    provider = SupabaseKnowledgeProvider(
-        session,
-        vector_store=MemoryKnowledgeVectorStore(),
-        fetch_object=tracking_get,
-    )
-    module_only = KnowledgeScope(module="dd")
-    with pytest.raises(KnowledgeScopeRequiredError):
-        await provider.get_document("doc-brief", module_only)
-    with pytest.raises(KnowledgeScopeRequiredError):
-        await provider.fetch_content("doc-brief", module_only)
-    assert calls == []
 
 
 async def test_provider_lookup_ignores_other_provider_rows(session: AsyncSession):

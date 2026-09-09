@@ -1235,9 +1235,9 @@ class KnowledgeDocumentRecord(Base):
     document_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     provider: Mapped[str] = mapped_column(String(32), nullable=False)
     external_id: Mapped[str] = mapped_column(String(512), nullable=False)
-    customer_id: Mapped[int | None] = mapped_column(
+    customer_id: Mapped[int] = mapped_column(
         ForeignKey("kunder.id", ondelete="RESTRICT"),
-        nullable=True,
+        nullable=False,
         index=True,
     )
     case_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
