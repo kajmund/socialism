@@ -83,7 +83,7 @@ Optional dependency extra `oasis` (`camel-oasis`) — not installed by default (
 
 ## Domain (admin library)
 
-**Execution domain** (not simulation): `app/services/execution/` persists product Run → Attempt → EvidenceSet as `execution_runs` / `execution_attempts` / `evidence_sets`. Do not reuse simulation `Run` / `runs`. Isolated from panel, Word, and research routing.
+**Execution domain** (not simulation): `app/services/execution/` persists product Run → Attempt → EvidenceSet as `execution_runs` / `execution_attempts` / `evidence_sets`. Do not reuse simulation `Run` / `runs`. Isolated from panel and Word. Attempt research is `execute_attempt_research` in `app/services/research/execution.py` (ResearchPlan snapshot → ResearchRouter → freeze → `ready`).
 
 CRUD for personas, populations (members + recipe/fingerprint), runs (timeline JSON), and configurations (name + language + prompts map + `ssr_temperature` + `report_thresholds` + scoped grunddata catalog lists; exactly one active globally drives LLM prompts, report SSR temperature, snabbrapport verdict thresholds, and `/catalog`). No auth.
 

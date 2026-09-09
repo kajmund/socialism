@@ -29,6 +29,9 @@ class EvidenceItemSnapshot:
     score: float | None
     provenance: dict[str, Any]
     retrieved_at: datetime
+    original_evidence_id: str | None = None
+    ordinal: int | None = None
+    content_hash: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "provenance", deepcopy(self.provenance))
@@ -44,10 +47,16 @@ def require_json_object(value: object, *, field: str) -> dict[str, Any]:
     return deepcopy(value)
 
 
-def snapshot_research_evidence(evidence: ResearchEvidence) -> EvidenceItemSnapshot:
+def snapshot_research_evidence(
+    evidence: ResearchEvidence,
+    *,
+    ordinal: int | None = None,
+) -> EvidenceItemSnapshot:
     """Copy ResearchEvidence into a historical item. Does not keep a live link."""
     provenance = require_json_object(dict(evidence.metadata), field="provenance")
     provenance["research_evidence_id"] = evidence.evidence_id
+    explicit = provenance.get("content_hash")
+    explicit_hash = explicit if isinstance(explicit, str) and explicit.strip() else None
     return EvidenceItemSnapshot(
         research_need_id=evidence.research_need_id,
         source_type=evidence.source_type,
@@ -61,28 +70,32 @@ def snapshot_research_evidence(evidence: ResearchEvidence) -> EvidenceItemSnapsh
         score=evidence.score,
         provenance=provenance,
         retrieved_at=evidence.retrieved_at,
+        original_evidence_id=evidence.evidence_id,
+        ordinal=ordinal,
+        content_hash=compute_content_hash(
+            excerpt=evidence.excerpt,
+            provenance=provenance,
+            explicit=explicit_hash,
+        ),
     )
 
 
 def compute_content_hash(
     *,
-    title: str | None,
     excerpt: str | None,
-    locator: str | None,
-    source_id: str | None,
-    source_url: str | None,
-    provenance: dict[str, Any],
+    title: str | None = None,
+    locator: str | None = None,
+    source_id: str | None = None,
+    source_url: str | None = None,
+    provenance: dict[str, Any] | None = None,
+    explicit: str | None = None,
 ) -> str:
-    payload = json.dumps(
-        {
-            "excerpt": excerpt,
-            "locator": locator,
-            "provenance": provenance,
-            "source_id": source_id,
-            "source_url": source_url,
-            "title": title,
-        },
-        ensure_ascii=False,
-        sort_keys=True,
-    )
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+    """SHA-256 of the content actually seen (excerpt), or an explicit seen hash."""
+    del title, locator, source_id, source_url
+    if explicit:
+        return explicit
+    if provenance:
+        seen = provenance.get("content_hash")
+        if isinstance(seen, str) and seen.strip():
+            return seen
+    return hashlib.sha256((excerpt or "").encode("utf-8")).hexdigest()
