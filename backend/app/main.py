@@ -14,6 +14,7 @@ from app.api import (
     help,
     jobs,
     kunder,
+    local_login,
     me,
     modules,
     panel,
@@ -91,6 +92,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(health.router)
+    app.include_router(local_login.router)
     app.include_router(me.router)
     app.include_router(configurations.router)
     app.include_router(kunder.router)

@@ -64,6 +64,7 @@ export function editableToWrite(
     quote: quote || persona.ton || "",
     origin,
     profile: persona,
+    tools: options.tools,
   }
 }
 

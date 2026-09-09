@@ -63,7 +63,7 @@ from app.services.persona_chat import (
 )
 from app.services.population_generate import stub_persona
 from app.services.dd.default_experts import ensure_default_expert_personas
-from app.services.expert_tools import resolve_expert_tools
+from app.services.expert_tools import resolve_chat_tools
 from app.services.kund_store import bolag_demo_customer_id, default_os_customer_id
 from app.services.object_storage import KIND_UNDERLAG
 from app.services.panel.catalog_schemas import ExpertSuggestIn
@@ -355,7 +355,7 @@ async def create_persona(
         quote=quote,
         origin=body.origin,
         profile=profile.model_dump(),
-        tools=resolve_expert_tools(body.tools) if body.kind == "expert" else None,
+        tools=resolve_chat_tools(body.tools, kind=body.kind),
         updated_at=utcnow(),
     )
     session.add(persona)
@@ -382,7 +382,7 @@ async def update_persona(
     if profile is not None:
         persona.profile = profile
     if tools_set:
-        persona.tools = resolve_expert_tools(tools) if persona.kind == "expert" else None
+        persona.tools = resolve_chat_tools(tools, kind=persona.kind)
     persona.updated_at = utcnow()
     await session.commit()
     await session.refresh(persona)

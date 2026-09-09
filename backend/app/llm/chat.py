@@ -7,7 +7,7 @@ from collections.abc import AsyncIterator
 from app.llm import complete_structured, complete_text, stream_text
 from app.schemas.domain import ChatMode, EditablePersona, FollowUpQuestions
 from app.services.dd.company_mcp import complete_text_with_company_tools
-from app.services.expert_tools import expert_tool_prompt_extra, resolve_expert_tools
+from app.services.expert_tools import expert_tool_prompt_extra, resolve_chat_tools
 from app.services.prompt_catalog import render_prompt
 
 MAX_FOLLOW_UPS = 3
@@ -140,15 +140,21 @@ def _chat_messages(
     extra_system: str = "",
     profile_kind: str = "persona",
 ) -> list[dict[str, str]]:
-    content = system_prompt or build_chat_system_prompt(
-        profile,
-        mode,
-        prompts=prompts,
-        area_block=area_block,
-        simulation_context=simulation_context,
-        extra_system=extra_system,
-        profile_kind=profile_kind,
-    )
+    if system_prompt is None:
+        content = build_chat_system_prompt(
+            profile,
+            mode,
+            prompts=prompts,
+            area_block=area_block,
+            simulation_context=simulation_context,
+            extra_system=extra_system,
+            profile_kind=profile_kind,
+        )
+    else:
+        content = system_prompt
+        extra = extra_system.strip()
+        if extra:
+            content = f"{content}\n\n{extra}"
     messages: list[dict[str, str]] = [
         {
             "role": "system",
@@ -202,7 +208,13 @@ async def stream_reply_as_persona(
     system_prompt: str | None = None,
     extra_system: str = "",
     profile_kind: str = "persona",
+    tools: list[str] | None = None,
 ) -> AsyncIterator[str]:
+    allowed = resolve_chat_tools(tools, kind=profile_kind)
+    extra = expert_tool_prompt_extra(prompts, allowed)
+    combined_extra = extra_system
+    if extra:
+        combined_extra = f"{extra_system}\n\n{extra}".strip() if extra_system else extra
     messages = _chat_messages(
         profile,
         mode,
@@ -212,9 +224,16 @@ async def stream_reply_as_persona(
         area_block=area_block,
         simulation_context=simulation_context,
         system_prompt=system_prompt,
-        extra_system=extra_system,
+        extra_system=combined_extra,
         profile_kind=profile_kind,
     )
+    if allowed:
+        reply = await complete_text_with_company_tools(
+            messages, allowed_tools=frozenset(allowed)
+        )
+        if reply:
+            yield reply
+        return
     async for chunk in stream_text(messages):
         yield chunk
 
@@ -231,9 +250,7 @@ async def stream_reply_as_expert(
     system_prompt: str | None = None,
     tools: list[str] | None = None,
 ) -> AsyncIterator[str]:
-    allowed = resolve_expert_tools(tools)
-    extra = expert_tool_prompt_extra(prompts, allowed)
-    messages = _chat_messages(
+    async for chunk in stream_reply_as_persona(
         profile,
         mode,
         history,
@@ -242,14 +259,10 @@ async def stream_reply_as_expert(
         area_block=area_block,
         simulation_context=simulation_context,
         system_prompt=system_prompt,
-        extra_system=extra,
         profile_kind="expert",
-    )
-    reply = await complete_text_with_company_tools(
-        messages, allowed_tools=frozenset(allowed)
-    )
-    if reply:
-        yield reply
+        tools=tools,
+    ):
+        yield chunk
 
 
 def normalize_follow_up_questions(raw: list[str]) -> list[str]:

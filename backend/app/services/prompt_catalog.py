@@ -105,52 +105,6 @@ PROMPT_FIELDS: list[PromptFieldDef] = [
 (Leave anekdot as "—" — generated separately.)""",
     ),
     _f(
-        "persona.from_slot.system",
-        "persona",
-        "Persona från recept — systemprompt",
-        "Persona from recipe — system prompt",
-        "Platshållare: {local_context}",
-        "Placeholder: {local_context}",
-        (
-            "Du skapar politiska testpersonas för Opinionssimulator. "
-            "Svara endast med det strukturerade objektet.\n\n"
-            "Lokal kontext:\n{local_context}"
-        ),
-        (
-            "You create political test personas for Opinionssimulator. "
-            "Reply only with the structured object.\n\n"
-            "Local context:\n{local_context}"
-        ),
-    ),
-    _f(
-        "persona.from_slot.user",
-        "persona",
-        "Persona från recept — användarprompt",
-        "Persona from recipe — user prompt",
-        "Platshållare: {requirements}, {surname_block}, {voice_block}, {free_text}, {field_guide}. "
-        "surname_block kan innehålla fast namn eller förbjudna efternamn.",
-        "Placeholders: {requirements}, {surname_block}, {voice_block}, {free_text}, {field_guide}. "
-        "surname_block may contain a fixed name or forbidden surnames.",
-        """Skapa en trovärdig lokal persona.
-
-Demografiska och attributkrav (följ dessa):
-{requirements}
-{surname_block}{voice_block}
-Extra önskemål från användaren:
-{free_text}
-
-{field_guide}""",
-        """Create a credible local persona.
-
-Demographic and attribute requirements (follow these):
-{requirements}
-{surname_block}{voice_block}
-Extra user requests:
-{free_text}
-
-{field_guide}""",
-    ),
-    _f(
         "persona.from_description.system",
         "persona",
         "Persona från beskrivning — systemprompt",
@@ -445,22 +399,6 @@ Return JSON with field anekdot.""",
             "scb_get_table_meta/scb_query only for other tables or more detail; pass "
             "variable=… to meta for one dimension's codes. Never expose tool calls, XML, "
             "or internal monologue to the user."
-        ),
-    ),
-    _f(
-        "help.system.scb_population",
-        "chat",
-        "Hjälp — SCB populationsvikter (legacy)",
-        "Help — SCB population weights (legacy)",
-        "Legacy-nyckel; innehållet täcks av help.system.scb. Behålls för befintliga konfigurationer.",
-        "Legacy key; covered by help.system.scb. Kept for existing configurations.",
-        (
-            "När du anropar scb_population_dist: förklara resultatet och hur vikterna "
-            "fylls i i population builder — du kan inte spara receptet åt användaren."
-        ),
-        (
-            "When you call scb_population_dist, explain the result and how to enter the "
-            "weights in the population builder — you cannot save the recipe."
         ),
     ),
     _f(

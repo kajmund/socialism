@@ -40,8 +40,10 @@ from app.services.expertgranskning import WORD_JOB_KIND
 from app.services.expertgranskning.schemas import ExpertgranskningWordJobRequest
 from app.services.expertgranskning.watch import publish_expertgranskning_finished
 from app.services.expertgranskning.word_review import run_word_paragraph_review_for_job
+from app.services.rattsunderlag import JOB_KIND
 from app.services.rattsunderlag.run_job import run_rattsunderlag_research_job
 from app.services.rattsunderlag.schemas import RattsunderlagResearchJobRequest
+from app.services.rattsunderlag.sessions import apply_job_status
 from app.services.oasis_run import (
     OasisUnavailable,
     attempt_all_failed,
@@ -241,6 +243,7 @@ async def _mark_job_running(job_id: str) -> str | None:
         job.status = "running"
         job.started_at = utcnow()
         job.updated_at = utcnow()
+        await _sync_rattsunderlag_session(session, job, "running")
         await session.commit()
         await session.refresh(job)
         await publish_job(job)
@@ -299,6 +302,31 @@ async def _run_job(job_id: str) -> None:
             await _fail(session, job_id, str(exc) or exc.__class__.__name__)
 
 
+async def _sync_rattsunderlag_session(
+    session: AsyncSession,
+    job: Job,
+    status: str,
+    *,
+    error: str | None = None,
+) -> None:
+    if job.kind != JOB_KIND:
+        return
+    request = job.request if isinstance(job.request, dict) else {}
+    result = job.result if isinstance(job.result, dict) else {}
+    session_id = request.get("session_id")
+    report_id = result.get("report_id")
+    underlag_id = result.get("underlag_id")
+    await apply_job_status(
+        session,
+        session_id=session_id if isinstance(session_id, str) else None,
+        job_id=job.id,
+        status=status,  # type: ignore[arg-type]
+        error=error,
+        report_id=report_id if isinstance(report_id, str) else None,
+        underlag_id=underlag_id if isinstance(underlag_id, str) else None,
+    )
+
+
 async def _fail(session: AsyncSession, job_id: str, message: str) -> None:
     job = await session.get(Job, job_id)
     if job is None:
@@ -307,6 +335,7 @@ async def _fail(session: AsyncSession, job_id: str, message: str) -> None:
     job.error = message[:2000]
     job.finished_at = utcnow()
     job.updated_at = utcnow()
+    await _sync_rattsunderlag_session(session, job, "failed", error=job.error)
     await session.commit()
     await session.refresh(job)
     await publish_job(job)
@@ -325,6 +354,7 @@ async def _succeed(session: AsyncSession, job_id: str, result: dict) -> None:
     job.error = None
     job.finished_at = utcnow()
     job.updated_at = utcnow()
+    await _sync_rattsunderlag_session(session, job, "succeeded")
     await session.commit()
     await session.refresh(job)
     await publish_job(job)

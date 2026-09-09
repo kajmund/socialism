@@ -8,6 +8,7 @@ from app.services import jobs as jobs_service
 from app.services.rattsunderlag import MODULE_ID, REPORT_MODE, SOURCE_TYPE
 from app.services.rattsunderlag.schemas import SearchPlan
 from app.llm import set_structured_completer, set_text_completer
+from app.services.spindoctor_context import build_spindoctor_context
 
 
 def test_rattsunderlag_manifest_has_shared_renderer_mode():
@@ -77,5 +78,72 @@ async def test_research_job_writes_underlag_visible_without_module_filter(
         assert "Bedömning" in page
         assert "[[ref:" not in page
         assert "[[ref:" not in body["result"]["result"]["sammanfattning"]
+        listed = await user_client.get("/rattsunderlag/sessions")
+        assert listed.status_code == 200
+        sessions = listed.json()
+        assert any(row["job_id"] == job_id for row in sessions)
+        session_row = next(row for row in sessions if row["job_id"] == job_id)
+        assert session_row["status"] == "succeeded"
+        fetched_session = await user_client.get(f"/rattsunderlag/sessions/{session_row['id']}")
+        assert fetched_session.status_code == 200
+        assert fetched_session.json()["fraga"].startswith("Måste en myndighet")
+
+        factory = jobs_service.job_session_factory()
+        assert factory is not None
+        async with factory() as db:
+            _report, context = await build_spindoctor_context(db, report_id=report_id)
+        assert "Likabehandling" in context
+    finally:
+        jobs_service.set_schedule_hook(None)
+
+
+@pytest.mark.asyncio
+async def test_rattsunderlag_session_draft_then_run(user_client: AsyncClient):
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    try:
+        created = await user_client.post(
+            "/rattsunderlag/sessions",
+            json={"fraga": "", "title": "Utkast"},
+        )
+        assert created.status_code == 201, created.text
+        session_id = created.json()["id"]
+        assert created.json()["status"] == "draft"
+
+        patched = await user_client.patch(
+            f"/rattsunderlag/sessions/{session_id}",
+            json={"fraga": "Vad krävs för ogiltig upphandling?"},
+        )
+        assert patched.status_code == 200
+        assert patched.json()["fraga"].startswith("Vad krävs")
+
+        too_early = await user_client.post(f"/rattsunderlag/sessions/{session_id}/run")
+        assert too_early.status_code == 202, too_early.text
+        job_id = too_early.json()["job_id"]
+        pending = await user_client.get(f"/rattsunderlag/sessions/{session_id}")
+        assert pending.json()["status"] == "pending"
+        assert pending.json()["job_id"] == job_id
+
+        listed = await user_client.get("/rattsunderlag/sessions")
+        assert any(row["id"] == session_id for row in listed.json())
+
+        blocked = await user_client.delete(f"/rattsunderlag/sessions/{session_id}")
+        assert blocked.status_code == 409
+    finally:
+        jobs_service.set_schedule_hook(None)
+
+
+@pytest.mark.asyncio
+async def test_rattsunderlag_session_lookup_by_job_id(user_client: AsyncClient):
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    try:
+        started = await user_client.post(
+            "/rattsunderlag/research",
+            json={"fraga": "Får en myndighet diskriminera anbudsgivare?"},
+        )
+        assert started.status_code == 202, started.text
+        job_id = started.json()["id"]
+        by_job = await user_client.get(f"/rattsunderlag/sessions/{job_id}")
+        assert by_job.status_code == 200
+        assert by_job.json()["job_id"] == job_id
     finally:
         jobs_service.set_schedule_hook(None)

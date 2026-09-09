@@ -39,6 +39,7 @@ import type { EditablePersona, PersonaKind, PersonaOrigin } from "@/data/library
 import {
   DEFAULT_EXPERT_TOOLS,
   normalizeExpertTools,
+  normalizePersonaTools,
   type ExpertToolId,
 } from "@/data/expert-tools"
 import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
@@ -224,6 +225,7 @@ function Editor({
 }: EditorProps) {
   const [mode, setMode] = useState<"work" | "present">("work")
   const [icMode, setIcMode] = useState<ChatMode>("interview")
+  const [layersOpen, setLayersOpen] = useState(true)
   const [saved, setSaved] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [locks, setLocks] = useState<Record<string, boolean>>({
@@ -508,12 +510,18 @@ function Editor({
               {t("personas.composer.presentMode")}
             </button>
           </div>
-          {kind === "expert" ? (
-            <ExpertToolsFields
-              tools={tools}
-              onChange={onToolsChange ?? (() => undefined)}
-            />
-          ) : null}
+          <ExpertToolsFields
+            tools={tools}
+            onChange={onToolsChange ?? (() => undefined)}
+            titleKey={
+              kind === "expert"
+                ? "experts.composer.layerTools"
+                : "personas.composer.layerTools"
+            }
+            introKey={
+              kind === "expert" ? "experts.tools.intro" : "personas.tools.intro"
+            }
+          />
           <AdminButton variant="secondary" size="sm" onClick={onDuplicate}>
             {t("common.duplicate")}
           </AdminButton>
@@ -584,7 +592,11 @@ function Editor({
       )}
 
       <div className="work" style={{ display: mode === "work" ? "flex" : "none" }}>
-        <div className="layers-col">
+        <div
+          id="persona-layers"
+          className={"layers-col" + (layersOpen ? "" : " is-collapsed")}
+          hidden={!layersOpen}
+        >
           {kind === "expert" ? (
             <>
               <div className="layer-h">{t("experts.composer.layerCompetence")}</div>
@@ -741,38 +753,53 @@ function Editor({
         </div>
         <div className="chat-col">
           <div className="chat-top">
-            <div className="ic-switch">
+            <div className="chat-top-lead">
               <button
                 type="button"
-                className={icMode === "character" ? "on" : ""}
-                onClick={() => setIcMode("character")}
+                className="layers-toggle"
+                aria-expanded={layersOpen}
+                aria-controls="persona-layers"
+                onClick={() => setLayersOpen((open) => !open)}
               >
-                {t("personas.composer.inCharacter")}
+                {layersOpen
+                  ? t("personas.composer.collapseLayers")
+                  : t("personas.composer.expandLayers")}
               </button>
-              <button
-                type="button"
-                className={icMode === "interview" ? "on" : ""}
-                onClick={() => setIcMode("interview")}
-              >
-                {t("personas.composer.interviewTab")}
-              </button>
+              <div className="ic-switch">
+                <button
+                  type="button"
+                  className={icMode === "character" ? "on" : ""}
+                  onClick={() => setIcMode("character")}
+                >
+                  {t("personas.composer.inCharacter")}
+                </button>
+                <button
+                  type="button"
+                  className={icMode === "interview" ? "on" : ""}
+                  onClick={() => setIcMode("interview")}
+                >
+                  {t("personas.composer.interviewTab")}
+                </button>
+              </div>
             </div>
-            <AdminButton
-              variant="secondary"
-              size="sm"
-              disabled={!personaId || chatBusy || messages.length === 0}
-              onClick={() => setConfirmClearInterview(true)}
-            >
-              {clearChatLabel}
-            </AdminButton>
-            <AdminButton
-              variant="secondary"
-              size="sm"
-              disabled={!personaId || chatBusy || messages.length === 0}
-              onClick={() => void regenerate()}
-            >
-              ↻ {t("personas.composer.regenerateAnswer")}
-            </AdminButton>
+            <div className="chat-top-actions">
+              <AdminButton
+                variant="secondary"
+                size="sm"
+                disabled={!personaId || chatBusy || messages.length === 0}
+                onClick={() => setConfirmClearInterview(true)}
+              >
+                {clearChatLabel}
+              </AdminButton>
+              <AdminButton
+                variant="secondary"
+                size="sm"
+                disabled={!personaId || chatBusy || messages.length === 0}
+                onClick={() => void regenerate()}
+              >
+                ↻ {t("personas.composer.regenerateAnswer")}
+              </AdminButton>
+            </div>
           </div>
           <MessengerChat
             messages={messages}
@@ -1078,7 +1105,9 @@ export function PersonaComposerPage({
     startCreating ? (isExpert ? blankEditableExpert() : null) : isExpert ? blankEditableExpert() : blankEditablePersona(),
   )
   const [personaId, setPersonaId] = useState<string | null>(existingId)
-  const [tools, setTools] = useState<ExpertToolId[]>(DEFAULT_EXPERT_TOOLS)
+  const [tools, setTools] = useState<ExpertToolId[]>(
+    isExpert ? DEFAULT_EXPERT_TOOLS : [],
+  )
   const [loading, setLoading] = useState(!!existingId)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -1154,19 +1183,33 @@ export function PersonaComposerPage({
     getPersona(existingId)
       .then((detail) => {
         if (cancelled) return
-        setPersona({ ...blankEditablePersona(), ...detail.profile })
+        if (detail.kind === "expert" && !isExpert) {
+          navigate(`/bolag/experter/${detail.id}`, { replace: true })
+          return
+        }
+        if (detail.kind === "persona" && isExpert) {
+          navigate(`/personas/${detail.id}`, { replace: true })
+          return
+        }
+        setPersona({
+          ...(isExpert ? blankEditableExpert() : blankEditablePersona()),
+          ...detail.profile,
+        })
         setPersonaId(detail.id)
         setCreateOrigin(detail.origin)
-        if (isExpert) setTools(normalizeExpertTools(detail.tools))
+        setTools(
+          isExpert
+            ? normalizeExpertTools(detail.tools)
+            : normalizePersonaTools(detail.tools),
+        )
+        setLoading(false)
       })
       .catch((err: unknown) => {
         if (!cancelled) {
           setToast(err instanceof ApiError ? err.message : t("personas.composer.fetchPersonaError"))
           window.setTimeout(() => setToast(""), 2400)
+          setLoading(false)
         }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
       })
     return () => {
       cancelled = true
@@ -1184,18 +1227,26 @@ export function PersonaComposerPage({
       const body = editableToWrite(target, origin, "", {
         kind,
         customerId,
-        tools: isExpert ? tools : undefined,
+        tools,
       })
       if (personaId) {
         const saved = await updatePersona(personaId, body)
         setPersona({ ...(isExpert ? blankEditableExpert() : blankEditablePersona()), ...saved.profile })
         setPersonaId(saved.id)
-        if (isExpert) setTools(normalizeExpertTools(saved.tools))
+        setTools(
+          isExpert
+            ? normalizeExpertTools(saved.tools)
+            : normalizePersonaTools(saved.tools),
+        )
       } else {
         const saved = await createPersona(body)
         setPersona({ ...(isExpert ? blankEditableExpert() : blankEditablePersona()), ...saved.profile })
         setPersonaId(saved.id)
-        if (isExpert) setTools(normalizeExpertTools(saved.tools))
+        setTools(
+          isExpert
+            ? normalizeExpertTools(saved.tools)
+            : normalizePersonaTools(saved.tools),
+        )
         navigate(`${basePath}/${saved.id}`, { replace: true })
       }
     } catch (err) {

@@ -206,7 +206,7 @@ async def test_panel_expert_profile_crud_api(client: AsyncClient):
     listed = await client.get("/panel/expert-profiles", params={"module": "dd"})
     assert listed.status_code == 200
     spin = next(row for row in listed.json() if row["key"] == "spinndoctor")
-    assert set(spin["modules"]) == {"dd", "politik", "expertgranskning"}
+    assert set(spin["modules"]) == {"dd", "politik", "expertgranskning", "rattsunderlag"}
     scoring = [row for row in listed.json() if row["key"] != "spinndoctor"]
     assert len(scoring) == 4
     assert all(row["module"] == "dd" and row["modules"] == ["dd"] for row in scoring)
