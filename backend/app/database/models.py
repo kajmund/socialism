@@ -56,6 +56,7 @@ class Kund(Base):
     expert_profiles: Mapped[list["PanelExpertProfile"]] = relationship(
         back_populates="kund"
     )
+    execution_runs: Mapped[list["ExecutionRun"]] = relationship(back_populates="kund")
 
 
 class UserAccount(Base):
@@ -1260,3 +1261,155 @@ class KnowledgeDocumentRecord(Base):
         onupdate=func.now(),
         nullable=False,
     )
+
+
+class ExecutionRun(Base):
+    """Generic work/investigation container (product: Run).
+
+    Distinct from simulation ``Run`` / ``runs`` (körningar). Tables are
+    ``execution_*`` so the two models cannot be confused.
+    """
+
+    __tablename__ = "execution_runs"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("kunder.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    module: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    context: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    kund: Mapped[Kund] = relationship(back_populates="execution_runs")
+    attempts: Mapped[list["ExecutionAttempt"]] = relationship(
+        back_populates="run",
+        foreign_keys="ExecutionAttempt.run_id",
+    )
+    evidence_sets: Mapped[list["EvidenceSet"]] = relationship(back_populates="run")
+
+
+class EvidenceSet(Base):
+    """Frozen (or building) knowledge snapshot scoped to one ExecutionRun."""
+
+    __tablename__ = "evidence_sets"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    run_id: Mapped[str] = mapped_column(
+        ForeignKey("execution_runs.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    created_from_attempt_id: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        index=True,
+    )
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="building")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    frozen_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    run: Mapped[ExecutionRun] = relationship(back_populates="evidence_sets")
+    items: Mapped[list["EvidenceSetItem"]] = relationship(
+        back_populates="evidence_set",
+        cascade="all, delete-orphan",
+    )
+
+
+class ExecutionAttempt(Base):
+    """One concrete execution of an ExecutionRun (product: Attempt)."""
+
+    __tablename__ = "execution_attempts"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    run_id: Mapped[str] = mapped_column(
+        ForeignKey("execution_runs.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    parent_attempt_id: Mapped[str | None] = mapped_column(
+        ForeignKey("execution_attempts.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
+    attempt_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="created")
+    configuration_snapshot: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    input_snapshot: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    evidence_set_id: Mapped[str | None] = mapped_column(
+        ForeignKey("evidence_sets.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    run: Mapped[ExecutionRun] = relationship(
+        back_populates="attempts",
+        foreign_keys=[run_id],
+    )
+    parent_attempt: Mapped["ExecutionAttempt | None"] = relationship(
+        remote_side=[id],
+        foreign_keys=[parent_attempt_id],
+    )
+    evidence_set: Mapped[EvidenceSet | None] = relationship(
+        foreign_keys=[evidence_set_id],
+    )
+
+
+class EvidenceSetItem(Base):
+    """Historical snapshot of evidence the model saw — not a live pointer."""
+
+    __tablename__ = "evidence_set_items"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    evidence_set_id: Mapped[str] = mapped_column(
+        ForeignKey("evidence_sets.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    research_need_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    source_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    title: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    excerpt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    locator: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    source_id: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    source_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    provider: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    provenance: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    retrieved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    evidence_set: Mapped[EvidenceSet] = relationship(back_populates="items")

@@ -1,0 +1,56 @@
+"""Status vocabularies for the generic execution domain.
+
+Product names are Run → Attempt → EvidenceSet. Persistence uses
+``execution_runs`` / ``execution_attempts`` because simulation already owns
+``runs``.
+"""
+
+from __future__ import annotations
+
+from typing import Literal
+
+AttemptStatus = Literal[
+    "created",
+    "researching",
+    "ready",
+    "running",
+    "completed",
+    "failed",
+]
+
+ATTEMPT_STATUSES: tuple[AttemptStatus, ...] = (
+    "created",
+    "researching",
+    "ready",
+    "running",
+    "completed",
+    "failed",
+)
+
+# ResearchPlan can move created → researching without locking snapshots.
+PREPARATION_STATUSES: frozenset[AttemptStatus] = frozenset({"created", "researching"})
+SNAPSHOT_LOCKED_STATUSES: frozenset[AttemptStatus] = frozenset(
+    {"ready", "running", "completed", "failed"}
+)
+TERMINAL_STATUSES: frozenset[AttemptStatus] = frozenset({"completed", "failed"})
+
+# Researching is reserved for a future ResearchPlan lifecycle; do not remove it.
+ALLOWED_ATTEMPT_TRANSITIONS: dict[AttemptStatus, frozenset[AttemptStatus]] = {
+    "created": frozenset({"researching", "ready", "running", "failed"}),
+    "researching": frozenset({"ready", "running", "failed"}),
+    "ready": frozenset({"running", "failed"}),
+    "running": frozenset({"completed", "failed"}),
+    "completed": frozenset(),
+    "failed": frozenset(),
+}
+
+EvidenceSetStatus = Literal["building", "frozen"]
+
+EVIDENCE_SET_STATUSES: tuple[EvidenceSetStatus, ...] = ("building", "frozen")
+
+# Documented examples only — attempt_type is an extensible string, not a DB enum.
+KNOWN_ATTEMPT_TYPES: tuple[str, ...] = (
+    "generic_panel",
+    "structured_scoring",
+    "word_review",
+)
