@@ -12,14 +12,13 @@ import {
   applyRewriteSuggestion,
   commentsApiSupported,
   getOrCreateDocId,
-  getRoamingToken,
   getStoredDocId,
   insertCommentAt,
   officeReady,
   readDocumentParagraphs,
   resolveComment,
-  saveRoamingToken,
 } from "@/lib/office"
+import { clearStoredToken, getStoredToken, saveStoredToken } from "@/lib/tokenStorage"
 import { planReviewStart } from "@/lib/resume"
 import { buildSections } from "@/lib/sections"
 import { connectExpertgranskningWatch } from "@/lib/socket"
@@ -72,13 +71,13 @@ export function App() {
   }
 
   useEffect(() => {
+    const stored = getStoredToken().trim()
+    if (stored) {
+      setToken(stored)
+      setTokenDraft(stored)
+    }
     void officeReady().then(() => {
       setInWord(typeof Office !== "undefined" && Office.context?.document != null)
-      const stored = getRoamingToken().trim()
-      if (stored) {
-        setToken(stored)
-        setTokenDraft(stored)
-      }
     })
     return () => {
       socketRef.current?.close()
@@ -142,14 +141,20 @@ export function App() {
     }
     setToken(next)
     setError("")
-    if (typeof Office === "undefined") {
-      return
-    }
     try {
-      await saveRoamingToken(next)
+      saveStoredToken(next)
     } catch {
       setError(t("tokenPersistFailed"))
     }
+  }
+
+  function handleChangeToken() {
+    clearStoredToken()
+    setToken("")
+    setTokenDraft("")
+    setPanels([])
+    setPanelId("")
+    setError("")
   }
 
   async function insertOne(jobId: string, result: ReviewResult) {
@@ -298,18 +303,23 @@ export function App() {
         </label>
       </header>
 
-      <form className="block" onSubmit={(event) => void handleSaveToken(event)}>
-        <label htmlFor="token">{t("tokenLabel")}</label>
-        <textarea
-          id="token"
-          rows={3}
-          value={tokenDraft}
-          onChange={(event) => setTokenDraft(event.target.value)}
-        />
-        <p className="hint">{t("tokenHint")}</p>
-        <button type="submit">{t("tokenSave")}</button>
-        {token ? <p className="ok">{t("tokenSaved")}</p> : null}
-      </form>
+      {token ? (
+        <button type="button" className="link" onClick={handleChangeToken}>
+          {t("tokenChange")}
+        </button>
+      ) : (
+        <form className="block" onSubmit={(event) => void handleSaveToken(event)}>
+          <label htmlFor="token">{t("tokenLabel")}</label>
+          <textarea
+            id="token"
+            rows={3}
+            value={tokenDraft}
+            onChange={(event) => setTokenDraft(event.target.value)}
+          />
+          <p className="hint">{t("tokenHint")}</p>
+          <button type="submit">{t("tokenSave")}</button>
+        </form>
+      )}
 
       <div className="block">
         <label htmlFor="panel">{t("panelLabel")}</label>
