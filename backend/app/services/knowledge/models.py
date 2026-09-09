@@ -87,6 +87,18 @@ class EmbeddedKnowledgeChunk:
     embedding: list[float]
 
 
+@dataclass(frozen=True)
+class EmbeddedKnowledgeQuery:
+    """Query plus an explicit embedding. VectorStore searches vectors, not raw text."""
+
+    query: KnowledgeQuery
+    embedding: list[float]
+
+    def __post_init__(self) -> None:
+        if not self.embedding:
+            raise ValueError("EmbeddedKnowledgeQuery.embedding must not be empty")
+
+
 def require_scope(scope: KnowledgeScope) -> None:
     if scope.customer_id is None:
         raise KnowledgeScopeRequiredError(
