@@ -19,7 +19,7 @@ Backend CORS defaults include `https://localhost:3000`. Keep `make backend` runn
 
 ## Auth
 
-Paste a Supabase magic-link access token once. It is stored in `Office.context.roamingSettings` and sent as `Authorization: Bearer` and as the WebSocket `access_token` query param.
+Paste a Supabase magic-link access token once. It is stored in the task pane `localStorage` (Word Mac `roamingSettings.saveAsync` hangs) and sent as `Authorization: Bearer` and as the WebSocket `access_token` query param.
 
 ## Review flow
 
