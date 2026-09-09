@@ -15,6 +15,7 @@ from app.services.execution.errors import (
 from app.services.execution.models import (
     ALLOWED_ATTEMPT_TRANSITIONS,
     ATTEMPT_STATUSES,
+    EVIDENCE_REQUIRED_FROZEN_STATUSES,
     EVIDENCE_SET_STATUSES,
     KNOWN_ATTEMPT_TYPES,
     PREPARATION_STATUSES,
@@ -52,6 +53,7 @@ from app.services.execution.snapshots import (
 __all__ = [
     "ALLOWED_ATTEMPT_TRANSITIONS",
     "ATTEMPT_STATUSES",
+    "EVIDENCE_REQUIRED_FROZEN_STATUSES",
     "EVIDENCE_SET_STATUSES",
     "KNOWN_ATTEMPT_TYPES",
     "PREPARATION_STATUSES",

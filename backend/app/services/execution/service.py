@@ -28,6 +28,7 @@ from app.services.execution.errors import (
 from app.services.execution.models import (
     ALLOWED_ATTEMPT_TRANSITIONS,
     ATTEMPT_STATUSES,
+    EVIDENCE_REQUIRED_FROZEN_STATUSES,
     PREPARATION_STATUSES,
     SNAPSHOT_LOCKED_STATUSES,
     AttemptStatus,
@@ -331,7 +332,8 @@ def _assert_evidence_ready_for_execution(evidence_set: EvidenceSet | None) -> No
     status: EvidenceSetStatus | str = evidence_set.status
     if status != "frozen":
         raise ExecutionStatusError(
-            f"EvidenceSet {evidence_set.id} must be frozen before the attempt leaves preparation"
+            f"EvidenceSet {evidence_set.id} must be frozen before the attempt "
+            "becomes ready, running, or completed"
         )
 
 
@@ -348,7 +350,7 @@ async def transition_attempt(
         raise ExecutionStatusError(
             f"Cannot transition attempt {attempt.id} from {current} to {target}"
         )
-    if target in SNAPSHOT_LOCKED_STATUSES and attempt.evidence_set_id is not None:
+    if target in EVIDENCE_REQUIRED_FROZEN_STATUSES and attempt.evidence_set_id is not None:
         evidence_set = await get_evidence_set(session, attempt.evidence_set_id)
         _assert_evidence_ready_for_execution(evidence_set)
     now = utc_now()

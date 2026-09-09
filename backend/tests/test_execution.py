@@ -31,6 +31,7 @@ from app.services.execution import (
     fail_attempt,
     freeze_evidence_set,
     get_attempt,
+    get_evidence_set,
     get_run,
     list_evidence_items,
     mark_ready,
@@ -302,6 +303,31 @@ async def test_attempt_status_and_snapshot_immutability(session):
         await start_attempt(session, attempt.id)
     with pytest.raises(ExecutionStatusError):
         await fail_attempt(session, attempt.id)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("start_status", ["created", "researching"])
+async def test_fail_attempt_allows_building_evidence_set(session, start_status):
+    customer = await _customer(session, f"fail-{start_status}")
+    run = await create_run(session, customer_id=customer.id, module="dd", title="R")
+    building = await create_evidence_set(session, run_id=run.id)
+    attempt = await create_attempt(
+        session,
+        run_id=run.id,
+        attempt_type="generic_panel",
+        evidence_set_id=building.id,
+    )
+    if start_status == "researching":
+        attempt = await mark_researching(session, attempt.id)
+    assert attempt.status == start_status
+    assert building.status == "building"
+
+    attempt = await fail_attempt(session, attempt.id)
+
+    assert attempt.status == "failed"
+    reloaded_set = await get_evidence_set(session, building.id)
+    assert reloaded_set.status == "building"
+    assert reloaded_set.frozen_at is None
 
 
 @pytest.mark.asyncio
