@@ -200,7 +200,9 @@ async def test_acceptance_clone_reuses_frozen_evidence_without_mutating_source(s
     assert by_need["research_1"].locator == first.locator
     assert by_need["research_1"].provenance["version"] == "3"
     assert by_need["research_1"].provenance["research_evidence_id"] == first.evidence_id
+    assert by_need["research_1"].original_evidence_id == first.evidence_id
     assert by_need["research_2"].excerpt == second.excerpt
+    assert [row.ordinal for row in stored] == [0, 1]
     for row in stored:
         assert row.content_hash == compute_content_hash(
             title=row.title,

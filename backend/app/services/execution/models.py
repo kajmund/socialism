@@ -39,7 +39,7 @@ EVIDENCE_REQUIRED_FROZEN_STATUSES: frozenset[AttemptStatus] = frozenset(
 )
 TERMINAL_STATUSES: frozenset[AttemptStatus] = frozenset({"completed", "failed"})
 
-# Researching is reserved for a future ResearchPlan lifecycle; do not remove it.
+# researching is the in-flight ResearchPlan → ResearchRouter claim.
 ALLOWED_ATTEMPT_TRANSITIONS: dict[AttemptStatus, frozenset[AttemptStatus]] = {
     "created": frozenset({"researching", "ready", "running", "failed"}),
     "researching": frozenset({"ready", "running", "failed"}),
@@ -49,9 +49,9 @@ ALLOWED_ATTEMPT_TRANSITIONS: dict[AttemptStatus, frozenset[AttemptStatus]] = {
     "failed": frozenset(),
 }
 
-EvidenceSetStatus = Literal["building", "frozen"]
+EvidenceSetStatus = Literal["building", "frozen", "failed"]
 
-EVIDENCE_SET_STATUSES: tuple[EvidenceSetStatus, ...] = ("building", "frozen")
+EVIDENCE_SET_STATUSES: tuple[EvidenceSetStatus, ...] = ("building", "frozen", "failed")
 
 # Documented examples only — attempt_type is an extensible string, not a DB enum.
 KNOWN_ATTEMPT_TYPES: tuple[str, ...] = (
