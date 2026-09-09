@@ -15,6 +15,7 @@ from sqlalchemy.pool import StaticPool
 from app.database.base import Base
 from app.database.models import KnowledgeDocumentRecord, Kund
 from app.services.knowledge.models import (
+    EmbeddedKnowledgeChunk,
     KnowledgeChunk,
     KnowledgeDocument,
     KnowledgeHit,
@@ -56,12 +57,9 @@ _FORBIDDEN_IMPORT_PREFIXES = (
 )
 
 _FORBIDDEN_MODULES = {
-    "pdfplumber",
-    "mammoth",
     "pytesseract",
     "unstructured",
     "pypdf",
-    "pdfminer",
 }
 
 
@@ -144,7 +142,12 @@ def _chunk(
         locator="p1",
         provider=SUPABASE_PROVIDER_ID,
         version="1",
+        content_hash="hash-1",
     )
+
+
+def _embedded(chunk: KnowledgeChunk) -> EmbeddedKnowledgeChunk:
+    return EmbeddedKnowledgeChunk(chunk=chunk, embedding=[0.1, 0.2, 0.3])
 
 
 class RankedVectorStore:
@@ -158,7 +161,14 @@ class RankedVectorStore:
         self.requested_limits.append(query.limit)
         return self.hits[: query.limit]
 
-    async def upsert_chunks(self, chunks: Sequence[KnowledgeChunk]) -> None:
+    async def upsert_chunks(self, chunks: Sequence[EmbeddedKnowledgeChunk]) -> None:
+        return None
+
+    async def replace_document_chunks(
+        self,
+        document_id: str,
+        chunks: Sequence[EmbeddedKnowledgeChunk],
+    ) -> None:
         return None
 
     async def delete_document(self, document_id: str) -> None:
@@ -178,6 +188,10 @@ class FakeVectorBucketClient:
             for existing in self.records
             if (existing.document_id, existing.chunk_id) not in ids
         ]
+        self.records.extend(records)
+
+    async def replace(self, document_id: str, records: Sequence[VectorBucketRecord]) -> None:
+        self.records = [record for record in self.records if record.document_id != document_id]
         self.records.extend(records)
 
     async def query(
@@ -262,7 +276,7 @@ async def test_correct_customer_case_scope_succeeds(session: AsyncSession):
     await put_object("acme", "dd/files/brief.pdf", b"ok", "application/pdf")
     store = MemoryKnowledgeVectorStore()
     await store.upsert_chunks(
-        [_chunk(document_id="doc-brief", text="kommunens skattesats", customer_id=kund.id)]
+        [_embedded(_chunk(document_id="doc-brief", text="kommunens skattesats", customer_id=kund.id))]
     )
     provider = SupabaseKnowledgeProvider(session, vector_store=store)
     scope = _scope(customer_id=kund.id, case_id="case-1")
@@ -286,7 +300,7 @@ async def test_wrong_customer_and_case_scope_fails_closed(session: AsyncSession)
 
     store = MemoryKnowledgeVectorStore()
     await store.upsert_chunks(
-        [_chunk(document_id="doc-brief", text="kommunens skattesats", customer_id=owner.id)]
+        [_embedded(_chunk(document_id="doc-brief", text="kommunens skattesats", customer_id=owner.id))]
     )
     provider = SupabaseKnowledgeProvider(
         session,
@@ -320,7 +334,7 @@ async def test_vector_search_returns_normalized_knowledge_hit(session: AsyncSess
     await _index_document(session, customer_id=kund.id)
     store = MemoryKnowledgeVectorStore()
     await store.upsert_chunks(
-        [_chunk(document_id="doc-brief", text="vindkraft i kommunen", customer_id=kund.id)]
+        [_embedded(_chunk(document_id="doc-brief", text="vindkraft i kommunen", customer_id=kund.id))]
     )
     provider = SupabaseKnowledgeProvider(session, vector_store=store)
     hits = await provider.search(
@@ -341,17 +355,21 @@ async def test_vector_metadata_filtering_enforces_scope():
     store = MemoryKnowledgeVectorStore()
     await store.upsert_chunks(
         [
-            _chunk(
-                document_id="doc-a",
-                text="skola i acme",
-                customer_id=1,
-                case_id="case-a",
+            _embedded(
+                _chunk(
+                    document_id="doc-a",
+                    text="skola i acme",
+                    customer_id=1,
+                    case_id="case-a",
+                )
             ),
-            _chunk(
-                document_id="doc-b",
-                text="skola i other",
-                customer_id=2,
-                case_id="case-b",
+            _embedded(
+                _chunk(
+                    document_id="doc-b",
+                    text="skola i other",
+                    customer_id=2,
+                    case_id="case-b",
+                )
             ),
         ]
     )
@@ -372,18 +390,22 @@ async def test_supabase_vector_bucket_store_normalizes_and_filters():
     store = SupabaseVectorBucketStore(client)
     await store.upsert_chunks(
         [
-            _chunk(
-                document_id="doc-a",
-                text="vatten och avlopp",
-                customer_id=1,
-                case_id="case-a",
+            _embedded(
+                _chunk(
+                    document_id="doc-a",
+                    text="vatten och avlopp",
+                    customer_id=1,
+                    case_id="case-a",
+                )
             ),
-            _chunk(
-                document_id="doc-b",
-                text="vatten i annan kund",
-                customer_id=2,
-                case_id="case-b",
-                chunk_id="c2",
+            _embedded(
+                _chunk(
+                    document_id="doc-b",
+                    text="vatten i annan kund",
+                    customer_id=2,
+                    case_id="case-b",
+                    chunk_id="c2",
+                )
             ),
         ]
     )
@@ -439,16 +461,12 @@ def test_no_panel_research_router_or_mcp_imports():
                     )
 
 
-def test_no_parsing_ocr_or_embedding_pipeline():
+def test_no_ocr_implementation():
     banned_names = {
-        "parse_pdf",
-        "parse_docx",
-        "extract_text",
         "ocr_image",
-        "generate_embedding",
-        "embed_text",
-        "chunk_document",
-        "ingest_document",
+        "ocr_pdf",
+        "run_ocr",
+        "tesseract",
     }
     for path in _knowledge_python_files():
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
@@ -458,7 +476,7 @@ def test_no_parsing_ocr_or_embedding_pipeline():
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
         }
         overlap = defined & banned_names
-        assert not overlap, f"{path} defines ingest helpers {overlap}"
+        assert not overlap, f"{path} defines OCR helpers {overlap}"
 
 
 async def test_vector_store_is_replaceable(session: AsyncSession):
@@ -466,12 +484,12 @@ async def test_vector_store_is_replaceable(session: AsyncSession):
     await _index_document(session, customer_id=kund.id)
     memory = MemoryKnowledgeVectorStore()
     await memory.upsert_chunks(
-        [_chunk(document_id="doc-brief", text="cykelbana", customer_id=kund.id)]
+        [_embedded(_chunk(document_id="doc-brief", text="cykelbana", customer_id=kund.id))]
     )
     fake_client = FakeVectorBucketClient()
     bucket_store = SupabaseVectorBucketStore(fake_client)
     await bucket_store.upsert_chunks(
-        [_chunk(document_id="doc-brief", text="cykelbana", customer_id=kund.id)]
+        [_embedded(_chunk(document_id="doc-brief", text="cykelbana", customer_id=kund.id))]
     )
     scope = _scope(customer_id=kund.id)
     query = KnowledgeQuery(query="cykelbana", scope=scope)
@@ -524,16 +542,18 @@ async def test_provider_lookup_ignores_other_provider_rows(session: AsyncSession
     store = MemoryKnowledgeVectorStore()
     await store.upsert_chunks(
         [
-            KnowledgeChunk(
-                document_id="doc-drive",
-                chunk_id="c1",
-                text="skattesats från drive",
-                customer_id=kund.id,
-                case_id="case-1",
-                module="dd",
-                title="Brief",
-                locator="p1",
-                provider=SUPABASE_PROVIDER_ID,
+            _embedded(
+                KnowledgeChunk(
+                    document_id="doc-drive",
+                    chunk_id="c1",
+                    text="skattesats från drive",
+                    customer_id=kund.id,
+                    case_id="case-1",
+                    module="dd",
+                    title="Brief",
+                    locator="p1",
+                    provider=SUPABASE_PROVIDER_ID,
+                )
             )
         ]
     )
