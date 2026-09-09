@@ -5,8 +5,31 @@ from __future__ import annotations
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import UserAccount
+from app.database.models import Job, UserAccount
 from app.services.kund_store import default_os_customer_id
+
+
+def owner_user_id_from_job(job: Job) -> str | None:
+    request = job.request if isinstance(job.request, dict) else {}
+    owner = request.get("owner_user_id")
+    if owner is None or owner == "":
+        return None
+    return str(owner)
+
+
+def job_visible_to_user(user: UserAccount, job: Job) -> bool:
+    owner_id = owner_user_id_from_job(job)
+    if owner_id is None:
+        return True
+    if user.role == "admin":
+        return True
+    return user.id == owner_id
+
+
+def assert_job_owner_access(user: UserAccount, job: Job) -> None:
+    if job_visible_to_user(user, job):
+        return
+    raise HTTPException(status_code=403, detail="job_access_denied")
 
 
 def assert_kund_access(user: UserAccount, customer_id: int | None) -> None:
