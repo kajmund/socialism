@@ -20,7 +20,12 @@ from app.modules.registry import (
 from app.modules.report_binding import ReportGenerateContext
 from app.services import jobs as jobs_service
 from app.services.expertgranskning import MODULE_ID, REPORT_MODE, SOURCE_TYPE
-from app.services.kund_store import BOLAG_DEMO_KUND_SLUG, default_os_customer_id
+from app.services.kund_store import (
+    BOLAG_DEMO_KUND_SLUG,
+    OS_DEFAULT_KUND_SLUG,
+    default_os_customer_id,
+)
+from tests.conftest import BOLAG_USER_ID, mint_access_token
 from app.services.panel.expert_profiles_store import get_expert_profile_by_key
 from app.services.prompt_fields_store import get_prompt_field_by_key
 from app.services.spindoctor_context import build_spindoctor_context
@@ -339,9 +344,6 @@ async def test_non_admin_denied_when_panel_experts_span_kunder(client: AsyncClie
 
 @pytest.mark.asyncio
 async def test_non_admin_denied_when_patch_attaches_mixed_kund_panel(client: AsyncClient):
-    from app.services.kund_store import OS_DEFAULT_KUND_SLUG
-    from tests.conftest import BOLAG_USER_ID, mint_access_token
-
     listed = await client.get("/kunder")
     assert listed.status_code == 200
     kunder = {row["slug"]: row["id"] for row in listed.json()}
