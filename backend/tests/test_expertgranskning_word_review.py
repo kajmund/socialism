@@ -576,6 +576,13 @@ def test_preserved_dissensus_is_not_merged_away():
         ),
     )
     assert comments_dissent([roger.kommentar, daniel.kommentar])
+    assert comments_dissent(["Räntan är oacceptabel.", "Räntan är acceptabel."])
+    assert not comments_dissent(
+        [
+            "Villkoret är orimligt vagt men kan ändå användas.",
+            "Samma observation om oklar tidsallokering.",
+        ]
+    )
     parsed = WordCommentConvergence(
         issues=[
             WordConvergedIssue(
