@@ -349,6 +349,36 @@ async def test_second_execute_is_idempotent(client_db, research_sources, panel_l
 
 
 @pytest.mark.asyncio
+async def test_completed_execute_skips_prompts_when_dependency_is_gone(
+    client: AsyncClient, research_sources, panel_llm, monkeypatch
+):
+    run = await _create_run(client)
+    attempt = await _create_attempt(client, run["id"])
+    await client.post(
+        f"/execution/attempts/{attempt['id']}/research",
+        json={"research_plan": RESEARCH_PLAN},
+    )
+    first = await client.post(f"/execution/attempts/{attempt['id']}/execute")
+    assert first.status_code == 200
+    first_body = first.json()
+    assert first_body["attempt"]["status"] == "completed"
+    first_result_id = first_body["result"]["id"]
+
+    async def _boom_prompts(*_args, **_kwargs):
+        raise AssertionError("prompts must not load for a completed Attempt")
+
+    monkeypatch.setattr("app.api.execution.require_active_prompts", _boom_prompts)
+    monkeypatch.setattr(
+        "app.api.execution.execute_registered_attempt",
+        _boom_prompts,
+    )
+    second = await client.post(f"/execution/attempts/{attempt['id']}/execute")
+    assert second.status_code == 200
+    assert second.json()["result"]["id"] == first_result_id
+    assert second.json()["attempt"]["status"] == "completed"
+
+
+@pytest.mark.asyncio
 async def test_second_research_is_idempotent(client: AsyncClient, research_sources):
     found, missing, _router = research_sources
     run = await _create_run(client)
@@ -369,6 +399,54 @@ async def test_second_research_is_idempotent(client: AsyncClient, research_sourc
     assert second.json()["evidence_set_id"] == evidence_id
     assert second.json()["status"] == "ready"
     assert found.calls + missing.calls == calls
+
+
+@pytest.mark.asyncio
+async def test_ready_research_skips_router_when_dependency_is_gone(
+    client: AsyncClient, research_sources
+):
+    run = await _create_run(client)
+    attempt = await _create_attempt(client, run["id"])
+    first = await client.post(
+        f"/execution/attempts/{attempt['id']}/research",
+        json={"research_plan": RESEARCH_PLAN},
+    )
+    assert first.status_code == 200
+    first_body = first.json()
+
+    def _boom(_session):
+        raise AssertionError("ResearchRouter must not be built for a ready Attempt")
+
+    set_research_router_factory(_boom)
+    try:
+        second = await client.post(
+            f"/execution/attempts/{attempt['id']}/research",
+            json={"research_plan": RESEARCH_PLAN},
+        )
+        assert second.status_code == 200
+        assert second.json() == first_body
+    finally:
+        set_research_router_factory(None)
+
+
+@pytest.mark.asyncio
+async def test_ready_research_fast_path_still_enforces_scope(
+    client: AsyncClient, research_sources, admin_token: str, bolag_token: str
+):
+    client.headers["Authorization"] = f"Bearer {admin_token}"
+    run = await _create_run(client)
+    attempt = await _create_attempt(client, run["id"])
+    first = await client.post(
+        f"/execution/attempts/{attempt['id']}/research",
+        json={"research_plan": RESEARCH_PLAN},
+    )
+    assert first.status_code == 200
+    client.headers["Authorization"] = f"Bearer {bolag_token}"
+    forbidden = await client.post(
+        f"/execution/attempts/{attempt['id']}/research",
+        json={"research_plan": RESEARCH_PLAN},
+    )
+    assert forbidden.status_code == 403
 
 
 @pytest.mark.asyncio

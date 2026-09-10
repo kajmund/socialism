@@ -389,6 +389,25 @@ async def get_execution_attempt(
     return await _attempt_out(session, attempt, run)
 
 
+async def _research_out_from_attempt(
+    session: AsyncSession, attempt: ExecutionAttempt
+) -> AttemptResearchOut:
+    found = not_found = error = 0
+    if attempt.evidence_set_id is not None:
+        summaries = await list_evidence_summaries(session, [attempt.evidence_set_id])
+        raw = summaries.get(attempt.evidence_set_id)
+        if raw is not None:
+            _status, found, not_found, error = raw
+    return AttemptResearchOut(
+        attempt_id=attempt.id,
+        evidence_set_id=attempt.evidence_set_id,
+        status=attempt.status,
+        found_count=found,
+        not_found_count=not_found,
+        error_count=error,
+    )
+
+
 @router.post(
     "/attempts/{attempt_id}/research",
     response_model=AttemptResearchOut,
@@ -399,7 +418,9 @@ async def post_attempt_research(
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> AttemptResearchOut:
-    _attempt, _run = await _require_attempt(session, user, attempt_id)
+    attempt, _run = await _require_attempt(session, user, attempt_id)
+    if attempt.status == "ready":
+        return await _research_out_from_attempt(session, attempt)
     try:
         plan = research_plan_from_snapshot(body.research_plan.model_dump())
         router_impl = build_standard_research_router(session)
@@ -431,6 +452,9 @@ async def post_attempt_execute(
 ) -> AttemptExecuteOut:
     attempt, run = await _require_attempt(session, user, attempt_id)
     _ = body
+    if attempt.status == "completed":
+        detail = await _attempt_out(session, attempt, run)
+        return AttemptExecuteOut(attempt=detail, result=detail.result)
     try:
         prompts = await require_active_prompts(
             session,
