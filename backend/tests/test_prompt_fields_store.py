@@ -121,6 +121,8 @@ def test_module_providers_cover_all_catalog_keys_without_overlap_gaps():
     assert "panel.generic.synthesis" not in ratts_keys
     assert "panel.expert.research_need" in expert_keys
     assert "panel.expert.research_need" in dd_keys
+    assert "panel.moderator.missing_expertise" in expert_keys
+    assert "panel.moderator.missing_expertise" in dd_keys
     assert "panel.moderator.research_plan" in expert_keys
     assert "panel.moderator.research_plan" not in ratts_keys
     assert "spinndoctor.system" in expert_keys

@@ -185,6 +185,26 @@ async def test_missing_evidence_becomes_unanswered():
     ]
 
 
+def test_unanswered_turn_fills_result_when_synthesis_omits_it():
+    transcript = [
+        _turn("1", "moderator", "opening", "Vad är rekvisiten för dråp vid självförsvar?"),
+        _turn(
+            "2",
+            "moderator",
+            "unanswered",
+            "Frågan är unanswered: missing expertise. Kräver straffrättsexpert.",
+        ),
+    ]
+    result = panel_result_from_synthesis(
+        GenericPanelSynthesis(summary="Lucka.", claims=[], unanswered=[]),
+        transcript=transcript,
+    )
+    assert result.claims == []
+    assert result.unanswered == [
+        "Frågan är unanswered: missing expertise. Kräver straffrättsexpert."
+    ]
+
+
 @pytest.mark.asyncio
 async def test_all_abstain_does_not_fabricate_claims():
     transcript = [
