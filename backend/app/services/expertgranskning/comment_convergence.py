@@ -45,6 +45,7 @@ _REJECT_MARKERS = (
     "too high",
     "should be lowered",
 )
+_NEGATIONS = ("inte ", "icke ", "ej ", "not ")
 
 
 @dataclass(frozen=True)
@@ -99,19 +100,18 @@ def _has_marker(folded: str, marker: str) -> bool:
     return marker in folded
 
 
+def _negated_marker(folded: str, marker: str) -> bool:
+    return any(f"{neg}{marker}" in folded for neg in _NEGATIONS)
+
+
 def _polarity(text: str) -> str | None:
     folded = text.casefold()
-    negated_accept = any(
-        f"{neg}{marker}" in folded
-        for neg in ("inte ", "icke ", "ej ", "not ")
-        for marker in _ACCEPT_MARKERS
-    )
-    accept = (not negated_accept) and any(
-        _has_marker(folded, marker) for marker in _ACCEPT_MARKERS
-    )
-    reject = negated_accept or any(
-        _has_marker(folded, marker) for marker in _REJECT_MARKERS
-    )
+    negated_accept = any(_negated_marker(folded, marker) for marker in _ACCEPT_MARKERS)
+    negated_reject = any(_negated_marker(folded, marker) for marker in _REJECT_MARKERS)
+    has_accept = any(_has_marker(folded, marker) for marker in _ACCEPT_MARKERS)
+    has_reject = any(_has_marker(folded, marker) for marker in _REJECT_MARKERS)
+    accept = (has_accept and not negated_accept) or negated_reject
+    reject = (has_reject and not negated_reject) or negated_accept
     if accept and not reject:
         return "accept"
     if reject and not accept:
@@ -239,10 +239,9 @@ def _comment_from_members(
     supporting_expert_ids: Sequence[str],
 ) -> WordConsolidatedComment:
     labels_by_id = {item.expert_id: item.expert_label for item in members}
-    ids = _unique_preserving(
-        [item for item in supporting_expert_ids if item in labels_by_id]
-        or [item.expert_id for item in members]
-    )
+    preferred = [item for item in supporting_expert_ids if item in labels_by_id]
+    member_ids = [item.expert_id for item in members]
+    ids = _unique_preserving([*preferred, *member_ids])
     labels = _unique_preserving(labels_by_id[item] for item in ids)
     allowed = {item.paragraph_index for item in members}
     if paragraph_index in allowed:
