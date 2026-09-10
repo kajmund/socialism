@@ -12,7 +12,7 @@ def _item(
     *,
     item_id: str,
     ordinal: int,
-    status: str,
+    status: str = "found",
     title: str | None = "Kommunens skattesats",
     excerpt: str | None = "skattesats 32%",
     locator: str | None = "p. 14",

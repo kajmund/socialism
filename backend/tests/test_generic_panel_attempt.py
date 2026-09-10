@@ -39,7 +39,6 @@ from app.services.panel.attempt_execution import (
     execute_generic_panel_attempt,
 )
 from app.services.panel.research import empty_research_structured
-from app.services.panel.result import PanelResult
 from app.services.panel.synthesis import (
     GenericPanelSynthesis,
     SynthesizedClaim,
@@ -411,7 +410,7 @@ async def test_missing_or_unfrozen_evidence_rejected(db):
 @pytest.mark.asyncio
 async def test_cross_run_evidence_rejected(db):
     session, _factory = db
-    _customer_a, _run_a, frozen, _items, attempt = await _ready_attempt(
+    _customer_a, _run_a, frozen, _items, _attempt = await _ready_attempt(
         session, slug="alpha"
     )
     customer_b = await _customer(session, "beta")

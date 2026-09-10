@@ -54,7 +54,7 @@ def _source_label(item: EvidenceSetItem) -> str:
 
 def _useful_url(url: str | None) -> str | None:
     text = (url or "").strip()
-    if text.startswith("http://") or text.startswith("https://"):
+    if text.startswith(("http://", "https://")):
         return text
     return None
 
