@@ -148,6 +148,22 @@ async def _expert_raise_hand(
     return answer.startswith("JA") or answer.startswith("YES") or answer.startswith("RAISE")
 
 
+async def _expert_complete(
+    messages: list[dict[str, str]],
+    slot: PanelExpertSlot,
+    *,
+    allow_expert_tools: bool,
+) -> str:
+    """Frozen-evidence mode uses plain completion even if the slot lists tools."""
+    if not allow_expert_tools:
+        return (await complete_text(messages)).strip()
+    return (
+        await complete_text_with_company_tools(
+            messages, allowed_tools=frozenset(slot.tools)
+        )
+    ).strip()
+
+
 async def _expert_scratchpad(
     slot: PanelExpertSlot,
     config: PanelSessionConfig,
@@ -156,9 +172,10 @@ async def _expert_scratchpad(
     prompts: dict[str, str],
     *,
     evidence_prompt: str | None = None,
+    allow_expert_tools: bool = True,
 ) -> str:
     messages = _messages_with_brief(
-        identity=_expert_system(prompts, slot, with_tools=True),
+        identity=_expert_system(prompts, slot, with_tools=allow_expert_tools),
         brief=_session_brief(config),
         evidence_prompt=evidence_prompt,
         user_content=render_prompt(
@@ -169,11 +186,9 @@ async def _expert_scratchpad(
             scratchpad=scratchpad or "(tom)",
         ),
     )
-    return (
-        await complete_text_with_company_tools(
-            messages, allowed_tools=frozenset(slot.tools)
-        )
-    ).strip()
+    return await _expert_complete(
+        messages, slot, allow_expert_tools=allow_expert_tools
+    )
 
 
 async def _expert_turn(
@@ -184,9 +199,10 @@ async def _expert_turn(
     prompts: dict[str, str],
     *,
     evidence_prompt: str | None = None,
+    allow_expert_tools: bool = True,
 ) -> str:
     messages = _messages_with_brief(
-        identity=_expert_system(prompts, slot, with_tools=True),
+        identity=_expert_system(prompts, slot, with_tools=allow_expert_tools),
         brief=_session_brief(config),
         evidence_prompt=evidence_prompt,
         user_content=render_prompt(
@@ -197,11 +213,9 @@ async def _expert_turn(
             scratchpad=scratchpad or "(tom)",
         ),
     )
-    return (
-        await complete_text_with_company_tools(
-            messages, allowed_tools=frozenset(slot.tools)
-        )
-    ).strip()
+    return await _expert_complete(
+        messages, slot, allow_expert_tools=allow_expert_tools
+    )
 
 
 async def _moderator_analysis(
@@ -284,17 +298,18 @@ async def run_generic_panel(
     panel: PanelSession,
     prompts: dict[str, str],
     *,
-    research_completed: bool = False,
+    frozen_evidence: bool = False,
     evidence_prompt: str | None = None,
     allowed_evidence_refs: frozenset[str] | None = None,
 ) -> PanelSession:
     """Execute generic_panel protocol on a panel row (mutates and commits caller session).
 
-    When ``research_completed`` is true, skip ResearchPlan generation — the
-    Attempt already froze evidence. Standalone sessions keep the existing
-    research-plan phase.
+    ``frozen_evidence=True`` is the Attempt path: skip ResearchPlan generation
+    and disable expert tool/search calls even when slots list default tools.
+    Standalone sessions keep the existing research-plan phase and tools.
     """
     config = PanelSessionConfig.model_validate(panel.config or {})
+    allow_expert_tools = not frozen_evidence
     transcript: list[PanelTurn] = []
     scratchpads: dict[str, str] = dict(panel.scratchpads or {})
     for slot in config.expert_slots:
@@ -310,7 +325,7 @@ async def run_generic_panel(
             config, prompts, evidence_prompt=evidence_prompt
         ),
     )
-    if not research_completed:
+    if not frozen_evidence:
         await _run_research_plan_phase(
             db,
             panel,
@@ -380,6 +395,7 @@ async def run_generic_panel(
                     scratchpads.get(pad_slot_id, ""),
                     prompts,
                     evidence_prompt=evidence_prompt,
+                    allow_expert_tools=allow_expert_tools,
                 )
                 scratchpads[pad_slot_id] = updated_pad
                 return updated_pad
@@ -410,6 +426,7 @@ async def run_generic_panel(
                     scratchpads.get(pad_slot_id, ""),
                     prompts,
                     evidence_prompt=evidence_prompt,
+                    allow_expert_tools=allow_expert_tools,
                 ),
             )
 

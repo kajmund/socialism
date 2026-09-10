@@ -194,7 +194,7 @@ async def execute_generic_panel_attempt(
             session,
             panel,
             prompts,
-            research_completed=True,
+            frozen_evidence=True,
             evidence_prompt=evidence_prompt,
             allowed_evidence_refs=allowed_refs,
         )

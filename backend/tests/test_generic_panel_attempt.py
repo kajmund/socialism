@@ -34,11 +34,14 @@ from app.services.execution import (
     persist_attempt_result,
 )
 from app.services.execution.snapshots import snapshot_research_evidence
+from app.services.expert_tools import DEFAULT_EXPERT_TOOL_IDS, default_expert_tools
 from app.services.panel.attempt_execution import (
     PanelAttemptError,
     execute_generic_panel_attempt,
 )
+from app.services.panel.engine import _expert_complete
 from app.services.panel.research import empty_research_structured
+from app.services.panel.schemas import PanelExpertSlot
 from app.services.panel.synthesis import (
     GenericPanelSynthesis,
     SynthesizedClaim,
@@ -54,7 +57,12 @@ PANEL_CONFIG = {
     "brief": "Kommunal skattesats.",
     "max_rounds": 1,
     "expert_slots": [
-        {"slot_id": "legal", "label": "Jurist", "profile": "Skatt"},
+        {
+            "slot_id": "legal",
+            "label": "Jurist",
+            "profile": "Skatt",
+            "tools": list(DEFAULT_EXPERT_TOOL_IDS),
+        },
     ],
 }
 
@@ -270,6 +278,106 @@ async def test_acceptance_ready_frozen_set_reaches_completed(db):
     assert "opening" in phases
     assert "expert" in phases
     assert run.id == reloaded.run_id
+    stored_tools = panel.config["expert_slots"][0]["tools"]
+    assert stored_tools == list(DEFAULT_EXPERT_TOOL_IDS)
+    assert "search_companies" not in blob
+    assert "search_duckduckgo" not in blob
+
+
+def _install_forbidden_tool_paths(monkeypatch) -> list[str]:
+    called: list[str] = []
+
+    async def _raise_direct(*_args, **_kwargs):
+        called.append("tool-path")
+        raise AssertionError("frozen-evidence path must not call a tool completion")
+
+    monkeypatch.setattr(
+        "app.services.panel.engine.complete_text_with_company_tools",
+        _raise_direct,
+    )
+    monkeypatch.setattr(
+        "app.services.dd.company_mcp.complete_text_with_company_tools",
+        _raise_direct,
+    )
+    monkeypatch.setattr(
+        "app.services.dd.company_mcp.run_company_tool_loop",
+        _raise_direct,
+    )
+    monkeypatch.setattr("app.llm.complete_with_tools", _raise_direct)
+    return called
+
+
+@pytest.mark.asyncio
+async def test_frozen_evidence_path_does_not_run_expert_tools(db, monkeypatch):
+    session, _factory = db
+    captured: list[list[dict]] = []
+    _install_panel_llm(captured)
+    called = _install_forbidden_tool_paths(monkeypatch)
+    _customer_row, _run, _frozen, _items, attempt = await _ready_attempt(
+        session, slug="tools-co"
+    )
+    assert PANEL_CONFIG["expert_slots"][0]["tools"]
+
+    result = await execute_generic_panel_attempt(
+        session, attempt_id=attempt.id, prompts=PROMPTS
+    )
+
+    assert result.status == "completed"
+    assert called == []
+    panel = await session.get(PanelSession, result.panel_session_id)
+    assert panel is not None
+    assert panel.config["expert_slots"][0]["tools"] == list(DEFAULT_EXPERT_TOOL_IDS)
+    blob = _blob(captured)
+    assert "search_companies" not in blob
+    assert "lookup_company" not in blob
+    assert "search_duckduckgo" not in blob
+    assert "search_wiki" not in blob
+
+
+@pytest.mark.asyncio
+async def test_standalone_expert_complete_still_uses_company_tools(monkeypatch):
+    seen: list[frozenset[str] | None] = []
+
+    async def record(messages, *, allowed_tools=None):
+        seen.append(allowed_tools)
+        return "tool-path"
+
+    monkeypatch.setattr(
+        "app.services.panel.engine.complete_text_with_company_tools",
+        record,
+    )
+    slot = PanelExpertSlot(
+        slot_id="legal",
+        label="Jurist",
+        tools=default_expert_tools(),
+    )
+    text = await _expert_complete(
+        [{"role": "user", "content": "hi"}],
+        slot,
+        allow_expert_tools=True,
+    )
+    assert text == "tool-path"
+    assert seen == [frozenset(DEFAULT_EXPERT_TOOL_IDS)]
+
+    async def boom(*_args, **_kwargs):
+        raise AssertionError("frozen complete must not use company tools")
+
+    monkeypatch.setattr(
+        "app.services.panel.engine.complete_text_with_company_tools",
+        boom,
+    )
+
+    async def _plain(messages, *, model=None):
+        return "plain-path"
+
+    set_text_completer(_plain)
+    text = await _expert_complete(
+        [{"role": "user", "content": "hi"}],
+        slot,
+        allow_expert_tools=False,
+    )
+    assert text == "plain-path"
+    assert slot.tools == list(DEFAULT_EXPERT_TOOL_IDS)
 
 
 @pytest.mark.asyncio
