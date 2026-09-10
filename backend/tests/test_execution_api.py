@@ -8,9 +8,15 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import func, select
 
-from app.database.models import EvidenceSet, ExecutionAttemptResult, PanelSession
+from app.database.models import EvidenceSet, ExecutionAttempt, ExecutionAttemptResult, PanelSession
 from app.llm import set_structured_completer, set_text_completer, set_tools_completer
-from app.services.execution import fail_attempt, get_attempt, mark_ready
+from app.services.execution import (
+    create_attempt,
+    create_evidence_set,
+    fail_attempt,
+    fail_evidence_set,
+    get_attempt,
+)
 from app.services.panel.research import empty_research_structured
 from app.services.panel.synthesis import GenericPanelSynthesis, SynthesizedClaim
 from app.services.research.composition import (
@@ -664,6 +670,7 @@ async def test_missing_entities_are_not_found(client: AsyncClient):
     assert (await client.get("/execution/attempts/missing")).status_code == 404
     assert (await client.get("/execution/attempts/missing/evidence")).status_code == 404
     assert (await client.get("/execution/attempts/missing/result")).status_code == 404
+    assert (await client.post("/execution/attempts/missing/clone")).status_code == 404
     run = await _create_run(client)
     attempt = await _create_attempt(client, run["id"])
     assert (await client.get(f"/execution/attempts/{attempt['id']}/evidence")).status_code == 404
@@ -718,3 +725,256 @@ async def test_execute_in_progress_is_conflict(client_db, research_sources):
         await session.commit()
     response = await client.post(f"/execution/attempts/{attempt['id']}/execute")
     assert response.status_code == 409
+
+
+async def _research_ready(client: AsyncClient, run_id: str) -> tuple[dict, dict]:
+    attempt = await _create_attempt(client, run_id)
+    researched = await client.post(
+        f"/execution/attempts/{attempt['id']}/research",
+        json={"research_plan": RESEARCH_PLAN},
+    )
+    assert researched.status_code == 200, researched.text
+    return attempt, researched.json()
+
+
+@pytest.mark.asyncio
+async def test_clone_completed_reuses_frozen_evidence(
+    client_db, research_sources, panel_llm
+):
+    client, factory = client_db
+    run = await _create_run(client)
+    attempt, researched = await _research_ready(client, run["id"])
+    executed = await client.post(f"/execution/attempts/{attempt['id']}/execute")
+    assert executed.status_code == 200
+    source_result = executed.json()["result"]
+
+    cloned = await client.post(f"/execution/attempts/{attempt['id']}/clone")
+    assert cloned.status_code == 201, cloned.text
+    body = cloned.json()
+    assert body["id"] != attempt["id"]
+    assert body["run_id"] == run["id"]
+    assert body["parent_attempt_id"] == attempt["id"]
+    assert body["attempt_type"] == "generic_panel"
+    assert body["status"] == "ready"
+    assert body["result"] is None
+    assert body["evidence"]["evidence_set_id"] == researched["evidence_set_id"]
+    assert body["evidence"]["status"] == "frozen"
+    assert body["configuration_snapshot"] == PANEL_CONFIG
+    assert body["input_snapshot"] == {"topic": "Vad gäller skattesatsen?"}
+    assert body["research_plan_snapshot"]["needs"][0]["id"] == "research_1"
+
+    source = await client.get(f"/execution/attempts/{attempt['id']}")
+    assert source.json()["status"] == "completed"
+    assert source.json()["result"]["id"] == source_result["id"]
+    assert source.json()["configuration_snapshot"] == PANEL_CONFIG
+    assert source.json()["parent_attempt_id"] is None
+
+    async with factory() as session:
+        sets = (await session.execute(select(func.count()).select_from(EvidenceSet))).scalar()
+        attempts = (
+            await session.execute(select(func.count()).select_from(ExecutionAttempt))
+        ).scalar()
+    assert sets == 1
+    assert attempts == 2
+
+
+@pytest.mark.asyncio
+async def test_clone_without_body_copies_configuration(
+    client: AsyncClient, research_sources
+):
+    run = await _create_run(client)
+    attempt, _researched = await _research_ready(client, run["id"])
+    cloned = await client.post(f"/execution/attempts/{attempt['id']}/clone")
+    assert cloned.status_code == 201
+    assert cloned.json()["configuration_snapshot"] == PANEL_CONFIG
+
+
+@pytest.mark.asyncio
+async def test_clone_with_config_replaces_and_leaves_source(
+    client: AsyncClient, research_sources
+):
+    run = await _create_run(client)
+    attempt, researched = await _research_ready(client, run["id"])
+    replacement = {**PANEL_CONFIG, "brief": "Ny brief", "max_rounds": 2}
+    cloned = await client.post(
+        f"/execution/attempts/{attempt['id']}/clone",
+        json={"configuration_snapshot": replacement},
+    )
+    assert cloned.status_code == 201, cloned.text
+    assert cloned.json()["configuration_snapshot"] == replacement
+    source = await client.get(f"/execution/attempts/{attempt['id']}")
+    assert source.json()["configuration_snapshot"] == PANEL_CONFIG
+    assert source.json()["evidence"]["evidence_set_id"] == researched["evidence_set_id"]
+    assert cloned.json()["evidence"]["evidence_set_id"] == researched["evidence_set_id"]
+
+
+@pytest.mark.asyncio
+async def test_clone_invalid_generic_panel_config_is_unprocessable(
+    client_db, research_sources
+):
+    client, factory = client_db
+    run = await _create_run(client)
+    attempt, _researched = await _research_ready(client, run["id"])
+    response = await client.post(
+        f"/execution/attempts/{attempt['id']}/clone",
+        json={"configuration_snapshot": {"topic": "Ny fråga"}},
+    )
+    assert response.status_code == 422
+    async with factory() as session:
+        attempts = (
+            await session.execute(select(func.count()).select_from(ExecutionAttempt))
+        ).scalar()
+    assert attempts == 1
+    source = await client.get(f"/execution/attempts/{attempt['id']}")
+    assert source.json()["configuration_snapshot"] == PANEL_CONFIG
+
+
+@pytest.mark.asyncio
+async def test_clone_then_execute_persists_independent_result(
+    client_db, research_sources, panel_llm
+):
+    client, factory = client_db
+    found, missing, _router = research_sources
+    run = await _create_run(client)
+    attempt, researched = await _research_ready(client, run["id"])
+    first = await client.post(f"/execution/attempts/{attempt['id']}/execute")
+    assert first.status_code == 200
+    result_a = first.json()["result"]
+    replacement = {**PANEL_CONFIG, "brief": "Ny brief"}
+    cloned = await client.post(
+        f"/execution/attempts/{attempt['id']}/clone",
+        json={"configuration_snapshot": replacement},
+    )
+    assert cloned.status_code == 201
+    child_id = cloned.json()["id"]
+    assert cloned.json()["result"] is None
+    calls_after_research = found.calls + missing.calls
+
+    second = await client.post(f"/execution/attempts/{child_id}/execute")
+    assert second.status_code == 200, second.text
+    result_b = second.json()["result"]
+    assert result_b is not None
+    assert result_b["id"] != result_a["id"]
+    assert second.json()["attempt"]["status"] == "completed"
+    assert second.json()["attempt"]["parent_attempt_id"] == attempt["id"]
+    assert (
+        second.json()["attempt"]["evidence"]["evidence_set_id"]
+        == researched["evidence_set_id"]
+    )
+    assert found.calls + missing.calls == calls_after_research
+
+    source = await client.get(f"/execution/attempts/{attempt['id']}")
+    assert source.json()["status"] == "completed"
+    assert source.json()["result"]["id"] == result_a["id"]
+    assert source.json()["configuration_snapshot"] == PANEL_CONFIG
+
+    async with factory() as session:
+        sets = (await session.execute(select(func.count()).select_from(EvidenceSet))).scalar()
+        results = (
+            await session.execute(select(func.count()).select_from(ExecutionAttemptResult))
+        ).scalar()
+        sessions = (
+            await session.execute(select(func.count()).select_from(PanelSession))
+        ).scalar()
+    assert sets == 1
+    assert results == 2
+    assert sessions == 2
+
+
+@pytest.mark.asyncio
+async def test_clone_rejects_source_without_evidence(client: AsyncClient):
+    run = await _create_run(client)
+    attempt = await _create_attempt(client, run["id"])
+    response = await client.post(f"/execution/attempts/{attempt['id']}/clone")
+    assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_clone_rejects_building_and_failed_evidence_set(client_db):
+    client, factory = client_db
+    run = await _create_run(client)
+    async with factory() as session:
+        building = await create_evidence_set(session, run_id=run["id"])
+        source = await create_attempt(
+            session,
+            run_id=run["id"],
+            attempt_type="generic_panel",
+            configuration_snapshot=dict(PANEL_CONFIG),
+            input_snapshot={"topic": "Vad gäller skattesatsen?"},
+            evidence_set_id=building.id,
+        )
+        source = await fail_attempt(session, source.id)
+        building_id = source.id
+        failed_set = await create_evidence_set(session, run_id=run["id"])
+        failed_source = await create_attempt(
+            session,
+            run_id=run["id"],
+            attempt_type="generic_panel",
+            configuration_snapshot=dict(PANEL_CONFIG),
+            input_snapshot={"topic": "Vad gäller skattesatsen?"},
+            evidence_set_id=failed_set.id,
+        )
+        await fail_evidence_set(session, failed_set.id)
+        failed_source = await fail_attempt(session, failed_source.id)
+        failed_id = failed_source.id
+        await session.commit()
+
+    building_clone = await client.post(f"/execution/attempts/{building_id}/clone")
+    assert building_clone.status_code == 409
+    failed_clone = await client.post(f"/execution/attempts/{failed_id}/clone")
+    assert failed_clone.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_clone_cross_customer_is_forbidden(
+    client: AsyncClient, admin_token: str, bolag_token: str, research_sources
+):
+    client.headers["Authorization"] = f"Bearer {admin_token}"
+    run = await _create_run(client)
+    attempt, _researched = await _research_ready(client, run["id"])
+    client.headers["Authorization"] = f"Bearer {bolag_token}"
+    response = await client.post(f"/execution/attempts/{attempt['id']}/clone")
+    assert response.status_code == 403
+    assert response.json()["detail"] == "kund_access_denied"
+
+
+@pytest.mark.asyncio
+async def test_clone_rejects_supplied_scope_fields(
+    client: AsyncClient, research_sources
+):
+    run = await _create_run(client)
+    attempt, researched = await _research_ready(client, run["id"])
+    for extra in (
+        {"run_id": run["id"]},
+        {"customer_id": TEST_CUSTOMER_ID},
+        {"evidence_set_id": researched["evidence_set_id"]},
+        {"parent_attempt_id": attempt["id"]},
+    ):
+        response = await client.post(
+            f"/execution/attempts/{attempt['id']}/clone",
+            json=extra,
+        )
+        assert response.status_code == 422, extra
+
+
+@pytest.mark.asyncio
+async def test_clone_twice_creates_two_children_same_evidence(
+    client: AsyncClient, research_sources
+):
+    run = await _create_run(client)
+    attempt, researched = await _research_ready(client, run["id"])
+    first = await client.post(f"/execution/attempts/{attempt['id']}/clone")
+    second = await client.post(f"/execution/attempts/{attempt['id']}/clone")
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert first.json()["id"] != second.json()["id"]
+    assert first.json()["parent_attempt_id"] == attempt["id"]
+    assert second.json()["parent_attempt_id"] == attempt["id"]
+    assert (
+        first.json()["evidence"]["evidence_set_id"]
+        == second.json()["evidence"]["evidence_set_id"]
+        == researched["evidence_set_id"]
+    )
+    listed = await client.get(f"/execution/runs/{run['id']}/attempts")
+    ids = {row["id"] for row in listed.json()}
+    assert ids == {attempt["id"], first.json()["id"], second.json()["id"]}
