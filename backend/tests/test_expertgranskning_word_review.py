@@ -12,12 +12,21 @@ from app.database.models import ExpertgranskningResult, PanelSession
 from app.llm import set_structured_completer
 from app.services import jobs as jobs_service
 from app.services.expertgranskning import WORD_JOB_KIND
+from app.services.expertgranskning.comment_convergence import (
+    WordObservation,
+    apply_word_comment_convergence,
+    choose_specific_anchor,
+    collapse_intra_expert_duplicates,
+    comments_dissent,
+)
 from app.services.expertgranskning.schemas import (
     WORD_MAX_PARAGRAPH_LEN,
     WORD_MAX_PARAGRAPHS,
     ExpertgranskningWordJobCreate,
     ExpertgranskningWordJobRequest,
     WordBatchModeration,
+    WordCommentConvergence,
+    WordConvergedIssue,
     WordDocumentParagraph,
     WordDocumentSection,
     WordExpertComment,
@@ -190,6 +199,61 @@ def _para(index: int, text: str, *, style="Normal", list_string=""):
     return WordDocumentParagraph(
         index=index, text=text, style=style, list_string=list_string
     )
+
+
+_OBS_FIELD_KEYS = {
+    "expert_id",
+    "expert_namn",
+    "question_id",
+    "paragraph_index",
+    "list_string",
+    "paragraph_text",
+    "kommentar",
+}
+
+
+def _obs(**overrides) -> WordObservation:
+    values = {
+        "observation_id": "o1",
+        "expert_id": "frank",
+        "expert_label": "Frank",
+        "question_id": "q1",
+        "paragraph_index": 3,
+        "paragraph_text": "Konsulten försöker i möjligaste mån leverera i tid.",
+        "list_string": "4.1.",
+        "kommentar": "Formuleringen försöker i möjligaste mån är för svag.",
+    }
+    values.update(overrides)
+    return WordObservation(**values)
+
+
+def _passthrough_comment_convergence(user: str) -> WordCommentConvergence:
+    issues: list[WordConvergedIssue] = []
+    for block in user.split("### ")[1:]:
+        lines = block.splitlines()
+        observation_id = lines[0].strip()
+        fields: dict[str, str] = {}
+        current = ""
+        for line in lines[1:]:
+            if ": " in line:
+                key, value = line.split(": ", 1)
+                if key in _OBS_FIELD_KEYS:
+                    current = key
+                    fields[current] = value
+                    continue
+            if current:
+                fields[current] += "\n" + line
+        if not observation_id or "paragraph_index" not in fields:
+            continue
+        issues.append(
+            WordConvergedIssue(
+                observation_ids=[observation_id],
+                paragraph_index=int(fields["paragraph_index"]),
+                supporting_expert_ids=[fields.get("expert_id", "")],
+                kommentar=fields.get("kommentar", ""),
+            )
+        )
+    return WordCommentConvergence(issues=issues)
 
 
 def test_list_string_defaults_empty_for_legacy_clients():
@@ -389,6 +453,148 @@ def test_selected_review_questions_ignores_unknown_and_duplicates():
     assert [question.id for question in kept] == ["q2", "q1"]
 
 
+def test_intra_expert_duplicate_collapses_to_one_anchor():
+    first = _obs(
+        observation_id="o1",
+        paragraph_index=4,
+        paragraph_text="Tidsallokering regleras i detta avsnitt.",
+        list_string="5.",
+        kommentar="Tidsallokeringen är otydlig och bör preciseras.",
+    )
+    second = _obs(
+        observation_id="o2",
+        paragraph_index=5,
+        paragraph_text="Konsulten ska lägga minst trettio timmar per vecka.",
+        list_string="5.1.",
+        kommentar="Tidsallokeringen är otydlig och bör preciseras i timmar.",
+    )
+    collapsed = collapse_intra_expert_duplicates([first, second])
+    assert len(collapsed) == 1
+    assert collapsed[0].paragraph_index == 5
+    assert collapsed[0].list_string == "5.1."
+
+
+def test_nearby_anchor_duplicate_keeps_the_specific_clause_line():
+    intro = _obs(
+        observation_id="o1",
+        question_id="q-intro",
+        paragraph_index=8,
+        paragraph_text="Ersättare och överlämning.",
+        list_string="6.",
+        kommentar="Överlämning vid sjukdom saknar konkret rutin.",
+    )
+    clause = _obs(
+        observation_id="o2",
+        question_id="q-clause",
+        paragraph_index=9,
+        paragraph_text="Vid sjukdom ska konsulten utse ersättare.",
+        list_string="6.1.",
+        kommentar="Överlämning vid sjukdom saknar konkret rutin och tidskrav.",
+    )
+    collapsed = collapse_intra_expert_duplicates([intro, clause])
+    assert [item.paragraph_index for item in collapsed] == [9]
+    assert choose_specific_anchor([intro, clause]).paragraph_index == 9
+
+
+def test_inter_expert_convergence_keeps_supporting_experts():
+    observations = [
+        _obs(
+            observation_id="o1",
+            expert_id="frank",
+            expert_label="Frank",
+            kommentar="Försöker i möjligaste mån är för svagt.",
+        ),
+        _obs(
+            observation_id="o2",
+            expert_id="roger",
+            expert_label="Roger",
+            kommentar="Best-effort-formuleringen ger motparten ett slapphetsutrymme.",
+        ),
+        _obs(
+            observation_id="o3",
+            expert_id="nils",
+            expert_label="Nils",
+            kommentar="Formuleringen försöker i möjligaste mån bör skärpas.",
+        ),
+        _obs(
+            observation_id="o4",
+            expert_id="daniel",
+            expert_label="Daniel",
+            kommentar="Åtagandet är för vagt när det bara heter i möjligaste mån.",
+        ),
+    ]
+    parsed = WordCommentConvergence(
+        issues=[
+            WordConvergedIssue(
+                observation_ids=["o1", "o2", "o3", "o4"],
+                paragraph_index=3,
+                supporting_expert_ids=["frank", "roger", "nils", "daniel"],
+                kommentar=(
+                    "Flera experter: 'försöker i möjligaste mån' är för svagt "
+                    "och bör ersättas med ett konkret åtagande."
+                ),
+            )
+        ]
+    )
+    comments = apply_word_comment_convergence(observations, parsed)
+    assert len(comments) == 1
+    assert comments[0].supporting_expert_ids == ("frank", "roger", "nils", "daniel")
+    assert comments[0].expert_namn == "Frank, Roger, Nils, Daniel"
+    assert comments[0].paragraph_index == 3
+    assert "försöker i möjligaste mån" in comments[0].kommentar
+    assert comments[0].kommentar.count("försöker i möjligaste mån") == 1
+
+
+def test_preserved_dissensus_is_not_merged_away():
+    roger = _obs(
+        observation_id="o1",
+        expert_id="roger",
+        expert_label="Roger",
+        paragraph_index=12,
+        paragraph_text="Dröjsmålsränta är referensräntan plus 15 procentenheter.",
+        kommentar=(
+            "Dröjsmålsräntan plus 15 procentenheter är i huvudsak acceptabel "
+            "och behöver inte ändras."
+        ),
+    )
+    nils = _obs(
+        observation_id="o2",
+        expert_id="nils",
+        expert_label="Nils",
+        paragraph_index=12,
+        paragraph_text="Dröjsmålsränta är referensräntan plus 15 procentenheter.",
+        kommentar="Plus 15 procentenheter är godtagbart i det här avtalet.",
+    )
+    daniel = _obs(
+        observation_id="o3",
+        expert_id="daniel",
+        expert_label="Daniel",
+        paragraph_index=12,
+        paragraph_text="Dröjsmålsränta är referensräntan plus 15 procentenheter.",
+        kommentar=(
+            "Plus 15 procentenheter är för högt. Jag rekommenderar att den sänks."
+        ),
+    )
+    assert comments_dissent([roger.kommentar, daniel.kommentar])
+    parsed = WordCommentConvergence(
+        issues=[
+            WordConvergedIssue(
+                observation_ids=["o1", "o2", "o3"],
+                paragraph_index=12,
+                supporting_expert_ids=["roger", "nils", "daniel"],
+                kommentar="Dröjsmålsräntan är acceptabel.",
+                has_dissensus=False,
+            )
+        ]
+    )
+    comments = apply_word_comment_convergence([roger, nils, daniel], parsed)
+    assert len(comments) == 3
+    by_expert = {item.expert_id: item.kommentar for item in comments}
+    assert "acceptabel" in by_expert["roger"]
+    assert "godtagbart" in by_expert["nils"]
+    assert "sänks" in by_expert["daniel"]
+
+
 @pytest.mark.asyncio
 async def test_word_paragraph_review_rejects_panel_session_dispatch():
     with pytest.raises(ValueError, match="expertgranskning_word_review"):
@@ -534,6 +740,8 @@ async def test_word_review_raise_hand_then_comment_and_heading(client: AsyncClie
         if response_model is WordRewriteSuggestion:
             calls.append("rewrite")
             return WordRewriteSuggestion(ny_text="Ny formulering.", motivering="Samma fix.")
+        if response_model is WordCommentConvergence:
+            return _passthrough_comment_convergence(messages[-1]["content"])
         raise AssertionError(response_model)
 
     panel_id = await _create_expert_panel(client)
@@ -582,6 +790,8 @@ async def test_word_review_sends_document_brief_once_per_call(client: AsyncClien
             return WordExpertRaiseHand(question_ids=[])
         if response_model is WordHeadingAssessment:
             return WordHeadingAssessment(forslag=None)
+        if response_model is WordCommentConvergence:
+            return _passthrough_comment_convergence(messages[-1]["content"])
         raise AssertionError(response_model)
 
     panel_id = await _create_expert_panel(client)
@@ -638,6 +848,8 @@ async def test_word_review_empty_raise_hand_writes_no_comment(client: AsyncClien
             return WordExpertComment(kommentar="borde inte köras")
         if response_model is WordHeadingAssessment:
             return WordHeadingAssessment(forslag=None)
+        if response_model is WordCommentConvergence:
+            return _passthrough_comment_convergence(messages[-1]["content"])
         raise AssertionError(response_model)
 
     panel_id = await _create_expert_panel(client)
@@ -675,6 +887,8 @@ async def test_word_review_out_of_batch_indexes_are_dropped(client: AsyncClient)
             return WordExpertComment(kommentar="fel ankare")
         if response_model is WordHeadingAssessment:
             return WordHeadingAssessment(forslag=None)
+        if response_model is WordCommentConvergence:
+            return _passthrough_comment_convergence(messages[-1]["content"])
         raise AssertionError(response_model)
 
     panel_id = await _create_expert_panel(client)
@@ -712,6 +926,8 @@ async def test_word_review_trivial_batch_skips_experts(client: AsyncClient):
         if response_model is WordHeadingAssessment:
             calls.append("heading")
             return WordHeadingAssessment(forslag=None)
+        if response_model is WordCommentConvergence:
+            return _passthrough_comment_convergence(messages[-1]["content"])
         raise AssertionError(response_model)
 
     panel_id = await _create_expert_panel(client)
@@ -765,11 +981,15 @@ async def test_word_review_experts_select_subset_of_questions(client: AsyncClien
             return WordExpertRaiseHand(question_ids=[])
         if response_model is WordExpertComment:
             comment_questions.append(user)
-            return WordExpertComment(kommentar="Konkret expertbedömning.")
+            if "Är tidsfristen tydligt definierad?" in user:
+                return WordExpertComment(kommentar="Tidsfristen är för vag.")
+            return WordExpertComment(kommentar="Ansvaret är ensidigt och opraktiskt.")
         if response_model is WordHeadingAssessment:
             return WordHeadingAssessment(forslag=None)
         if response_model is WordRewriteSuggestion:
             return WordRewriteSuggestion(ny_text=None, motivering=None)
+        if response_model is WordCommentConvergence:
+            return _passthrough_comment_convergence(messages[-1]["content"])
         raise AssertionError(response_model)
 
     panel_id = await _create_expert_panel(client)
@@ -831,6 +1051,8 @@ async def test_word_review_question_can_span_paragraphs(client: AsyncClient):
                 ny_text="Ny samordnad formulering.",
                 motivering="Båda vill samma sak.",
             )
+        if response_model is WordCommentConvergence:
+            return _passthrough_comment_convergence(messages[-1]["content"])
         raise AssertionError(response_model)
 
     panel_id = await _create_expert_panel(client)
@@ -856,9 +1078,7 @@ async def test_word_review_question_can_span_paragraphs(client: AsyncClient):
     ]
     rewrites = [row for row in rows if row["is_rewrite_suggestion"]]
     assert {(row["expert_namn"], row["paragraph_index"]) for row in comments} == {
-        (DEFAULT_EXPERT_LABELS[0], 1),
         (DEFAULT_EXPERT_LABELS[0], 2),
-        (DEFAULT_EXPERT_LABELS[1], 1),
         (DEFAULT_EXPERT_LABELS[1], 2),
     }
     assert {row["paragraph_index"] for row in rewrites} == {1, 2}
@@ -875,6 +1095,8 @@ async def test_word_review_empty_comment_is_not_written(client: AsyncClient):
             return WordExpertComment(kommentar="   ")
         if response_model is WordHeadingAssessment:
             return WordHeadingAssessment(forslag=None)
+        if response_model is WordCommentConvergence:
+            return _passthrough_comment_convergence(messages[-1]["content"])
         raise AssertionError(response_model)
 
     panel_id = await _create_expert_panel(client)
@@ -916,6 +1138,8 @@ async def test_word_review_commits_after_batch_not_after_each_call(client: Async
         if response_model is WordHeadingAssessment:
             seen_during_heading.append(await _committed_result_count(job_holder["id"]))
             return WordHeadingAssessment(forslag=None)
+        if response_model is WordCommentConvergence:
+            return _passthrough_comment_convergence(messages[-1]["content"])
         raise AssertionError(response_model)
 
     panel_id = await _create_expert_panel(client)
@@ -954,6 +1178,8 @@ async def test_word_review_no_rewrite_with_one_comment(client: AsyncClient):
         if response_model is WordRewriteSuggestion:
             rewrite_calls += 1
             return WordRewriteSuggestion(ny_text="Ska inte ske.", motivering="x")
+        if response_model is WordCommentConvergence:
+            return _passthrough_comment_convergence(messages[-1]["content"])
         raise AssertionError(response_model)
 
     panel_id = await _create_expert_panel(client)
@@ -987,6 +1213,8 @@ async def test_word_review_split_opinions_do_not_rewrite(client: AsyncClient):
             return WordHeadingAssessment(forslag=None)
         if response_model is WordRewriteSuggestion:
             return WordRewriteSuggestion(ny_text=None, motivering=None)
+        if response_model is WordCommentConvergence:
+            return _passthrough_comment_convergence(messages[-1]["content"])
         raise AssertionError(response_model)
 
     panel_id = await _create_expert_panel(client)
@@ -1023,6 +1251,8 @@ async def test_word_review_converging_comments_write_rewrite(client: AsyncClient
                 ny_text="Parterna ska utse kontaktpersoner.",
                 motivering="Båda vill samma sak.",
             )
+        if response_model is WordCommentConvergence:
+            return _passthrough_comment_convergence(messages[-1]["content"])
         raise AssertionError(response_model)
 
     panel_id = await _create_expert_panel(client)
@@ -1044,6 +1274,282 @@ async def test_word_review_converging_comments_write_rewrite(client: AsyncClient
 
 
 @pytest.mark.asyncio
+async def test_word_review_intra_expert_duplicate_writes_one_comment(
+    client: AsyncClient,
+):
+    async def completer(messages, response_model):
+        if response_model is WordBatchModeration:
+            return WordBatchModeration(
+                needs_review=True,
+                reason="Samma issue över två stycken.",
+                questions=[
+                    WordReviewQuestion(
+                        id="q1",
+                        paragraph_indexes=[1, 2],
+                        question="Är tidsallokeringen tillräckligt konkret?",
+                        why_it_matters="Tolkningsrisk.",
+                    )
+                ],
+            )
+        if response_model is WordExpertRaiseHand:
+            return WordExpertRaiseHand(question_ids=["q1"])
+        if response_model is WordExpertComment:
+            return WordExpertComment(
+                kommentar="Tidsallokeringen är otydlig och bör preciseras."
+            )
+        if response_model is WordHeadingAssessment:
+            return WordHeadingAssessment(forslag=None)
+        if response_model is WordCommentConvergence:
+            return _passthrough_comment_convergence(messages[-1]["content"])
+        raise AssertionError(response_model)
+
+    panel_id = await _create_expert_panel(client, n=1)
+    set_structured_completer(completer)
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    created = await client.post(
+        "/expertgranskning/word-jobs",
+        json=_payload(
+            panel_id=panel_id,
+            paragraphs=[
+                _para(1, "Tidsallokering för uppdraget regleras här.", list_string="5."),
+                _para(
+                    2,
+                    "Konsulten ska lägga minst trettio timmar per vecka.",
+                    list_string="5.1.",
+                ),
+            ],
+        ),
+    )
+    job_id = created.json()["job_id"]
+    await jobs_service._run_job(job_id)
+    rows = (await client.get(f"/expertgranskning/word-jobs/{job_id}/results")).json()
+    comments = [
+        row
+        for row in rows
+        if not row["is_heading_suggestion"] and not row["is_rewrite_suggestion"]
+    ]
+    assert len(comments) == 1
+    assert comments[0]["paragraph_index"] == 2
+    assert comments[0]["expert_namn"] == DEFAULT_EXPERT_LABELS[0]
+
+
+@pytest.mark.asyncio
+async def test_word_review_nearby_anchor_duplicate_writes_one_comment(
+    client: AsyncClient,
+):
+    async def completer(messages, response_model):
+        user = messages[-1]["content"]
+        if response_model is WordBatchModeration:
+            return WordBatchModeration(
+                needs_review=True,
+                reason="Närliggande stycken om samma klausul.",
+                questions=[
+                    WordReviewQuestion(
+                        id="q1",
+                        paragraph_indexes=[1],
+                        question="Vad betyder ingressen om ersättare?",
+                        why_it_matters="Samma klausul.",
+                    ),
+                    WordReviewQuestion(
+                        id="q2",
+                        paragraph_indexes=[2],
+                        question="Hur ska överlämning ske?",
+                        why_it_matters="Samma klausul.",
+                    ),
+                ],
+            )
+        if response_model is WordExpertRaiseHand:
+            return WordExpertRaiseHand(question_ids=["q1", "q2"])
+        if response_model is WordExpertComment:
+            return WordExpertComment(
+                kommentar="Överlämning vid sjukdom saknar konkret rutin."
+            )
+        if response_model is WordHeadingAssessment:
+            return WordHeadingAssessment(forslag=None)
+        if response_model is WordCommentConvergence:
+            return _passthrough_comment_convergence(user)
+        raise AssertionError(response_model)
+
+    panel_id = await _create_expert_panel(client, n=1)
+    set_structured_completer(completer)
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    created = await client.post(
+        "/expertgranskning/word-jobs",
+        json=_payload(
+            panel_id=panel_id,
+            paragraphs=[
+                _para(1, "Ersättare och överlämning regleras nedan.", list_string="6."),
+                _para(
+                    2,
+                    "Vid sjukdom ska konsulten utse en ersättare utan dröjsmål.",
+                    list_string="6.1.",
+                ),
+            ],
+        ),
+    )
+    job_id = created.json()["job_id"]
+    await jobs_service._run_job(job_id)
+    rows = (await client.get(f"/expertgranskning/word-jobs/{job_id}/results")).json()
+    comments = [
+        row
+        for row in rows
+        if not row["is_heading_suggestion"] and not row["is_rewrite_suggestion"]
+    ]
+    assert len(comments) == 1
+    assert comments[0]["paragraph_index"] == 2
+
+
+@pytest.mark.asyncio
+async def test_word_review_inter_expert_convergence_writes_one_comment(
+    client: AsyncClient,
+):
+    async def completer(messages, response_model):
+        user = messages[-1]["content"]
+        if response_model is WordBatchModeration:
+            return _moderation_for_batch(user)
+        if response_model is WordExpertRaiseHand:
+            return WordExpertRaiseHand(question_ids=["q1"])
+        if response_model is WordExpertComment:
+            return WordExpertComment(
+                kommentar="Formuleringen försöker i möjligaste mån är för svag."
+            )
+        if response_model is WordCommentConvergence:
+            parsed = _passthrough_comment_convergence(user)
+            observation_ids = [
+                observation_id
+                for issue in parsed.issues
+                for observation_id in issue.observation_ids
+            ]
+            expert_ids = [
+                expert_id
+                for issue in parsed.issues
+                for expert_id in issue.supporting_expert_ids
+            ]
+            return WordCommentConvergence(
+                issues=[
+                    WordConvergedIssue(
+                        observation_ids=observation_ids,
+                        paragraph_index=max(
+                            issue.paragraph_index for issue in parsed.issues
+                        ),
+                        supporting_expert_ids=expert_ids,
+                        kommentar=(
+                            "Flera experter: 'försöker i möjligaste mån' är för svagt "
+                            "och bör ersättas med ett konkret åtagande."
+                        ),
+                    )
+                ]
+            )
+        if response_model is WordHeadingAssessment:
+            return WordHeadingAssessment(forslag=None)
+        if response_model is WordRewriteSuggestion:
+            return WordRewriteSuggestion(ny_text=None, motivering=None)
+        raise AssertionError(response_model)
+
+    panel_id = await _create_expert_panel(client)
+    set_structured_completer(completer)
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    created = await client.post(
+        "/expertgranskning/word-jobs",
+        json=_payload(
+            panel_id=panel_id,
+            paragraphs=[
+                _para(1, "Konsulten försöker i möjligaste mån leverera i tid.")
+            ],
+        ),
+    )
+    job_id = created.json()["job_id"]
+    await jobs_service._run_job(job_id)
+    rows = (await client.get(f"/expertgranskning/word-jobs/{job_id}/results")).json()
+    comments = [
+        row
+        for row in rows
+        if not row["is_heading_suggestion"] and not row["is_rewrite_suggestion"]
+    ]
+    assert len(comments) == 1
+    assert DEFAULT_EXPERT_LABELS[0] in comments[0]["expert_namn"]
+    assert DEFAULT_EXPERT_LABELS[1] in comments[0]["expert_namn"]
+    assert comments[0]["kommentar"].count("försöker i möjligaste mån") == 1
+
+
+@pytest.mark.asyncio
+async def test_word_review_preserves_dissensus_as_separate_comments(
+    client: AsyncClient,
+):
+    async def completer(messages, response_model):
+        label = _identity_label(messages)
+        if response_model is WordBatchModeration:
+            return _moderation_for_batch(messages[-1]["content"])
+        if response_model is WordExpertRaiseHand:
+            return WordExpertRaiseHand(question_ids=["q1"])
+        if response_model is WordExpertComment:
+            if label == DEFAULT_EXPERT_LABELS[0]:
+                return WordExpertComment(
+                    kommentar=(
+                        "Dröjsmålsräntan plus 15 procentenheter är i huvudsak "
+                        "acceptabel och behöver inte ändras."
+                    )
+                )
+            return WordExpertComment(
+                kommentar=(
+                    "Plus 15 procentenheter är för högt. Jag rekommenderar att den sänks."
+                )
+            )
+        if response_model is WordCommentConvergence:
+            parsed = _passthrough_comment_convergence(messages[-1]["content"])
+            return WordCommentConvergence(
+                issues=[
+                    WordConvergedIssue(
+                        observation_ids=[
+                            oid for issue in parsed.issues for oid in issue.observation_ids
+                        ],
+                        paragraph_index=1,
+                        supporting_expert_ids=[
+                            expert_id
+                            for issue in parsed.issues
+                            for expert_id in issue.supporting_expert_ids
+                        ],
+                        kommentar="Dröjsmålsräntan är acceptabel.",
+                        has_dissensus=False,
+                    )
+                ]
+            )
+        if response_model is WordHeadingAssessment:
+            return WordHeadingAssessment(forslag=None)
+        if response_model is WordRewriteSuggestion:
+            return WordRewriteSuggestion(ny_text=None, motivering=None)
+        raise AssertionError(response_model)
+
+    panel_id = await _create_expert_panel(client)
+    set_structured_completer(completer)
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    created = await client.post(
+        "/expertgranskning/word-jobs",
+        json=_payload(
+            panel_id=panel_id,
+            paragraphs=[
+                _para(
+                    1,
+                    "Vid dröjsmål utgår ränta med referensräntan plus 15 procentenheter.",
+                )
+            ],
+        ),
+    )
+    job_id = created.json()["job_id"]
+    await jobs_service._run_job(job_id)
+    rows = (await client.get(f"/expertgranskning/word-jobs/{job_id}/results")).json()
+    comments = [
+        row
+        for row in rows
+        if not row["is_heading_suggestion"] and not row["is_rewrite_suggestion"]
+    ]
+    assert len(comments) == 2
+    texts = " ".join(row["kommentar"] for row in comments)
+    assert "acceptabel" in texts
+    assert "sänks" in texts
+
+
+@pytest.mark.asyncio
 async def test_word_review_patch_comment_id(client: AsyncClient):
     async def completer(messages, response_model):
         if response_model is WordBatchModeration:
@@ -1056,6 +1562,8 @@ async def test_word_review_patch_comment_id(client: AsyncClient):
             return WordHeadingAssessment(forslag=None)
         if response_model is WordRewriteSuggestion:
             return WordRewriteSuggestion(ny_text=None, motivering=None)
+        if response_model is WordCommentConvergence:
+            return _passthrough_comment_convergence(messages[-1]["content"])
         raise AssertionError(response_model)
 
     panel_id = await _create_expert_panel(client)
