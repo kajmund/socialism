@@ -1,5 +1,5 @@
 import type { ExecutionAttempt } from "@/api/execution"
-import { ApiError } from "@/lib/api"
+import { ApiError } from "@/lib/http"
 import type { ExecutionLoadState } from "@/components/execution/ExecutionInspector"
 
 export function shouldFetchEvidence(attempt: ExecutionAttempt): boolean {

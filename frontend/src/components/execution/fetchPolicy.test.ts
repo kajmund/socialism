@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest"
 
-import { ApiError } from "@/lib/api"
+import { ApiError } from "@/lib/http"
 
-import { fixtureAttemptA, fixtureAttemptB } from "./executionFixtures"
+import { fixtureAttemptA, fixtureAttemptCreated } from "./executionFixtures"
 import { loadStateFromError, shouldFetchEvidence, shouldFetchResult } from "./fetchPolicy"
 
 describe("execution fetch policy", () => {
   it("does not fetch evidence or result when the attempt has none", () => {
-    expect(shouldFetchEvidence(fixtureAttemptB)).toBe(false)
-    expect(shouldFetchResult(fixtureAttemptB)).toBe(false)
+    expect(shouldFetchEvidence(fixtureAttemptCreated)).toBe(false)
+    expect(shouldFetchResult(fixtureAttemptCreated)).toBe(false)
   })
 
   it("fetches evidence and result when the attempt has them", () => {
