@@ -1121,11 +1121,15 @@ HOW YOU WRITE COMMENTS:
         "Sets panel tone and structure.",
         (
             "Du modererar en expertpanel. Håll tonen professionell, kortfattad och "
-            "fokuserad på sak. Du styr turordning men låter experterna tala i egen röst."
+            "fokuserad på sak. Du styr turordning men låter experterna tala i egen röst. "
+            "Om panelen saknar relevant domänkompetens för huvudfrågan: stoppa den "
+            "sakliga diskussionen. Rädda inte sessionen med analogier."
         ),
         (
             "You moderate an expert panel. Keep a professional, concise, substantive tone. "
-            "You manage turn order while letting experts speak in their own voice."
+            "You manage turn order while letting experts speak in their own voice. "
+            "If the panel lacks relevant domain competence for the main question: stop "
+            "the substantive discussion. Do not rescue the session with analogies."
         ),
     ),
     _f(
@@ -1173,10 +1177,13 @@ HOW YOU WRITE COMMENTS:
             "web är inte default och ska inte fyllas i bara för att en källtyp saknas.\n"
             "- Ta bort irrelevanta eller spekulativa behov.\n"
             "- Prioritera nödvändigt framför nice-to-know.\n"
+            "- Missing expertise är inte ett researchbehov. "
+            "Behåll inte domänspecifika frågor från experter som saknar kompetens.\n"
             "- Skapa inte nya behov utan stöd från expertförslagen, utöver normal "
             "deduplicering och precisering.\n"
             "- Ange källtyp, inte konkret tjänst (inte lagen.nu eller en MCP-server).\n"
-            "- Tom plan är giltig om inget nödvändigt återstår."
+            "- Tom plan är giltig om inget nödvändigt återstår, "
+            "eller om ingen expert har relevant domänkompetens."
         ),
         (
             "Topic: {topic}\n\n"
@@ -1198,10 +1205,13 @@ HOW YOU WRITE COMMENTS:
             "web is not the default and must not be filled in just because a type is missing.\n"
             "- Drop irrelevant or speculative needs.\n"
             "- Prioritize necessary over nice-to-know.\n"
+            "- Missing expertise is not a research need. "
+            "Do not keep domain-specific questions from experts who lack competence.\n"
             "- Do not create new needs without support from the expert proposals, "
             "beyond ordinary deduplication and sharpening.\n"
             "- Suggest a source type, not a concrete service (not lagen.nu or an MCP server).\n"
-            "- An empty plan is valid if nothing necessary remains."
+            "- An empty plan is valid if nothing necessary remains, "
+            "or if no expert has relevant domain competence."
         ),
     ),
     _f(
@@ -1217,7 +1227,10 @@ HOW YOU WRITE COMMENTS:
             "Hittills:\n{transcript}\n\n"
             "Det här är delfråga {round_index}. Ställ EN ny, tydlig fråga till panelen. "
             "Bygg på det som redan sagts. Lista inte kommande frågor. "
-            "Skriv bara din egen replik — inte experternas svar."
+            "Skriv bara din egen replik — inte experternas svar. "
+            "Om experterna har signalerat att frågan ligger utanför deras kompetens: "
+            "ställ inte analogifrågor och håll inte igång diskussionen. "
+            "Bygg bara vidare när någon faktiskt har relevant kompetens."
         ),
         (
             "Topic: {topic}\n\n"
@@ -1225,7 +1238,10 @@ HOW YOU WRITE COMMENTS:
             "So far:\n{transcript}\n\n"
             "This is sub-question {round_index}. Ask ONE new, clear question to the panel. "
             "Build on what has already been said. Do not list later questions. "
-            "Write only your own line — not the experts' answers."
+            "Write only your own line — not the experts' answers. "
+            "If the experts have said the question is outside their competence: "
+            "do not ask analogy questions and do not keep the discussion going. "
+            "Continue only when someone actually has relevant competence."
         ),
     ),
     _f(
@@ -1237,11 +1253,43 @@ HOW YOU WRITE COMMENTS:
         "Placeholders: {topic}, {transcript}.",
         (
             "Ämne: {topic}\n\nTranskript:\n{transcript}\n\n"
-            "Avsluta med en strukturerad syntes: konsensus, oenighet, risker och rekommenderade nästa steg."
+            "Avsluta med en strukturerad syntes: konsensus, oenighet, risker och rekommenderade nästa steg. "
+            "Om ingen expert gjort en saklig bedömning för att kompetensen saknas: "
+            "säg att frågan är obesvarad (missing expertise). Hitta inte på analogiska slutsatser."
         ),
         (
             "Topic: {topic}\n\nTranscript:\n{transcript}\n\n"
-            "Close with a structured synthesis: consensus, disagreement, risks, and recommended next steps."
+            "Close with a structured synthesis: consensus, disagreement, risks, and recommended next steps. "
+            "If no expert made a substantive assessment because competence is missing: "
+            "say the question is unanswered (missing expertise). Do not invent analogical conclusions."
+        ),
+    ),
+    _f(
+        "panel.moderator.missing_expertise",
+        "panel",
+        "Moderator — saknad kompetens",
+        "Moderator — missing expertise",
+        "Platshållare: {topic}, {brief}, {expert_list}.",
+        "Placeholders: {topic}, {brief}, {expert_list}.",
+        (
+            "Ämne: {topic}\n\n"
+            "Bakgrund:\n{brief}\n\n"
+            "Experter:\n{expert_list}\n\n"
+            "Ingen expert på panelen har faktisk domänkompetens för huvudfrågan.\n"
+            "Stoppa den substantiella diskussionen. Försök inte rädda sessionen med "
+            "analogier eller angränsande perspektiv.\n"
+            "Förklara kort att frågan är obesvarad på grund av missing expertise / "
+            "saknad kompetens, och att det krävs en domänexpert."
+        ),
+        (
+            "Topic: {topic}\n\n"
+            "Background:\n{brief}\n\n"
+            "Experts:\n{expert_list}\n\n"
+            "No expert on the panel has actual domain competence for the main question.\n"
+            "Stop the substantive discussion. Do not try to rescue the session with "
+            "analogies or adjacent perspectives.\n"
+            "Briefly explain that the question is unanswered due to missing expertise, "
+            "and that a domain expert is required."
         ),
     ),
     _f(
@@ -1269,8 +1317,11 @@ HOW YOU WRITE COMMENTS:
             "Olika fokus eller kompletterande resonemang är inte dissensus. "
             "Bevara oenigheten i judgment i stället för att rösta bort den.\n"
             "- unanswered är genuina luckor: ingen expert besvarade en relevant fråga, "
-            "alla relevanta experter avstod, avgörande fakta eller evidens saknas, "
+            "alla relevanta experter avstod, panelen saknar domänkompetens (missing expertise), "
+            "avgörande fakta eller evidens saknas, "
             "eller panelen säger att frågan inte går att avgöra. Lista inte hypotetiska följdfrågor.\n"
+            "- Om panelen saknar domänkompetens för huvudfrågan: unanswered ska ange "
+            "missing expertise. Fabricera inte claims från analogier eller allmän orientering.\n"
             "- Använd inte scratchpads. De hör inte till underlaget.\n"
             "- Raise-hand JA/NEJ är turordning, inte evidence och inte claim. "
             "Avstå (NEJ) är varken stöd eller avslag. "
@@ -1300,8 +1351,11 @@ HOW YOU WRITE COMMENTS:
             "Different focus or complementary reasoning is not dissensus. "
             "Preserve the disagreement in judgment instead of voting it away.\n"
             "- unanswered is for genuine gaps: no expert answered a relevant question, "
-            "all relevant experts abstained, decisive facts or evidence are missing, "
+            "all relevant experts abstained, the panel lacks domain competence (missing expertise), "
+            "decisive facts or evidence are missing, "
             "or the panel says the question cannot be settled. Do not list hypothetical follow-ups.\n"
+            "- If the panel lacks domain competence for the main question: unanswered must "
+            "record missing expertise. Do not create claims from analogies or general orientation.\n"
             "- Do not use scratchpads. They are not part of the record.\n"
             "- Raise-hand YES/NO is turn-taking, not evidence and not a claim. "
             "Abstention (NO) is neither support nor rejection. "
@@ -1399,11 +1453,17 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         "Placeholders: {label}, {profile}.",
         (
             "Du deltar som {label} i en expertpanel.\n\nProfil:\n{profile}\n\n"
-            "Svara kort och konkret utifrån din kompetens."
+            "Svara kort och konkret utifrån din kompetens. "
+            "Håll dig strikt till din profil. Använd inte generell modellkunskap "
+            "utanför din kompetens. Om frågan ligger utanför din kompetens ska du "
+            "inte göra en saklig bedömning."
         ),
         (
             "You participate as {label} in an expert panel.\n\nProfile:\n{profile}\n\n"
-            "Reply briefly and concretely from your expertise."
+            "Reply briefly and concretely from your expertise. "
+            "Stay strictly within your profile. Do not use general model knowledge "
+            "outside your competence. If the question is outside your competence, "
+            "do not give a substantive assessment."
         ),
     ),
     _f(
@@ -1422,6 +1482,15 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "{source_types}\n\n"
             "Vilka fakta, källor eller underlag behöver du innan du kan göra en "
             "välgrundad bedömning?\n\n"
+            "Först avgör om din profil faktiskt täcker ämnet och moderatorns fråga.\n"
+            "has_domain_competence = true BARA om du har faktisk domänkompetens att "
+            "göra en substantiell expertbedömning av just den här frågan. "
+            "Analogier, allmän orientering, metodperspektiv eller att rekommendera "
+            "en annan expert är inte kompetens.\n"
+            "Om kompetensen saknas: has_domain_competence = false, needs måste vara tom, "
+            "och competence_reason ska vara missing expertise / requires domain expert. "
+            "Formulera inte domänspecifika researchfrågor (lagrum, praxis, förarbeten "
+            "eller motsvarande) som om du behärskade området.\n\n"
             "Regler:\n"
             "- Identifiera bara information som faktiskt behövs för din bedömning.\n"
             "- Fråga inte efter sådant som redan tydligt finns i briefen eller öppningen.\n"
@@ -1442,6 +1511,16 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "{source_types}\n\n"
             "Which facts, sources, or supporting material do you need before you can "
             "make a well-founded assessment?\n\n"
+            "First decide whether your profile actually covers the topic and the "
+            "moderator's question.\n"
+            "has_domain_competence = true ONLY if you have actual domain competence to "
+            "make a substantial expert assessment of this exact question. "
+            "Analogies, general orientation, a method perspective, or recommending "
+            "another expert are not competence.\n"
+            "If competence is missing: has_domain_competence = false, needs must be empty, "
+            "and competence_reason should be missing expertise / requires domain expert. "
+            "Do not write domain-specific research questions (statutes, case law, "
+            "preparatory works, or similar) as if you mastered the area.\n\n"
             "Rules:\n"
             "- Identify only information actually needed for your assessment.\n"
             "- Do not ask for something already clearly present in the brief or opening.\n"
@@ -1487,10 +1566,24 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         "Reply YES or NO.",
         (
             "Ämne: {topic}\n\nHittills:\n{transcript}\n\nDina privata anteckningar:\n{scratchpad}\n\n"
+            "RAISE betyder att du har faktisk domänkompetens att bidra med en "
+            "substantiell expertbedömning i just denna fråga. "
+            "RAISE betyder inte analogi, allmän orientering, metodperspektiv eller "
+            "att rekommendera att fråga någon annan. "
+            "Om du skulle behöva inleda med \"utanför mitt kompetensområde\", "
+            "\"inte mitt mandat\", \"allmän orientering\" eller "
+            "\"inte jurist inom området\": NEJ. Vid tvekan: NEJ.\n\n"
             "Vill du begära ordet härnäst? Svara endast JA eller NEJ."
         ),
         (
             "Topic: {topic}\n\nSo far:\n{transcript}\n\nYour private notes:\n{scratchpad}\n\n"
+            "RAISE means you have actual domain competence to contribute a "
+            "substantial expert assessment on this exact question. "
+            "RAISE does not mean an analogy, general orientation, a method perspective, "
+            "or recommending that someone else be asked. "
+            "If you would need to open with \"outside my competence\", "
+            "\"not my mandate\", \"general orientation\", or "
+            "\"not a lawyer in this area\": NO. When in doubt: NO.\n\n"
             "Do you want to speak next? Reply with YES or NO only."
         ),
     ),
@@ -1520,12 +1613,16 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         (
             "Ämne: {topic}\n\nHittills:\n{transcript}\n\nDina anteckningar:\n{scratchpad}\n\n"
             "Ge ditt offentliga inlägg (max 150 ord). "
-            "Svara bara på moderatorns senaste fråga. Ta inte upp frågor som inte har ställts."
+            "Svara bara på moderatorns senaste fråga. Ta inte upp frågor som inte har ställts. "
+            "Om du skulle behöva inleda med att området ligger utanför din kompetens: "
+            "gör ingen sakbedömning. Använd inte generell modellkunskap utanför din profil."
         ),
         (
             "Topic: {topic}\n\nSo far:\n{transcript}\n\nYour notes:\n{scratchpad}\n\n"
             "Give your public contribution (max 150 words). "
-            "Answer only the moderator's latest question. Do not raise questions that have not been asked."
+            "Answer only the moderator's latest question. Do not raise questions that have not been asked. "
+            "If you would need to open by saying the area is outside your competence: "
+            "do not give a substantive assessment. Do not use general model knowledge outside your profile."
         ),
     ),
     _f(
