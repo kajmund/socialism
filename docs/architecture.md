@@ -78,7 +78,9 @@ Platform-level lifecycle in `backend/app/services/execution/`. An **ExecutionRun
 
 Statuses on Attempt: `created`, `researching`, `ready`, `running`, `completed`, `failed`. `execute_attempt_research` (`app/services/research/execution.py`) claims `created → researching`, runs the shared `ResearchRouter`, persists every `found` / `not_found` / `error` item, freezes the EvidenceSet, and marks the Attempt `ready`. Tenant scope always comes from the Run. Source-level errors do not fail the Attempt; orchestration failure marks EvidenceSet `failed` and Attempt `failed` without requiring a freeze.
 
-`execute_generic_panel_attempt` (`app/services/panel/attempt_execution.py`) is the first method bridge: a `ready` Attempt with a same-run frozen EvidenceSet is claimed `ready → running`, the frozen items are rendered as `[E#]` prompt evidence, existing `generic_panel` runs in `frozen_evidence` mode (no new ResearchPlan, no live expert tools), and a historical `execution_attempt_results` row snapshots the `PanelResult`. Fatal panel failure marks the Attempt `failed` and leaves the EvidenceSet frozen. No Word or UI integration.
+`execute_generic_panel_attempt` (`app/services/panel/attempt_execution.py`) is the first method bridge: a `ready` Attempt with a same-run frozen EvidenceSet is claimed `ready → running`, the frozen items are rendered as `[E#]` prompt evidence, existing `generic_panel` runs in `frozen_evidence` mode (no new ResearchPlan, no live expert tools), and a historical `execution_attempt_results` row snapshots the `PanelResult`. Fatal panel failure marks the Attempt `failed` and leaves the EvidenceSet frozen.
+
+The first HTTP vertical is `/execution`: create Run/Attempt, `POST .../research` (`execute_attempt_research` + standard `ResearchRouter`), `POST .../execute` (method dispatcher, v1 `generic_panel` only), then read Attempt / Evidence / immutable Result. Scope comes from `ExecutionRun.customer_id`. No Word or UI integration.
 
 ### Run timeline shape
 
@@ -113,6 +115,7 @@ Registered in `backend/app/main.py`:
 | Playground | `/playground` | Admin calibration: default anchors, SSR rate/compare, prompt side-by-side, agent tools (web search / SymPy; no persistence) |
 | Embeddings cache | `/embeddings/cache` | List/clear disk-backed SSR anchor embeddings |
 | Configurations | `/configurations` | Prompt maps + `ssr_temperature` (report SSR softmax) + per-config catalog; one active globally |
+| Execution | `/execution` | Generic Run → Attempt → research → method execute → Evidence/Result (not simulation `/runs`) |
 
 Interactive OpenAPI: `http://localhost:8000/docs`.
 

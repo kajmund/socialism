@@ -6,7 +6,7 @@ from copy import deepcopy
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -107,6 +107,72 @@ async def list_evidence_items(
         .order_by(EvidenceSetItem.ordinal, EvidenceSetItem.id)
     )
     return list(result.scalars().all())
+
+
+async def list_run_attempts(session: AsyncSession, run_id: str) -> list[ExecutionAttempt]:
+    await get_run(session, run_id)
+    result = await session.execute(
+        select(ExecutionAttempt)
+        .where(ExecutionAttempt.run_id == run_id)
+        .order_by(ExecutionAttempt.created_at, ExecutionAttempt.id)
+    )
+    return list(result.scalars().all())
+
+
+async def list_attempt_results(
+    session: AsyncSession, attempt_ids: list[str]
+) -> dict[str, ExecutionAttemptResult]:
+    if not attempt_ids:
+        return {}
+    result = await session.execute(
+        select(ExecutionAttemptResult).where(
+            ExecutionAttemptResult.attempt_id.in_(attempt_ids)
+        )
+    )
+    return {row.attempt_id: row for row in result.scalars().all()}
+
+
+async def list_evidence_summaries(
+    session: AsyncSession,
+    evidence_set_ids: list[str],
+    *,
+    run_id: str | None = None,
+) -> dict[str, tuple[str, int, int, int]]:
+    """Return evidence_set_id → (status, found, not_found, error) without loading excerpts."""
+    if not evidence_set_ids:
+        return {}
+    filters = [EvidenceSet.id.in_(evidence_set_ids)]
+    if run_id is not None:
+        filters.append(EvidenceSet.run_id == run_id)
+    set_rows = (
+        await session.execute(select(EvidenceSet.id, EvidenceSet.status).where(*filters))
+    ).all()
+    count_rows = (
+        await session.execute(
+            select(
+                EvidenceSetItem.evidence_set_id,
+                EvidenceSetItem.status,
+                func.count(),
+            )
+            .where(EvidenceSetItem.evidence_set_id.in_(evidence_set_ids))
+            .group_by(EvidenceSetItem.evidence_set_id, EvidenceSetItem.status)
+        )
+    ).all()
+    tallies: dict[str, dict[str, int]] = {
+        set_id: {"found": 0, "not_found": 0, "error": 0} for set_id, _status in set_rows
+    }
+    for set_id, status, count in count_rows:
+        if set_id in tallies and status in tallies[set_id]:
+            tallies[set_id][status] = int(count)
+    return {
+        set_id: (
+            status,
+            tallies[set_id]["found"],
+            tallies[set_id]["not_found"],
+            tallies[set_id]["error"],
+        )
+        for set_id, status in set_rows
+    }
 
 
 async def create_run(
