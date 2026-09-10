@@ -2,6 +2,7 @@
 
 ## 2026-09-10
 
+* **Expertgranskning**: Experterna räcker bara upp handen när frågan ligger inom deras faktiska kompetens. Utanför området skapar de inte researchfrågor, och om ingen relevant expert finns stoppas den sakliga diskussionen — frågan lämnas obesvarad. Noll händer är ett giltigt svar.
 * **Execution**: Du kan öppna en execution-körning via direktlänk och läsa varje historiskt attempt — input, konfiguration, researchplan, fryst evidence och resultat. Inget redigeras. Ett misslyckat attempt visar ändå det som hann sparas. Klick på `[E1]` i ett påstående hoppar till rätt evidence-kort.
 
 ## 2026-09-09

@@ -52,15 +52,14 @@ Implementation: `app/realtime/expertgranskning_broadcast.py`, `app/services/expe
 
 1. Moderator opening (`panel.moderator.opening`) — one starting question only
 2. Research-plan phase (once, before any raise-hand):
-   - Each expert identifies research needs (`panel.expert.research_need`, phase `research_need`). Structured output. Zero needs is valid. Experts do not assess here and do not call tools/MCP.
+   - Each expert first decides domain competence, then identifies research needs (`panel.expert.research_need`, phase `research_need`). Structured output. `has_domain_competence` is required. Out-of-domain experts must not invent domain-specific questions; code drops any needs they still emit and the turn signals missing expertise. Zero needs is valid for a competent expert. Experts do not assess here and do not call tools/MCP.
    - Moderator consolidates a `ResearchPlan` (`panel.moderator.research_plan`, phase `research_plan`): semantic dedup, concrete questions, `proposal_ids`, `source_types`. Permanent IDs (`research_1`, …) and `requested_by` are assigned in code from those proposal IDs. Persisted needs use the shared `ResearchNeed` / source-type taxonomy in `app.services.research`.
-   - Persist on `panel_sessions.research_plan`. An empty plan is valid and the session continues to raise-hand.
+   - Persist on `panel_sessions.research_plan`. An empty plan is valid. If **no** expert has domain competence for the main question, the moderator records `unanswered` (`panel.moderator.missing_expertise`) and skips raise-hand rounds — no analogy rescue.
    - `source_types` are logical (`case_knowledge`, `customer_knowledge`, `domain_knowledge`, `swedish_law`, `swedish_preparatory_works`, `web`) — not a concrete MCP/server. `web` is allowed but not the default. No research execution in this phase.
-3. For each round (default 2):
-   - Round 2+: moderator asks the next question (`panel.moderator.next_question`, phase `sub_question`) before any expert speaks
-   - Each expert: raise-hand (`panel.expert.raise_hand`) → JA/NEJ queue
+3. For each round (default 2), only when at least one expert has domain competence:
+   - Round 2+: moderator asks the next question (`panel.moderator.next_question`, phase `sub_question`) before any expert speaks. Do not keep the discussion going with analogies when competence is missing.
+   - Each expert: raise-hand (`panel.expert.raise_hand`) → JA/NEJ queue. JA means actual domain competence for a substantial assessment of **this** question, not a helpful aside.
    - **Only JA speaks** — raisers get scratchpad + public turn. NEJ is a real abstention. An empty queue is valid.
-4. Moderator analysis (`panel.moderator.analysis`) — free text stored on `panel.analysis`
 5. Structured synthesis (`panel.generic.synthesis` via `complete_structured`) → `panel.result` as `PanelResult`
    - Claims are decision-relevant conclusions (`claim_1`, `claim_2`, …), not minutes. `score` is always `None`.
    - `dissensus=true` only for material disagreement on the same question.
