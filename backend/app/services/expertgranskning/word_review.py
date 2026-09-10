@@ -2,9 +2,10 @@
 
 A moderator filters each batch and writes review questions. Experts raise
 a hand per question and comment only on questions they opted into. After
-expert replies, overlapping observations are consolidated before Word
-comments are written. Rewrite suggestions remain a separate step when at
-least two experts comment on the same paragraph.
+expert replies, overlapping observations are consolidated at section
+scope before Word comments are written, so nearby duplicates can collapse
+across batch boundaries. Rewrite suggestions remain a separate step when
+at least two experts comment on the same paragraph.
 """
 
 from __future__ import annotations
@@ -513,11 +514,11 @@ async def _comment_convergence(
     )
 
 
-async def _consolidate_batch_comments(
+async def _consolidate_comments(
     *,
     prompts: dict[str, str],
     section: WordDocumentSection,
-    batch: list[WordDocumentParagraph],
+    paragraphs: list[WordDocumentParagraph],
     comments: list[tuple[PanelExpertSlot, WordReviewQuestion, str]],
     by_index: dict[int, WordDocumentParagraph],
 ) -> list[WordConsolidatedComment]:
@@ -528,7 +529,7 @@ async def _consolidate_batch_comments(
     parsed = await _comment_convergence(
         prompts=prompts,
         section=section,
-        batch=batch,
+        batch=paragraphs,
         observations=collapsed,
     )
     return apply_word_comment_convergence(collapsed, parsed)
@@ -571,7 +572,11 @@ async def run_word_paragraph_review(
     result_count = 0
 
     for section_index, section in enumerate(payload.sections):
-        for batch in build_batches(section):
+        section_comments: list[tuple[PanelExpertSlot, WordReviewQuestion, str]] = []
+        section_by_index: dict[int, WordDocumentParagraph] = {}
+        section_rewrites: list[tuple[WordDocumentParagraph, WordRewriteSuggestion]] = []
+
+        for batch_index, batch in enumerate(build_batches(section)):
             paragraph_reviews += len(batch)
             questions = await _moderate_batch(
                 prompts=prompts,
@@ -595,6 +600,7 @@ async def run_word_paragraph_review(
                 ]
             )
             by_index = {paragraph.index: paragraph for paragraph in batch}
+            section_by_index.update(by_index)
             comment_tasks = [
                 _comment_question(
                     prompts=prompts,
@@ -615,11 +621,17 @@ async def run_word_paragraph_review(
                 await asyncio.gather(*comment_tasks) if comment_tasks else []
             )
 
-            pending: list[ExpertgranskningResult] = []
             comments_by_index: dict[int, list[tuple[str, str]]] = {}
             for slot, question, text in comments:
                 if not text:
                     continue
+                prefixed = WordReviewQuestion(
+                    id=f"b{batch_index}:{question.id}",
+                    paragraph_indexes=question.paragraph_indexes,
+                    question=question.question,
+                    why_it_matters=question.why_it_matters,
+                )
+                section_comments.append((slot, prefixed, text))
                 for index in question.paragraph_indexes:
                     paragraph = by_index.get(index)
                     if paragraph is None:
@@ -627,14 +639,6 @@ async def run_word_paragraph_review(
                     comments_by_index.setdefault(paragraph.index, []).append(
                         (slot.label, text)
                     )
-
-            written = await _consolidate_batch_comments(
-                prompts=prompts,
-                section=section,
-                batch=batch,
-                comments=comments,
-                by_index=by_index,
-            )
 
             rewrite_targets = [
                 paragraph
@@ -657,47 +661,59 @@ async def run_word_paragraph_review(
                 if rewrite_targets
                 else []
             )
-
-            for item in written:
-                pending.append(
-                    await _write_result(
-                        session,
-                        job_id=job.id,
-                        customer_id=payload.customer_id,
-                        section_index=section_index,
-                        paragraph_index=item.paragraph_index,
-                        expert_id=item.expert_id,
-                        expert_namn=item.expert_namn,
-                        kommentar=item.kommentar,
-                        is_heading_suggestion=False,
-                        request=job.request,
-                        commit=False,
-                    )
-                )
-                result_count += 1
-
             for paragraph, suggestion in zip(rewrite_targets, suggestions, strict=True):
                 if suggestion is None:
                     continue
-                pending.append(
-                    await _write_result(
-                        session,
-                        job_id=job.id,
-                        customer_id=payload.customer_id,
-                        section_index=section_index,
-                        paragraph_index=paragraph.index,
-                        expert_id="",
-                        expert_namn="",
-                        kommentar=suggestion.motivering.strip(),
-                        is_heading_suggestion=False,
-                        is_rewrite_suggestion=True,
-                        foreslagen_text=suggestion.ny_text.strip(),
-                        request=job.request,
-                        commit=False,
-                    )
-                )
-                result_count += 1
+                section_rewrites.append((paragraph, suggestion))
 
+        written = await _consolidate_comments(
+            prompts=prompts,
+            section=section,
+            paragraphs=sorted(section_by_index.values(), key=lambda item: item.index),
+            comments=section_comments,
+            by_index=section_by_index,
+        )
+
+        pending: list[ExpertgranskningResult] = []
+        for item in written:
+            pending.append(
+                await _write_result(
+                    session,
+                    job_id=job.id,
+                    customer_id=payload.customer_id,
+                    section_index=section_index,
+                    paragraph_index=item.paragraph_index,
+                    expert_id=item.expert_id,
+                    expert_namn=item.expert_namn,
+                    kommentar=item.kommentar,
+                    is_heading_suggestion=False,
+                    request=job.request,
+                    commit=False,
+                )
+            )
+            result_count += 1
+
+        for paragraph, suggestion in section_rewrites:
+            pending.append(
+                await _write_result(
+                    session,
+                    job_id=job.id,
+                    customer_id=payload.customer_id,
+                    section_index=section_index,
+                    paragraph_index=paragraph.index,
+                    expert_id="",
+                    expert_namn="",
+                    kommentar=suggestion.motivering.strip(),
+                    is_heading_suggestion=False,
+                    is_rewrite_suggestion=True,
+                    foreslagen_text=suggestion.ny_text.strip(),
+                    request=job.request,
+                    commit=False,
+                )
+            )
+            result_count += 1
+
+        if pending:
             await session.commit()
             for row in pending:
                 await session.refresh(row)
