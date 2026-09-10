@@ -226,6 +226,34 @@ class WordExpertComment(BaseModel):
     kommentar: str = ""
 
 
+class WordConvergedIssue(BaseModel):
+    """One Word comment after observation-level consolidation."""
+
+    observation_ids: list[str] = Field(default_factory=list)
+    paragraph_index: int
+    supporting_expert_ids: list[str] = Field(default_factory=list)
+    kommentar: str = ""
+    has_dissensus: bool = False
+
+    @field_validator("kommentar", mode="before")
+    @classmethod
+    def strip_comment(cls, value: object) -> str:
+        if value is None:
+            return ""
+        return str(value).strip()
+
+    @field_validator("observation_ids", "supporting_expert_ids", mode="before")
+    @classmethod
+    def strip_ids(cls, value: object) -> object:
+        if not isinstance(value, list):
+            return value
+        return [str(item).strip() for item in value if str(item).strip()]
+
+
+class WordCommentConvergence(BaseModel):
+    issues: list[WordConvergedIssue] = Field(default_factory=list)
+
+
 class WordParagraphComments(BaseModel):
     comments: list[WordParagraphComment] = Field(default_factory=list)
     omskrivning_forslag: WordRewriteSuggestion | None = Field(

@@ -16,7 +16,7 @@ Tillägget **Expertgranskning** sitter i Word, inte i webbläsaren. Det använde
 3. Välj en **expertpanel**. Listan visar bara panelerna för din kund.
 4. Klicka **Granska**. Tillägget läser dokumentets stycken och startar en granskning. Inget mer behöver fyllas i.
 
-En moderator läser först varje del av dokumentet och hoppar över rent administrativt innehåll, till exempel namn och kontaktuppgifter. Bara delar som kräver bedömning går vidare till experterna, som frågor. Varje expert får hela dokumentet som underlag och kommenterar bara de frågor där hen räcker upp handen. Kommentarer dyker upp löpande i dokumentet. Klausulnummer (till exempel 2.1) används internt så att experten kan peka rätt — de läggs inte in i kommentaren du ser.
+En moderator läser först varje del av dokumentet och hoppar över rent administrativt innehåll, till exempel namn och kontaktuppgifter. Bara delar som kräver bedömning går vidare till experterna, som frågor. Varje expert får hela dokumentet som underlag och kommenterar bara de frågor där hen räcker upp handen. När flera experter gör samma observation slås den ihop till en kommentar som visar vilka som stödjer den. Om experterna faktiskt är oeniga syns båda bedömningarna. Kommentarer dyker upp löpande i dokumentet. Klausulnummer (till exempel 2.1) används internt så att experten kan peka rätt — de läggs inte in i kommentaren du ser.
 
 När minst två experter är överens om en konkret ny formulering kan tillägget också föreslå en **omskrivning** som spårad ändring. Du måste själv **godkänna** eller **avvisa** den i Word. Panelen visar när jobbet är klart.
 

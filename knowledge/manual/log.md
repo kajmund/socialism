@@ -9,6 +9,10 @@
 * **Expertgranskning**: Experterna räcker bara upp handen när frågan ligger inom deras faktiska kompetens. Utanför området skapar de inte researchfrågor, och om ingen relevant expert finns stoppas den sakliga diskussionen — frågan lämnas obesvarad. Noll händer är ett giltigt svar.
 * **Execution**: Du kan öppna en execution-körning via direktlänk och läsa varje historiskt attempt — input, konfiguration, researchplan, fryst evidence och resultat. Inget redigeras. Ett misslyckat attempt visar ändå det som hann sparas. Klick på `[E1]` i ett påstående hoppar till rätt evidence-kort.
 
+## 2026-09-10
+
+* **Expertgranskning i Word**: Samma observation från flera experter blir en kommentar som visar vilka som stödjer den. Faktisk oenighet, till exempel olika råd om en räntesats, syns fortfarande.
+
 ## 2026-09-09
 
 * **Expertgranskning**: I **Live-panel** anger experterna först vilka underlag som behövs. Moderatorn slår ihop det till en researchplan innan någon räcker upp handen. Tom plan är normalt — då går panelen vidare som vanligt.
