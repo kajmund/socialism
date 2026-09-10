@@ -134,6 +134,12 @@ export const fixtureAttemptA = attempt({
   result: fixtureResult,
 })
 
+export const fixtureAttemptCreated = attempt({
+  id: "attempt-created",
+  status: "created",
+  created_at: "2026-04-01T09:50:00Z",
+})
+
 export const fixtureAttemptB = attempt({
   id: "attempt-b",
   status: "ready",
