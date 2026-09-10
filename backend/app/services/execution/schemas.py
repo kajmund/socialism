@@ -63,6 +63,14 @@ class AttemptExecuteRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class AttemptCloneRequest(BaseModel):
+    """Optional full configuration replacement. extra=forbid — no ids or merge."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    configuration_snapshot: dict[str, Any] | None = None
+
+
 class AttemptResearchOut(BaseModel):
     attempt_id: str
     evidence_set_id: str | None

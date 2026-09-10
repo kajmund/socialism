@@ -598,9 +598,8 @@ async def test_clone_reuses_evidence_but_gets_independent_result(db):
     clone = await clone_attempt(
         session,
         attempt.id,
-        configuration_override={"max_rounds": 1, **PANEL_CONFIG, "brief": "Ny brief"},
+        configuration_snapshot={**PANEL_CONFIG, "brief": "Ny brief"},
     )
-    clone = await mark_ready(session, clone.id)
     await session.commit()
     second = await execute_generic_panel_attempt(
         session, attempt_id=clone.id, prompts=PROMPTS
