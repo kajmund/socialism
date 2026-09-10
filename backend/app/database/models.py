@@ -1386,6 +1386,10 @@ class ExecutionAttempt(Base):
     evidence_set: Mapped[EvidenceSet | None] = relationship(
         foreign_keys=[evidence_set_id],
     )
+    result: Mapped["ExecutionAttemptResult | None"] = relationship(
+        back_populates="attempt",
+        uselist=False,
+    )
 
 
 class EvidenceSetItem(Base):
@@ -1416,3 +1420,34 @@ class EvidenceSetItem(Base):
     content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
 
     evidence_set: Mapped[EvidenceSet] = relationship(back_populates="items")
+
+
+class ExecutionAttemptResult(Base):
+    """Historical method output for one ExecutionAttempt (v1: generic_panel)."""
+
+    __tablename__ = "execution_attempt_results"
+    __table_args__ = (UniqueConstraint("attempt_id", name="uq_execution_attempt_results_attempt_id"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    attempt_id: Mapped[str] = mapped_column(
+        ForeignKey("execution_attempts.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    result_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    schema_version: Mapped[str] = mapped_column(String(16), nullable=False, default="1")
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    evidence_refs: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    panel_session_id: Mapped[str | None] = mapped_column(
+        String(64),
+        ForeignKey("panel_sessions.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    attempt: Mapped[ExecutionAttempt] = relationship(back_populates="result")

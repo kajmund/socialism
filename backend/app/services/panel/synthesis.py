@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+import re
+from collections.abc import Iterable
+
 from pydantic import BaseModel, Field
 
 from app.llm import complete_structured
 from app.services.panel.result import PanelClaim, PanelResult
 from app.services.panel.schemas import PanelSessionConfig, PanelTurn
 from app.services.prompt_catalog import render_prompt
+
+_EVIDENCE_REF_RE = re.compile(r"\[E(\d+)\]", re.IGNORECASE)
+_BARE_EVIDENCE_REF_RE = re.compile(r"^E(\d+)$", re.IGNORECASE)
 
 _RAISE_HAND_TOKENS = frozenset({"JA", "NEJ", "YES", "NO", "RAISE"})
 _SCRATCHPAD_MATCH_MIN = 12
@@ -18,6 +24,7 @@ class SynthesizedClaim(BaseModel):
     evidence: str
     judgment: str
     dissensus: bool = False
+    evidence_refs: list[str] = Field(default_factory=list)
 
 
 class GenericPanelSynthesis(BaseModel):
@@ -96,10 +103,55 @@ def _accepted_claims(
     return [row for row in synthesis.claims if _usable_claim(row, transcript)]
 
 
+def extract_evidence_refs(*texts: str) -> list[str]:
+    """Collect ``[E1]``-style refs in first-seen order. Does not invent refs."""
+    seen: list[str] = []
+    for text in texts:
+        for match in _EVIDENCE_REF_RE.finditer(text):
+            ref = f"E{int(match.group(1))}"
+            if ref not in seen:
+                seen.append(ref)
+    return seen
+
+
+def _canonical_evidence_ref(raw: str) -> str | None:
+    text = raw.strip()
+    match = _BARE_EVIDENCE_REF_RE.fullmatch(text) or _EVIDENCE_REF_RE.fullmatch(text)
+    if match is None:
+        return None
+    return f"E{int(match.group(1))}"
+
+
+def filter_evidence_refs(
+    refs: Iterable[str],
+    *,
+    allowed: frozenset[str] | None,
+) -> list[str]:
+    """Keep only refs that exist on the attached frozen EvidenceSet."""
+    if allowed is None:
+        return []
+    kept: list[str] = []
+    for raw in refs:
+        ref = _canonical_evidence_ref(raw)
+        if ref is not None and ref in allowed and ref not in kept:
+            kept.append(ref)
+    return kept
+
+
+def _claim_evidence_refs(
+    item: SynthesizedClaim,
+    *,
+    allowed: frozenset[str] | None,
+) -> list[str]:
+    extracted = extract_evidence_refs(item.claim, item.evidence, item.judgment)
+    return filter_evidence_refs([*item.evidence_refs, *extracted], allowed=allowed)
+
+
 def panel_result_from_synthesis(
     synthesis: GenericPanelSynthesis,
     *,
     transcript: list[PanelTurn],
+    allowed_evidence_refs: frozenset[str] | None = None,
 ) -> PanelResult:
     accepted = _accepted_claims(synthesis, transcript)
     claims = [
@@ -110,6 +162,9 @@ def panel_result_from_synthesis(
             judgment=item.judgment.strip(),
             score=None,
             dissensus=item.dissensus,
+            evidence_refs=_claim_evidence_refs(
+                item, allowed=allowed_evidence_refs
+            ),
         )
         for index, item in enumerate(accepted, start=1)
     ]
@@ -122,8 +177,9 @@ def panel_result_from_synthesis(
                 evidence=item.evidence.strip(),
                 judgment=item.judgment.strip(),
                 dissensus=item.dissensus,
+                evidence_refs=claim.evidence_refs,
             )
-            for item in accepted
+            for item, claim in zip(accepted, claims, strict=True)
         ],
         unanswered=unanswered,
     )
@@ -142,11 +198,15 @@ async def synthesize_generic_panel_result(
     transcript: list[PanelTurn],
     moderator_analysis: str,
     prompts: dict[str, str],
+    evidence_prompt: str | None = None,
+    allowed_evidence_refs: frozenset[str] | None = None,
 ) -> PanelResult:
     brief = (config.brief or "").strip()
     messages = [{"role": "system", "content": render_prompt(prompts, "panel.moderator.system")}]
     if brief:
         messages.append({"role": "system", "content": brief})
+    if evidence_prompt:
+        messages.append({"role": "system", "content": evidence_prompt})
     messages.append(
         {
             "role": "user",
@@ -162,4 +222,8 @@ async def synthesize_generic_panel_result(
         }
     )
     synthesis = await complete_structured(messages, GenericPanelSynthesis)
-    return panel_result_from_synthesis(synthesis, transcript=transcript)
+    return panel_result_from_synthesis(
+        synthesis,
+        transcript=transcript,
+        allowed_evidence_refs=allowed_evidence_refs,
+    )

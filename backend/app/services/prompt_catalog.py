@@ -1275,6 +1275,9 @@ HOW YOU WRITE COMMENTS:
             "- Raise-hand JA/NEJ är turordning, inte evidence och inte claim. "
             "Avstå (NEJ) är varken stöd eller avslag. "
             "Om alla avstår, fabricera inte claims; det kan vara unanswered.\n"
+            "- Behandla inte not_found, error, raise-hand eller scratchpads som evidens.\n"
+            "- Om fryst underlag finns, citera bara befintliga refs som [E1]. "
+            "Sätt evidence_refs till de refs som faktiskt stöder claimen. Hitta inte på refs.\n"
             "- Var konservativ: få starka claims hellre än många svaga.\n"
             "- Om underlaget är tomt eller för svagt: returnera tomma claims och eventuellt unanswered. "
             "Hitta inte på slutsatser."
@@ -1303,9 +1306,42 @@ HOW YOU WRITE COMMENTS:
             "- Raise-hand YES/NO is turn-taking, not evidence and not a claim. "
             "Abstention (NO) is neither support nor rejection. "
             "If everyone abstains, do not fabricate claims; that may be unanswered.\n"
+            "- Do not treat not_found, error, raise-hand, or scratchpads as evidence.\n"
+            "- If frozen evidence is present, cite only existing refs such as [E1]. "
+            "Set evidence_refs to the refs that actually support the claim. Do not invent refs.\n"
             "- Be conservative: few strong claims rather than many weak ones.\n"
             "- If the record is empty or too weak: return empty claims and optionally unanswered. "
             "Do not invent conclusions."
+        ),
+    ),
+    _f(
+        "panel.evidence.instructions",
+        "panel",
+        "Fryst evidens — instruktion",
+        "Frozen evidence — instructions",
+        "Platshållare: {evidence}.",
+        "Placeholders: {evidence}.",
+        (
+            "Fryst underlag (redan inhämtat — starta inte ny research och anropa inte "
+            "ResearchRouter):\n\n"
+            "{evidence}\n\n"
+            "Regler:\n"
+            "- Resonera från brief, fryst underlag och det offentliga transkriptet.\n"
+            "- Citera evidens med [E1], [E2] när du gör evidensstödda påståenden.\n"
+            "- Ni får tolka underlaget olika.\n"
+            "- Behandla inte not_found, error, raise-hand eller scratchpads som evidens.\n"
+            "- Om nödvändig information saknas: säg det och behandla det som en kunskapslucka."
+        ),
+        (
+            "Frozen evidence (already gathered — do not start new research and do not "
+            "call ResearchRouter):\n\n"
+            "{evidence}\n\n"
+            "Rules:\n"
+            "- Reason from the brief, frozen evidence, and the public transcript.\n"
+            "- Cite evidence with [E1], [E2] when making evidence-backed claims.\n"
+            "- You may disagree on interpretation.\n"
+            "- Do not treat not_found, error, raise-hand, or scratchpads as evidence.\n"
+            "- If needed information is absent, say so and treat it as a knowledge gap."
         ),
     ),
     _f(
