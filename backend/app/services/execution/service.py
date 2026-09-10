@@ -109,6 +109,16 @@ async def list_evidence_items(
     return list(result.scalars().all())
 
 
+async def list_run_attempts(session: AsyncSession, run_id: str) -> list[ExecutionAttempt]:
+    await get_run(session, run_id)
+    result = await session.execute(
+        select(ExecutionAttempt)
+        .where(ExecutionAttempt.run_id == run_id)
+        .order_by(ExecutionAttempt.created_at, ExecutionAttempt.id)
+    )
+    return list(result.scalars().all())
+
+
 async def create_run(
     session: AsyncSession,
     *,
