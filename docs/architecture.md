@@ -80,7 +80,7 @@ Statuses on Attempt: `created`, `researching`, `ready`, `running`, `completed`, 
 
 `execute_generic_panel_attempt` (`app/services/panel/attempt_execution.py`) is the first method bridge: a `ready` Attempt with a same-run frozen EvidenceSet is claimed `ready → running`, the frozen items are rendered as `[E#]` prompt evidence, existing `generic_panel` runs in `frozen_evidence` mode (no new ResearchPlan, no live expert tools), and a historical `execution_attempt_results` row snapshots the `PanelResult`. Fatal panel failure marks the Attempt `failed` and leaves the EvidenceSet frozen.
 
-The first HTTP vertical is `/execution`: create Run/Attempt, `POST .../research` (`execute_attempt_research` + standard `ResearchRouter`), `POST .../execute` (method dispatcher, v1 `generic_panel` only), `POST .../clone` (reuse frozen EvidenceSet, optional config replacement), then read Attempt / Evidence / immutable Result. Scope comes from `ExecutionRun.customer_id`. No Word or UI integration.
+The first HTTP vertical is `/execution`: create Run/Attempt, `POST .../research` (`execute_attempt_research` + standard `ResearchRouter`), `POST .../execute` (method dispatcher, v1 `generic_panel` only), `POST .../clone` (reuse frozen EvidenceSet, optional config replacement), then read Attempt / Evidence / immutable Result. Scope comes from `ExecutionRun.customer_id`. The SPA has a read-only inspector at `/execution/runs/:runId`. No Word integration.
 
 ### Run timeline shape
 

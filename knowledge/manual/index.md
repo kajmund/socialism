@@ -18,6 +18,7 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 
 # Körningar
 
+* [Inspektera en execution-körning](inspektera-execution-run.md) — Läs Run, Attempts, evidence och resultat (endast visning)
 * [Hantera körningar](hantera-korningar.md) — Söka, filtrera, duplicera och ta bort körningar
 * [Skapa en ny körning](skapa-korning.md) — Grunduppgifter, tidslinje och gren
 * [Välja plattform och läge för en körning](valja-plattform-och-lage-for-korning.md) — Twitter/Reddit, egna inlägg och guidat vs snabbläge

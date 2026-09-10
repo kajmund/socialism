@@ -17,7 +17,7 @@ När du öppnar appen och är inloggad landar du på **dashboard** (`/`). Där s
 
 Huvudmenyn ligger som en **vertikal list till vänster**. Vilka länkar som syns styrs av vilka **moduler** kunden har påslagna — till exempel Personas och Körningar för politisk simulering, Kampanjer för Due Diligence, eller **Expertgranskning**. **Experter** och **Expertpaneler** ligger under rubriken **Experter**, precis ovanför Rapporter, Återkoppling och Bakgrundsjobb. Administratör ser Expertgranskning i huvudmenyn även utan att rutan är ikryssad; i bolagsytan visas bara bolagets egna moduler. Från menyn når du bland annat:
 
-1. **Körningar** — skapa, redigera och läsa resultat från simuleringar
+1. **Körningar** — skapa, redigera och läsa resultat från simuleringar. En execution-körning (annan sak än simulering) öppnas via direktlänk; se [Inspektera en execution-körning](inspektera-execution-run.md).
 2. **Personas** — biblioteket av AI-agenter
 3. **Populationer** — grupper av personas
 4. **Budskap** — budskapsbibliotek och verkstad
