@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
@@ -49,12 +50,21 @@ from app.services.execution.service import (
     get_attempt_result,
     get_evidence_set,
     get_run,
+    list_attempt_results,
     list_evidence_items,
+    list_evidence_summaries,
     list_run_attempts,
 )
-from app.services.panel.attempt_execution import PanelAttemptError
+from app.services.panel.attempt_execution import (
+    GENERIC_PANEL_ATTEMPT_TYPE,
+    PanelAttemptError,
+    validate_generic_panel_snapshots,
+)
 from app.services.prompt_store import require_active_prompts
-from app.services.research.composition import build_standard_research_router
+from app.services.research.composition import (
+    ResearchCompositionError,
+    build_standard_research_router,
+)
 from app.services.research.execution import (
     AttemptResearchResult,
     ResearchExecutionError,
@@ -76,11 +86,11 @@ def _http_for_execution_error(exc: Exception) -> HTTPException:
         (ExecutionStatusError, ExecutionImmutableError, ExecutionFrozenError),
     ):
         return HTTPException(status_code=409, detail=str(exc))
-    if isinstance(exc, InvalidResearchPlanError):
+    if isinstance(exc, (InvalidResearchPlanError, ValidationError)):
         return HTTPException(status_code=422, detail=str(exc))
     if isinstance(exc, UnsupportedAttemptTypeError):
         return HTTPException(status_code=422, detail=str(exc))
-    if isinstance(exc, (ResearchExecutionError, PanelAttemptError)):
+    if isinstance(exc, (ResearchExecutionError, PanelAttemptError, ResearchCompositionError)):
         return HTTPException(status_code=500, detail=str(exc))
     if isinstance(exc, ExecutionError):
         return HTTPException(status_code=400, detail=str(exc))
@@ -97,13 +107,6 @@ def _run_out(run: ExecutionRun) -> ExecutionRunOut:
         created_at=run.created_at,
         updated_at=run.updated_at,
     )
-
-
-def _counts(items: list[EvidenceSetItem]) -> tuple[int, int, int]:
-    found = sum(1 for item in items if item.status == "found")
-    not_found = sum(1 for item in items if item.status == "not_found")
-    error = sum(1 for item in items if item.status == "error")
-    return found, not_found, error
 
 
 def _result_out(row: ExecutionAttemptResult) -> AttemptResultOut:
@@ -214,24 +217,12 @@ async def _attached_evidence(
     return evidence_set, items
 
 
-async def _attempt_out(
-    session: AsyncSession,
+def _attempt_out_from_loaded(
     attempt: ExecutionAttempt,
-    run: ExecutionRun,
+    *,
+    evidence: EvidenceSummaryOut | None,
+    result_row: ExecutionAttemptResult | None,
 ) -> ExecutionAttemptOut:
-    attached = await _attached_evidence(session, attempt, run)
-    evidence = None
-    if attached is not None:
-        evidence_set, items = attached
-        found, not_found, error = _counts(items)
-        evidence = EvidenceSummaryOut(
-            evidence_set_id=evidence_set.id,
-            status=evidence_set.status,
-            found_count=found,
-            not_found_count=not_found,
-            error_count=error,
-        )
-    result_row = await get_attempt_result(session, attempt.id)
     return ExecutionAttemptOut(
         id=attempt.id,
         run_id=attempt.run_id,
@@ -247,6 +238,42 @@ async def _attempt_out(
         started_at=attempt.started_at,
         completed_at=attempt.completed_at,
     )
+
+
+def _summary_from_counts(
+    evidence_set_id: str,
+    status: str,
+    found: int,
+    not_found: int,
+    error: int,
+) -> EvidenceSummaryOut:
+    return EvidenceSummaryOut(
+        evidence_set_id=evidence_set_id,
+        status=status,
+        found_count=found,
+        not_found_count=not_found,
+        error_count=error,
+    )
+
+
+async def _attempt_out(
+    session: AsyncSession,
+    attempt: ExecutionAttempt,
+    run: ExecutionRun,
+) -> ExecutionAttemptOut:
+    evidence = None
+    if attempt.evidence_set_id is not None:
+        summaries = await list_evidence_summaries(
+            session, [attempt.evidence_set_id], run_id=run.id
+        )
+        raw = summaries.get(attempt.evidence_set_id)
+        if raw is None:
+            raise HTTPException(
+                status_code=403, detail="Attempt evidence must belong to the same run"
+            )
+        evidence = _summary_from_counts(attempt.evidence_set_id, *raw)
+    result_row = await get_attempt_result(session, attempt.id)
+    return _attempt_out_from_loaded(attempt, evidence=evidence, result_row=result_row)
 
 
 @router.post("/runs", response_model=ExecutionRunOut, status_code=201)
@@ -288,7 +315,32 @@ async def get_execution_run_attempts(
 ) -> list[ExecutionAttemptOut]:
     run = await _require_run(session, user, run_id)
     attempts = await list_run_attempts(session, run.id)
-    return [await _attempt_out(session, attempt, run) for attempt in attempts]
+    set_ids = [
+        attempt.evidence_set_id
+        for attempt in attempts
+        if attempt.evidence_set_id is not None
+    ]
+    summaries = await list_evidence_summaries(session, set_ids, run_id=run.id)
+    results = await list_attempt_results(session, [attempt.id for attempt in attempts])
+    out: list[ExecutionAttemptOut] = []
+    for attempt in attempts:
+        evidence = None
+        if attempt.evidence_set_id is not None:
+            raw = summaries.get(attempt.evidence_set_id)
+            if raw is None:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Attempt evidence must belong to the same run",
+                )
+            evidence = _summary_from_counts(attempt.evidence_set_id, *raw)
+        out.append(
+            _attempt_out_from_loaded(
+                attempt,
+                evidence=evidence,
+                result_row=results.get(attempt.id),
+            )
+        )
+    return out
 
 
 @router.post(
@@ -303,6 +355,16 @@ async def post_execution_attempt(
     user: UserAccount = Depends(get_current_user),
 ) -> ExecutionAttemptOut:
     run = await _require_run(session, user, run_id)
+    if body.attempt_type.strip() == GENERIC_PANEL_ATTEMPT_TYPE:
+        try:
+            validate_generic_panel_snapshots(
+                configuration_snapshot=body.configuration_snapshot,
+                input_snapshot=body.input_snapshot,
+                module=run.module,
+                title=run.title,
+            )
+        except (ValidationError, ExecutionError) as exc:
+            raise _http_for_execution_error(exc) from exc
     try:
         attempt = await create_attempt(
             session,
@@ -347,7 +409,12 @@ async def post_attempt_research(
             research_plan=plan,
             router=router_impl,
         )
-    except (ExecutionError, InvalidResearchPlanError, ResearchExecutionError) as exc:
+    except (
+        ExecutionError,
+        InvalidResearchPlanError,
+        ResearchExecutionError,
+        ResearchCompositionError,
+    ) as exc:
         raise _http_for_execution_error(exc) from exc
     return _research_out(result)
 
@@ -378,7 +445,7 @@ async def post_attempt_execute(
         )
         attempt = await get_attempt(session, attempt.id)
         detail = await _attempt_out(session, attempt, run)
-    except (ExecutionError, PanelAttemptError) as exc:
+    except (ExecutionError, PanelAttemptError, ValidationError) as exc:
         raise _http_for_execution_error(exc) from exc
     return AttemptExecuteOut(attempt=detail, result=detail.result)
 

@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any
+from types import SimpleNamespace
+from typing import Any, Protocol
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -53,8 +54,14 @@ def _compatible_attempt_type(attempt_type: str) -> bool:
     return attempt_type.strip() == GENERIC_PANEL_ATTEMPT_TYPE
 
 
+class AttemptConfigSource(Protocol):
+    id: str
+    configuration_snapshot: dict[str, Any]
+    input_snapshot: dict[str, Any]
+
+
 def panel_config_from_attempt(
-    attempt: ExecutionAttempt,
+    attempt: AttemptConfigSource,
     *,
     module: str,
     title: str,
@@ -82,6 +89,22 @@ def panel_config_from_attempt(
             f"Attempt {attempt.id} configuration_snapshot must include expert_slots"
         )
     return config
+
+
+def validate_generic_panel_snapshots(
+    *,
+    configuration_snapshot: dict[str, Any],
+    input_snapshot: dict[str, Any],
+    module: str,
+    title: str,
+) -> PanelSessionConfig:
+    """Fail closed at the HTTP boundary before an Attempt is persisted."""
+    probe = SimpleNamespace(
+        id="new",
+        configuration_snapshot=configuration_snapshot,
+        input_snapshot=input_snapshot,
+    )
+    return panel_config_from_attempt(probe, module=module, title=title)
 
 
 def _result_from_row(
