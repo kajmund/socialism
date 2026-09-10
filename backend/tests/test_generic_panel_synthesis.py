@@ -362,6 +362,27 @@ def test_claim_ids_are_assigned_by_code():
         "Första slutsatsen.",
         "Andra slutsatsen.",
     ]
+    assert all(row.evidence_refs == [] for row in result.claims)
+
+
+def test_known_evidence_refs_are_kept_and_unknown_are_dropped():
+    synthesis = GenericPanelSynthesis(
+        summary="En punkt.",
+        claims=[
+            SynthesizedClaim(
+                claim="Skatten är 32%.",
+                evidence="Stöd i [E1] och påhittad [E9].",
+                judgment="Bedömning.",
+                evidence_refs=["E1", "E9", "nope"],
+            )
+        ],
+    )
+    result = panel_result_from_synthesis(
+        synthesis,
+        transcript=_expert_transcript(),
+        allowed_evidence_refs=frozenset({"E1", "E2"}),
+    )
+    assert result.claims[0].evidence_refs == ["E1"]
 
 
 def test_claim_without_evidence_or_judgment_is_rejected():

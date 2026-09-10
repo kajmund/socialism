@@ -16,6 +16,7 @@ class PanelClaim(BaseModel):
     judgment: str
     score: int | None = None
     dissensus: bool = False
+    evidence_refs: list[str] = Field(default_factory=list)
 
 
 class PanelResult(BaseModel):

@@ -1,7 +1,8 @@
 """Generic execution domain: Run → Attempt → EvidenceSet.
 
 Persistence uses ``execution_runs`` / ``execution_attempts`` because simulation
-already owns ``Run`` / ``runs``. Isolated from panel, Word, and research routing.
+already owns ``Run`` / ``runs``. This package stays free of panel/Word/LLM
+imports; ``generic_panel`` execution lives in ``app.services.panel``.
 """
 
 from app.services.execution.errors import (
@@ -11,6 +12,11 @@ from app.services.execution.errors import (
     ExecutionNotFoundError,
     ExecutionScopeError,
     ExecutionStatusError,
+)
+from app.services.execution.evidence_render import (
+    EvidenceRef,
+    RenderedEvidence,
+    render_frozen_evidence,
 )
 from app.services.execution.models import (
     ALLOWED_ATTEMPT_TRANSITIONS,
@@ -28,6 +34,7 @@ from app.services.execution.service import (
     add_evidence_items,
     attach_evidence_set,
     claim_attempt_researching,
+    claim_attempt_running,
     clone_attempt,
     complete_attempt,
     create_attempt,
@@ -37,11 +44,14 @@ from app.services.execution.service import (
     fail_evidence_set,
     freeze_evidence_set,
     get_attempt,
+    get_attempt_result,
     get_evidence_set,
     get_run,
     list_evidence_items,
     mark_ready,
     mark_researching,
+    persist_attempt_result,
+    require_frozen_evidence_for_attempt,
     set_attempt_snapshots,
     start_attempt,
     transition_attempt,
@@ -63,6 +73,7 @@ __all__ = [
     "TERMINAL_STATUSES",
     "AttemptStatus",
     "EvidenceItemSnapshot",
+    "EvidenceRef",
     "EvidenceSetStatus",
     "ExecutionError",
     "ExecutionFrozenError",
@@ -70,9 +81,11 @@ __all__ = [
     "ExecutionNotFoundError",
     "ExecutionScopeError",
     "ExecutionStatusError",
+    "RenderedEvidence",
     "add_evidence_items",
     "attach_evidence_set",
     "claim_attempt_researching",
+    "claim_attempt_running",
     "clone_attempt",
     "complete_attempt",
     "compute_content_hash",
@@ -83,11 +96,15 @@ __all__ = [
     "fail_evidence_set",
     "freeze_evidence_set",
     "get_attempt",
+    "get_attempt_result",
     "get_evidence_set",
     "get_run",
     "list_evidence_items",
     "mark_ready",
     "mark_researching",
+    "persist_attempt_result",
+    "render_frozen_evidence",
+    "require_frozen_evidence_for_attempt",
     "set_attempt_snapshots",
     "snapshot_research_evidence",
     "start_attempt",
