@@ -8,6 +8,7 @@ from app.database.models import PanelSession
 from app.llm import complete_text
 from app.services.dd.company_mcp import complete_text_with_company_tools
 from app.services.expert_tools import expert_tool_prompt_extra
+from app.services.panel.raise_hand import raise_hand_is_yes
 from app.services.panel.research import (
     ExpertResearchNeeds,
     build_research_plan,
@@ -123,6 +124,27 @@ async def _moderator_next_question(
     return (await complete_text(messages)).strip()
 
 
+async def _moderator_missing_expertise(
+    config: PanelSessionConfig,
+    prompts: dict[str, str],
+    *,
+    evidence_prompt: str | None = None,
+) -> str:
+    messages = _messages_with_brief(
+        identity=render_prompt(prompts, "panel.moderator.system"),
+        brief=_session_brief(config),
+        evidence_prompt=evidence_prompt,
+        user_content=render_prompt(
+            prompts,
+            "panel.moderator.missing_expertise",
+            topic=config.topic,
+            brief=config.brief or config.topic,
+            expert_list=_expert_list(config),
+        ),
+    )
+    return (await complete_text(messages)).strip()
+
+
 async def _expert_raise_hand(
     slot: PanelExpertSlot,
     config: PanelSessionConfig,
@@ -144,8 +166,8 @@ async def _expert_raise_hand(
             scratchpad=scratchpad or "(tom)",
         ),
     )
-    answer = (await complete_text(messages)).strip().upper()
-    return answer.startswith("JA") or answer.startswith("YES") or answer.startswith("RAISE")
+    answer = (await complete_text(messages)).strip()
+    return raise_hand_is_yes(answer)
 
 
 async def _expert_complete(
@@ -254,8 +276,10 @@ async def _run_research_plan_phase(
     prompts: dict[str, str],
     *,
     opening: str,
-) -> None:
+) -> bool:
+    """Collect research needs. Returns True if any expert has domain competence."""
     proposals: list[tuple[PanelExpertSlot, ExpertResearchNeeds]] = []
+    competent_slot_ids: list[str] = []
     for slot in config.expert_slots:
 
         async def produce_research_need(
@@ -264,8 +288,10 @@ async def _run_research_plan_phase(
             bundle = await collect_expert_research_needs(
                 expert_slot, config, opening, prompts
             )
+            if bundle.has_domain_competence:
+                competent_slot_ids.append(expert_slot.slot_id)
             proposals.append((expert_slot, bundle))
-            return format_expert_research_need_turn(bundle.needs)
+            return format_expert_research_need_turn(bundle)
 
         await run_turn(
             db,
@@ -291,6 +317,7 @@ async def _run_research_plan_phase(
         phase="research_plan",
         produce_content=produce_research_plan,
     )
+    return bool(competent_slot_ids)
 
 
 async def run_generic_panel(
@@ -325,8 +352,9 @@ async def run_generic_panel(
             config, prompts, evidence_prompt=evidence_prompt
         ),
     )
+    has_relevant_expert = True
     if not frozen_evidence:
-        await _run_research_plan_phase(
+        has_relevant_expert = await _run_research_plan_phase(
             db,
             panel,
             transcript,
@@ -335,7 +363,20 @@ async def run_generic_panel(
             opening=opening_turn.content,
         )
 
+    if not has_relevant_expert:
+        await run_turn(
+            db,
+            panel,
+            transcript,
+            speaker="moderator",
+            phase="unanswered",
+            produce_content=lambda: _moderator_missing_expertise(
+                config, prompts, evidence_prompt=evidence_prompt
+            ),
+        )
     for round_index in range(1, config.max_rounds + 1):
+        if not has_relevant_expert:
+            break
         if round_index > 1:
             await run_turn(
                 db,
