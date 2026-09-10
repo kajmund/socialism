@@ -8,11 +8,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from app.database.base import Base
-from app.database.models import ExecutionAttempt, ExecutionRun, Kund, Run
+from app.database.models import EvidenceSet, ExecutionAttempt, ExecutionRun, Kund, Run
 from app.services.execution import (
     ATTEMPT_STATUSES,
     ExecutionError,
@@ -30,13 +31,16 @@ from app.services.execution import (
     create_evidence_set,
     create_run,
     fail_attempt,
+    fail_evidence_set,
     freeze_evidence_set,
     get_attempt,
+    get_attempt_result,
     get_evidence_set,
     get_run,
     list_evidence_items,
     mark_ready,
     mark_researching,
+    persist_attempt_result,
     set_attempt_snapshots,
     start_attempt,
 )
@@ -143,7 +147,7 @@ async def test_acceptance_clone_reuses_frozen_evidence_without_mutating_source(s
     attempt_b = await clone_attempt(
         session,
         attempt_a.id,
-        configuration_override={"model": "config-b", "temperature": 0.7},
+        configuration_snapshot={"model": "config-b", "temperature": 0.7},
     )
 
     assert attempt_b.id != attempt_a.id
@@ -154,7 +158,8 @@ async def test_acceptance_clone_reuses_frozen_evidence_without_mutating_source(s
     assert attempt_a.configuration_snapshot["model"] == "config-a"
     assert attempt_b.configuration_snapshot != attempt_a.configuration_snapshot
     assert attempt_b.input_snapshot == source_before["input"]
-    assert attempt_b.status == "created"
+    assert attempt_b.status == "ready"
+    assert attempt_b.research_plan_snapshot == attempt_a.research_plan_snapshot
 
     reloaded_a = await get_attempt(session, attempt_a.id)
     assert reloaded_a.status == source_before["status"]
@@ -335,7 +340,7 @@ async def test_fail_attempt_allows_building_evidence_set(session, start_status):
 
 
 @pytest.mark.asyncio
-async def test_clone_does_not_reuse_building_evidence_set(session):
+async def test_clone_rejects_building_evidence_set(session):
     customer = await _customer(session, "building-co")
     run = await create_run(session, customer_id=customer.id, module="dd", title="R")
     building = await create_evidence_set(session, run_id=run.id)
@@ -346,10 +351,193 @@ async def test_clone_does_not_reuse_building_evidence_set(session):
         evidence_set_id=building.id,
         configuration_snapshot={"k": 1},
     )
-    clone = await clone_attempt(session, source.id, configuration_override={"k": 2})
-    assert clone.evidence_set_id is None
-    assert clone.parent_attempt_id == source.id
-    assert (await get_attempt(session, source.id)).evidence_set_id == building.id
+    source = await fail_attempt(session, source.id)
+    with pytest.raises(ExecutionStatusError, match="frozen"):
+        await clone_attempt(session, source.id, configuration_snapshot={"k": 2})
+    reloaded = await get_attempt(session, source.id)
+    assert reloaded.evidence_set_id == building.id
+    assert reloaded.configuration_snapshot == {"k": 1}
+    assert reloaded.status == "failed"
+
+
+@pytest.mark.asyncio
+async def test_clone_rejects_failed_evidence_set(session):
+    customer = await _customer(session, "failed-set-co")
+    run = await create_run(session, customer_id=customer.id, module="dd", title="R")
+    evidence_set = await create_evidence_set(session, run_id=run.id)
+    source = await create_attempt(
+        session,
+        run_id=run.id,
+        attempt_type="structured_scoring",
+        evidence_set_id=evidence_set.id,
+        configuration_snapshot={"k": 1},
+    )
+    await fail_evidence_set(session, evidence_set.id)
+    source = await fail_attempt(session, source.id)
+    with pytest.raises(ExecutionStatusError, match="frozen"):
+        await clone_attempt(session, source.id)
+    assert (await get_attempt(session, source.id)).evidence_set_id == evidence_set.id
+
+
+@pytest.mark.asyncio
+async def test_clone_rejects_source_without_evidence(session):
+    customer = await _customer(session, "no-evidence-co")
+    run = await create_run(session, customer_id=customer.id, module="dd", title="R")
+    source = await create_attempt(
+        session,
+        run_id=run.id,
+        attempt_type="structured_scoring",
+        configuration_snapshot={"k": 1},
+    )
+    source = await mark_ready(session, source.id)
+    with pytest.raises(ExecutionStatusError, match="no attached EvidenceSet"):
+        await clone_attempt(session, source.id)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("start_status", ["created", "researching", "running"])
+async def test_clone_rejects_non_cloneable_status(session, start_status):
+    customer = await _customer(session, f"status-{start_status}")
+    run = await create_run(session, customer_id=customer.id, module="dd", title="R")
+    evidence_set = await create_evidence_set(session, run_id=run.id)
+    await freeze_evidence_set(session, evidence_set.id)
+    source = await create_attempt(
+        session,
+        run_id=run.id,
+        attempt_type="structured_scoring",
+        evidence_set_id=evidence_set.id,
+        configuration_snapshot={"k": 1},
+    )
+    if start_status == "researching":
+        source = await mark_researching(session, source.id)
+    elif start_status == "running":
+        source = await mark_ready(session, source.id)
+        source = await start_attempt(session, source.id)
+    with pytest.raises(ExecutionStatusError, match="Cannot clone"):
+        await clone_attempt(session, source.id)
+    assert (await get_attempt(session, source.id)).status == start_status
+
+
+@pytest.mark.asyncio
+async def test_clone_without_config_copies_source_exactly(session):
+    _customer_a, _run, frozen, _items, attempt_a, _first, _second = await _acceptance_setup(
+        session
+    )
+    clone = await clone_attempt(session, attempt_a.id)
+    assert clone.configuration_snapshot == attempt_a.configuration_snapshot
+    assert clone.input_snapshot == attempt_a.input_snapshot
+    assert clone.research_plan_snapshot == attempt_a.research_plan_snapshot
+    assert clone.attempt_type == attempt_a.attempt_type
+    assert clone.evidence_set_id == frozen.id
+    assert clone.status == "ready"
+    assert await get_attempt_result(session, clone.id) is None
+
+
+@pytest.mark.asyncio
+async def test_clone_replaces_configuration_without_merge(session):
+    _customer_a, _run, frozen, _items, attempt_a, _first, _second = await _acceptance_setup(
+        session
+    )
+    clone = await clone_attempt(
+        session, attempt_a.id, configuration_snapshot={"model": "config-b"}
+    )
+    assert clone.configuration_snapshot == {"model": "config-b"}
+    assert attempt_a.configuration_snapshot == {"model": "config-a", "temperature": 0.1}
+    reloaded = await get_attempt(session, attempt_a.id)
+    assert reloaded.configuration_snapshot == {"model": "config-a", "temperature": 0.1}
+    assert clone.evidence_set_id == frozen.id
+
+
+@pytest.mark.asyncio
+async def test_clone_twice_creates_distinct_children_sharing_evidence(session):
+    _customer_a, run, frozen, _items, attempt_a, _first, _second = await _acceptance_setup(
+        session
+    )
+    first = await clone_attempt(session, attempt_a.id)
+    second = await clone_attempt(session, attempt_a.id)
+    assert first.id != second.id
+    assert first.id != attempt_a.id
+    assert first.parent_attempt_id == second.parent_attempt_id == attempt_a.id
+    assert first.evidence_set_id == second.evidence_set_id == frozen.id
+    sets = (
+        await session.execute(
+            select(func.count()).select_from(EvidenceSet).where(EvidenceSet.run_id == run.id)
+        )
+    ).scalar()
+    assert sets == 1
+
+
+@pytest.mark.asyncio
+async def test_clone_from_ready_and_failed_with_frozen_set(session):
+    customer = await _customer(session, "ready-fail-co")
+    run = await create_run(session, customer_id=customer.id, module="dd", title="R")
+    evidence_set = await create_evidence_set(session, run_id=run.id)
+    frozen = await freeze_evidence_set(session, evidence_set.id)
+    ready = await create_attempt(
+        session,
+        run_id=run.id,
+        attempt_type="structured_scoring",
+        evidence_set_id=frozen.id,
+        configuration_snapshot={"k": 1},
+        input_snapshot={"q": "x"},
+    )
+    ready = await mark_ready(session, ready.id)
+    from_ready = await clone_attempt(session, ready.id)
+    assert from_ready.status == "ready"
+    assert from_ready.parent_attempt_id == ready.id
+    assert from_ready.evidence_set_id == frozen.id
+
+    failed = await create_attempt(
+        session,
+        run_id=run.id,
+        attempt_type="structured_scoring",
+        evidence_set_id=frozen.id,
+        configuration_snapshot={"k": 2},
+    )
+    failed = await mark_ready(session, failed.id)
+    failed = await start_attempt(session, failed.id)
+    failed = await fail_attempt(session, failed.id)
+    from_failed = await clone_attempt(session, failed.id)
+    assert from_failed.status == "ready"
+    assert from_failed.parent_attempt_id == failed.id
+    assert from_failed.evidence_set_id == frozen.id
+    assert (await get_attempt(session, failed.id)).status == "failed"
+
+
+@pytest.mark.asyncio
+async def test_clone_does_not_copy_result_and_locks_snapshots(session):
+    customer = await _customer(session, "result-co")
+    run = await create_run(session, customer_id=customer.id, module="dd", title="R")
+    evidence_set = await create_evidence_set(session, run_id=run.id)
+    frozen = await freeze_evidence_set(session, evidence_set.id)
+    attempt_a = await create_attempt(
+        session,
+        run_id=run.id,
+        attempt_type="generic_panel",
+        configuration_snapshot={"model": "config-a"},
+        input_snapshot={"question": "x"},
+        evidence_set_id=frozen.id,
+    )
+    attempt_a = await mark_ready(session, attempt_a.id)
+    attempt_a = await start_attempt(session, attempt_a.id)
+    stored = await persist_attempt_result(
+        session,
+        attempt_id=attempt_a.id,
+        result_type="generic_panel",
+        schema_version="1",
+        payload={"schema_version": "1", "protocol": "generic_panel", "summary": "A"},
+    )
+    attempt_a = await complete_attempt(session, attempt_a.id)
+    clone = await clone_attempt(session, attempt_a.id)
+    assert await get_attempt_result(session, clone.id) is None
+    source_result = await get_attempt_result(session, attempt_a.id)
+    assert source_result is not None
+    assert source_result.id == stored.id
+    with pytest.raises(ExecutionImmutableError):
+        await set_attempt_snapshots(
+            session, attempt_id=clone.id, configuration_snapshot={"k": 9}
+        )
+    assert clone.evidence_set_id == frozen.id
 
 
 @pytest.mark.asyncio

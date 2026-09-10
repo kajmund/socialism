@@ -30,6 +30,7 @@ from app.services.execution.errors import (
     ExecutionStatusError,
 )
 from app.services.execution.schemas import (
+    AttemptCloneRequest,
     AttemptExecuteOut,
     AttemptExecuteRequest,
     AttemptResearchOut,
@@ -44,6 +45,7 @@ from app.services.execution.schemas import (
     ExecutionRunOut,
 )
 from app.services.execution.service import (
+    clone_attempt,
     create_attempt,
     create_run,
     get_attempt,
@@ -387,6 +389,46 @@ async def get_execution_attempt(
 ) -> ExecutionAttemptOut:
     attempt, run = await _require_attempt(session, user, attempt_id)
     return await _attempt_out(session, attempt, run)
+
+
+@router.post(
+    "/attempts/{attempt_id}/clone",
+    response_model=ExecutionAttemptOut,
+    status_code=201,
+)
+async def post_attempt_clone(
+    attempt_id: str,
+    body: AttemptCloneRequest | None = None,
+    session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
+) -> ExecutionAttemptOut:
+    source, run = await _require_attempt(session, user, attempt_id)
+    payload = body or AttemptCloneRequest()
+    if (
+        source.attempt_type.strip() == GENERIC_PANEL_ATTEMPT_TYPE
+        and payload.configuration_snapshot is not None
+    ):
+        try:
+            incoming = source.input_snapshot if isinstance(source.input_snapshot, dict) else {}
+            validate_generic_panel_snapshots(
+                configuration_snapshot=payload.configuration_snapshot,
+                input_snapshot=incoming,
+                module=run.module,
+                title=run.title,
+            )
+        except (ValidationError, ExecutionError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+    try:
+        clone = await clone_attempt(
+            session,
+            source.id,
+            configuration_snapshot=payload.configuration_snapshot,
+        )
+    except ExecutionError as exc:
+        raise _http_for_execution_error(exc) from exc
+    await session.commit()
+    clone = await get_attempt(session, clone.id)
+    return await _attempt_out(session, clone, run)
 
 
 async def _research_out_from_attempt(

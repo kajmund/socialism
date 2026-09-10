@@ -38,6 +38,11 @@ EVIDENCE_REQUIRED_FROZEN_STATUSES: frozenset[AttemptStatus] = frozenset(
     {"ready", "running", "completed"}
 )
 TERMINAL_STATUSES: frozenset[AttemptStatus] = frozenset({"completed", "failed"})
+# Clone reuses a frozen EvidenceSet; source must already be executable or
+# finished. created/researching/running are not cloneable.
+CLONEABLE_ATTEMPT_STATUSES: frozenset[AttemptStatus] = frozenset(
+    {"ready", "completed", "failed"}
+)
 
 # researching is the in-flight ResearchPlan → ResearchRouter claim.
 ALLOWED_ATTEMPT_TRANSITIONS: dict[AttemptStatus, frozenset[AttemptStatus]] = {
