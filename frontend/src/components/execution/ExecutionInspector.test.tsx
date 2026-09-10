@@ -20,6 +20,8 @@ function renderInspector(args: {
   selected?: typeof fixtureAttemptA
   evidence?: typeof fixtureEvidence | null
   result?: typeof fixtureResult | null
+  evidenceError?: string | null
+  resultError?: string | null
   attempts?: typeof fixtureAttempts
 }) {
   return renderToStaticMarkup(
@@ -29,7 +31,9 @@ function renderInspector(args: {
         attempts={args.attempts ?? fixtureAttempts}
         selectedAttempt={args.selected ?? fixtureAttemptA}
         evidence={args.evidence === undefined ? fixtureEvidence : args.evidence}
+        evidenceError={args.evidenceError}
         result={args.result === undefined ? fixtureResult : args.result}
+        resultError={args.resultError}
         onSelectAttempt={() => undefined}
       />
     </LocaleProvider>,
@@ -68,6 +72,24 @@ describe("ExecutionInspector", () => {
     expect(html).toContain("Inget evidence är sparat för det här attemptet.")
     expect(html).toContain("Inget resultat är sparat för det här attemptet.")
     expect(html).not.toContain("data-execution-state=\"error\"")
+  })
+
+  it("shows section errors without hiding the rest of the attempt", () => {
+    const html = renderInspector({
+      selected: fixtureAttemptA,
+      evidence: null,
+      result: null,
+      evidenceError: "Kunde inte hämta evidence.",
+      resultError: "Kunde inte hämta resultatet.",
+    })
+    expect(html).toContain('data-section-error="evidence"')
+    expect(html).toContain('data-section-error="result"')
+    expect(html).toContain("Kunde inte hämta evidence.")
+    expect(html).toContain("Kunde inte hämta resultatet.")
+    expect(html).not.toContain("Inget evidence är sparat för det här attemptet.")
+    expect(html).not.toContain("Inget resultat är sparat för det här attemptet.")
+    expect(html).toContain("Vad gäller skattesatsen?")
+    expect(html).not.toContain('data-execution-state="error"')
   })
 
   it("renders evidence in persisted ordinal order", () => {

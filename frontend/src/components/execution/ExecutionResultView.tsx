@@ -24,10 +24,12 @@ export function ExecutionResultView({
   result,
   items,
   onSelectRef,
+  error = null,
 }: {
   result: AttemptResult | null
   items: readonly EvidenceSetItem[]
   onSelectRef: (ref: string) => void
+  error?: string | null
 }) {
   const { t } = useLocale()
   const panel =
@@ -43,7 +45,11 @@ export function ExecutionResultView({
         <CardTitle>{t("execution.sections.result")}</CardTitle>
       </CardHeader>
       <CardContent>
-        {result == null ? (
+        {error ? (
+          <p className="no-match m-0 text-left" role="alert" data-section-error="result">
+            {error}
+          </p>
+        ) : result == null ? (
           <p className="no-match m-0 text-left">{t("execution.result.empty")}</p>
         ) : panel != null ? (
           <GenericPanelResultView

@@ -32,6 +32,8 @@ export function ExecutionInspector({
   selectedAttempt,
   evidence,
   result,
+  evidenceError = null,
+  resultError = null,
   onSelectAttempt,
 }: {
   run: ExecutionRun
@@ -39,6 +41,8 @@ export function ExecutionInspector({
   selectedAttempt: ExecutionAttempt | null
   evidence: EvidenceSet | null
   result: AttemptResult | null
+  evidenceError?: string | null
+  resultError?: string | null
   onSelectAttempt: (attemptId: string) => void
 }) {
   const { t } = useLocale()
@@ -86,6 +90,8 @@ export function ExecutionInspector({
             attempts={attempts}
             evidence={evidence}
             result={result}
+            evidenceError={evidenceError}
+            resultError={resultError}
             highlightedItemId={highlightedItemId}
             onSelectRef={selectRef}
           />

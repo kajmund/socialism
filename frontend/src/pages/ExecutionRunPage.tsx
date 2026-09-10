@@ -16,10 +16,18 @@ import {
   ExecutionLoadMessage,
   type ExecutionLoadState,
 } from "@/components/execution/ExecutionInspector"
-import { loadStateFromError, shouldFetchEvidence, shouldFetchResult } from "@/components/execution/fetchPolicy"
+import {
+  isExpectedMissing,
+  loadStateFromError,
+  sectionErrorMessage,
+  shouldFetchEvidence,
+  shouldFetchResult,
+} from "@/components/execution/fetchPolicy"
 import { AdminShell } from "@/components/layout/AdminShell"
+import { useLocale } from "@/i18n"
 
 export function ExecutionRunPage() {
+  const { t } = useLocale()
   const { runId } = useParams<{ runId: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
   const requestedAttemptId = searchParams.get("attempt")
@@ -29,6 +37,8 @@ export function ExecutionRunPage() {
   const [selected, setSelected] = useState<ExecutionAttempt | null>(null)
   const [evidence, setEvidence] = useState<EvidenceSet | null>(null)
   const [result, setResult] = useState<AttemptResult | null>(null)
+  const [evidenceError, setEvidenceError] = useState<string | null>(null)
+  const [resultError, setResultError] = useState<string | null>(null)
   const [state, setState] = useState<ExecutionLoadState>("loading")
 
   useEffect(() => {
@@ -43,6 +53,8 @@ export function ExecutionRunPage() {
     setSelected(null)
     setEvidence(null)
     setResult(null)
+    setEvidenceError(null)
+    setResultError(null)
     Promise.all([getExecutionRun(runId), listExecutionAttempts(runId)])
       .then(([nextRun, nextAttempts]) => {
         if (cancelled) return
@@ -69,32 +81,47 @@ export function ExecutionRunPage() {
       setSelected(null)
       setEvidence(null)
       setResult(null)
+      setEvidenceError(null)
+      setResultError(null)
       return
     }
     let cancelled = false
     setSelected(null)
     setEvidence(null)
     setResult(null)
+    setEvidenceError(null)
+    setResultError(null)
     getExecutionAttempt(selectedId)
       .then(async (detail) => {
         if (cancelled) return
         setSelected(detail)
-        if (shouldFetchEvidence(detail)) {
-          try {
-            const nextEvidence = await getExecutionEvidence(detail.id)
-            if (!cancelled) setEvidence(nextEvidence)
-          } catch {
-            if (!cancelled) setEvidence(null)
-          }
-        }
-        if (shouldFetchResult(detail)) {
-          try {
-            const nextResult = await getExecutionResult(detail.id)
-            if (!cancelled) setResult(nextResult)
-          } catch {
-            if (!cancelled) setResult(null)
-          }
-        }
+        const evidenceFallback = t("execution.evidence.loadError")
+        const resultFallback = t("execution.result.loadError")
+        const [nextEvidence, nextResult] = await Promise.all([
+          shouldFetchEvidence(detail)
+            ? getExecutionEvidence(detail.id)
+                .then((value) => ({ value, error: null as string | null }))
+                .catch((err: unknown) =>
+                  isExpectedMissing(err)
+                    ? { value: null, error: null }
+                    : { value: null, error: sectionErrorMessage(err, evidenceFallback) },
+                )
+            : Promise.resolve({ value: null, error: null as string | null }),
+          shouldFetchResult(detail)
+            ? getExecutionResult(detail.id)
+                .then((value) => ({ value, error: null as string | null }))
+                .catch((err: unknown) =>
+                  isExpectedMissing(err)
+                    ? { value: null, error: null }
+                    : { value: null, error: sectionErrorMessage(err, resultFallback) },
+                )
+            : Promise.resolve({ value: null, error: null as string | null }),
+        ])
+        if (cancelled) return
+        setEvidence(nextEvidence.value)
+        setEvidenceError(nextEvidence.error)
+        setResult(nextResult.value)
+        setResultError(nextResult.error)
       })
       .catch((err: unknown) => {
         if (cancelled) return
@@ -103,7 +130,7 @@ export function ExecutionRunPage() {
     return () => {
       cancelled = true
     }
-  }, [selectedId, state])
+  }, [selectedId, state, t])
 
   function selectAttempt(attemptId: string) {
     const next = new URLSearchParams(searchParams)
@@ -123,7 +150,9 @@ export function ExecutionRunPage() {
           attempts={attempts}
           selectedAttempt={selected}
           evidence={evidence}
+          evidenceError={evidenceError}
           result={result}
+          resultError={resultError}
           onSelectAttempt={selectAttempt}
         />
       )}

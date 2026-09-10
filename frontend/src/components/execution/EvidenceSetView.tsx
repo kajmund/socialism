@@ -11,9 +11,11 @@ import { useLocale } from "@/i18n"
 export function EvidenceSetView({
   evidence,
   highlightedItemId,
+  error = null,
 }: {
   evidence: EvidenceSet | null
   highlightedItemId: string | null
+  error?: string | null
 }) {
   const { t, intl } = useLocale()
   const emDash = t("common.emDash")
@@ -41,7 +43,11 @@ export function EvidenceSetView({
         ) : null}
       </CardHeader>
       <CardContent>
-        {evidence == null || items.length === 0 ? (
+        {error ? (
+          <p className="no-match m-0 text-left" role="alert" data-section-error="evidence">
+            {error}
+          </p>
+        ) : evidence == null || items.length === 0 ? (
           <p className="no-match m-0 text-left">{t("execution.evidence.empty")}</p>
         ) : (
           <div className="grid gap-3">
