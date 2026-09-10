@@ -66,19 +66,28 @@ def _messages_with_brief(
     identity: str,
     brief: str,
     user_content: str,
+    evidence_prompt: str | None = None,
 ) -> list[dict[str, str]]:
     """Keep document brief as its own system message — same as structured_scoring."""
     messages = [{"role": "system", "content": identity}]
     if brief:
         messages.append({"role": "system", "content": brief})
+    if evidence_prompt:
+        messages.append({"role": "system", "content": evidence_prompt})
     messages.append({"role": "user", "content": user_content})
     return messages
 
 
-async def _moderator_opening(config: PanelSessionConfig, prompts: dict[str, str]) -> str:
+async def _moderator_opening(
+    config: PanelSessionConfig,
+    prompts: dict[str, str],
+    *,
+    evidence_prompt: str | None = None,
+) -> str:
     messages = _messages_with_brief(
         identity=render_prompt(prompts, "panel.moderator.system"),
         brief=_session_brief(config),
+        evidence_prompt=evidence_prompt,
         user_content=render_prompt(
             prompts,
             "panel.moderator.opening",
@@ -96,10 +105,12 @@ async def _moderator_next_question(
     prompts: dict[str, str],
     *,
     round_index: int,
+    evidence_prompt: str | None = None,
 ) -> str:
     messages = _messages_with_brief(
         identity=render_prompt(prompts, "panel.moderator.system"),
         brief=_session_brief(config),
+        evidence_prompt=evidence_prompt,
         user_content=render_prompt(
             prompts,
             "panel.moderator.next_question",
@@ -118,10 +129,13 @@ async def _expert_raise_hand(
     transcript: list[PanelTurn],
     scratchpad: str,
     prompts: dict[str, str],
+    *,
+    evidence_prompt: str | None = None,
 ) -> bool:
     messages = _messages_with_brief(
         identity=_expert_system(prompts, slot),
         brief=_session_brief(config),
+        evidence_prompt=evidence_prompt,
         user_content=render_prompt(
             prompts,
             "panel.expert.raise_hand",
@@ -140,10 +154,13 @@ async def _expert_scratchpad(
     transcript: list[PanelTurn],
     scratchpad: str,
     prompts: dict[str, str],
+    *,
+    evidence_prompt: str | None = None,
 ) -> str:
     messages = _messages_with_brief(
         identity=_expert_system(prompts, slot, with_tools=True),
         brief=_session_brief(config),
+        evidence_prompt=evidence_prompt,
         user_content=render_prompt(
             prompts,
             "panel.expert.scratchpad",
@@ -165,10 +182,13 @@ async def _expert_turn(
     transcript: list[PanelTurn],
     scratchpad: str,
     prompts: dict[str, str],
+    *,
+    evidence_prompt: str | None = None,
 ) -> str:
     messages = _messages_with_brief(
         identity=_expert_system(prompts, slot, with_tools=True),
         brief=_session_brief(config),
+        evidence_prompt=evidence_prompt,
         user_content=render_prompt(
             prompts,
             "panel.expert.turn",
@@ -188,10 +208,13 @@ async def _moderator_analysis(
     config: PanelSessionConfig,
     transcript: list[PanelTurn],
     prompts: dict[str, str],
+    *,
+    evidence_prompt: str | None = None,
 ) -> str:
     messages = _messages_with_brief(
         identity=render_prompt(prompts, "panel.moderator.system"),
         brief=_session_brief(config),
+        evidence_prompt=evidence_prompt,
         user_content=render_prompt(
             prompts,
             "panel.moderator.analysis",
@@ -260,8 +283,17 @@ async def run_generic_panel(
     db: AsyncSession,
     panel: PanelSession,
     prompts: dict[str, str],
+    *,
+    research_completed: bool = False,
+    evidence_prompt: str | None = None,
+    allowed_evidence_refs: frozenset[str] | None = None,
 ) -> PanelSession:
-    """Execute generic_panel protocol on a panel row (mutates and commits caller session)."""
+    """Execute generic_panel protocol on a panel row (mutates and commits caller session).
+
+    When ``research_completed`` is true, skip ResearchPlan generation — the
+    Attempt already froze evidence. Standalone sessions keep the existing
+    research-plan phase.
+    """
     config = PanelSessionConfig.model_validate(panel.config or {})
     transcript: list[PanelTurn] = []
     scratchpads: dict[str, str] = dict(panel.scratchpads or {})
@@ -274,16 +306,19 @@ async def run_generic_panel(
         transcript,
         speaker="moderator",
         phase="opening",
-        produce_content=lambda: _moderator_opening(config, prompts),
+        produce_content=lambda: _moderator_opening(
+            config, prompts, evidence_prompt=evidence_prompt
+        ),
     )
-    await _run_research_plan_phase(
-        db,
-        panel,
-        transcript,
-        config,
-        prompts,
-        opening=opening_turn.content,
-    )
+    if not research_completed:
+        await _run_research_plan_phase(
+            db,
+            panel,
+            transcript,
+            config,
+            prompts,
+            opening=opening_turn.content,
+        )
 
     for round_index in range(1, config.max_rounds + 1):
         if round_index > 1:
@@ -295,7 +330,11 @@ async def run_generic_panel(
                 phase="sub_question",
                 round_index=round_index,
                 produce_content=lambda r=round_index: _moderator_next_question(
-                    config, transcript, prompts, round_index=r
+                    config,
+                    transcript,
+                    prompts,
+                    round_index=r,
+                    evidence_prompt=evidence_prompt,
                 ),
             )
         raise_hand_queue: list[str] = []
@@ -309,6 +348,7 @@ async def run_generic_panel(
                     transcript,
                     scratchpads.get(expert_slot.slot_id, ""),
                     prompts,
+                    evidence_prompt=evidence_prompt,
                 )
                 return "JA" if wants_turn else "NEJ"
 
@@ -339,6 +379,7 @@ async def run_generic_panel(
                     transcript,
                     scratchpads.get(pad_slot_id, ""),
                     prompts,
+                    evidence_prompt=evidence_prompt,
                 )
                 scratchpads[pad_slot_id] = updated_pad
                 return updated_pad
@@ -368,6 +409,7 @@ async def run_generic_panel(
                     transcript,
                     scratchpads.get(pad_slot_id, ""),
                     prompts,
+                    evidence_prompt=evidence_prompt,
                 ),
             )
 
@@ -377,7 +419,9 @@ async def run_generic_panel(
         transcript,
         speaker="moderator",
         phase="analysis",
-        produce_content=lambda: _moderator_analysis(config, transcript, prompts),
+        produce_content=lambda: _moderator_analysis(
+            config, transcript, prompts, evidence_prompt=evidence_prompt
+        ),
     )
 
     panel.scratchpads = scratchpads
@@ -388,6 +432,8 @@ async def run_generic_panel(
             transcript=transcript,
             moderator_analysis=summary_turn.content,
             prompts=prompts,
+            evidence_prompt=evidence_prompt,
+            allowed_evidence_refs=allowed_evidence_refs,
         )
     ).model_dump(mode="json")
     panel.status = "succeeded"

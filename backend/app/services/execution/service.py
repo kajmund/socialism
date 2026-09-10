@@ -14,6 +14,7 @@ from app.database.models import (
     EvidenceSet,
     EvidenceSetItem,
     ExecutionAttempt,
+    ExecutionAttemptResult,
     ExecutionRun,
     Kund,
 )
@@ -371,6 +372,103 @@ async def set_attempt_snapshots(
         )
     await session.flush()
     return attempt
+
+
+async def require_frozen_evidence_for_attempt(
+    session: AsyncSession,
+    attempt: ExecutionAttempt,
+) -> EvidenceSet:
+    """Fail closed: attached EvidenceSet must exist, match run/customer, and be frozen."""
+    if not attempt.evidence_set_id:
+        raise ExecutionStatusError(
+            f"Attempt {attempt.id} has no attached EvidenceSet; research is not re-run"
+        )
+    run = await get_run(session, attempt.run_id)
+    evidence_set = await _load_evidence_set_for_run(
+        session, evidence_set_id=attempt.evidence_set_id, run=run
+    )
+    if evidence_set.status != "frozen":
+        raise ExecutionStatusError(
+            f"EvidenceSet {evidence_set.id} must be frozen before panel execution "
+            f"(status={evidence_set.status})"
+        )
+    return evidence_set
+
+
+async def claim_attempt_running(
+    session: AsyncSession, attempt_id: str
+) -> ExecutionAttempt:
+    """Compare-and-set ready → running so two workers cannot execute the same Attempt."""
+    now = utc_now()
+    result = await session.execute(
+        update(ExecutionAttempt)
+        .where(
+            ExecutionAttempt.id == attempt_id,
+            ExecutionAttempt.status == "ready",
+        )
+        .values(status="running", started_at=now)
+    )
+    if result.rowcount == 1:
+        attempt = await get_attempt(session, attempt_id)
+        await session.refresh(attempt)
+        return attempt
+    attempt = await get_attempt(session, attempt_id)
+    if attempt.status == "completed":
+        return attempt
+    if attempt.status == "running":
+        raise ExecutionStatusError(
+            f"Attempt {attempt_id} panel execution is already in progress"
+        )
+    raise ExecutionStatusError(
+        f"Cannot start panel execution on attempt {attempt_id} with status={attempt.status}"
+    )
+
+
+async def get_attempt_result(
+    session: AsyncSession, attempt_id: str
+) -> ExecutionAttemptResult | None:
+    await get_attempt(session, attempt_id)
+    result = await session.execute(
+        select(ExecutionAttemptResult).where(
+            ExecutionAttemptResult.attempt_id == attempt_id
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def persist_attempt_result(
+    session: AsyncSession,
+    *,
+    attempt_id: str,
+    result_type: str,
+    schema_version: str,
+    payload: dict[str, object],
+    evidence_refs: dict[str, object] | None = None,
+    panel_session_id: str | None = None,
+) -> ExecutionAttemptResult:
+    attempt = await get_attempt(session, attempt_id)
+    await get_run(session, attempt.run_id)
+    if attempt.status == "completed":
+        raise ExecutionImmutableError(
+            f"Attempt {attempt_id} result is immutable after status=completed"
+        )
+    existing = await get_attempt_result(session, attempt_id)
+    if existing is not None:
+        raise ExecutionImmutableError(
+            f"Attempt {attempt_id} already has a persisted result"
+        )
+    row = ExecutionAttemptResult(
+        id=new_id(),
+        attempt_id=attempt.id,
+        result_type=_require_non_empty(result_type, field="result_type"),
+        schema_version=_require_non_empty(schema_version, field="schema_version"),
+        payload=require_json_object(payload, field="payload"),
+        evidence_refs=require_json_object(evidence_refs or {}, field="evidence_refs"),
+        panel_session_id=panel_session_id,
+    )
+    session.add(row)
+    await session.flush()
+    return row
 
 
 async def claim_attempt_researching(
