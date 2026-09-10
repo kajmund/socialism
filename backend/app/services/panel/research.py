@@ -9,12 +9,15 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.llm import complete_structured
+from app.services.panel.raise_hand import has_competence_disclaimer
 from app.services.panel.schemas import PanelExpertSlot, PanelSessionConfig
 from app.services.prompt_catalog import render_prompt
 from app.services.research import RESEARCH_SOURCE_TYPES, ResearchNeed, ResearchSourceType
+
+MISSING_EXPERTISE_SIGNAL = "Saknar domänkompetens. Kräver domänexpert."
 
 _SOURCE_TYPE_BY_VALUE: dict[str, ResearchSourceType] = {
     item: item for item in RESEARCH_SOURCE_TYPES
@@ -74,7 +77,22 @@ class ResearchPlan(BaseModel):
 
 
 class ExpertResearchNeeds(BaseModel):
+    has_domain_competence: bool = True
+    competence_reason: str = ""
     needs: list[ResearchNeedDraft] = Field(default_factory=list)
+
+    @field_validator("competence_reason", mode="before")
+    @classmethod
+    def strip_competence_reason(cls, value: object) -> str:
+        return _strip_text(value)
+
+    @model_validator(mode="after")
+    def drop_needs_without_competence(self) -> "ExpertResearchNeeds":
+        if has_competence_disclaimer(self.competence_reason):
+            return self.model_copy(update={"has_domain_competence": False, "needs": []})
+        if self.has_domain_competence or not self.needs:
+            return self
+        return self.model_copy(update={"needs": []})
 
 
 class ResearchProposal(BaseModel):
@@ -183,7 +201,22 @@ def empty_research_structured(response_model: type) -> object | None:
     return None
 
 
-def format_expert_research_need_turn(drafts: Sequence[ResearchNeedDraft]) -> str:
+def format_expert_research_need_turn(
+    drafts: Sequence[ResearchNeedDraft] | ExpertResearchNeeds,
+    *,
+    has_domain_competence: bool = True,
+    competence_reason: str = "",
+) -> str:
+    if isinstance(drafts, ExpertResearchNeeds):
+        bundle = drafts
+        has_domain_competence = bundle.has_domain_competence
+        competence_reason = bundle.competence_reason
+        drafts = bundle.needs
+    if not has_domain_competence:
+        reason = competence_reason.strip()
+        if reason:
+            return f"{MISSING_EXPERTISE_SIGNAL}\n{reason}"
+        return MISSING_EXPERTISE_SIGNAL
     if not drafts:
         return "Inga researchbehov."
     lines = ["Behov:"]

@@ -59,6 +59,14 @@ def _has_public_expert_substance(transcript: list[PanelTurn]) -> bool:
     return any(turn.phase == "expert" and turn.content.strip() for turn in transcript)
 
 
+def unanswered_notes_from_transcript(transcript: list[PanelTurn]) -> list[str]:
+    return [
+        turn.content.strip()
+        for turn in transcript
+        if turn.phase == "unanswered" and turn.content.strip()
+    ]
+
+
 def _is_raise_hand_only(text: str) -> bool:
     tokens = [
         part.strip().upper().rstrip(".!,")
@@ -169,6 +177,8 @@ def panel_result_from_synthesis(
         for index, item in enumerate(accepted, start=1)
     ]
     unanswered = [note.strip() for note in synthesis.unanswered if note.strip()]
+    if not unanswered and not _has_public_expert_substance(transcript):
+        unanswered = unanswered_notes_from_transcript(transcript)
     filtered = GenericPanelSynthesis(
         summary=synthesis.summary.strip(),
         claims=[

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import re
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,6 +13,7 @@ from app.services.dd.research import format_research_brief
 from app.services.dd.schemas import DdCandidateCompany, DdResearchDossier
 from app.services.dd.source_attribution import SourceBadge, resolve_source_badge
 from app.services.dd.sub_questions import SubQuestionRef
+from app.services.panel.raise_hand import parse_raise_hand_reply
 from app.services.panel.result import envelope_from_dd_panel_result
 from app.services.panel.schemas import (
     DdDissensusNote,
@@ -60,26 +60,6 @@ def _candidate_brief(
         lines.append("")
         lines.append(format_research_brief(research))
     return "\n".join(lines)
-
-
-_RAISE_YES = frozenset({"JA", "YES"})
-_RAISE_NO = frozenset({"NEJ", "NO"})
-_RAISE_TOKEN = re.compile(r"[A-Za-zÅÄÖåäö]+")
-
-
-def parse_raise_hand_reply(raw: str) -> tuple[bool, str]:
-    """First token JA/YES vs NEJ/NO; keep the rest as the competence reason."""
-    text = raw.strip()
-    if not text:
-        return False, "NEJ"
-    first_line = text.split("\n", 1)[0]
-    token_match = _RAISE_TOKEN.search(first_line)
-    token = token_match.group(0).upper() if token_match else ""
-    if token in _RAISE_YES:
-        return True, text
-    if token in _RAISE_NO:
-        return False, text
-    return False, text
 
 
 def _candidate_has_figures(candidate: DdCandidateCompany) -> bool:
