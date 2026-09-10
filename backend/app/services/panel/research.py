@@ -88,11 +88,10 @@ class ExpertResearchNeeds(BaseModel):
 
     @model_validator(mode="after")
     def drop_needs_without_competence(self) -> "ExpertResearchNeeds":
-        if has_competence_disclaimer(self.competence_reason):
-            return self.model_copy(update={"has_domain_competence": False, "needs": []})
-        if self.has_domain_competence or not self.needs:
-            return self
-        return self.model_copy(update={"needs": []})
+        if has_competence_disclaimer(self.competence_reason) or not self.has_domain_competence:
+            self.has_domain_competence = False
+            self.needs = []
+        return self
 
 
 class ResearchProposal(BaseModel):
@@ -140,7 +139,7 @@ def assign_proposal_ids(
     empty_slots: list[PanelExpertSlot] = []
     index = 1
     for slot, bundle in proposals:
-        if not bundle.needs:
+        if not bundle.has_domain_competence or not bundle.needs:
             empty_slots.append(slot)
             continue
         for draft in bundle.needs:
