@@ -1,5 +1,9 @@
 # Manual update log
 
+## 2026-09-10
+
+* **Execution**: Du kan öppna en execution-körning via direktlänk och läsa varje historiskt attempt — input, konfiguration, researchplan, fryst evidence och resultat. Inget redigeras. Ett misslyckat attempt visar ändå det som hann sparas. Klick på `[E1]` i ett påstående hoppar till rätt evidence-kort.
+
 ## 2026-09-09
 
 * **Expertgranskning**: I **Live-panel** anger experterna först vilka underlag som behövs. Moderatorn slår ihop det till en researchplan innan någon räcker upp handen. Tom plan är normalt — då går panelen vidare som vanligt.

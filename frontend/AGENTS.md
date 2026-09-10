@@ -142,6 +142,7 @@ Still hardcoded (next slices): OASIS simulation prompts (intentionally Swedish).
 | `/rattsunderlag/new`, `/rattsunderlag/:id` | Rättsunderlag (Konfiguration / Resultat) |
 | `/reports` | Rapportlista |
 | `/reports/:id` | HTML-rapport |
+| `/execution/runs/:runId` | Execution Run inspector (read-only Attempt / Evidence / Result) |
 | `/personas` | Persona library (grid/list) |
 | `/personas/new`, `/personas/:id` | Persona-kompositör (+ chat) |
 | `/populations` | Population list |
