@@ -16,6 +16,7 @@ import { ConfigureRunPage } from "@/pages/ConfigureRunPage"
 import { ConfigurationEditorPage } from "@/pages/ConfigurationEditorPage"
 import { ConfigurationsPage } from "@/pages/ConfigurationsPage"
 import { DashboardPage } from "@/pages/DashboardPage"
+import { ExecutionRunPage } from "@/pages/ExecutionRunPage"
 import { ExpertPanelBuilderPage } from "@/pages/ExpertPanelBuilderPage"
 import { ExpertPanelDetailPage } from "@/pages/ExpertPanelDetailPage"
 import { ExpertPanelsPage } from "@/pages/ExpertPanelsPage"
@@ -153,6 +154,8 @@ export default function App() {
             <Route path="/rattsunderlag/new" element={<RattsunderlagRunPage />} />
             <Route path="/rattsunderlag/:id" element={<RattsunderlagRunPage />} />
           </Route>
+
+          <Route path="/execution/runs/:runId" element={<ExecutionRunPage />} />
 
           <Route element={<RequireOsUser />}>
           <Route path="/" element={<DashboardPage />} />
