@@ -16,6 +16,7 @@ from app.services.execution import (
     fail_attempt,
     fail_evidence_set,
     get_attempt,
+    mark_ready,
 )
 from app.services.panel.research import empty_research_structured
 from app.services.panel.synthesis import GenericPanelSynthesis, SynthesizedClaim
