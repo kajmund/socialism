@@ -18,6 +18,8 @@ export function AttemptDetail({
   attempts,
   evidence,
   result,
+  evidenceError = null,
+  resultError = null,
   highlightedItemId,
   onSelectRef,
 }: {
@@ -25,6 +27,8 @@ export function AttemptDetail({
   attempts: ExecutionAttempt[]
   evidence: EvidenceSet | null
   result: AttemptResult | null
+  evidenceError?: string | null
+  resultError?: string | null
   highlightedItemId: string | null
   onSelectRef: (ref: string) => void
 }) {
@@ -74,11 +78,16 @@ export function AttemptDetail({
         input={attempt.input_snapshot}
       />
       <ResearchPlanView snapshot={attempt.research_plan_snapshot} />
-      <EvidenceSetView evidence={evidence} highlightedItemId={highlightedItemId} />
+      <EvidenceSetView
+        evidence={evidence}
+        highlightedItemId={highlightedItemId}
+        error={evidenceError}
+      />
       <ExecutionResultView
         result={result}
         items={evidence?.items ?? []}
         onSelectRef={onSelectRef}
+        error={resultError}
       />
     </div>
   )

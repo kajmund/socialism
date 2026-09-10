@@ -2782,6 +2782,7 @@ export const en: LocalizedTree<SvMessages> = {
     },
     evidence: {
       empty: "No evidence is saved for this attempt.",
+      loadError: "Could not load evidence.",
       setBuilding: "Building",
       setFrozen: "Frozen",
       setFailed: "Failed",
@@ -2801,6 +2802,7 @@ export const en: LocalizedTree<SvMessages> = {
     },
     result: {
       empty: "No result is saved for this attempt.",
+      loadError: "Could not load the result.",
       summary: "Summary",
       claims: "Claims",
       dissensus: "Dissensus",

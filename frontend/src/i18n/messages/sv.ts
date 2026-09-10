@@ -2782,6 +2782,7 @@ export const sv = {
     },
     evidence: {
       empty: "Inget evidence är sparat för det här attemptet.",
+      loadError: "Kunde inte hämta evidence.",
       setBuilding: "Byggs",
       setFrozen: "Fryst",
       setFailed: "Misslyckad",
@@ -2801,6 +2802,7 @@ export const sv = {
     },
     result: {
       empty: "Inget resultat är sparat för det här attemptet.",
+      loadError: "Kunde inte hämta resultatet.",
       summary: "Sammanfattning",
       claims: "Påståenden",
       dissensus: "Dissensus",

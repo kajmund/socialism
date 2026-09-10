@@ -15,3 +15,13 @@ export function loadStateFromError(err: unknown): ExecutionLoadState {
   if (err instanceof ApiError && err.status === 403) return "forbidden"
   return "error"
 }
+
+export function isExpectedMissing(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 404
+}
+
+export function sectionErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof ApiError && err.message.trim()) return err.message
+  if (err instanceof Error && err.message.trim()) return err.message
+  return fallback
+}
