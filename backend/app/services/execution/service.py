@@ -29,6 +29,7 @@ from app.services.execution.errors import (
 from app.services.execution.models import (
     ALLOWED_ATTEMPT_TRANSITIONS,
     ATTEMPT_STATUSES,
+    CLONEABLE_ATTEMPT_STATUSES,
     EVIDENCE_REQUIRED_FROZEN_STATUSES,
     PREPARATION_STATUSES,
     SNAPSHOT_LOCKED_STATUSES,
@@ -634,41 +635,50 @@ async def clone_attempt(
     session: AsyncSession,
     source_attempt_id: str,
     *,
-    configuration_override: dict[str, object] | None = None,
-    attempt_type: str | None = None,
+    configuration_snapshot: dict[str, object] | None = None,
 ) -> ExecutionAttempt:
-    """Create a new Attempt from an existing one. Does not mutate the source."""
+    """Create a ready Attempt that reuses the source's frozen EvidenceSet.
+
+    Does not mutate the source, copy its result, or create a new EvidenceSet.
+    ``configuration_snapshot`` is a full replacement when supplied; omitted
+    copies the source configuration exactly. No merge.
+    """
     source = await get_attempt(session, source_attempt_id)
+    source_status = _require_status(source.status)
+    if source_status not in CLONEABLE_ATTEMPT_STATUSES:
+        raise ExecutionStatusError(
+            f"Cannot clone attempt {source.id} with status={source_status}"
+        )
+    evidence_set = await require_frozen_evidence_for_attempt(session, source)
+
     source_config = deepcopy(source.configuration_snapshot)
     source_input = deepcopy(source.input_snapshot)
     source_plan = deepcopy(source.research_plan_snapshot)
-    source_status = source.status
     source_started = source.started_at
     source_completed = source.completed_at
     source_evidence_id = source.evidence_set_id
     source_type = source.attempt_type
+    source_parent = source.parent_attempt_id
 
-    reused_evidence_id: str | None = None
-    if source.evidence_set_id is not None:
-        evidence_set = await get_evidence_set(session, source.evidence_set_id)
-        if evidence_set.status == "frozen":
-            reused_evidence_id = evidence_set.id
-
-    merged = deepcopy(source.configuration_snapshot)
-    if configuration_override is not None:
-        merged.update(require_json_object(configuration_override, field="configuration_override"))
+    if configuration_snapshot is None:
+        new_config = deepcopy(source.configuration_snapshot)
+    else:
+        new_config = require_json_object(
+            configuration_snapshot, field="configuration_snapshot"
+        )
 
     clone = await create_attempt(
         session,
         run_id=source.run_id,
-        attempt_type=attempt_type or source.attempt_type,
-        configuration_snapshot=merged,
+        attempt_type=source.attempt_type,
+        configuration_snapshot=new_config,
         input_snapshot=deepcopy(source.input_snapshot),
-        evidence_set_id=reused_evidence_id,
+        evidence_set_id=evidence_set.id,
         parent_attempt_id=source.id,
     )
     clone.research_plan_snapshot = deepcopy(source_plan)
     await session.flush()
+    clone = await mark_ready(session, clone.id)
 
     reloaded = await get_attempt(session, source.id)
     if (
@@ -680,7 +690,7 @@ async def clone_attempt(
         or reloaded.completed_at != source_completed
         or reloaded.evidence_set_id != source_evidence_id
         or reloaded.attempt_type != source_type
-        or reloaded.parent_attempt_id != source.parent_attempt_id
+        or reloaded.parent_attempt_id != source_parent
     ):
         raise ExecutionError("clone_attempt must not mutate the source attempt")
     return clone
