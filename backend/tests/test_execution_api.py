@@ -436,7 +436,7 @@ async def test_source_error_still_ready_and_visible(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_unsupported_attempt_type_rejected(client_db, research_sources):
-    client, factory = client_db
+    client, _factory = client_db
     run = await _create_run(client)
     attempt = await _create_attempt(client, run["id"], attempt_type="word_review")
     researched = await client.post(
@@ -495,22 +495,24 @@ async def test_research_and_execute_reject_customer_id_override(client: AsyncCli
 
 @pytest.mark.asyncio
 async def test_cross_customer_access_is_forbidden(
-    client: AsyncClient, bolag_client: AsyncClient
+    client: AsyncClient, admin_token: str, bolag_token: str
 ):
+    client.headers["Authorization"] = f"Bearer {admin_token}"
     run = await _create_run(client)
     attempt = await _create_attempt(client, run["id"])
-    forbidden = await bolag_client.get(f"/execution/attempts/{attempt['id']}")
+    client.headers["Authorization"] = f"Bearer {bolag_token}"
+    forbidden = await client.get(f"/execution/attempts/{attempt['id']}")
     assert forbidden.status_code == 403
-    evidence = await bolag_client.get(f"/execution/attempts/{attempt['id']}/evidence")
+    evidence = await client.get(f"/execution/attempts/{attempt['id']}/evidence")
     assert evidence.status_code == 403
-    result = await bolag_client.get(f"/execution/attempts/{attempt['id']}/result")
+    result = await client.get(f"/execution/attempts/{attempt['id']}/result")
     assert result.status_code == 403
-    research = await bolag_client.post(
+    research = await client.post(
         f"/execution/attempts/{attempt['id']}/research",
         json={"research_plan": RESEARCH_PLAN},
     )
     assert research.status_code == 403
-    execute = await bolag_client.post(f"/execution/attempts/{attempt['id']}/execute")
+    execute = await client.post(f"/execution/attempts/{attempt['id']}/execute")
     assert execute.status_code == 403
 
 

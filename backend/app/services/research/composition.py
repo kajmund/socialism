@@ -7,9 +7,9 @@ from collections.abc import Callable
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.knowledge import (
-    OpenAIEmbeddingProvider,
-    MemoryKnowledgeVectorStore,
     SUPABASE_PROVIDER_ID,
+    MemoryKnowledgeVectorStore,
+    OpenAIEmbeddingProvider,
     build_knowledge_registry,
 )
 from app.services.research.registry import build_research_registry
