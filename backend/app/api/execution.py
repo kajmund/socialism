@@ -409,11 +409,7 @@ async def post_attempt_clone(
         and payload.configuration_snapshot is not None
     ):
         try:
-            incoming = (
-                source.input_snapshot
-                if isinstance(source.input_snapshot, dict)
-                else {}
-            )
+            incoming = source.input_snapshot if isinstance(source.input_snapshot, dict) else {}
             validate_generic_panel_snapshots(
                 configuration_snapshot=payload.configuration_snapshot,
                 input_snapshot=incoming,

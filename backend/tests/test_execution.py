@@ -420,7 +420,7 @@ async def test_clone_rejects_non_cloneable_status(session, start_status):
 
 @pytest.mark.asyncio
 async def test_clone_without_config_copies_source_exactly(session):
-    _customer_a, run, frozen, _items, attempt_a, _first, _second = await _acceptance_setup(
+    _customer_a, _run, frozen, _items, attempt_a, _first, _second = await _acceptance_setup(
         session
     )
     clone = await clone_attempt(session, attempt_a.id)
