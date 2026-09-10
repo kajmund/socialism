@@ -13,7 +13,11 @@ from app.llm import set_structured_completer, set_text_completer, set_tools_comp
 from app.services.execution import fail_attempt, get_attempt, mark_ready
 from app.services.panel.research import empty_research_structured
 from app.services.panel.synthesis import GenericPanelSynthesis, SynthesizedClaim
-from app.services.research.composition import set_research_router_factory
+from app.services.research.composition import (
+    ResearchCompositionError,
+    build_standard_research_router,
+    set_research_router_factory,
+)
 from app.services.research.models import ResearchContext, ResearchNeed, research_evidence
 from app.services.research.registry import ResearchSourceRegistry
 from app.services.research.router import ResearchRouter
@@ -208,6 +212,11 @@ async def test_create_run_and_attempt_are_created(client: AsyncClient):
     listed = await client.get(f"/execution/runs/{run['id']}/attempts")
     assert listed.status_code == 200
     assert [row["id"] for row in listed.json()] == [attempt["id"]]
+
+    second = await _create_attempt(client, run["id"])
+    listed = await client.get(f"/execution/runs/{run['id']}/attempts")
+    assert {row["id"] for row in listed.json()} == {attempt["id"], second["id"]}
+    assert all(row["evidence"] is None for row in listed.json())
 
 
 @pytest.mark.asyncio
@@ -514,6 +523,47 @@ async def test_cross_customer_access_is_forbidden(
     assert research.status_code == 403
     execute = await client.post(f"/execution/attempts/{attempt['id']}/execute")
     assert execute.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_invalid_generic_panel_snapshot_is_rejected(client: AsyncClient):
+    run = await _create_run(client)
+    response = await client.post(
+        f"/execution/runs/{run['id']}/attempts",
+        json={
+            "attempt_type": "generic_panel",
+            "configuration_snapshot": {
+                "topic": "Vad gäller skattesatsen?",
+                "max_rounds": 0,
+                "expert_slots": [
+                    {"slot_id": "legal", "label": "Jurist", "profile": "Skatt"},
+                ],
+            },
+            "input_snapshot": {"topic": "Vad gäller skattesatsen?"},
+        },
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_research_fails_closed_without_vector_store(client: AsyncClient):
+    set_research_router_factory(None)
+    run = await _create_run(client)
+    attempt = await _create_attempt(client, run["id"])
+    response = await client.post(
+        f"/execution/attempts/{attempt['id']}/research",
+        json={"research_plan": RESEARCH_PLAN},
+    )
+    assert response.status_code == 500
+    assert "KnowledgeVectorStore" in response.json()["detail"]
+    detail = await client.get(f"/execution/attempts/{attempt['id']}")
+    assert detail.json()["status"] == "created"
+
+
+def test_standard_research_router_refuses_empty_memory_store():
+    set_research_router_factory(None)
+    with pytest.raises(ResearchCompositionError, match="KnowledgeVectorStore"):
+        build_standard_research_router(None)  # type: ignore[arg-type]
 
 
 @pytest.mark.asyncio
