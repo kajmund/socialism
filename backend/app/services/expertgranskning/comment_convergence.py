@@ -87,6 +87,18 @@ def comments_are_similar(left: str, right: str) -> bool:
     return token_jaccard(left, right) >= SIMILAR_COMMENT_JACCARD
 
 
+def _has_marker(folded: str, marker: str) -> bool:
+    marker_tokens = tuple(_TOKEN_RE.findall(marker))
+    if not marker_tokens:
+        return False
+    if len(marker_tokens) == 1:
+        return any(
+            token == marker_tokens[0] or token.startswith(marker_tokens[0])
+            for token in comment_tokens(folded)
+        )
+    return marker in folded
+
+
 def _polarity(text: str) -> str | None:
     folded = text.casefold()
     negated_accept = any(
@@ -94,8 +106,12 @@ def _polarity(text: str) -> str | None:
         for neg in ("inte ", "icke ", "ej ", "not ")
         for marker in _ACCEPT_MARKERS
     )
-    accept = (not negated_accept) and any(marker in folded for marker in _ACCEPT_MARKERS)
-    reject = negated_accept or any(marker in folded for marker in _REJECT_MARKERS)
+    accept = (not negated_accept) and any(
+        _has_marker(folded, marker) for marker in _ACCEPT_MARKERS
+    )
+    reject = negated_accept or any(
+        _has_marker(folded, marker) for marker in _REJECT_MARKERS
+    )
     if accept and not reject:
         return "accept"
     if reject and not accept:
