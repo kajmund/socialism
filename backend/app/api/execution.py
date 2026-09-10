@@ -52,9 +52,9 @@ from app.services.execution.service import (
     list_evidence_items,
     list_run_attempts,
 )
+from app.services.panel.attempt_execution import PanelAttemptError
 from app.services.prompt_store import require_active_prompts
 from app.services.research.composition import build_standard_research_router
-from app.services.panel.attempt_execution import PanelAttemptError
 from app.services.research.execution import (
     AttemptResearchResult,
     ResearchExecutionError,
