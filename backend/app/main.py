@@ -9,6 +9,7 @@ from app.api import (
     catalog,
     configurations,
     embeddings,
+    execution,
     feedback,
     health,
     help,
@@ -105,6 +106,7 @@ def create_app() -> FastAPI:
         app.include_router(module.router)
     app.include_router(panel.router)
     app.include_router(panel_catalog.router)
+    app.include_router(execution.router)
     app.include_router(jobs.router)
     app.include_router(reports.router)
     app.include_router(embeddings.router)
