@@ -416,6 +416,8 @@ def test_research_prompts_render_and_forbid_service_names():
     )
     assert "nice-to-know" in expert
     assert "källtyp" in expert
+    assert "has_domain_competence" in expert
+    assert "missing expertise" in expert
     assert "web är tillåten men inte default" in expert
     assert "inte lagen.nu" in expert
     assert "proposal_ids" in moderator
