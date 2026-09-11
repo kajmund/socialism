@@ -51,19 +51,25 @@ Implementation: `app/realtime/expertgranskning_broadcast.py`, `app/services/expe
 ## generic_panel flow
 
 1. Moderator opening (`panel.moderator.opening`) — one starting question only
-2. Research-plan phase (once, before any raise-hand):
+2. Competency (always, once per execution):
+   - One authoritative decision per expert, carried as `CompetencyState` (`competent` slot set).
+   - Standalone sessions take the decision from `panel.expert.research_need` (`has_domain_competence`). Frozen-evidence Attempts use `panel.expert.competency` and **must not** run ResearchPlan / ResearchRouter, mutate evidence, or enable tools.
+   - Competence is profile-versus-question. Relevant EvidenceSet material must never manufacture expertise (M&A/PMO stays non-competent for criminal law even with excellent criminal-law evidence).
+   - Experts outside the competent set cannot enter the raise-hand queue, receive substantive scratchpad work, or produce expert turns. A later `JA` cannot override a failed competency decision.
+   - `competent=true` + `RAISE=NEJ` is distinct from `competent=false`.
+3. Research-plan phase (standalone only, before any raise-hand):
    - Each expert first decides domain competence, then identifies research needs (`panel.expert.research_need`, phase `research_need`). Structured output. `has_domain_competence` is required. Out-of-domain experts must not invent domain-specific questions; code drops any needs they still emit and the turn signals missing expertise. Zero needs is valid for a competent expert. Experts do not assess here and do not call tools/MCP.
    - Moderator consolidates a `ResearchPlan` (`panel.moderator.research_plan`, phase `research_plan`): semantic dedup, concrete questions, `proposal_ids`, `source_types`. Permanent IDs (`research_1`, …) and `requested_by` are assigned in code from those proposal IDs. Persisted needs use the shared `ResearchNeed` / source-type taxonomy in `app.services.research`.
-   - Persist on `panel_sessions.research_plan`. An empty plan is valid. If **no** expert has domain competence for the main question, the moderator records `unanswered` (`panel.moderator.missing_expertise`) and skips raise-hand rounds — no analogy rescue.
+   - Persist on `panel_sessions.research_plan`. An empty plan is valid. If **no** expert has domain competence for the main question, the moderator records `unanswered` (`panel.moderator.missing_expertise`) and skips raise-hand rounds — no analogy rescue. Moderator prose is presentation only; do not parse it as state.
    - `source_types` are logical (`case_knowledge`, `customer_knowledge`, `domain_knowledge`, `swedish_law`, `swedish_preparatory_works`, `web`) — not a concrete MCP/server. `web` is allowed but not the default. No research execution in this phase.
-3. For each round (default 2), only when at least one expert has domain competence:
+4. For each round (default 2), only when at least one expert has domain competence:
    - Round 2+: moderator asks the next question (`panel.moderator.next_question`, phase `sub_question`) before any expert speaks. Do not keep the discussion going with analogies when competence is missing.
-   - Each expert: raise-hand (`panel.expert.raise_hand`) → JA/NEJ queue. JA means actual domain competence for a substantial assessment of **this** question, not a helpful aside.
+   - Competent experts only: raise-hand (`panel.expert.raise_hand`) → JA/NEJ queue. JA means a substantial assessment of **this** question, not a helpful aside.
    - **Only JA speaks** — raisers get scratchpad + public turn. NEJ is a real abstention. An empty queue is valid.
 5. Structured synthesis (`panel.generic.synthesis` via `complete_structured`) → `panel.result` as `PanelResult`
    - Claims are decision-relevant conclusions (`claim_1`, `claim_2`, …), not minutes. `score` is always `None`.
    - `dissensus=true` only for material disagreement on the same question.
-   - `unanswered` is for genuine gaps (no answer, all abstained, missing evidence) — not hypothetical follow-ups.
+   - `unanswered` stays `list[str]` for historical readability. Schema v2 adds `unanswered_items` (`reason = missing_expertise` when no relevant expert) and `competency`. Do not infer `missing_expertise` by parsing moderator prose.
    - Scratchpads are excluded. Raise-hand JA/NEJ is context, never evidence or a claim.
 
 Scratchpads are stored on the session row and included in expert prompts but omitted from the public transcript used for synthesis (recorded as `scratchpad` phase turns).

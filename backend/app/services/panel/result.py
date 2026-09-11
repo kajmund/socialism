@@ -6,7 +6,15 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from app.services.panel.competency import SlotCompetency
 from app.services.panel.schemas import DdPanelResult
+
+PANEL_RESULT_SCHEMA_V1 = "1"
+PANEL_RESULT_SCHEMA_V2 = "2"
+PANEL_RESULT_SCHEMA_CURRENT = PANEL_RESULT_SCHEMA_V2
+
+UnansweredReason = Literal["missing_expertise"]
+MISSING_EXPERTISE_REASON: UnansweredReason = "missing_expertise"
 
 
 class PanelClaim(BaseModel):
@@ -19,17 +27,37 @@ class PanelClaim(BaseModel):
     evidence_refs: list[str] = Field(default_factory=list)
 
 
+class UnansweredItem(BaseModel):
+    """Structured gap. ``reason`` is state; ``text`` is presentation only."""
+
+    text: str
+    reason: UnansweredReason | None = None
+
+
 class PanelResult(BaseModel):
-    schema_version: Literal["1"] = "1"
+    """v2 adds structured unanswered + competency. v1 rows still validate.
+
+    Historical persisted results keep ``unanswered: list[str]``. New writes
+    set ``schema_version="2"`` and fill ``unanswered_items`` / ``competency``.
+    Missing v2 fields default to empty so old JSON remains readable.
+    """
+
+    schema_version: Literal["1", "2"] = PANEL_RESULT_SCHEMA_CURRENT
     protocol: str
     summary: str
     claims: list[PanelClaim] = Field(default_factory=list)
     unanswered: list[str] = Field(default_factory=list)
+    unanswered_items: list[UnansweredItem] = Field(default_factory=list)
+    competency: list[SlotCompetency] = Field(default_factory=list)
     payload: dict[str, Any] = Field(default_factory=dict)
 
 
 def is_panel_result_envelope(data: dict[str, Any]) -> bool:
-    return data.get("schema_version") == "1" and "payload" in data and "claims" in data
+    return (
+        data.get("schema_version") in {PANEL_RESULT_SCHEMA_V1, PANEL_RESULT_SCHEMA_V2}
+        and "payload" in data
+        and "claims" in data
+    )
 
 
 def envelope_from_dd_panel_result(result: DdPanelResult) -> PanelResult:
@@ -46,6 +74,7 @@ def envelope_from_dd_panel_result(result: DdPanelResult) -> PanelResult:
         for row in result.scores
     ]
     return PanelResult(
+        schema_version=PANEL_RESULT_SCHEMA_V1,
         protocol="dd_panel",
         summary=result.summary,
         claims=claims,

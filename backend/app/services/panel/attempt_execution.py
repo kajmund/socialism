@@ -31,7 +31,7 @@ from app.services.prompt_catalog import render_prompt
 
 GENERIC_PANEL_ATTEMPT_TYPE = "generic_panel"
 GENERIC_PANEL_RESULT_TYPE = "generic_panel"
-GENERIC_PANEL_RESULT_SCHEMA = "1"
+GENERIC_PANEL_RESULT_SCHEMA = "2"
 
 PanelRunner = Callable[..., Awaitable[PanelSession]]
 
@@ -159,7 +159,8 @@ async def execute_generic_panel_attempt(
     """Run generic_panel against a ready Attempt's frozen EvidenceSet.
 
     Scope and evidence always come from the Attempt/Run. Does not execute
-    ResearchRouter or mutate a frozen EvidenceSet.
+    ResearchRouter or mutate a frozen EvidenceSet. Competency is still gated
+    before raise-hand; evidence cannot manufacture expertise.
     """
     runner = run_panel or run_generic_panel
     attempt = await get_attempt(session, attempt_id)
