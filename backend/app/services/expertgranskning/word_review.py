@@ -1,9 +1,11 @@
 """word_paragraph_review — moderator-led batched Word review.
 
 A moderator filters each batch and writes review questions. Experts raise
-a hand per question and comment only on questions they opted into. Rewrite
-suggestions are a separate step when at least two experts comment on the
-same paragraph.
+a hand per question and comment only on questions they opted into. After
+expert replies, overlapping observations are consolidated at section
+scope before Word comments are written, so nearby duplicates can collapse
+across batch boundaries. Rewrite suggestions remain a separate step when
+at least two experts comment on the same paragraph.
 """
 
 from __future__ import annotations
@@ -12,15 +14,25 @@ import asyncio
 import logging
 import re
 import secrets
+from collections.abc import Sequence
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import ExpertgranskningResult, Job, PanelSession
-from app.llm import complete_structured
 from app.serializers import utcnow
+from app.services.expertgranskning.comment_convergence import (
+    WordConsolidatedComment,
+    WordObservation,
+    apply_word_comment_convergence,
+    collapse_intra_expert_duplicates,
+    consolidated_from_observation,
+    format_observations_for_prompt,
+)
+from app.services.expertgranskning.word_structured import complete_word_structured
 from app.services.expertgranskning.schemas import (
     ExpertgranskningWordJobRequest,
     WordBatchModeration,
+    WordCommentConvergence,
     WordDocumentParagraph,
     WordDocumentSection,
     WordExpertComment,
@@ -47,6 +59,47 @@ _HEADING_1_TO_3 = re.compile(
 )
 
 WORD_BATCH_MAX_SIZE = 4
+
+# Output contract. Not part of the editable customer prompt.
+_WORD_COMMENT_ANCHOR_SUFFIX = (
+    "Allowed anchors: {indexes}. "
+    "Return exactly one anchor_paragraph_index from this set."
+)
+
+
+def word_comment_anchor_suffix(paragraph_indexes: Sequence[int]) -> str:
+    indexes = ", ".join(str(index) for index in paragraph_indexes)
+    return _WORD_COMMENT_ANCHOR_SUFFIX.format(indexes=indexes)
+
+
+def render_expert_comment_user_prompt(
+    prompts: dict[str, str],
+    *,
+    slot: PanelExpertSlot,
+    section: WordDocumentSection,
+    question: WordReviewQuestion,
+    paragraphs: list[WordDocumentParagraph],
+) -> str:
+    """Render the editable comment prompt, then append the server-owned anchor contract."""
+    body = render_prompt(
+        prompts,
+        "expertgranskning.word.expert.comment",
+        label=slot.label,
+        profile=slot.profile or slot.label,
+        paragraph_text=_batch_text(paragraphs),
+        list_string=", ".join(
+            paragraph.list_string
+            for paragraph in paragraphs
+            if paragraph.list_string.strip()
+        ),
+        section_heading=section.heading,
+        question=question.question,
+        why_it_matters=question.why_it_matters,
+        allowed_paragraph_indexes=", ".join(
+            str(index) for index in question.paragraph_indexes
+        ),
+    )
+    return f"{body}\n\n{word_comment_anchor_suffix(question.paragraph_indexes)}"
 
 
 def paragraph_word_count(text: str) -> int:
@@ -349,9 +402,10 @@ async def _review_paragraph(
         paragraph_text=paragraph.text,
         style=paragraph.style,
     )
-    return await complete_structured(
+    return await complete_word_structured(
         [{"role": "user", "content": user}],
         WordParagraphComments,
+        prompts=prompts,
     )
 
 
@@ -368,9 +422,10 @@ async def _review_heading(
         heading=section.heading,
         section_text=_section_body(section),
     )
-    return await complete_structured(
+    return await complete_word_structured(
         [{"role": "user", "content": user}],
         WordHeadingAssessment,
+        prompts=prompts,
     )
 
 
@@ -389,9 +444,10 @@ async def _moderate_batch(
         section_heading=section.heading,
         batch_text=_batch_text(batch),
     )
-    parsed = await complete_structured(
+    parsed = await complete_word_structured(
         _messages_with_brief(identity="", brief=brief, user=user),
         WordBatchModeration,
+        prompts=prompts,
     )
     return accepted_review_questions(parsed, batch)
 
@@ -413,15 +469,39 @@ async def _raise_hand(
         batch_text=_batch_text(batch),
         questions=_questions_text(questions),
     )
-    parsed = await complete_structured(
+    parsed = await complete_word_structured(
         _messages_with_brief(identity=identity, brief=brief, user=user),
         WordExpertRaiseHand,
+        prompts=prompts,
     )
     return slot, selected_review_questions(
         parsed.question_ids,
         questions,
         expert_id=slot.slot_id,
     )
+
+
+def resolve_comment_anchor(
+    question: WordReviewQuestion,
+    parsed: WordExpertComment,
+) -> int | None:
+    """Return the one allowed paragraph for this comment, or None to drop it."""
+    allowed = question.paragraph_indexes
+    raw = parsed.anchor_paragraph_index
+    if raw is not None:
+        if raw in allowed:
+            return raw
+        logger.info(
+            "Dropped Word comment: anchor %s is not in the question indexes",
+            raw,
+        )
+        return None
+    if len(allowed) == 1:
+        return allowed[0]
+    logger.info(
+        "Dropped Word comment: multi-paragraph question has no valid anchor"
+    )
+    return None
 
 
 async def _comment_question(
@@ -432,28 +512,93 @@ async def _comment_question(
     section: WordDocumentSection,
     question: WordReviewQuestion,
     paragraphs: list[WordDocumentParagraph],
-) -> tuple[PanelExpertSlot, WordReviewQuestion, str]:
+) -> tuple[PanelExpertSlot, WordReviewQuestion, str, int | None]:
     identity = _expert_identity(prompts, slot)
-    user = render_prompt(
+    user = render_expert_comment_user_prompt(
         prompts,
-        "expertgranskning.word.expert.comment",
-        label=slot.label,
-        profile=slot.profile or slot.label,
-        paragraph_text=_batch_text(paragraphs),
-        list_string=", ".join(
-            paragraph.list_string
-            for paragraph in paragraphs
-            if paragraph.list_string.strip()
-        ),
-        section_heading=section.heading,
-        question=question.question,
-        why_it_matters=question.why_it_matters,
+        slot=slot,
+        section=section,
+        question=question,
+        paragraphs=paragraphs,
     )
-    parsed = await complete_structured(
+    parsed = await complete_word_structured(
         _messages_with_brief(identity=identity, brief=brief, user=user),
         WordExpertComment,
+        prompts=prompts,
     )
-    return slot, question, parsed.kommentar.strip()
+    return slot, question, parsed.kommentar.strip(), resolve_comment_anchor(question, parsed)
+
+
+def _observations_from_comments(
+    comments: list[tuple[PanelExpertSlot, WordReviewQuestion, str, int | None]],
+    by_index: dict[int, WordDocumentParagraph],
+) -> list[WordObservation]:
+    observations: list[WordObservation] = []
+    for slot, question, text, anchor in comments:
+        if not text or anchor is None:
+            continue
+        paragraph = by_index.get(anchor)
+        if paragraph is None:
+            logger.info(
+                "Dropped Word comment: anchor %s is not in the section",
+                anchor,
+            )
+            continue
+        observations.append(
+            WordObservation(
+                observation_id=f"o{len(observations) + 1}",
+                expert_id=slot.slot_id,
+                expert_label=slot.label,
+                question_id=question.id,
+                paragraph_index=paragraph.index,
+                paragraph_text=paragraph.text,
+                list_string=paragraph.list_string,
+                kommentar=text,
+            )
+        )
+    return observations
+
+
+async def _comment_convergence(
+    *,
+    prompts: dict[str, str],
+    section: WordDocumentSection,
+    batch: list[WordDocumentParagraph],
+    observations: list[WordObservation],
+) -> WordCommentConvergence:
+    user = render_prompt(
+        prompts,
+        "expertgranskning.word.comment_convergence",
+        section_heading=section.heading,
+        batch_text=_batch_text(batch),
+        observations=format_observations_for_prompt(observations),
+    )
+    return await complete_word_structured(
+        [{"role": "user", "content": user}],
+        WordCommentConvergence,
+        prompts=prompts,
+    )
+
+
+async def _consolidate_comments(
+    *,
+    prompts: dict[str, str],
+    section: WordDocumentSection,
+    paragraphs: list[WordDocumentParagraph],
+    comments: list[tuple[PanelExpertSlot, WordReviewQuestion, str, int | None]],
+    by_index: dict[int, WordDocumentParagraph],
+) -> list[WordConsolidatedComment]:
+    raw = _observations_from_comments(comments, by_index)
+    collapsed = collapse_intra_expert_duplicates(raw)
+    if len(collapsed) < 2:
+        return [consolidated_from_observation(item) for item in collapsed]
+    parsed = await _comment_convergence(
+        prompts=prompts,
+        section=section,
+        batch=paragraphs,
+        observations=collapsed,
+    )
+    return apply_word_comment_convergence(collapsed, parsed)
 
 
 async def _rewrite_convergence(
@@ -473,9 +618,10 @@ async def _rewrite_convergence(
         paragraph_text=paragraph.text,
         comments=comments_text,
     )
-    parsed = await complete_structured(
+    parsed = await complete_word_structured(
         [{"role": "user", "content": user}],
         WordRewriteSuggestion,
+        prompts=prompts,
     )
     return rewrite_suggestion_or_none(parsed)
 
@@ -493,7 +639,13 @@ async def run_word_paragraph_review(
     result_count = 0
 
     for section_index, section in enumerate(payload.sections):
-        for batch in build_batches(section):
+        section_comments: list[
+            tuple[PanelExpertSlot, WordReviewQuestion, str, int | None]
+        ] = []
+        section_by_index: dict[int, WordDocumentParagraph] = {}
+        section_rewrites: list[tuple[WordDocumentParagraph, WordRewriteSuggestion]] = []
+
+        for batch_index, batch in enumerate(build_batches(section)):
             paragraph_reviews += len(batch)
             questions = await _moderate_batch(
                 prompts=prompts,
@@ -517,6 +669,7 @@ async def run_word_paragraph_review(
                 ]
             )
             by_index = {paragraph.index: paragraph for paragraph in batch}
+            section_by_index.update(by_index)
             comment_tasks = [
                 _comment_question(
                     prompts=prompts,
@@ -537,12 +690,17 @@ async def run_word_paragraph_review(
                 await asyncio.gather(*comment_tasks) if comment_tasks else []
             )
 
-            pending: list[ExpertgranskningResult] = []
             comments_by_index: dict[int, list[tuple[str, str]]] = {}
-            written: list[tuple[PanelExpertSlot, WordDocumentParagraph, str]] = []
-            for slot, question, text in comments:
+            for slot, question, text, anchor in comments:
                 if not text:
                     continue
+                prefixed = WordReviewQuestion(
+                    id=f"b{batch_index}:{question.id}",
+                    paragraph_indexes=question.paragraph_indexes,
+                    question=question.question,
+                    why_it_matters=question.why_it_matters,
+                )
+                section_comments.append((slot, prefixed, text, anchor))
                 for index in question.paragraph_indexes:
                     paragraph = by_index.get(index)
                     if paragraph is None:
@@ -550,7 +708,6 @@ async def run_word_paragraph_review(
                     comments_by_index.setdefault(paragraph.index, []).append(
                         (slot.label, text)
                     )
-                    written.append((slot, paragraph, text))
 
             rewrite_targets = [
                 paragraph
@@ -573,47 +730,59 @@ async def run_word_paragraph_review(
                 if rewrite_targets
                 else []
             )
-
-            for slot, paragraph, text in written:
-                pending.append(
-                    await _write_result(
-                        session,
-                        job_id=job.id,
-                        customer_id=payload.customer_id,
-                        section_index=section_index,
-                        paragraph_index=paragraph.index,
-                        expert_id=slot.slot_id,
-                        expert_namn=slot.label,
-                        kommentar=text,
-                        is_heading_suggestion=False,
-                        request=job.request,
-                        commit=False,
-                    )
-                )
-                result_count += 1
-
             for paragraph, suggestion in zip(rewrite_targets, suggestions, strict=True):
                 if suggestion is None:
                     continue
-                pending.append(
-                    await _write_result(
-                        session,
-                        job_id=job.id,
-                        customer_id=payload.customer_id,
-                        section_index=section_index,
-                        paragraph_index=paragraph.index,
-                        expert_id="",
-                        expert_namn="",
-                        kommentar=suggestion.motivering.strip(),
-                        is_heading_suggestion=False,
-                        is_rewrite_suggestion=True,
-                        foreslagen_text=suggestion.ny_text.strip(),
-                        request=job.request,
-                        commit=False,
-                    )
-                )
-                result_count += 1
+                section_rewrites.append((paragraph, suggestion))
 
+        written = await _consolidate_comments(
+            prompts=prompts,
+            section=section,
+            paragraphs=sorted(section_by_index.values(), key=lambda item: item.index),
+            comments=section_comments,
+            by_index=section_by_index,
+        )
+
+        pending: list[ExpertgranskningResult] = []
+        for item in written:
+            pending.append(
+                await _write_result(
+                    session,
+                    job_id=job.id,
+                    customer_id=payload.customer_id,
+                    section_index=section_index,
+                    paragraph_index=item.paragraph_index,
+                    expert_id=item.expert_id,
+                    expert_namn=item.expert_namn,
+                    kommentar=item.kommentar,
+                    is_heading_suggestion=False,
+                    request=job.request,
+                    commit=False,
+                )
+            )
+            result_count += 1
+
+        for paragraph, suggestion in section_rewrites:
+            pending.append(
+                await _write_result(
+                    session,
+                    job_id=job.id,
+                    customer_id=payload.customer_id,
+                    section_index=section_index,
+                    paragraph_index=paragraph.index,
+                    expert_id="",
+                    expert_namn="",
+                    kommentar=suggestion.motivering.strip(),
+                    is_heading_suggestion=False,
+                    is_rewrite_suggestion=True,
+                    foreslagen_text=suggestion.ny_text.strip(),
+                    request=job.request,
+                    commit=False,
+                )
+            )
+            result_count += 1
+
+        if pending:
             await session.commit()
             for row in pending:
                 await session.refresh(row)
