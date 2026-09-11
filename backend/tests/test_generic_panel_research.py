@@ -19,6 +19,7 @@ from app.services.panel.research import (
     ResearchNeed,
     ResearchNeedDraft,
     ResearchPlan,
+    ResearchProposal,
     assign_proposal_ids,
     assign_research_need_ids,
     build_research_plan,
@@ -27,7 +28,9 @@ from app.services.panel.research import (
     format_expert_proposals,
     plan_from_moderator_draft,
     requested_by_from_proposals,
+    source_types_from_proposals,
 )
+from app.services.research import InvalidResearchPlanError
 from app.services.panel.schemas import (
     PanelExpertSlot,
     PanelSessionConfig,
@@ -209,6 +212,39 @@ def test_ids_are_assigned_in_code_not_by_llm():
     assert [need.id for need in plan.needs] == ["research_1", "research_2"]
 
 
+def _proposal(
+    proposal_id: str,
+    slot_id: str,
+    *,
+    question: str = "Vilka avtalsbestämmelser reglerar hävning?",
+    why_needed: str = "Avgör vilka avtalsenliga förutsättningar som gäller.",
+    source_types: list[str] | None = None,
+    label: str = "",
+) -> ResearchProposal:
+    return ResearchProposal(
+        proposal_id=proposal_id,
+        slot_id=slot_id,
+        label=label,
+        question=question,
+        why_needed=why_needed,
+        source_types=source_types or ["case_knowledge"],
+    )
+
+
+def _need(
+    *proposal_ids: str,
+    question: str = "Vilka avtalsbestämmelser reglerar hävning?",
+    why_needed: str = "Behövs för att fastställa avtalsförutsättningarna.",
+    source_types: list[str] | None = None,
+) -> ConsolidatedResearchNeed:
+    return ConsolidatedResearchNeed(
+        question=question,
+        why_needed=why_needed,
+        proposal_ids=list(proposal_ids),
+        source_types=source_types or [],
+    )
+
+
 def _proposals_legal_property():
     numbered, empty = assign_proposal_ids(
         [
@@ -235,10 +271,9 @@ def test_requested_by_is_derived_from_proposal_ids():
     plan = plan_from_moderator_draft(
         ModeratorResearchPlan(
             needs=[
-                ConsolidatedResearchNeed(
-                    question="Vilka avtalsbestämmelser reglerar hävning?",
-                    why_needed="Behövs för att fastställa avtalsförutsättningarna.",
-                    proposal_ids=["proposal_1", "proposal_2", "proposal_99"],
+                _need(
+                    "proposal_1",
+                    "proposal_2",
                     source_types=["case_knowledge"],
                 )
             ]
@@ -252,36 +287,212 @@ def test_requested_by_is_derived_from_proposal_ids():
 
 def test_moderator_cannot_reassign_or_invent_requested_by():
     numbered = _proposals_legal_property()
-    dropped = plan_from_moderator_draft(
+    with pytest.raises(InvalidResearchPlanError, match="omitted"):
+        plan_from_moderator_draft(
+            ModeratorResearchPlan(needs=[_need("proposal_1")]),
+            numbered,
+        )
+    with pytest.raises(InvalidResearchPlanError, match="Unknown proposal"):
+        plan_from_moderator_draft(
+            ModeratorResearchPlan(
+                needs=[
+                    _need(
+                        "proposal_99",
+                        question="Påhittat behov",
+                        why_needed="Saknar förslag.",
+                        source_types=["web"],
+                    )
+                ]
+            ),
+            numbered,
+        )
+    schema = ConsolidatedResearchNeed.model_json_schema()
+    assert "requested_by" not in schema.get("properties", {})
+
+
+def test_three_equivalent_proposals_become_one_need_with_all_requesters():
+    proposals = [
+        _proposal("proposal_1", "legal"),
+        _proposal("proposal_2", "property", question="Samma hävningsfråga"),
+        _proposal("proposal_3", "fin", question="Samma hävningsfråga igen"),
+    ]
+    plan = plan_from_moderator_draft(
+        ModeratorResearchPlan(
+            needs=[_need("proposal_1", "proposal_2", "proposal_3")]
+        ),
+        proposals,
+    )
+    assert len(plan.needs) == 1
+    assert plan.needs[0].id == "research_1"
+    assert plan.needs[0].requested_by == ["legal", "property", "fin"]
+
+
+def test_merged_need_unions_source_types_from_proposals():
+    proposals = [
+        _proposal("proposal_1", "legal", source_types=["swedish_law"]),
+        _proposal("proposal_2", "property", source_types=["case_knowledge"]),
+    ]
+    plan = plan_from_moderator_draft(
+        ModeratorResearchPlan(needs=[_need("proposal_1", "proposal_2")]),
+        proposals,
+    )
+    assert plan.needs[0].source_types == ["case_knowledge", "swedish_law"]
+    assert source_types_from_proposals(
+        ["proposal_1", "proposal_2"], proposals
+    ) == ["case_knowledge", "swedish_law"]
+
+
+def test_moderator_omitted_source_type_still_keeps_proposal_union():
+    proposals = [
+        _proposal("proposal_1", "legal", source_types=["swedish_law"]),
+        _proposal("proposal_2", "property", source_types=["case_knowledge"]),
+    ]
+    plan = plan_from_moderator_draft(
         ModeratorResearchPlan(
             needs=[
-                ConsolidatedResearchNeed(
-                    question="Vilka avtalsbestämmelser reglerar hävning?",
-                    why_needed="Bara ett av förslagen.",
-                    proposal_ids=["proposal_1"],
+                _need(
+                    "proposal_1",
+                    "proposal_2",
                     source_types=["case_knowledge"],
                 )
             ]
         ),
-        numbered,
+        proposals,
     )
-    assert dropped.needs[0].requested_by == ["legal"]
-    invented = plan_from_moderator_draft(
+    assert plan.needs[0].source_types == ["case_knowledge", "swedish_law"]
+
+
+def test_moderator_invented_source_type_is_ignored():
+    proposals = [
+        _proposal("proposal_1", "legal", source_types=["swedish_law"]),
+        _proposal("proposal_2", "property", source_types=["case_knowledge"]),
+    ]
+    plan = plan_from_moderator_draft(
         ModeratorResearchPlan(
             needs=[
-                ConsolidatedResearchNeed(
-                    question="Påhittat behov",
-                    why_needed="Saknar förslag.",
-                    proposal_ids=["proposal_99"],
-                    source_types=["web"],
+                _need(
+                    "proposal_1",
+                    "proposal_2",
+                    source_types=["swedish_law", "case_knowledge", "web"],
                 )
             ]
         ),
-        numbered,
+        proposals,
     )
-    assert invented.needs == []
-    schema = ConsolidatedResearchNeed.model_json_schema()
-    assert "requested_by" not in schema.get("properties", {})
+    assert "web" not in plan.needs[0].source_types
+    assert plan.needs[0].source_types == ["case_knowledge", "swedish_law"]
+
+
+def test_omitted_valid_proposal_fails_closed():
+    proposals = [
+        _proposal("proposal_1", "legal"),
+        _proposal("proposal_2", "property"),
+        _proposal("proposal_3", "fin"),
+    ]
+    with pytest.raises(InvalidResearchPlanError, match="proposal_3"):
+        plan_from_moderator_draft(
+            ModeratorResearchPlan(needs=[_need("proposal_1", "proposal_2")]),
+            proposals,
+        )
+
+
+def test_same_proposal_in_two_needs_fails_closed():
+    proposals = [
+        _proposal("proposal_1", "legal"),
+        _proposal("proposal_2", "property"),
+    ]
+    with pytest.raises(InvalidResearchPlanError, match="multiple canonical needs"):
+        plan_from_moderator_draft(
+            ModeratorResearchPlan(
+                needs=[
+                    _need("proposal_1", "proposal_2"),
+                    _need(
+                        "proposal_1",
+                        question="Andra formuleringen",
+                        why_needed="Samma förslag igen.",
+                    ),
+                ]
+            ),
+            proposals,
+        )
+
+
+def test_unknown_proposal_cannot_create_need_or_provenance():
+    proposals = [_proposal("proposal_1", "legal")]
+    with pytest.raises(InvalidResearchPlanError, match="proposal_99"):
+        plan_from_moderator_draft(
+            ModeratorResearchPlan(
+                needs=[
+                    _need(
+                        "proposal_99",
+                        question="Påhittat behov",
+                        why_needed="Okänt id.",
+                        source_types=["web"],
+                    )
+                ]
+            ),
+            proposals,
+        )
+
+
+def test_canonical_need_without_real_proposal_fails_closed():
+    proposals = [_proposal("proposal_1", "legal")]
+    with pytest.raises(InvalidResearchPlanError, match="anchored"):
+        plan_from_moderator_draft(
+            ModeratorResearchPlan(
+                needs=[
+                    _need(
+                        question="Påhittat behov",
+                        why_needed="Inget förslag.",
+                    )
+                ]
+            ),
+            proposals,
+        )
+
+
+def test_distinct_groups_stay_separate_with_own_provenance():
+    proposals = [
+        _proposal(
+            "proposal_1",
+            "legal",
+            question="Vad säger lagen om hävning?",
+            source_types=["swedish_law"],
+        ),
+        _proposal(
+            "proposal_2",
+            "property",
+            question="Vad säger avtalet om hävning?",
+            source_types=["case_knowledge"],
+        ),
+    ]
+    plan = plan_from_moderator_draft(
+        ModeratorResearchPlan(
+            needs=[
+                _need(
+                    "proposal_1",
+                    question="Vad säger lagen om hävning?",
+                    why_needed="Lagstöd.",
+                ),
+                _need(
+                    "proposal_2",
+                    question="Vad säger avtalet om hävning?",
+                    why_needed="Avtalsstöd.",
+                ),
+            ]
+        ),
+        proposals,
+    )
+    assert [need.id for need in plan.needs] == ["research_1", "research_2"]
+    assert plan.needs[0].requested_by == ["legal"]
+    assert plan.needs[0].source_types == ["swedish_law"]
+    assert plan.needs[1].requested_by == ["property"]
+    assert plan.needs[1].source_types == ["case_knowledge"]
+
+
+def test_empty_moderator_draft_with_no_proposals_stays_empty():
+    plan = plan_from_moderator_draft(ModeratorResearchPlan(), [])
+    assert plan == ResearchPlan(needs=[])
 
 
 @pytest.mark.asyncio
@@ -422,7 +633,8 @@ def test_research_prompts_render_and_forbid_service_names():
     assert "inte lagen.nu" in expert
     assert "proposal_ids" in moderator
     assert "Sätt inte requested_by" in moderator
-    assert "web sparsamt" in moderator
+    assert "källtyper härleds i kod" in moderator
+    assert "exakt en gång" in moderator
 
 
 def test_public_transcript_excludes_research_phases():
