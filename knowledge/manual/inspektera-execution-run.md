@@ -35,6 +35,8 @@ Saknas evidence är det normalt — inte ett fel.
 
 När ett resultat är sparat för generic panel ser du **Sammanfattning**, **Påståenden**, **Dissensus** och **Obesvarat**.
 
+Fryst evidence gör inte en expert kompetent. Om panelen saknar rätt sakkompetens för frågan lämnas den obesvarad — även när underlaget ser utmärkt ut. En kompetent expert som avstår är inte samma sak som saknad kompetens.
+
 Ett påstående kan peka på evidence med `[E1]`. Klicka på en känd referens för att hoppa till det kortet. En okänd referens markeras som olöst och kraschar inte sidan.
 
 ## Misslyckade attempts
