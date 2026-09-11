@@ -7,6 +7,8 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from alembic.config import Config
+from alembic.script import ScriptDirectory
 
 from app.llm import set_structured_completer, set_text_completer, set_tools_completer
 from app.services import research as shared_research
@@ -42,6 +44,15 @@ from app.services.prompt_catalog import default_prompts, render_prompt
 from app.services.research import InvalidResearchPlanError
 
 _BACKEND_ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_researchplan_migrations_are_linear_after_word_head():
+    script = ScriptDirectory.from_config(Config(str(_BACKEND_ROOT / "alembic.ini")))
+    assert script.get_heads() == ["067_researchplan_valid_proposals"]
+    repair = script.get_revision("067_researchplan_valid_proposals")
+    assert repair.down_revision == "066_researchplan_convergence"
+    convergence = script.get_revision("066_researchplan_convergence")
+    assert convergence.down_revision == "065_word_comment_anchor_retry"
 
 
 def _config() -> PanelSessionConfig:

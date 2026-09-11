@@ -1,7 +1,7 @@
 """Add research-plan repair prompt and require executable source types.
 
-Revision ID: 065_researchplan_valid_proposals
-Revises: 064_researchplan_convergence
+Revision ID: 067_researchplan_valid_proposals
+Revises: 066_researchplan_convergence
 """
 
 from __future__ import annotations
@@ -15,8 +15,8 @@ from alembic import op
 from app.services.prompt_catalog import PROMPT_FIELDS
 from app.services.prompt_defaults import modules_for_prompt_key
 
-revision: str = "065_researchplan_valid_proposals"
-down_revision: Union[str, Sequence[str], None] = "064_researchplan_convergence"
+revision: str = "067_researchplan_valid_proposals"
+down_revision: Union[str, Sequence[str], None] = "066_researchplan_convergence"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
