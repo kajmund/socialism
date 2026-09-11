@@ -39,6 +39,7 @@ from app.services.panel.attempt_execution import (
     PanelAttemptError,
     execute_generic_panel_attempt,
 )
+from app.services.panel.competency import ExpertCompetency
 from app.services.panel.engine import _expert_complete
 from app.services.panel.research import empty_research_structured
 from app.services.panel.schemas import PanelExpertSlot
@@ -211,6 +212,11 @@ def _install_panel_llm(captured: list[list[dict]] | None = None):
                     )
                 ],
                 unanswered=["Svensk lag kunde inte hämtas."],
+            )
+        if response_model is ExpertCompetency:
+            return ExpertCompetency(
+                has_domain_competence=True,
+                competence_reason="Skatt är min kärnkompetens.",
             )
         empty = empty_research_structured(response_model)
         if empty is not None:

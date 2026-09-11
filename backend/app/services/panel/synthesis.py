@@ -8,7 +8,15 @@ from collections.abc import Iterable
 from pydantic import BaseModel, Field
 
 from app.llm import complete_structured
-from app.services.panel.result import PanelClaim, PanelResult
+from app.services.panel.competency import CompetencyState
+from app.services.panel.research import MISSING_EXPERTISE_SIGNAL
+from app.services.panel.result import (
+    MISSING_EXPERTISE_REASON,
+    PANEL_RESULT_SCHEMA_CURRENT,
+    PanelClaim,
+    PanelResult,
+    UnansweredItem,
+)
 from app.services.panel.schemas import PanelSessionConfig, PanelTurn
 from app.services.prompt_catalog import render_prompt
 
@@ -155,11 +163,30 @@ def _claim_evidence_refs(
     return filter_evidence_refs([*item.evidence_refs, *extracted], allowed=allowed)
 
 
+def _unanswered_items_for_result(
+    unanswered: list[str],
+    *,
+    transcript: list[PanelTurn],
+    competency: CompetencyState | None,
+) -> tuple[list[str], list[UnansweredItem]]:
+    """Competency state owns missing_expertise. Moderator prose is presentation."""
+    notes = list(unanswered)
+    if competency is not None and not competency.has_relevant_expert():
+        if not notes:
+            notes = unanswered_notes_from_transcript(transcript)
+        text = notes[0] if notes else MISSING_EXPERTISE_SIGNAL
+        if not notes:
+            notes = [text]
+        return notes, [UnansweredItem(text=text, reason=MISSING_EXPERTISE_REASON)]
+    return notes, [UnansweredItem(text=note) for note in notes]
+
+
 def panel_result_from_synthesis(
     synthesis: GenericPanelSynthesis,
     *,
     transcript: list[PanelTurn],
     allowed_evidence_refs: frozenset[str] | None = None,
+    competency: CompetencyState | None = None,
 ) -> PanelResult:
     accepted = _accepted_claims(synthesis, transcript)
     claims = [
@@ -179,6 +206,9 @@ def panel_result_from_synthesis(
     unanswered = [note.strip() for note in synthesis.unanswered if note.strip()]
     if not unanswered and not _has_public_expert_substance(transcript):
         unanswered = unanswered_notes_from_transcript(transcript)
+    unanswered, unanswered_items = _unanswered_items_for_result(
+        unanswered, transcript=transcript, competency=competency
+    )
     filtered = GenericPanelSynthesis(
         summary=synthesis.summary.strip(),
         claims=[
@@ -194,10 +224,13 @@ def panel_result_from_synthesis(
         unanswered=unanswered,
     )
     return PanelResult(
+        schema_version=PANEL_RESULT_SCHEMA_CURRENT,
         protocol="generic_panel",
         summary=filtered.summary,
         claims=claims,
         unanswered=unanswered,
+        unanswered_items=unanswered_items,
+        competency=list(competency.slots) if competency is not None else [],
         payload={"synthesis": filtered.model_dump(mode="json")},
     )
 
@@ -210,6 +243,7 @@ async def synthesize_generic_panel_result(
     prompts: dict[str, str],
     evidence_prompt: str | None = None,
     allowed_evidence_refs: frozenset[str] | None = None,
+    competency: CompetencyState | None = None,
 ) -> PanelResult:
     brief = (config.brief or "").strip()
     messages = [{"role": "system", "content": render_prompt(prompts, "panel.moderator.system")}]
@@ -236,4 +270,5 @@ async def synthesize_generic_panel_result(
         synthesis,
         transcript=transcript,
         allowed_evidence_refs=allowed_evidence_refs,
+        competency=competency,
     )

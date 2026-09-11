@@ -1,5 +1,9 @@
 # Manual update log
 
+## 2026-09-11
+
+* **Execution**: Fryst underlag gör inte en expert kompetent. Saknas rätt sakkompetens på panelen lämnas frågan obesvarad. En kompetent expert som avstår är inte samma sak.
+
 ## 2026-09-10
 
 * **Expertgranskning**: Experterna räcker bara upp handen när frågan ligger inom deras faktiska kompetens. Utanför området skapar de inte researchfrågor, och om ingen relevant expert finns stoppas den sakliga diskussionen — frågan lämnas obesvarad. Noll händer är ett giltigt svar.
