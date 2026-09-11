@@ -25,7 +25,7 @@ import {
 } from "@/lib/office"
 import { resolveWordAnchor } from "@/lib/word/anchors"
 import { clearStoredToken, getStoredToken, saveStoredToken } from "@/lib/tokenStorage"
-import { planReviewStart } from "@/lib/resume"
+import { finishedJobView, planReviewStart } from "@/lib/resume"
 import { buildSections } from "@/lib/sections"
 import { connectExpertgranskningWatch } from "@/lib/socket"
 import type { ExpertPanelSummary, ReviewResult } from "@/lib/types"
@@ -151,9 +151,19 @@ export function App() {
     let cancelled = false
     void getLatestWordJob(token, docId)
       .then((latest) => {
+        if (cancelled) return
         const plan = planReviewStart(latest)
-        if (cancelled || plan.action !== "resume") return
-        attachWatch(plan.jobId, "resume")
+        if (plan.action === "resume") {
+          attachWatch(plan.jobId, "resume")
+          return
+        }
+        const finished = finishedJobView(latest)
+        if (!finished) return
+        noteResults(finished.results)
+        setPhase(finished.phase)
+        if (finished.phase === "failed") {
+          setError(finished.phase)
+        }
       })
       .catch((err: unknown) => {
         if (!cancelled) {

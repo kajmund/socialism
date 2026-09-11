@@ -202,14 +202,6 @@ def resolve_word_anchor(
                 )
             return WordAnchorResolution(status="stale")
 
-    by_index = {paragraph.paragraph_index: paragraph for paragraph in current}
-    at_index = by_index.get(anchor.paragraph_index)
-    if at_index is not None and normalize_word_text(at_index.text) == reviewed:
-        return WordAnchorResolution(
-            status="resolved",
-            paragraph_index=at_index.paragraph_index,
-        )
-
     matches = [
         (position, paragraph)
         for position, paragraph in enumerate(current)
