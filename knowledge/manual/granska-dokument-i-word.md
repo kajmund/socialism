@@ -20,7 +20,7 @@ En moderator läser först varje del av dokumentet och hoppar över rent adminis
 
 När minst två experter är överens om en konkret ny formulering kan tillägget också föreslå en **omskrivning** som spårad ändring. Du måste själv **godkänna** eller **avvisa** den i Word. Panelen visar när jobbet är klart.
 
-Om dokumentet har ändrats medan granskningen körde, eller om tillägget inte kan peka ut rätt stycke säkert, appliceras inte den kommentaren automatiskt. Sidopanelen visar då hur många resultat som applicerades och hur många som inte kunde placeras säkert. Det är inte samma sak som att hela jobbet misslyckades.
+Om dokumentet har ändrats medan granskningen körde, eller om tillägget inte kan peka ut rätt stycke säkert, appliceras inte den kommentaren automatiskt. Sidopanelen visar då hur många resultat som applicerades och hur många som inte kunde placeras säkert. Det är inte samma sak som att hela jobbet misslyckades. Om du stänger sidopanelen och öppnar den igen efter att jobbet är klart syns samma sammanfattning, även för resultat som inte kunde placeras.
 
 ## Granska igen
 

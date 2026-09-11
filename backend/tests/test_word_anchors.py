@@ -194,6 +194,42 @@ def test_duplicate_text_with_unique_context_resolves() -> None:
     assert resolution.paragraph_index == 2
 
 
+def test_duplicate_text_at_old_index_after_target_moved_uses_context() -> None:
+    request = {
+        "word_session_id": "session-a",
+        "sections": [
+            {
+                "heading": "Avtal",
+                "heading_paragraph_index": 0,
+                "paragraphs": [
+                    {"index": 1, "text": "Alpha"},
+                    {"index": 2, "text": "Samma text."},
+                    {"index": 3, "text": "Beta"},
+                    {"index": 8, "text": "Samma text."},
+                    {"index": 9, "text": "Eta"},
+                ],
+            }
+        ],
+    }
+    anchor = word_anchor_from_job_request(request, 2)
+    assert anchor is not None
+    resolution = resolve_word_anchor(
+        anchor,
+        _doc(
+            (0, "Avtal"),
+            (1, "Ingress"),
+            (2, "Samma text."),
+            (3, "Zeta"),
+            (9, "Alpha"),
+            (10, "Samma text."),
+            (11, "Beta"),
+        ),
+        current_session_id="session-b",
+    )
+    assert resolution.status == "resolved"
+    assert resolution.paragraph_index == 10
+
+
 def test_duplicate_ambiguous_context_is_ambiguous() -> None:
     anchor = word_anchor_from_job_request(_request(), 2)
     assert anchor is not None

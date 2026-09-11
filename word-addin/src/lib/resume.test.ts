@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import type { LatestWordJob, ReviewResult } from "./types"
-import { isActiveWordJobStatus, planReviewStart } from "./resume"
+import { finishedJobView, isActiveWordJobStatus, planReviewStart } from "./resume"
 
 function job(overrides: Partial<LatestWordJob> = {}): LatestWordJob {
   return {
@@ -67,5 +67,47 @@ describe("planReviewStart", () => {
       action: "startNew",
       resolveCommentIds: [],
     })
+  })
+})
+
+describe("finishedJobView", () => {
+  it("exposes applying and unresolved rows from a finished job", () => {
+    expect(
+      finishedJobView(
+        job({
+          status: "succeeded",
+          results: [
+            result({ status: "applied", comment_id: "word-1" }),
+            result({ id: "egr_2", status: "applying", comment_id: null }),
+            result({ id: "egr_3", status: "unresolved", comment_id: null }),
+          ],
+        }),
+      ),
+    ).toEqual({
+      jobId: "job_1",
+      phase: "done",
+      results: [
+        result({ status: "applied", comment_id: "word-1" }),
+        result({ id: "egr_2", status: "applying", comment_id: null }),
+        result({ id: "egr_3", status: "unresolved", comment_id: null }),
+      ],
+    })
+  })
+
+  it("marks a failed finished job without treating it as resume", () => {
+    expect(finishedJobView(job({ status: "failed" }))).toEqual({
+      jobId: "job_1",
+      phase: "failed",
+      results: [],
+    })
+    expect(planReviewStart(job({ status: "failed" }))).toEqual({
+      action: "startNew",
+      resolveCommentIds: [],
+    })
+  })
+
+  it("ignores live jobs and missing history", () => {
+    expect(finishedJobView(job({ status: "running" }))).toBeNull()
+    expect(finishedJobView(null)).toBeNull()
   })
 })

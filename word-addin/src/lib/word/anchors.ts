@@ -89,13 +89,6 @@ export function resolveWordAnchor(
     }
   }
 
-  const atIndex = current.find(
-    (paragraph) => paragraph.paragraph_index === anchor.paragraph_index,
-  )
-  if (atIndex && normalizeWordText(atIndex.text) === reviewed) {
-    return { status: "resolved", paragraph_index: atIndex.paragraph_index }
-  }
-
   const matches = current
     .map((paragraph, position) => ({ paragraph, position }))
     .filter(({ paragraph }) => normalizeWordText(paragraph.text) === reviewed)

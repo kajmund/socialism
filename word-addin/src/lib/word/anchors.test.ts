@@ -100,6 +100,31 @@ describe("resolveWordAnchor", () => {
     ).toEqual({ status: "resolved", paragraph_index: 2 })
   })
 
+  it("does not pick duplicate text that now occupies the old index", () => {
+    expect(
+      resolveWordAnchor(
+        {
+          paragraph_index: 2,
+          reviewed_text: "Samma text.",
+          text_hash: hashWordText("Samma text."),
+          previous_text_hash: hashWordText("Alpha"),
+          next_text_hash: hashWordText("Beta"),
+          word_session_id: "session-a",
+        },
+        doc(
+          [0, "Avtal"],
+          [1, "Ingress"],
+          [2, "Samma text."],
+          [3, "Zeta"],
+          [9, "Alpha"],
+          [10, "Samma text."],
+          [11, "Beta"],
+        ),
+        "session-b",
+      ),
+    ).toEqual({ status: "resolved", paragraph_index: 10 })
+  })
+
   it("returns ambiguous when duplicate context cannot decide", () => {
     expect(
       resolveWordAnchor(
