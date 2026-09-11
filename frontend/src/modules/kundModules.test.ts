@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import type { Kund } from "@/api/kunder"
-import { kunderForScope, uniqueModuleIds } from "@/modules/kundModules"
+import { kunderForScope, moduleScopeForNav, uniqueModuleIds } from "@/modules/kundModules"
 
 function kund(slug: string, available_modules: string[], id: number): Kund {
   return { id, name: slug, slug, available_modules, projekt: [] }
@@ -25,6 +25,19 @@ describe("kunderForScope", () => {
 
   it("uses the OS kund for user role", () => {
     expect(kunderForScope([os, bolag], "user", "admin")).toEqual([os])
+  })
+})
+
+describe("moduleScopeForNav", () => {
+  it("keeps the admin union on bolag pages so other modules stay in the rail", () => {
+    expect(moduleScopeForNav("admin", "bolag")).toBe("admin")
+    expect(moduleScopeForNav("admin", "admin")).toBe("admin")
+  })
+
+  it("keeps bolag and user nav on the page scope", () => {
+    expect(moduleScopeForNav("bolag", "bolag")).toBe("bolag")
+    expect(moduleScopeForNav("user", "bolag")).toBe("bolag")
+    expect(moduleScopeForNav("user", "admin")).toBe("admin")
   })
 })
 
