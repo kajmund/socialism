@@ -759,6 +759,9 @@ def test_resolve_comment_anchor_uses_explicit_and_single_index():
 def test_word_alembic_chain_is_linear_after_main_head():
     cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     script = ScriptDirectory.from_config(cfg)
+    assert script.get_heads() == ["068_word_application_lifecycle"]
+    lifecycle = script.get_revision("068_word_application_lifecycle")
+    assert lifecycle.down_revision == "067_researchplan_valid_proposals"
     retry = script.get_revision("065_word_comment_anchor_retry")
     assert retry.down_revision == "064_word_comment_convergence"
     convergence = script.get_revision("064_word_comment_convergence")
@@ -2262,7 +2265,11 @@ async def test_word_review_patch_comment_id(client: AsyncClient):
     )
     job_id = created.json()["job_id"]
     await jobs_service._run_job(job_id)
-    row_id = (await client.get(f"/expertgranskning/word-jobs/{job_id}/results")).json()[0]["id"]
+    listed = (await client.get(f"/expertgranskning/word-jobs/{job_id}/results")).json()
+    assert listed[0]["anchor"]["paragraph_index"] == listed[0]["paragraph_index"]
+    assert listed[0]["anchor"]["reviewed_text"] == listed[0]["reviewed_text"]
+    assert listed[0]["anchor"]["text_hash"]
+    row_id = listed[0]["id"]
     patched = await client.patch(
         f"/expertgranskning/word-jobs/{job_id}/results/{row_id}",
         json={"comment_id": "w-1"},

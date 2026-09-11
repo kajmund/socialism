@@ -623,7 +623,7 @@ def test_expertgranskning_websocket_replay_live_push_and_patch(ws_client):
         assert updated_event["type"] == "expertgranskning.result.updated"
         assert updated_event["result"]["id"] == result_id
         assert updated_event["result"]["comment_id"] == "word-cmt-1"
-        assert updated_event["result"]["status"] == "posted"
+        assert updated_event["result"]["status"] == "applied"
 
 
 def test_expertgranskning_websocket_subscribe_before_snapshot_keeps_race_write(

@@ -1,4 +1,8 @@
-import type { WordParagraph } from "@/lib/types"
+import type { WordAnchor, WordParagraph } from "@/lib/types"
+import {
+  resolveWordAnchor,
+  type WordDocumentParagraphState,
+} from "@/lib/word/anchors"
 
 const DOC_ID_KEY = "socialism_doc_id"
 
@@ -29,6 +33,18 @@ export function listStringFromLoaded(paragraph: {
 export function commentsApiSupported(): boolean {
   if (typeof Office === "undefined") return false
   return Office.context.requirements.isSetSupported("WordApi", "1.4")
+}
+
+export function uniqueLocalIdSupported(): boolean {
+  if (typeof Office === "undefined") return false
+  return Office.context.requirements.isSetSupported("WordApi", "1.6")
+}
+
+function uniqueLocalIdFromLoaded(paragraph: { uniqueLocalId?: number | string }): string | null {
+  const value = paragraph.uniqueLocalId
+  if (typeof value === "number" && Number.isFinite(value)) return String(value)
+  if (typeof value === "string" && value.trim()) return value.trim()
+  return null
 }
 
 export function getStoredDocId(): string {
@@ -65,88 +81,89 @@ export async function readDocumentParagraphs(): Promise<WordParagraph[]> {
   }
   return Word.run(async (context) => {
     const paragraphs = context.document.body.paragraphs
-    paragraphs.load("items/text,items/style,items/listItemOrNullObject/listString")
+    const loadUniqueId = uniqueLocalIdSupported()
+    paragraphs.load(
+      loadUniqueId
+        ? "items/text,items/style,items/listItemOrNullObject/listString,items/uniqueLocalId"
+        : "items/text,items/style,items/listItemOrNullObject/listString",
+    )
     await context.sync()
     return paragraphs.items.map((paragraph, index) => ({
       index,
       text: paragraph.text.replace(/\r/g, "").trimEnd(),
       style: paragraph.style ?? "",
       list_string: listStringFromLoaded(paragraph),
+      unique_local_id: loadUniqueId ? uniqueLocalIdFromLoaded(paragraph) : null,
     }))
   })
 }
 
-export function normalizeParagraphText(text: string): string {
-  return text.replace(/\r/g, "").trim()
+export function paragraphStatesFromSnapshot(
+  paragraphs: readonly WordParagraph[],
+): WordDocumentParagraphState[] {
+  return paragraphs.map((paragraph) => ({
+    paragraph_index: paragraph.index,
+    text: paragraph.text,
+    unique_local_id: paragraph.unique_local_id ?? null,
+  }))
 }
 
-export function paragraphTextMatchesReviewed(
-  current: string,
-  reviewed: string | null | undefined,
-): boolean {
-  if (reviewed == null || !reviewed.trim()) return false
-  return normalizeParagraphText(current) === normalizeParagraphText(reviewed)
+async function loadDocumentParagraphs(
+  context: Word.RequestContext,
+): Promise<{
+  items: Word.Paragraph[]
+  states: WordDocumentParagraphState[]
+}> {
+  const paragraphs = context.document.body.paragraphs
+  const loadUniqueId = uniqueLocalIdSupported()
+  paragraphs.load(loadUniqueId ? "items/text,items/uniqueLocalId" : "items/text")
+  await context.sync()
+  return {
+    items: paragraphs.items,
+    states: paragraphs.items.map((paragraph, index) => ({
+      paragraph_index: index,
+      text: paragraph.text,
+      unique_local_id: loadUniqueId ? uniqueLocalIdFromLoaded(paragraph) : null,
+    })),
+  }
 }
 
-export function findRewriteTargetIndex(
-  paragraphTexts: readonly string[],
-  requestedIndex: number,
-  reviewedText: string | null | undefined,
-): number | null {
-  if (reviewedText == null || !reviewedText.trim()) return null
-  const requested = paragraphTexts[requestedIndex]
-  if (
-    requested != null &&
-    paragraphTextMatchesReviewed(requested, reviewedText)
-  ) {
-    return requestedIndex
-  }
-  const matches: number[] = []
-  for (let index = 0; index < paragraphTexts.length; index += 1) {
-    if (paragraphTextMatchesReviewed(paragraphTexts[index], reviewedText)) {
-      matches.push(index)
-    }
-  }
-  return matches.length === 1 ? matches[0] : null
-}
+export type WordMutationOutcome =
+  | { status: "resolved"; commentId: string }
+  | { status: "stale" | "ambiguous" | "missing"; commentId?: null }
 
 function changeTrackingSupported(): boolean {
   return typeof Word !== "undefined" && typeof Word.ChangeTrackingMode !== "undefined"
 }
 
 export async function applyRewriteSuggestion(args: {
-  paragraphIndex: number
+  anchor: WordAnchor
   foreslagenText: string
   motivering: string
-  reviewedText: string | null | undefined
   fallbackComment: string
-}): Promise<string | null> {
+}): Promise<WordMutationOutcome> {
   if (typeof Word === "undefined") {
     throw new Error("Word API is not available")
   }
   return Word.run(async (context) => {
-    const paragraphs = context.document.body.paragraphs
-    paragraphs.load("items/text")
     const canTrack = changeTrackingSupported()
     if (canTrack) {
       context.document.load("changeTrackingMode")
     }
-    await context.sync()
-
-    const targetIndex = findRewriteTargetIndex(
-      paragraphs.items.map((item) => item.text),
-      args.paragraphIndex,
-      args.reviewedText,
-    )
-    if (targetIndex == null) {
-      return null
+    const loaded = await loadDocumentParagraphs(context)
+    const resolution = resolveWordAnchor(args.anchor, loaded.states)
+    if (resolution.status !== "resolved") {
+      return { status: resolution.status }
     }
-    const paragraph = paragraphs.items[targetIndex]
+    const paragraph = loaded.items[resolution.paragraph_index]
+    if (!paragraph) {
+      return { status: "missing" }
+    }
     if (!canTrack) {
       const comment = paragraph.getRange().insertComment(args.fallbackComment)
       comment.load("id")
       await context.sync()
-      return comment.id
+      return { status: "resolved", commentId: comment.id }
     }
 
     const previousMode = context.document.changeTrackingMode
@@ -157,7 +174,7 @@ export async function applyRewriteSuggestion(args: {
       const comment = paragraph.getRange().insertComment(args.motivering)
       comment.load("id")
       await context.sync()
-      return comment.id
+      return { status: "resolved", commentId: comment.id }
     } finally {
       context.document.changeTrackingMode = previousMode
       await context.sync()
@@ -165,25 +182,27 @@ export async function applyRewriteSuggestion(args: {
   })
 }
 
-export async function insertCommentAt(
-  paragraphIndex: number,
+export async function insertCommentForAnchor(
+  anchor: WordAnchor,
   text: string,
-): Promise<string> {
+): Promise<WordMutationOutcome> {
   if (typeof Word === "undefined") {
     throw new Error("Word API is not available")
   }
   return Word.run(async (context) => {
-    const paragraphs = context.document.body.paragraphs
-    paragraphs.load("items")
-    await context.sync()
-    const paragraph = paragraphs.items[paragraphIndex]
+    const loaded = await loadDocumentParagraphs(context)
+    const resolution = resolveWordAnchor(anchor, loaded.states)
+    if (resolution.status !== "resolved") {
+      return { status: resolution.status }
+    }
+    const paragraph = loaded.items[resolution.paragraph_index]
     if (!paragraph) {
-      throw new Error(`Paragraph ${paragraphIndex} not found`)
+      return { status: "missing" }
     }
     const comment = paragraph.getRange().insertComment(text)
     comment.load("id")
     await context.sync()
-    return comment.id
+    return { status: "resolved", commentId: comment.id }
   })
 }
 

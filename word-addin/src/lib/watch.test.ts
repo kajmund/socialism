@@ -28,8 +28,14 @@ describe("shouldInsertComment", () => {
 
   it("skips rows that already have a Word comment_id", () => {
     expect(
-      shouldInsertComment(new Set(), result({ comment_id: "c1", status: "posted" })),
+      shouldInsertComment(new Set(), result({ comment_id: "c1", status: "applied" })),
     ).toBe(false)
+  })
+
+  it("never auto-applies applying, applied, or unresolved rows", () => {
+    expect(shouldInsertComment(new Set(), result({ status: "applying" }))).toBe(false)
+    expect(shouldInsertComment(new Set(), result({ status: "applied" }))).toBe(false)
+    expect(shouldInsertComment(new Set(), result({ status: "unresolved" }))).toBe(false)
   })
 
   it("inserts rewrite rows when foreslagen_text is present", () => {
@@ -86,7 +92,7 @@ describe("actionsForWatchEvent", () => {
     const updated: WatchEvent = {
       type: "expertgranskning.result.updated",
       job_id: "job_1",
-      result: result({ comment_id: "word-1", status: "posted" }),
+      result: result({ comment_id: "word-1", status: "applied" }),
     }
     expect(actionsForWatchEvent(updated, inserted)).toEqual([
       { kind: "remember", ids: ["egr_1"] },
@@ -94,7 +100,7 @@ describe("actionsForWatchEvent", () => {
   })
 
   it("replays already-posted rows into the dedupe set without inserting", () => {
-    const posted = result({ id: "egr_old", comment_id: "word-9", status: "posted" })
+    const posted = result({ id: "egr_old", comment_id: "word-9", status: "applied" })
     const replay: WatchEvent = {
       type: "expertgranskning.replay",
       job_id: "job_1",
@@ -103,6 +109,20 @@ describe("actionsForWatchEvent", () => {
     }
     expect(actionsForWatchEvent(replay, new Set())).toEqual([
       { kind: "remember", ids: ["egr_old"] },
+    ])
+  })
+
+  it("remembers applying and unresolved rows without inserting", () => {
+    const applying = result({ id: "egr_applying", status: "applying" })
+    const unresolved = result({ id: "egr_unresolved", status: "unresolved" })
+    const replay: WatchEvent = {
+      type: "expertgranskning.replay",
+      job_id: "job_1",
+      status: "running",
+      results: [applying, unresolved],
+    }
+    expect(actionsForWatchEvent(replay, new Set())).toEqual([
+      { kind: "remember", ids: ["egr_applying", "egr_unresolved"] },
     ])
   })
 

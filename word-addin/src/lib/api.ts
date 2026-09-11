@@ -53,18 +53,63 @@ export async function getLatestWordJob(
   }
 }
 
-export async function patchResultCommentId(
+export async function claimResult(
   token: string,
   jobId: string,
   resultId: string,
+  applicationId: string,
+): Promise<{ claimed: boolean; result?: ReviewResult }> {
+  try {
+    const result = await httpRequest<ReviewResult>(
+      url(`/expertgranskning/word-jobs/${jobId}/results/${resultId}/claim`),
+      {
+        method: "POST",
+        token,
+        body: { application_id: applicationId },
+      },
+    )
+    return { claimed: true, result }
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 409) {
+      return { claimed: false }
+    }
+    throw error
+  }
+}
+
+export async function completeResult(
+  token: string,
+  jobId: string,
+  resultId: string,
+  applicationId: string,
   commentId: string,
 ): Promise<ReviewResult> {
   return httpRequest<ReviewResult>(
-    url(`/expertgranskning/word-jobs/${jobId}/results/${resultId}`),
+    url(`/expertgranskning/word-jobs/${jobId}/results/${resultId}/complete`),
     {
-      method: "PATCH",
+      method: "POST",
       token,
-      body: { comment_id: commentId },
+      body: { application_id: applicationId, comment_id: commentId },
+    },
+  )
+}
+
+export async function markResultUnresolved(
+  token: string,
+  jobId: string,
+  resultId: string,
+  reason: string,
+  applicationId?: string,
+): Promise<ReviewResult> {
+  return httpRequest<ReviewResult>(
+    url(`/expertgranskning/word-jobs/${jobId}/results/${resultId}/unresolved`),
+    {
+      method: "POST",
+      token,
+      body: {
+        reason,
+        ...(applicationId ? { application_id: applicationId } : {}),
+      },
     },
   )
 }

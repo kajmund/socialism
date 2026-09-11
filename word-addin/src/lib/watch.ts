@@ -1,9 +1,14 @@
 import type { ReviewResult, WatchEvent } from "@/lib/types"
 
+export function canAutoApply(result: ReviewResult): boolean {
+  return result.status === "pending"
+}
+
 export function shouldInsertComment(
   insertedIds: ReadonlySet<string>,
   result: ReviewResult,
 ): boolean {
+  if (!canAutoApply(result)) return false
   if (insertedIds.has(result.id)) return false
   if (result.comment_id) return false
   if (result.is_rewrite_suggestion) {
@@ -50,7 +55,7 @@ function actionsForResults(
   insertedIds: ReadonlySet<string>,
 ): WatchAction[] {
   const remember = results
-    .filter((row) => row.comment_id || insertedIds.has(row.id))
+    .filter((row) => !canAutoApply(row) || row.comment_id || insertedIds.has(row.id))
     .map((row) => row.id)
   const insert = results.filter((row) => shouldInsertComment(insertedIds, row))
   const actions: WatchAction[] = []

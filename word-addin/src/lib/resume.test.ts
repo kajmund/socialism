@@ -22,7 +22,7 @@ function result(overrides: Partial<ReviewResult> = {}): ReviewResult {
     kommentar: "Text",
     is_heading_suggestion: false,
     comment_id: "word-1",
-    status: "posted",
+    status: "applied",
     ...overrides,
   }
 }

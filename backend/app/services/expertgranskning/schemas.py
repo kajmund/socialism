@@ -74,6 +74,13 @@ class ExpertgranskningSessionSummary(BaseModel):
     updated_at: str
 
 
+def _optional_local_id(value: object) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
 class WordDocumentParagraph(BaseModel):
     """Raw Word paragraph. Server owns the skip filter."""
 
@@ -81,6 +88,7 @@ class WordDocumentParagraph(BaseModel):
     text: str = Field(max_length=WORD_MAX_PARAGRAPH_LEN)
     style: str = Field(default="", max_length=WORD_MAX_STYLE_LEN)
     list_string: str = Field(default="", max_length=64)
+    unique_local_id: str | None = Field(default=None, max_length=64)
 
     @field_validator("text", "style", "list_string", mode="before")
     @classmethod
@@ -89,11 +97,17 @@ class WordDocumentParagraph(BaseModel):
             return ""
         return str(value)
 
+    @field_validator("unique_local_id", mode="before")
+    @classmethod
+    def empty_local_id(cls, value: object) -> str | None:
+        return _optional_local_id(value)
+
 
 class WordDocumentSection(BaseModel):
     heading: str = Field(default="", max_length=WORD_MAX_HEADING_LEN)
     heading_style: str = Field(default="", max_length=WORD_MAX_STYLE_LEN)
     heading_paragraph_index: int
+    heading_unique_local_id: str | None = Field(default=None, max_length=64)
     paragraphs: list[WordDocumentParagraph] = Field(
         default_factory=list,
         max_length=WORD_MAX_PARAGRAPHS_PER_SECTION,
@@ -105,6 +119,11 @@ class WordDocumentSection(BaseModel):
         if value is None:
             return ""
         return str(value)
+
+    @field_validator("heading_unique_local_id", mode="before")
+    @classmethod
+    def empty_heading_local_id(cls, value: object) -> str | None:
+        return _optional_local_id(value)
 
 
 def _bound_word_sections(sections: list[WordDocumentSection]) -> None:
@@ -290,6 +309,45 @@ class ExpertgranskningResultPatch(BaseModel):
     comment_id: str = Field(min_length=1, max_length=128)
 
 
+class WordAnchorOut(BaseModel):
+    paragraph_index: int
+    unique_local_id: str | None = None
+    reviewed_text: str
+    text_hash: str
+    previous_text_hash: str | None = None
+    next_text_hash: str | None = None
+
+
+class WordApplicationClaimIn(BaseModel):
+    application_id: str = Field(min_length=1, max_length=64)
+
+
+class WordApplicationCompleteIn(BaseModel):
+    application_id: str = Field(min_length=1, max_length=64)
+    comment_id: str | None = Field(default=None, max_length=128)
+
+    @field_validator("comment_id", mode="before")
+    @classmethod
+    def empty_comment_id(cls, value: object) -> str | None:
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None
+
+
+class WordApplicationUnresolvedIn(BaseModel):
+    application_id: str | None = Field(default=None, max_length=64)
+    reason: str = Field(min_length=1, max_length=64)
+
+    @field_validator("application_id", mode="before")
+    @classmethod
+    def empty_application_id(cls, value: object) -> str | None:
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None
+
+
 class ExpertgranskningResultOut(BaseModel):
     id: str
     job_id: str
@@ -303,7 +361,10 @@ class ExpertgranskningResultOut(BaseModel):
     is_rewrite_suggestion: bool = False
     foreslagen_text: str | None = None
     reviewed_text: str | None = None
+    anchor: WordAnchorOut | None = None
     comment_id: str | None
+    application_id: str | None = None
+    application_error: str | None = None
     status: str
     created_at: str
 
