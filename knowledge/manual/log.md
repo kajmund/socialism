@@ -2,6 +2,7 @@
 
 ## 2026-09-11
 
+* **Navigering**: Klick på **Due Diligence** behåller de andra menyvalen (politisk simulering, Expertgranskning, Rättsunderlag med mera) när kontot har flera moduler. En inloggning som bara har Due Diligence ser fortfarande bara den menyn.
 * **Execution**: Fryst underlag gör inte en expert kompetent. Saknas rätt sakkompetens på panelen lämnas frågan obesvarad. En kompetent expert som avstår är inte samma sak.
 * **Expertgranskning i Word**: Varje kommentar fästs vid det stycke som bär observationen. Kommentarerna använder dokumentets partsnamn och antar inte att du är kund eller leverantör.
 
