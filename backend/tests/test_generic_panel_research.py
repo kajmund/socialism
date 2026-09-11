@@ -12,10 +12,10 @@ from app.llm import set_structured_completer, set_text_completer, set_tools_comp
 from app.services import research as shared_research
 from app.services.panel.engine import run_generic_panel
 from app.services.panel.research import (
+    RESEARCH_SOURCE_TYPES,
     ConsolidatedResearchNeed,
     ExpertResearchNeeds,
     ModeratorResearchPlan,
-    RESEARCH_SOURCE_TYPES,
     ResearchNeed,
     ResearchNeedDraft,
     ResearchPlan,
@@ -30,7 +30,6 @@ from app.services.panel.research import (
     requested_by_from_proposals,
     source_types_from_proposals,
 )
-from app.services.research import InvalidResearchPlanError
 from app.services.panel.schemas import (
     PanelExpertSlot,
     PanelSessionConfig,
@@ -40,6 +39,7 @@ from app.services.panel.schemas import (
 from app.services.panel.sessions import create_panel_session, get_panel_session
 from app.services.panel.synthesis import GenericPanelSynthesis, public_transcript_text
 from app.services.prompt_catalog import default_prompts, render_prompt
+from app.services.research import InvalidResearchPlanError
 
 _BACKEND_ROOT = Path(__file__).resolve().parents[1]
 
