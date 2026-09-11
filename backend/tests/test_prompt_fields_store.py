@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
@@ -160,6 +160,46 @@ async def test_ensure_prompt_field_defaults_inserts_once(session: AsyncSession):
     rows = await get_prompt_fields(session, "dd")
     assert {row.key for row in rows} == {field["key"] for field in specs}
     assert await get_prompt_fields(session, "politik") == []
+
+
+@pytest.mark.asyncio
+async def test_research_plan_prompt_migration_overwrites_insert_only_default(
+    session: AsyncSession,
+):
+    await ensure_prompt_field_defaults(session, "dd", dd_prompt_defaults())
+    row = await get_prompt_field_by_key(session, "panel.moderator.research_plan")
+    assert row is not None
+    row.default_sv = "Ta bort irrelevanta eller spekulativa behov."
+    row.default_en = "Drop irrelevant or speculative needs."
+    row.default_nb = row.default_sv
+    await session.commit()
+
+    assert await ensure_prompt_field_defaults(session, "dd", dd_prompt_defaults()) == 0
+    await session.refresh(row)
+    assert "Ta bort irrelevanta" in row.default_sv
+
+    defaults = next(
+        field["defaults"]
+        for field in PROMPT_FIELDS
+        if field["key"] == "panel.moderator.research_plan"
+    )
+    await session.execute(
+        text(
+            "UPDATE prompt_fields "
+            "SET default_sv = :sv, default_en = :en, default_nb = :nb "
+            "WHERE key = :key"
+        ),
+        {
+            "sv": defaults["sv"],
+            "en": defaults["en"],
+            "nb": defaults["nb"],
+            "key": "panel.moderator.research_plan",
+        },
+    )
+    await session.commit()
+    await session.refresh(row)
+    assert "exakt en gång" in row.default_sv
+    assert "Ta bort irrelevanta" not in row.default_sv
 
 
 @pytest.mark.asyncio
