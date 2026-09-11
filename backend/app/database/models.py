@@ -1215,6 +1215,8 @@ class ExpertgranskningResult(Base):
     )
     foreslagen_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     comment_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    application_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    application_error: Mapped[str | None] = mapped_column(String(64), nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

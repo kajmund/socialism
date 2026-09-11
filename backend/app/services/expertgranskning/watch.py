@@ -11,7 +11,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import ExpertgranskningResult, Job
 from app.services.expertgranskning import WORD_JOB_KIND
 from app.realtime.expertgranskning_broadcast import expertgranskning_broadcast
-from app.services.expertgranskning.schemas import ExpertgranskningResultOut
+from app.services.expertgranskning.schemas import ExpertgranskningResultOut, WordAnchorOut
+from app.services.word.anchors import (
+    reviewed_text_from_job_request,
+    word_anchor_from_job_request,
+)
 
 
 def _result_created_at(value: datetime | None) -> str:
@@ -22,32 +26,11 @@ def _result_created_at(value: datetime | None) -> str:
     return value.isoformat()
 
 
-def reviewed_text_from_job_request(
-    request: dict | None, paragraph_index: int
-) -> str | None:
-    if not request:
-        return None
-    heading_hit: str | None = None
-    for section in request.get("sections") or []:
-        if not isinstance(section, dict):
-            continue
-        for paragraph in section.get("paragraphs") or []:
-            if not isinstance(paragraph, dict):
-                continue
-            if paragraph.get("index") == paragraph_index:
-                text = paragraph.get("text")
-                return text if isinstance(text, str) else None
-        if section.get("heading_paragraph_index") == paragraph_index:
-            heading = section.get("heading")
-            if isinstance(heading, str):
-                heading_hit = heading
-    return heading_hit
-
-
 def serialize_result(
     row: ExpertgranskningResult,
     request: dict | None = None,
 ) -> ExpertgranskningResultOut:
+    anchor = word_anchor_from_job_request(request, row.paragraph_index)
     return ExpertgranskningResultOut(
         id=row.id,
         job_id=row.job_id,
@@ -61,7 +44,19 @@ def serialize_result(
         is_rewrite_suggestion=row.is_rewrite_suggestion,
         foreslagen_text=row.foreslagen_text,
         reviewed_text=reviewed_text_from_job_request(request, row.paragraph_index),
+        anchor=None
+        if anchor is None
+        else WordAnchorOut(
+            paragraph_index=anchor.paragraph_index,
+            unique_local_id=anchor.unique_local_id,
+            reviewed_text=anchor.reviewed_text,
+            text_hash=anchor.text_hash,
+            previous_text_hash=anchor.previous_text_hash,
+            next_text_hash=anchor.next_text_hash,
+        ),
         comment_id=row.comment_id,
+        application_id=row.application_id,
+        application_error=row.application_error,
         status=row.status,
         created_at=_result_created_at(row.created_at),
     )

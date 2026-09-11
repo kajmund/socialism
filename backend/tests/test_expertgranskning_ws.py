@@ -195,6 +195,6 @@ async def test_word_result_patch_emits_updated(client: AsyncClient, monkeypatch)
         assert len(updated) == 1
         assert updated[0]["job_id"] == job_id
         assert updated[0]["result"]["comment_id"] == "word-comment-ws"
-        assert updated[0]["result"]["status"] == "posted"
+        assert updated[0]["result"]["status"] == "applied"
     finally:
         jobs_service.set_schedule_hook(None)

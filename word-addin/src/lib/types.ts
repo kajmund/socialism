@@ -3,13 +3,24 @@ export type WordParagraph = {
   text: string
   style: string
   list_string: string
+  unique_local_id?: string | null
 }
 
 export type WordDocumentSection = {
   heading: string
   heading_style: string
   heading_paragraph_index: number
+  heading_unique_local_id?: string | null
   paragraphs: WordParagraph[]
+}
+
+export type WordAnchor = {
+  paragraph_index: number
+  unique_local_id?: string | null
+  reviewed_text: string
+  text_hash: string
+  previous_text_hash?: string | null
+  next_text_hash?: string | null
 }
 
 export type ExpertPanelSummary = {
@@ -29,7 +40,10 @@ export type ReviewResult = {
   is_rewrite_suggestion?: boolean
   foreslagen_text?: string | null
   reviewed_text?: string | null
+  anchor?: WordAnchor | null
   comment_id: string | null
+  application_id?: string | null
+  application_error?: string | null
   status: string
 }
 
