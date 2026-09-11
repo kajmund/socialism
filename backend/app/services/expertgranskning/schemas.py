@@ -145,10 +145,11 @@ def _bound_word_sections(sections: list[WordDocumentSection]) -> None:
 class ExpertgranskningWordJobCreate(BaseModel):
     panel_id: int
     doc_id: str | None = Field(default=None, max_length=128)
+    word_session_id: str | None = Field(default=None, max_length=64)
     sections: list[WordDocumentSection] = Field(min_length=1, max_length=WORD_MAX_SECTIONS)
     locale: ConfigurationLanguage = "sv"
 
-    @field_validator("doc_id", mode="before")
+    @field_validator("doc_id", "word_session_id", mode="before")
     @classmethod
     def empty_doc_id(cls, value: object) -> str | None:
         if value is None:
@@ -169,8 +170,17 @@ class ExpertgranskningWordJobRequest(BaseModel):
     customer_id: int
     owner_user_id: str
     doc_id: str | None = Field(default=None, max_length=128)
+    word_session_id: str | None = Field(default=None, max_length=64)
     sections: list[WordDocumentSection] = Field(min_length=1, max_length=WORD_MAX_SECTIONS)
     locale: ConfigurationLanguage = "sv"
+
+    @field_validator("word_session_id", mode="before")
+    @classmethod
+    def empty_session_id(cls, value: object) -> str | None:
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None
 
     @model_validator(mode="after")
     def bound_document(self) -> ExpertgranskningWordJobRequest:
@@ -305,10 +315,6 @@ class WordHeadingAssessment(BaseModel):
         return text or None
 
 
-class ExpertgranskningResultPatch(BaseModel):
-    comment_id: str = Field(min_length=1, max_length=128)
-
-
 class WordAnchorOut(BaseModel):
     paragraph_index: int
     unique_local_id: str | None = None
@@ -316,6 +322,7 @@ class WordAnchorOut(BaseModel):
     text_hash: str
     previous_text_hash: str | None = None
     next_text_hash: str | None = None
+    word_session_id: str | None = None
 
 
 class WordApplicationClaimIn(BaseModel):

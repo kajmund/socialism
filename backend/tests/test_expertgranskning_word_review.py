@@ -2270,12 +2270,18 @@ async def test_word_review_patch_comment_id(client: AsyncClient):
     assert listed[0]["anchor"]["reviewed_text"] == listed[0]["reviewed_text"]
     assert listed[0]["anchor"]["text_hash"]
     row_id = listed[0]["id"]
-    patched = await client.patch(
-        f"/expertgranskning/word-jobs/{job_id}/results/{row_id}",
-        json={"comment_id": "w-1"},
+    claimed = await client.post(
+        f"/expertgranskning/word-jobs/{job_id}/results/{row_id}/claim",
+        json={"application_id": "app-patch"},
     )
-    assert patched.status_code == 200
-    assert patched.json()["comment_id"] == "w-1"
+    assert claimed.status_code == 200
+    completed = await client.post(
+        f"/expertgranskning/word-jobs/{job_id}/results/{row_id}/complete",
+        json={"application_id": "app-patch", "comment_id": "w-1"},
+    )
+    assert completed.status_code == 200
+    assert completed.json()["comment_id"] == "w-1"
+    assert completed.json()["status"] == "applied"
 
 
 @pytest.mark.asyncio

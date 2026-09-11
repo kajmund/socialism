@@ -7,6 +7,7 @@ export type WordAnchor = {
   text_hash: string
   previous_text_hash?: string | null
   next_text_hash?: string | null
+  word_session_id?: string | null
 }
 
 export type WordDocumentParagraphState = {
@@ -33,6 +34,16 @@ function optionalId(value: string | null | undefined): string | null {
   if (value == null) return null
   const text = value.trim()
   return text || null
+}
+
+export function sameWordSession(
+  captured: string | null | undefined,
+  current: string | null | undefined,
+): boolean {
+  const capturedId = optionalId(captured)
+  const currentId = optionalId(current)
+  if (capturedId == null && currentId == null) return true
+  return capturedId != null && capturedId === currentId
 }
 
 function neighborHashes(
@@ -62,12 +73,13 @@ function contextMatches(
 export function resolveWordAnchor(
   anchor: WordAnchor,
   current: readonly WordDocumentParagraphState[],
+  currentSessionId?: string | null,
 ): WordAnchorResolution {
   const reviewed = normalizeWordText(anchor.reviewed_text)
   if (!reviewed) return { status: "missing" }
 
   const localId = optionalId(anchor.unique_local_id)
-  if (localId) {
+  if (localId && sameWordSession(anchor.word_session_id, currentSessionId)) {
     const hit = current.find((paragraph) => optionalId(paragraph.unique_local_id) === localId)
     if (hit) {
       if (normalizeWordText(hit.text) === reviewed) {

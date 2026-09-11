@@ -26,6 +26,7 @@ class WordAnchor:
     unique_local_id: str | None = None
     previous_text_hash: str | None = None
     next_text_hash: str | None = None
+    word_session_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -101,6 +102,7 @@ def snapshot_paragraphs_from_request(request: dict | None) -> list[_SnapshotItem
 def word_anchor_from_snapshot_item(
     items: list[_SnapshotItem],
     position: int,
+    word_session_id: str | None = None,
 ) -> WordAnchor:
     item = items[position]
     previous_hash = hash_word_text(items[position - 1].text) if position > 0 else None
@@ -114,6 +116,7 @@ def word_anchor_from_snapshot_item(
         text_hash=hash_word_text(item.text),
         previous_text_hash=previous_hash,
         next_text_hash=next_hash,
+        word_session_id=word_session_id,
     )
 
 
@@ -122,10 +125,22 @@ def word_anchor_from_job_request(
     paragraph_index: int,
 ) -> WordAnchor | None:
     items = snapshot_paragraphs_from_request(request)
+    session_id = _optional_id((request or {}).get("word_session_id"))
     for position, item in enumerate(items):
         if item.paragraph_index == paragraph_index:
-            return word_anchor_from_snapshot_item(items, position)
+            return word_anchor_from_snapshot_item(
+                items, position, word_session_id=session_id
+            )
     return None
+
+
+def same_word_session(
+    captured: str | None,
+    current: str | None,
+) -> bool:
+    if captured is None and current is None:
+        return True
+    return captured is not None and captured == current
 
 
 def reviewed_text_from_job_request(
@@ -164,6 +179,7 @@ def _context_matches(
 def resolve_word_anchor(
     anchor: WordAnchor,
     current: list[WordDocumentParagraphState],
+    current_session_id: str | None = None,
 ) -> WordAnchorResolution:
     reviewed = normalize_word_text(anchor.reviewed_text)
     if not reviewed:
@@ -174,7 +190,9 @@ def resolve_word_anchor(
         for paragraph in current
         if paragraph.unique_local_id
     }
-    if anchor.unique_local_id:
+    if anchor.unique_local_id and same_word_session(
+        anchor.word_session_id, current_session_id
+    ):
         hit = by_local_id.get(anchor.unique_local_id)
         if hit is not None:
             if normalize_word_text(hit.text) == reviewed:
