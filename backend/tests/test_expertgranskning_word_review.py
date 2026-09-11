@@ -9,6 +9,8 @@ from httpx import AsyncClient
 from sqlalchemy import select
 
 from app.database.models import ExpertgranskningResult, PanelSession
+from pydantic import ValidationError
+
 from app.llm import set_structured_completer
 from app.services import jobs as jobs_service
 from app.services.expertgranskning import WORD_JOB_KIND
@@ -41,11 +43,18 @@ from app.services.expertgranskning.word_review import (
     accepted_review_questions,
     build_batches,
     is_heading_1_to_3,
+    resolve_comment_anchor,
     rewrite_suggestion_or_none,
     selected_review_questions,
     should_review_paragraph,
     word_paragraph_review,
 )
+from app.services.expertgranskning.word_structured import (
+    complete_word_structured,
+    is_json_syntax_validation_error,
+    validation_category,
+)
+from app.services.prompt_catalog import default_prompts, render_prompt
 from app.services.kund_store import BOLAG_DEMO_KUND_SLUG
 from tests.conftest import (
     BOLAG_USER_ID,
@@ -569,6 +578,27 @@ def test_supporting_experts_keep_all_grouped_members():
     assert comments[0].expert_namn == "Frank, Roger, Nils, Daniel"
 
 
+def test_convergence_cannot_invent_unrelated_paragraph():
+    observations = [
+        _obs(observation_id="o1", paragraph_index=1, list_string="8."),
+        _obs(observation_id="o2", paragraph_index=2, list_string="8.1."),
+    ]
+    parsed = WordCommentConvergence(
+        issues=[
+            WordConvergedIssue(
+                observation_ids=["o1", "o2"],
+                paragraph_index=99,
+                supporting_expert_ids=["frank"],
+                kommentar="Ska stanna på de grupperade ankaren.",
+            )
+        ]
+    )
+    comments = apply_word_comment_convergence(observations, parsed)
+    assert len(comments) == 1
+    assert comments[0].paragraph_index == 2
+    assert comments[0].paragraph_index != 99
+
+
 def test_negated_reject_preserves_dissensus():
     accept = "Räntan är inte för hög och kan godtas."
     reject = "Räntan är för hög och bör sänkas."
@@ -662,6 +692,160 @@ def test_preserved_dissensus_is_not_merged_away():
     assert "acceptabel" in by_expert["roger"]
     assert "godtagbart" in by_expert["nils"]
     assert "sänks" in by_expert["daniel"]
+
+
+def _truncated_expert_json_error() -> ValidationError:
+    with pytest.raises(ValidationError) as caught:
+        WordExpertComment.model_validate_json('{"kommentar": "Immaterialrätt')
+    return caught.value
+
+
+def test_json_syntax_error_is_detected_for_truncated_object():
+    assert is_json_syntax_validation_error(_truncated_expert_json_error())
+    with pytest.raises(ValidationError) as caught:
+        WordExpertComment.model_validate({"anchor_paragraph_index": "nej"})
+    assert not is_json_syntax_validation_error(caught.value)
+
+
+def test_resolve_comment_anchor_uses_explicit_and_single_index():
+    question = WordReviewQuestion(
+        id="q1",
+        paragraph_indexes=[10, 11],
+        question="IP?",
+    )
+    assert (
+        resolve_comment_anchor(
+            question,
+            WordExpertComment(kommentar="x", anchor_paragraph_index=10),
+        )
+        == 10
+    )
+    assert (
+        resolve_comment_anchor(
+            question,
+            WordExpertComment(kommentar="x", anchor_paragraph_index=99),
+        )
+        is None
+    )
+    assert (
+        resolve_comment_anchor(
+            question,
+            WordExpertComment(kommentar="x"),
+        )
+        is None
+    )
+    single = WordReviewQuestion(id="q2", paragraph_indexes=[4], question="En?")
+    assert (
+        resolve_comment_anchor(single, WordExpertComment(kommentar="x")) == 4
+    )
+    assert (
+        resolve_comment_anchor(
+            question,
+            WordExpertComment.model_validate(
+                {"kommentar": "x", "anchor_paragraph_index": ""}
+            ),
+        )
+        is None
+    )
+
+
+def test_word_comment_prompt_stays_party_neutral():
+    text = render_prompt(
+        default_prompts("sv"),
+        "expertgranskning.word.expert.comment",
+        label="Jurist",
+        profile="Jurist",
+        paragraph_text="Kunden ska betala.",
+        list_string="3.1.",
+        section_heading="Avtal",
+        question="Vem bär risken?",
+        why_it_matters="Partsneutral läsning.",
+        allowed_paragraph_indexes="3",
+    )
+    assert "Granskande part är okänd" in text
+    assert "Leverantören" in text
+    assert "Beställaren" in text
+    assert "Skriv inte för er som kund" in text
+    synthesis = default_prompts("sv")["expertgranskning.word.comment_convergence"]
+    assert "Granskande part är okänd" in synthesis
+    assert "Vänd inte på dokumentfakta" in synthesis
+
+
+@pytest.mark.asyncio
+async def test_word_structured_retries_truncated_json_once(caplog):
+    calls = 0
+
+    async def completer(messages, response_model):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise _truncated_expert_json_error()
+        assert any(
+            "ogiltig JSON" in (message.get("content") or "")
+            for message in messages
+        )
+        return WordExpertComment(
+            kommentar="Komplett IP-bedömning.",
+            anchor_paragraph_index=1,
+        )
+
+    set_structured_completer(completer)
+    with caplog.at_level("INFO"):
+        parsed = await complete_word_structured(
+            [{"role": "user", "content": "kommentera"}],
+            WordExpertComment,
+            prompts=default_prompts("sv"),
+        )
+    assert parsed.kommentar == "Komplett IP-bedömning."
+    assert calls == 2
+    logged = " ".join(record.getMessage() for record in caplog.records)
+    assert "schema=WordExpertComment" in logged
+    assert "attempt=1" in logged
+    assert "category=json_invalid" in logged
+    assert "Immaterialrätt" not in logged
+    assert '{"kommentar"' not in logged
+
+
+@pytest.mark.asyncio
+async def test_word_structured_second_json_error_propagates():
+    calls = 0
+
+    async def completer(messages, response_model):
+        nonlocal calls
+        calls += 1
+        raise _truncated_expert_json_error()
+
+    set_structured_completer(completer)
+    with pytest.raises(ValidationError) as caught:
+        await complete_word_structured(
+            [{"role": "user", "content": "kommentera"}],
+            WordExpertComment,
+            prompts=default_prompts("sv"),
+        )
+    assert is_json_syntax_validation_error(caught.value)
+    assert validation_category(caught.value) == "json_invalid"
+    assert calls == 2
+
+
+@pytest.mark.asyncio
+async def test_word_structured_does_not_retry_semantic_validation():
+    calls = 0
+
+    async def completer(messages, response_model):
+        nonlocal calls
+        calls += 1
+        WordExpertComment.model_validate({"anchor_paragraph_index": "nej"})
+        raise AssertionError("should have failed")
+
+    set_structured_completer(completer)
+    with pytest.raises(ValidationError) as caught:
+        await complete_word_structured(
+            [{"role": "user", "content": "kommentera"}],
+            WordExpertComment,
+            prompts=default_prompts("sv"),
+        )
+    assert not is_json_syntax_validation_error(caught.value)
+    assert calls == 1
 
 
 @pytest.mark.asyncio
@@ -1112,7 +1296,10 @@ async def test_word_review_question_can_span_paragraphs(client: AsyncClient):
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
-            return WordExpertComment(kommentar="Tidsfrist och påföljd behöver samordnas.")
+            return WordExpertComment(
+                kommentar="Tidsfrist och påföljd behöver samordnas.",
+                anchor_paragraph_index=2,
+            )
         if response_model is WordHeadingAssessment:
             return WordHeadingAssessment(forslag=None)
         if response_model is WordRewriteSuggestion:
@@ -1364,7 +1551,8 @@ async def test_word_review_intra_expert_duplicate_writes_one_comment(
             return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
             return WordExpertComment(
-                kommentar="Tidsallokeringen är otydlig och bör preciseras."
+                kommentar="Tidsallokeringen är otydlig och bör preciseras.",
+                anchor_paragraph_index=2,
             )
         if response_model is WordHeadingAssessment:
             return WordHeadingAssessment(forslag=None)
@@ -1678,6 +1866,261 @@ async def test_word_review_preserves_dissensus_as_separate_comments(
     texts = " ".join(row["kommentar"] for row in comments)
     assert "acceptabel" in texts
     assert "sänks" in texts
+
+
+@pytest.mark.asyncio
+async def test_word_review_retries_truncated_comment_json(client: AsyncClient):
+    comment_calls = 0
+
+    async def completer(messages, response_model):
+        nonlocal comment_calls
+        if response_model is WordBatchModeration:
+            return _moderation_for_batch(messages[-1]["content"])
+        if response_model is WordExpertRaiseHand:
+            return WordExpertRaiseHand(question_ids=["q1"])
+        if response_model is WordExpertComment:
+            comment_calls += 1
+            if comment_calls == 1:
+                raise _truncated_expert_json_error()
+            return WordExpertComment(
+                kommentar="Immaterialrättsklausulen är för vid.",
+                anchor_paragraph_index=1,
+            )
+        if response_model is WordHeadingAssessment:
+            return WordHeadingAssessment(forslag=None)
+        if response_model is WordCommentConvergence:
+            return _passthrough_comment_convergence(messages[-1]["content"])
+        raise AssertionError(response_model)
+
+    panel_id = await _create_expert_panel(client, n=1)
+    set_structured_completer(completer)
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    created = await client.post(
+        "/expertgranskning/word-jobs",
+        json=_payload(
+            panel_id=panel_id,
+            paragraphs=[
+                _para(1, "Leverantören behåller all immaterialrätt till underlaget.")
+            ],
+        ),
+    )
+    job_id = created.json()["job_id"]
+    await jobs_service._run_job(job_id)
+    rows = (await client.get(f"/expertgranskning/word-jobs/{job_id}/results")).json()
+    comments = [
+        row
+        for row in rows
+        if not row["is_heading_suggestion"] and not row["is_rewrite_suggestion"]
+    ]
+    assert comment_calls == 2
+    assert [row["kommentar"] for row in comments] == [
+        "Immaterialrättsklausulen är för vid."
+    ]
+    assert comments[0]["paragraph_index"] == 1
+
+
+@pytest.mark.asyncio
+async def test_word_review_second_truncated_comment_fails_job(client: AsyncClient):
+    async def completer(messages, response_model):
+        if response_model is WordBatchModeration:
+            return _moderation_for_batch(messages[-1]["content"])
+        if response_model is WordExpertRaiseHand:
+            return WordExpertRaiseHand(question_ids=["q1"])
+        if response_model is WordExpertComment:
+            raise _truncated_expert_json_error()
+        if response_model is WordHeadingAssessment:
+            return WordHeadingAssessment(forslag=None)
+        raise AssertionError(response_model)
+
+    panel_id = await _create_expert_panel(client, n=1)
+    set_structured_completer(completer)
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    created = await client.post(
+        "/expertgranskning/word-jobs",
+        json=_payload(
+            panel_id=panel_id,
+            paragraphs=[
+                _para(1, "Leverantören behåller all immaterialrätt till underlaget.")
+            ],
+        ),
+    )
+    job_id = created.json()["job_id"]
+    await jobs_service._run_job(job_id)
+    job = (await client.get(f"/jobs/{job_id}")).json()
+    assert job["status"] == "failed"
+    rows = (await client.get(f"/expertgranskning/word-jobs/{job_id}/results")).json()
+    comments = [
+        row
+        for row in rows
+        if not row["is_heading_suggestion"] and not row["is_rewrite_suggestion"]
+    ]
+    assert comments == []
+    assert all("Immaterialrätt" not in (row.get("kommentar") or "") for row in rows)
+
+
+@pytest.mark.asyncio
+async def test_word_review_never_persists_anchor_outside_question_indexes(
+    client: AsyncClient,
+):
+    async def completer(messages, response_model):
+        if response_model is WordBatchModeration:
+            return WordBatchModeration(
+                needs_review=True,
+                reason="Flera stycken.",
+                questions=[
+                    WordReviewQuestion(
+                        id="q1",
+                        paragraph_indexes=[1, 2, 3],
+                        question="Vad bör kommenteras?",
+                        why_it_matters="Fel ankare får inte sparas.",
+                    )
+                ],
+            )
+        if response_model is WordExpertRaiseHand:
+            return WordExpertRaiseHand(question_ids=["q1"])
+        if response_model is WordExpertComment:
+            return WordExpertComment(
+                kommentar="Felankrad kommentar",
+                anchor_paragraph_index=99,
+            )
+        if response_model is WordHeadingAssessment:
+            return WordHeadingAssessment(forslag=None)
+        raise AssertionError(response_model)
+
+    panel_id = await _create_expert_panel(client, n=1)
+    set_structured_completer(completer)
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    created = await client.post(
+        "/expertgranskning/word-jobs",
+        json=_payload(
+            panel_id=panel_id,
+            paragraphs=[
+                _para(1, "Leverantören behåller all immaterialrätt till underlaget."),
+                _para(2, "Beställaren ska betala fakturan inom trettio dagar."),
+                _para(3, "Avtalet gäller i tolv månader från undertecknandet."),
+            ],
+        ),
+    )
+    job_id = created.json()["job_id"]
+    await jobs_service._run_job(job_id)
+    rows = (await client.get(f"/expertgranskning/word-jobs/{job_id}/results")).json()
+    comments = [
+        row
+        for row in rows
+        if not row["is_heading_suggestion"] and not row["is_rewrite_suggestion"]
+    ]
+    assert comments == []
+    assert all(row["paragraph_index"] != 99 for row in rows)
+
+
+@pytest.mark.asyncio
+async def test_word_review_uses_explicit_anchor_and_drops_invalid(
+    client: AsyncClient,
+):
+    async def completer(messages, response_model):
+        user = messages[-1]["content"]
+        if response_model is WordBatchModeration:
+            return WordBatchModeration(
+                needs_review=True,
+                reason="IP och betalning.",
+                questions=[
+                    WordReviewQuestion(
+                        id="q1",
+                        paragraph_indexes=[1, 2, 3],
+                        question="Var sitter immaterialrätten?",
+                        why_it_matters="Fel ankare flyttar kommentaren.",
+                    )
+                ],
+            )
+        if response_model is WordExpertRaiseHand:
+            return WordExpertRaiseHand(question_ids=["q1"])
+        if response_model is WordExpertComment:
+            if "behåller all immaterialrätt" in user:
+                return WordExpertComment(
+                    kommentar="IP-klausulen är för vid.",
+                    anchor_paragraph_index=1,
+                )
+            return WordExpertComment(kommentar="x", anchor_paragraph_index=99)
+        if response_model is WordHeadingAssessment:
+            return WordHeadingAssessment(forslag=None)
+        if response_model is WordCommentConvergence:
+            return _passthrough_comment_convergence(user)
+        raise AssertionError(response_model)
+
+    panel_id = await _create_expert_panel(client, n=1)
+    set_structured_completer(completer)
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    created = await client.post(
+        "/expertgranskning/word-jobs",
+        json=_payload(
+            panel_id=panel_id,
+            paragraphs=[
+                _para(1, "Leverantören behåller all immaterialrätt till underlaget."),
+                _para(2, "Beställaren ska betala fakturan inom trettio dagar."),
+                _para(3, "Avtalet gäller i tolv månader från undertecknandet."),
+            ],
+        ),
+    )
+    job_id = created.json()["job_id"]
+    await jobs_service._run_job(job_id)
+    rows = (await client.get(f"/expertgranskning/word-jobs/{job_id}/results")).json()
+    comments = [
+        row
+        for row in rows
+        if not row["is_heading_suggestion"] and not row["is_rewrite_suggestion"]
+    ]
+    assert [row["paragraph_index"] for row in comments] == [1]
+    assert comments[0]["kommentar"] == "IP-klausulen är för vid."
+
+
+@pytest.mark.asyncio
+async def test_word_review_drops_multi_paragraph_comment_without_anchor(
+    client: AsyncClient,
+):
+    async def completer(messages, response_model):
+        if response_model is WordBatchModeration:
+            return WordBatchModeration(
+                needs_review=True,
+                reason="Flera stycken.",
+                questions=[
+                    WordReviewQuestion(
+                        id="q1",
+                        paragraph_indexes=[1, 2],
+                        question="Hör tidsfrist och påföljd ihop?",
+                        why_it_matters="Ankare krävs.",
+                    )
+                ],
+            )
+        if response_model is WordExpertRaiseHand:
+            return WordExpertRaiseHand(question_ids=["q1"])
+        if response_model is WordExpertComment:
+            return WordExpertComment(kommentar="Ska inte gissas till fel stycke.")
+        if response_model is WordHeadingAssessment:
+            return WordHeadingAssessment(forslag=None)
+        raise AssertionError(response_model)
+
+    panel_id = await _create_expert_panel(client, n=1)
+    set_structured_completer(completer)
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    created = await client.post(
+        "/expertgranskning/word-jobs",
+        json=_payload(
+            panel_id=panel_id,
+            paragraphs=[
+                _para(1, "Beställaren ska betala fakturan inom trettio dagar."),
+                _para(2, "Avtalet gäller i tolv månader från undertecknandet."),
+            ],
+        ),
+    )
+    job_id = created.json()["job_id"]
+    await jobs_service._run_job(job_id)
+    rows = (await client.get(f"/expertgranskning/word-jobs/{job_id}/results")).json()
+    comments = [
+        row
+        for row in rows
+        if not row["is_heading_suggestion"] and not row["is_rewrite_suggestion"]
+    ]
+    assert comments == []
 
 
 @pytest.mark.asyncio
