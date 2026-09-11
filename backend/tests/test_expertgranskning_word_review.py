@@ -765,7 +765,7 @@ def test_word_comment_prompt_stays_party_neutral():
     assert "Granskande part är okänd" in text
     assert "Leverantören" in text
     assert "Beställaren" in text
-    assert "Skriv inte för er som kund" in text
+    assert "skriv inte för er som kund" in text
     synthesis = default_prompts("sv")["expertgranskning.word.comment_convergence"]
     assert "Granskande part är okänd" in synthesis
     assert "Vänd inte på dokumentfakta" in synthesis
