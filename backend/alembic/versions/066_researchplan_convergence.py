@@ -1,7 +1,7 @@
 """Update persisted panel.moderator.research_plan defaults.
 
-Revision ID: 064_researchplan_convergence
-Revises: 063_panel_competency_state
+Revision ID: 066_researchplan_convergence
+Revises: 065_word_comment_anchor_retry
 """
 
 from __future__ import annotations
@@ -13,8 +13,8 @@ from alembic import op
 
 from app.services.prompt_catalog import PROMPT_FIELDS
 
-revision: str = "064_researchplan_convergence"
-down_revision: Union[str, Sequence[str], None] = "063_panel_competency_state"
+revision: str = "066_researchplan_convergence"
+down_revision: Union[str, Sequence[str], None] = "065_word_comment_anchor_retry"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
