@@ -15,7 +15,12 @@ from app.llm import complete_structured
 from app.services.panel.competency import ExpertCompetency
 from app.services.panel.schemas import PanelExpertSlot, PanelSessionConfig
 from app.services.prompt_catalog import render_prompt
-from app.services.research import RESEARCH_SOURCE_TYPES, ResearchNeed, ResearchSourceType
+from app.services.research import (
+    RESEARCH_SOURCE_TYPES,
+    InvalidResearchPlanError,
+    ResearchNeed,
+    ResearchSourceType,
+)
 
 MISSING_EXPERTISE_SIGNAL = "Saknar domänkompetens. Kräver domänexpert."
 
@@ -101,6 +106,12 @@ class ResearchProposal(BaseModel):
 
 
 class ConsolidatedResearchNeed(BaseModel):
+    """Moderator grouping only. Code owns provenance and source types.
+
+    ``source_types`` is accepted for LLM schema compatibility and ignored
+    when the final ``ResearchNeed`` is built.
+    """
+
     question: str
     why_needed: str
     proposal_ids: list[str] = Field(default_factory=list)
@@ -129,16 +140,28 @@ class ModeratorResearchPlan(BaseModel):
 def assign_proposal_ids(
     proposals: Sequence[tuple[PanelExpertSlot, ExpertResearchNeeds]],
 ) -> tuple[list[ResearchProposal], list[PanelExpertSlot]]:
-    """Temporary proposal IDs are assigned in code — the LLM does not own them."""
+    """Temporary proposal IDs are assigned in code — the LLM does not own them.
+
+    Empty or whitespace-only questions are not real needs and get no id.
+    A real need without an allowed source type fails closed; code does
+    not invent a fallback source type.
+    """
     numbered: list[ResearchProposal] = []
     empty_slots: list[PanelExpertSlot] = []
     index = 1
     for slot, bundle in proposals:
-        if not bundle.has_domain_competence or not bundle.needs:
+        if not bundle.has_domain_competence:
             empty_slots.append(slot)
             continue
+        slot_proposals: list[ResearchProposal] = []
         for draft in bundle.needs:
-            numbered.append(
+            if not draft.question:
+                continue
+            if not draft.source_types:
+                raise InvalidResearchPlanError(
+                    "Research need must have at least one allowed source_type"
+                )
+            slot_proposals.append(
                 ResearchProposal(
                     proposal_id=f"proposal_{index}",
                     slot_id=slot.slot_id,
@@ -149,6 +172,10 @@ def assign_proposal_ids(
                 )
             )
             index += 1
+        if not slot_proposals:
+            empty_slots.append(slot)
+            continue
+        numbered.extend(slot_proposals)
     return numbered, empty_slots
 
 
@@ -162,6 +189,21 @@ def requested_by_from_proposals(
         for proposal_id in _unique_ids(proposal_ids)
         if proposal_id in by_id
     )
+
+
+def source_types_from_proposals(
+    proposal_ids: Sequence[str],
+    proposals: Sequence[ResearchProposal],
+) -> list[ResearchSourceType]:
+    """Deterministic union of source types from included proposals."""
+    by_id = {item.proposal_id: item for item in proposals}
+    collected: set[str] = set()
+    for proposal_id in _unique_ids(proposal_ids):
+        proposal = by_id.get(proposal_id)
+        if proposal is None:
+            continue
+        collected.update(proposal.source_types)
+    return [item for item in RESEARCH_SOURCE_TYPES if item in collected]
 
 
 def assign_research_need_ids(needs: Sequence[ResearchNeed]) -> ResearchPlan:
@@ -307,8 +349,11 @@ async def consolidate_research_plan(
     proposals: Sequence[ResearchProposal],
     empty_slots: Sequence[PanelExpertSlot],
     prompts: dict[str, str],
+    *,
+    repair_error: str | None = None,
 ) -> ModeratorResearchPlan:
     brief = _session_brief(config)
+    formatted = format_expert_proposals(proposals, empty_slots)
     messages = _messages_with_brief(
         identity=render_prompt(prompts, "panel.moderator.system"),
         brief=brief,
@@ -318,10 +363,22 @@ async def consolidate_research_plan(
             topic=config.topic,
             brief=brief or config.topic,
             opening=opening,
-            expert_proposals=format_expert_proposals(proposals, empty_slots),
+            expert_proposals=formatted,
             source_types=source_types_prompt(),
         ),
     )
+    if repair_error:
+        messages.append(
+            {
+                "role": "user",
+                "content": render_prompt(
+                    prompts,
+                    "panel.moderator.research_plan_repair",
+                    error=repair_error,
+                    expert_proposals=formatted,
+                ),
+            }
+        )
     return await complete_structured(messages, ModeratorResearchPlan)
 
 
@@ -329,22 +386,58 @@ def plan_from_moderator_draft(
     draft: ModeratorResearchPlan,
     proposals: Sequence[ResearchProposal],
 ) -> ResearchPlan:
+    """Build a plan from moderator grouping. Code owns structural integrity.
+
+    The LLM may formulate ``question`` / ``why_needed`` and group
+    ``proposal_ids``. Provenance, source types, and consumption of every
+    valid proposal are enforced here and fail closed.
+    """
     known = {item.proposal_id for item in proposals}
+    consumed: set[str] = set()
     kept: list[ResearchNeed] = []
     for need in draft.needs:
-        if not need.question:
-            continue
-        proposal_ids = [item for item in need.proposal_ids if item in known]
+        proposal_ids = list(need.proposal_ids)
         if not proposal_ids:
-            continue
+            raise InvalidResearchPlanError(
+                "Canonical research need must be anchored in at least one real proposal"
+            )
+        unknown = [item for item in proposal_ids if item not in known]
+        if unknown:
+            raise InvalidResearchPlanError(
+                "Unknown proposal IDs cannot create a research need: "
+                + ", ".join(unknown)
+            )
+        reused = [item for item in proposal_ids if item in consumed]
+        if reused:
+            raise InvalidResearchPlanError(
+                "Proposal IDs consumed by multiple canonical needs: "
+                + ", ".join(reused)
+            )
+        if not need.question:
+            raise InvalidResearchPlanError(
+                "Canonical research need question is required"
+            )
+        source_types = source_types_from_proposals(proposal_ids, proposals)
+        if not source_types:
+            raise InvalidResearchPlanError(
+                "Canonical research need must have at least one source_type"
+            )
+        consumed.update(proposal_ids)
         kept.append(
             ResearchNeed(
                 id="",
                 question=need.question,
                 why_needed=need.why_needed,
                 requested_by=requested_by_from_proposals(proposal_ids, proposals),
-                source_types=need.source_types,
+                source_types=source_types,
             )
+        )
+    omitted = [
+        item.proposal_id for item in proposals if item.proposal_id not in consumed
+    ]
+    if omitted:
+        raise InvalidResearchPlanError(
+            "Valid research proposals were omitted: " + ", ".join(omitted)
         )
     return assign_research_need_ids(kept)
 
@@ -361,4 +454,15 @@ async def build_research_plan(
     draft = await consolidate_research_plan(
         config, opening, numbered, empty_slots, prompts
     )
-    return plan_from_moderator_draft(draft, numbered)
+    try:
+        return plan_from_moderator_draft(draft, numbered)
+    except InvalidResearchPlanError as exc:
+        draft = await consolidate_research_plan(
+            config,
+            opening,
+            numbered,
+            empty_slots,
+            prompts,
+            repair_error=str(exc),
+        )
+        return plan_from_moderator_draft(draft, numbered)

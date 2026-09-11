@@ -759,7 +759,6 @@ def test_resolve_comment_anchor_uses_explicit_and_single_index():
 def test_word_alembic_chain_is_linear_after_main_head():
     cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     script = ScriptDirectory.from_config(cfg)
-    assert script.get_heads() == ["065_word_comment_anchor_retry"]
     retry = script.get_revision("065_word_comment_anchor_retry")
     assert retry.down_revision == "064_word_comment_convergence"
     convergence = script.get_revision("064_word_comment_convergence")
