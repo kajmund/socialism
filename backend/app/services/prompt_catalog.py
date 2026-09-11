@@ -2117,11 +2117,11 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         "Word — expert comment",
         (
             "Platshållare: {label}, {profile}, {paragraph_text}, {list_string}, "
-            "{section_heading}, {question}, {why_it_matters}."
+            "{section_heading}, {question}, {why_it_matters}, {allowed_paragraph_indexes}."
         ),
         (
             "Placeholders: {label}, {profile}, {paragraph_text}, {list_string}, "
-            "{section_heading}, {question}, {why_it_matters}."
+            "{section_heading}, {question}, {why_it_matters}, {allowed_paragraph_indexes}."
         ),
         (
             "Din roll: {label}\n"
@@ -2131,11 +2131,18 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "Klausulnummer (internt): {list_string}\n\n"
             "Granskningsfråga: {question}\n"
             "Varför det spelar roll: {why_it_matters}\n\n"
+            "Tillåtna stycken (välj exakt ett ankare): {allowed_paragraph_indexes}\n\n"
             "Relevant dokumenttext:\n{paragraph_text}\n\n"
             "Ge en konkret expertbedömning. Återberätta inte texten och kommentera inte "
             "enbart att information finns. Förklara vad som är relevant, problematiskt, "
             "osäkert eller bör förbättras. Tom kommentar betyder att du hoppar över. "
-            "Inga tekniska termer. Prefixera inte med klausulnummer."
+            "Inga tekniska termer. Prefixera inte med klausulnummer.\n\n"
+            "Sätt anchor_paragraph_index till det enda stycke bland de tillåtna som "
+            "bär observationen. Gissa inte ett annat stycke.\n\n"
+            "Granskande part är okänd. Använd dokumentets partsbeteckningar "
+            "(Leverantören, Beställaren, Kunden, Konsulten) och skriv inte "
+            "för er som kund eller du som kund. Anta inte vilken sida användaren är. "
+            "Vänd inte på dokumentfakta. Externa antaganden ska märkas som antaganden."
         ),
         (
             "Your role: {label}\n"
@@ -2145,11 +2152,19 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "Clause number (internal): {list_string}\n\n"
             "Review question: {question}\n"
             "Why it matters: {why_it_matters}\n\n"
+            "Allowed paragraphs (choose exactly one anchor): {allowed_paragraph_indexes}\n\n"
             "Relevant document text:\n{paragraph_text}\n\n"
             "Give a concrete expert assessment. Do not retell the text and do not only "
             "note that the information exists. Explain what is relevant, problematic, "
             "uncertain, or should be improved. An empty comment means skip. "
-            "No technical terms. Do not prefix with the clause number."
+            "No technical terms. Do not prefix with the clause number.\n\n"
+            "Set anchor_paragraph_index to the single allowed paragraph that most "
+            "directly supports the observation. Do not guess another paragraph.\n\n"
+            "The reviewing party is unknown. Use the document's party labels "
+            "(Supplier, Customer, Buyer, Consultant) and do not write "
+            "for you as the customer or you as the client. Do not assume which side "
+            "the user is on. Do not reverse document facts. Phrase external "
+            "assumptions as assumptions."
         ),
     ),
     _f(
@@ -2180,6 +2195,92 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "Paragraph:\n{paragraph_text}\n\n"
             "Comments:\n{comments}\n\n"
             "Return ny_text and motivering."
+        ),
+    ),
+    _f(
+        "expertgranskning.word.comment_convergence",
+        "panel",
+        "Word — kommentarkonvergens",
+        "Word — comment convergence",
+        "Platshållare: {section_heading}, {batch_text}, {observations}.",
+        "Placeholders: {section_heading}, {batch_text}, {observations}.",
+        (
+            "Du konsoliderar expertkommentarer till Word-kommentarer. "
+            "Deduplicera observationer/issues, inte experter. "
+            "Komprimera konvergens. Bevara faktisk dissensus.\n\n"
+            "Regler:\n"
+            "- Samma kärnrisk eller samma observation från flera experter blir EN issue "
+            "och EN Word-kommentar. Lista supporting_expert_ids för alla som stödjer den.\n"
+            "- Samma expert ska inte ge två nästan identiska kommentarer på närliggande "
+            "stycken för samma issue. Välj det mest specifika textankaret "
+            "(konkret klausulrad, inte bara inledningsmeningen).\n"
+            "- Syntetisera perspektiven i kommentar-fältet utan att upprepa dem. "
+            "Juridisk, finansiell och operativ betydelse får rymmas i samma kommentar "
+            "när kärnobservationen är densamma.\n"
+            "- Dissensus får aldrig dedupliceras bort. Olika bedömningar eller "
+            "rekommendationer ska bli separata issues (has_dissensus=true på var och en) "
+            "eller en issue med has_dissensus=true där oenigheten är explicit. "
+            "Hitta aldrig på falsk konsensus. Exempel: en expert tycker att "
+            "dröjsmålsränta +15 procentenheter är acceptabelt och en annan vill sänka den "
+            "- båda perspektiven måste överleva.\n"
+            "- Varje inkommande observation_id ska ingå i exakt en issue.\n"
+            "- paragraph_index måste vara ett ankare som redan finns på de "
+            "grupperade observationerna. Hitta inte på ett annat stycke.\n"
+            "- Granskande part är okänd. Använd dokumentets partsbeteckningar. "
+            "Skriv inte för er som kund eller du som kund. "
+            "Vänd inte på dokumentfakta. Märk externa antaganden som antaganden.\n\n"
+            "Avsnitt: {section_heading}\n\n"
+            "Batch:\n{batch_text}\n\n"
+            "Observationer:\n{observations}\n\n"
+            "Returnera issues med observation_ids, paragraph_index, "
+            "supporting_expert_ids, kommentar och has_dissensus."
+        ),
+        (
+            "You consolidate expert comments into Word comments. "
+            "Deduplicate observations/issues, not experts. "
+            "Compress convergence. Preserve actual dissensus.\n\n"
+            "Rules:\n"
+            "- The same core risk or observation from several experts becomes ONE issue "
+            "and ONE Word comment. List supporting_expert_ids for everyone who supports it.\n"
+            "- The same expert must not get two nearly identical comments on nearby "
+            "paragraphs for the same issue. Choose the most specific text anchor "
+            "(the concrete clause line, not just the introductory sentence).\n"
+            "- Synthesize the perspectives in kommentar without repeating them. "
+            "Legal, financial, and operational meaning may live in the same comment "
+            "when the core observation is the same.\n"
+            "- Dissensus must never be deduplicated away. Different assessments or "
+            "recommendations must become separate issues (has_dissensus=true on each) "
+            "or one issue with has_dissensus=true that states the disagreement explicitly. "
+            "Never invent false consensus. Example: one expert finds default interest of "
+            "+15 percentage points acceptable and another wants it lowered "
+            "- both perspectives must survive.\n"
+            "- Every incoming observation_id must appear in exactly one issue.\n"
+            "- paragraph_index must be an anchor already present on the grouped "
+            "observations. Do not invent another paragraph.\n"
+            "- The reviewing party is unknown. Use the document's party labels. "
+            "Do not write for you as the customer or you as the client. "
+            "Do not reverse document facts. Mark external assumptions as assumptions.\n\n"
+            "Section: {section_heading}\n\n"
+            "Batch:\n{batch_text}\n\n"
+            "Observations:\n{observations}\n\n"
+            "Return issues with observation_ids, paragraph_index, "
+            "supporting_expert_ids, kommentar, and has_dissensus."
+        ),
+    ),
+    _f(
+        "expertgranskning.word.structured_retry",
+        "panel",
+        "Word — ogiltig JSON, försök igen",
+        "Word — invalid JSON retry",
+        "Inga platshållare.",
+        "No placeholders.",
+        (
+            "Föregående svar var ogiltig JSON. Returnera ett komplett JSON-objekt "
+            "som matchar det begärda schemat. Ingen markdown och ingen extra text."
+        ),
+        (
+            "The previous response was invalid JSON. Return one complete JSON object "
+            "that matches the required schema. No markdown and no extra text."
         ),
     ),
 ]

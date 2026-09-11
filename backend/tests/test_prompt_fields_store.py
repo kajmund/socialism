@@ -86,6 +86,12 @@ def test_modules_for_prompt_key_follows_prefix_convention():
     assert modules_for_prompt_key("expertgranskning.word.moderator.batch") == [
         "expertgranskning"
     ]
+    assert modules_for_prompt_key("expertgranskning.word.comment_convergence") == [
+        "expertgranskning"
+    ]
+    assert modules_for_prompt_key("expertgranskning.word.structured_retry") == [
+        "expertgranskning"
+    ]
 
 
 def test_module_providers_cover_all_catalog_keys_without_overlap_gaps():
@@ -106,6 +112,8 @@ def test_module_providers_cover_all_catalog_keys_without_overlap_gaps():
         "expertgranskning.word.expert.raise_hand",
         "expertgranskning.word.expert.comment",
         "expertgranskning.word.rewrite_convergence",
+        "expertgranskning.word.comment_convergence",
+        "expertgranskning.word.structured_retry",
     }.isdisjoint(dd_keys | politik_keys | ratts_keys)
     assert "rattsunderlag.search_terms.system" in ratts_keys
     assert "panel.dd.moderator.system" in dd_keys
@@ -136,6 +144,8 @@ def test_module_providers_cover_all_catalog_keys_without_overlap_gaps():
     assert "expertgranskning.word.expert.raise_hand" in expert_keys
     assert "expertgranskning.word.expert.comment" in expert_keys
     assert "expertgranskning.word.rewrite_convergence" in expert_keys
+    assert "expertgranskning.word.comment_convergence" in expert_keys
+    assert "expertgranskning.word.structured_retry" in expert_keys
     assert "help.system" not in expert_keys
     assert "panel.dd.moderator.system" not in expert_keys
 
