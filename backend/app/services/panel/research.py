@@ -15,7 +15,12 @@ from app.llm import complete_structured
 from app.services.panel.competency import ExpertCompetency
 from app.services.panel.schemas import PanelExpertSlot, PanelSessionConfig
 from app.services.prompt_catalog import render_prompt
-from app.services.research import RESEARCH_SOURCE_TYPES, ResearchNeed, ResearchSourceType
+from app.services.research import (
+    RESEARCH_SOURCE_TYPES,
+    InvalidResearchPlanError,
+    ResearchNeed,
+    ResearchSourceType,
+)
 
 MISSING_EXPERTISE_SIGNAL = "Saknar domänkompetens. Kräver domänexpert."
 
@@ -101,6 +106,12 @@ class ResearchProposal(BaseModel):
 
 
 class ConsolidatedResearchNeed(BaseModel):
+    """Moderator grouping only. Code owns provenance and source types.
+
+    ``source_types`` is accepted for LLM schema compatibility and ignored
+    when the final ``ResearchNeed`` is built.
+    """
+
     question: str
     why_needed: str
     proposal_ids: list[str] = Field(default_factory=list)
@@ -162,6 +173,21 @@ def requested_by_from_proposals(
         for proposal_id in _unique_ids(proposal_ids)
         if proposal_id in by_id
     )
+
+
+def source_types_from_proposals(
+    proposal_ids: Sequence[str],
+    proposals: Sequence[ResearchProposal],
+) -> list[ResearchSourceType]:
+    """Deterministic union of source types from included proposals."""
+    by_id = {item.proposal_id: item for item in proposals}
+    collected: set[str] = set()
+    for proposal_id in _unique_ids(proposal_ids):
+        proposal = by_id.get(proposal_id)
+        if proposal is None:
+            continue
+        collected.update(proposal.source_types)
+    return [item for item in RESEARCH_SOURCE_TYPES if item in collected]
 
 
 def assign_research_need_ids(needs: Sequence[ResearchNeed]) -> ResearchPlan:
@@ -329,22 +355,53 @@ def plan_from_moderator_draft(
     draft: ModeratorResearchPlan,
     proposals: Sequence[ResearchProposal],
 ) -> ResearchPlan:
+    """Build a plan from moderator grouping. Code owns structural integrity.
+
+    The LLM may formulate ``question`` / ``why_needed`` and group
+    ``proposal_ids``. Provenance, source types, and consumption of every
+    valid proposal are enforced here and fail closed.
+    """
     known = {item.proposal_id for item in proposals}
+    consumed: set[str] = set()
     kept: list[ResearchNeed] = []
     for need in draft.needs:
-        if not need.question:
-            continue
-        proposal_ids = [item for item in need.proposal_ids if item in known]
+        proposal_ids = list(need.proposal_ids)
         if not proposal_ids:
-            continue
+            raise InvalidResearchPlanError(
+                "Canonical research need must be anchored in at least one real proposal"
+            )
+        unknown = [item for item in proposal_ids if item not in known]
+        if unknown:
+            raise InvalidResearchPlanError(
+                "Unknown proposal IDs cannot create a research need: "
+                + ", ".join(unknown)
+            )
+        reused = [item for item in proposal_ids if item in consumed]
+        if reused:
+            raise InvalidResearchPlanError(
+                "Proposal IDs consumed by multiple canonical needs: "
+                + ", ".join(reused)
+            )
+        if not need.question:
+            raise InvalidResearchPlanError(
+                "Canonical research need question is required"
+            )
+        consumed.update(proposal_ids)
         kept.append(
             ResearchNeed(
                 id="",
                 question=need.question,
                 why_needed=need.why_needed,
                 requested_by=requested_by_from_proposals(proposal_ids, proposals),
-                source_types=need.source_types,
+                source_types=source_types_from_proposals(proposal_ids, proposals),
             )
+        )
+    omitted = [
+        item.proposal_id for item in proposals if item.proposal_id not in consumed
+    ]
+    if omitted:
+        raise InvalidResearchPlanError(
+            "Valid research proposals were omitted: " + ", ".join(omitted)
         )
     return assign_research_need_ids(kept)
 
