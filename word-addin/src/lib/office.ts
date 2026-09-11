@@ -6,6 +6,8 @@ import {
 
 const DOC_ID_KEY = "socialism_doc_id"
 
+export const WORD_SESSION_ID = crypto.randomUUID()
+
 function requireOffice(): typeof Office {
   if (typeof Office === "undefined") {
     throw new Error("Office.js is not available")
@@ -151,7 +153,7 @@ export async function applyRewriteSuggestion(args: {
       context.document.load("changeTrackingMode")
     }
     const loaded = await loadDocumentParagraphs(context)
-    const resolution = resolveWordAnchor(args.anchor, loaded.states)
+    const resolution = resolveWordAnchor(args.anchor, loaded.states, WORD_SESSION_ID)
     if (resolution.status !== "resolved") {
       return { status: resolution.status }
     }
@@ -191,7 +193,7 @@ export async function insertCommentForAnchor(
   }
   return Word.run(async (context) => {
     const loaded = await loadDocumentParagraphs(context)
-    const resolution = resolveWordAnchor(anchor, loaded.states)
+    const resolution = resolveWordAnchor(anchor, loaded.states, WORD_SESSION_ID)
     if (resolution.status !== "resolved") {
       return { status: resolution.status }
     }

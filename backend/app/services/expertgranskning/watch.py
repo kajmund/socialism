@@ -53,6 +53,7 @@ def serialize_result(
             text_hash=anchor.text_hash,
             previous_text_hash=anchor.previous_text_hash,
             next_text_hash=anchor.next_text_hash,
+            word_session_id=anchor.word_session_id,
         ),
         comment_id=row.comment_id,
         application_id=row.application_id,

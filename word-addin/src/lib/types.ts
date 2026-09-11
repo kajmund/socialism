@@ -21,6 +21,7 @@ export type WordAnchor = {
   text_hash: string
   previous_text_hash?: string | null
   next_text_hash?: string | null
+  word_session_id?: string | null
 }
 
 export type ExpertPanelSummary = {

@@ -9,6 +9,7 @@ from app.services.word.anchors import (
     normalize_word_text,
     resolve_word_anchor,
     reviewed_text_from_job_request,
+    same_word_session,
     word_anchor_from_job_request,
 )
 
@@ -215,6 +216,34 @@ def test_deleted_target_is_missing() -> None:
     assert anchor is not None
     resolution = resolve_word_anchor(anchor, _doc((0, "Inledning"), (1, "Kvar.")))
     assert resolution.status == "missing"
+
+
+def test_restart_ignores_recycled_local_id_and_uses_unique_text() -> None:
+    request = {**_request(), "word_session_id": "session-a"}
+    anchor = word_anchor_from_job_request(request, 1)
+    assert anchor is not None
+    assert anchor.word_session_id == "session-a"
+    resolution = resolve_word_anchor(
+        anchor,
+        _doc((0, "Ny ingress"), (1, "Ändrad text.", "p-1"), (2, "Första stycket.")),
+        current_session_id="session-b",
+    )
+    assert resolution.status == "resolved"
+    assert resolution.paragraph_index == 2
+
+
+def test_same_session_local_id_with_changed_text_stays_stale() -> None:
+    request = {**_request(), "word_session_id": "session-a"}
+    anchor = word_anchor_from_job_request(request, 1)
+    assert anchor is not None
+    resolution = resolve_word_anchor(
+        anchor,
+        _doc((1, "Ändrad text.", "p-1"), (2, "Första stycket.")),
+        current_session_id="session-a",
+    )
+    assert resolution.status == "stale"
+    assert same_word_session("session-a", "session-a") is True
+    assert same_word_session("session-a", "session-b") is False
 
 
 def test_changed_text_never_falls_back_to_index() -> None:

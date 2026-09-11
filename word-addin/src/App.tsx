@@ -21,6 +21,7 @@ import {
   paragraphStatesFromSnapshot,
   readDocumentParagraphs,
   resolveComment,
+  WORD_SESSION_ID,
 } from "@/lib/office"
 import { resolveWordAnchor } from "@/lib/word/anchors"
 import { clearStoredToken, getStoredToken, saveStoredToken } from "@/lib/tokenStorage"
@@ -199,7 +200,7 @@ export function App() {
     }
 
     const current = paragraphStatesFromSnapshot(await readDocumentParagraphs())
-    const resolution = resolveWordAnchor(anchor, current)
+    const resolution = resolveWordAnchor(anchor, current, WORD_SESSION_ID)
     if (resolution.status !== "resolved") {
       const marked = await markResultUnresolved(token, jobId, result.id, resolution.status)
       noteResultStatus(result.id, marked.status)
@@ -352,6 +353,7 @@ export function App() {
         const jobId = await createWordJob(token, {
           panel_id: Number(panelId),
           doc_id: docId,
+          word_session_id: WORD_SESSION_ID,
           sections,
           locale: locale === "en" ? "en" : "sv",
         })

@@ -183,13 +183,14 @@ async def test_application_endpoints_are_customer_scoped(client_db):
 
 
 @pytest.mark.asyncio
-async def test_legacy_patch_sets_applied(client_db):
+async def test_legacy_patch_is_removed(client_db):
     client, factory = client_db
     job_id, result_id = await _seed_result(factory, result_id="egr_patch_1")
     patched = await client.patch(
         f"/expertgranskning/word-jobs/{job_id}/results/{result_id}",
         json={"comment_id": "word-legacy"},
     )
-    assert patched.status_code == 200
-    assert patched.json()["status"] == APPLICATION_APPLIED
-    assert patched.json()["comment_id"] == "word-legacy"
+    assert patched.status_code in {404, 405}
+    listed = await client.get(f"/expertgranskning/word-jobs/{job_id}/results")
+    assert listed.json()[0]["status"] == APPLICATION_PENDING
+    assert listed.json()[0]["comment_id"] is None

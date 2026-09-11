@@ -121,6 +121,26 @@ describe("resolveWordAnchor", () => {
     })
   })
 
+  it("ignores recycled local ids after a Word session change", () => {
+    expect(
+      resolveWordAnchor(
+        anchor({ word_session_id: "session-a" }),
+        doc([0, "Ny ingress"], [1, "Ändrad text.", "p-1"], [2, "Första stycket."]),
+        "session-b",
+      ),
+    ).toEqual({ status: "resolved", paragraph_index: 2 })
+  })
+
+  it("keeps stale when the same session still owns the local id", () => {
+    expect(
+      resolveWordAnchor(
+        anchor({ word_session_id: "session-a" }),
+        doc([1, "Ändrad text.", "p-1"], [2, "Första stycket."]),
+        "session-a",
+      ),
+    ).toEqual({ status: "stale" })
+  })
+
   it("never falls back to a mismatched original index", () => {
     expect(
       resolveWordAnchor(
