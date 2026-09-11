@@ -8,6 +8,11 @@ from app.database.models import PanelSession
 from app.llm import complete_text
 from app.services.dd.company_mcp import complete_text_with_company_tools
 from app.services.expert_tools import expert_tool_prompt_extra
+from app.services.panel.competency import (
+    CompetencyState,
+    assess_panel_competency,
+    competency_state_from_decisions,
+)
 from app.services.panel.raise_hand import raise_hand_is_yes
 from app.services.panel.research import (
     ExpertResearchNeeds,
@@ -276,10 +281,9 @@ async def _run_research_plan_phase(
     prompts: dict[str, str],
     *,
     opening: str,
-) -> bool:
-    """Collect research needs. Returns True if any expert has domain competence."""
+) -> CompetencyState:
+    """Collect research needs. Competency is taken from the same structured reply."""
     proposals: list[tuple[PanelExpertSlot, ExpertResearchNeeds]] = []
-    competent_slot_ids: list[str] = []
     for slot in config.expert_slots:
 
         async def produce_research_need(
@@ -288,8 +292,6 @@ async def _run_research_plan_phase(
             bundle = await collect_expert_research_needs(
                 expert_slot, config, opening, prompts
             )
-            if bundle.has_domain_competence:
-                competent_slot_ids.append(expert_slot.slot_id)
             proposals.append((expert_slot, bundle))
             return format_expert_research_need_turn(bundle)
 
@@ -317,7 +319,7 @@ async def _run_research_plan_phase(
         phase="research_plan",
         produce_content=produce_research_plan,
     )
-    return bool(competent_slot_ids)
+    return competency_state_from_decisions(proposals)
 
 
 async def run_generic_panel(
@@ -333,6 +335,7 @@ async def run_generic_panel(
 
     ``frozen_evidence=True`` is the Attempt path: skip ResearchPlan generation
     and disable expert tool/search calls even when slots list default tools.
+    Competency is still assessed (profile vs question, no evidence).
     Standalone sessions keep the existing research-plan phase and tools.
     """
     config = PanelSessionConfig.model_validate(panel.config or {})
@@ -352,9 +355,10 @@ async def run_generic_panel(
             config, prompts, evidence_prompt=evidence_prompt
         ),
     )
-    has_relevant_expert = True
-    if not frozen_evidence:
-        has_relevant_expert = await _run_research_plan_phase(
+    if frozen_evidence:
+        competency = await assess_panel_competency(config, prompts)
+    else:
+        competency = await _run_research_plan_phase(
             db,
             panel,
             transcript,
@@ -362,8 +366,9 @@ async def run_generic_panel(
             prompts,
             opening=opening_turn.content,
         )
+    competent_ids = competency.competent_slot_ids()
 
-    if not has_relevant_expert:
+    if not competency.has_relevant_expert():
         await run_turn(
             db,
             panel,
@@ -375,7 +380,7 @@ async def run_generic_panel(
             ),
         )
     for round_index in range(1, config.max_rounds + 1):
-        if not has_relevant_expert:
+        if not competency.has_relevant_expert():
             break
         if round_index > 1:
             await run_turn(
@@ -395,6 +400,9 @@ async def run_generic_panel(
             )
         raise_hand_queue: list[str] = []
         for slot in config.expert_slots:
+            if slot.slot_id not in competent_ids:
+                continue
+
             async def produce_raise_hand(
                 expert_slot: PanelExpertSlot = slot,
             ) -> str:
@@ -418,8 +426,11 @@ async def run_generic_panel(
                 slot_id=slot.slot_id,
                 produce_content=produce_raise_hand,
             )
-            if turn.content == "JA":
+            # A later JA cannot override a failed competency decision.
+            if turn.content == "JA" and slot.slot_id in competent_ids:
                 raise_hand_queue.append(slot.slot_id)
+
+        raise_hand_queue = [slot_id for slot_id in raise_hand_queue if slot_id in competent_ids]
 
         # Only raisers get scratchpad + expert-turn. An empty queue is valid.
         for slot_id in raise_hand_queue:
@@ -492,6 +503,7 @@ async def run_generic_panel(
             prompts=prompts,
             evidence_prompt=evidence_prompt,
             allowed_evidence_refs=allowed_evidence_refs,
+            competency=competency,
         )
     ).model_dump(mode="json")
     panel.status = "succeeded"

@@ -1534,6 +1534,46 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         ),
     ),
     _f(
+        "panel.expert.competency",
+        "panel",
+        "Expert — domänkompetens",
+        "Expert — domain competence",
+        "Platshållare: {topic}, {brief}, {profile}.",
+        "Placeholders: {topic}, {brief}, {profile}.",
+        (
+            "Ämne: {topic}\n\n"
+            "Bakgrund:\n{brief}\n\n"
+            "Din profil:\n{profile}\n\n"
+            "Avgör om din profil ger faktisk domänkompetens för en substantiell "
+            "expertbedömning av just den här frågan.\n\n"
+            "has_domain_competence = true BARA om din uttalade roll täcker frågan. "
+            "Analogier, allmän orientering, metodperspektiv, att rekommendera en "
+            "annan expert, eller att ett relevant underlag finns tillgängligt är "
+            "inte kompetens.\n"
+            "Ett utmärkt rättsligt underlag gör inte en M&A-, värderings-, marknads- "
+            "eller PMO-expert till straffrättsjurist.\n"
+            "Om kompetensen saknas: has_domain_competence = false och "
+            "competence_reason ska vara missing expertise / requires domain expert.\n"
+            "Gör inte sakbedömningen här. Anropa inte verktyg."
+        ),
+        (
+            "Topic: {topic}\n\n"
+            "Background:\n{brief}\n\n"
+            "Your profile:\n{profile}\n\n"
+            "Decide whether your profile gives actual domain competence for a "
+            "substantial expert assessment of this exact question.\n\n"
+            "has_domain_competence = true ONLY if your stated role covers the question. "
+            "Analogies, general orientation, a method perspective, recommending "
+            "another expert, or having relevant supporting material available "
+            "are not competence.\n"
+            "Excellent legal evidence does not make an M&A, valuation, market, "
+            "or PMO expert a criminal-law lawyer.\n"
+            "If competence is missing: has_domain_competence = false and "
+            "competence_reason should be missing expertise / requires domain expert.\n"
+            "Do not make the substance assessment here. Do not call tools."
+        ),
+    ),
+    _f(
         "panel.expert.tools",
         "panel",
         "Expert — verktyg",
