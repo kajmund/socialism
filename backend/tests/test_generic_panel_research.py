@@ -75,7 +75,7 @@ def _draft(
     return ResearchNeedDraft(
         question=question,
         why_needed=why_needed,
-        source_types=source_types or ["case_knowledge"],
+        source_types=["case_knowledge"] if source_types is None else source_types,
     )
 
 
@@ -227,7 +227,7 @@ def _proposal(
         label=label,
         question=question,
         why_needed=why_needed,
-        source_types=source_types or ["case_knowledge"],
+        source_types=["case_knowledge"] if source_types is None else source_types,
     )
 
 
@@ -495,6 +495,164 @@ def test_empty_moderator_draft_with_no_proposals_stays_empty():
     assert plan == ResearchPlan(needs=[])
 
 
+def test_explicit_empty_source_types_cannot_become_a_proposal():
+    with pytest.raises(InvalidResearchPlanError, match="source_type"):
+        assign_proposal_ids(
+            [
+                (
+                    PanelExpertSlot(slot_id="legal", label="Jurist"),
+                    ExpertResearchNeeds(needs=[_draft(source_types=[])]),
+                )
+            ]
+        )
+
+
+def test_empty_source_types_cannot_become_an_executable_canonical_need():
+    proposals = [
+        ResearchProposal(
+            proposal_id="proposal_1",
+            slot_id="legal",
+            question="Vilka avtalsbestämmelser reglerar hävning?",
+            why_needed="Avtalsförutsättningar.",
+            source_types=[],
+        )
+    ]
+    with pytest.raises(InvalidResearchPlanError, match="source_type"):
+        plan_from_moderator_draft(
+            ModeratorResearchPlan(needs=[_need("proposal_1")]),
+            proposals,
+        )
+
+
+def test_empty_or_whitespace_question_is_not_assigned_a_proposal_id():
+    numbered, empty = assign_proposal_ids(
+        [
+            (
+                PanelExpertSlot(slot_id="legal", label="Jurist"),
+                ExpertResearchNeeds(
+                    needs=[
+                        _draft(question=""),
+                        _draft(question="   "),
+                    ]
+                ),
+            )
+        ]
+    )
+    assert numbered == []
+    assert [slot.slot_id for slot in empty] == ["legal"]
+
+
+@pytest.mark.asyncio
+async def test_moderator_retry_repairs_omitted_proposal():
+    captured: list[tuple[type, list[dict]]] = []
+    plans = [
+        ModeratorResearchPlan(needs=[_need("proposal_1")]),
+        ModeratorResearchPlan(needs=[_need("proposal_1", "proposal_2")]),
+    ]
+
+    async def _structured(messages, response_model):
+        captured.append((response_model, [dict(item) for item in messages]))
+        if response_model is ModeratorResearchPlan:
+            return plans.pop(0)
+        raise RuntimeError(f"Unexpected structured model {response_model}")
+
+    set_structured_completer(_structured)
+    plan = await build_research_plan(
+        _config(),
+        "Öppning",
+        [
+            (
+                PanelExpertSlot(slot_id="legal", label="Jurist"),
+                ExpertResearchNeeds(needs=[_draft()]),
+            ),
+            (
+                PanelExpertSlot(slot_id="property", label="Fastighet"),
+                ExpertResearchNeeds(needs=[_draft(question="Samma hävningsfråga")]),
+            ),
+        ],
+        default_prompts("sv"),
+    )
+    assert [model for model, _messages in captured] == [
+        ModeratorResearchPlan,
+        ModeratorResearchPlan,
+    ]
+    repair = captured[1][1][-1]["content"]
+    assert "proposal_2" in repair
+    assert "omitted" in repair
+    assert plan.needs[0].requested_by == ["legal", "property"]
+    assert plan.needs[0].source_types == ["case_knowledge"]
+
+
+@pytest.mark.asyncio
+async def test_moderator_retry_repairs_duplicated_proposal():
+    captured: list[tuple[type, list[dict]]] = []
+    plans = [
+        ModeratorResearchPlan(
+            needs=[
+                _need("proposal_1", "proposal_2"),
+                _need(
+                    "proposal_1",
+                    question="Andra formuleringen",
+                    why_needed="Samma förslag igen.",
+                ),
+            ]
+        ),
+        ModeratorResearchPlan(needs=[_need("proposal_1", "proposal_2")]),
+    ]
+
+    async def _structured(messages, response_model):
+        captured.append((response_model, [dict(item) for item in messages]))
+        if response_model is ModeratorResearchPlan:
+            return plans.pop(0)
+        raise RuntimeError(f"Unexpected structured model {response_model}")
+
+    set_structured_completer(_structured)
+    plan = await build_research_plan(
+        _config(),
+        "Öppning",
+        [
+            (
+                PanelExpertSlot(slot_id="legal", label="Jurist"),
+                ExpertResearchNeeds(needs=[_draft()]),
+            ),
+            (
+                PanelExpertSlot(slot_id="property", label="Fastighet"),
+                ExpertResearchNeeds(needs=[_draft(question="Samma hävningsfråga")]),
+            ),
+        ],
+        default_prompts("sv"),
+    )
+    repair = captured[1][1][-1]["content"]
+    assert "multiple canonical needs" in repair
+    assert plan.needs[0].requested_by == ["legal", "property"]
+
+
+@pytest.mark.asyncio
+async def test_moderator_second_invalid_output_still_fails_closed():
+    async def _structured(messages, response_model):
+        if response_model is ModeratorResearchPlan:
+            return ModeratorResearchPlan(needs=[_need("proposal_1")])
+        raise RuntimeError(f"Unexpected structured model {response_model}")
+
+    set_structured_completer(_structured)
+    with pytest.raises(InvalidResearchPlanError, match="proposal_2"):
+        await build_research_plan(
+            _config(),
+            "Öppning",
+            [
+                (
+                    PanelExpertSlot(slot_id="legal", label="Jurist"),
+                    ExpertResearchNeeds(needs=[_draft()]),
+                ),
+                (
+                    PanelExpertSlot(slot_id="property", label="Fastighet"),
+                    ExpertResearchNeeds(needs=[_draft(question="Samma hävningsfråga")]),
+                ),
+            ],
+            default_prompts("sv"),
+        )
+
+
 @pytest.mark.asyncio
 async def test_expert_can_return_zero_needs():
     captured: list[tuple[type, list[dict]]] = []
@@ -631,10 +789,20 @@ def test_research_prompts_render_and_forbid_service_names():
     assert "missing expertise" in expert
     assert "web är tillåten men inte default" in expert
     assert "inte lagen.nu" in expert
+    repair = render_prompt(
+        prompts,
+        "panel.moderator.research_plan_repair",
+        error="Valid research proposals were omitted: proposal_2",
+        expert_proposals="[proposal_1] slot_id=legal",
+    )
     assert "proposal_ids" in moderator
     assert "Sätt inte requested_by" in moderator
     assert "källtyper härleds i kod" in moderator
     assert "exakt en gång" in moderator
+    assert "minst en tillåten källtyp" in expert
+    assert "Hitta inte på en källtyp" in expert
+    assert "exakt en gång" in repair
+    assert "proposal_2" in repair
 
 
 def test_public_transcript_excludes_research_phases():
