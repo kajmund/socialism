@@ -7,6 +7,12 @@ from types import SimpleNamespace
 import pytest
 
 from app.llm import set_structured_completer, set_text_completer, set_tools_completer
+from app.services.panel.competency import (
+    CompetencyState,
+    ExpertCompetency,
+    SlotCompetency,
+    competency_state_from_decisions,
+)
 from app.services.panel.engine import run_generic_panel
 from app.services.panel.raise_hand import parse_raise_hand_reply, raise_hand_is_yes
 from app.services.panel.research import (
@@ -142,17 +148,25 @@ def _install_llm(
         return SimpleNamespace(content=await _complete(messages), tool_calls=None)
 
     async def _structured(messages, response_model):
-        if response_model is ExpertResearchNeeds:
+        if response_model is ExpertResearchNeeds or response_model is ExpertCompetency:
             if isinstance(expert_needs, ExpertResearchNeeds):
-                return expert_needs
-            identity = ""
-            for item in messages:
-                if item.get("role") == "system":
-                    identity += item["content"]
-            for key, bundle in expert_needs.items():
-                if f"som {key} i en expertpanel" in identity:
-                    return bundle
-            return ExpertResearchNeeds(has_domain_competence=False)
+                bundle = expert_needs
+            else:
+                identity = ""
+                for item in messages:
+                    if item.get("role") == "system":
+                        identity += item["content"]
+                bundle = ExpertResearchNeeds(has_domain_competence=False)
+                for key, item in expert_needs.items():
+                    if f"som {key} i en expertpanel" in identity:
+                        bundle = item
+                        break
+            if response_model is ExpertCompetency:
+                return ExpertCompetency(
+                    has_domain_competence=bundle.has_domain_competence,
+                    competence_reason=bundle.competence_reason,
+                )
+            return bundle
         if response_model is ModeratorResearchPlan:
             return plan if plan is not None else ModeratorResearchPlan()
         if response_model is GenericPanelSynthesis:
@@ -163,6 +177,38 @@ def _install_llm(
     set_tools_completer(_tools)
     set_structured_completer(_structured)
     return seen_users
+
+
+def test_expert_competency_fails_closed_and_drops_disclaimer():
+    assert ExpertCompetency().has_domain_competence is False
+    contradicted = ExpertCompetency(
+        has_domain_competence=True,
+        competence_reason="Faller utanför mitt kompetensområde.",
+    )
+    assert contradicted.has_domain_competence is False
+
+
+def test_competency_state_is_authoritative_slot_set():
+    config = _wrong_panel_config()
+    state = competency_state_from_decisions(
+        [
+            (config.expert_slots[0], ExpertCompetency()),
+            (
+                config.expert_slots[1],
+                ExpertCompetency(
+                    has_domain_competence=True,
+                    competence_reason="Kompetens.",
+                ),
+            ),
+        ]
+    )
+    assert state.competent_slot_ids() == frozenset({config.expert_slots[1].slot_id})
+    assert state.is_competent(config.expert_slots[0].slot_id) is False
+    assert state.has_relevant_expert() is True
+    empty = CompetencyState(
+        slots=[SlotCompetency(slot_id="dd", label="Nils", competent=False)]
+    )
+    assert empty.has_relevant_expert() is False
 
 
 def test_out_of_domain_research_needs_are_dropped():
@@ -226,9 +272,18 @@ def test_research_and_raise_hand_prompts_require_domain_competence():
         brief="Nödvärn",
         expert_list="- Pia: PMO",
     )
+    competency = render_prompt(
+        prompts,
+        "panel.expert.competency",
+        topic="Dråp",
+        brief="Nödvärn",
+        profile="M&A",
+    )
     assert "has_domain_competence" in research
     assert "missing expertise" in research
     assert "Analogier" in research
+    assert "has_domain_competence" in competency
+    assert "straffrättsjurist" in competency
     assert "faktisk domänkompetens" in raise_hand
     assert "Svara endast JA eller NEJ" in raise_hand
     assert "utanför mitt kompetensområde" in raise_hand

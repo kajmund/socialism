@@ -30,6 +30,7 @@ from app.llm.vision import set_vision_completer
 from app.main import create_app
 from app.schemas.domain import FollowUpQuestions
 from app.services import jobs as jobs_service
+from app.services.panel.competency import ExpertCompetency
 from app.services.panel.research import empty_research_structured
 from app.services.panel.synthesis import GenericPanelSynthesis
 from app.services.image_cache import clear_image_cache
@@ -119,6 +120,8 @@ async def client():
             )
         if response_model is GenericPanelSynthesis:
             return GenericPanelSynthesis(summary="", claims=[], unanswered=[])
+        if response_model is ExpertCompetency:
+            return ExpertCompetency(has_domain_competence=False)
         empty_research = empty_research_structured(response_model)
         if empty_research is not None:
             return empty_research

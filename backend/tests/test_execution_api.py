@@ -18,6 +18,7 @@ from app.services.execution import (
     get_attempt,
     mark_ready,
 )
+from app.services.panel.competency import ExpertCompetency
 from app.services.panel.research import empty_research_structured
 from app.services.panel.synthesis import GenericPanelSynthesis, SynthesizedClaim
 from app.services.research.composition import (
@@ -141,6 +142,11 @@ def panel_llm():
                     )
                 ],
                 unanswered=["Ingen jämförelse hittades."],
+            )
+        if response_model is ExpertCompetency:
+            return ExpertCompetency(
+                has_domain_competence=True,
+                competence_reason="Skatt är min kärnkompetens.",
             )
         empty = empty_research_structured(response_model)
         if empty is not None:

@@ -203,6 +203,9 @@ def test_unanswered_turn_fills_result_when_synthesis_omits_it():
     assert result.unanswered == [
         "Frågan är unanswered: missing expertise. Kräver straffrättsexpert."
     ]
+    # Prose is presentation only — do not infer missing_expertise without state.
+    assert result.unanswered_items
+    assert all(item.reason is None for item in result.unanswered_items)
 
 
 @pytest.mark.asyncio
