@@ -1,7 +1,7 @@
 """Add Word comment-convergence prompt.
 
-Revision ID: 062_word_comment_convergence
-Revises: 061_execution_attempt_results
+Revision ID: 064_word_comment_convergence
+Revises: 063_panel_competency_state
 """
 
 from __future__ import annotations
@@ -13,9 +13,10 @@ import sqlalchemy as sa
 from alembic import op
 
 from app.services.prompt_catalog import PROMPT_FIELDS
+from app.services.prompt_defaults import modules_for_prompt_key
 
-revision: str = "062_word_comment_convergence"
-down_revision: Union[str, Sequence[str], None] = "061_execution_attempt_results"
+revision: str = "064_word_comment_convergence"
+down_revision: Union[str, Sequence[str], None] = "063_panel_competency_state"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -48,7 +49,7 @@ def upgrade() -> None:
             ")"
         ).bindparams(
             key=_NEW_KEY,
-            modules=json.dumps(["expertgranskning"]),
+            modules=json.dumps(modules_for_prompt_key(_NEW_KEY)),
             section=field["section"],
             label_sv=labels["sv"],
             label_en=labels["en"],

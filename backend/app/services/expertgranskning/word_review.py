@@ -14,6 +14,7 @@ import asyncio
 import logging
 import re
 import secrets
+from collections.abc import Sequence
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -58,6 +59,47 @@ _HEADING_1_TO_3 = re.compile(
 )
 
 WORD_BATCH_MAX_SIZE = 4
+
+# Output contract. Not part of the editable customer prompt.
+_WORD_COMMENT_ANCHOR_SUFFIX = (
+    "Allowed anchors: {indexes}. "
+    "Return exactly one anchor_paragraph_index from this set."
+)
+
+
+def word_comment_anchor_suffix(paragraph_indexes: Sequence[int]) -> str:
+    indexes = ", ".join(str(index) for index in paragraph_indexes)
+    return _WORD_COMMENT_ANCHOR_SUFFIX.format(indexes=indexes)
+
+
+def render_expert_comment_user_prompt(
+    prompts: dict[str, str],
+    *,
+    slot: PanelExpertSlot,
+    section: WordDocumentSection,
+    question: WordReviewQuestion,
+    paragraphs: list[WordDocumentParagraph],
+) -> str:
+    """Render the editable comment prompt, then append the server-owned anchor contract."""
+    body = render_prompt(
+        prompts,
+        "expertgranskning.word.expert.comment",
+        label=slot.label,
+        profile=slot.profile or slot.label,
+        paragraph_text=_batch_text(paragraphs),
+        list_string=", ".join(
+            paragraph.list_string
+            for paragraph in paragraphs
+            if paragraph.list_string.strip()
+        ),
+        section_heading=section.heading,
+        question=question.question,
+        why_it_matters=question.why_it_matters,
+        allowed_paragraph_indexes=", ".join(
+            str(index) for index in question.paragraph_indexes
+        ),
+    )
+    return f"{body}\n\n{word_comment_anchor_suffix(question.paragraph_indexes)}"
 
 
 def paragraph_word_count(text: str) -> int:
@@ -472,23 +514,12 @@ async def _comment_question(
     paragraphs: list[WordDocumentParagraph],
 ) -> tuple[PanelExpertSlot, WordReviewQuestion, str, int | None]:
     identity = _expert_identity(prompts, slot)
-    user = render_prompt(
+    user = render_expert_comment_user_prompt(
         prompts,
-        "expertgranskning.word.expert.comment",
-        label=slot.label,
-        profile=slot.profile or slot.label,
-        paragraph_text=_batch_text(paragraphs),
-        list_string=", ".join(
-            paragraph.list_string
-            for paragraph in paragraphs
-            if paragraph.list_string.strip()
-        ),
-        section_heading=section.heading,
-        question=question.question,
-        why_it_matters=question.why_it_matters,
-        allowed_paragraph_indexes=", ".join(
-            str(index) for index in question.paragraph_indexes
-        ),
+        slot=slot,
+        section=section,
+        question=question,
+        paragraphs=paragraphs,
     )
     parsed = await complete_word_structured(
         _messages_with_brief(identity=identity, brief=brief, user=user),

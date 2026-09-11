@@ -2,11 +2,8 @@
 
 ## 2026-09-11
 
-<<<<<<< HEAD
 * **Execution**: Fryst underlag gör inte en expert kompetent. Saknas rätt sakkompetens på panelen lämnas frågan obesvarad. En kompetent expert som avstår är inte samma sak.
-=======
 * **Expertgranskning i Word**: Varje kommentar fästs vid det stycke som bär observationen. Kommentarerna använder dokumentets partsnamn och antar inte att du är kund eller leverantör.
->>>>>>> 7052e68 (Harden Word review against truncated JSON and wrong anchors)
 
 ## 2026-09-10
 

@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import uuid
+from pathlib import Path
 
 import pytest
+from alembic.config import Config
+from alembic.script import ScriptDirectory
 from httpx import AsyncClient
 from sqlalchemy import select
 
@@ -39,16 +42,20 @@ from app.services.expertgranskning.schemas import (
 )
 from app.services.expertgranskning.watch import reviewed_text_from_job_request
 from app.services.expertgranskning.word_review import (
+    _comment_question,
     _document_brief,
     accepted_review_questions,
     build_batches,
     is_heading_1_to_3,
+    render_expert_comment_user_prompt,
     resolve_comment_anchor,
     rewrite_suggestion_or_none,
     selected_review_questions,
     should_review_paragraph,
+    word_comment_anchor_suffix,
     word_paragraph_review,
 )
+from app.services.panel.schemas import PanelExpertSlot
 from app.services.expertgranskning.word_structured import (
     complete_word_structured,
     is_json_syntax_validation_error,
@@ -749,6 +756,16 @@ def test_resolve_comment_anchor_uses_explicit_and_single_index():
     )
 
 
+def test_word_alembic_chain_is_linear_after_main_head():
+    cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
+    script = ScriptDirectory.from_config(cfg)
+    assert script.get_heads() == ["065_word_comment_anchor_retry"]
+    retry = script.get_revision("065_word_comment_anchor_retry")
+    assert retry.down_revision == "064_word_comment_convergence"
+    convergence = script.get_revision("064_word_comment_convergence")
+    assert convergence.down_revision == "063_panel_competency_state"
+
+
 def test_word_comment_prompt_stays_party_neutral():
     text = render_prompt(
         default_prompts("sv"),
@@ -769,6 +786,100 @@ def test_word_comment_prompt_stays_party_neutral():
     synthesis = default_prompts("sv")["expertgranskning.word.comment_convergence"]
     assert "Granskande part är okänd" in synthesis
     assert "Vänd inte på dokumentfakta" in synthesis
+
+
+_OLD_COMMENT_OVERRIDE = (
+    "Din roll: {label}\n"
+    "Profil: {profile}\n\n"
+    "Hela dokumentet ligger i systemmeddelandet.\n\n"
+    "Avsnitt: {section_heading}\n"
+    "Klausulnummer (internt): {list_string}\n\n"
+    "Granskningsfråga: {question}\n"
+    "Varför det spelar roll: {why_it_matters}\n\n"
+    "Relevant dokumenttext:\n{paragraph_text}\n\n"
+    "Ge en konkret expertbedömning. Återberätta inte texten och kommentera inte "
+    "enbart att information finns. Förklara vad som är relevant, problematiskt, "
+    "osäkert eller bör förbättras. Tom kommentar betyder att du hoppar över. "
+    "Inga tekniska termer. Prefixera inte med klausulnummer."
+)
+
+
+def test_old_comment_override_still_sends_server_owned_anchor_contract():
+    assert "anchor_paragraph_index" not in _OLD_COMMENT_OVERRIDE
+    assert "{allowed_paragraph_indexes}" not in _OLD_COMMENT_OVERRIDE
+    prompts = default_prompts("sv")
+    prompts["expertgranskning.word.expert.comment"] = _OLD_COMMENT_OVERRIDE
+    paragraphs = [
+        _para(12, "Leverantören behåller all immaterialrätt till underlaget."),
+        _para(13, "Beställaren ska betala fakturan inom trettio dagar."),
+    ]
+    text = render_expert_comment_user_prompt(
+        prompts,
+        slot=PanelExpertSlot(slot_id="jur", label="Jurist", profile="Avtal"),
+        section=WordDocumentSection(
+            heading="Avtal",
+            heading_style="Heading 1",
+            heading_paragraph_index=0,
+            paragraphs=paragraphs,
+        ),
+        question=WordReviewQuestion(
+            id="q1",
+            paragraph_indexes=[12, 13],
+            question="Var sitter immaterialrätten?",
+            why_it_matters="Fel ankare.",
+        ),
+        paragraphs=paragraphs,
+    )
+    assert "Allowed anchors: 12, 13." in text
+    assert "Return exactly one anchor_paragraph_index from this set." in text
+    assert word_comment_anchor_suffix([12, 13]) in text
+    assert text.endswith(word_comment_anchor_suffix([12, 13]))
+
+
+@pytest.mark.asyncio
+async def test_comment_call_sends_anchor_contract_with_old_override():
+    captured: list[str] = []
+
+    async def completer(messages, response_model):
+        captured.extend(message.get("content") or "" for message in messages)
+        return WordExpertComment(
+            kommentar="IP-klausulen är för vid.",
+            anchor_paragraph_index=12,
+        )
+
+    set_structured_completer(completer)
+    prompts = default_prompts("sv")
+    prompts["expertgranskning.word.expert.comment"] = _OLD_COMMENT_OVERRIDE
+    paragraphs = [
+        _para(12, "Leverantören behåller all immaterialrätt till underlaget."),
+        _para(13, "Beställaren ska betala fakturan inom trettio dagar."),
+    ]
+    slot, question, text, anchor = await _comment_question(
+        prompts=prompts,
+        slot=PanelExpertSlot(slot_id="jur", label="Jurist", profile="Avtal"),
+        brief="[12] Leverantören behåller all immaterialrätt till underlaget.",
+        section=WordDocumentSection(
+            heading="Avtal",
+            heading_style="Heading 1",
+            heading_paragraph_index=0,
+            paragraphs=paragraphs,
+        ),
+        question=WordReviewQuestion(
+            id="q1",
+            paragraph_indexes=[12, 13],
+            question="Var sitter immaterialrätten?",
+            why_it_matters="Fel ankare.",
+        ),
+        paragraphs=paragraphs,
+    )
+    sent = "\n".join(captured)
+    assert "Allowed anchors: 12, 13." in sent
+    assert "Return exactly one anchor_paragraph_index from this set." in sent
+    assert "anchor_paragraph_index" not in _OLD_COMMENT_OVERRIDE
+    assert text == "IP-klausulen är för vid."
+    assert anchor == 12
+    assert slot.slot_id == "jur"
+    assert question.id == "q1"
 
 
 @pytest.mark.asyncio
