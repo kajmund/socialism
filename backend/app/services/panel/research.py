@@ -140,16 +140,28 @@ class ModeratorResearchPlan(BaseModel):
 def assign_proposal_ids(
     proposals: Sequence[tuple[PanelExpertSlot, ExpertResearchNeeds]],
 ) -> tuple[list[ResearchProposal], list[PanelExpertSlot]]:
-    """Temporary proposal IDs are assigned in code — the LLM does not own them."""
+    """Temporary proposal IDs are assigned in code — the LLM does not own them.
+
+    Empty or whitespace-only questions are not real needs and get no id.
+    A real need without an allowed source type fails closed; code does
+    not invent a fallback source type.
+    """
     numbered: list[ResearchProposal] = []
     empty_slots: list[PanelExpertSlot] = []
     index = 1
     for slot, bundle in proposals:
-        if not bundle.has_domain_competence or not bundle.needs:
+        if not bundle.has_domain_competence:
             empty_slots.append(slot)
             continue
+        slot_proposals: list[ResearchProposal] = []
         for draft in bundle.needs:
-            numbered.append(
+            if not draft.question:
+                continue
+            if not draft.source_types:
+                raise InvalidResearchPlanError(
+                    "Research need must have at least one allowed source_type"
+                )
+            slot_proposals.append(
                 ResearchProposal(
                     proposal_id=f"proposal_{index}",
                     slot_id=slot.slot_id,
@@ -160,6 +172,10 @@ def assign_proposal_ids(
                 )
             )
             index += 1
+        if not slot_proposals:
+            empty_slots.append(slot)
+            continue
+        numbered.extend(slot_proposals)
     return numbered, empty_slots
 
 
@@ -333,8 +349,11 @@ async def consolidate_research_plan(
     proposals: Sequence[ResearchProposal],
     empty_slots: Sequence[PanelExpertSlot],
     prompts: dict[str, str],
+    *,
+    repair_error: str | None = None,
 ) -> ModeratorResearchPlan:
     brief = _session_brief(config)
+    formatted = format_expert_proposals(proposals, empty_slots)
     messages = _messages_with_brief(
         identity=render_prompt(prompts, "panel.moderator.system"),
         brief=brief,
@@ -344,10 +363,22 @@ async def consolidate_research_plan(
             topic=config.topic,
             brief=brief or config.topic,
             opening=opening,
-            expert_proposals=format_expert_proposals(proposals, empty_slots),
+            expert_proposals=formatted,
             source_types=source_types_prompt(),
         ),
     )
+    if repair_error:
+        messages.append(
+            {
+                "role": "user",
+                "content": render_prompt(
+                    prompts,
+                    "panel.moderator.research_plan_repair",
+                    error=repair_error,
+                    expert_proposals=formatted,
+                ),
+            }
+        )
     return await complete_structured(messages, ModeratorResearchPlan)
 
 
@@ -386,6 +417,11 @@ def plan_from_moderator_draft(
             raise InvalidResearchPlanError(
                 "Canonical research need question is required"
             )
+        source_types = source_types_from_proposals(proposal_ids, proposals)
+        if not source_types:
+            raise InvalidResearchPlanError(
+                "Canonical research need must have at least one source_type"
+            )
         consumed.update(proposal_ids)
         kept.append(
             ResearchNeed(
@@ -393,7 +429,7 @@ def plan_from_moderator_draft(
                 question=need.question,
                 why_needed=need.why_needed,
                 requested_by=requested_by_from_proposals(proposal_ids, proposals),
-                source_types=source_types_from_proposals(proposal_ids, proposals),
+                source_types=source_types,
             )
         )
     omitted = [
@@ -418,4 +454,15 @@ async def build_research_plan(
     draft = await consolidate_research_plan(
         config, opening, numbered, empty_slots, prompts
     )
-    return plan_from_moderator_draft(draft, numbered)
+    try:
+        return plan_from_moderator_draft(draft, numbered)
+    except InvalidResearchPlanError as exc:
+        draft = await consolidate_research_plan(
+            config,
+            opening,
+            numbered,
+            empty_slots,
+            prompts,
+            repair_error=str(exc),
+        )
+        return plan_from_moderator_draft(draft, numbered)

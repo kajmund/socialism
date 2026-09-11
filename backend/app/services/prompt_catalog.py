@@ -1217,6 +1217,36 @@ HOW YOU WRITE COMMENTS:
         ),
     ),
     _f(
+        "panel.moderator.research_plan_repair",
+        "panel",
+        "Moderator — researchplan, korrigering",
+        "Moderator — research plan repair",
+        "Platshållare: {error}, {expert_proposals}.",
+        "Placeholders: {error}, {expert_proposals}.",
+        (
+            "Förra grupperingen var ogiltig:\n"
+            "{error}\n\n"
+            "Giltiga expertförslag (använd varje proposal_id exakt en gång; "
+            "hitta inte på id:n):\n"
+            "{expert_proposals}\n\n"
+            "Korrigera bara grupperingen. Formulera question, why_needed och "
+            "proposal_ids. Sätt inte requested_by, source_types eller permanenta id:n. "
+            "Slå inte ihop behov som är substantiellt olika. "
+            "Skapa inte nya behov och hitta inte på källtyper."
+        ),
+        (
+            "The previous grouping was invalid:\n"
+            "{error}\n\n"
+            "Valid expert proposals (use every proposal_id exactly once; "
+            "do not invent ids):\n"
+            "{expert_proposals}\n\n"
+            "Correct the grouping only. Formulate question, why_needed, and "
+            "proposal_ids. Do not set requested_by, source_types, or permanent ids. "
+            "Do not merge substantively different needs. "
+            "Do not create new needs or invent source types."
+        ),
+    ),
+    _f(
         "panel.moderator.next_question",
         "panel",
         "Moderator — nästa delfråga",
@@ -1502,6 +1532,8 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "- Undvik nice-to-know.\n"
             "- Gör inte slutbedömningen här.\n"
             "- Noll behov är ett giltigt svar om underlaget räcker.\n"
+            "- Ett faktiskt behov kräver en icke-tom fråga och minst en tillåten källtyp. "
+            "Hitta inte på en källtyp.\n"
             "- web är tillåten men inte default."
         ),
         (
@@ -1532,6 +1564,8 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "- Avoid nice-to-know.\n"
             "- Do not make the final assessment here.\n"
             "- Zero needs is a valid answer if the brief is enough.\n"
+            "- A real need requires a non-empty question and at least one allowed "
+            "source type. Do not invent a source type.\n"
             "- web is allowed but is not the default."
         ),
     ),
