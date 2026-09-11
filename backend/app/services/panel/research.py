@@ -12,7 +12,7 @@ from collections.abc import Sequence
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.llm import complete_structured
-from app.services.panel.raise_hand import has_competence_disclaimer
+from app.services.panel.competency import ExpertCompetency
 from app.services.panel.schemas import PanelExpertSlot, PanelSessionConfig
 from app.services.prompt_catalog import render_prompt
 from app.services.research import RESEARCH_SOURCE_TYPES, ResearchNeed, ResearchSourceType
@@ -76,20 +76,15 @@ class ResearchPlan(BaseModel):
     needs: list[ResearchNeed] = Field(default_factory=list)
 
 
-class ExpertResearchNeeds(BaseModel):
-    has_domain_competence: bool = True
-    competence_reason: str = ""
-    needs: list[ResearchNeedDraft] = Field(default_factory=list)
+class ExpertResearchNeeds(ExpertCompetency):
+    """Research-need draft. Competence is decided by ``ExpertCompetency``."""
 
-    @field_validator("competence_reason", mode="before")
-    @classmethod
-    def strip_competence_reason(cls, value: object) -> str:
-        return _strip_text(value)
+    has_domain_competence: bool = True
+    needs: list[ResearchNeedDraft] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def drop_needs_without_competence(self) -> "ExpertResearchNeeds":
-        if has_competence_disclaimer(self.competence_reason) or not self.has_domain_competence:
-            self.has_domain_competence = False
+        if not self.has_domain_competence:
             self.needs = []
         return self
 
