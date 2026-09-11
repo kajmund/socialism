@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from app.services.panel.methods import DELIBERATION_METHODS, PROTOCOL_METHODS
 from app.services.panel.result import (
+    PanelResult,
     dd_panel_result_from_stored,
     envelope_from_dd_panel_result,
     is_panel_result_envelope,
@@ -29,6 +30,23 @@ def test_adapter_round_trips_legacy_and_envelope():
     assert {n.sub_question_id for n in from_envelope.dissensus} == {
         n.sub_question_id for n in legacy.dissensus
     }
+
+
+def test_historical_v1_panel_result_remains_readable():
+    raw = {
+        "schema_version": "1",
+        "protocol": "generic_panel",
+        "summary": "Lucka.",
+        "claims": [],
+        "unanswered": ["Frågan är unanswered: missing expertise."],
+        "payload": {"synthesis": {"summary": "Lucka.", "claims": [], "unanswered": []}},
+    }
+    assert is_panel_result_envelope(raw)
+    result = PanelResult.model_validate(raw)
+    assert result.schema_version == "1"
+    assert result.unanswered == ["Frågan är unanswered: missing expertise."]
+    assert result.unanswered_items == []
+    assert result.competency == []
 
 
 def test_deliberation_methods_register_both_complete_methods():
