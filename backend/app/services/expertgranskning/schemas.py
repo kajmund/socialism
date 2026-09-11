@@ -224,6 +224,14 @@ class WordExpertRaiseHand(BaseModel):
 
 class WordExpertComment(BaseModel):
     kommentar: str = ""
+    anchor_paragraph_index: int | None = None
+
+    @field_validator("anchor_paragraph_index", mode="before")
+    @classmethod
+    def empty_anchor_is_omitted(cls, value: object) -> object:
+        if value == "":
+            return None
+        return value
 
 
 class WordConvergedIssue(BaseModel):
