@@ -106,11 +106,37 @@ _WORD_COMMENT_ANCHOR_SUFFIX = (
     "Allowed anchors: {indexes}. "
     "Return exactly one anchor_paragraph_index from this set."
 )
+WORD_COMMENT_CONVERGENCE_SUFFIX = (
+    "Output contract: return issues with observation_ids, paragraph_index, "
+    "supporting_expert_ids, short_comment, explanation, materiality "
+    "(high|medium|low), actionability (actionable|informational), "
+    "novelty (new|overlap), should_materialize, and has_dissensus. "
+    "short_comment is the Word margin text. explanation is the fuller reasoning. "
+    "Do not return a kommentar field."
+)
 
 
 def word_comment_anchor_suffix(paragraph_indexes: Sequence[int]) -> str:
     indexes = ", ".join(str(index) for index in paragraph_indexes)
     return _WORD_COMMENT_ANCHOR_SUFFIX.format(indexes=indexes)
+
+
+def render_comment_convergence_user_prompt(
+    prompts: dict[str, str],
+    *,
+    section: WordDocumentSection,
+    batch: list[WordDocumentParagraph],
+    observations: list[WordObservation],
+) -> str:
+    """Render the editable convergence prompt, then append the output contract."""
+    body = render_prompt(
+        prompts,
+        "expertgranskning.word.comment_convergence",
+        section_heading=section.heading,
+        batch_text=_batch_text(batch),
+        observations=format_observations_for_prompt(observations),
+    )
+    return f"{body}\n\n{WORD_COMMENT_CONVERGENCE_SUFFIX}"
 
 
 def render_expert_comment_user_prompt(
@@ -423,6 +449,7 @@ async def _write_result(
     is_heading_suggestion: bool,
     is_rewrite_suggestion: bool = False,
     foreslagen_text: str | None = None,
+    explanation: str | None = None,
     request: dict | None = None,
     source_ordinal: int = 0,
     commit: bool = True,
@@ -439,6 +466,7 @@ async def _write_result(
         is_heading_suggestion=is_heading_suggestion,
         is_rewrite_suggestion=is_rewrite_suggestion,
         foreslagen_text=foreslagen_text,
+        explanation=(explanation or "").strip() or None,
         created_at=utcnow(),
     )
     session.add(row)
@@ -681,12 +709,11 @@ async def _comment_convergence(
     limiter: WordReviewLimiter,
     review_intent: str = "",
 ) -> WordCommentConvergence:
-    user = render_prompt(
+    user = render_comment_convergence_user_prompt(
         prompts,
-        "expertgranskning.word.comment_convergence",
-        section_heading=section.heading,
-        batch_text=_batch_text(batch),
-        observations=format_observations_for_prompt(observations),
+        section=section,
+        batch=batch,
+        observations=observations,
     )
     return await _llm(
         limiter,
@@ -973,6 +1000,8 @@ async def _persist_section_analysis(
     pending: list[ExpertgranskningResult] = []
     source_ordinal = 0
     for item in analysis.comments:
+        if not item.should_materialize:
+            continue
         pending.append(
             await _write_result(
                 session,
@@ -984,6 +1013,7 @@ async def _persist_section_analysis(
                 expert_namn=item.expert_namn,
                 kommentar=item.kommentar,
                 is_heading_suggestion=False,
+                explanation=item.explanation or None,
                 request=job.request,
                 source_ordinal=source_ordinal,
                 commit=False,
