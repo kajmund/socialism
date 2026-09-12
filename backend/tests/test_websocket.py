@@ -759,7 +759,7 @@ def test_expertgranskning_websocket_bolag_can_watch_own_job(ws_client):
         replay = ws.receive_json()
         assert replay["type"] == "expertgranskning.replay"
         assert replay["job_id"] == job_id
-        assert replay["results"] == []
+        assert replay["actions"] == []
 
 
 def test_expertgranskning_websocket_unknown_or_wrong_kind_closes(ws_client):
