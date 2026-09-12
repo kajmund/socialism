@@ -5,7 +5,14 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 SUPPORTED_WORD_TASK_TYPES = frozenset({"review"})
 SUPPORTED_WORD_SCOPE_TYPES = frozenset({"document", "selection"})
@@ -121,19 +128,20 @@ def selection_target_indexes(task: WordTask) -> frozenset[int] | None:
     return frozenset(task.scope.paragraph_indexes)
 
 
-def task_from_request(request: dict | None) -> WordTask | None:
+def task_from_request(request: dict | None) -> WordTask:
     if not request:
-        return None
+        raise ValueError("word request task is required")
     raw = request.get("task")
     if raw is None:
-        return None
+        raise ValueError("word request task is required")
     return WordTask.model_validate(raw)
 
 
 def paragraph_is_actionable(request: dict | None, paragraph_index: int) -> bool:
-    task = task_from_request(request)
-    if task is None:
-        return True
+    try:
+        task = task_from_request(request)
+    except (ValueError, ValidationError):
+        return False
     target = selection_target_indexes(task)
     if target is None:
         return True

@@ -130,6 +130,7 @@ def test_job_request_stores_full_word_task():
             "doc_id": "doc-1",
             "word_session_id": "sess-1",
             "locale": "sv",
+            "review_intent": "Devbrains är motpart i avtalet.",
             "task": _review_task(12, paragraph_indexes=[14, 15, 16]),
             "sections": _sections(0, 14, 15, 16),
         }
@@ -140,6 +141,7 @@ def test_job_request_stores_full_word_task():
         "scope": {"type": "selection", "paragraph_indexes": [14, 15, 16]},
         "expert_strategy": {"type": "panel", "panel_id": 12},
     }
+    assert dumped["review_intent"] == "Devbrains är motpart i avtalet."
     assert "panel_id" not in dumped
     assert request.panel_id == 12
     assert snapshot_indexes_from_sections(request.sections) == {0, 14, 15, 16}
@@ -168,4 +170,16 @@ def test_paragraph_is_actionable_uses_frozen_selection():
     assert paragraph_is_actionable(request, 14)
     assert not paragraph_is_actionable(request, 16)
     assert paragraph_is_actionable({"task": _review_task()}, 16)
-    assert paragraph_is_actionable(None, 16)
+    assert not paragraph_is_actionable(None, 16)
+    assert not paragraph_is_actionable({}, 16)
+    assert not paragraph_is_actionable({"sections": []}, 16)
+    assert not paragraph_is_actionable(
+        {
+            "task": {
+                "task_type": "improve",
+                "scope": {"type": "document"},
+                "expert_strategy": {"type": "panel", "panel_id": 1},
+            }
+        },
+        16,
+    )
