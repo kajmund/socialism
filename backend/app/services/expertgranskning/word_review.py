@@ -29,7 +29,6 @@ from app.services.expertgranskning.comment_convergence import (
     consolidated_from_observation,
     format_observations_for_prompt,
 )
-from app.services.expertgranskning.word_structured import complete_word_structured
 from app.services.expertgranskning.schemas import (
     ExpertgranskningWordJobRequest,
     WordBatchModeration,
@@ -40,15 +39,20 @@ from app.services.expertgranskning.schemas import (
     WordExpertRaiseHand,
     WordHeadingAssessment,
     WordParagraphComments,
-    WordRewriteSuggestion,
     WordReviewQuestion,
+    WordRewriteSuggestion,
 )
 from app.services.expertgranskning.watch import (
     publish_action_created,
     publish_expertgranskning_finished,
 )
+from app.services.expertgranskning.word_structured import complete_word_structured
 from app.services.word.materialize import materialize_word_action
 from app.services.panel.expert_slots import load_expert_slots_from_population
+from app.services.panel.review_intent import (
+    compose_brief_with_review_intent,
+    render_review_intent_message,
+)
 from app.services.panel.schemas import PanelExpertSlot
 from app.services.prompt_catalog import render_prompt
 from app.services.prompt_store import require_active_prompts
@@ -417,6 +421,7 @@ async def _review_heading(
     prompts: dict[str, str],
     slots: list[PanelExpertSlot],
     section: WordDocumentSection,
+    review_intent: str = "",
 ) -> WordHeadingAssessment:
     user = render_prompt(
         prompts,
@@ -426,7 +431,7 @@ async def _review_heading(
         section_text=_section_body(section),
     )
     return await complete_word_structured(
-        [{"role": "user", "content": user}],
+        _messages_with_brief(identity="", brief=review_intent, user=user),
         WordHeadingAssessment,
         prompts=prompts,
     )
@@ -568,6 +573,7 @@ async def _comment_convergence(
     section: WordDocumentSection,
     batch: list[WordDocumentParagraph],
     observations: list[WordObservation],
+    review_intent: str = "",
 ) -> WordCommentConvergence:
     user = render_prompt(
         prompts,
@@ -577,7 +583,7 @@ async def _comment_convergence(
         observations=format_observations_for_prompt(observations),
     )
     return await complete_word_structured(
-        [{"role": "user", "content": user}],
+        _messages_with_brief(identity="", brief=review_intent, user=user),
         WordCommentConvergence,
         prompts=prompts,
     )
@@ -590,6 +596,7 @@ async def _consolidate_comments(
     paragraphs: list[WordDocumentParagraph],
     comments: list[tuple[PanelExpertSlot, WordReviewQuestion, str, int | None]],
     by_index: dict[int, WordDocumentParagraph],
+    review_intent: str = "",
 ) -> list[WordConsolidatedComment]:
     raw = _observations_from_comments(comments, by_index)
     collapsed = collapse_intra_expert_duplicates(raw)
@@ -600,6 +607,7 @@ async def _consolidate_comments(
         section=section,
         batch=paragraphs,
         observations=collapsed,
+        review_intent=review_intent,
     )
     return apply_word_comment_convergence(collapsed, parsed)
 
@@ -610,6 +618,7 @@ async def _rewrite_convergence(
     section: WordDocumentSection,
     paragraph: WordDocumentParagraph,
     comments: list[tuple[str, str]],
+    review_intent: str = "",
 ) -> WordRewriteSuggestion | None:
     comments_text = "\n".join(
         f"- {name}: {text}" for name, text in comments
@@ -622,7 +631,7 @@ async def _rewrite_convergence(
         comments=comments_text,
     )
     parsed = await complete_word_structured(
-        [{"role": "user", "content": user}],
+        _messages_with_brief(identity="", brief=review_intent, user=user),
         WordRewriteSuggestion,
         prompts=prompts,
     )
@@ -636,7 +645,12 @@ async def run_word_paragraph_review(
     prompts: dict[str, str],
 ) -> dict[str, int]:
     slots = await load_expert_slots_from_population(session, payload.panel_id)
-    brief = _document_brief(payload)
+    brief = compose_brief_with_review_intent(
+        prompts,
+        brief=_document_brief(payload),
+        review_intent=payload.review_intent,
+    )
+    review_intent = render_review_intent_message(prompts, payload.review_intent)
     paragraph_reviews = 0
     heading_reviews = 0
     result_count = 0
@@ -726,6 +740,7 @@ async def run_word_paragraph_review(
                             section=section,
                             paragraph=paragraph,
                             comments=comments_by_index[paragraph.index],
+                            review_intent=review_intent,
                         )
                         for paragraph in rewrite_targets
                     ]
@@ -744,6 +759,7 @@ async def run_word_paragraph_review(
             paragraphs=sorted(section_by_index.values(), key=lambda item: item.index),
             comments=section_comments,
             by_index=section_by_index,
+            review_intent=review_intent,
         )
 
         pending: list[ExpertgranskningResult] = []
@@ -803,7 +819,12 @@ async def run_word_paragraph_review(
                     continue
                 await publish_action_created(action)
 
-        heading = await _review_heading(prompts=prompts, slots=slots, section=section)
+        heading = await _review_heading(
+            prompts=prompts,
+            slots=slots,
+            section=section,
+            review_intent=review_intent,
+        )
         heading_reviews += 1
         suggestion = (heading.forslag or "").strip()
         if suggestion:

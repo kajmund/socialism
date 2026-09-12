@@ -1155,6 +1155,7 @@ table.lt.pol .lock.on{background:var(--db-gold-700);border-color:var(--db-gold-7
 .field label{font:var(--text-label);color:var(--text-muted);display:block;margin-bottom:6px}
 .field input,.field textarea{width:100%;font:inherit;font-size:15px;padding:11px 14px;border:1.5px solid var(--border-hairline);border-radius:var(--radius-md);background:var(--db-ink-0);box-sizing:border-box}
 .field textarea{min-height:12rem;resize:vertical;line-height:1.45}
+.field textarea.short{min-height:6rem}
 .cand-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:24px}
 .cand-card{cursor:pointer}
 .cand-card:hover>div{border-color:var(--db-ink-950)!important;box-shadow:0 0 0 2px var(--db-ink-950)}
@@ -1214,7 +1215,8 @@ table.lt.pol .lock.on{background:var(--db-gold-700);border-color:var(--db-gold-7
 .spinndoctor-workspace-grid-toolbar .spinndoctor-canvas-toggle + .spinndoctor-canvas-toggle{border-left:1px solid var(--border-hairline)}
 .spinndoctor-workspace-report{pointer-events:auto;width:min(420px,calc(100vw - 32px));min-width:260px;min-height:0;display:flex;flex-direction:column;margin-left:auto;box-shadow:0 10px 40px rgba(26,24,22,.14)}
 .spinndoctor-workspace-report.is-full-width{flex:1;width:auto;min-width:0;max-width:none}
-.spinndoctor-report-toolbar{display:flex;justify-content:flex-end;padding:6px 10px;border:1px solid var(--border-hairline);border-bottom:0;border-radius:12px 12px 0 0;background:var(--db-ink-0)}
+.spinndoctor-report-toolbar{display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:6px 10px;border:1px solid var(--border-hairline);border-bottom:0;border-radius:12px 12px 0 0;background:var(--db-ink-0)}
+.spinndoctor-report-toolbar [role="tablist"]{border-bottom:0}
 .spinndoctor-workspace-report .spinndoctor-canvas{flex:1;height:auto;min-height:0;border-top-left-radius:0;border-top-right-radius:0}
 @media (max-width: 960px){
   .spinndoctor-workspace-overlays-body{flex-direction:column;justify-content:flex-end}

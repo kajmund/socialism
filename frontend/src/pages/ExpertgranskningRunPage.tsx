@@ -14,6 +14,7 @@ import { useAuth } from "@/auth/AuthProvider"
 import { AdminShell, rememberJobPending } from "@/components/layout/AdminShell"
 import { NestedBolagPage } from "@/components/layout/BolagShell"
 import { PanelLiveFeedPanel } from "@/components/panel/PanelLiveFeedPanel"
+import { getUnderlag } from "@/api/underlag"
 import { UnderlagPicker, type UnderlagSelection } from "@/components/underlag/UnderlagPicker"
 import { Card, CardContent } from "@/components/ui/card"
 import type { PopulationSummary } from "@/data/library-types"
@@ -71,7 +72,7 @@ function statusClassName(status: ExpertgranskningSessionStatus | null): string {
 
 function ExpertgranskningRunInner({ bolag }: { bolag: boolean }) {
   const { t, locale } = useLocale()
-  const { role, hasModule } = useAuth()
+  const { role, hasModule, user } = useAuth()
   const navigate = useNavigate()
   const { id: routeId } = useParams<{ id: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -83,6 +84,7 @@ function ExpertgranskningRunInner({ bolag }: { bolag: boolean }) {
   const activeTab = parseTab(searchParams.get("tab"))
   const [session, setSession] = useState<ExpertgranskningSession | null>(null)
   const [title, setTitle] = useState("")
+  const [reviewIntent, setReviewIntent] = useState("")
   const [documentText, setDocumentText] = useState("")
   const [selectedUnderlag, setSelectedUnderlag] = useState<UnderlagSelection | null>(null)
   const [panelId, setPanelId] = useState<number | null>(null)
@@ -155,7 +157,11 @@ function ExpertgranskningRunInner({ bolag }: { bolag: boolean }) {
     setLoadingPanels(true)
     listPopulations({ kind: "expert_panel" })
       .then((panels) => {
-        if (!cancelled) setExpertPanels(panels)
+        if (cancelled) return
+        const kundId = user?.kundId
+        setExpertPanels(
+          kundId == null ? panels : panels.filter((panel) => panel.customer_id === kundId),
+        )
       })
       .catch((err: unknown) => {
         if (!cancelled) {
@@ -168,7 +174,7 @@ function ExpertgranskningRunInner({ bolag }: { bolag: boolean }) {
     return () => {
       cancelled = true
     }
-  }, [t])
+  }, [t, user?.kundId])
 
   useEffect(() => {
     if (isNew || !sessionId) {
@@ -182,8 +188,26 @@ function ExpertgranskningRunInner({ bolag }: { bolag: boolean }) {
         if (cancelled) return
         setSession(row)
         setTitle(row.topic)
+        setReviewIntent(row.review_intent)
         setDocumentText(row.document_text)
         setPanelId(row.panel_id)
+        setSelectedUnderlag(null)
+        if (row.underlag_id) {
+          void getUnderlag(row.underlag_id)
+            .then((file) => {
+              if (cancelled) return
+              setSelectedUnderlag({
+                objectId: file.id,
+                filename: file.filename,
+                extractedText: file.extracted_text ?? "",
+                status: file.extraction_status ?? "pending",
+                contentType: file.content_type,
+              })
+            })
+            .catch(() => {
+              if (!cancelled) setSelectedUnderlag(null)
+            })
+        }
         setError(null)
       })
       .catch((err: unknown) => {
@@ -271,16 +295,23 @@ function ExpertgranskningRunInner({ bolag }: { bolag: boolean }) {
   }, [locale, liveStatus, reportId, sessionId, setSearchParams, t])
 
   async function persistSession(): Promise<ExpertgranskningSession> {
+    const underlagId = selectedUnderlag?.objectId ?? null
+    const pasted = selectedUnderlag ? "" : documentText
     if (isNew || !sessionId) {
       return createExpertgranskningSession({
         title: title.trim(),
-        document_text: documentText,
+        review_intent: reviewIntent,
+        document_text: pasted,
+        underlag_id: underlagId,
         panel_id: panelId ?? undefined,
       })
     }
     return updateExpertgranskningSession(sessionId, {
       title: title.trim(),
-      document_text: documentText,
+      review_intent: reviewIntent,
+      document_text: pasted,
+      underlag_id: underlagId,
+      clear_underlag: underlagId == null,
       panel_id: panelId ?? undefined,
       clear_panel: panelId == null,
     })
@@ -293,8 +324,12 @@ function ExpertgranskningRunInner({ bolag }: { bolag: boolean }) {
       const saved = await persistSession()
       setSession(saved)
       setTitle(saved.topic)
-      setDocumentText(saved.document_text)
+      setReviewIntent(saved.review_intent)
+      setDocumentText(saved.underlag_id ? "" : saved.document_text)
       setPanelId(saved.panel_id)
+      if (!saved.underlag_id) {
+        setSelectedUnderlag(null)
+      }
       if (isNew) {
         navigate(`${base}/${saved.id}?tab=config`, { replace: true })
       }
@@ -306,8 +341,9 @@ function ExpertgranskningRunInner({ bolag }: { bolag: boolean }) {
   }
 
   async function startRun() {
+    const hasUnderlag = selectedUnderlag != null
     const text = documentText.trim()
-    if (!text) {
+    if (!hasUnderlag && !text) {
       setError(t("expertgranskning.page.missingDocument"))
       return
     }
@@ -481,7 +517,24 @@ function ExpertgranskningRunInner({ bolag }: { bolag: boolean }) {
                 />
               </div>
               <div className="field">
-                <label htmlFor="expertgranskning-document">
+                <label htmlFor="expertgranskning-intent">
+                  {t("expertgranskning.page.intentLabel")}
+                </label>
+                <textarea
+                  id="expertgranskning-intent"
+                  className="short"
+                  rows={4}
+                  value={reviewIntent}
+                  disabled={!canEdit}
+                  placeholder={t("expertgranskning.page.intentPlaceholder")}
+                  onChange={(event) => setReviewIntent(event.target.value)}
+                />
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {t("expertgranskning.page.intentHint")}
+                </p>
+              </div>
+              <div className="field">
+                <label htmlFor={selectedUnderlag ? undefined : "expertgranskning-document"}>
                   {t("expertgranskning.page.documentLabel")}
                 </label>
                 <UnderlagPicker
@@ -491,22 +544,25 @@ function ExpertgranskningRunInner({ bolag }: { bolag: boolean }) {
                   disabled={!canEdit}
                   onChange={(next) => {
                     setSelectedUnderlag(next)
-                    if (next?.status === "ok" && next.extractedText.trim()) {
-                      setDocumentText(next.extractedText)
-                    } else if (next) {
+                    if (next) {
                       setDocumentText("")
                     }
                   }}
                 />
-                <textarea
-                  id="expertgranskning-document"
-                  className="mt-2 w-full"
-                  rows={12}
-                  value={documentText}
-                  disabled={!canEdit}
-                  placeholder={t("expertgranskning.page.documentPlaceholder")}
-                  onChange={(event) => setDocumentText(event.target.value)}
-                />
+                {selectedUnderlag ? null : (
+                  <textarea
+                    id="expertgranskning-document"
+                    className="mt-2 w-full"
+                    rows={12}
+                    value={documentText}
+                    disabled={!canEdit}
+                    placeholder={t("expertgranskning.page.documentPlaceholder")}
+                    onChange={(event) => {
+                      setSelectedUnderlag(null)
+                      setDocumentText(event.target.value)
+                    }}
+                  />
+                )}
               </div>
               <div className="field">
                 <label htmlFor="expertgranskning-panel">{t("expertgranskning.page.panelLabel")}</label>

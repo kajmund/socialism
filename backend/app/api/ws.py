@@ -277,14 +277,22 @@ async def reports_websocket(websocket: WebSocket) -> None:
 
         factory = jobs_service.job_session_factory()
         async with factory() as session:
+            from app.services.stored_objects import report_ids_with_source_pdf
+
             rows = await list_reports(
                 session, limit=50, customer_id=customer_id
+            )
+            with_pdf = await report_ids_with_source_pdf(
+                session, [row.id for row in rows]
             )
             await websocket.send_json(
                 {
                     "type": "reports.snapshot",
                     "reports": [
-                        serialize_report(row).model_dump(mode="json") for row in rows
+                        serialize_report(
+                            row, has_source_pdf=row.id in with_pdf
+                        ).model_dump(mode="json")
+                        for row in rows
                     ],
                 }
             )

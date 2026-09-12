@@ -17,7 +17,7 @@ Har kontot både **politik** och **Due Diligence** delas listan upp i flikar. Ha
 2. Om du ser flikarna **Politik** och **Due Diligence**, välj den modul du vill titta på.
 3. Växla mellan **Rutnät** och **Lista** om du vill.
 4. Listan visar titel, läge, antal källor, tidpunkt och status.
-5. Välj **Öppna rapport** på den rad du vill läsa eller följa. En klar rapport öppnas i **Spinndoktor**. Färdiga rapporter sparas i kundens fillager för den modul rapporten tillhör.
+5. Välj **Öppna rapport** på den rad du vill läsa eller följa. En klar rapport öppnas i **Spinndoktor**. För expertgranskning med PDF-underlag kan du växla mellan flikarna **Rapport** och **PDF**. Färdiga rapporter sparas i kundens fillager för den modul rapporten tillhör.
 6. Rapporter som fortfarande **genereras** uppdateras i listan automatiskt.
 7. För att ta bort en rapport: välj **Ta bort** i listan eller på rapportsidan, och bekräfta.
 8. För att ta bort flera: markera rapporterna (eller **Markera alla**), välj **Ta bort markerade** och bekräfta.

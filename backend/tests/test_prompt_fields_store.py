@@ -127,6 +127,10 @@ def test_module_providers_cover_all_catalog_keys_without_overlap_gaps():
     assert "panel.generic.synthesis" in dd_keys
     assert "panel.generic.synthesis" in politik_keys
     assert "panel.generic.synthesis" not in ratts_keys
+    assert "panel.review_intent" in expert_keys
+    assert "panel.review_intent" in dd_keys
+    assert "panel.review_intent" in politik_keys
+    assert "panel.review_intent" not in ratts_keys
     assert "panel.expert.research_need" in expert_keys
     assert "panel.expert.research_need" in dd_keys
     assert "panel.expert.competency" in expert_keys

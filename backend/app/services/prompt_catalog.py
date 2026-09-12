@@ -1113,6 +1113,26 @@ HOW YOU WRITE COMMENTS:
         ),
     ),
     _f(
+        "panel.review_intent",
+        "panel",
+        "Granskningsavsikt",
+        "Review intent",
+        "Platshållare: {review_intent}. Visas bara när användaren fyllt i fältet.",
+        "Placeholders: {review_intent}. Shown only when the user filled in the field.",
+        (
+            "Granskningsavsikt (vägledande för vad som ska analyseras):\n"
+            "{review_intent}\n\n"
+            "Följ avsikten. Den anger vad som är viktigt och, om det framgår, "
+            "vilken partsställning som gäller. Anta inte en annan part."
+        ),
+        (
+            "Review intent (guides what to analyse):\n"
+            "{review_intent}\n\n"
+            "Follow this intent. It states what matters and, if given, which party "
+            "position applies. Do not assume a different party."
+        ),
+    ),
+    _f(
         "panel.moderator.system",
         "panel",
         "Moderator — system",
@@ -2078,7 +2098,8 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "Panel:\n{expert_list}\n\n"
             "Avsnitt: {section_heading}\n\n"
             "Den här batchen:\n{batch_text}\n\n"
-            "Hela dokumentet ligger i systemmeddelandet.\n\n"
+            "Hela dokumentet ligger i systemmeddelandet. "
+            "Om en granskningsavsikt finns där: formulera frågor utifrån den.\n\n"
             "Returnera needs_review, reason och questions. "
             "Varje fråga ska ha id, paragraph_indexes (bara index från batchen), "
             "question och why_it_matters. "
@@ -2099,7 +2120,8 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "Panel:\n{expert_list}\n\n"
             "Section: {section_heading}\n\n"
             "This batch:\n{batch_text}\n\n"
-            "The full document is in the system message.\n\n"
+            "The full document is in the system message. "
+            "If a review intent is present there: formulate questions from it.\n\n"
             "Return needs_review, reason, and questions. "
             "Each question must have id, paragraph_indexes (only indexes from the batch), "
             "question, and why_it_matters. "
@@ -2175,7 +2197,10 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "Inga tekniska termer. Prefixera inte med klausulnummer.\n\n"
             "Sätt anchor_paragraph_index till det enda stycke bland de tillåtna som "
             "bär observationen. Gissa inte ett annat stycke.\n\n"
-            "Granskande part är okänd. Använd dokumentets partsbeteckningar "
+            "Om en granskningsavsikt finns i systemmeddelandet: följ den, inklusive "
+            "partsställning. "
+            "Granskande part är okänd om avsikten inte anger partsställning. "
+            "Använd dokumentets partsbeteckningar "
             "(Leverantören, Beställaren, Kunden, Konsulten) och skriv inte "
             "för er som kund eller du som kund. Anta inte vilken sida användaren är. "
             "Vänd inte på dokumentfakta. Externa antaganden ska märkas som antaganden."
@@ -2196,7 +2221,10 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "No technical terms. Do not prefix with the clause number.\n\n"
             "Set anchor_paragraph_index to the single allowed paragraph that most "
             "directly supports the observation. Do not guess another paragraph.\n\n"
-            "The reviewing party is unknown. Use the document's party labels "
+            "If a review intent is present in the system message: follow it, including "
+            "party position. "
+            "The reviewing party is unknown if the intent does not state a party. "
+            "Use the document's party labels "
             "(Supplier, Customer, Buyer, Consultant) and do not write "
             "for you as the customer or you as the client. Do not assume which side "
             "the user is on. Do not reverse document facts. Phrase external "
@@ -2262,7 +2290,10 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "- Varje inkommande observation_id ska ingå i exakt en issue.\n"
             "- paragraph_index måste vara ett ankare som redan finns på de "
             "grupperade observationerna. Hitta inte på ett annat stycke.\n"
-            "- Granskande part är okänd. Använd dokumentets partsbeteckningar. "
+            "- Om en granskningsavsikt finns i systemmeddelandet: följ den, inklusive "
+            "partsställning. "
+            "Granskande part är okänd om avsikten inte anger partsställning. "
+            "Använd dokumentets partsbeteckningar. "
             "Skriv inte för er som kund eller du som kund. "
             "Vänd inte på dokumentfakta. Märk externa antaganden som antaganden.\n\n"
             "Avsnitt: {section_heading}\n\n"
@@ -2293,7 +2324,10 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "- Every incoming observation_id must appear in exactly one issue.\n"
             "- paragraph_index must be an anchor already present on the grouped "
             "observations. Do not invent another paragraph.\n"
-            "- The reviewing party is unknown. Use the document's party labels. "
+            "- If a review intent is present in the system message: follow it, including "
+            "party position. "
+            "The reviewing party is unknown if the intent does not state a party. "
+            "Use the document's party labels. "
             "Do not write for you as the customer or you as the client. "
             "Do not reverse document facts. Mark external assumptions as assumptions.\n\n"
             "Section: {section_heading}\n\n"

@@ -18,6 +18,10 @@ export const messages = {
     panelLabel: "Expertpanel",
     panelPlaceholder: "Välj panel",
     panelEmpty: "Inga expertpaneler syns för det här kontot.",
+    intentLabel: "Granskningsavsikt",
+    intentPlaceholder: "T.ex. Devbrains är motpart i avtalet.",
+    intentHint:
+      "Valfritt. Extra information till experterna om vad som ska analyseras, till exempel vilken part du företräder.",
     review: "Granska",
     reviewing: "Granskar…",
     statusIdle: "Välj en panel och klicka Granska.",
@@ -80,6 +84,10 @@ export const messages = {
     panelLabel: "Expert panel",
     panelPlaceholder: "Choose a panel",
     panelEmpty: "No expert panels are visible for this account.",
+    intentLabel: "Review intent",
+    intentPlaceholder: "E.g. Devbrains is the counterparty in the contract.",
+    intentHint:
+      "Optional. Extra information for the experts about what to analyse, for example which party you represent.",
     review: "Review",
     reviewing: "Reviewing…",
     statusIdle: "Choose a panel and click Review.",

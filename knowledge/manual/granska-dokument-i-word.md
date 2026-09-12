@@ -14,7 +14,8 @@ Tillägget **Expertgranskning** sitter i Word, inte i webbläsaren. Det använde
 1. Öppna dokumentet i **Word på datorn** och öppna tillägget från fliken **Start** (Devbrains-huvudet, knappen **Granska**).
 2. Klistra in din inloggningstoken (samma som efter inloggningslänken) och spara den. Token stannar i Word.
 3. Välj en **expertpanel**. Listan visar bara panelerna för din kund.
-4. Klicka **Granska**. Tillägget läser dokumentets stycken och startar en granskning. Inget mer behöver fyllas i.
+4. Fyll i **Granskningsavsikt** om du vill styra vad experterna ska fokusera på, till exempel att Devbrains är motpart i avtalet. Fältet är valfritt.
+5. Klicka **Granska**. Tillägget läser dokumentets stycken och startar en granskning.
 
 En moderator läser först varje del av dokumentet och hoppar över rent administrativt innehåll, till exempel namn och kontaktuppgifter. Bara delar som kräver bedömning går vidare till experterna, som frågor. Varje expert får hela dokumentet som underlag och kommenterar bara de frågor där hen räcker upp handen. Förslagen visas löpande i sidopanelen och fästs vid det stycke som bär observationen först när du tillämpar dem. Kommentarerna använder dokumentets partsnamn och antar inte att du är kund eller leverantör. När flera experter gör samma observation slås den ihop till en kommentar som visar vilka som stödjer den. Om experterna faktiskt är oeniga syns båda bedömningarna. Klausulnummer (till exempel 2.1) används internt så att experten kan peka rätt — de läggs inte in i kommentaren du ser.
 

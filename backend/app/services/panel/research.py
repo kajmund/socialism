@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.llm import complete_structured
 from app.services.panel.competency import ExpertCompetency
+from app.services.panel.review_intent import session_brief_for_llm
 from app.services.panel.schemas import PanelExpertSlot, PanelSessionConfig
 from app.services.prompt_catalog import render_prompt
 from app.services.research import (
@@ -314,8 +315,8 @@ def _messages_with_brief(
     return messages
 
 
-def _session_brief(config: PanelSessionConfig) -> str:
-    return (config.brief or "").strip()
+def _session_brief(config: PanelSessionConfig, prompts: dict[str, str]) -> str:
+    return session_brief_for_llm(config, prompts)
 
 
 async def collect_expert_research_needs(
@@ -324,7 +325,7 @@ async def collect_expert_research_needs(
     opening: str,
     prompts: dict[str, str],
 ) -> ExpertResearchNeeds:
-    brief = _session_brief(config)
+    brief = _session_brief(config, prompts)
     messages = _messages_with_brief(
         identity=render_prompt(
             prompts, "panel.expert.system", label=slot.label, profile=slot.profile
@@ -352,7 +353,7 @@ async def consolidate_research_plan(
     *,
     repair_error: str | None = None,
 ) -> ModeratorResearchPlan:
-    brief = _session_brief(config)
+    brief = _session_brief(config, prompts)
     formatted = format_expert_proposals(proposals, empty_slots)
     messages = _messages_with_brief(
         identity=render_prompt(prompts, "panel.moderator.system"),

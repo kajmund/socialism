@@ -94,8 +94,8 @@ async def test_underlag_upload_list_get_is_owner_scoped(
     assert body["filename"] == "brief.txt"
     assert body["kind"] == KIND_UNDERLAG
     assert body["owner_user_id"] == USER_USER_ID
-    assert body["extraction_status"] == "ok"
-    assert body["extracted_text"] == "Personligt underlag."
+    assert body["extraction_status"] == "pending"
+    assert body["extracted_text"] in (None, "")
     object_id = body["id"]
 
     storage = get_object_storage()
@@ -115,7 +115,8 @@ async def test_underlag_upload_list_get_is_owner_scoped(
 
     fetched = await client.get(f"/underlag/{object_id}")
     assert fetched.status_code == 200
-    assert fetched.json()["extracted_text"] == "Personligt underlag."
+    assert fetched.json()["extraction_status"] == "pending"
+    assert fetched.json().get("extracted_text") in (None, "")
 
     client.headers["Authorization"] = f"Bearer {admin_token}"
     admin_listed = await client.get("/underlag", params={"module": "expertgranskning"})
@@ -310,17 +311,48 @@ async def test_underlag_move_delete_and_file_download(
     )
 
 
-def test_expertgranskning_report_renders_document_as_markdown():
+def test_expertgranskning_report_omits_document_section():
     from app.services.expertgranskning.report_html import render_expertgranskning_html
 
     html = render_expertgranskning_html(
         title="T",
         locale="sv",
         document_text="**fet** text",
-        summary="ok",
+        summary="**sammanfattning**",
         transcript=[],
         session_id="s1",
     )
+    assert 'id="dokument"' not in html
     assert "document-body" not in html
-    assert "<strong>fet</strong>" in html
+    assert "**fet** text" not in html
+    assert "<strong>sammanfattning</strong>" in html
     assert 'class="explainer md-body"' in html
+
+@pytest.mark.asyncio
+async def test_upload_docx_converts_to_pdf(user_client: AsyncClient, monkeypatch):
+    async def fake_convert(data: bytes, *, filename: str = "document.docx") -> bytes:
+        assert data.startswith(b"PK")
+        return b"%PDF-1.4\nfake-docx-pdf\n"
+
+    monkeypatch.setattr(
+        "app.services.stored_objects.convert_docx_to_pdf_async",
+        fake_convert,
+    )
+    data = _minimal_docx("Hej från Word")
+    resp = await user_client.post(
+        "/underlag",
+        params={"module": "expertgranskning"},
+        files={
+            "file": (
+                "brief.docx",
+                data,
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            )
+        },
+    )
+    assert resp.status_code == 201, resp.text
+    body = resp.json()
+    assert body["filename"].endswith(".pdf")
+    assert body["content_type"] == "application/pdf"
+    assert body["extraction_status"] == "pending"
+    assert body.get("extracted_text") in (None, "")

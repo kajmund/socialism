@@ -15,6 +15,7 @@ export type AuthUser = {
   role: Role
   modules: string[]
   kundSlug: string | null
+  kundId: number | null
 }
 
 export type AuthSession = {
@@ -53,6 +54,7 @@ function sessionFromSupabase(
       role: "user",
       modules: [],
       kundSlug: null,
+      kundId: null,
     },
   }
 }

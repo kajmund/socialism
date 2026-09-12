@@ -8,8 +8,12 @@ from app.services.expertgranskning.report_html import write_expertgranskning_art
 from app.services.expertgranskning.sessions import (
     document_text_from_config,
     is_expertgranskning_session,
+    review_intent_from_config,
+    underlag_id_from_config,
 )
+from app.services.object_storage import KIND_UNDERLAG
 from app.services.panel.sessions import get_panel_session
+from app.services.stored_objects import get_stored_object, read_stored_bytes
 
 
 async def generate_expertgranskning_module_report(
@@ -33,7 +37,19 @@ async def generate_expertgranskning_module_report(
         config = panel.config if isinstance(panel.config, dict) else {}
         transcript = panel.transcript if isinstance(panel.transcript, list) else []
         document_text = document_text_from_config(config)
+        review_intent = review_intent_from_config(config)
         summary = str(result.get("summary") or panel.analysis or "").strip()
+        underlag_id = underlag_id_from_config(config)
+        if underlag_id:
+            underlag = await get_stored_object(session, underlag_id)
+            if (
+                underlag is not None
+                and underlag.kind == KIND_UNDERLAG
+                and underlag.content_type == "application/pdf"
+            ):
+                pdf_bytes, _ctype = await read_stored_bytes(underlag)
+                ctx.out_dir.mkdir(parents=True, exist_ok=True)
+                (ctx.out_dir / "source.pdf").write_bytes(pdf_bytes)
         html_path, slots_path, _payload = write_expertgranskning_artifacts(
             out_dir=ctx.out_dir,
             title=ctx.title,
@@ -41,6 +57,7 @@ async def generate_expertgranskning_module_report(
             session_id=session_id,
             panel_id=panel.panel_id,
             document_text=document_text,
+            review_intent=review_intent,
             summary=summary,
             transcript=transcript,
         )

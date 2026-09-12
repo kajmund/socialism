@@ -14,6 +14,8 @@ export type ExpertgranskningSession = {
   module: string
   topic: string
   document_text: string
+  underlag_id: string | null
+  review_intent: string
   panel_id: number | null
   panel_name: string | null
   project_id: number | null
@@ -36,15 +38,20 @@ export type ExpertgranskningSessionSummary = {
 
 export type ExpertgranskningSessionCreate = {
   document_text?: string
+  underlag_id?: string | null
   panel_id?: number | null
   title?: string
+  review_intent?: string
   project_id?: number
 }
 
 export type ExpertgranskningSessionUpdate = {
   document_text?: string
+  underlag_id?: string | null
+  clear_underlag?: boolean
   panel_id?: number | null
   title?: string
+  review_intent?: string
   project_id?: number
   clear_panel?: boolean
 }
