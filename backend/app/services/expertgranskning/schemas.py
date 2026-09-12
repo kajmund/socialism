@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.schemas.domain import ConfigurationLanguage
 from app.services.panel.schemas import PanelSessionStatus
+from app.services.word.schemas import WordActionOut
 
 WORD_MAX_SECTIONS = 200
 WORD_MAX_PARAGRAPHS_PER_SECTION = 200
@@ -315,46 +316,6 @@ class WordHeadingAssessment(BaseModel):
         return text or None
 
 
-class WordAnchorOut(BaseModel):
-    paragraph_index: int
-    unique_local_id: str | None = None
-    reviewed_text: str
-    text_hash: str
-    previous_text_hash: str | None = None
-    next_text_hash: str | None = None
-    word_session_id: str | None = None
-
-
-class WordApplicationClaimIn(BaseModel):
-    application_id: str = Field(min_length=1, max_length=64)
-
-
-class WordApplicationCompleteIn(BaseModel):
-    application_id: str = Field(min_length=1, max_length=64)
-    comment_id: str | None = Field(default=None, max_length=128)
-
-    @field_validator("comment_id", mode="before")
-    @classmethod
-    def empty_comment_id(cls, value: object) -> str | None:
-        if value is None:
-            return None
-        text = str(value).strip()
-        return text or None
-
-
-class WordApplicationUnresolvedIn(BaseModel):
-    application_id: str | None = Field(default=None, max_length=64)
-    reason: str = Field(min_length=1, max_length=64)
-
-    @field_validator("application_id", mode="before")
-    @classmethod
-    def empty_application_id(cls, value: object) -> str | None:
-        if value is None:
-            return None
-        text = str(value).strip()
-        return text or None
-
-
 class ExpertgranskningResultOut(BaseModel):
     id: str
     job_id: str
@@ -367,16 +328,10 @@ class ExpertgranskningResultOut(BaseModel):
     is_heading_suggestion: bool
     is_rewrite_suggestion: bool = False
     foreslagen_text: str | None = None
-    reviewed_text: str | None = None
-    anchor: WordAnchorOut | None = None
-    comment_id: str | None
-    application_id: str | None = None
-    application_error: str | None = None
-    status: str
     created_at: str
 
 
 class ExpertgranskningLatestWordJobOut(BaseModel):
     job_id: str
     status: str
-    results: list[ExpertgranskningResultOut]
+    actions: list[WordActionOut]

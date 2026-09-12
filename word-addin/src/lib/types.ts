@@ -30,47 +30,50 @@ export type ExpertPanelSummary = {
   kind: string
 }
 
-export type ReviewResult = {
+export type WordActionSource = {
+  type: string
+  id: string
+  ordinal: number
+}
+
+export type WordAction = {
   id: string
   job_id: string
-  paragraph_index: number
-  expert_id: string
-  expert_namn: string
-  kommentar: string
-  is_heading_suggestion: boolean
-  is_rewrite_suggestion?: boolean
-  foreslagen_text?: string | null
-  reviewed_text?: string | null
+  action_type: string
   anchor?: WordAnchor | null
-  comment_id: string | null
+  content: string
+  explanation?: string | null
+  status: string
   application_id?: string | null
   application_error?: string | null
-  status: string
+  word_artifact_id?: string | null
+  source?: WordActionSource
+  created_at?: string
 }
 
 export type LatestWordJob = {
   job_id: string
   status: string
-  results: ReviewResult[]
+  actions: WordAction[]
 }
 
 export type WatchReplay = {
   type: "expertgranskning.replay"
   job_id: string
   status: string
-  results: ReviewResult[]
+  actions: WordAction[]
 }
 
 export type WatchCreated = {
-  type: "expertgranskning.result.created"
+  type: "expertgranskning.action.created"
   job_id: string
-  result: ReviewResult
+  action: WordAction
 }
 
 export type WatchUpdated = {
-  type: "expertgranskning.result.updated"
+  type: "expertgranskning.action.updated"
   job_id: string
-  result: ReviewResult
+  action: WordAction
 }
 
 export type WatchFinished = {

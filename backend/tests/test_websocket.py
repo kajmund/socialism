@@ -24,7 +24,7 @@ from starlette.websockets import WebSocketDisconnect
 
 from app.config import settings
 from app.database.base import Base
-from app.database.models import ExpertgranskningResult, Job, UserAccount
+from app.database.models import Job, UserAccount, WordAction
 from app.database.session import get_session
 from app.llm import set_structured_completer, set_text_completer, set_text_streamer
 from app.main import create_app
@@ -33,7 +33,7 @@ from app.serializers import utcnow
 from app.realtime.expertgranskning_broadcast import expertgranskning_broadcast
 from app.services import jobs as jobs_service
 from app.services.expertgranskning import WORD_JOB_KIND
-from app.services.expertgranskning.watch import publish_result_created
+from app.services.expertgranskning.watch import publish_action_created
 from app.services.kund_store import (
     BOLAG_DEMO_KUND_SLUG,
     bolag_demo_customer_id,
@@ -556,17 +556,16 @@ def test_expertgranskning_websocket_replay_live_push_and_patch(ws_client):
                 created_at=utcnow(),
                 updated_at=utcnow(),
             )
-            row = ExpertgranskningResult(
-                id="egr_ws_replay",
+            row = WordAction(
+                id="wa_ws_replay",
                 job_id=job.id,
                 customer_id=1,
-                section_index=0,
-                paragraph_index=1,
-                expert_id="slot_1",
-                expert_namn="Anna",
-                kommentar="Första live-raden.",
-                is_heading_suggestion=False,
-                comment_id=None,
+                source_type="expert_review_result",
+                source_id="egr_ws_replay",
+                source_ordinal=0,
+                action_type="comment",
+                anchor={"paragraph_index": 1, "reviewed_text": "x", "text_hash": "h"},
+                content="Första live-raden.",
                 status="pending",
                 created_at=utcnow(),
             )
@@ -574,7 +573,7 @@ def test_expertgranskning_websocket_replay_live_push_and_patch(ws_client):
             await session.commit()
             return job.id, row.id
 
-    job_id, result_id = loop.run_until_complete(_seed())
+    job_id, action_id = loop.run_until_complete(_seed())
     token = _admin_token()
     with client.websocket_connect(f"/ws/expertgranskning?access_token={token}") as ws:
         ws.send_json(_expertgranskning_hello(job_id))
@@ -582,56 +581,55 @@ def test_expertgranskning_websocket_replay_live_push_and_patch(ws_client):
         assert replay["type"] == "expertgranskning.replay"
         assert replay["job_id"] == job_id
         assert replay["status"] == "running"
-        assert len(replay["results"]) == 1
-        assert replay["results"][0]["id"] == result_id
-        assert replay["results"][0]["kommentar"] == "Första live-raden."
+        assert len(replay["actions"]) == 1
+        assert replay["actions"][0]["id"] == action_id
+        assert replay["actions"][0]["content"] == "Första live-raden."
 
         async def _push_created() -> None:
             factory = jobs_service.job_session_factory()
             async with factory() as session:
-                created = ExpertgranskningResult(
-                    id="egr_ws_live",
+                created = WordAction(
+                    id="wa_ws_live",
                     job_id=job_id,
                     customer_id=1,
-                    section_index=0,
-                    paragraph_index=2,
-                    expert_id="slot_1",
-                    expert_namn="Anna",
-                    kommentar="Andra live-raden.",
-                    is_heading_suggestion=True,
-                    comment_id=None,
+                    source_type="expert_review_result",
+                    source_id="egr_ws_live",
+                    source_ordinal=0,
+                    action_type="comment",
+                    anchor={"paragraph_index": 2, "reviewed_text": "y", "text_hash": "h2"},
+                    content="Andra live-raden.",
                     status="pending",
                     created_at=utcnow(),
                 )
                 session.add(created)
                 await session.commit()
                 await session.refresh(created)
-                await publish_result_created(created)
+                await publish_action_created(created)
 
         loop.run_until_complete(_push_created())
         created_event = ws.receive_json()
-        assert created_event["type"] == "expertgranskning.result.created"
-        assert created_event["result"]["id"] == "egr_ws_live"
-        assert created_event["result"]["is_heading_suggestion"] is True
+        assert created_event["type"] == "expertgranskning.action.created"
+        assert created_event["action"]["id"] == "wa_ws_live"
+        assert created_event["action"]["action_type"] == "comment"
 
         claimed = client.post(
-            f"/expertgranskning/word-jobs/{job_id}/results/{result_id}/claim",
+            f"/expertgranskning/word-jobs/{job_id}/actions/{action_id}/claim",
             json={"application_id": "app-ws-replay"},
         )
         assert claimed.status_code == 200, claimed.text
         claimed_event = ws.receive_json()
-        assert claimed_event["type"] == "expertgranskning.result.updated"
-        assert claimed_event["result"]["status"] == "applying"
+        assert claimed_event["type"] == "expertgranskning.action.updated"
+        assert claimed_event["action"]["status"] == "applying"
         completed = client.post(
-            f"/expertgranskning/word-jobs/{job_id}/results/{result_id}/complete",
-            json={"application_id": "app-ws-replay", "comment_id": "word-cmt-1"},
+            f"/expertgranskning/word-jobs/{job_id}/actions/{action_id}/complete",
+            json={"application_id": "app-ws-replay", "word_artifact_id": "word-cmt-1"},
         )
         assert completed.status_code == 200, completed.text
         updated_event = ws.receive_json()
-        assert updated_event["type"] == "expertgranskning.result.updated"
-        assert updated_event["result"]["id"] == result_id
-        assert updated_event["result"]["comment_id"] == "word-cmt-1"
-        assert updated_event["result"]["status"] == "applied"
+        assert updated_event["type"] == "expertgranskning.action.updated"
+        assert updated_event["action"]["id"] == action_id
+        assert updated_event["action"]["word_artifact_id"] == "word-cmt-1"
+        assert updated_event["action"]["status"] == "applied"
 
 
 def test_expertgranskning_websocket_subscribe_before_snapshot_keeps_race_write(
@@ -664,24 +662,23 @@ def test_expertgranskning_websocket_subscribe_before_snapshot_keeps_race_write(
         await real_subscribe(subscribed_job_id, websocket)
         factory = jobs_service.job_session_factory()
         async with factory() as session:
-            created = ExpertgranskningResult(
-                id="egr_ws_race",
+            created = WordAction(
+                id="wa_ws_race",
                 job_id=subscribed_job_id,
                 customer_id=1,
-                section_index=0,
-                paragraph_index=3,
-                expert_id="slot_1",
-                expert_namn="Anna",
-                kommentar="Skrivet mellan subscribe och snapshot.",
-                is_heading_suggestion=False,
-                comment_id=None,
+                source_type="expert_review_result",
+                source_id="egr_ws_race",
+                source_ordinal=0,
+                action_type="comment",
+                anchor={"paragraph_index": 3, "reviewed_text": "z", "text_hash": "h3"},
+                content="Skrivet mellan subscribe och snapshot.",
                 status="pending",
                 created_at=utcnow(),
             )
             session.add(created)
             await session.commit()
             await session.refresh(created)
-            await publish_result_created(created)
+            await publish_action_created(created)
 
     monkeypatch.setattr(expertgranskning_broadcast, "subscribe", _subscribe_then_write)
 
@@ -693,12 +690,12 @@ def test_expertgranskning_websocket_subscribe_before_snapshot_keeps_race_write(
 
     by_type = {event["type"]: event for event in (first, second)}
     assert set(by_type) == {
-        "expertgranskning.result.created",
+        "expertgranskning.action.created",
         "expertgranskning.replay",
     }
-    assert by_type["expertgranskning.result.created"]["result"]["id"] == "egr_ws_race"
-    replay_ids = [row["id"] for row in by_type["expertgranskning.replay"]["results"]]
-    assert replay_ids == ["egr_ws_race"]
+    assert by_type["expertgranskning.action.created"]["action"]["id"] == "wa_ws_race"
+    replay_ids = [row["id"] for row in by_type["expertgranskning.replay"]["actions"]]
+    assert replay_ids == ["wa_ws_race"]
 
 
 def test_expertgranskning_websocket_bolag_denied_foreign_job(ws_client):
@@ -762,7 +759,7 @@ def test_expertgranskning_websocket_bolag_can_watch_own_job(ws_client):
         replay = ws.receive_json()
         assert replay["type"] == "expertgranskning.replay"
         assert replay["job_id"] == job_id
-        assert replay["results"] == []
+        assert replay["actions"] == []
 
 
 def test_expertgranskning_websocket_unknown_or_wrong_kind_closes(ws_client):

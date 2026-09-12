@@ -1,4 +1,4 @@
-"""Atomic Word result application claims. Domain-agnostic status machine."""
+"""Atomic WordAction application claims. Domain-agnostic status machine."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from typing import Literal
 from sqlalchemy import and_, or_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import ExpertgranskningResult
+from app.database.models import WordAction
 
 APPLICATION_PENDING = "pending"
 APPLICATION_APPLYING = "applying"
@@ -26,12 +26,13 @@ UNRESOLVED_STALE = "stale"
 UNRESOLVED_AMBIGUOUS = "ambiguous"
 UNRESOLVED_MISSING = "missing"
 UNRESOLVED_UNCERTAIN = "uncertain_previous_outcome"
+UNRESOLVED_UNSUPPORTED = "unsupported_action"
 
 
 @dataclass(frozen=True)
 class ApplicationMutation:
     accepted: bool
-    row: ExpertgranskningResult | None
+    row: WordAction | None
     reason: Literal[
         "claimed",
         "idempotent",
@@ -44,14 +45,15 @@ class ApplicationMutation:
     ]
 
 
-async def _load_result(
+async def _load_action(
     session: AsyncSession,
     *,
     job_id: str,
-    result_id: str,
-) -> ExpertgranskningResult | None:
-    row = await session.get(ExpertgranskningResult, result_id)
-    if row is None or row.job_id != job_id:
+    action_id: str,
+    customer_id: int,
+) -> WordAction | None:
+    row = await session.get(WordAction, action_id)
+    if row is None or row.job_id != job_id or row.customer_id != customer_id:
         return None
     return row
 
@@ -60,15 +62,17 @@ async def claim_application(
     session: AsyncSession,
     *,
     job_id: str,
-    result_id: str,
+    action_id: str,
     application_id: str,
+    customer_id: int,
 ) -> ApplicationMutation:
     result = await session.execute(
-        update(ExpertgranskningResult)
+        update(WordAction)
         .where(
-            ExpertgranskningResult.id == result_id,
-            ExpertgranskningResult.job_id == job_id,
-            ExpertgranskningResult.status == APPLICATION_PENDING,
+            WordAction.id == action_id,
+            WordAction.job_id == job_id,
+            WordAction.customer_id == customer_id,
+            WordAction.status == APPLICATION_PENDING,
         )
         .values(
             status=APPLICATION_APPLYING,
@@ -79,16 +83,17 @@ async def claim_application(
     )
     if result.rowcount == 1:
         await session.commit()
-        row = await _load_result(session, job_id=job_id, result_id=result_id)
+        row = await _load_action(
+            session, job_id=job_id, action_id=action_id, customer_id=customer_id
+        )
         return ApplicationMutation(accepted=True, row=row, reason="claimed")
 
-    row = await _load_result(session, job_id=job_id, result_id=result_id)
+    row = await _load_action(
+        session, job_id=job_id, action_id=action_id, customer_id=customer_id
+    )
     if row is None:
         return ApplicationMutation(accepted=False, row=None, reason="missing")
-    if (
-        row.status == APPLICATION_APPLYING
-        and row.application_id == application_id
-    ):
+    if row.status == APPLICATION_APPLYING and row.application_id == application_id:
         return ApplicationMutation(accepted=True, row=row, reason="idempotent")
     return ApplicationMutation(accepted=False, row=row, reason="not_claimable")
 
@@ -97,33 +102,39 @@ async def complete_application(
     session: AsyncSession,
     *,
     job_id: str,
-    result_id: str,
+    action_id: str,
     application_id: str,
     word_artifact_id: str | None,
+    customer_id: int,
 ) -> ApplicationMutation:
     values: dict[str, str | None] = {
         "status": APPLICATION_APPLIED,
         "application_error": None,
     }
     if word_artifact_id is not None:
-        values["comment_id"] = word_artifact_id
+        values["word_artifact_id"] = word_artifact_id
     result = await session.execute(
-        update(ExpertgranskningResult)
+        update(WordAction)
         .where(
-            ExpertgranskningResult.id == result_id,
-            ExpertgranskningResult.job_id == job_id,
-            ExpertgranskningResult.status == APPLICATION_APPLYING,
-            ExpertgranskningResult.application_id == application_id,
+            WordAction.id == action_id,
+            WordAction.job_id == job_id,
+            WordAction.customer_id == customer_id,
+            WordAction.status == APPLICATION_APPLYING,
+            WordAction.application_id == application_id,
         )
         .values(**values)
         .execution_options(synchronize_session="fetch")
     )
     if result.rowcount == 1:
         await session.commit()
-        row = await _load_result(session, job_id=job_id, result_id=result_id)
+        row = await _load_action(
+            session, job_id=job_id, action_id=action_id, customer_id=customer_id
+        )
         return ApplicationMutation(accepted=True, row=row, reason="completed")
 
-    row = await _load_result(session, job_id=job_id, result_id=result_id)
+    row = await _load_action(
+        session, job_id=job_id, action_id=action_id, customer_id=customer_id
+    )
     if row is None:
         return ApplicationMutation(accepted=False, row=None, reason="missing")
     if row.status == APPLICATION_APPLIED and row.application_id == application_id:
@@ -135,16 +146,17 @@ async def mark_application_unresolved(
     session: AsyncSession,
     *,
     job_id: str,
-    result_id: str,
+    action_id: str,
     reason: str,
     application_id: str | None,
+    customer_id: int,
 ) -> ApplicationMutation:
     if application_id:
         where = or_(
-            ExpertgranskningResult.status == APPLICATION_PENDING,
+            WordAction.status == APPLICATION_PENDING,
             and_(
-                ExpertgranskningResult.status == APPLICATION_APPLYING,
-                ExpertgranskningResult.application_id == application_id,
+                WordAction.status == APPLICATION_APPLYING,
+                WordAction.application_id == application_id,
             ),
         )
         values = {
@@ -153,16 +165,17 @@ async def mark_application_unresolved(
             "application_error": reason,
         }
     else:
-        where = ExpertgranskningResult.status == APPLICATION_PENDING
+        where = WordAction.status == APPLICATION_PENDING
         values = {
             "status": APPLICATION_UNRESOLVED,
             "application_error": reason,
         }
     result = await session.execute(
-        update(ExpertgranskningResult)
+        update(WordAction)
         .where(
-            ExpertgranskningResult.id == result_id,
-            ExpertgranskningResult.job_id == job_id,
+            WordAction.id == action_id,
+            WordAction.job_id == job_id,
+            WordAction.customer_id == customer_id,
             where,
         )
         .values(**values)
@@ -170,10 +183,14 @@ async def mark_application_unresolved(
     )
     if result.rowcount == 1:
         await session.commit()
-        row = await _load_result(session, job_id=job_id, result_id=result_id)
+        row = await _load_action(
+            session, job_id=job_id, action_id=action_id, customer_id=customer_id
+        )
         return ApplicationMutation(accepted=True, row=row, reason="unresolved")
 
-    row = await _load_result(session, job_id=job_id, result_id=result_id)
+    row = await _load_action(
+        session, job_id=job_id, action_id=action_id, customer_id=customer_id
+    )
     if row is None:
         return ApplicationMutation(accepted=False, row=None, reason="missing")
     if row.status == APPLICATION_UNRESOLVED:
