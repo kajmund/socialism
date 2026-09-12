@@ -33,6 +33,7 @@ cp .env.example .env
 | `PERSONA_GENERATOR` | no | `deepseek` | `stub` = weighted random for offline persona *sampling* in tests only |
 | `SIMULATION_ENGINE` | no | `none` | `none` = empty attempt on start; `oasis` = live CAMEL OASIS |
 | `MAX_CONCURRENT_SIMULATION_JOBS` | no | `2` | Cap overlapping `run_simulate` jobs (1–32). A/B variants inside one job still run in parallel |
+| `WORD_REVIEW_MAX_CONCURRENCY` | no | `8` | Cap concurrent Word-review LLM calls inside one expertgranskning job (1–32) |
 | `LOG_DIR` | no | `data/logs` | Rotating API log directory (empty = no file). Relative to process cwd |
 | `LOG_MAX_BYTES` | no | `2000000` | Rotate `app.log` after this many bytes |
 | `LOG_BACKUP_COUNT` | no | `5` | Kept rotated files (`app.log.1` …) |

@@ -62,6 +62,10 @@ export function App() {
   const [taskScope, setTaskScope] = useState<WordTaskScopeType>("document")
   const [phase, setPhase] = useState<Phase>("idle")
   const [watchSource, setWatchSource] = useState<"new" | "resume">("new")
+  const [progress, setProgress] = useState<{
+    sections_completed: number
+    sections_total: number
+  } | null>(null)
   const [error, setError] = useState("")
   const [actionsById, setActionsById] = useState<Map<string, WordAction>>(
     () => new Map(),
@@ -82,6 +86,7 @@ export function App() {
   function resetQueue() {
     setActionsById(new Map())
     setInFlightIds(new Set())
+    setProgress(null)
   }
 
   function setBusy(actionId: string, busy: boolean) {
@@ -233,7 +238,14 @@ export function App() {
         case "upsert":
           noteActions(action.actions)
           break
+        case "progress":
+          setProgress({
+            sections_completed: action.sections_completed,
+            sections_total: action.sections_total,
+          })
+          break
         case "finished":
+          setProgress(null)
           if (action.status === "failed") {
             setPhase("failed")
             setError(action.error || action.status)
@@ -418,7 +430,15 @@ export function App() {
 
   const canReview =
     Boolean(token && panelId) && phase !== "running" && reviewBlock === null
-  const runningStatus = watchSource === "resume" ? t("statusResume") : t("statusLive")
+  const runningStatus =
+    progress != null
+      ? t("statusProgress", {
+          completed: progress.sections_completed,
+          total: progress.sections_total,
+        })
+      : watchSource === "resume"
+        ? t("statusResume")
+        : t("statusLive")
   const reviewHint =
     phase !== "running" && reviewBlock === "applying"
       ? t("blockApplying")
@@ -429,7 +449,7 @@ export function App() {
   return (
     <div className="pane">
       {phase === "running" ? (
-        <div className="progress" role="progressbar" aria-label={t("reviewing")}>
+        <div className="progress" role="progressbar" aria-label={runningStatus}>
           <span />
         </div>
       ) : null}

@@ -108,7 +108,7 @@ Registered in `backend/app/main.py`:
 | Catalog | `/catalog` | Editable grunddata lists |
 | Jobs | `/jobs` | Create/list/get background jobs |
 | Jobs WS | `WS /ws/jobs` | Snapshot + live `job.updated` fan-out (admin UI) |
-| Expertgranskning WS | `WS /ws/expertgranskning` | Word-review replay + `action.created` / `action.updated` / `finished` (`word-addin/`) |
+| Expertgranskning WS | `WS /ws/expertgranskning` | Word-review replay + `action.created` / `action.updated` / `progress` / `finished` (`word-addin/`) |
 | Word add-in | `word-addin/` | Office task pane: panel dropdown, live comments, Granska igen |
 | Chat WS | `WS /ws/chat` | Streaming library / run-interview chat |
 | Reports | `/reports` | Queue report, list, get, `GET /reports/{id}/html` |
