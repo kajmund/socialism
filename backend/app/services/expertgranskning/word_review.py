@@ -27,9 +27,11 @@ from app.services.expertgranskning.comment_convergence import (
     WordConsolidatedComment,
     WordObservation,
     apply_word_comment_convergence,
+    chunk_observations_for_convergence,
     collapse_intra_expert_duplicates,
     consolidated_from_observation,
     format_observations_for_prompt,
+    paragraph_indexes_for_observations,
 )
 from app.services.expertgranskning.intent_interview import (
     compose_expert_review_context,
@@ -709,15 +711,26 @@ async def _consolidate_comments(
     collapsed = collapse_intra_expert_duplicates(raw)
     if len(collapsed) < 2:
         return [consolidated_from_observation(item) for item in collapsed]
-    parsed = await _comment_convergence(
-        prompts=prompts,
-        section=section,
-        batch=paragraphs,
-        observations=collapsed,
-        limiter=limiter,
-        review_intent=review_intent,
-    )
-    return apply_word_comment_convergence(collapsed, parsed)
+    written: list[WordConsolidatedComment] = []
+    for chunk in chunk_observations_for_convergence(collapsed):
+        if len(chunk) < 2:
+            written.extend(consolidated_from_observation(item) for item in chunk)
+            continue
+        referenced = paragraph_indexes_for_observations(chunk)
+        parsed = await _comment_convergence(
+            prompts=prompts,
+            section=section,
+            batch=[
+                paragraph
+                for paragraph in paragraphs
+                if paragraph.index in referenced
+            ],
+            observations=chunk,
+            limiter=limiter,
+            review_intent=review_intent,
+        )
+        written.extend(apply_word_comment_convergence(chunk, parsed))
+    return written
 
 
 async def _rewrite_convergence(

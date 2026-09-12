@@ -18,6 +18,7 @@ from app.services.expertgranskning.schemas import (
 
 NEARBY_PARAGRAPH_DISTANCE = 1
 SIMILAR_COMMENT_JACCARD = 0.45
+COMMENT_CONVERGENCE_CHUNK_SIZE = 12
 
 _TOKEN_RE = re.compile(r"[0-9a-zåäöé]+", re.IGNORECASE)
 _ACCEPT_MARKERS = (
@@ -169,6 +170,53 @@ def format_observation_block(observation: WordObservation) -> str:
 
 def format_observations_for_prompt(observations: Sequence[WordObservation]) -> str:
     return "\n\n".join(format_observation_block(observation) for observation in observations)
+
+
+def nearby_observation_clusters(
+    observations: Sequence[WordObservation],
+) -> list[list[WordObservation]]:
+    """Chain observations whose paragraphs sit next to each other."""
+    ordered = sorted(
+        observations,
+        key=lambda item: (item.paragraph_index, item.observation_id),
+    )
+    clusters: list[list[WordObservation]] = []
+    for item in ordered:
+        if clusters and observations_are_nearby(clusters[-1][-1], item):
+            clusters[-1].append(item)
+        else:
+            clusters.append([item])
+    return clusters
+
+
+def chunk_observations_for_convergence(
+    observations: Sequence[WordObservation],
+    *,
+    max_size: int = COMMENT_CONVERGENCE_CHUNK_SIZE,
+) -> list[list[WordObservation]]:
+    """Pack nearby clusters into chunks of max_size.
+
+    A cluster larger than max_size stays together (bounded overflow).
+    Every observation is kept.
+    """
+    if max_size < 1:
+        raise ValueError("comment-convergence chunk size must be >= 1")
+    chunks: list[list[WordObservation]] = []
+    current: list[WordObservation] = []
+    for cluster in nearby_observation_clusters(observations):
+        if current and len(current) + len(cluster) > max_size:
+            chunks.append(current)
+            current = []
+        current.extend(cluster)
+    if current:
+        chunks.append(current)
+    return chunks
+
+
+def paragraph_indexes_for_observations(
+    observations: Sequence[WordObservation],
+) -> set[int]:
+    return {item.paragraph_index for item in observations}
 
 
 def _collapse_cluster(cluster: list[WordObservation]) -> WordObservation:

@@ -26,6 +26,7 @@ cp .env.example .env
 | `DEEPSEEK_MODEL` | no | `deepseek-chat` | |
 | `DEEPSEEK_BASE_URL` | no | `https://api.deepseek.com` | |
 | `DEEPSEEK_TIMEOUT_SECONDS` | no | `60` | HTTP timeout for DeepSeek calls (hangs reports if too low/high) |
+| `DEEPSEEK_MAX_TOKENS` | no | `8192` | Completion cap for structured JSON (`complete_structured`) |
 | `OPENAI_API_KEY` | **yes** | — | OpenAI embeddings for SSR reports (separate from DeepSeek) |
 | `EMBEDDING_MODEL` | no | `text-embedding-3-large` | |
 | `EMBEDDING_BASE_URL` | no | `https://api.openai.com/v1` | |
@@ -59,6 +60,7 @@ DEEPSEEK_API_KEY=sk-...
 DEEPSEEK_MODEL=deepseek-chat
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_TIMEOUT_SECONDS=60
+DEEPSEEK_MAX_TOKENS=8192
 OPENAI_API_KEY=sk-...
 EMBEDDING_MODEL=text-embedding-3-large
 EMBEDDING_BASE_URL=https://api.openai.com/v1
