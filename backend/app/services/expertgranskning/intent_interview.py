@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+
 from app.llm import ChatMessage
 from app.services.expertgranskning.schemas import (
+    INTENT_ID_RE,
+    INTENT_MAX_QUESTIONS,
     DocumentIntentInterview,
     IntentAnswer,
     IntentQuestion,
     WordDocumentSection,
+    slugify_intent_id,
 )
 from app.services.expertgranskning.word_structured import complete_word_structured
 from app.services.panel.review_intent import (
@@ -18,6 +23,176 @@ from app.services.prompt_catalog import render_prompt
 
 DOCUMENT_DATA_OPEN = "<document>"
 DOCUMENT_DATA_CLOSE = "</document>"
+
+
+def _llm_text(value: object) -> str:
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+class LlmIntentOption(BaseModel):
+    """LLM-facing option. Nested so JSON Schema exposes value/label."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    value: str = Field(default="", description="Machine-readable option value")
+    label: str = Field(default="", description="Visible option label")
+
+    @field_validator("value", "label", mode="before")
+    @classmethod
+    def strip_text(cls, value: object) -> str:
+        return _llm_text(value)
+
+
+class LlmIntentQuestion(BaseModel):
+    """LLM-facing question. Nested so JSON Schema exposes text/type/options."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    id: str = Field(default="", description="Machine-readable question id")
+    text: str = Field(default="", description="Question shown to the reviewer")
+    question: str = Field(
+        default="",
+        description="Fallback question text when text is empty",
+    )
+    type: str = Field(
+        default="",
+        description="single_choice, multi_choice, or free_text",
+    )
+    options: list[LlmIntentOption] = Field(default_factory=list)
+    required: bool = True
+    rationale: str = Field(default="", description="Why this question matters")
+
+    @field_validator("id", "text", "question", "type", "rationale", mode="before")
+    @classmethod
+    def strip_text(cls, value: object) -> str:
+        return _llm_text(value)
+
+    @field_validator("options", mode="before")
+    @classmethod
+    def coerce_options(cls, value: object) -> object:
+        if not isinstance(value, list):
+            return []
+        kept: list[LlmIntentOption] = []
+        for item in value:
+            if isinstance(item, LlmIntentOption):
+                kept.append(item)
+                continue
+            if not isinstance(item, dict):
+                continue
+            try:
+                kept.append(LlmIntentOption.model_validate(item))
+            except ValidationError:
+                continue
+        return kept
+
+    @field_validator("required", mode="before")
+    @classmethod
+    def coerce_required(cls, value: object) -> object:
+        if value is None:
+            return True
+        return value
+
+
+class LlmDocumentIntentInterview(BaseModel):
+    """Lenient LLM envelope. Finalization drops bad questions, not the interview."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    document_type: str = Field(
+        default="",
+        description="Short descriptive document-type label",
+    )
+    questions: list[LlmIntentQuestion] = Field(default_factory=list)
+
+    @field_validator("document_type", mode="before")
+    @classmethod
+    def strip_document_type(cls, value: object) -> str:
+        return _llm_text(value)
+
+    @field_validator("questions", mode="before")
+    @classmethod
+    def coerce_questions(cls, value: object) -> object:
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            return value
+        kept: list[LlmIntentQuestion] = []
+        for item in value:
+            if isinstance(item, LlmIntentQuestion):
+                kept.append(item)
+                continue
+            if not isinstance(item, dict):
+                continue
+            try:
+                kept.append(LlmIntentQuestion.model_validate(item))
+            except ValidationError:
+                continue
+        return kept
+
+
+def _unique_slug(base: str, seen: set[str]) -> str:
+    if base not in seen:
+        return base
+    for suffix in range(2, 21):
+        trimmed = base[: 64 - (len(str(suffix)) + 1)].rstrip("_")
+        candidate = f"{trimmed}_{suffix}"
+        if INTENT_ID_RE.fullmatch(candidate) and candidate not in seen:
+            return candidate
+    return ""
+
+
+def _finalize_question(raw: LlmIntentQuestion, seen: set[str]) -> IntentQuestion | None:
+    text = raw.text or raw.question
+    question_id = slugify_intent_id(raw.id) or slugify_intent_id(text)
+    if not question_id:
+        return None
+    question_id = _unique_slug(question_id, seen)
+    if not question_id:
+        return None
+    options: list[dict[str, str]] = []
+    option_values: set[str] = set()
+    for option in raw.options:
+        value = slugify_intent_id(option.value) or slugify_intent_id(option.label)
+        if not value or value in option_values:
+            continue
+        label = option.label or value
+        options.append({"value": value, "label": label})
+        option_values.add(value)
+    try:
+        return IntentQuestion.model_validate(
+            {
+                "id": question_id,
+                "text": text,
+                "type": raw.type,
+                "options": options,
+                "required": raw.required,
+                "rationale": raw.rationale,
+            }
+        )
+    except ValidationError:
+        return None
+
+
+def finalize_intent_interview(
+    raw: LlmDocumentIntentInterview,
+) -> DocumentIntentInterview:
+    if not raw.document_type:
+        DocumentIntentInterview.model_validate(
+            {"document_type": raw.document_type, "questions": []}
+        )
+    kept: list[IntentQuestion] = []
+    seen: set[str] = set()
+    for item in raw.questions:
+        finalized = _finalize_question(item, seen)
+        if finalized is None:
+            continue
+        seen.add(finalized.id)
+        kept.append(finalized)
+        if len(kept) >= INTENT_MAX_QUESTIONS:
+            break
+    return DocumentIntentInterview(document_type=raw.document_type, questions=kept)
 
 
 def document_text_for_interview(sections: list[WordDocumentSection]) -> str:
@@ -144,8 +319,9 @@ async def generate_document_intent_interview(
 ) -> DocumentIntentInterview:
     document = document_text_for_interview(sections)
     messages = intent_interview_messages(prompts=prompts, document=document)
-    return await complete_word_structured(
+    raw = await complete_word_structured(
         messages,
-        DocumentIntentInterview,
+        LlmDocumentIntentInterview,
         prompts=prompts,
     )
+    return finalize_intent_interview(raw)

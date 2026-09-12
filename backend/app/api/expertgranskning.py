@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -65,6 +67,8 @@ from app.services.word.schemas import (
 )
 from app.services.panel.expert_slots import require_expert_panel
 from app.services.panel.sessions import get_panel_session
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/expertgranskning", tags=["expertgranskning"])
 
@@ -252,6 +256,10 @@ async def post_expertgranskning_word_intent_interview(
             prompts=prompts,
         )
     except ValidationError as exc:
+        logger.info(
+            "intent interview invalid error_count=%s",
+            len(exc.errors()),
+        )
         raise HTTPException(status_code=422, detail="intent_interview_invalid") from exc
 
 
@@ -322,6 +330,7 @@ async def get_latest_expertgranskning_word_job(
     return ExpertgranskningLatestWordJobOut(
         job_id=job.id,
         status=job.status,
+        error=job.error,
         actions=[serialize_word_action(row) for row in actions],
     )
 

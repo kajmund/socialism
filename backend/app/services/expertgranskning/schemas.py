@@ -30,6 +30,34 @@ INTENT_MAX_FREE_TEXT_LEN = 2_000
 INTENT_QUESTION_TYPES = ("single_choice", "multi_choice", "free_text")
 IntentQuestionType = Literal["single_choice", "multi_choice", "free_text"]
 INTENT_ID_RE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
+_SWEDISH_FOLDS = str.maketrans(
+    {
+        "å": "a",
+        "ä": "a",
+        "ö": "o",
+        "Å": "a",
+        "Ä": "a",
+        "Ö": "o",
+    }
+)
+
+
+def slugify_intent_id(value: object) -> str:
+    text = "" if value is None else str(value).strip()
+    folded = text.translate(_SWEDISH_FOLDS).casefold()
+    chars: list[str] = []
+    for char in folded:
+        if "a" <= char <= "z" or "0" <= char <= "9":
+            chars.append(char)
+        else:
+            chars.append("_")
+    slug = "".join(chars)
+    while "__" in slug:
+        slug = slug.replace("__", "_")
+    slug = slug.strip("_")[:64].rstrip("_")
+    if not INTENT_ID_RE.fullmatch(slug):
+        return ""
+    return slug
 
 
 class ExpertgranskningSessionCreate(BaseModel):
@@ -612,4 +640,5 @@ class ExpertgranskningResultOut(BaseModel):
 class ExpertgranskningLatestWordJobOut(BaseModel):
     job_id: str
     status: str
+    error: str | None = None
     actions: list[WordActionOut]
