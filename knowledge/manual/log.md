@@ -2,6 +2,7 @@
 
 ## 2026-09-12
 
+* **Expertgranskning i Word**: Förslag från en färdig del av dokumentet visas medan resten fortfarande granskas. Du kan tillämpa eller avfärda dem direkt. En kompakt rad visar hur många delar som är klara.
 * **Navigering**: Klick på **Due Diligence** behåller de andra menyvalen (politisk simulering, Expertgranskning, Rättsunderlag med mera) när kontot har flera moduler. En inloggning som bara har Due Diligence ser fortfarande bara den menyn.
 * **Underlag**: Uppladdade filer sparas utan textextraktion. Word konverteras till PDF. Texten läses när experter körs eller föreslås. Expertgranskningsrapporten har flikarna Rapport och PDF i stället för att visa originaltexten i HTML. I **Välj underlag** kan du ta bort en fil direkt från fillistan, med bekräftelse.
 * **Expertgranskning**: Under **Konfiguration** finns **Granskningsavsikt**. Där skriver du extra information till experterna, till exempel vilken part du företräder. Avsikten styr vad som ska analyseras. Samma fält finns i Word-tillägget.
