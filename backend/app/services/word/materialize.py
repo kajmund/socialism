@@ -48,6 +48,8 @@ def expert_review_word_action_spec(
             content=content,
             explanation=explanation,
         )
+    if not (row.kommentar or "").strip():
+        return None
     content = format_expert_review_comment_content(
         kommentar=row.kommentar,
         expert_namn=row.expert_namn,

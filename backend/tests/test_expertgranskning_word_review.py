@@ -40,7 +40,7 @@ from app.services.expertgranskning.schemas import (
     WordRewriteSuggestion,
     WordReviewQuestion,
 )
-from app.services.expertgranskning.watch import reviewed_text_from_job_request
+from app.services.word.anchors import reviewed_text_from_job_request
 from app.services.expertgranskning.word_review import (
     _comment_question,
     _document_brief,
