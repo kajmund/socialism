@@ -1,6 +1,7 @@
-"""Job-level Word-review LLM limiter and aggregate timings.
+"""Job-level Word-review LLM limiter, call counts, and aggregate timings.
 
-Records durations and concurrency only. Never stores prompt or document text.
+Records durations, category counts, retries, and concurrency only.
+Never stores prompt or document text.
 """
 
 from __future__ import annotations
@@ -27,13 +28,22 @@ class WordReviewTimings:
         self._started_at = time.monotonic()
         self._first_action_at: float | None = None
         self._totals_ms = {name: 0.0 for name in TIMING_CATEGORIES}
+        self._calls = {name: 0 for name in TIMING_CATEGORIES}
         self.llm_call_count = 0
+        self.structured_retry_count = 0
         self.max_observed_llm_concurrency = 0
         self._in_flight = 0
 
     def mark_first_action(self) -> None:
         if self._first_action_at is None:
             self._first_action_at = time.monotonic()
+
+    def record_category(self, category: str) -> None:
+        self._calls[category] += 1
+
+    def record_structured_retry(self) -> None:
+        self.structured_retry_count += 1
+        self.llm_call_count += 1
 
     def begin_call(self) -> float:
         self._in_flight += 1
@@ -62,7 +72,14 @@ class WordReviewTimings:
             "rewrite_convergence_ms": round(self._totals_ms["rewrite_convergence"]),
             "comment_convergence_ms": round(self._totals_ms["comment_convergence"]),
             "heading_ms": round(self._totals_ms["heading"]),
+            "moderation_calls": self._calls["moderation"],
+            "raise_hand_calls": self._calls["raise_hand"],
+            "expert_comment_calls": self._calls["expert_comment"],
+            "rewrite_convergence_calls": self._calls["rewrite_convergence"],
+            "comment_convergence_calls": self._calls["comment_convergence"],
+            "heading_calls": self._calls["heading"],
             "llm_call_count": self.llm_call_count,
+            "structured_retry_count": self.structured_retry_count,
             "max_observed_llm_concurrency": self.max_observed_llm_concurrency,
         }
 
@@ -84,6 +101,7 @@ class WordReviewLimiter:
         if category not in TIMING_CATEGORIES:
             raise ValueError(f"unknown Word review timing category: {category}")
         async with self._semaphore:
+            self.timings.record_category(category)
             started_at = self.timings.begin_call()
             try:
                 return await factory()

@@ -30,6 +30,7 @@ from app.services.expertgranskning.comment_convergence import (
     chunk_observations_for_convergence,
     collapse_intra_expert_duplicates,
     consolidated_from_observation,
+    finalize_word_comment_convergence,
     format_observations_for_prompt,
     paragraph_indexes_for_observations,
 )
@@ -338,7 +339,12 @@ async def _llm[T](
 ) -> T:
     return await limiter.run(
         category,
-        lambda: complete_word_structured(messages, response_model, prompts=prompts),
+        lambda: complete_word_structured(
+            messages,
+            response_model,
+            prompts=prompts,
+            timings=limiter.timings,
+        ),
     )
 
 
@@ -715,13 +721,14 @@ async def _comment_convergence(
         batch=batch,
         observations=observations,
     )
-    return await _llm(
+    parsed = await _llm(
         limiter,
         "comment_convergence",
         _messages_with_brief(identity="", brief=review_intent, user=user),
         WordCommentConvergence,
         prompts,
     )
+    return finalize_word_comment_convergence(parsed)
 
 
 async def _consolidate_comments(
@@ -1179,6 +1186,20 @@ async def run_word_paragraph_review(
         snapshot["heading_ms"],
         snapshot["llm_call_count"],
         snapshot["max_observed_llm_concurrency"],
+    )
+    logger.info(
+        "Word review LLM calls job_id=%s total=%s moderation=%s raise_hand=%s "
+        "expert_comment=%s comment_convergence=%s rewrite_convergence=%s "
+        "heading=%s structured_retries=%s",
+        job.id,
+        snapshot["llm_call_count"],
+        snapshot["moderation_calls"],
+        snapshot["raise_hand_calls"],
+        snapshot["expert_comment_calls"],
+        snapshot["comment_convergence_calls"],
+        snapshot["rewrite_convergence_calls"],
+        snapshot["heading_calls"],
+        snapshot["structured_retry_count"],
     )
     return {
         "paragraph_reviews": paragraph_reviews,

@@ -29,6 +29,7 @@ from app.services.expertgranskning.comment_convergence import (
     collapse_intra_expert_duplicates,
     comments_dissent,
     decide_word_issue_materialization,
+    finalize_word_comment_convergence,
     paragraph_indexes_for_observations,
 )
 from app.services.expertgranskning.schemas import (
@@ -834,6 +835,81 @@ def test_word_issue_schema_fails_closed_without_judgment_fields():
         )
 
 
+def test_llm_convergence_missing_classification_fields_surfaces_issues(caplog):
+    first = _obs(observation_id="o1")
+    second = _obs(
+        observation_id="o2",
+        expert_id="roger",
+        expert_label="Roger",
+        kommentar="En annan genuin risk i samma stycke.",
+    )
+    parsed = WordCommentConvergence.model_validate(
+        {
+            "issues": [
+                {
+                    "observation_ids": ["o1"],
+                    "paragraph_index": 3,
+                    "supporting_expert_ids": ["frank"],
+                    "short_comment": "Skärp leveransåtagandet.",
+                    "explanation": "Best-effort lämnar motparten utan krav.",
+                    "has_dissensus": False,
+                },
+                {
+                    "observation_ids": ["o2"],
+                    "paragraph_index": 3,
+                    "supporting_expert_ids": ["roger"],
+                    "short_comment": "Förtydliga betalningsfristen.",
+                    "explanation": "Fristen går inte att mäta mot ett datum.",
+                    "has_dissensus": False,
+                },
+            ]
+        }
+    )
+    assert len(parsed.issues) == 2
+    with caplog.at_level("INFO"):
+        finalized = finalize_word_comment_convergence(parsed)
+    assert len(finalized.issues) == 2
+    for issue in finalized.issues:
+        assert issue.materiality == "medium"
+        assert issue.actionability == "actionable"
+        assert issue.novelty == "new"
+        assert issue.should_materialize is True
+    comments = apply_word_comment_convergence([first, second], finalized)
+    assert len(comments) == 2
+    assert {item.expert_id for item in comments} == {"frank", "roger"}
+    assert all(item.should_materialize for item in comments)
+    logged = " ".join(record.getMessage() for record in caplog.records)
+    assert "classification fallbacks" in logged
+    assert "issues=2" in logged
+    assert "fields=8" in logged
+    assert "Skärp leveransåtagandet" not in logged
+    assert "Best-effort" not in logged
+    assert first.paragraph_text not in logged
+    unfinalized = WordCommentConvergence.model_validate(
+        {
+            "issues": [
+                {
+                    "observation_ids": ["o1"],
+                    "paragraph_index": 3,
+                    "supporting_expert_ids": ["frank"],
+                    "short_comment": "Skärp leveransåtagandet.",
+                    "explanation": "Best-effort lämnar motparten utan krav.",
+                },
+                {
+                    "observation_ids": ["o2"],
+                    "paragraph_index": 3,
+                    "supporting_expert_ids": ["roger"],
+                    "short_comment": "Förtydliga betalningsfristen.",
+                    "explanation": "Fristen går inte att mäta mot ett datum.",
+                },
+            ]
+        }
+    )
+    via_apply = apply_word_comment_convergence([first, second], unfinalized)
+    assert len(via_apply) == 2
+    assert all(item.should_materialize for item in via_apply)
+
+
 def test_low_materiality_informational_issue_is_not_materialized():
     issue = _issue(
         materiality="low",
@@ -1338,6 +1414,59 @@ async def test_convergence_call_sends_output_contract_with_old_override():
 
 
 @pytest.mark.asyncio
+async def test_comment_convergence_missing_classification_fields_does_not_fail():
+    async def completer(messages, response_model):
+        assert response_model is WordCommentConvergence
+        return response_model.model_validate(
+            {
+                "issues": [
+                    {
+                        "observation_ids": ["o1"],
+                        "paragraph_index": 3,
+                        "supporting_expert_ids": ["frank"],
+                        "short_comment": "Skärp formuleringen.",
+                        "explanation": "Best-effort är för svagt.",
+                    },
+                    {
+                        "observation_ids": ["o2"],
+                        "paragraph_index": 3,
+                        "supporting_expert_ids": ["roger"],
+                        "short_comment": "Förtydliga fristen.",
+                        "explanation": "Ingen mätbar tid.",
+                    },
+                ]
+            }
+        )
+
+    set_structured_completer(completer)
+    parsed = await _comment_convergence(
+        prompts=default_prompts("sv"),
+        section=WordDocumentSection(
+            heading="Avtal",
+            heading_style="Heading 1",
+            heading_paragraph_index=0,
+            paragraphs=[_para(3, "Konsulten försöker i möjligaste mån leverera i tid.")],
+        ),
+        batch=[_para(3, "Konsulten försöker i möjligaste mån leverera i tid.")],
+        observations=[
+            _obs(observation_id="o1"),
+            _obs(
+                observation_id="o2",
+                expert_id="roger",
+                expert_label="Roger",
+                kommentar="En annan genuin risk i samma stycke.",
+            ),
+        ],
+        limiter=WordReviewLimiter(1, WordReviewTimings()),
+    )
+    assert len(parsed.issues) == 2
+    assert all(issue.materiality == "medium" for issue in parsed.issues)
+    assert all(issue.actionability == "actionable" for issue in parsed.issues)
+    assert all(issue.novelty == "new" for issue in parsed.issues)
+    assert all(issue.should_materialize is True for issue in parsed.issues)
+
+
+@pytest.mark.asyncio
 async def test_word_structured_retries_truncated_json_once(caplog):
     calls = 0
 
@@ -1370,6 +1499,43 @@ async def test_word_structured_retries_truncated_json_once(caplog):
     assert "category=json_invalid" in logged
     assert "Immaterialrätt" not in logged
     assert '{"kommentar"' not in logged
+
+
+@pytest.mark.asyncio
+async def test_word_structured_retry_increments_job_call_counts():
+    timings = WordReviewTimings()
+    limiter = WordReviewLimiter(1, timings)
+    calls = 0
+
+    async def completer(messages, response_model):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise _truncated_expert_json_error()
+        return WordExpertComment(
+            kommentar="Komplett IP-bedömning.",
+            anchor_paragraph_index=1,
+        )
+
+    set_structured_completer(completer)
+    parsed = await limiter.run(
+        "expert_comment",
+        lambda: complete_word_structured(
+            [{"role": "user", "content": "kommentera"}],
+            WordExpertComment,
+            prompts=default_prompts("sv"),
+            timings=timings,
+        ),
+    )
+    assert parsed.kommentar == "Komplett IP-bedömning."
+    snapshot = timings.snapshot()
+    assert calls == 2
+    assert snapshot["expert_comment_calls"] == 1
+    assert snapshot["structured_retry_count"] == 1
+    assert snapshot["llm_call_count"] == 2
+    dumped = repr(snapshot)
+    assert "prompt" not in dumped
+    assert "kommentera" not in dumped
 
 
 @pytest.mark.asyncio
@@ -1600,6 +1766,22 @@ async def test_word_review_raise_hand_then_comment_and_heading(client: AsyncClie
     assert result["max_observed_llm_concurrency"] >= 1
     assert result["total_ms"] >= 0
     assert result["time_to_first_action_ms"] is not None
+    assert result["structured_retry_count"] >= 0
+    assert result["moderation_calls"] >= 0
+    assert result["raise_hand_calls"] >= 0
+    assert result["expert_comment_calls"] >= 0
+    assert result["comment_convergence_calls"] >= 0
+    assert result["rewrite_convergence_calls"] >= 0
+    assert result["heading_calls"] >= 0
+    assert result["llm_call_count"] == (
+        result["moderation_calls"]
+        + result["raise_hand_calls"]
+        + result["expert_comment_calls"]
+        + result["comment_convergence_calls"]
+        + result["rewrite_convergence_calls"]
+        + result["heading_calls"]
+        + result["structured_retry_count"]
+    )
     assert job.json()["request"]["task"] == _review_task(panel_id)
 
 

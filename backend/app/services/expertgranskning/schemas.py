@@ -573,20 +573,32 @@ class WordExpertComment(BaseModel):
 WordIssueMateriality = Literal["high", "medium", "low"]
 WordIssueActionability = Literal["actionable", "informational"]
 WordIssueNovelty = Literal["new", "overlap"]
+_WORD_ISSUE_MATERIALITY = frozenset({"high", "medium", "low"})
+_WORD_ISSUE_ACTIONABILITY = frozenset({"actionable", "informational"})
+_WORD_ISSUE_NOVELTY = frozenset({"new", "overlap"})
 
 
-class WordConvergedIssue(BaseModel):
-    """One Word-review issue after observation-level consolidation."""
+def _optional_issue_literal(value: object, allowed: frozenset[str]) -> str | None:
+    if value is None or value == "":
+        return None
+    text = str(value).strip()
+    if text not in allowed:
+        return None
+    return text
+
+
+class WordLlmConvergedIssue(BaseModel):
+    """LLM-facing issue. Classification fields may be omitted or invalid."""
 
     observation_ids: list[str] = Field(default_factory=list)
     paragraph_index: int
     supporting_expert_ids: list[str] = Field(default_factory=list)
     short_comment: str
     explanation: str
-    materiality: WordIssueMateriality
-    actionability: WordIssueActionability
-    novelty: WordIssueNovelty
-    should_materialize: bool
+    materiality: WordIssueMateriality | None = None
+    actionability: WordIssueActionability | None = None
+    novelty: WordIssueNovelty | None = None
+    should_materialize: bool | None = None
     has_dissensus: bool = False
 
     @field_validator("short_comment", "explanation", mode="before")
@@ -603,9 +615,42 @@ class WordConvergedIssue(BaseModel):
             return value
         return [str(item).strip() for item in value if str(item).strip()]
 
+    @field_validator("materiality", mode="before")
+    @classmethod
+    def optional_materiality(cls, value: object) -> str | None:
+        return _optional_issue_literal(value, _WORD_ISSUE_MATERIALITY)
+
+    @field_validator("actionability", mode="before")
+    @classmethod
+    def optional_actionability(cls, value: object) -> str | None:
+        return _optional_issue_literal(value, _WORD_ISSUE_ACTIONABILITY)
+
+    @field_validator("novelty", mode="before")
+    @classmethod
+    def optional_novelty(cls, value: object) -> str | None:
+        return _optional_issue_literal(value, _WORD_ISSUE_NOVELTY)
+
+    @field_validator("should_materialize", mode="before")
+    @classmethod
+    def optional_should_materialize(cls, value: object) -> bool | None:
+        if value is None or value == "":
+            return None
+        if isinstance(value, bool):
+            return value
+        return None
+
+
+class WordConvergedIssue(WordLlmConvergedIssue):
+    """Finalized Word-review issue. Classification fields are required."""
+
+    materiality: WordIssueMateriality
+    actionability: WordIssueActionability
+    novelty: WordIssueNovelty
+    should_materialize: bool
+
 
 class WordCommentConvergence(BaseModel):
-    issues: list[WordConvergedIssue] = Field(default_factory=list)
+    issues: list[WordLlmConvergedIssue] = Field(default_factory=list)
 
 
 class WordParagraphComments(BaseModel):

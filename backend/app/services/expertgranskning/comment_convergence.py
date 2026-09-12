@@ -7,6 +7,7 @@ never dropped.
 
 from __future__ import annotations
 
+import logging
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -14,7 +15,15 @@ from dataclasses import dataclass
 from app.services.expertgranskning.schemas import (
     WordCommentConvergence,
     WordConvergedIssue,
+    WordLlmConvergedIssue,
 )
+
+logger = logging.getLogger(__name__)
+
+DEFAULT_ISSUE_MATERIALITY = "medium"
+DEFAULT_ISSUE_ACTIONABILITY = "actionable"
+DEFAULT_ISSUE_NOVELTY = "new"
+DEFAULT_ISSUE_SHOULD_MATERIALIZE = True
 
 NEARBY_PARAGRAPH_DISTANCE = 1
 SIMILAR_COMMENT_JACCARD = 0.45
@@ -300,6 +309,68 @@ def decide_word_issue_materialization(issue: WordConvergedIssue) -> bool:
     return issue.should_materialize
 
 
+def finalize_word_converged_issue(
+    raw: WordLlmConvergedIssue | WordConvergedIssue,
+) -> tuple[WordConvergedIssue, int]:
+    """Fill missing classification fields so a valid issue still surfaces."""
+    if isinstance(raw, WordConvergedIssue):
+        return raw, 0
+    fallbacks = 0
+    materiality = raw.materiality
+    if materiality is None:
+        materiality = DEFAULT_ISSUE_MATERIALITY
+        fallbacks += 1
+    actionability = raw.actionability
+    if actionability is None:
+        actionability = DEFAULT_ISSUE_ACTIONABILITY
+        fallbacks += 1
+    novelty = raw.novelty
+    if novelty is None:
+        novelty = DEFAULT_ISSUE_NOVELTY
+        fallbacks += 1
+    should_materialize = raw.should_materialize
+    if should_materialize is None:
+        should_materialize = DEFAULT_ISSUE_SHOULD_MATERIALIZE
+        fallbacks += 1
+    return (
+        WordConvergedIssue(
+            observation_ids=raw.observation_ids,
+            paragraph_index=raw.paragraph_index,
+            supporting_expert_ids=raw.supporting_expert_ids,
+            short_comment=raw.short_comment,
+            explanation=raw.explanation,
+            materiality=materiality,
+            actionability=actionability,
+            novelty=novelty,
+            should_materialize=should_materialize,
+            has_dissensus=raw.has_dissensus,
+        ),
+        fallbacks,
+    )
+
+
+def finalize_word_comment_convergence(
+    parsed: WordCommentConvergence,
+) -> WordCommentConvergence:
+    """Promote LLM issues to the strict domain model. Log fallback counts only."""
+    issues: list[WordConvergedIssue] = []
+    fallback_fields = 0
+    fallback_issues = 0
+    for raw in parsed.issues:
+        issue, count = finalize_word_converged_issue(raw)
+        issues.append(issue)
+        fallback_fields += count
+        if count:
+            fallback_issues += 1
+    if fallback_fields:
+        logger.info(
+            "Word comment convergence classification fallbacks issues=%s fields=%s",
+            fallback_issues,
+            fallback_fields,
+        )
+    return WordCommentConvergence(issues=issues)
+
+
 def consolidated_from_observation(observation: WordObservation) -> WordConsolidatedComment:
     return WordConsolidatedComment(
         expert_id=observation.expert_id,
@@ -362,11 +433,13 @@ def apply_word_comment_convergence(
     parsed: WordCommentConvergence,
 ) -> list[WordConsolidatedComment]:
     """Apply an LLM grouping. Dissensus is split; leftover observations stay."""
+    parsed = finalize_word_comment_convergence(parsed)
     by_id = {item.observation_id: item for item in observations}
     assigned: set[str] = set()
     groups: list[tuple[list[WordObservation], WordConvergedIssue | None, bool]] = []
 
-    for issue in parsed.issues:
+    for raw in parsed.issues:
+        issue, _ = finalize_word_converged_issue(raw)
         members: list[WordObservation] = []
         for raw_id in issue.observation_ids:
             observation = by_id.get(raw_id.strip())
