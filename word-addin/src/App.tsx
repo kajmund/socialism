@@ -36,8 +36,14 @@ import { clearStoredToken, getStoredToken, saveStoredToken } from "@/lib/tokenSt
 import { finishedJobView, planReviewStart } from "@/lib/resume"
 import { buildSections } from "@/lib/sections"
 import { connectExpertgranskningWatch } from "@/lib/socket"
-import type { ExpertPanelSummary, WordAction } from "@/lib/types"
+import type { ExpertPanelSummary, WordAction, WordTaskScopeType } from "@/lib/types"
 import { actionsForWatchEvent, isWatchEvent } from "@/lib/watch"
+import { createWordTask } from "@/lib/word/task"
+import {
+  captureWordTaskSnapshot,
+  EmptyWordSelectionError,
+  UnresolvedWordSelectionError,
+} from "@/lib/word/taskSnapshot"
 
 type Phase = "idle" | "running" | "done" | "failed"
 
@@ -48,6 +54,7 @@ export function App() {
   const [panels, setPanels] = useState<ExpertPanelSummary[]>([])
   const [panelId, setPanelId] = useState("")
   const [reviewIntent, setReviewIntent] = useState("")
+  const [taskScope, setTaskScope] = useState<WordTaskScopeType>("document")
   const [phase, setPhase] = useState<Phase>("idle")
   const [watchSource, setWatchSource] = useState<"new" | "resume">("new")
   const [error, setError] = useState("")
@@ -333,13 +340,27 @@ export function App() {
         }
       }
 
-      const paragraphs = await readDocumentParagraphs()
-      if (paragraphs.length === 0) {
+      let snapshot
+      try {
+        snapshot = await captureWordTaskSnapshot(taskScope)
+      } catch (err) {
+        setPhase("idle")
+        if (err instanceof EmptyWordSelectionError) {
+          setError(t("emptySelection"))
+          return
+        }
+        if (err instanceof UnresolvedWordSelectionError) {
+          setError(t("unresolvedSelection"))
+          return
+        }
+        throw err
+      }
+      if (snapshot.paragraphs.length === 0) {
         setPhase("idle")
         setError(t("noParagraphs"))
         return
       }
-      const sections = buildSections(paragraphs)
+      const sections = buildSections(snapshot.paragraphs)
       if (sections.length === 0) {
         setPhase("idle")
         setError(t("noSections"))
@@ -348,7 +369,10 @@ export function App() {
 
       try {
         const jobId = await createWordJob(token, {
-          panel_id: Number(panelId),
+          task: createWordTask({
+            panelId: Number(panelId),
+            scope: snapshot.scope,
+          }),
           doc_id: docId,
           word_session_id: WORD_SESSION_ID,
           sections,
@@ -485,6 +509,37 @@ export function App() {
           />
           <p className="hint">{t("intentHint")}</p>
         </div>
+
+        <fieldset className="scope">
+          <legend>{t("scopeLabel")}</legend>
+          <div className="scope-options">
+            <label className="scope-option">
+              <input
+                type="radio"
+                name="task-scope"
+                value="document"
+                checked={taskScope === "document"}
+                onChange={() => setTaskScope("document")}
+                disabled={!token}
+              />
+              {t("scopeDocument")}
+            </label>
+            <label className="scope-option">
+              <input
+                type="radio"
+                name="task-scope"
+                value="selection"
+                checked={taskScope === "selection"}
+                onChange={() => setTaskScope("selection")}
+                disabled={!token}
+              />
+              {t("scopeSelection")}
+            </label>
+          </div>
+          {taskScope === "selection" ? (
+            <p className="hint">{t("scopeSelectionHint")}</p>
+          ) : null}
+        </fieldset>
 
         <button
           type="button"
