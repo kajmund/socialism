@@ -61,6 +61,25 @@ describe("actionsForWatchEvent", () => {
     ).toEqual([{ kind: "upsert", actions: rows }])
   })
 
+  it("surfaces progress without touching actions", () => {
+    expect(
+      actionsForWatchEvent({
+        type: "expertgranskning.progress",
+        job_id: "job_1",
+        sections_completed: 2,
+        sections_total: 5,
+        actions_created: 7,
+      }),
+    ).toEqual([
+      {
+        kind: "progress",
+        sections_completed: 2,
+        sections_total: 5,
+        actions_created: 7,
+      },
+    ])
+  })
+
   it("surfaces finished without clearing actions", () => {
     expect(
       actionsForWatchEvent({

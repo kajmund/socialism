@@ -41,11 +41,23 @@ describe("upsertWordActions", () => {
 })
 
 describe("sortedWordActions", () => {
-  it("orders by created_at then id", () => {
+  it("orders by paragraph_index then stable id", () => {
     const map = upsertWordActions(new Map(), [
-      action({ id: "wa_c", created_at: "2026-09-12T12:00:00+00:00" }),
-      action({ id: "wa_b", created_at: "2026-09-12T11:00:00+00:00" }),
-      action({ id: "wa_a", created_at: "2026-09-12T11:00:00+00:00" }),
+      action({
+        id: "wa_c",
+        created_at: "2026-09-12T10:00:00+00:00",
+        anchor: { paragraph_index: 8, reviewed_text: "c", text_hash: "c" },
+      }),
+      action({
+        id: "wa_b",
+        created_at: "2026-09-12T12:00:00+00:00",
+        anchor: { paragraph_index: 2, reviewed_text: "b", text_hash: "b" },
+      }),
+      action({
+        id: "wa_a",
+        created_at: "2026-09-12T11:00:00+00:00",
+        anchor: { paragraph_index: 2, reviewed_text: "a", text_hash: "a" },
+      }),
     ])
     expect(sortedWordActions(map).map((row) => row.id)).toEqual([
       "wa_a",
