@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
 from app.auth.scope import (
     assert_job_owner_access,
     assert_kund_access,
+    customer_id_for_user,
     effective_customer_id,
 )
 from app.database.models import Job, Population, UserAccount
@@ -17,7 +19,12 @@ from app.schemas.domain import JobCreate
 from app.services import jobs as jobs_service
 from app.services.customer_scope import customer_id_for_panel_session
 from app.services.expertgranskning import WORD_JOB_KIND
+from app.services.expertgranskning.intent_interview import (
+    generate_document_intent_interview,
+)
 from app.services.expertgranskning.schemas import (
+    DocumentIntentInterview,
+    ExpertgranskningIntentInterviewCreate,
     ExpertgranskningLatestWordJobOut,
     ExpertgranskningResultOut,
     ExpertgranskningSessionCreate,
@@ -27,6 +34,7 @@ from app.services.expertgranskning.schemas import (
     ExpertgranskningWordJobCreate,
     ExpertgranskningWordJobRequest,
 )
+from app.services.prompt_store import require_active_prompts
 from app.services.expertgranskning.sessions import (
     create_expertgranskning_session,
     delete_expertgranskning_session,
@@ -219,6 +227,28 @@ def _panel_visible_to_user(population: Population, user: UserAccount) -> bool:
     return user.kund_id is not None and population.customer_id == user.kund_id
 
 
+@router.post("/word-intent-interview", response_model=DocumentIntentInterview)
+async def post_expertgranskning_word_intent_interview(
+    body: ExpertgranskningIntentInterviewCreate,
+    session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
+) -> DocumentIntentInterview:
+    customer_id = await customer_id_for_user(session, user)
+    prompts = await require_active_prompts(
+        session,
+        customer_id=customer_id,
+        module="expertgranskning",
+        language=body.locale,
+    )
+    try:
+        return await generate_document_intent_interview(
+            sections=body.sections,
+            prompts=prompts,
+        )
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail="intent_interview_invalid") from exc
+
+
 @router.post("/word-jobs", status_code=202)
 async def post_expertgranskning_word_job(
     body: ExpertgranskningWordJobCreate,
@@ -249,6 +279,8 @@ async def post_expertgranskning_word_job(
         doc_id=body.doc_id,
         word_session_id=body.word_session_id,
         review_intent=body.review_intent,
+        intent_interview=body.intent_interview,
+        intent_answers=body.intent_answers,
         locale=body.locale,
         task=body.task,
         sections=body.sections,

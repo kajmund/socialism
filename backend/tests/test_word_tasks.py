@@ -142,6 +142,8 @@ def test_job_request_stores_full_word_task():
         "expert_strategy": {"type": "panel", "panel_id": 12},
     }
     assert dumped["review_intent"] == "Devbrains är motpart i avtalet."
+    assert dumped["intent_interview"] is None
+    assert dumped["intent_answers"] == []
     assert "panel_id" not in dumped
     assert request.panel_id == 12
     assert snapshot_indexes_from_sections(request.sections) == {0, 14, 15, 16}
