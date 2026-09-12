@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+import time
+from types import SimpleNamespace
 
 import pytest
 
+from app.services.expertgranskning import word_review
 from app.services.expertgranskning.word_review_timing import (
     TIMING_CATEGORIES,
     WordReviewLimiter,
@@ -49,16 +52,33 @@ def test_timing_snapshot_omits_first_action_until_marked():
     assert timings.snapshot()["time_to_first_action_ms"] == first
 
 
-def test_first_action_mark_is_the_first_successful_publish():
+@pytest.mark.asyncio
+async def test_first_action_timing_excludes_later_section_publish_delay(monkeypatch):
+    """Fails if first-action is stamped only after the whole publish loop."""
+    later_publish_delay_s = 0.15
+    seen = 0
+
+    async def delayed_publish(_row) -> None:
+        nonlocal seen
+        if seen:
+            await asyncio.sleep(later_publish_delay_s)
+        seen += 1
+
+    monkeypatch.setattr(word_review, "publish_action_created", delayed_publish)
     timings = WordReviewTimings()
-    started = timings.begin_call()
-    timings.end_call("heading", started)
-    assert timings.snapshot()["time_to_first_action_ms"] is None
-    timings.mark_first_action()
-    first = timings.snapshot()["time_to_first_action_ms"]
-    assert first is not None
-    timings.mark_first_action()
-    assert timings.snapshot()["time_to_first_action_ms"] == first
+    actions = [
+        SimpleNamespace(id="wa_1"),
+        SimpleNamespace(id="wa_2"),
+        SimpleNamespace(id="wa_3"),
+    ]
+    started = time.monotonic()
+    published = await word_review.publish_created_actions(actions, timings)
+    elapsed_ms = (time.monotonic() - started) * 1000
+    first_ms = timings.snapshot()["time_to_first_action_ms"]
+    assert published == 3
+    assert first_ms is not None
+    assert first_ms < later_publish_delay_s * 1000
+    assert elapsed_ms >= later_publish_delay_s * 2 * 1000
 
 
 @pytest.mark.asyncio
