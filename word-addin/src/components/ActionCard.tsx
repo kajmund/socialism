@@ -102,8 +102,13 @@ export function ActionCard({
         <div className="action-card-fields">
           <p className="action-card-text">{model.content}</p>
           {model.explanation ? (
-            <details className="action-card-why">
-              <summary>{t("actionWhyMore")}</summary>
+            <details
+              className="action-card-why"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <summary onClick={(event) => event.stopPropagation()}>
+                {t("actionWhyMore")}
+              </summary>
               <p className="action-card-text">{model.explanation}</p>
             </details>
           ) : null}
