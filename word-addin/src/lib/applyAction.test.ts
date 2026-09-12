@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest"
 
+import { sortedWordActions, upsertWordActions } from "./actionQueue"
 import { applyPendingAction, type ApplyActionDeps } from "./applyAction"
 import type { WordAction } from "./types"
+import { hashWordText, resolveWordAnchor } from "./word/anchors"
 
 function action(overrides: Partial<WordAction> = {}): WordAction {
   return {
@@ -112,6 +114,70 @@ describe("applyPendingAction", () => {
     const result = await applyPendingAction("tok", "job_1", action(), helpers)
     expect(result.status).toBe("applying")
     expect(helpers.completeAction).not.toHaveBeenCalled()
+  })
+
+  it("applies same-paragraph comment then rewrite without stale anchors", async () => {
+    const reviewed = "Parterna ska utse kontaktpersoner."
+    const replacement = "Parterna utser kontaktpersoner inom fem dagar."
+    const hash = hashWordText(reviewed)
+    const comment = action({
+      id: "wa_zzz_comment",
+      action_type: "comment",
+      created_at: "2026-09-12T12:00:00+00:00",
+      anchor: { paragraph_index: 1, reviewed_text: reviewed, text_hash: hash },
+    })
+    const replace = action({
+      id: "wa_aaa_replace",
+      action_type: "replace",
+      content: replacement,
+      created_at: "2026-09-12T09:00:00+00:00",
+      source: { type: "expert_review_result", id: "egr_r", ordinal: 0 },
+      anchor: { paragraph_index: 1, reviewed_text: reviewed, text_hash: hash },
+    })
+    const ordered = sortedWordActions(upsertWordActions(new Map(), [replace, comment]))
+    expect(ordered.map((row) => row.action_type)).toEqual(["comment", "replace"])
+
+    let text = reviewed
+    const helpers = deps({
+      readParagraphs: async () => [
+        { index: 1, text, style: "Normal", list_string: "" },
+      ],
+      resolveAnchor: (anchor, current, sessionId) =>
+        resolveWordAnchor(anchor, current, sessionId),
+      claimAction: vi.fn(async () => ({ claimed: true })),
+      executeWordAction: async (row) => {
+        if (row.action_type === "replace") {
+          text = row.content
+        }
+        return { status: "resolved" as const, wordArtifactId: `word-${row.id}` }
+      },
+      completeAction: async (_token, _jobId, actionId) => {
+        const row = ordered.find((item) => item.id === actionId)
+        return {
+          ...row!,
+          status: "applied",
+          word_artifact_id: `word-${actionId}`,
+        }
+      },
+      markUnresolved: async (_token, _jobId, actionId, reason) => {
+        const row = [comment, replace].find((item) => item.id === actionId)!
+        return { ...row, status: "unresolved", application_error: reason }
+      },
+    })
+
+    for (const row of ordered) {
+      const result = await applyPendingAction("tok", "job_1", row, helpers)
+      expect(result.status).toBe("applied")
+    }
+    expect(text).toBe(replacement)
+
+    text = reviewed
+    expect((await applyPendingAction("tok", "job_1", replace, helpers)).status).toBe(
+      "applied",
+    )
+    expect((await applyPendingAction("tok", "job_1", comment, helpers)).status).toBe(
+      "unresolved",
+    )
   })
 
   it("does not mutate when claim loses to dismiss", async () => {
