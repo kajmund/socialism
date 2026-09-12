@@ -6,6 +6,24 @@ export type WordParagraph = {
   unique_local_id?: string | null
 }
 
+export type WordTaskType = "review"
+export type WordTaskScopeType = "document" | "selection"
+
+export type WordTaskScope =
+  | { type: "document" }
+  | { type: "selection"; paragraph_indexes: number[] }
+
+export type WordExpertStrategy = {
+  type: "panel"
+  panel_id: number
+}
+
+export type WordTask = {
+  task_type: WordTaskType
+  scope: WordTaskScope
+  expert_strategy: WordExpertStrategy
+}
+
 export type WordDocumentSection = {
   heading: string
   heading_style: string

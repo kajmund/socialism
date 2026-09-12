@@ -42,7 +42,7 @@ export function uniqueLocalIdSupported(): boolean {
   return Office.context.requirements.isSetSupported("WordApi", "1.6")
 }
 
-function uniqueLocalIdFromLoaded(paragraph: { uniqueLocalId?: number | string }): string | null {
+export function uniqueLocalIdFromLoaded(paragraph: { uniqueLocalId?: number | string }): string | null {
   const value = paragraph.uniqueLocalId
   if (typeof value === "number" && Number.isFinite(value)) return String(value)
   if (typeof value === "string" && value.trim()) return value.trim()
@@ -77,6 +77,25 @@ export async function getOrCreateDocId(): Promise<string> {
   return created
 }
 
+export function wordParagraphFromLoaded(
+  paragraph: {
+    text: string
+    style?: string
+    listItemOrNullObject: { isNullObject: boolean; listString?: string }
+    uniqueLocalId?: number | string
+  },
+  index: number,
+  loadUniqueId: boolean,
+): WordParagraph {
+  return {
+    index,
+    text: paragraph.text.replace(/\r/g, "").trimEnd(),
+    style: paragraph.style ?? "",
+    list_string: listStringFromLoaded(paragraph),
+    unique_local_id: loadUniqueId ? uniqueLocalIdFromLoaded(paragraph) : null,
+  }
+}
+
 export async function readDocumentParagraphs(): Promise<WordParagraph[]> {
   if (typeof Word === "undefined") {
     throw new Error("Word API is not available")
@@ -90,13 +109,9 @@ export async function readDocumentParagraphs(): Promise<WordParagraph[]> {
         : "items/text,items/style,items/listItemOrNullObject/listString",
     )
     await context.sync()
-    return paragraphs.items.map((paragraph, index) => ({
-      index,
-      text: paragraph.text.replace(/\r/g, "").trimEnd(),
-      style: paragraph.style ?? "",
-      list_string: listStringFromLoaded(paragraph),
-      unique_local_id: loadUniqueId ? uniqueLocalIdFromLoaded(paragraph) : null,
-    }))
+    return paragraphs.items.map((paragraph, index) =>
+      wordParagraphFromLoaded(paragraph, index, loadUniqueId),
+    )
   })
 }
 

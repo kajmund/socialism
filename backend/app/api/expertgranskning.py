@@ -226,7 +226,7 @@ async def post_expertgranskning_word_job(
     user: UserAccount = Depends(get_current_user),
 ) -> dict[str, str]:
     try:
-        panel = await require_expert_panel(session, body.panel_id)
+        panel = await require_expert_panel(session, body.task.expert_strategy.panel_id)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
@@ -244,14 +244,14 @@ async def post_expertgranskning_word_job(
             raise HTTPException(status_code=409, detail="word_review_already_running")
 
     request = ExpertgranskningWordJobRequest(
-        panel_id=body.panel_id,
         customer_id=panel.customer_id,
         owner_user_id=user.id,
         doc_id=body.doc_id,
         word_session_id=body.word_session_id,
         review_intent=body.review_intent,
-        sections=body.sections,
         locale=body.locale,
+        task=body.task,
+        sections=body.sections,
     )
     job = await jobs_service.create_job(
         session,
