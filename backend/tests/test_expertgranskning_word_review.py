@@ -54,17 +54,23 @@ from app.services.expertgranskning.schemas import (
 from app.services.word.anchors import reviewed_text_from_job_request
 from app.services.expertgranskning.word_review import (
     WORD_COMMENT_CONVERGENCE_SUFFIX,
+    WORD_REVIEW_MAX_QUESTIONS_PER_BATCH,
+    _analyze_batch,
     _comment_convergence,
     _comment_question,
     _consolidate_comments,
     _document_brief,
+    accepted_recommended_expert_ids,
     accepted_review_questions,
     build_batches,
     is_heading_1_to_3,
+    log_word_review_call_summary,
     render_comment_convergence_user_prompt,
     render_expert_comment_user_prompt,
     resolve_comment_anchor,
+    resolve_question_primary_anchor,
     rewrite_suggestion_or_none,
+    routed_and_unresolved_questions,
     selected_review_questions,
     should_review_paragraph,
     word_comment_anchor_suffix,
@@ -519,6 +525,7 @@ def test_accepted_review_questions_skips_trivial_and_invalid():
     )
     assert [question.id for question in kept] == ["q1"]
     assert kept[0].paragraph_indexes == [1]
+    assert kept[0].primary_anchor_paragraph_index == 1
 
     scoped = accepted_review_questions(
         WordBatchModeration(
@@ -536,6 +543,7 @@ def test_accepted_review_questions_skips_trivial_and_invalid():
         target_indexes=frozenset({1}),
     )
     assert scoped[0].paragraph_indexes == [1]
+    assert scoped[0].primary_anchor_paragraph_index == 1
 
 
 def test_selected_review_questions_ignores_unknown_and_duplicates():
@@ -550,6 +558,159 @@ def test_selected_review_questions_ignores_unknown_and_duplicates():
         expert_id="e1",
     )
     assert [question.id for question in kept] == ["q2", "q1"]
+
+
+def _review_question(
+    question_id: str,
+    indexes: list[int],
+    *,
+    primary: int | None = None,
+    recommended: list[str] | None = None,
+) -> WordReviewQuestion:
+    return WordReviewQuestion(
+        id=question_id,
+        paragraph_indexes=indexes,
+        question=f"Fråga {question_id}?",
+        why_it_matters="Materialitet.",
+        primary_anchor_paragraph_index=primary,
+        recommended_expert_ids=recommended or [],
+    )
+
+
+def test_accepted_review_questions_caps_at_two_in_order():
+    batch = [
+        _para(1, "Första giltiga stycket att granska här."),
+        _para(2, "Andra giltiga stycket att granska här."),
+        _para(3, "Tredje giltiga stycket att granska här."),
+        _para(4, "Fjärde giltiga stycket att granska här."),
+    ]
+    kept = accepted_review_questions(
+        WordBatchModeration(
+            needs_review=True,
+            reason="Flera frågor.",
+            questions=[
+                _review_question("q1", [1], primary=1),
+                _review_question("q2", [2], primary=2),
+                _review_question("q3", [3], primary=3),
+                _review_question("q4", [4], primary=4),
+            ],
+        ),
+        batch,
+    )
+    assert WORD_REVIEW_MAX_QUESTIONS_PER_BATCH == 2
+    assert [question.id for question in kept] == ["q1", "q2"]
+    assert [question.primary_anchor_paragraph_index for question in kept] == [1, 2]
+
+
+def test_accepted_review_questions_normalizes_single_paragraph_primary():
+    batch = [_para(4, "Ett ensamt giltigt stycke att granska.")]
+    omitted = accepted_review_questions(
+        WordBatchModeration(
+            needs_review=True,
+            reason="Ett stycke.",
+            questions=[_review_question("q1", [4])],
+        ),
+        batch,
+    )
+    assert omitted[0].primary_anchor_paragraph_index == 4
+    filtered = accepted_review_questions(
+        WordBatchModeration(
+            needs_review=True,
+            reason="Ett stycke.",
+            questions=[
+                _review_question("q1", [4, 99], primary=99),
+            ],
+        ),
+        batch,
+    )
+    assert filtered[0].paragraph_indexes == [4]
+    assert filtered[0].primary_anchor_paragraph_index == 4
+    empty = WordReviewQuestion.model_validate(
+        {
+            "id": "q2",
+            "paragraph_indexes": [4],
+            "question": "Tomt ankare?",
+            "primary_anchor_paragraph_index": "",
+        }
+    )
+    assert empty.primary_anchor_paragraph_index is None
+    assert resolve_question_primary_anchor(empty.paragraph_indexes, empty.primary_anchor_paragraph_index) == 4
+
+
+def test_accepted_review_questions_drops_invalid_multi_paragraph_primary():
+    timings = WordReviewTimings()
+    batch = [
+        _para(1, "Första giltiga stycket att granska här."),
+        _para(2, "Andra giltiga stycket att granska här."),
+    ]
+    kept = accepted_review_questions(
+        WordBatchModeration(
+            needs_review=True,
+            reason="Ogiltiga ankare.",
+            questions=[
+                _review_question("q-omit", [1, 2]),
+                _review_question("q-bad", [1, 2], primary=99),
+                _review_question("q-ok", [1, 2], primary=2),
+            ],
+        ),
+        batch,
+        timings=timings,
+    )
+    assert [question.id for question in kept] == ["q-ok"]
+    assert kept[0].primary_anchor_paragraph_index == 2
+    assert timings.questions_dropped_invalid_anchor == 2
+
+
+def test_accepted_recommended_expert_ids_validates_panel_and_cap():
+    panel = frozenset({"jurist", "finansiell_analytiker", "teknik"})
+    assert accepted_recommended_expert_ids(
+        ["jurist", "unknown", "jurist", "finansiell_analytiker", "teknik"],
+        panel,
+    ) == ["jurist", "finansiell_analytiker"]
+    assert accepted_recommended_expert_ids(["ghost", ""], panel) == []
+    kept = accepted_review_questions(
+        WordBatchModeration(
+            needs_review=True,
+            reason="Rekommendationer.",
+            questions=[
+                _review_question(
+                    "q1",
+                    [1],
+                    primary=1,
+                    recommended=["ghost", "jurist", "teknik", "finansiell_analytiker"],
+                )
+            ],
+        ),
+        [_para(1, "Ett giltigt stycke att granska här.")],
+        panel_slot_ids=panel,
+    )
+    assert kept[0].recommended_expert_ids == ["jurist", "teknik"]
+    routed, unresolved = routed_and_unresolved_questions(kept)
+    assert [question.id for question in routed] == ["q1"]
+    assert unresolved == []
+    fallback = accepted_review_questions(
+        WordBatchModeration(
+            needs_review=True,
+            reason="Okända experter.",
+            questions=[_review_question("q2", [1], primary=1, recommended=["ghost"])],
+        ),
+        [_para(1, "Ett giltigt stycke att granska här.")],
+        panel_slot_ids=panel,
+    )
+    assert fallback[0].recommended_expert_ids == []
+    routed, unresolved = routed_and_unresolved_questions(fallback)
+    assert routed == []
+    assert [question.id for question in unresolved] == ["q2"]
+
+
+def test_moderator_prompt_asks_for_two_questions_and_primary_anchor():
+    text = default_prompts("sv")["expertgranskning.word.moderator.batch"]
+    assert "högst två" in text
+    assert "primary_anchor_paragraph_index" in text
+    assert "recommended_expert_ids" in text
+    english = default_prompts("en")["expertgranskning.word.moderator.batch"]
+    assert "at most two" in english
+    assert "primary_anchor_paragraph_index" in english
 
 
 def test_intra_expert_duplicate_collapses_to_one_anchor():
@@ -1190,6 +1351,7 @@ def test_resolve_comment_anchor_uses_explicit_and_single_index():
         id="q1",
         paragraph_indexes=[10, 11],
         question="IP?",
+        primary_anchor_paragraph_index=11,
     )
     assert (
         resolve_comment_anchor(
@@ -1208,6 +1370,18 @@ def test_resolve_comment_anchor_uses_explicit_and_single_index():
     assert (
         resolve_comment_anchor(
             question,
+            WordExpertComment(kommentar="x"),
+        )
+        == 11
+    )
+    unanchored = WordReviewQuestion(
+        id="q1",
+        paragraph_indexes=[10, 11],
+        question="IP?",
+    )
+    assert (
+        resolve_comment_anchor(
+            unanchored,
             WordExpertComment(kommentar="x"),
         )
         is None
@@ -1231,14 +1405,251 @@ def test_resolve_comment_anchor_uses_explicit_and_single_index():
                 {"kommentar": "x", "anchor_paragraph_index": ""}
             ),
         )
-        is None
+        == 11
     )
+
+
+def _review_slots() -> list[PanelExpertSlot]:
+    return [
+        PanelExpertSlot(slot_id="jurist", label="Jurist", profile="Avtal"),
+        PanelExpertSlot(
+            slot_id="finansiell_analytiker",
+            label="Finansiell analytiker",
+            profile="Siffror",
+        ),
+    ]
+
+
+def _review_section(paragraphs: list[WordDocumentParagraph]) -> WordDocumentSection:
+    return WordDocumentSection(
+        heading="Avtal",
+        heading_style="Heading 1",
+        heading_paragraph_index=0,
+        paragraphs=paragraphs,
+    )
+
+
+@pytest.mark.asyncio
+async def test_analyze_batch_drops_invalid_primary_before_expert_calls():
+    calls: list[str] = []
+
+    async def completer(messages, response_model):
+        calls.append(response_model.__name__)
+        if response_model is WordBatchModeration:
+            return WordBatchModeration(
+                needs_review=True,
+                reason="Ogiltigt ankare.",
+                questions=[
+                    _review_question("q-omit", [1, 2]),
+                    _review_question("q-bad", [1, 2], primary=99),
+                ],
+            )
+        raise AssertionError(response_model)
+
+    set_structured_completer(completer)
+    timings = WordReviewTimings()
+    paragraphs = [
+        _para(1, "Första giltiga stycket att granska här."),
+        _para(2, "Andra giltiga stycket att granska här."),
+    ]
+    analysis = await _analyze_batch(
+        batch_index=0,
+        batch=paragraphs,
+        section=_review_section(paragraphs),
+        prompts=default_prompts("sv"),
+        slots=_review_slots(),
+        brief="",
+        review_intent="",
+        target=None,
+        limiter=WordReviewLimiter(4, timings),
+    )
+    snapshot = timings.snapshot()
+    assert calls == ["WordBatchModeration"]
+    assert analysis.comments == []
+    assert snapshot["raise_hand_calls"] == 0
+    assert snapshot["expert_comment_calls"] == 0
+    assert snapshot["questions_dropped_invalid_anchor"] == 2
+    assert snapshot["direct_routed_questions"] == 0
+    assert snapshot["raise_hand_questions"] == 0
+    dumped = repr(snapshot)
+    assert "Första giltiga" not in dumped
+    assert "Ogiltigt ankare" not in dumped
+
+
+@pytest.mark.asyncio
+async def test_analyze_batch_direct_routes_recommended_experts():
+    calls: list[str] = []
+
+    async def completer(messages, response_model):
+        calls.append(response_model.__name__)
+        if response_model is WordBatchModeration:
+            return WordBatchModeration(
+                needs_review=True,
+                reason="Tydlig routing.",
+                questions=[
+                    _review_question(
+                        "q1",
+                        [1],
+                        primary=1,
+                        recommended=["jurist", "jurist", "ghost"],
+                    )
+                ],
+            )
+        if response_model is WordExpertComment:
+            return WordExpertComment(kommentar="Direkt routed kommentar.")
+        raise AssertionError(response_model)
+
+    set_structured_completer(completer)
+    timings = WordReviewTimings()
+    paragraphs = [_para(1, "Ett giltigt stycke att granska här.")]
+    analysis = await _analyze_batch(
+        batch_index=0,
+        batch=paragraphs,
+        section=_review_section(paragraphs),
+        prompts=default_prompts("sv"),
+        slots=_review_slots(),
+        brief="",
+        review_intent="",
+        target=None,
+        limiter=WordReviewLimiter(4, timings),
+    )
+    snapshot = timings.snapshot()
+    assert calls == ["WordBatchModeration", "WordExpertComment"]
+    assert snapshot["raise_hand_calls"] == 0
+    assert snapshot["expert_comment_calls"] == 1
+    assert snapshot["direct_routed_questions"] == 1
+    assert snapshot["raise_hand_questions"] == 0
+    assert [(slot.slot_id, text, anchor) for slot, _question, text, anchor in analysis.comments] == [
+        ("jurist", "Direkt routed kommentar.", 1)
+    ]
+
+
+@pytest.mark.asyncio
+async def test_analyze_batch_falls_back_to_raise_hand_for_unknown_experts():
+    calls: list[str] = []
+
+    async def completer(messages, response_model):
+        calls.append(response_model.__name__)
+        user = messages[-1]["content"]
+        if response_model is WordBatchModeration:
+            return WordBatchModeration(
+                needs_review=True,
+                reason="Osäker routing.",
+                questions=[
+                    _review_question("q1", [1], primary=1, recommended=["ghost"]),
+                    _review_question("q2", [2], primary=2),
+                ],
+            )
+        if response_model is WordExpertRaiseHand:
+            return WordExpertRaiseHand(question_ids=_question_ids_from_user(user))
+        if response_model is WordExpertComment:
+            return WordExpertComment(kommentar="Fallback-kommentar.")
+        if response_model is WordRewriteSuggestion:
+            return WordRewriteSuggestion(ny_text="", motivering="")
+        raise AssertionError(response_model)
+
+    set_structured_completer(completer)
+    timings = WordReviewTimings()
+    paragraphs = [
+        _para(1, "Första giltiga stycket att granska här."),
+        _para(2, "Andra giltiga stycket att granska här."),
+    ]
+    analysis = await _analyze_batch(
+        batch_index=0,
+        batch=paragraphs,
+        section=_review_section(paragraphs),
+        prompts=default_prompts("sv"),
+        slots=_review_slots(),
+        brief="",
+        review_intent="",
+        target=None,
+        limiter=WordReviewLimiter(4, timings),
+    )
+    snapshot = timings.snapshot()
+    assert calls.count("WordBatchModeration") == 1
+    assert calls.count("WordExpertRaiseHand") == 2
+    assert calls.count("WordExpertComment") == 4
+    assert "WordExpertRaiseHand" in calls
+    assert snapshot["raise_hand_calls"] == 2
+    assert snapshot["expert_comment_calls"] == 4
+    assert snapshot["direct_routed_questions"] == 0
+    assert snapshot["raise_hand_questions"] == 2
+    assert {slot.slot_id for slot, _question, _text, _anchor in analysis.comments} == {
+        "jurist",
+        "finansiell_analytiker",
+    }
+
+
+@pytest.mark.asyncio
+async def test_analyze_batch_logs_routing_counts_without_document_text(caplog):
+    raise_hand_ids: list[list[str]] = []
+
+    async def completer(messages, response_model):
+        if response_model is WordBatchModeration:
+            return WordBatchModeration(
+                needs_review=True,
+                reason="Hemligt avtalsstycke.",
+                questions=[
+                    _review_question("q-bad", [1, 2], primary=99),
+                    _review_question(
+                        "q-direct",
+                        [1],
+                        primary=1,
+                        recommended=["jurist"],
+                    ),
+                    _review_question("q-hand", [2], primary=2),
+                ],
+            )
+        if response_model is WordExpertRaiseHand:
+            raise_hand_ids.append(_question_ids_from_user(messages[-1]["content"]))
+            return WordExpertRaiseHand(question_ids=["q-hand"])
+        if response_model is WordExpertComment:
+            return WordExpertComment(kommentar="Hemlig kommentar.")
+        if response_model is WordRewriteSuggestion:
+            return WordRewriteSuggestion(ny_text="", motivering="")
+        raise AssertionError(response_model)
+
+    set_structured_completer(completer)
+    timings = WordReviewTimings()
+    paragraphs = [
+        _para(1, "Hemligt avtalsstycke ska inte loggas."),
+        _para(2, "Andra hemliga stycket ska inte loggas."),
+    ]
+    with caplog.at_level("INFO"):
+        await _analyze_batch(
+            batch_index=0,
+            batch=paragraphs,
+            section=_review_section(paragraphs),
+            prompts=default_prompts("sv"),
+            slots=_review_slots(),
+            brief="",
+            review_intent="",
+            target=None,
+            limiter=WordReviewLimiter(4, timings),
+        )
+        log_word_review_call_summary("job_route", timings.snapshot(), outcome="success")
+    snapshot = timings.snapshot()
+    assert snapshot["questions_dropped_invalid_anchor"] == 1
+    assert snapshot["direct_routed_questions"] == 1
+    assert snapshot["raise_hand_questions"] == 1
+    assert snapshot["raise_hand_calls"] == 2
+    assert snapshot["expert_comment_calls"] == 3
+    assert raise_hand_ids
+    assert all(ids == ["q-hand"] for ids in raise_hand_ids)
+    logged = " ".join(record.getMessage() for record in caplog.records)
+    assert "direct_routed_questions=1" in logged
+    assert "raise_hand_questions=1" in logged
+    assert "questions_dropped_invalid_anchor=1" in logged
+    assert "Hemligt avtalsstycke" not in logged
+    assert "Hemlig kommentar" not in logged
 
 
 def test_word_alembic_chain_is_linear_after_main_head():
     cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     script = ScriptDirectory.from_config(cfg)
-    assert script.get_heads() == ["073_word_review_issue_quality"]
+    assert script.get_heads() == ["074_word_review_question_routing"]
+    routing = script.get_revision("074_word_review_question_routing")
+    assert routing.down_revision == "073_word_review_issue_quality"
     quality = script.get_revision("073_word_review_issue_quality")
     assert quality.down_revision == "072_intent_interview_trust"
     trust = script.get_revision("072_intent_interview_trust")
@@ -1812,6 +2223,9 @@ async def test_word_review_raise_hand_then_comment_and_heading(
     assert result["comment_convergence_calls"] >= 0
     assert result["rewrite_convergence_calls"] >= 0
     assert result["heading_calls"] >= 0
+    assert result["direct_routed_questions"] == 0
+    assert result["raise_hand_questions"] == 1
+    assert result["questions_dropped_invalid_anchor"] == 0
     assert result["llm_call_count"] == (
         result["moderation_calls"]
         + result["raise_hand_calls"]
@@ -2316,6 +2730,7 @@ async def test_word_review_question_can_span_paragraphs(client: AsyncClient):
                         paragraph_indexes=[1, 2],
                         question="Hänger tidsfrist och påföljd ihop?",
                         why_it_matters="Motsägelse mellan styckena.",
+                        primary_anchor_paragraph_index=2,
                     )
                 ],
             )
@@ -2579,6 +2994,7 @@ async def test_word_review_intra_expert_duplicate_writes_one_comment(
                         paragraph_indexes=[1, 2],
                         question="Är tidsallokeringen tillräckligt konkret?",
                         why_it_matters="Tolkningsrisk.",
+                        primary_anchor_paragraph_index=2,
                     )
                 ],
             )
@@ -3222,6 +3638,9 @@ async def test_failed_word_review_emits_llm_call_summary_once(
     assert "rewrite_convergence=" in message
     assert "heading=" in message
     assert "structured_retries=" in message
+    assert "direct_routed_questions=" in message
+    assert "raise_hand_questions=" in message
+    assert "questions_dropped_invalid_anchor=" in message
     assert "max_observed_llm_concurrency=" in message
     assert paragraph not in message
     assert "En konkret kommentar" not in message
@@ -3246,6 +3665,7 @@ async def test_word_review_never_persists_anchor_outside_question_indexes(
                         paragraph_indexes=[1, 2, 3],
                         question="Vad bör kommenteras?",
                         why_it_matters="Fel ankare får inte sparas.",
+                        primary_anchor_paragraph_index=1,
                     )
                 ],
             )
@@ -3302,6 +3722,7 @@ async def test_word_review_uses_explicit_anchor_and_drops_invalid(
                         paragraph_indexes=[1, 2, 3],
                         question="Var sitter immaterialrätten?",
                         why_it_matters="Fel ankare flyttar kommentaren.",
+                        primary_anchor_paragraph_index=1,
                     )
                 ],
             )
@@ -3347,7 +3768,7 @@ async def test_word_review_uses_explicit_anchor_and_drops_invalid(
 
 
 @pytest.mark.asyncio
-async def test_word_review_drops_multi_paragraph_comment_without_anchor(
+async def test_word_review_uses_moderator_primary_when_expert_omits_anchor(
     client: AsyncClient,
 ):
     async def completer(messages, response_model):
@@ -3361,6 +3782,7 @@ async def test_word_review_drops_multi_paragraph_comment_without_anchor(
                         paragraph_indexes=[1, 2],
                         question="Hör tidsfrist och påföljd ihop?",
                         why_it_matters="Ankare krävs.",
+                        primary_anchor_paragraph_index=1,
                     )
                 ],
             )
@@ -3370,6 +3792,8 @@ async def test_word_review_drops_multi_paragraph_comment_without_anchor(
             return WordExpertComment(kommentar="Ska inte gissas till fel stycke.")
         if response_model is WordHeadingAssessment:
             return WordHeadingAssessment(forslag=None)
+        if response_model is WordCommentConvergence:
+            return _passthrough_comment_convergence(messages[-1]["content"])
         raise AssertionError(response_model)
 
     panel_id = await _create_expert_panel(client, n=1)
@@ -3393,7 +3817,8 @@ async def test_word_review_drops_multi_paragraph_comment_without_anchor(
         for row in rows
         if not row["is_heading_suggestion"] and not row["is_rewrite_suggestion"]
     ]
-    assert comments == []
+    assert [row["paragraph_index"] for row in comments] == [1]
+    assert comments[0]["kommentar"] == "Ska inte gissas till fel stycke."
 
 
 @pytest.mark.asyncio

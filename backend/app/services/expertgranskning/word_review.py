@@ -79,6 +79,8 @@ _HEADING_1_TO_3 = re.compile(
 )
 
 WORD_BATCH_MAX_SIZE = 4
+WORD_REVIEW_MAX_QUESTIONS_PER_BATCH = 2
+WORD_REVIEW_MAX_RECOMMENDED_EXPERTS = 2
 
 WordExpertCommentRow = tuple[PanelExpertSlot, WordReviewQuestion, str, int | None]
 
@@ -369,11 +371,73 @@ def _questions_text(questions: list[WordReviewQuestion]) -> str:
     return "\n".join(blocks)
 
 
+def accepted_recommended_expert_ids(
+    raw_ids: Sequence[str],
+    panel_slot_ids: frozenset[str],
+    *,
+    limit: int = WORD_REVIEW_MAX_RECOMMENDED_EXPERTS,
+) -> list[str]:
+    """Keep at most `limit` known panel slot IDs, in first-seen order."""
+    kept: list[str] = []
+    seen: set[str] = set()
+    for raw in raw_ids:
+        expert_id = raw.strip()
+        if not expert_id or expert_id in seen or expert_id not in panel_slot_ids:
+            continue
+        seen.add(expert_id)
+        kept.append(expert_id)
+        if len(kept) >= limit:
+            break
+    return kept
+
+
+def resolve_question_primary_anchor(
+    indexes: list[int],
+    raw_primary: int | None,
+) -> int | None:
+    """Sole remaining paragraph wins; otherwise the moderator's in-scope pick."""
+    if len(indexes) == 1:
+        return indexes[0]
+    if raw_primary is not None and raw_primary in indexes:
+        return raw_primary
+    return None
+
+
+def routed_and_unresolved_questions(
+    questions: list[WordReviewQuestion],
+) -> tuple[list[WordReviewQuestion], list[WordReviewQuestion]]:
+    """Direct-route questions with valid recommendations; rest stay unresolved."""
+    routed: list[WordReviewQuestion] = []
+    unresolved: list[WordReviewQuestion] = []
+    for question in questions:
+        if question.recommended_expert_ids:
+            routed.append(question)
+        else:
+            unresolved.append(question)
+    return routed, unresolved
+
+
+def _append_unique_assignment(
+    assignments: list[tuple[PanelExpertSlot, WordReviewQuestion]],
+    seen_pairs: set[tuple[str, str]],
+    slot: PanelExpertSlot,
+    question: WordReviewQuestion,
+) -> None:
+    key = (slot.slot_id, question.id)
+    if key in seen_pairs:
+        return
+    seen_pairs.add(key)
+    assignments.append((slot, question))
+
+
 def accepted_review_questions(
     parsed: WordBatchModeration,
     batch: list[WordDocumentParagraph],
     *,
     target_indexes: frozenset[int] | None = None,
+    panel_slot_ids: frozenset[str] | None = None,
+    timings: WordReviewTimings | None = None,
+    max_questions: int = WORD_REVIEW_MAX_QUESTIONS_PER_BATCH,
 ) -> list[WordReviewQuestion]:
     """Keep in-batch questions; drop a batch that does not need review."""
     if not parsed.needs_review:
@@ -381,9 +445,13 @@ def accepted_review_questions(
     allowed = {paragraph.index for paragraph in batch}
     if target_indexes is not None:
         allowed &= target_indexes
+    slot_ids = panel_slot_ids if panel_slot_ids is not None else frozenset()
     kept: list[WordReviewQuestion] = []
     seen_ids: set[str] = set()
+    dropped_invalid_anchor = 0
     for question in parsed.questions:
+        if len(kept) >= max_questions:
+            break
         question_id = question.id.strip()
         if not question_id or question_id in seen_ids:
             continue
@@ -395,6 +463,12 @@ def accepted_review_questions(
                 indexes.append(index)
         if not indexes:
             continue
+        primary = resolve_question_primary_anchor(
+            indexes, question.primary_anchor_paragraph_index
+        )
+        if primary is None:
+            dropped_invalid_anchor += 1
+            continue
         seen_ids.add(question_id)
         kept.append(
             WordReviewQuestion(
@@ -402,8 +476,20 @@ def accepted_review_questions(
                 paragraph_indexes=indexes,
                 question=question.question.strip(),
                 why_it_matters=question.why_it_matters.strip(),
+                primary_anchor_paragraph_index=primary,
+                recommended_expert_ids=accepted_recommended_expert_ids(
+                    question.recommended_expert_ids,
+                    slot_ids,
+                ),
             )
         )
+    if dropped_invalid_anchor:
+        logger.info(
+            "Dropped Word review questions with invalid primary anchor: %s",
+            dropped_invalid_anchor,
+        )
+        if timings is not None:
+            timings.record_dropped_invalid_anchor(dropped_invalid_anchor)
     return kept
 
 
@@ -581,7 +667,13 @@ async def _moderate_batch(
         WordBatchModeration,
         prompts,
     )
-    return accepted_review_questions(parsed, batch, target_indexes=target_indexes)
+    return accepted_review_questions(
+        parsed,
+        batch,
+        target_indexes=target_indexes,
+        panel_slot_ids=frozenset(slot.slot_id for slot in slots),
+        timings=limiter.timings,
+    )
 
 
 async def _raise_hand(
@@ -635,6 +727,9 @@ def resolve_comment_anchor(
             raw,
         )
         return None
+    primary = question.primary_anchor_paragraph_index
+    if primary is not None and primary in allowed:
+        return primary
     if len(allowed) == 1:
         return allowed[0]
     logger.info(
@@ -825,19 +920,34 @@ async def _analyze_batch(
             paragraphs=[],
             paragraph_reviews=len(batch),
         )
-    raised = await asyncio.gather(
-        *[
-            _raise_hand(
-                prompts=prompts,
-                slot=slot,
-                brief=brief,
-                batch=batch,
-                questions=questions,
-                limiter=limiter,
-            )
-            for slot in slots
-        ]
-    )
+    routed, unresolved = routed_and_unresolved_questions(questions)
+    limiter.timings.record_direct_routed_questions(len(routed))
+    limiter.timings.record_raise_hand_questions(len(unresolved))
+    slots_by_id = {slot.slot_id: slot for slot in slots}
+    assignments: list[tuple[PanelExpertSlot, WordReviewQuestion]] = []
+    seen_pairs: set[tuple[str, str]] = set()
+    for question in routed:
+        for expert_id in question.recommended_expert_ids:
+            slot = slots_by_id.get(expert_id)
+            if slot is not None:
+                _append_unique_assignment(assignments, seen_pairs, slot, question)
+    if unresolved:
+        raised = await asyncio.gather(
+            *[
+                _raise_hand(
+                    prompts=prompts,
+                    slot=slot,
+                    brief=brief,
+                    batch=batch,
+                    questions=unresolved,
+                    limiter=limiter,
+                )
+                for slot in slots
+            ]
+        )
+        for slot, selected in raised:
+            for question in selected:
+                _append_unique_assignment(assignments, seen_pairs, slot, question)
     by_index = {paragraph.index: paragraph for paragraph in batch}
     comment_tasks = [
         _comment_question(
@@ -854,8 +964,7 @@ async def _analyze_batch(
             limiter=limiter,
             target_indexes=target,
         )
-        for slot, selected in raised
-        for question in selected
+        for slot, question in assignments
     ]
     comments = await asyncio.gather(*comment_tasks) if comment_tasks else []
 
@@ -869,6 +978,8 @@ async def _analyze_batch(
             paragraph_indexes=question.paragraph_indexes,
             question=question.question,
             why_it_matters=question.why_it_matters,
+            primary_anchor_paragraph_index=question.primary_anchor_paragraph_index,
+            recommended_expert_ids=question.recommended_expert_ids,
         )
         section_comments.append((slot, prefixed, text, anchor))
         for index in question.paragraph_indexes:
@@ -1130,7 +1241,8 @@ def log_word_review_call_summary(
         "Word review LLM calls job_id=%s outcome=%s total=%s moderation=%s "
         "raise_hand=%s expert_comment=%s comment_convergence=%s "
         "rewrite_convergence=%s heading=%s structured_retries=%s "
-        "max_observed_llm_concurrency=%s",
+        "direct_routed_questions=%s raise_hand_questions=%s "
+        "questions_dropped_invalid_anchor=%s max_observed_llm_concurrency=%s",
         job_id,
         outcome,
         snapshot["llm_call_count"],
@@ -1141,6 +1253,9 @@ def log_word_review_call_summary(
         snapshot["rewrite_convergence_calls"],
         snapshot["heading_calls"],
         snapshot["structured_retry_count"],
+        snapshot["direct_routed_questions"],
+        snapshot["raise_hand_questions"],
+        snapshot["questions_dropped_invalid_anchor"],
         snapshot["max_observed_llm_concurrency"],
     )
 
