@@ -21,8 +21,12 @@ export function sortedWordActions(
   actions: ReadonlyMap<string, WordAction>,
 ): WordAction[] {
   return [...actions.values()].sort((left, right) => {
-    const byCreated = (left.created_at ?? "").localeCompare(right.created_at ?? "")
-    if (byCreated !== 0) return byCreated
+    const leftIndex = left.anchor?.paragraph_index ?? Number.MAX_SAFE_INTEGER
+    const rightIndex = right.anchor?.paragraph_index ?? Number.MAX_SAFE_INTEGER
+    if (leftIndex !== rightIndex) return leftIndex - rightIndex
+    const leftOrdinal = left.source?.ordinal ?? Number.MAX_SAFE_INTEGER
+    const rightOrdinal = right.source?.ordinal ?? Number.MAX_SAFE_INTEGER
+    if (leftOrdinal !== rightOrdinal) return leftOrdinal - rightOrdinal
     return left.id.localeCompare(right.id)
   })
 }

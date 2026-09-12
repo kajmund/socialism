@@ -36,6 +36,7 @@ export const messages = {
       "Förslag visas i sidopanelen. Tillämpa eller avfärda dem. Inget skrivs i dokumentet förrän du väljer Tillämpa.",
     statusResume:
       "Återanslöt till pågående granskning. Förslag visas i sidopanelen. Tillämpa eller avfärda dem.",
+    statusProgress: "Granskar dokumentet · {completed}/{total} delar klara",
     statusDone:
       "Förslagsgenereringen är klar. Tillämpa eller avfärda kvarvarande förslag.",
     statusFailed: "Granskningen misslyckades: {error}",
@@ -108,6 +109,7 @@ export const messages = {
       "Proposals appear in the pane. Apply or dismiss them. Nothing is written to the document until you choose Apply.",
     statusResume:
       "Reconnected to the running review. Proposals appear in the pane. Apply or dismiss them.",
+    statusProgress: "Reviewing document · {completed}/{total} parts done",
     statusDone: "Proposal generation is finished. Apply or dismiss any remaining proposals.",
     statusFailed: "The review failed: {error}",
     commentsUnsupported:
