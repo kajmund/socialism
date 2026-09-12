@@ -1,5 +1,6 @@
+import type { ReactElement, ReactNode } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 import { ActionCard } from "./ActionCard"
 import { translate } from "@/i18n/messages"
@@ -115,3 +116,80 @@ describe("ActionCard comment explanation", () => {
     expect(ambiguous).toContain("Could not be placed: several paragraphs match.")
   })
 })
+
+type ClickableProps = {
+  children?: ReactNode
+  className?: string
+  onClick?: (event: { stopPropagation: () => void }) => void
+}
+
+function findElement(
+  node: ReactNode,
+  predicate: (element: ReactElement<ClickableProps>) => boolean,
+): ReactElement<ClickableProps> | null {
+  if (node == null || typeof node !== "object") return null
+  if (Array.isArray(node)) {
+    for (const child of node) {
+      const match = findElement(child, predicate)
+      if (match) return match
+    }
+    return null
+  }
+  if (!("type" in node) || !("props" in node)) return null
+  const element = node as ReactElement<ClickableProps>
+  if (predicate(element)) return element
+  return findElement(element.props.children, predicate)
+}
+
+function clickEvent() {
+  return {
+    stopped: false,
+    stopPropagation() {
+      this.stopped = true
+    },
+  }
+}
+
+describe("ActionCard Why click vs card select", () => {
+  it("does not call onSelect when Varför? or Why? is clicked, but card body still does", () => {
+    const onSelect = vi.fn()
+    const onApply = vi.fn()
+    const onDismiss = vi.fn()
+    for (const locale of ["sv", "en"] as const) {
+      onSelect.mockClear()
+      const row = action()
+      const tree = ActionCard({
+        action: row,
+        busy: false,
+        onSelect,
+        onApply,
+        onDismiss,
+        t: (key, params) => translate(locale, key, params),
+      })
+      const summary = findElement(tree, (element) => element.type === "summary")
+      expect(summary).not.toBeNull()
+      expect(summary?.props.children).toBe(locale === "sv" ? "Varför?" : "Why?")
+      const whyClick = clickEvent()
+      summary?.props.onClick?.(whyClick)
+      expect(whyClick.stopped).toBe(true)
+      expect(onSelect).not.toHaveBeenCalled()
+      expect(onApply).not.toHaveBeenCalled()
+      expect(onDismiss).not.toHaveBeenCalled()
+
+      const details = findElement(
+        tree,
+        (element) => element.type === "details" && element.props.className === "action-card-why",
+      )
+      const detailsClick = clickEvent()
+      details?.props.onClick?.(detailsClick)
+      expect(detailsClick.stopped).toBe(true)
+      expect(onSelect).not.toHaveBeenCalled()
+
+      const article = tree as ReactElement<{ onClick?: () => void }>
+      article.props.onClick?.()
+      expect(onSelect).toHaveBeenCalledTimes(1)
+      expect(onSelect).toHaveBeenCalledWith(row)
+    }
+  })
+})
+
