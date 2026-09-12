@@ -11,7 +11,7 @@ Ytan **Verktyg** → **Kunder** syns bara för **administratör**.
 
 Varje kund har en uppsättning **tillgängliga moduler** (till exempel politisk simulering, Due Diligence, Expertgranskning och Rättsunderlag). Det styr vilka ytor inloggningen öppnar, vilka länkar som syns i vänstermenyn och vilka rapportflikar som visas — inte bara inloggningsrollen.
 
-**Administratör** ser alltid **Expertgranskning** och **Rättsunderlag** i huvudmenyn, även om rutan inte är ikryssad för någon kund. I **bolagsytan** syns bara de moduler bolaget har tillgång till — rubriken för en avstängd modul visas inte.
+**Administratör** ser alltid **Expertgranskning** och **Rättsunderlag** i vänstermenyn, även om rutan inte är ikryssad för någon kund. Klick på **Due Diligence** (Kampanjer) byter yta men tar inte bort de andra menyvalen. En inloggning som bara har Due Diligence ser bara den modulens länkar. Rubriken för en avstängd modul visas inte.
 
 ## Steg
 

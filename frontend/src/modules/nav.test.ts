@@ -35,6 +35,19 @@ describe("buildSidebarNav", () => {
     expect(ids).toContain("dd")
   })
 
+  it("keeps politik and Due Diligence in the same rail when both are on", () => {
+    const sections = buildSidebarNav({
+      moduleIds: ["politik", "dd"],
+      showTools: true,
+    })
+    const ids = sections.map((section) => section.id)
+    expect(ids).toContain("politik")
+    expect(ids).toContain("dd")
+    expect(ids).toContain("expertgranskning")
+    expect(ids).toContain("rattsunderlag")
+    expect(ids).toContain("admin")
+  })
+
   it("groups experts and expert panels under Experter", () => {
     const sections = buildSidebarNav({ moduleIds: ["dd"], showTools: false })
     const experts = sections.find((section) => section.id === "dd:bolag.nav.experter")

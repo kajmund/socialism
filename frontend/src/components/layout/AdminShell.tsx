@@ -12,6 +12,7 @@ import {
   type CustomerScope,
 } from "@/lib/scoping"
 import { cn } from "@/lib/utils"
+import { moduleScopeForNav } from "@/modules/kundModules"
 import {
   brandToForModules,
   buildSidebarNav,
@@ -24,7 +25,6 @@ import { useJobsRealtime } from "@/realtime/JobsRealtimeProvider"
 export type { ShellNavItem }
 
 const SEEN_KEY = "opinionssimulator.jobStatusSeen"
-const BOLAG_LOADING_MODULES = ["dd"]
 
 export type AdminShellProps = {
   children: ReactNode
@@ -351,20 +351,16 @@ export function AdminShell({
 }: AdminShellProps) {
   const { pathname } = useLocation()
   const { t } = useLocale()
-  const { isAdmin, resolvedModules } = useAuth()
+  const { isAdmin, resolvedModules, role } = useAuth()
   const customerScope = customerScopeProp ?? customerScopeFromPathname(pathname)
-  const { moduleIds, loading: modulesLoading } = useKundModules(customerScope)
+  const navScope = moduleScopeForNav(role, customerScope)
+  const { moduleIds, loading: modulesLoading } = useKundModules(navScope)
   const showTools = showToolsProp ?? isAdmin
-  const injectToolModules = showTools && customerScope !== "bolag"
-  const activeModuleIds = useMemo(() => {
-    if (!modulesLoading) return moduleIds
-    if (customerScope === "bolag" && isAdmin) return BOLAG_LOADING_MODULES
-    return resolvedModules
-  }, [customerScope, isAdmin, moduleIds, modulesLoading, resolvedModules])
+  const activeModuleIds = modulesLoading ? resolvedModules : moduleIds
   const sections = useMemo(() => {
     if (navItems) return [{ id: "custom", items: navItems }]
-    return buildSidebarNav({ moduleIds: activeModuleIds, showTools, injectToolModules })
-  }, [activeModuleIds, injectToolModules, navItems, showTools])
+    return buildSidebarNav({ moduleIds: activeModuleIds, showTools })
+  }, [activeModuleIds, navItems, showTools])
   const brandTo = brandToProp ?? brandToForModules(activeModuleIds)
   const { jobs } = useJobsRealtime()
   const scopedJobs = useMemo(

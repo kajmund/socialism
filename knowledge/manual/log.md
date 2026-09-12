@@ -2,6 +2,7 @@
 
 ## 2026-09-12
 
+* **Navigering**: Klick på **Due Diligence** behåller de andra menyvalen (politisk simulering, Expertgranskning, Rättsunderlag med mera) när kontot har flera moduler. En inloggning som bara har Due Diligence ser fortfarande bara den menyn.
 * **Expertgranskning i Word**: Kommentarer och omskrivningar är förslag i sidopanelen. Du tillämpar eller avfärdar varje förslag. Inget skrivs i dokumentet förrän du väljer Tillämpa. En ny granskning kan startas först när alla förslag är beslutade.
 
 ## 2026-09-11
