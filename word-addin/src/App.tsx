@@ -11,7 +11,6 @@ import {
   dismissAction,
   generateIntentInterview,
   getLatestWordJob,
-  isIntentInterviewInvalidError,
   listExpertPanels,
   listWordActions,
   markActionUnresolved,
@@ -40,6 +39,7 @@ import { finishedJobView, planReviewStart } from "@/lib/resume"
 import { buildSections } from "@/lib/sections"
 import {
   answersReady,
+  isIntentInterviewInvalidError,
   normalizeIntentAnswers,
   setFreeTextAnswer,
   setSingleChoice,

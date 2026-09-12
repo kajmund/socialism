@@ -9,7 +9,11 @@ import type {
   WordDocumentSection,
   WordTask,
 } from "@/lib/types"
-import { InvalidIntentInterviewError, parseIntentInterview } from "@/lib/intentInterview"
+import {
+  InvalidIntentInterviewError,
+  isIntentInterviewInvalidError,
+  parseIntentInterview,
+} from "@/lib/intentInterview"
 
 function url(path: string): string {
   return `${env.apiBaseUrl.replace(/\/$/, "")}${path}`
@@ -21,13 +25,6 @@ export async function listExpertPanels(token: string): Promise<ExpertPanelSummar
     { token },
   )
   return rows.filter((row) => row.kind === "expert_panel")
-}
-
-export function isIntentInterviewInvalidError(error: unknown): boolean {
-  return (
-    error instanceof InvalidIntentInterviewError ||
-    (error instanceof ApiError && error.message === "intent_interview_invalid")
-  )
 }
 
 export async function generateIntentInterview(

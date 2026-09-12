@@ -1,3 +1,4 @@
+import { ApiError } from "@/lib/http"
 import {
   INTENT_QUESTION_TYPES,
   type DocumentIntentInterview,
@@ -12,6 +13,13 @@ export class InvalidIntentInterviewError extends Error {
   constructor() {
     super("invalid_interview")
   }
+}
+
+export function isIntentInterviewInvalidError(error: unknown): boolean {
+  return (
+    error instanceof InvalidIntentInterviewError ||
+    (error instanceof ApiError && error.message === "intent_interview_invalid")
+  )
 }
 
 const INTENT_ID_RE = /^[a-z][a-z0-9_]{0,63}$/
