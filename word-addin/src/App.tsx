@@ -1,15 +1,24 @@
-import { useEffect, useRef, useState, type FormEvent } from "react"
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react"
 
+import { ActionCard } from "@/components/ActionCard"
 import headMark from "@/assets/devbrains-head.png"
 import { useLocale } from "@/i18n/LocaleContext"
 import {
   claimAction,
   completeAction,
   createWordJob,
+  dismissAction,
   getLatestWordJob,
   listExpertPanels,
+  listWordActions,
   markActionUnresolved,
 } from "@/lib/api"
+import {
+  newReviewBlock,
+  sortedWordActions,
+  upsertWordActions,
+} from "@/lib/actionQueue"
+import { applyPendingAction } from "@/lib/applyAction"
 import { ApiError } from "@/lib/http"
 import {
   commentsApiSupported,
@@ -41,36 +50,41 @@ export function App() {
   const [phase, setPhase] = useState<Phase>("idle")
   const [watchSource, setWatchSource] = useState<"new" | "resume">("new")
   const [error, setError] = useState("")
-  const [appliedCount, setAppliedCount] = useState(0)
-  const [unplacedCount, setUnplacedCount] = useState(0)
+  const [actionsById, setActionsById] = useState<Map<string, WordAction>>(
+    () => new Map(),
+  )
+  const [inFlightIds, setInFlightIds] = useState<Set<string>>(() => new Set())
   const [inWord, setInWord] = useState(false)
-  const insertedIds = useRef(new Set<string>())
-  const resultStatus = useRef(new Map<string, string>())
   const socketRef = useRef<{ close: () => void } | null>(null)
   const watchJobId = useRef<string | null>(null)
-  const applyQueue = useRef(Promise.resolve())
+  const watchQueue = useRef(Promise.resolve())
 
-  function syncApplicationCounts() {
-    let applied = 0
-    let unplaced = 0
-    for (const status of resultStatus.current.values()) {
-      if (status === "applied") applied += 1
-      if (status === "unresolved" || status === "applying") unplaced += 1
-    }
-    setAppliedCount(applied)
-    setUnplacedCount(unplaced)
+  const actions = useMemo(() => sortedWordActions(actionsById), [actionsById])
+  const reviewBlock = newReviewBlock(actions)
+
+  function noteActions(rows: WordAction[]) {
+    setActionsById((current) => upsertWordActions(current, rows))
   }
 
-  function noteResultStatus(id: string, status: string) {
-    resultStatus.current.set(id, status)
-    syncApplicationCounts()
+  function resetQueue() {
+    setActionsById(new Map())
+    setInFlightIds(new Set())
   }
 
-  function noteActions(actions: WordAction[]) {
-    for (const row of actions) {
-      resultStatus.current.set(row.id, row.status)
-    }
-    syncApplicationCounts()
+  function setBusy(actionId: string, busy: boolean) {
+    setInFlightIds((current) => {
+      const next = new Set(current)
+      if (busy) next.add(actionId)
+      else next.delete(actionId)
+      return next
+    })
+  }
+
+  async function reloadAction(jobId: string, actionId: string): Promise<WordAction | null> {
+    const rows = await listWordActions(token, jobId)
+    const match = rows.find((row) => row.id === actionId) ?? null
+    if (match) noteActions([match])
+    return match
   }
 
   function attachWatch(jobId: string, source: "new" | "resume") {
@@ -81,18 +95,17 @@ export function App() {
     }
     socketRef.current?.close()
     socketRef.current = null
+    if (watchJobId.current !== jobId) {
+      resetQueue()
+    }
     watchJobId.current = jobId
-    insertedIds.current = new Set()
-    resultStatus.current = new Map()
-    setAppliedCount(0)
-    setUnplacedCount(0)
     setWatchSource(source)
     setPhase("running")
     socketRef.current = connectExpertgranskningWatch({
       token,
       jobId,
       onMessage(data) {
-        applyQueue.current = applyQueue.current
+        watchQueue.current = watchQueue.current
           .then(() => applyWatchPayload(jobId, data))
           .catch((err: unknown) => {
             setPhase("failed")
@@ -197,91 +210,15 @@ export function App() {
     setPanels([])
     setPanelId("")
     setError("")
-  }
-
-  async function applyOneAction(jobId: string, action: WordAction) {
-    insertedIds.current.add(action.id)
-    const anchor = action.anchor
-    if (!anchor) {
-      const marked = await markActionUnresolved(token, jobId, action.id, "missing")
-      noteResultStatus(action.id, marked.status)
-      return
-    }
-
-    const current = paragraphStatesFromSnapshot(await readDocumentParagraphs())
-    const resolution = resolveWordAnchor(anchor, current, WORD_SESSION_ID)
-    if (resolution.status !== "resolved") {
-      const marked = await markActionUnresolved(token, jobId, action.id, resolution.status)
-      noteResultStatus(action.id, marked.status)
-      return
-    }
-
-    const applicationId = crypto.randomUUID()
-    const claimed = await claimAction(token, jobId, action.id, applicationId)
-    if (!claimed.claimed) {
-      if (claimed.action) noteResultStatus(action.id, claimed.action.status)
-      return
-    }
-    noteResultStatus(action.id, "applying")
-
-    try {
-      const outcome = await executeWordAction(action, { rewritePrefix: t("rewritePrefix") })
-      if (outcome.status !== "resolved") {
-        const marked = await markActionUnresolved(
-          token,
-          jobId,
-          action.id,
-          outcome.status === "unsupported" ? "unsupported_action" : outcome.status,
-          applicationId,
-        )
-        noteResultStatus(action.id, marked.status)
-        return
-      }
-      const completed = await completeAction(
-        token,
-        jobId,
-        action.id,
-        applicationId,
-        outcome.wordArtifactId,
-      )
-      noteResultStatus(action.id, completed.status)
-    } catch {
-      noteResultStatus(action.id, "applying")
-    }
+    resetQueue()
   }
 
   async function applyWatchPayload(jobId: string, data: unknown) {
     if (!isWatchEvent(data) || data.job_id !== jobId) return
-    switch (data.type) {
-      case "expertgranskning.replay":
-        noteActions(data.actions)
-        break
-      case "expertgranskning.action.created":
-      case "expertgranskning.action.updated":
-        noteActions([data.action])
-        break
-      case "expertgranskning.finished":
-        break
-      default: {
-        const _exhaustive: never = data
-        return _exhaustive
-      }
-    }
-    const actions = actionsForWatchEvent(data, insertedIds.current)
-    for (const action of actions) {
+    for (const action of actionsForWatchEvent(data)) {
       switch (action.kind) {
-        case "remember":
-          for (const id of action.ids) insertedIds.current.add(id)
-          break
-        case "insert":
-          for (const wordAction of action.actions) {
-            try {
-              await applyOneAction(jobId, wordAction)
-            } catch (err) {
-              insertedIds.current.delete(wordAction.id)
-              throw err
-            }
-          }
+        case "upsert":
+          noteActions(action.actions)
           break
         case "finished":
           if (action.status === "failed") {
@@ -299,6 +236,55 @@ export function App() {
           return _exhaustive
         }
       }
+    }
+  }
+
+  async function handleApply(action: WordAction) {
+    if (inFlightIds.has(action.id) || action.status !== "pending") return
+    setBusy(action.id, true)
+    setError("")
+    try {
+      const updated = await applyPendingAction(token, action.job_id, action, {
+        readParagraphs: readDocumentParagraphs,
+        paragraphStates: paragraphStatesFromSnapshot,
+        resolveAnchor: resolveWordAnchor,
+        wordSessionId: WORD_SESSION_ID,
+        newApplicationId: () => crypto.randomUUID(),
+        claimAction,
+        executeWordAction,
+        completeAction,
+        markUnresolved: markActionUnresolved,
+        reloadAction,
+        rewritePrefix: t("rewritePrefix"),
+      })
+      noteActions([updated])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(action.id, false)
+    }
+  }
+
+  async function handleDismiss(action: WordAction) {
+    if (
+      inFlightIds.has(action.id) ||
+      (action.status !== "pending" && action.status !== "unresolved")
+    ) {
+      return
+    }
+    setBusy(action.id, true)
+    setError("")
+    try {
+      const updated = await dismissAction(token, action.job_id, action.id)
+      noteActions([updated])
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        const latest = await reloadAction(action.job_id, action.id)
+        if (latest) return
+      }
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(action.id, false)
     }
   }
 
@@ -321,6 +307,14 @@ export function App() {
       switch (plan.action) {
         case "resume":
           attachWatch(plan.jobId, "resume")
+          return
+        case "blockUndecided":
+          if (latest) noteActions(latest.actions)
+          setError(t("blockUndecided"))
+          return
+        case "blockApplying":
+          if (latest) noteActions(latest.actions)
+          setError(t("blockApplying"))
           return
         case "startNew":
           break
@@ -364,9 +358,24 @@ export function App() {
         if (err instanceof ApiError && err.status === 409) {
           const again = await getLatestWordJob(token, docId)
           const retry = planReviewStart(again)
-          if (retry.action === "resume") {
-            attachWatch(retry.jobId, "resume")
-            return
+          switch (retry.action) {
+            case "resume":
+              attachWatch(retry.jobId, "resume")
+              return
+            case "blockUndecided":
+              if (again) noteActions(again.actions)
+              setError(t("blockUndecided"))
+              return
+            case "blockApplying":
+              if (again) noteActions(again.actions)
+              setError(t("blockApplying"))
+              return
+            case "startNew":
+              break
+            default: {
+              const _exhaustive: never = retry
+              return _exhaustive
+            }
           }
         }
         throw err
@@ -377,8 +386,15 @@ export function App() {
     }
   }
 
-  const canReview = Boolean(token && panelId) && phase !== "running"
+  const canReview =
+    Boolean(token && panelId) && phase !== "running" && reviewBlock === null
   const runningStatus = watchSource === "resume" ? t("statusResume") : t("statusLive")
+  const reviewHint =
+    phase !== "running" && reviewBlock === "applying"
+      ? t("blockApplying")
+      : phase !== "running" && reviewBlock === "undecided"
+        ? t("blockUndecided")
+        : null
 
   return (
     <div className="pane">
@@ -477,16 +493,22 @@ export function App() {
           {phase === "failed" ? t("statusFailed", { error }) : null}
         </p>
         {phase !== "failed" && error ? <p className="error">{error}</p> : null}
-        {appliedCount > 0 && unplacedCount === 0 ? (
-          <p className="hint">{t("appliedSummary", { applied: appliedCount })}</p>
-        ) : null}
-        {appliedCount === 0 && unplacedCount > 0 ? (
-          <p className="hint">{t("unplacedSummary", { unplaced: unplacedCount })}</p>
-        ) : null}
-        {appliedCount > 0 && unplacedCount > 0 ? (
-          <p className="hint">
-            {t("applicationSummary", { applied: appliedCount, unplaced: unplacedCount })}
-          </p>
+        {reviewHint && !error ? <p className="error">{reviewHint}</p> : null}
+
+        {actions.length > 0 ? (
+          <section className="action-queue" aria-label={t("queueHeading")}>
+            <h2>{t("queueHeading")}</h2>
+            {actions.map((action) => (
+              <ActionCard
+                key={action.id}
+                action={action}
+                busy={inFlightIds.has(action.id)}
+                onApply={(row) => void handleApply(row)}
+                onDismiss={(row) => void handleDismiss(row)}
+                t={t}
+              />
+            ))}
+          </section>
         ) : null}
 
         {token ? (

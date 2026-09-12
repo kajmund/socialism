@@ -1,3 +1,4 @@
+import { newReviewBlock, wordArtifactIds } from "@/lib/actionQueue"
 import type { LatestWordJob, WordAction } from "@/lib/types"
 
 export function isActiveWordJobStatus(status: string): boolean {
@@ -7,6 +8,8 @@ export function isActiveWordJobStatus(status: string): boolean {
 export type ReviewStartPlan =
   | { action: "resume"; jobId: string }
   | { action: "startNew"; resolveCommentIds: string[] }
+  | { action: "blockUndecided" }
+  | { action: "blockApplying" }
 
 export type FinishedJobView = {
   jobId: string
@@ -18,11 +21,21 @@ export function planReviewStart(latest: LatestWordJob | null): ReviewStartPlan {
   if (latest && isActiveWordJobStatus(latest.status)) {
     return { action: "resume", jobId: latest.job_id }
   }
-  return {
-    action: "startNew",
-    resolveCommentIds: (latest?.actions ?? [])
-      .map((row) => row.word_artifact_id)
-      .filter((id): id is string => typeof id === "string" && id.length > 0),
+  const block = newReviewBlock(latest?.actions ?? [])
+  switch (block) {
+    case "applying":
+      return { action: "blockApplying" }
+    case "undecided":
+      return { action: "blockUndecided" }
+    case null:
+      return {
+        action: "startNew",
+        resolveCommentIds: wordArtifactIds(latest?.actions ?? []),
+      }
+    default: {
+      const _exhaustive: never = block
+      return _exhaustive
+    }
   }
 }
 

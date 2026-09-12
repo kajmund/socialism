@@ -114,3 +114,27 @@ export async function markActionUnresolved(
     },
   )
 }
+
+export async function dismissAction(
+  token: string,
+  jobId: string,
+  actionId: string,
+): Promise<WordAction> {
+  return httpRequest<WordAction>(
+    url(`/expertgranskning/word-jobs/${jobId}/actions/${actionId}/dismiss`),
+    {
+      method: "POST",
+      token,
+    },
+  )
+}
+
+export async function listWordActions(
+  token: string,
+  jobId: string,
+): Promise<WordAction[]> {
+  return httpRequest<WordAction[]>(
+    url(`/expertgranskning/word-jobs/${jobId}/actions`),
+    { token },
+  )
+}

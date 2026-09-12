@@ -47,6 +47,7 @@ from app.services.word.actions import load_word_actions, serialize_word_action
 from app.services.word.application import (
     claim_application,
     complete_application,
+    dismiss_application,
     mark_application_unresolved,
 )
 from app.services.word.schemas import (
@@ -395,5 +396,30 @@ async def mark_expertgranskning_word_action_unresolved(
         mutation, reject_detail="application_not_unresolvable"
     )
     if mutation.reason == "unresolved":
+        await publish_action_updated(mutation.row)
+    return out
+
+
+@router.post(
+    "/word-jobs/{job_id}/actions/{action_id}/dismiss",
+    response_model=WordActionOut,
+)
+async def dismiss_expertgranskning_word_action(
+    job_id: str,
+    action_id: str,
+    session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
+) -> WordActionOut:
+    job = await _require_word_job(session, user, job_id)
+    mutation = await dismiss_application(
+        session,
+        job_id=job_id,
+        action_id=action_id,
+        customer_id=job.customer_id,
+    )
+    out = _application_http_result(
+        mutation, reject_detail="application_not_dismissible"
+    )
+    if mutation.reason == "dismissed":
         await publish_action_updated(mutation.row)
     return out
