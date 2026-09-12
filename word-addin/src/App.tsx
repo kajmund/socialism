@@ -11,6 +11,7 @@ import {
   dismissAction,
   generateIntentInterview,
   getLatestWordJob,
+  isIntentInterviewInvalidError,
   listExpertPanels,
   listWordActions,
   markActionUnresolved,
@@ -38,7 +39,6 @@ import { clearStoredToken, getStoredToken, saveStoredToken } from "@/lib/tokenSt
 import { finishedJobView, planReviewStart } from "@/lib/resume"
 import { buildSections } from "@/lib/sections"
 import {
-  InvalidIntentInterviewError,
   answersReady,
   normalizeIntentAnswers,
   setFreeTextAnswer,
@@ -222,7 +222,7 @@ export function App() {
         noteActions(finished.actions)
         setPhase(finished.phase)
         if (finished.phase === "failed") {
-          setError(finished.phase)
+          setError(finished.error)
         }
       })
       .catch((err: unknown) => {
@@ -423,7 +423,7 @@ export function App() {
           setError(t("noSections"))
           return
         }
-        if (err instanceof InvalidIntentInterviewError) {
+        if (isIntentInterviewInvalidError(err)) {
           setPhase("idle")
           setDraft(null)
           setError(t("interviewInvalid"))

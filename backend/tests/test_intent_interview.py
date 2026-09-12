@@ -13,10 +13,12 @@ from app.services import jobs as jobs_service
 from app.services.expertgranskning.intent_interview import (
     DOCUMENT_DATA_CLOSE,
     DOCUMENT_DATA_OPEN,
+    LlmDocumentIntentInterview,
     compose_expert_review_context,
     compose_intent_prefix,
     document_as_user_data,
     document_text_for_interview,
+    finalize_intent_interview,
     generate_document_intent_interview,
     intent_interview_messages,
     render_intent_interview_section,
@@ -32,6 +34,7 @@ from app.services.expertgranskning.schemas import (
     WordDocumentSection,
     WordExpertRaiseHand,
     WordHeadingAssessment,
+    slugify_intent_id,
 )
 from app.services.panel.review_intent import compose_brief_with_review_intent
 from app.services.prompt_catalog import default_prompts
@@ -304,8 +307,90 @@ def test_intent_interview_keeps_prompt_injection_as_document_data():
     assert "What is your password?" not in system
 
 
+def test_slugify_intent_id_maps_swedish_and_invalid_chars():
+    assert slugify_intent_id("Påföljd") == "pafoljd"
+    assert slugify_intent_id("Åtgärd ägare") == "atgard_agare"
+    assert slugify_intent_id("Överlåtelse?") == "overlatelse"
+    assert slugify_intent_id("1-start") == ""
+    assert slugify_intent_id("party") == "party"
+
+
+def test_finalize_accepts_question_alias_for_text():
+    interview = finalize_intent_interview(
+        LlmDocumentIntentInterview.model_validate(
+            {
+                "document_type": "contract",
+                "questions": [
+                    {
+                        "id": "party",
+                        "question": "Vilken part företräder du?",
+                        "type": "single_choice",
+                        "rationale": "Partsställning ändrar riskbilden.",
+                        "options": [
+                            {"value": "köpare", "label": "Köpare"},
+                            {"value": "säljare", "label": "Säljare"},
+                        ],
+                    }
+                ],
+            }
+        )
+    )
+    assert interview.questions[0].text == "Vilken part företräder du?"
+    assert interview.questions[0].options[0].value == "kopare"
+    assert interview.questions[0].options[1].value == "saljare"
+
+
+def test_finalize_keeps_valid_questions_and_drops_malformed():
+    interview = finalize_intent_interview(
+        LlmDocumentIntentInterview.model_validate(
+            {
+                "document_type": "contract",
+                "questions": [
+                    "not-an-object",
+                    {
+                        "id": "broken",
+                        "text": "",
+                        "type": "single_choice",
+                        "rationale": "Saknar text.",
+                        "options": [{"value": "a", "label": "A"}],
+                    },
+                    _choice_question("party"),
+                    {
+                        "id": "note",
+                        "text": "Vad ska prioriteras?",
+                        "type": "free_text",
+                        "rationale": "Fri prioritering.",
+                        "options": [
+                            {"value": "a", "label": "A"},
+                            {"value": "b", "label": "B"},
+                        ],
+                    },
+                ],
+            }
+        )
+    )
+    assert [question.id for question in interview.questions] == ["party"]
+
+
+def test_llm_interview_schema_exposes_nested_question_fields():
+    schema = LlmDocumentIntentInterview.model_json_schema()
+    defs = schema.get("$defs") or schema.get("definitions") or {}
+    question_schema = defs.get("LlmIntentQuestion") or schema
+    if "LlmIntentQuestion" not in defs:
+        items = schema["properties"]["questions"]["items"]
+        if "$ref" in items:
+            ref = items["$ref"].rsplit("/", 1)[-1]
+            question_schema = defs[ref]
+        else:
+            question_schema = items
+    properties = question_schema["properties"]
+    for field in ("text", "type", "options", "rationale", "question"):
+        assert field in properties
+    assert properties["options"]["type"] == "array"
+
+
 @pytest.mark.asyncio
-async def test_generate_interview_fails_closed_on_malformed_output():
+async def test_generate_interview_fails_closed_when_document_type_missing():
     prompts = default_prompts("sv")
     sections = [
         WordDocumentSection.model_validate(
@@ -325,14 +410,70 @@ async def test_generate_interview_fails_closed_on_malformed_output():
     ]
 
     async def completer(_messages, response_model):
-        assert response_model is DocumentIntentInterview
-        return DocumentIntentInterview.model_validate(
-            _interview(*[_choice_question(f"q{i}") for i in range(6)])
+        assert response_model is LlmDocumentIntentInterview
+        return LlmDocumentIntentInterview.model_validate(
+            {"document_type": "", "questions": [_choice_question()]}
         )
 
     set_structured_completer(completer)
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValidationError, match="document_type"):
         await generate_document_intent_interview(sections=sections, prompts=prompts)
+
+
+_SHORT_CONTRACT = (
+    "Konsultavtal\n\n"
+    "1. Uppdrag. Konsulten ska utföra utveckling åt Beställaren.\n\n"
+    "2. Ersättning. Arvode 1 200 kr/timme. Betalning 30 dagar.\n\n"
+    "3. Immateriella rättigheter. All rätt till resultat tillfaller Beställaren."
+)
+
+
+@pytest.mark.asyncio
+async def test_short_contract_fixture_yields_nonempty_interview():
+    prompts = default_prompts("sv")
+    sections = [
+        WordDocumentSection.model_validate(
+            {
+                "heading": "Konsultavtal",
+                "heading_style": "Heading 1",
+                "heading_paragraph_index": 0,
+                "paragraphs": [
+                    {
+                        "index": 1,
+                        "text": _SHORT_CONTRACT,
+                        "style": "Normal",
+                    }
+                ],
+            }
+        )
+    ]
+
+    async def completer(messages, response_model):
+        assert response_model is LlmDocumentIntentInterview
+        assert "Konsultavtal" in messages[1]["content"]
+        return LlmDocumentIntentInterview.model_validate(
+            {
+                "document_type": "konsultavtal",
+                "questions": [
+                    {
+                        "id": "Påföljd",
+                        "question": "Vilken påföljd ska gälla vid försening?",
+                        "type": "free_text",
+                        "rationale": "Avtalet nämner inte vad som händer vid försening.",
+                        "options": [],
+                    }
+                ],
+            }
+        )
+
+    set_structured_completer(completer)
+    interview = await generate_document_intent_interview(
+        sections=sections, prompts=prompts
+    )
+    assert interview.document_type == "konsultavtal"
+    assert len(interview.questions) >= 1
+    assert interview.questions[0].id == "pafoljd"
+    assert "påföljd" in interview.questions[0].text.lower()
 
 
 @pytest.mark.asyncio
@@ -357,9 +498,9 @@ async def test_generate_interview_does_not_let_document_steer_protocol():
     captured: list[list[dict]] = []
 
     async def completer(messages, response_model):
-        assert response_model is DocumentIntentInterview
+        assert response_model is LlmDocumentIntentInterview
         captured.append(messages)
-        return DocumentIntentInterview.model_validate(_interview(_choice_question()))
+        return LlmDocumentIntentInterview.model_validate(_interview(_choice_question()))
 
     set_structured_completer(completer)
     interview = await generate_document_intent_interview(
@@ -403,10 +544,10 @@ async def test_word_intent_interview_endpoint_returns_generated_interview(
     client: AsyncClient,
 ):
     panel_id = await _create_expert_panel(client)
-    generated = DocumentIntentInterview.model_validate(_interview(_choice_question()))
+    generated = LlmDocumentIntentInterview.model_validate(_interview(_choice_question()))
 
     async def completer(messages, response_model):
-        assert response_model is DocumentIntentInterview
+        assert response_model is LlmDocumentIntentInterview
         assert messages[0]["role"] == "system"
         assert messages[1]["role"] == "user"
         assert "Anna Andersson" not in messages[0]["content"]
@@ -432,6 +573,48 @@ async def test_word_intent_interview_endpoint_returns_generated_interview(
 
 
 @pytest.mark.asyncio
+async def test_word_intent_interview_endpoint_logs_count_not_payload(
+    client: AsyncClient, caplog
+):
+    panel_id = await _create_expert_panel(client)
+
+    async def completer(_messages, response_model):
+        assert response_model is LlmDocumentIntentInterview
+        return LlmDocumentIntentInterview.model_validate(
+            {
+                "document_type": "",
+                "questions": [
+                    {
+                        "id": "secret",
+                        "text": "What is your password?",
+                        "type": "free_text",
+                        "rationale": "Should not leak.",
+                        "options": [],
+                    }
+                ],
+            }
+        )
+
+    set_structured_completer(completer)
+    with caplog.at_level("INFO"):
+        response = await client.post(
+            "/expertgranskning/word-intent-interview",
+            json={
+                "panel_id": panel_id,
+                "locale": "sv",
+                "sections": _interview_sections(),
+            },
+        )
+    assert response.status_code == 422
+    assert response.json()["detail"] == "intent_interview_invalid"
+    assert "What is your password?" not in response.text
+    logged = " ".join(record.getMessage() for record in caplog.records)
+    assert "error_count=" in logged
+    assert "What is your password?" not in logged
+    assert "secret" not in logged
+
+
+@pytest.mark.asyncio
 async def test_word_intent_interview_endpoint_keeps_injection_as_document_data(
     client: AsyncClient,
 ):
@@ -439,9 +622,9 @@ async def test_word_intent_interview_endpoint_keeps_injection_as_document_data(
     captured: list[list[dict]] = []
 
     async def completer(messages, response_model):
-        assert response_model is DocumentIntentInterview
+        assert response_model is LlmDocumentIntentInterview
         captured.append(messages)
-        return DocumentIntentInterview.model_validate(_interview(_choice_question()))
+        return LlmDocumentIntentInterview.model_validate(_interview(_choice_question()))
 
     set_structured_completer(completer)
     response = await client.post(
@@ -528,9 +711,9 @@ async def test_word_intent_interview_uses_selected_panel_tenant_prompts(
     seen: list[str] = []
 
     async def completer(messages, response_model):
-        assert response_model is DocumentIntentInterview
+        assert response_model is LlmDocumentIntentInterview
         seen.extend(str(message.get("content") or "") for message in messages)
-        return DocumentIntentInterview.model_validate(_interview(_choice_question()))
+        return LlmDocumentIntentInterview.model_validate(_interview(_choice_question()))
 
     set_structured_completer(completer)
     response = await client.post(
