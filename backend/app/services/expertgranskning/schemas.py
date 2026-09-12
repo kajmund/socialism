@@ -21,31 +21,52 @@ class ExpertgranskningSessionCreate(BaseModel):
     """Create a session. Empty document/panel is allowed for drafts."""
 
     document_text: str = Field(default="", max_length=200_000)
+    underlag_id: str | None = None
     panel_id: int | None = None
     title: str = ""
+    review_intent: str = Field(default="", max_length=8_000)
     project_id: int | None = None
 
-    @field_validator("document_text", "title", mode="before")
+    @field_validator("document_text", "title", "review_intent", mode="before")
     @classmethod
     def strip_text(cls, value: object) -> str:
         if value is None:
             return ""
         return str(value).strip()
 
+    @field_validator("underlag_id", mode="before")
+    @classmethod
+    def empty_underlag_id(cls, value: object) -> str | None:
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None
+
 
 class ExpertgranskningSessionUpdate(BaseModel):
     document_text: str | None = Field(default=None, max_length=200_000)
+    underlag_id: str | None = None
+    clear_underlag: bool = False
     panel_id: int | None = None
     title: str | None = None
+    review_intent: str | None = Field(default=None, max_length=8_000)
     project_id: int | None = None
     clear_panel: bool = False
 
-    @field_validator("document_text", "title", mode="before")
+    @field_validator("document_text", "title", "review_intent", mode="before")
     @classmethod
     def strip_optional_text(cls, value: object) -> object:
         if value is None:
             return None
         return str(value).strip()
+
+    @field_validator("underlag_id", mode="before")
+    @classmethod
+    def empty_underlag_id(cls, value: object) -> object:
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None
 
 
 class ExpertgranskningSessionOut(BaseModel):
@@ -55,6 +76,8 @@ class ExpertgranskningSessionOut(BaseModel):
     module: str
     topic: str
     document_text: str
+    underlag_id: str | None = None
+    review_intent: str = ""
     panel_id: int | None
     panel_name: str | None = None
     project_id: int | None
@@ -147,8 +170,16 @@ class ExpertgranskningWordJobCreate(BaseModel):
     panel_id: int
     doc_id: str | None = Field(default=None, max_length=128)
     word_session_id: str | None = Field(default=None, max_length=64)
+    review_intent: str = Field(default="", max_length=8_000)
     sections: list[WordDocumentSection] = Field(min_length=1, max_length=WORD_MAX_SECTIONS)
     locale: ConfigurationLanguage = "sv"
+
+    @field_validator("review_intent", mode="before")
+    @classmethod
+    def strip_review_intent(cls, value: object) -> str:
+        if value is None:
+            return ""
+        return str(value).strip()
 
     @field_validator("doc_id", "word_session_id", mode="before")
     @classmethod
@@ -172,6 +203,7 @@ class ExpertgranskningWordJobRequest(BaseModel):
     owner_user_id: str
     doc_id: str | None = Field(default=None, max_length=128)
     word_session_id: str | None = Field(default=None, max_length=64)
+    review_intent: str = Field(default="", max_length=8_000)
     sections: list[WordDocumentSection] = Field(min_length=1, max_length=WORD_MAX_SECTIONS)
     locale: ConfigurationLanguage = "sv"
 
@@ -182,6 +214,13 @@ class ExpertgranskningWordJobRequest(BaseModel):
             return None
         text = str(value).strip()
         return text or None
+
+    @field_validator("review_intent", mode="before")
+    @classmethod
+    def strip_review_intent(cls, value: object) -> str:
+        if value is None:
+            return ""
+        return str(value).strip()
 
     @model_validator(mode="after")
     def bound_document(self) -> ExpertgranskningWordJobRequest:

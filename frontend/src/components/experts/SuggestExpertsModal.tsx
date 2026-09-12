@@ -47,8 +47,13 @@ export function SuggestExpertsModal({
     }
   }, [open])
 
+  function selectionUsable(value: UnderlagSelection | null): boolean {
+    if (value == null) return false
+    return value.status === "pending" || value.status === "ok"
+  }
+
   async function generate() {
-    if (selected == null || selected.status !== "ok") {
+    if (!selectionUsable(selected)) {
       setError(t("experts.suggest.needUnderlag"))
       return
     }
@@ -89,7 +94,7 @@ export function SuggestExpertsModal({
     }
   }
 
-  const canGenerate = selected != null && selected.status === "ok" && step !== "loading"
+  const canGenerate = selectionUsable(selected) && step !== "loading"
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

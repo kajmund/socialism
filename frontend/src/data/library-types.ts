@@ -25,6 +25,7 @@ export type PopulationSummary = {
   updated: string
   versions: number
   fp: number[][]
+  customer_id: number
 }
 
 export type PopulationMember = {

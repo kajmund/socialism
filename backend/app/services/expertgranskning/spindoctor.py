@@ -43,6 +43,7 @@ def build_expertgranskning_spindoctor_context_from_source(
     loc: ReportLocale = normalize_locale(locale)
     payload = source.payload if isinstance(source.payload, dict) else {}
     document_text = str(payload.get("document_text") or "").strip()
+    review_intent = str(payload.get("review_intent") or "").strip()
     summary = str(payload.get("summary") or "").strip()
     transcript = payload.get("transcript") if isinstance(payload.get("transcript"), list) else []
 
@@ -52,10 +53,10 @@ def build_expertgranskning_spindoctor_context_from_source(
             "",
             "## Document",
             document_text or "—",
-            "",
-            "## Summary",
-            summary or "—",
         ]
+        if review_intent:
+            parts.extend(["", "## Review intent", review_intent])
+        parts.extend(["", "## Summary", summary or "—"])
         turns = _transcript_lines(transcript)
         if turns:
             parts.extend(["", "## Panel transcript", *turns])
@@ -66,10 +67,10 @@ def build_expertgranskning_spindoctor_context_from_source(
         "",
         "## Dokument",
         document_text or "—",
-        "",
-        "## Sammanfattning",
-        summary or "—",
     ]
+    if review_intent:
+        parts.extend(["", "## Granskningsavsikt", review_intent])
+    parts.extend(["", "## Sammanfattning", summary or "—"])
     turns = _transcript_lines(transcript)
     if turns:
         parts.extend(["", "## Panelens turer", *turns])

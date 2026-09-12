@@ -231,6 +231,7 @@ class PopulationSummary(BaseModel):
     updated: str
     versions: int
     fp: list[list[int]]
+    customer_id: int
 
 
 class PopulationDetail(PopulationSummary):
@@ -1245,6 +1246,7 @@ class ReportOut(BaseModel):
     slots_path: str | None = None
     job_id: str | None = None
     error: str | None = None
+    has_source_pdf: bool = False
     created_at: str
     finished_at: str | None = None
     updated_at: str

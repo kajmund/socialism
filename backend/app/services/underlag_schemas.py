@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-ExtractionStatus = Literal["ok", "failed", "empty", "unsupported"]
+ExtractionStatus = Literal["pending", "ok", "failed", "empty", "unsupported"]
 
 
 class UnderlagOut(BaseModel):

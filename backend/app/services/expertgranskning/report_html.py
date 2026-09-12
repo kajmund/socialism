@@ -26,13 +26,13 @@ def _copy(*, locale: ReportLocale) -> dict[str, str]:
     if locale == "en":
         return {
             "eyebrow": "EXPERT REVIEW",
-            "document": "Document",
+            "intent": "Review intent",
             "summary": "Summary",
             "transcript": "Panel transcript",
         }
     return {
         "eyebrow": "EXPERTGRANSKNING",
-        "document": "Dokument",
+        "intent": "Granskningsavsikt",
         "summary": "Sammanfattning",
         "transcript": "Panelens turer",
     }
@@ -67,10 +67,19 @@ def render_expertgranskning_html(
     summary: str,
     transcript: list[dict[str, Any]],
     session_id: str,
+    review_intent: str = "",
 ) -> str:
     labels = _copy(locale=locale)
     lang = "en" if locale == "en" else "sv"
     page_title = title.strip() or labels["eyebrow"].title()
+    intent_html = ""
+    if review_intent.strip():
+        intent_html = f"""  <section class="section" id="granskningsavsikt">
+    <div class="eyebrow">{labels["intent"]}</div>
+    <h2>{labels["intent"]}</h2>
+    <div class="explainer md-body">{markdown_to_html(review_intent)}</div>
+  </section>
+"""
     html = f"""<!DOCTYPE html>
 <html lang="{lang}">
 <head>
@@ -89,12 +98,7 @@ def render_expertgranskning_html(
 <div class="wrap">
   <div class="eyebrow">{labels["eyebrow"]}</div>
   <h1>{escape(page_title)}</h1>
-  <section class="section" id="dokument">
-    <div class="eyebrow">{labels["document"]}</div>
-    <h2>{labels["document"]}</h2>
-    <div class="explainer md-body">{markdown_to_html(document_text)}</div>
-  </section>
-  <section class="section" id="sammanfattning">
+{intent_html}  <section class="section" id="sammanfattning">
     <div class="eyebrow">{labels["summary"]}</div>
     <h2>{labels["summary"]}</h2>
     <div class="explainer md-body">{markdown_to_html(summary)}</div>
@@ -130,6 +134,7 @@ def write_expertgranskning_artifacts(
     document_text: str,
     summary: str,
     transcript: list[dict[str, Any]],
+    review_intent: str = "",
 ) -> tuple[Path, Path, dict[str, Any]]:
     loc = normalize_locale(locale)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -137,6 +142,7 @@ def write_expertgranskning_artifacts(
         title=title,
         locale=loc,
         document_text=document_text,
+        review_intent=review_intent,
         summary=summary,
         transcript=transcript,
         session_id=session_id,
@@ -151,6 +157,7 @@ def write_expertgranskning_artifacts(
         "panel_id": panel_id,
         "title": title,
         "document_text": document_text,
+        "review_intent": review_intent,
         "summary": summary,
         "transcript": transcript,
     }

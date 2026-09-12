@@ -27,6 +27,7 @@ export async function createWordJob(
     sections: WordDocumentSection[]
     locale?: "sv" | "en" | "nb"
     word_session_id?: string
+    review_intent?: string
   },
 ): Promise<string> {
   const created = await httpRequest<{ job_id: string }>(url("/expertgranskning/word-jobs"), {

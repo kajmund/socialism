@@ -26,7 +26,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Markdown } from "@/components/ui/markdown"
 import { canUseUnderlag } from "@/components/underlag/canUseUnderlag"
 import { htmlToPlainText } from "@/components/underlag/htmlToPlainText"
 import { useLocale, type MessageKey } from "@/i18n"
@@ -58,6 +57,8 @@ type PreviewState =
 
 function statusKey(status: UnderlagExtractionStatus | null): MessageKey {
   switch (status) {
+    case "pending":
+      return "underlag.status.pending"
     case "ok":
       return "underlag.status.ok"
     case "failed":
@@ -67,7 +68,7 @@ function statusKey(status: UnderlagExtractionStatus | null): MessageKey {
     case "unsupported":
       return "underlag.status.unsupported"
     case null:
-      return "underlag.status.failed"
+      return "underlag.status.pending"
     default: {
       const _exhaustive: never = status
       return _exhaustive
@@ -79,6 +80,9 @@ function statusVariant(
   status: UnderlagExtractionStatus | null,
 ): "default" | "secondary" | "destructive" | "outline" {
   switch (status) {
+    case "pending":
+    case null:
+      return "secondary"
     case "ok":
       return "default"
     case "failed":
@@ -86,8 +90,6 @@ function statusVariant(
       return "destructive"
     case "empty":
       return "outline"
-    case null:
-      return "secondary"
     default: {
       const _exhaustive: never = status
       return _exhaustive
@@ -160,7 +162,7 @@ export function UnderlagPickerModal({
   const [pdfError, setPdfError] = useState<string | null>(null)
   const [dropTargetId, setDropTargetId] = useState<string | null>(null)
   const [moving, setMoving] = useState(false)
-  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [usingReport, setUsingReport] = useState(false)
 
@@ -217,7 +219,7 @@ export function UnderlagPickerModal({
     setPdfError(null)
     setPdfLoading(false)
     clearPdfUrl()
-    setConfirmDelete(false)
+    setConfirmDeleteId(null)
   }
 
   async function refreshFolders() {
@@ -288,6 +290,7 @@ export function UnderlagPickerModal({
     setLoading(true)
     setError(null)
     setPreview(null)
+    setConfirmDeleteId(null)
     listUnderlag(listAllModules ? null : module, listAllModules ? null : folderId)
       .then((listed) => {
         if (!cancelled) setRows(listed.files)
@@ -310,7 +313,7 @@ export function UnderlagPickerModal({
   }, [namingFolder])
 
   useEffect(() => {
-    if (preview?.kind !== "underlag" || !isPdf(preview.file) || previewTab !== "pdf") {
+    if (preview?.kind !== "underlag" || !isPdf(preview.file)) {
       clearPdfUrl()
       setPdfError(null)
       setPdfLoading(false)
@@ -338,13 +341,13 @@ export function UnderlagPickerModal({
     return () => {
       cancelled = true
     }
-  }, [preview, previewTab, t])
+  }, [preview, t])
 
   async function loadPreview(id: string) {
     const requestId = ++previewRequestRef.current
     setPreviewLoading(true)
     setError(null)
-    setConfirmDelete(false)
+    setConfirmDeleteId(null)
     try {
       const row = await getUnderlag(id)
       if (requestId !== previewRequestRef.current) return
@@ -362,7 +365,7 @@ export function UnderlagPickerModal({
   async function loadReportPreview(report: Report) {
     const requestId = ++previewRequestRef.current
     setPreviewLoading(true)
-    setConfirmDelete(false)
+    setConfirmDeleteId(null)
     setPreview({
       kind: "report",
       report,
@@ -408,7 +411,7 @@ export function UnderlagPickerModal({
       setRows((current) => [uploaded, ...current.filter((row) => row.id !== uploaded.id)])
       setPreview({ kind: "underlag", file: uploaded })
       setPreviewTab(isPdf(uploaded) ? "pdf" : "text")
-      setConfirmDelete(false)
+      setConfirmDeleteId(null)
     } catch (err: unknown) {
       setError(err instanceof ApiError ? err.message : t("underlag.uploadError"))
     } finally {
@@ -455,16 +458,16 @@ export function UnderlagPickerModal({
     }
   }
 
-  async function handleDelete() {
-    if (preview?.kind !== "underlag" || deleting) return
+  async function handleDelete(fileId: string) {
+    if (deleting) return
     setDeleting(true)
     setError(null)
-    const deletedId = preview.file.id
     try {
-      await deleteUnderlag(deletedId)
-      setRows((current) => current.filter((row) => row.id !== deletedId))
-      clearPreview()
-      onDeleted?.(deletedId)
+      await deleteUnderlag(fileId)
+      setRows((current) => current.filter((row) => row.id !== fileId))
+      if (preview?.kind === "underlag" && preview.file.id === fileId) clearPreview()
+      else setConfirmDeleteId(null)
+      onDeleted?.(fileId)
     } catch (err: unknown) {
       setError(err instanceof ApiError ? err.message : t("underlag.deleteError"))
     } finally {
@@ -578,7 +581,7 @@ export function UnderlagPickerModal({
   const emptyReports = browsingReports && visibleReports.length === 0
   const underlagPreview = preview?.kind === "underlag" ? preview.file : null
   const reportPreview = preview?.kind === "report" ? preview : null
-  const showPdfTabs = underlagPreview != null && isPdf(underlagPreview)
+  const showPdfPreview = underlagPreview != null && isPdf(underlagPreview)
   const showReportTabs = reportPreview != null
   const canUse =
     (underlagPreview != null && canUseUnderlag(underlagPreview)) ||
@@ -793,15 +796,16 @@ export function UnderlagPickerModal({
                       ? rows.map((row) => {
                           const selected =
                             preview?.kind === "underlag" && preview.file.id === row.id
+                          const confirming = confirmDeleteId === row.id
                           return (
-                            <li key={row.id}>
+                            <li
+                              key={row.id}
+                              className={cn("flex items-stretch gap-1", selected && "bg-muted")}
+                            >
                               <button
                                 type="button"
                                 draggable
-                                className={cn(
-                                  "flex w-full cursor-grab flex-col items-start gap-1 px-3 py-2.5 text-left hover:bg-muted/60 active:cursor-grabbing",
-                                  selected && "bg-muted",
-                                )}
+                                className="flex min-w-0 flex-1 cursor-grab flex-col items-start gap-1 px-3 py-2.5 text-left hover:bg-muted/60 active:cursor-grabbing"
                                 onClick={() => void loadPreview(row.id)}
                                 onDragStart={(event) => {
                                   draggingFileIdRef.current = row.id
@@ -827,6 +831,39 @@ export function UnderlagPickerModal({
                                   ) : null}
                                 </span>
                               </button>
+                              <div className="flex shrink-0 items-center gap-1 px-2 py-2">
+                                {confirming ? (
+                                  <>
+                                    <AdminButton
+                                      variant="secondary"
+                                      size="sm"
+                                      disabled={deleting}
+                                      onClick={() => setConfirmDeleteId(null)}
+                                    >
+                                      {t("common.cancel")}
+                                    </AdminButton>
+                                    <AdminButton
+                                      variant="primary"
+                                      size="sm"
+                                      disabled={deleting}
+                                      onClick={() => void handleDelete(row.id)}
+                                    >
+                                      {deleting
+                                        ? t("underlag.deleting")
+                                        : t("common.deleteConfirm")}
+                                    </AdminButton>
+                                  </>
+                                ) : (
+                                  <AdminButton
+                                    variant="secondary"
+                                    size="sm"
+                                    disabled={deleting}
+                                    onClick={() => setConfirmDeleteId(row.id)}
+                                  >
+                                    {t("underlag.delete")}
+                                  </AdminButton>
+                                )}
+                              </div>
                             </li>
                           )
                         })
@@ -867,14 +904,14 @@ export function UnderlagPickerModal({
                   {t("underlag.preview")}
                 </p>
                 {underlagPreview ? (
-                  confirmDelete ? (
+                  confirmDeleteId === underlagPreview.id ? (
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xs text-muted-foreground">{t("underlag.confirmDelete")}</span>
                       <AdminButton
                         variant="secondary"
                         size="sm"
                         disabled={deleting}
-                        onClick={() => setConfirmDelete(false)}
+                        onClick={() => setConfirmDeleteId(null)}
                       >
                         {t("common.cancel")}
                       </AdminButton>
@@ -882,7 +919,7 @@ export function UnderlagPickerModal({
                         variant="primary"
                         size="sm"
                         disabled={deleting}
-                        onClick={() => void handleDelete()}
+                        onClick={() => void handleDelete(underlagPreview.id)}
                       >
                         {deleting ? t("underlag.deleting") : t("underlag.confirmDeleteButton")}
                       </AdminButton>
@@ -892,42 +929,13 @@ export function UnderlagPickerModal({
                       variant="secondary"
                       size="sm"
                       disabled={deleting}
-                      onClick={() => setConfirmDelete(true)}
+                      onClick={() => setConfirmDeleteId(underlagPreview.id)}
                     >
                       {t("underlag.delete")}
                     </AdminButton>
                   )
                 ) : null}
               </div>
-              {showPdfTabs ? (
-                <div className="flex gap-1 border-b border-[color:var(--border-hairline)]" role="tablist">
-                  {(
-                    [
-                      { id: "pdf" as const, label: t("underlag.previewTabPdf") },
-                      { id: "text" as const, label: t("underlag.previewTabText") },
-                    ] as const
-                  ).map((item) => {
-                    const selected = item.id === previewTab
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        role="tab"
-                        aria-selected={selected}
-                        className={cn(
-                          "-mb-px border-b-2 px-3 py-1.5 text-sm",
-                          selected
-                            ? "border-db-ink-950 font-medium text-[color:var(--text-body)]"
-                            : "border-transparent text-muted-foreground hover:text-[color:var(--text-body)]",
-                        )}
-                        onClick={() => setPreviewTab(item.id)}
-                      >
-                        {item.label}
-                      </button>
-                    )
-                  })}
-                </div>
-              ) : null}
               {showReportTabs ? (
                 <div className="flex gap-1 border-b border-[color:var(--border-hairline)]" role="tablist">
                   {(
@@ -989,7 +997,7 @@ export function UnderlagPickerModal({
                       {t("underlag.previewReportError")}
                     </p>
                   )
-                ) : showPdfTabs && previewTab === "pdf" ? (
+                ) : showPdfPreview ? (
                   pdfLoading ? (
                     <p className="px-3 py-3 text-sm text-muted-foreground">{t("underlag.previewPdfLoading")}</p>
                   ) : pdfError ? (
@@ -1005,12 +1013,10 @@ export function UnderlagPickerModal({
                   ) : (
                     <p className="px-3 py-3 text-sm text-muted-foreground">{t("underlag.previewPdfError")}</p>
                   )
-                ) : underlagPreview?.extracted_text ? (
-                  <div className="h-full overflow-y-auto px-3 py-3">
-                    <Markdown content={underlagPreview.extracted_text} />
-                  </div>
                 ) : (
-                  <p className="px-3 py-3 text-sm text-muted-foreground">{t("underlag.previewUnavailable")}</p>
+                  <p className="px-3 py-3 text-sm text-muted-foreground">
+                    {t("underlag.previewDeferred")}
+                  </p>
                 )}
               </div>
             </div>

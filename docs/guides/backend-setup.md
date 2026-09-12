@@ -286,3 +286,8 @@ When moving off SQLite:
 4. Do not treat the Supabase dashboard as the schema source of truth — Alembic remains authoritative.
 
 See [supabase-setup.md](supabase-setup.md).
+
+### LibreOffice (Word underlag)
+
+Uploading a `.docx` underlag converts it to PDF with LibreOffice (`soffice --headless`). Set `LIBREOFFICE_BIN` if the binary is not on `PATH`. Railway images install `libreoffice-writer` via `backend/nixpacks.toml`. Locally: install LibreOffice, or leave Word uploads for environments that have it.
+

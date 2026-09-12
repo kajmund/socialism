@@ -218,7 +218,13 @@ textarea {
   line-height: 20px;
 }
 
+textarea.intent {
+  min-height: 96px;
+  resize: vertical;
+}
+
 textarea:hover,
+textarea.intent:hover:not(:disabled),
 select.field-control:hover:not(:disabled) {
   border-color: var(--ink-tertiary);
 }
@@ -231,7 +237,8 @@ button:focus-visible {
   outline-offset: 1px;
 }
 
-select.field-control:disabled {
+select.field-control:disabled,
+textarea.intent:disabled {
   background-color: var(--disabled-bg);
   color: var(--disabled-ink);
   cursor: not-allowed;
