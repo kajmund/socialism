@@ -577,7 +577,7 @@ async def _run_report_generate(job_id: str) -> None:
         report.status = "running"
         report.updated_at = utcnow()
         await session.commit()
-        await publish_report(report)
+        await publish_report(report, session=session)
 
     try:
         out_dir = Path(ARTIFACT_ROOT) / report_id
@@ -616,7 +616,7 @@ async def _run_report_generate(job_id: str) -> None:
                 report.finished_at = utcnow()
                 report.updated_at = utcnow()
                 await session.commit()
-                await publish_report(report)
+                await publish_report(report, session=session)
             await _fail(session, job_id, str(exc) or exc.__class__.__name__)
         return
 
@@ -632,7 +632,7 @@ async def _run_report_generate(job_id: str) -> None:
         report.finished_at = utcnow()
         report.updated_at = utcnow()
         await session.commit()
-        await publish_report(report)
+        await publish_report(report, session=session)
         await _succeed(
             session,
             job_id,
@@ -925,7 +925,7 @@ async def fail_interrupted_jobs(
         panel.updated_at = now
     await session.commit()
     for report in failed_reports:
-        await publish_report(report)
+        await publish_report(report, session=session)
     for job_id in word_job_ids:
         await publish_expertgranskning_finished(job_id, status="failed", error=message)
     return int(result.rowcount or 0)
