@@ -104,6 +104,7 @@ export type WordAction = {
 export type LatestWordJob = {
   job_id: string
   status: string
+  error?: string | null
   actions: WordAction[]
 }
 

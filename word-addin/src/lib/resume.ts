@@ -14,6 +14,7 @@ export type ReviewStartPlan =
 export type FinishedJobView = {
   jobId: string
   phase: "done" | "failed"
+  error: string
   actions: WordAction[]
 }
 
@@ -41,9 +42,11 @@ export function planReviewStart(latest: LatestWordJob | null): ReviewStartPlan {
 
 export function finishedJobView(latest: LatestWordJob | null): FinishedJobView | null {
   if (!latest || isActiveWordJobStatus(latest.status)) return null
+  const error = (latest.error ?? "").trim()
   return {
     jobId: latest.job_id,
     phase: latest.status === "failed" ? "failed" : "done",
+    error: error || latest.status,
     actions: latest.actions,
   }
 }

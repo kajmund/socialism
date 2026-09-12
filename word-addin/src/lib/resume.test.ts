@@ -115,6 +115,7 @@ describe("finishedJobView", () => {
     ).toEqual({
       jobId: "job_1",
       phase: "done",
+      error: "succeeded",
       actions: [
         action({ status: "applied", word_artifact_id: "word-1" }),
         action({ id: "wa_2", status: "pending" }),
@@ -129,11 +130,34 @@ describe("finishedJobView", () => {
     expect(finishedJobView(job({ status: "failed" }))).toEqual({
       jobId: "job_1",
       phase: "failed",
+      error: "failed",
       actions: [],
     })
     expect(planReviewStart(job({ status: "failed" }))).toEqual({
       action: "startNew",
       resolveCommentIds: [],
+    })
+  })
+
+  it("surfaces the backend job error on failed resume", () => {
+    expect(
+      finishedJobView(
+        job({
+          status: "failed",
+          error: "WordCommentConvergence/json_invalid",
+        }),
+      ),
+    ).toEqual({
+      jobId: "job_1",
+      phase: "failed",
+      error: "WordCommentConvergence/json_invalid",
+      actions: [],
+    })
+    expect(finishedJobView(job({ status: "failed", error: "   " }))).toEqual({
+      jobId: "job_1",
+      phase: "failed",
+      error: "failed",
+      actions: [],
     })
   })
 
