@@ -570,18 +570,28 @@ class WordExpertComment(BaseModel):
         return value
 
 
+WordIssueMateriality = Literal["high", "medium", "low"]
+WordIssueActionability = Literal["actionable", "informational"]
+WordIssueNovelty = Literal["new", "overlap"]
+
+
 class WordConvergedIssue(BaseModel):
-    """One Word comment after observation-level consolidation."""
+    """One Word-review issue after observation-level consolidation."""
 
     observation_ids: list[str] = Field(default_factory=list)
     paragraph_index: int
     supporting_expert_ids: list[str] = Field(default_factory=list)
-    kommentar: str = ""
+    short_comment: str
+    explanation: str
+    materiality: WordIssueMateriality
+    actionability: WordIssueActionability
+    novelty: WordIssueNovelty
+    should_materialize: bool
     has_dissensus: bool = False
 
-    @field_validator("kommentar", mode="before")
+    @field_validator("short_comment", "explanation", mode="before")
     @classmethod
-    def strip_comment(cls, value: object) -> str:
+    def strip_text(cls, value: object) -> str:
         if value is None:
             return ""
         return str(value).strip()

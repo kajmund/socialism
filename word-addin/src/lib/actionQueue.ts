@@ -127,7 +127,7 @@ export function actionCardModel(action: WordAction): ActionCardModel {
     kind,
     content: action.content,
     reviewedText: kind === "replace" ? (action.anchor?.reviewed_text ?? "") : null,
-    explanation: kind === "replace" ? (action.explanation ?? "").trim() || null : null,
+    explanation: (action.explanation ?? "").trim() || null,
     status: action.status,
     unresolvedReason,
     showApply: canApplyAction(action.status),

@@ -82,7 +82,15 @@ export function ActionCard({ action, busy, onApply, onDismiss, t }: ActionCardPr
           ) : null}
         </div>
       ) : (
-        <p className="action-card-text">{model.content}</p>
+        <div className="action-card-fields">
+          <p className="action-card-text">{model.content}</p>
+          {model.explanation ? (
+            <details className="action-card-why">
+              <summary>{t("actionWhyMore")}</summary>
+              <p className="action-card-text">{model.explanation}</p>
+            </details>
+          ) : null}
+        </div>
       )}
       {model.unresolvedReason ? (
         <p className="action-card-unresolved" data-unresolved-reason={model.unresolvedReason}>
