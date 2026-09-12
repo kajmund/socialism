@@ -1100,6 +1100,51 @@ async def publish_created_actions(
     return published
 
 
+def log_word_review_call_summary(
+    job_id: str,
+    snapshot: dict[str, int | None],
+    *,
+    outcome: str,
+) -> None:
+    """Emit one timing + LLM-count summary. Snapshot has counts only."""
+    logger.info(
+        "Word review timings job_id=%s outcome=%s total_ms=%s "
+        "time_to_first_action_ms=%s moderation_ms=%s raise_hand_ms=%s "
+        "expert_comment_ms=%s rewrite_convergence_ms=%s "
+        "comment_convergence_ms=%s heading_ms=%s llm_call_count=%s "
+        "max_observed_llm_concurrency=%s",
+        job_id,
+        outcome,
+        snapshot["total_ms"],
+        snapshot["time_to_first_action_ms"],
+        snapshot["moderation_ms"],
+        snapshot["raise_hand_ms"],
+        snapshot["expert_comment_ms"],
+        snapshot["rewrite_convergence_ms"],
+        snapshot["comment_convergence_ms"],
+        snapshot["heading_ms"],
+        snapshot["llm_call_count"],
+        snapshot["max_observed_llm_concurrency"],
+    )
+    logger.info(
+        "Word review LLM calls job_id=%s outcome=%s total=%s moderation=%s "
+        "raise_hand=%s expert_comment=%s comment_convergence=%s "
+        "rewrite_convergence=%s heading=%s structured_retries=%s "
+        "max_observed_llm_concurrency=%s",
+        job_id,
+        outcome,
+        snapshot["llm_call_count"],
+        snapshot["moderation_calls"],
+        snapshot["raise_hand_calls"],
+        snapshot["expert_comment_calls"],
+        snapshot["comment_convergence_calls"],
+        snapshot["rewrite_convergence_calls"],
+        snapshot["heading_calls"],
+        snapshot["structured_retry_count"],
+        snapshot["max_observed_llm_concurrency"],
+    )
+
+
 async def run_word_paragraph_review(
     session: AsyncSession,
     job: Job,
@@ -1145,6 +1190,7 @@ async def run_word_paragraph_review(
     result_count = 0
     actions_created = 0
     sections_completed = 0
+    logged_summary = False
     try:
         for finished in asyncio.as_completed(section_tasks):
             analysis = await finished
@@ -1162,51 +1208,26 @@ async def run_word_paragraph_review(
                 sections_total=sections_total,
                 actions_created=actions_created,
             )
+        snapshot = timings.snapshot()
+        logged_summary = True
+        log_word_review_call_summary(job.id, snapshot, outcome="success")
+        return {
+            "paragraph_reviews": paragraph_reviews,
+            "heading_reviews": heading_reviews,
+            "result_count": result_count,
+            **snapshot,
+        }
     except BaseException:
         for task in section_tasks:
             if not task.done():
                 task.cancel()
         await asyncio.gather(*section_tasks, return_exceptions=True)
         raise
-
-    snapshot = timings.snapshot()
-    logger.info(
-        "Word review timings job_id=%s total_ms=%s time_to_first_action_ms=%s "
-        "moderation_ms=%s raise_hand_ms=%s expert_comment_ms=%s "
-        "rewrite_convergence_ms=%s comment_convergence_ms=%s heading_ms=%s "
-        "llm_call_count=%s max_observed_llm_concurrency=%s",
-        job.id,
-        snapshot["total_ms"],
-        snapshot["time_to_first_action_ms"],
-        snapshot["moderation_ms"],
-        snapshot["raise_hand_ms"],
-        snapshot["expert_comment_ms"],
-        snapshot["rewrite_convergence_ms"],
-        snapshot["comment_convergence_ms"],
-        snapshot["heading_ms"],
-        snapshot["llm_call_count"],
-        snapshot["max_observed_llm_concurrency"],
-    )
-    logger.info(
-        "Word review LLM calls job_id=%s total=%s moderation=%s raise_hand=%s "
-        "expert_comment=%s comment_convergence=%s rewrite_convergence=%s "
-        "heading=%s structured_retries=%s",
-        job.id,
-        snapshot["llm_call_count"],
-        snapshot["moderation_calls"],
-        snapshot["raise_hand_calls"],
-        snapshot["expert_comment_calls"],
-        snapshot["comment_convergence_calls"],
-        snapshot["rewrite_convergence_calls"],
-        snapshot["heading_calls"],
-        snapshot["structured_retry_count"],
-    )
-    return {
-        "paragraph_reviews": paragraph_reviews,
-        "heading_reviews": heading_reviews,
-        "result_count": result_count,
-        **snapshot,
-    }
+    finally:
+        if not logged_summary:
+            log_word_review_call_summary(
+                job.id, timings.snapshot(), outcome="failed"
+            )
 
 
 async def word_paragraph_review(

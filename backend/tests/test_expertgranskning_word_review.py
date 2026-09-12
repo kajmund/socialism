@@ -21,6 +21,7 @@ from app.services import jobs as jobs_service
 from app.services.expertgranskning import WORD_JOB_KIND
 from app.services.expertgranskning.comment_convergence import (
     COMMENT_CONVERGENCE_CHUNK_HARD_CAP,
+    COMMENT_CONVERGENCE_CHUNK_MAX_CHARS,
     COMMENT_CONVERGENCE_CHUNK_SIZE,
     WordObservation,
     apply_word_comment_convergence,
@@ -30,7 +31,9 @@ from app.services.expertgranskning.comment_convergence import (
     comments_dissent,
     decide_word_issue_materialization,
     finalize_word_comment_convergence,
+    format_observations_for_prompt,
     paragraph_indexes_for_observations,
+    serialized_chunk_chars,
 )
 from app.services.expertgranskning.schemas import (
     WORD_MAX_PARAGRAPH_LEN,
@@ -1000,8 +1003,8 @@ def test_comment_convergence_chunks_keep_nearby_paragraphs_together():
         for index in range(1, 16)
     ]
     chunks = chunk_observations_for_convergence(spread)
-    assert COMMENT_CONVERGENCE_CHUNK_SIZE == 12
-    assert [len(chunk) for chunk in chunks] == [12, 3]
+    assert COMMENT_CONVERGENCE_CHUNK_SIZE == 4
+    assert [len(chunk) for chunk in chunks] == [4, 4, 4, 3]
     assert [item.observation_id for chunk in chunks for item in chunk] == [
         item.observation_id for item in spread
     ]
@@ -1011,23 +1014,22 @@ def test_comment_convergence_chunks_keep_nearby_paragraphs_together():
             paragraph_index=10 + index,
             expert_id=f"e{index}",
         )
-        for index in range(13)
+        for index in range(5)
     ]
     overflow = chunk_observations_for_convergence(nearby)
     assert len(overflow) == 1
-    assert len(overflow[0]) == 13
-    assert COMMENT_CONVERGENCE_CHUNK_HARD_CAP == 24
+    assert len(overflow[0]) == 5
+    assert COMMENT_CONVERGENCE_CHUNK_HARD_CAP == 6
     packed = [
-        *_obs_range(start=1, count=5),
-        *_obs_range(start=20, count=5),
-        *_obs_range(start=40, count=5),
+        *_obs_range(start=1, count=3),
+        *_obs_range(start=20, count=3),
+        *_obs_range(start=40, count=3),
     ]
     packed_chunks = chunk_observations_for_convergence(packed)
-    assert [len(chunk) for chunk in packed_chunks] == [10, 5]
-    assert paragraph_indexes_for_observations(packed_chunks[0]) == set(range(1, 6)) | set(
-        range(20, 25)
-    )
-    assert paragraph_indexes_for_observations(packed_chunks[1]) == set(range(40, 45))
+    assert [len(chunk) for chunk in packed_chunks] == [3, 3, 3]
+    assert paragraph_indexes_for_observations(packed_chunks[0]) == set(range(1, 4))
+    assert paragraph_indexes_for_observations(packed_chunks[1]) == set(range(20, 23))
+    assert paragraph_indexes_for_observations(packed_chunks[2]) == set(range(40, 43))
 
 
 def test_comment_convergence_splits_contiguous_cluster_at_hard_cap():
@@ -1037,18 +1039,50 @@ def test_comment_convergence_splits_contiguous_cluster_at_hard_cap():
             paragraph_index=index,
             expert_id=f"e{index}",
         )
-        for index in range(1, 31)
+        for index in range(1, 19)
     ]
     shuffled = list(reversed(contiguous))
     chunks = chunk_observations_for_convergence(shuffled)
     sizes = [len(chunk) for chunk in chunks]
     assert max(sizes) <= COMMENT_CONVERGENCE_CHUNK_HARD_CAP
     assert all(size <= COMMENT_CONVERGENCE_CHUNK_HARD_CAP for size in sizes)
-    assert sum(sizes) == 30
+    assert sum(sizes) == 18
     seen = [item.observation_id for chunk in chunks for item in chunk]
     assert seen == [item.observation_id for item in contiguous]
     assert len(seen) == len(set(seen))
     assert chunk_observations_for_convergence(contiguous) == chunks
+
+
+def test_comment_convergence_splits_verbose_set_before_oversize_output():
+    verbose = [
+        _obs(
+            observation_id=f"v{index}",
+            paragraph_index=index,
+            expert_id=f"e{index}",
+            paragraph_text=("Lång paragraf med detaljerad avtalstext. " * 40).strip(),
+            kommentar=("Utförlig expertkommentar med flera risker. " * 40).strip(),
+        )
+        for index in range(1, 5)
+    ]
+    assert len(verbose) <= COMMENT_CONVERGENCE_CHUNK_SIZE
+    together = serialized_chunk_chars(verbose)
+    assert together > COMMENT_CONVERGENCE_CHUNK_MAX_CHARS
+    chunks = chunk_observations_for_convergence(verbose)
+    assert len(chunks) > 1
+    assert [item.observation_id for chunk in chunks for item in chunk] == [
+        item.observation_id for item in verbose
+    ]
+    seen_ids = [item.observation_id for chunk in chunks for item in chunk]
+    assert len(seen_ids) == len(set(seen_ids))
+    for chunk in chunks:
+        assert len(chunk) <= COMMENT_CONVERGENCE_CHUNK_HARD_CAP
+        if len(chunk) > 1:
+            assert serialized_chunk_chars(chunk) <= COMMENT_CONVERGENCE_CHUNK_MAX_CHARS
+        assert format_observations_for_prompt(chunk)
+    singles = chunk_observations_for_convergence(
+        [_obs(observation_id="only", paragraph_text="x" * 4000, kommentar="y" * 4000)]
+    )
+    assert [len(chunk) for chunk in singles] == [1]
 
 
 def _obs_range(*, start: int, count: int) -> list[WordObservation]:
@@ -1138,13 +1172,15 @@ async def test_comment_convergence_batch_text_uses_chunk_paragraphs(monkeypatch)
         limiter=WordReviewLimiter(8, WordReviewTimings()),
     )
     assert len(written) == 15
-    assert len(seen) == 2
+    assert len(seen) == 4
+    sizes = [len(ids) for _indexes, ids in seen]
+    assert sizes == [4, 4, 4, 3]
     first_indexes, first_ids = seen[0]
-    second_indexes, second_ids = seen[1]
-    assert len(first_ids) == 12
-    assert len(second_ids) == 3
-    assert first_indexes == [index * 2 for index in range(1, 13)]
-    assert second_indexes == [index * 2 for index in range(13, 16)]
+    last_indexes, last_ids = seen[-1]
+    assert first_indexes == [index * 2 for index in range(1, 5)]
+    assert last_indexes == [index * 2 for index in range(13, 16)]
+    assert first_ids == [f"o{index}" for index in range(1, 5)]
+    assert last_ids == [f"o{index}" for index in range(13, 16)]
     assert 1 not in first_indexes
     assert 38 not in first_indexes
 
@@ -1704,7 +1740,9 @@ async def test_word_review_rejects_foreign_panel(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_word_review_raise_hand_then_comment_and_heading(client: AsyncClient):
+async def test_word_review_raise_hand_then_comment_and_heading(
+    client: AsyncClient, caplog: pytest.LogCaptureFixture
+):
     calls: list[str] = []
 
     async def completer(messages, response_model):
@@ -1741,7 +1779,8 @@ async def test_word_review_raise_hand_then_comment_and_heading(client: AsyncClie
     )
     assert created.status_code == 202, created.text
     job_id = created.json()["job_id"]
-    await jobs_service._run_job(job_id)
+    with caplog.at_level("INFO"):
+        await jobs_service._run_job(job_id)
 
     listed = await client.get(f"/expertgranskning/word-jobs/{job_id}/results")
     assert listed.status_code == 200
@@ -1783,6 +1822,16 @@ async def test_word_review_raise_hand_then_comment_and_heading(client: AsyncClie
         + result["structured_retry_count"]
     )
     assert job.json()["request"]["task"] == _review_task(panel_id)
+    summaries = [
+        record.getMessage()
+        for record in caplog.records
+        if "Word review LLM calls" in record.getMessage()
+    ]
+    assert len(summaries) == 1
+    assert f"job_id={job_id}" in summaries[0]
+    assert "outcome=success" in summaries[0]
+    assert "outcome=failed" not in summaries[0]
+    assert "Detta stycke" not in summaries[0]
 
 
 @pytest.mark.asyncio
@@ -3116,6 +3165,70 @@ async def test_word_review_second_truncated_comment_fails_job(client: AsyncClien
     ]
     assert comments == []
     assert all("Immaterialrätt" not in (row.get("kommentar") or "") for row in rows)
+
+
+@pytest.mark.asyncio
+async def test_failed_word_review_emits_llm_call_summary_once(
+    client: AsyncClient, caplog: pytest.LogCaptureFixture
+):
+    paragraph = "Leverantören behåller all immaterialrätt till underlaget."
+
+    async def completer(messages, response_model):
+        user = messages[-1]["content"]
+        if response_model is WordBatchModeration:
+            return _moderation_for_batch(user)
+        if response_model is WordExpertRaiseHand:
+            return WordExpertRaiseHand(question_ids=_question_ids_from_user(user)[:1])
+        if response_model is WordExpertComment:
+            return WordExpertComment(kommentar="En konkret kommentar.")
+        if response_model is WordHeadingAssessment:
+            return WordHeadingAssessment(forslag=None)
+        if response_model is WordRewriteSuggestion:
+            return WordRewriteSuggestion(ny_text="", motivering="")
+        if response_model is WordCommentConvergence:
+            raise _truncated_convergence_json_error()
+        raise AssertionError(response_model)
+
+    panel_id = await _create_expert_panel(client)
+    set_structured_completer(completer)
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    created = await client.post(
+        "/expertgranskning/word-jobs",
+        json=_payload(
+            panel_id=panel_id,
+            paragraphs=[_para(1, paragraph)],
+        ),
+    )
+    job_id = created.json()["job_id"]
+    with caplog.at_level("INFO"):
+        await jobs_service._run_job(job_id)
+    job = (await client.get(f"/jobs/{job_id}")).json()
+    assert job["status"] == "failed"
+    summaries = [
+        record.getMessage()
+        for record in caplog.records
+        if "Word review LLM calls" in record.getMessage()
+    ]
+    assert len(summaries) == 1
+    message = summaries[0]
+    assert f"job_id={job_id}" in message
+    assert "outcome=failed" in message
+    assert "outcome=success" not in message
+    assert "total=" in message
+    assert "moderation=" in message
+    assert "raise_hand=" in message
+    assert "expert_comment=" in message
+    assert "comment_convergence=" in message
+    assert "rewrite_convergence=" in message
+    assert "heading=" in message
+    assert "structured_retries=" in message
+    assert "max_observed_llm_concurrency=" in message
+    assert paragraph not in message
+    assert "En konkret kommentar" not in message
+    assert '{"issues"' not in message
+    logged = " ".join(record.getMessage() for record in caplog.records)
+    assert paragraph not in logged
+    assert "En konkret kommentar" not in logged
 
 
 @pytest.mark.asyncio
