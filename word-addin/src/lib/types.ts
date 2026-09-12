@@ -101,4 +101,17 @@ export type WatchFinished = {
   error?: string
 }
 
-export type WatchEvent = WatchReplay | WatchCreated | WatchUpdated | WatchFinished
+export type WatchProgress = {
+  type: "expertgranskning.progress"
+  job_id: string
+  sections_completed: number
+  sections_total: number
+  actions_created: number
+}
+
+export type WatchEvent =
+  | WatchReplay
+  | WatchCreated
+  | WatchUpdated
+  | WatchProgress
+  | WatchFinished

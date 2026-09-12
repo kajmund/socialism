@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from pathlib import Path
 
@@ -12,6 +13,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 
 from app.database.models import ExpertgranskningResult, PanelSession
+from app.realtime.expertgranskning_broadcast import expertgranskning_broadcast
 from pydantic import ValidationError
 
 from app.llm import set_structured_completer
@@ -54,6 +56,10 @@ from app.services.expertgranskning.word_review import (
     should_review_paragraph,
     word_comment_anchor_suffix,
     word_paragraph_review,
+)
+from app.services.expertgranskning.word_review_timing import (
+    WordReviewLimiter,
+    WordReviewTimings,
 )
 from app.services.panel.schemas import PanelExpertSlot
 from app.services.expertgranskning.word_structured import (
@@ -922,6 +928,7 @@ async def test_comment_call_sends_anchor_contract_with_old_override():
             why_it_matters="Fel ankare.",
         ),
         paragraphs=paragraphs,
+        limiter=WordReviewLimiter(1, WordReviewTimings()),
     )
     sent = "\n".join(captured)
     assert "Allowed anchors: 12, 13." in sent
@@ -1190,7 +1197,12 @@ async def test_word_review_raise_hand_then_comment_and_heading(client: AsyncClie
     assert sum(1 for call in calls if call.startswith("comment:")) == 2
 
     job = await client.get(f"/jobs/{job_id}")
-    assert job.json()["result"]["paragraph_reviews"] == 1
+    result = job.json()["result"]
+    assert result["paragraph_reviews"] == 1
+    assert result["llm_call_count"] >= 1
+    assert result["max_observed_llm_concurrency"] >= 1
+    assert result["total_ms"] >= 0
+    assert result["time_to_first_action_ms"] is not None
     assert job.json()["request"]["task"] == _review_task(panel_id)
 
 
@@ -1758,7 +1770,9 @@ async def test_word_review_empty_comment_is_not_written(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_word_review_commits_after_batch_not_after_each_call(client: AsyncClient):
+async def test_word_review_commits_after_section_not_during_analysis(
+    client: AsyncClient,
+):
     seen_during_rewrite: list[int] = []
     seen_during_heading: list[int] = []
     job_holder: dict[str, str] = {}
@@ -1797,7 +1811,7 @@ async def test_word_review_commits_after_batch_not_after_each_call(client: Async
     job_holder["id"] = created.json()["job_id"]
     await jobs_service._run_job(job_holder["id"])
     assert seen_during_rewrite == [0]
-    assert seen_during_heading == [3]
+    assert seen_during_heading == [0]
 
 
 @pytest.mark.asyncio
@@ -1913,6 +1927,13 @@ async def test_word_review_converging_comments_write_rewrite(client: AsyncClient
     rewrite = next(row for row in rows if row["is_rewrite_suggestion"])
     assert rewrite["foreslagen_text"] == "Parterna ska utse kontaktpersoner."
     assert rewrite["kommentar"] == "Båda vill samma sak."
+    actions = (await client.get(f"/expertgranskning/word-jobs/{job_id}/actions")).json()
+    comments = [row for row in actions if row["action_type"] == "comment"]
+    replacements = [row for row in actions if row["action_type"] == "replace"]
+    assert comments and replacements
+    assert max(row["source"]["ordinal"] for row in comments) < min(
+        row["source"]["ordinal"] for row in replacements
+    )
 
 
 @pytest.mark.asyncio
@@ -2662,3 +2683,201 @@ async def test_latest_word_job_404_when_unknown(client: AsyncClient):
         params={"doc_id": "doc-does-not-exist"},
     )
     assert missing.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_word_review_publishes_first_section_before_later_sections(
+    client: AsyncClient, monkeypatch
+):
+    events: list[dict] = []
+    release_slow = asyncio.Event()
+    saw_slow = asyncio.Event()
+    original = expertgranskning_broadcast.publish
+
+    async def capture(job_id: str, event: dict) -> None:
+        events.append(event)
+        await original(job_id, event)
+
+    monkeypatch.setattr(expertgranskning_broadcast, "publish", capture)
+
+    async def completer(messages, response_model):
+        user = messages[-1]["content"]
+        if "Långsam sektion" in user and response_model is WordBatchModeration:
+            saw_slow.set()
+            await release_slow.wait()
+        if response_model is WordBatchModeration:
+            return _moderation_for_batch(user)
+        if response_model is WordExpertRaiseHand:
+            return WordExpertRaiseHand(
+                question_ids=_question_ids_from_user(user)[:1]
+            )
+        if response_model is WordExpertComment:
+            return WordExpertComment(kommentar="Sektionskommentar.")
+        if response_model is WordHeadingAssessment:
+            return WordHeadingAssessment(forslag=None)
+        if response_model is WordRewriteSuggestion:
+            return WordRewriteSuggestion(ny_text="", motivering="")
+        if response_model is WordCommentConvergence:
+            return _passthrough_comment_convergence(user)
+        raise AssertionError(response_model)
+
+    panel_id = await _create_expert_panel(client, n=1)
+    set_structured_completer(completer)
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    created = await client.post(
+        "/expertgranskning/word-jobs",
+        json={
+            "task": _review_task(panel_id),
+            "doc_id": "doc-progressive",
+            "sections": [
+                {
+                    "heading": "Snabb sektion",
+                    "heading_style": "Heading 1",
+                    "heading_paragraph_index": 0,
+                    "paragraphs": [
+                        _para(
+                            1,
+                            "Detta stycke är tillräckligt långt för granskning.",
+                        ).model_dump()
+                    ],
+                },
+                {
+                    "heading": "Långsam sektion",
+                    "heading_style": "Heading 1",
+                    "heading_paragraph_index": 2,
+                    "paragraphs": [
+                        _para(
+                            3,
+                            "Detta andra stycke är också tillräckligt långt.",
+                        ).model_dump()
+                    ],
+                },
+            ],
+        },
+    )
+    assert created.status_code == 202, created.text
+    job_id = created.json()["job_id"]
+    runner = asyncio.create_task(jobs_service._run_job(job_id))
+    await saw_slow.wait()
+    for _ in range(50):
+        if any(
+            event.get("type") == "expertgranskning.progress"
+            and event.get("sections_completed") == 1
+            for event in events
+        ):
+            break
+        await asyncio.sleep(0.02)
+    progress = [
+        event
+        for event in events
+        if event.get("type") == "expertgranskning.progress"
+    ]
+    created_actions = [
+        event
+        for event in events
+        if event.get("type") == "expertgranskning.action.created"
+    ]
+    assert progress and progress[0]["sections_completed"] == 1
+    assert progress[0]["sections_total"] == 2
+    assert progress[0]["actions_created"] >= 1
+    assert created_actions
+    assert all(event.get("type") != "expertgranskning.finished" for event in events)
+    release_slow.set()
+    await runner
+    types = [event["type"] for event in events]
+    assert types.count("expertgranskning.progress") == 2
+    assert types[-1] == "expertgranskning.finished"
+    assert events[-1]["status"] == "succeeded"
+
+
+@pytest.mark.asyncio
+async def test_word_review_keeps_first_section_when_later_section_fails(
+    client: AsyncClient, monkeypatch
+):
+    events: list[dict] = []
+    release_fail = asyncio.Event()
+    original = expertgranskning_broadcast.publish
+
+    async def capture(job_id: str, event: dict) -> None:
+        events.append(event)
+        await original(job_id, event)
+
+    monkeypatch.setattr(expertgranskning_broadcast, "publish", capture)
+
+    async def completer(messages, response_model):
+        user = messages[-1]["content"]
+        if "Långsam sektion" in user and response_model is WordBatchModeration:
+            await release_fail.wait()
+            raise RuntimeError("section two boom")
+        if response_model is WordBatchModeration:
+            return _moderation_for_batch(user)
+        if response_model is WordExpertRaiseHand:
+            return WordExpertRaiseHand(
+                question_ids=_question_ids_from_user(user)[:1]
+            )
+        if response_model is WordExpertComment:
+            return WordExpertComment(kommentar="Behållen kommentar.")
+        if response_model is WordHeadingAssessment:
+            return WordHeadingAssessment(forslag=None)
+        if response_model is WordRewriteSuggestion:
+            return WordRewriteSuggestion(ny_text="", motivering="")
+        if response_model is WordCommentConvergence:
+            return _passthrough_comment_convergence(user)
+        raise AssertionError(response_model)
+
+    panel_id = await _create_expert_panel(client, n=1)
+    set_structured_completer(completer)
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    created = await client.post(
+        "/expertgranskning/word-jobs",
+        json={
+            "task": _review_task(panel_id),
+            "doc_id": "doc-partial-fail",
+            "sections": [
+                {
+                    "heading": "Snabb sektion",
+                    "heading_style": "Heading 1",
+                    "heading_paragraph_index": 0,
+                    "paragraphs": [
+                        _para(
+                            1,
+                            "Detta stycke är tillräckligt långt för granskning.",
+                        ).model_dump()
+                    ],
+                },
+                {
+                    "heading": "Långsam sektion",
+                    "heading_style": "Heading 1",
+                    "heading_paragraph_index": 2,
+                    "paragraphs": [
+                        _para(
+                            3,
+                            "Detta andra stycke är också tillräckligt långt.",
+                        ).model_dump()
+                    ],
+                },
+            ],
+        },
+    )
+    job_id = created.json()["job_id"]
+    runner = asyncio.create_task(jobs_service._run_job(job_id))
+    for _ in range(50):
+        if any(
+            event.get("type") == "expertgranskning.progress"
+            and event.get("sections_completed") == 1
+            for event in events
+        ):
+            break
+        await asyncio.sleep(0.02)
+    assert any(
+        event.get("type") == "expertgranskning.action.created" for event in events
+    )
+    release_fail.set()
+    await runner
+    types = [event["type"] for event in events]
+    assert "expertgranskning.action.created" in types
+    assert types[-1] == "expertgranskning.finished"
+    assert events[-1]["status"] == "failed"
+    assert "section two boom" in (events[-1].get("error") or "")
+    rows = (await client.get(f"/expertgranskning/word-jobs/{job_id}/results")).json()
+    assert {row["paragraph_index"] for row in rows} == {1}
