@@ -38,6 +38,9 @@ def test_timing_snapshot_has_safe_aggregate_fields_only():
         "rewrite_convergence_calls",
         "comment_convergence_calls",
         "heading_calls",
+        "direct_routed_questions",
+        "raise_hand_questions",
+        "questions_dropped_invalid_anchor",
         "llm_call_count",
         "structured_retry_count",
         "max_observed_llm_concurrency",
@@ -48,6 +51,9 @@ def test_timing_snapshot_has_safe_aggregate_fields_only():
     assert snapshot["llm_call_count"] == 1
     assert snapshot["structured_retry_count"] == 0
     assert snapshot["moderation_calls"] == 0
+    assert snapshot["direct_routed_questions"] == 0
+    assert snapshot["raise_hand_questions"] == 0
+    assert snapshot["questions_dropped_invalid_anchor"] == 0
     assert snapshot["moderation_ms"] >= 0
     assert snapshot["time_to_first_action_ms"] is not None
     assert snapshot["time_to_first_action_ms"] >= 0
@@ -75,6 +81,9 @@ def test_llm_call_summary_logs_counts_without_document_text(monkeypatch):
     assert "outcome=failed" in logged
     assert "structured_retries=1" in logged
     assert "comment_convergence=1" in logged
+    assert "direct_routed_questions=0" in logged
+    assert "raise_hand_questions=0" in logged
+    assert "questions_dropped_invalid_anchor=0" in logged
     assert "max_observed_llm_concurrency=" in logged
     assert "prompt" not in logged
     assert "document" not in logged
