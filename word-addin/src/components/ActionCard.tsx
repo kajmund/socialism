@@ -26,6 +26,28 @@ function statusLabel(
   }
 }
 
+function unresolvedReasonLabel(
+  reason: NonNullable<ReturnType<typeof actionCardModel>["unresolvedReason"]>,
+  t: ActionCardProps["t"],
+): string {
+  switch (reason) {
+    case "stale":
+      return t("unresolvedStale")
+    case "ambiguous":
+      return t("unresolvedAmbiguous")
+    case "missing":
+      return t("unresolvedMissing")
+    case "unsupported_action":
+      return t("unresolvedUnsupported")
+    case "unknown":
+      return t("unresolvedUnknown")
+    default: {
+      const _exhaustive: never = reason
+      return _exhaustive
+    }
+  }
+}
+
 export function ActionCard({ action, busy, onApply, onDismiss, t }: ActionCardProps) {
   const model = actionCardModel(action)
   const titleKey: MessageKey =
@@ -63,8 +85,8 @@ export function ActionCard({ action, busy, onApply, onDismiss, t }: ActionCardPr
         <p className="action-card-text">{model.content}</p>
       )}
       {model.unresolvedReason ? (
-        <p className="action-card-unresolved">
-          {t("actionUnresolved", { reason: model.unresolvedReason })}
+        <p className="action-card-unresolved" data-unresolved-reason={model.unresolvedReason}>
+          {unresolvedReasonLabel(model.unresolvedReason, t)}
         </p>
       ) : null}
       {model.showApplying ? (
