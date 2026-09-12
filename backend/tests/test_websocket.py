@@ -614,16 +614,24 @@ def test_expertgranskning_websocket_replay_live_push_and_patch(ws_client):
         assert created_event["result"]["id"] == "egr_ws_live"
         assert created_event["result"]["is_heading_suggestion"] is True
 
-        patched = client.patch(
-            f"/expertgranskning/word-jobs/{job_id}/results/{result_id}",
-            json={"comment_id": "word-cmt-1"},
+        claimed = client.post(
+            f"/expertgranskning/word-jobs/{job_id}/results/{result_id}/claim",
+            json={"application_id": "app-ws-replay"},
         )
-        assert patched.status_code == 200, patched.text
+        assert claimed.status_code == 200, claimed.text
+        claimed_event = ws.receive_json()
+        assert claimed_event["type"] == "expertgranskning.result.updated"
+        assert claimed_event["result"]["status"] == "applying"
+        completed = client.post(
+            f"/expertgranskning/word-jobs/{job_id}/results/{result_id}/complete",
+            json={"application_id": "app-ws-replay", "comment_id": "word-cmt-1"},
+        )
+        assert completed.status_code == 200, completed.text
         updated_event = ws.receive_json()
         assert updated_event["type"] == "expertgranskning.result.updated"
         assert updated_event["result"]["id"] == result_id
         assert updated_event["result"]["comment_id"] == "word-cmt-1"
-        assert updated_event["result"]["status"] == "posted"
+        assert updated_event["result"]["status"] == "applied"
 
 
 def test_expertgranskning_websocket_subscribe_before_snapshot_keeps_race_write(

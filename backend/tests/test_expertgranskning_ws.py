@@ -182,19 +182,24 @@ async def test_word_result_patch_emits_updated(client: AsyncClient, monkeypatch)
         assert listed.status_code == 200
         rows = listed.json()
         assert len(rows) == 1
-        patched = await client.patch(
-            f"/expertgranskning/word-jobs/{job_id}/results/{rows[0]['id']}",
-            json={"comment_id": "word-comment-ws"},
+        claimed = await client.post(
+            f"/expertgranskning/word-jobs/{job_id}/results/{rows[0]['id']}/claim",
+            json={"application_id": "app-ws"},
         )
-        assert patched.status_code == 200, patched.text
+        assert claimed.status_code == 200, claimed.text
+        completed = await client.post(
+            f"/expertgranskning/word-jobs/{job_id}/results/{rows[0]['id']}/complete",
+            json={"application_id": "app-ws", "comment_id": "word-comment-ws"},
+        )
+        assert completed.status_code == 200, completed.text
         updated = [
             event
             for event in events
             if event["type"] == "expertgranskning.result.updated"
         ]
-        assert len(updated) == 1
-        assert updated[0]["job_id"] == job_id
-        assert updated[0]["result"]["comment_id"] == "word-comment-ws"
-        assert updated[0]["result"]["status"] == "posted"
+        assert len(updated) == 2
+        assert updated[-1]["job_id"] == job_id
+        assert updated[-1]["result"]["comment_id"] == "word-comment-ws"
+        assert updated[-1]["result"]["status"] == "applied"
     finally:
         jobs_service.set_schedule_hook(None)

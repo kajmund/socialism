@@ -34,6 +34,11 @@ export const messages = {
     noParagraphs: "Dokumentet har inga stycken att granska.",
     noSections: "Kunde inte bygga en sektionsstruktur av dokumentet.",
     inserted: "Infogade kommentarer och omskrivningar: {count}",
+    appliedSummary: "{applied} resultat applicerade",
+    unplacedSummary:
+      "{unplaced} kunde inte placeras säkert eftersom dokumentet ändrats.",
+    applicationSummary:
+      "{applied} resultat applicerade, {unplaced} kunde inte placeras säkert eftersom dokumentet ändrats.",
     rewritePrefix: "Föreslagen omskrivning:",
     language: "Språk",
   },
@@ -68,6 +73,10 @@ export const messages = {
     noParagraphs: "The document has no paragraphs to review.",
     noSections: "Could not build a section structure from the document.",
     inserted: "Comments and rewrites inserted: {count}",
+    appliedSummary: "{applied} results applied",
+    unplacedSummary: "{unplaced} could not be placed safely because the document changed.",
+    applicationSummary:
+      "{applied} results applied, {unplaced} could not be placed safely because the document changed.",
     rewritePrefix: "Suggested rewrite:",
     language: "Language",
   },

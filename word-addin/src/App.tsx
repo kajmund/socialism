@@ -3,10 +3,12 @@ import { useEffect, useRef, useState, type FormEvent } from "react"
 import headMark from "@/assets/devbrains-head.png"
 import { useLocale } from "@/i18n/LocaleContext"
 import {
+  claimResult,
+  completeResult,
   createWordJob,
   getLatestWordJob,
   listExpertPanels,
-  patchResultCommentId,
+  markResultUnresolved,
 } from "@/lib/api"
 import { ApiError } from "@/lib/http"
 import {
@@ -14,13 +16,16 @@ import {
   commentsApiSupported,
   getOrCreateDocId,
   getStoredDocId,
-  insertCommentAt,
+  insertCommentForAnchor,
   officeReady,
+  paragraphStatesFromSnapshot,
   readDocumentParagraphs,
   resolveComment,
+  WORD_SESSION_ID,
 } from "@/lib/office"
+import { resolveWordAnchor } from "@/lib/word/anchors"
 import { clearStoredToken, getStoredToken, saveStoredToken } from "@/lib/tokenStorage"
-import { planReviewStart } from "@/lib/resume"
+import { finishedJobView, planReviewStart } from "@/lib/resume"
 import { buildSections } from "@/lib/sections"
 import { connectExpertgranskningWatch } from "@/lib/socket"
 import type { ExpertPanelSummary, ReviewResult } from "@/lib/types"
@@ -37,12 +42,37 @@ export function App() {
   const [phase, setPhase] = useState<Phase>("idle")
   const [watchSource, setWatchSource] = useState<"new" | "resume">("new")
   const [error, setError] = useState("")
-  const [insertedCount, setInsertedCount] = useState(0)
+  const [appliedCount, setAppliedCount] = useState(0)
+  const [unplacedCount, setUnplacedCount] = useState(0)
   const [inWord, setInWord] = useState(false)
   const insertedIds = useRef(new Set<string>())
+  const resultStatus = useRef(new Map<string, string>())
   const socketRef = useRef<{ close: () => void } | null>(null)
   const watchJobId = useRef<string | null>(null)
   const applyQueue = useRef(Promise.resolve())
+
+  function syncApplicationCounts() {
+    let applied = 0
+    let unplaced = 0
+    for (const status of resultStatus.current.values()) {
+      if (status === "applied") applied += 1
+      if (status === "unresolved" || status === "applying") unplaced += 1
+    }
+    setAppliedCount(applied)
+    setUnplacedCount(unplaced)
+  }
+
+  function noteResultStatus(id: string, status: string) {
+    resultStatus.current.set(id, status)
+    syncApplicationCounts()
+  }
+
+  function noteResults(results: ReviewResult[]) {
+    for (const row of results) {
+      resultStatus.current.set(row.id, row.status)
+    }
+    syncApplicationCounts()
+  }
 
   function attachWatch(jobId: string, source: "new" | "resume") {
     if (watchJobId.current === jobId && socketRef.current) {
@@ -54,7 +84,9 @@ export function App() {
     socketRef.current = null
     watchJobId.current = jobId
     insertedIds.current = new Set()
-    setInsertedCount(0)
+    resultStatus.current = new Map()
+    setAppliedCount(0)
+    setUnplacedCount(0)
     setWatchSource(source)
     setPhase("running")
     socketRef.current = connectExpertgranskningWatch({
@@ -119,9 +151,19 @@ export function App() {
     let cancelled = false
     void getLatestWordJob(token, docId)
       .then((latest) => {
+        if (cancelled) return
         const plan = planReviewStart(latest)
-        if (cancelled || plan.action !== "resume") return
-        attachWatch(plan.jobId, "resume")
+        if (plan.action === "resume") {
+          attachWatch(plan.jobId, "resume")
+          return
+        }
+        const finished = finishedJobView(latest)
+        if (!finished) return
+        noteResults(finished.results)
+        setPhase(finished.phase)
+        if (finished.phase === "failed") {
+          setError(finished.phase)
+        }
       })
       .catch((err: unknown) => {
         if (!cancelled) {
@@ -160,22 +202,79 @@ export function App() {
 
   async function insertOne(jobId: string, result: ReviewResult) {
     insertedIds.current.add(result.id)
-    const commentId = result.is_rewrite_suggestion
-      ? await applyRewriteSuggestion({
-          paragraphIndex: result.paragraph_index,
-          foreslagenText: (result.foreslagen_text ?? "").trim(),
-          motivering: formatCommentBody(result) || t("rewritePrefix"),
-          reviewedText: result.reviewed_text,
-          fallbackComment: `${t("rewritePrefix")} ${(result.foreslagen_text ?? "").trim()}`.trim(),
-        })
-      : await insertCommentAt(result.paragraph_index, formatCommentBody(result))
-    if (!commentId) return
-    await patchResultCommentId(token, jobId, result.id, commentId)
-    setInsertedCount((count) => count + 1)
+    const anchor = result.anchor
+    if (!anchor) {
+      const marked = await markResultUnresolved(token, jobId, result.id, "missing")
+      noteResultStatus(result.id, marked.status)
+      return
+    }
+
+    const current = paragraphStatesFromSnapshot(await readDocumentParagraphs())
+    const resolution = resolveWordAnchor(anchor, current, WORD_SESSION_ID)
+    if (resolution.status !== "resolved") {
+      const marked = await markResultUnresolved(token, jobId, result.id, resolution.status)
+      noteResultStatus(result.id, marked.status)
+      return
+    }
+
+    const applicationId = crypto.randomUUID()
+    const claimed = await claimResult(token, jobId, result.id, applicationId)
+    if (!claimed.claimed) {
+      if (claimed.result) noteResultStatus(result.id, claimed.result.status)
+      return
+    }
+    noteResultStatus(result.id, "applying")
+
+    try {
+      const outcome = result.is_rewrite_suggestion
+        ? await applyRewriteSuggestion({
+            anchor,
+            foreslagenText: (result.foreslagen_text ?? "").trim(),
+            motivering: formatCommentBody(result) || t("rewritePrefix"),
+            fallbackComment: `${t("rewritePrefix")} ${(result.foreslagen_text ?? "").trim()}`.trim(),
+          })
+        : await insertCommentForAnchor(anchor, formatCommentBody(result))
+      if (outcome.status !== "resolved") {
+        const marked = await markResultUnresolved(
+          token,
+          jobId,
+          result.id,
+          outcome.status,
+          applicationId,
+        )
+        noteResultStatus(result.id, marked.status)
+        return
+      }
+      const completed = await completeResult(
+        token,
+        jobId,
+        result.id,
+        applicationId,
+        outcome.commentId,
+      )
+      noteResultStatus(result.id, completed.status)
+    } catch {
+      noteResultStatus(result.id, "applying")
+    }
   }
 
   async function applyWatchPayload(jobId: string, data: unknown) {
     if (!isWatchEvent(data) || data.job_id !== jobId) return
+    switch (data.type) {
+      case "expertgranskning.replay":
+        noteResults(data.results)
+        break
+      case "expertgranskning.result.created":
+      case "expertgranskning.result.updated":
+        noteResults([data.result])
+        break
+      case "expertgranskning.finished":
+        break
+      default: {
+        const _exhaustive: never = data
+        return _exhaustive
+      }
+    }
     const actions = actionsForWatchEvent(data, insertedIds.current)
     for (const action of actions) {
       switch (action.kind) {
@@ -264,6 +363,7 @@ export function App() {
         const jobId = await createWordJob(token, {
           panel_id: Number(panelId),
           doc_id: docId,
+          word_session_id: WORD_SESSION_ID,
           sections,
           locale: locale === "en" ? "en" : "sv",
         })
@@ -385,7 +485,17 @@ export function App() {
           {phase === "failed" ? t("statusFailed", { error }) : null}
         </p>
         {phase !== "failed" && error ? <p className="error">{error}</p> : null}
-        {insertedCount > 0 ? <p className="hint">{t("inserted", { count: insertedCount })}</p> : null}
+        {appliedCount > 0 && unplacedCount === 0 ? (
+          <p className="hint">{t("appliedSummary", { applied: appliedCount })}</p>
+        ) : null}
+        {appliedCount === 0 && unplacedCount > 0 ? (
+          <p className="hint">{t("unplacedSummary", { unplaced: unplacedCount })}</p>
+        ) : null}
+        {appliedCount > 0 && unplacedCount > 0 ? (
+          <p className="hint">
+            {t("applicationSummary", { applied: appliedCount, unplaced: unplacedCount })}
+          </p>
+        ) : null}
 
         {token ? (
           <div className="pane-foot">

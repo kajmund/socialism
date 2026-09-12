@@ -2,6 +2,7 @@
 
 ## 2026-09-11
 
+* **Expertgranskning i Word**: Kommentarer fästs bara om tillägget kan peka ut rätt stycke säkert. Om dokumentet har ändrats visar sidopanelen hur många resultat som inte kunde placeras. Samma sammanfattning syns om du öppnar tillägget igen efter att jobbet är klart.
 * **Execution**: Fryst underlag gör inte en expert kompetent. Saknas rätt sakkompetens på panelen lämnas frågan obesvarad. En kompetent expert som avstår är inte samma sak.
 * **Expertgranskning i Word**: Varje kommentar fästs vid det stycke som bär observationen. Kommentarerna använder dokumentets partsnamn och antar inte att du är kund eller leverantör.
 
