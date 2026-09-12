@@ -3,7 +3,7 @@ import { ApiError, httpRequest } from "@/lib/http"
 import type {
   ExpertPanelSummary,
   LatestWordJob,
-  ReviewResult,
+  WordAction,
   WordDocumentSection,
 } from "@/lib/types"
 
@@ -26,6 +26,7 @@ export async function createWordJob(
     doc_id: string
     sections: WordDocumentSection[]
     locale?: "sv" | "en" | "nb"
+    word_session_id?: string
   },
 ): Promise<string> {
   const created = await httpRequest<{ job_id: string }>(url("/expertgranskning/word-jobs"), {
@@ -53,18 +54,87 @@ export async function getLatestWordJob(
   }
 }
 
-export async function patchResultCommentId(
+export async function claimAction(
   token: string,
   jobId: string,
-  resultId: string,
-  commentId: string,
-): Promise<ReviewResult> {
-  return httpRequest<ReviewResult>(
-    url(`/expertgranskning/word-jobs/${jobId}/results/${resultId}`),
+  actionId: string,
+  applicationId: string,
+): Promise<{ claimed: boolean; action?: WordAction }> {
+  try {
+    const action = await httpRequest<WordAction>(
+      url(`/expertgranskning/word-jobs/${jobId}/actions/${actionId}/claim`),
+      {
+        method: "POST",
+        token,
+        body: { application_id: applicationId },
+      },
+    )
+    return { claimed: true, action }
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 409) {
+      return { claimed: false }
+    }
+    throw error
+  }
+}
+
+export async function completeAction(
+  token: string,
+  jobId: string,
+  actionId: string,
+  applicationId: string,
+  wordArtifactId: string,
+): Promise<WordAction> {
+  return httpRequest<WordAction>(
+    url(`/expertgranskning/word-jobs/${jobId}/actions/${actionId}/complete`),
     {
-      method: "PATCH",
+      method: "POST",
       token,
-      body: { comment_id: commentId },
+      body: { application_id: applicationId, word_artifact_id: wordArtifactId },
     },
+  )
+}
+
+export async function markActionUnresolved(
+  token: string,
+  jobId: string,
+  actionId: string,
+  reason: string,
+  applicationId?: string,
+): Promise<WordAction> {
+  return httpRequest<WordAction>(
+    url(`/expertgranskning/word-jobs/${jobId}/actions/${actionId}/unresolved`),
+    {
+      method: "POST",
+      token,
+      body: {
+        reason,
+        ...(applicationId ? { application_id: applicationId } : {}),
+      },
+    },
+  )
+}
+
+export async function dismissAction(
+  token: string,
+  jobId: string,
+  actionId: string,
+): Promise<WordAction> {
+  return httpRequest<WordAction>(
+    url(`/expertgranskning/word-jobs/${jobId}/actions/${actionId}/dismiss`),
+    {
+      method: "POST",
+      token,
+    },
+  )
+}
+
+export async function listWordActions(
+  token: string,
+  jobId: string,
+): Promise<WordAction[]> {
+  return httpRequest<WordAction[]>(
+    url(`/expertgranskning/word-jobs/${jobId}/actions`),
+    { token },
   )
 }

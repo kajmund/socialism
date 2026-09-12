@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.schemas.domain import ConfigurationLanguage
 from app.services.panel.schemas import PanelSessionStatus
+from app.services.word.schemas import WordActionOut
 
 WORD_MAX_SECTIONS = 200
 WORD_MAX_PARAGRAPHS_PER_SECTION = 200
@@ -74,6 +75,13 @@ class ExpertgranskningSessionSummary(BaseModel):
     updated_at: str
 
 
+def _optional_local_id(value: object) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
 class WordDocumentParagraph(BaseModel):
     """Raw Word paragraph. Server owns the skip filter."""
 
@@ -81,6 +89,7 @@ class WordDocumentParagraph(BaseModel):
     text: str = Field(max_length=WORD_MAX_PARAGRAPH_LEN)
     style: str = Field(default="", max_length=WORD_MAX_STYLE_LEN)
     list_string: str = Field(default="", max_length=64)
+    unique_local_id: str | None = Field(default=None, max_length=64)
 
     @field_validator("text", "style", "list_string", mode="before")
     @classmethod
@@ -89,11 +98,17 @@ class WordDocumentParagraph(BaseModel):
             return ""
         return str(value)
 
+    @field_validator("unique_local_id", mode="before")
+    @classmethod
+    def empty_local_id(cls, value: object) -> str | None:
+        return _optional_local_id(value)
+
 
 class WordDocumentSection(BaseModel):
     heading: str = Field(default="", max_length=WORD_MAX_HEADING_LEN)
     heading_style: str = Field(default="", max_length=WORD_MAX_STYLE_LEN)
     heading_paragraph_index: int
+    heading_unique_local_id: str | None = Field(default=None, max_length=64)
     paragraphs: list[WordDocumentParagraph] = Field(
         default_factory=list,
         max_length=WORD_MAX_PARAGRAPHS_PER_SECTION,
@@ -105,6 +120,11 @@ class WordDocumentSection(BaseModel):
         if value is None:
             return ""
         return str(value)
+
+    @field_validator("heading_unique_local_id", mode="before")
+    @classmethod
+    def empty_heading_local_id(cls, value: object) -> str | None:
+        return _optional_local_id(value)
 
 
 def _bound_word_sections(sections: list[WordDocumentSection]) -> None:
@@ -126,10 +146,11 @@ def _bound_word_sections(sections: list[WordDocumentSection]) -> None:
 class ExpertgranskningWordJobCreate(BaseModel):
     panel_id: int
     doc_id: str | None = Field(default=None, max_length=128)
+    word_session_id: str | None = Field(default=None, max_length=64)
     sections: list[WordDocumentSection] = Field(min_length=1, max_length=WORD_MAX_SECTIONS)
     locale: ConfigurationLanguage = "sv"
 
-    @field_validator("doc_id", mode="before")
+    @field_validator("doc_id", "word_session_id", mode="before")
     @classmethod
     def empty_doc_id(cls, value: object) -> str | None:
         if value is None:
@@ -150,8 +171,17 @@ class ExpertgranskningWordJobRequest(BaseModel):
     customer_id: int
     owner_user_id: str
     doc_id: str | None = Field(default=None, max_length=128)
+    word_session_id: str | None = Field(default=None, max_length=64)
     sections: list[WordDocumentSection] = Field(min_length=1, max_length=WORD_MAX_SECTIONS)
     locale: ConfigurationLanguage = "sv"
+
+    @field_validator("word_session_id", mode="before")
+    @classmethod
+    def empty_session_id(cls, value: object) -> str | None:
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None
 
     @model_validator(mode="after")
     def bound_document(self) -> ExpertgranskningWordJobRequest:
@@ -286,10 +316,6 @@ class WordHeadingAssessment(BaseModel):
         return text or None
 
 
-class ExpertgranskningResultPatch(BaseModel):
-    comment_id: str = Field(min_length=1, max_length=128)
-
-
 class ExpertgranskningResultOut(BaseModel):
     id: str
     job_id: str
@@ -302,13 +328,10 @@ class ExpertgranskningResultOut(BaseModel):
     is_heading_suggestion: bool
     is_rewrite_suggestion: bool = False
     foreslagen_text: str | None = None
-    reviewed_text: str | None = None
-    comment_id: str | None
-    status: str
     created_at: str
 
 
 class ExpertgranskningLatestWordJobOut(BaseModel):
     job_id: str
     status: str
-    results: list[ExpertgranskningResultOut]
+    actions: list[WordActionOut]

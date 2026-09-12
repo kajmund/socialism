@@ -1,8 +1,13 @@
 # Manual update log
 
-## 2026-09-11
+## 2026-09-12
 
 * **Navigering**: Klick på **Due Diligence** behåller de andra menyvalen (politisk simulering, Expertgranskning, Rättsunderlag med mera) när kontot har flera moduler. En inloggning som bara har Due Diligence ser fortfarande bara den menyn.
+* **Expertgranskning i Word**: Kommentarer och omskrivningar är förslag i sidopanelen. Du tillämpar eller avfärdar varje förslag. Inget skrivs i dokumentet förrän du väljer Tillämpa. En ny granskning kan startas först när alla förslag är beslutade.
+
+## 2026-09-11
+
+* **Expertgranskning i Word**: Kommentarer fästs bara om tillägget kan peka ut rätt stycke säkert. Om dokumentet har ändrats visar sidopanelen hur många resultat som inte kunde placeras. Samma sammanfattning syns om du öppnar tillägget igen efter att jobbet är klart.
 * **Execution**: Fryst underlag gör inte en expert kompetent. Saknas rätt sakkompetens på panelen lämnas frågan obesvarad. En kompetent expert som avstår är inte samma sak.
 * **Expertgranskning i Word**: Varje kommentar fästs vid det stycke som bär observationen. Kommentarerna använder dokumentets partsnamn och antar inte att du är kund eller leverantör.
 
