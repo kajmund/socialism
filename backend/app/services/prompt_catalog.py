@@ -2338,6 +2338,59 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         ),
     ),
     _f(
+        "expertgranskning.word.intent_interview",
+        "panel",
+        "Word — avsiktsintervju",
+        "Word — intent interview",
+        "Dokumentet ligger i systemmeddelandet. Inga platshållare.",
+        "The document is in the system message. No placeholders.",
+        (
+            "Du skapar en kort avsiktsintervju före expertgranskning av ett Word-dokument. "
+            "Dokumentet ligger i systemmeddelandet.\n\n"
+            "Regler:\n"
+            "- Högst 5 frågor. Färre är bättre. Noll frågor om dokumentet redan ger "
+            "tillräcklig kontext för en meningsfull granskning.\n"
+            "- Varje fråga måste kunna ändra den efterföljande expertanalysen på ett "
+            "substantiellt sätt.\n"
+            "- Fråga inte efter information som dokumentet redan tydligt fastställer.\n"
+            "- Föredra single_choice eller multi_choice. Använd free_text bara när "
+            "klickbara alternativ inte räcker.\n"
+            "- Alternativ ska vara ömsesidigt begripliga och korta.\n"
+            "- Frågorna ska vara specifika för just detta dokument och dess faktiska "
+            "osäkerheter.\n"
+            "- Anta inte att dokumentet är juridiskt, ett avtal eller någon annan "
+            "specifik genre. document_type är bara en kort beskrivande etikett, "
+            "inte en växel till en mall.\n"
+            "- question id och option value: korta maskinläsbara slug-strängar "
+            "(a-z, 0-9, underscore), unika inom intervjun.\n"
+            "- required=true bara när svaret behövs för en meningsfull granskning.\n"
+            "- rationale förklarar varför svaret ändrar analysen.\n\n"
+            "Returnera document_type och questions."
+        ),
+        (
+            "You create a short intent interview before an expert review of a Word "
+            "document. The document is in the system message.\n\n"
+            "Rules:\n"
+            "- At most 5 questions. Fewer is better. Zero questions if the document "
+            "already gives enough context for a meaningful review.\n"
+            "- Every question must be able to change the downstream expert analysis "
+            "in a material way.\n"
+            "- Do not ask for information the document already clearly establishes.\n"
+            "- Prefer single_choice or multi_choice. Use free_text only when clickable "
+            "options are not enough.\n"
+            "- Options must be mutually understandable and concise.\n"
+            "- Questions must be specific to this document and its actual uncertainties.\n"
+            "- Do not assume the document is legal, a contract, or any other specific "
+            "genre. document_type is only a short descriptive label, not a switch "
+            "into a template.\n"
+            "- question id and option value: short machine-readable slugs "
+            "(a-z, 0-9, underscore), unique within the interview.\n"
+            "- required=true only when the answer is needed for a meaningful review.\n"
+            "- rationale explains why the answer changes the analysis.\n\n"
+            "Return document_type and questions."
+        ),
+    ),
+    _f(
         "expertgranskning.word.structured_retry",
         "panel",
         "Word — ogiltig JSON, försök igen",

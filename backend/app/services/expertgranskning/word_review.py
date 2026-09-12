@@ -31,6 +31,10 @@ from app.services.expertgranskning.comment_convergence import (
     consolidated_from_observation,
     format_observations_for_prompt,
 )
+from app.services.expertgranskning.intent_interview import (
+    compose_expert_review_context,
+    compose_intent_prefix,
+)
 from app.services.expertgranskning.schemas import (
     ExpertgranskningWordJobRequest,
     WordBatchModeration,
@@ -60,10 +64,6 @@ from app.services.word.tasks import (
     selection_target_indexes,
 )
 from app.services.panel.expert_slots import load_expert_slots_from_population
-from app.services.panel.review_intent import (
-    compose_brief_with_review_intent,
-    render_review_intent_message,
-)
 from app.services.panel.schemas import PanelExpertSlot
 from app.services.prompt_catalog import render_prompt
 from app.services.prompt_store import require_active_prompts
@@ -1059,12 +1059,19 @@ async def run_word_paragraph_review(
     require_review_panel_task(payload.task)
     target = selection_target_indexes(payload.task)
     slots = await load_expert_slots_from_population(session, payload.panel_id)
-    brief = compose_brief_with_review_intent(
+    brief = compose_expert_review_context(
         prompts,
         brief=_document_brief(payload),
+        interview=payload.intent_interview,
+        answers=payload.intent_answers,
         review_intent=payload.review_intent,
     )
-    review_intent = render_review_intent_message(prompts, payload.review_intent)
+    review_intent = compose_intent_prefix(
+        prompts,
+        interview=payload.intent_interview,
+        answers=payload.intent_answers,
+        review_intent=payload.review_intent,
+    )
     timings = WordReviewTimings()
     limiter = WordReviewLimiter(settings.word_review_max_concurrency, timings)
     sections_total = len(payload.sections)

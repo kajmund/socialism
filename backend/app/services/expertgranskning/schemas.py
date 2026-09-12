@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+import re
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.schemas.domain import ConfigurationLanguage
 from app.services.panel.schemas import PanelSessionStatus
@@ -16,6 +19,17 @@ WORD_MAX_HEADING_LEN = 4_000
 WORD_MAX_STYLE_LEN = 128
 WORD_MAX_PARAGRAPH_LEN = 20_000
 WORD_MAX_DOCUMENT_CHARS = 200_000
+
+INTENT_MAX_QUESTIONS = 5
+INTENT_MAX_OPTIONS = 8
+INTENT_MAX_DOCUMENT_TYPE_LEN = 200
+INTENT_MAX_QUESTION_LEN = 500
+INTENT_MAX_RATIONALE_LEN = 800
+INTENT_MAX_OPTION_LABEL_LEN = 200
+INTENT_MAX_FREE_TEXT_LEN = 2_000
+INTENT_QUESTION_TYPES = ("single_choice", "multi_choice", "free_text")
+IntentQuestionType = Literal["single_choice", "multi_choice", "free_text"]
+INTENT_ID_RE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 
 
 class ExpertgranskningSessionCreate(BaseModel):
@@ -167,11 +181,224 @@ def _bound_word_sections(sections: list[WordDocumentSection]) -> None:
         )
 
 
+def _require_intent_id(value: object, *, label: str) -> str:
+    text = "" if value is None else str(value).strip()
+    if not INTENT_ID_RE.fullmatch(text):
+        raise ValueError(f"{label} must be a machine-readable slug")
+    return text
+
+
+class IntentOption(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    value: str = Field(max_length=64)
+    label: str = Field(max_length=INTENT_MAX_OPTION_LABEL_LEN)
+
+    @field_validator("value")
+    @classmethod
+    def validate_value(cls, value: object) -> str:
+        return _require_intent_id(value, label="option value")
+
+    @field_validator("label", mode="before")
+    @classmethod
+    def strip_label(cls, value: object) -> str:
+        if value is None:
+            return ""
+        return str(value).strip()
+
+    @field_validator("label")
+    @classmethod
+    def require_label(cls, value: str) -> str:
+        if not value:
+            raise ValueError("option label is required")
+        return value
+
+
+class IntentQuestion(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(max_length=64)
+    text: str = Field(max_length=INTENT_MAX_QUESTION_LEN)
+    type: IntentQuestionType
+    options: list[IntentOption] = Field(default_factory=list, max_length=INTENT_MAX_OPTIONS)
+    required: bool = True
+    rationale: str = Field(max_length=INTENT_MAX_RATIONALE_LEN)
+
+    @field_validator("id")
+    @classmethod
+    def validate_id(cls, value: object) -> str:
+        return _require_intent_id(value, label="question id")
+
+    @field_validator("text", "rationale", mode="before")
+    @classmethod
+    def strip_text(cls, value: object) -> str:
+        if value is None:
+            return ""
+        return str(value).strip()
+
+    @field_validator("text")
+    @classmethod
+    def require_text(cls, value: str) -> str:
+        if not value:
+            raise ValueError("question text is required")
+        return value
+
+    @field_validator("rationale")
+    @classmethod
+    def require_rationale(cls, value: str) -> str:
+        if not value:
+            raise ValueError("question rationale is required")
+        return value
+
+    @model_validator(mode="after")
+    def validate_options_for_type(self) -> IntentQuestion:
+        values = [option.value for option in self.options]
+        if len(values) != len(set(values)):
+            raise ValueError("option values must be unique")
+        if self.type == "free_text":
+            if self.options:
+                raise ValueError("free_text questions cannot have options")
+            return self
+        if self.type in {"single_choice", "multi_choice"}:
+            if len(self.options) < 2:
+                raise ValueError("choice questions need at least two options")
+            return self
+        raise ValueError(f"unknown question type: {self.type}")
+
+
+class DocumentIntentInterview(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    document_type: str = Field(max_length=INTENT_MAX_DOCUMENT_TYPE_LEN)
+    questions: list[IntentQuestion] = Field(
+        default_factory=list,
+        max_length=INTENT_MAX_QUESTIONS,
+    )
+
+    @field_validator("document_type", mode="before")
+    @classmethod
+    def strip_document_type(cls, value: object) -> str:
+        if value is None:
+            return ""
+        return str(value).strip()
+
+    @field_validator("document_type")
+    @classmethod
+    def require_document_type(cls, value: str) -> str:
+        if not value:
+            raise ValueError("document_type is required")
+        return value
+
+    @model_validator(mode="after")
+    def unique_question_ids(self) -> DocumentIntentInterview:
+        ids = [question.id for question in self.questions]
+        if len(ids) != len(set(ids)):
+            raise ValueError("question ids must be unique")
+        return self
+
+
+class IntentAnswer(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    question_id: str = Field(max_length=64)
+    selected_values: list[str] = Field(default_factory=list, max_length=INTENT_MAX_OPTIONS)
+    free_text: str | None = Field(default=None, max_length=INTENT_MAX_FREE_TEXT_LEN)
+
+    @field_validator("question_id")
+    @classmethod
+    def validate_question_id(cls, value: object) -> str:
+        return _require_intent_id(value, label="question_id")
+
+    @field_validator("selected_values", mode="before")
+    @classmethod
+    def strip_selected_values(cls, value: object) -> object:
+        if not isinstance(value, list):
+            return value
+        return [str(item).strip() for item in value if str(item).strip()]
+
+    @field_validator("free_text", mode="before")
+    @classmethod
+    def empty_free_text(cls, value: object) -> str | None:
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None
+
+
+def validate_intent_answers(
+    interview: DocumentIntentInterview | None,
+    answers: list[IntentAnswer],
+) -> None:
+    if interview is None:
+        if answers:
+            raise ValueError("intent_answers require intent_interview")
+        return
+    by_id = {question.id: question for question in interview.questions}
+    seen: set[str] = set()
+    for answer in answers:
+        if answer.question_id in seen:
+            raise ValueError(f"duplicate answer for {answer.question_id}")
+        seen.add(answer.question_id)
+        question = by_id.get(answer.question_id)
+        if question is None:
+            raise ValueError(f"unknown question_id: {answer.question_id}")
+        _validate_one_intent_answer(question, answer)
+    missing = [
+        question.id
+        for question in interview.questions
+        if question.required and question.id not in seen
+    ]
+    if missing:
+        raise ValueError(f"missing answers for required questions: {', '.join(missing)}")
+
+
+def _validate_one_intent_answer(question: IntentQuestion, answer: IntentAnswer) -> None:
+    allowed = {option.value for option in question.options}
+    if question.type == "single_choice":
+        if answer.free_text is not None:
+            raise ValueError(f"{question.id} cannot include free_text")
+        if len(answer.selected_values) != 1:
+            raise ValueError(f"{question.id} requires exactly one selected value")
+        if answer.selected_values[0] not in allowed:
+            raise ValueError(f"{question.id} selected an unknown option")
+        return
+    if question.type == "multi_choice":
+        if answer.free_text is not None:
+            raise ValueError(f"{question.id} cannot include free_text")
+        if not answer.selected_values:
+            raise ValueError(f"{question.id} requires at least one selected value")
+        if len(answer.selected_values) != len(set(answer.selected_values)):
+            raise ValueError(f"{question.id} selected values must be unique")
+        unknown = [value for value in answer.selected_values if value not in allowed]
+        if unknown:
+            raise ValueError(f"{question.id} selected unknown options")
+        return
+    if question.type == "free_text":
+        if answer.selected_values:
+            raise ValueError(f"{question.id} cannot include selected_values")
+        if question.required and not (answer.free_text or "").strip():
+            raise ValueError(f"{question.id} requires free_text")
+        return
+    raise ValueError(f"unknown question type: {question.type}")
+
+
+class ExpertgranskningIntentInterviewCreate(BaseModel):
+    sections: list[WordDocumentSection] = Field(min_length=1, max_length=WORD_MAX_SECTIONS)
+    locale: ConfigurationLanguage = "sv"
+
+    @model_validator(mode="after")
+    def bound_document(self) -> ExpertgranskningIntentInterviewCreate:
+        _bound_word_sections(self.sections)
+        return self
+
+
 class ExpertgranskningWordJobCreate(BaseModel):
     task: WordTask
     doc_id: str | None = Field(default=None, max_length=128)
     word_session_id: str | None = Field(default=None, max_length=64)
     review_intent: str = Field(default="", max_length=8_000)
+    intent_interview: DocumentIntentInterview | None = None
+    intent_answers: list[IntentAnswer] = Field(default_factory=list)
     sections: list[WordDocumentSection] = Field(min_length=1, max_length=WORD_MAX_SECTIONS)
     locale: ConfigurationLanguage = "sv"
 
@@ -194,6 +421,7 @@ class ExpertgranskningWordJobCreate(BaseModel):
     def bound_document_and_task(self) -> ExpertgranskningWordJobCreate:
         _bound_word_sections(self.sections)
         validate_word_task_against_sections(self.task, self.sections)
+        validate_intent_answers(self.intent_interview, self.intent_answers)
         return self
 
 
@@ -205,6 +433,8 @@ class ExpertgranskningWordJobRequest(BaseModel):
     doc_id: str | None = Field(default=None, max_length=128)
     word_session_id: str | None = Field(default=None, max_length=64)
     review_intent: str = Field(default="", max_length=8_000)
+    intent_interview: DocumentIntentInterview | None = None
+    intent_answers: list[IntentAnswer] = Field(default_factory=list)
     locale: ConfigurationLanguage = "sv"
     task: WordTask
     sections: list[WordDocumentSection] = Field(min_length=1, max_length=WORD_MAX_SECTIONS)
@@ -228,6 +458,7 @@ class ExpertgranskningWordJobRequest(BaseModel):
     def bound_document_and_task(self) -> ExpertgranskningWordJobRequest:
         _bound_word_sections(self.sections)
         validate_word_task_against_sections(self.task, self.sections)
+        validate_intent_answers(self.intent_interview, self.intent_answers)
         return self
 
     @property
