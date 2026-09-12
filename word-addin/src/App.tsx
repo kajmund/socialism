@@ -19,6 +19,7 @@ import {
   newReviewBlock,
   sortedWordActions,
   upsertWordActions,
+  type UnresolvedReason,
 } from "@/lib/actionQueue"
 import { applyPendingAction } from "@/lib/applyAction"
 import { ApiError } from "@/lib/http"
@@ -30,8 +31,10 @@ import {
   paragraphStatesFromSnapshot,
   readDocumentParagraphs,
   resolveComment,
+  selectAndRevealAnchor,
   WORD_SESSION_ID,
 } from "@/lib/office"
+import { navigateToActionAnchor } from "@/lib/navigateAction"
 import { resolveWordAnchor } from "@/lib/word/anchors"
 import { executeWordAction } from "@/lib/word/executeWordAction"
 import { clearStoredToken, getStoredToken, saveStoredToken } from "@/lib/tokenStorage"
@@ -101,6 +104,10 @@ export function App() {
     () => new Map(),
   )
   const [inFlightIds, setInFlightIds] = useState<Set<string>>(() => new Set())
+  const [selectedActionId, setSelectedActionId] = useState<string | null>(null)
+  const [locationErrors, setLocationErrors] = useState<Map<string, UnresolvedReason>>(
+    () => new Map(),
+  )
   const [inWord, setInWord] = useState(false)
   const socketRef = useRef<{ close: () => void } | null>(null)
   const watchJobId = useRef<string | null>(null)
@@ -116,7 +123,18 @@ export function App() {
   function resetQueue() {
     setActionsById(new Map())
     setInFlightIds(new Set())
+    setSelectedActionId(null)
+    setLocationErrors(new Map())
     setProgress(null)
+  }
+
+  function noteLocationError(actionId: string, reason: UnresolvedReason | null) {
+    setLocationErrors((current) => {
+      const next = new Map(current)
+      if (reason) next.set(actionId, reason)
+      else next.delete(actionId)
+      return next
+    })
   }
 
   function setBusy(actionId: string, busy: boolean) {
@@ -293,6 +311,27 @@ export function App() {
           return _exhaustive
         }
       }
+    }
+  }
+
+  async function handleSelect(action: WordAction) {
+    setSelectedActionId(action.id)
+    setError("")
+    try {
+      const resolution = await navigateToActionAnchor(action, {
+        readParagraphs: readDocumentParagraphs,
+        paragraphStates: paragraphStatesFromSnapshot,
+        resolveAnchor: resolveWordAnchor,
+        wordSessionId: WORD_SESSION_ID,
+        revealAnchor: selectAndRevealAnchor,
+      })
+      if (resolution.status === "resolved") {
+        noteLocationError(action.id, null)
+        return
+      }
+      noteLocationError(action.id, resolution.status)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
     }
   }
 
@@ -746,6 +785,9 @@ export function App() {
                 key={action.id}
                 action={action}
                 busy={inFlightIds.has(action.id)}
+                selected={selectedActionId === action.id}
+                locationError={locationErrors.get(action.id) ?? null}
+                onSelect={(row) => void handleSelect(row)}
                 onApply={(row) => void handleApply(row)}
                 onDismiss={(row) => void handleDismiss(row)}
                 t={t}

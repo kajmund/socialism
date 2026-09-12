@@ -62,10 +62,11 @@ def expert_review_word_action_spec(
     )
     if not content:
         return None
+    explanation = (row.explanation or "").strip() or None
     return MaterializedWordAction(
         action_type="comment",
         content=content,
-        explanation=None,
+        explanation=explanation,
     )
 
 
