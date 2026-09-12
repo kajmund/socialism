@@ -35,6 +35,11 @@ import { executeWordAction } from "@/lib/word/executeWordAction"
 import { clearStoredToken, getStoredToken, saveStoredToken } from "@/lib/tokenStorage"
 import { finishedJobView, planReviewStart } from "@/lib/resume"
 import { buildSections } from "@/lib/sections"
+import {
+  NoWordParagraphsError,
+  NoWordSectionsError,
+  startNewWordReview,
+} from "@/lib/startReview"
 import { connectExpertgranskningWatch } from "@/lib/socket"
 import type { ExpertPanelSummary, WordAction, WordTaskScopeType } from "@/lib/types"
 import { actionsForWatchEvent, isWatchEvent } from "@/lib/watch"
@@ -332,55 +337,54 @@ export function App() {
         }
       }
 
-      for (const commentId of plan.resolveCommentIds) {
-        try {
-          await resolveComment(commentId)
-        } catch {
-          // Already resolved or missing in this document.
-        }
-      }
-
-      let snapshot
       try {
-        snapshot = await captureWordTaskSnapshot(taskScope)
+        const jobId = await startNewWordReview({
+          captureSnapshot: () => captureWordTaskSnapshot(taskScope),
+          buildSections,
+          createJob: ({ snapshot, sections }) =>
+            createWordJob(token, {
+              task: createWordTask({
+                panelId: Number(panelId),
+                scope: snapshot.scope,
+              }),
+              doc_id: docId,
+              word_session_id: WORD_SESSION_ID,
+              sections,
+              locale: locale === "en" ? "en" : "sv",
+              review_intent: reviewIntent.trim(),
+            }),
+          async resolvePreviousComments() {
+            for (const commentId of plan.resolveCommentIds) {
+              try {
+                await resolveComment(commentId)
+              } catch {
+                // Already resolved or missing in this document.
+              }
+            }
+          },
+        })
+        attachWatch(jobId, "new")
       } catch (err) {
-        setPhase("idle")
         if (err instanceof EmptyWordSelectionError) {
+          setPhase("idle")
           setError(t("emptySelection"))
           return
         }
         if (err instanceof UnresolvedWordSelectionError) {
+          setPhase("idle")
           setError(t("unresolvedSelection"))
           return
         }
-        throw err
-      }
-      if (snapshot.paragraphs.length === 0) {
-        setPhase("idle")
-        setError(t("noParagraphs"))
-        return
-      }
-      const sections = buildSections(snapshot.paragraphs)
-      if (sections.length === 0) {
-        setPhase("idle")
-        setError(t("noSections"))
-        return
-      }
-
-      try {
-        const jobId = await createWordJob(token, {
-          task: createWordTask({
-            panelId: Number(panelId),
-            scope: snapshot.scope,
-          }),
-          doc_id: docId,
-          word_session_id: WORD_SESSION_ID,
-          sections,
-          locale: locale === "en" ? "en" : "sv",
-          review_intent: reviewIntent.trim(),
-        })
-        attachWatch(jobId, "new")
-      } catch (err) {
+        if (err instanceof NoWordParagraphsError) {
+          setPhase("idle")
+          setError(t("noParagraphs"))
+          return
+        }
+        if (err instanceof NoWordSectionsError) {
+          setPhase("idle")
+          setError(t("noSections"))
+          return
+        }
         if (err instanceof ApiError && err.status === 409) {
           const again = await getLatestWordJob(token, docId)
           const retry = planReviewStart(again)
