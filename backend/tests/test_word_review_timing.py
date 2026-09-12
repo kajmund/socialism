@@ -60,7 +60,7 @@ def test_llm_call_summary_logs_counts_without_document_text(caplog):
     timings.record_structured_retry()
     timings.end_call("comment_convergence", started)
     snapshot = timings.snapshot()
-    with caplog.at_level("INFO"):
+    with caplog.at_level("INFO", logger="app.services.expertgranskning.word_review"):
         log_word_review_call_summary("job_secret", snapshot, outcome="failed")
     messages = [record.getMessage() for record in caplog.records]
     assert len([item for item in messages if "Word review LLM calls" in item]) == 1
