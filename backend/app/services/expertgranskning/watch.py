@@ -114,6 +114,25 @@ async def publish_action_updated(row: WordAction) -> None:
     )
 
 
+async def publish_review_progress(
+    job_id: str,
+    *,
+    sections_completed: int,
+    sections_total: int,
+    actions_created: int,
+) -> None:
+    await expertgranskning_broadcast.publish(
+        job_id,
+        {
+            "type": "expertgranskning.progress",
+            "job_id": job_id,
+            "sections_completed": sections_completed,
+            "sections_total": sections_total,
+            "actions_created": actions_created,
+        },
+    )
+
+
 async def publish_expertgranskning_finished(
     job_id: str,
     *,
@@ -141,6 +160,7 @@ __all__ = [
     "publish_action_created",
     "publish_action_updated",
     "publish_expertgranskning_finished",
+    "publish_review_progress",
     "serialize_result",
     "serialize_word_action",
 ]
