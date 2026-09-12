@@ -68,7 +68,8 @@ from app.services.kund_store import bolag_demo_customer_id, default_os_customer_
 from app.services.object_storage import KIND_UNDERLAG
 from app.services.panel.catalog_schemas import ExpertSuggestIn
 from app.services.prompt_store import require_active_prompts, require_prompts_for_persona
-from app.services.stored_objects import get_stored_object
+from app.services.stored_objects import get_stored_object, read_stored_bytes
+from app.services.underlag_extract import ensure_underlag_extracted
 
 router = APIRouter(prefix="/personas", tags=["personas"])
 
@@ -84,18 +85,17 @@ def _own_underlag(row: StoredObject | None, *, customer_id: int, user_id: str) -
     return row
 
 
-def _underlag_text_for_suggest(row: StoredObject, *, module: str) -> str:
+async def _underlag_text_for_suggest(session: AsyncSession, row: StoredObject, *, module: str) -> str:
     if row.module != module:
         raise HTTPException(status_code=400, detail="Underlag module does not match")
-    if row.extraction_status != "ok":
-        raise HTTPException(
-            status_code=400,
-            detail=f"Underlag extraction status is {row.extraction_status!r}",
+    try:
+        return await ensure_underlag_extracted(
+            session,
+            row,
+            read_bytes=read_stored_bytes,
         )
-    text = (row.extracted_text or "").strip()
-    if not text:
-        raise HTTPException(status_code=400, detail="Underlag has no extracted text")
-    return text
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 async def _population_names_for_persona(
@@ -273,7 +273,15 @@ async def suggest_experts_from_underlag(
         customer_id=customer_id,
         user_id=user.id,
     )
-    text = _underlag_text_for_suggest(row, module=body.module)
+    try:
+        text = await _underlag_text_for_suggest(session, row, module=body.module)
+    except HTTPException:
+        # Persist failed/empty extraction status written by ensure_underlag_extracted.
+        await session.commit()
+        raise
+    # Persist deferred extraction before the LLM call so a later failure still
+    # leaves the underlag extracted for the next attempt.
+    await session.commit()
     try:
         return await llm_experts_from_underlag(
             text,

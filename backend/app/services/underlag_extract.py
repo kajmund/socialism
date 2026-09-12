@@ -1,4 +1,8 @@
-"""Extract text from personal underlag uploads (txt/md/pdf/docx)."""
+"""Extract text from personal underlag uploads (txt/md/pdf/docx).
+
+Extraction is deferred until experts need the text (panel run / suggest).
+Upload only stores the original file (Word is converted to PDF first).
+"""
 
 from __future__ import annotations
 
@@ -7,10 +11,12 @@ from typing import Literal
 
 import mammoth
 import pdfplumber
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.database.models import StoredObject
 from app.services.object_storage import UNDERLAG_DOCX_TYPE
 
-ExtractionStatus = Literal["ok", "failed", "empty", "unsupported"]
+ExtractionStatus = Literal["pending", "ok", "failed", "empty", "unsupported"]
 
 
 def extract_underlag_text(content_type: str, data: bytes) -> tuple[str | None, ExtractionStatus]:
@@ -21,6 +27,29 @@ def extract_underlag_text(content_type: str, data: bytes) -> tuple[str | None, E
     if content_type == UNDERLAG_DOCX_TYPE:
         return _finish(_extract_docx(data))
     return None, "unsupported"
+
+
+async def ensure_underlag_extracted(
+    session: AsyncSession,
+    row: StoredObject,
+    *,
+    read_bytes,
+) -> str:
+    """Extract and persist text if needed. Returns non-empty extracted text or raises."""
+    if row.extraction_status == "ok" and (row.extracted_text or "").strip():
+        return (row.extracted_text or "").strip()
+
+    data, content_type = await read_bytes(row)
+    extracted, status = extract_underlag_text(content_type, data)
+    if status != "ok":
+        extracted = None
+    row.extracted_text = extracted
+    row.extraction_status = status
+    await session.flush()
+    text = (extracted or "").strip()
+    if status != "ok" or not text:
+        raise ValueError(f"Underlag extraction status is {status!r}")
+    return text
 
 
 def _finish(text: str | None) -> tuple[str | None, ExtractionStatus]:

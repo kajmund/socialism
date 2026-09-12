@@ -17,6 +17,7 @@ from app.services.panel.result import (
     PanelResult,
     UnansweredItem,
 )
+from app.services.panel.review_intent import session_brief_for_llm
 from app.services.panel.schemas import PanelSessionConfig, PanelTurn
 from app.services.prompt_catalog import render_prompt
 
@@ -245,7 +246,7 @@ async def synthesize_generic_panel_result(
     allowed_evidence_refs: frozenset[str] | None = None,
     competency: CompetencyState | None = None,
 ) -> PanelResult:
-    brief = (config.brief or "").strip()
+    brief = session_brief_for_llm(config, prompts)
     messages = [{"role": "system", "content": render_prompt(prompts, "panel.moderator.system")}]
     if brief:
         messages.append({"role": "system", "content": brief})

@@ -116,6 +116,8 @@ def mock_panel_llm():
 
 
 async def _create_expert_panel(client: AsyncClient) -> int:
+    from tests.conftest import BOLAG_USER_ID, mint_access_token
+
     listed = await client.get("/kunder")
     assert listed.status_code == 200
     bolag_id = next(row["id"] for row in listed.json() if row["slug"] == BOLAG_DEMO_KUND_SLUG)
@@ -123,15 +125,25 @@ async def _create_expert_panel(client: AsyncClient) -> int:
     assert experts.status_code == 200
     expert_ids = [row["id"] for row in experts.json()[:2]]
     assert len(expert_ids) >= 2
-    created = await client.post(
-        "/populations",
-        json={
-            "kind": "expert_panel",
-            "name": "Expertgranskning testpanel",
-            "include_persona_ids": expert_ids,
-            "recipe": {"size": len(expert_ids), "dist": {}},
-        },
+    admin_auth = client.headers.get("Authorization")
+    client.headers["Authorization"] = (
+        f"Bearer {mint_access_token(sub=BOLAG_USER_ID, email='bolag@test.local')}"
     )
+    try:
+        created = await client.post(
+            "/populations",
+            json={
+                "kind": "expert_panel",
+                "name": "Expertgranskning testpanel",
+                "include_persona_ids": expert_ids,
+                "recipe": {"size": len(expert_ids), "dist": {}},
+            },
+        )
+    finally:
+        if admin_auth is not None:
+            client.headers["Authorization"] = admin_auth
+        else:
+            client.headers.pop("Authorization", None)
     assert created.status_code == 201, created.text
     return created.json()["id"]
 
@@ -150,6 +162,7 @@ async def test_expertgranskning_session_report_and_spindoctor(
             "document_text": document,
             "panel_id": panel_id,
             "title": "Höstens kampanjlinje",
+            "review_intent": "Det är Devbrains som är motpart i avtalet.",
         },
     )
     assert created.status_code == 201, created.text
@@ -160,6 +173,7 @@ async def test_expertgranskning_session_report_and_spindoctor(
     assert body["document_text"] == document
     assert body["panel_id"] == panel_id
     assert body["topic"] == "Höstens kampanjlinje"
+    assert body["review_intent"] == "Det är Devbrains som är motpart i avtalet."
 
     done = asyncio.Event()
 
@@ -197,7 +211,10 @@ async def test_expertgranskning_session_report_and_spindoctor(
         html = generated.html_path.read_text(encoding="utf-8")
         assert generated.html_path.is_file()
         assert "Höstens kampanjlinje" in html
-        assert document in html
+        assert document not in html
+        assert 'id="dokument"' not in html
+        assert "Devbrains" in html
+        assert "Granskningsavsikt" in html
         assert "EXPERTGRANSKNING" in html
         payload_path = tmp_path / "rpt_expertgranskning" / "report.expertgranskning.json"
         assert payload_path.is_file()
@@ -458,11 +475,16 @@ async def test_expertgranskning_list_patch_delete(client: AsyncClient):
 
     patched = await client.patch(
         f"/expertgranskning/sessions/{session_id}",
-        json={"document_text": "Uppdaterad text", "title": "Nytt namn"},
+        json={
+            "document_text": "Uppdaterad text",
+            "title": "Nytt namn",
+            "review_intent": "Devbrains är motpart i avtalet.",
+        },
     )
     assert patched.status_code == 200, patched.text
     assert patched.json()["document_text"] == "Uppdaterad text"
     assert patched.json()["topic"] == "Nytt namn"
+    assert patched.json()["review_intent"] == "Devbrains är motpart i avtalet."
 
     deleted = await client.delete(f"/expertgranskning/sessions/{session_id}")
     assert deleted.status_code == 204
@@ -470,6 +492,167 @@ async def test_expertgranskning_list_patch_delete(client: AsyncClient):
     assert gone.status_code == 404
     listed_after = await client.get("/expertgranskning/sessions")
     assert all(row["id"] != session_id for row in listed_after.json())
+
+
+@pytest.mark.asyncio
+async def test_admin_with_kund_keeps_underlag_and_panel_on_same_kund(client_db):
+    """Admin bound to a kund must not attach underlag to another kund's panel."""
+    from app.database.models import UserAccount
+    from tests.conftest import ADMIN_USER_ID
+
+    client, factory = client_db
+    listed = await client.get("/kunder")
+    assert listed.status_code == 200
+    kunder = {row["slug"]: row["id"] for row in listed.json()}
+    os_id = kunder[OS_DEFAULT_KUND_SLUG]
+
+    async with factory() as db:
+        admin = await db.get(UserAccount, ADMIN_USER_ID)
+        assert admin is not None
+        admin.kund_id = os_id
+        await db.commit()
+
+    os_expert = await client.post(
+        "/personas",
+        json={
+            "kind": "expert",
+            "customer_id": os_id,
+            "name": "OS-expert underlag-kund",
+            "occ": "Jurist",
+            "district": "—",
+            "quote": "Granskar text.",
+        },
+    )
+    assert os_expert.status_code == 201, os_expert.text
+    os_panel = await client.post(
+        "/populations",
+        json={
+            "kind": "expert_panel",
+            "name": "OS underlag-panel",
+            "include_persona_ids": [os_expert.json()["id"]],
+            "recipe": {"size": 1, "dist": {}},
+        },
+    )
+    assert os_panel.status_code == 201, os_panel.text
+
+    bolag_panel_id = await _create_expert_panel(client)
+
+    uploaded = await client.post(
+        "/underlag",
+        params={"module": "expertgranskning"},
+        files={"file": ("avtal.pdf", b"%PDF-1.4 underlag-kund-test", "application/pdf")},
+    )
+    assert uploaded.status_code == 201, uploaded.text
+    underlag_id = uploaded.json()["id"]
+
+    denied = await client.post(
+        "/expertgranskning/sessions",
+        json={
+            "document_text": "",
+            "underlag_id": underlag_id,
+            "panel_id": bolag_panel_id,
+            "title": "Fel kund",
+        },
+    )
+    assert denied.status_code == 403, denied.text
+    assert denied.json()["detail"] == "kund_access_denied"
+
+    created = await client.post(
+        "/expertgranskning/sessions",
+        json={
+            "document_text": "",
+            "underlag_id": underlag_id,
+            "panel_id": os_panel.json()["id"],
+            "title": "Rätt kund",
+        },
+    )
+    assert created.status_code == 201, created.text
+    assert created.json()["underlag_id"] == underlag_id
+
+    async with factory() as db:
+        admin = await db.get(UserAccount, ADMIN_USER_ID)
+        assert admin is not None
+        admin.kund_id = None
+        await db.commit()
+
+
+@pytest.mark.asyncio
+async def test_expertgranskning_report_writes_source_pdf_creating_out_dir(
+    client_db, tmp_path, monkeypatch
+):
+    """source.pdf must be writable even when report out_dir does not exist yet."""
+    from types import SimpleNamespace
+
+    from app.modules.report_binding import ReportGenerateContext
+    from app.services.expertgranskning.module_report import (
+        generate_expertgranskning_module_report,
+    )
+    from app.services.object_storage import KIND_UNDERLAG
+
+    _client, factory = client_db
+    out_dir = tmp_path / "rpt_pdf_underlag"
+    assert not out_dir.exists()
+
+    panel = SimpleNamespace(
+        status="succeeded",
+        result={"summary": "Ok"},
+        config={
+            "module": MODULE_ID,
+            "brief": "Extraherad text",
+            "review_intent": "",
+            "underlag_id": "underlag-pdf-1",
+            "topic": "PDF-test",
+        },
+        transcript=[],
+        analysis="Ok",
+        panel_id=1,
+    )
+    underlag = SimpleNamespace(
+        kind=KIND_UNDERLAG,
+        content_type="application/pdf",
+    )
+
+    async def _get_panel(_session, _session_id):
+        return panel
+
+    async def _get_stored(_session, _object_id):
+        return underlag
+
+    async def _read_bytes(_row):
+        return b"%PDF-1.4 test-source", "application/pdf"
+
+    monkeypatch.setattr(
+        "app.services.expertgranskning.module_report.get_panel_session",
+        _get_panel,
+    )
+    monkeypatch.setattr(
+        "app.services.expertgranskning.module_report.is_expertgranskning_session",
+        lambda _row: True,
+    )
+    monkeypatch.setattr(
+        "app.services.expertgranskning.module_report.get_stored_object",
+        _get_stored,
+    )
+    monkeypatch.setattr(
+        "app.services.expertgranskning.module_report.read_stored_bytes",
+        _read_bytes,
+    )
+
+    result = await generate_expertgranskning_module_report(
+        ReportGenerateContext(
+            report_id="rpt_pdf_underlag",
+            title="PDF-test",
+            locale="sv",
+            sources=[{"type": SOURCE_TYPE, "session_id": "panel_x"}],
+            mode=REPORT_MODE,
+            out_dir=out_dir,
+            session_factory=factory,
+        )
+    )
+    source_pdf = out_dir / "source.pdf"
+    assert source_pdf.is_file()
+    assert source_pdf.read_bytes().startswith(b"%PDF")
+    assert result.html_path.is_file()
 
 
 @pytest.mark.asyncio

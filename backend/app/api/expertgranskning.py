@@ -249,6 +249,7 @@ async def post_expertgranskning_word_job(
         owner_user_id=user.id,
         doc_id=body.doc_id,
         word_session_id=body.word_session_id,
+        review_intent=body.review_intent,
         sections=body.sections,
         locale=body.locale,
     )

@@ -77,6 +77,8 @@ class Settings(BaseSettings):
     supabase_s3_access_key_id: str = ""
     supabase_s3_secret_access_key: str = ""
     supabase_s3_region: str = ""
+    # LibreOffice binary for Word→PDF underlag conversion (empty = soffice/libreoffice on PATH).
+    libreoffice_bin: str = ""
 
     # none = status-only start; oasis = live CAMEL OASIS spike (optional dep group)
     simulation_engine: SimulationEngine = "none"

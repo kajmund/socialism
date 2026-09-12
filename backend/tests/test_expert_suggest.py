@@ -129,6 +129,11 @@ async def test_suggest_experts_returns_list_and_does_not_persist(client_db):
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert len(body) == DEFAULT_SUGGEST_COUNT
+    async with factory() as session:
+        row = await session.get(StoredObject, underlag_id)
+        assert row is not None
+        assert row.extraction_status == "ok"
+        assert (row.extracted_text or "").strip()
     assert body[0]["name"] == "Expert 1"
     assert body[0]["kompetensomrade"] == "Område 1"
     assert "id" not in body[0]
@@ -178,40 +183,47 @@ async def test_suggest_experts_other_owners_file_is_404(
 
 
 @pytest.mark.asyncio
-async def test_suggest_experts_failed_extraction_is_400(client_db):
+async def test_suggest_experts_failed_extraction_is_400(client_db, monkeypatch):
     client, factory = client_db
     underlag_id = await _upload_underlag(client)
-    async with factory() as session:
-        row = await session.get(StoredObject, underlag_id)
-        assert row is not None
-        row.extraction_status = "failed"
-        row.extracted_text = None
-        await session.commit()
+
+    async def boom(_row):
+        return b"%PDF-1.4 corrupt", "application/pdf"
+
+    monkeypatch.setattr(
+        "app.api.personas.read_stored_bytes",
+        boom,
+    )
 
     resp = await client.post(
         "/personas/suggest-from-underlag",
         json={"underlag_id": underlag_id, "module": "dd"},
     )
     assert resp.status_code == 400
-    assert "failed" in resp.json()["detail"]
+    detail = resp.json()["detail"].lower()
+    assert "failed" in detail or "extraction" in detail
 
 
 @pytest.mark.asyncio
-async def test_suggest_experts_empty_text_is_400(client_db):
+async def test_suggest_experts_empty_text_is_400(client_db, monkeypatch):
     client, factory = client_db
     underlag_id = await _upload_underlag(client)
-    async with factory() as session:
-        row = await session.get(StoredObject, underlag_id)
-        assert row is not None
-        row.extracted_text = "   "
-        await session.commit()
+
+    async def empty_bytes(_row):
+        return b"   \n", "text/plain"
+
+    monkeypatch.setattr(
+        "app.api.personas.read_stored_bytes",
+        empty_bytes,
+    )
 
     resp = await client.post(
         "/personas/suggest-from-underlag",
         json={"underlag_id": underlag_id, "module": "dd"},
     )
     assert resp.status_code == 400
-    assert "no extracted text" in resp.json()["detail"]
+    detail = resp.json()["detail"].lower()
+    assert "empty" in detail or "extraction" in detail
 
 
 @pytest.mark.asyncio

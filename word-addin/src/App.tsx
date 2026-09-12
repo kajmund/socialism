@@ -47,6 +47,7 @@ export function App() {
   const [tokenDraft, setTokenDraft] = useState("")
   const [panels, setPanels] = useState<ExpertPanelSummary[]>([])
   const [panelId, setPanelId] = useState("")
+  const [reviewIntent, setReviewIntent] = useState("")
   const [phase, setPhase] = useState<Phase>("idle")
   const [watchSource, setWatchSource] = useState<"new" | "resume">("new")
   const [error, setError] = useState("")
@@ -352,6 +353,7 @@ export function App() {
           word_session_id: WORD_SESSION_ID,
           sections,
           locale: locale === "en" ? "en" : "sv",
+          review_intent: reviewIntent.trim(),
         })
         attachWatch(jobId, "new")
       } catch (err) {
@@ -468,6 +470,20 @@ export function App() {
             ))}
           </select>
           {token && panels.length === 0 ? <p className="hint">{t("panelEmpty")}</p> : null}
+        </div>
+
+        <div className="field">
+          <label htmlFor="intent">{t("intentLabel")}</label>
+          <textarea
+            id="intent"
+            className="intent"
+            rows={4}
+            value={reviewIntent}
+            onChange={(event) => setReviewIntent(event.target.value)}
+            disabled={!token || phase === "running"}
+            placeholder={t("intentPlaceholder")}
+          />
+          <p className="hint">{t("intentHint")}</p>
         </div>
 
         <button

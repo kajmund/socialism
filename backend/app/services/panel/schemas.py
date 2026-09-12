@@ -43,6 +43,8 @@ class PanelSessionConfig(BaseModel):
     module: str | None = None
     topic: str = Field(min_length=1, max_length=4000)
     brief: str = ""
+    review_intent: str = Field(default="", max_length=8_000)
+    underlag_id: str | None = None
     expert_slots: list[PanelExpertSlot] = Field(default_factory=list, max_length=6)
     max_rounds: int = Field(default=2, ge=1, le=5)
     campaign_id: int | None = None
@@ -50,12 +52,20 @@ class PanelSessionConfig(BaseModel):
     candidate_id: str | None = None
     expert_role_keys: list[str] = Field(default_factory=list)
 
-    @field_validator("topic", "brief", mode="before")
+    @field_validator("topic", "brief", "review_intent", mode="before")
     @classmethod
     def strip_text(cls, value: Any) -> str:
         if value is None:
             return ""
         return str(value).strip()
+
+    @field_validator("underlag_id", mode="before")
+    @classmethod
+    def empty_underlag_id(cls, value: Any) -> str | None:
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None
 
     @model_validator(mode="after")
     def validate_protocol_fields(self) -> "PanelSessionConfig":

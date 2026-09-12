@@ -63,6 +63,7 @@ async function hydrateFromMe(base: AuthSession): Promise<AuthSession> {
       role: me.role,
       modules: me.available_modules,
       kundSlug: me.kund_slug,
+      kundId: me.kund_id,
     },
   }
 }

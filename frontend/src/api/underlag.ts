@@ -1,6 +1,11 @@
 import { api } from "@/lib/api"
 
-export type UnderlagExtractionStatus = "ok" | "failed" | "empty" | "unsupported"
+export type UnderlagExtractionStatus =
+  | "pending"
+  | "ok"
+  | "failed"
+  | "empty"
+  | "unsupported"
 
 export type UnderlagFile = {
   id: string
