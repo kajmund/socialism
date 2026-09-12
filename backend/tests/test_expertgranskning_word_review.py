@@ -40,7 +40,7 @@ from app.services.expertgranskning.schemas import (
     WordRewriteSuggestion,
     WordReviewQuestion,
 )
-from app.services.expertgranskning.watch import reviewed_text_from_job_request
+from app.services.word.anchors import reviewed_text_from_job_request
 from app.services.expertgranskning.word_review import (
     _comment_question,
     _document_brief,
@@ -759,6 +759,11 @@ def test_resolve_comment_anchor_uses_explicit_and_single_index():
 def test_word_alembic_chain_is_linear_after_main_head():
     cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     script = ScriptDirectory.from_config(cfg)
+    assert script.get_heads() == ["069_word_actions"]
+    actions = script.get_revision("069_word_actions")
+    assert actions.down_revision == "068_word_application_lifecycle"
+    lifecycle = script.get_revision("068_word_application_lifecycle")
+    assert lifecycle.down_revision == "067_researchplan_valid_proposals"
     retry = script.get_revision("065_word_comment_anchor_retry")
     assert retry.down_revision == "064_word_comment_convergence"
     convergence = script.get_revision("064_word_comment_convergence")
@@ -2262,13 +2267,23 @@ async def test_word_review_patch_comment_id(client: AsyncClient):
     )
     job_id = created.json()["job_id"]
     await jobs_service._run_job(job_id)
-    row_id = (await client.get(f"/expertgranskning/word-jobs/{job_id}/results")).json()[0]["id"]
-    patched = await client.patch(
-        f"/expertgranskning/word-jobs/{job_id}/results/{row_id}",
-        json={"comment_id": "w-1"},
+    listed = (await client.get(f"/expertgranskning/word-jobs/{job_id}/actions")).json()
+    assert listed[0]["anchor"]["paragraph_index"] == 1
+    assert listed[0]["anchor"]["reviewed_text"]
+    assert listed[0]["anchor"]["text_hash"]
+    row_id = listed[0]["id"]
+    claimed = await client.post(
+        f"/expertgranskning/word-jobs/{job_id}/actions/{row_id}/claim",
+        json={"application_id": "app-patch"},
     )
-    assert patched.status_code == 200
-    assert patched.json()["comment_id"] == "w-1"
+    assert claimed.status_code == 200
+    completed = await client.post(
+        f"/expertgranskning/word-jobs/{job_id}/actions/{row_id}/complete",
+        json={"application_id": "app-patch", "word_artifact_id": "w-1"},
+    )
+    assert completed.status_code == 200
+    assert completed.json()["word_artifact_id"] == "w-1"
+    assert completed.json()["status"] == "applied"
 
 
 @pytest.mark.asyncio

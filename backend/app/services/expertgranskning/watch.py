@@ -8,10 +8,11 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import ExpertgranskningResult, Job
+from app.database.models import ExpertgranskningResult, Job, WordAction
 from app.services.expertgranskning import WORD_JOB_KIND
 from app.realtime.expertgranskning_broadcast import expertgranskning_broadcast
 from app.services.expertgranskning.schemas import ExpertgranskningResultOut
+from app.services.word.actions import load_word_actions, serialize_word_action
 
 
 def _result_created_at(value: datetime | None) -> str:
@@ -22,32 +23,7 @@ def _result_created_at(value: datetime | None) -> str:
     return value.isoformat()
 
 
-def reviewed_text_from_job_request(
-    request: dict | None, paragraph_index: int
-) -> str | None:
-    if not request:
-        return None
-    heading_hit: str | None = None
-    for section in request.get("sections") or []:
-        if not isinstance(section, dict):
-            continue
-        for paragraph in section.get("paragraphs") or []:
-            if not isinstance(paragraph, dict):
-                continue
-            if paragraph.get("index") == paragraph_index:
-                text = paragraph.get("text")
-                return text if isinstance(text, str) else None
-        if section.get("heading_paragraph_index") == paragraph_index:
-            heading = section.get("heading")
-            if isinstance(heading, str):
-                heading_hit = heading
-    return heading_hit
-
-
-def serialize_result(
-    row: ExpertgranskningResult,
-    request: dict | None = None,
-) -> ExpertgranskningResultOut:
+def serialize_result(row: ExpertgranskningResult) -> ExpertgranskningResultOut:
     return ExpertgranskningResultOut(
         id=row.id,
         job_id=row.job_id,
@@ -60,24 +36,20 @@ def serialize_result(
         is_heading_suggestion=row.is_heading_suggestion,
         is_rewrite_suggestion=row.is_rewrite_suggestion,
         foreslagen_text=row.foreslagen_text,
-        reviewed_text=reviewed_text_from_job_request(request, row.paragraph_index),
-        comment_id=row.comment_id,
-        status=row.status,
         created_at=_result_created_at(row.created_at),
     )
 
 
 def build_expertgranskning_replay_payload(
     job: Job,
-    results: list[ExpertgranskningResult],
+    actions: list[WordAction],
 ) -> dict[str, Any]:
     return {
         "type": "expertgranskning.replay",
         "job_id": job.id,
         "status": job.status,
-        "results": [
-            serialize_result(row, request=job.request).model_dump(mode="json")
-            for row in results
+        "actions": [
+            serialize_word_action(row).model_dump(mode="json") for row in actions
         ],
     }
 
@@ -120,30 +92,24 @@ async def load_expertgranskning_results(
     return list(result.scalars().all())
 
 
-async def publish_result_created(
-    row: ExpertgranskningResult,
-    request: dict | None = None,
-) -> None:
+async def publish_action_created(row: WordAction) -> None:
     await expertgranskning_broadcast.publish(
         row.job_id,
         {
-            "type": "expertgranskning.result.created",
+            "type": "expertgranskning.action.created",
             "job_id": row.job_id,
-            "result": serialize_result(row, request=request).model_dump(mode="json"),
+            "action": serialize_word_action(row).model_dump(mode="json"),
         },
     )
 
 
-async def publish_result_updated(
-    row: ExpertgranskningResult,
-    request: dict | None = None,
-) -> None:
+async def publish_action_updated(row: WordAction) -> None:
     await expertgranskning_broadcast.publish(
         row.job_id,
         {
-            "type": "expertgranskning.result.updated",
+            "type": "expertgranskning.action.updated",
             "job_id": row.job_id,
-            "result": serialize_result(row, request=request).model_dump(mode="json"),
+            "action": serialize_word_action(row).model_dump(mode="json"),
         },
     )
 
@@ -165,3 +131,16 @@ async def publish_expertgranskning_finished(
     if stats is not None:
         payload["stats"] = stats
     await expertgranskning_broadcast.publish(job_id, payload)
+
+
+__all__ = [
+    "build_expertgranskning_replay_payload",
+    "find_latest_word_job_for_doc",
+    "load_expertgranskning_results",
+    "load_word_actions",
+    "publish_action_created",
+    "publish_action_updated",
+    "publish_expertgranskning_finished",
+    "serialize_result",
+    "serialize_word_action",
+]

@@ -1,28 +1,25 @@
 import { describe, expect, it } from "vitest"
 
-import type { LatestWordJob, ReviewResult } from "./types"
-import { isActiveWordJobStatus, planReviewStart } from "./resume"
+import type { LatestWordJob, WordAction } from "./types"
+import { finishedJobView, isActiveWordJobStatus, planReviewStart } from "./resume"
 
 function job(overrides: Partial<LatestWordJob> = {}): LatestWordJob {
   return {
     job_id: "job_1",
     status: "pending",
-    results: [],
+    actions: [],
     ...overrides,
   }
 }
 
-function result(overrides: Partial<ReviewResult> = {}): ReviewResult {
+function action(overrides: Partial<WordAction> = {}): WordAction {
   return {
-    id: "egr_1",
+    id: "wa_1",
     job_id: "job_1",
-    paragraph_index: 1,
-    expert_id: "slot_1",
-    expert_namn: "Anna",
-    kommentar: "Text",
-    is_heading_suggestion: false,
-    comment_id: "word-1",
-    status: "posted",
+    action_type: "comment",
+    content: "Text",
+    word_artifact_id: null,
+    status: "applied",
     ...overrides,
   }
 }
@@ -48,14 +45,44 @@ describe("planReviewStart", () => {
     })
   })
 
-  it("starts a new job after a finished run and lists comments to resolve", () => {
+  it("blocks a new review while pending or unresolved remain", () => {
     expect(
       planReviewStart(
         job({
           status: "succeeded",
-          results: [
-            result({ comment_id: "word-1" }),
-            result({ id: "egr_2", comment_id: null }),
+          actions: [action({ status: "pending" })],
+        }),
+      ),
+    ).toEqual({ action: "blockUndecided" })
+    expect(
+      planReviewStart(
+        job({
+          status: "succeeded",
+          actions: [action({ status: "unresolved" })],
+        }),
+      ),
+    ).toEqual({ action: "blockUndecided" })
+  })
+
+  it("blocks a new review while applying is uncertain", () => {
+    expect(
+      planReviewStart(
+        job({
+          status: "succeeded",
+          actions: [action({ status: "applying" })],
+        }),
+      ),
+    ).toEqual({ action: "blockApplying" })
+  })
+
+  it("starts a new job when every action is applied or dismissed", () => {
+    expect(
+      planReviewStart(
+        job({
+          status: "succeeded",
+          actions: [
+            action({ status: "applied", word_artifact_id: "word-1" }),
+            action({ id: "wa_2", status: "dismissed", word_artifact_id: null }),
           ],
         }),
       ),
@@ -67,5 +94,51 @@ describe("planReviewStart", () => {
       action: "startNew",
       resolveCommentIds: [],
     })
+  })
+})
+
+describe("finishedJobView", () => {
+  it("exposes pending unresolved applying and dismissed from a finished job", () => {
+    expect(
+      finishedJobView(
+        job({
+          status: "succeeded",
+          actions: [
+            action({ status: "applied", word_artifact_id: "word-1" }),
+            action({ id: "wa_2", status: "pending" }),
+            action({ id: "wa_3", status: "unresolved" }),
+            action({ id: "wa_4", status: "applying" }),
+            action({ id: "wa_5", status: "dismissed" }),
+          ],
+        }),
+      ),
+    ).toEqual({
+      jobId: "job_1",
+      phase: "done",
+      actions: [
+        action({ status: "applied", word_artifact_id: "word-1" }),
+        action({ id: "wa_2", status: "pending" }),
+        action({ id: "wa_3", status: "unresolved" }),
+        action({ id: "wa_4", status: "applying" }),
+        action({ id: "wa_5", status: "dismissed" }),
+      ],
+    })
+  })
+
+  it("marks a failed finished job without treating it as resume", () => {
+    expect(finishedJobView(job({ status: "failed" }))).toEqual({
+      jobId: "job_1",
+      phase: "failed",
+      actions: [],
+    })
+    expect(planReviewStart(job({ status: "failed" }))).toEqual({
+      action: "startNew",
+      resolveCommentIds: [],
+    })
+  })
+
+  it("ignores live jobs and missing history", () => {
+    expect(finishedJobView(job({ status: "running" }))).toBeNull()
+    expect(finishedJobView(null)).toBeNull()
   })
 })

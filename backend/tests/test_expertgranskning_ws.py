@@ -81,14 +81,14 @@ async def test_word_review_emits_result_created_then_finished(
         await jobs_service._run_job(job_id)
 
         types = [event["type"] for event in events]
-        assert types.count("expertgranskning.result.created") == 2
+        assert types.count("expertgranskning.action.created") == 2
         assert types[-1] == "expertgranskning.finished"
         assert events[-1]["status"] == "succeeded"
         assert events[-1]["job_id"] == job_id
-        assert events[0]["result"]["kommentar"] == "En live-kommentar."
-        assert events[0]["result"]["is_heading_suggestion"] is False
-        assert events[1]["result"]["is_heading_suggestion"] is True
-        assert events[1]["result"]["kommentar"] == "Tydligare rubrik"
+        assert events[0]["action"]["content"] == "Finansiell analytiker: En live-kommentar."
+        assert events[0]["action"]["action_type"] == "comment"
+        assert events[1]["action"]["action_type"] == "comment"
+        assert events[1]["action"]["content"] == "Tydligare rubrik"
     finally:
         jobs_service.set_schedule_hook(None)
 
@@ -127,7 +127,7 @@ async def test_word_review_emits_finished_on_failure(client: AsyncClient, monkey
         assert started.status_code == 202, started.text
         await jobs_service._run_job(started.json()["job_id"])
         types = [event["type"] for event in events]
-        assert "expertgranskning.result.created" in types
+        assert "expertgranskning.action.created" in types
         assert types[-1] == "expertgranskning.finished"
         assert events[-1]["status"] == "failed"
         assert "heading boom" in (events[-1].get("error") or "")
@@ -178,23 +178,28 @@ async def test_word_result_patch_emits_updated(client: AsyncClient, monkeypatch)
         assert started.status_code == 202, started.text
         job_id = started.json()["job_id"]
         await jobs_service._run_job(job_id)
-        listed = await client.get(f"/expertgranskning/word-jobs/{job_id}/results")
+        listed = await client.get(f"/expertgranskning/word-jobs/{job_id}/actions")
         assert listed.status_code == 200
         rows = listed.json()
         assert len(rows) == 1
-        patched = await client.patch(
-            f"/expertgranskning/word-jobs/{job_id}/results/{rows[0]['id']}",
-            json={"comment_id": "word-comment-ws"},
+        claimed = await client.post(
+            f"/expertgranskning/word-jobs/{job_id}/actions/{rows[0]['id']}/claim",
+            json={"application_id": "app-ws"},
         )
-        assert patched.status_code == 200, patched.text
+        assert claimed.status_code == 200, claimed.text
+        completed = await client.post(
+            f"/expertgranskning/word-jobs/{job_id}/actions/{rows[0]['id']}/complete",
+            json={"application_id": "app-ws", "word_artifact_id": "word-comment-ws"},
+        )
+        assert completed.status_code == 200, completed.text
         updated = [
             event
             for event in events
-            if event["type"] == "expertgranskning.result.updated"
+            if event["type"] == "expertgranskning.action.updated"
         ]
-        assert len(updated) == 1
-        assert updated[0]["job_id"] == job_id
-        assert updated[0]["result"]["comment_id"] == "word-comment-ws"
-        assert updated[0]["result"]["status"] == "posted"
+        assert len(updated) == 2
+        assert updated[-1]["job_id"] == job_id
+        assert updated[-1]["action"]["word_artifact_id"] == "word-comment-ws"
+        assert updated[-1]["action"]["status"] == "applied"
     finally:
         jobs_service.set_schedule_hook(None)

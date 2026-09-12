@@ -27,9 +27,9 @@ async def test_expertgranskning_broadcast_delivers_to_subscribed_socket_only():
     await registry.subscribe("job_xyz", ws_b)
 
     event = {
-        "type": "expertgranskning.result.created",
+        "type": "expertgranskning.action.created",
         "job_id": "job_abc",
-        "result": {"id": "egr_1"},
+        "action": {"id": "wa_1"},
     }
     await registry.publish("job_abc", event)
 

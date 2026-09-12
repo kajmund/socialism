@@ -6,6 +6,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -1214,8 +1215,50 @@ class ExpertgranskningResult(Base):
         server_default="0",
     )
     foreslagen_text: Mapped[str | None] = mapped_column(Text, nullable=True)
-    comment_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+
+class WordAction(Base):
+    """Generic persisted Word document operation from a producer workflow."""
+
+    __tablename__ = "word_actions"
+    __table_args__ = (
+        UniqueConstraint(
+            "source_type",
+            "source_id",
+            "source_ordinal",
+            name="uq_word_actions_source",
+        ),
+        Index("ix_word_actions_customer_job", "customer_id", "job_id"),
+        Index("ix_word_actions_application_id", "application_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("kunder.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    job_id: Mapped[str] = mapped_column(
+        ForeignKey("jobs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    source_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_ordinal: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    action_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    anchor: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    explanation: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    application_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    application_error: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    word_artifact_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

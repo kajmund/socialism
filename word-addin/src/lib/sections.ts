@@ -21,6 +21,7 @@ export function buildSections(paragraphs: WordParagraph[]): WordDocumentSection[
         heading: paragraph.text,
         heading_style: paragraph.style,
         heading_paragraph_index: paragraph.index,
+        heading_unique_local_id: paragraph.unique_local_id ?? null,
         paragraphs: [],
       }
       sections.push(current)
@@ -31,6 +32,7 @@ export function buildSections(paragraphs: WordParagraph[]): WordDocumentSection[
         heading: "",
         heading_style: "",
         heading_paragraph_index: paragraph.index,
+        heading_unique_local_id: null,
         paragraphs: [],
       }
       sections.push(current)
