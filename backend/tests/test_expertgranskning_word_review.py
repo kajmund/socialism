@@ -2788,6 +2788,7 @@ async def test_word_review_keeps_first_section_when_later_section_fails(
     client: AsyncClient, monkeypatch
 ):
     events: list[dict] = []
+    release_fail = asyncio.Event()
     original = expertgranskning_broadcast.publish
 
     async def capture(job_id: str, event: dict) -> None:
@@ -2799,6 +2800,7 @@ async def test_word_review_keeps_first_section_when_later_section_fails(
     async def completer(messages, response_model):
         user = messages[-1]["content"]
         if "Långsam sektion" in user and response_model is WordBatchModeration:
+            await release_fail.wait()
             raise RuntimeError("section two boom")
         if response_model is WordBatchModeration:
             return _moderation_for_batch(user)
@@ -2851,7 +2853,20 @@ async def test_word_review_keeps_first_section_when_later_section_fails(
         },
     )
     job_id = created.json()["job_id"]
-    await jobs_service._run_job(job_id)
+    runner = asyncio.create_task(jobs_service._run_job(job_id))
+    for _ in range(50):
+        if any(
+            event.get("type") == "expertgranskning.progress"
+            and event.get("sections_completed") == 1
+            for event in events
+        ):
+            break
+        await asyncio.sleep(0.02)
+    assert any(
+        event.get("type") == "expertgranskning.action.created" for event in events
+    )
+    release_fail.set()
+    await runner
     types = [event["type"] for event in events]
     assert "expertgranskning.action.created" in types
     assert types[-1] == "expertgranskning.finished"
