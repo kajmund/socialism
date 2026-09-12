@@ -42,7 +42,11 @@ def expert_review_word_action_spec(
         content = (row.foreslagen_text or "").strip()
         if not content:
             return None
-        explanation = (row.kommentar or "").strip() or None
+        explanation = format_expert_review_comment_content(
+            kommentar=row.kommentar,
+            expert_namn=row.expert_namn,
+            is_heading_suggestion=row.is_heading_suggestion,
+        ).strip() or None
         return MaterializedWordAction(
             action_type="replace",
             content=content,

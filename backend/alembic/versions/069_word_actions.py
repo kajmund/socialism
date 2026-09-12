@@ -71,13 +71,26 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     with op.batch_alter_table("expertgranskning_results") as batch_op:
-        batch_op.add_column(sa.Column("status", sa.String(length=32), nullable=False))
+        batch_op.add_column(sa.Column("status", sa.String(length=32), nullable=True))
         batch_op.add_column(sa.Column("comment_id", sa.String(length=128), nullable=True))
         batch_op.add_column(
             sa.Column("application_id", sa.String(length=64), nullable=True)
         )
         batch_op.add_column(
             sa.Column("application_error", sa.String(length=64), nullable=True)
+        )
+    op.execute(
+        sa.text(
+            "UPDATE expertgranskning_results "
+            "SET status = 'pending' "
+            "WHERE status IS NULL"
+        )
+    )
+    with op.batch_alter_table("expertgranskning_results") as batch_op:
+        batch_op.alter_column(
+            "status",
+            existing_type=sa.String(length=32),
+            nullable=False,
         )
     op.drop_index("ix_word_actions_application_id", table_name="word_actions")
     op.drop_index("ix_word_actions_customer_job", table_name="word_actions")
