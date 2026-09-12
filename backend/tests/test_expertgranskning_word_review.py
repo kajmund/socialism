@@ -1544,6 +1544,8 @@ async def test_analyze_batch_falls_back_to_raise_hand_for_unknown_experts():
             return WordExpertRaiseHand(question_ids=_question_ids_from_user(user))
         if response_model is WordExpertComment:
             return WordExpertComment(kommentar="Fallback-kommentar.")
+        if response_model is WordRewriteSuggestion:
+            return WordRewriteSuggestion(ny_text="", motivering="")
         raise AssertionError(response_model)
 
     set_structured_completer(completer)
@@ -1603,6 +1605,8 @@ async def test_analyze_batch_logs_routing_counts_without_document_text(caplog):
             return WordExpertRaiseHand(question_ids=["q-hand"])
         if response_model is WordExpertComment:
             return WordExpertComment(kommentar="Hemlig kommentar.")
+        if response_model is WordRewriteSuggestion:
+            return WordRewriteSuggestion(ny_text="", motivering="")
         raise AssertionError(response_model)
 
     set_structured_completer(completer)
