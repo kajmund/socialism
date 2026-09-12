@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
-import pytest
-from pydantic import ValidationError
-from sqlalchemy import select
+from pathlib import Path
 
+import pytest
+from alembic import command
+from alembic.config import Config
+from pydantic import ValidationError
+from sqlalchemy import create_engine, inspect, select, text
+
+from app.config import settings
 from app.database.models import ExpertgranskningResult, Job, WordAction
 from app.serializers import utcnow
 from app.services.expertgranskning import WORD_JOB_KIND
@@ -112,6 +117,21 @@ def test_rewrite_becomes_replace_with_rationale():
     assert spec.action_type == "replace"
     assert spec.content == "Ny formulering."
     assert spec.explanation == "Tydligare språk."
+
+
+def test_rewrite_explanation_uses_same_visible_formatting_as_comments():
+    spec = expert_review_word_action_spec(
+        _result(
+            is_rewrite_suggestion=True,
+            expert_namn="Anna",
+            kommentar="Tydligare språk.",
+            foreslagen_text="Ny formulering.",
+        )
+    )
+    assert spec is not None
+    assert spec.action_type == "replace"
+    assert spec.content == "Ny formulering."
+    assert spec.explanation == "Anna: Tydligare språk."
 
 
 def test_empty_content_is_not_materialized():
@@ -227,3 +247,75 @@ async def test_materialize_persists_frozen_anchor_and_is_idempotent(client_db):
             ).scalars().all()
         )
         assert len(rows) == 3
+
+
+def test_word_actions_migration_round_trip(tmp_path, monkeypatch):
+    db_path = tmp_path / "word_actions.db"
+    monkeypatch.setattr(settings, "database_url", f"sqlite+aiosqlite:///{db_path}")
+    cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
+
+    command.upgrade(cfg, "069_word_actions")
+    engine = create_engine(f"sqlite:///{db_path}")
+    with engine.begin() as conn:
+        columns = {
+            col["name"] for col in inspect(conn).get_columns("expertgranskning_results")
+        }
+        assert "status" not in columns
+        conn.execute(
+            text(
+                "INSERT INTO kunder (name, slug, available_modules) "
+                "VALUES ('Kund', 'kund-rt', '[]')"
+            )
+        )
+        customer_id = conn.execute(
+            text("SELECT id FROM kunder WHERE slug = 'kund-rt'")
+        ).scalar_one()
+        conn.execute(
+            text(
+                "INSERT INTO jobs (id, customer_id, kind, status, label, request) "
+                "VALUES ('job-rt', :customer_id, 'expertgranskning_word_review', "
+                "'succeeded', 'RT', '{}')"
+            ),
+            {"customer_id": customer_id},
+        )
+        conn.execute(
+            text(
+                "INSERT INTO expertgranskning_results "
+                "(id, job_id, customer_id, section_index, paragraph_index, "
+                "expert_id, expert_namn, kommentar, is_heading_suggestion, "
+                "is_rewrite_suggestion) "
+                "VALUES ('egr-rt', 'job-rt', :customer_id, 0, 1, "
+                "'slot_1', 'Anna', 'Text', 0, 0)"
+            ),
+            {"customer_id": customer_id},
+        )
+
+    command.downgrade(cfg, "068_word_application_lifecycle")
+    with engine.begin() as conn:
+        status_col = next(
+            col
+            for col in inspect(conn).get_columns("expertgranskning_results")
+            if col["name"] == "status"
+        )
+        assert status_col["nullable"] is False
+        assert (
+            conn.execute(
+                text("SELECT status FROM expertgranskning_results WHERE id = 'egr-rt'")
+            ).scalar_one()
+            == "pending"
+        )
+        assert "word_actions" not in inspect(conn).get_table_names()
+
+    command.upgrade(cfg, "069_word_actions")
+    with engine.begin() as conn:
+        columns = {
+            col["name"] for col in inspect(conn).get_columns("expertgranskning_results")
+        }
+        assert "status" not in columns
+        assert "word_actions" in inspect(conn).get_table_names()
+        assert (
+            conn.execute(
+                text("SELECT id FROM expertgranskning_results WHERE id = 'egr-rt'")
+            ).scalar_one()
+            == "egr-rt"
+        )
