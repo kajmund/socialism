@@ -303,6 +303,8 @@ def _passthrough_comment_convergence(user: str) -> WordCommentConvergence:
         fields: dict[str, str] = {}
         current = ""
         for line in lines[1:]:
+            if line.startswith("Returnera ") or line.startswith("Return issues "):
+                break
             if ": " in line:
                 key, value = line.split(": ", 1)
                 if key in _OBS_FIELD_KEYS:
