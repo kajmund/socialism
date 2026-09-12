@@ -9,7 +9,11 @@ import type {
   WordDocumentSection,
   WordTask,
 } from "@/lib/types"
-import { parseIntentInterview } from "@/lib/intentInterview"
+import {
+  InvalidIntentInterviewError,
+  isIntentInterviewInvalidError,
+  parseIntentInterview,
+} from "@/lib/intentInterview"
 
 function url(path: string): string {
   return `${env.apiBaseUrl.replace(/\/$/, "")}${path}`
@@ -31,15 +35,22 @@ export async function generateIntentInterview(
     locale?: "sv" | "en" | "nb"
   },
 ): Promise<DocumentIntentInterview> {
-  const created = await httpRequest<unknown>(
-    url("/expertgranskning/word-intent-interview"),
-    {
-      method: "POST",
-      token,
-      body,
-    },
-  )
-  return parseIntentInterview(created)
+  try {
+    const created = await httpRequest<unknown>(
+      url("/expertgranskning/word-intent-interview"),
+      {
+        method: "POST",
+        token,
+        body,
+      },
+    )
+    return parseIntentInterview(created)
+  } catch (error) {
+    if (isIntentInterviewInvalidError(error)) {
+      throw new InvalidIntentInterviewError()
+    }
+    throw error
+  }
 }
 
 export async function createWordJob(

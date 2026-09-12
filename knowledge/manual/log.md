@@ -2,6 +2,7 @@
 
 ## 2026-09-12
 
+* **Expertgranskning i Word**: Om en granskning misslyckas och du öppnar tillägget igen visas det riktiga felmeddelandet, inte bara ordet `failed`. Om avsiktsfrågorna inte kan läsas visas samma tydliga feltext som när frågorna är ogiltiga.
 * **Expertgranskning i Word**: Innan granskningen startar får du några korta frågor utifrån det dokument som just lästs. Svaren styr analysen. **Övrigt till experterna** är en separat valfri tilläggsinstruktion och fylls inte i från frågesvaren.
 * **Expertgranskning i Word**: Förslag från en färdig del av dokumentet visas medan resten fortfarande granskas. Du kan tillämpa eller avfärda dem direkt. En kompakt rad visar hur många delar som är klara.
 * **Navigering**: Klick på **Due Diligence** behåller de andra menyvalen (politisk simulering, Expertgranskning, Rättsunderlag med mera) när kontot har flera moduler. En inloggning som bara har Due Diligence ser fortfarande bara den menyn.

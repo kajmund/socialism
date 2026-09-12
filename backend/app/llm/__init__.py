@@ -80,6 +80,7 @@ async def complete_structured[T](messages: list[ChatMessage], response_model: ty
             model=settings.deepseek_model,
             messages=guided,  # type: ignore[arg-type]
             response_format={"type": "json_object"},
+            max_tokens=settings.deepseek_max_tokens,
         ),
         timeout=timeout,
     )

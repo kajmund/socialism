@@ -12,7 +12,7 @@ from alembic.script import ScriptDirectory
 from httpx import AsyncClient
 from sqlalchemy import select
 
-from app.database.models import ExpertgranskningResult, PanelSession
+from app.database.models import ExpertgranskningResult, Job, PanelSession
 from app.realtime.expertgranskning_broadcast import expertgranskning_broadcast
 from pydantic import ValidationError
 
@@ -20,11 +20,15 @@ from app.llm import set_structured_completer
 from app.services import jobs as jobs_service
 from app.services.expertgranskning import WORD_JOB_KIND
 from app.services.expertgranskning.comment_convergence import (
+    COMMENT_CONVERGENCE_CHUNK_HARD_CAP,
+    COMMENT_CONVERGENCE_CHUNK_SIZE,
     WordObservation,
     apply_word_comment_convergence,
     choose_specific_anchor,
+    chunk_observations_for_convergence,
     collapse_intra_expert_duplicates,
     comments_dissent,
+    paragraph_indexes_for_observations,
 )
 from app.services.expertgranskning.schemas import (
     WORD_MAX_PARAGRAPH_LEN,
@@ -45,6 +49,7 @@ from app.services.expertgranskning.schemas import (
 from app.services.word.anchors import reviewed_text_from_job_request
 from app.services.expertgranskning.word_review import (
     _comment_question,
+    _consolidate_comments,
     _document_brief,
     accepted_review_questions,
     build_batches,
@@ -747,17 +752,159 @@ def test_preserved_dissensus_is_not_merged_away():
     assert "sänks" in by_expert["daniel"]
 
 
+def test_comment_convergence_chunks_keep_nearby_paragraphs_together():
+    spread = [
+        _obs(observation_id=f"o{index}", paragraph_index=index * 3)
+        for index in range(1, 16)
+    ]
+    chunks = chunk_observations_for_convergence(spread)
+    assert COMMENT_CONVERGENCE_CHUNK_SIZE == 12
+    assert [len(chunk) for chunk in chunks] == [12, 3]
+    assert [item.observation_id for chunk in chunks for item in chunk] == [
+        item.observation_id for item in spread
+    ]
+    nearby = [
+        _obs(
+            observation_id=f"n{index}",
+            paragraph_index=10 + index,
+            expert_id=f"e{index}",
+        )
+        for index in range(13)
+    ]
+    overflow = chunk_observations_for_convergence(nearby)
+    assert len(overflow) == 1
+    assert len(overflow[0]) == 13
+    assert COMMENT_CONVERGENCE_CHUNK_HARD_CAP == 24
+    packed = [
+        *_obs_range(start=1, count=5),
+        *_obs_range(start=20, count=5),
+        *_obs_range(start=40, count=5),
+    ]
+    packed_chunks = chunk_observations_for_convergence(packed)
+    assert [len(chunk) for chunk in packed_chunks] == [10, 5]
+    assert paragraph_indexes_for_observations(packed_chunks[0]) == set(range(1, 6)) | set(
+        range(20, 25)
+    )
+    assert paragraph_indexes_for_observations(packed_chunks[1]) == set(range(40, 45))
+
+
+def test_comment_convergence_splits_contiguous_cluster_at_hard_cap():
+    contiguous = [
+        _obs(
+            observation_id=f"c{index:02d}",
+            paragraph_index=index,
+            expert_id=f"e{index}",
+        )
+        for index in range(1, 31)
+    ]
+    shuffled = list(reversed(contiguous))
+    chunks = chunk_observations_for_convergence(shuffled)
+    sizes = [len(chunk) for chunk in chunks]
+    assert max(sizes) <= COMMENT_CONVERGENCE_CHUNK_HARD_CAP
+    assert all(size <= COMMENT_CONVERGENCE_CHUNK_HARD_CAP for size in sizes)
+    assert sum(sizes) == 30
+    seen = [item.observation_id for chunk in chunks for item in chunk]
+    assert seen == [item.observation_id for item in contiguous]
+    assert len(seen) == len(set(seen))
+    assert chunk_observations_for_convergence(contiguous) == chunks
+
+
+def _obs_range(*, start: int, count: int) -> list[WordObservation]:
+    return [
+        _obs(
+            observation_id=f"p{start}_{offset}",
+            paragraph_index=start + offset,
+            expert_id=f"e{start}_{offset}",
+        )
+        for offset in range(count)
+    ]
+
+
 def _truncated_expert_json_error() -> ValidationError:
     with pytest.raises(ValidationError) as caught:
         WordExpertComment.model_validate_json('{"kommentar": "Immaterialrätt')
     return caught.value
 
 
+def _truncated_convergence_json_error() -> ValidationError:
+    with pytest.raises(ValidationError) as caught:
+        WordCommentConvergence.model_validate_json(
+            '{"issues": [{"observation_ids": ["o1"], "paragraph_index": 3, "kommentar": "Avtal'
+        )
+    return caught.value
+
+
 def test_json_syntax_error_is_detected_for_truncated_object():
     assert is_json_syntax_validation_error(_truncated_expert_json_error())
+    assert is_json_syntax_validation_error(_truncated_convergence_json_error())
     with pytest.raises(ValidationError) as caught:
         WordExpertComment.model_validate({"anchor_paragraph_index": "nej"})
     assert not is_json_syntax_validation_error(caught.value)
+
+
+@pytest.mark.asyncio
+async def test_comment_convergence_batch_text_uses_chunk_paragraphs(monkeypatch):
+    seen: list[tuple[list[int], list[str]]] = []
+
+    async def fake_convergence(
+        *,
+        prompts,
+        section,
+        batch,
+        observations,
+        limiter,
+        review_intent="",
+    ):
+        seen.append(
+            (
+                [paragraph.index for paragraph in batch],
+                [item.observation_id for item in observations],
+            )
+        )
+        return WordCommentConvergence(issues=[])
+
+    monkeypatch.setattr(
+        "app.services.expertgranskning.word_review._comment_convergence",
+        fake_convergence,
+    )
+    paragraphs = [
+        _para(index, f"Stycke {index} är tillräckligt långt för granskning.")
+        for index in range(1, 40)
+    ]
+    section = WordDocumentSection(
+        heading="Avtal",
+        heading_style="Heading 1",
+        heading_paragraph_index=0,
+        paragraphs=paragraphs,
+    )
+    comments = []
+    for index in range(1, 16):
+        paragraph_index = index * 2
+        slot = PanelExpertSlot(slot_id=f"e{index}", label=f"Expert {index}")
+        question = WordReviewQuestion(
+            id=f"q{index}",
+            paragraph_indexes=[paragraph_index],
+            question="Risk?",
+        )
+        comments.append((slot, question, f"Kommentar {index} om risken.", paragraph_index))
+    written = await _consolidate_comments(
+        prompts=default_prompts("sv"),
+        section=section,
+        paragraphs=paragraphs,
+        comments=comments,
+        by_index={paragraph.index: paragraph for paragraph in paragraphs},
+        limiter=WordReviewLimiter(8, WordReviewTimings()),
+    )
+    assert len(written) == 15
+    assert len(seen) == 2
+    first_indexes, first_ids = seen[0]
+    second_indexes, second_ids = seen[1]
+    assert len(first_ids) == 12
+    assert len(second_ids) == 3
+    assert first_indexes == [index * 2 for index in range(1, 13)]
+    assert second_indexes == [index * 2 for index in range(13, 16)]
+    assert 1 not in first_indexes
+    assert 38 not in first_indexes
 
 
 def test_resolve_comment_anchor_uses_explicit_and_single_index():
@@ -2691,6 +2838,38 @@ async def test_latest_word_job_404_when_unknown(client: AsyncClient):
         params={"doc_id": "doc-does-not-exist"},
     )
     assert missing.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_latest_word_job_includes_failed_job_error(client: AsyncClient):
+    panel_id = await _create_expert_panel(client)
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    created = await client.post(
+        "/expertgranskning/word-jobs",
+        json=_payload(
+            panel_id=panel_id,
+            doc_id="failed-resume-doc",
+            paragraphs=[_para(1, "Detta stycke är tillräckligt långt.")],
+        ),
+    )
+    assert created.status_code == 202
+    job_id = created.json()["job_id"]
+    factory = jobs_service.job_session_factory()
+    async with factory() as session:
+        job = await session.get(Job, job_id)
+        assert job is not None
+        job.status = "failed"
+        job.error = "WordCommentConvergence/json_invalid"
+        await session.commit()
+    latest = await client.get(
+        "/expertgranskning/word-jobs/latest",
+        params={"doc_id": "failed-resume-doc"},
+    )
+    assert latest.status_code == 200
+    body = latest.json()
+    assert body["job_id"] == job_id
+    assert body["status"] == "failed"
+    assert body["error"] == "WordCommentConvergence/json_invalid"
 
 
 @pytest.mark.asyncio

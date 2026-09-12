@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     deepseek_base_url: str = "https://api.deepseek.com"
     # HTTP timeout for DeepSeek calls (seconds). Prevents hung report jobs.
     deepseek_timeout_seconds: float = 60.0
+    # Completion cap for structured JSON. DeepSeek otherwise truncates large objects.
+    deepseek_max_tokens: int = Field(default=8192, ge=1)
     # stub = weighted random (tests only); deepseek = call DeepSeek
     persona_generator: PersonaGenerator = "deepseek"
 
