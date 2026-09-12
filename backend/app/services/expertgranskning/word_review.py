@@ -422,6 +422,7 @@ async def _write_result(
     is_rewrite_suggestion: bool = False,
     foreslagen_text: str | None = None,
     request: dict | None = None,
+    source_ordinal: int = 0,
     commit: bool = True,
 ) -> ExpertgranskningResult:
     row = ExpertgranskningResult(
@@ -440,7 +441,12 @@ async def _write_result(
     )
     session.add(row)
     await session.flush()
-    action = await materialize_word_action(session, row, request=request)
+    action = await materialize_word_action(
+        session,
+        row,
+        request=request,
+        source_ordinal=source_ordinal,
+    )
     if commit:
         await session.commit()
         if action is not None:
@@ -949,8 +955,10 @@ async def _persist_section_analysis(
     job: Job,
     payload: ExpertgranskningWordJobRequest,
     analysis: WordSectionAnalysis,
+    timings: WordReviewTimings,
 ) -> tuple[int, int]:
     pending: list[ExpertgranskningResult] = []
+    source_ordinal = 0
     for item in analysis.comments:
         pending.append(
             await _write_result(
@@ -964,9 +972,11 @@ async def _persist_section_analysis(
                 kommentar=item.kommentar,
                 is_heading_suggestion=False,
                 request=job.request,
+                source_ordinal=source_ordinal,
                 commit=False,
             )
         )
+        source_ordinal += 1
     for paragraph, suggestion in analysis.rewrites:
         pending.append(
             await _write_result(
@@ -982,9 +992,11 @@ async def _persist_section_analysis(
                 is_rewrite_suggestion=True,
                 foreslagen_text=suggestion.ny_text.strip(),
                 request=job.request,
+                source_ordinal=source_ordinal,
                 commit=False,
             )
         )
+        source_ordinal += 1
     if analysis.heading is not None:
         suggestion = (analysis.heading.forslag or "").strip()
         if suggestion:
@@ -1002,6 +1014,7 @@ async def _persist_section_analysis(
                     kommentar=suggestion,
                     is_heading_suggestion=True,
                     request=job.request,
+                    source_ordinal=source_ordinal,
                     commit=False,
                 )
             )
@@ -1025,6 +1038,7 @@ async def _persist_section_analysis(
         if action is None:
             continue
         await publish_action_created(action)
+        timings.mark_first_action()
         published += 1
     return len(pending), published
 
@@ -1071,10 +1085,8 @@ async def run_word_paragraph_review(
         for finished in asyncio.as_completed(section_tasks):
             analysis = await finished
             written, published = await _persist_section_analysis(
-                session, job, payload, analysis
+                session, job, payload, analysis, timings
             )
-            if published:
-                timings.mark_first_action()
             result_count += written
             actions_created += published
             paragraph_reviews += analysis.paragraph_reviews
