@@ -5,6 +5,7 @@ import type {
   LatestWordJob,
   WordAction,
   WordDocumentSection,
+  WordTask,
 } from "@/lib/types"
 
 function url(path: string): string {
@@ -22,7 +23,7 @@ export async function listExpertPanels(token: string): Promise<ExpertPanelSummar
 export async function createWordJob(
   token: string,
   body: {
-    panel_id: number
+    task: WordTask
     doc_id: string
     sections: WordDocumentSection[]
     locale?: "sv" | "en" | "nb"
