@@ -31,13 +31,22 @@ def test_timing_snapshot_has_safe_aggregate_fields_only():
         "rewrite_convergence_ms",
         "comment_convergence_ms",
         "heading_ms",
+        "moderation_calls",
+        "raise_hand_calls",
+        "expert_comment_calls",
+        "rewrite_convergence_calls",
+        "comment_convergence_calls",
+        "heading_calls",
         "llm_call_count",
+        "structured_retry_count",
         "max_observed_llm_concurrency",
     }
     dumped = repr(snapshot)
     assert "prompt" not in dumped
     assert "document" not in dumped
     assert snapshot["llm_call_count"] == 1
+    assert snapshot["structured_retry_count"] == 0
+    assert snapshot["moderation_calls"] == 0
     assert snapshot["moderation_ms"] >= 0
     assert snapshot["time_to_first_action_ms"] is not None
     assert snapshot["time_to_first_action_ms"] >= 0
@@ -105,6 +114,8 @@ async def test_limiter_bounds_observed_llm_concurrency():
     assert observed == 2
     assert timings.max_observed_llm_concurrency == 2
     assert timings.llm_call_count == 6
+    assert timings.snapshot()["moderation_calls"] == 6
+    assert timings.snapshot()["structured_retry_count"] == 0
     assert timings.snapshot()["moderation_ms"] >= 40
 
 

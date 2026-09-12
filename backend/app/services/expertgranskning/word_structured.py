@@ -6,9 +6,11 @@ Does not repair JSON in code. A second syntax failure fails closed.
 from __future__ import annotations
 
 import logging
+
 from pydantic import ValidationError
 
 from app.llm import ChatMessage, complete_structured
+from app.services.expertgranskning.word_review_timing import WordReviewTimings
 from app.services.prompt_catalog import render_prompt
 
 logger = logging.getLogger(__name__)
@@ -28,6 +30,7 @@ async def complete_word_structured[T](
     response_model: type[T],
     *,
     prompts: dict[str, str],
+    timings: WordReviewTimings | None = None,
 ) -> T:
     try:
         return await complete_structured(messages, response_model)
@@ -40,6 +43,8 @@ async def complete_word_structured[T](
             response_model.__name__,
             category,
         )
+        if timings is not None:
+            timings.record_structured_retry()
         retry = render_prompt(prompts, "expertgranskning.word.structured_retry")
         try:
             return await complete_structured(
