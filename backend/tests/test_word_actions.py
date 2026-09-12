@@ -28,6 +28,11 @@ from app.services.word.materialize import (
 from app.services.word.schemas import WordActionOut
 
 _REQUEST = {
+    "task": {
+        "task_type": "review",
+        "scope": {"type": "document"},
+        "expert_strategy": {"type": "panel", "panel_id": 1},
+    },
     "panel_id": 1,
     "customer_id": 1,
     "doc_id": "doc-actions",
@@ -281,6 +286,30 @@ async def test_materialize_drops_actions_outside_selection_scope(client_db):
         await session.commit()
         assert kept is not None
         assert kept.anchor["paragraph_index"] == 1
+        assert dropped is None
+
+
+@pytest.mark.asyncio
+async def test_materialize_drops_actions_when_task_is_missing(client_db):
+    _client, factory = client_db
+    request = {key: value for key, value in _REQUEST.items() if key != "task"}
+    async with factory() as session:
+        job = Job(
+            id="job-missing-task",
+            customer_id=1,
+            kind=WORD_JOB_KIND,
+            status="running",
+            label="Word actions",
+            request=request,
+            created_at=utcnow(),
+            updated_at=utcnow(),
+        )
+        row = _result(id="egr_missing", job_id=job.id, paragraph_index=1)
+        session.add(job)
+        session.add(row)
+        await session.flush()
+        dropped = await materialize_word_action(session, row, request=request)
+        await session.commit()
         assert dropped is None
 
 
