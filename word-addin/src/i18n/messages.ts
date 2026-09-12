@@ -55,7 +55,11 @@ export const messages = {
       "Tillämpningen är osäker. Dokumentet kan redan vara ändrat. Försök inte igen automatiskt.",
     actionApplied: "Tillämpad",
     actionDismissed: "Avfärdad",
-    actionUnresolved: "Kunde inte placeras: {reason}",
+    unresolvedStale: "Kunde inte placeras: dokumentet har ändrats.",
+    unresolvedAmbiguous: "Kunde inte placeras: flera stycken matchar.",
+    unresolvedMissing: "Kunde inte placeras: stycket saknas.",
+    unresolvedUnsupported: "Kunde inte placeras: åtgärden stöds inte.",
+    unresolvedUnknown: "Kunde inte placeras säkert.",
     blockUndecided:
       "Tillämpa eller avfärda öppna förslag innan du startar en ny granskning.",
     blockApplying:
@@ -111,7 +115,11 @@ export const messages = {
       "Application is uncertain. The document may already have changed. Do not retry automatically.",
     actionApplied: "Applied",
     actionDismissed: "Dismissed",
-    actionUnresolved: "Could not be placed: {reason}",
+    unresolvedStale: "Could not be placed: the document has changed.",
+    unresolvedAmbiguous: "Could not be placed: several paragraphs match.",
+    unresolvedMissing: "Could not be placed: the paragraph is missing.",
+    unresolvedUnsupported: "Could not be placed: this action is not supported.",
+    unresolvedUnknown: "Could not be placed safely.",
     blockUndecided: "Apply or dismiss open proposals before starting a new review.",
     blockApplying:
       "A proposal is still applying and the Word outcome is uncertain. Do not start a new review.",

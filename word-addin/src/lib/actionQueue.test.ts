@@ -6,6 +6,7 @@ import {
   canDismissAction,
   newReviewBlock,
   sortedWordActions,
+  unresolvedReasonKind,
   upsertWordActions,
   wordArtifactIds,
 } from "./actionQueue"
@@ -108,13 +109,28 @@ describe("actionCardModel", () => {
     })
   })
 
-  it("shows unresolved reason and dismiss only", () => {
-    const model = actionCardModel(
-      action({ status: "unresolved", application_error: "stale" }),
-    )
-    expect(model.unresolvedReason).toBe("stale")
-    expect(model.showApply).toBe(false)
-    expect(model.showDismiss).toBe(true)
+  it("maps unresolved backend codes without exposing them as UI copy", () => {
+    expect(
+      actionCardModel(action({ status: "unresolved", application_error: "stale" })),
+    ).toMatchObject({
+      unresolvedReason: "stale",
+      showApply: false,
+      showDismiss: true,
+    })
+    expect(
+      actionCardModel(
+        action({ status: "unresolved", application_error: "unsupported_action" }),
+      ).unresolvedReason,
+    ).toBe("unsupported_action")
+    expect(
+      actionCardModel(action({ status: "unresolved", application_error: "weird" }))
+        .unresolvedReason,
+    ).toBe("unknown")
+    expect(unresolvedReasonKind("stale")).toBe("stale")
+    expect(unresolvedReasonKind("ambiguous")).toBe("ambiguous")
+    expect(unresolvedReasonKind("missing")).toBe("missing")
+    expect(unresolvedReasonKind("unsupported_action")).toBe("unsupported_action")
+    expect(unresolvedReasonKind("")).toBe("unknown")
   })
 })
 

@@ -66,6 +66,25 @@ export function actionCardKind(actionType: string): ActionCardKind {
   }
 }
 
+export type UnresolvedReason =
+  | "stale"
+  | "ambiguous"
+  | "missing"
+  | "unsupported_action"
+  | "unknown"
+
+export function unresolvedReasonKind(code: string | null | undefined): UnresolvedReason {
+  switch (code) {
+    case "stale":
+    case "ambiguous":
+    case "missing":
+    case "unsupported_action":
+      return code
+    default:
+      return "unknown"
+  }
+}
+
 export type ActionCardModel = {
   id: string
   kind: ActionCardKind
@@ -73,7 +92,7 @@ export type ActionCardModel = {
   reviewedText: string | null
   explanation: string | null
   status: string
-  unresolvedReason: string | null
+  unresolvedReason: UnresolvedReason | null
   showApply: boolean
   showDismiss: boolean
   showApplying: boolean
@@ -84,7 +103,7 @@ export function actionCardModel(action: WordAction): ActionCardModel {
   const kind = actionCardKind(action.action_type)
   const unresolvedReason =
     action.status === ACTION_UNRESOLVED
-      ? (action.application_error ?? "").trim() || "unresolved"
+      ? unresolvedReasonKind((action.application_error ?? "").trim() || null)
       : null
   return {
     id: action.id,
