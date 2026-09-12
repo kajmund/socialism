@@ -163,7 +163,11 @@ async def test_word_review_job_uses_request_customer(session: AsyncSession):
         JobCreate(
             kind="expertgranskning_word_review",
             request={
-                "panel_id": 1,
+                "task": {
+                    "task_type": "review",
+                    "scope": {"type": "document"},
+                    "expert_strategy": {"type": "panel", "panel_id": 1},
+                },
                 "customer_id": bolag_id,
                 "owner_user_id": "user-1",
                 "sections": [
