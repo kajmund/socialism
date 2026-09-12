@@ -41,12 +41,19 @@ describe("upsertWordActions", () => {
 })
 
 describe("sortedWordActions", () => {
-  it("orders by paragraph_index then stable id", () => {
+  it("orders by paragraph_index then comment before replace", () => {
     const map = upsertWordActions(new Map(), [
       action({
         id: "wa_c",
         created_at: "2026-09-12T10:00:00+00:00",
         anchor: { paragraph_index: 8, reviewed_text: "c", text_hash: "c" },
+      }),
+      action({
+        id: "wa_replace",
+        action_type: "replace",
+        created_at: "2026-09-12T09:00:00+00:00",
+        source: { type: "expert_review_result", id: "egr_r", ordinal: 0 },
+        anchor: { paragraph_index: 2, reviewed_text: "old", text_hash: "h" },
       }),
       action({
         id: "wa_b",
@@ -62,6 +69,7 @@ describe("sortedWordActions", () => {
     expect(sortedWordActions(map).map((row) => row.id)).toEqual([
       "wa_a",
       "wa_b",
+      "wa_replace",
       "wa_c",
     ])
   })
