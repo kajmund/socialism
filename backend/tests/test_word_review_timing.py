@@ -53,16 +53,21 @@ def test_timing_snapshot_has_safe_aggregate_fields_only():
     assert snapshot["time_to_first_action_ms"] >= 0
 
 
-def test_llm_call_summary_logs_counts_without_document_text(caplog):
+def test_llm_call_summary_logs_counts_without_document_text(monkeypatch):
+    messages: list[str] = []
+
+    def capture(fmt: str, *args: object) -> None:
+        messages.append(fmt % args if args else fmt)
+
+    monkeypatch.setattr(word_review.logger, "info", capture)
     timings = WordReviewTimings()
     started = timings.begin_call()
     timings.record_category("comment_convergence")
     timings.record_structured_retry()
     timings.end_call("comment_convergence", started)
-    snapshot = timings.snapshot()
-    with caplog.at_level("INFO", logger="app.services.expertgranskning.word_review"):
-        log_word_review_call_summary("job_secret", snapshot, outcome="failed")
-    messages = [record.getMessage() for record in caplog.records]
+    log_word_review_call_summary(
+        "job_secret", timings.snapshot(), outcome="failed"
+    )
     assert len([item for item in messages if "Word review LLM calls" in item]) == 1
     assert len([item for item in messages if "Word review timings" in item]) == 1
     logged = " ".join(messages)
