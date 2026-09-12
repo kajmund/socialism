@@ -1,4 +1,4 @@
-import type { LatestWordJob, ReviewResult } from "@/lib/types"
+import type { LatestWordJob, WordAction } from "@/lib/types"
 
 export function isActiveWordJobStatus(status: string): boolean {
   return status === "pending" || status === "running"
@@ -11,7 +11,7 @@ export type ReviewStartPlan =
 export type FinishedJobView = {
   jobId: string
   phase: "done" | "failed"
-  results: ReviewResult[]
+  actions: WordAction[]
 }
 
 export function planReviewStart(latest: LatestWordJob | null): ReviewStartPlan {
@@ -20,8 +20,8 @@ export function planReviewStart(latest: LatestWordJob | null): ReviewStartPlan {
   }
   return {
     action: "startNew",
-    resolveCommentIds: (latest?.results ?? [])
-      .map((row) => row.comment_id)
+    resolveCommentIds: (latest?.actions ?? [])
+      .map((row) => row.word_artifact_id)
       .filter((id): id is string => typeof id === "string" && id.length > 0),
   }
 }
@@ -31,6 +31,6 @@ export function finishedJobView(latest: LatestWordJob | null): FinishedJobView |
   return {
     jobId: latest.job_id,
     phase: latest.status === "failed" ? "failed" : "done",
-    results: latest.results,
+    actions: latest.actions,
   }
 }

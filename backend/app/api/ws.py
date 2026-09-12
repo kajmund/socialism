@@ -36,8 +36,8 @@ from app.realtime.run_broadcast import run_broadcast
 from app.services.expertgranskning import WORD_JOB_KIND
 from app.services.expertgranskning.watch import (
     build_expertgranskning_replay_payload,
-    load_expertgranskning_results,
 )
+from app.services.word.actions import load_word_actions
 from app.schemas.domain import (
     ChatMode,
     HelpChatResponse,
@@ -467,8 +467,10 @@ async def expertgranskning_websocket(websocket: WebSocket) -> None:
         async with factory() as session:
             job = await session.get(Job, hello.job_id)
             assert job is not None
-            results = await load_expertgranskning_results(session, job.id)
-            replay = build_expertgranskning_replay_payload(job, results)
+            actions = await load_word_actions(
+                session, job.id, customer_id=job.customer_id
+            )
+            replay = build_expertgranskning_replay_payload(job, actions)
         await websocket.send_json(replay)
 
         while True:

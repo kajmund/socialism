@@ -3,7 +3,7 @@ import { ApiError, httpRequest } from "@/lib/http"
 import type {
   ExpertPanelSummary,
   LatestWordJob,
-  ReviewResult,
+  WordAction,
   WordDocumentSection,
 } from "@/lib/types"
 
@@ -54,22 +54,22 @@ export async function getLatestWordJob(
   }
 }
 
-export async function claimResult(
+export async function claimAction(
   token: string,
   jobId: string,
-  resultId: string,
+  actionId: string,
   applicationId: string,
-): Promise<{ claimed: boolean; result?: ReviewResult }> {
+): Promise<{ claimed: boolean; action?: WordAction }> {
   try {
-    const result = await httpRequest<ReviewResult>(
-      url(`/expertgranskning/word-jobs/${jobId}/results/${resultId}/claim`),
+    const action = await httpRequest<WordAction>(
+      url(`/expertgranskning/word-jobs/${jobId}/actions/${actionId}/claim`),
       {
         method: "POST",
         token,
         body: { application_id: applicationId },
       },
     )
-    return { claimed: true, result }
+    return { claimed: true, action }
   } catch (error) {
     if (error instanceof ApiError && error.status === 409) {
       return { claimed: false }
@@ -78,32 +78,32 @@ export async function claimResult(
   }
 }
 
-export async function completeResult(
+export async function completeAction(
   token: string,
   jobId: string,
-  resultId: string,
+  actionId: string,
   applicationId: string,
-  commentId: string,
-): Promise<ReviewResult> {
-  return httpRequest<ReviewResult>(
-    url(`/expertgranskning/word-jobs/${jobId}/results/${resultId}/complete`),
+  wordArtifactId: string,
+): Promise<WordAction> {
+  return httpRequest<WordAction>(
+    url(`/expertgranskning/word-jobs/${jobId}/actions/${actionId}/complete`),
     {
       method: "POST",
       token,
-      body: { application_id: applicationId, comment_id: commentId },
+      body: { application_id: applicationId, word_artifact_id: wordArtifactId },
     },
   )
 }
 
-export async function markResultUnresolved(
+export async function markActionUnresolved(
   token: string,
   jobId: string,
-  resultId: string,
+  actionId: string,
   reason: string,
   applicationId?: string,
-): Promise<ReviewResult> {
-  return httpRequest<ReviewResult>(
-    url(`/expertgranskning/word-jobs/${jobId}/results/${resultId}/unresolved`),
+): Promise<WordAction> {
+  return httpRequest<WordAction>(
+    url(`/expertgranskning/word-jobs/${jobId}/actions/${actionId}/unresolved`),
     {
       method: "POST",
       token,
