@@ -1,6 +1,7 @@
 import type { WordAnchor, WordParagraph } from "@/lib/types"
 import {
   resolveWordAnchor,
+  type WordAnchorResolution,
   type WordDocumentParagraphState,
 } from "@/lib/word/anchors"
 
@@ -196,6 +197,28 @@ export async function replaceForAnchor(args: {
       context.document.changeTrackingMode = previousMode
       await context.sync()
     }
+  })
+}
+
+export async function selectAndRevealAnchor(
+  anchor: WordAnchor,
+): Promise<WordAnchorResolution> {
+  if (typeof Word === "undefined") {
+    throw new Error("Word API is not available")
+  }
+  return Word.run(async (context) => {
+    const loaded = await loadDocumentParagraphs(context)
+    const resolution = resolveWordAnchor(anchor, loaded.states, WORD_SESSION_ID)
+    if (resolution.status !== "resolved") {
+      return { status: resolution.status }
+    }
+    const paragraph = loaded.items[resolution.paragraph_index]
+    if (!paragraph) {
+      return { status: "missing" }
+    }
+    paragraph.getRange().select()
+    await context.sync()
+    return resolution
   })
 }
 

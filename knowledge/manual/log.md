@@ -2,7 +2,7 @@
 
 ## 2026-09-12
 
-* **Expertgranskning i Word**: Kommentarerna i marginalen är korta. En längre motivering finns bakom **Varför?** i sidopanelen. Bara kommentarer som spelar roll för dokumentet och din granskningsavsikt visas.
+* **Expertgranskning i Word**: Kommentarerna i marginalen är korta. En längre motivering finns bakom **Varför?** i sidopanelen. Klicka på ett förslag så hoppar Word till rätt stycke. Om stycket saknas eller är otydligt hoppar tillägget inte, och kortet visar det. Bara kommentarer som spelar roll för dokumentet och din granskningsavsikt visas.
 * **Expertgranskning i Word**: Om en granskning misslyckas och du öppnar tillägget igen visas det riktiga felmeddelandet, inte bara ordet `failed`. Om avsiktsfrågorna inte kan läsas visas samma tydliga feltext som när frågorna är ogiltiga.
 * **Expertgranskning i Word**: Innan granskningen startar får du några korta frågor utifrån det dokument som just lästs. Svaren styr analysen. **Övrigt till experterna** är en separat valfri tilläggsinstruktion och fylls inte i från frågesvaren.
 * **Expertgranskning i Word**: Förslag från en färdig del av dokumentet visas medan resten fortfarande granskas. Du kan tillämpa eller avfärda dem direkt. En kompakt rad visar hur många delar som är klara.

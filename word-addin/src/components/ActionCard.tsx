@@ -1,10 +1,13 @@
-import { actionCardModel } from "@/lib/actionQueue"
+import { actionCardModel, type UnresolvedReason } from "@/lib/actionQueue"
 import type { WordAction } from "@/lib/types"
 import type { MessageKey } from "@/i18n/messages"
 
 type ActionCardProps = {
   action: WordAction
   busy: boolean
+  selected?: boolean
+  locationError?: UnresolvedReason | null
+  onSelect?: (action: WordAction) => void
   onApply: (action: WordAction) => void
   onDismiss: (action: WordAction) => void
   t: (key: MessageKey, params?: Record<string, string | number>) => string
@@ -48,17 +51,31 @@ function unresolvedReasonLabel(
   }
 }
 
-export function ActionCard({ action, busy, onApply, onDismiss, t }: ActionCardProps) {
+export function ActionCard({
+  action,
+  busy,
+  selected = false,
+  locationError = null,
+  onSelect,
+  onApply,
+  onDismiss,
+  t,
+}: ActionCardProps) {
   const model = actionCardModel(action)
   const titleKey: MessageKey =
     model.kind === "replace" ? "actionReplace" : "actionComment"
   const label = statusLabel(model.status, t)
+  const shownReason = model.unresolvedReason ?? locationError
   return (
     <article
       className="action-card"
       data-status={model.status}
       data-deemphasized={model.deemphasized ? "true" : "false"}
+      data-selected={selected ? "true" : "false"}
       data-action-id={action.id}
+      data-location-error={locationError ?? undefined}
+      aria-current={selected ? "true" : undefined}
+      onClick={onSelect ? () => onSelect(action) : undefined}
     >
       <header className="action-card-head">
         <h3>{t(titleKey)}</h3>
@@ -92,9 +109,9 @@ export function ActionCard({ action, busy, onApply, onDismiss, t }: ActionCardPr
           ) : null}
         </div>
       )}
-      {model.unresolvedReason ? (
-        <p className="action-card-unresolved" data-unresolved-reason={model.unresolvedReason}>
-          {unresolvedReasonLabel(model.unresolvedReason, t)}
+      {shownReason ? (
+        <p className="action-card-unresolved" data-unresolved-reason={shownReason}>
+          {unresolvedReasonLabel(shownReason, t)}
         </p>
       ) : null}
       {model.showApplying ? (
@@ -107,7 +124,10 @@ export function ActionCard({ action, busy, onApply, onDismiss, t }: ActionCardPr
               type="button"
               className="primary"
               disabled={busy}
-              onClick={() => onApply(action)}
+              onClick={(event) => {
+                event.stopPropagation()
+                onApply(action)
+              }}
             >
               {t("actionApply")}
             </button>
@@ -116,7 +136,10 @@ export function ActionCard({ action, busy, onApply, onDismiss, t }: ActionCardPr
             <button
               type="button"
               disabled={busy}
-              onClick={() => onDismiss(action)}
+              onClick={(event) => {
+                event.stopPropagation()
+                onDismiss(action)
+              }}
             >
               {t("actionDismiss")}
             </button>
