@@ -26,9 +26,6 @@ from app.services.expertgranskning.schemas import (
     ExpertgranskningSessionUpdate,
     ExpertgranskningWordJobCreate,
     ExpertgranskningWordJobRequest,
-    WordApplicationClaimIn,
-    WordApplicationCompleteIn,
-    WordApplicationUnresolvedIn,
 )
 from app.services.expertgranskning.sessions import (
     create_expertgranskning_session,
@@ -43,16 +40,23 @@ from app.services.expertgranskning.sessions import (
 from app.services.expertgranskning.watch import (
     find_latest_word_job_for_doc,
     load_expertgranskning_results,
-    publish_result_updated,
+    publish_action_updated,
     serialize_result,
 )
-from app.services.panel.expert_slots import require_expert_panel
-from app.services.panel.sessions import get_panel_session
+from app.services.word.actions import load_word_actions, serialize_word_action
 from app.services.word.application import (
     claim_application,
     complete_application,
     mark_application_unresolved,
 )
+from app.services.word.schemas import (
+    WordActionOut,
+    WordApplicationClaimIn,
+    WordApplicationCompleteIn,
+    WordApplicationUnresolvedIn,
+)
+from app.services.panel.expert_slots import require_expert_panel
+from app.services.panel.sessions import get_panel_session
 
 router = APIRouter(prefix="/expertgranskning", tags=["expertgranskning"])
 
@@ -274,11 +278,11 @@ async def get_latest_expertgranskning_word_job(
         raise HTTPException(status_code=404, detail="Word review job not found")
     assert_kund_access(user, job.customer_id)
     assert_job_owner_access(user, job)
-    rows = await load_expertgranskning_results(session, job.id)
+    actions = await load_word_actions(session, job.id, customer_id=job.customer_id)
     return ExpertgranskningLatestWordJobOut(
         job_id=job.id,
         status=job.status,
-        results=[serialize_result(row, request=job.request) for row in rows],
+        actions=[serialize_word_action(row) for row in actions],
     )
 
 
@@ -288,99 +292,108 @@ async def get_expertgranskning_word_job_results(
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> list[ExpertgranskningResultOut]:
-    job = await _require_word_job(session, user, job_id)
+    await _require_word_job(session, user, job_id)
     rows = await load_expertgranskning_results(session, job_id)
-    return [serialize_result(row, request=job.request) for row in rows]
+    return [serialize_result(row) for row in rows]
 
 
-def _application_http_result(
-    mutation,
-    job: Job,
-    *,
-    reject_detail: str,
-) -> ExpertgranskningResultOut:
+@router.get("/word-jobs/{job_id}/actions", response_model=list[WordActionOut])
+async def get_expertgranskning_word_job_actions(
+    job_id: str,
+    session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
+) -> list[WordActionOut]:
+    job = await _require_word_job(session, user, job_id)
+    rows = await load_word_actions(session, job_id, customer_id=job.customer_id)
+    return [serialize_word_action(row) for row in rows]
+
+
+def _application_http_result(mutation, *, reject_detail: str) -> WordActionOut:
     if mutation.row is None:
-        raise HTTPException(status_code=404, detail="Word review result not found")
+        raise HTTPException(status_code=404, detail="Word action not found")
     if not mutation.accepted:
         raise HTTPException(status_code=409, detail=reject_detail)
-    return serialize_result(mutation.row, request=job.request)
+    return serialize_word_action(mutation.row)
 
 
 @router.post(
-    "/word-jobs/{job_id}/results/{result_id}/claim",
-    response_model=ExpertgranskningResultOut,
+    "/word-jobs/{job_id}/actions/{action_id}/claim",
+    response_model=WordActionOut,
 )
-async def claim_expertgranskning_word_result(
+async def claim_expertgranskning_word_action(
     job_id: str,
-    result_id: str,
+    action_id: str,
     body: WordApplicationClaimIn,
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
-) -> ExpertgranskningResultOut:
+) -> WordActionOut:
     job = await _require_word_job(session, user, job_id)
     mutation = await claim_application(
         session,
         job_id=job_id,
-        result_id=result_id,
+        action_id=action_id,
         application_id=body.application_id,
+        customer_id=job.customer_id,
     )
     out = _application_http_result(
-        mutation, job, reject_detail="application_not_claimable"
+        mutation, reject_detail="application_not_claimable"
     )
     if mutation.reason == "claimed":
-        await publish_result_updated(mutation.row, request=job.request)
+        await publish_action_updated(mutation.row)
     return out
 
 
 @router.post(
-    "/word-jobs/{job_id}/results/{result_id}/complete",
-    response_model=ExpertgranskningResultOut,
+    "/word-jobs/{job_id}/actions/{action_id}/complete",
+    response_model=WordActionOut,
 )
-async def complete_expertgranskning_word_result(
+async def complete_expertgranskning_word_action(
     job_id: str,
-    result_id: str,
+    action_id: str,
     body: WordApplicationCompleteIn,
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
-) -> ExpertgranskningResultOut:
+) -> WordActionOut:
     job = await _require_word_job(session, user, job_id)
     mutation = await complete_application(
         session,
         job_id=job_id,
-        result_id=result_id,
+        action_id=action_id,
         application_id=body.application_id,
-        word_artifact_id=body.comment_id,
+        word_artifact_id=body.word_artifact_id,
+        customer_id=job.customer_id,
     )
     out = _application_http_result(
-        mutation, job, reject_detail="application_not_completable"
+        mutation, reject_detail="application_not_completable"
     )
     if mutation.reason == "completed":
-        await publish_result_updated(mutation.row, request=job.request)
+        await publish_action_updated(mutation.row)
     return out
 
 
 @router.post(
-    "/word-jobs/{job_id}/results/{result_id}/unresolved",
-    response_model=ExpertgranskningResultOut,
+    "/word-jobs/{job_id}/actions/{action_id}/unresolved",
+    response_model=WordActionOut,
 )
-async def mark_expertgranskning_word_result_unresolved(
+async def mark_expertgranskning_word_action_unresolved(
     job_id: str,
-    result_id: str,
+    action_id: str,
     body: WordApplicationUnresolvedIn,
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
-) -> ExpertgranskningResultOut:
+) -> WordActionOut:
     job = await _require_word_job(session, user, job_id)
     mutation = await mark_application_unresolved(
         session,
         job_id=job_id,
-        result_id=result_id,
+        action_id=action_id,
         reason=body.reason,
         application_id=body.application_id,
+        customer_id=job.customer_id,
     )
     out = _application_http_result(
-        mutation, job, reject_detail="application_not_unresolvable"
+        mutation, reject_detail="application_not_unresolvable"
     )
     if mutation.reason == "unresolved":
-        await publish_result_updated(mutation.row, request=job.request)
+        await publish_action_updated(mutation.row)
     return out

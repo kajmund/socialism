@@ -3,20 +3,18 @@ import { useEffect, useRef, useState, type FormEvent } from "react"
 import headMark from "@/assets/devbrains-head.png"
 import { useLocale } from "@/i18n/LocaleContext"
 import {
-  claimResult,
-  completeResult,
+  claimAction,
+  completeAction,
   createWordJob,
   getLatestWordJob,
   listExpertPanels,
-  markResultUnresolved,
+  markActionUnresolved,
 } from "@/lib/api"
 import { ApiError } from "@/lib/http"
 import {
-  applyRewriteSuggestion,
   commentsApiSupported,
   getOrCreateDocId,
   getStoredDocId,
-  insertCommentForAnchor,
   officeReady,
   paragraphStatesFromSnapshot,
   readDocumentParagraphs,
@@ -24,12 +22,13 @@ import {
   WORD_SESSION_ID,
 } from "@/lib/office"
 import { resolveWordAnchor } from "@/lib/word/anchors"
+import { executeWordAction } from "@/lib/word/executeWordAction"
 import { clearStoredToken, getStoredToken, saveStoredToken } from "@/lib/tokenStorage"
 import { finishedJobView, planReviewStart } from "@/lib/resume"
 import { buildSections } from "@/lib/sections"
 import { connectExpertgranskningWatch } from "@/lib/socket"
-import type { ExpertPanelSummary, ReviewResult } from "@/lib/types"
-import { actionsForWatchEvent, formatCommentBody, isWatchEvent } from "@/lib/watch"
+import type { ExpertPanelSummary, WordAction } from "@/lib/types"
+import { actionsForWatchEvent, isWatchEvent } from "@/lib/watch"
 
 type Phase = "idle" | "running" | "done" | "failed"
 
@@ -67,8 +66,8 @@ export function App() {
     syncApplicationCounts()
   }
 
-  function noteResults(results: ReviewResult[]) {
-    for (const row of results) {
+  function noteActions(actions: WordAction[]) {
+    for (const row of actions) {
       resultStatus.current.set(row.id, row.status)
     }
     syncApplicationCounts()
@@ -159,7 +158,7 @@ export function App() {
         }
         const finished = finishedJobView(latest)
         if (!finished) return
-        noteResults(finished.results)
+        noteActions(finished.actions)
         setPhase(finished.phase)
         if (finished.phase === "failed") {
           setError(finished.phase)
@@ -200,61 +199,54 @@ export function App() {
     setError("")
   }
 
-  async function insertOne(jobId: string, result: ReviewResult) {
-    insertedIds.current.add(result.id)
-    const anchor = result.anchor
+  async function applyOneAction(jobId: string, action: WordAction) {
+    insertedIds.current.add(action.id)
+    const anchor = action.anchor
     if (!anchor) {
-      const marked = await markResultUnresolved(token, jobId, result.id, "missing")
-      noteResultStatus(result.id, marked.status)
+      const marked = await markActionUnresolved(token, jobId, action.id, "missing")
+      noteResultStatus(action.id, marked.status)
       return
     }
 
     const current = paragraphStatesFromSnapshot(await readDocumentParagraphs())
     const resolution = resolveWordAnchor(anchor, current, WORD_SESSION_ID)
     if (resolution.status !== "resolved") {
-      const marked = await markResultUnresolved(token, jobId, result.id, resolution.status)
-      noteResultStatus(result.id, marked.status)
+      const marked = await markActionUnresolved(token, jobId, action.id, resolution.status)
+      noteResultStatus(action.id, marked.status)
       return
     }
 
     const applicationId = crypto.randomUUID()
-    const claimed = await claimResult(token, jobId, result.id, applicationId)
+    const claimed = await claimAction(token, jobId, action.id, applicationId)
     if (!claimed.claimed) {
-      if (claimed.result) noteResultStatus(result.id, claimed.result.status)
+      if (claimed.action) noteResultStatus(action.id, claimed.action.status)
       return
     }
-    noteResultStatus(result.id, "applying")
+    noteResultStatus(action.id, "applying")
 
     try {
-      const outcome = result.is_rewrite_suggestion
-        ? await applyRewriteSuggestion({
-            anchor,
-            foreslagenText: (result.foreslagen_text ?? "").trim(),
-            motivering: formatCommentBody(result) || t("rewritePrefix"),
-            fallbackComment: `${t("rewritePrefix")} ${(result.foreslagen_text ?? "").trim()}`.trim(),
-          })
-        : await insertCommentForAnchor(anchor, formatCommentBody(result))
+      const outcome = await executeWordAction(action, { rewritePrefix: t("rewritePrefix") })
       if (outcome.status !== "resolved") {
-        const marked = await markResultUnresolved(
+        const marked = await markActionUnresolved(
           token,
           jobId,
-          result.id,
-          outcome.status,
+          action.id,
+          outcome.status === "unsupported" ? "unsupported_action" : outcome.status,
           applicationId,
         )
-        noteResultStatus(result.id, marked.status)
+        noteResultStatus(action.id, marked.status)
         return
       }
-      const completed = await completeResult(
+      const completed = await completeAction(
         token,
         jobId,
-        result.id,
+        action.id,
         applicationId,
-        outcome.commentId,
+        outcome.wordArtifactId,
       )
-      noteResultStatus(result.id, completed.status)
+      noteResultStatus(action.id, completed.status)
     } catch {
-      noteResultStatus(result.id, "applying")
+      noteResultStatus(action.id, "applying")
     }
   }
 
@@ -262,11 +254,11 @@ export function App() {
     if (!isWatchEvent(data) || data.job_id !== jobId) return
     switch (data.type) {
       case "expertgranskning.replay":
-        noteResults(data.results)
+        noteActions(data.actions)
         break
-      case "expertgranskning.result.created":
-      case "expertgranskning.result.updated":
-        noteResults([data.result])
+      case "expertgranskning.action.created":
+      case "expertgranskning.action.updated":
+        noteActions([data.action])
         break
       case "expertgranskning.finished":
         break
@@ -282,11 +274,11 @@ export function App() {
           for (const id of action.ids) insertedIds.current.add(id)
           break
         case "insert":
-          for (const result of action.results) {
+          for (const wordAction of action.actions) {
             try {
-              await insertOne(jobId, result)
+              await applyOneAction(jobId, wordAction)
             } catch (err) {
-              insertedIds.current.delete(result.id)
+              insertedIds.current.delete(wordAction.id)
               throw err
             }
           }

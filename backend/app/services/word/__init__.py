@@ -1,1 +1,1 @@
-"""Neutral Word document primitives — anchors and application lifecycle."""
+"""Neutral Word document primitives — anchors, actions, and application lifecycle."""

@@ -138,10 +138,10 @@ function changeTrackingSupported(): boolean {
   return typeof Word !== "undefined" && typeof Word.ChangeTrackingMode !== "undefined"
 }
 
-export async function applyRewriteSuggestion(args: {
+export async function replaceForAnchor(args: {
   anchor: WordAnchor
-  foreslagenText: string
-  motivering: string
+  replacementText: string
+  explanation: string
   fallbackComment: string
 }): Promise<WordMutationOutcome> {
   if (typeof Word === "undefined") {
@@ -171,9 +171,9 @@ export async function applyRewriteSuggestion(args: {
     const previousMode = context.document.changeTrackingMode
     try {
       context.document.changeTrackingMode = Word.ChangeTrackingMode.trackAll
-      paragraph.insertText(args.foreslagenText, Word.InsertLocation.replace)
+      paragraph.insertText(args.replacementText, Word.InsertLocation.replace)
       await context.sync()
-      const comment = paragraph.getRange().insertComment(args.motivering)
+      const comment = paragraph.getRange().insertComment(args.explanation)
       comment.load("id")
       await context.sync()
       return { status: "resolved", commentId: comment.id }

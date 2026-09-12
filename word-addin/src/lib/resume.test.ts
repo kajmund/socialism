@@ -1,27 +1,24 @@
 import { describe, expect, it } from "vitest"
 
-import type { LatestWordJob, ReviewResult } from "./types"
+import type { LatestWordJob, WordAction } from "./types"
 import { finishedJobView, isActiveWordJobStatus, planReviewStart } from "./resume"
 
 function job(overrides: Partial<LatestWordJob> = {}): LatestWordJob {
   return {
     job_id: "job_1",
     status: "pending",
-    results: [],
+    actions: [],
     ...overrides,
   }
 }
 
-function result(overrides: Partial<ReviewResult> = {}): ReviewResult {
+function action(overrides: Partial<WordAction> = {}): WordAction {
   return {
-    id: "egr_1",
+    id: "wa_1",
     job_id: "job_1",
-    paragraph_index: 1,
-    expert_id: "slot_1",
-    expert_namn: "Anna",
-    kommentar: "Text",
-    is_heading_suggestion: false,
-    comment_id: "word-1",
+    action_type: "comment",
+    content: "Text",
+    word_artifact_id: "word-1",
     status: "applied",
     ...overrides,
   }
@@ -48,14 +45,14 @@ describe("planReviewStart", () => {
     })
   })
 
-  it("starts a new job after a finished run and lists comments to resolve", () => {
+  it("starts a new job after a finished run and lists artifacts to resolve", () => {
     expect(
       planReviewStart(
         job({
           status: "succeeded",
-          results: [
-            result({ comment_id: "word-1" }),
-            result({ id: "egr_2", comment_id: null }),
+          actions: [
+            action({ word_artifact_id: "word-1" }),
+            action({ id: "wa_2", word_artifact_id: null }),
           ],
         }),
       ),
@@ -71,25 +68,25 @@ describe("planReviewStart", () => {
 })
 
 describe("finishedJobView", () => {
-  it("exposes applying and unresolved rows from a finished job", () => {
+  it("exposes applying and unresolved actions from a finished job", () => {
     expect(
       finishedJobView(
         job({
           status: "succeeded",
-          results: [
-            result({ status: "applied", comment_id: "word-1" }),
-            result({ id: "egr_2", status: "applying", comment_id: null }),
-            result({ id: "egr_3", status: "unresolved", comment_id: null }),
+          actions: [
+            action({ status: "applied", word_artifact_id: "word-1" }),
+            action({ id: "wa_2", status: "applying", word_artifact_id: null }),
+            action({ id: "wa_3", status: "unresolved", word_artifact_id: null }),
           ],
         }),
       ),
     ).toEqual({
       jobId: "job_1",
       phase: "done",
-      results: [
-        result({ status: "applied", comment_id: "word-1" }),
-        result({ id: "egr_2", status: "applying", comment_id: null }),
-        result({ id: "egr_3", status: "unresolved", comment_id: null }),
+      actions: [
+        action({ status: "applied", word_artifact_id: "word-1" }),
+        action({ id: "wa_2", status: "applying", word_artifact_id: null }),
+        action({ id: "wa_3", status: "unresolved", word_artifact_id: null }),
       ],
     })
   })
@@ -98,7 +95,7 @@ describe("finishedJobView", () => {
     expect(finishedJobView(job({ status: "failed" }))).toEqual({
       jobId: "job_1",
       phase: "failed",
-      results: [],
+      actions: [],
     })
     expect(planReviewStart(job({ status: "failed" }))).toEqual({
       action: "startNew",

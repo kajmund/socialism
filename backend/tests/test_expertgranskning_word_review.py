@@ -759,7 +759,9 @@ def test_resolve_comment_anchor_uses_explicit_and_single_index():
 def test_word_alembic_chain_is_linear_after_main_head():
     cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     script = ScriptDirectory.from_config(cfg)
-    assert script.get_heads() == ["068_word_application_lifecycle"]
+    assert script.get_heads() == ["069_word_actions"]
+    actions = script.get_revision("069_word_actions")
+    assert actions.down_revision == "068_word_application_lifecycle"
     lifecycle = script.get_revision("068_word_application_lifecycle")
     assert lifecycle.down_revision == "067_researchplan_valid_proposals"
     retry = script.get_revision("065_word_comment_anchor_retry")
@@ -2265,22 +2267,22 @@ async def test_word_review_patch_comment_id(client: AsyncClient):
     )
     job_id = created.json()["job_id"]
     await jobs_service._run_job(job_id)
-    listed = (await client.get(f"/expertgranskning/word-jobs/{job_id}/results")).json()
-    assert listed[0]["anchor"]["paragraph_index"] == listed[0]["paragraph_index"]
-    assert listed[0]["anchor"]["reviewed_text"] == listed[0]["reviewed_text"]
+    listed = (await client.get(f"/expertgranskning/word-jobs/{job_id}/actions")).json()
+    assert listed[0]["anchor"]["paragraph_index"] == 1
+    assert listed[0]["anchor"]["reviewed_text"]
     assert listed[0]["anchor"]["text_hash"]
     row_id = listed[0]["id"]
     claimed = await client.post(
-        f"/expertgranskning/word-jobs/{job_id}/results/{row_id}/claim",
+        f"/expertgranskning/word-jobs/{job_id}/actions/{row_id}/claim",
         json={"application_id": "app-patch"},
     )
     assert claimed.status_code == 200
     completed = await client.post(
-        f"/expertgranskning/word-jobs/{job_id}/results/{row_id}/complete",
-        json={"application_id": "app-patch", "comment_id": "w-1"},
+        f"/expertgranskning/word-jobs/{job_id}/actions/{row_id}/complete",
+        json={"application_id": "app-patch", "word_artifact_id": "w-1"},
     )
     assert completed.status_code == 200
-    assert completed.json()["comment_id"] == "w-1"
+    assert completed.json()["word_artifact_id"] == "w-1"
     assert completed.json()["status"] == "applied"
 
 
