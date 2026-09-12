@@ -16,9 +16,10 @@ import re
 import secrets
 from collections.abc import Sequence
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import ExpertgranskningResult, Job, PanelSession
+from app.database.models import ExpertgranskningResult, Job, PanelSession, WordAction
 from app.serializers import utcnow
 from app.services.expertgranskning.comment_convergence import (
     WordConsolidatedComment,
@@ -43,9 +44,10 @@ from app.services.expertgranskning.schemas import (
     WordReviewQuestion,
 )
 from app.services.expertgranskning.watch import (
+    publish_action_created,
     publish_expertgranskning_finished,
-    publish_result_created,
 )
+from app.services.word.materialize import materialize_word_action
 from app.services.panel.expert_slots import load_expert_slots_from_population
 from app.services.panel.schemas import PanelExpertSlot
 from app.services.prompt_catalog import render_prompt
@@ -355,15 +357,16 @@ async def _write_result(
         is_heading_suggestion=is_heading_suggestion,
         is_rewrite_suggestion=is_rewrite_suggestion,
         foreslagen_text=foreslagen_text,
-        comment_id=None,
-        status="pending",
         created_at=utcnow(),
     )
     session.add(row)
+    await session.flush()
+    action = await materialize_word_action(session, row, request=request)
     if commit:
         await session.commit()
-        await session.refresh(row)
-        await publish_result_created(row, request=request)
+        if action is not None:
+            await session.refresh(action)
+            await publish_action_created(action)
     return row
 
 
@@ -784,9 +787,21 @@ async def run_word_paragraph_review(
 
         if pending:
             await session.commit()
+            source_ids = {row.id for row in pending}
+            actions = (
+                await session.execute(
+                    select(WordAction).where(
+                        WordAction.job_id == job.id,
+                        WordAction.source_id.in_(source_ids),
+                    )
+                )
+            ).scalars().all()
+            by_source = {action.source_id: action for action in actions}
             for row in pending:
-                await session.refresh(row)
-                await publish_result_created(row, request=job.request)
+                action = by_source.get(row.id)
+                if action is None:
+                    continue
+                await publish_action_created(action)
 
         heading = await _review_heading(prompts=prompts, slots=slots, section=section)
         heading_reviews += 1

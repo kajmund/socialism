@@ -38,12 +38,12 @@ Implementation: `app/realtime/panel_broadcast.py`, `app/services/panel/watch.py`
 
 Connect to `/ws/expertgranskning` with hello `{ type: "hello", scope: "expertgranskning_watch", job_id }`. Auth is the same `access_token` query param as other sockets. The server loads `jobs.kind == expertgranskning_word_review` and calls `assert_kund_access` on `job.customer_id` (4401 / 4403). Unknown or wrong-kind jobs close with 1003.
 
-Server sends `expertgranskning.replay` immediately (`job_id`, `status`, `results[]`), then streams:
+Server sends `expertgranskning.replay` immediately (`job_id`, `status`, `actions[]`), then streams:
 
 | Event | When |
 | ----- | ---- |
-| `expertgranskning.result.created` | After each result row is committed |
-| `expertgranskning.result.updated` | After claim/complete/unresolved |
+| `expertgranskning.action.created` | After each WordAction is committed |
+| `expertgranskning.action.updated` | After claim/complete/unresolved |
 | `expertgranskning.finished` | Job succeeded or failed (`status`, optional `error` / `stats`) |
 
 Implementation: `app/realtime/expertgranskning_broadcast.py`, `app/services/expertgranskning/watch.py`. Consumer is `word-addin/` (not the admin SPA). Sideload and host limits: [guides/word-addin.md](guides/word-addin.md).
