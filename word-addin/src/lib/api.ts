@@ -26,6 +26,7 @@ export async function listExpertPanels(token: string): Promise<ExpertPanelSummar
 export async function generateIntentInterview(
   token: string,
   body: {
+    panel_id: number
     sections: WordDocumentSection[]
     locale?: "sv" | "en" | "nb"
   },
