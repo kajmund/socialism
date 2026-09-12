@@ -16,6 +16,9 @@ from app.services.panel.review_intent import (
 )
 from app.services.prompt_catalog import render_prompt
 
+DOCUMENT_DATA_OPEN = "<document>"
+DOCUMENT_DATA_CLOSE = "</document>"
+
 
 def document_text_for_interview(sections: list[WordDocumentSection]) -> str:
     parts: list[str] = []
@@ -28,6 +31,24 @@ def document_text_for_interview(sections: list[WordDocumentSection]) -> str:
             if text:
                 parts.append(text)
     return "\n\n".join(parts)
+
+
+def document_as_user_data(document: str) -> str:
+    return f"{DOCUMENT_DATA_OPEN}\n{document}\n{DOCUMENT_DATA_CLOSE}"
+
+
+def intent_interview_messages(
+    *,
+    prompts: dict[str, str],
+    document: str,
+) -> list[ChatMessage]:
+    return [
+        {
+            "role": "system",
+            "content": render_prompt(prompts, "expertgranskning.word.intent_interview"),
+        },
+        {"role": "user", "content": document_as_user_data(document)},
+    ]
 
 
 def _option_label(question: IntentQuestion, value: str) -> str:
@@ -122,11 +143,7 @@ async def generate_document_intent_interview(
     prompts: dict[str, str],
 ) -> DocumentIntentInterview:
     document = document_text_for_interview(sections)
-    user = render_prompt(prompts, "expertgranskning.word.intent_interview")
-    messages: list[ChatMessage] = []
-    if document:
-        messages.append({"role": "system", "content": document})
-    messages.append({"role": "user", "content": user})
+    messages = intent_interview_messages(prompts=prompts, document=document)
     return await complete_word_structured(
         messages,
         DocumentIntentInterview,
