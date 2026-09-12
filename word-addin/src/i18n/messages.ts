@@ -23,10 +23,11 @@ export const messages = {
     statusIdle: "Välj en panel och klicka Granska.",
     statusConnecting: "Startar granskning…",
     statusLive:
-      "Kommentarer och spårade omskrivningar kommer in i dokumentet. Godkänn eller avvisa ändringarna i Word.",
+      "Förslag visas i sidopanelen. Tillämpa eller avfärda dem. Inget skrivs i dokumentet förrän du väljer Tillämpa.",
     statusResume:
-      "Återanslöt till pågående granskning. Kommentarer och spårade omskrivningar kommer in i dokumentet. Godkänn eller avvisa ändringarna i Word.",
-    statusDone: "Granskningen är klar.",
+      "Återanslöt till pågående granskning. Förslag visas i sidopanelen. Tillämpa eller avfärda dem.",
+    statusDone:
+      "Förslagsgenereringen är klar. Tillämpa eller avfärda kvarvarande förslag.",
     statusFailed: "Granskningen misslyckades: {error}",
     commentsUnsupported:
       "Den här Word-värden saknar insertComment (WordApi 1.4). Sidladda i Word-skrivbordet.",
@@ -41,6 +42,24 @@ export const messages = {
       "{applied} resultat applicerade, {unplaced} kunde inte placeras säkert eftersom dokumentet ändrats.",
     rewritePrefix: "Föreslagen omskrivning:",
     language: "Språk",
+    queueHeading: "Förslag",
+    actionComment: "Kommentar",
+    actionReplace: "Föreslagen ändring",
+    actionCurrent: "Nuvarande",
+    actionSuggested: "Förslag",
+    actionWhy: "Varför",
+    actionApply: "Tillämpa",
+    actionDismiss: "Avfärda",
+    actionApplying: "Tillämpas…",
+    actionApplyingHint:
+      "Tillämpningen är osäker. Dokumentet kan redan vara ändrat. Försök inte igen automatiskt.",
+    actionApplied: "Tillämpad",
+    actionDismissed: "Avfärdad",
+    actionUnresolved: "Kunde inte placeras: {reason}",
+    blockUndecided:
+      "Tillämpa eller avfärda öppna förslag innan du startar en ny granskning.",
+    blockApplying:
+      "Ett förslag håller på att tillämpas och resultatet i Word är osäkert. Starta inte en ny granskning.",
   },
   en: {
     title: "Expert review",
@@ -62,10 +81,10 @@ export const messages = {
     statusIdle: "Choose a panel and click Review.",
     statusConnecting: "Starting review…",
     statusLive:
-      "Comments and tracked rewrites are appearing in the document. Accept or reject the changes in Word.",
+      "Proposals appear in the pane. Apply or dismiss them. Nothing is written to the document until you choose Apply.",
     statusResume:
-      "Reconnected to the running review. Comments and tracked rewrites are appearing in the document. Accept or reject the changes in Word.",
-    statusDone: "The review is finished.",
+      "Reconnected to the running review. Proposals appear in the pane. Apply or dismiss them.",
+    statusDone: "Proposal generation is finished. Apply or dismiss any remaining proposals.",
     statusFailed: "The review failed: {error}",
     commentsUnsupported:
       "This Word host does not support insertComment (WordApi 1.4). Sideload in Word desktop.",
@@ -79,6 +98,23 @@ export const messages = {
       "{applied} results applied, {unplaced} could not be placed safely because the document changed.",
     rewritePrefix: "Suggested rewrite:",
     language: "Language",
+    queueHeading: "Proposals",
+    actionComment: "Comment",
+    actionReplace: "Suggested edit",
+    actionCurrent: "Current",
+    actionSuggested: "Suggested",
+    actionWhy: "Why",
+    actionApply: "Apply",
+    actionDismiss: "Dismiss",
+    actionApplying: "Applying…",
+    actionApplyingHint:
+      "Application is uncertain. The document may already have changed. Do not retry automatically.",
+    actionApplied: "Applied",
+    actionDismissed: "Dismissed",
+    actionUnresolved: "Could not be placed: {reason}",
+    blockUndecided: "Apply or dismiss open proposals before starting a new review.",
+    blockApplying:
+      "A proposal is still applying and the Word outcome is uncertain. Do not start a new review.",
   },
 } as const
 
