@@ -29,7 +29,6 @@ from app.services.expertgranskning.comment_convergence import (
     apply_word_comment_convergence,
     chunk_observations_for_convergence,
     collapse_intra_expert_duplicates,
-    consolidated_from_observation,
     format_observations_for_prompt,
     paragraph_indexes_for_observations,
 )
@@ -423,6 +422,7 @@ async def _write_result(
     is_heading_suggestion: bool,
     is_rewrite_suggestion: bool = False,
     foreslagen_text: str | None = None,
+    explanation: str | None = None,
     request: dict | None = None,
     source_ordinal: int = 0,
     commit: bool = True,
@@ -439,6 +439,7 @@ async def _write_result(
         is_heading_suggestion=is_heading_suggestion,
         is_rewrite_suggestion=is_rewrite_suggestion,
         foreslagen_text=foreslagen_text,
+        explanation=(explanation or "").strip() or None,
         created_at=utcnow(),
     )
     session.add(row)
@@ -709,13 +710,10 @@ async def _consolidate_comments(
 ) -> list[WordConsolidatedComment]:
     raw = _observations_from_comments(comments, by_index)
     collapsed = collapse_intra_expert_duplicates(raw)
-    if len(collapsed) < 2:
-        return [consolidated_from_observation(item) for item in collapsed]
+    if not collapsed:
+        return []
     written: list[WordConsolidatedComment] = []
     for chunk in chunk_observations_for_convergence(collapsed):
-        if len(chunk) < 2:
-            written.extend(consolidated_from_observation(item) for item in chunk)
-            continue
         referenced = paragraph_indexes_for_observations(chunk)
         parsed = await _comment_convergence(
             prompts=prompts,
@@ -973,6 +971,8 @@ async def _persist_section_analysis(
     pending: list[ExpertgranskningResult] = []
     source_ordinal = 0
     for item in analysis.comments:
+        if not item.should_materialize:
+            continue
         pending.append(
             await _write_result(
                 session,
@@ -984,6 +984,7 @@ async def _persist_section_analysis(
                 expert_namn=item.expert_namn,
                 kommentar=item.kommentar,
                 is_heading_suggestion=False,
+                explanation=item.explanation or None,
                 request=job.request,
                 source_ordinal=source_ordinal,
                 commit=False,

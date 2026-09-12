@@ -28,6 +28,7 @@ from app.services.expertgranskning.comment_convergence import (
     chunk_observations_for_convergence,
     collapse_intra_expert_duplicates,
     comments_dissent,
+    decide_word_issue_materialization,
     paragraph_indexes_for_observations,
 )
 from app.services.expertgranskning.schemas import (
@@ -277,6 +278,23 @@ def _obs(**overrides) -> WordObservation:
     return WordObservation(**values)
 
 
+def _issue(**overrides) -> WordConvergedIssue:
+    values = {
+        "observation_ids": ["o1"],
+        "paragraph_index": 3,
+        "supporting_expert_ids": ["frank"],
+        "short_comment": "Skärp formuleringen.",
+        "explanation": "Formuleringen saknar ett konkret åtagande.",
+        "materiality": "high",
+        "actionability": "actionable",
+        "novelty": "new",
+        "should_materialize": True,
+        "has_dissensus": False,
+    }
+    values.update(overrides)
+    return WordConvergedIssue(**values)
+
+
 def _passthrough_comment_convergence(user: str) -> WordCommentConvergence:
     issues: list[WordConvergedIssue] = []
     for block in user.split("### ")[1:]:
@@ -296,11 +314,12 @@ def _passthrough_comment_convergence(user: str) -> WordCommentConvergence:
         if not observation_id or "paragraph_index" not in fields:
             continue
         issues.append(
-            WordConvergedIssue(
+            _issue(
                 observation_ids=[observation_id],
                 paragraph_index=int(fields["paragraph_index"]),
                 supporting_expert_ids=[fields.get("expert_id", "")],
-                kommentar=fields.get("kommentar", ""),
+                short_comment=fields.get("kommentar", ""),
+                explanation="",
             )
         )
     return WordCommentConvergence(issues=issues)
@@ -592,13 +611,17 @@ def test_inter_expert_convergence_keeps_supporting_experts():
     ]
     parsed = WordCommentConvergence(
         issues=[
-            WordConvergedIssue(
+            _issue(
                 observation_ids=["o1", "o2", "o3", "o4"],
                 paragraph_index=3,
                 supporting_expert_ids=["frank", "roger", "nils", "daniel"],
-                kommentar=(
+                short_comment=(
                     "Flera experter: 'försöker i möjligaste mån' är för svagt "
                     "och bör ersättas med ett konkret åtagande."
+                ),
+                explanation=(
+                    "Best-effort-formuleringen ger motparten ett slapphetsutrymme "
+                    "och bör bytas mot ett mätbart åtagande."
                 ),
             )
         ]
@@ -610,6 +633,8 @@ def test_inter_expert_convergence_keeps_supporting_experts():
     assert comments[0].paragraph_index == 3
     assert "försöker i möjligaste mån" in comments[0].kommentar
     assert comments[0].kommentar.count("försöker i möjligaste mån") == 1
+    assert "slapphetsutrymme" in comments[0].explanation
+    assert comments[0].should_materialize is True
 
 
 def test_supporting_experts_keep_all_grouped_members():
@@ -621,11 +646,11 @@ def test_supporting_experts_keep_all_grouped_members():
     ]
     parsed = WordCommentConvergence(
         issues=[
-            WordConvergedIssue(
+            _issue(
                 observation_ids=["o1", "o2", "o3", "o4"],
                 paragraph_index=3,
                 supporting_expert_ids=["frank"],
-                kommentar="Flera experter ser samma kärnrisk i formuleringen.",
+                short_comment="Flera experter ser samma kärnrisk i formuleringen.",
             )
         ]
     )
@@ -643,11 +668,11 @@ def test_convergence_cannot_invent_unrelated_paragraph():
     ]
     parsed = WordCommentConvergence(
         issues=[
-            WordConvergedIssue(
+            _issue(
                 observation_ids=["o1", "o2"],
                 paragraph_index=99,
                 supporting_expert_ids=["frank"],
-                kommentar="Ska stanna på de grupperade ankaren.",
+                short_comment="Ska stanna på de grupperade ankaren.",
             )
         ]
     )
@@ -663,11 +688,11 @@ def test_negated_reject_preserves_dissensus():
     assert comments_dissent([accept, reject])
     parsed = WordCommentConvergence(
         issues=[
-            WordConvergedIssue(
+            _issue(
                 observation_ids=["o1", "o2"],
                 paragraph_index=12,
                 supporting_expert_ids=["roger", "daniel"],
-                kommentar="Dröjsmålsräntan är acceptabel.",
+                short_comment="Dröjsmålsräntan är acceptabel.",
                 has_dissensus=False,
             )
         ]
@@ -735,11 +760,11 @@ def test_preserved_dissensus_is_not_merged_away():
     )
     parsed = WordCommentConvergence(
         issues=[
-            WordConvergedIssue(
+            _issue(
                 observation_ids=["o1", "o2", "o3"],
                 paragraph_index=12,
                 supporting_expert_ids=["roger", "nils", "daniel"],
-                kommentar="Dröjsmålsräntan är acceptabel.",
+                short_comment="Dröjsmålsräntan är acceptabel.",
                 has_dissensus=False,
             )
         ]
@@ -750,6 +775,138 @@ def test_preserved_dissensus_is_not_merged_away():
     assert "acceptabel" in by_expert["roger"]
     assert "godtagbart" in by_expert["nils"]
     assert "sänks" in by_expert["daniel"]
+    assert all(item.should_materialize for item in comments)
+    assert all(item.has_dissensus for item in comments)
+
+
+def test_converged_issue_keeps_short_comment_and_explanation_apart():
+    parsed = WordCommentConvergence(
+        issues=[
+            _issue(
+                observation_ids=["o1"],
+                short_comment="Byt till ett konkret leveransåtagande.",
+                explanation=(
+                    "Formuleringen 'försöker i möjligaste mån' lämnar motparten "
+                    "utan mätbart krav och bör skärpas."
+                ),
+            )
+        ]
+    )
+    comments = apply_word_comment_convergence([_obs()], parsed)
+    assert len(comments) == 1
+    assert comments[0].kommentar == "Byt till ett konkret leveransåtagande."
+    assert "mätbart krav" in comments[0].explanation
+    assert comments[0].kommentar not in comments[0].explanation
+    assert comments[0].should_materialize is True
+
+
+def test_word_issue_schema_fails_closed_without_judgment_fields():
+    with pytest.raises(ValidationError):
+        WordConvergedIssue(
+            observation_ids=["o1"],
+            paragraph_index=3,
+            supporting_expert_ids=["frank"],
+            short_comment="En kort kommentar.",
+            explanation="En längre motivering.",
+        )
+    with pytest.raises(ValidationError):
+        WordConvergedIssue.model_validate(
+            {
+                "observation_ids": ["o1"],
+                "paragraph_index": 3,
+                "supporting_expert_ids": ["frank"],
+                "short_comment": "En kort kommentar.",
+                "explanation": "En längre motivering.",
+                "materiality": "critical",
+                "actionability": "actionable",
+                "novelty": "new",
+                "should_materialize": True,
+            }
+        )
+
+
+def test_low_materiality_informational_issue_is_not_materialized():
+    issue = _issue(
+        materiality="low",
+        actionability="informational",
+        should_materialize=True,
+    )
+    assert decide_word_issue_materialization(issue) is False
+    comments = apply_word_comment_convergence([_obs()], WordCommentConvergence(issues=[issue]))
+    assert comments[0].should_materialize is False
+
+
+def test_overlapping_issue_is_not_materialized():
+    first = _obs(observation_id="o1", expert_id="frank", expert_label="Frank")
+    second = _obs(observation_id="o2", expert_id="roger", expert_label="Roger")
+    parsed = WordCommentConvergence(
+        issues=[
+            _issue(
+                observation_ids=["o1"],
+                short_comment="Skärp leveransåtagandet.",
+                explanation="Best-effort lämnar ett slapphetsutrymme.",
+            ),
+            _issue(
+                observation_ids=["o2"],
+                supporting_expert_ids=["roger"],
+                short_comment="Samma best-effort-problem igen.",
+                explanation="Redan täckt av den första issuen.",
+                novelty="overlap",
+                should_materialize=True,
+            ),
+        ]
+    )
+    comments = apply_word_comment_convergence([first, second], parsed)
+    assert [item.should_materialize for item in comments] == [True, False]
+
+
+def test_dissensus_is_not_filtered_as_overlap():
+    issue = _issue(
+        novelty="overlap",
+        should_materialize=False,
+        has_dissensus=True,
+    )
+    assert decide_word_issue_materialization(issue) is True
+
+
+def test_leftover_observation_still_materializes():
+    kept = _obs(observation_id="o1")
+    leftover = _obs(
+        observation_id="o2",
+        expert_id="roger",
+        expert_label="Roger",
+        kommentar="En annan genuin risk i samma stycke.",
+    )
+    parsed = WordCommentConvergence(
+        issues=[
+            _issue(
+                observation_ids=["o1"],
+                short_comment="Skärp leveransåtagandet.",
+            )
+        ]
+    )
+    comments = apply_word_comment_convergence([kept, leftover], parsed)
+    assert len(comments) == 2
+    by_expert = {item.expert_id: item for item in comments}
+    assert by_expert["roger"].kommentar == leftover.kommentar
+    assert by_expert["roger"].should_materialize is True
+
+
+def test_intent_is_used_when_deciding_materialization():
+    relevant = _issue(
+        short_comment="Förtydliga betalningsfristen.",
+        should_materialize=True,
+    )
+    off_purpose = _issue(
+        observation_ids=["o2"],
+        supporting_expert_ids=["roger"],
+        short_comment="Justera ett kosmetiskt komma.",
+        materiality="low",
+        actionability="informational",
+        should_materialize=False,
+    )
+    assert decide_word_issue_materialization(relevant) is True
+    assert decide_word_issue_materialization(off_purpose) is False
 
 
 def test_comment_convergence_chunks_keep_nearby_paragraphs_together():
@@ -960,7 +1117,9 @@ def test_resolve_comment_anchor_uses_explicit_and_single_index():
 def test_word_alembic_chain_is_linear_after_main_head():
     cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     script = ScriptDirectory.from_config(cfg)
-    assert script.get_heads() == ["072_intent_interview_trust"]
+    assert script.get_heads() == ["073_word_review_issue_quality"]
+    quality = script.get_revision("073_word_review_issue_quality")
+    assert quality.down_revision == "072_intent_interview_trust"
     trust = script.get_revision("072_intent_interview_trust")
     assert trust.down_revision == "071_intent_interview"
     interview = script.get_revision("071_intent_interview")
@@ -998,6 +1157,9 @@ def test_word_comment_prompt_stays_party_neutral():
     synthesis = default_prompts("sv")["expertgranskning.word.comment_convergence"]
     assert "Granskande part är okänd" in synthesis
     assert "Vänd inte på dokumentfakta" in synthesis
+    assert "short_comment" in synthesis
+    assert "should_materialize" in synthesis
+    assert "granskningsavsikt" in synthesis
 
 
 _OLD_COMMENT_OVERRIDE = (
@@ -1402,11 +1564,11 @@ async def test_word_review_selection_scope_stays_inside_target(client: AsyncClie
         if response_model is WordCommentConvergence:
             return WordCommentConvergence(
                 issues=[
-                    WordConvergedIssue(
+                    _issue(
                         observation_ids=["o1"],
                         paragraph_index=1,
                         supporting_expert_ids=["slot_1"],
-                        kommentar="Konvergens utanför markeringen.",
+                        short_comment="Konvergens utanför markeringen.",
                     )
                 ]
             )
@@ -2308,13 +2470,16 @@ async def test_word_review_inter_expert_convergence_writes_one_comment(
             ]
             return WordCommentConvergence(
                 issues=[
-                    WordConvergedIssue(
+                    _issue(
                         observation_ids=observation_ids,
                         paragraph_index=max(
                             issue.paragraph_index for issue in parsed.issues
                         ),
                         supporting_expert_ids=expert_ids,
-                        kommentar=(
+                        short_comment=(
+                            "Byt 'försöker i möjligaste mån' mot ett konkret åtagande."
+                        ),
+                        explanation=(
                             "Flera experter: 'försöker i möjligaste mån' är för svagt "
                             "och bör ersättas med ett konkret åtagande."
                         ),
@@ -2350,7 +2515,178 @@ async def test_word_review_inter_expert_convergence_writes_one_comment(
     assert len(comments) == 1
     assert DEFAULT_EXPERT_LABELS[0] in comments[0]["expert_namn"]
     assert DEFAULT_EXPERT_LABELS[1] in comments[0]["expert_namn"]
-    assert comments[0]["kommentar"].count("försöker i möjligaste mån") == 1
+    assert comments[0]["kommentar"] == (
+        "Byt 'försöker i möjligaste mån' mot ett konkret åtagande."
+    )
+    actions = (await client.get(f"/expertgranskning/word-jobs/{job_id}/actions")).json()
+    comment_actions = [row for row in actions if row["action_type"] == "comment"]
+    assert len(comment_actions) == 1
+    assert comment_actions[0]["content"].endswith(
+        "Byt 'försöker i möjligaste mån' mot ett konkret åtagande."
+    )
+    assert "slapphetsutrymme" not in comment_actions[0]["content"]
+    assert "för svagt" in comment_actions[0]["explanation"]
+
+
+@pytest.mark.asyncio
+async def test_word_review_does_not_materialize_low_value_or_overlap(
+    client: AsyncClient,
+):
+    async def completer(messages, response_model):
+        user = messages[-1]["content"]
+        if response_model is WordBatchModeration:
+            return _moderation_for_batch(user)
+        if response_model is WordExpertRaiseHand:
+            return WordExpertRaiseHand(question_ids=["q1"])
+        if response_model is WordExpertComment:
+            return WordExpertComment(kommentar="Ett komma saknas i ingressen.")
+        if response_model is WordCommentConvergence:
+            parsed = _passthrough_comment_convergence(user)
+            ids = [
+                observation_id
+                for issue in parsed.issues
+                for observation_id in issue.observation_ids
+            ]
+            first, *rest = ids or ["o1"]
+            issues = [
+                _issue(
+                    observation_ids=[first],
+                    paragraph_index=1,
+                    short_comment="Ett komma saknas i ingressen.",
+                    explanation="Rent kosmetiskt.",
+                    materiality="low",
+                    actionability="informational",
+                    should_materialize=True,
+                )
+            ]
+            if rest:
+                issues.append(
+                    _issue(
+                        observation_ids=rest,
+                        paragraph_index=1,
+                        short_comment="Samma kommatering igen.",
+                        explanation="Redan täckt.",
+                        novelty="overlap",
+                        should_materialize=True,
+                    )
+                )
+            return WordCommentConvergence(issues=issues)
+        if response_model is WordHeadingAssessment:
+            return WordHeadingAssessment(forslag=None)
+        if response_model is WordRewriteSuggestion:
+            return WordRewriteSuggestion(ny_text=None, motivering=None)
+        raise AssertionError(response_model)
+
+    panel_id = await _create_expert_panel(client)
+    set_structured_completer(completer)
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    created = await client.post(
+        "/expertgranskning/word-jobs",
+        json=_payload(
+            panel_id=panel_id,
+            paragraphs=[_para(1, "Konsulten försöker i möjligaste mån leverera i tid.")],
+        ),
+    )
+    job_id = created.json()["job_id"]
+    await jobs_service._run_job(job_id)
+    rows = (await client.get(f"/expertgranskning/word-jobs/{job_id}/results")).json()
+    comments = [
+        row
+        for row in rows
+        if not row["is_heading_suggestion"] and not row["is_rewrite_suggestion"]
+    ]
+    actions = (await client.get(f"/expertgranskning/word-jobs/{job_id}/actions")).json()
+    assert comments == []
+    assert [row["action_type"] for row in actions] == []
+
+
+@pytest.mark.asyncio
+async def test_word_review_intent_changes_materialization_context(
+    client: AsyncClient,
+):
+    captured: list[str] = []
+
+    async def completer(messages, response_model):
+        if response_model is WordCommentConvergence:
+            captured.append("\n".join(item["content"] for item in messages))
+        user = messages[-1]["content"]
+        if response_model is WordBatchModeration:
+            return _moderation_for_batch(user)
+        if response_model is WordExpertRaiseHand:
+            return WordExpertRaiseHand(question_ids=["q1"])
+        if response_model is WordExpertComment:
+            return WordExpertComment(kommentar="Ingressen har ett extra mellanslag.")
+        if response_model is WordCommentConvergence:
+            parsed = _passthrough_comment_convergence(user)
+            return WordCommentConvergence(
+                issues=[
+                    _issue(
+                        observation_ids=[
+                            oid
+                            for issue in parsed.issues
+                            for oid in issue.observation_ids
+                        ],
+                        paragraph_index=1,
+                        short_comment="Ta bort det extra mellanslaget.",
+                        explanation="Kosmetiskt och utanför betalningsfokuset.",
+                        materiality="low",
+                        actionability="informational",
+                        should_materialize=False,
+                    )
+                ]
+            )
+        if response_model is WordHeadingAssessment:
+            return WordHeadingAssessment(forslag=None)
+        if response_model is WordRewriteSuggestion:
+            return WordRewriteSuggestion(ny_text=None, motivering=None)
+        raise AssertionError(response_model)
+
+    panel_id = await _create_expert_panel(client)
+    set_structured_completer(completer)
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    created = await client.post(
+        "/expertgranskning/word-jobs",
+        json=_payload(
+            panel_id=panel_id,
+            paragraphs=[_para(1, "Fakturan ska betalas inom trettio dagar.")],
+            review_intent="Granska bara betalningsvillkor.",
+            intent_interview={
+                "document_type": "contract",
+                "questions": [
+                    {
+                        "id": "focus",
+                        "text": "Vad ska granskningen prioritera?",
+                        "type": "single_choice",
+                        "required": True,
+                        "rationale": "Styr vad som är materiellt.",
+                        "options": [
+                            {"value": "payment", "label": "Betalning"},
+                            {"value": "style", "label": "Språk"},
+                        ],
+                    }
+                ],
+            },
+            intent_answers=[{"question_id": "focus", "selected_values": ["payment"]}],
+        ),
+    )
+    assert created.status_code == 202, created.text
+    job_id = created.json()["job_id"]
+    stored = (await client.get(f"/jobs/{job_id}")).json()["request"]
+    assert stored["review_intent"] == "Granska bara betalningsvillkor."
+    assert "Betalning" not in stored["review_intent"]
+    await jobs_service._run_job(job_id)
+    assert captured
+    assert "Granska bara betalningsvillkor" in captured[0]
+    assert "Betalning" in captured[0]
+    rows = (await client.get(f"/expertgranskning/word-jobs/{job_id}/results")).json()
+    comments = [
+        row
+        for row in rows
+        if not row["is_heading_suggestion"] and not row["is_rewrite_suggestion"]
+    ]
+    actions = (await client.get(f"/expertgranskning/word-jobs/{job_id}/actions")).json()
+    assert comments == []
+    assert actions == []
 
 
 @pytest.mark.asyncio
@@ -2380,7 +2716,7 @@ async def test_word_review_preserves_dissensus_as_separate_comments(
             parsed = _passthrough_comment_convergence(messages[-1]["content"])
             return WordCommentConvergence(
                 issues=[
-                    WordConvergedIssue(
+                    _issue(
                         observation_ids=[
                             oid for issue in parsed.issues for oid in issue.observation_ids
                         ],
@@ -2390,7 +2726,7 @@ async def test_word_review_preserves_dissensus_as_separate_comments(
                             for issue in parsed.issues
                             for expert_id in issue.supporting_expert_ids
                         ],
-                        kommentar="Dröjsmålsräntan är acceptabel.",
+                        short_comment="Dröjsmålsräntan är acceptabel.",
                         has_dissensus=False,
                     )
                 ]

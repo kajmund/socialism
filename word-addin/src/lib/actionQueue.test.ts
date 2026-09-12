@@ -81,9 +81,21 @@ describe("actionCardModel", () => {
     expect(model.kind).toBe("comment")
     expect(model.content).toBe("Anna: Skärp ingressen.")
     expect(model.reviewedText).toBeNull()
+    expect(model.explanation).toBeNull()
     expect(model.showApply).toBe(true)
     expect(model.showDismiss).toBe(true)
     expect(model.showApplying).toBe(false)
+  })
+
+  it("exposes comment explanation for a collapsed Why control", () => {
+    const model = actionCardModel(
+      action({
+        explanation: "Formuleringen saknar ett konkret åtagande.",
+      }),
+    )
+    expect(model.kind).toBe("comment")
+    expect(model.content).toBe("Anna: Skärp ingressen.")
+    expect(model.explanation).toBe("Formuleringen saknar ett konkret åtagande.")
   })
 
   it("renders replace current, suggested, and explanation", () => {

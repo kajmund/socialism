@@ -10,6 +10,7 @@ from app.realtime.expertgranskning_broadcast import expertgranskning_broadcast
 from app.services import jobs as jobs_service
 from app.services.expertgranskning.schemas import (
     WordBatchModeration,
+    WordCommentConvergence,
     WordExpertComment,
     WordExpertRaiseHand,
     WordHeadingAssessment,
@@ -20,6 +21,7 @@ from tests.test_expertgranskning_word_review import (
     DEFAULT_EXPERT_LABELS,
     _create_expert_panel,
     _identity_label,
+    _passthrough_comment_convergence,
     _review_task,
 )
 
@@ -67,6 +69,8 @@ async def test_word_review_emits_result_created_then_finished(
             return WordExpertRaiseHand(question_ids=[])
         if response_model is WordExpertComment:
             return WordExpertComment(kommentar="En live-kommentar.")
+        if response_model is WordCommentConvergence:
+            return _passthrough_comment_convergence(messages[-1]["content"])
         raise AssertionError(f"unexpected model {response_model}")
 
     panel_id = await _create_expert_panel(client)
@@ -169,6 +173,8 @@ async def test_word_result_patch_emits_updated(client: AsyncClient, monkeypatch)
             return WordExpertRaiseHand(question_ids=[])
         if response_model is WordExpertComment:
             return WordExpertComment(kommentar="Kommentar att fästa live.")
+        if response_model is WordCommentConvergence:
+            return _passthrough_comment_convergence(messages[-1]["content"])
         raise AssertionError(f"unexpected model {response_model}")
 
     panel_id = await _create_expert_panel(client)

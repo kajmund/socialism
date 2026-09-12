@@ -70,6 +70,9 @@ class WordConsolidatedComment:
     supporting_expert_labels: tuple[str, ...]
     paragraph_index: int
     kommentar: str
+    explanation: str = ""
+    should_materialize: bool = True
+    has_dissensus: bool = False
 
 
 def comment_tokens(text: str) -> frozenset[str]:
@@ -286,6 +289,17 @@ def collapse_intra_expert_duplicates(
     return collapsed
 
 
+def decide_word_issue_materialization(issue: WordConvergedIssue) -> bool:
+    """Explicit surfacing contract. Dissensus is never filtered as overlap."""
+    if issue.has_dissensus:
+        return True
+    if issue.novelty == "overlap":
+        return False
+    if issue.materiality == "low" and issue.actionability == "informational":
+        return False
+    return issue.should_materialize
+
+
 def consolidated_from_observation(observation: WordObservation) -> WordConsolidatedComment:
     return WordConsolidatedComment(
         expert_id=observation.expert_id,
@@ -294,6 +308,9 @@ def consolidated_from_observation(observation: WordObservation) -> WordConsolida
         supporting_expert_labels=(observation.expert_label,),
         paragraph_index=observation.paragraph_index,
         kommentar=observation.kommentar,
+        explanation="",
+        should_materialize=True,
+        has_dissensus=False,
     )
 
 
@@ -303,6 +320,9 @@ def _comment_from_members(
     paragraph_index: int | None,
     kommentar: str,
     supporting_expert_ids: Sequence[str],
+    explanation: str = "",
+    should_materialize: bool = True,
+    has_dissensus: bool = False,
 ) -> WordConsolidatedComment:
     labels_by_id = {item.expert_id: item.expert_label for item in members}
     preferred = [item for item in supporting_expert_ids if item in labels_by_id]
@@ -322,6 +342,9 @@ def _comment_from_members(
         supporting_expert_labels=labels,
         paragraph_index=anchor_index,
         kommentar=text,
+        explanation=explanation.strip(),
+        should_materialize=should_materialize,
+        has_dissensus=has_dissensus,
     )
 
 
@@ -341,7 +364,7 @@ def apply_word_comment_convergence(
     """Apply an LLM grouping. Dissensus is split; leftover observations stay."""
     by_id = {item.observation_id: item for item in observations}
     assigned: set[str] = set()
-    groups: list[tuple[list[WordObservation], WordConvergedIssue | None]] = []
+    groups: list[tuple[list[WordObservation], WordConvergedIssue | None, bool]] = []
 
     for issue in parsed.issues:
         members: list[WordObservation] = []
@@ -355,16 +378,16 @@ def apply_word_comment_convergence(
             continue
         if issue.has_dissensus or comments_dissent([item.kommentar for item in members]):
             for split in _split_dissenting_members(members):
-                groups.append((split, None))
+                groups.append((split, None, True))
             continue
-        groups.append((members, issue))
+        groups.append((members, issue, False))
 
     for observation in observations:
         if observation.observation_id not in assigned:
-            groups.append(([observation], None))
+            groups.append(([observation], None, False))
 
     comments: list[WordConsolidatedComment] = []
-    for members, issue in groups:
+    for members, issue, dissented in groups:
         if issue is None:
             comments.append(
                 _comment_from_members(
@@ -372,6 +395,9 @@ def apply_word_comment_convergence(
                     paragraph_index=None,
                     kommentar="",
                     supporting_expert_ids=[item.expert_id for item in members],
+                    explanation="",
+                    should_materialize=True,
+                    has_dissensus=dissented,
                 )
             )
             continue
@@ -379,8 +405,11 @@ def apply_word_comment_convergence(
             _comment_from_members(
                 members,
                 paragraph_index=issue.paragraph_index,
-                kommentar=issue.kommentar,
+                kommentar=issue.short_comment,
                 supporting_expert_ids=issue.supporting_expert_ids,
+                explanation=issue.explanation,
+                should_materialize=decide_word_issue_materialization(issue),
+                has_dissensus=issue.has_dissensus,
             )
         )
     return comments

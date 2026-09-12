@@ -94,6 +94,24 @@ def test_format_comment_preserves_word_visible_output():
     )
 
 
+def test_comment_carries_short_content_and_separate_explanation():
+    spec = expert_review_word_action_spec(
+        _result(
+            kommentar="Byt till ett konkret leveransåtagande.",
+            explanation=(
+                "Formuleringen 'försöker i möjligaste mån' lämnar motparten "
+                "utan mätbart krav."
+            ),
+        )
+    )
+    assert spec is not None
+    assert spec.action_type == "comment"
+    assert spec.content == "Anna: Byt till ett konkret leveransåtagande."
+    assert spec.explanation == (
+        "Formuleringen 'försöker i möjligaste mån' lämnar motparten utan mätbart krav."
+    )
+
+
 def test_heading_stays_comment_even_if_foreslagen_text_exists():
     spec = expert_review_word_action_spec(
         _result(
