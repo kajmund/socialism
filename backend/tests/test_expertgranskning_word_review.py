@@ -233,6 +233,10 @@ def _payload(*, heading="Avtal", paragraphs: list[WordDocumentParagraph], **extr
     }
     if "review_intent" in extra:
         body["review_intent"] = extra["review_intent"]
+    if "intent_interview" in extra:
+        body["intent_interview"] = extra["intent_interview"]
+    if "intent_answers" in extra:
+        body["intent_answers"] = extra["intent_answers"]
     return body
 
 
@@ -809,7 +813,11 @@ def test_resolve_comment_anchor_uses_explicit_and_single_index():
 def test_word_alembic_chain_is_linear_after_main_head():
     cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     script = ScriptDirectory.from_config(cfg)
-    assert script.get_heads() == ["070_review_intent"]
+    assert script.get_heads() == ["072_intent_interview_trust"]
+    trust = script.get_revision("072_intent_interview_trust")
+    assert trust.down_revision == "071_intent_interview"
+    interview = script.get_revision("071_intent_interview")
+    assert interview.down_revision == "070_review_intent"
     intent = script.get_revision("070_review_intent")
     assert intent.down_revision == "069_word_actions"
     actions = script.get_revision("069_word_actions")

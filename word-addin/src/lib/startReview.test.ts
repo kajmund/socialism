@@ -4,7 +4,9 @@ import { buildSections } from "./sections"
 import {
   NoWordParagraphsError,
   NoWordSectionsError,
+  prepareWordReview,
   startNewWordReview,
+  submitPreparedWordReview,
 } from "./startReview"
 import {
   EmptyWordSelectionError,
@@ -115,6 +117,36 @@ describe("startNewWordReview", () => {
     ).rejects.toBeInstanceOf(NoWordParagraphsError)
     expect(createJob).not.toHaveBeenCalled()
     expect(resolvePreviousComments).not.toHaveBeenCalled()
+  })
+
+  it("prepares a snapshot without creating a job", async () => {
+    const prepared = await prepareWordReview({
+      captureSnapshot: async () => snapshot(),
+      buildSections,
+    })
+    expect(prepared.sections.length).toBeGreaterThan(0)
+    expect(prepared.snapshot.paragraphs).toHaveLength(1)
+  })
+
+  it("submits the prepared snapshot without recapturing", async () => {
+    const order: string[] = []
+    const frozen = snapshot()
+    const sections = buildSections(frozen.paragraphs)
+    const jobId = await submitPreparedWordReview({
+      snapshot: frozen,
+      sections,
+      createJob: async ({ snapshot: submitted, sections: submittedSections }) => {
+        order.push("create")
+        expect(submitted).toBe(frozen)
+        expect(submittedSections).toBe(sections)
+        return "job-frozen"
+      },
+      resolvePreviousComments: async () => {
+        order.push("resolve")
+      },
+    })
+    expect(jobId).toBe("job-frozen")
+    expect(order).toEqual(["create", "resolve"])
   })
 
   it("fails closed when sections cannot be built", async () => {

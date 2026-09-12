@@ -24,6 +24,38 @@ export type WordTask = {
   expert_strategy: WordExpertStrategy
 }
 
+export const INTENT_QUESTION_TYPES = [
+  "single_choice",
+  "multi_choice",
+  "free_text",
+] as const
+export type IntentQuestionType = (typeof INTENT_QUESTION_TYPES)[number]
+
+export type IntentOption = {
+  value: string
+  label: string
+}
+
+export type IntentQuestion = {
+  id: string
+  text: string
+  type: IntentQuestionType
+  options: IntentOption[]
+  required: boolean
+  rationale: string
+}
+
+export type DocumentIntentInterview = {
+  document_type: string
+  questions: IntentQuestion[]
+}
+
+export type IntentAnswer = {
+  question_id: string
+  selected_values: string[]
+  free_text: string | null
+}
+
 export type WordDocumentSection = {
   heading: string
   heading_style: string

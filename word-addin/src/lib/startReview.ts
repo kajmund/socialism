@@ -15,6 +15,38 @@ export class NoWordSectionsError extends Error {
   }
 }
 
+export async function prepareWordReview(args: {
+  captureSnapshot: () => Promise<WordTaskSnapshot>
+  buildSections: (paragraphs: WordParagraph[]) => WordDocumentSection[]
+}): Promise<{ snapshot: WordTaskSnapshot; sections: WordDocumentSection[] }> {
+  const snapshot = await args.captureSnapshot()
+  if (snapshot.paragraphs.length === 0) {
+    throw new NoWordParagraphsError()
+  }
+  const sections = args.buildSections(snapshot.paragraphs)
+  if (sections.length === 0) {
+    throw new NoWordSectionsError()
+  }
+  return { snapshot, sections }
+}
+
+export async function submitPreparedWordReview(args: {
+  snapshot: WordTaskSnapshot
+  sections: WordDocumentSection[]
+  createJob: (input: {
+    snapshot: WordTaskSnapshot
+    sections: WordDocumentSection[]
+  }) => Promise<string>
+  resolvePreviousComments: () => Promise<void>
+}): Promise<string> {
+  const jobId = await args.createJob({
+    snapshot: args.snapshot,
+    sections: args.sections,
+  })
+  await args.resolvePreviousComments()
+  return jobId
+}
+
 export async function startNewWordReview(args: {
   captureSnapshot: () => Promise<WordTaskSnapshot>
   buildSections: (paragraphs: WordParagraph[]) => WordDocumentSection[]
@@ -24,15 +56,11 @@ export async function startNewWordReview(args: {
   }) => Promise<string>
   resolvePreviousComments: () => Promise<void>
 }): Promise<string> {
-  const snapshot = await args.captureSnapshot()
-  if (snapshot.paragraphs.length === 0) {
-    throw new NoWordParagraphsError()
-  }
-  const sections = args.buildSections(snapshot.paragraphs)
-  if (sections.length === 0) {
-    throw new NoWordSectionsError()
-  }
-  const jobId = await args.createJob({ snapshot, sections })
-  await args.resolvePreviousComments()
-  return jobId
+  const prepared = await prepareWordReview(args)
+  return submitPreparedWordReview({
+    snapshot: prepared.snapshot,
+    sections: prepared.sections,
+    createJob: args.createJob,
+    resolvePreviousComments: args.resolvePreviousComments,
+  })
 }
