@@ -1032,15 +1032,22 @@ async def _persist_section_analysis(
         )
     ).scalars().all()
     by_source = {action.source_id: action for action in actions}
+    ordered = [by_source[row.id] for row in pending if row.id in by_source]
+    published = await publish_created_actions(ordered, timings)
+    return len(pending), published
+
+
+async def publish_created_actions(
+    actions: list[WordAction],
+    timings: WordReviewTimings,
+) -> int:
+    """Publish actions in persist order and stamp first-action as soon as one lands."""
     published = 0
-    for row in pending:
-        action = by_source.get(row.id)
-        if action is None:
-            continue
+    for action in actions:
         await publish_action_created(action)
         timings.mark_first_action()
         published += 1
-    return len(pending), published
+    return published
 
 
 async def run_word_paragraph_review(
