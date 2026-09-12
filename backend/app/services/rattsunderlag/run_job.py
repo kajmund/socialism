@@ -66,7 +66,7 @@ async def run_rattsunderlag_research_job(job_id: str) -> None:
         await session.commit()
         await session.refresh(report)
         report_id = report.id
-        await publish_report(report)
+        await publish_report(report, session=session)
 
     try:
         out_dir = Path(ARTIFACT_ROOT) / report_id
@@ -98,7 +98,7 @@ async def run_rattsunderlag_research_job(job_id: str) -> None:
             report.finished_at = utcnow()
             report.updated_at = utcnow()
             await session.commit()
-            await publish_report(report)
+            await publish_report(report, session=session)
             await _succeed(
                 session,
                 job_id,
@@ -119,5 +119,5 @@ async def run_rattsunderlag_research_job(job_id: str) -> None:
                 report.finished_at = utcnow()
                 report.updated_at = utcnow()
                 await session.commit()
-                await publish_report(report)
+                await publish_report(report, session=session)
             await _fail(session, job_id, str(exc) or exc.__class__.__name__)

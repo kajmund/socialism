@@ -327,7 +327,7 @@ async def create_report(
     report.updated_at = utcnow()
     await session.commit()
     await session.refresh(report)
-    await publish_report(report)
+    await publish_report(report, session=session)
 
     jobs_service.enqueue_job(job.id)
     response.status_code = 202

@@ -90,15 +90,20 @@ async def list_reports(
     return list((await session.execute(stmt)).scalars().all())
 
 
-async def publish_report(report: Report, *, has_source_pdf: bool | None = None) -> None:
+async def publish_report(
+    report: Report,
+    *,
+    has_source_pdf: bool | None = None,
+    session: AsyncSession | None = None,
+) -> None:
     flag = has_source_pdf
-    if flag is None:
-        from app.database.session import SessionLocal
+    if flag is None and session is not None:
         from app.services.stored_objects import report_source_pdf_object
 
-        async with SessionLocal() as session:
-            stored = await report_source_pdf_object(session, report.id)
-            flag = stored is not None
+        stored = await report_source_pdf_object(session, report.id)
+        flag = stored is not None
+    if flag is None:
+        flag = False
     await report_hub.publish(
         {
             "type": "report.updated",

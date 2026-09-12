@@ -762,7 +762,9 @@ def test_resolve_comment_anchor_uses_explicit_and_single_index():
 def test_word_alembic_chain_is_linear_after_main_head():
     cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     script = ScriptDirectory.from_config(cfg)
-    assert script.get_heads() == ["069_word_actions"]
+    assert script.get_heads() == ["070_review_intent"]
+    intent = script.get_revision("070_review_intent")
+    assert intent.down_revision == "069_word_actions"
     actions = script.get_revision("069_word_actions")
     assert actions.down_revision == "068_word_application_lifecycle"
     lifecycle = script.get_revision("068_word_application_lifecycle")
