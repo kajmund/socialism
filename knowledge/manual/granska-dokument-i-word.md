@@ -1,7 +1,7 @@
 ---
 type: guide
 title: Granska ett dokument i Word
-description: Öppna tillägget i Word, välj expertpanel och tillämpa eller avfärda förslagen i sidopanelen.
+description: Öppna tillägget i Word, välj expertpanel, omfattning och ev. granskningsavsikt, och tillämpa eller avfärda förslagen i sidopanelen.
 tags: [jobb, rapporter]
 ---
 
@@ -15,7 +15,8 @@ Tillägget **Expertgranskning** sitter i Word, inte i webbläsaren. Det använde
 2. Klistra in din inloggningstoken (samma som efter inloggningslänken) och spara den. Token stannar i Word.
 3. Välj en **expertpanel**. Listan visar bara panelerna för din kund.
 4. Fyll i **Granskningsavsikt** om du vill styra vad experterna ska fokusera på, till exempel att Devbrains är motpart i avtalet. Fältet är valfritt.
-5. Klicka **Granska**. Tillägget läser dokumentets stycken och startar en granskning.
+5. Välj **Omfattning**: hela dokumentet (standard) eller den aktuella **markeringen**. Markering gäller hela stycken, även om du bara markerat mitt i ett stycke.
+6. Klicka **Granska**. Tillägget läser hela dokumentet som underlag. Om du valt markering skapas förslag bara för de markerade styckena.
 
 En moderator läser först varje del av dokumentet och hoppar över rent administrativt innehåll, till exempel namn och kontaktuppgifter. Bara delar som kräver bedömning går vidare till experterna, som frågor. Varje expert får hela dokumentet som underlag och kommenterar bara de frågor där hen räcker upp handen. Förslagen visas löpande i sidopanelen och fästs vid det stycke som bär observationen först när du tillämpar dem. Kommentarerna använder dokumentets partsnamn och antar inte att du är kund eller leverantör. När flera experter gör samma observation slås den ihop till en kommentar som visar vilka som stödjer den. Om experterna faktiskt är oeniga syns båda bedömningarna. Klausulnummer (till exempel 2.1) används internt så att experten kan peka rätt — de läggs inte in i kommentaren du ser.
 

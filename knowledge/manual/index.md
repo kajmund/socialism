@@ -80,7 +80,7 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 
 * [Använda expertgranskning](anvanda-expertgranskning.md) — Ladda upp eller klistra in text, ange granskningsavsikt, välj panel och kör en granskning
 * [Använda expertgranskning i bolagsytan](anvanda-expertgranskning-i-bolagsytan.md) — Samma funktion under Bolag-menyn för DD-only-konton
-* [Granska ett dokument i Word](granska-dokument-i-word.md) — Välj panel och granskningsavsikt i Word-tillägget; tillämpa eller avfärda förslag i sidopanelen
+* [Granska ett dokument i Word](granska-dokument-i-word.md) — Välj panel, omfattning och ev. granskningsavsikt i Word-tillägget; tillämpa eller avfärda förslag i sidopanelen
 
 # Rättsunderlag
 
