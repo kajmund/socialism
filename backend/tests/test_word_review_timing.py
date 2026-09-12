@@ -9,6 +9,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.services.expertgranskning import word_review
+from app.services.expertgranskning.word_review import log_word_review_call_summary
 from app.services.expertgranskning.word_review_timing import (
     TIMING_CATEGORIES,
     WordReviewLimiter,
@@ -50,6 +51,34 @@ def test_timing_snapshot_has_safe_aggregate_fields_only():
     assert snapshot["moderation_ms"] >= 0
     assert snapshot["time_to_first_action_ms"] is not None
     assert snapshot["time_to_first_action_ms"] >= 0
+
+
+def test_llm_call_summary_logs_counts_without_document_text(monkeypatch):
+    messages: list[str] = []
+
+    def capture(fmt: str, *args: object) -> None:
+        messages.append(fmt % args if args else fmt)
+
+    monkeypatch.setattr(word_review.logger, "info", capture)
+    timings = WordReviewTimings()
+    started = timings.begin_call()
+    timings.record_category("comment_convergence")
+    timings.record_structured_retry()
+    timings.end_call("comment_convergence", started)
+    log_word_review_call_summary(
+        "job_secret", timings.snapshot(), outcome="failed"
+    )
+    assert len([item for item in messages if "Word review LLM calls" in item]) == 1
+    assert len([item for item in messages if "Word review timings" in item]) == 1
+    logged = " ".join(messages)
+    assert "job_id=job_secret" in logged
+    assert "outcome=failed" in logged
+    assert "structured_retries=1" in logged
+    assert "comment_convergence=1" in logged
+    assert "max_observed_llm_concurrency=" in logged
+    assert "prompt" not in logged
+    assert "document" not in logged
+    assert "kommentar" not in logged
 
 
 def test_timing_snapshot_omits_first_action_until_marked():
