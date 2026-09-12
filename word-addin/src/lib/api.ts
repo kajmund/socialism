@@ -9,7 +9,7 @@ import type {
   WordDocumentSection,
   WordTask,
 } from "@/lib/types"
-import { parseIntentInterview } from "@/lib/intentInterview"
+import { InvalidIntentInterviewError, parseIntentInterview } from "@/lib/intentInterview"
 
 function url(path: string): string {
   return `${env.apiBaseUrl.replace(/\/$/, "")}${path}`
@@ -23,6 +23,13 @@ export async function listExpertPanels(token: string): Promise<ExpertPanelSummar
   return rows.filter((row) => row.kind === "expert_panel")
 }
 
+export function isIntentInterviewInvalidError(error: unknown): boolean {
+  return (
+    error instanceof InvalidIntentInterviewError ||
+    (error instanceof ApiError && error.message === "intent_interview_invalid")
+  )
+}
+
 export async function generateIntentInterview(
   token: string,
   body: {
@@ -31,15 +38,22 @@ export async function generateIntentInterview(
     locale?: "sv" | "en" | "nb"
   },
 ): Promise<DocumentIntentInterview> {
-  const created = await httpRequest<unknown>(
-    url("/expertgranskning/word-intent-interview"),
-    {
-      method: "POST",
-      token,
-      body,
-    },
-  )
-  return parseIntentInterview(created)
+  try {
+    const created = await httpRequest<unknown>(
+      url("/expertgranskning/word-intent-interview"),
+      {
+        method: "POST",
+        token,
+        body,
+      },
+    )
+    return parseIntentInterview(created)
+  } catch (error) {
+    if (isIntentInterviewInvalidError(error)) {
+      throw new InvalidIntentInterviewError()
+    }
+    throw error
+  }
 }
 
 export async function createWordJob(
