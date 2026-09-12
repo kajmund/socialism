@@ -51,6 +51,7 @@ export type Report = {
   slots_path: string | null
   job_id: string | null
   error: string | null
+  has_source_pdf: boolean
   created_at: string
   finished_at: string | null
   updated_at: string
@@ -162,6 +163,10 @@ export async function getReportHtml(id: string): Promise<string> {
     throw new ApiError("Report HTML missing")
   }
   return body
+}
+
+export function getReportSourcePdf(id: string): Promise<Blob> {
+  return api.getBlob(`/reports/${id}/source-pdf`)
 }
 
 export type RecommendationSnapshot = {

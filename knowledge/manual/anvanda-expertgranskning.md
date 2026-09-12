@@ -21,17 +21,18 @@ tags: [rapporter]
 
 1. Öppna fliken **Konfiguration** (via **Ny** eller en sparad körning).
 2. Lägg in texten som ska granskas på ett av två sätt:
-   - **Välj underlag** och ladda upp eller återanvänd en egen fil (txt, md, PDF eller Word), inklusive rättsunderlag som du har tagit fram i **Rättsunderlag**, eller öppna **rapporter** under bolagets övriga moduler. Du kan förhandsgranska PDF och rapporter, dra filer mellan mappar och ta bort underlag. Den extraherade texten fylls i automatiskt.
+   - **Välj underlag** och ladda upp eller återanvänd en egen fil (txt, md, PDF eller Word), inklusive rättsunderlag som du har tagit fram i **Rättsunderlag**, eller öppna **rapporter** under bolagets övriga moduler. Du kan förhandsgranska PDF och rapporter, dra filer mellan mappar och ta bort en fil med **Ta bort** på raden. Filen sparas som den är (Word konverteras till PDF). Texten läses först när experterna körs. Du kan i stället klistra in text direkt.
    - Klistra in text direkt i dokumentfältet. Titel är valfritt.
-3. Välj en **expertpanel**. Finns ingen panel skapar du en under **Expertpaneler**.
-4. **Spara utkast** om du vill fortsätta senare, eller **Kör expertgranskning** när text och panel är klara.
-5. Har du redan en rapport och kör om, bekräfta först — den nya körningen ersätter live-resultatet.
+3. Fyll i **Granskningsavsikt** om du vill styra vad experterna ska fokusera på. Till exempel att Devbrains är motpart i avtalet. Fältet är valfritt — lämna det tomt om dokumentet räcker.
+4. Välj en **expertpanel**. Finns ingen panel skapar du en under **Expertpaneler**.
+5. **Spara utkast** om du vill fortsätta senare, eller **Kör expertgranskning** när text och panel är klara.
+6. Har du redan en rapport och kör om, bekräfta först — den nya körningen ersätter live-resultatet.
 
 ## Resultat
 
 1. Fliken **Resultat** öppnas automatiskt när en körning inte längre är utkast.
 2. **Live-panel** visar moderator och experter medan jobbet körs. Efter öppningen anger varje expert om frågan ligger inom hens faktiska kompetens, och i så fall vilka underlag som behövs. Moderatorn slår ihop det till en researchplan. Experter utanför området skapar inte sakfrågor åt någon annan. Därefter räcker bara de med relevant kompetens upp handen. Noll händer är ett giltigt svar. Saknas relevant kompetens stoppas den sakliga diskussionen och frågan lämnas obesvarad. Moderatorn ställer en fråga i taget — nästa delfråga syns först när den har ställts, och hålls inte igång med analogier. Experternas turer visas formaterade (listor, fetstil, länkar) om de skriver markdown.
-3. När panelen är klar öppnas **Rapport**. Dokumentet visas formaterat. Därifrån kan du prata med **Spinndoktor**.
+3. När panelen är klar öppnas **Rapport**. Där finns flikarna **Rapport** och **PDF** om underlaget var en PDF (eller Word som konverterats). Originaltexten ingår inte i HTML-rapporten. Därifrån kan du prata med **Spinndoktor**.
 
 Underlag du laddar upp är personliga — andra på samma kund ser inte dina filer eller mappar.
 

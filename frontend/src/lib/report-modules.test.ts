@@ -10,6 +10,7 @@ function user(role: AuthUser["role"], modules: string[]): AuthUser {
     role,
     modules,
     kundSlug: role === "bolag" ? "bolag-demo" : "devbrains",
+    kundId: role === "bolag" ? 2 : 1,
   }
 }
 

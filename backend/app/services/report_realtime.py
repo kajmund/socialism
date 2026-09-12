@@ -55,7 +55,7 @@ def _iso(value: datetime | None) -> str | None:
     return value.isoformat()
 
 
-def serialize_report(report: Report) -> ReportOut:
+def serialize_report(report: Report, *, has_source_pdf: bool = False) -> ReportOut:
     return ReportOut(
         id=report.id,
         customer_id=report.customer_id,
@@ -68,6 +68,7 @@ def serialize_report(report: Report) -> ReportOut:
         slots_path=report.slots_path,
         job_id=report.job_id,
         error=report.error,
+        has_source_pdf=has_source_pdf,
         created_at=_iso(report.created_at) or "",
         finished_at=_iso(report.finished_at),
         updated_at=_iso(report.updated_at) or "",
@@ -89,11 +90,19 @@ async def list_reports(
     return list((await session.execute(stmt)).scalars().all())
 
 
-async def publish_report(report: Report) -> None:
+async def publish_report(report: Report, *, has_source_pdf: bool | None = None) -> None:
+    flag = has_source_pdf
+    if flag is None:
+        from app.database.session import SessionLocal
+        from app.services.stored_objects import report_source_pdf_object
+
+        async with SessionLocal() as session:
+            stored = await report_source_pdf_object(session, report.id)
+            flag = stored is not None
     await report_hub.publish(
         {
             "type": "report.updated",
-            "report": serialize_report(report).model_dump(mode="json"),
+            "report": serialize_report(report, has_source_pdf=flag).model_dump(mode="json"),
         }
     )
 

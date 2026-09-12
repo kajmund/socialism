@@ -5,7 +5,7 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import PanelSession, Persona, Population, Projekt
+from app.database.models import PanelSession, Population, Projekt, StoredObject
 from app.serializers import format_date
 from app.services.expertgranskning import MODULE_ID
 from app.services.expertgranskning.schemas import (
@@ -15,6 +15,7 @@ from app.services.expertgranskning.schemas import (
     ExpertgranskningSessionUpdate,
 )
 from app.services.kund_store import default_os_project_id, require_default_project_id
+from app.services.object_storage import KIND_UNDERLAG
 from app.services.panel.expert_slots import (
     load_expert_slots_from_population,
     require_expert_panel,
@@ -26,6 +27,8 @@ from app.services.panel.sessions import (
     get_panel_session,
     new_panel_session_id,
 )
+from app.services.stored_objects import get_stored_object, read_stored_bytes
+from app.services.underlag_extract import ensure_underlag_extracted
 
 
 def topic_from_document(title: str, document_text: str) -> str:
@@ -40,6 +43,15 @@ def topic_from_document(title: str, document_text: str) -> str:
 
 def document_text_from_config(config: dict) -> str:
     return str(config.get("brief") or "").strip()
+
+
+def review_intent_from_config(config: dict) -> str:
+    return str(config.get("review_intent") or "").strip()
+
+
+def underlag_id_from_config(config: dict) -> str | None:
+    value = str(config.get("underlag_id") or "").strip()
+    return value or None
 
 
 def is_expertgranskning_session(row: PanelSession) -> bool:
@@ -60,6 +72,8 @@ def serialize_expertgranskning_session(
         module=str(config.get("module") or MODULE_ID),
         topic=str(config.get("topic") or ""),
         document_text=document_text_from_config(config),
+        underlag_id=underlag_id_from_config(config),
+        review_intent=review_intent_from_config(config),
         panel_id=row.panel_id,
         panel_name=panel_name,
         project_id=row.project_id,
@@ -89,15 +103,13 @@ def serialize_expertgranskning_summary(
 
 
 async def customer_id_for_expert_panel(session: AsyncSession, panel_id: int) -> int | None:
+    """Return the kund that owns the panel (Population.customer_id).
+
+    Persona customer_ids can differ when an admin composed a panel from another
+    kund's experts; ownership for session scoping is the population row.
+    """
     population = await require_expert_panel(session, panel_id)
-    persona_ids = [member.persona_id for member in population.members if member.persona_id]
-    if not persona_ids:
-        return None
-    result = await session.execute(select(Persona).where(Persona.id.in_(persona_ids)))
-    customer_ids = {row.customer_id for row in result.scalars().all()}
-    if len(customer_ids) == 1:
-        return next(iter(customer_ids))
-    return None
+    return int(population.customer_id)
 
 
 async def resolve_project_id(
@@ -114,6 +126,22 @@ async def resolve_project_id(
     return await require_default_project_id(session, customer_id)
 
 
+async def require_underlag_for_customer(
+    session: AsyncSession,
+    underlag_id: str,
+    *,
+    customer_id: int,
+) -> StoredObject:
+    underlag = await get_stored_object(session, underlag_id)
+    if (
+        underlag is None
+        or underlag.kind != KIND_UNDERLAG
+        or underlag.customer_id != customer_id
+    ):
+        raise LookupError("underlag not found")
+    return underlag
+
+
 async def resolve_customer_id(
     session: AsyncSession,
     *,
@@ -122,9 +150,13 @@ async def resolve_customer_id(
     user_customer_id: int | None,
     is_admin: bool,
 ) -> int:
-    if not is_admin:
-        if user_customer_id is None:
-            raise PermissionError("kund_access_denied")
+    """Resolve tenant for a new session.
+
+    Prefer the caller's active kund so underlag (scoped to that kund) and the
+    session project stay aligned. Admins without a kund binding may still infer
+    from project/panel/default OS project.
+    """
+    if user_customer_id is not None:
         if panel_id is not None:
             panel_customer_id = await customer_id_for_expert_panel(session, panel_id)
             if panel_customer_id != user_customer_id:
@@ -134,6 +166,8 @@ async def resolve_customer_id(
             if projekt.customer_id != user_customer_id:
                 raise PermissionError("kund_access_denied")
         return user_customer_id
+    if not is_admin:
+        raise PermissionError("kund_access_denied")
     if project_id is not None:
         projekt = await require_project(session, project_id)
         return projekt.customer_id
@@ -159,6 +193,8 @@ async def _create_draft_without_panel(
     *,
     topic: str,
     document_text: str,
+    review_intent: str,
+    underlag_id: str | None,
     project_id: int,
 ) -> PanelSession:
     config = PanelSessionConfig(
@@ -166,6 +202,8 @@ async def _create_draft_without_panel(
         module=MODULE_ID,
         topic=topic,
         brief=document_text,
+        review_intent=review_intent,
+        underlag_id=underlag_id,
         expert_slots=[],
     )
     row = PanelSession(
@@ -199,12 +237,18 @@ async def create_expertgranskning_session(
         customer_id=customer_id,
         project_id=body.project_id,
     )
+    if body.underlag_id:
+        await require_underlag_for_customer(
+            session, body.underlag_id, customer_id=customer_id
+        )
     topic = topic_from_document(body.title, body.document_text)
     if body.panel_id is None:
         row = await _create_draft_without_panel(
             session,
             topic=topic,
             document_text=body.document_text,
+            review_intent=body.review_intent,
+            underlag_id=body.underlag_id,
             project_id=project_id,
         )
     else:
@@ -216,6 +260,8 @@ async def create_expertgranskning_session(
                     module=MODULE_ID,
                     topic=topic,
                     brief=body.document_text,
+                    review_intent=body.review_intent,
+                    underlag_id=body.underlag_id,
                 ),
                 panel_id=body.panel_id,
                 project_id=project_id,
@@ -268,6 +314,21 @@ async def update_expertgranskning_session(
         if body.document_text is not None
         else document_text_from_config(config)
     )
+    review_intent = (
+        body.review_intent
+        if body.review_intent is not None
+        else review_intent_from_config(config)
+    )
+    if body.clear_underlag:
+        underlag_id: str | None = None
+    elif body.underlag_id is not None:
+        underlag_id = body.underlag_id
+    else:
+        underlag_id = underlag_id_from_config(config)
+    if underlag_id:
+        await require_underlag_for_customer(
+            session, underlag_id, customer_id=customer_id
+        )
     if body.title is not None:
         topic = topic_from_document(body.title, document_text)
     else:
@@ -306,6 +367,8 @@ async def update_expertgranskning_session(
             "module": MODULE_ID,
             "topic": topic,
             "brief": document_text,
+            "review_intent": review_intent,
+            "underlag_id": underlag_id,
             "expert_slots": expert_slots,
         }
     )
@@ -338,11 +401,30 @@ async def delete_expertgranskning_session(session: AsyncSession, row: PanelSessi
 
 
 async def prepare_session_for_run(session: AsyncSession, row: PanelSession) -> None:
-    """Validate and hydrate expert slots before enqueueing a run."""
+    """Validate and hydrate expert slots before enqueueing a run.
+
+    If the session references an underlag, extract text now and store it as brief.
+    """
     config = dict(row.config) if isinstance(row.config, dict) else {}
-    document_text = document_text_from_config(config)
+    underlag_id = underlag_id_from_config(config)
+    if underlag_id:
+        underlag = await require_underlag_for_customer(
+            session,
+            underlag_id,
+            customer_id=await _customer_id_for_session(session, row),
+        )
+        document_text = await ensure_underlag_extracted(
+            session,
+            underlag,
+            read_bytes=read_stored_bytes,
+        )
+        config["brief"] = document_text
+        row.config = config
+        await session.flush()
+    else:
+        document_text = document_text_from_config(config)
     if not document_text:
-        raise ValueError("document_text is required to run")
+        raise ValueError("document_text or underlag_id is required to run")
     if row.panel_id is None:
         raise ValueError("panel_id is required to run")
     slots = config.get("expert_slots") or []
@@ -352,6 +434,13 @@ async def prepare_session_for_run(session: AsyncSession, row: PanelSession) -> N
         row.config = config
         row.scratchpads = {slot.slot_id: "" for slot in loaded}
         await session.flush()
+
+
+async def _customer_id_for_session(session: AsyncSession, row: PanelSession) -> int:
+    projekt = await session.get(Projekt, row.project_id) if row.project_id else None
+    if projekt is None:
+        raise ValueError("session project missing")
+    return projekt.customer_id
 
 
 async def get_expertgranskning_session_out(

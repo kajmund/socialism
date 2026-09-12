@@ -71,6 +71,8 @@ from app.services.stored_objects import (
     delete_objects_for_report,
     read_stored_bytes,
     report_html_object,
+    report_ids_with_source_pdf,
+    report_source_pdf_object,
 )
 
 logger = logging.getLogger(__name__)
@@ -78,8 +80,13 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/reports", tags=["reports"])
 
 
-def _serialize(report: Report) -> ReportOut:
-    return serialize_report(report)
+def _serialize(report: Report, *, has_source_pdf: bool = False) -> ReportOut:
+    return serialize_report(report, has_source_pdf=has_source_pdf)
+
+
+async def _serialize_with_pdf(session: AsyncSession, report: Report) -> ReportOut:
+    stored = await report_source_pdf_object(session, report.id)
+    return _serialize(report, has_source_pdf=stored is not None)
 
 
 async def _validate_oasis_source(
@@ -339,7 +346,8 @@ async def list_reports(
     rows = await list_report_rows(
         session, status=status, customer_id=customer_id, limit=limit
     )
-    return [_serialize(r) for r in rows]
+    with_pdf = await report_ids_with_source_pdf(session, [row.id for row in rows])
+    return [_serialize(row, has_source_pdf=row.id in with_pdf) for row in rows]
 
 
 def _remove_report_artifacts(report_id: str) -> None:
@@ -403,7 +411,7 @@ async def get_report(
     if report is None:
         raise HTTPException(status_code=404, detail="Report not found")
     assert_kund_access(user, report.customer_id)
-    return _serialize(report)
+    return await _serialize_with_pdf(session, report)
 
 
 def _require_succeeded_report(report: Report) -> None:
@@ -529,4 +537,30 @@ async def get_report_html(
     return HTMLResponse(
         content=path.read_text(encoding="utf-8"),
         headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
+
+
+@router.get("/{report_id}/source-pdf")
+async def get_report_source_pdf(
+    report_id: str,
+    session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
+) -> Response:
+    report = await session.get(Report, report_id)
+    if report is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+    assert_kund_access(user, report.customer_id)
+    if report.status != "succeeded":
+        raise HTTPException(status_code=404, detail="Report PDF not ready")
+    stored = await report_source_pdf_object(session, report_id)
+    if stored is None:
+        raise HTTPException(status_code=404, detail="Source PDF not available")
+    try:
+        data, content_type = await read_stored_bytes(stored)
+    except ObjectStorageError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return Response(
+        content=data,
+        media_type=content_type or "application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{stored.filename}"'},
     )

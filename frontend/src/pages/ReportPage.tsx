@@ -1,8 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom"
-import { deleteReport, getReport, getReportHtml, type Report } from "@/api/reports"
+import {
+  deleteReport,
+  getReport,
+  getReportHtml,
+  getReportSourcePdf,
+  type Report,
+} from "@/api/reports"
 import { getJob, type Job } from "@/api/jobs"
 import { ReportCanvas, type ReportCanvasHandle } from "@/components/reports/ReportCanvas"
+import {
+  ReportDocumentTabs,
+  type ReportDocumentTab,
+} from "@/components/reports/ReportDocumentTabs"
 import { SpinndoktorGrid } from "@/components/reports/spinndoctorGrid/SpinndoktorGrid"
 import { SpinndoktorPanel } from "@/components/reports/SpinndoktorPanel"
 import {
@@ -84,7 +94,14 @@ export function ReportPage({
   const [reportMissing, setReportMissing] = useState(false)
   const [fetchedJob, setFetchedJob] = useState<Job | undefined>(undefined)
   const wsReport = id ? reports.find((r) => r.id === id) ?? null : null
-  const report = wsReport ?? fetchedReport
+  const report = useMemo(() => {
+    if (wsReport == null) return fetchedReport
+    if (fetchedReport == null) return wsReport
+    return {
+      ...wsReport,
+      has_source_pdf: Boolean(wsReport.has_source_pdf || fetchedReport.has_source_pdf),
+    }
+  }, [fetchedReport, wsReport])
   const reportModules = useMemo(() => {
     if (kundLoading) return reportModulesForUser(user, isBolagReport ? "bolag" : "admin")
     return reportModulesFromIds(moduleIds)
@@ -100,14 +117,24 @@ export function ReportPage({
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [viewMode, setViewMode] = useState<ReportViewMode>(initialViewMode)
+  const [documentTab, setDocumentTab] = useState<ReportDocumentTab>("html")
+  const [sourcePdfUrl, setSourcePdfUrl] = useState<string | null>(null)
+  const [sourcePdfLoading, setSourcePdfLoading] = useState(false)
+  const [sourcePdfError, setSourcePdfError] = useState<string | null>(null)
   const [reportPanelOpen, setReportPanelOpen] = useState(false)
   const [reportFullWidth, setReportFullWidth] = useState(false)
   const [chatPanelOpen, setChatPanelOpen] = useState(true)
   const [gridWidgets, setGridWidgets] = useState<SpindoctorWidget[]>([])
   const canvasRef = useRef<ReportCanvasHandle | null>(null)
+  const sourcePdfUrlRef = useRef<string | null>(null)
 
   const reportLocale: "sv" | "en" = report?.locale === "en" ? "en" : "sv"
   const spinndoktorReady = report?.status === "succeeded" && html != null && id != null
+  const hasSourcePdf = Boolean(report?.has_source_pdf)
+  // Expertgranskning always shows Rapport | PDF in report view; other modes only when a PDF exists.
+  const showDocumentTabs =
+    report?.status === "succeeded" &&
+    (report.mode === "expertgranskning" || hasSourcePdf)
 
   const error =
     actionError ?? (id && report == null && reportMissing ? t("reports.loadError") : null)
@@ -197,6 +224,56 @@ export function ReportPage({
   }, [viewMode])
 
   useEffect(() => {
+    if (!hasSourcePdf) {
+      setDocumentTab("html")
+    }
+  }, [hasSourcePdf])
+
+  useEffect(() => {
+    if (sourcePdfUrlRef.current) {
+      URL.revokeObjectURL(sourcePdfUrlRef.current)
+      sourcePdfUrlRef.current = null
+    }
+    setSourcePdfUrl(null)
+    setSourcePdfError(null)
+    setSourcePdfLoading(false)
+    if (!id || !hasSourcePdf || documentTab !== "pdf") {
+      return
+    }
+    let cancelled = false
+    setSourcePdfLoading(true)
+    void getReportSourcePdf(id)
+      .then((blob) => {
+        if (cancelled) return
+        const url = URL.createObjectURL(blob)
+        sourcePdfUrlRef.current = url
+        setSourcePdfUrl(url)
+        setSourcePdfError(null)
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return
+        setSourcePdfError(
+          err instanceof ApiError ? err.message : t("reports.sourcePdfError"),
+        )
+      })
+      .finally(() => {
+        if (!cancelled) setSourcePdfLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [documentTab, hasSourcePdf, id, t])
+
+  useEffect(() => {
+    return () => {
+      if (sourcePdfUrlRef.current) {
+        URL.revokeObjectURL(sourcePdfUrlRef.current)
+        sourcePdfUrlRef.current = null
+      }
+    }
+  }, [])
+
+  useEffect(() => {
     if (viewMode !== "spinndoctor" || !id) return
     let cancelled = false
     void listSpindoctorWidgets(id)
@@ -220,6 +297,7 @@ export function ReportPage({
   }, [viewMode, id, t])
 
   const handleSectionRef = useCallback((sectionId: string) => {
+    setDocumentTab("html")
     setReportPanelOpen(true)
     window.setTimeout(() => {
       canvasRef.current?.scrollToSection(sectionId)
@@ -502,6 +580,15 @@ export function ReportPage({
                     id="spinndoctor-report-panel"
                   >
                     <div className="spinndoctor-report-toolbar">
+                      {showDocumentTabs ? (
+                        <ReportDocumentTabs
+                          active={documentTab}
+                          onChange={setDocumentTab}
+                          className="flex min-w-0 flex-1 gap-1"
+                        />
+                      ) : (
+                        <span className="min-w-0 flex-1" />
+                      )}
                       <button
                         type="button"
                         className="spinndoctor-canvas-toggle"
@@ -513,11 +600,35 @@ export function ReportPage({
                           : t("reports.fullWidth")}
                       </button>
                     </div>
-                    <ReportCanvas
-                      ref={canvasRef}
-                      html={html}
-                      title={report?.title || t("reports.iframeTitle")}
-                    />
+                    {documentTab === "pdf" && showDocumentTabs ? (
+                      <div className="spinndoctor-canvas">
+                        {!hasSourcePdf ? (
+                          <p className="p-4 text-sm text-muted-foreground">
+                            {t("reports.sourcePdfMissing")}
+                          </p>
+                        ) : sourcePdfLoading ? (
+                          <p className="p-4 text-sm text-muted-foreground">
+                            {t("reports.sourcePdfLoading")}
+                          </p>
+                        ) : sourcePdfError ? (
+                          <p className="p-4 text-sm text-muted-foreground" role="alert">
+                            {sourcePdfError}
+                          </p>
+                        ) : sourcePdfUrl ? (
+                          <iframe
+                            title={t("reports.sourcePdfIframeTitle")}
+                            src={sourcePdfUrl}
+                            className="spinndoctor-canvas-frame"
+                          />
+                        ) : null}
+                      </div>
+                    ) : (
+                      <ReportCanvas
+                        ref={canvasRef}
+                        html={html}
+                        title={report?.title || t("reports.iframeTitle")}
+                      />
+                    )}
                   </aside>
                 ) : null}
               </div>
@@ -546,17 +657,44 @@ export function ReportPage({
             >
               {reportFullWidth ? t("reports.normalWidth") : t("reports.fullWidth")}
             </button>
-            <button
-              type="button"
-              onClick={openInNewTab}
-              className="text-db-gold-700 underline-offset-2 hover:underline"
-            >
-              {t("reports.openNewTab")}
-            </button>
+            {documentTab === "html" ? (
+              <button
+                type="button"
+                onClick={openInNewTab}
+                className="text-db-gold-700 underline-offset-2 hover:underline"
+              >
+                {t("reports.openNewTab")}
+              </button>
+            ) : null}
           </div>
         ) : null}
 
-        {html ? (
+        {showDocumentTabs ? (
+          <ReportDocumentTabs active={documentTab} onChange={setDocumentTab} />
+        ) : null}
+
+        {documentTab === "pdf" && showDocumentTabs ? (
+          !hasSourcePdf ? (
+            <p className="text-sm text-muted-foreground">{t("reports.sourcePdfMissing")}</p>
+          ) : sourcePdfLoading ? (
+            <p className="text-sm text-muted-foreground">{t("reports.sourcePdfLoading")}</p>
+          ) : sourcePdfError ? (
+            <p className="text-sm text-muted-foreground" role="alert">
+              {sourcePdfError}
+            </p>
+          ) : sourcePdfUrl ? (
+            <iframe
+              title={t("reports.sourcePdfIframeTitle")}
+              src={sourcePdfUrl}
+              className={
+                embedded
+                  ? "dd-run-results-report w-full bg-white"
+                  : "w-full rounded-md border border-db-ink-100 bg-white"
+              }
+              style={{ minHeight: embedded ? "calc(100vh - 140px)" : "80vh" }}
+            />
+          ) : null
+        ) : html ? (
           <iframe
             title={report?.title || t("reports.iframeTitle")}
             srcDoc={html}

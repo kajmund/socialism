@@ -21,6 +21,7 @@ from app.services.panel.research import (
     format_expert_research_need_turn,
     format_research_plan_turn,
 )
+from app.services.panel.review_intent import session_brief_for_llm
 from app.services.panel.schemas import (
     PanelExpertSlot,
     PanelSessionConfig,
@@ -63,8 +64,8 @@ def _transcript_text(transcript: list[PanelTurn]) -> str:
     return "\n".join(lines)
 
 
-def _session_brief(config: PanelSessionConfig) -> str:
-    return (config.brief or "").strip()
+def _session_brief(config: PanelSessionConfig, prompts: dict[str, str]) -> str:
+    return session_brief_for_llm(config, prompts)
 
 
 def _messages_with_brief(
@@ -92,13 +93,13 @@ async def _moderator_opening(
 ) -> str:
     messages = _messages_with_brief(
         identity=render_prompt(prompts, "panel.moderator.system"),
-        brief=_session_brief(config),
+        brief=_session_brief(config, prompts),
         evidence_prompt=evidence_prompt,
         user_content=render_prompt(
             prompts,
             "panel.moderator.opening",
             topic=config.topic,
-            brief=config.brief or config.topic,
+            brief=_session_brief(config, prompts) or config.topic,
             expert_list=_expert_list(config),
         ),
     )
@@ -115,7 +116,7 @@ async def _moderator_next_question(
 ) -> str:
     messages = _messages_with_brief(
         identity=render_prompt(prompts, "panel.moderator.system"),
-        brief=_session_brief(config),
+        brief=_session_brief(config, prompts),
         evidence_prompt=evidence_prompt,
         user_content=render_prompt(
             prompts,
@@ -137,13 +138,13 @@ async def _moderator_missing_expertise(
 ) -> str:
     messages = _messages_with_brief(
         identity=render_prompt(prompts, "panel.moderator.system"),
-        brief=_session_brief(config),
+        brief=_session_brief(config, prompts),
         evidence_prompt=evidence_prompt,
         user_content=render_prompt(
             prompts,
             "panel.moderator.missing_expertise",
             topic=config.topic,
-            brief=config.brief or config.topic,
+            brief=_session_brief(config, prompts) or config.topic,
             expert_list=_expert_list(config),
         ),
     )
@@ -161,7 +162,7 @@ async def _expert_raise_hand(
 ) -> bool:
     messages = _messages_with_brief(
         identity=_expert_system(prompts, slot),
-        brief=_session_brief(config),
+        brief=_session_brief(config, prompts),
         evidence_prompt=evidence_prompt,
         user_content=render_prompt(
             prompts,
@@ -203,7 +204,7 @@ async def _expert_scratchpad(
 ) -> str:
     messages = _messages_with_brief(
         identity=_expert_system(prompts, slot, with_tools=allow_expert_tools),
-        brief=_session_brief(config),
+        brief=_session_brief(config, prompts),
         evidence_prompt=evidence_prompt,
         user_content=render_prompt(
             prompts,
@@ -230,7 +231,7 @@ async def _expert_turn(
 ) -> str:
     messages = _messages_with_brief(
         identity=_expert_system(prompts, slot, with_tools=allow_expert_tools),
-        brief=_session_brief(config),
+        brief=_session_brief(config, prompts),
         evidence_prompt=evidence_prompt,
         user_content=render_prompt(
             prompts,
@@ -254,7 +255,7 @@ async def _moderator_analysis(
 ) -> str:
     messages = _messages_with_brief(
         identity=render_prompt(prompts, "panel.moderator.system"),
-        brief=_session_brief(config),
+        brief=_session_brief(config, prompts),
         evidence_prompt=evidence_prompt,
         user_content=render_prompt(
             prompts,

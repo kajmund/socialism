@@ -197,7 +197,7 @@ async def _committed_result_count(job_id: str) -> int:
 
 
 def _payload(*, heading="Avtal", paragraphs: list[WordDocumentParagraph], **extra):
-    return {
+    body = {
         "panel_id": extra.get("panel_id", 1),
         "doc_id": extra.get("doc_id", "doc-1"),
         "sections": [
@@ -209,6 +209,9 @@ def _payload(*, heading="Avtal", paragraphs: list[WordDocumentParagraph], **extr
             }
         ],
     }
+    if "review_intent" in extra:
+        body["review_intent"] = extra["review_intent"]
+    return body
 
 
 def _para(index: int, text: str, *, style="Normal", list_string=""):
@@ -787,6 +790,7 @@ def test_word_comment_prompt_stays_party_neutral():
     assert "Leverantören" in text
     assert "Beställaren" in text
     assert "skriv inte för er som kund" in text
+    assert "granskningsavsikt" in text.lower()
     synthesis = default_prompts("sv")["expertgranskning.word.comment_convergence"]
     assert "Granskande part är okänd" in synthesis
     assert "Vänd inte på dokumentfakta" in synthesis
@@ -1199,6 +1203,75 @@ async def test_word_review_sends_document_brief_once_per_call(client: AsyncClien
         assert heading_line not in user
         assert "Dokumentet i sin helhet" not in user
         assert "{document_brief}" not in user
+
+
+@pytest.mark.asyncio
+async def test_word_review_includes_review_intent_in_system_messages(client: AsyncClient):
+    captured: list[list[dict]] = []
+    intent = "Det är Devbrains som är motpart i avtalet."
+
+    async def completer(messages, response_model):
+        captured.append(messages)
+        if response_model is WordBatchModeration:
+            return _moderation_for_batch(messages[-1]["content"])
+        if response_model is WordExpertRaiseHand:
+            return WordExpertRaiseHand(question_ids=[])
+        if response_model is WordHeadingAssessment:
+            return WordHeadingAssessment(forslag=None)
+        if response_model is WordCommentConvergence:
+            return _passthrough_comment_convergence(messages[-1]["content"])
+        raise AssertionError(response_model)
+
+    panel_id = await _create_expert_panel(client)
+    set_structured_completer(completer)
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    created = await client.post(
+        "/expertgranskning/word-jobs",
+        json=_payload(
+            panel_id=panel_id,
+            paragraphs=[_para(1, "Detta stycke är tillräckligt långt för granskning.")],
+            review_intent=intent,
+        ),
+    )
+    assert created.status_code == 202, created.text
+    await jobs_service._run_job(created.json()["job_id"])
+    raise_payloads = [
+        messages
+        for messages in captured
+        if "Moderatorfrågor" in messages[-1]["content"]
+        or "Moderator questions" in messages[-1]["content"]
+    ]
+    moderate_payloads = [
+        messages
+        for messages in captured
+        if "needs_review" in messages[-1]["content"]
+        or "needs_review" in str(messages[-1].get("content") or "")
+    ]
+    heading_payloads = [
+        messages
+        for messages in captured
+        if "Nuvarande rubrik:" in messages[-1]["content"]
+        or "Current heading:" in messages[-1]["content"]
+    ]
+    assert raise_payloads
+    assert moderate_payloads
+    heading_line = "[0] Heading 1 Avtal"
+    for messages in raise_payloads + moderate_payloads:
+        systems = [
+            str(message.get("content") or "")
+            for message in messages
+            if message.get("role") == "system"
+        ]
+        assert any(intent in text and heading_line in text for text in systems)
+        assert "Granskningsavsikt" in "\n".join(systems)
+    assert heading_payloads
+    heading_systems = [
+        str(message.get("content") or "")
+        for messages in heading_payloads
+        for message in messages
+        if message.get("role") == "system"
+    ]
+    assert any(intent in text for text in heading_systems)
 
 
 @pytest.mark.asyncio

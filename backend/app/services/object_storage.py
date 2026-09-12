@@ -21,6 +21,7 @@ KIND_ANNUAL_REPORT = "annual_report"
 KIND_REPORT_HTML = "report_html"
 KIND_REPORT_SLOTS = "report_slots"
 KIND_REPORT_JSON = "report_json"
+KIND_REPORT_SOURCE_PDF = "report_source_pdf"
 KIND_UNDERLAG = "underlag"
 
 MAX_ANNUAL_REPORT_BYTES = 25 * 1024 * 1024

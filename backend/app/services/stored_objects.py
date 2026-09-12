@@ -15,8 +15,10 @@ from app.services.object_storage import (
     KIND_REPORT_HTML,
     KIND_REPORT_JSON,
     KIND_REPORT_SLOTS,
+    KIND_REPORT_SOURCE_PDF,
     KIND_UNDERLAG,
     ObjectStorageError,
+    UNDERLAG_DOCX_TYPE,
     bucket_name,
     delete_object,
     ensure_bucket,
@@ -27,7 +29,7 @@ from app.services.object_storage import (
     validate_annual_report,
     validate_underlag,
 )
-from app.services.underlag_extract import extract_underlag_text
+from app.services.underlag_pdf import UnderlagPdfConversionError, convert_docx_to_pdf_async
 
 
 def serialize_stored_object(row: StoredObject) -> dict:
@@ -286,9 +288,16 @@ async def upload_underlag(
     folder_id: str | None = None,
 ) -> StoredObject:
     resolved_type = validate_underlag(filename, content_type, data)
-    extracted, status = extract_underlag_text(resolved_type, data)
-    if status != "ok":
-        extracted = None
+    name = safe_filename(filename)
+    store_data = data
+    store_type = resolved_type
+    if resolved_type == UNDERLAG_DOCX_TYPE:
+        try:
+            store_data = await convert_docx_to_pdf_async(data, filename=name)
+        except UnderlagPdfConversionError as exc:
+            raise ValueError(str(exc)) from exc
+        store_type = "application/pdf"
+        name = f"{Path(name).stem or 'document'}.pdf"
     if folder_id is not None:
         await own_underlag_folder(
             await get_underlag_folder(session, folder_id),
@@ -298,9 +307,8 @@ async def upload_underlag(
         )
     _kund, bucket = await kund_bucket(session, customer_id)
     object_id = secrets.token_hex(16)
-    name = safe_filename(filename)
     key = f"{module_prefix(module)}/underlag/{owner_user_id}/{object_id}/{name}"
-    await put_object(bucket, key, data, resolved_type)
+    await put_object(bucket, key, store_data, store_type)
     row = StoredObject(
         id=object_id,
         customer_id=customer_id,
@@ -309,12 +317,12 @@ async def upload_underlag(
         bucket=bucket,
         object_key=key,
         filename=name,
-        content_type=resolved_type,
-        size_bytes=len(data),
+        content_type=store_type,
+        size_bytes=len(store_data),
         owner_user_id=owner_user_id,
         folder_id=folder_id,
-        extracted_text=extracted,
-        extraction_status=status,
+        extracted_text=None,
+        extraction_status="pending",
         created_at=utcnow(),
     )
     session.add(row)
@@ -383,6 +391,30 @@ async def report_html_object(session: AsyncSession, report_id: str) -> StoredObj
     return result.scalar_one_or_none()
 
 
+async def report_source_pdf_object(session: AsyncSession, report_id: str) -> StoredObject | None:
+    result = await session.execute(
+        select(StoredObject).where(
+            StoredObject.report_id == report_id,
+            StoredObject.kind == KIND_REPORT_SOURCE_PDF,
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def report_ids_with_source_pdf(
+    session: AsyncSession, report_ids: list[str]
+) -> set[str]:
+    if not report_ids:
+        return set()
+    result = await session.execute(
+        select(StoredObject.report_id).where(
+            StoredObject.report_id.in_(report_ids),
+            StoredObject.kind == KIND_REPORT_SOURCE_PDF,
+        )
+    )
+    return {row for row in result.scalars().all() if row}
+
+
 async def store_report_artifacts(
     session: AsyncSession,
     report: Report,
@@ -395,6 +427,9 @@ async def store_report_artifacts(
         (out_dir / "report.html", KIND_REPORT_HTML, "text/html; charset=utf-8"),
         (out_dir / "report.slots.json", KIND_REPORT_SLOTS, "application/json"),
     ]
+    source_pdf = out_dir / "source.pdf"
+    if source_pdf.is_file():
+        files.append((source_pdf, KIND_REPORT_SOURCE_PDF, "application/pdf"))
     sidecars = [
         path
         for path in sorted(out_dir.glob("report.*.json"))

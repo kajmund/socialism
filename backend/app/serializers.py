@@ -107,6 +107,7 @@ def serialize_population_summary(population: Population, run_count: int) -> Popu
         updated=format_date(population.updated_at),
         versions=population.versions,
         fp=population.fingerprint or [],
+        customer_id=population.customer_id,
     )
 
 
