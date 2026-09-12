@@ -88,6 +88,8 @@ class Settings(BaseSettings):
     # Max concurrent LLM calls when generating personas in one population batch.
     # 1 = serial (debug); higher values overlap profile/anecdote waves.
     persona_generate_concurrency: int = Field(default=8, ge=1, le=32)
+    # Max concurrent Word-review LLM calls within one expertgranskning job.
+    word_review_max_concurrency: int = Field(default=8, ge=1, le=32)
     # Rotating API log (empty = no file). Relative paths resolve from cwd.
     log_dir: str = "data/logs"
     log_max_bytes: int = Field(default=2_000_000, ge=1024)

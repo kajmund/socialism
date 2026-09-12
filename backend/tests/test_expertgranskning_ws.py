@@ -83,6 +83,13 @@ async def test_word_review_emits_result_created_then_finished(
 
         types = [event["type"] for event in events]
         assert types.count("expertgranskning.action.created") == 2
+        assert types.count("expertgranskning.progress") == 1
+        progress = next(
+            event for event in events if event["type"] == "expertgranskning.progress"
+        )
+        assert progress["sections_completed"] == 1
+        assert progress["sections_total"] == 1
+        assert progress["actions_created"] == 2
         assert types[-1] == "expertgranskning.finished"
         assert events[-1]["status"] == "succeeded"
         assert events[-1]["job_id"] == job_id
@@ -128,7 +135,8 @@ async def test_word_review_emits_finished_on_failure(client: AsyncClient, monkey
         assert started.status_code == 202, started.text
         await jobs_service._run_job(started.json()["job_id"])
         types = [event["type"] for event in events]
-        assert "expertgranskning.action.created" in types
+        assert "expertgranskning.action.created" not in types
+        assert "expertgranskning.progress" not in types
         assert types[-1] == "expertgranskning.finished"
         assert events[-1]["status"] == "failed"
         assert "heading boom" in (events[-1].get("error") or "")

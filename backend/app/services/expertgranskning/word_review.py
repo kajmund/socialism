@@ -15,10 +15,12 @@ import logging
 import re
 import secrets
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database.models import ExpertgranskningResult, Job, PanelSession, WordAction
 from app.serializers import utcnow
 from app.services.expertgranskning.comment_convergence import (
@@ -45,6 +47,11 @@ from app.services.expertgranskning.schemas import (
 from app.services.expertgranskning.watch import (
     publish_action_created,
     publish_expertgranskning_finished,
+    publish_review_progress,
+)
+from app.services.expertgranskning.word_review_timing import (
+    WordReviewLimiter,
+    WordReviewTimings,
 )
 from app.services.expertgranskning.word_structured import complete_word_structured
 from app.services.word.materialize import materialize_word_action
@@ -69,6 +76,28 @@ _HEADING_1_TO_3 = re.compile(
 )
 
 WORD_BATCH_MAX_SIZE = 4
+
+WordExpertCommentRow = tuple[PanelExpertSlot, WordReviewQuestion, str, int | None]
+
+
+@dataclass(frozen=True)
+class WordBatchAnalysis:
+    batch_index: int
+    comments: list[WordExpertCommentRow]
+    rewrites: list[tuple[WordDocumentParagraph, WordRewriteSuggestion]]
+    paragraphs: list[WordDocumentParagraph]
+    paragraph_reviews: int
+
+
+@dataclass(frozen=True)
+class WordSectionAnalysis:
+    section_index: int
+    comments: list[WordConsolidatedComment]
+    rewrites: list[tuple[WordDocumentParagraph, WordRewriteSuggestion]]
+    heading: WordHeadingAssessment | None
+    paragraph_reviews: int
+    heading_reviews: int
+
 
 # Output contract. Not part of the editable customer prompt.
 _WORD_COMMENT_ANCHOR_SUFFIX = (
@@ -263,6 +292,28 @@ def _batches_for_target(
     return filtered
 
 
+def heading_in_scope(
+    section: WordDocumentSection,
+    target: frozenset[int] | None,
+) -> bool:
+    if target is None:
+        return True
+    return section.heading_paragraph_index in target
+
+
+async def _llm[T](
+    limiter: WordReviewLimiter,
+    category: str,
+    messages: list[dict[str, str]],
+    response_model: type[T],
+    prompts: dict[str, str],
+) -> T:
+    return await limiter.run(
+        category,
+        lambda: complete_word_structured(messages, response_model, prompts=prompts),
+    )
+
+
 def _messages_with_brief(*, identity: str, brief: str, user: str) -> list[dict[str, str]]:
     messages: list[dict[str, str]] = []
     if identity.strip():
@@ -445,6 +496,7 @@ async def _review_heading(
     prompts: dict[str, str],
     slots: list[PanelExpertSlot],
     section: WordDocumentSection,
+    limiter: WordReviewLimiter,
     review_intent: str = "",
 ) -> WordHeadingAssessment:
     user = render_prompt(
@@ -454,10 +506,12 @@ async def _review_heading(
         heading=section.heading,
         section_text=_section_body(section),
     )
-    return await complete_word_structured(
+    return await _llm(
+        limiter,
+        "heading",
         _messages_with_brief(identity="", brief=review_intent, user=user),
         WordHeadingAssessment,
-        prompts=prompts,
+        prompts,
     )
 
 
@@ -468,6 +522,7 @@ async def _moderate_batch(
     brief: str,
     section: WordDocumentSection,
     batch: list[WordDocumentParagraph],
+    limiter: WordReviewLimiter,
     target_indexes: frozenset[int] | None = None,
 ) -> list[WordReviewQuestion]:
     user = render_prompt(
@@ -477,10 +532,12 @@ async def _moderate_batch(
         section_heading=section.heading,
         batch_text=_batch_text(batch),
     )
-    parsed = await complete_word_structured(
+    parsed = await _llm(
+        limiter,
+        "moderation",
         _messages_with_brief(identity="", brief=brief, user=user),
         WordBatchModeration,
-        prompts=prompts,
+        prompts,
     )
     return accepted_review_questions(parsed, batch, target_indexes=target_indexes)
 
@@ -492,6 +549,7 @@ async def _raise_hand(
     brief: str,
     batch: list[WordDocumentParagraph],
     questions: list[WordReviewQuestion],
+    limiter: WordReviewLimiter,
 ) -> tuple[PanelExpertSlot, list[WordReviewQuestion]]:
     identity = _expert_identity(prompts, slot)
     user = render_prompt(
@@ -502,10 +560,12 @@ async def _raise_hand(
         batch_text=_batch_text(batch),
         questions=_questions_text(questions),
     )
-    parsed = await complete_word_structured(
+    parsed = await _llm(
+        limiter,
+        "raise_hand",
         _messages_with_brief(identity=identity, brief=brief, user=user),
         WordExpertRaiseHand,
-        prompts=prompts,
+        prompts,
     )
     return slot, selected_review_questions(
         parsed.question_ids,
@@ -549,6 +609,7 @@ async def _comment_question(
     section: WordDocumentSection,
     question: WordReviewQuestion,
     paragraphs: list[WordDocumentParagraph],
+    limiter: WordReviewLimiter,
     target_indexes: frozenset[int] | None = None,
 ) -> tuple[PanelExpertSlot, WordReviewQuestion, str, int | None]:
     identity = _expert_identity(prompts, slot)
@@ -559,10 +620,12 @@ async def _comment_question(
         question=question,
         paragraphs=paragraphs,
     )
-    parsed = await complete_word_structured(
+    parsed = await _llm(
+        limiter,
+        "expert_comment",
         _messages_with_brief(identity=identity, brief=brief, user=user),
         WordExpertComment,
-        prompts=prompts,
+        prompts,
     )
     return slot, question, parsed.kommentar.strip(), resolve_comment_anchor(
         question,
@@ -607,6 +670,7 @@ async def _comment_convergence(
     section: WordDocumentSection,
     batch: list[WordDocumentParagraph],
     observations: list[WordObservation],
+    limiter: WordReviewLimiter,
     review_intent: str = "",
 ) -> WordCommentConvergence:
     user = render_prompt(
@@ -616,10 +680,12 @@ async def _comment_convergence(
         batch_text=_batch_text(batch),
         observations=format_observations_for_prompt(observations),
     )
-    return await complete_word_structured(
+    return await _llm(
+        limiter,
+        "comment_convergence",
         _messages_with_brief(identity="", brief=review_intent, user=user),
         WordCommentConvergence,
-        prompts=prompts,
+        prompts,
     )
 
 
@@ -628,8 +694,9 @@ async def _consolidate_comments(
     prompts: dict[str, str],
     section: WordDocumentSection,
     paragraphs: list[WordDocumentParagraph],
-    comments: list[tuple[PanelExpertSlot, WordReviewQuestion, str, int | None]],
+    comments: list[WordExpertCommentRow],
     by_index: dict[int, WordDocumentParagraph],
+    limiter: WordReviewLimiter,
     review_intent: str = "",
 ) -> list[WordConsolidatedComment]:
     raw = _observations_from_comments(comments, by_index)
@@ -641,6 +708,7 @@ async def _consolidate_comments(
         section=section,
         batch=paragraphs,
         observations=collapsed,
+        limiter=limiter,
         review_intent=review_intent,
     )
     return apply_word_comment_convergence(collapsed, parsed)
@@ -652,6 +720,7 @@ async def _rewrite_convergence(
     section: WordDocumentSection,
     paragraph: WordDocumentParagraph,
     comments: list[tuple[str, str]],
+    limiter: WordReviewLimiter,
     review_intent: str = "",
 ) -> WordRewriteSuggestion | None:
     comments_text = "\n".join(
@@ -664,12 +733,300 @@ async def _rewrite_convergence(
         paragraph_text=paragraph.text,
         comments=comments_text,
     )
-    parsed = await complete_word_structured(
+    parsed = await _llm(
+        limiter,
+        "rewrite_convergence",
         _messages_with_brief(identity="", brief=review_intent, user=user),
         WordRewriteSuggestion,
-        prompts=prompts,
+        prompts,
     )
     return rewrite_suggestion_or_none(parsed)
+
+
+async def _analyze_batch(
+    *,
+    batch_index: int,
+    batch: list[WordDocumentParagraph],
+    section: WordDocumentSection,
+    prompts: dict[str, str],
+    slots: list[PanelExpertSlot],
+    brief: str,
+    review_intent: str,
+    target: frozenset[int] | None,
+    limiter: WordReviewLimiter,
+) -> WordBatchAnalysis:
+    questions = await _moderate_batch(
+        prompts=prompts,
+        slots=slots,
+        brief=brief,
+        section=section,
+        batch=batch,
+        limiter=limiter,
+        target_indexes=target,
+    )
+    if not questions:
+        return WordBatchAnalysis(
+            batch_index=batch_index,
+            comments=[],
+            rewrites=[],
+            paragraphs=[],
+            paragraph_reviews=len(batch),
+        )
+    raised = await asyncio.gather(
+        *[
+            _raise_hand(
+                prompts=prompts,
+                slot=slot,
+                brief=brief,
+                batch=batch,
+                questions=questions,
+                limiter=limiter,
+            )
+            for slot in slots
+        ]
+    )
+    by_index = {paragraph.index: paragraph for paragraph in batch}
+    comment_tasks = [
+        _comment_question(
+            prompts=prompts,
+            slot=slot,
+            brief=brief,
+            section=section,
+            question=question,
+            paragraphs=[
+                by_index[index]
+                for index in question.paragraph_indexes
+                if index in by_index
+            ],
+            limiter=limiter,
+            target_indexes=target,
+        )
+        for slot, selected in raised
+        for question in selected
+    ]
+    comments = await asyncio.gather(*comment_tasks) if comment_tasks else []
+
+    comments_by_index: dict[int, list[tuple[str, str]]] = {}
+    section_comments: list[WordExpertCommentRow] = []
+    for slot, question, text, anchor in comments:
+        if not text:
+            continue
+        prefixed = WordReviewQuestion(
+            id=f"b{batch_index}:{question.id}",
+            paragraph_indexes=question.paragraph_indexes,
+            question=question.question,
+            why_it_matters=question.why_it_matters,
+        )
+        section_comments.append((slot, prefixed, text, anchor))
+        for index in question.paragraph_indexes:
+            paragraph = by_index.get(index)
+            if paragraph is None:
+                continue
+            comments_by_index.setdefault(paragraph.index, []).append(
+                (slot.label, text)
+            )
+
+    rewrite_targets = [
+        paragraph
+        for paragraph in batch
+        if len({name for name, _ in comments_by_index.get(paragraph.index, [])}) >= 2
+    ]
+    suggestions = (
+        await asyncio.gather(
+            *[
+                _rewrite_convergence(
+                    prompts=prompts,
+                    section=section,
+                    paragraph=paragraph,
+                    comments=comments_by_index[paragraph.index],
+                    limiter=limiter,
+                    review_intent=review_intent,
+                )
+                for paragraph in rewrite_targets
+            ]
+        )
+        if rewrite_targets
+        else []
+    )
+    rewrites = [
+        (paragraph, suggestion)
+        for paragraph, suggestion in zip(rewrite_targets, suggestions, strict=True)
+        if suggestion is not None
+    ]
+    return WordBatchAnalysis(
+        batch_index=batch_index,
+        comments=section_comments,
+        rewrites=rewrites,
+        paragraphs=batch,
+        paragraph_reviews=len(batch),
+    )
+
+
+async def _analyze_section(
+    *,
+    section_index: int,
+    section: WordDocumentSection,
+    prompts: dict[str, str],
+    slots: list[PanelExpertSlot],
+    brief: str,
+    review_intent: str,
+    target: frozenset[int] | None,
+    limiter: WordReviewLimiter,
+) -> WordSectionAnalysis:
+    batches = _batches_for_target(section, target)
+    review_heading = heading_in_scope(section, target)
+    batch_tasks: list[asyncio.Task[WordBatchAnalysis]] = []
+    heading_task: asyncio.Task[WordHeadingAssessment] | None = None
+    try:
+        async with asyncio.TaskGroup() as group:
+            batch_tasks = [
+                group.create_task(
+                    _analyze_batch(
+                        batch_index=batch_index,
+                        batch=batch,
+                        section=section,
+                        prompts=prompts,
+                        slots=slots,
+                        brief=brief,
+                        review_intent=review_intent,
+                        target=target,
+                        limiter=limiter,
+                    )
+                )
+                for batch_index, batch in enumerate(batches)
+            ]
+            if review_heading:
+                heading_task = group.create_task(
+                    _review_heading(
+                        prompts=prompts,
+                        slots=slots,
+                        section=section,
+                        limiter=limiter,
+                        review_intent=review_intent,
+                    )
+                )
+    except ExceptionGroup as exc:
+        raise exc.exceptions[0] from exc
+
+    batch_results = [task.result() for task in batch_tasks]
+    section_comments: list[WordExpertCommentRow] = []
+    section_rewrites: list[tuple[WordDocumentParagraph, WordRewriteSuggestion]] = []
+    section_by_index: dict[int, WordDocumentParagraph] = {}
+    paragraph_reviews = 0
+    for analysis in batch_results:
+        paragraph_reviews += analysis.paragraph_reviews
+        section_comments.extend(analysis.comments)
+        section_rewrites.extend(analysis.rewrites)
+        for paragraph in analysis.paragraphs:
+            section_by_index[paragraph.index] = paragraph
+
+    written = await _consolidate_comments(
+        prompts=prompts,
+        section=section,
+        paragraphs=sorted(section_by_index.values(), key=lambda item: item.index),
+        comments=section_comments,
+        by_index=section_by_index,
+        limiter=limiter,
+        review_intent=review_intent,
+    )
+    if target is not None:
+        written = [item for item in written if item.paragraph_index in target]
+        section_rewrites = [
+            item for item in section_rewrites if item[0].index in target
+        ]
+    return WordSectionAnalysis(
+        section_index=section_index,
+        comments=written,
+        rewrites=section_rewrites,
+        heading=heading_task.result() if heading_task is not None else None,
+        paragraph_reviews=paragraph_reviews,
+        heading_reviews=1 if heading_task is not None else 0,
+    )
+
+
+async def _persist_section_analysis(
+    session: AsyncSession,
+    job: Job,
+    payload: ExpertgranskningWordJobRequest,
+    analysis: WordSectionAnalysis,
+) -> tuple[int, int]:
+    pending: list[ExpertgranskningResult] = []
+    for item in analysis.comments:
+        pending.append(
+            await _write_result(
+                session,
+                job_id=job.id,
+                customer_id=payload.customer_id,
+                section_index=analysis.section_index,
+                paragraph_index=item.paragraph_index,
+                expert_id=item.expert_id,
+                expert_namn=item.expert_namn,
+                kommentar=item.kommentar,
+                is_heading_suggestion=False,
+                request=job.request,
+                commit=False,
+            )
+        )
+    for paragraph, suggestion in analysis.rewrites:
+        pending.append(
+            await _write_result(
+                session,
+                job_id=job.id,
+                customer_id=payload.customer_id,
+                section_index=analysis.section_index,
+                paragraph_index=paragraph.index,
+                expert_id="",
+                expert_namn="",
+                kommentar=suggestion.motivering.strip(),
+                is_heading_suggestion=False,
+                is_rewrite_suggestion=True,
+                foreslagen_text=suggestion.ny_text.strip(),
+                request=job.request,
+                commit=False,
+            )
+        )
+    if analysis.heading is not None:
+        suggestion = (analysis.heading.forslag or "").strip()
+        if suggestion:
+            pending.append(
+                await _write_result(
+                    session,
+                    job_id=job.id,
+                    customer_id=payload.customer_id,
+                    section_index=analysis.section_index,
+                    paragraph_index=payload.sections[
+                        analysis.section_index
+                    ].heading_paragraph_index,
+                    expert_id="",
+                    expert_namn="",
+                    kommentar=suggestion,
+                    is_heading_suggestion=True,
+                    request=job.request,
+                    commit=False,
+                )
+            )
+
+    if not pending:
+        return 0, 0
+    await session.commit()
+    source_ids = {row.id for row in pending}
+    actions = (
+        await session.execute(
+            select(WordAction).where(
+                WordAction.job_id == job.id,
+                WordAction.source_id.in_(source_ids),
+            )
+        )
+    ).scalars().all()
+    by_source = {action.source_id: action for action in actions}
+    published = 0
+    for row in pending:
+        action = by_source.get(row.id)
+        if action is None:
+            continue
+        await publish_action_created(action)
+        published += 1
+    return len(pending), published
 
 
 async def run_word_paragraph_review(
@@ -677,7 +1034,7 @@ async def run_word_paragraph_review(
     job: Job,
     payload: ExpertgranskningWordJobRequest,
     prompts: dict[str, str],
-) -> dict[str, int]:
+) -> dict[str, int | None]:
     require_review_panel_task(payload.task)
     target = selection_target_indexes(payload.task)
     slots = await load_expert_slots_from_population(session, payload.panel_id)
@@ -687,209 +1044,78 @@ async def run_word_paragraph_review(
         review_intent=payload.review_intent,
     )
     review_intent = render_review_intent_message(prompts, payload.review_intent)
-    paragraph_reviews = 0
-    heading_reviews = 0
-    result_count = 0
-
-    for section_index, section in enumerate(payload.sections):
-        section_comments: list[
-            tuple[PanelExpertSlot, WordReviewQuestion, str, int | None]
-        ] = []
-        section_by_index: dict[int, WordDocumentParagraph] = {}
-        section_rewrites: list[tuple[WordDocumentParagraph, WordRewriteSuggestion]] = []
-
-        for batch_index, batch in enumerate(_batches_for_target(section, target)):
-            paragraph_reviews += len(batch)
-            questions = await _moderate_batch(
+    timings = WordReviewTimings()
+    limiter = WordReviewLimiter(settings.word_review_max_concurrency, timings)
+    sections_total = len(payload.sections)
+    section_tasks = [
+        asyncio.create_task(
+            _analyze_section(
+                section_index=section_index,
+                section=section,
                 prompts=prompts,
                 slots=slots,
                 brief=brief,
-                section=section,
-                batch=batch,
-                target_indexes=target,
+                review_intent=review_intent,
+                target=target,
+                limiter=limiter,
             )
-            if not questions:
-                continue
-            raised = await asyncio.gather(
-                *[
-                    _raise_hand(
-                        prompts=prompts,
-                        slot=slot,
-                        brief=brief,
-                        batch=batch,
-                        questions=questions,
-                    )
-                    for slot in slots
-                ]
-            )
-            by_index = {paragraph.index: paragraph for paragraph in batch}
-            section_by_index.update(by_index)
-            comment_tasks = [
-                _comment_question(
-                    prompts=prompts,
-                    slot=slot,
-                    brief=brief,
-                    section=section,
-                    question=question,
-                    paragraphs=[
-                        by_index[index]
-                        for index in question.paragraph_indexes
-                        if index in by_index
-                    ],
-                    target_indexes=target,
-                )
-                for slot, selected in raised
-                for question in selected
-            ]
-            comments = (
-                await asyncio.gather(*comment_tasks) if comment_tasks else []
-            )
-
-            comments_by_index: dict[int, list[tuple[str, str]]] = {}
-            for slot, question, text, anchor in comments:
-                if not text:
-                    continue
-                prefixed = WordReviewQuestion(
-                    id=f"b{batch_index}:{question.id}",
-                    paragraph_indexes=question.paragraph_indexes,
-                    question=question.question,
-                    why_it_matters=question.why_it_matters,
-                )
-                section_comments.append((slot, prefixed, text, anchor))
-                for index in question.paragraph_indexes:
-                    paragraph = by_index.get(index)
-                    if paragraph is None:
-                        continue
-                    comments_by_index.setdefault(paragraph.index, []).append(
-                        (slot.label, text)
-                    )
-
-            rewrite_targets = [
-                paragraph
-                for paragraph in batch
-                if len({name for name, _ in comments_by_index.get(paragraph.index, [])})
-                >= 2
-            ]
-            suggestions = (
-                await asyncio.gather(
-                    *[
-                        _rewrite_convergence(
-                            prompts=prompts,
-                            section=section,
-                            paragraph=paragraph,
-                            comments=comments_by_index[paragraph.index],
-                            review_intent=review_intent,
-                        )
-                        for paragraph in rewrite_targets
-                    ]
-                )
-                if rewrite_targets
-                else []
-            )
-            for paragraph, suggestion in zip(rewrite_targets, suggestions, strict=True):
-                if suggestion is None:
-                    continue
-                section_rewrites.append((paragraph, suggestion))
-
-        written = await _consolidate_comments(
-            prompts=prompts,
-            section=section,
-            paragraphs=sorted(section_by_index.values(), key=lambda item: item.index),
-            comments=section_comments,
-            by_index=section_by_index,
-            review_intent=review_intent,
         )
-        if target is not None:
-            written = [item for item in written if item.paragraph_index in target]
-
-        pending: list[ExpertgranskningResult] = []
-        for item in written:
-            pending.append(
-                await _write_result(
-                    session,
-                    job_id=job.id,
-                    customer_id=payload.customer_id,
-                    section_index=section_index,
-                    paragraph_index=item.paragraph_index,
-                    expert_id=item.expert_id,
-                    expert_namn=item.expert_namn,
-                    kommentar=item.kommentar,
-                    is_heading_suggestion=False,
-                    request=job.request,
-                    commit=False,
-                )
+        for section_index, section in enumerate(payload.sections)
+    ]
+    paragraph_reviews = 0
+    heading_reviews = 0
+    result_count = 0
+    actions_created = 0
+    sections_completed = 0
+    try:
+        for finished in asyncio.as_completed(section_tasks):
+            analysis = await finished
+            written, published = await _persist_section_analysis(
+                session, job, payload, analysis
             )
-            result_count += 1
-
-        for paragraph, suggestion in section_rewrites:
-            if target is not None and paragraph.index not in target:
-                continue
-            pending.append(
-                await _write_result(
-                    session,
-                    job_id=job.id,
-                    customer_id=payload.customer_id,
-                    section_index=section_index,
-                    paragraph_index=paragraph.index,
-                    expert_id="",
-                    expert_namn="",
-                    kommentar=suggestion.motivering.strip(),
-                    is_heading_suggestion=False,
-                    is_rewrite_suggestion=True,
-                    foreslagen_text=suggestion.ny_text.strip(),
-                    request=job.request,
-                    commit=False,
-                )
+            if published:
+                timings.mark_first_action()
+            result_count += written
+            actions_created += published
+            paragraph_reviews += analysis.paragraph_reviews
+            heading_reviews += analysis.heading_reviews
+            sections_completed += 1
+            await publish_review_progress(
+                job.id,
+                sections_completed=sections_completed,
+                sections_total=sections_total,
+                actions_created=actions_created,
             )
-            result_count += 1
+    except BaseException:
+        for task in section_tasks:
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(*section_tasks, return_exceptions=True)
+        raise
 
-        if pending:
-            await session.commit()
-            source_ids = {row.id for row in pending}
-            actions = (
-                await session.execute(
-                    select(WordAction).where(
-                        WordAction.job_id == job.id,
-                        WordAction.source_id.in_(source_ids),
-                    )
-                )
-            ).scalars().all()
-            by_source = {action.source_id: action for action in actions}
-            for row in pending:
-                action = by_source.get(row.id)
-                if action is None:
-                    continue
-                await publish_action_created(action)
-
-        if target is not None and section.heading_paragraph_index not in target:
-            continue
-        heading = await _review_heading(
-            prompts=prompts,
-            slots=slots,
-            section=section,
-            review_intent=review_intent,
-        )
-        heading_reviews += 1
-        suggestion = (heading.forslag or "").strip()
-        if suggestion:
-            await _write_result(
-                session,
-                job_id=job.id,
-                customer_id=payload.customer_id,
-                section_index=section_index,
-                paragraph_index=section.heading_paragraph_index,
-                expert_id="",
-                expert_namn="",
-                kommentar=suggestion,
-                is_heading_suggestion=True,
-                request=job.request,
-            )
-            result_count += 1
-
+    snapshot = timings.snapshot()
+    logger.info(
+        "Word review timings job_id=%s total_ms=%s time_to_first_action_ms=%s "
+        "moderation_ms=%s raise_hand_ms=%s expert_comment_ms=%s "
+        "rewrite_convergence_ms=%s comment_convergence_ms=%s heading_ms=%s "
+        "llm_call_count=%s max_observed_llm_concurrency=%s",
+        job.id,
+        snapshot["total_ms"],
+        snapshot["time_to_first_action_ms"],
+        snapshot["moderation_ms"],
+        snapshot["raise_hand_ms"],
+        snapshot["expert_comment_ms"],
+        snapshot["rewrite_convergence_ms"],
+        snapshot["comment_convergence_ms"],
+        snapshot["heading_ms"],
+        snapshot["llm_call_count"],
+        snapshot["max_observed_llm_concurrency"],
+    )
     return {
         "paragraph_reviews": paragraph_reviews,
         "heading_reviews": heading_reviews,
         "result_count": result_count,
+        **snapshot,
     }
 
 
