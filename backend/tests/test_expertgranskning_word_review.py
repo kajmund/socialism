@@ -1927,6 +1927,13 @@ async def test_word_review_converging_comments_write_rewrite(client: AsyncClient
     rewrite = next(row for row in rows if row["is_rewrite_suggestion"])
     assert rewrite["foreslagen_text"] == "Parterna ska utse kontaktpersoner."
     assert rewrite["kommentar"] == "Båda vill samma sak."
+    actions = (await client.get(f"/expertgranskning/word-jobs/{job_id}/actions")).json()
+    comments = [row for row in actions if row["action_type"] == "comment"]
+    replacements = [row for row in actions if row["action_type"] == "replace"]
+    assert comments and replacements
+    assert max(row["source"]["ordinal"] for row in comments) < min(
+        row["source"]["ordinal"] for row in replacements
+    )
 
 
 @pytest.mark.asyncio

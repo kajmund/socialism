@@ -49,6 +49,18 @@ def test_timing_snapshot_omits_first_action_until_marked():
     assert timings.snapshot()["time_to_first_action_ms"] == first
 
 
+def test_first_action_mark_is_the_first_successful_publish():
+    timings = WordReviewTimings()
+    started = timings.begin_call()
+    timings.end_call("heading", started)
+    assert timings.snapshot()["time_to_first_action_ms"] is None
+    timings.mark_first_action()
+    first = timings.snapshot()["time_to_first_action_ms"]
+    assert first is not None
+    timings.mark_first_action()
+    assert timings.snapshot()["time_to_first_action_ms"] == first
+
+
 @pytest.mark.asyncio
 async def test_limiter_bounds_observed_llm_concurrency():
     timings = WordReviewTimings()
