@@ -14,6 +14,7 @@ from app.services.word.actions import (
 )
 from app.services.word.anchors import WordAnchor, word_anchor_from_job_request
 from app.services.word.schemas import WordActionType
+from app.services.word.tasks import paragraph_is_actionable
 
 
 @dataclass(frozen=True)
@@ -78,6 +79,8 @@ async def materialize_word_action(
 ) -> WordAction | None:
     spec = expert_review_word_action_spec(row)
     if spec is None:
+        return None
+    if not paragraph_is_actionable(request, row.paragraph_index):
         return None
     frozen_anchor = (
         anchor

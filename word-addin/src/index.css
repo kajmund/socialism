@@ -174,10 +174,46 @@ h1 {
 }
 
 .field,
-.stack {
+.stack,
+.scope {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.scope {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.scope legend {
+  padding: 0;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  color: var(--ink-secondary);
+}
+
+.scope-options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.scope-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 20px;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.scope-option input {
+  margin: 0;
 }
 
 label {

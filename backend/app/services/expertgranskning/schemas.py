@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from app.schemas.domain import ConfigurationLanguage
 from app.services.panel.schemas import PanelSessionStatus
 from app.services.word.schemas import WordActionOut
+from app.services.word.tasks import WordTask, validate_word_task_against_sections
 
 WORD_MAX_SECTIONS = 200
 WORD_MAX_PARAGRAPHS_PER_SECTION = 200
@@ -167,7 +168,7 @@ def _bound_word_sections(sections: list[WordDocumentSection]) -> None:
 
 
 class ExpertgranskningWordJobCreate(BaseModel):
-    panel_id: int
+    task: WordTask
     doc_id: str | None = Field(default=None, max_length=128)
     word_session_id: str | None = Field(default=None, max_length=64)
     review_intent: str = Field(default="", max_length=8_000)
@@ -190,22 +191,23 @@ class ExpertgranskningWordJobCreate(BaseModel):
         return text or None
 
     @model_validator(mode="after")
-    def bound_document(self) -> ExpertgranskningWordJobCreate:
+    def bound_document_and_task(self) -> ExpertgranskningWordJobCreate:
         _bound_word_sections(self.sections)
+        validate_word_task_against_sections(self.task, self.sections)
         return self
 
 
 class ExpertgranskningWordJobRequest(BaseModel):
     """Payload stored on an expertgranskning_word_review job."""
 
-    panel_id: int
     customer_id: int
     owner_user_id: str
     doc_id: str | None = Field(default=None, max_length=128)
     word_session_id: str | None = Field(default=None, max_length=64)
     review_intent: str = Field(default="", max_length=8_000)
-    sections: list[WordDocumentSection] = Field(min_length=1, max_length=WORD_MAX_SECTIONS)
     locale: ConfigurationLanguage = "sv"
+    task: WordTask
+    sections: list[WordDocumentSection] = Field(min_length=1, max_length=WORD_MAX_SECTIONS)
 
     @field_validator("word_session_id", mode="before")
     @classmethod
@@ -223,9 +225,14 @@ class ExpertgranskningWordJobRequest(BaseModel):
         return str(value).strip()
 
     @model_validator(mode="after")
-    def bound_document(self) -> ExpertgranskningWordJobRequest:
+    def bound_document_and_task(self) -> ExpertgranskningWordJobRequest:
         _bound_word_sections(self.sections)
+        validate_word_task_against_sections(self.task, self.sections)
         return self
+
+    @property
+    def panel_id(self) -> int:
+        return self.task.expert_strategy.panel_id
 
 
 class WordParagraphComment(BaseModel):

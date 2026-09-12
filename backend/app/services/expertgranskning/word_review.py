@@ -48,6 +48,10 @@ from app.services.expertgranskning.watch import (
 )
 from app.services.expertgranskning.word_structured import complete_word_structured
 from app.services.word.materialize import materialize_word_action
+from app.services.word.tasks import (
+    require_review_panel_task,
+    selection_target_indexes,
+)
 from app.services.panel.expert_slots import load_expert_slots_from_population
 from app.services.panel.review_intent import (
     compose_brief_with_review_intent,
@@ -243,6 +247,22 @@ def build_batches(
     return batches
 
 
+def _batches_for_target(
+    section: WordDocumentSection,
+    target: frozenset[int] | None,
+    max_size: int = WORD_BATCH_MAX_SIZE,
+) -> list[list[WordDocumentParagraph]]:
+    batches = build_batches(section, max_size)
+    if target is None:
+        return batches
+    filtered: list[list[WordDocumentParagraph]] = []
+    for batch in batches:
+        kept = [paragraph for paragraph in batch if paragraph.index in target]
+        if kept:
+            filtered.append(kept)
+    return filtered
+
+
 def _messages_with_brief(*, identity: str, brief: str, user: str) -> list[dict[str, str]]:
     messages: list[dict[str, str]] = []
     if identity.strip():
@@ -267,11 +287,15 @@ def _questions_text(questions: list[WordReviewQuestion]) -> str:
 def accepted_review_questions(
     parsed: WordBatchModeration,
     batch: list[WordDocumentParagraph],
+    *,
+    target_indexes: frozenset[int] | None = None,
 ) -> list[WordReviewQuestion]:
     """Keep in-batch questions; drop a batch that does not need review."""
     if not parsed.needs_review:
         return []
     allowed = {paragraph.index for paragraph in batch}
+    if target_indexes is not None:
+        allowed &= target_indexes
     kept: list[WordReviewQuestion] = []
     seen_ids: set[str] = set()
     for question in parsed.questions:
@@ -444,6 +468,7 @@ async def _moderate_batch(
     brief: str,
     section: WordDocumentSection,
     batch: list[WordDocumentParagraph],
+    target_indexes: frozenset[int] | None = None,
 ) -> list[WordReviewQuestion]:
     user = render_prompt(
         prompts,
@@ -457,7 +482,7 @@ async def _moderate_batch(
         WordBatchModeration,
         prompts=prompts,
     )
-    return accepted_review_questions(parsed, batch)
+    return accepted_review_questions(parsed, batch, target_indexes=target_indexes)
 
 
 async def _raise_hand(
@@ -492,9 +517,13 @@ async def _raise_hand(
 def resolve_comment_anchor(
     question: WordReviewQuestion,
     parsed: WordExpertComment,
+    *,
+    target_indexes: frozenset[int] | None = None,
 ) -> int | None:
     """Return the one allowed paragraph for this comment, or None to drop it."""
-    allowed = question.paragraph_indexes
+    allowed = list(question.paragraph_indexes)
+    if target_indexes is not None:
+        allowed = [index for index in allowed if index in target_indexes]
     raw = parsed.anchor_paragraph_index
     if raw is not None:
         if raw in allowed:
@@ -520,6 +549,7 @@ async def _comment_question(
     section: WordDocumentSection,
     question: WordReviewQuestion,
     paragraphs: list[WordDocumentParagraph],
+    target_indexes: frozenset[int] | None = None,
 ) -> tuple[PanelExpertSlot, WordReviewQuestion, str, int | None]:
     identity = _expert_identity(prompts, slot)
     user = render_expert_comment_user_prompt(
@@ -534,7 +564,11 @@ async def _comment_question(
         WordExpertComment,
         prompts=prompts,
     )
-    return slot, question, parsed.kommentar.strip(), resolve_comment_anchor(question, parsed)
+    return slot, question, parsed.kommentar.strip(), resolve_comment_anchor(
+        question,
+        parsed,
+        target_indexes=target_indexes,
+    )
 
 
 def _observations_from_comments(
@@ -644,6 +678,8 @@ async def run_word_paragraph_review(
     payload: ExpertgranskningWordJobRequest,
     prompts: dict[str, str],
 ) -> dict[str, int]:
+    require_review_panel_task(payload.task)
+    target = selection_target_indexes(payload.task)
     slots = await load_expert_slots_from_population(session, payload.panel_id)
     brief = compose_brief_with_review_intent(
         prompts,
@@ -662,7 +698,7 @@ async def run_word_paragraph_review(
         section_by_index: dict[int, WordDocumentParagraph] = {}
         section_rewrites: list[tuple[WordDocumentParagraph, WordRewriteSuggestion]] = []
 
-        for batch_index, batch in enumerate(build_batches(section)):
+        for batch_index, batch in enumerate(_batches_for_target(section, target)):
             paragraph_reviews += len(batch)
             questions = await _moderate_batch(
                 prompts=prompts,
@@ -670,6 +706,7 @@ async def run_word_paragraph_review(
                 brief=brief,
                 section=section,
                 batch=batch,
+                target_indexes=target,
             )
             if not questions:
                 continue
@@ -699,6 +736,7 @@ async def run_word_paragraph_review(
                         for index in question.paragraph_indexes
                         if index in by_index
                     ],
+                    target_indexes=target,
                 )
                 for slot, selected in raised
                 for question in selected
@@ -761,6 +799,8 @@ async def run_word_paragraph_review(
             by_index=section_by_index,
             review_intent=review_intent,
         )
+        if target is not None:
+            written = [item for item in written if item.paragraph_index in target]
 
         pending: list[ExpertgranskningResult] = []
         for item in written:
@@ -782,6 +822,8 @@ async def run_word_paragraph_review(
             result_count += 1
 
         for paragraph, suggestion in section_rewrites:
+            if target is not None and paragraph.index not in target:
+                continue
             pending.append(
                 await _write_result(
                     session,
@@ -819,6 +861,8 @@ async def run_word_paragraph_review(
                     continue
                 await publish_action_created(action)
 
+        if target is not None and section.heading_paragraph_index not in target:
+            continue
         heading = await _review_heading(
             prompts=prompts,
             slots=slots,
@@ -870,6 +914,7 @@ async def run_word_paragraph_review_for_job(job_id: str) -> None:
         if job is None:
             return
         payload = ExpertgranskningWordJobRequest.model_validate(job.request or {})
+        require_review_panel_task(payload.task)
         prompts = await require_active_prompts(
             session,
             customer_id=payload.customer_id,

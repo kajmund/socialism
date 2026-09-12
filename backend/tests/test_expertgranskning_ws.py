@@ -20,6 +20,7 @@ from tests.test_expertgranskning_word_review import (
     DEFAULT_EXPERT_LABELS,
     _create_expert_panel,
     _identity_label,
+    _review_task,
 )
 
 
@@ -74,7 +75,7 @@ async def test_word_review_emits_result_created_then_finished(
     try:
         started = await client.post(
             "/expertgranskning/word-jobs",
-            json={"panel_id": panel_id, "sections": _sections()},
+            json={"task": _review_task(panel_id), "sections": _sections()},
         )
         assert started.status_code == 202, started.text
         job_id = started.json()["job_id"]
@@ -122,7 +123,7 @@ async def test_word_review_emits_finished_on_failure(client: AsyncClient, monkey
     try:
         started = await client.post(
             "/expertgranskning/word-jobs",
-            json={"panel_id": panel_id, "sections": _sections()},
+            json={"task": _review_task(panel_id), "sections": _sections()},
         )
         assert started.status_code == 202, started.text
         await jobs_service._run_job(started.json()["job_id"])
@@ -169,7 +170,7 @@ async def test_word_result_patch_emits_updated(client: AsyncClient, monkeypatch)
         started = await client.post(
             "/expertgranskning/word-jobs",
             json={
-                "panel_id": panel_id,
+                "task": _review_task(panel_id),
                 "sections": _sections(
                     "Detta stycke är tillräckligt långt för en kommentar."
                 ),
