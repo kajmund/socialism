@@ -49,12 +49,15 @@ from app.services.expertgranskning.schemas import (
 )
 from app.services.word.anchors import reviewed_text_from_job_request
 from app.services.expertgranskning.word_review import (
+    WORD_COMMENT_CONVERGENCE_SUFFIX,
+    _comment_convergence,
     _comment_question,
     _consolidate_comments,
     _document_brief,
     accepted_review_questions,
     build_batches,
     is_heading_1_to_3,
+    render_comment_convergence_user_prompt,
     render_expert_comment_user_prompt,
     resolve_comment_anchor,
     rewrite_suggestion_or_none,
@@ -303,7 +306,11 @@ def _passthrough_comment_convergence(user: str) -> WordCommentConvergence:
         fields: dict[str, str] = {}
         current = ""
         for line in lines[1:]:
-            if line.startswith("Returnera ") or line.startswith("Return issues "):
+            if (
+                line.startswith("Returnera ")
+                or line.startswith("Return issues ")
+                or line.startswith("Output contract:")
+            ):
                 break
             if ": " in line:
                 key, value = line.split(": ", 1)
@@ -1257,6 +1264,77 @@ async def test_comment_call_sends_anchor_contract_with_old_override():
     assert anchor == 12
     assert slot.slot_id == "jur"
     assert question.id == "q1"
+
+
+_OLD_COMMENT_CONVERGENCE_OVERRIDE = (
+    "Du konsoliderar expertkommentarer till Word-kommentarer. "
+    "Deduplicera observationer/issues, inte experter.\n\n"
+    "Avsnitt: {section_heading}\n\n"
+    "Batch:\n{batch_text}\n\n"
+    "Observationer:\n{observations}\n\n"
+    "Returnera issues med observation_ids, paragraph_index, "
+    "supporting_expert_ids, kommentar och has_dissensus."
+)
+
+
+def test_old_convergence_override_still_sends_server_owned_output_contract():
+    assert "short_comment" not in _OLD_COMMENT_CONVERGENCE_OVERRIDE
+    assert "should_materialize" not in _OLD_COMMENT_CONVERGENCE_OVERRIDE
+    prompts = default_prompts("sv")
+    prompts["expertgranskning.word.comment_convergence"] = (
+        _OLD_COMMENT_CONVERGENCE_OVERRIDE
+    )
+    observations = [_obs()]
+    section = WordDocumentSection(
+        heading="Avtal",
+        heading_style="Heading 1",
+        heading_paragraph_index=0,
+        paragraphs=[_para(3, "Konsulten försöker i möjligaste mån leverera i tid.")],
+    )
+    text = render_comment_convergence_user_prompt(
+        prompts,
+        section=section,
+        batch=list(section.paragraphs),
+        observations=observations,
+    )
+    assert "Returnera issues med observation_ids, paragraph_index, " in text
+    assert "kommentar och has_dissensus." in text
+    assert WORD_COMMENT_CONVERGENCE_SUFFIX in text
+    assert text.endswith(WORD_COMMENT_CONVERGENCE_SUFFIX)
+    assert "short_comment" in text
+    assert "should_materialize" in text
+
+
+@pytest.mark.asyncio
+async def test_convergence_call_sends_output_contract_with_old_override():
+    captured: list[str] = []
+
+    async def completer(messages, response_model):
+        captured.extend(message.get("content") or "" for message in messages)
+        return WordCommentConvergence(issues=[_issue()])
+
+    set_structured_completer(completer)
+    prompts = default_prompts("sv")
+    prompts["expertgranskning.word.comment_convergence"] = (
+        _OLD_COMMENT_CONVERGENCE_OVERRIDE
+    )
+    section = WordDocumentSection(
+        heading="Avtal",
+        heading_style="Heading 1",
+        heading_paragraph_index=0,
+        paragraphs=[_para(3, "Konsulten försöker i möjligaste mån leverera i tid.")],
+    )
+    parsed = await _comment_convergence(
+        prompts=prompts,
+        section=section,
+        batch=list(section.paragraphs),
+        observations=[_obs()],
+        limiter=WordReviewLimiter(1, WordReviewTimings()),
+    )
+    sent = "\n".join(captured)
+    assert WORD_COMMENT_CONVERGENCE_SUFFIX in sent
+    assert sent.strip().endswith(WORD_COMMENT_CONVERGENCE_SUFFIX)
+    assert parsed.issues[0].short_comment == "Skärp formuleringen."
 
 
 @pytest.mark.asyncio
