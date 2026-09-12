@@ -27,8 +27,10 @@ DEFAULT_ISSUE_SHOULD_MATERIALIZE = True
 
 NEARBY_PARAGRAPH_DISTANCE = 1
 SIMILAR_COMMENT_JACCARD = 0.45
-COMMENT_CONVERGENCE_CHUNK_SIZE = 12
-COMMENT_CONVERGENCE_CHUNK_HARD_CAP = COMMENT_CONVERGENCE_CHUNK_SIZE * 2
+# Live 12-observation chunks truncated around 26k JSON chars (~max_tokens).
+COMMENT_CONVERGENCE_CHUNK_SIZE = 4
+COMMENT_CONVERGENCE_CHUNK_HARD_CAP = 6
+COMMENT_CONVERGENCE_CHUNK_MAX_CHARS = 3500
 
 _TOKEN_RE = re.compile(r"[0-9a-zåäöé]+", re.IGNORECASE)
 _ACCEPT_MARKERS = (
@@ -185,6 +187,10 @@ def format_observations_for_prompt(observations: Sequence[WordObservation]) -> s
     return "\n\n".join(format_observation_block(observation) for observation in observations)
 
 
+def serialized_chunk_chars(observations: Sequence[WordObservation]) -> int:
+    return len(format_observations_for_prompt(observations))
+
+
 def nearby_observation_clusters(
     observations: Sequence[WordObservation],
 ) -> list[list[WordObservation]]:
@@ -202,16 +208,36 @@ def nearby_observation_clusters(
     return clusters
 
 
-def _split_cluster_at_hard_cap(
+def _chunk_exceeds_budget(
+    observations: Sequence[WordObservation],
+    *,
+    max_size: int,
+    max_chars: int,
+) -> bool:
+    return len(observations) > max_size or serialized_chunk_chars(observations) > max_chars
+
+
+def _split_cluster_for_budget(
     cluster: Sequence[WordObservation],
+    *,
     hard_cap: int,
+    max_chars: int,
 ) -> list[list[WordObservation]]:
-    if len(cluster) <= hard_cap:
-        return [list(cluster)]
-    return [
-        list(cluster[start : start + hard_cap])
-        for start in range(0, len(cluster), hard_cap)
-    ]
+    """Keep nearby items together until count or serialized size overflows."""
+    pieces: list[list[WordObservation]] = []
+    current: list[WordObservation] = []
+    for item in cluster:
+        candidate = [*current, item]
+        if current and _chunk_exceeds_budget(
+            candidate, max_size=hard_cap, max_chars=max_chars
+        ):
+            pieces.append(current)
+            current = [item]
+        else:
+            current = candidate
+    if current:
+        pieces.append(current)
+    return pieces
 
 
 def chunk_observations_for_convergence(
@@ -219,22 +245,30 @@ def chunk_observations_for_convergence(
     *,
     max_size: int = COMMENT_CONVERGENCE_CHUNK_SIZE,
     hard_cap: int = COMMENT_CONVERGENCE_CHUNK_HARD_CAP,
+    max_chars: int = COMMENT_CONVERGENCE_CHUNK_MAX_CHARS,
 ) -> list[list[WordObservation]]:
-    """Pack nearby clusters into chunks of max_size.
+    """Pack nearby clusters without overflowing the convergence output budget.
 
     A nearby cluster may overflow max_size so adjacent paragraphs stay
-    together, but never past hard_cap (2× target). Larger clusters are
-    split. Every observation is kept exactly once, in deterministic order.
+    together, but never past hard_cap or max_chars. A single oversized
+    observation stays alone. Every observation is kept exactly once, in
+    deterministic order.
     """
     if max_size < 1:
         raise ValueError("comment-convergence chunk size must be >= 1")
     if hard_cap < max_size:
         raise ValueError("comment-convergence hard cap must be >= chunk size")
+    if max_chars < 1:
+        raise ValueError("comment-convergence char budget must be >= 1")
     chunks: list[list[WordObservation]] = []
     current: list[WordObservation] = []
     for cluster in nearby_observation_clusters(observations):
-        for piece in _split_cluster_at_hard_cap(cluster, hard_cap):
-            if current and len(current) + len(piece) > max_size:
+        for piece in _split_cluster_for_budget(
+            cluster, hard_cap=hard_cap, max_chars=max_chars
+        ):
+            if current and _chunk_exceeds_budget(
+                [*current, *piece], max_size=max_size, max_chars=max_chars
+            ):
                 chunks.append(current)
                 current = []
             current.extend(piece)
