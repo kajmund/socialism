@@ -14,13 +14,17 @@ APPLICATION_PENDING = "pending"
 APPLICATION_APPLYING = "applying"
 APPLICATION_APPLIED = "applied"
 APPLICATION_UNRESOLVED = "unresolved"
+APPLICATION_DISMISSED = "dismissed"
 
 APPLICATION_STATUSES = {
     APPLICATION_PENDING,
     APPLICATION_APPLYING,
     APPLICATION_APPLIED,
     APPLICATION_UNRESOLVED,
+    APPLICATION_DISMISSED,
 }
+
+DISMISSABLE_STATUSES = (APPLICATION_PENDING, APPLICATION_UNRESOLVED)
 
 UNRESOLVED_STALE = "stale"
 UNRESOLVED_AMBIGUOUS = "ambiguous"
@@ -41,6 +45,8 @@ class ApplicationMutation:
         "not_completable",
         "unresolved",
         "not_unresolvable",
+        "dismissed",
+        "not_dismissible",
         "missing",
     ]
 
@@ -196,3 +202,38 @@ async def mark_application_unresolved(
     if row.status == APPLICATION_UNRESOLVED:
         return ApplicationMutation(accepted=True, row=row, reason="idempotent")
     return ApplicationMutation(accepted=False, row=row, reason="not_unresolvable")
+
+
+async def dismiss_application(
+    session: AsyncSession,
+    *,
+    job_id: str,
+    action_id: str,
+    customer_id: int,
+) -> ApplicationMutation:
+    result = await session.execute(
+        update(WordAction)
+        .where(
+            WordAction.id == action_id,
+            WordAction.job_id == job_id,
+            WordAction.customer_id == customer_id,
+            WordAction.status.in_(DISMISSABLE_STATUSES),
+        )
+        .values(status=APPLICATION_DISMISSED)
+        .execution_options(synchronize_session="fetch")
+    )
+    if result.rowcount == 1:
+        await session.commit()
+        row = await _load_action(
+            session, job_id=job_id, action_id=action_id, customer_id=customer_id
+        )
+        return ApplicationMutation(accepted=True, row=row, reason="dismissed")
+
+    row = await _load_action(
+        session, job_id=job_id, action_id=action_id, customer_id=customer_id
+    )
+    if row is None:
+        return ApplicationMutation(accepted=False, row=None, reason="missing")
+    if row.status == APPLICATION_DISMISSED:
+        return ApplicationMutation(accepted=True, row=row, reason="idempotent")
+    return ApplicationMutation(accepted=False, row=row, reason="not_dismissible")

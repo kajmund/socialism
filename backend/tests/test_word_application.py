@@ -1,6 +1,8 @@
-"""Atomic WordAction application claim / complete / unresolved."""
+"""Atomic WordAction application claim / complete / unresolved / dismiss."""
 
 from __future__ import annotations
+
+import asyncio
 
 import pytest
 
@@ -10,6 +12,7 @@ from app.services.expertgranskning import WORD_JOB_KIND
 from app.services.word.application import (
     APPLICATION_APPLIED,
     APPLICATION_APPLYING,
+    APPLICATION_DISMISSED,
     APPLICATION_PENDING,
     APPLICATION_UNRESOLVED,
 )
@@ -223,3 +226,165 @@ async def test_legacy_result_application_routes_are_removed(client_db):
     listed = await client.get(f"/expertgranskning/word-jobs/{job_id}/actions")
     assert listed.json()[0]["status"] == APPLICATION_PENDING
     assert listed.json()[0]["word_artifact_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_dismiss_pending_is_idempotent_and_persists(client_db):
+    client, factory = client_db
+    job_id, action_id = await _seed_action(factory, action_id="wa_dismiss_1")
+    dismissed = await client.post(
+        f"/expertgranskning/word-jobs/{job_id}/actions/{action_id}/dismiss"
+    )
+    assert dismissed.status_code == 200, dismissed.text
+    body = dismissed.json()
+    assert body["status"] == APPLICATION_DISMISSED
+    assert body["application_id"] is None
+    assert body["word_artifact_id"] is None
+    assert body["application_error"] is None
+
+    again = await client.post(
+        f"/expertgranskning/word-jobs/{job_id}/actions/{action_id}/dismiss"
+    )
+    assert again.status_code == 200
+    assert again.json()["status"] == APPLICATION_DISMISSED
+    assert again.json()["application_id"] is None
+    assert again.json()["word_artifact_id"] is None
+
+    listed = await client.get(f"/expertgranskning/word-jobs/{job_id}/actions")
+    assert listed.json()[0]["status"] == APPLICATION_DISMISSED
+    assert listed.json()[0]["id"] == action_id
+
+
+@pytest.mark.asyncio
+async def test_dismiss_unresolved_keeps_reason_and_creates_no_artifact(client_db):
+    client, factory = client_db
+    job_id, action_id = await _seed_action(factory, action_id="wa_dismiss_unresolved")
+    marked = await client.post(
+        f"/expertgranskning/word-jobs/{job_id}/actions/{action_id}/unresolved",
+        json={"reason": "stale"},
+    )
+    assert marked.status_code == 200
+    dismissed = await client.post(
+        f"/expertgranskning/word-jobs/{job_id}/actions/{action_id}/dismiss"
+    )
+    assert dismissed.status_code == 200, dismissed.text
+    body = dismissed.json()
+    assert body["status"] == APPLICATION_DISMISSED
+    assert body["application_error"] == "stale"
+    assert body["word_artifact_id"] is None
+    assert body["application_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_applied_and_applying_cannot_be_dismissed(client_db):
+    client, factory = client_db
+    job_id, action_id = await _seed_action(factory, action_id="wa_dismiss_applied")
+    await client.post(
+        f"/expertgranskning/word-jobs/{job_id}/actions/{action_id}/claim",
+        json={"application_id": "app-applied"},
+    )
+    applying = await client.post(
+        f"/expertgranskning/word-jobs/{job_id}/actions/{action_id}/dismiss"
+    )
+    assert applying.status_code == 409
+    assert applying.json()["detail"] == "application_not_dismissible"
+    listed = await client.get(f"/expertgranskning/word-jobs/{job_id}/actions")
+    assert listed.json()[0]["status"] == APPLICATION_APPLYING
+
+    await client.post(
+        f"/expertgranskning/word-jobs/{job_id}/actions/{action_id}/complete",
+        json={"application_id": "app-applied", "word_artifact_id": "word-keep"},
+    )
+    applied = await client.post(
+        f"/expertgranskning/word-jobs/{job_id}/actions/{action_id}/dismiss"
+    )
+    assert applied.status_code == 409
+    listed = await client.get(f"/expertgranskning/word-jobs/{job_id}/actions")
+    assert listed.json()[0]["status"] == APPLICATION_APPLIED
+    assert listed.json()[0]["word_artifact_id"] == "word-keep"
+
+
+@pytest.mark.asyncio
+async def test_dismiss_is_customer_scoped(client_db):
+    client, factory = client_db
+    job_id, action_id = await _seed_action(factory, action_id="wa_dismiss_scope")
+    token = mint_access_token(sub=BOLAG_USER_ID, email="bolag@test.local")
+    headers = {"Authorization": f"Bearer {token}"}
+    dismissed = await client.post(
+        f"/expertgranskning/word-jobs/{job_id}/actions/{action_id}/dismiss",
+        headers=headers,
+    )
+    assert dismissed.status_code == 403
+    listed = await client.get(f"/expertgranskning/word-jobs/{job_id}/actions")
+    assert listed.json()[0]["status"] == APPLICATION_PENDING
+
+
+@pytest.mark.asyncio
+async def test_claim_then_dismiss_is_rejected(client_db):
+    client, factory = client_db
+    job_id, action_id = await _seed_action(factory, action_id="wa_claim_wins")
+    claimed = await client.post(
+        f"/expertgranskning/word-jobs/{job_id}/actions/{action_id}/claim",
+        json={"application_id": "app-a"},
+    )
+    assert claimed.status_code == 200
+    dismissed = await client.post(
+        f"/expertgranskning/word-jobs/{job_id}/actions/{action_id}/dismiss"
+    )
+    assert dismissed.status_code == 409
+    listed = await client.get(f"/expertgranskning/word-jobs/{job_id}/actions")
+    assert listed.json()[0]["status"] == APPLICATION_APPLYING
+    assert listed.json()[0]["application_id"] == "app-a"
+
+
+@pytest.mark.asyncio
+async def test_dismiss_then_claim_is_rejected(client_db):
+    client, factory = client_db
+    job_id, action_id = await _seed_action(factory, action_id="wa_dismiss_wins")
+    dismissed = await client.post(
+        f"/expertgranskning/word-jobs/{job_id}/actions/{action_id}/dismiss"
+    )
+    assert dismissed.status_code == 200
+    claim = await client.post(
+        f"/expertgranskning/word-jobs/{job_id}/actions/{action_id}/claim",
+        json={"application_id": "app-b"},
+    )
+    assert claim.status_code == 409
+    listed = await client.get(f"/expertgranskning/word-jobs/{job_id}/actions")
+    assert listed.json()[0]["status"] == APPLICATION_DISMISSED
+    assert listed.json()[0]["application_id"] is None
+    assert listed.json()[0]["word_artifact_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_concurrent_claim_and_dismiss_have_one_winner(client_db):
+    client, factory = client_db
+    job_id, action_id = await _seed_action(factory, action_id="wa_race")
+    claimed, dismissed = await asyncio.gather(
+        client.post(
+            f"/expertgranskning/word-jobs/{job_id}/actions/{action_id}/claim",
+            json={"application_id": "app-race"},
+        ),
+        client.post(
+            f"/expertgranskning/word-jobs/{job_id}/actions/{action_id}/dismiss"
+        ),
+    )
+    codes = {claimed.status_code, dismissed.status_code}
+    assert 200 in codes
+    assert 409 in codes
+    assert claimed.status_code != dismissed.status_code
+    listed = await client.get(f"/expertgranskning/word-jobs/{job_id}/actions")
+    status = listed.json()[0]["status"]
+    if claimed.status_code == 200:
+        assert status == APPLICATION_APPLYING
+        assert listed.json()[0]["application_id"] == "app-race"
+        assert dismissed.status_code == 409
+    else:
+        assert status == APPLICATION_DISMISSED
+        assert listed.json()[0]["application_id"] is None
+        assert listed.json()[0]["word_artifact_id"] is None
+        assert claimed.status_code == 409
+    assert status in {APPLICATION_APPLYING, APPLICATION_DISMISSED}
+    assert not (
+        status == APPLICATION_DISMISSED and listed.json()[0]["application_id"] == "app-race"
+    )
