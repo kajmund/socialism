@@ -19,6 +19,7 @@ from app.services.expertgranskning.schemas import (
 NEARBY_PARAGRAPH_DISTANCE = 1
 SIMILAR_COMMENT_JACCARD = 0.45
 COMMENT_CONVERGENCE_CHUNK_SIZE = 12
+COMMENT_CONVERGENCE_CHUNK_HARD_CAP = COMMENT_CONVERGENCE_CHUNK_SIZE * 2
 
 _TOKEN_RE = re.compile(r"[0-9a-zåäöé]+", re.IGNORECASE)
 _ACCEPT_MARKERS = (
@@ -189,25 +190,42 @@ def nearby_observation_clusters(
     return clusters
 
 
+def _split_cluster_at_hard_cap(
+    cluster: Sequence[WordObservation],
+    hard_cap: int,
+) -> list[list[WordObservation]]:
+    if len(cluster) <= hard_cap:
+        return [list(cluster)]
+    return [
+        list(cluster[start : start + hard_cap])
+        for start in range(0, len(cluster), hard_cap)
+    ]
+
+
 def chunk_observations_for_convergence(
     observations: Sequence[WordObservation],
     *,
     max_size: int = COMMENT_CONVERGENCE_CHUNK_SIZE,
+    hard_cap: int = COMMENT_CONVERGENCE_CHUNK_HARD_CAP,
 ) -> list[list[WordObservation]]:
     """Pack nearby clusters into chunks of max_size.
 
-    A cluster larger than max_size stays together (bounded overflow).
-    Every observation is kept.
+    A nearby cluster may overflow max_size so adjacent paragraphs stay
+    together, but never past hard_cap (2× target). Larger clusters are
+    split. Every observation is kept exactly once, in deterministic order.
     """
     if max_size < 1:
         raise ValueError("comment-convergence chunk size must be >= 1")
+    if hard_cap < max_size:
+        raise ValueError("comment-convergence hard cap must be >= chunk size")
     chunks: list[list[WordObservation]] = []
     current: list[WordObservation] = []
     for cluster in nearby_observation_clusters(observations):
-        if current and len(current) + len(cluster) > max_size:
-            chunks.append(current)
-            current = []
-        current.extend(cluster)
+        for piece in _split_cluster_at_hard_cap(cluster, hard_cap):
+            if current and len(current) + len(piece) > max_size:
+                chunks.append(current)
+                current = []
+            current.extend(piece)
     if current:
         chunks.append(current)
     return chunks

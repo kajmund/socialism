@@ -20,6 +20,7 @@ from app.llm import set_structured_completer
 from app.services import jobs as jobs_service
 from app.services.expertgranskning import WORD_JOB_KIND
 from app.services.expertgranskning.comment_convergence import (
+    COMMENT_CONVERGENCE_CHUNK_HARD_CAP,
     COMMENT_CONVERGENCE_CHUNK_SIZE,
     WordObservation,
     apply_word_comment_convergence,
@@ -773,6 +774,7 @@ def test_comment_convergence_chunks_keep_nearby_paragraphs_together():
     overflow = chunk_observations_for_convergence(nearby)
     assert len(overflow) == 1
     assert len(overflow[0]) == 13
+    assert COMMENT_CONVERGENCE_CHUNK_HARD_CAP == 24
     packed = [
         *_obs_range(start=1, count=5),
         *_obs_range(start=20, count=5),
@@ -784,6 +786,27 @@ def test_comment_convergence_chunks_keep_nearby_paragraphs_together():
         range(20, 25)
     )
     assert paragraph_indexes_for_observations(packed_chunks[1]) == set(range(40, 45))
+
+
+def test_comment_convergence_splits_contiguous_cluster_at_hard_cap():
+    contiguous = [
+        _obs(
+            observation_id=f"c{index:02d}",
+            paragraph_index=index,
+            expert_id=f"e{index}",
+        )
+        for index in range(1, 31)
+    ]
+    shuffled = list(reversed(contiguous))
+    chunks = chunk_observations_for_convergence(shuffled)
+    sizes = [len(chunk) for chunk in chunks]
+    assert max(sizes) <= COMMENT_CONVERGENCE_CHUNK_HARD_CAP
+    assert all(size <= COMMENT_CONVERGENCE_CHUNK_HARD_CAP for size in sizes)
+    assert sum(sizes) == 30
+    seen = [item.observation_id for chunk in chunks for item in chunk]
+    assert seen == [item.observation_id for item in contiguous]
+    assert len(seen) == len(set(seen))
+    assert chunk_observations_for_convergence(contiguous) == chunks
 
 
 def _obs_range(*, start: int, count: int) -> list[WordObservation]:
