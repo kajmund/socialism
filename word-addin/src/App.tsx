@@ -3,11 +3,13 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react"
 import { ActionCard } from "@/components/ActionCard"
 import headMark from "@/assets/devbrains-head.png"
 import { useLocale } from "@/i18n/LocaleContext"
+import { IntentInterviewCard } from "@/components/IntentInterview"
 import {
   claimAction,
   completeAction,
   createWordJob,
   dismissAction,
+  generateIntentInterview,
   getLatestWordJob,
   listExpertPanels,
   listWordActions,
@@ -36,21 +38,47 @@ import { clearStoredToken, getStoredToken, saveStoredToken } from "@/lib/tokenSt
 import { finishedJobView, planReviewStart } from "@/lib/resume"
 import { buildSections } from "@/lib/sections"
 import {
+  InvalidIntentInterviewError,
+  answersReady,
+  setFreeTextAnswer,
+  setSingleChoice,
+  toggleMultiChoice,
+} from "@/lib/intentInterview"
+import {
   NoWordParagraphsError,
   NoWordSectionsError,
-  startNewWordReview,
+  prepareWordReview,
+  submitPreparedWordReview,
 } from "@/lib/startReview"
 import { connectExpertgranskningWatch } from "@/lib/socket"
-import type { ExpertPanelSummary, WordAction, WordTaskScopeType } from "@/lib/types"
+import type {
+  DocumentIntentInterview,
+  ExpertPanelSummary,
+  IntentAnswer,
+  WordAction,
+  WordDocumentSection,
+  WordTaskScopeType,
+} from "@/lib/types"
 import { actionsForWatchEvent, isWatchEvent } from "@/lib/watch"
 import { createWordTask } from "@/lib/word/task"
 import {
   captureWordTaskSnapshot,
   EmptyWordSelectionError,
   UnresolvedWordSelectionError,
+  type WordTaskSnapshot,
 } from "@/lib/word/taskSnapshot"
 
-type Phase = "idle" | "running" | "done" | "failed"
+type Phase = "idle" | "preparing" | "interviewing" | "running" | "done" | "failed"
+
+type ReviewDraft = {
+  snapshot: WordTaskSnapshot
+  sections: WordDocumentSection[]
+  interview: DocumentIntentInterview
+  answers: IntentAnswer[]
+  index: number
+  docId: string
+  resolveCommentIds: string[]
+}
 
 export function App() {
   const { t, locale, setLocale } = useLocale()
@@ -61,6 +89,7 @@ export function App() {
   const [reviewIntent, setReviewIntent] = useState("")
   const [taskScope, setTaskScope] = useState<WordTaskScopeType>("document")
   const [phase, setPhase] = useState<Phase>("idle")
+  const [draft, setDraft] = useState<ReviewDraft | null>(null)
   const [watchSource, setWatchSource] = useState<"new" | "resume">("new")
   const [progress, setProgress] = useState<{
     sections_completed: number
@@ -228,6 +257,8 @@ export function App() {
     setPanels([])
     setPanelId("")
     setError("")
+    setDraft(null)
+    setPhase("idle")
     resetQueue()
   }
 
@@ -350,32 +381,25 @@ export function App() {
       }
 
       try {
-        const jobId = await startNewWordReview({
+        const prepared = await prepareWordReview({
           captureSnapshot: () => captureWordTaskSnapshot(taskScope),
           buildSections,
-          createJob: ({ snapshot, sections }) =>
-            createWordJob(token, {
-              task: createWordTask({
-                panelId: Number(panelId),
-                scope: snapshot.scope,
-              }),
-              doc_id: docId,
-              word_session_id: WORD_SESSION_ID,
-              sections,
-              locale: locale === "en" ? "en" : "sv",
-              review_intent: reviewIntent.trim(),
-            }),
-          async resolvePreviousComments() {
-            for (const commentId of plan.resolveCommentIds) {
-              try {
-                await resolveComment(commentId)
-              } catch {
-                // Already resolved or missing in this document.
-              }
-            }
-          },
         })
-        attachWatch(jobId, "new")
+        setPhase("preparing")
+        const interview = await generateIntentInterview(token, {
+          sections: prepared.sections,
+          locale: locale === "en" ? "en" : "sv",
+        })
+        setDraft({
+          snapshot: prepared.snapshot,
+          sections: prepared.sections,
+          interview,
+          answers: [],
+          index: 0,
+          docId,
+          resolveCommentIds: plan.resolveCommentIds,
+        })
+        setPhase("interviewing")
       } catch (err) {
         if (err instanceof EmptyWordSelectionError) {
           setPhase("idle")
@@ -395,6 +419,12 @@ export function App() {
         if (err instanceof NoWordSectionsError) {
           setPhase("idle")
           setError(t("noSections"))
+          return
+        }
+        if (err instanceof InvalidIntentInterviewError) {
+          setPhase("idle")
+          setDraft(null)
+          setError(t("interviewInvalid"))
           return
         }
         if (err instanceof ApiError && err.status === 409) {
@@ -420,16 +450,98 @@ export function App() {
             }
           }
         }
+        setPhase("idle")
+        setDraft(null)
         throw err
       }
     } catch (err) {
-      setPhase("failed")
+      setPhase("idle")
+      setDraft(null)
+      setError(err instanceof Error ? err.message : String(err))
+    }
+  }
+
+  function updateDraft(next: Partial<ReviewDraft>) {
+    setDraft((current) => (current ? { ...current, ...next } : current))
+  }
+
+  function handleRestartInterview() {
+    setDraft(null)
+    setPhase("idle")
+    setError("")
+  }
+
+  async function handleStartFromInterview() {
+    if (!draft || !token || !panelId) return
+    if (!answersReady(draft.interview, draft.answers)) return
+    setError("")
+    try {
+      const jobId = await submitPreparedWordReview({
+        snapshot: draft.snapshot,
+        sections: draft.sections,
+        createJob: ({ snapshot, sections }) =>
+          createWordJob(token, {
+            task: createWordTask({
+              panelId: Number(panelId),
+              scope: snapshot.scope,
+            }),
+            doc_id: draft.docId,
+            word_session_id: WORD_SESSION_ID,
+            sections,
+            locale: locale === "en" ? "en" : "sv",
+            review_intent: reviewIntent.trim(),
+            intent_interview: draft.interview,
+            intent_answers: draft.answers,
+          }),
+        async resolvePreviousComments() {
+          for (const commentId of draft.resolveCommentIds) {
+            try {
+              await resolveComment(commentId)
+            } catch {
+              // Already resolved or missing in this document.
+            }
+          }
+        },
+      })
+      setDraft(null)
+      attachWatch(jobId, "new")
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        const again = await getLatestWordJob(token, draft.docId)
+        const retry = planReviewStart(again)
+        switch (retry.action) {
+          case "resume":
+            setDraft(null)
+            attachWatch(retry.jobId, "resume")
+            return
+          case "blockUndecided":
+            if (again) noteActions(again.actions)
+            setError(t("blockUndecided"))
+            return
+          case "blockApplying":
+            if (again) noteActions(again.actions)
+            setError(t("blockApplying"))
+            return
+          case "startNew":
+            break
+          default: {
+            const _exhaustive: never = retry
+            return _exhaustive
+          }
+        }
+      }
+      setPhase("interviewing")
       setError(err instanceof Error ? err.message : String(err))
     }
   }
 
   const canReview =
-    Boolean(token && panelId) && phase !== "running" && reviewBlock === null
+    Boolean(token && panelId) &&
+    phase !== "running" &&
+    phase !== "preparing" &&
+    phase !== "interviewing" &&
+    reviewBlock === null
+  const interviewBusy = phase === "preparing"
   const runningStatus =
     progress != null
       ? t("statusProgress", {
@@ -448,8 +560,12 @@ export function App() {
 
   return (
     <div className="pane">
-      {phase === "running" ? (
-        <div className="progress" role="progressbar" aria-label={runningStatus}>
+      {phase === "running" || phase === "preparing" ? (
+        <div
+          className="progress"
+          role="progressbar"
+          aria-label={phase === "preparing" ? t("statusPreparing") : runningStatus}
+        >
           <span />
         </div>
       ) : null}
@@ -520,20 +636,6 @@ export function App() {
           {token && panels.length === 0 ? <p className="hint">{t("panelEmpty")}</p> : null}
         </div>
 
-        <div className="field">
-          <label htmlFor="intent">{t("intentLabel")}</label>
-          <textarea
-            id="intent"
-            className="intent"
-            rows={4}
-            value={reviewIntent}
-            onChange={(event) => setReviewIntent(event.target.value)}
-            disabled={!token || phase === "running"}
-            placeholder={t("intentPlaceholder")}
-          />
-          <p className="hint">{t("intentHint")}</p>
-        </div>
-
         <fieldset className="scope">
           <legend>{t("scopeLabel")}</legend>
           <div className="scope-options">
@@ -544,7 +646,7 @@ export function App() {
                 value="document"
                 checked={taskScope === "document"}
                 onChange={() => setTaskScope("document")}
-                disabled={!token}
+                disabled={!token || interviewBusy || phase === "interviewing"}
               />
               {t("scopeDocument")}
             </label>
@@ -555,7 +657,7 @@ export function App() {
                 value="selection"
                 checked={taskScope === "selection"}
                 onChange={() => setTaskScope("selection")}
-                disabled={!token}
+                disabled={!token || interviewBusy || phase === "interviewing"}
               />
               {t("scopeSelection")}
             </label>
@@ -565,24 +667,68 @@ export function App() {
           ) : null}
         </fieldset>
 
-        <button
-          type="button"
-          className="primary"
-          disabled={!canReview}
-          onClick={() => void handleReview()}
-        >
-          {phase === "running" ? (
-            <>
-              <span className="spinner" aria-hidden="true" />
-              {t("reviewing")}
-            </>
-          ) : (
-            t("review")
-          )}
-        </button>
+        {phase === "interviewing" && draft ? (
+          <IntentInterviewCard
+            interview={draft.interview}
+            answers={draft.answers}
+            index={draft.index}
+            canStart={answersReady(draft.interview, draft.answers)}
+            t={t}
+            onSelect={(questionId, value) =>
+              updateDraft({ answers: setSingleChoice(draft.answers, questionId, value) })
+            }
+            onToggle={(questionId, value) =>
+              updateDraft({ answers: toggleMultiChoice(draft.answers, questionId, value) })
+            }
+            onFreeText={(questionId, value) =>
+              updateDraft({ answers: setFreeTextAnswer(draft.answers, questionId, value) })
+            }
+            onBack={() => updateDraft({ index: Math.max(0, draft.index - 1) })}
+            onNext={() =>
+              updateDraft({
+                index: Math.min(draft.interview.questions.length - 1, draft.index + 1),
+              })
+            }
+            onStart={() => void handleStartFromInterview()}
+            onRestart={handleRestartInterview}
+          />
+        ) : (
+          <button
+            type="button"
+            className="primary"
+            disabled={!canReview}
+            onClick={() => void handleReview()}
+          >
+            {phase === "running" || interviewBusy ? (
+              <>
+                <span className="spinner" aria-hidden="true" />
+                {interviewBusy ? t("interviewGenerating") : t("reviewing")}
+              </>
+            ) : (
+              t("review")
+            )}
+          </button>
+        )}
+        {phase === "interviewing" ? <p className="hint">{t("interviewHint")}</p> : null}
+
+        <div className="field">
+          <label htmlFor="intent">{t("intentLabel")}</label>
+          <textarea
+            id="intent"
+            className="intent"
+            rows={4}
+            value={reviewIntent}
+            onChange={(event) => setReviewIntent(event.target.value)}
+            disabled={!token || phase === "running" || phase === "preparing"}
+            placeholder={t("intentPlaceholder")}
+          />
+          <p className="hint">{t("intentHint")}</p>
+        </div>
 
         <p className="status" data-phase={phase} aria-live="polite">
           {phase === "idle" ? t("statusIdle") : null}
+          {phase === "preparing" ? t("statusPreparing") : null}
+          {phase === "interviewing" ? t("statusInterview") : null}
           {phase === "running" ? runningStatus : null}
           {phase === "done" ? t("statusDone") : null}
           {phase === "failed" ? t("statusFailed", { error }) : null}

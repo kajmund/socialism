@@ -1,12 +1,15 @@
 import { env } from "@/lib/env"
 import { ApiError, httpRequest } from "@/lib/http"
 import type {
+  DocumentIntentInterview,
   ExpertPanelSummary,
+  IntentAnswer,
   LatestWordJob,
   WordAction,
   WordDocumentSection,
   WordTask,
 } from "@/lib/types"
+import { parseIntentInterview } from "@/lib/intentInterview"
 
 function url(path: string): string {
   return `${env.apiBaseUrl.replace(/\/$/, "")}${path}`
@@ -20,6 +23,24 @@ export async function listExpertPanels(token: string): Promise<ExpertPanelSummar
   return rows.filter((row) => row.kind === "expert_panel")
 }
 
+export async function generateIntentInterview(
+  token: string,
+  body: {
+    sections: WordDocumentSection[]
+    locale?: "sv" | "en" | "nb"
+  },
+): Promise<DocumentIntentInterview> {
+  const created = await httpRequest<unknown>(
+    url("/expertgranskning/word-intent-interview"),
+    {
+      method: "POST",
+      token,
+      body,
+    },
+  )
+  return parseIntentInterview(created)
+}
+
 export async function createWordJob(
   token: string,
   body: {
@@ -29,6 +50,8 @@ export async function createWordJob(
     locale?: "sv" | "en" | "nb"
     word_session_id?: string
     review_intent?: string
+    intent_interview?: DocumentIntentInterview
+    intent_answers?: IntentAnswer[]
   },
 ): Promise<string> {
   const created = await httpRequest<{ job_id: string }>(url("/expertgranskning/word-jobs"), {
