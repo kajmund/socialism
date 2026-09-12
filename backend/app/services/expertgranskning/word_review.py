@@ -29,6 +29,7 @@ from app.services.expertgranskning.comment_convergence import (
     apply_word_comment_convergence,
     chunk_observations_for_convergence,
     collapse_intra_expert_duplicates,
+    consolidated_from_observation,
     format_observations_for_prompt,
     paragraph_indexes_for_observations,
 )
@@ -735,10 +736,13 @@ async def _consolidate_comments(
 ) -> list[WordConsolidatedComment]:
     raw = _observations_from_comments(comments, by_index)
     collapsed = collapse_intra_expert_duplicates(raw)
-    if not collapsed:
-        return []
+    if len(collapsed) < 2:
+        return [consolidated_from_observation(item) for item in collapsed]
     written: list[WordConsolidatedComment] = []
     for chunk in chunk_observations_for_convergence(collapsed):
+        if len(chunk) < 2:
+            written.extend(consolidated_from_observation(item) for item in chunk)
+            continue
         referenced = paragraph_indexes_for_observations(chunk)
         parsed = await _comment_convergence(
             prompts=prompts,
