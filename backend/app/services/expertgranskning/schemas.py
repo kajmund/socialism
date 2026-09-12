@@ -383,6 +383,7 @@ def _validate_one_intent_answer(question: IntentQuestion, answer: IntentAnswer) 
 
 
 class ExpertgranskningIntentInterviewCreate(BaseModel):
+    panel_id: int
     sections: list[WordDocumentSection] = Field(min_length=1, max_length=WORD_MAX_SECTIONS)
     locale: ConfigurationLanguage = "sv"
 

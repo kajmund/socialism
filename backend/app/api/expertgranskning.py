@@ -10,7 +10,6 @@ from app.auth.dependencies import get_current_user
 from app.auth.scope import (
     assert_job_owner_access,
     assert_kund_access,
-    customer_id_for_user,
     effective_customer_id,
 )
 from app.database.models import Job, Population, UserAccount
@@ -233,10 +232,17 @@ async def post_expertgranskning_word_intent_interview(
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> DocumentIntentInterview:
-    customer_id = await customer_id_for_user(session, user)
+    try:
+        panel = await require_expert_panel(session, body.panel_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if not _panel_visible_to_user(panel, user):
+        raise HTTPException(status_code=403, detail="kund_access_denied")
     prompts = await require_active_prompts(
         session,
-        customer_id=customer_id,
+        customer_id=panel.customer_id,
         module="expertgranskning",
         language=body.locale,
     )

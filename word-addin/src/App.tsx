@@ -40,6 +40,7 @@ import { buildSections } from "@/lib/sections"
 import {
   InvalidIntentInterviewError,
   answersReady,
+  normalizeIntentAnswers,
   setFreeTextAnswer,
   setSingleChoice,
   toggleMultiChoice,
@@ -387,6 +388,7 @@ export function App() {
         })
         setPhase("preparing")
         const interview = await generateIntentInterview(token, {
+          panel_id: Number(panelId),
           sections: prepared.sections,
           locale: locale === "en" ? "en" : "sv",
         })
@@ -491,7 +493,7 @@ export function App() {
             locale: locale === "en" ? "en" : "sv",
             review_intent: reviewIntent.trim(),
             intent_interview: draft.interview,
-            intent_answers: draft.answers,
+            intent_answers: normalizeIntentAnswers(draft.answers),
           }),
         async resolvePreviousComments() {
           for (const commentId of draft.resolveCommentIds) {

@@ -169,6 +169,9 @@ export function toggleMultiChoice(
   const selected = current.includes(value)
     ? current.filter((item) => item !== value)
     : [...current, value]
+  if (selected.length === 0) {
+    return answers.filter((answer) => answer.question_id !== questionId)
+  }
   return upsertAnswer(answers, questionId, {
     selected_values: selected,
     free_text: null,
@@ -180,12 +183,27 @@ export function setFreeTextAnswer(
   questionId: string,
   freeText: string,
 ): IntentAnswer[] {
-  const trimmed = freeText.trim()
-  if (!trimmed) {
+  if (freeText === "") {
     return answers.filter((answer) => answer.question_id !== questionId)
   }
   return upsertAnswer(answers, questionId, {
     selected_values: [],
-    free_text: trimmed,
+    free_text: freeText,
   })
+}
+
+export function normalizeIntentAnswers(answers: IntentAnswer[]): IntentAnswer[] {
+  const normalized: IntentAnswer[] = []
+  for (const answer of answers) {
+    const freeText = answer.free_text?.trim() || null
+    if (answer.selected_values.length === 0 && !freeText) {
+      continue
+    }
+    normalized.push({
+      question_id: answer.question_id,
+      selected_values: answer.selected_values,
+      free_text: freeText,
+    })
+  }
+  return normalized
 }

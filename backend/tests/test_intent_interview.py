@@ -6,8 +6,9 @@ import pytest
 from httpx import AsyncClient
 from pydantic import ValidationError
 
-from app.database.models import Job
+from app.database.models import Job, PromptOverride
 from app.llm import set_structured_completer
+from app.serializers import utcnow
 from app.services import jobs as jobs_service
 from app.services.expertgranskning.intent_interview import (
     compose_expert_review_context,
@@ -30,7 +31,10 @@ from app.services.expertgranskning.schemas import (
 )
 from app.services.panel.review_intent import compose_brief_with_review_intent
 from app.services.prompt_catalog import default_prompts
+from app.services.prompt_fields_store import get_prompt_field_by_key
+from tests.conftest import BOLAG_USER_ID, mint_access_token
 from tests.test_expertgranskning_word_review import (
+    _create_bolag_expert_panel,
     _create_expert_panel,
     _moderation_for_batch,
     _para,
@@ -305,10 +309,28 @@ async def test_generate_interview_fails_closed_on_malformed_output():
         await generate_document_intent_interview(sections=sections, prompts=prompts)
 
 
+def _interview_sections() -> list[dict]:
+    return [
+        {
+            "heading": "CV",
+            "heading_style": "Heading 1",
+            "heading_paragraph_index": 0,
+            "paragraphs": [
+                {
+                    "index": 1,
+                    "text": "Anna Andersson, systemutvecklare i Göteborg.",
+                    "style": "Normal",
+                }
+            ],
+        }
+    ]
+
+
 @pytest.mark.asyncio
 async def test_word_intent_interview_endpoint_returns_generated_interview(
     client: AsyncClient,
 ):
+    panel_id = await _create_expert_panel(client)
     generated = DocumentIntentInterview.model_validate(_interview(_choice_question()))
 
     async def completer(messages, response_model):
@@ -323,21 +345,9 @@ async def test_word_intent_interview_endpoint_returns_generated_interview(
     response = await client.post(
         "/expertgranskning/word-intent-interview",
         json={
+            "panel_id": panel_id,
             "locale": "sv",
-            "sections": [
-                {
-                    "heading": "CV",
-                    "heading_style": "Heading 1",
-                    "heading_paragraph_index": 0,
-                    "paragraphs": [
-                        {
-                            "index": 1,
-                            "text": "Anna Andersson, systemutvecklare i Göteborg.",
-                            "style": "Normal",
-                        }
-                    ],
-                }
-            ],
+            "sections": _interview_sections(),
         },
     )
     assert response.status_code == 200, response.text
@@ -346,6 +356,71 @@ async def test_word_intent_interview_endpoint_returns_generated_interview(
     assert body["questions"][0]["id"] == "party"
     assert "contract" in str(body).lower() or body["document_type"]
     assert "buyer" not in {key for key in body}
+
+
+@pytest.mark.asyncio
+async def test_word_intent_interview_requires_visible_panel(client: AsyncClient):
+    panel_id = await _create_expert_panel(client)
+    missing = await client.post(
+        "/expertgranskning/word-intent-interview",
+        json={"locale": "sv", "sections": _interview_sections()},
+    )
+    assert missing.status_code == 422
+    token = mint_access_token(sub=BOLAG_USER_ID, email="bolag@test.local")
+    forbidden = await client.post(
+        "/expertgranskning/word-intent-interview",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "panel_id": panel_id,
+            "locale": "sv",
+            "sections": _interview_sections(),
+        },
+    )
+    assert forbidden.status_code == 403
+    assert forbidden.json()["detail"] == "kund_access_denied"
+
+
+@pytest.mark.asyncio
+async def test_word_intent_interview_uses_selected_panel_tenant_prompts(
+    client: AsyncClient,
+):
+    panel_id, bolag_id = await _create_bolag_expert_panel(client)
+    marker = "BOLAG-INTERVIEW-PROMPT"
+    factory = jobs_service.job_session_factory()
+    async with factory() as session:
+        field = await get_prompt_field_by_key(
+            session, "expertgranskning.word.intent_interview"
+        )
+        assert field is not None
+        session.add(
+            PromptOverride(
+                customer_id=bolag_id,
+                prompt_field_id=field.id,
+                language="sv",
+                text=marker,
+                updated_at=utcnow(),
+            )
+        )
+        await session.commit()
+
+    seen: list[str] = []
+
+    async def completer(messages, response_model):
+        assert response_model is DocumentIntentInterview
+        seen.extend(str(message.get("content") or "") for message in messages)
+        return DocumentIntentInterview.model_validate(_interview(_choice_question()))
+
+    set_structured_completer(completer)
+    response = await client.post(
+        "/expertgranskning/word-intent-interview",
+        json={
+            "panel_id": panel_id,
+            "locale": "sv",
+            "sections": _interview_sections(),
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert any(marker in text for text in seen)
 
 
 @pytest.mark.asyncio
