@@ -43,7 +43,7 @@ Server sends `expertgranskning.replay` immediately (`job_id`, `status`, `actions
 | Event | When |
 | ----- | ---- |
 | `expertgranskning.action.created` | After each WordAction is committed |
-| `expertgranskning.action.updated` | After claim/complete/unresolved |
+| `expertgranskning.action.updated` | After claim/complete/unresolved/dismiss |
 | `expertgranskning.finished` | Job succeeded or failed (`status`, optional `error` / `stats`) |
 
 Implementation: `app/realtime/expertgranskning_broadcast.py`, `app/services/expertgranskning/watch.py`. Consumer is `word-addin/` (not the admin SPA). Sideload and host limits: [guides/word-addin.md](guides/word-addin.md).

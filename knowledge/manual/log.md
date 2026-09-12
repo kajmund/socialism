@@ -1,5 +1,9 @@
 # Manual update log
 
+## 2026-09-12
+
+* **Expertgranskning i Word**: Kommentarer och omskrivningar är förslag i sidopanelen. Du tillämpar eller avfärdar varje förslag. Inget skrivs i dokumentet förrän du väljer Tillämpa. En ny granskning kan startas först när alla förslag är beslutade.
+
 ## 2026-09-11
 
 * **Expertgranskning i Word**: Kommentarer fästs bara om tillägget kan peka ut rätt stycke säkert. Om dokumentet har ändrats visar sidopanelen hur många resultat som inte kunde placeras. Samma sammanfattning syns om du öppnar tillägget igen efter att jobbet är klart.
