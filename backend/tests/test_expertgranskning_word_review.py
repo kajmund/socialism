@@ -196,9 +196,25 @@ async def _committed_result_count(job_id: str) -> int:
         )
 
 
+def _review_task(panel_id: int = 1, *, paragraph_indexes: list[int] | None = None) -> dict:
+    if paragraph_indexes is None:
+        scope: dict = {"type": "document"}
+    else:
+        scope = {"type": "selection", "paragraph_indexes": paragraph_indexes}
+    return {
+        "task_type": "review",
+        "scope": scope,
+        "expert_strategy": {"type": "panel", "panel_id": panel_id},
+    }
+
+
 def _payload(*, heading="Avtal", paragraphs: list[WordDocumentParagraph], **extra):
+    panel_id = extra.get("panel_id", 1)
     body = {
-        "panel_id": extra.get("panel_id", 1),
+        "task": extra.get("task") or _review_task(
+            panel_id,
+            paragraph_indexes=extra.get("selection"),
+        ),
         "doc_id": extra.get("doc_id", "doc-1"),
         "sections": [
             {
@@ -283,7 +299,7 @@ def test_list_string_defaults_empty_for_legacy_clients():
 def test_document_brief_indexes_match_paragraph_index():
     payload = ExpertgranskningWordJobRequest.model_validate(
         {
-            "panel_id": 1,
+            "task": _review_task(),
             "customer_id": 1,
             "owner_user_id": "u1",
             "sections": [
@@ -318,7 +334,7 @@ def test_document_brief_indexes_match_paragraph_index():
 def test_document_brief_skips_empty_heading_line():
     payload = ExpertgranskningWordJobRequest.model_validate(
         {
-            "panel_id": 1,
+            "task": _review_task(),
             "customer_id": 1,
             "owner_user_id": "u1",
             "sections": [
@@ -456,6 +472,23 @@ def test_accepted_review_questions_skips_trivial_and_invalid():
     )
     assert [question.id for question in kept] == ["q1"]
     assert kept[0].paragraph_indexes == [1]
+
+    scoped = accepted_review_questions(
+        WordBatchModeration(
+            needs_review=True,
+            reason="Villkor.",
+            questions=[
+                WordReviewQuestion(
+                    id="q1",
+                    paragraph_indexes=[1, 2],
+                    question="Bara det valda stycket.",
+                )
+            ],
+        ),
+        [_para(1, "Valt stycke att granska här."), _para(2, "Inte valt men i batchen.")],
+        target_indexes=frozenset({1}),
+    )
+    assert scoped[0].paragraph_indexes == [1]
 
 
 def test_selected_review_questions_ignores_unknown_and_duplicates():
@@ -751,6 +784,14 @@ def test_resolve_comment_anchor_uses_explicit_and_single_index():
     assert (
         resolve_comment_anchor(
             question,
+            WordExpertComment(kommentar="x", anchor_paragraph_index=10),
+            target_indexes=frozenset({11}),
+        )
+        is None
+    )
+    assert (
+        resolve_comment_anchor(
+            question,
             WordExpertComment.model_validate(
                 {"kommentar": "x", "anchor_paragraph_index": ""}
             ),
@@ -1020,10 +1061,10 @@ def test_word_job_rejects_unsupported_locale_and_oversized_document():
         ],
     }
     with pytest.raises(ValidationError):
-        ExpertgranskningWordJobCreate(panel_id=1, locale="en-US", sections=[section])
+        ExpertgranskningWordJobCreate(task=_review_task(), locale="en-US", sections=[section])
     with pytest.raises(ValidationError):
         ExpertgranskningWordJobCreate(
-            panel_id=1,
+            task=_review_task(),
             sections=[
                 {
                     "heading": "X",
@@ -1041,7 +1082,7 @@ def test_word_job_rejects_unsupported_locale_and_oversized_document():
         )
     with pytest.raises(ValidationError):
         ExpertgranskningWordJobCreate(
-            panel_id=1,
+            task=_review_task(),
             sections=[
                 {
                     "heading": "X",
@@ -1150,6 +1191,161 @@ async def test_word_review_raise_hand_then_comment_and_heading(client: AsyncClie
 
     job = await client.get(f"/jobs/{job_id}")
     assert job.json()["result"]["paragraph_reviews"] == 1
+    assert job.json()["request"]["task"] == _review_task(panel_id)
+
+
+@pytest.mark.asyncio
+async def test_word_review_selection_scope_stays_inside_target(client: AsyncClient):
+    captured: list[list[dict]] = []
+
+    async def completer(messages, response_model):
+        captured.append(messages)
+        user = messages[-1]["content"]
+        if response_model is WordBatchModeration:
+            return WordBatchModeration(
+                needs_review=True,
+                reason="Batchen kräver bedömning.",
+                questions=[
+                    WordReviewQuestion(
+                        id="q-out",
+                        paragraph_indexes=[1],
+                        question="Utom markeringen?",
+                    ),
+                    WordReviewQuestion(
+                        id="q-in",
+                        paragraph_indexes=[2],
+                        question="Är stycke 2 tydligt?",
+                    ),
+                ],
+            )
+        if response_model is WordExpertRaiseHand:
+            return WordExpertRaiseHand(question_ids=["q-in", "q-out"])
+        if response_model is WordExpertComment:
+            return WordExpertComment(
+                kommentar="Kommentar som försöker lämna markeringen.",
+                anchor_paragraph_index=1,
+            )
+        if response_model is WordHeadingAssessment:
+            return WordHeadingAssessment(forslag="Rubrik utanför markeringen")
+        if response_model is WordRewriteSuggestion:
+            return WordRewriteSuggestion(
+                ny_text="Omskrivning utanför markeringen.",
+                motivering="Ska inte materialiseras.",
+            )
+        if response_model is WordCommentConvergence:
+            return WordCommentConvergence(
+                issues=[
+                    WordConvergedIssue(
+                        observation_ids=["o1"],
+                        paragraph_index=1,
+                        supporting_expert_ids=["slot_1"],
+                        kommentar="Konvergens utanför markeringen.",
+                    )
+                ]
+            )
+        raise AssertionError(response_model)
+
+    panel_id = await _create_expert_panel(client)
+    set_structured_completer(completer)
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    created = await client.post(
+        "/expertgranskning/word-jobs",
+        json=_payload(
+            panel_id=panel_id,
+            selection=[2],
+            paragraphs=[
+                _para(1, "Detta stycke är utanför markeringen men finns i dokumentet."),
+                _para(2, "Detta stycke är tillräckligt långt för granskning."),
+            ],
+        ),
+    )
+    assert created.status_code == 202, created.text
+    job_id = created.json()["job_id"]
+    stored = (await client.get(f"/jobs/{job_id}")).json()["request"]
+    assert stored["task"]["scope"] == {"type": "selection", "paragraph_indexes": [2]}
+    assert stored["sections"][0]["paragraphs"][0]["index"] == 1
+    await jobs_service._run_job(job_id)
+
+    listed = await client.get(f"/expertgranskning/word-jobs/{job_id}/results")
+    rows = listed.json()
+    assert {row["paragraph_index"] for row in rows} <= {2}
+    assert not any(row["is_heading_suggestion"] for row in rows)
+    actions = (await client.get(f"/expertgranskning/word-jobs/{job_id}/actions")).json()
+    assert all(action["anchor"]["paragraph_index"] == 2 for action in actions)
+
+    batch_users = [
+        messages[-1]["content"]
+        for messages in captured
+        if "Den här batchen" in messages[-1]["content"]
+        or "This batch" in messages[-1]["content"]
+    ]
+    assert batch_users
+    assert _batch_indexes_from_user(batch_users[0]) == [2]
+    brief_systems = [
+        str(message.get("content") or "")
+        for messages in captured
+        for message in messages
+        if message.get("role") == "system"
+    ]
+    assert any(
+        "[1] Detta stycke är utanför markeringen men finns i dokumentet." in text
+        and "[2] Detta stycke är tillräckligt långt för granskning." in text
+        for text in brief_systems
+    )
+    assert not any("Nuvarande rubrik:" in messages[-1]["content"] for messages in captured)
+
+
+@pytest.mark.asyncio
+async def test_word_review_selection_scope_can_comment_and_replace(client: AsyncClient):
+    async def completer(messages, response_model):
+        user = messages[-1]["content"]
+        if response_model is WordBatchModeration:
+            return _moderation_for_batch(user)
+        if response_model is WordExpertRaiseHand:
+            return WordExpertRaiseHand(question_ids=_question_ids_from_user(user)[:1])
+        if response_model is WordExpertComment:
+            return WordExpertComment(
+                kommentar="Kommentar på det valda stycket.",
+                anchor_paragraph_index=2,
+            )
+        if response_model is WordHeadingAssessment:
+            return WordHeadingAssessment(forslag="Ska inte skrivas")
+        if response_model is WordRewriteSuggestion:
+            return WordRewriteSuggestion(
+                ny_text="Ny formulering i markeringen.",
+                motivering="Samma fix.",
+            )
+        if response_model is WordCommentConvergence:
+            return _passthrough_comment_convergence(messages[-1]["content"])
+        raise AssertionError(response_model)
+
+    panel_id = await _create_expert_panel(client)
+    set_structured_completer(completer)
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    created = await client.post(
+        "/expertgranskning/word-jobs",
+        json=_payload(
+            panel_id=panel_id,
+            selection=[2],
+            paragraphs=[
+                _para(1, "Detta stycke är utanför markeringen men finns i dokumentet."),
+                _para(2, "Detta stycke är tillräckligt långt för granskning."),
+            ],
+        ),
+    )
+    assert created.status_code == 202, created.text
+    job_id = created.json()["job_id"]
+    await jobs_service._run_job(job_id)
+
+    rows = (await client.get(f"/expertgranskning/word-jobs/{job_id}/results")).json()
+    assert {row["paragraph_index"] for row in rows} == {2}
+    assert any(row["is_rewrite_suggestion"] for row in rows)
+    assert not any(row["is_heading_suggestion"] for row in rows)
+    actions = (await client.get(f"/expertgranskning/word-jobs/{job_id}/actions")).json()
+    assert actions
+    assert {action["action_type"] for action in actions} == {"comment", "replace"}
+    assert all(action["anchor"]["paragraph_index"] == 2 for action in actions)
+    assert all(action["status"] == "pending" for action in actions)
 
 
 @pytest.mark.asyncio
@@ -2436,7 +2632,7 @@ async def test_generic_jobs_path_rejects_foreign_panel(
         json={
             "kind": WORD_JOB_KIND,
             "request": {
-                "panel_id": panel_id,
+                "task": _review_task(panel_id),
                 "customer_id": TEST_CUSTOMER_ID,
                 "owner_user_id": USER_USER_ID,
                 "sections": [
