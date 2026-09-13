@@ -43,6 +43,7 @@ class PanelSessionConfig(BaseModel):
     module: str | None = None
     topic: str = Field(min_length=1, max_length=4000)
     brief: str = ""
+    locale: Literal["sv", "en", "nb"] = "sv"
     review_intent: str = Field(default="", max_length=8_000)
     underlag_id: str | None = None
     expert_slots: list[PanelExpertSlot] = Field(default_factory=list, max_length=6)

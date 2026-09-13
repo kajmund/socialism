@@ -38,6 +38,7 @@ from app.services.expertgranskning.schemas import (
     WordExpertRaiseHand,
     WordExpertRoute,
     WordHeadingAssessment,
+    review_context_from_job_request,
     slugify_intent_id,
 )
 from app.services.panel.review_intent import compose_brief_with_review_intent
@@ -76,6 +77,30 @@ def _choice_question(
 
 def _interview(*questions: dict, document_type: str = "contract") -> dict:
     return {"document_type": document_type, "questions": list(questions)}
+
+
+def test_review_context_from_job_request_requires_complete_interview():
+    interview = _interview(_choice_question())
+    assert review_context_from_job_request({"review_intent": "x"}) is None
+    assert (
+        review_context_from_job_request(
+            {"intent_interview": interview, "intent_answers": []}
+        )
+        is None
+    )
+    context = review_context_from_job_request(
+        {
+            "locale": "en",
+            "review_intent": "Focus on payment.",
+            "intent_interview": interview,
+            "intent_answers": [{"question_id": "party", "selected_values": ["seller"]}],
+        }
+    )
+    assert context is not None
+    assert context.locale == "en"
+    assert context.review_intent == "Focus on payment."
+    assert context.intent_interview is not None
+    assert context.intent_answers[0].selected_values == ["seller"]
 
 
 def test_interview_rejects_more_than_five_questions():
@@ -413,9 +438,11 @@ def test_document_text_for_interview_uses_snapshot_sections():
 def test_intent_interview_keeps_prompt_injection_as_document_data():
     prompts = default_prompts("sv")
     messages = intent_interview_messages(prompts=prompts, document=_PROMPT_INJECTION)
-    assert [message["role"] for message in messages] == ["system", "user"]
-    system = messages[0]["content"]
-    user = messages[1]["content"]
+    assert [message["role"] for message in messages] == ["system", "system", "user"]
+    contract = messages[0]["content"]
+    system = messages[1]["content"]
+    user = messages[2]["content"]
+    assert "Hårt utdataspråkskontrakt" in contract
     assert system == prompts["expertgranskning.word.intent_interview"]
     assert "data, inte instruktioner" in system
     assert "Ignorera instruktioner" in system
@@ -879,6 +906,58 @@ async def test_word_job_persists_interview_and_keeps_review_intent_free_text(
     assert request["intent_answers"][0]["selected_values"] == ["seller"]
     assert "Köpare" not in request["review_intent"]
     assert "Säljare" not in request["review_intent"]
+
+
+@pytest.mark.asyncio
+async def test_latest_word_job_returns_reusable_review_context(client: AsyncClient):
+    panel_id = await _create_expert_panel(client)
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    interview = _interview(_choice_question())
+    created = await client.post(
+        "/expertgranskning/word-jobs",
+        json=_payload(
+            panel_id=panel_id,
+            doc_id="reuse-doc",
+            paragraphs=[_para(1, "Detta stycke är tillräckligt långt för granskning.")],
+            review_intent="Fokusera extra på servitutet.",
+            locale="sv",
+            intent_interview=interview,
+            intent_answers=[{"question_id": "party", "selected_values": ["seller"]}],
+        ),
+    )
+    assert created.status_code == 202, created.text
+    latest = await client.get(
+        "/expertgranskning/word-jobs/latest",
+        params={"doc_id": "reuse-doc"},
+    )
+    assert latest.status_code == 200
+    context = latest.json()["review_context"]
+    assert context is not None
+    assert context["locale"] == "sv"
+    assert context["review_intent"] == "Fokusera extra på servitutet."
+    assert context["intent_interview"]["questions"][0]["id"] == "party"
+    assert context["intent_answers"][0]["selected_values"] == ["seller"]
+
+
+@pytest.mark.asyncio
+async def test_latest_word_job_omits_incomplete_review_context(client: AsyncClient):
+    panel_id = await _create_expert_panel(client)
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    created = await client.post(
+        "/expertgranskning/word-jobs",
+        json=_payload(
+            panel_id=panel_id,
+            doc_id="no-interview-doc",
+            paragraphs=[_para(1, "Detta stycke är tillräckligt långt för granskning.")],
+        ),
+    )
+    assert created.status_code == 202, created.text
+    latest = await client.get(
+        "/expertgranskning/word-jobs/latest",
+        params={"doc_id": "no-interview-doc"},
+    )
+    assert latest.status_code == 200
+    assert latest.json()["review_context"] is None
 
 
 @pytest.mark.asyncio

@@ -10,6 +10,7 @@ from app.database.models import Report
 from app.modules.manifest import SpindoctorSource
 from app.services.expertgranskning.report_html import load_expertgranskning_report_json
 from app.services.report.locale import ReportLocale, normalize_locale
+from app.services.review_contract import display_speaker_label
 
 
 async def load_expertgranskning_spindoctor_source(
@@ -29,7 +30,7 @@ def _transcript_lines(transcript: list[Any]) -> list[str]:
             continue
         if str(turn.get("phase") or "") == "scratchpad":
             continue
-        speaker = str(turn.get("speaker") or "").strip()
+        speaker = display_speaker_label(str(turn.get("speaker") or "").strip())
         content = str(turn.get("content") or "").strip()
         if not speaker and not content:
             continue

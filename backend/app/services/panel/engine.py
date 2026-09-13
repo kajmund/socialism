@@ -33,6 +33,10 @@ from app.services.panel.synthesis import (
 )
 from app.services.panel.watch import run_turn
 from app.services.prompt_catalog import render_prompt
+from app.services.review_contract import (
+    display_speaker_label,
+    messages_with_output_contract,
+)
 
 
 def _expert_system(
@@ -59,7 +63,8 @@ def _expert_list(config: PanelSessionConfig) -> str:
 def _transcript_text(transcript: list[PanelTurn]) -> str:
     lines: list[str] = []
     for turn in transcript:
-        name = turn.speaker if turn.phase != "scratchpad" else f"{turn.speaker} (scratchpad)"
+        speaker = display_speaker_label(turn.speaker)
+        name = speaker if turn.phase != "scratchpad" else f"{speaker} (scratchpad)"
         lines.append(f"{name}: {turn.content}")
     return "\n".join(lines)
 
@@ -74,6 +79,7 @@ def _messages_with_brief(
     brief: str,
     user_content: str,
     evidence_prompt: str | None = None,
+    locale: str = "sv",
 ) -> list[dict[str, str]]:
     """Keep document brief as its own system message — same as structured_scoring."""
     messages = [{"role": "system", "content": identity}]
@@ -82,7 +88,7 @@ def _messages_with_brief(
     if evidence_prompt:
         messages.append({"role": "system", "content": evidence_prompt})
     messages.append({"role": "user", "content": user_content})
-    return messages
+    return messages_with_output_contract(messages, locale)
 
 
 async def _moderator_opening(
@@ -95,6 +101,7 @@ async def _moderator_opening(
         identity=render_prompt(prompts, "panel.moderator.system"),
         brief=_session_brief(config, prompts),
         evidence_prompt=evidence_prompt,
+        locale=config.locale,
         user_content=render_prompt(
             prompts,
             "panel.moderator.opening",
@@ -118,6 +125,7 @@ async def _moderator_next_question(
         identity=render_prompt(prompts, "panel.moderator.system"),
         brief=_session_brief(config, prompts),
         evidence_prompt=evidence_prompt,
+        locale=config.locale,
         user_content=render_prompt(
             prompts,
             "panel.moderator.next_question",
@@ -140,6 +148,7 @@ async def _moderator_missing_expertise(
         identity=render_prompt(prompts, "panel.moderator.system"),
         brief=_session_brief(config, prompts),
         evidence_prompt=evidence_prompt,
+        locale=config.locale,
         user_content=render_prompt(
             prompts,
             "panel.moderator.missing_expertise",
@@ -164,6 +173,7 @@ async def _expert_raise_hand(
         identity=_expert_system(prompts, slot),
         brief=_session_brief(config, prompts),
         evidence_prompt=evidence_prompt,
+        locale=config.locale,
         user_content=render_prompt(
             prompts,
             "panel.expert.raise_hand",
@@ -206,6 +216,7 @@ async def _expert_scratchpad(
         identity=_expert_system(prompts, slot, with_tools=allow_expert_tools),
         brief=_session_brief(config, prompts),
         evidence_prompt=evidence_prompt,
+        locale=config.locale,
         user_content=render_prompt(
             prompts,
             "panel.expert.scratchpad",
@@ -233,6 +244,7 @@ async def _expert_turn(
         identity=_expert_system(prompts, slot, with_tools=allow_expert_tools),
         brief=_session_brief(config, prompts),
         evidence_prompt=evidence_prompt,
+        locale=config.locale,
         user_content=render_prompt(
             prompts,
             "panel.expert.turn",
@@ -257,6 +269,7 @@ async def _moderator_analysis(
         identity=render_prompt(prompts, "panel.moderator.system"),
         brief=_session_brief(config, prompts),
         evidence_prompt=evidence_prompt,
+        locale=config.locale,
         user_content=render_prompt(
             prompts,
             "panel.moderator.analysis",
@@ -294,7 +307,7 @@ async def _run_research_plan_phase(
                 expert_slot, config, opening, prompts
             )
             proposals.append((expert_slot, bundle))
-            return format_expert_research_need_turn(bundle)
+            return format_expert_research_need_turn(bundle, locale=config.locale)
 
         await run_turn(
             db,
@@ -310,7 +323,7 @@ async def _run_research_plan_phase(
         plan = await build_research_plan(config, opening, proposals, prompts)
         panel.research_plan = plan.model_dump(mode="json")
         await db.flush()
-        return format_research_plan_turn(plan)
+        return format_research_plan_turn(plan, locale=config.locale)
 
     await run_turn(
         db,
