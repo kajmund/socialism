@@ -90,7 +90,8 @@ def test_document_author_claim_is_not_called_your_request():
     rewritten = rewrite_non_user_possessives(drifted, PERSPECTIVE_DOCUMENT_AUTHOR)
     assert "your request" not in rewritten.casefold()
     assert "your strongest argument" not in rewritten.casefold()
-    assert "the document authors" in rewritten.casefold()
+    assert "the document authors'" in rewritten
+    assert "authors's" not in rewritten
     comment = materialize_word_comment(
         issue="Your request is correctly limited.",
         consequence="That wording belongs to the document authors.",
@@ -100,6 +101,22 @@ def test_document_author_claim_is_not_called_your_request():
     assert "your request" not in comment.casefold()
     assert "the document authors" in comment.casefold()
     assert "user's perspective" in comment
+    omitted = rewrite_non_user_possessives(
+        "Your request is correctly limited.",
+        "",
+    )
+    assert "your request" not in omitted.casefold()
+    assert "the document authors'" in omitted
+
+
+def test_swedish_possessive_rewrite_stays_swedish():
+    rewritten = rewrite_non_user_possessives(
+        "Din begäran är korrekt avgränsad.",
+        PERSPECTIVE_DOCUMENT_AUTHOR,
+    )
+    assert rewritten == "dokumentförfattarnas begäran är korrekt avgränsad."
+    assert "the document authors" not in rewritten
+    assert "authors's" not in rewritten
 
 
 def test_reversed_actor_context_reverses_recommendation_recipient():
@@ -287,11 +304,17 @@ def test_convergence_does_not_merge_different_issues():
         WordCommentConvergence(
             issues=[
                 _issue(
-                    short_comment=(
-                        "Missing limitation and unspecified costs should both be "
-                        "fixed in one long comment that also discusses strategy."
-                    )
-                )
+                    observation_ids=["o1"],
+                    supporting_expert_ids=["frank"],
+                    short_comment="The limitation period is missing.",
+                    explanation="Time-bar risk.",
+                ),
+                _issue(
+                    observation_ids=["o2"],
+                    supporting_expert_ids=["roger"],
+                    short_comment="The requested costs are unspecified.",
+                    explanation="Quantum cannot be tested.",
+                ),
             ]
         ),
     )
@@ -299,6 +322,88 @@ def test_convergence_does_not_merge_different_issues():
     texts = {item.kommentar for item in comments}
     assert any("limitation" in text.casefold() for text in texts)
     assert any("cost" in text.casefold() for text in texts)
+    assert all(
+        "limitation" not in text.casefold() or "cost" not in text.casefold()
+        for text in texts
+    )
+
+
+def test_convergence_keeps_paraphrased_same_issue():
+    left = _obs(
+        observation_id="o1",
+        issue="The payment deadline is absent.",
+        recommended_action="Add a due date.",
+    )
+    right = _obs(
+        observation_id="o2",
+        expert_id="roger",
+        expert_label="Roger",
+        issue="No due date has been specified.",
+        recommended_action="State when payment is due.",
+    )
+    short = "The payment deadline is missing and should be specified."
+    comments = apply_word_comment_convergence(
+        [left, right],
+        WordCommentConvergence(
+            issues=[
+                _issue(
+                    short_comment=short,
+                    explanation="Two experts named the same missing date.",
+                )
+            ]
+        ),
+    )
+    assert len(comments) == 1
+    assert comments[0].kommentar == short
+    assert comments[0].supporting_expert_ids == ("frank", "roger")
+
+
+def test_convergence_split_does_not_reuse_omnibus_short_comment():
+    first = _obs(
+        observation_id="o1",
+        issue="Missing limitation period.",
+        recommended_action="Check the limitation date.",
+    )
+    second = _obs(
+        observation_id="o2",
+        expert_id="nils",
+        expert_label="Nils",
+        issue="The limitation period is missing.",
+        recommended_action="Verify whether the claim is time-barred.",
+    )
+    third = _obs(
+        observation_id="o3",
+        expert_id="roger",
+        expert_label="Roger",
+        issue="Unspecified costs in the prayer.",
+        recommended_action="Ask for a breakdown.",
+    )
+    comments = apply_word_comment_convergence(
+        [first, second, third],
+        WordCommentConvergence(
+            issues=[
+                _issue(
+                    observation_ids=["o1", "o2", "o3"],
+                    supporting_expert_ids=["frank", "nils", "roger"],
+                    short_comment=" ".join(
+                        [
+                            (
+                                "Missing limitation and unspecified costs should both "
+                                "be handled in one merged comment about strategy."
+                            )
+                        ]
+                        * 20
+                    ),
+                )
+            ]
+        ),
+    )
+    assert len(comments) == 2
+    texts = [item.kommentar.casefold() for item in comments]
+    limitation = next(text for text in texts if "limitation" in text)
+    costs = next(text for text in texts if "cost" in text)
+    assert "cost" not in limitation
+    assert "limitation" not in costs
 
 
 def test_convergence_rejects_long_or_misattributed_short_comment():

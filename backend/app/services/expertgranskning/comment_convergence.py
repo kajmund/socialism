@@ -623,9 +623,11 @@ def apply_word_comment_convergence(
             for split in _split_dissenting_members(members):
                 groups.append((split, None, True))
             continue
-        if structured_issues_conflict(members):
+        if structured_issues_conflict(members) and comment_exceeds_soft_cap(
+            issue.short_comment
+        ):
             for cluster in cluster_equivalent_issues(members):
-                groups.append((cluster, None if len(cluster) == 1 else issue, False))
+                groups.append((cluster, None, False))
             continue
         groups.append((members, issue, False))
 

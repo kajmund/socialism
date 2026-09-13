@@ -57,12 +57,19 @@ _PERSPECTIVE_ALIASES = {
     "": PERSPECTIVE_NEUTRAL,
 }
 
-_OWNER_LABELS = {
-    PERSPECTIVE_USER: "the user",
-    PERSPECTIVE_DOCUMENT_AUTHOR: "the document authors",
-    PERSPECTIVE_COUNTERPART: "the counterpart",
-    PERSPECTIVE_NEUTRAL: "the document authors",
+_EN_POSSESSIVES = {
+    PERSPECTIVE_USER: "the user's",
+    PERSPECTIVE_DOCUMENT_AUTHOR: "the document authors'",
+    PERSPECTIVE_COUNTERPART: "the counterpart's",
+    PERSPECTIVE_NEUTRAL: "the document authors'",
 }
+_SV_POSSESSIVES = {
+    PERSPECTIVE_USER: "användarens",
+    PERSPECTIVE_DOCUMENT_AUTHOR: "dokumentförfattarnas",
+    PERSPECTIVE_COUNTERPART: "motpartens",
+    PERSPECTIVE_NEUTRAL: "dokumentförfattarnas",
+}
+_SWEDISH_DETERMINERS = frozenset({"ditt", "din", "ert", "er"})
 
 _POSSESSIVE_CLAIM_RE = re.compile(
     r"\b(?P<det>your|ditt|din|ert|er)\s+"
@@ -108,12 +115,17 @@ def statement_owner_kind(value: str) -> str:
     return PERSPECTIVE_NEUTRAL if not kind else PERSPECTIVE_DOCUMENT_AUTHOR
 
 
-def owner_label(value: str) -> str:
+def possessive_owner_phrase(value: str, *, swedish: bool) -> str:
     kind = statement_owner_kind(value)
-    if normalize_perspective(value) in PERSPECTIVE_VALUES:
-        return _OWNER_LABELS[kind]
-    text = (value or "").strip()
-    return text or _OWNER_LABELS[PERSPECTIVE_DOCUMENT_AUTHOR]
+    table = _SV_POSSESSIVES if swedish else _EN_POSSESSIVES
+    if normalize_perspective(value) in PERSPECTIVE_VALUES or not (value or "").strip():
+        return table[kind]
+    label = value.strip()
+    if swedish:
+        return label
+    if label.endswith("s"):
+        return f"{label}'"
+    return f"{label}'s"
 
 
 def comment_word_count(text: str) -> int:
@@ -139,7 +151,7 @@ def comment_misattributes_user_claim(
     statement_owner: str,
 ) -> bool:
     owner = statement_owner_kind(statement_owner)
-    if owner in {PERSPECTIVE_USER, PERSPECTIVE_NEUTRAL}:
+    if owner == PERSPECTIVE_USER:
         return False
     return bool(_POSSESSIVE_CLAIM_RE.search(text or ""))
 
@@ -147,10 +159,11 @@ def comment_misattributes_user_claim(
 def rewrite_non_user_possessives(text: str, statement_owner: str) -> str:
     if not comment_misattributes_user_claim(text, statement_owner):
         return text
-    label = owner_label(statement_owner)
 
     def replace(match: re.Match[str]) -> str:
-        return f"{label}'s {match.group('noun')}"
+        swedish = match.group("det").casefold() in _SWEDISH_DETERMINERS
+        phrase = possessive_owner_phrase(statement_owner, swedish=swedish)
+        return f"{phrase} {match.group('noun')}"
 
     return _POSSESSIVE_CLAIM_RE.sub(replace, text)
 
