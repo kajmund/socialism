@@ -1078,6 +1078,73 @@ def test_llm_convergence_missing_classification_fields_surfaces_issues(caplog):
     assert all(item.should_materialize for item in via_apply)
 
 
+def test_llm_convergence_omitted_text_fields_do_not_crash(caplog):
+    observation = _obs()
+    omitted_explanation = WordCommentConvergence.model_validate(
+        {
+            "issues": [
+                {
+                    "observation_ids": ["o1"],
+                    "paragraph_index": 3,
+                    "supporting_expert_ids": ["frank"],
+                    "short_comment": "Skärp leveransåtagandet.",
+                    "has_dissensus": False,
+                }
+            ]
+        }
+    )
+    assert omitted_explanation.issues[0].explanation == ""
+    comments = apply_word_comment_convergence([observation], omitted_explanation)
+    assert len(comments) == 1
+    assert comments[0].kommentar == "Skärp leveransåtagandet."
+    assert comments[0].explanation == ""
+    assert comments[0].should_materialize is True
+
+    omitted_short_comment = WordCommentConvergence.model_validate(
+        {
+            "issues": [
+                {
+                    "observation_ids": ["o1"],
+                    "paragraph_index": 3,
+                    "supporting_expert_ids": ["frank"],
+                    "explanation": "Best-effort lämnar motparten utan krav.",
+                    "has_dissensus": False,
+                }
+            ]
+        }
+    )
+    assert omitted_short_comment.issues[0].short_comment == ""
+    comments = apply_word_comment_convergence([observation], omitted_short_comment)
+    assert len(comments) == 1
+    assert comments[0].kommentar == observation.kommentar
+    assert comments[0].explanation == "Best-effort lämnar motparten utan krav."
+
+    omitted_both = WordCommentConvergence.model_validate(
+        {
+            "issues": [
+                {
+                    "observation_ids": ["o1"],
+                    "paragraph_index": 3,
+                    "supporting_expert_ids": ["frank"],
+                    "has_dissensus": False,
+                }
+            ]
+        }
+    )
+    assert omitted_both.issues[0].short_comment == ""
+    assert omitted_both.issues[0].explanation == ""
+    with caplog.at_level("INFO"):
+        comments = apply_word_comment_convergence([observation], omitted_both)
+    assert len(comments) == 1
+    assert comments[0].kommentar == observation.kommentar
+    assert comments[0].explanation == ""
+    logged = " ".join(record.getMessage() for record in caplog.records)
+    assert observation.kommentar not in logged
+    assert observation.paragraph_text not in logged
+    assert "Best-effort" not in logged
+    assert "Skärp leveransåtagandet" not in logged
+
+
 def test_low_materiality_informational_issue_is_not_materialized():
     issue = _issue(
         materiality="low",
