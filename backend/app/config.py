@@ -15,6 +15,11 @@ _LOG_LEVELS = frozenset({"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"})
 
 SimulationEngine = Literal["none", "oasis"]
 PersonaGenerator = Literal["deepseek", "stub"]
+LLMProvider = Literal["cerebras", "deepseek"]
+LLMReasoningEffort = Literal["low", "medium", "high"]
+
+CEREBRAS_DEFAULT_MODEL = "gpt-oss-120b"
+CEREBRAS_DEFAULT_BASE_URL = "https://api.cerebras.ai/v1"
 
 
 class Settings(BaseSettings):
@@ -29,17 +34,22 @@ class Settings(BaseSettings):
         "http://localhost:3000",
         "http://127.0.0.1:3000",
     ]
+    # Shared OpenAI-compatible chat/completions. No provider fallback.
+    llm_provider: LLMProvider = "cerebras"
+    # Empty uses the selected provider default (Cerebras gpt-oss-120b / DEEPSEEK_MODEL).
+    llm_model: str = ""
+    llm_reasoning_effort: LLMReasoningEffort = "medium"
+    llm_max_tokens: int = Field(default=8192, ge=1)
+    llm_timeout_seconds: float = 60.0
+    cerebras_api_key: str = ""
+    cerebras_base_url: str = CEREBRAS_DEFAULT_BASE_URL
     deepseek_api_key: str = ""
     deepseek_model: str = "deepseek-chat"
     deepseek_base_url: str = "https://api.deepseek.com"
-    # HTTP timeout for DeepSeek calls (seconds). Prevents hung report jobs.
-    deepseek_timeout_seconds: float = 60.0
-    # Completion cap for structured JSON. DeepSeek otherwise truncates large objects.
-    deepseek_max_tokens: int = Field(default=8192, ge=1)
-    # stub = weighted random (tests only); deepseek = call DeepSeek
+    # stub = weighted random (tests only); deepseek = call the selected chat LLM
     persona_generator: PersonaGenerator = "deepseek"
 
-    # OpenAI embeddings for SSR and knowledge ingest (separate from DeepSeek / CAMEL).
+    # OpenAI embeddings for SSR and knowledge ingest (separate from chat LLM / CAMEL).
     openai_api_key: str = ""
     embedding_model: str = "text-embedding-3-large"
     embedding_dimension: int = 3072
@@ -92,8 +102,8 @@ class Settings(BaseSettings):
     persona_generate_concurrency: int = Field(default=8, ge=1, le=32)
     # Max concurrent Word-review LLM calls within one expertgranskning job.
     word_review_max_concurrency: int = Field(default=8, ge=1, le=32)
-    # Cheap/fast model path for per-question expert routing (not moderation).
-    word_review_router_model: str = "deepseek-chat"
+    # Optional Word router override. Empty inherits the global LLM model.
+    word_review_router_model: str = ""
     word_review_router_max_tokens: int = Field(default=256, ge=16, le=2048)
     # Rotating API log (empty = no file). Relative paths resolve from cwd.
     log_dir: str = "data/logs"
@@ -116,16 +126,26 @@ class Settings(BaseSettings):
             return [origin.strip() for origin in value.split(",") if origin.strip()]
         return value
 
-    @field_validator("deepseek_api_key")
+    @field_validator("llm_model", "word_review_router_model")
     @classmethod
-    def require_deepseek_api_key(cls, value: str) -> str:
-        key = value.strip()
+    def strip_optional_model(cls, value: str) -> str:
+        return value.strip()
+
+    @field_validator("cerebras_api_key", "deepseek_api_key")
+    @classmethod
+    def strip_provider_api_key(cls, value: str) -> str:
+        return value.strip()
+
+    @model_validator(mode="after")
+    def require_selected_llm_credentials(self) -> Self:
+        key = self.selected_llm_api_key
         if not key:
+            env_name = self.chat_llm_key_env_name
             raise ValueError(
-                "DEEPSEEK_API_KEY is required — set it in backend/.env "
-                "(no heuristic/stub LLM fallback)"
+                f"{env_name} is required when LLM_PROVIDER={self.llm_provider} "
+                "— set it in backend/.env (no heuristic/stub LLM fallback)"
             )
-        return key
+        return self
 
     @model_validator(mode="after")
     def require_embedding_model_matches_dimension(self) -> Self:
@@ -146,7 +166,7 @@ class Settings(BaseSettings):
         if not key:
             raise ValueError(
                 "OPENAI_API_KEY is required — set it in backend/.env "
-                "(OpenAI embeddings for SSR; separate from DeepSeek chat)"
+                "(OpenAI embeddings for SSR; separate from chat LLM)"
             )
         return key
 
@@ -185,6 +205,53 @@ class Settings(BaseSettings):
 
     def uses_llm_generator(self) -> bool:
         return self.persona_generator == "deepseek"
+
+    @property
+    def chat_llm_key_env_name(self) -> str:
+        if self.llm_provider == "cerebras":
+            return "CEREBRAS_API_KEY"
+        if self.llm_provider == "deepseek":
+            return "DEEPSEEK_API_KEY"
+        raise RuntimeError(f"unknown LLM_PROVIDER: {self.llm_provider}")
+
+    @property
+    def selected_llm_api_key(self) -> str:
+        if self.llm_provider == "cerebras":
+            return self.cerebras_api_key
+        if self.llm_provider == "deepseek":
+            return self.deepseek_api_key
+        raise RuntimeError(f"unknown LLM_PROVIDER: {self.llm_provider}")
+
+    @property
+    def selected_llm_base_url(self) -> str:
+        if self.llm_provider == "cerebras":
+            return self.cerebras_base_url
+        if self.llm_provider == "deepseek":
+            return self.deepseek_base_url
+        raise RuntimeError(f"unknown LLM_PROVIDER: {self.llm_provider}")
+
+    @property
+    def selected_llm_model(self) -> str:
+        override = self.llm_model.strip()
+        if override:
+            return override
+        if self.llm_provider == "cerebras":
+            return CEREBRAS_DEFAULT_MODEL
+        if self.llm_provider == "deepseek":
+            return self.deepseek_model
+        raise RuntimeError(f"unknown LLM_PROVIDER: {self.llm_provider}")
+
+    @property
+    def selected_reasoning_effort(self) -> LLMReasoningEffort | None:
+        if self.llm_provider == "cerebras":
+            return self.llm_reasoning_effort
+        if self.llm_provider == "deepseek":
+            return None
+        raise RuntimeError(f"unknown LLM_PROVIDER: {self.llm_provider}")
+
+    @property
+    def word_review_router_model_override(self) -> str | None:
+        return self.word_review_router_model or None
 
     @property
     def okf_manual_path(self) -> Path:

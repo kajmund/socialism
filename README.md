@@ -57,7 +57,7 @@ make install
 
 # 2) Backend env + DB
 cd backend
-cp .env.example .env          # DEEPSEEK_API_KEY + OPENAI_API_KEY required at startup
+cp .env.example .env          # CEREBRAS_API_KEY (or DEEPSEEK) + OPENAI_API_KEY required at startup
 uv run alembic upgrade head
 uv run python -m app.seed
 cd ..
@@ -102,9 +102,10 @@ uv run uvicorn app.main:app --reload
 
 Useful env knobs (see `backend/.env.example`):
 
-- `DEEPSEEK_API_KEY` — **required** at startup (no silent LLM fallback)
+- `CEREBRAS_API_KEY` — **required** at startup when `LLM_PROVIDER=cerebras` (default; no silent LLM fallback)
+- `DEEPSEEK_API_KEY` — required when `LLM_PROVIDER=deepseek`, and for OASIS
 - `OPENAI_API_KEY` — **required** at startup (embeddings for SSR reports)
-- `PERSONA_GENERATOR=deepseek|stub` — DeepSeek vs offline persona sampling (key still required)
+- `PERSONA_GENERATOR=deepseek|stub` — chat LLM vs offline persona sampling (selected provider key still required)
 - `SIMULATION_ENGINE=none|oasis` — empty attempt vs optional OASIS spike (`uv sync --extra oasis`)
 
 OASIS model comparison (after `uv sync --extra oasis`):  

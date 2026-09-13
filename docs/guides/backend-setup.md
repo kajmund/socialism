@@ -22,12 +22,17 @@ cp .env.example .env
 | -------- | -------- | ------- | ----- |
 | `DATABASE_URL` | no | `sqlite+aiosqlite:///./data/opinionssimulator.db` | Relative paths resolve from process cwd (usually `backend/`) |
 | `ALLOWED_ORIGINS` | no | Vite localhost origins | Comma-separated CORS list |
-| `DEEPSEEK_API_KEY` | **yes** | — | App will not boot without a non-empty key |
-| `DEEPSEEK_MODEL` | no | `deepseek-chat` | |
+| `LLM_PROVIDER` | no | `cerebras` | `cerebras` or `deepseek`. No automatic fallback |
+| `LLM_MODEL` | no | provider default | Empty → `gpt-oss-120b` (Cerebras) or `DEEPSEEK_MODEL` |
+| `LLM_REASONING_EFFORT` | no | `medium` | Sent only when the selected provider/model supports it (Cerebras) |
+| `LLM_MAX_TOKENS` | no | `8192` | Completion cap for structured JSON (`complete_structured`) |
+| `LLM_TIMEOUT_SECONDS` | no | `60` | HTTP timeout for chat/completions |
+| `CEREBRAS_API_KEY` | **when `LLM_PROVIDER=cerebras`** | — | App will not boot without a non-empty key |
+| `CEREBRAS_BASE_URL` | no | `https://api.cerebras.ai/v1` | |
+| `DEEPSEEK_API_KEY` | **when `LLM_PROVIDER=deepseek`** (also OASIS) | — | Same `app.llm` path; required for OASIS regardless of chat provider |
+| `DEEPSEEK_MODEL` | no | `deepseek-chat` | Used when `LLM_PROVIDER=deepseek` and `LLM_MODEL` is empty |
 | `DEEPSEEK_BASE_URL` | no | `https://api.deepseek.com` | |
-| `DEEPSEEK_TIMEOUT_SECONDS` | no | `60` | HTTP timeout for DeepSeek calls (hangs reports if too low/high) |
-| `DEEPSEEK_MAX_TOKENS` | no | `8192` | Completion cap for structured JSON (`complete_structured`) |
-| `OPENAI_API_KEY` | **yes** | — | OpenAI embeddings for SSR reports (separate from DeepSeek) |
+| `OPENAI_API_KEY` | **yes** | — | OpenAI embeddings for SSR reports (separate from chat LLM) |
 | `EMBEDDING_MODEL` | no | `text-embedding-3-large` | |
 | `EMBEDDING_BASE_URL` | no | `https://api.openai.com/v1` | |
 | `EMBEDDING_TIMEOUT_SECONDS` | no | `60` | |
@@ -56,11 +61,14 @@ cp .env.example .env
 DATABASE_URL=sqlite+aiosqlite:///./data/opinionssimulator.db
 ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 
+LLM_PROVIDER=cerebras
+LLM_REASONING_EFFORT=medium
+LLM_MAX_TOKENS=8192
+LLM_TIMEOUT_SECONDS=60
+CEREBRAS_API_KEY=csk-...
 DEEPSEEK_API_KEY=sk-...
 DEEPSEEK_MODEL=deepseek-chat
 DEEPSEEK_BASE_URL=https://api.deepseek.com
-DEEPSEEK_TIMEOUT_SECONDS=60
-DEEPSEEK_MAX_TOKENS=8192
 OPENAI_API_KEY=sk-...
 EMBEDDING_MODEL=text-embedding-3-large
 EMBEDDING_BASE_URL=https://api.openai.com/v1
@@ -82,7 +90,7 @@ SUPABASE_S3_REGION=eu-central-1
 
 Constraints:
 
-- `DEEPSEEK_API_KEY` is required at startup even when `PERSONA_GENERATOR=stub`. There is no keyword/heuristic LLM fallback for chat or reports.
+- The selected chat provider key (`CEREBRAS_API_KEY` or `DEEPSEEK_API_KEY`) is required at startup even when `PERSONA_GENERATOR=stub`. There is no keyword/heuristic LLM fallback for chat or reports, and no automatic fallback between providers.
 - `OPENAI_API_KEY` is required for Semantic Similarity Rating (report tone/style). The SSR embeddings client reads `settings.openai_api_key` explicitly — not the process env after OASIS mirrors DeepSeek into `OPENAI_API_KEY`.
 - `SUPABASE_URL`, `SUPABASE_JWT_SECRET`, and `SUPABASE_SERVICE_ROLE_KEY` are required at startup (Auth verify + Admin invite). The service role key must never be exposed to the frontend.
 - `ALLOW_LOCAL_LOGIN=true` unlocks a localhost-only shortcut: open `/dev-in` to sign in as `erik@fremred.se` on the Devbrains kund without a magic-link email. Leave unset (or `false`) everywhere except a developer machine.
@@ -261,13 +269,13 @@ cd backend
 uv run pytest
 ```
 
-Uses in-memory SQLite; no network required. Tests set a dummy `DEEPSEEK_API_KEY` and mock the LLM client. GitHub Actions runs this on every PR and on push to `main` (see [ci.md](ci.md)). Smoke (`-m smoke`) stays opt-in.
+Uses in-memory SQLite; no network required. Tests set dummy chat-provider keys and mock the LLM client. GitHub Actions runs this on every PR and on push to `main` (see [ci.md](ci.md)). Smoke (`-m smoke`) stays opt-in.
 
 ## Troubleshooting
 
 | Symptom | Likely cause |
 | ------- | ------------ |
-| App exits immediately on boot | Missing/empty `DEEPSEEK_API_KEY` |
+| App exits immediately on boot | Missing/empty selected chat key (`CEREBRAS_API_KEY` or `DEEPSEEK_API_KEY`) |
 | CORS errors from Vite | `ALLOWED_ORIGINS` missing the browser origin |
 | Start returns 400 about OASIS | `SIMULATION_ENGINE=oasis` without `uv sync --extra oasis` or without DeepSeek key mirroring |
 | Start returns 400 about missing message | Injection `message_id` not in budskapsbibliotek — fix before start (bodies are frozen then) |
@@ -276,7 +284,7 @@ Uses in-memory SQLite; no network required. Tests set a dummy `DEEPSEEK_API_KEY`
 | Benchmark `OasisUnavailable` | Run `uv sync --extra oasis`; confirm camel-oasis import works |
 | Benchmark JSON ok but UI unchanged | Script does not persist attempts — check `data/benchmark_*.json`, not the körning detail page |
 | Jobs stuck after crash | Restart API — interrupted jobs are failed on lifespan startup |
-| Report job hangs | Raise/check `DEEPSEEK_TIMEOUT_SECONDS`; confirm DeepSeek reachability |
+| Report job hangs | Raise/check `LLM_TIMEOUT_SECONDS`; confirm the selected chat provider is reachable |
 | SQLite alter migration fails | Ensure `render_as_batch=True` and review autogenerated revision |
 
 ## Later: Supabase Postgres

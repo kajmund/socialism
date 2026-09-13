@@ -84,7 +84,7 @@ def test_record_router_outcome_counts_without_prompt_text():
     assert snapshot["raise_hand_questions"] == 1
     assert snapshot["router_fallback_count"] == 1
     assert snapshot["invalid_router_ids"] == 3
-    dumped = repr(snapshot)
+    dumped = repr(snapshot).replace("'prompt_tokens'", "").replace('"prompt_tokens"', "")
     assert "prompt" not in dumped
     assert "document" not in dumped
 
