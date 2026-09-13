@@ -43,6 +43,9 @@ class WordReviewTimings:
         self.actor_context_resolved = 0
         self.publication_units_completed = 0
         self.actions_published_before_completion = 0
+        self.comments_generated = 0
+        self.comments_over_soft_length = 0
+        self.observations_split = 0
         self._in_flight = 0
 
     def mark_first_action(self) -> None:
@@ -76,6 +79,15 @@ class WordReviewTimings:
 
     def record_actor_context_resolved(self, resolved: bool) -> None:
         self.actor_context_resolved = 1 if resolved else 0
+
+    def record_comment_generated(self, *, over_soft_length: bool) -> None:
+        self.comments_generated += 1
+        if over_soft_length:
+            self.comments_over_soft_length += 1
+
+    def record_observations_split(self, count: int) -> None:
+        if count > 1:
+            self.observations_split += 1
 
     def record_publication_progress(
         self,
@@ -136,6 +148,9 @@ class WordReviewTimings:
             "actions_published_before_completion": (
                 self.actions_published_before_completion
             ),
+            "comments_generated": self.comments_generated,
+            "comments_over_soft_length": self.comments_over_soft_length,
+            "observations_split": self.observations_split,
             "llm_call_count": self.llm_call_count,
             "structured_retry_count": self.structured_retry_count,
             "max_observed_llm_concurrency": self.max_observed_llm_concurrency,

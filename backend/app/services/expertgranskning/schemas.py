@@ -590,9 +590,104 @@ class WordExpertRaiseHand(BaseModel):
         return [str(item).strip() for item in value if str(item).strip()]
 
 
-class WordExpertComment(BaseModel):
+REQUIRED_OBSERVATION_ATTRIBUTION_FIELDS = (
+    "source_perspective",
+    "target_perspective",
+    "statement_owner",
+    "recommendation_recipient",
+)
+
+
+def _strip_optional_text(value: object) -> str:
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def _observation_has_visible_content(
+    *,
+    issue: str,
+    analysis: str,
+    consequence: str,
+    recommended_action: str,
+    kommentar: str,
+) -> bool:
+    return bool(issue or analysis or consequence or recommended_action or kommentar)
+
+
+def _missing_attribution_fields(**fields: str) -> list[str]:
+    return [name for name in REQUIRED_OBSERVATION_ATTRIBUTION_FIELDS if not fields[name]]
+
+
+class ObservationAttribution(BaseModel):
+    """Who owns the statement and who should receive the recommendation."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    source_perspective: str
+    target_perspective: str
+    statement_owner: str
+    recommendation_recipient: str
+
+    @field_validator(
+        "source_perspective",
+        "target_perspective",
+        "statement_owner",
+        "recommendation_recipient",
+        mode="before",
+    )
+    @classmethod
+    def strip_text(cls, value: object) -> str:
+        return _strip_optional_text(value)
+
+    @model_validator(mode="after")
+    def require_attribution_fields(self) -> ObservationAttribution:
+        missing = _missing_attribution_fields(
+            source_perspective=self.source_perspective,
+            target_perspective=self.target_perspective,
+            statement_owner=self.statement_owner,
+            recommendation_recipient=self.recommendation_recipient,
+        )
+        if missing:
+            raise ValueError(
+                "attribution requires non-empty "
+                + ", ".join(REQUIRED_OBSERVATION_ATTRIBUTION_FIELDS)
+                + f" (missing {', '.join(missing)})"
+            )
+        return self
+
+
+class WordExpertObservation(BaseModel):
+    """One atomic expert finding. Analysis is internal, not the Word comment."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    issue: str = ""
+    analysis: str = ""
+    source_perspective: str = ""
+    target_perspective: str = ""
+    statement_owner: str = ""
+    recommendation_recipient: str = ""
+    consequence: str = ""
+    recommended_action: str = ""
     kommentar: str = ""
     anchor_paragraph_index: int | None = None
+
+    @field_validator(
+        "issue",
+        "analysis",
+        "source_perspective",
+        "target_perspective",
+        "statement_owner",
+        "recommendation_recipient",
+        "consequence",
+        "recommended_action",
+        "kommentar",
+        mode="before",
+    )
+    @classmethod
+    def strip_text(cls, value: object) -> str:
+        return _strip_optional_text(value)
 
     @field_validator("anchor_paragraph_index", mode="before")
     @classmethod
@@ -600,6 +695,45 @@ class WordExpertComment(BaseModel):
         if value == "":
             return None
         return value
+
+    @model_validator(mode="after")
+    def require_attribution_on_atomic_observation(self) -> WordExpertObservation:
+        if not _observation_has_visible_content(
+            issue=self.issue,
+            analysis=self.analysis,
+            consequence=self.consequence,
+            recommended_action=self.recommended_action,
+            kommentar=self.kommentar,
+        ):
+            return self
+        missing = _missing_attribution_fields(
+            source_perspective=self.source_perspective,
+            target_perspective=self.target_perspective,
+            statement_owner=self.statement_owner,
+            recommendation_recipient=self.recommendation_recipient,
+        )
+        if missing:
+            raise ValueError(
+                "atomic observations require non-empty "
+                + ", ".join(REQUIRED_OBSERVATION_ATTRIBUTION_FIELDS)
+                + f" (missing {', '.join(missing)})"
+            )
+        return self
+
+    @property
+    def attribution(self) -> ObservationAttribution:
+        return ObservationAttribution(
+            source_perspective=self.source_perspective,
+            target_perspective=self.target_perspective,
+            statement_owner=self.statement_owner,
+            recommendation_recipient=self.recommendation_recipient,
+        )
+
+
+class WordExpertComment(WordExpertObservation):
+    """LLM expert-comment payload: one observation or several atomic ones."""
+
+    observations: list[WordExpertObservation] = Field(default_factory=list)
 
 
 WordIssueMateriality = Literal["high", "medium", "low"]

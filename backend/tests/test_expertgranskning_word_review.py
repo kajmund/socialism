@@ -10,16 +10,15 @@ import pytest
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 from httpx import AsyncClient
+from pydantic import ValidationError
 from sqlalchemy import select
 
 from app.database.models import ExpertgranskningResult, Job, PanelSession
-from app.realtime.expertgranskning_broadcast import expertgranskning_broadcast
-from pydantic import ValidationError
-
 from app.llm import set_structured_completer
+from app.realtime.expertgranskning_broadcast import expertgranskning_broadcast
 from app.services import jobs as jobs_service
 from app.services.expertgranskning import WORD_JOB_KIND
-from app.services.expertgranskning.watch import build_expertgranskning_replay_payload
+from app.services.expertgranskning.actor_context import ActorContext
 from app.services.expertgranskning.comment_convergence import (
     COMMENT_CONVERGENCE_CHUNK_HARD_CAP,
     COMMENT_CONVERGENCE_CHUNK_MAX_CHARS,
@@ -36,7 +35,7 @@ from app.services.expertgranskning.comment_convergence import (
     paragraph_indexes_for_observations,
     serialized_chunk_chars,
 )
-from app.services.expertgranskning.actor_context import ActorContext
+from app.services.expertgranskning.observation import WordExpertCommentDraft
 from app.services.expertgranskning.schemas import (
     WORD_MAX_PARAGRAPH_LEN,
     WORD_MAX_PARAGRAPHS,
@@ -51,10 +50,10 @@ from app.services.expertgranskning.schemas import (
     WordExpertRaiseHand,
     WordExpertRoute,
     WordHeadingAssessment,
-    WordRewriteSuggestion,
     WordReviewQuestion,
+    WordRewriteSuggestion,
 )
-from app.services.word.anchors import reviewed_text_from_job_request
+from app.services.expertgranskning.watch import build_expertgranskning_replay_payload
 from app.services.expertgranskning.word_review import (
     WORD_COMMENT_CONVERGENCE_SUFFIX,
     WORD_REVIEW_MAX_QUESTIONS_PER_BATCH,
@@ -68,6 +67,7 @@ from app.services.expertgranskning.word_review import (
     build_batches,
     is_heading_1_to_3,
     log_word_review_call_summary,
+    publication_unit_total,
     render_comment_convergence_user_prompt,
     render_expert_comment_user_prompt,
     resolve_comment_anchor,
@@ -76,29 +76,30 @@ from app.services.expertgranskning.word_review import (
     routed_and_unresolved_questions,
     selected_review_questions,
     should_review_paragraph,
-    publication_unit_total,
     word_comment_anchor_suffix,
     word_paragraph_review,
 )
-from app.services.word.actions import load_word_actions
 from app.services.expertgranskning.word_review_timing import (
     WordReviewLimiter,
     WordReviewTimings,
 )
-from app.services.panel.schemas import PanelExpertSlot
 from app.services.expertgranskning.word_structured import (
     complete_word_structured,
     is_json_syntax_validation_error,
     validation_category,
 )
-from app.services.prompt_catalog import default_prompts, render_prompt
 from app.services.kund_store import BOLAG_DEMO_KUND_SLUG
+from app.services.panel.schemas import PanelExpertSlot
+from app.services.prompt_catalog import default_prompts, render_prompt
+from app.services.word.actions import load_word_actions
+from app.services.word.anchors import reviewed_text_from_job_request
 from tests.conftest import (
     BOLAG_USER_ID,
     TEST_CUSTOMER_ID,
     USER_USER_ID,
     mint_access_token,
 )
+from tests.word_review_helpers import DEFAULT_WORD_ATTRIBUTION, word_expert_comment
 
 DEFAULT_EXPERT_LABELS = ["Finansiell analytiker", "Jurist"]
 
@@ -711,11 +712,13 @@ def test_accepted_recommended_expert_ids_validates_panel_and_cap():
 def test_moderator_prompt_asks_for_two_questions_and_primary_anchor():
     text = default_prompts("sv")["expertgranskning.word.moderator.batch"]
     assert "högst två" in text
+    assert "EN materiell sakfråga" in text
     assert "primary_anchor_paragraph_index" in text
     assert "recommended_expert_ids" not in text
     assert "{review_context}" in text
     english = default_prompts("en")["expertgranskning.word.moderator.batch"]
     assert "at most two" in english
+    assert "ONE material issue" in english
     assert "primary_anchor_paragraph_index" in english
     assert "recommended_expert_ids" not in english
     assert "{review_context}" in english
@@ -1400,7 +1403,14 @@ async def test_comment_convergence_batch_text_uses_chunk_paragraphs(monkeypatch)
             paragraph_indexes=[paragraph_index],
             question="Risk?",
         )
-        comments.append((slot, question, f"Kommentar {index} om risken.", paragraph_index))
+        comments.append(
+            (
+                slot,
+                question,
+                WordExpertCommentDraft(kommentar=f"Kommentar {index} om risken."),
+                paragraph_index,
+            )
+        )
     written = await _consolidate_comments(
         prompts=default_prompts("sv"),
         section=section,
@@ -1433,21 +1443,21 @@ def test_resolve_comment_anchor_uses_explicit_and_single_index():
     assert (
         resolve_comment_anchor(
             question,
-            WordExpertComment(kommentar="x", anchor_paragraph_index=10),
+            word_expert_comment(kommentar="x", anchor_paragraph_index=10),
         )
         == 10
     )
     assert (
         resolve_comment_anchor(
             question,
-            WordExpertComment(kommentar="x", anchor_paragraph_index=99),
+            word_expert_comment(kommentar="x", anchor_paragraph_index=99),
         )
         is None
     )
     assert (
         resolve_comment_anchor(
             question,
-            WordExpertComment(kommentar="x"),
+            word_expert_comment(kommentar="x"),
         )
         == 11
     )
@@ -1459,18 +1469,18 @@ def test_resolve_comment_anchor_uses_explicit_and_single_index():
     assert (
         resolve_comment_anchor(
             unanchored,
-            WordExpertComment(kommentar="x"),
+            word_expert_comment(kommentar="x"),
         )
         is None
     )
     single = WordReviewQuestion(id="q2", paragraph_indexes=[4], question="En?")
     assert (
-        resolve_comment_anchor(single, WordExpertComment(kommentar="x")) == 4
+        resolve_comment_anchor(single, word_expert_comment(kommentar="x")) == 4
     )
     assert (
         resolve_comment_anchor(
             question,
-            WordExpertComment(kommentar="x", anchor_paragraph_index=10),
+            word_expert_comment(kommentar="x", anchor_paragraph_index=10),
             target_indexes=frozenset({11}),
         )
         is None
@@ -1479,7 +1489,11 @@ def test_resolve_comment_anchor_uses_explicit_and_single_index():
         resolve_comment_anchor(
             question,
             WordExpertComment.model_validate(
-                {"kommentar": "x", "anchor_paragraph_index": ""}
+                {
+                    "kommentar": "x",
+                    "anchor_paragraph_index": "",
+                    **DEFAULT_WORD_ATTRIBUTION,
+                }
             ),
         )
         == 11
@@ -1571,7 +1585,7 @@ async def test_analyze_batch_supplies_review_context_before_router():
         if response_model is WordExpertRoute:
             return WordExpertRoute(expert_ids=["jurist"])
         if response_model is WordExpertComment:
-            return WordExpertComment(kommentar="Routad kommentar.")
+            return word_expert_comment(kommentar="Routad kommentar.")
         raise AssertionError(response_model)
 
     set_structured_completer(completer)
@@ -1623,7 +1637,7 @@ async def test_analyze_batch_direct_routes_recommended_experts():
         if response_model is WordExpertRoute:
             return WordExpertRoute(expert_ids=["jurist"])
         if response_model is WordExpertComment:
-            return WordExpertComment(kommentar="Direkt routed kommentar.")
+            return word_expert_comment(kommentar="Direkt routed kommentar.")
         raise AssertionError(response_model)
 
     set_structured_completer(completer)
@@ -1651,7 +1665,10 @@ async def test_analyze_batch_direct_routes_recommended_experts():
     assert snapshot["raise_hand_questions"] == 0
     assert snapshot["router_fallback_count"] == 0
     assert snapshot["router_assignments"] == 1
-    assert [(slot.slot_id, text, anchor) for slot, _question, text, anchor in analysis.comments] == [
+    assert [
+        (slot.slot_id, draft.kommentar, anchor)
+        for slot, _question, draft, anchor in analysis.comments
+    ] == [
         ("jurist", "Direkt routed kommentar.", 1)
     ]
 
@@ -1677,7 +1694,7 @@ async def test_analyze_batch_falls_back_to_raise_hand_for_unknown_experts():
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=_question_ids_from_user(user))
         if response_model is WordExpertComment:
-            return WordExpertComment(kommentar="Fallback-kommentar.")
+            return word_expert_comment(kommentar="Fallback-kommentar.")
         if response_model is WordRewriteSuggestion:
             return WordRewriteSuggestion(ny_text="", motivering="")
         raise AssertionError(response_model)
@@ -1747,7 +1764,7 @@ async def test_analyze_batch_logs_routing_counts_without_document_text(caplog):
             raise_hand_ids.append(_question_ids_from_user(messages[-1]["content"]))
             return WordExpertRaiseHand(question_ids=["q-hand"])
         if response_model is WordExpertComment:
-            return WordExpertComment(kommentar="Hemlig kommentar.")
+            return word_expert_comment(kommentar="Hemlig kommentar.")
         if response_model is WordRewriteSuggestion:
             return WordRewriteSuggestion(ny_text="", motivering="")
         raise AssertionError(response_model)
@@ -1798,7 +1815,9 @@ async def test_analyze_batch_logs_routing_counts_without_document_text(caplog):
 def test_word_alembic_chain_is_linear_after_main_head():
     cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     script = ScriptDirectory.from_config(cfg)
-    assert script.get_heads() == ["076_word_review_actor_context"]
+    assert script.get_heads() == ["077_word_review_atomic_observations"]
+    atomic = script.get_revision("077_word_review_atomic_observations")
+    assert atomic.down_revision == "076_word_review_actor_context"
     actor = script.get_revision("076_word_review_actor_context")
     assert actor.down_revision == "075_word_review_intent_router"
     router = script.get_revision("075_word_review_intent_router")
@@ -1902,7 +1921,7 @@ async def test_comment_call_sends_anchor_contract_with_old_override():
 
     async def completer(messages, response_model):
         captured.extend(message.get("content") or "" for message in messages)
-        return WordExpertComment(
+        return word_expert_comment(
             kommentar="IP-klausulen är för vid.",
             anchor_paragraph_index=12,
         )
@@ -1914,7 +1933,7 @@ async def test_comment_call_sends_anchor_contract_with_old_override():
         _para(12, "Leverantören behåller all immaterialrätt till underlaget."),
         _para(13, "Beställaren ska betala fakturan inom trettio dagar."),
     ]
-    slot, question, text, anchor = await _comment_question(
+    rows = await _comment_question(
         prompts=prompts,
         slot=PanelExpertSlot(slot_id="jur", label="Jurist", profile="Avtal"),
         brief="[12] Leverantören behåller all immaterialrätt till underlaget.",
@@ -1937,7 +1956,8 @@ async def test_comment_call_sends_anchor_contract_with_old_override():
     assert "Allowed anchors: 12, 13." in sent
     assert "Return exactly one anchor_paragraph_index from this set." in sent
     assert "anchor_paragraph_index" not in _OLD_COMMENT_OVERRIDE
-    assert text == "IP-klausulen är för vid."
+    slot, question, draft, anchor = rows[0]
+    assert draft.kommentar == "IP-klausulen är för vid."
     assert anchor == 12
     assert slot.slot_id == "jur"
     assert question.id == "q1"
@@ -2080,7 +2100,7 @@ async def test_word_structured_retries_truncated_json_once(caplog):
             "ogiltig JSON" in (message.get("content") or "")
             for message in messages
         )
-        return WordExpertComment(
+        return word_expert_comment(
             kommentar="Komplett IP-bedömning.",
             anchor_paragraph_index=1,
         )
@@ -2113,7 +2133,7 @@ async def test_word_structured_retry_increments_job_call_counts():
         calls += 1
         if calls == 1:
             raise _truncated_expert_json_error()
-        return WordExpertComment(
+        return word_expert_comment(
             kommentar="Komplett IP-bedömning.",
             anchor_paragraph_index=1,
         )
@@ -2322,7 +2342,7 @@ async def test_word_review_raise_hand_then_comment_and_heading(
             return WordExpertRaiseHand(question_ids=_question_ids_from_user(user)[:1])
         if response_model is WordExpertComment:
             calls.append(f"comment:{_identity_label(messages)}")
-            return WordExpertComment(kommentar="En konkret kommentar.")
+            return word_expert_comment(kommentar="En konkret kommentar.")
         if response_model is WordHeadingAssessment:
             calls.append("heading")
             assert "Nuvarande rubrik:" in user or "Current heading:" in user
@@ -2434,7 +2454,7 @@ async def test_word_review_selection_scope_stays_inside_target(client: AsyncClie
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=["q-in", "q-out"])
         if response_model is WordExpertComment:
-            return WordExpertComment(
+            return word_expert_comment(
                 kommentar="Kommentar som försöker lämna markeringen.",
                 anchor_paragraph_index=1,
             )
@@ -2519,7 +2539,7 @@ async def test_word_review_selection_scope_can_comment_and_replace(client: Async
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=_question_ids_from_user(user)[:1])
         if response_model is WordExpertComment:
-            return WordExpertComment(
+            return word_expert_comment(
                 kommentar="Kommentar på det valda stycket.",
                 anchor_paragraph_index=2,
             )
@@ -2707,7 +2727,7 @@ async def test_word_review_empty_raise_hand_writes_no_comment(client: AsyncClien
             return WordExpertRaiseHand(question_ids=[])
         if response_model is WordExpertComment:
             comment_calls += 1
-            return WordExpertComment(kommentar="borde inte köras")
+            return word_expert_comment(kommentar="borde inte köras")
         if response_model is WordHeadingAssessment:
             return WordHeadingAssessment(forslag=None)
         if response_model is WordCommentConvergence:
@@ -2748,7 +2768,7 @@ async def test_word_review_out_of_batch_indexes_are_dropped(client: AsyncClient)
             return WordExpertRaiseHand(question_ids=["missing-q"])
         if response_model is WordExpertComment:
             comment_calls += 1
-            return WordExpertComment(kommentar="fel ankare")
+            return word_expert_comment(kommentar="fel ankare")
         if response_model is WordHeadingAssessment:
             return WordHeadingAssessment(forslag=None)
         if response_model is WordCommentConvergence:
@@ -2788,7 +2808,7 @@ async def test_word_review_trivial_batch_skips_experts(client: AsyncClient):
             return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
             calls.append("comment")
-            return WordExpertComment(kommentar="borde inte köras")
+            return word_expert_comment(kommentar="borde inte köras")
         if response_model is WordHeadingAssessment:
             calls.append("heading")
             return WordHeadingAssessment(forslag=None)
@@ -2850,8 +2870,8 @@ async def test_word_review_experts_select_subset_of_questions(client: AsyncClien
         if response_model is WordExpertComment:
             comment_questions.append(user)
             if "Är tidsfristen tydligt definierad?" in user:
-                return WordExpertComment(kommentar="Tidsfristen är för vag.")
-            return WordExpertComment(kommentar="Ansvaret är ensidigt och opraktiskt.")
+                return word_expert_comment(kommentar="Tidsfristen är för vag.")
+            return word_expert_comment(kommentar="Ansvaret är ensidigt och opraktiskt.")
         if response_model is WordHeadingAssessment:
             return WordHeadingAssessment(forslag=None)
         if response_model is WordRewriteSuggestion:
@@ -2914,7 +2934,7 @@ async def test_word_review_question_can_span_paragraphs(client: AsyncClient):
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
-            return WordExpertComment(
+            return word_expert_comment(
                 kommentar="Tidsfrist och påföljd behöver samordnas.",
                 anchor_paragraph_index=2,
             )
@@ -2988,7 +3008,7 @@ async def test_word_review_rewrite_uses_resolved_anchor_not_question_scope(
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
-            return WordExpertComment(kommentar="Betalningsfristen är för vag.")
+            return word_expert_comment(kommentar="Betalningsfristen är för vag.")
         if response_model is WordHeadingAssessment:
             return WordHeadingAssessment(forslag=None)
         if response_model is WordRewriteSuggestion:
@@ -3065,11 +3085,11 @@ async def test_word_review_rewrite_requires_same_paragraph_anchor(
             return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
             if _identity_label(messages) == DEFAULT_EXPERT_LABELS[0]:
-                return WordExpertComment(
+                return word_expert_comment(
                     kommentar="IP-klausulen är för vid.",
                     anchor_paragraph_index=10,
                 )
-            return WordExpertComment(
+            return word_expert_comment(
                 kommentar="Betalningsfristen är för vag.",
                 anchor_paragraph_index=11,
             )
@@ -3140,7 +3160,7 @@ async def test_word_review_single_paragraph_rewrite_still_converges(
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
-            return WordExpertComment(kommentar="Skriv om till tydligare mening.")
+            return word_expert_comment(kommentar="Skriv om till tydligare mening.")
         if response_model is WordHeadingAssessment:
             return WordHeadingAssessment(forslag=None)
         if response_model is WordRewriteSuggestion:
@@ -3185,7 +3205,7 @@ async def test_word_review_empty_comment_is_not_written(client: AsyncClient):
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=_question_ids_from_user(messages[-1]["content"]))
         if response_model is WordExpertComment:
-            return WordExpertComment(kommentar="   ")
+            return word_expert_comment(kommentar="   ")
         if response_model is WordHeadingAssessment:
             return WordHeadingAssessment(forslag=None)
         if response_model is WordCommentConvergence:
@@ -3226,7 +3246,7 @@ async def test_word_review_commits_after_section_not_during_analysis(
                 question_ids=_question_ids_from_user(messages[-1]["content"])[:1]
             )
         if response_model is WordExpertComment:
-            return WordExpertComment(
+            return word_expert_comment(
                 kommentar=f"Kommentar från {_identity_label(messages)}."
             )
         if response_model is WordRewriteSuggestion:
@@ -3271,7 +3291,7 @@ async def test_word_review_no_rewrite_with_one_comment(client: AsyncClient):
                 return WordExpertRaiseHand(question_ids=["q1"])
             return WordExpertRaiseHand(question_ids=[])
         if response_model is WordExpertComment:
-            return WordExpertComment(kommentar="Bara en röst.")
+            return word_expert_comment(kommentar="Bara en röst.")
         if response_model is WordHeadingAssessment:
             return WordHeadingAssessment(forslag=None)
         if response_model is WordRewriteSuggestion:
@@ -3309,7 +3329,7 @@ async def test_word_review_split_opinions_do_not_rewrite(client: AsyncClient):
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
-            return WordExpertComment(kommentar=f"Olika syn från {_identity_label(messages)}.")
+            return word_expert_comment(kommentar=f"Olika syn från {_identity_label(messages)}.")
         if response_model is WordHeadingAssessment:
             return WordHeadingAssessment(forslag=None)
         if response_model is WordRewriteSuggestion:
@@ -3341,7 +3361,7 @@ async def test_word_review_converging_comments_write_rewrite(client: AsyncClient
         if response_model is WordBatchModeration:
             return _moderation_for_batch(messages[-1]["content"])
         if response_model is WordExpertComment:
-            return WordExpertComment(kommentar="Skriv om till tydligare mening.")
+            return word_expert_comment(kommentar="Skriv om till tydligare mening.")
         if response_model is WordExpertRoute:
             return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
@@ -3407,7 +3427,7 @@ async def test_word_review_intra_expert_duplicate_writes_one_comment(
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
-            return WordExpertComment(
+            return word_expert_comment(
                 kommentar="Tidsallokeringen är otydlig och bör preciseras.",
                 anchor_paragraph_index=2,
             )
@@ -3477,7 +3497,7 @@ async def test_word_review_nearby_anchor_duplicate_writes_one_comment(
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=["q1", "q2"])
         if response_model is WordExpertComment:
-            return WordExpertComment(
+            return word_expert_comment(
                 kommentar="Överlämning vid sjukdom saknar konkret rutin."
             )
         if response_model is WordHeadingAssessment:
@@ -3551,8 +3571,8 @@ async def test_word_review_cross_batch_nearby_duplicate_writes_one_comment(
                 "Tidsallokering för uppdraget regleras i ingressen." in user
                 or "Konsulten ska lägga minst trettio timmar per vecka." in user
             ):
-                return WordExpertComment(kommentar=boundary_comment)
-            return WordExpertComment(kommentar="")
+                return word_expert_comment(kommentar=boundary_comment)
+            return word_expert_comment(kommentar="")
         if response_model is WordHeadingAssessment:
             return WordHeadingAssessment(forslag=None)
         if response_model is WordCommentConvergence:
@@ -3592,7 +3612,7 @@ async def test_word_review_inter_expert_convergence_writes_one_comment(
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
-            return WordExpertComment(
+            return word_expert_comment(
                 kommentar="Formuleringen försöker i möjligaste mån är för svag."
             )
         if response_model is WordCommentConvergence:
@@ -3680,7 +3700,7 @@ async def test_word_review_does_not_materialize_low_value_or_overlap(
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
-            return WordExpertComment(kommentar="Ett komma saknas i ingressen.")
+            return word_expert_comment(kommentar="Ett komma saknas i ingressen.")
         if response_model is WordCommentConvergence:
             parsed = _passthrough_comment_convergence(user)
             ids = [
@@ -3765,7 +3785,7 @@ async def test_word_review_intent_changes_materialization_context(
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
-            return WordExpertComment(kommentar="Ingressen har ett extra mellanslag.")
+            return word_expert_comment(kommentar="Ingressen har ett extra mellanslag.")
         if response_model is WordCommentConvergence:
             parsed = _passthrough_comment_convergence(user)
             return WordCommentConvergence(
@@ -3853,13 +3873,13 @@ async def test_word_review_preserves_dissensus_as_separate_comments(
             return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
             if label == DEFAULT_EXPERT_LABELS[0]:
-                return WordExpertComment(
+                return word_expert_comment(
                     kommentar=(
                         "Dröjsmålsräntan plus 15 procentenheter är i huvudsak "
                         "acceptabel och behöver inte ändras."
                     )
                 )
-            return WordExpertComment(
+            return word_expert_comment(
                 kommentar=(
                     "Plus 15 procentenheter är för högt. Jag rekommenderar att den sänks."
                 )
@@ -3934,7 +3954,7 @@ async def test_word_review_retries_truncated_comment_json(client: AsyncClient):
             comment_calls += 1
             if comment_calls == 1:
                 raise _truncated_expert_json_error()
-            return WordExpertComment(
+            return word_expert_comment(
                 kommentar="Immaterialrättsklausulen är för vid.",
                 anchor_paragraph_index=1,
             )
@@ -4027,7 +4047,7 @@ async def test_failed_word_review_emits_llm_call_summary_once(
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=_question_ids_from_user(user)[:1])
         if response_model is WordExpertComment:
-            return WordExpertComment(kommentar="En konkret kommentar.")
+            return word_expert_comment(kommentar="En konkret kommentar.")
         if response_model is WordHeadingAssessment:
             return WordHeadingAssessment(forslag=None)
         if response_model is WordRewriteSuggestion:
@@ -4106,7 +4126,7 @@ async def test_word_review_never_persists_anchor_outside_question_indexes(
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
-            return WordExpertComment(
+            return word_expert_comment(
                 kommentar="Felankrad kommentar",
                 anchor_paragraph_index=99,
             )
@@ -4166,11 +4186,11 @@ async def test_word_review_uses_explicit_anchor_and_drops_invalid(
             return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
             if "behåller all immaterialrätt" in user:
-                return WordExpertComment(
+                return word_expert_comment(
                     kommentar="IP-klausulen är för vid.",
                     anchor_paragraph_index=1,
                 )
-            return WordExpertComment(kommentar="x", anchor_paragraph_index=99)
+            return word_expert_comment(kommentar="x", anchor_paragraph_index=99)
         if response_model is WordHeadingAssessment:
             return WordHeadingAssessment(forslag=None)
         if response_model is WordCommentConvergence:
@@ -4227,7 +4247,7 @@ async def test_word_review_uses_moderator_primary_when_expert_omits_anchor(
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
-            return WordExpertComment(kommentar="Ska inte gissas till fel stycke.")
+            return word_expert_comment(kommentar="Ska inte gissas till fel stycke.")
         if response_model is WordHeadingAssessment:
             return WordHeadingAssessment(forslag=None)
         if response_model is WordCommentConvergence:
@@ -4269,7 +4289,7 @@ async def test_word_review_patch_comment_id(client: AsyncClient):
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
-            return WordExpertComment(kommentar="ok")
+            return word_expert_comment(kommentar="ok")
         if response_model is WordHeadingAssessment:
             return WordHeadingAssessment(forslag=None)
         if response_model is WordRewriteSuggestion:
@@ -4477,7 +4497,7 @@ async def test_word_review_publishes_first_section_before_later_sections(
                 question_ids=_question_ids_from_user(user)[:1]
             )
         if response_model is WordExpertComment:
-            return WordExpertComment(kommentar="Sektionskommentar.")
+            return word_expert_comment(kommentar="Sektionskommentar.")
         if response_model is WordHeadingAssessment:
             return WordHeadingAssessment(forslag=None)
         if response_model is WordRewriteSuggestion:
@@ -4586,7 +4606,7 @@ async def test_word_review_keeps_first_section_when_later_section_fails(
                 question_ids=_question_ids_from_user(user)[:1]
             )
         if response_model is WordExpertComment:
-            return WordExpertComment(kommentar="Behållen kommentar.")
+            return word_expert_comment(kommentar="Behållen kommentar.")
         if response_model is WordHeadingAssessment:
             return WordHeadingAssessment(forslag=None)
         if response_model is WordRewriteSuggestion:
@@ -4704,7 +4724,7 @@ def _passthrough_word_completer(
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=_question_ids_from_user(user)[:1])
         if response_model is WordExpertComment:
-            return WordExpertComment(kommentar="Progressiv kommentar.")
+            return word_expert_comment(kommentar="Progressiv kommentar.")
         if response_model is WordHeadingAssessment:
             return WordHeadingAssessment(forslag=None)
         if response_model is WordRewriteSuggestion:

@@ -24,6 +24,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database.models import ExpertgranskningResult, Job, PanelSession, WordAction
 from app.serializers import utcnow
+from app.services.expertgranskning.actor_context import (
+    ActorContext,
+    render_actor_context,
+    resolve_actor_context,
+)
 from app.services.expertgranskning.comment_convergence import (
     WordConsolidatedComment,
     WordObservation,
@@ -35,13 +40,15 @@ from app.services.expertgranskning.comment_convergence import (
     format_observations_for_prompt,
     paragraph_indexes_for_observations,
 )
-from app.services.expertgranskning.actor_context import (
-    render_actor_context,
-    resolve_actor_context,
-)
 from app.services.expertgranskning.intent_interview import (
     compose_expert_review_context,
     compose_intent_prefix,
+)
+from app.services.expertgranskning.observation import (
+    WordExpertCommentDraft,
+    comment_exceeds_soft_cap,
+    draft_from_observation,
+    expand_expert_comment,
 )
 from app.services.expertgranskning.schemas import (
     ExpertgranskningWordJobRequest,
@@ -50,6 +57,7 @@ from app.services.expertgranskning.schemas import (
     WordDocumentParagraph,
     WordDocumentSection,
     WordExpertComment,
+    WordExpertObservation,
     WordExpertRaiseHand,
     WordExpertRoute,
     WordHeadingAssessment,
@@ -62,10 +70,6 @@ from app.services.expertgranskning.watch import (
     publish_expertgranskning_finished,
     publish_review_progress,
 )
-from app.services.expertgranskning.word_review_timing import (
-    WordReviewLimiter,
-    WordReviewTimings,
-)
 from app.services.expertgranskning.word_review_router import (
     WORD_REVIEW_MAX_ROUTED_EXPERTS,
     accepted_router_expert_ids,
@@ -73,6 +77,10 @@ from app.services.expertgranskning.word_review_router import (
     panel_experts_for_router,
     record_router_outcome,
     router_user_prompt,
+)
+from app.services.expertgranskning.word_review_timing import (
+    WordReviewLimiter,
+    WordReviewTimings,
 )
 from app.services.expertgranskning.word_review_units import (
     WordPublicationUnit,
@@ -84,15 +92,15 @@ from app.services.expertgranskning.word_review_units import (
     partition_owned_comments,
 )
 from app.services.expertgranskning.word_structured import complete_word_structured
+from app.services.panel.expert_slots import load_expert_slots_from_population
+from app.services.panel.schemas import PanelExpertSlot
+from app.services.prompt_catalog import render_prompt
+from app.services.prompt_store import require_active_prompts
 from app.services.word.materialize import materialize_word_action
 from app.services.word.tasks import (
     require_review_panel_task,
     selection_target_indexes,
 )
-from app.services.panel.expert_slots import load_expert_slots_from_population
-from app.services.panel.schemas import PanelExpertSlot
-from app.services.prompt_catalog import render_prompt
-from app.services.prompt_store import require_active_prompts
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +113,9 @@ WORD_BATCH_MAX_SIZE = 4
 WORD_REVIEW_MAX_QUESTIONS_PER_BATCH = 2
 WORD_REVIEW_MAX_RECOMMENDED_EXPERTS = WORD_REVIEW_MAX_ROUTED_EXPERTS
 
-WordExpertCommentRow = tuple[PanelExpertSlot, WordReviewQuestion, str, int | None]
+WordExpertCommentRow = tuple[
+    PanelExpertSlot, WordReviewQuestion, WordExpertCommentDraft, int | None
+]
 
 
 @dataclass(frozen=True)
@@ -120,14 +130,26 @@ class WordBatchAnalysis:
 # Output contract. Not part of the editable customer prompt.
 _WORD_COMMENT_ANCHOR_SUFFIX = (
     "Allowed anchors: {indexes}. "
-    "Return exactly one anchor_paragraph_index from this set."
+    "Return exactly one anchor_paragraph_index from this set. "
+    "If several issues are material, return observations: one object per issue, "
+    "each with its own anchor_paragraph_index from this set. "
+    "Fields per observation: issue, analysis, source_perspective, "
+    "target_perspective, statement_owner, recommendation_recipient, "
+    "consequence, recommended_action, anchor_paragraph_index. "
+    "Perspectives must be one of: user, document_author, counterpart, neutral. "
+    "analysis is internal reasoning, not the Word margin text. "
+    "Do not return one omnibus kommentar that covers several issues."
 )
 WORD_COMMENT_CONVERGENCE_SUFFIX = (
     "Output contract: return issues with observation_ids, paragraph_index, "
     "supporting_expert_ids, short_comment, explanation, materiality "
     "(high|medium|low), actionability (actionable|informational), "
     "novelty (new|overlap), should_materialize, and has_dissensus. "
-    "short_comment is the Word margin text. explanation is the fuller reasoning. "
+    "short_comment is the Word margin text: one issue, about 30-70 words. "
+    "explanation is the fuller reasoning. "
+    "Merge only substantially identical issues. Preserve statement_owner and "
+    "recommendation_recipient. Do not flip advice to the counterpart or "
+    "reintroduce document-author voice as the user's voice. "
     "Do not return a kommentar field."
 )
 
@@ -786,7 +808,7 @@ async def _raise_hand(
 
 def resolve_comment_anchor(
     question: WordReviewQuestion,
-    parsed: WordExpertComment,
+    parsed: WordExpertComment | WordExpertObservation,
     *,
     target_indexes: frozenset[int] | None = None,
 ) -> int | None:
@@ -825,7 +847,8 @@ async def _comment_question(
     limiter: WordReviewLimiter,
     target_indexes: frozenset[int] | None = None,
     actor_context: str = "",
-) -> tuple[PanelExpertSlot, WordReviewQuestion, str, int | None]:
+    actor: ActorContext | None = None,
+) -> list[WordExpertCommentRow]:
     identity = _expert_identity(prompts, slot)
     user = render_expert_comment_user_prompt(
         prompts,
@@ -846,22 +869,36 @@ async def _comment_question(
         WordExpertComment,
         prompts,
     )
-    return slot, question, parsed.kommentar.strip(), resolve_comment_anchor(
-        question,
-        parsed,
-        target_indexes=target_indexes,
-    )
+    atoms = expand_expert_comment(parsed)
+    if len(atoms) > 1:
+        limiter.timings.record_observations_split(len(atoms))
+    rows: list[WordExpertCommentRow] = []
+    for atom in atoms:
+        draft = draft_from_observation(atom, actor)
+        rows.append(
+            (
+                slot,
+                question,
+                draft,
+                resolve_comment_anchor(
+                    question,
+                    atom,
+                    target_indexes=target_indexes,
+                ),
+            )
+        )
+    return rows
 
 
 def _observations_from_comments(
-    comments: list[tuple[PanelExpertSlot, WordReviewQuestion, str, int | None]],
+    comments: list[WordExpertCommentRow],
     by_index: dict[int, WordDocumentParagraph],
     *,
     id_prefix: str = "o",
 ) -> list[WordObservation]:
     observations: list[WordObservation] = []
-    for slot, question, text, anchor in comments:
-        if not text or anchor is None:
+    for slot, question, draft, anchor in comments:
+        if not draft.has_visible_comment() or anchor is None:
             continue
         paragraph = by_index.get(anchor)
         if paragraph is None:
@@ -879,7 +916,15 @@ def _observations_from_comments(
                 paragraph_index=paragraph.index,
                 paragraph_text=paragraph.text,
                 list_string=paragraph.list_string,
-                kommentar=text,
+                kommentar=draft.kommentar,
+                issue=draft.issue,
+                analysis=draft.analysis,
+                source_perspective=draft.source_perspective,
+                target_perspective=draft.target_perspective,
+                statement_owner=draft.statement_owner,
+                recommendation_recipient=draft.recommendation_recipient,
+                consequence=draft.consequence,
+                recommended_action=draft.recommended_action,
             )
         )
     return observations
@@ -1025,6 +1070,7 @@ async def _analyze_batch(
     target: frozenset[int] | None,
     limiter: WordReviewLimiter,
     actor_context: str = "",
+    actor: ActorContext | None = None,
 ) -> WordBatchAnalysis:
     questions = await _moderate_batch(
         prompts=prompts,
@@ -1109,15 +1155,17 @@ async def _analyze_batch(
             limiter=limiter,
             target_indexes=target,
             actor_context=actor_context,
+            actor=actor,
         )
         for slot, question in assignments
     ]
-    comments = await asyncio.gather(*comment_tasks) if comment_tasks else []
+    nested = await asyncio.gather(*comment_tasks) if comment_tasks else []
+    comments = [row for rows in nested for row in rows]
 
     comments_by_index: dict[int, list[tuple[str, str]]] = {}
     section_comments: list[WordExpertCommentRow] = []
-    for slot, question, text, anchor in comments:
-        if not text:
+    for slot, question, draft, anchor in comments:
+        if not draft.has_visible_comment():
             continue
         prefixed = WordReviewQuestion(
             id=f"b{batch_index}:{question.id}",
@@ -1127,7 +1175,7 @@ async def _analyze_batch(
             primary_anchor_paragraph_index=question.primary_anchor_paragraph_index,
             recommended_expert_ids=question.recommended_expert_ids,
         )
-        section_comments.append((slot, prefixed, text, anchor))
+        section_comments.append((slot, prefixed, draft, anchor))
         # One resolved anchor per comment. Spreading across the question
         # scope would qualify unrelated paragraphs for rewrite.
         if anchor is None:
@@ -1136,7 +1184,7 @@ async def _analyze_batch(
         if paragraph is None:
             continue
         comments_by_index.setdefault(paragraph.index, []).append(
-            (slot.label, text)
+            (slot.label, draft.kommentar)
         )
 
     rewrite_targets = [
@@ -1210,6 +1258,7 @@ async def _analyze_section(
     limiter: WordReviewLimiter,
     emit: Callable[[WordPublicationUnit], Awaitable[None]],
     actor_context: str = "",
+    actor: ActorContext | None = None,
 ) -> WordSectionStats:
     batches = _batches_for_target(section, target)
     review_heading = heading_in_scope(section, target)
@@ -1317,6 +1366,7 @@ async def _analyze_section(
                 target=target,
                 limiter=limiter,
                 actor_context=actor_context,
+                actor=actor,
             )
         )
         tasks[task] = f"batch:{batch_index}"
@@ -1434,6 +1484,9 @@ async def _persist_publication_unit(
                 commit=False,
             )
         )
+        timings.record_comment_generated(
+            over_soft_length=comment_exceeds_soft_cap(item.kommentar)
+        )
         ordinal += 1
     for paragraph, suggestion in unit.rewrites:
         pending.append(
@@ -1548,7 +1601,9 @@ def log_word_review_call_summary(
         "direct_routed_questions=%s raise_hand_questions=%s "
         "router_assignments=%s router_fallback_count=%s invalid_router_ids=%s "
         "questions_dropped_invalid_anchor=%s publication_units_completed=%s "
-        "actions_published_before_completion=%s max_observed_llm_concurrency=%s",
+        "actions_published_before_completion=%s comments_generated=%s "
+        "comments_over_soft_length=%s observations_split=%s "
+        "max_observed_llm_concurrency=%s",
         job_id,
         outcome,
         snapshot["llm_call_count"],
@@ -1570,6 +1625,9 @@ def log_word_review_call_summary(
         snapshot["questions_dropped_invalid_anchor"],
         snapshot["publication_units_completed"],
         snapshot["actions_published_before_completion"],
+        snapshot["comments_generated"],
+        snapshot["comments_over_soft_length"],
+        snapshot["observations_split"],
         snapshot["max_observed_llm_concurrency"],
     )
 
@@ -1641,6 +1699,7 @@ async def run_word_paragraph_review(
                 limiter=limiter,
                 emit=queue.put,
                 actor_context=actor_context,
+                actor=actor,
             )
             await queue.put(WordSectionDone(stats))
         except asyncio.CancelledError:
