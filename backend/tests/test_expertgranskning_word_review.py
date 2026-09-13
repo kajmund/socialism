@@ -4748,3 +4748,47 @@ async def test_word_review_keeps_published_units_when_later_batch_fails(
     )
     assert latest.status_code == 200
     assert latest.json()["status"] == "failed"
+
+
+@pytest.mark.asyncio
+async def test_word_review_keeps_published_units_when_middle_batch_fails(
+    client: AsyncClient, monkeypatch
+):
+    events: list[dict] = []
+    release_fail = asyncio.Event()
+    saw_fail = asyncio.Event()
+    original = expertgranskning_broadcast.publish
+
+    async def capture(job_id: str, event: dict) -> None:
+        events.append(event)
+        await original(job_id, event)
+
+    monkeypatch.setattr(expertgranskning_broadcast, "publish", capture)
+    paragraphs = _numbered_review_paragraphs(12)
+    panel_id = await _create_expert_panel(client, n=1)
+    set_structured_completer(
+        _passthrough_word_completer(
+            hold_marker="nummer 5",
+            hold_event=release_fail,
+            saw_hold=saw_fail,
+            fail_after_hold="middle unit boom",
+        )
+    )
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    created = await client.post(
+        "/expertgranskning/word-jobs",
+        json=_payload(panel_id=panel_id, paragraphs=paragraphs),
+    )
+    job_id = created.json()["job_id"]
+    runner = asyncio.create_task(jobs_service._run_job(job_id))
+    await saw_fail.wait()
+    release_fail.set()
+    await runner
+    assert events[-1]["type"] == "expertgranskning.finished"
+    assert events[-1]["status"] == "failed"
+    assert "middle unit boom" in (events[-1].get("error") or "")
+    rows = (await client.get(f"/expertgranskning/word-jobs/{job_id}/results")).json()
+    assert rows
+    published = {row["paragraph_index"] for row in rows}
+    assert published.isdisjoint({5, 6, 7, 8, 9, 10, 11, 12})
+    assert published & {1, 2, 3, 4}
