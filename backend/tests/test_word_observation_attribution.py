@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import pytest
+from pydantic import ValidationError
+
 from app.services.expertgranskning.actor_context import ActorContext
 from app.services.expertgranskning.comment_convergence import (
     WordObservation,
@@ -31,6 +34,7 @@ from app.services.expertgranskning.schemas import (
 )
 from app.services.expertgranskning.word_review_timing import WordReviewTimings
 from app.services.prompt_catalog import default_prompts
+from tests.word_review_helpers import word_expert_observation
 
 
 def _actor(*, role: str, counterpart: str, goal: str, perspective: str) -> ActorContext:
@@ -132,9 +136,11 @@ def test_reversed_actor_context_reverses_recommendation_recipient():
         goal="attack the decision",
         perspective="advice for the challengers",
     )
-    raw = WordExpertObservation(
+    raw = word_expert_observation(
         issue="The decision may be vulnerable on procedure.",
         recommended_action="Prepare the reply.",
+        source_perspective=PERSPECTIVE_DOCUMENT_AUTHOR,
+        target_perspective=PERSPECTIVE_COUNTERPART,
         statement_owner=PERSPECTIVE_DOCUMENT_AUTHOR,
         recommendation_recipient=PERSPECTIVE_COUNTERPART,
     )
@@ -171,18 +177,24 @@ def test_candidate_versus_recruiter_orientation_stays_generic():
         perspective="assessment for the hiring side",
     )
     candidate_obs = bind_actor_attribution(
-        WordExpertObservation(
+        word_expert_observation(
             issue="The CV omits a date range.",
             recommended_action="Add the missing dates.",
+            source_perspective=PERSPECTIVE_USER,
+            target_perspective=PERSPECTIVE_USER,
             statement_owner=PERSPECTIVE_USER,
+            recommendation_recipient=PERSPECTIVE_COUNTERPART,
         ),
         candidate,
     )
     recruiter_obs = bind_actor_attribution(
-        WordExpertObservation(
+        word_expert_observation(
             issue="The candidate omits a date range.",
             recommended_action="Treat the gap as a screening risk.",
+            source_perspective=PERSPECTIVE_DOCUMENT_AUTHOR,
+            target_perspective=PERSPECTIVE_USER,
             statement_owner=PERSPECTIVE_DOCUMENT_AUTHOR,
+            recommendation_recipient=PERSPECTIVE_COUNTERPART,
         ),
         recruiter,
     )
@@ -206,29 +218,35 @@ def materialize_observation_pair(item: WordExpertObservation) -> str:
 def test_multi_issue_expert_output_stays_atomic():
     parsed = WordExpertComment(
         observations=[
-            WordExpertObservation(
+            word_expert_observation(
                 issue="The limitation period is missing.",
                 analysis="A long memo about standing, evidence, and costs. " * 20,
                 consequence="The claim may be time-barred.",
                 recommended_action="Check the limitation date.",
+                source_perspective=PERSPECTIVE_DOCUMENT_AUTHOR,
+                target_perspective=PERSPECTIVE_USER,
                 statement_owner=PERSPECTIVE_DOCUMENT_AUTHOR,
                 recommendation_recipient=PERSPECTIVE_USER,
                 anchor_paragraph_index=1,
             ),
-            WordExpertObservation(
+            word_expert_observation(
                 issue="The requested costs are unspecified.",
                 analysis="Another long memo about quantum and interest. " * 20,
                 consequence="The amount cannot be tested.",
                 recommended_action="Ask for a breakdown.",
+                source_perspective=PERSPECTIVE_DOCUMENT_AUTHOR,
+                target_perspective=PERSPECTIVE_USER,
                 statement_owner=PERSPECTIVE_DOCUMENT_AUTHOR,
                 recommendation_recipient=PERSPECTIVE_USER,
                 anchor_paragraph_index=2,
             ),
-            WordExpertObservation(
+            word_expert_observation(
                 issue="The standing allegation is undeveloped.",
                 analysis="A third memo about parties and representation. " * 20,
                 consequence="The user cannot meet the allegation as written.",
                 recommended_action="Ask who the authors say they represent.",
+                source_perspective=PERSPECTIVE_DOCUMENT_AUTHOR,
+                target_perspective=PERSPECTIVE_USER,
                 statement_owner=PERSPECTIVE_DOCUMENT_AUTHOR,
                 recommendation_recipient=PERSPECTIVE_USER,
                 anchor_paragraph_index=3,
@@ -358,52 +376,82 @@ def test_convergence_keeps_paraphrased_same_issue():
     assert comments[0].supporting_expert_ids == ("frank", "roger")
 
 
-def test_convergence_split_does_not_reuse_omnibus_short_comment():
+def test_convergence_long_short_comment_keeps_llm_group():
     first = _obs(
         observation_id="o1",
-        issue="Missing limitation period.",
-        recommended_action="Check the limitation date.",
+        issue="The payment deadline is absent.",
+        recommended_action="Add a due date.",
     )
     second = _obs(
         observation_id="o2",
-        expert_id="nils",
-        expert_label="Nils",
-        issue="The limitation period is missing.",
-        recommended_action="Verify whether the claim is time-barred.",
+        expert_id="roger",
+        expert_label="Roger",
+        issue="No due date has been specified.",
+        recommended_action="State when payment is due.",
     )
     third = _obs(
         observation_id="o3",
-        expert_id="roger",
-        expert_label="Roger",
-        issue="Unspecified costs in the prayer.",
-        recommended_action="Ask for a breakdown.",
+        expert_id="nils",
+        expert_label="Nils",
+        issue="The deadline for payment is missing.",
+        recommended_action="Specify the payment date.",
     )
+    long_text = " ".join(
+        [
+            (
+                "The payment deadline is absent and no due date has been specified, "
+                "so the parties should add a concrete payment date in one merged "
+                "comment about strategy and every adjacent drafting issue."
+            )
+        ]
+        * 8
+    )
+    assert comment_exceeds_soft_cap(long_text)
     comments = apply_word_comment_convergence(
         [first, second, third],
         WordCommentConvergence(
             issues=[
                 _issue(
                     observation_ids=["o1", "o2", "o3"],
-                    supporting_expert_ids=["frank", "nils", "roger"],
-                    short_comment=" ".join(
-                        [
-                            (
-                                "Missing limitation and unspecified costs should both "
-                                "be handled in one merged comment about strategy."
-                            )
-                        ]
-                        * 20
-                    ),
+                    supporting_expert_ids=["frank", "roger", "nils"],
+                    short_comment=long_text,
                 )
             ]
         ),
     )
-    assert len(comments) == 2
-    texts = [item.kommentar.casefold() for item in comments]
-    limitation = next(text for text in texts if "limitation" in text)
-    costs = next(text for text in texts if "cost" in text)
-    assert "cost" not in limitation
-    assert "limitation" not in costs
+    assert len(comments) == 1
+    assert comments[0].supporting_expert_ids == ("frank", "roger", "nils")
+    assert comments[0].kommentar != long_text
+    assert not comment_exceeds_soft_cap(comments[0].kommentar)
+    assert "merged comment about strategy" not in comments[0].kommentar.casefold()
+    assert "due" in comments[0].kommentar.casefold() or "deadline" in comments[
+        0
+    ].kommentar.casefold()
+
+
+def test_atomic_observation_requires_attribution_fields():
+    with pytest.raises(ValidationError, match="atomic observations require"):
+        WordExpertObservation(issue="The payment deadline is absent.")
+    with pytest.raises(ValidationError, match="atomic observations require"):
+        WordExpertComment(kommentar="The payment deadline is absent.")
+    with pytest.raises(ValidationError, match="missing statement_owner"):
+        WordExpertObservation.model_validate(
+            {
+                "issue": "The payment deadline is absent.",
+                "source_perspective": PERSPECTIVE_DOCUMENT_AUTHOR,
+                "target_perspective": PERSPECTIVE_USER,
+                "statement_owner": "",
+                "recommendation_recipient": PERSPECTIVE_USER,
+            }
+        )
+    parsed = WordExpertComment(
+        observations=[
+            word_expert_observation(issue="The payment deadline is absent.")
+        ]
+    )
+    atoms = expand_expert_comment(parsed)
+    assert len(atoms) == 1
+    assert atoms[0].statement_owner == PERSPECTIVE_DOCUMENT_AUTHOR
 
 
 def test_convergence_rejects_long_or_misattributed_short_comment():

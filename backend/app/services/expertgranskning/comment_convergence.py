@@ -313,14 +313,6 @@ def observations_are_same_issue(left: WordObservation, right: WordObservation) -
     return comments_are_similar(left.issue_match_text(), right.issue_match_text())
 
 
-def structured_issues_conflict(members: Sequence[WordObservation]) -> bool:
-    issues = [item.issue.strip() for item in members if item.issue.strip()]
-    if len(issues) < 2:
-        return False
-    seed = issues[0]
-    return any(not comments_are_similar(seed, item) for item in issues[1:])
-
-
 def _copy_observation(
     source: WordObservation,
     *,
@@ -494,6 +486,17 @@ def observation_visible_comment(observation: WordObservation) -> str:
     )
 
 
+def _primary_observation(members: Sequence[WordObservation]) -> WordObservation:
+    return max(
+        members,
+        key=lambda item: (
+            len(item.issue.strip()),
+            len(item.kommentar.strip()),
+            len(item.recommended_action.strip()),
+        ),
+    )
+
+
 def consolidated_from_observation(observation: WordObservation) -> WordConsolidatedComment:
     return WordConsolidatedComment(
         expert_id=observation.expert_id,
@@ -529,10 +532,7 @@ def _comment_from_members(
         anchor_index = paragraph_index
     else:
         anchor_index = choose_specific_anchor(members).paragraph_index
-    primary = max(
-        members,
-        key=lambda item: (len(item.issue.strip()), len(item.kommentar.strip())),
-    )
+    primary = _primary_observation(members)
     text = kommentar.strip() or observation_visible_comment(primary)
     explanation_text = explanation.strip() or primary.analysis.strip()
     return WordConsolidatedComment(
@@ -560,36 +560,24 @@ def _split_dissenting_members(
     return list(by_expert.values())
 
 
-def cluster_equivalent_issues(
-    members: Sequence[WordObservation],
-) -> list[list[WordObservation]]:
-    remaining = list(members)
-    clusters: list[list[WordObservation]] = []
-    while remaining:
-        seed = remaining.pop(0)
-        cluster = [seed]
-        kept: list[WordObservation] = []
-        for item in remaining:
-            if observations_are_same_issue(seed, item):
-                cluster.append(item)
-            else:
-                kept.append(item)
-        remaining = kept
-        clusters.append(cluster)
-    return clusters
-
-
 def _safe_converged_comment(
     members: Sequence[WordObservation],
     issue: WordConvergedIssue,
 ) -> str:
-    """Keep LLM short_comment only when it stays atomic and perspective-safe."""
-    primary = members[0]
+    """Keep LLM short_comment only when it stays atomic and perspective-safe.
+
+    The convergence grouping is authoritative. A long or misattributed
+    short_comment falls back to one composed comment for that group.
+    """
+    primary = _primary_observation(members)
     short = issue.short_comment.strip()
     if (
         not short
         or comment_exceeds_soft_cap(short)
-        or comment_misattributes_user_claim(short, primary.statement_owner)
+        or any(
+            comment_misattributes_user_claim(short, item.statement_owner)
+            for item in members
+        )
     ):
         return observation_visible_comment(primary)
     return short
@@ -622,12 +610,6 @@ def apply_word_comment_convergence(
         if issue.has_dissensus or comments_dissent(dissent_texts):
             for split in _split_dissenting_members(members):
                 groups.append((split, None, True))
-            continue
-        if structured_issues_conflict(members) and comment_exceeds_soft_cap(
-            issue.short_comment
-        ):
-            for cluster in cluster_equivalent_issues(members):
-                groups.append((cluster, None, False))
             continue
         groups.append((members, issue, False))
 
