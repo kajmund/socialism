@@ -28,8 +28,8 @@ from app.services.expertgranskning.schemas import (
     WordExpertRaiseHand,
     WordExpertRoute,
     WordHeadingAssessment,
-    WordRewriteSuggestion,
     WordReviewQuestion,
+    WordRewriteSuggestion,
 )
 from app.services.expertgranskning.word_review import (
     _analyze_batch,
@@ -56,6 +56,7 @@ from tests.test_expertgranskning_word_review import (
     _review_slots,
 )
 from tests.test_intent_interview import _choice_question, _interview
+from tests.word_review_helpers import word_expert_comment
 
 
 def _en_prompts() -> dict[str, str]:
@@ -472,7 +473,7 @@ async def test_comment_question_keeps_association_perspective_above_document_voi
 
     async def completer(messages, response_model):
         captured.append(messages)
-        return WordExpertComment(
+        return word_expert_comment(
             kommentar="This is a serious weakness for the association.",
             anchor_paragraph_index=1,
         )
@@ -480,7 +481,7 @@ async def test_comment_question_keeps_association_perspective_above_document_voi
     set_structured_completer(completer)
     actor = _render(_association_context())
     brief = f"[1] {CHALLENGER_DOCUMENT}"
-    slot, _question, text, anchor = await _comment_question(
+    rows = await _comment_question(
         prompts=default_prompts("sv"),
         slot=PanelExpertSlot(slot_id="jurist", label="Jurist", profile="Avtal"),
         brief=brief,
@@ -506,7 +507,8 @@ async def test_comment_question_keeps_association_perspective_above_document_voi
     assert "should be attacked as invalid" not in actor_msg
     user = captured[0][-1]["content"]
     assert "aktörskontexten" in user or "actor context" in user.lower()
-    assert text == "This is a serious weakness for the association."
+    slot, _question, draft, anchor = rows[0]
+    assert draft.kommentar == "This is a serious weakness for the association."
     assert anchor == 1
     assert slot.slot_id == "jurist"
 
@@ -517,7 +519,7 @@ async def test_comment_question_opposite_intent_uses_challenger_actor_context():
 
     async def completer(messages, response_model):
         captured.extend(_system_texts(messages))
-        return WordExpertComment(kommentar="Challenge the decision.", anchor_paragraph_index=1)
+        return word_expert_comment(kommentar="Challenge the decision.", anchor_paragraph_index=1)
 
     set_structured_completer(completer)
     actor = _render(_challenger_context())
@@ -548,7 +550,7 @@ async def test_unknown_actor_context_stays_neutral_on_comment_call():
 
     async def completer(messages, response_model):
         captured.extend(_system_texts(messages))
-        return WordExpertComment(kommentar="The wording is unclear.", anchor_paragraph_index=1)
+        return word_expert_comment(kommentar="The wording is unclear.", anchor_paragraph_index=1)
 
     set_structured_completer(completer)
     actor = _render(unknown_actor_context())
@@ -590,7 +592,7 @@ async def test_analyze_batch_passes_actor_context_to_moderator_router_and_expert
         if response_model is WordExpertRoute:
             return WordExpertRoute(expert_ids=["jurist"])
         if response_model is WordExpertComment:
-            return WordExpertComment(kommentar="Association risk.", anchor_paragraph_index=1)
+            return word_expert_comment(kommentar="Association risk.", anchor_paragraph_index=1)
         raise AssertionError(response_model)
 
     set_structured_completer(completer)

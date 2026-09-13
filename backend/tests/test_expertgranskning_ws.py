@@ -25,6 +25,7 @@ from tests.test_expertgranskning_word_review import (
     _passthrough_comment_convergence,
     _review_task,
 )
+from tests.word_review_helpers import word_expert_comment
 
 
 def _sections(text: str = "Detta stycke är tillräckligt långt för granskning.") -> list[dict]:
@@ -71,7 +72,7 @@ async def test_word_review_emits_result_created_then_finished(
                 return WordExpertRaiseHand(question_ids=["q1"])
             return WordExpertRaiseHand(question_ids=[])
         if response_model is WordExpertComment:
-            return WordExpertComment(kommentar="En live-kommentar.")
+            return word_expert_comment(kommentar="En live-kommentar.")
         if response_model is WordCommentConvergence:
             return _passthrough_comment_convergence(messages[-1]["content"])
         raise AssertionError(f"unexpected model {response_model}")
@@ -138,7 +139,7 @@ async def test_word_review_emits_finished_on_failure(client: AsyncClient, monkey
                 return WordExpertRaiseHand(question_ids=["q1"])
             return WordExpertRaiseHand(question_ids=[])
         if response_model is WordExpertComment:
-            return WordExpertComment(kommentar="Sparad innan kraschen.")
+            return word_expert_comment(kommentar="Sparad innan kraschen.")
         raise RuntimeError("heading boom")
 
     panel_id = await _create_expert_panel(client)
@@ -187,7 +188,7 @@ async def test_word_result_patch_emits_updated(client: AsyncClient, monkeypatch)
                 return WordExpertRaiseHand(question_ids=["q1"])
             return WordExpertRaiseHand(question_ids=[])
         if response_model is WordExpertComment:
-            return WordExpertComment(kommentar="Kommentar att fästa live.")
+            return word_expert_comment(kommentar="Kommentar att fästa live.")
         if response_model is WordCommentConvergence:
             return _passthrough_comment_convergence(messages[-1]["content"])
         raise AssertionError(f"unexpected model {response_model}")
