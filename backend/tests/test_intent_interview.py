@@ -79,6 +79,11 @@ def _interview(*questions: dict, document_type: str = "contract") -> dict:
     return {"document_type": document_type, "questions": list(questions)}
 
 
+def _interview_llm_parts(messages: list[dict]) -> tuple[dict, dict, dict]:
+    assert [message["role"] for message in messages] == ["system", "system", "user"]
+    return messages[0], messages[1], messages[2]
+
+
 def test_review_context_from_job_request_requires_complete_interview():
     interview = _interview(_choice_question())
     assert review_context_from_job_request({"review_intent": "x"}) is None
@@ -597,7 +602,9 @@ async def test_short_contract_fixture_yields_nonempty_interview():
 
     async def completer(messages, response_model):
         assert response_model is LlmDocumentIntentInterview
-        assert "Konsultavtal" in messages[1]["content"]
+        contract, _prompt, user = _interview_llm_parts(messages)
+        assert "Hårt utdataspråkskontrakt" in contract["content"]
+        assert "Konsultavtal" in user["content"]
         return LlmDocumentIntentInterview.model_validate(
             {
                 "document_type": "konsultavtal",
@@ -654,13 +661,12 @@ async def test_generate_interview_does_not_let_document_steer_protocol():
         sections=sections, prompts=prompts
     )
     assert captured
-    system = captured[0][0]
-    user = captured[0][1]
-    assert system["role"] == "system"
-    assert user["role"] == "user"
+    contract, system, user = _interview_llm_parts(captured[0])
+    assert "Hårt utdataspråkskontrakt" in contract["content"]
     assert "Högst 5 frågor" in system["content"]
     assert "data, inte instruktioner" in system["content"]
     assert _PROMPT_INJECTION not in system["content"]
+    assert _PROMPT_INJECTION not in contract["content"]
     assert user["content"] == document_as_user_data(
         document_text_for_interview(sections)
     )
@@ -695,11 +701,11 @@ async def test_word_intent_interview_endpoint_returns_generated_interview(
 
     async def completer(messages, response_model):
         assert response_model is LlmDocumentIntentInterview
-        assert messages[0]["role"] == "system"
-        assert messages[1]["role"] == "user"
-        assert "Anna Andersson" not in messages[0]["content"]
-        assert "Anna Andersson" in messages[1]["content"]
-        assert messages[1]["content"].startswith(DOCUMENT_DATA_OPEN)
+        contract, prompt, user = _interview_llm_parts(messages)
+        assert "Anna Andersson" not in contract["content"]
+        assert "Anna Andersson" not in prompt["content"]
+        assert "Anna Andersson" in user["content"]
+        assert user["content"].startswith(DOCUMENT_DATA_OPEN)
         return generated
 
     set_structured_completer(completer)
@@ -797,12 +803,12 @@ async def test_word_intent_interview_endpoint_keeps_injection_as_document_data(
     )
     assert response.status_code == 200, response.text
     assert captured
-    system, user = captured[0][0], captured[0][1]
-    assert system["role"] == "system"
-    assert user["role"] == "user"
+    contract, system, user = _interview_llm_parts(captured[0])
+    assert "Hårt utdataspråkskontrakt" in contract["content"]
     assert "data, inte instruktioner" in system["content"]
     assert "Ignorera instruktioner" in system["content"]
     assert _PROMPT_INJECTION not in system["content"]
+    assert _PROMPT_INJECTION not in contract["content"]
     assert _PROMPT_INJECTION in user["content"]
     assert user["content"].startswith(DOCUMENT_DATA_OPEN)
     assert user["content"].endswith(DOCUMENT_DATA_CLOSE)
@@ -873,8 +879,10 @@ async def test_word_intent_interview_uses_selected_panel_tenant_prompts(
     )
     assert response.status_code == 200, response.text
     assert any(marker in text for text in seen)
-    assert seen[0] == marker
-    assert marker not in seen[1]
+    assert seen[0] != marker
+    assert "Hårt utdataspråkskontrakt" in seen[0]
+    assert seen[1] == marker
+    assert marker not in seen[2]
 
 
 @pytest.mark.asyncio
