@@ -604,13 +604,13 @@ def _optional_issue_literal(value: object, allowed: frozenset[str]) -> str | Non
 
 
 class WordLlmConvergedIssue(BaseModel):
-    """LLM-facing issue. Classification fields may be omitted or invalid."""
+    """LLM-facing issue. Text and classification fields may be omitted."""
 
     observation_ids: list[str] = Field(default_factory=list)
     paragraph_index: int
     supporting_expert_ids: list[str] = Field(default_factory=list)
-    short_comment: str
-    explanation: str
+    short_comment: str = ""
+    explanation: str = ""
     materiality: WordIssueMateriality | None = None
     actionability: WordIssueActionability | None = None
     novelty: WordIssueNovelty | None = None
