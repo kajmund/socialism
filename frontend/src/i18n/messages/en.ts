@@ -762,6 +762,7 @@ export const en: LocalizedTree<SvMessages> = {
         finished: "Panel finished.",
         failed: "Panel failed: {error}",
         turnInProgress: "writing…",
+        speakerModerator: "Moderator",
         round: "Sub-question {round}",
         phase: {
           opening: "Opening",

@@ -2,6 +2,7 @@
 
 ## 2026-09-13
 
+* **Expertgranskning i Word**: Avsiktsfrågorna hör till dokumentet. En senare granskning av en markering återanvänder samma svar. **Ändra granskningsavsikt** tar fram frågorna på nytt om mål eller perspektiv har ändrats. Rapporten visar rollen **Moderator** utan tillägg som "(Jag)".
 * **Playground**: Prompt-iteration kör mot den konfigurerade chat-modellen, inte en hårdkodad DeepSeek-väg.
 * **Expertgranskning i Word**: Varje kommentar i marginalen gäller en sakfråga och är kort. Längre expertresonemang finns bakom **Varför?**. Påståenden från dokumentet eller motparten märks som deras, inte som dina, och råden vänds till den roll du angett.
 * **Expertgranskning i Word**: Kommentarer och råd vänds till den roll du angett i avsiktsfrågorna, till exempel föreningen du företräder eller om du är kandidat eller rekryterare. Experterna kan fortfarande peka på svagheter i din position, men de ger inte råd som om du stod på andra sidan. Har du inte angett någon sida skrivs texterna neutralt.
