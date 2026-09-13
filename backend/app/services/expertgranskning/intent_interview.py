@@ -276,6 +276,23 @@ def render_intent_interview_section(
     return "\n".join(lines).strip()
 
 
+def has_answered_intent(
+    interview: DocumentIntentInterview | None,
+    answers: list[IntentAnswer],
+) -> bool:
+    """True when at least one interview question has a usable answer."""
+    if interview is None:
+        return False
+    by_id = {answer.question_id: answer for answer in answers}
+    for question in interview.questions:
+        answer = by_id.get(question.id)
+        if answer is None:
+            continue
+        if _render_answer_line(question, answer):
+            return True
+    return False
+
+
 def _render_answer_line(question: IntentQuestion, answer: IntentAnswer) -> str:
     if question.type == "free_text" or is_custom_choice_answer(answer):
         return (answer.free_text or "").strip()

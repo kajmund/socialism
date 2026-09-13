@@ -33,6 +33,7 @@ def test_timing_snapshot_has_safe_aggregate_fields_only():
         "rewrite_convergence_ms",
         "comment_convergence_ms",
         "heading_ms",
+        "actor_context_ms",
         "moderation_calls",
         "router_calls",
         "raise_hand_calls",
@@ -40,6 +41,8 @@ def test_timing_snapshot_has_safe_aggregate_fields_only():
         "rewrite_convergence_calls",
         "comment_convergence_calls",
         "heading_calls",
+        "actor_context_resolver_calls",
+        "actor_context_resolved",
         "direct_routed_questions",
         "raise_hand_questions",
         "questions_dropped_invalid_anchor",
@@ -200,4 +203,5 @@ async def test_limiter_rejects_unknown_category():
         "rewrite_convergence",
         "comment_convergence",
         "heading",
+        "actor_context",
     }
