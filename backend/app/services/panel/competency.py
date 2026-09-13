@@ -7,6 +7,7 @@ raise-hand. Frozen evidence must never manufacture expertise.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -48,6 +49,9 @@ class SlotCompetency(BaseModel):
     label: str
     competent: bool
     reason: str = ""
+    research_decision: Literal["none", "recommended", "required"] | None = None
+    assumptions: list[str] = Field(default_factory=list)
+    claims_requiring_verification: list[str] = Field(default_factory=list)
 
 
 class CompetencyState(BaseModel):

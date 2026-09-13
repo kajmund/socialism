@@ -156,7 +156,7 @@ def actor_context_messages(
                 "content": f"{INTENT_DATA_OPEN}\n{source}\n{INTENT_DATA_CLOSE}",
             },
         ],
-        locale,
+        prompts,
     )
 
 

@@ -17,6 +17,7 @@ from app.services.panel.raise_hand import raise_hand_is_yes
 from app.services.panel.research import (
     ExpertResearchNeeds,
     build_research_plan,
+    apply_research_decisions,
     collect_expert_research_needs,
     format_expert_research_need_turn,
     format_research_plan_turn,
@@ -78,8 +79,8 @@ def _messages_with_brief(
     identity: str,
     brief: str,
     user_content: str,
+    prompts: dict[str, str],
     evidence_prompt: str | None = None,
-    locale: str = "sv",
 ) -> list[dict[str, str]]:
     """Keep document brief as its own system message — same as structured_scoring."""
     messages = [{"role": "system", "content": identity}]
@@ -88,7 +89,7 @@ def _messages_with_brief(
     if evidence_prompt:
         messages.append({"role": "system", "content": evidence_prompt})
     messages.append({"role": "user", "content": user_content})
-    return messages_with_output_contract(messages, locale)
+    return messages_with_output_contract(messages, prompts)
 
 
 async def _moderator_opening(
@@ -101,7 +102,7 @@ async def _moderator_opening(
         identity=render_prompt(prompts, "panel.moderator.system"),
         brief=_session_brief(config, prompts),
         evidence_prompt=evidence_prompt,
-        locale=config.locale,
+        prompts=prompts,
         user_content=render_prompt(
             prompts,
             "panel.moderator.opening",
@@ -125,7 +126,7 @@ async def _moderator_next_question(
         identity=render_prompt(prompts, "panel.moderator.system"),
         brief=_session_brief(config, prompts),
         evidence_prompt=evidence_prompt,
-        locale=config.locale,
+        prompts=prompts,
         user_content=render_prompt(
             prompts,
             "panel.moderator.next_question",
@@ -148,7 +149,7 @@ async def _moderator_missing_expertise(
         identity=render_prompt(prompts, "panel.moderator.system"),
         brief=_session_brief(config, prompts),
         evidence_prompt=evidence_prompt,
-        locale=config.locale,
+        prompts=prompts,
         user_content=render_prompt(
             prompts,
             "panel.moderator.missing_expertise",
@@ -173,7 +174,7 @@ async def _expert_raise_hand(
         identity=_expert_system(prompts, slot),
         brief=_session_brief(config, prompts),
         evidence_prompt=evidence_prompt,
-        locale=config.locale,
+        prompts=prompts,
         user_content=render_prompt(
             prompts,
             "panel.expert.raise_hand",
@@ -216,7 +217,7 @@ async def _expert_scratchpad(
         identity=_expert_system(prompts, slot, with_tools=allow_expert_tools),
         brief=_session_brief(config, prompts),
         evidence_prompt=evidence_prompt,
-        locale=config.locale,
+        prompts=prompts,
         user_content=render_prompt(
             prompts,
             "panel.expert.scratchpad",
@@ -244,7 +245,7 @@ async def _expert_turn(
         identity=_expert_system(prompts, slot, with_tools=allow_expert_tools),
         brief=_session_brief(config, prompts),
         evidence_prompt=evidence_prompt,
-        locale=config.locale,
+        prompts=prompts,
         user_content=render_prompt(
             prompts,
             "panel.expert.turn",
@@ -269,7 +270,7 @@ async def _moderator_analysis(
         identity=render_prompt(prompts, "panel.moderator.system"),
         brief=_session_brief(config, prompts),
         evidence_prompt=evidence_prompt,
-        locale=config.locale,
+        prompts=prompts,
         user_content=render_prompt(
             prompts,
             "panel.moderator.analysis",
@@ -333,7 +334,10 @@ async def _run_research_plan_phase(
         phase="research_plan",
         produce_content=produce_research_plan,
     )
-    return competency_state_from_decisions(proposals)
+    return apply_research_decisions(
+        competency_state_from_decisions(proposals),
+        proposals,
+    )
 
 
 async def run_generic_panel(

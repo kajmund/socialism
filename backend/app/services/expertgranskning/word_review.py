@@ -1763,7 +1763,7 @@ async def run_word_paragraph_review(
             locale=payload.locale,
         )
         actor_context = compose_review_system_context(
-            locale=payload.locale,
+            prompts=prompts,
             actor_context=render_actor_context(actor, prompts),
         )
         section_tasks = [
