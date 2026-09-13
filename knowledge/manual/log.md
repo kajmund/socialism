@@ -1,5 +1,9 @@
 # Manual update log
 
+## 2026-09-13
+
+* **Expertgranskning i Word**: Förslag dyker upp i sidopanelen allteftersom en mindre del är färdig, inte först när ett helt kapitel är klart. Du kan tillämpa eller avfärda dem medan resten fortfarande granskas.
+
 ## 2026-09-12
 
 * **Expertgranskning i Word**: Moderatorn tar fram högst två frågor per del och fäster varje fråga vid ett stycke. Om det är tydligt vilka experter som ska svara går frågan dit direkt; annars räcker de upp handen som tidigare.

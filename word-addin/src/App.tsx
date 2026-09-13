@@ -98,6 +98,8 @@ export function App() {
   const [progress, setProgress] = useState<{
     sections_completed: number
     sections_total: number
+    units_completed?: number
+    units_total?: number
   } | null>(null)
   const [error, setError] = useState("")
   const [actionsById, setActionsById] = useState<Map<string, WordAction>>(
@@ -292,6 +294,8 @@ export function App() {
           setProgress({
             sections_completed: action.sections_completed,
             sections_total: action.sections_total,
+            units_completed: action.units_completed,
+            units_total: action.units_total,
           })
           break
         case "finished":
@@ -586,8 +590,8 @@ export function App() {
   const runningStatus =
     progress != null
       ? t("statusProgress", {
-          completed: progress.sections_completed,
-          total: progress.sections_total,
+          completed: progress.units_completed ?? progress.sections_completed,
+          total: progress.units_total ?? progress.sections_total,
         })
       : watchSource === "resume"
         ? t("statusResume")

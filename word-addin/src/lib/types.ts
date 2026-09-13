@@ -140,6 +140,8 @@ export type WatchProgress = {
   sections_completed: number
   sections_total: number
   actions_created: number
+  units_completed?: number
+  units_total?: number
 }
 
 export type WatchEvent =

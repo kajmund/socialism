@@ -7,6 +7,8 @@ export type WatchAction =
       sections_completed: number
       sections_total: number
       actions_created: number
+      units_completed?: number
+      units_total?: number
     }
   | { kind: "finished"; status: string; error?: string }
 
@@ -24,6 +26,8 @@ export function actionsForWatchEvent(event: WatchEvent): WatchAction[] {
           sections_completed: event.sections_completed,
           sections_total: event.sections_total,
           actions_created: event.actions_created,
+          units_completed: event.units_completed,
+          units_total: event.units_total,
         },
       ]
     case "expertgranskning.finished":
