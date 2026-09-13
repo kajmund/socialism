@@ -49,11 +49,18 @@ function TurnRow({
 }) {
   const { t } = useLocale()
   const phaseLabel = t(PHASE_LABEL_KEYS[phase])
+  const folded = speaker.trim().toLocaleLowerCase()
+  const visibleSpeaker =
+    folded === "moderator" ||
+    folded === "moderator (jag)" ||
+    folded === "moderator (i)"
+      ? t("dd.panel.live.speakerModerator")
+      : speaker
 
   return (
     <li className="list-none rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm">
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <span className="font-medium text-foreground">{speaker}</span>
+        <span className="font-medium text-foreground">{visibleSpeaker}</span>
         <span className="rounded border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
           {phaseLabel}
         </span>

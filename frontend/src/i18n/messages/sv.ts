@@ -760,6 +760,7 @@ export const sv = {
         finished: "Panelen avslutades.",
         failed: "Panelen misslyckades: {error}",
         turnInProgress: "skriver…",
+        speakerModerator: "Moderator",
         round: "Delfråga {round}",
         phase: {
           opening: "Öppning",

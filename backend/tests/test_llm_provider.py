@@ -29,6 +29,7 @@ from app.llm import (
 from app.llm.structured_schema import strict_json_schema
 from app.schemas.domain import EditablePersona, FollowUpQuestions
 from app.services.expertgranskning.schemas import WordCommentConvergence
+from app.services.panel.research import ExpertResearchNeeds
 
 
 @pytest.fixture(autouse=True)
@@ -198,6 +199,91 @@ async def test_complete_structured_cerebras_sends_reasoning_effort(monkeypatch):
     assert recorded[0].reasoning_effort == "medium"
     assert recorded[0].prompt_tokens == 11
     assert recorded[0].completion_tokens == 7
+
+
+_NONE_RESEARCH = (
+    '{"has_domain_competence":true,"competence_reason":"",'
+    '"research_decision":"none","can_answer_from_document":true,'
+    '"claims_requiring_verification":[],"assumptions":[],"needs":[],'
+    '"rationale":"The document is enough."}'
+)
+
+
+@pytest.mark.asyncio
+async def test_complete_structured_cerebras_strict_sends_json_schema(monkeypatch):
+    set_structured_completer(None)
+    captured: dict = {}
+    settings.llm_provider = "cerebras"
+    settings.llm_model = ""
+
+    async def fake_create(**kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace(
+            choices=[SimpleNamespace(message=SimpleNamespace(content=_NONE_RESEARCH))],
+            usage=SimpleNamespace(prompt_tokens=6, completion_tokens=3),
+        )
+
+    monkeypatch.setattr(
+        "app.llm.get_client",
+        lambda: SimpleNamespace(
+            chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))
+        ),
+    )
+    parsed = await complete_structured(
+        [{"role": "user", "content": "research needs"}],
+        ExpertResearchNeeds,
+    )
+    assert parsed.research_decision == "none"
+    assert captured["response_format"]["type"] == "json_schema"
+    assert captured["response_format"]["json_schema"]["strict"] is True
+    assert captured["response_format"]["json_schema"]["name"] == "ExpertResearchNeeds"
+    schema = captured["response_format"]["json_schema"]["schema"]
+    assert schema["additionalProperties"] is False
+    assert "research_decision" in schema["required"]
+    assert not any(
+        "Return ONLY a JSON object matching this JSON Schema" in str(item.get("content"))
+        for item in captured["messages"]
+    )
+
+
+@pytest.mark.asyncio
+async def test_complete_structured_deepseek_strict_falls_back_to_json_object(
+    monkeypatch,
+):
+    set_structured_completer(None)
+    captured: dict = {}
+    settings.llm_provider = "deepseek"
+    settings.llm_model = ""
+    settings.deepseek_model = "deepseek-chat"
+
+    async def fake_create(**kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace(
+            choices=[SimpleNamespace(message=SimpleNamespace(content=_NONE_RESEARCH))],
+            usage=SimpleNamespace(prompt_tokens=4, completion_tokens=2),
+        )
+
+    monkeypatch.setattr(
+        "app.llm.get_client",
+        lambda: SimpleNamespace(
+            chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))
+        ),
+    )
+    try:
+        parsed = await complete_structured(
+            [{"role": "user", "content": "research needs"}],
+            ExpertResearchNeeds,
+        )
+        assert parsed.research_decision == "none"
+        assert captured["response_format"] == {"type": "json_object"}
+        assert "reasoning_effort" not in captured
+        assert any(
+            "Return ONLY a JSON object matching this JSON Schema" in item["content"]
+            for item in captured["messages"]
+            if item.get("role") == "user"
+        )
+    finally:
+        settings.llm_provider = "cerebras"
 
 
 @pytest.mark.asyncio

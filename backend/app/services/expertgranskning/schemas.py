@@ -858,8 +858,42 @@ class ExpertgranskningResultOut(BaseModel):
     created_at: str
 
 
+class WordReviewContextOut(BaseModel):
+    locale: ConfigurationLanguage = "sv"
+    review_intent: str = ""
+    intent_interview: DocumentIntentInterview | None = None
+    intent_answers: list[IntentAnswer] = Field(default_factory=list)
+
+
 class ExpertgranskningLatestWordJobOut(BaseModel):
     job_id: str
     status: str
     error: str | None = None
     actions: list[WordActionOut]
+    review_context: WordReviewContextOut | None = None
+
+
+def review_context_from_job_request(raw: object) -> WordReviewContextOut | None:
+    if not isinstance(raw, dict):
+        return None
+    interview_raw = raw.get("intent_interview")
+    if interview_raw is None:
+        return None
+    try:
+        interview = DocumentIntentInterview.model_validate(interview_raw)
+        answers = [
+            IntentAnswer.model_validate(item)
+            for item in (raw.get("intent_answers") or [])
+        ]
+        validate_intent_answers(interview, answers)
+    except (ValueError, TypeError):
+        return None
+    locale = raw.get("locale") or "sv"
+    if locale not in {"sv", "en", "nb"}:
+        locale = "sv"
+    return WordReviewContextOut(
+        locale=locale,
+        review_intent=str(raw.get("review_intent") or "").strip(),
+        intent_interview=interview,
+        intent_answers=answers,
+    )

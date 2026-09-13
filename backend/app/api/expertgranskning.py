@@ -34,6 +34,7 @@ from app.services.expertgranskning.schemas import (
     ExpertgranskningSessionUpdate,
     ExpertgranskningWordJobCreate,
     ExpertgranskningWordJobRequest,
+    review_context_from_job_request,
 )
 from app.services.prompt_store import require_active_prompts
 from app.services.expertgranskning.sessions import (
@@ -254,6 +255,7 @@ async def post_expertgranskning_word_intent_interview(
         return await generate_document_intent_interview(
             sections=body.sections,
             prompts=prompts,
+            locale=body.locale,
         )
     except ValidationError as exc:
         logger.info(
@@ -332,6 +334,7 @@ async def get_latest_expertgranskning_word_job(
         status=job.status,
         error=job.error,
         actions=[serialize_word_action(row) for row in actions],
+        review_context=review_context_from_job_request(job.request),
     )
 
 
