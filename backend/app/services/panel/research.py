@@ -14,7 +14,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.llm import complete_structured
-from app.services.panel.competency import ExpertCompetency
+from app.services.panel.competency import CompetencyState, ExpertCompetency, SlotCompetency
 from app.services.panel.review_intent import session_brief_for_llm
 from app.services.panel.schemas import PanelExpertSlot, PanelSessionConfig
 from app.services.prompt_catalog import render_prompt
@@ -175,6 +175,32 @@ class ExpertResearchNeeds(ExpertCompetency):
         return self
 
 
+def apply_research_decisions(
+    state: CompetencyState,
+    proposals: Sequence[tuple[PanelExpertSlot, ExpertResearchNeeds]],
+) -> CompetencyState:
+    """Attach each expert's epistemic decision onto the competency record."""
+    by_id = {slot.slot_id: bundle for slot, bundle in proposals}
+    slots: list[SlotCompetency] = []
+    for row in state.slots:
+        bundle = by_id.get(row.slot_id)
+        if bundle is None:
+            slots.append(row)
+            continue
+        slots.append(
+            row.model_copy(
+                update={
+                    "research_decision": bundle.research_decision,
+                    "assumptions": [item.assumption for item in bundle.assumptions],
+                    "claims_requiring_verification": [
+                        item.claim for item in bundle.claims_requiring_verification
+                    ],
+                }
+            )
+        )
+    return CompetencyState(slots=slots)
+
+
 class ResearchProposal(BaseModel):
     """Temporary expert draft with a code-assigned proposal id."""
 
@@ -319,7 +345,8 @@ def empty_research_structured(response_model: type) -> object | None:
 
 
 def _research_copy(locale: str) -> dict[str, str]:
-    if normalize_output_locale(locale) == "en":
+    loc = normalize_output_locale(locale)
+    if loc == "en":
         return {
             "no_needs": "No research needs.",
             "needs": "Needs:",
@@ -331,6 +358,19 @@ def _research_copy(locale: str) -> dict[str, str]:
             "rationale": "Rationale",
             "assumptions": "Assumptions:",
             "verify": "Claims requiring verification:",
+        }
+    if loc == "nb":
+        return {
+            "no_needs": "Ingen researchbehov.",
+            "needs": "Behov:",
+            "plan": "Researchplan:",
+            "decision": "Researchbeslutning",
+            "from_document": "Kan besvares fra dokumentet",
+            "yes": "ja",
+            "no": "nei",
+            "rationale": "Begrunnelse",
+            "assumptions": "Antakelser:",
+            "verify": "Påstander som krever verifisering:",
         }
     return {
         "no_needs": "Inga researchbehov.",
@@ -495,13 +535,13 @@ def _messages_with_brief(
     identity: str,
     brief: str,
     user_content: str,
-    locale: str = "sv",
+    prompts: dict[str, str],
 ) -> list[dict[str, str]]:
     messages = [{"role": "system", "content": identity}]
     if brief:
         messages.append({"role": "system", "content": brief})
     messages.append({"role": "user", "content": user_content})
-    return messages_with_output_contract(messages, locale)
+    return messages_with_output_contract(messages, prompts)
 
 
 def _session_brief(config: PanelSessionConfig, prompts: dict[str, str]) -> str:
@@ -515,13 +555,12 @@ async def collect_expert_research_needs(
     prompts: dict[str, str],
 ) -> ExpertResearchNeeds:
     brief = _session_brief(config, prompts)
-    locale = getattr(config, "locale", "sv") or "sv"
     messages = _messages_with_brief(
         identity=render_prompt(
             prompts, "panel.expert.system", label=slot.label, profile=slot.profile
         ),
         brief=brief,
-        locale=locale,
+        prompts=prompts,
         user_content=render_prompt(
             prompts,
             "panel.expert.research_need",
@@ -546,11 +585,10 @@ async def consolidate_research_plan(
 ) -> ModeratorResearchPlan:
     brief = _session_brief(config, prompts)
     formatted = format_expert_proposals(proposals, empty_slots)
-    locale = getattr(config, "locale", "sv") or "sv"
     messages = _messages_with_brief(
         identity=render_prompt(prompts, "panel.moderator.system"),
         brief=brief,
-        locale=locale,
+        prompts=prompts,
         user_content=render_prompt(
             prompts,
             "panel.moderator.research_plan",

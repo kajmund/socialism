@@ -5,13 +5,21 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
+from app.services.panel.competency import CompetencyState, SlotCompetency
 from app.services.panel.research import (
     ClaimRequiringVerification,
     ExpertResearchNeeds,
     ResearchAssumption,
     ResearchNeedDraft,
+    apply_research_decisions,
     format_expert_research_need_turn,
     unqualified_external_claims,
+)
+from app.services.panel.schemas import PanelExpertSlot, PanelTurn
+from app.services.panel.synthesis import (
+    GenericPanelSynthesis,
+    SynthesizedClaim,
+    panel_result_from_synthesis,
 )
 
 
@@ -121,3 +129,171 @@ def test_english_none_turn_stays_english():
     )
     assert "No research needs." in text
     assert "Inga researchbehov." not in text
+
+
+def test_norwegian_research_copy_is_not_swedish():
+    text = format_expert_research_need_turn(
+        ExpertResearchNeeds(
+            research_decision="none",
+            can_answer_from_document=True,
+            rationale="Dokumentet holder.",
+        ),
+        locale="nb",
+    )
+    assert "Ingen researchbehov." in text
+    assert "Inga researchbehov." not in text
+    assert "Researchbeslutning: none" in text
+
+
+def test_apply_research_decisions_persists_structured_metadata():
+    slot = PanelExpertSlot(slot_id="legal", label="Jurist")
+    bundle = ExpertResearchNeeds(
+        research_decision="none",
+        can_answer_from_document=True,
+        rationale="Dokumentet räcker.",
+        assumptions=[
+            ResearchAssumption(
+                assumption="+8 percentage points is industry standard",
+                materiality="high",
+            )
+        ],
+    )
+    state = apply_research_decisions(
+        CompetencyState(
+            slots=[
+                SlotCompetency(
+                    slot_id="legal",
+                    label="Jurist",
+                    competent=True,
+                )
+            ]
+        ),
+        [(slot, bundle)],
+    )
+    assert state.slots[0].research_decision == "none"
+    assert state.slots[0].assumptions == ["+8 percentage points is industry standard"]
+
+
+def test_synthesis_drops_unqualified_external_claim_after_none_decision():
+    competency = CompetencyState(
+        slots=[
+            SlotCompetency(
+                slot_id="legal",
+                label="Jurist",
+                competent=True,
+                research_decision="none",
+            )
+        ]
+    )
+    transcript = [
+        PanelTurn(
+            turn_id="e1",
+            speaker="Jurist",
+            phase="expert",
+            slot_id="legal",
+            content="Plus 8 percentage points is industry standard.",
+        )
+    ]
+    result = panel_result_from_synthesis(
+        GenericPanelSynthesis(
+            summary="En punkt.",
+            claims=[
+                SynthesizedClaim(
+                    claim="Plus 8 percentage points is industry standard.",
+                    evidence="Expertprosa.",
+                    judgment="Så är marknaden.",
+                    claim_basis="research",
+                    external_normative=True,
+                ),
+                SynthesizedClaim(
+                    claim="Klausulen är otydlig i dokumentet.",
+                    evidence="Avtalstexten.",
+                    judgment="Behöver skärpas.",
+                    claim_basis="document",
+                    external_normative=False,
+                ),
+            ],
+        ),
+        transcript=transcript,
+        competency=competency,
+    )
+    assert [row.claim for row in result.claims] == ["Klausulen är otydlig i dokumentet."]
+
+
+def test_structured_external_flag_blocks_even_without_regex_match():
+    competency = CompetencyState(
+        slots=[
+            SlotCompetency(
+                slot_id="legal",
+                label="Jurist",
+                competent=True,
+                research_decision="none",
+            )
+        ]
+    )
+    result = panel_result_from_synthesis(
+        GenericPanelSynthesis(
+            summary="En punkt.",
+            claims=[
+                SynthesizedClaim(
+                    claim="Marknadspraxis är väletablerad för den här typen av avtal.",
+                    evidence="Allmän orientering.",
+                    judgment="Det är standard.",
+                    claim_basis="research",
+                    external_normative=True,
+                )
+            ],
+        ),
+        transcript=[
+            PanelTurn(
+                turn_id="e1",
+                speaker="Jurist",
+                phase="expert",
+                slot_id="legal",
+                content="Marknadspraxis är väletablerad för den här typen av avtal.",
+            )
+        ],
+        competency=competency,
+    )
+    assert result.claims == []
+
+
+def test_assumption_metadata_allows_otherwise_blocked_claim():
+    competency = CompetencyState(
+        slots=[
+            SlotCompetency(
+                slot_id="legal",
+                label="Jurist",
+                competent=True,
+                research_decision="none",
+                assumptions=["+8 percentage points is industry standard"],
+            )
+        ]
+    )
+    result = panel_result_from_synthesis(
+        GenericPanelSynthesis(
+            summary="En punkt.",
+            claims=[
+                SynthesizedClaim(
+                    claim="+8 percentage points is industry standard",
+                    evidence="Antagande i researchbeslutet.",
+                    judgment="Bärs som antagande.",
+                    claim_basis="assumption",
+                    external_normative=True,
+                )
+            ],
+        ),
+        transcript=[
+            PanelTurn(
+                turn_id="e1",
+                speaker="Jurist",
+                phase="expert",
+                slot_id="legal",
+                content="+8 percentage points is industry standard",
+            )
+        ],
+        competency=competency,
+    )
+    assert [row.claim for row in result.claims] == [
+        "+8 percentage points is industry standard"
+    ]

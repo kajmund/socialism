@@ -2,29 +2,47 @@
 
 from __future__ import annotations
 
+import pytest
+
 from app.services.expertgranskning.actor_context import ActorContext
 from app.services.expertgranskning.observation import bind_actor_attribution
 from app.services.expertgranskning.report_html import render_expertgranskning_html
 from app.services.expertgranskning.schemas import WordExpertObservation
+from app.services.prompt_catalog import default_prompts
 from app.services.review_contract import (
     compose_review_system_context,
     display_speaker_label,
     is_moderator_label,
     messages_with_output_contract,
-    output_language_instruction,
+    normalize_output_locale,
+    output_contract_for_locale,
     real_world_action_owner,
     sanitize_recommended_action_owner,
 )
 
 
-def test_output_language_instruction_locks_swedish_and_english():
-    sv = output_language_instruction("sv")
-    en = output_language_instruction("en")
+def test_output_contract_loads_from_prompt_catalog_per_locale():
+    sv = output_contract_for_locale("sv")
+    en = output_contract_for_locale("en")
+    nb = output_contract_for_locale("nb")
+    assert sv == default_prompts("sv")["review.output_contract"]
+    assert en == default_prompts("en")["review.output_contract"]
+    assert nb == default_prompts("nb")["review.output_contract"]
     assert "på svenska" in sv
     assert "inte till engelska" in sv
     assert "in English" in en
     assert "Do not switch to Swedish" in en
-    assert "source-type" in en or "källtyp" in sv
+    assert "norsk (bokmål)" in nb
+    assert "på svenska" not in nb
+    assert "in English" not in nb
+
+
+def test_normalize_output_locale_does_not_relabel_norwegian():
+    assert normalize_output_locale("nb") == "nb"
+    assert normalize_output_locale("en") == "en"
+    assert normalize_output_locale("sv") == "sv"
+    with pytest.raises(ValueError, match="unsupported review locale"):
+        normalize_output_locale("de")
 
 
 def test_display_speaker_never_keeps_first_person_moderator_suffix():
@@ -110,11 +128,14 @@ def test_report_html_never_renders_moderator_first_person_label():
 def test_messages_with_output_contract_keep_language_and_role_rules():
     messages = messages_with_output_contract(
         [{"role": "user", "content": "Fråga"}],
-        "sv",
+        default_prompts("sv"),
     )
     assert messages[0]["role"] == "system"
     assert "Hårt utdataspråkskontrakt" in messages[0]["content"]
     assert "Moderator — aldrig Moderator (Jag)" in messages[0]["content"]
-    combined = compose_review_system_context(locale="en", actor_context="Actor context")
+    combined = compose_review_system_context(
+        prompts=default_prompts("en"),
+        actor_context="Actor context",
+    )
     assert "Hard output-language contract" in combined
     assert "Actor context" in combined

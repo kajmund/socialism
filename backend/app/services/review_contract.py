@@ -1,6 +1,7 @@
 """Review session output contract: language lock, moderator role, ownership.
 
-Code-owned. These rules are not customer-editable prompt text.
+Runtime prompt text lives in ``review.output_contract``. Code owns labels,
+ownership sanitizing, and how the rendered contract is attached.
 """
 
 from __future__ import annotations
@@ -8,6 +9,9 @@ from __future__ import annotations
 import re
 from typing import Literal
 
+from app.services.prompt_catalog import default_prompts, render_prompt
+
+OUTPUT_CONTRACT_KEY = "review.output_contract"
 OutputLocale = Literal["sv", "en", "nb"]
 
 MODERATOR_LABEL = "Moderator"
@@ -17,81 +21,40 @@ _MODERATOR_ALIASES = frozenset(
         "moderator",
         "moderator (jag)",
         "moderator (i)",
+        "moderator (jeg)",
         "the moderator",
     }
 )
 _MODERATOR_PAREN_RE = re.compile(r"^moderator\s*\([^)]*\)\s*$", re.IGNORECASE)
 _MODERATOR_OWNER_PREFIX_RE = re.compile(
-    r"^(?P<owner>Moderator(?:\s*\((?:Jag|jag|I)\))?)\s+"
-    r"(?P<verb>bör|ska|kan|måste|should|must|will|can)\b",
+    r"^(?P<owner>Moderator(?:\s*\((?:Jag|jag|I|Jeg|jeg)\))?)\s+"
+    r"(?P<verb>bör|ska|kan|måste|should|must|will|can|bør|må)\b",
     re.IGNORECASE,
 )
 
 
 def normalize_output_locale(value: str | None) -> OutputLocale:
     raw = (value or "").strip().casefold()
-    if raw == "en":
-        return "en"
-    if raw == "nb":
-        return "nb"
-    return "sv"
+    if raw in {"en", "nb", "sv"}:
+        return raw  # type: ignore[return-value]
+    raise ValueError(f"unsupported review locale: {value!r}")
 
 
-def output_language_instruction(locale: str) -> str:
-    """Hard language lock for user-visible LLM prose."""
-    loc = normalize_output_locale(locale)
-    if loc == "en":
-        return (
-            "Hard output-language contract: write all user-visible prose in English. "
-            "This includes moderator questions, research-need and research-plan text, "
-            "expert answers, comments, rewrite suggestions, and the final report. "
-            "Do not switch to Swedish or any other language mid-review. "
-            "Technical identifiers and source-type enums stay machine-readable."
-        )
-    return (
-        "Hårt utdataspråkskontrakt: skriv all användarsynlig prosa på svenska. "
-        "Det gäller moderatorfrågor, researchbehov och researchplan, "
-        "expertsvar, kommentarer, omskrivningsförslag och slutrapport. "
-        "Byt inte till engelska eller något annat språk under granskningen. "
-        "Tekniska identifierare och källtyps-enum ska förbli maskinläsbara."
-    )
+def render_output_contract(prompts: dict[str, str]) -> str:
+    return render_prompt(prompts, OUTPUT_CONTRACT_KEY)
 
 
-def moderator_role_instruction(locale: str) -> str:
-    loc = normalize_output_locale(locale)
-    if loc == "en":
-        return (
-            "User-visible role label is Moderator — never Moderator (I) or Moderator (Jag). "
-            "You may write from the requested party perspective; first person such as "
-            "we/our is valid when that is the reviewer's side. "
-            "Narrative perspective must not turn the AI moderator into a real-world actor. "
-            "You may summarize and recommend actions but must not own actions such as "
-            "contacting the counterparty, sending proposals, or negotiating. "
-            "For real-world next-step ownership, use the ActorContext party when it is "
-            "clear; otherwise leave ownership unassigned. Never assign ownership to Moderator."
-        )
-    return (
-        "Den synliga rollbeteckningen är Moderator — aldrig Moderator (Jag) eller Moderator (I). "
-        "Du får skriva ur den begärda partsställningen; vi/vår är giltigt när det är "
-        "granskarens sida. "
-        "Berättarperspektivet får inte göra AI-moderatorn till en verklig aktör. "
-        "Du får sammanfatta och rekommendera åtgärder men inte äga åtgärder som att "
-        "kontakta motparten, skicka förslag eller förhandla. "
-        "Verkligt ägarskap för nästa steg ska vara aktören från aktörskontexten när den "
-        "är tydlig; annars lämna ägarskapet oassignerat. Tilldela aldrig Moderator ägarskap."
-    )
-
-
-def review_output_contract(locale: str) -> str:
-    return f"{output_language_instruction(locale)}\n\n{moderator_role_instruction(locale)}"
+def output_contract_for_locale(locale: str) -> str:
+    """Load the catalog default for an explicit locale. Does not remap nb→sv."""
+    return render_output_contract(default_prompts(normalize_output_locale(locale)))
 
 
 def compose_review_system_context(
     *,
-    locale: str,
+    prompts: dict[str, str],
     actor_context: str = "",
 ) -> str:
-    contract = review_output_contract(locale)
+    contract = render_output_contract(prompts)
     extra = (actor_context or "").strip()
     if not extra:
         return contract
@@ -100,10 +63,10 @@ def compose_review_system_context(
 
 def messages_with_output_contract(
     messages: list[dict[str, str]],
-    locale: str,
+    prompts: dict[str, str],
 ) -> list[dict[str, str]]:
-    """Insert the output contract as an early system message."""
-    contract = review_output_contract(locale)
+    """Insert the rendered output contract as an early system message."""
+    contract = render_output_contract(prompts)
     if any(item.get("role") == "system" and item.get("content") == contract for item in messages):
         return list(messages)
     inserted = [{"role": "system", "content": contract}]

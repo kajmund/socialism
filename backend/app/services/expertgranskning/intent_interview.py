@@ -230,7 +230,7 @@ def intent_interview_messages(
             },
             {"role": "user", "content": document_as_user_data(document)},
         ],
-        locale,
+        prompts,
     )
 
 

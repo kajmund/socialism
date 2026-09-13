@@ -67,13 +67,18 @@ def _f(
     hint_en: str,
     default_sv: str,
     default_en: str,
+    default_nb: str | None = None,
 ) -> PromptFieldDef:
     return {
         "key": key,
         "section": section,
         "label": {"sv": label_sv, "en": label_en},
         "hint": {"sv": hint_sv, "en": hint_en},
-        "defaults": {"sv": default_sv, "en": default_en, "nb": default_sv},
+        "defaults": {
+            "sv": default_sv,
+            "en": default_en,
+            "nb": default_nb if default_nb is not None else default_sv,
+        },
     }
 
 
@@ -1133,6 +1138,59 @@ HOW YOU WRITE COMMENTS:
         ),
     ),
     _f(
+        "review.output_contract",
+        "panel",
+        "Granskning — utdatakontrakt",
+        "Review — output contract",
+        "Hårt språk- och moderatoravtal för all användarsynlig prosa.",
+        "Hard language and moderator contract for all user-visible prose.",
+        (
+            "Hårt utdataspråkskontrakt: skriv all användarsynlig prosa på svenska. "
+            "Det gäller moderatorfrågor, researchbehov och researchplan, "
+            "expertsvar, kommentarer, omskrivningsförslag och slutrapport. "
+            "Byt inte till engelska eller något annat språk under granskningen. "
+            "Tekniska identifierare och källtyps-enum ska förbli maskinläsbara.\n\n"
+            "Den synliga rollbeteckningen är Moderator — aldrig Moderator (Jag) eller Moderator (I). "
+            "Du får skriva ur den begärda partsställningen; vi/vår är giltigt när det är "
+            "granskarens sida. "
+            "Berättarperspektivet får inte göra AI-moderatorn till en verklig aktör. "
+            "Du får sammanfatta och rekommendera åtgärder men inte äga åtgärder som att "
+            "kontakta motparten, skicka förslag eller förhandla. "
+            "Verkligt ägarskap för nästa steg ska vara aktören från aktörskontexten när den "
+            "är tydlig; annars lämna ägarskapet oassignerat. Tilldela aldrig Moderator ägarskap."
+        ),
+        (
+            "Hard output-language contract: write all user-visible prose in English. "
+            "This includes moderator questions, research-need and research-plan text, "
+            "expert answers, comments, rewrite suggestions, and the final report. "
+            "Do not switch to Swedish or any other language mid-review. "
+            "Technical identifiers and source-type enums stay machine-readable.\n\n"
+            "User-visible role label is Moderator — never Moderator (I) or Moderator (Jag). "
+            "You may write from the requested party perspective; first person such as "
+            "we/our is valid when that is the reviewer's side. "
+            "Narrative perspective must not turn the AI moderator into a real-world actor. "
+            "You may summarize and recommend actions but must not own actions such as "
+            "contacting the counterparty, sending proposals, or negotiating. "
+            "For real-world next-step ownership, use the ActorContext party when it is "
+            "clear; otherwise leave ownership unassigned. Never assign ownership to Moderator."
+        ),
+        (
+            "Hardt utdataspråkskontrakt: skriv all brukersynlig prosa på norsk (bokmål). "
+            "Det gjelder moderatorspørsmål, researchbehov og researchplan, "
+            "ekspertsvar, kommentarer, omskrivingsforslag og sluttrapport. "
+            "Ikke bytt til svensk, engelsk eller et annet språk underveis i gjennomgangen. "
+            "Tekniske identifikatorer og kildetype-enum skal forbli maskinlesbare.\n\n"
+            "Den synlige rollebetegnelsen er Moderator — aldri Moderator (Jeg) eller Moderator (I). "
+            "Du får skrive fra den etterspurte partsstillingen; vi/vår er gyldig når det er "
+            "granskerens side. "
+            "Fortellerperspektivet må ikke gjøre AI-moderatoren til en virkelig aktør. "
+            "Du kan oppsummere og anbefale tiltak, men ikke eie tiltak som å kontakte "
+            "motparten, sende forslag eller forhandle. "
+            "Reelt eierskap for neste steg skal være aktøren fra aktørkonteksten når den "
+            "er tydelig; ellers la eierskapet være uassignert. Tildel aldri Moderator eierskap."
+        ),
+    ),
+    _f(
         "panel.moderator.system",
         "panel",
         "Moderator — system",
@@ -1395,7 +1453,13 @@ HOW YOU WRITE COMMENTS:
             "Sätt evidence_refs till de refs som faktiskt stöder claimen. Hitta inte på refs.\n"
             "- Var konservativ: få starka claims hellre än många svaga.\n"
             "- Om underlaget är tomt eller för svagt: returnera tomma claims och eventuellt unanswered. "
-            "Hitta inte på slutsatser."
+            "Hitta inte på slutsatser.\n"
+            "- Sätt claim_basis till document, assumption, research eller uncertain. "
+            "document = stöd i dokument/brief/offentligt expertresonemang. "
+            "assumption = buren som antagande. research = belagd via research. "
+            "uncertain = osäker expertbedömning.\n"
+            "- external_normative=true bara när claimen lägger fram en precis extern "
+            "norm, branschstandard eller sifferbenchmark som fastställd fakta."
         ),
         (
             "Topic: {topic}\n\n"
@@ -1429,7 +1493,13 @@ HOW YOU WRITE COMMENTS:
             "Set evidence_refs to the refs that actually support the claim. Do not invent refs.\n"
             "- Be conservative: few strong claims rather than many weak ones.\n"
             "- If the record is empty or too weak: return empty claims and optionally unanswered. "
-            "Do not invent conclusions."
+            "Do not invent conclusions.\n"
+            "- Set claim_basis to document, assumption, research, or uncertain. "
+            "document = support in the document/brief/public expert reasoning. "
+            "assumption = carried as an assumption. research = established via research. "
+            "uncertain = uncertain expert judgment.\n"
+            "- Set external_normative=true only when the claim presents a precise external "
+            "norm, industry standard, or numeric benchmark as an established fact."
         ),
     ),
     _f(
