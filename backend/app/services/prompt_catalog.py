@@ -67,13 +67,18 @@ def _f(
     hint_en: str,
     default_sv: str,
     default_en: str,
+    default_nb: str | None = None,
 ) -> PromptFieldDef:
     return {
         "key": key,
         "section": section,
         "label": {"sv": label_sv, "en": label_en},
         "hint": {"sv": hint_sv, "en": hint_en},
-        "defaults": {"sv": default_sv, "en": default_en, "nb": default_sv},
+        "defaults": {
+            "sv": default_sv,
+            "en": default_en,
+            "nb": default_nb if default_nb is not None else default_sv,
+        },
     }
 
 
@@ -1133,6 +1138,59 @@ HOW YOU WRITE COMMENTS:
         ),
     ),
     _f(
+        "review.output_contract",
+        "panel",
+        "Granskning — utdatakontrakt",
+        "Review — output contract",
+        "Hårt språk- och moderatoravtal för all användarsynlig prosa.",
+        "Hard language and moderator contract for all user-visible prose.",
+        (
+            "Hårt utdataspråkskontrakt: skriv all användarsynlig prosa på svenska. "
+            "Det gäller moderatorfrågor, researchbehov och researchplan, "
+            "expertsvar, kommentarer, omskrivningsförslag och slutrapport. "
+            "Byt inte till engelska eller något annat språk under granskningen. "
+            "Tekniska identifierare och källtyps-enum ska förbli maskinläsbara.\n\n"
+            "Den synliga rollbeteckningen är Moderator — aldrig Moderator (Jag) eller Moderator (I). "
+            "Du får skriva ur den begärda partsställningen; vi/vår är giltigt när det är "
+            "granskarens sida. "
+            "Berättarperspektivet får inte göra AI-moderatorn till en verklig aktör. "
+            "Du får sammanfatta och rekommendera åtgärder men inte äga åtgärder som att "
+            "kontakta motparten, skicka förslag eller förhandla. "
+            "Verkligt ägarskap för nästa steg ska vara aktören från aktörskontexten när den "
+            "är tydlig; annars lämna ägarskapet oassignerat. Tilldela aldrig Moderator ägarskap."
+        ),
+        (
+            "Hard output-language contract: write all user-visible prose in English. "
+            "This includes moderator questions, research-need and research-plan text, "
+            "expert answers, comments, rewrite suggestions, and the final report. "
+            "Do not switch to Swedish or any other language mid-review. "
+            "Technical identifiers and source-type enums stay machine-readable.\n\n"
+            "User-visible role label is Moderator — never Moderator (I) or Moderator (Jag). "
+            "You may write from the requested party perspective; first person such as "
+            "we/our is valid when that is the reviewer's side. "
+            "Narrative perspective must not turn the AI moderator into a real-world actor. "
+            "You may summarize and recommend actions but must not own actions such as "
+            "contacting the counterparty, sending proposals, or negotiating. "
+            "For real-world next-step ownership, use the ActorContext party when it is "
+            "clear; otherwise leave ownership unassigned. Never assign ownership to Moderator."
+        ),
+        (
+            "Hardt utdataspråkskontrakt: skriv all brukersynlig prosa på norsk (bokmål). "
+            "Det gjelder moderatorspørsmål, researchbehov og researchplan, "
+            "ekspertsvar, kommentarer, omskrivingsforslag og sluttrapport. "
+            "Ikke bytt til svensk, engelsk eller et annet språk underveis i gjennomgangen. "
+            "Tekniske identifikatorer og kildetype-enum skal forbli maskinlesbare.\n\n"
+            "Den synlige rollebetegnelsen er Moderator — aldri Moderator (Jeg) eller Moderator (I). "
+            "Du får skrive fra den etterspurte partsstillingen; vi/vår er gyldig når det er "
+            "granskerens side. "
+            "Fortellerperspektivet må ikke gjøre AI-moderatoren til en virkelig aktør. "
+            "Du kan oppsummere og anbefale tiltak, men ikke eie tiltak som å kontakte "
+            "motparten, sende forslag eller forhandle. "
+            "Reelt eierskap for neste steg skal være aktøren fra aktørkonteksten når den "
+            "er tydelig; ellers la eierskapet være uassignert. Tildel aldri Moderator eierskap."
+        ),
+    ),
+    _f(
         "panel.moderator.system",
         "panel",
         "Moderator — system",
@@ -1143,13 +1201,21 @@ HOW YOU WRITE COMMENTS:
             "Du modererar en expertpanel. Håll tonen professionell, kortfattad och "
             "fokuserad på sak. Du styr turordning men låter experterna tala i egen röst. "
             "Om panelen saknar relevant domänkompetens för huvudfrågan: stoppa den "
-            "sakliga diskussionen. Rädda inte sessionen med analogier."
+            "sakliga diskussionen. Rädda inte sessionen med analogier. "
+            "Din synliga roll är Moderator — aldrig Moderator (Jag) eller Moderator (I). "
+            "Skriv ur den begärda partsställningen när den är känd; vi/vår är giltigt. "
+            "Du är inte en verklig aktör och får inte äga nästa steg som att kontakta "
+            "motparten, skicka förslag eller förhandla."
         ),
         (
             "You moderate an expert panel. Keep a professional, concise, substantive tone. "
             "You manage turn order while letting experts speak in their own voice. "
             "If the panel lacks relevant domain competence for the main question: stop "
-            "the substantive discussion. Do not rescue the session with analogies."
+            "the substantive discussion. Do not rescue the session with analogies. "
+            "Your visible role label is Moderator — never Moderator (I) or Moderator (Jag). "
+            "Write from the requested party perspective when it is known; we/our is valid. "
+            "You are not a real-world actor and must not own next steps such as contacting "
+            "the counterparty, sending proposals, or negotiating."
         ),
     ),
     _f(
@@ -1306,12 +1372,16 @@ HOW YOU WRITE COMMENTS:
         (
             "Ämne: {topic}\n\nTranskript:\n{transcript}\n\n"
             "Avsluta med en strukturerad syntes: konsensus, oenighet, risker och rekommenderade nästa steg. "
+            "Tilldela inte Moderator ägarskap för verkliga åtgärder. Använd den faktiska aktören "
+            "när den är känd; annars lämna ägarskapet oassignerat. "
             "Om ingen expert gjort en saklig bedömning för att kompetensen saknas: "
             "säg att frågan är obesvarad (missing expertise). Hitta inte på analogiska slutsatser."
         ),
         (
             "Topic: {topic}\n\nTranscript:\n{transcript}\n\n"
             "Close with a structured synthesis: consensus, disagreement, risks, and recommended next steps. "
+            "Do not assign Moderator ownership of real-world actions. Use the actual actor "
+            "when it is known; otherwise leave ownership unassigned. "
             "If no expert made a substantive assessment because competence is missing: "
             "say the question is unanswered (missing expertise). Do not invent analogical conclusions."
         ),
@@ -1383,7 +1453,13 @@ HOW YOU WRITE COMMENTS:
             "Sätt evidence_refs till de refs som faktiskt stöder claimen. Hitta inte på refs.\n"
             "- Var konservativ: få starka claims hellre än många svaga.\n"
             "- Om underlaget är tomt eller för svagt: returnera tomma claims och eventuellt unanswered. "
-            "Hitta inte på slutsatser."
+            "Hitta inte på slutsatser.\n"
+            "- Sätt claim_basis till document, assumption, research eller uncertain. "
+            "document = stöd i dokument/brief/offentligt expertresonemang. "
+            "assumption = buren som antagande. research = belagd via research. "
+            "uncertain = osäker expertbedömning.\n"
+            "- external_normative=true bara när claimen lägger fram en precis extern "
+            "norm, branschstandard eller sifferbenchmark som fastställd fakta."
         ),
         (
             "Topic: {topic}\n\n"
@@ -1417,7 +1493,13 @@ HOW YOU WRITE COMMENTS:
             "Set evidence_refs to the refs that actually support the claim. Do not invent refs.\n"
             "- Be conservative: few strong claims rather than many weak ones.\n"
             "- If the record is empty or too weak: return empty claims and optionally unanswered. "
-            "Do not invent conclusions."
+            "Do not invent conclusions.\n"
+            "- Set claim_basis to document, assumption, research, or uncertain. "
+            "document = support in the document/brief/public expert reasoning. "
+            "assumption = carried as an assumption. research = established via research. "
+            "uncertain = uncertain expert judgment.\n"
+            "- Set external_normative=true only when the claim presents a precise external "
+            "norm, industry standard, or numeric benchmark as an established fact."
         ),
     ),
     _f(
@@ -1508,14 +1590,20 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "Svara kort och konkret utifrån din kompetens. "
             "Håll dig strikt till din profil. Använd inte generell modellkunskap "
             "utanför din kompetens. Om frågan ligger utanför din kompetens ska du "
-            "inte göra en saklig bedömning."
+            "inte göra en saklig bedömning. "
+            "Har du beslutat research_decision=none: lägg inte fram precisa externa "
+            "normer eller branschbenchmarks som fastställda fakta om de inte är "
+            "flaggade för verifiering eller uttryckligen burits som antaganden."
         ),
         (
             "You participate as {label} in an expert panel.\n\nProfile:\n{profile}\n\n"
             "Reply briefly and concretely from your expertise. "
             "Stay strictly within your profile. Do not use general model knowledge "
             "outside your competence. If the question is outside your competence, "
-            "do not give a substantive assessment."
+            "do not give a substantive assessment. "
+            "If you decided research_decision=none: do not present precise external "
+            "norms or industry benchmarks as established facts unless they were "
+            "flagged for verification or explicitly carried as assumptions."
         ),
     ),
     _f(
@@ -1554,7 +1642,13 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "- Noll behov är ett giltigt svar om underlaget räcker.\n"
             "- Ett faktiskt behov kräver en icke-tom fråga och minst en tillåten källtyp. "
             "Hitta inte på en källtyp.\n"
-            "- web är tillåten men inte default."
+            "- web är tillåten men inte default.\n"
+            "- Sätt research_decision till none, recommended eller required. "
+            "none är ett explicit beslut: motivera det (rationale eller "
+            "can_answer_from_document=true) och lämna needs tom.\n"
+            "- Lista claims_requiring_verification för precisa externa/normativa "
+            "påståenden som måste beläggas, och assumptions för osäkra omdömen. "
+            "none får inte samexistera med verifieringskrav."
         ),
         (
             "Topic: {topic}\n\n"
@@ -1586,7 +1680,13 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "- Zero needs is a valid answer if the brief is enough.\n"
             "- A real need requires a non-empty question and at least one allowed "
             "source type. Do not invent a source type.\n"
-            "- web is allowed but is not the default."
+            "- web is allowed but is not the default.\n"
+            "- Set research_decision to none, recommended, or required. "
+            "none is an explicit decision: justify it (rationale or "
+            "can_answer_from_document=true) and leave needs empty.\n"
+            "- List claims_requiring_verification for precise external/normative "
+            "claims that must be evidenced, and assumptions for uncertain judgments. "
+            "none cannot coexist with verification claims."
         ),
     ),
     _f(
@@ -2117,7 +2217,9 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "question och why_it_matters. "
             "Varje fråga ska gälla EN materiell sakfråga, inte flera oberoende "
             "problem i samma fråga. Be inte experten skriva en hel miniutredning. "
-            "Om needs_review är false: tom questions-lista."
+            "Om needs_review är false: tom questions-lista. "
+            "Din synliga roll är Moderator, aldrig Moderator (Jag). "
+            "Du äger inte verkliga nästa steg."
         ),
         (
             "You moderate an expert review of a Word document. "
@@ -2149,7 +2251,9 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "question, and why_it_matters. "
             "Each question must target ONE material issue, not several independent "
             "problems in the same question. Do not ask the expert for a mini-memorandum. "
-            "If needs_review is false: empty questions list."
+            "If needs_review is false: empty questions list. "
+            "Your visible role is Moderator, never Moderator (I). "
+            "You do not own real-world next steps."
         ),
     ),
     _f(
@@ -2276,7 +2380,10 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "Saklig kritik som talar mot användarens position är tillåten och krävs "
             "när den är befogad. Detta är perspektivstyrning, inte partsadvocacy. "
             "När perspektivet är okänt: skriv neutralt och hitta inte på en sida. "
-            "Vänd inte på dokumentfakta. Externa antaganden ska märkas som antaganden."
+            "Vänd inte på dokumentfakta. Externa antaganden ska märkas som antaganden. "
+            "Lägg inte fram precisa externa normer eller branschbenchmarks som "
+            "fastställda fakta utan att märka dem som antaganden eller verifieringsbehov. "
+            "Tilldela inte Moderator ägarskap för verkliga åtgärder."
         ),
         (
             "Your role: {label}\n"
@@ -2312,7 +2419,10 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "Factual criticism that is adverse to the user's position is allowed and "
             "required when warranted. This is perspective control, not advocacy. "
             "When perspective is unknown: stay neutral and do not invent a side. "
-            "Do not reverse document facts. Phrase external assumptions as assumptions."
+            "Do not reverse document facts. Phrase external assumptions as assumptions. "
+            "Do not present precise external norms or industry benchmarks as "
+            "established facts unless marked as assumptions or needing verification. "
+            "Do not assign Moderator ownership of real-world actions."
         ),
     ),
     _f(
@@ -2633,7 +2743,9 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "Motpart eller mottagare: {counterpart_or_audience}\n"
             "Relation: {relationship}\n"
             "Granskningsmål: {review_goal}\n"
-            "Utgångsperspektiv: {output_perspective}"
+            "Utgångsperspektiv: {output_perspective}\n"
+            "Första person (vi/vår) är giltigt när det är användarens sida. "
+            "Moderatorn är inte en verklig aktör och äger inte nästa steg."
         ),
         (
             "Actor context\n"
@@ -2652,7 +2764,9 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "Counterpart or audience: {counterpart_or_audience}\n"
             "Relationship: {relationship}\n"
             "Review goal: {review_goal}\n"
-            "Output perspective: {output_perspective}"
+            "Output perspective: {output_perspective}\n"
+            "First person (we/our) is valid when that is the user's side. "
+            "The moderator is not a real-world actor and does not own next steps."
         ),
     ),
     _f(

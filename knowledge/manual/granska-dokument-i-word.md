@@ -29,6 +29,8 @@ När granskningen är klar betyder det att förslagen är färdiggenererade, int
 
 ## Granska igen
 
+Avsiktsfrågorna hör till dokumentet, inte till en enskild körning. När du redan har svarat och sedan granskar en **markering** i samma dokument används samma svar igen — du får inte frågorna på nytt. Klicka **Ändra granskningsavsikt** om mål eller perspektiv har ändrats. Då tas nya frågor fram.
+
 Klicka **Granska** en gång till i samma dokument först när varje förslag är tillämpat eller avfärdat. Tidigare tillämpade kommentarer i Word markeras då som lösta. Ett nytt jobb startas inte om det finns öppna eller osäkra förslag.
 
 Om du stänger sidopanelen medan en granskning fortfarande körs, och öppnar den igen, fortsätter samma jobb. Ett nytt jobb startas inte förrän det pågående är klart.

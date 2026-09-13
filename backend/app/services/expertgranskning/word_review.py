@@ -97,6 +97,7 @@ from app.services.panel.expert_slots import load_expert_slots_from_population
 from app.services.panel.schemas import PanelExpertSlot
 from app.services.prompt_catalog import render_prompt
 from app.services.prompt_store import require_active_prompts
+from app.services.review_contract import compose_review_system_context
 from app.services.word.materialize import materialize_word_action
 from app.services.word.tasks import (
     require_review_panel_task,
@@ -1759,8 +1760,12 @@ async def run_word_paragraph_review(
             answers=payload.intent_answers,
             review_intent=payload.review_intent,
             limiter=limiter,
+            locale=payload.locale,
         )
-        actor_context = render_actor_context(actor, prompts)
+        actor_context = compose_review_system_context(
+            prompts=prompts,
+            actor_context=render_actor_context(actor, prompts),
+        )
         section_tasks = [
             asyncio.create_task(run_section(section_index, section))
             for section_index, section in enumerate(payload.sections)

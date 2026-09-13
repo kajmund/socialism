@@ -11,6 +11,7 @@ from app.services.expertgranskning import ARTIFACT_NAME, REPORT_MODE, SOURCE_TYP
 from app.services.report.locale import ReportLocale, normalize_locale
 from app.services.report.markdown_html import markdown_to_html
 from app.services.report.render import REPORT_FONTS_HREF, inject_report_theme
+from app.services.review_contract import display_speaker_label
 
 
 def load_expertgranskning_report_json(report_id: str) -> dict[str, Any] | None:
@@ -46,7 +47,7 @@ def _transcript_html(turns: list[dict[str, Any]]) -> str:
         phase = str(turn.get("phase") or "")
         if phase == "scratchpad":
             continue
-        speaker = escape(str(turn.get("speaker") or ""))
+        speaker = escape(display_speaker_label(str(turn.get("speaker") or "")))
         content = markdown_to_html(str(turn.get("content") or ""))
         if not speaker and not content:
             continue

@@ -4,12 +4,19 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
 from app.llm import complete_structured
 from app.services.panel.competency import CompetencyState
-from app.services.panel.research import MISSING_EXPERTISE_SIGNAL
+from app.services.panel.research import (
+    MISSING_EXPERTISE_SIGNAL,
+    ExpertResearchNeeds,
+    ResearchAssumption,
+    ClaimRequiringVerification,
+    unqualified_external_claims,
+)
 from app.services.panel.result import (
     MISSING_EXPERTISE_REASON,
     PANEL_RESULT_SCHEMA_CURRENT,
@@ -20,6 +27,10 @@ from app.services.panel.result import (
 from app.services.panel.review_intent import session_brief_for_llm
 from app.services.panel.schemas import PanelSessionConfig, PanelTurn
 from app.services.prompt_catalog import render_prompt
+from app.services.review_contract import (
+    display_speaker_label,
+    messages_with_output_contract,
+)
 
 _EVIDENCE_REF_RE = re.compile(r"\[E(\d+)\]", re.IGNORECASE)
 _BARE_EVIDENCE_REF_RE = re.compile(r"^E(\d+)$", re.IGNORECASE)
@@ -28,12 +39,17 @@ _RAISE_HAND_TOKENS = frozenset({"JA", "NEJ", "YES", "NO", "RAISE"})
 _SCRATCHPAD_MATCH_MIN = 12
 
 
+ClaimBasis = Literal["document", "assumption", "research", "uncertain"]
+
+
 class SynthesizedClaim(BaseModel):
     claim: str
     evidence: str
     judgment: str
     dissensus: bool = False
     evidence_refs: list[str] = Field(default_factory=list)
+    claim_basis: ClaimBasis = "document"
+    external_normative: bool = False
 
 
 class GenericPanelSynthesis(BaseModel):
@@ -51,10 +67,11 @@ def public_transcript_text(transcript: list[PanelTurn]) -> str:
     for turn in transcript:
         if turn.phase in _PLANNING_PHASES:
             continue
+        speaker = display_speaker_label(turn.speaker)
         if turn.phase == "raise_hand":
-            lines.append(f"{turn.speaker} (raise_hand): {turn.content}")
+            lines.append(f"{speaker} (raise_hand): {turn.content}")
             continue
-        lines.append(f"{turn.speaker}: {turn.content}")
+        lines.append(f"{speaker}: {turn.content}")
     return "\n".join(lines)
 
 
@@ -111,13 +128,108 @@ def _usable_claim(item: SynthesizedClaim, transcript: list[PanelTurn]) -> bool:
     return True
 
 
+def _assumption_texts(competency: CompetencyState) -> list[str]:
+    texts: list[str] = []
+    for row in competency.slots:
+        texts.extend(row.assumptions)
+        texts.extend(row.claims_requiring_verification)
+    return texts
+
+
+def _none_decision_slots(competency: CompetencyState) -> list:
+    return [row for row in competency.slots if row.research_decision == "none"]
+
+
+def _any_researched(competency: CompetencyState) -> bool:
+    return any(
+        row.research_decision in {"recommended", "required"} for row in competency.slots
+    )
+
+
+def _text_covered_by_metadata(text: str, catalog: list[str]) -> bool:
+    needle = text.casefold().strip()
+    if not needle:
+        return False
+    for item in catalog:
+        hay = item.casefold().strip()
+        if hay and (hay in needle or needle in hay):
+            return True
+    return False
+
+
+def _bundle_for_none_slot(row) -> ExpertResearchNeeds:
+    return ExpertResearchNeeds(
+        research_decision="none",
+        can_answer_from_document=True,
+        assumptions=[
+            ResearchAssumption(assumption=item) for item in row.assumptions
+        ],
+        claims_requiring_verification=[
+            ClaimRequiringVerification(claim=item)
+            for item in row.claims_requiring_verification
+        ],
+    )
+
+
+def leaked_none_decision_claims(
+    transcript: list[PanelTurn],
+    competency: CompetencyState,
+) -> list[str]:
+    """Secondary detector: none-decision expert prose vs stored metadata."""
+    none_ids = {row.slot_id for row in _none_decision_slots(competency) if row.slot_id}
+    none_labels = {row.label for row in _none_decision_slots(competency)}
+    by_slot = {row.slot_id: row for row in competency.slots}
+    by_label = {row.label: row for row in competency.slots}
+    leaked: list[str] = []
+    for turn in transcript:
+        if turn.phase != "expert" or not turn.content.strip():
+            continue
+        row = None
+        if turn.slot_id and turn.slot_id in none_ids:
+            row = by_slot.get(turn.slot_id)
+        elif turn.speaker in none_labels:
+            row = by_label.get(turn.speaker)
+        if row is None or row.research_decision != "none":
+            continue
+        leaked.extend(unqualified_external_claims(_bundle_for_none_slot(row), turn.content))
+    return leaked
+
+
+def claim_allowed_by_research(
+    item: SynthesizedClaim,
+    competency: CompetencyState | None,
+    leaked: list[str],
+) -> bool:
+    """Structured metadata is the gate. Regex leaks only confirm a presented phrase."""
+    if competency is None:
+        return True
+    if not _none_decision_slots(competency):
+        return True
+    catalog = _assumption_texts(competency)
+    if _text_covered_by_metadata(item.claim, catalog):
+        return True
+    if item.external_normative or item.claim_basis == "research":
+        if _any_researched(competency):
+            return True
+        return False
+    claim_folded = item.claim.casefold()
+    return not any(leak.casefold() in claim_folded for leak in leaked)
+
+
 def _accepted_claims(
     synthesis: GenericPanelSynthesis,
     transcript: list[PanelTurn],
+    competency: CompetencyState | None = None,
 ) -> list[SynthesizedClaim]:
     if not _has_public_expert_substance(transcript):
         return []
-    return [row for row in synthesis.claims if _usable_claim(row, transcript)]
+    leaked = leaked_none_decision_claims(transcript, competency) if competency else []
+    return [
+        row
+        for row in synthesis.claims
+        if _usable_claim(row, transcript)
+        and claim_allowed_by_research(row, competency, leaked)
+    ]
 
 
 def extract_evidence_refs(*texts: str) -> list[str]:
@@ -189,7 +301,7 @@ def panel_result_from_synthesis(
     allowed_evidence_refs: frozenset[str] | None = None,
     competency: CompetencyState | None = None,
 ) -> PanelResult:
-    accepted = _accepted_claims(synthesis, transcript)
+    accepted = _accepted_claims(synthesis, transcript, competency)
     claims = [
         PanelClaim(
             claim_id=f"claim_{index}",
@@ -219,6 +331,8 @@ def panel_result_from_synthesis(
                 judgment=item.judgment.strip(),
                 dissensus=item.dissensus,
                 evidence_refs=claim.evidence_refs,
+                claim_basis=item.claim_basis,
+                external_normative=item.external_normative,
             )
             for item, claim in zip(accepted, claims, strict=True)
         ],
@@ -252,6 +366,7 @@ async def synthesize_generic_panel_result(
         messages.append({"role": "system", "content": brief})
     if evidence_prompt:
         messages.append({"role": "system", "content": evidence_prompt})
+    messages = messages_with_output_contract(messages, prompts)
     messages.append(
         {
             "role": "user",

@@ -21,6 +21,7 @@ from app.services.panel.review_intent import (
     render_review_intent_message,
 )
 from app.services.prompt_catalog import render_prompt
+from app.services.review_contract import messages_with_output_contract
 
 DOCUMENT_DATA_OPEN = "<document>"
 DOCUMENT_DATA_CLOSE = "</document>"
@@ -217,14 +218,20 @@ def intent_interview_messages(
     *,
     prompts: dict[str, str],
     document: str,
+    locale: str = "sv",
 ) -> list[ChatMessage]:
-    return [
-        {
-            "role": "system",
-            "content": render_prompt(prompts, "expertgranskning.word.intent_interview"),
-        },
-        {"role": "user", "content": document_as_user_data(document)},
-    ]
+    return messages_with_output_contract(
+        [
+            {
+                "role": "system",
+                "content": render_prompt(
+                    prompts, "expertgranskning.word.intent_interview"
+                ),
+            },
+            {"role": "user", "content": document_as_user_data(document)},
+        ],
+        prompts,
+    )
 
 
 def _option_label(question: IntentQuestion, value: str) -> str:
@@ -350,9 +357,12 @@ async def generate_document_intent_interview(
     *,
     sections: list[WordDocumentSection],
     prompts: dict[str, str],
+    locale: str = "sv",
 ) -> DocumentIntentInterview:
     document = document_text_for_interview(sections)
-    messages = intent_interview_messages(prompts=prompts, document=document)
+    messages = intent_interview_messages(
+        prompts=prompts, document=document, locale=locale
+    )
     raw = await complete_word_structured(
         messages,
         LlmDocumentIntentInterview,

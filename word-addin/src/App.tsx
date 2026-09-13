@@ -51,6 +51,13 @@ import {
   toggleMultiChoice,
 } from "@/lib/intentInterview"
 import {
+  interviewDraftLocaleMismatch,
+  localeForReview,
+  reusedIntentPayload,
+  savedReviewContext,
+  shouldGenerateIntentInterview,
+} from "@/lib/reviewContext"
+import {
   NoWordParagraphsError,
   NoWordSectionsError,
   prepareWordReview,
@@ -63,6 +70,7 @@ import type {
   IntentAnswer,
   WordAction,
   WordDocumentSection,
+  WordReviewContext,
   WordTaskScopeType,
 } from "@/lib/types"
 import { actionsForWatchEvent, isWatchEvent } from "@/lib/watch"
@@ -84,6 +92,7 @@ type ReviewDraft = {
   index: number
   docId: string
   resolveCommentIds: string[]
+  locale: "sv" | "en"
 }
 
 export function App() {
@@ -96,6 +105,7 @@ export function App() {
   const [taskScope, setTaskScope] = useState<WordTaskScopeType>("document")
   const [phase, setPhase] = useState<Phase>("idle")
   const [draft, setDraft] = useState<ReviewDraft | null>(null)
+  const [reviewContext, setReviewContext] = useState<WordReviewContext | null>(null)
   const [watchSource, setWatchSource] = useState<"new" | "resume">("new")
   const [progress, setProgress] = useState<{
     sections_completed: number
@@ -243,6 +253,11 @@ export function App() {
         if (!finished) return
         noteActions(finished.actions)
         setPhase(finished.phase)
+        const stored = savedReviewContext(latest)
+        if (stored) {
+          setReviewContext(stored)
+          setReviewIntent((current) => current || stored.review_intent)
+        }
         if (finished.phase === "failed") {
           setError(finished.error)
         }
@@ -281,6 +296,7 @@ export function App() {
     setPanelId("")
     setError("")
     setDraft(null)
+    setReviewContext(null)
     setPhase("idle")
     resetQueue()
   }
@@ -390,7 +406,7 @@ export function App() {
     }
   }
 
-  async function handleReview() {
+  async function handleReview(options?: { resetIntent?: boolean }) {
     setError("")
     if (!inWord) {
       setError(t("officeMissing"))
@@ -405,6 +421,8 @@ export function App() {
     try {
       const docId = await getOrCreateDocId()
       const latest = await getLatestWordJob(token, docId)
+      const stored = savedReviewContext(latest)
+      if (stored) setReviewContext(stored)
       const plan = planReviewStart(latest)
       switch (plan.action) {
         case "resume":
@@ -431,11 +449,54 @@ export function App() {
           captureSnapshot: () => captureWordTaskSnapshot(taskScope),
           buildSections,
         })
+        const reviewLocale = localeForReview(locale)
+        const reuse = stored
+        if (
+          !shouldGenerateIntentInterview({
+            context: reuse,
+            locale: reviewLocale,
+            resetRequested: options?.resetIntent === true,
+          }) &&
+          reuse
+        ) {
+          const payload = reusedIntentPayload(reuse)
+          setPhase("preparing")
+          const jobId = await submitPreparedWordReview({
+            snapshot: prepared.snapshot,
+            sections: prepared.sections,
+            createJob: ({ snapshot, sections }) =>
+              createWordJob(token, {
+                task: createWordTask({
+                  panelId: Number(panelId),
+                  scope: snapshot.scope,
+                }),
+                doc_id: docId,
+                word_session_id: WORD_SESSION_ID,
+                sections,
+                locale: reviewLocale,
+                review_intent: reviewIntent.trim() || payload.reviewIntent,
+                intent_interview: payload.interview,
+                intent_answers: normalizeIntentAnswers(payload.answers),
+              }),
+            async resolvePreviousComments() {
+              for (const commentId of plan.resolveCommentIds) {
+                try {
+                  await resolveComment(commentId)
+                } catch {
+                  // Already resolved or missing in this document.
+                }
+              }
+            },
+          })
+          setDraft(null)
+          attachWatch(jobId, "new")
+          return
+        }
         setPhase("preparing")
         const interview = await generateIntentInterview(token, {
           panel_id: Number(panelId),
           sections: prepared.sections,
-          locale: locale === "en" ? "en" : "sv",
+          locale: reviewLocale,
         })
         setDraft({
           snapshot: prepared.snapshot,
@@ -445,6 +506,7 @@ export function App() {
           index: 0,
           docId,
           resolveCommentIds: plan.resolveCommentIds,
+          locale: reviewLocale,
         })
         setPhase("interviewing")
       } catch (err) {
@@ -518,9 +580,27 @@ export function App() {
     setError("")
   }
 
+  function handleChangeIntent() {
+    setDraft(null)
+    setError("")
+    void handleReview({ resetIntent: true })
+  }
+
   async function handleStartFromInterview() {
     if (!draft || !token || !panelId) return
     if (!answersReady(draft.interview, draft.answers)) return
+    const reviewLocale = localeForReview(locale)
+    if (
+      interviewDraftLocaleMismatch({
+        draftLocale: draft.locale,
+        locale: reviewLocale,
+      })
+    ) {
+      setDraft(null)
+      setPhase("idle")
+      void handleReview({ resetIntent: true })
+      return
+    }
     setError("")
     try {
       const jobId = await submitPreparedWordReview({
@@ -535,7 +615,7 @@ export function App() {
             doc_id: draft.docId,
             word_session_id: WORD_SESSION_ID,
             sections,
-            locale: locale === "en" ? "en" : "sv",
+            locale: draft.locale,
             review_intent: reviewIntent.trim(),
             intent_interview: draft.interview,
             intent_answers: normalizeIntentAnswers(draft.answers),
@@ -549,6 +629,12 @@ export function App() {
             }
           }
         },
+      })
+      setReviewContext({
+        locale: draft.locale,
+        review_intent: reviewIntent.trim(),
+        intent_interview: draft.interview,
+        intent_answers: normalizeIntentAnswers(draft.answers),
       })
       setDraft(null)
       attachWatch(jobId, "new")
@@ -637,7 +723,21 @@ export function App() {
           <select
             className="lang-control"
             value={locale}
-            onChange={(event) => setLocale(event.target.value === "en" ? "en" : "sv")}
+            disabled={phase === "interviewing" || phase === "preparing" || phase === "running"}
+            onChange={(event) => {
+              const next = event.target.value === "en" ? "en" : "sv"
+              setLocale(next)
+              if (
+                draft != null &&
+                interviewDraftLocaleMismatch({
+                  draftLocale: draft.locale,
+                  locale: next,
+                })
+              ) {
+                setDraft(null)
+                setPhase("idle")
+              }
+            }}
           >
             <option value="sv">{t("languageSv")}</option>
             <option value="en">{t("languageEn")}</option>
@@ -763,6 +863,22 @@ export function App() {
           </button>
         )}
         {phase === "interviewing" ? <p className="hint">{t("interviewHint")}</p> : null}
+        {phase !== "interviewing" &&
+        phase !== "preparing" &&
+        phase !== "running" &&
+        reviewContext ? (
+          <>
+            <p className="hint">{t("intentReusedHint")}</p>
+            <button
+              type="button"
+              className="link"
+              disabled={!token || !panelId || reviewBlock !== null}
+              onClick={handleChangeIntent}
+            >
+              {t("changeIntent")}
+            </button>
+          </>
+        ) : null}
 
         <div className="field">
           <label htmlFor="intent">{t("intentLabel")}</label>
