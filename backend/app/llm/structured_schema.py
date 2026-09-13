@@ -36,7 +36,11 @@ def _ensure_strict(node: dict[str, Any], root: dict[str, Any]) -> dict[str, Any]
             if isinstance(definition, dict):
                 definitions[name] = _ensure_strict(definition, root)
 
-    if node.get("type") == "object" or "properties" in node:
+    extra = node.get("additionalProperties")
+    if isinstance(extra, dict):
+        # Typed maps (dict[str, T]) use additionalProperties as a value schema.
+        node["additionalProperties"] = _ensure_strict(extra, root)
+    elif node.get("type") == "object" or "properties" in node:
         node["additionalProperties"] = False
 
     properties = node.get("properties")

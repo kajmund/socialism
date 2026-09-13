@@ -6,7 +6,7 @@ import json
 from types import SimpleNamespace
 
 import pytest
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from app.config import (
     CEREBRAS_DEFAULT_BASE_URL,
@@ -304,6 +304,70 @@ def test_strict_json_schema_marks_nested_objects_closed():
     for definition in emitted["$defs"].values():
         assert definition["additionalProperties"] is False
         assert set(definition["required"]) == set(definition["properties"])
+
+
+class _StringMapOut(BaseModel):
+    labels: dict[str, str]
+
+
+class _NestedStringMapOut(BaseModel):
+    groups: dict[str, dict[str, str]]
+
+
+def test_strict_json_schema_preserves_string_mapping():
+    raw = _StringMapOut.model_json_schema()
+    emitted = strict_json_schema(raw)
+    assert emitted["additionalProperties"] is False
+    assert emitted["required"] == ["labels"]
+    labels = emitted["properties"]["labels"]
+    assert labels["type"] == "object"
+    assert labels["additionalProperties"] == {"type": "string"}
+    assert raw["properties"]["labels"]["additionalProperties"] == {"type": "string"}
+
+
+def test_strict_json_schema_preserves_nested_string_mapping():
+    raw = _NestedStringMapOut.model_json_schema()
+    emitted = strict_json_schema(raw)
+    assert emitted["additionalProperties"] is False
+    groups = emitted["properties"]["groups"]
+    assert groups["type"] == "object"
+    inner = groups["additionalProperties"]
+    assert inner["type"] == "object"
+    assert inner["additionalProperties"] == {"type": "string"}
+    assert raw["properties"]["groups"]["additionalProperties"][
+        "additionalProperties"
+    ] == {"type": "string"}
+
+
+@pytest.mark.asyncio
+async def test_complete_structured_cerebras_preserves_string_mapping(
+    monkeypatch,
+):
+    set_structured_completer(None)
+    captured: dict = {}
+    settings.llm_provider = "cerebras"
+    settings.llm_model = ""
+
+    async def fake_create(**kwargs):
+        captured.update(kwargs)
+        return _structured_completion('{"labels":{"sv":"Hej"}}')
+
+    monkeypatch.setattr(
+        "app.llm.get_client",
+        lambda: SimpleNamespace(
+            chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))
+        ),
+    )
+    parsed = await complete_structured(
+        [{"role": "user", "content": "map"}],
+        _StringMapOut,
+    )
+    assert parsed.labels == {"sv": "Hej"}
+    labels = captured["response_format"]["json_schema"]["schema"]["properties"][
+        "labels"
+    ]
+    assert labels["additionalProperties"] == {"type": "string"}
+    assert captured["messages"] == [{"role": "user", "content": "map"}]
 
 
 @pytest.mark.asyncio
