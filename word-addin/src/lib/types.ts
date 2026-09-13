@@ -101,11 +101,19 @@ export type WordAction = {
   created_at?: string
 }
 
+export type WordReviewContext = {
+  locale: "sv" | "en" | "nb"
+  review_intent: string
+  intent_interview: DocumentIntentInterview | null
+  intent_answers: IntentAnswer[]
+}
+
 export type LatestWordJob = {
   job_id: string
   status: string
   error?: string | null
   actions: WordAction[]
+  review_context?: WordReviewContext | null
 }
 
 export type WatchReplay = {

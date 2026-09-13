@@ -35,6 +35,9 @@ export const messages = {
     interviewOther: "Annat / Inget av ovanstående",
     interviewOtherPlaceholder: "Skriv ditt svar",
     interviewInvalid: "Kunde inte läsa avsiktsfrågorna. Försök igen.",
+    changeIntent: "Ändra granskningsavsikt",
+    intentReusedHint:
+      "Samma avsiktssvar används igen för det här dokumentet, även om du granskar en markering. Ändra avsikt om mål eller perspektiv har ändrats.",
     scopeLabel: "Omfattning",
     scopeDocument: "Hela dokumentet",
     scopeSelection: "Markering",
@@ -125,6 +128,9 @@ export const messages = {
     interviewOther: "Other / none of the above",
     interviewOtherPlaceholder: "Write your answer",
     interviewInvalid: "Could not read the intent questions. Try again.",
+    changeIntent: "Change review intent",
+    intentReusedHint:
+      "The same intent answers are reused for this document, including later selection reviews. Change the intent if the goal or perspective has changed.",
     scopeLabel: "Scope",
     scopeDocument: "Whole document",
     scopeSelection: "Selection",

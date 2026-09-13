@@ -68,6 +68,28 @@ describe("PanelLiveFeedList", () => {
     expect(html).not.toContain("Delfråga 2")
   })
 
+  it("renders the moderator role without a first-person suffix", () => {
+    const html = renderToStaticMarkup(
+      <LocaleProvider>
+        <PanelLiveFeedList
+          emptyLabel="empty"
+          pendingTurn={null}
+          turns={[
+            {
+              turn_id: "t-mod",
+              speaker: "Moderator (Jag)",
+              phase: "analysis",
+              content: "Vi bör kontakta motparten.",
+            },
+          ]}
+        />
+      </LocaleProvider>,
+    )
+
+    expect(html).toContain("Moderator")
+    expect(html).not.toContain("Moderator (Jag)")
+  })
+
   it("renders research-need and research-plan phase labels", () => {
     const html = renderToStaticMarkup(
       <LocaleProvider>
