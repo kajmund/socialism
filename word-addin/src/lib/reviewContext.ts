@@ -29,6 +29,14 @@ export function shouldGenerateIntentInterview(args: {
   return localeForReview(args.context.locale) !== args.locale
 }
 
+export function interviewDraftLocaleMismatch(args: {
+  draftLocale: "sv" | "en" | undefined
+  locale: "sv" | "en"
+}): boolean {
+  if (args.draftLocale == null) return true
+  return args.draftLocale !== args.locale
+}
+
 export function reusedIntentPayload(context: WordReviewContext): {
   interview: DocumentIntentInterview
   answers: IntentAnswer[]
