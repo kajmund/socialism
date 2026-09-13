@@ -16,6 +16,7 @@ from openai import AsyncOpenAI
 from openai.resources.chat.completions import AsyncCompletions
 
 from app.config import settings
+from app.llm.structured_schema import strict_json_schema
 from app.llm.tool_messages import normalize_messages_for_provider
 from app.schemas.domain import EditablePersona
 
@@ -136,16 +137,7 @@ def _structured_response_format(
     return {"type": "json_object"}
 
 
-def _structured_guide_message(schema: dict[str, Any]) -> ChatMessage:
-    if settings.llm_provider == "cerebras":
-        # Schema is already in response_format; do not send a second copy.
-        return {
-            "role": "user",
-            "content": (
-                "Return ONLY a JSON object matching the required schema "
-                "(no markdown)."
-            ),
-        }
+def _json_object_guide_message(schema: dict[str, Any]) -> ChatMessage:
     return {
         "role": "user",
         "content": (
@@ -226,7 +218,10 @@ async def complete_structured[T](
     client = get_client()
     schema = response_model.model_json_schema()  # type: ignore[attr-defined]
     guided = list(messages)
-    guided.append(_structured_guide_message(schema))
+    if settings.llm_provider == "cerebras":
+        schema = strict_json_schema(schema)
+    else:
+        guided.append(_json_object_guide_message(schema))
     chosen = _resolved_model(model)
     timeout = settings.llm_timeout_seconds
     started_at = time.monotonic()

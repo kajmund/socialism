@@ -26,7 +26,8 @@ from app.llm import (
     set_text_completer,
     set_tools_completer,
 )
-from app.schemas.domain import FollowUpQuestions
+from app.llm.structured_schema import strict_json_schema
+from app.schemas.domain import EditablePersona, FollowUpQuestions
 from app.services.expertgranskning.schemas import WordCommentConvergence
 
 
@@ -180,12 +181,16 @@ async def test_complete_structured_cerebras_sends_reasoning_effort(monkeypatch):
     assert captured["model"] == CEREBRAS_DEFAULT_MODEL
     assert captured["reasoning_effort"] == "medium"
     response_format = captured["response_format"]
+    raw_schema = WordCommentConvergence.model_json_schema()
+    emitted = response_format["json_schema"]["schema"]
     assert response_format["type"] == "json_schema"
     assert response_format["json_schema"]["name"] == "WordCommentConvergence"
     assert response_format["json_schema"]["strict"] is True
-    assert response_format["json_schema"]["schema"] == (
-        WordCommentConvergence.model_json_schema()
-    )
+    assert emitted == strict_json_schema(raw_schema)
+    assert emitted["additionalProperties"] is False
+    assert set(emitted["properties"]) == set(raw_schema["properties"])
+    assert set(emitted["required"]) == set(emitted["properties"])
+    assert captured["messages"] == [{"role": "user", "content": "group"}]
     assert "tools" not in captured
     assert captured["max_tokens"] == settings.llm_max_tokens
     assert recorded[0].provider == "cerebras"
@@ -269,16 +274,36 @@ async def test_complete_structured_cerebras_sends_follow_up_json_schema(
     )
     assert parsed.questions == ["Hur mår du?", "Vad händer sen?"]
     response_format = captured["response_format"]
-    schema = FollowUpQuestions.model_json_schema()
+    raw_schema = FollowUpQuestions.model_json_schema()
+    emitted = response_format["json_schema"]["schema"]
     assert response_format["type"] == "json_schema"
     assert response_format["json_schema"]["name"] == "FollowUpQuestions"
     assert response_format["json_schema"]["strict"] is True
-    assert response_format["json_schema"]["schema"] == schema
-    assert "questions" in schema["required"]
-    assert response_format["json_schema"]["schema"]["required"] == ["questions"]
-    guide = captured["messages"][-1]["content"]
-    assert json.dumps(schema, ensure_ascii=False) not in guide
+    assert emitted == strict_json_schema(raw_schema)
+    assert emitted["additionalProperties"] is False
+    assert emitted["required"] == ["questions"]
+    assert "questions" in raw_schema["required"]
+    assert "minItems" not in emitted["properties"]["questions"]
+    assert "maxItems" not in emitted["properties"]["questions"]
+    assert captured["messages"] == [{"role": "user", "content": "chips"}]
     assert "tools" not in captured
+
+
+def test_strict_json_schema_requires_every_property_on_editable_persona():
+    raw = EditablePersona.model_json_schema()
+    emitted = strict_json_schema(raw)
+    assert emitted["additionalProperties"] is False
+    assert set(emitted["required"]) == set(raw["properties"])
+    assert set(emitted["properties"]) == set(raw["properties"])
+    assert "name" in emitted["required"]
+
+
+def test_strict_json_schema_marks_nested_objects_closed():
+    emitted = strict_json_schema(WordCommentConvergence.model_json_schema())
+    assert emitted["additionalProperties"] is False
+    for definition in emitted["$defs"].values():
+        assert definition["additionalProperties"] is False
+        assert set(definition["required"]) == set(definition["properties"])
 
 
 @pytest.mark.asyncio
