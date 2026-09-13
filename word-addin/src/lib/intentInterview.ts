@@ -117,6 +117,10 @@ export function answerForQuestion(
   return answers.find((answer) => answer.question_id === questionId)
 }
 
+export function isOtherAnswer(answer: IntentAnswer | undefined): boolean {
+  return Boolean(answer && answer.selected_values.length === 0 && answer.free_text != null)
+}
+
 export function isQuestionAnswered(
   question: IntentQuestion,
   answer: IntentAnswer | undefined,
@@ -124,9 +128,11 @@ export function isQuestionAnswered(
   if (!answer) return false
   switch (question.type) {
     case "single_choice":
-      return answer.selected_values.length === 1
+      if (answer.selected_values.length === 1) return true
+      return isOtherAnswer(answer) && Boolean(answer.free_text?.trim())
     case "multi_choice":
-      return answer.selected_values.length > 0
+      if (answer.selected_values.length > 0) return true
+      return isOtherAnswer(answer) && Boolean(answer.free_text?.trim())
     case "free_text":
       return Boolean(answer.free_text?.trim())
     default: {
@@ -194,6 +200,28 @@ export function setFreeTextAnswer(
   if (freeText === "") {
     return answers.filter((answer) => answer.question_id !== questionId)
   }
+  return upsertAnswer(answers, questionId, {
+    selected_values: [],
+    free_text: freeText,
+  })
+}
+
+export function selectOtherAnswer(
+  answers: IntentAnswer[],
+  questionId: string,
+): IntentAnswer[] {
+  const current = answerForQuestion(answers, questionId)
+  return upsertAnswer(answers, questionId, {
+    selected_values: [],
+    free_text: current?.free_text ?? "",
+  })
+}
+
+export function setOtherFreeText(
+  answers: IntentAnswer[],
+  questionId: string,
+  freeText: string,
+): IntentAnswer[] {
   return upsertAnswer(answers, questionId, {
     selected_values: [],
     free_text: freeText,

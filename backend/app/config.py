@@ -92,6 +92,9 @@ class Settings(BaseSettings):
     persona_generate_concurrency: int = Field(default=8, ge=1, le=32)
     # Max concurrent Word-review LLM calls within one expertgranskning job.
     word_review_max_concurrency: int = Field(default=8, ge=1, le=32)
+    # Cheap/fast model path for per-question expert routing (not moderation).
+    word_review_router_model: str = "deepseek-chat"
+    word_review_router_max_tokens: int = Field(default=256, ge=16, le=2048)
     # Rotating API log (empty = no file). Relative paths resolve from cwd.
     log_dir: str = "data/logs"
     log_max_bytes: int = Field(default=2_000_000, ge=1024)

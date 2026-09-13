@@ -58,7 +58,13 @@ def set_text_streamer(streamer: TextStreamer | None) -> None:
     _text_streamer = streamer
 
 
-async def complete_structured[T](messages: list[ChatMessage], response_model: type[T]) -> T:
+async def complete_structured[T](
+    messages: list[ChatMessage],
+    response_model: type[T],
+    *,
+    model: str | None = None,
+    max_tokens: int | None = None,
+) -> T:
     if _structured_completer is not None:
         return await _structured_completer(messages, response_model)  # type: ignore[return-value]
 
@@ -77,10 +83,14 @@ async def complete_structured[T](messages: list[ChatMessage], response_model: ty
     timeout = settings.deepseek_timeout_seconds
     completion = await asyncio.wait_for(
         client.chat.completions.create(
-            model=settings.deepseek_model,
+            model=model or settings.deepseek_model,
             messages=guided,  # type: ignore[arg-type]
             response_format={"type": "json_object"},
-            max_tokens=settings.deepseek_max_tokens,
+            max_tokens=(
+                max_tokens
+                if max_tokens is not None
+                else settings.deepseek_max_tokens
+            ),
         ),
         timeout=timeout,
     )

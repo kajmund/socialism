@@ -31,9 +31,16 @@ async def complete_word_structured[T](
     *,
     prompts: dict[str, str],
     timings: WordReviewTimings | None = None,
+    model: str | None = None,
+    max_tokens: int | None = None,
 ) -> T:
     try:
-        return await complete_structured(messages, response_model)
+        return await complete_structured(
+            messages,
+            response_model,
+            model=model,
+            max_tokens=max_tokens,
+        )
     except ValidationError as exc:
         category = validation_category(exc)
         if not is_json_syntax_validation_error(exc):
@@ -50,6 +57,8 @@ async def complete_word_structured[T](
             return await complete_structured(
                 [*messages, {"role": "user", "content": retry}],
                 response_model,
+                model=model,
+                max_tokens=max_tokens,
             )
         except ValidationError as retry_exc:
             logger.info(

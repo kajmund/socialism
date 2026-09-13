@@ -13,6 +13,7 @@ from app.services.expertgranskning.schemas import (
     WordCommentConvergence,
     WordExpertComment,
     WordExpertRaiseHand,
+    WordExpertRoute,
     WordHeadingAssessment,
     WordRewriteSuggestion,
 )
@@ -62,6 +63,8 @@ async def test_word_review_emits_result_created_then_finished(
             return WordRewriteSuggestion(ny_text="", motivering="")
         if response_model is WordBatchModeration:
             return _moderation_for_batch(messages[-1]["content"])
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             label = _identity_label(messages)
             if label == DEFAULT_EXPERT_LABELS[0]:
@@ -127,6 +130,8 @@ async def test_word_review_emits_finished_on_failure(client: AsyncClient, monkey
     async def completer(messages, response_model):
         if response_model is WordBatchModeration:
             raise RuntimeError("heading boom")
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             label = _identity_label(messages)
             if label == DEFAULT_EXPERT_LABELS[0]:
@@ -174,6 +179,8 @@ async def test_word_result_patch_emits_updated(client: AsyncClient, monkeypatch)
             return WordRewriteSuggestion(ny_text="", motivering="")
         if response_model is WordBatchModeration:
             return _moderation_for_batch(messages[-1]["content"])
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             label = _identity_label(messages)
             if label == DEFAULT_EXPERT_LABELS[0]:
