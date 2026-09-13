@@ -380,19 +380,24 @@ def validate_intent_answers(
         raise ValueError(f"missing answers for required questions: {', '.join(missing)}")
 
 
+def is_custom_choice_answer(answer: IntentAnswer) -> bool:
+    """Choice rejected in favor of user-defined free text (no selected option)."""
+    return not answer.selected_values and bool((answer.free_text or "").strip())
+
+
 def _validate_one_intent_answer(question: IntentQuestion, answer: IntentAnswer) -> None:
     allowed = {option.value for option in question.options}
-    if question.type == "single_choice":
+    if question.type in {"single_choice", "multi_choice"}:
+        if is_custom_choice_answer(answer):
+            return
         if answer.free_text is not None:
             raise ValueError(f"{question.id} cannot include free_text")
-        if len(answer.selected_values) != 1:
-            raise ValueError(f"{question.id} requires exactly one selected value")
-        if answer.selected_values[0] not in allowed:
-            raise ValueError(f"{question.id} selected an unknown option")
-        return
-    if question.type == "multi_choice":
-        if answer.free_text is not None:
-            raise ValueError(f"{question.id} cannot include free_text")
+        if question.type == "single_choice":
+            if len(answer.selected_values) != 1:
+                raise ValueError(f"{question.id} requires exactly one selected value")
+            if answer.selected_values[0] not in allowed:
+                raise ValueError(f"{question.id} selected an unknown option")
+            return
         if not answer.selected_values:
             raise ValueError(f"{question.id} requires at least one selected value")
         if len(answer.selected_values) != len(set(answer.selected_values)):
@@ -545,6 +550,17 @@ class WordReviewQuestion(BaseModel):
     @field_validator("recommended_expert_ids", mode="before")
     @classmethod
     def strip_recommended_ids(cls, value: object) -> object:
+        if not isinstance(value, list):
+            return value
+        return [str(item).strip() for item in value if str(item).strip()]
+
+
+class WordExpertRoute(BaseModel):
+    expert_ids: list[str] = Field(default_factory=list)
+
+    @field_validator("expert_ids", mode="before")
+    @classmethod
+    def strip_expert_ids(cls, value: object) -> object:
         if not isinstance(value, list):
             return value
         return [str(item).strip() for item in value if str(item).strip()]

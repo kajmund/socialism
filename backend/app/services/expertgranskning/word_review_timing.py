@@ -15,6 +15,7 @@ T = TypeVar("T")
 
 TIMING_CATEGORIES = (
     "moderation",
+    "router",
     "raise_hand",
     "expert_comment",
     "rewrite_convergence",
@@ -35,6 +36,9 @@ class WordReviewTimings:
         self.direct_routed_questions = 0
         self.raise_hand_questions = 0
         self.questions_dropped_invalid_anchor = 0
+        self.router_assignments = 0
+        self.router_fallback_count = 0
+        self.invalid_router_ids = 0
         self.publication_units_completed = 0
         self.actions_published_before_completion = 0
         self._in_flight = 0
@@ -58,6 +62,15 @@ class WordReviewTimings:
 
     def record_dropped_invalid_anchor(self, count: int = 1) -> None:
         self.questions_dropped_invalid_anchor += count
+
+    def record_router_assignments(self, count: int) -> None:
+        self.router_assignments += count
+
+    def record_router_fallback(self, count: int = 1) -> None:
+        self.router_fallback_count += count
+
+    def record_invalid_router_ids(self, count: int) -> None:
+        self.invalid_router_ids += count
 
     def record_publication_progress(
         self,
@@ -92,12 +105,14 @@ class WordReviewTimings:
             "total_ms": round((now - self._started_at) * 1000),
             "time_to_first_action_ms": first_action_ms,
             "moderation_ms": round(self._totals_ms["moderation"]),
+            "router_ms": round(self._totals_ms["router"]),
             "raise_hand_ms": round(self._totals_ms["raise_hand"]),
             "expert_comment_ms": round(self._totals_ms["expert_comment"]),
             "rewrite_convergence_ms": round(self._totals_ms["rewrite_convergence"]),
             "comment_convergence_ms": round(self._totals_ms["comment_convergence"]),
             "heading_ms": round(self._totals_ms["heading"]),
             "moderation_calls": self._calls["moderation"],
+            "router_calls": self._calls["router"],
             "raise_hand_calls": self._calls["raise_hand"],
             "expert_comment_calls": self._calls["expert_comment"],
             "rewrite_convergence_calls": self._calls["rewrite_convergence"],
@@ -106,6 +121,9 @@ class WordReviewTimings:
             "direct_routed_questions": self.direct_routed_questions,
             "raise_hand_questions": self.raise_hand_questions,
             "questions_dropped_invalid_anchor": self.questions_dropped_invalid_anchor,
+            "router_assignments": self.router_assignments,
+            "router_fallback_count": self.router_fallback_count,
+            "invalid_router_ids": self.invalid_router_ids,
             "publication_units_completed": self.publication_units_completed,
             "actions_published_before_completion": (
                 self.actions_published_before_completion

@@ -5,10 +5,13 @@ import {
   InvalidIntentInterviewError,
   answersReady,
   isIntentInterviewInvalidError,
+  isOtherAnswer,
   isQuestionAnswered,
   normalizeIntentAnswers,
   parseIntentInterview,
+  selectOtherAnswer,
   setFreeTextAnswer,
+  setOtherFreeText,
   setSingleChoice,
   toggleMultiChoice,
 } from "./intentInterview"
@@ -130,6 +133,27 @@ describe("intent answers", () => {
     ])
     expect(setFreeTextAnswer([], "note", "")).toEqual([])
     expect(normalizeIntentAnswers(setFreeTextAnswer([], "note", "   "))).toEqual([])
+  })
+
+  it("treats other plus free text as a structured custom answer", () => {
+    const selected = selectOtherAnswer([], "party")
+    expect(isOtherAnswer(selected[0])).toBe(true)
+    expect(isQuestionAnswered(party, selected[0])).toBe(false)
+    expect(answersReady(interview([party]), selected)).toBe(false)
+    const typed = setOtherFreeText(selected, "party", "We represent the association")
+    expect(typed).toEqual([
+      {
+        question_id: "party",
+        selected_values: [],
+        free_text: "We represent the association",
+      },
+    ])
+    expect(isQuestionAnswered(party, typed[0])).toBe(true)
+    expect(answersReady(interview([party]), typed)).toBe(true)
+    expect(normalizeIntentAnswers(typed)).toEqual(typed)
+    const backToOption = setSingleChoice(typed, "party", "buyer")
+    expect(isOtherAnswer(backToOption[0])).toBe(false)
+    expect(backToOption[0]?.free_text).toBeNull()
   })
 
   it("removes an optional multi-choice answer when the last option is unchecked", () => {

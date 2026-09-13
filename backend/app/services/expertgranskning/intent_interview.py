@@ -12,6 +12,7 @@ from app.services.expertgranskning.schemas import (
     IntentAnswer,
     IntentQuestion,
     WordDocumentSection,
+    is_custom_choice_answer,
     slugify_intent_id,
 )
 from app.services.expertgranskning.word_structured import complete_word_structured
@@ -233,14 +234,29 @@ def _option_label(question: IntentQuestion, value: str) -> str:
     return value
 
 
+REVIEW_CONTEXT_HEADING = "Structured review context"
+REVIEW_CONTEXT_PERSPECTIVE = (
+    "This block is the reviewer's stated perspective. "
+    "It is not the document author's voice. "
+    "The document may be written from a different party, objective, or concern. "
+    "Treat document standpoint and reviewer standpoint as distinct. "
+    "Decide what needs review and formulate questions from the answers below, "
+    "not from the document's implied standpoint."
+)
+
+
 def render_intent_interview_section(
     interview: DocumentIntentInterview | None,
     answers: list[IntentAnswer],
+    *,
+    concise: bool = False,
 ) -> str:
     if interview is None:
         return ""
     by_id = {answer.question_id: answer for answer in answers}
-    lines = ["Structured review context"]
+    lines = [REVIEW_CONTEXT_HEADING]
+    if not concise:
+        lines.append(REVIEW_CONTEXT_PERSPECTIVE)
     if interview.document_type:
         lines.append(f"Inferred document type: {interview.document_type}")
     rendered_any = False
@@ -261,7 +277,7 @@ def render_intent_interview_section(
 
 
 def _render_answer_line(question: IntentQuestion, answer: IntentAnswer) -> str:
-    if question.type == "free_text":
+    if question.type == "free_text" or is_custom_choice_answer(answer):
         return (answer.free_text or "").strip()
     if question.type in {"single_choice", "multi_choice"}:
         labels = [
@@ -277,9 +293,10 @@ def compose_intent_prefix(
     interview: DocumentIntentInterview | None,
     answers: list[IntentAnswer],
     review_intent: str,
+    concise: bool = False,
 ) -> str:
     parts = [
-        render_intent_interview_section(interview, answers),
+        render_intent_interview_section(interview, answers, concise=concise),
         render_review_intent_message(prompts, review_intent),
     ]
     return "\n\n".join(part for part in parts if part.strip())
