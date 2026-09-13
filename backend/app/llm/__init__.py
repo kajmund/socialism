@@ -16,6 +16,7 @@ from openai import AsyncOpenAI
 from openai.resources.chat.completions import AsyncCompletions
 
 from app.config import settings
+from app.llm.structured_schema import strict_json_schema
 from app.llm.tool_messages import normalize_messages_for_provider
 from app.schemas.domain import EditablePersona
 
@@ -113,6 +114,39 @@ def _supports_reasoning_effort(provider: str) -> bool:
     return provider == "cerebras" and "reasoning_effort" in _openai_create_params
 
 
+def _structured_schema_name(response_model: type[Any]) -> str:
+    name = getattr(response_model, "__name__", "").strip()
+    return name or "ResponseModel"
+
+
+def _structured_response_format(
+    response_model: type[Any],
+    schema: dict[str, Any],
+) -> dict[str, Any]:
+    # Cerebras gpt-oss-120b rejects tools + response_format on one request.
+    # This path is schema-only; tool calls stay on complete_with_tools.
+    if settings.llm_provider == "cerebras":
+        return {
+            "type": "json_schema",
+            "json_schema": {
+                "name": _structured_schema_name(response_model),
+                "strict": True,
+                "schema": schema,
+            },
+        }
+    return {"type": "json_object"}
+
+
+def _json_object_guide_message(schema: dict[str, Any]) -> ChatMessage:
+    return {
+        "role": "user",
+        "content": (
+            "Return ONLY a JSON object matching this JSON Schema "
+            f"(no markdown):\n{json.dumps(schema, ensure_ascii=False)}"
+        ),
+    }
+
+
 def _chat_create_kwargs(
     *,
     model: str,
@@ -184,15 +218,10 @@ async def complete_structured[T](
     client = get_client()
     schema = response_model.model_json_schema()  # type: ignore[attr-defined]
     guided = list(messages)
-    guided.append(
-        {
-            "role": "user",
-            "content": (
-                "Return ONLY a JSON object matching this JSON Schema "
-                f"(no markdown):\n{json.dumps(schema, ensure_ascii=False)}"
-            ),
-        }
-    )
+    if settings.llm_provider == "cerebras":
+        schema = strict_json_schema(schema)
+    else:
+        guided.append(_json_object_guide_message(schema))
     chosen = _resolved_model(model)
     timeout = settings.llm_timeout_seconds
     started_at = time.monotonic()
@@ -206,7 +235,11 @@ async def complete_structured[T](
                     if max_tokens is not None
                     else settings.llm_max_tokens
                 ),
-                extra={"response_format": {"type": "json_object"}},
+                extra={
+                    "response_format": _structured_response_format(
+                        response_model, schema
+                    )
+                },
             )
         ),
         timeout=timeout,
