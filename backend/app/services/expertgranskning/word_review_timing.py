@@ -32,6 +32,9 @@ class WordReviewTimings:
         self.llm_call_count = 0
         self.structured_retry_count = 0
         self.max_observed_llm_concurrency = 0
+        self.direct_routed_questions = 0
+        self.raise_hand_questions = 0
+        self.questions_dropped_invalid_anchor = 0
         self._in_flight = 0
 
     def mark_first_action(self) -> None:
@@ -44,6 +47,15 @@ class WordReviewTimings:
     def record_structured_retry(self) -> None:
         self.structured_retry_count += 1
         self.llm_call_count += 1
+
+    def record_direct_routed_questions(self, count: int) -> None:
+        self.direct_routed_questions += count
+
+    def record_raise_hand_questions(self, count: int) -> None:
+        self.raise_hand_questions += count
+
+    def record_dropped_invalid_anchor(self, count: int = 1) -> None:
+        self.questions_dropped_invalid_anchor += count
 
     def begin_call(self) -> float:
         self._in_flight += 1
@@ -78,6 +90,9 @@ class WordReviewTimings:
             "rewrite_convergence_calls": self._calls["rewrite_convergence"],
             "comment_convergence_calls": self._calls["comment_convergence"],
             "heading_calls": self._calls["heading"],
+            "direct_routed_questions": self.direct_routed_questions,
+            "raise_hand_questions": self.raise_hand_questions,
+            "questions_dropped_invalid_anchor": self.questions_dropped_invalid_anchor,
             "llm_call_count": self.llm_call_count,
             "structured_retry_count": self.structured_retry_count,
             "max_observed_llm_concurrency": self.max_observed_llm_concurrency,

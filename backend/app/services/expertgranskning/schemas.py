@@ -525,6 +525,8 @@ class WordReviewQuestion(BaseModel):
     paragraph_indexes: list[int] = Field(default_factory=list)
     question: str
     why_it_matters: str = ""
+    primary_anchor_paragraph_index: int | None = None
+    recommended_expert_ids: list[str] = Field(default_factory=list)
 
     @field_validator("id", "question", "why_it_matters", mode="before")
     @classmethod
@@ -532,6 +534,20 @@ class WordReviewQuestion(BaseModel):
         if value is None:
             return ""
         return str(value).strip()
+
+    @field_validator("primary_anchor_paragraph_index", mode="before")
+    @classmethod
+    def empty_primary_is_omitted(cls, value: object) -> object:
+        if value == "":
+            return None
+        return value
+
+    @field_validator("recommended_expert_ids", mode="before")
+    @classmethod
+    def strip_recommended_ids(cls, value: object) -> object:
+        if not isinstance(value, list):
+            return value
+        return [str(item).strip() for item in value if str(item).strip()]
 
 
 class WordBatchModeration(BaseModel):
