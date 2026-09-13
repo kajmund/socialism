@@ -10,6 +10,7 @@ from app.database.models import Job, PromptOverride
 from app.llm import set_structured_completer
 from app.serializers import utcnow
 from app.services import jobs as jobs_service
+from app.services.expertgranskning.actor_context import ActorContext
 from app.services.expertgranskning.intent_interview import (
     DOCUMENT_DATA_CLOSE,
     DOCUMENT_DATA_OPEN,
@@ -888,6 +889,15 @@ async def test_word_review_includes_structured_interview_in_system_messages(
 
     async def completer(messages, response_model):
         captured.append(messages)
+        if response_model is ActorContext:
+            return ActorContext(
+                user_role="buyer",
+                counterpart_or_audience="seller",
+                relationship="represents the buyer",
+                review_goal="servitude effect",
+                output_perspective="advice for the buyer",
+                perspective_known=True,
+            )
         if response_model is WordBatchModeration:
             return _moderation_for_batch(messages[-1]["content"])
         if response_model is WordExpertRoute:
