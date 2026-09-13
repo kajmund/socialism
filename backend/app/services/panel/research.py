@@ -7,7 +7,9 @@ evidence execution lives here.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -21,6 +23,10 @@ from app.services.research import (
     InvalidResearchPlanError,
     ResearchNeed,
     ResearchSourceType,
+)
+from app.services.review_contract import (
+    messages_with_output_contract,
+    normalize_output_locale,
 )
 
 MISSING_EXPERTISE_SIGNAL = "Saknar domänkompetens. Kräver domänexpert."
@@ -82,16 +88,90 @@ class ResearchPlan(BaseModel):
     needs: list[ResearchNeed] = Field(default_factory=list)
 
 
+ResearchDecision = Literal["none", "recommended", "required"]
+AssumptionMateriality = Literal["high", "medium", "low"]
+
+
+class ClaimRequiringVerification(BaseModel):
+    claim: str
+    why: str = ""
+    source_types: list[str] = Field(default_factory=list)
+
+    @field_validator("claim", "why", mode="before")
+    @classmethod
+    def strip_required_text(cls, value: object) -> str:
+        return _strip_text(value)
+
+    @field_validator("source_types")
+    @classmethod
+    def keep_known_source_types(cls, value: list[str]) -> list[ResearchSourceType]:
+        return normalize_source_types(value)
+
+
+class ResearchAssumption(BaseModel):
+    assumption: str
+    materiality: AssumptionMateriality = "medium"
+
+    @field_validator("assumption", mode="before")
+    @classmethod
+    def strip_assumption(cls, value: object) -> str:
+        return _strip_text(value)
+
+    @field_validator("materiality", mode="before")
+    @classmethod
+    def keep_materiality(cls, value: object) -> str:
+        raw = _strip_text(value).casefold()
+        if raw in {"high", "medium", "low"}:
+            return raw
+        return "medium"
+
+
 class ExpertResearchNeeds(ExpertCompetency):
     """Research-need draft. Competence is decided by ``ExpertCompetency``."""
 
     has_domain_competence: bool = True
+    research_decision: ResearchDecision = "none"
+    can_answer_from_document: bool = True
+    claims_requiring_verification: list[ClaimRequiringVerification] = Field(
+        default_factory=list
+    )
+    assumptions: list[ResearchAssumption] = Field(default_factory=list)
     needs: list[ResearchNeedDraft] = Field(default_factory=list)
+    rationale: str = ""
+
+    @field_validator("rationale", mode="before")
+    @classmethod
+    def strip_rationale(cls, value: object) -> str:
+        return _strip_text(value)
 
     @model_validator(mode="after")
     def drop_needs_without_competence(self) -> "ExpertResearchNeeds":
         if not self.has_domain_competence:
             self.needs = []
+            self.claims_requiring_verification = []
+            self.research_decision = "none"
+            self.can_answer_from_document = False
+        return self
+
+    @model_validator(mode="after")
+    def validate_research_decision(self) -> "ExpertResearchNeeds":
+        if not self.has_domain_competence:
+            return self
+        if self.research_decision == "none":
+            if self.needs:
+                self.research_decision = "recommended"
+                return self
+            if self.claims_requiring_verification:
+                raise ValueError(
+                    "research_decision=none cannot include claims_requiring_verification"
+                )
+            if not self.rationale and not self.can_answer_from_document:
+                raise ValueError(
+                    "research_decision=none requires rationale or can_answer_from_document"
+                )
+            return self
+        if self.research_decision == "required" and not self.needs:
+            raise ValueError("research_decision=required requires at least one need")
         return self
 
 
@@ -238,25 +318,79 @@ def empty_research_structured(response_model: type) -> object | None:
     return None
 
 
+def _research_copy(locale: str) -> dict[str, str]:
+    if normalize_output_locale(locale) == "en":
+        return {
+            "no_needs": "No research needs.",
+            "needs": "Needs:",
+            "plan": "Research plan:",
+            "decision": "Research decision",
+            "from_document": "Can answer from document",
+            "yes": "yes",
+            "no": "no",
+            "rationale": "Rationale",
+            "assumptions": "Assumptions:",
+            "verify": "Claims requiring verification:",
+        }
+    return {
+        "no_needs": "Inga researchbehov.",
+        "needs": "Behov:",
+        "plan": "Researchplan:",
+        "decision": "Researchbeslut",
+        "from_document": "Kan besvaras från dokumentet",
+        "yes": "ja",
+        "no": "nej",
+        "rationale": "Motivering",
+        "assumptions": "Antaganden:",
+        "verify": "Påståenden som kräver verifiering:",
+    }
+
+
 def format_expert_research_need_turn(
     drafts: Sequence[ResearchNeedDraft] | ExpertResearchNeeds,
     *,
     has_domain_competence: bool = True,
     competence_reason: str = "",
+    locale: str = "sv",
 ) -> str:
+    bundle: ExpertResearchNeeds | None = None
     if isinstance(drafts, ExpertResearchNeeds):
         bundle = drafts
         has_domain_competence = bundle.has_domain_competence
         competence_reason = bundle.competence_reason
         drafts = bundle.needs
+    copy = _research_copy(locale)
     if not has_domain_competence:
         reason = competence_reason.strip()
         if reason:
             return f"{MISSING_EXPERTISE_SIGNAL}\n{reason}"
         return MISSING_EXPERTISE_SIGNAL
+    lines: list[str] = []
+    if bundle is not None:
+        lines.append(f"{copy['decision']}: {bundle.research_decision}")
+        lines.append(
+            f"{copy['from_document']}: "
+            f"{copy['yes'] if bundle.can_answer_from_document else copy['no']}"
+        )
+        if bundle.rationale:
+            lines.append(f"{copy['rationale']}: {bundle.rationale}")
+        if bundle.assumptions:
+            lines.append(copy["assumptions"])
+            for item in bundle.assumptions:
+                lines.append(f"- {item.assumption} ({item.materiality})")
+        if bundle.claims_requiring_verification:
+            lines.append(copy["verify"])
+            for item in bundle.claims_requiring_verification:
+                types = ", ".join(item.source_types) if item.source_types else "—"
+                lines.append(f"- {item.claim} [{types}]")
+                if item.why:
+                    lines.append(f"  {item.why}")
     if not drafts:
-        return "Inga researchbehov."
-    lines = ["Behov:"]
+        if not lines:
+            return copy["no_needs"]
+        lines.append(copy["no_needs"])
+        return "\n".join(lines)
+    lines.append(copy["needs"])
     for draft in drafts:
         types = ", ".join(draft.source_types) if draft.source_types else "—"
         lines.append(f"- {draft.question} [{types}]")
@@ -265,10 +399,11 @@ def format_expert_research_need_turn(
     return "\n".join(lines)
 
 
-def format_research_plan_turn(plan: ResearchPlan) -> str:
+def format_research_plan_turn(plan: ResearchPlan, *, locale: str = "sv") -> str:
+    copy = _research_copy(locale)
     if not plan.needs:
-        return "Inga researchbehov."
-    lines = ["Researchplan:"]
+        return copy["no_needs"]
+    lines = [copy["plan"]]
     for need in plan.needs:
         types = ", ".join(need.source_types) if need.source_types else "—"
         requested = ", ".join(need.requested_by) if need.requested_by else "—"
@@ -276,6 +411,59 @@ def format_research_plan_turn(plan: ResearchPlan) -> str:
         if need.why_needed:
             lines.append(f"  {need.why_needed}")
     return "\n".join(lines)
+
+
+_EXTERNAL_NORM_RE = re.compile(
+    r"("
+    r"\d+\s*(?:-|–|—)\s*\d+\s*day|"
+    r"\d+\s*(?:-|–|—)\s*\d+\s*dag|"
+    r"\+\s*\d+(?:[.,]\d+)?\s*(?:percentage points|procentenheter)|"
+    r"\d+\s*year(?:s)?\s+confidential|"
+    r"\d+\s*års?\s+sekretess|"
+    r"\d+\s*x\b|"
+    r"\d+\s*%|"
+    r"industry standard|"
+    r"branschstandard|"
+    r"market norm|"
+    r"marknadsnorm"
+    r")",
+    re.IGNORECASE,
+)
+
+
+def presented_external_norm_claims(text: str) -> list[str]:
+    """Surface precise external/normative benchmarks in expert prose."""
+    found: list[str] = []
+    for match in _EXTERNAL_NORM_RE.finditer(text or ""):
+        claim = match.group(0).strip()
+        if claim and claim not in found:
+            found.append(claim)
+    return found
+
+
+def _claim_covered(claim: str, bundle: ExpertResearchNeeds) -> bool:
+    needle = claim.casefold()
+    for item in bundle.assumptions:
+        if needle in item.assumption.casefold() or item.assumption.casefold() in needle:
+            return True
+    for item in bundle.claims_requiring_verification:
+        if needle in item.claim.casefold() or item.claim.casefold() in needle:
+            return True
+    return False
+
+
+def unqualified_external_claims(
+    bundle: ExpertResearchNeeds,
+    presented_text: str,
+) -> list[str]:
+    """Precise external claims that an unqualified ``none`` decision cannot carry."""
+    if bundle.research_decision != "none":
+        return []
+    return [
+        claim
+        for claim in presented_external_norm_claims(presented_text)
+        if not _claim_covered(claim, bundle)
+    ]
 
 
 def source_types_prompt() -> str:
@@ -307,12 +495,13 @@ def _messages_with_brief(
     identity: str,
     brief: str,
     user_content: str,
+    locale: str = "sv",
 ) -> list[dict[str, str]]:
     messages = [{"role": "system", "content": identity}]
     if brief:
         messages.append({"role": "system", "content": brief})
     messages.append({"role": "user", "content": user_content})
-    return messages
+    return messages_with_output_contract(messages, locale)
 
 
 def _session_brief(config: PanelSessionConfig, prompts: dict[str, str]) -> str:
@@ -326,11 +515,13 @@ async def collect_expert_research_needs(
     prompts: dict[str, str],
 ) -> ExpertResearchNeeds:
     brief = _session_brief(config, prompts)
+    locale = getattr(config, "locale", "sv") or "sv"
     messages = _messages_with_brief(
         identity=render_prompt(
             prompts, "panel.expert.system", label=slot.label, profile=slot.profile
         ),
         brief=brief,
+        locale=locale,
         user_content=render_prompt(
             prompts,
             "panel.expert.research_need",
@@ -341,7 +532,7 @@ async def collect_expert_research_needs(
             source_types=source_types_prompt(),
         ),
     )
-    return await complete_structured(messages, ExpertResearchNeeds)
+    return await complete_structured(messages, ExpertResearchNeeds, strict=True)
 
 
 async def consolidate_research_plan(
@@ -355,9 +546,11 @@ async def consolidate_research_plan(
 ) -> ModeratorResearchPlan:
     brief = _session_brief(config, prompts)
     formatted = format_expert_proposals(proposals, empty_slots)
+    locale = getattr(config, "locale", "sv") or "sv"
     messages = _messages_with_brief(
         identity=render_prompt(prompts, "panel.moderator.system"),
         brief=brief,
+        locale=locale,
         user_content=render_prompt(
             prompts,
             "panel.moderator.research_plan",

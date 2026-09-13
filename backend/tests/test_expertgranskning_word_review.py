@@ -262,6 +262,8 @@ def _payload(*, heading="Avtal", paragraphs: list[WordDocumentParagraph], **extr
         body["intent_interview"] = extra["intent_interview"]
     if "intent_answers" in extra:
         body["intent_answers"] = extra["intent_answers"]
+    if "locale" in extra:
+        body["locale"] = extra["locale"]
     return body
 
 
@@ -1815,7 +1817,9 @@ async def test_analyze_batch_logs_routing_counts_without_document_text(caplog):
 def test_word_alembic_chain_is_linear_after_main_head():
     cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     script = ScriptDirectory.from_config(cfg)
-    assert script.get_heads() == ["077_word_review_atomic_observations"]
+    assert script.get_heads() == ["078_word_review_output_contract"]
+    contract = script.get_revision("078_word_review_output_contract")
+    assert contract.down_revision == "077_word_review_atomic_observations"
     atomic = script.get_revision("077_word_review_atomic_observations")
     assert atomic.down_revision == "076_word_review_actor_context"
     actor = script.get_revision("076_word_review_actor_context")

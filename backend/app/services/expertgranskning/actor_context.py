@@ -19,6 +19,7 @@ from app.services.expertgranskning.intent_interview import (
 from app.services.expertgranskning.word_review_timing import WordReviewLimiter
 from app.services.expertgranskning.word_structured import complete_word_structured
 from app.services.prompt_catalog import render_prompt
+from app.services.review_contract import messages_with_output_contract
 
 WORD_ACTOR_CONTEXT_MAX_TOKENS = 512
 ACTOR_CONTEXT_HEADING = "Actor context"
@@ -142,17 +143,21 @@ def actor_context_messages(
     *,
     prompts: dict[str, str],
     source: str,
+    locale: str = "sv",
 ) -> list[ChatMessage]:
-    return [
-        {
-            "role": "system",
-            "content": render_prompt(prompts, "expertgranskning.word.actor_context"),
-        },
-        {
-            "role": "user",
-            "content": f"{INTENT_DATA_OPEN}\n{source}\n{INTENT_DATA_CLOSE}",
-        },
-    ]
+    return messages_with_output_contract(
+        [
+            {
+                "role": "system",
+                "content": render_prompt(prompts, "expertgranskning.word.actor_context"),
+            },
+            {
+                "role": "user",
+                "content": f"{INTENT_DATA_OPEN}\n{source}\n{INTENT_DATA_CLOSE}",
+            },
+        ],
+        locale,
+    )
 
 
 async def resolve_actor_context(
@@ -162,6 +167,7 @@ async def resolve_actor_context(
     answers: list[IntentAnswer],
     review_intent: str,
     limiter: WordReviewLimiter,
+    locale: str = "sv",
 ) -> ActorContext:
     """One cheap structured call when answers or free intent exist; else unknown."""
     if not has_usable_actor_source(interview, answers, review_intent):
@@ -175,7 +181,7 @@ async def resolve_actor_context(
     raw = await limiter.run(
         "actor_context",
         lambda: complete_word_structured(
-            actor_context_messages(prompts=prompts, source=source),
+            actor_context_messages(prompts=prompts, source=source, locale=locale),
             ActorContext,
             prompts=prompts,
             timings=limiter.timings,

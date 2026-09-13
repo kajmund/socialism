@@ -15,6 +15,11 @@ from app.services.expertgranskning.schemas import (
     WordExpertComment,
     WordExpertObservation,
 )
+from app.services.review_contract import (
+    is_moderator_label,
+    real_world_action_owner,
+    sanitize_recommended_action_owner,
+)
 
 PERSPECTIVE_USER = "user"
 PERSPECTIVE_DOCUMENT_AUTHOR = "document_author"
@@ -208,9 +213,21 @@ def bind_actor_attribution(
     actor: ActorContext | None,
 ) -> WordExpertObservation:
     """ActorContext decides the recommendation recipient when perspective is known."""
+    owner = real_world_action_owner(item.statement_owner, actor)
+    action = sanitize_recommended_action_owner(item.recommended_action, actor)
+    updates: dict[str, str] = {}
+    if owner != item.statement_owner:
+        updates["statement_owner"] = owner
+    if action != item.recommended_action:
+        updates["recommended_action"] = action
+    if is_moderator_label(item.recommendation_recipient):
+        updates["recommendation_recipient"] = (
+            PERSPECTIVE_USER if actor is not None and actor.perspective_known else ""
+        )
     if actor is None or not actor.perspective_known:
-        return item
-    return item.model_copy(update={"recommendation_recipient": PERSPECTIVE_USER})
+        return item.model_copy(update=updates) if updates else item
+    updates["recommendation_recipient"] = PERSPECTIVE_USER
+    return item.model_copy(update=updates)
 
 
 def expand_expert_comment(parsed: WordExpertComment) -> list[WordExpertObservation]:

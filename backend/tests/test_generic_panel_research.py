@@ -48,7 +48,9 @@ _BACKEND_ROOT = Path(__file__).resolve().parents[1]
 
 def test_researchplan_migrations_are_linear_after_word_head():
     script = ScriptDirectory.from_config(Config(str(_BACKEND_ROOT / "alembic.ini")))
-    assert script.get_heads() == ["077_word_review_atomic_observations"]
+    assert script.get_heads() == ["078_word_review_output_contract"]
+    contract = script.get_revision("078_word_review_output_contract")
+    assert contract.down_revision == "077_word_review_atomic_observations"
     atomic = script.get_revision("077_word_review_atomic_observations")
     assert atomic.down_revision == "076_word_review_actor_context"
     actor = script.get_revision("076_word_review_actor_context")
@@ -703,6 +705,12 @@ async def test_expert_can_return_zero_needs():
     )
     assert bundle.needs == []
     assert captured[0][0] is ExpertResearchNeeds
+    systems = [
+        item["content"]
+        for item in captured[0][1]
+        if item.get("role") == "system"
+    ]
+    assert any("Hårt utdataspråkskontrakt" in text for text in systems)
     user = captured[0][1][-1]["content"]
     assert "slutbedömningen" in user or "final assessment" in user.lower()
     assert "nice-to-know" in user
@@ -832,6 +840,8 @@ def test_research_prompts_render_and_forbid_service_names():
     assert "exakt en gång" in moderator
     assert "minst en tillåten källtyp" in expert
     assert "Hitta inte på en källtyp" in expert
+    assert "research_decision" in expert
+    assert "none" in expert
     assert "exakt en gång" in repair
     assert "proposal_2" in repair
 

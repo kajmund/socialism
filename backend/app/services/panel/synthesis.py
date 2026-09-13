@@ -20,6 +20,10 @@ from app.services.panel.result import (
 from app.services.panel.review_intent import session_brief_for_llm
 from app.services.panel.schemas import PanelSessionConfig, PanelTurn
 from app.services.prompt_catalog import render_prompt
+from app.services.review_contract import (
+    display_speaker_label,
+    messages_with_output_contract,
+)
 
 _EVIDENCE_REF_RE = re.compile(r"\[E(\d+)\]", re.IGNORECASE)
 _BARE_EVIDENCE_REF_RE = re.compile(r"^E(\d+)$", re.IGNORECASE)
@@ -51,10 +55,11 @@ def public_transcript_text(transcript: list[PanelTurn]) -> str:
     for turn in transcript:
         if turn.phase in _PLANNING_PHASES:
             continue
+        speaker = display_speaker_label(turn.speaker)
         if turn.phase == "raise_hand":
-            lines.append(f"{turn.speaker} (raise_hand): {turn.content}")
+            lines.append(f"{speaker} (raise_hand): {turn.content}")
             continue
-        lines.append(f"{turn.speaker}: {turn.content}")
+        lines.append(f"{speaker}: {turn.content}")
     return "\n".join(lines)
 
 
@@ -252,6 +257,7 @@ async def synthesize_generic_panel_result(
         messages.append({"role": "system", "content": brief})
     if evidence_prompt:
         messages.append({"role": "system", "content": evidence_prompt})
+    messages = messages_with_output_contract(messages, config.locale)
     messages.append(
         {
             "role": "user",
