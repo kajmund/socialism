@@ -1367,6 +1367,7 @@ async def test_comment_convergence_batch_text_uses_chunk_paragraphs(monkeypatch)
         observations,
         limiter,
         review_intent="",
+        actor_context="",
     ):
         seen.append(
             (
