@@ -14,7 +14,7 @@ tags: [grunddata]
 1. Öppna **Verktyg** → **Playground** i menyn.
 2. Välj flik efter vad du vill göra:
    - **Anchor-kalibrering** — redigera ankarpåståenden, klistra in testmeningar (en per rad) och kör SSR. Justera **temperatur** (lägre skärper fördelningen; default 0,1). Valfritt: ladda **reaktioner från körning** (samma stratifierade urval som rapport-SSR), klipp till 200 tecken vid rating och använd aktiv konfigurations SSR-temperatur. Valfritt: sätt en mänsklig etikett per mening och se träfffrekvens.
-   - **Prompt-iteration** — välj en **konfiguration** och en **promptnyckel**, redigera variant B, fyll i platshållare och kör A och B sida vid sida via DeepSeek.
+   - **Prompt-iteration** — välj en **konfiguration** och en **promptnyckel**, redigera variant B, fyll i platshållare och kör A och B sida vid sida mot chat-LLM.
    - **SSR vs nyckelord** — samma testmeningar genom SSR (ton) och nyckelordsmetoden, så du ser var de skiljer sig. Samma temperaturinställning gäller här.
    - **Agentverktyg** — kör webbsök (DuckDuckGo/Wikipedia) eller SymPy med samma funktioner som du kan knyta till en körning, utan en full simulering.
 3. Tolka resultatet i tabellen eller andelarna — justera ankartexter eller promptvariant och kör om tills det känns rätt.

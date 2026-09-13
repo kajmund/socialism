@@ -12,7 +12,7 @@ This is the FastAPI service for **Socialism**. Read [../AGENTS.md](../AGENTS.md)
 - SQLAlchemy models + Alembic migrations for database schema changes
 - **Phase 1 DB:** SQLite via `aiosqlite` (local file under `backend/data/`)
 - **Later:** Supabase Postgres + Auth (not wired yet)
-- **LLM:** DeepSeek via OpenAI-compatible SDK (`app/llm/`)
+- **LLM:** Cerebras `gpt-oss-120b` default via OpenAI-compatible SDK (`app/llm/`); DeepSeek via `LLM_PROVIDER=deepseek`
 - `structlog` for logging
 - `uv` for dependency + project management
 
@@ -38,7 +38,7 @@ backend/
 │   ├── modules/         # Product-module manifests + registry (dd, politik, expertgranskning). Report.mode → module via report_modes; Spinndoktor via source_loader (fail loud).
 │   ├── api/             # Routers: personas, populations, runs, messages, configurations, catalog, jobs, reports, playground, health, ws
 │   ├── database/        # SQLAlchemy models, async session, base
-│   ├── llm/             # DeepSeek client, persona gen, interview chat
+│   ├── llm/             # OpenAI-compatible chat client, persona gen, interview chat
 │   ├── schemas/         # Pydantic request/response models
 │   ├── services/        # Population generate, OASIS körning spike, catalogs
 │   └── seed.py          # Load demo data into SQLite

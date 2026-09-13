@@ -19,13 +19,13 @@ flowchart LR
     end
 
     sqlite[(SQLite<br/>backend/data/)]
-    deepseek[DeepSeek<br/>OpenAI-compatible]
+    chatllm[Chat LLM<br/>Cerebras / DeepSeek]
     oasis[Optional OASIS<br/>camel-oasis]
 
     frontend -->|serves SPA| browser
     browser -->|JSON API| backend
     backend --> sqlite
-    backend -->|persona gen, chat,<br/>messages, reports| deepseek
+    backend -->|persona gen, chat,<br/>messages, Word review| chatllm
     backend -.->|SIMULATION_ENGINE=oasis| oasis
     oasis -.->|artifacts| sqlite
 ```
@@ -38,7 +38,7 @@ flowchart LR
 | Backend | Python 3.12+ · FastAPI · SQLAlchemy · Alembic · pydantic-settings |
 | Database | SQLite via `aiosqlite` (`backend/data/`) |
 | API logs | Rotating file `backend/data/logs/app.log` (uvicorn stdout unchanged) |
-| LLM | DeepSeek (`DEEPSEEK_API_KEY` required at startup) |
+| LLM | Cerebras `gpt-oss-120b` default (`CEREBRAS_API_KEY`); DeepSeek via `LLM_PROVIDER=deepseek` |
 | Embeddings (SSR) | OpenAI `text-embedding-3-large` (`OPENAI_API_KEY` required) |
 | Simulation | `SIMULATION_ENGINE=none` (default) or `oasis` (optional extra) |
 | Auth | Not wired — Supabase Auth planned later |
@@ -51,7 +51,7 @@ Phase 1 deliberately uses SQLite before Supabase. Models/migrations stay portabl
 - **Browser:** thin SPA. Renders admin UI; calls FastAPI over JSON. Never holds service-role credentials or runs simulation logic.
 - **Backend:** authoritative for CRUD, LLM calls, background jobs, OASIS orchestration, and report generation.
 - **SQLite:** durable product state (personas, populations, runs, messages, catalog, jobs, reports, persona chat history).
-- **DeepSeek:** persona generation, anecdotes, library chat, run-scoped interviews, message variants/URL summarize, report narrative.
+- **Chat LLM:** persona generation, anecdotes, library chat, run-scoped interviews, message variants/URL summarize, Word review, panel/help chat. Default Cerebras `gpt-oss-120b` + medium reasoning; DeepSeek is the same `app.llm` path for A/B.
 - **OASIS (optional):** multi-agent Twitter/Reddit-style simulation via `camel-oasis`. Heavy optional install (`uv sync --extra oasis`).
 
 ## Domain model
@@ -141,7 +141,7 @@ Interrupted jobs are marked failed on backend startup (after migrations exist).
 
 | Flow | Where | Notes |
 | ---- | ----- | ----- |
-| Persona generate | `POST /personas/generate` | DeepSeek or weighted stub sampling (`PERSONA_GENERATOR`) |
+| Persona generate | `POST /personas/generate` | Selected chat LLM or weighted stub sampling (`PERSONA_GENERATOR`) |
 | Persona anecdote | persona / population gen | Short `anekdot` (≤20 words, non-political); see runbook |
 | Library chat | `WS /ws/chat` (REST `POST /personas/{id}/chat` still) | Streamed tokens; `PersonaMessage` with `run_id = null`; delete/clear/resend via REST |
 | Planned tick interviews | tick `interviews[]` | OASIS `ManualAction(INTERVIEW)` after reaction rounds |
@@ -149,7 +149,7 @@ Interrupted jobs are marked failed on backend startup (after migrations exist).
 | Message variants / URL | `/messages/*` | Budskapsverkstad helpers |
 | Report | report job | Deterministic metrics/charts + SSR tone/style (embeddings); no LLM narrative |
 
-`DEEPSEEK_API_KEY` is required even when `PERSONA_GENERATOR=stub` — there is no heuristic LLM fallback for chat/reports.
+The selected chat provider key is required even when `PERSONA_GENERATOR=stub` — there is no heuristic LLM fallback for chat/reports, and no automatic fallback between Cerebras and DeepSeek.
 
 Library chat and post-hoc run interviews share the `persona_messages` table but are **separate threads** (null vs set `run_id`). Planned tick interviews are OASIS actions, not rows in that table.
 

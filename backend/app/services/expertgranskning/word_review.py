@@ -758,8 +758,12 @@ async def _route_question(
         ),
         WordExpertRoute,
         prompts,
-        model=settings.word_review_router_model,
-        max_tokens=settings.word_review_router_max_tokens,
+        model=settings.word_review_router_model_override,
+        max_tokens=(
+            settings.word_review_router_max_tokens
+            if settings.word_review_router_model_override
+            else None
+        ),
     )
     kept, invalid = accepted_router_expert_ids(
         parsed.expert_ids,
@@ -1564,20 +1568,26 @@ async def publish_created_actions(
 
 def log_word_review_call_summary(
     job_id: str,
-    snapshot: dict[str, int | None],
+    snapshot: dict[str, int | str | None],
     *,
     outcome: str,
 ) -> None:
     """Emit one timing + LLM-count summary. Snapshot has counts only."""
     logger.info(
-        "Word review timings job_id=%s outcome=%s total_ms=%s "
-        "time_to_first_action_ms=%s publication_units_completed=%s "
+        "Word review timings job_id=%s outcome=%s provider=%s model=%s "
+        "reasoning_effort=%s prompt_tokens=%s completion_tokens=%s "
+        "total_ms=%s time_to_first_action_ms=%s publication_units_completed=%s "
         "actions_published_before_completion=%s moderation_ms=%s "
         "router_ms=%s raise_hand_ms=%s expert_comment_ms=%s "
         "rewrite_convergence_ms=%s comment_convergence_ms=%s heading_ms=%s "
         "actor_context_ms=%s llm_call_count=%s max_observed_llm_concurrency=%s",
         job_id,
         outcome,
+        snapshot["llm_provider"],
+        snapshot["llm_model"],
+        snapshot["llm_reasoning_effort"],
+        snapshot["prompt_tokens"],
+        snapshot["completion_tokens"],
         snapshot["total_ms"],
         snapshot["time_to_first_action_ms"],
         snapshot["publication_units_completed"],

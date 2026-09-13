@@ -2154,7 +2154,7 @@ async def test_word_structured_retry_increments_job_call_counts():
     assert snapshot["expert_comment_calls"] == 1
     assert snapshot["structured_retry_count"] == 1
     assert snapshot["llm_call_count"] == 2
-    dumped = repr(snapshot)
+    dumped = repr(snapshot).replace("'prompt_tokens'", "").replace('"prompt_tokens"', "")
     assert "prompt" not in dumped
     assert "kommentera" not in dumped
 

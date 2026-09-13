@@ -1,4 +1,4 @@
-"""Structured DeepSeek calls send an explicit completion cap."""
+"""Structured LLM calls send an explicit completion cap."""
 
 from __future__ import annotations
 
@@ -35,9 +35,9 @@ async def test_complete_structured_sends_explicit_max_tokens(monkeypatch):
         WordCommentConvergence,
     )
     assert parsed.issues == []
-    assert captured["max_tokens"] == settings.deepseek_max_tokens
+    assert captured["max_tokens"] == settings.llm_max_tokens
     assert captured["response_format"] == {"type": "json_object"}
 
 
-def test_deepseek_max_tokens_defaults_to_8192():
-    assert Settings.model_fields["deepseek_max_tokens"].default == 8192
+def test_llm_max_tokens_defaults_to_8192():
+    assert Settings.model_fields["llm_max_tokens"].default == 8192

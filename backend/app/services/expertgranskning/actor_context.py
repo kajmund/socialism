@@ -179,8 +179,12 @@ async def resolve_actor_context(
             ActorContext,
             prompts=prompts,
             timings=limiter.timings,
-            model=settings.word_review_router_model,
-            max_tokens=WORD_ACTOR_CONTEXT_MAX_TOKENS,
+            model=settings.word_review_router_model_override,
+            max_tokens=(
+                WORD_ACTOR_CONTEXT_MAX_TOKENS
+                if settings.word_review_router_model_override
+                else None
+            ),
         ),
     )
     resolved = finalize_actor_context(raw)
