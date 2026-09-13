@@ -2569,6 +2569,74 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         ),
     ),
     _f(
+        "expertgranskning.word.actor_context.known",
+        "panel",
+        "Word — aktörskontext, känt perspektiv",
+        "Word — actor context, known perspective",
+        "Platshållare: {user_role}, {counterpart_or_audience}, {relationship}, "
+        "{review_goal}, {output_perspective}.",
+        "Placeholders: {user_role}, {counterpart_or_audience}, {relationship}, "
+        "{review_goal}, {output_perspective}.",
+        (
+            "Aktörskontext\n"
+            "Perspektivet är känt. Detta är perspektivstyrning, inte partsadvocacy.\n"
+            "- Vänd rekommendationer och åtgärder till användarens roll.\n"
+            "- Du får peka ut motpartens eller mottagarens starkaste argument, "
+            "men märk dem som deras perspektiv. Gör inte om dem till råd till användaren.\n"
+            "- Anta aldrig att dokumentets röst är granskarens röst.\n"
+            "- Saklig kritik som talar mot användarens position är tillåten och krävs "
+            "när den är befogad.\n"
+            "- En svaghet för användarens sida förblir en svaghet för användarens sida. "
+            "Ge inte råd om att angripa, ifrågasätta eller argumentera den sidans sak "
+            "om inte användaren faktiskt står på den angripande eller ifrågasättande sidan.\n"
+            "\n"
+            "Användarroll: {user_role}\n"
+            "Motpart eller mottagare: {counterpart_or_audience}\n"
+            "Relation: {relationship}\n"
+            "Granskningsmål: {review_goal}\n"
+            "Utgångsperspektiv: {output_perspective}"
+        ),
+        (
+            "Actor context\n"
+            "Perspective is known. This is perspective control, not advocacy.\n"
+            "- Address recommendations and actions to the user's role.\n"
+            "- You may identify the counterpart or audience's strongest argument, "
+            "but label it as their perspective. Do not turn it into advice to the user.\n"
+            "- Never assume the document voice equals the reviewer voice.\n"
+            "- Factual or substantive criticism that is adverse to the user's position "
+            "is allowed and required when warranted.\n"
+            "- A weakness for the user's side remains a weakness for the user's side. "
+            "Do not advise attacking, challenging, or arguing that side's case unless "
+            "the user is actually on the attacking or challenging side.\n"
+            "\n"
+            "User role: {user_role}\n"
+            "Counterpart or audience: {counterpart_or_audience}\n"
+            "Relationship: {relationship}\n"
+            "Review goal: {review_goal}\n"
+            "Output perspective: {output_perspective}"
+        ),
+    ),
+    _f(
+        "expertgranskning.word.actor_context.unknown",
+        "panel",
+        "Word — aktörskontext, okänt perspektiv",
+        "Word — actor context, unknown perspective",
+        "Inga platshållare.",
+        "No placeholders.",
+        (
+            "Aktörskontext\n"
+            "Perspektivet är okänt. Använd neutralt språk. Hitta inte på en sida. "
+            "Vänd inte råd till en part som användaren inte har uppgett. "
+            "Anta inte att dokumentets röst är granskarens röst."
+        ),
+        (
+            "Actor context\n"
+            "Perspective is unknown. Use neutral language. Do not invent a side. "
+            "Do not address advice to a party the user did not claim. "
+            "Do not assume the document voice is the reviewer voice."
+        ),
+    ),
+    _f(
         "expertgranskning.word.structured_retry",
         "panel",
         "Word — ogiltig JSON, försök igen",

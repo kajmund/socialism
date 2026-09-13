@@ -5,10 +5,11 @@ from __future__ import annotations
 import pytest
 
 from app.llm import set_structured_completer
+from app.services import jobs as jobs_service
 from app.services.expertgranskning.actor_context import (
     ACTOR_CONTEXT_HEADING,
-    PERSPECTIVE_KNOWN_INVARIANT,
-    PERSPECTIVE_UNKNOWN_INVARIANT,
+    ACTOR_CONTEXT_KNOWN_KEY,
+    ACTOR_CONTEXT_UNKNOWN_KEY,
     ActorContext,
     actor_context_source_text,
     finalize_actor_context,
@@ -46,13 +47,23 @@ from app.services.expertgranskning.word_review_timing import (
 from app.services.panel.schemas import PanelExpertSlot
 from app.services.prompt_catalog import default_prompts
 from tests.test_expertgranskning_word_review import (
+    _create_expert_panel,
     _obs,
     _para,
+    _payload,
     _review_question,
     _review_section,
     _review_slots,
 )
 from tests.test_intent_interview import _choice_question, _interview
+
+
+def _en_prompts() -> dict[str, str]:
+    return default_prompts("en")
+
+
+def _render(context: ActorContext, prompts: dict[str, str] | None = None) -> str:
+    return render_actor_context(context, prompts or _en_prompts())
 
 
 CHALLENGER_DOCUMENT = (
@@ -179,9 +190,9 @@ def test_no_usable_source_when_intent_and_answers_absent():
 
 
 def test_known_render_orients_advice_to_user_role():
-    text = render_actor_context(_association_context())
+    text = _render(_association_context())
     assert text.startswith(ACTOR_CONTEXT_HEADING)
-    assert PERSPECTIVE_KNOWN_INVARIANT in text
+    assert "Perspective is known. This is perspective control, not advocacy." in text
     assert "User role: counsel for the association" in text
     assert "Counterpart or audience: challenging members" in text
     assert "Output perspective: advice for the association" in text
@@ -192,19 +203,19 @@ def test_known_render_orients_advice_to_user_role():
 
 
 def test_opposite_render_orients_to_challengers():
-    left = render_actor_context(_association_context())
-    right = render_actor_context(_challenger_context())
+    left = _render(_association_context())
+    right = _render(_challenger_context())
     assert "counsel for the association" in left
     assert "counsel for the challengers" in right
     assert "counsel for the association" not in right
     assert "counsel for the challengers" not in left
     assert "advice for the challengers" in right
-    assert PERSPECTIVE_KNOWN_INVARIANT in left
-    assert PERSPECTIVE_KNOWN_INVARIANT in right
+    assert "Perspective is known. This is perspective control, not advocacy." in left
+    assert "Perspective is known. This is perspective control, not advocacy." in right
 
 
 def test_cv_candidate_and_recruiter_renders_differ():
-    candidate = render_actor_context(
+    candidate = _render(
         ActorContext(
             user_role="candidate submitting the CV",
             counterpart_or_audience="recruiter",
@@ -214,7 +225,7 @@ def test_cv_candidate_and_recruiter_renders_differ():
             perspective_known=True,
         )
     )
-    recruiter = render_actor_context(
+    recruiter = _render(
         ActorContext(
             user_role="recruiter evaluating the candidate",
             counterpart_or_audience="candidate",
@@ -233,13 +244,64 @@ def test_cv_candidate_and_recruiter_renders_differ():
 
 
 def test_unknown_render_is_neutral_and_invents_no_role():
-    text = render_actor_context(unknown_actor_context())
-    assert PERSPECTIVE_UNKNOWN_INVARIANT in text
+    text = _render(unknown_actor_context())
+    assert text == _en_prompts()[ACTOR_CONTEXT_UNKNOWN_KEY]
+    assert "Perspective is unknown" in text
     assert "User role:" not in text
     assert "Do not invent a side" in text
     assert "association" not in text.lower()
     assert "challenger" not in text.lower()
     assert "candidate" not in text.lower()
+
+
+def test_render_uses_active_prompt_map_for_known_perspective():
+    prompts = _en_prompts()
+    prompts[ACTOR_CONTEXT_KNOWN_KEY] = (
+        "OVERRIDE-KNOWN role={user_role} goal={review_goal} "
+        "out={output_perspective}"
+    )
+    text = render_actor_context(_association_context(), prompts)
+    assert text == (
+        "OVERRIDE-KNOWN role=counsel for the association "
+        "goal=identify legal risk and defense options for the association "
+        "out=advice for the association"
+    )
+    assert "Perspective is known" not in text
+
+
+def test_render_uses_active_prompt_map_for_unknown_perspective():
+    prompts = _en_prompts()
+    prompts[ACTOR_CONTEXT_UNKNOWN_KEY] = "OVERRIDE-UNKNOWN-NEUTRAL"
+    text = render_actor_context(unknown_actor_context(), prompts)
+    assert text == "OVERRIDE-UNKNOWN-NEUTRAL"
+    assert "Perspective is unknown" not in text
+
+
+def test_render_fails_loud_when_unknown_prompt_missing():
+    prompts = _en_prompts()
+    del prompts[ACTOR_CONTEXT_UNKNOWN_KEY]
+    with pytest.raises(RuntimeError, match="actor_context.unknown"):
+        render_actor_context(unknown_actor_context(), prompts)
+
+
+def test_render_fails_loud_when_known_prompt_missing():
+    prompts = _en_prompts()
+    del prompts[ACTOR_CONTEXT_KNOWN_KEY]
+    with pytest.raises(RuntimeError, match="actor_context.known"):
+        render_actor_context(_association_context(), prompts)
+
+
+def test_render_uses_swedish_catalog_wording():
+    prompts = default_prompts("sv")
+    known = render_actor_context(_association_context(), prompts)
+    assert known.startswith("Aktörskontext")
+    assert "Perspektivet är känt" in known
+    assert "Användarroll: counsel for the association" in known
+    assert "Perspective is known" not in known
+    unknown = render_actor_context(unknown_actor_context(), prompts)
+    assert unknown == prompts[ACTOR_CONTEXT_UNKNOWN_KEY]
+    assert "Perspektivet är okänt" in unknown
+    assert "Perspective is unknown" not in unknown
 
 
 def test_finalize_unknown_when_role_missing():
@@ -387,7 +449,7 @@ async def test_resolver_cv_candidate_versus_recruiter():
 
 
 def test_actor_context_system_message_precedes_document_brief():
-    actor = render_actor_context(_association_context())
+    actor = _render(_association_context())
     brief = f"[1] {CHALLENGER_DOCUMENT}"
     messages = _messages_with_brief(
         identity="expert",
@@ -416,7 +478,7 @@ async def test_comment_question_keeps_association_perspective_above_document_voi
         )
 
     set_structured_completer(completer)
-    actor = render_actor_context(_association_context())
+    actor = _render(_association_context())
     brief = f"[1] {CHALLENGER_DOCUMENT}"
     slot, _question, text, anchor = await _comment_question(
         prompts=default_prompts("sv"),
@@ -458,7 +520,7 @@ async def test_comment_question_opposite_intent_uses_challenger_actor_context():
         return WordExpertComment(kommentar="Challenge the decision.", anchor_paragraph_index=1)
 
     set_structured_completer(completer)
-    actor = render_actor_context(_challenger_context())
+    actor = _render(_challenger_context())
     await _comment_question(
         prompts=default_prompts("sv"),
         slot=PanelExpertSlot(slot_id="jurist", label="Jurist", profile="Avtal"),
@@ -489,7 +551,7 @@ async def test_unknown_actor_context_stays_neutral_on_comment_call():
         return WordExpertComment(kommentar="The wording is unclear.", anchor_paragraph_index=1)
 
     set_structured_completer(completer)
-    actor = render_actor_context(unknown_actor_context())
+    actor = _render(unknown_actor_context())
     await _comment_question(
         prompts=default_prompts("sv"),
         slot=PanelExpertSlot(slot_id="jurist", label="Jurist", profile="Avtal"),
@@ -506,7 +568,8 @@ async def test_unknown_actor_context_stays_neutral_on_comment_call():
         actor_context=actor,
     )
     joined = "\n".join(captured)
-    assert PERSPECTIVE_UNKNOWN_INVARIANT in joined
+    assert "Perspective is unknown" in joined
+    assert "Do not invent a side" in joined
     assert "User role:" not in joined
     assert "association" not in joined.lower()
     assert "challenger" not in joined.lower()
@@ -531,7 +594,7 @@ async def test_analyze_batch_passes_actor_context_to_moderator_router_and_expert
         raise AssertionError(response_model)
 
     set_structured_completer(completer)
-    actor = render_actor_context(_association_context())
+    actor = _render(_association_context())
     await _analyze_batch(
         batch_index=0,
         batch=[_para(1, "Ett giltigt stycke att granska här.")],
@@ -584,7 +647,7 @@ async def test_analyze_batch_raise_hand_receives_actor_context():
         raise AssertionError(response_model)
 
     set_structured_completer(completer)
-    actor = render_actor_context(_association_context())
+    actor = _render(_association_context())
     await _analyze_batch(
         batch_index=0,
         batch=[_para(1, "Ett giltigt stycke att granska här.")],
@@ -616,7 +679,7 @@ async def test_heading_and_rewrite_receive_actor_context():
         raise AssertionError(response_model)
 
     set_structured_completer(completer)
-    actor = render_actor_context(_association_context())
+    actor = _render(_association_context())
     prompts = default_prompts("sv")
     limiter = WordReviewLimiter(1, WordReviewTimings())
     section = _review_section([_para(1, "Ett giltigt stycke att granska här.")])
@@ -671,7 +734,7 @@ async def test_convergence_preserves_oriented_observation_and_actor_context():
         )
 
     set_structured_completer(completer)
-    actor = render_actor_context(_association_context())
+    actor = _render(_association_context())
     observation = _obs(kommentar=oriented)
     section = WordDocumentSection(
         heading="Decision",
@@ -747,3 +810,52 @@ def test_timing_log_has_actor_flags_without_role_text(monkeypatch):
     assert "association" not in logged
     assert "challenger" not in logged
     assert "counsel" not in logged
+
+
+@pytest.mark.asyncio
+async def test_resolver_failure_emits_failed_timing_summary(
+    client, caplog: pytest.LogCaptureFixture
+):
+    async def completer(messages, response_model):
+        if response_model is ActorContext:
+            raise TimeoutError("actor context resolver timed out")
+        raise AssertionError(response_model)
+
+    panel_id = await _create_expert_panel(client)
+    set_structured_completer(completer)
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    created = await client.post(
+        "/expertgranskning/word-jobs",
+        json=_payload(
+            panel_id=panel_id,
+            paragraphs=[_para(1, "Ett giltigt stycke att granska här.")],
+            review_intent=ASSOCIATION_INTENT,
+        ),
+    )
+    job_id = created.json()["job_id"]
+    with caplog.at_level("INFO"):
+        await jobs_service._run_job(job_id)
+    job = (await client.get(f"/jobs/{job_id}")).json()
+    assert job["status"] == "failed"
+    assert "timed out" in (job.get("error") or "")
+    summaries = [
+        record.getMessage()
+        for record in caplog.records
+        if "Word review LLM calls" in record.getMessage()
+    ]
+    assert len(summaries) == 1
+    message = summaries[0]
+    assert f"job_id={job_id}" in message
+    assert "outcome=failed" in message
+    assert "outcome=success" not in message
+    assert "actor_context_resolver_calls=1" in message
+    assert "actor_context_resolved=0" in message
+    assert ASSOCIATION_INTENT not in message
+    timings = [
+        record.getMessage()
+        for record in caplog.records
+        if "Word review timings" in record.getMessage()
+    ]
+    assert len(timings) == 1
+    assert "actor_context_ms=" in timings[0]
+    assert "outcome=failed" in timings[0]
