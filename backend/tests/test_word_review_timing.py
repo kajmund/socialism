@@ -41,6 +41,8 @@ def test_timing_snapshot_has_safe_aggregate_fields_only():
         "direct_routed_questions",
         "raise_hand_questions",
         "questions_dropped_invalid_anchor",
+        "publication_units_completed",
+        "actions_published_before_completion",
         "llm_call_count",
         "structured_retry_count",
         "max_observed_llm_concurrency",
@@ -88,6 +90,22 @@ def test_llm_call_summary_logs_counts_without_document_text(monkeypatch):
     assert "prompt" not in logged
     assert "document" not in logged
     assert "kommentar" not in logged
+
+
+def test_publication_progress_records_actions_before_final_unit():
+    timings = WordReviewTimings()
+    timings.record_publication_progress(
+        units_completed=1, units_total=3, actions_created=2
+    )
+    timings.record_publication_progress(
+        units_completed=2, units_total=3, actions_created=5
+    )
+    timings.record_publication_progress(
+        units_completed=3, units_total=3, actions_created=6
+    )
+    snapshot = timings.snapshot()
+    assert snapshot["publication_units_completed"] == 3
+    assert snapshot["actions_published_before_completion"] == 5
 
 
 def test_timing_snapshot_omits_first_action_until_marked():

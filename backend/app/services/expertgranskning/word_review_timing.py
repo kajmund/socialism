@@ -35,6 +35,8 @@ class WordReviewTimings:
         self.direct_routed_questions = 0
         self.raise_hand_questions = 0
         self.questions_dropped_invalid_anchor = 0
+        self.publication_units_completed = 0
+        self.actions_published_before_completion = 0
         self._in_flight = 0
 
     def mark_first_action(self) -> None:
@@ -56,6 +58,17 @@ class WordReviewTimings:
 
     def record_dropped_invalid_anchor(self, count: int = 1) -> None:
         self.questions_dropped_invalid_anchor += count
+
+    def record_publication_progress(
+        self,
+        *,
+        units_completed: int,
+        units_total: int,
+        actions_created: int,
+    ) -> None:
+        self.publication_units_completed = units_completed
+        if units_completed < units_total:
+            self.actions_published_before_completion = actions_created
 
     def begin_call(self) -> float:
         self._in_flight += 1
@@ -93,6 +106,10 @@ class WordReviewTimings:
             "direct_routed_questions": self.direct_routed_questions,
             "raise_hand_questions": self.raise_hand_questions,
             "questions_dropped_invalid_anchor": self.questions_dropped_invalid_anchor,
+            "publication_units_completed": self.publication_units_completed,
+            "actions_published_before_completion": (
+                self.actions_published_before_completion
+            ),
             "llm_call_count": self.llm_call_count,
             "structured_retry_count": self.structured_retry_count,
             "max_observed_llm_concurrency": self.max_observed_llm_concurrency,
