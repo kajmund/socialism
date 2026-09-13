@@ -28,8 +28,8 @@ from app.services.expertgranskning.schemas import (
     WordExpertRaiseHand,
     WordExpertRoute,
     WordHeadingAssessment,
-    WordRewriteSuggestion,
     WordReviewQuestion,
+    WordRewriteSuggestion,
 )
 from app.services.expertgranskning.word_review import (
     _analyze_batch,
@@ -480,7 +480,7 @@ async def test_comment_question_keeps_association_perspective_above_document_voi
     set_structured_completer(completer)
     actor = _render(_association_context())
     brief = f"[1] {CHALLENGER_DOCUMENT}"
-    slot, _question, text, anchor = await _comment_question(
+    rows = await _comment_question(
         prompts=default_prompts("sv"),
         slot=PanelExpertSlot(slot_id="jurist", label="Jurist", profile="Avtal"),
         brief=brief,
@@ -506,7 +506,8 @@ async def test_comment_question_keeps_association_perspective_above_document_voi
     assert "should be attacked as invalid" not in actor_msg
     user = captured[0][-1]["content"]
     assert "aktörskontexten" in user or "actor context" in user.lower()
-    assert text == "This is a serious weakness for the association."
+    slot, _question, draft, anchor = rows[0]
+    assert draft.kommentar == "This is a serious weakness for the association."
     assert anchor == 1
     assert slot.slot_id == "jurist"
 

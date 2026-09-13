@@ -10,16 +10,15 @@ import pytest
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 from httpx import AsyncClient
+from pydantic import ValidationError
 from sqlalchemy import select
 
 from app.database.models import ExpertgranskningResult, Job, PanelSession
-from app.realtime.expertgranskning_broadcast import expertgranskning_broadcast
-from pydantic import ValidationError
-
 from app.llm import set_structured_completer
+from app.realtime.expertgranskning_broadcast import expertgranskning_broadcast
 from app.services import jobs as jobs_service
 from app.services.expertgranskning import WORD_JOB_KIND
-from app.services.expertgranskning.watch import build_expertgranskning_replay_payload
+from app.services.expertgranskning.actor_context import ActorContext
 from app.services.expertgranskning.comment_convergence import (
     COMMENT_CONVERGENCE_CHUNK_HARD_CAP,
     COMMENT_CONVERGENCE_CHUNK_MAX_CHARS,
@@ -36,7 +35,7 @@ from app.services.expertgranskning.comment_convergence import (
     paragraph_indexes_for_observations,
     serialized_chunk_chars,
 )
-from app.services.expertgranskning.actor_context import ActorContext
+from app.services.expertgranskning.observation import WordExpertCommentDraft
 from app.services.expertgranskning.schemas import (
     WORD_MAX_PARAGRAPH_LEN,
     WORD_MAX_PARAGRAPHS,
@@ -51,10 +50,10 @@ from app.services.expertgranskning.schemas import (
     WordExpertRaiseHand,
     WordExpertRoute,
     WordHeadingAssessment,
-    WordRewriteSuggestion,
     WordReviewQuestion,
+    WordRewriteSuggestion,
 )
-from app.services.word.anchors import reviewed_text_from_job_request
+from app.services.expertgranskning.watch import build_expertgranskning_replay_payload
 from app.services.expertgranskning.word_review import (
     WORD_COMMENT_CONVERGENCE_SUFFIX,
     WORD_REVIEW_MAX_QUESTIONS_PER_BATCH,
@@ -68,6 +67,7 @@ from app.services.expertgranskning.word_review import (
     build_batches,
     is_heading_1_to_3,
     log_word_review_call_summary,
+    publication_unit_total,
     render_comment_convergence_user_prompt,
     render_expert_comment_user_prompt,
     resolve_comment_anchor,
@@ -76,23 +76,23 @@ from app.services.expertgranskning.word_review import (
     routed_and_unresolved_questions,
     selected_review_questions,
     should_review_paragraph,
-    publication_unit_total,
     word_comment_anchor_suffix,
     word_paragraph_review,
 )
-from app.services.word.actions import load_word_actions
 from app.services.expertgranskning.word_review_timing import (
     WordReviewLimiter,
     WordReviewTimings,
 )
-from app.services.panel.schemas import PanelExpertSlot
 from app.services.expertgranskning.word_structured import (
     complete_word_structured,
     is_json_syntax_validation_error,
     validation_category,
 )
-from app.services.prompt_catalog import default_prompts, render_prompt
 from app.services.kund_store import BOLAG_DEMO_KUND_SLUG
+from app.services.panel.schemas import PanelExpertSlot
+from app.services.prompt_catalog import default_prompts, render_prompt
+from app.services.word.actions import load_word_actions
+from app.services.word.anchors import reviewed_text_from_job_request
 from tests.conftest import (
     BOLAG_USER_ID,
     TEST_CUSTOMER_ID,
@@ -711,11 +711,13 @@ def test_accepted_recommended_expert_ids_validates_panel_and_cap():
 def test_moderator_prompt_asks_for_two_questions_and_primary_anchor():
     text = default_prompts("sv")["expertgranskning.word.moderator.batch"]
     assert "högst två" in text
+    assert "EN materiell sakfråga" in text
     assert "primary_anchor_paragraph_index" in text
     assert "recommended_expert_ids" not in text
     assert "{review_context}" in text
     english = default_prompts("en")["expertgranskning.word.moderator.batch"]
     assert "at most two" in english
+    assert "ONE material issue" in english
     assert "primary_anchor_paragraph_index" in english
     assert "recommended_expert_ids" not in english
     assert "{review_context}" in english
@@ -1400,7 +1402,14 @@ async def test_comment_convergence_batch_text_uses_chunk_paragraphs(monkeypatch)
             paragraph_indexes=[paragraph_index],
             question="Risk?",
         )
-        comments.append((slot, question, f"Kommentar {index} om risken.", paragraph_index))
+        comments.append(
+            (
+                slot,
+                question,
+                WordExpertCommentDraft(kommentar=f"Kommentar {index} om risken."),
+                paragraph_index,
+            )
+        )
     written = await _consolidate_comments(
         prompts=default_prompts("sv"),
         section=section,
@@ -1651,7 +1660,10 @@ async def test_analyze_batch_direct_routes_recommended_experts():
     assert snapshot["raise_hand_questions"] == 0
     assert snapshot["router_fallback_count"] == 0
     assert snapshot["router_assignments"] == 1
-    assert [(slot.slot_id, text, anchor) for slot, _question, text, anchor in analysis.comments] == [
+    assert [
+        (slot.slot_id, draft.kommentar, anchor)
+        for slot, _question, draft, anchor in analysis.comments
+    ] == [
         ("jurist", "Direkt routed kommentar.", 1)
     ]
 
@@ -1798,7 +1810,9 @@ async def test_analyze_batch_logs_routing_counts_without_document_text(caplog):
 def test_word_alembic_chain_is_linear_after_main_head():
     cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     script = ScriptDirectory.from_config(cfg)
-    assert script.get_heads() == ["076_word_review_actor_context"]
+    assert script.get_heads() == ["077_word_review_atomic_observations"]
+    atomic = script.get_revision("077_word_review_atomic_observations")
+    assert atomic.down_revision == "076_word_review_actor_context"
     actor = script.get_revision("076_word_review_actor_context")
     assert actor.down_revision == "075_word_review_intent_router"
     router = script.get_revision("075_word_review_intent_router")
@@ -1914,7 +1928,7 @@ async def test_comment_call_sends_anchor_contract_with_old_override():
         _para(12, "Leverantören behåller all immaterialrätt till underlaget."),
         _para(13, "Beställaren ska betala fakturan inom trettio dagar."),
     ]
-    slot, question, text, anchor = await _comment_question(
+    rows = await _comment_question(
         prompts=prompts,
         slot=PanelExpertSlot(slot_id="jur", label="Jurist", profile="Avtal"),
         brief="[12] Leverantören behåller all immaterialrätt till underlaget.",
@@ -1937,7 +1951,8 @@ async def test_comment_call_sends_anchor_contract_with_old_override():
     assert "Allowed anchors: 12, 13." in sent
     assert "Return exactly one anchor_paragraph_index from this set." in sent
     assert "anchor_paragraph_index" not in _OLD_COMMENT_OVERRIDE
-    assert text == "IP-klausulen är för vid."
+    slot, question, draft, anchor = rows[0]
+    assert draft.kommentar == "IP-klausulen är för vid."
     assert anchor == 12
     assert slot.slot_id == "jur"
     assert question.id == "q1"
