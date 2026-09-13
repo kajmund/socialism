@@ -1179,7 +1179,9 @@ async def _analyze_section(
             )
         )
 
-    async def finalize_ready_comment_windows() -> None:
+    async def finalize_ready_comment_windows(
+        *, allow_missing_lookahead: bool = False
+    ) -> None:
         nonlocal pending_obs
         while True:
             nxt = next(
@@ -1195,7 +1197,9 @@ async def _analyze_section(
             is_last = nxt == last_index
             lookahead_idx = None if is_last else nxt + 1
             if lookahead_idx is not None and lookahead_idx not in batch_results:
-                return
+                if not allow_missing_lookahead:
+                    return
+                lookahead_idx = None
             if nxt not in ingested:
                 pending_obs.extend(_observations_from_batch(batch_results[nxt]))
                 ingested.add(nxt)
@@ -1271,13 +1275,41 @@ async def _analyze_section(
         tasks[heading_task] = "heading"
     pending_tasks = set(tasks)
     paragraph_reviews = 0
+
+    async def record_completed_task(task: asyncio.Task) -> None:
+        nonlocal paragraph_reviews
+        kind = tasks[task]
+        if kind == "heading":
+            heading = task.result()
+            await emit(
+                WordPublicationUnit(
+                    section_index=section_index,
+                    heading=heading,
+                    completes_unit=True,
+                )
+            )
+            return
+        analysis = task.result()
+        paragraph_reviews += analysis.paragraph_reviews
+        batch_results[analysis.batch_index] = analysis
+        for paragraph in analysis.paragraphs:
+            section_by_index[paragraph.index] = paragraph
+        await emit_early_rewrites(analysis)
+        await finalize_ready_comment_windows()
+
+    async def flush_partial_comment_windows() -> None:
+        while True:
+            before = len(comment_finalized)
+            await finalize_ready_comment_windows(allow_missing_lookahead=True)
+            if len(comment_finalized) == before:
+                break
+
     try:
         while pending_tasks:
             done, pending_tasks = await asyncio.wait(
                 pending_tasks, return_when=asyncio.FIRST_COMPLETED
             )
             failures: list[BaseException] = []
-            succeeded: list[asyncio.Task] = []
             for task in done:
                 if task.cancelled():
                     continue
@@ -1285,27 +1317,19 @@ async def _analyze_section(
                 if exc is not None:
                     failures.append(exc)
                     continue
-                succeeded.append(task)
-            for task in succeeded:
-                kind = tasks[task]
-                if kind == "heading":
-                    heading = task.result()
-                    await emit(
-                        WordPublicationUnit(
-                            section_index=section_index,
-                            heading=heading,
-                            completes_unit=True,
-                        )
-                    )
-                    continue
-                analysis = task.result()
-                paragraph_reviews += analysis.paragraph_reviews
-                batch_results[analysis.batch_index] = analysis
-                for paragraph in analysis.paragraphs:
-                    section_by_index[paragraph.index] = paragraph
-                await emit_early_rewrites(analysis)
-                await finalize_ready_comment_windows()
+                await record_completed_task(task)
             if failures:
+                while pending_tasks:
+                    done, pending_tasks = await asyncio.wait(
+                        pending_tasks, return_when=asyncio.FIRST_COMPLETED
+                    )
+                    for task in done:
+                        if task.cancelled():
+                            continue
+                        if task.exception() is not None:
+                            continue
+                        await record_completed_task(task)
+                await flush_partial_comment_windows()
                 raise failures[0]
     finally:
         for task in pending_tasks:
