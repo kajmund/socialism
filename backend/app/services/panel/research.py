@@ -571,7 +571,7 @@ async def collect_expert_research_needs(
             source_types=source_types_prompt(),
         ),
     )
-    return await complete_structured(messages, ExpertResearchNeeds, strict=True)
+    return await complete_structured(messages, ExpertResearchNeeds)
 
 
 async def consolidate_research_plan(

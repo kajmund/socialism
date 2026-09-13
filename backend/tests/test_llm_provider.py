@@ -25,8 +25,6 @@ from app.llm import (
     set_structured_completer,
     set_text_completer,
     set_tools_completer,
-    strict_response_format,
-    supports_strict_json_schema,
 )
 from app.llm.structured_schema import strict_json_schema
 from app.schemas.domain import EditablePersona, FollowUpQuestions
@@ -196,8 +194,6 @@ async def test_complete_structured_cerebras_sends_reasoning_effort(monkeypatch):
     assert captured["messages"] == [{"role": "user", "content": "group"}]
     assert "tools" not in captured
     assert captured["max_tokens"] == settings.llm_max_tokens
-    assert supports_strict_json_schema("cerebras") is True
-    assert supports_strict_json_schema("deepseek") is False
     assert recorded[0].provider == "cerebras"
     assert recorded[0].model == CEREBRAS_DEFAULT_MODEL
     assert recorded[0].reasoning_effort == "medium"
@@ -236,10 +232,8 @@ async def test_complete_structured_cerebras_strict_sends_json_schema(monkeypatch
     parsed = await complete_structured(
         [{"role": "user", "content": "research needs"}],
         ExpertResearchNeeds,
-        strict=True,
     )
     assert parsed.research_decision == "none"
-    assert captured["response_format"] == strict_response_format(ExpertResearchNeeds)
     assert captured["response_format"]["type"] == "json_schema"
     assert captured["response_format"]["json_schema"]["strict"] is True
     assert captured["response_format"]["json_schema"]["name"] == "ExpertResearchNeeds"
@@ -279,7 +273,6 @@ async def test_complete_structured_deepseek_strict_falls_back_to_json_object(
         parsed = await complete_structured(
             [{"role": "user", "content": "research needs"}],
             ExpertResearchNeeds,
-            strict=True,
         )
         assert parsed.research_decision == "none"
         assert captured["response_format"] == {"type": "json_object"}
