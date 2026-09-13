@@ -12,6 +12,12 @@ import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from app.services.expertgranskning.observation import (
+    comment_exceeds_soft_cap,
+    comment_misattributes_user_claim,
+    issue_text_for_match,
+    materialize_word_comment,
+)
 from app.services.expertgranskning.schemas import (
     WordCommentConvergence,
     WordConvergedIssue,
@@ -71,6 +77,17 @@ class WordObservation:
     paragraph_text: str
     list_string: str
     kommentar: str
+    issue: str = ""
+    analysis: str = ""
+    source_perspective: str = ""
+    target_perspective: str = ""
+    statement_owner: str = ""
+    recommendation_recipient: str = ""
+    consequence: str = ""
+    recommended_action: str = ""
+
+    def issue_match_text(self) -> str:
+        return issue_text_for_match(issue=self.issue, kommentar=self.kommentar)
 
 
 @dataclass(frozen=True)
@@ -180,7 +197,15 @@ def format_observation_block(observation: WordObservation) -> str:
         f"paragraph_index: {observation.paragraph_index}\n"
         f"list_string: {observation.list_string}\n"
         f"paragraph_text: {observation.paragraph_text}\n"
-        f"kommentar: {observation.kommentar}"
+        f"issue: {observation.issue}\n"
+        f"source_perspective: {observation.source_perspective}\n"
+        f"target_perspective: {observation.target_perspective}\n"
+        f"statement_owner: {observation.statement_owner}\n"
+        f"recommendation_recipient: {observation.recommendation_recipient}\n"
+        f"consequence: {observation.consequence}\n"
+        f"recommended_action: {observation.recommended_action}\n"
+        f"kommentar: {observation.kommentar}\n"
+        f"analysis: {observation.analysis}"
     )
 
 
@@ -284,10 +309,61 @@ def paragraph_indexes_for_observations(
     return {item.paragraph_index for item in observations}
 
 
+def observations_are_same_issue(left: WordObservation, right: WordObservation) -> bool:
+    return comments_are_similar(left.issue_match_text(), right.issue_match_text())
+
+
+def structured_issues_conflict(members: Sequence[WordObservation]) -> bool:
+    issues = [item.issue.strip() for item in members if item.issue.strip()]
+    if len(issues) < 2:
+        return False
+    seed = issues[0]
+    return any(not comments_are_similar(seed, item) for item in issues[1:])
+
+
+def _copy_observation(
+    source: WordObservation,
+    *,
+    observation_id: str,
+    expert_id: str,
+    expert_label: str,
+    question_id: str,
+    paragraph_index: int,
+    paragraph_text: str,
+    list_string: str,
+) -> WordObservation:
+    return WordObservation(
+        observation_id=observation_id,
+        expert_id=expert_id,
+        expert_label=expert_label,
+        question_id=question_id,
+        paragraph_index=paragraph_index,
+        paragraph_text=paragraph_text,
+        list_string=list_string,
+        kommentar=source.kommentar,
+        issue=source.issue,
+        analysis=source.analysis,
+        source_perspective=source.source_perspective,
+        target_perspective=source.target_perspective,
+        statement_owner=source.statement_owner,
+        recommendation_recipient=source.recommendation_recipient,
+        consequence=source.consequence,
+        recommended_action=source.recommended_action,
+    )
+
+
 def _collapse_cluster(cluster: list[WordObservation]) -> WordObservation:
     anchor = choose_specific_anchor(cluster)
-    richest = max(cluster, key=lambda item: len(item.kommentar.strip()))
-    return WordObservation(
+    richest = max(
+        cluster,
+        key=lambda item: (
+            len(item.issue.strip()),
+            len(item.analysis.strip()),
+            len(item.kommentar.strip()),
+        ),
+    )
+    return _copy_observation(
+        richest,
         observation_id=cluster[0].observation_id,
         expert_id=cluster[0].expert_id,
         expert_label=cluster[0].expert_label,
@@ -295,18 +371,17 @@ def _collapse_cluster(cluster: list[WordObservation]) -> WordObservation:
         paragraph_index=anchor.paragraph_index,
         paragraph_text=anchor.paragraph_text,
         list_string=anchor.list_string,
-        kommentar=richest.kommentar,
     )
 
 
 def _intra_expert_linked(left: WordObservation, right: WordObservation) -> bool:
     if left.expert_id != right.expert_id:
         return False
+    if not observations_are_same_issue(left, right):
+        return False
     if left.question_id == right.question_id:
         return True
-    return observations_are_nearby(left, right) and comments_are_similar(
-        left.kommentar, right.kommentar
-    )
+    return observations_are_nearby(left, right)
 
 
 def collapse_intra_expert_duplicates(
@@ -406,6 +481,19 @@ def finalize_word_comment_convergence(
     return WordCommentConvergence(issues=issues)
 
 
+def observation_visible_comment(observation: WordObservation) -> str:
+    return (
+        materialize_word_comment(
+            issue=observation.issue,
+            consequence=observation.consequence,
+            recommended_action=observation.recommended_action,
+            kommentar=observation.kommentar,
+            statement_owner=observation.statement_owner,
+        )
+        or observation.kommentar
+    )
+
+
 def consolidated_from_observation(observation: WordObservation) -> WordConsolidatedComment:
     return WordConsolidatedComment(
         expert_id=observation.expert_id,
@@ -413,8 +501,8 @@ def consolidated_from_observation(observation: WordObservation) -> WordConsolida
         supporting_expert_ids=(observation.expert_id,),
         supporting_expert_labels=(observation.expert_label,),
         paragraph_index=observation.paragraph_index,
-        kommentar=observation.kommentar,
-        explanation="",
+        kommentar=observation_visible_comment(observation),
+        explanation=observation.analysis.strip(),
         should_materialize=True,
         has_dissensus=False,
         observation_ids=(observation.observation_id,),
@@ -441,7 +529,12 @@ def _comment_from_members(
         anchor_index = paragraph_index
     else:
         anchor_index = choose_specific_anchor(members).paragraph_index
-    text = kommentar.strip() or max(members, key=lambda item: len(item.kommentar)).kommentar
+    primary = max(
+        members,
+        key=lambda item: (len(item.issue.strip()), len(item.kommentar.strip())),
+    )
+    text = kommentar.strip() or observation_visible_comment(primary)
+    explanation_text = explanation.strip() or primary.analysis.strip()
     return WordConsolidatedComment(
         expert_id=ids[0],
         expert_namn=format_supporting_labels(labels),
@@ -449,7 +542,7 @@ def _comment_from_members(
         supporting_expert_labels=labels,
         paragraph_index=anchor_index,
         kommentar=text,
-        explanation=explanation.strip(),
+        explanation=explanation_text,
         should_materialize=should_materialize,
         has_dissensus=has_dissensus,
         observation_ids=_unique_preserving(
@@ -465,6 +558,41 @@ def _split_dissenting_members(
     for item in members:
         by_expert.setdefault(item.expert_id, []).append(item)
     return list(by_expert.values())
+
+
+def cluster_equivalent_issues(
+    members: Sequence[WordObservation],
+) -> list[list[WordObservation]]:
+    remaining = list(members)
+    clusters: list[list[WordObservation]] = []
+    while remaining:
+        seed = remaining.pop(0)
+        cluster = [seed]
+        kept: list[WordObservation] = []
+        for item in remaining:
+            if observations_are_same_issue(seed, item):
+                cluster.append(item)
+            else:
+                kept.append(item)
+        remaining = kept
+        clusters.append(cluster)
+    return clusters
+
+
+def _safe_converged_comment(
+    members: Sequence[WordObservation],
+    issue: WordConvergedIssue,
+) -> str:
+    """Keep LLM short_comment only when it stays atomic and perspective-safe."""
+    primary = members[0]
+    short = issue.short_comment.strip()
+    if (
+        not short
+        or comment_exceeds_soft_cap(short)
+        or comment_misattributes_user_claim(short, primary.statement_owner)
+    ):
+        return observation_visible_comment(primary)
+    return short
 
 
 def apply_word_comment_convergence(
@@ -488,9 +616,16 @@ def apply_word_comment_convergence(
             assigned.add(observation.observation_id)
         if not members:
             continue
-        if issue.has_dissensus or comments_dissent([item.kommentar for item in members]):
+        dissent_texts = [
+            item.kommentar or item.issue or item.recommended_action for item in members
+        ]
+        if issue.has_dissensus or comments_dissent(dissent_texts):
             for split in _split_dissenting_members(members):
                 groups.append((split, None, True))
+            continue
+        if structured_issues_conflict(members):
+            for cluster in cluster_equivalent_issues(members):
+                groups.append((cluster, None if len(cluster) == 1 else issue, False))
             continue
         groups.append((members, issue, False))
 
@@ -517,9 +652,9 @@ def apply_word_comment_convergence(
             _comment_from_members(
                 members,
                 paragraph_index=issue.paragraph_index,
-                kommentar=issue.short_comment,
+                kommentar=_safe_converged_comment(members, issue),
                 supporting_expert_ids=issue.supporting_expert_ids,
-                explanation=issue.explanation,
+                explanation=issue.explanation or members[0].analysis,
                 should_materialize=decide_word_issue_materialization(issue),
                 has_dissensus=issue.has_dissensus,
             )
