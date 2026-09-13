@@ -590,15 +590,44 @@ class WordExpertRaiseHand(BaseModel):
         return [str(item).strip() for item in value if str(item).strip()]
 
 
+REQUIRED_OBSERVATION_ATTRIBUTION_FIELDS = (
+    "source_perspective",
+    "target_perspective",
+    "statement_owner",
+    "recommendation_recipient",
+)
+
+
+def _strip_optional_text(value: object) -> str:
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def _observation_has_visible_content(
+    *,
+    issue: str,
+    analysis: str,
+    consequence: str,
+    recommended_action: str,
+    kommentar: str,
+) -> bool:
+    return bool(issue or analysis or consequence or recommended_action or kommentar)
+
+
+def _missing_attribution_fields(**fields: str) -> list[str]:
+    return [name for name in REQUIRED_OBSERVATION_ATTRIBUTION_FIELDS if not fields[name]]
+
+
 class ObservationAttribution(BaseModel):
     """Who owns the statement and who should receive the recommendation."""
 
     model_config = ConfigDict(extra="ignore")
 
-    source_perspective: str = ""
-    target_perspective: str = ""
-    statement_owner: str = ""
-    recommendation_recipient: str = ""
+    source_perspective: str
+    target_perspective: str
+    statement_owner: str
+    recommendation_recipient: str
 
     @field_validator(
         "source_perspective",
@@ -609,9 +638,23 @@ class ObservationAttribution(BaseModel):
     )
     @classmethod
     def strip_text(cls, value: object) -> str:
-        if value is None:
-            return ""
-        return str(value).strip()
+        return _strip_optional_text(value)
+
+    @model_validator(mode="after")
+    def require_attribution_fields(self) -> ObservationAttribution:
+        missing = _missing_attribution_fields(
+            source_perspective=self.source_perspective,
+            target_perspective=self.target_perspective,
+            statement_owner=self.statement_owner,
+            recommendation_recipient=self.recommendation_recipient,
+        )
+        if missing:
+            raise ValueError(
+                "attribution requires non-empty "
+                + ", ".join(REQUIRED_OBSERVATION_ATTRIBUTION_FIELDS)
+                + f" (missing {', '.join(missing)})"
+            )
+        return self
 
 
 class WordExpertObservation(BaseModel):
@@ -644,9 +687,7 @@ class WordExpertObservation(BaseModel):
     )
     @classmethod
     def strip_text(cls, value: object) -> str:
-        if value is None:
-            return ""
-        return str(value).strip()
+        return _strip_optional_text(value)
 
     @field_validator("anchor_paragraph_index", mode="before")
     @classmethod
@@ -654,6 +695,30 @@ class WordExpertObservation(BaseModel):
         if value == "":
             return None
         return value
+
+    @model_validator(mode="after")
+    def require_attribution_on_atomic_observation(self) -> WordExpertObservation:
+        if not _observation_has_visible_content(
+            issue=self.issue,
+            analysis=self.analysis,
+            consequence=self.consequence,
+            recommended_action=self.recommended_action,
+            kommentar=self.kommentar,
+        ):
+            return self
+        missing = _missing_attribution_fields(
+            source_perspective=self.source_perspective,
+            target_perspective=self.target_perspective,
+            statement_owner=self.statement_owner,
+            recommendation_recipient=self.recommendation_recipient,
+        )
+        if missing:
+            raise ValueError(
+                "atomic observations require non-empty "
+                + ", ".join(REQUIRED_OBSERVATION_ATTRIBUTION_FIELDS)
+                + f" (missing {', '.join(missing)})"
+            )
+        return self
 
     @property
     def attribution(self) -> ObservationAttribution:
