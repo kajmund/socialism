@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import type { DocumentIntentInterview, LatestWordJob } from "./types"
 import {
+  interviewDraftLocaleMismatch,
   localeForReview,
   reusedIntentPayload,
   savedReviewContext,
@@ -122,5 +123,19 @@ describe("localeForReview", () => {
     expect(localeForReview("en")).toBe("en")
     expect(localeForReview("sv")).toBe("sv")
     expect(localeForReview("nb")).toBe("sv")
+  })
+})
+
+describe("interviewDraftLocaleMismatch", () => {
+  it("invalidates a draft generated in another language", () => {
+    expect(
+      interviewDraftLocaleMismatch({ draftLocale: "sv", locale: "en" }),
+    ).toBe(true)
+    expect(
+      interviewDraftLocaleMismatch({ draftLocale: "sv", locale: "sv" }),
+    ).toBe(false)
+    expect(
+      interviewDraftLocaleMismatch({ draftLocale: undefined, locale: "sv" }),
+    ).toBe(true)
   })
 })

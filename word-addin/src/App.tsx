@@ -51,6 +51,7 @@ import {
   toggleMultiChoice,
 } from "@/lib/intentInterview"
 import {
+  interviewDraftLocaleMismatch,
   localeForReview,
   reusedIntentPayload,
   savedReviewContext,
@@ -91,6 +92,7 @@ type ReviewDraft = {
   index: number
   docId: string
   resolveCommentIds: string[]
+  locale: "sv" | "en"
 }
 
 export function App() {
@@ -504,6 +506,7 @@ export function App() {
           index: 0,
           docId,
           resolveCommentIds: plan.resolveCommentIds,
+          locale: reviewLocale,
         })
         setPhase("interviewing")
       } catch (err) {
@@ -586,6 +589,18 @@ export function App() {
   async function handleStartFromInterview() {
     if (!draft || !token || !panelId) return
     if (!answersReady(draft.interview, draft.answers)) return
+    const reviewLocale = localeForReview(locale)
+    if (
+      interviewDraftLocaleMismatch({
+        draftLocale: draft.locale,
+        locale: reviewLocale,
+      })
+    ) {
+      setDraft(null)
+      setPhase("idle")
+      void handleReview({ resetIntent: true })
+      return
+    }
     setError("")
     try {
       const jobId = await submitPreparedWordReview({
@@ -600,7 +615,7 @@ export function App() {
             doc_id: draft.docId,
             word_session_id: WORD_SESSION_ID,
             sections,
-            locale: localeForReview(locale),
+            locale: draft.locale,
             review_intent: reviewIntent.trim(),
             intent_interview: draft.interview,
             intent_answers: normalizeIntentAnswers(draft.answers),
@@ -616,7 +631,7 @@ export function App() {
         },
       })
       setReviewContext({
-        locale: localeForReview(locale),
+        locale: draft.locale,
         review_intent: reviewIntent.trim(),
         intent_interview: draft.interview,
         intent_answers: normalizeIntentAnswers(draft.answers),
@@ -708,7 +723,21 @@ export function App() {
           <select
             className="lang-control"
             value={locale}
-            onChange={(event) => setLocale(event.target.value === "en" ? "en" : "sv")}
+            disabled={phase === "interviewing" || phase === "preparing" || phase === "running"}
+            onChange={(event) => {
+              const next = event.target.value === "en" ? "en" : "sv"
+              setLocale(next)
+              if (
+                draft != null &&
+                interviewDraftLocaleMismatch({
+                  draftLocale: draft.locale,
+                  locale: next,
+                })
+              ) {
+                setDraft(null)
+                setPhase("idle")
+              }
+            }}
           >
             <option value="sv">{t("languageSv")}</option>
             <option value="en">{t("languageEn")}</option>
