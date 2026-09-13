@@ -590,9 +590,63 @@ class WordExpertRaiseHand(BaseModel):
         return [str(item).strip() for item in value if str(item).strip()]
 
 
-class WordExpertComment(BaseModel):
+class ObservationAttribution(BaseModel):
+    """Who owns the statement and who should receive the recommendation."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    source_perspective: str = ""
+    target_perspective: str = ""
+    statement_owner: str = ""
+    recommendation_recipient: str = ""
+
+    @field_validator(
+        "source_perspective",
+        "target_perspective",
+        "statement_owner",
+        "recommendation_recipient",
+        mode="before",
+    )
+    @classmethod
+    def strip_text(cls, value: object) -> str:
+        if value is None:
+            return ""
+        return str(value).strip()
+
+
+class WordExpertObservation(BaseModel):
+    """One atomic expert finding. Analysis is internal, not the Word comment."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    issue: str = ""
+    analysis: str = ""
+    source_perspective: str = ""
+    target_perspective: str = ""
+    statement_owner: str = ""
+    recommendation_recipient: str = ""
+    consequence: str = ""
+    recommended_action: str = ""
     kommentar: str = ""
     anchor_paragraph_index: int | None = None
+
+    @field_validator(
+        "issue",
+        "analysis",
+        "source_perspective",
+        "target_perspective",
+        "statement_owner",
+        "recommendation_recipient",
+        "consequence",
+        "recommended_action",
+        "kommentar",
+        mode="before",
+    )
+    @classmethod
+    def strip_text(cls, value: object) -> str:
+        if value is None:
+            return ""
+        return str(value).strip()
 
     @field_validator("anchor_paragraph_index", mode="before")
     @classmethod
@@ -600,6 +654,21 @@ class WordExpertComment(BaseModel):
         if value == "":
             return None
         return value
+
+    @property
+    def attribution(self) -> ObservationAttribution:
+        return ObservationAttribution(
+            source_perspective=self.source_perspective,
+            target_perspective=self.target_perspective,
+            statement_owner=self.statement_owner,
+            recommendation_recipient=self.recommendation_recipient,
+        )
+
+
+class WordExpertComment(WordExpertObservation):
+    """LLM expert-comment payload: one observation or several atomic ones."""
+
+    observations: list[WordExpertObservation] = Field(default_factory=list)
 
 
 WordIssueMateriality = Literal["high", "medium", "low"]
