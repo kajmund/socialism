@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -36,7 +37,15 @@ async def test_complete_structured_sends_explicit_max_tokens(monkeypatch):
     )
     assert parsed.issues == []
     assert captured["max_tokens"] == settings.llm_max_tokens
-    assert captured["response_format"] == {"type": "json_object"}
+    assert captured["response_format"]["type"] == "json_schema"
+    assert captured["response_format"]["json_schema"]["strict"] is True
+    assert captured["response_format"]["json_schema"]["schema"] == (
+        WordCommentConvergence.model_json_schema()
+    )
+    guide = captured["messages"][-1]["content"]
+    assert json.dumps(
+        WordCommentConvergence.model_json_schema(), ensure_ascii=False
+    ) not in guide
 
 
 def test_llm_max_tokens_defaults_to_8192():
