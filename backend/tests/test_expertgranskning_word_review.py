@@ -2778,7 +2778,218 @@ async def test_word_review_question_can_span_paragraphs(client: AsyncClient):
         (DEFAULT_EXPERT_LABELS[0], 2),
         (DEFAULT_EXPERT_LABELS[1], 2),
     }
-    assert {row["paragraph_index"] for row in rewrites} == {1, 2}
+    assert {row["paragraph_index"] for row in rewrites} == {2}
+
+
+@pytest.mark.asyncio
+async def test_word_review_rewrite_uses_resolved_anchor_not_question_scope(
+    client: AsyncClient,
+):
+    rewrite_prompts: list[str] = []
+    paragraph_10 = "Leverantören behåller all immaterialrätt till underlaget."
+    paragraph_11 = "Beställaren ska betala fakturan inom skälig tid."
+    paragraph_12 = "Avtalet gäller i tolv månader från undertecknandet."
+
+    async def completer(messages, response_model):
+        user = messages[-1]["content"]
+        if response_model is WordBatchModeration:
+            return WordBatchModeration(
+                needs_review=True,
+                reason="Tre stycken, ett ankare.",
+                questions=[
+                    WordReviewQuestion(
+                        id="q1",
+                        paragraph_indexes=[10, 11, 12],
+                        question="Var sitter betalningsvillkoret?",
+                        why_it_matters="Fel ankare sprider omskrivning.",
+                        primary_anchor_paragraph_index=11,
+                    )
+                ],
+            )
+        if response_model is WordExpertRaiseHand:
+            return WordExpertRaiseHand(question_ids=["q1"])
+        if response_model is WordExpertComment:
+            return WordExpertComment(kommentar="Betalningsfristen är för vag.")
+        if response_model is WordHeadingAssessment:
+            return WordHeadingAssessment(forslag=None)
+        if response_model is WordRewriteSuggestion:
+            rewrite_prompts.append(user)
+            return WordRewriteSuggestion(
+                ny_text="Fakturan ska betalas inom trettio dagar.",
+                motivering="Båda vill samma sak.",
+            )
+        if response_model is WordCommentConvergence:
+            return _passthrough_comment_convergence(user)
+        raise AssertionError(response_model)
+
+    panel_id = await _create_expert_panel(client)
+    set_structured_completer(completer)
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    created = await client.post(
+        "/expertgranskning/word-jobs",
+        json=_payload(
+            panel_id=panel_id,
+            paragraphs=[
+                _para(10, paragraph_10),
+                _para(11, paragraph_11),
+                _para(12, paragraph_12),
+            ],
+        ),
+    )
+    job_id = created.json()["job_id"]
+    await jobs_service._run_job(job_id)
+    rows = (await client.get(f"/expertgranskning/word-jobs/{job_id}/results")).json()
+    comments = [
+        row
+        for row in rows
+        if not row["is_heading_suggestion"] and not row["is_rewrite_suggestion"]
+    ]
+    rewrites = [row for row in rows if row["is_rewrite_suggestion"]]
+    job = (await client.get(f"/jobs/{job_id}")).json()
+    assert {(row["expert_namn"], row["paragraph_index"]) for row in comments} == {
+        (DEFAULT_EXPERT_LABELS[0], 11),
+        (DEFAULT_EXPERT_LABELS[1], 11),
+    }
+    assert [row["paragraph_index"] for row in rewrites] == [11]
+    assert len(rewrite_prompts) == 1
+    assert paragraph_11 in rewrite_prompts[0]
+    assert paragraph_10 not in rewrite_prompts[0]
+    assert paragraph_12 not in rewrite_prompts[0]
+    assert job["result"]["rewrite_convergence_calls"] == 1
+
+
+@pytest.mark.asyncio
+async def test_word_review_rewrite_requires_same_paragraph_anchor(
+    client: AsyncClient,
+):
+    rewrite_calls = 0
+
+    async def completer(messages, response_model):
+        nonlocal rewrite_calls
+        if response_model is WordBatchModeration:
+            return WordBatchModeration(
+                needs_review=True,
+                reason="Två stycken i samma fråga.",
+                questions=[
+                    WordReviewQuestion(
+                        id="q1",
+                        paragraph_indexes=[10, 11],
+                        question="Hör IP och betalning ihop?",
+                        why_it_matters="Olika ankare ska inte skapa omskrivning.",
+                        primary_anchor_paragraph_index=10,
+                    )
+                ],
+            )
+        if response_model is WordExpertRaiseHand:
+            return WordExpertRaiseHand(question_ids=["q1"])
+        if response_model is WordExpertComment:
+            if _identity_label(messages) == DEFAULT_EXPERT_LABELS[0]:
+                return WordExpertComment(
+                    kommentar="IP-klausulen är för vid.",
+                    anchor_paragraph_index=10,
+                )
+            return WordExpertComment(
+                kommentar="Betalningsfristen är för vag.",
+                anchor_paragraph_index=11,
+            )
+        if response_model is WordHeadingAssessment:
+            return WordHeadingAssessment(forslag=None)
+        if response_model is WordRewriteSuggestion:
+            rewrite_calls += 1
+            return WordRewriteSuggestion(ny_text="Ska inte ske.", motivering="x")
+        if response_model is WordCommentConvergence:
+            return _passthrough_comment_convergence(messages[-1]["content"])
+        raise AssertionError(response_model)
+
+    panel_id = await _create_expert_panel(client)
+    set_structured_completer(completer)
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    created = await client.post(
+        "/expertgranskning/word-jobs",
+        json=_payload(
+            panel_id=panel_id,
+            paragraphs=[
+                _para(10, "Leverantören behåller all immaterialrätt till underlaget."),
+                _para(11, "Beställaren ska betala fakturan inom skälig tid."),
+            ],
+        ),
+    )
+    job_id = created.json()["job_id"]
+    await jobs_service._run_job(job_id)
+    rows = (await client.get(f"/expertgranskning/word-jobs/{job_id}/results")).json()
+    comments = [
+        row
+        for row in rows
+        if not row["is_heading_suggestion"] and not row["is_rewrite_suggestion"]
+    ]
+    job = (await client.get(f"/jobs/{job_id}")).json()
+    assert {(row["expert_namn"], row["paragraph_index"]) for row in comments} == {
+        (DEFAULT_EXPERT_LABELS[0], 10),
+        (DEFAULT_EXPERT_LABELS[1], 11),
+    }
+    assert [row for row in rows if row["is_rewrite_suggestion"]] == []
+    assert rewrite_calls == 0
+    assert job["result"]["rewrite_convergence_calls"] == 0
+
+
+@pytest.mark.asyncio
+async def test_word_review_single_paragraph_rewrite_still_converges(
+    client: AsyncClient,
+):
+    rewrite_calls = 0
+
+    async def completer(messages, response_model):
+        nonlocal rewrite_calls
+        user = messages[-1]["content"]
+        if response_model is WordBatchModeration:
+            return WordBatchModeration(
+                needs_review=True,
+                reason="Ett stycke.",
+                questions=[
+                    WordReviewQuestion(
+                        id="q1",
+                        paragraph_indexes=[4],
+                        question="Är stycket tillräckligt tydligt?",
+                        why_it_matters="Otydlighet kan skapa tolkningsrisk.",
+                    )
+                ],
+            )
+        if response_model is WordExpertRaiseHand:
+            return WordExpertRaiseHand(question_ids=["q1"])
+        if response_model is WordExpertComment:
+            return WordExpertComment(kommentar="Skriv om till tydligare mening.")
+        if response_model is WordHeadingAssessment:
+            return WordHeadingAssessment(forslag=None)
+        if response_model is WordRewriteSuggestion:
+            rewrite_calls += 1
+            assert "Skriv om till tydligare mening." in user
+            return WordRewriteSuggestion(
+                ny_text="Parterna ska utse kontaktpersoner.",
+                motivering="Båda vill samma sak.",
+            )
+        if response_model is WordCommentConvergence:
+            return _passthrough_comment_convergence(user)
+        raise AssertionError(response_model)
+
+    panel_id = await _create_expert_panel(client)
+    set_structured_completer(completer)
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    created = await client.post(
+        "/expertgranskning/word-jobs",
+        json=_payload(
+            panel_id=panel_id,
+            paragraphs=[_para(4, "Detta stycke är tillräckligt långt för granskning.")],
+        ),
+    )
+    job_id = created.json()["job_id"]
+    await jobs_service._run_job(job_id)
+    rows = (await client.get(f"/expertgranskning/word-jobs/{job_id}/results")).json()
+    rewrite = next(row for row in rows if row["is_rewrite_suggestion"])
+    job = (await client.get(f"/jobs/{job_id}")).json()
+    assert rewrite["paragraph_index"] == 4
+    assert rewrite["foreslagen_text"] == "Parterna ska utse kontaktpersoner."
+    assert rewrite_calls == 1
+    assert job["result"]["rewrite_convergence_calls"] == 1
 
 
 @pytest.mark.asyncio
