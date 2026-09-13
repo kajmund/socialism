@@ -35,6 +35,10 @@ from app.services.expertgranskning.comment_convergence import (
     format_observations_for_prompt,
     paragraph_indexes_for_observations,
 )
+from app.services.expertgranskning.actor_context import (
+    render_actor_context,
+    resolve_actor_context,
+)
 from app.services.expertgranskning.intent_interview import (
     compose_expert_review_context,
     compose_intent_prefix,
@@ -370,10 +374,13 @@ def _messages_with_brief(
     brief: str,
     user: str,
     review_context: str = "",
+    actor_context: str = "",
 ) -> list[dict[str, str]]:
     messages: list[dict[str, str]] = []
     if identity.strip():
         messages.append({"role": "system", "content": identity})
+    if actor_context.strip():
+        messages.append({"role": "system", "content": actor_context})
     if review_context.strip():
         messages.append({"role": "system", "content": review_context})
     if brief.strip():
@@ -637,6 +644,7 @@ async def _review_heading(
     section: WordDocumentSection,
     limiter: WordReviewLimiter,
     review_intent: str = "",
+    actor_context: str = "",
 ) -> WordHeadingAssessment:
     user = render_prompt(
         prompts,
@@ -648,7 +656,12 @@ async def _review_heading(
     return await _llm(
         limiter,
         "heading",
-        _messages_with_brief(identity="", brief=review_intent, user=user),
+        _messages_with_brief(
+            identity="",
+            brief=review_intent,
+            actor_context=actor_context,
+            user=user,
+        ),
         WordHeadingAssessment,
         prompts,
     )
@@ -664,6 +677,7 @@ async def _moderate_batch(
     batch: list[WordDocumentParagraph],
     limiter: WordReviewLimiter,
     target_indexes: frozenset[int] | None = None,
+    actor_context: str = "",
 ) -> list[WordReviewQuestion]:
     user = render_prompt(
         prompts,
@@ -680,6 +694,7 @@ async def _moderate_batch(
             identity="",
             brief=brief,
             review_context=review_context,
+            actor_context=actor_context,
             user=user,
         ),
         WordBatchModeration,
@@ -701,6 +716,7 @@ async def _route_question(
     review_context: str,
     slots: list[PanelExpertSlot],
     limiter: WordReviewLimiter,
+    actor_context: str = "",
 ) -> tuple[WordReviewQuestion, list[str], int]:
     candidates = panel_experts_for_router(slots)
     user = router_user_prompt(
@@ -712,7 +728,12 @@ async def _route_question(
     parsed = await _llm(
         limiter,
         "router",
-        [{"role": "user", "content": user}],
+        _messages_with_brief(
+            identity="",
+            brief="",
+            actor_context=actor_context,
+            user=user,
+        ),
         WordExpertRoute,
         prompts,
         model=settings.word_review_router_model,
@@ -733,6 +754,7 @@ async def _raise_hand(
     batch: list[WordDocumentParagraph],
     questions: list[WordReviewQuestion],
     limiter: WordReviewLimiter,
+    actor_context: str = "",
 ) -> tuple[PanelExpertSlot, list[WordReviewQuestion]]:
     identity = _expert_identity(prompts, slot)
     user = render_prompt(
@@ -746,7 +768,12 @@ async def _raise_hand(
     parsed = await _llm(
         limiter,
         "raise_hand",
-        _messages_with_brief(identity=identity, brief=brief, user=user),
+        _messages_with_brief(
+            identity=identity,
+            brief=brief,
+            actor_context=actor_context,
+            user=user,
+        ),
         WordExpertRaiseHand,
         prompts,
     )
@@ -797,6 +824,7 @@ async def _comment_question(
     paragraphs: list[WordDocumentParagraph],
     limiter: WordReviewLimiter,
     target_indexes: frozenset[int] | None = None,
+    actor_context: str = "",
 ) -> tuple[PanelExpertSlot, WordReviewQuestion, str, int | None]:
     identity = _expert_identity(prompts, slot)
     user = render_expert_comment_user_prompt(
@@ -809,7 +837,12 @@ async def _comment_question(
     parsed = await _llm(
         limiter,
         "expert_comment",
-        _messages_with_brief(identity=identity, brief=brief, user=user),
+        _messages_with_brief(
+            identity=identity,
+            brief=brief,
+            actor_context=actor_context,
+            user=user,
+        ),
         WordExpertComment,
         prompts,
     )
@@ -860,6 +893,7 @@ async def _comment_convergence(
     observations: list[WordObservation],
     limiter: WordReviewLimiter,
     review_intent: str = "",
+    actor_context: str = "",
 ) -> WordCommentConvergence:
     user = render_comment_convergence_user_prompt(
         prompts,
@@ -870,7 +904,12 @@ async def _comment_convergence(
     parsed = await _llm(
         limiter,
         "comment_convergence",
-        _messages_with_brief(identity="", brief=review_intent, user=user),
+        _messages_with_brief(
+            identity="",
+            brief=review_intent,
+            actor_context=actor_context,
+            user=user,
+        ),
         WordCommentConvergence,
         prompts,
     )
@@ -885,6 +924,7 @@ async def _consolidate_observations(
     observations: list[WordObservation],
     limiter: WordReviewLimiter,
     review_intent: str = "",
+    actor_context: str = "",
 ) -> tuple[list[WordConsolidatedComment], list[WordObservation]]:
     collapsed = collapse_intra_expert_duplicates(observations)
     if len(collapsed) < 2:
@@ -906,6 +946,7 @@ async def _consolidate_observations(
             observations=chunk,
             limiter=limiter,
             review_intent=review_intent,
+            actor_context=actor_context,
         )
         written.extend(apply_word_comment_convergence(chunk, parsed))
     return written, collapsed
@@ -920,6 +961,7 @@ async def _consolidate_comments(
     by_index: dict[int, WordDocumentParagraph],
     limiter: WordReviewLimiter,
     review_intent: str = "",
+    actor_context: str = "",
 ) -> list[WordConsolidatedComment]:
     raw = _observations_from_comments(comments, by_index)
     written, _ = await _consolidate_observations(
@@ -929,6 +971,7 @@ async def _consolidate_comments(
         observations=raw,
         limiter=limiter,
         review_intent=review_intent,
+        actor_context=actor_context,
     )
     return written
 
@@ -941,6 +984,7 @@ async def _rewrite_convergence(
     comments: list[tuple[str, str]],
     limiter: WordReviewLimiter,
     review_intent: str = "",
+    actor_context: str = "",
 ) -> WordRewriteSuggestion | None:
     comments_text = "\n".join(
         f"- {name}: {text}" for name, text in comments
@@ -955,7 +999,12 @@ async def _rewrite_convergence(
     parsed = await _llm(
         limiter,
         "rewrite_convergence",
-        _messages_with_brief(identity="", brief=review_intent, user=user),
+        _messages_with_brief(
+            identity="",
+            brief=review_intent,
+            actor_context=actor_context,
+            user=user,
+        ),
         WordRewriteSuggestion,
         prompts,
     )
@@ -975,6 +1024,7 @@ async def _analyze_batch(
     router_context: str,
     target: frozenset[int] | None,
     limiter: WordReviewLimiter,
+    actor_context: str = "",
 ) -> WordBatchAnalysis:
     questions = await _moderate_batch(
         prompts=prompts,
@@ -985,6 +1035,7 @@ async def _analyze_batch(
         batch=batch,
         limiter=limiter,
         target_indexes=target,
+        actor_context=actor_context,
     )
     if not questions:
         return WordBatchAnalysis(
@@ -1002,6 +1053,7 @@ async def _analyze_batch(
                 review_context=router_context,
                 slots=slots,
                 limiter=limiter,
+                actor_context=actor_context,
             )
             for question in questions
         ]
@@ -1033,6 +1085,7 @@ async def _analyze_batch(
                     batch=batch,
                     questions=unresolved,
                     limiter=limiter,
+                    actor_context=actor_context,
                 )
                 for slot in slots
             ]
@@ -1055,6 +1108,7 @@ async def _analyze_batch(
             ],
             limiter=limiter,
             target_indexes=target,
+            actor_context=actor_context,
         )
         for slot, question in assignments
     ]
@@ -1100,6 +1154,7 @@ async def _analyze_batch(
                     comments=comments_by_index[paragraph.index],
                     limiter=limiter,
                     review_intent=review_intent,
+                    actor_context=actor_context,
                 )
                 for paragraph in rewrite_targets
             ]
@@ -1154,6 +1209,7 @@ async def _analyze_section(
     target: frozenset[int] | None,
     limiter: WordReviewLimiter,
     emit: Callable[[WordPublicationUnit], Awaitable[None]],
+    actor_context: str = "",
 ) -> WordSectionStats:
     batches = _batches_for_target(section, target)
     review_heading = heading_in_scope(section, target)
@@ -1217,6 +1273,7 @@ async def _analyze_section(
                 observations=pending_obs,
                 limiter=limiter,
                 review_intent=review_intent,
+                actor_context=actor_context,
             )
             if target is not None:
                 comments = [
@@ -1259,6 +1316,7 @@ async def _analyze_section(
                 router_context=router_context,
                 target=target,
                 limiter=limiter,
+                actor_context=actor_context,
             )
         )
         tasks[task] = f"batch:{batch_index}"
@@ -1270,6 +1328,7 @@ async def _analyze_section(
                 section=section,
                 limiter=limiter,
                 review_intent=review_intent,
+                actor_context=actor_context,
             )
         )
         tasks[heading_task] = "heading"
@@ -1463,7 +1522,7 @@ def log_word_review_call_summary(
         "actions_published_before_completion=%s moderation_ms=%s "
         "router_ms=%s raise_hand_ms=%s expert_comment_ms=%s "
         "rewrite_convergence_ms=%s comment_convergence_ms=%s heading_ms=%s "
-        "llm_call_count=%s max_observed_llm_concurrency=%s",
+        "actor_context_ms=%s llm_call_count=%s max_observed_llm_concurrency=%s",
         job_id,
         outcome,
         snapshot["total_ms"],
@@ -1477,6 +1536,7 @@ def log_word_review_call_summary(
         snapshot["rewrite_convergence_ms"],
         snapshot["comment_convergence_ms"],
         snapshot["heading_ms"],
+        snapshot["actor_context_ms"],
         snapshot["llm_call_count"],
         snapshot["max_observed_llm_concurrency"],
     )
@@ -1484,6 +1544,7 @@ def log_word_review_call_summary(
         "Word review LLM calls job_id=%s outcome=%s total=%s moderation=%s "
         "router=%s raise_hand=%s expert_comment=%s comment_convergence=%s "
         "rewrite_convergence=%s heading=%s structured_retries=%s "
+        "actor_context_resolved=%s actor_context_resolver_calls=%s "
         "direct_routed_questions=%s raise_hand_questions=%s "
         "router_assignments=%s router_fallback_count=%s invalid_router_ids=%s "
         "questions_dropped_invalid_anchor=%s publication_units_completed=%s "
@@ -1499,6 +1560,8 @@ def log_word_review_call_summary(
         snapshot["rewrite_convergence_calls"],
         snapshot["heading_calls"],
         snapshot["structured_retry_count"],
+        snapshot["actor_context_resolved"],
+        snapshot["actor_context_resolver_calls"],
         snapshot["direct_routed_questions"],
         snapshot["raise_hand_questions"],
         snapshot["router_assignments"],
@@ -1548,6 +1611,18 @@ async def run_word_paragraph_review(
     queue: asyncio.Queue[
         WordPublicationUnit | WordSectionDone | WordSectionFailed
     ] = asyncio.Queue()
+    actor_context = ""
+    section_tasks: list[asyncio.Task] = []
+    paragraph_reviews = 0
+    heading_reviews = 0
+    result_count = 0
+    actions_created = 0
+    sections_completed = 0
+    units_completed = 0
+    source_ordinal = 0
+    logged_summary = False
+    failed: BaseException | None = None
+    pending_sections = 0
 
     async def run_section(
         section_index: int, section: WordDocumentSection
@@ -1565,27 +1640,13 @@ async def run_word_paragraph_review(
                 target=target,
                 limiter=limiter,
                 emit=queue.put,
+                actor_context=actor_context,
             )
             await queue.put(WordSectionDone(stats))
         except asyncio.CancelledError:
             raise
         except Exception as exc:
             await queue.put(WordSectionFailed(section_index, exc))
-
-    section_tasks = [
-        asyncio.create_task(run_section(section_index, section))
-        for section_index, section in enumerate(payload.sections)
-    ]
-    paragraph_reviews = 0
-    heading_reviews = 0
-    result_count = 0
-    actions_created = 0
-    sections_completed = 0
-    units_completed = 0
-    source_ordinal = 0
-    logged_summary = False
-    failed: BaseException | None = None
-    pending_sections = len(section_tasks)
 
     async def persist_unit(unit: WordPublicationUnit) -> None:
         nonlocal result_count, actions_created, source_ordinal, units_completed
@@ -1621,6 +1682,19 @@ async def run_word_paragraph_review(
                 await persist_unit(item)
 
     try:
+        actor = await resolve_actor_context(
+            prompts=prompts,
+            interview=payload.intent_interview,
+            answers=payload.intent_answers,
+            review_intent=payload.review_intent,
+            limiter=limiter,
+        )
+        actor_context = render_actor_context(actor, prompts)
+        section_tasks = [
+            asyncio.create_task(run_section(section_index, section))
+            for section_index, section in enumerate(payload.sections)
+        ]
+        pending_sections = len(section_tasks)
         while pending_sections:
             item = await queue.get()
             if isinstance(item, WordPublicationUnit):

@@ -36,6 +36,7 @@ from app.services.expertgranskning.comment_convergence import (
     paragraph_indexes_for_observations,
     serialized_chunk_chars,
 )
+from app.services.expertgranskning.actor_context import ActorContext
 from app.services.expertgranskning.schemas import (
     WORD_MAX_PARAGRAPH_LEN,
     WORD_MAX_PARAGRAPHS,
@@ -1366,6 +1367,7 @@ async def test_comment_convergence_batch_text_uses_chunk_paragraphs(monkeypatch)
         observations,
         limiter,
         review_intent="",
+        actor_context="",
     ):
         seen.append(
             (
@@ -1796,7 +1798,9 @@ async def test_analyze_batch_logs_routing_counts_without_document_text(caplog):
 def test_word_alembic_chain_is_linear_after_main_head():
     cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     script = ScriptDirectory.from_config(cfg)
-    assert script.get_heads() == ["075_word_review_intent_router"]
+    assert script.get_heads() == ["076_word_review_actor_context"]
+    actor = script.get_revision("076_word_review_actor_context")
+    assert actor.down_revision == "075_word_review_intent_router"
     router = script.get_revision("075_word_review_intent_router")
     assert router.down_revision == "074_word_review_question_routing"
     routing = script.get_revision("074_word_review_question_routing")
@@ -1832,17 +1836,16 @@ def test_word_comment_prompt_stays_party_neutral():
         why_it_matters="Partsneutral läsning.",
         allowed_paragraph_indexes="3",
     )
-    assert "Granskande part är okänd" in text
-    assert "Leverantören" in text
-    assert "Beställaren" in text
-    assert "skriv inte för er som kund" in text
-    assert "granskningsavsikt" in text.lower()
+    assert "aktörskontexten" in text
+    assert "perspektivstyrning, inte partsadvocacy" in text
+    assert "Leverantören" not in text
+    assert "Beställaren" not in text
     synthesis = default_prompts("sv")["expertgranskning.word.comment_convergence"]
-    assert "Granskande part är okänd" in synthesis
+    assert "aktörskontexten" in synthesis
+    assert "Bevara perspektivet" in synthesis
     assert "Vänd inte på dokumentfakta" in synthesis
     assert "short_comment" in synthesis
     assert "should_materialize" in synthesis
-    assert "granskningsavsikt" in synthesis
 
 
 _OLD_COMMENT_OVERRIDE = (
@@ -2624,6 +2627,8 @@ async def test_word_review_includes_review_intent_in_system_messages(client: Asy
 
     async def completer(messages, response_model):
         captured.append(messages)
+        if response_model is ActorContext:
+            return ActorContext(perspective_known=False)
         if response_model is WordBatchModeration:
             return _moderation_for_batch(messages[-1]["content"])
         if response_model is WordExpertRoute:
@@ -3743,6 +3748,13 @@ async def test_word_review_intent_changes_materialization_context(
     captured: list[str] = []
 
     async def completer(messages, response_model):
+        if response_model is ActorContext:
+            return ActorContext(
+                user_role="reviewer",
+                review_goal="payment terms",
+                output_perspective="advice for the reviewer",
+                perspective_known=True,
+            )
         if response_model is WordCommentConvergence:
             captured.append("\n".join(item["content"] for item in messages))
         user = messages[-1]["content"]

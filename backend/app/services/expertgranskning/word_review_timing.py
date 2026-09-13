@@ -21,6 +21,7 @@ TIMING_CATEGORIES = (
     "rewrite_convergence",
     "comment_convergence",
     "heading",
+    "actor_context",
 )
 
 
@@ -39,6 +40,7 @@ class WordReviewTimings:
         self.router_assignments = 0
         self.router_fallback_count = 0
         self.invalid_router_ids = 0
+        self.actor_context_resolved = 0
         self.publication_units_completed = 0
         self.actions_published_before_completion = 0
         self._in_flight = 0
@@ -71,6 +73,9 @@ class WordReviewTimings:
 
     def record_invalid_router_ids(self, count: int) -> None:
         self.invalid_router_ids += count
+
+    def record_actor_context_resolved(self, resolved: bool) -> None:
+        self.actor_context_resolved = 1 if resolved else 0
 
     def record_publication_progress(
         self,
@@ -111,6 +116,7 @@ class WordReviewTimings:
             "rewrite_convergence_ms": round(self._totals_ms["rewrite_convergence"]),
             "comment_convergence_ms": round(self._totals_ms["comment_convergence"]),
             "heading_ms": round(self._totals_ms["heading"]),
+            "actor_context_ms": round(self._totals_ms["actor_context"]),
             "moderation_calls": self._calls["moderation"],
             "router_calls": self._calls["router"],
             "raise_hand_calls": self._calls["raise_hand"],
@@ -118,6 +124,8 @@ class WordReviewTimings:
             "rewrite_convergence_calls": self._calls["rewrite_convergence"],
             "comment_convergence_calls": self._calls["comment_convergence"],
             "heading_calls": self._calls["heading"],
+            "actor_context_resolver_calls": self._calls["actor_context"],
+            "actor_context_resolved": self.actor_context_resolved,
             "direct_routed_questions": self.direct_routed_questions,
             "raise_hand_questions": self.raise_hand_questions,
             "questions_dropped_invalid_anchor": self.questions_dropped_invalid_anchor,
