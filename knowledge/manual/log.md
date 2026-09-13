@@ -2,6 +2,7 @@
 
 ## 2026-09-13
 
+* **Expertgranskning i Word**: Kommentarer och råd vänds till den roll du angett i avsiktsfrågorna, till exempel föreningen du företräder eller om du är kandidat eller rekryterare. Experterna kan fortfarande peka på svagheter i din position, men de ger inte råd som om du stod på andra sidan. Har du inte angett någon sida skrivs texterna neutralt.
 * **Expertgranskning i Word**: Avsiktsfrågorna styr vad som granskas, även om dokumentet är skrivet ur en annan parts synvinkel. **Granska** sitter i frågeformuläret och blir aktiv när alla obligatoriska svar är ifyllda. Passar inget av alternativen kan du välja **Annat / Inget av ovanstående** och skriva själv.
 * **Expertgranskning i Word**: Förslag dyker upp i sidopanelen allteftersom en mindre del är färdig, inte först när ett helt kapitel är klart. Du kan tillämpa eller avfärda dem medan resten fortfarande granskas.
 
