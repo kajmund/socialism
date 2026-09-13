@@ -24,25 +24,8 @@ WORD_ACTOR_CONTEXT_MAX_TOKENS = 512
 ACTOR_CONTEXT_HEADING = "Actor context"
 INTENT_DATA_OPEN = "<intent>"
 INTENT_DATA_CLOSE = "</intent>"
-
-PERSPECTIVE_KNOWN_INVARIANT = (
-    "Perspective is known. This is perspective control, not advocacy.\n"
-    "- Address recommendations and actions to the user's role.\n"
-    "- You may identify the counterpart or audience's strongest argument, "
-    "but label it as their perspective. Do not turn it into advice to the user.\n"
-    "- Never assume the document voice equals the reviewer voice.\n"
-    "- Factual or substantive criticism that is adverse to the user's position "
-    "is allowed and required when warranted.\n"
-    "- A weakness for the user's side remains a weakness for the user's side. "
-    "Do not advise attacking, challenging, or arguing that side's case unless "
-    "the user is actually on the attacking or challenging side."
-)
-
-PERSPECTIVE_UNKNOWN_INVARIANT = (
-    "Perspective is unknown. Use neutral language. Do not invent a side. "
-    "Do not address advice to a party the user did not claim. "
-    "Do not assume the document voice is the reviewer voice."
-)
+ACTOR_CONTEXT_KNOWN_KEY = "expertgranskning.word.actor_context.known"
+ACTOR_CONTEXT_UNKNOWN_KEY = "expertgranskning.word.actor_context.unknown"
 
 
 def _llm_text(value: object) -> str:
@@ -140,23 +123,19 @@ def actor_context_source_text(
     return "\n\n".join(parts)
 
 
-def render_actor_context(context: ActorContext) -> str:
-    """Server-owned high-priority system block. Never includes document body."""
-    lines = [ACTOR_CONTEXT_HEADING]
+def render_actor_context(context: ActorContext, prompts: dict[str, str]) -> str:
+    """Render the high-priority actor-context block from the active prompt map."""
     if not context.perspective_known:
-        lines.append(PERSPECTIVE_UNKNOWN_INVARIANT)
-        return "\n".join(lines)
-    lines.append(PERSPECTIVE_KNOWN_INVARIANT)
-    lines.append(f"User role: {context.user_role}")
-    if context.counterpart_or_audience:
-        lines.append(f"Counterpart or audience: {context.counterpart_or_audience}")
-    if context.relationship:
-        lines.append(f"Relationship: {context.relationship}")
-    if context.review_goal:
-        lines.append(f"Review goal: {context.review_goal}")
-    if context.output_perspective:
-        lines.append(f"Output perspective: {context.output_perspective}")
-    return "\n".join(lines)
+        return render_prompt(prompts, ACTOR_CONTEXT_UNKNOWN_KEY)
+    return render_prompt(
+        prompts,
+        ACTOR_CONTEXT_KNOWN_KEY,
+        user_role=context.user_role,
+        counterpart_or_audience=context.counterpart_or_audience,
+        relationship=context.relationship,
+        review_goal=context.review_goal,
+        output_perspective=context.output_perspective,
+    )
 
 
 def actor_context_messages(

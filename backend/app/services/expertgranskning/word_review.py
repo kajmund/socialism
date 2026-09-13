@@ -1606,19 +1606,23 @@ async def run_word_paragraph_review(
     review_intent = review_context
     timings = WordReviewTimings()
     limiter = WordReviewLimiter(settings.word_review_max_concurrency, timings)
-    actor = await resolve_actor_context(
-        prompts=prompts,
-        interview=payload.intent_interview,
-        answers=payload.intent_answers,
-        review_intent=payload.review_intent,
-        limiter=limiter,
-    )
-    actor_context = render_actor_context(actor)
     sections_total = len(payload.sections)
     units_total = publication_unit_total(payload.sections, target)
     queue: asyncio.Queue[
         WordPublicationUnit | WordSectionDone | WordSectionFailed
     ] = asyncio.Queue()
+    actor_context = ""
+    section_tasks: list[asyncio.Task] = []
+    paragraph_reviews = 0
+    heading_reviews = 0
+    result_count = 0
+    actions_created = 0
+    sections_completed = 0
+    units_completed = 0
+    source_ordinal = 0
+    logged_summary = False
+    failed: BaseException | None = None
+    pending_sections = 0
 
     async def run_section(
         section_index: int, section: WordDocumentSection
@@ -1643,21 +1647,6 @@ async def run_word_paragraph_review(
             raise
         except Exception as exc:
             await queue.put(WordSectionFailed(section_index, exc))
-
-    section_tasks = [
-        asyncio.create_task(run_section(section_index, section))
-        for section_index, section in enumerate(payload.sections)
-    ]
-    paragraph_reviews = 0
-    heading_reviews = 0
-    result_count = 0
-    actions_created = 0
-    sections_completed = 0
-    units_completed = 0
-    source_ordinal = 0
-    logged_summary = False
-    failed: BaseException | None = None
-    pending_sections = len(section_tasks)
 
     async def persist_unit(unit: WordPublicationUnit) -> None:
         nonlocal result_count, actions_created, source_ordinal, units_completed
@@ -1693,6 +1682,19 @@ async def run_word_paragraph_review(
                 await persist_unit(item)
 
     try:
+        actor = await resolve_actor_context(
+            prompts=prompts,
+            interview=payload.intent_interview,
+            answers=payload.intent_answers,
+            review_intent=payload.review_intent,
+            limiter=limiter,
+        )
+        actor_context = render_actor_context(actor, prompts)
+        section_tasks = [
+            asyncio.create_task(run_section(section_index, section))
+            for section_index, section in enumerate(payload.sections)
+        ]
+        pending_sections = len(section_tasks)
         while pending_sections:
             item = await queue.get()
             if isinstance(item, WordPublicationUnit):
