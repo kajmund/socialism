@@ -27,12 +27,14 @@ def test_timing_snapshot_has_safe_aggregate_fields_only():
         "total_ms",
         "time_to_first_action_ms",
         "moderation_ms",
+        "router_ms",
         "raise_hand_ms",
         "expert_comment_ms",
         "rewrite_convergence_ms",
         "comment_convergence_ms",
         "heading_ms",
         "moderation_calls",
+        "router_calls",
         "raise_hand_calls",
         "expert_comment_calls",
         "rewrite_convergence_calls",
@@ -41,6 +43,9 @@ def test_timing_snapshot_has_safe_aggregate_fields_only():
         "direct_routed_questions",
         "raise_hand_questions",
         "questions_dropped_invalid_anchor",
+        "router_assignments",
+        "router_fallback_count",
+        "invalid_router_ids",
         "publication_units_completed",
         "actions_published_before_completion",
         "llm_call_count",
@@ -85,6 +90,9 @@ def test_llm_call_summary_logs_counts_without_document_text(monkeypatch):
     assert "comment_convergence=1" in logged
     assert "direct_routed_questions=0" in logged
     assert "raise_hand_questions=0" in logged
+    assert "router=0" in logged
+    assert "router_fallback_count=0" in logged
+    assert "invalid_router_ids=0" in logged
     assert "questions_dropped_invalid_anchor=0" in logged
     assert "max_observed_llm_concurrency=" in logged
     assert "prompt" not in logged
@@ -186,6 +194,7 @@ async def test_limiter_rejects_unknown_category():
         await limiter.run("not-a-phase", factory)
     assert set(TIMING_CATEGORIES) == {
         "moderation",
+        "router",
         "raise_hand",
         "expert_comment",
         "rewrite_convergence",

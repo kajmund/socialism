@@ -2081,32 +2081,34 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         "panel",
         "Word — moderator batch",
         "Word — moderator batch",
-        "Platshållare: {expert_list}, {section_heading}, {batch_text}.",
-        "Placeholders: {expert_list}, {section_heading}, {batch_text}.",
+        "Platshållare: {expert_list}, {section_heading}, {batch_text}, {review_context}.",
+        "Placeholders: {expert_list}, {section_heading}, {batch_text}, {review_context}.",
         (
             "Du är moderator för en expertgranskning av ett Word-dokument. "
             "Förstå batchen i dokumentets helhet. Avgör om expertbedömning behövs "
             "och formulera i så fall högst två konkreta granskningsfrågor, "
             "ordnade efter materialitet och betydelse (viktigast först). "
-            "Gör inte specialistbedömningen. "
-            "Om du är säker på vilka experter som ska svara får du rekommendera "
-            "högst två slot-id från panelen; annars lämna recommended_expert_ids tomt.\n\n"
+            "Gör inte specialistbedömningen och välj inte vilka experter som ska svara. "
+            "Använd panelinformationen bara för att formulera relevanta frågor.\n\n"
             "Var konservativ. Skapa inte frågor bara för att text finns. "
             "Namn, telefon, e-post, kontaktuppgifter, ren metadata och trivial administration "
             "ska normalt inte granskas. Identifiera däremot sådant som kräver bedömning: "
             "oklarheter, motsägelser, risker, betydelsefulla antaganden, saknad information "
             "med faktisk betydelse, potentiella konsekvenser och genomförbarhetsproblem. "
             "Det är exempel, inte en domänspecifik checklista.\n\n"
+            "Granskarens perspektiv (styr needs_review och frågeformulering; "
+            "det är inte dokumentförfattarens röst):\n{review_context}\n\n"
+            "Dokumentet kan vara skrivet från en annan partsställning, ett annat mål "
+            "eller en annan oro än granskarens. Blanda inte ihop dem. "
+            "Formulera frågor utifrån granskarens svar ovan.\n\n"
             "Panel:\n{expert_list}\n\n"
             "Avsnitt: {section_heading}\n\n"
             "Den här batchen:\n{batch_text}\n\n"
-            "Hela dokumentet ligger i systemmeddelandet. "
-            "Om en granskningsavsikt finns där: formulera frågor utifrån den.\n\n"
+            "Hela dokumentet ligger i systemmeddelandet.\n\n"
             "Returnera needs_review, reason och questions. Högst två frågor. "
             "Varje fråga ska ha id, paragraph_indexes (bara index från batchen), "
             "primary_anchor_paragraph_index (ett av frågans paragraph_indexes), "
-            "question, why_it_matters och valfritt recommended_expert_ids "
-            "(högst två slot-id från panelen, bara när du är säker). "
+            "question och why_it_matters. "
             "Om needs_review är false: tom questions-lista."
         ),
         (
@@ -2114,26 +2116,58 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "Understand the batch in the full document context. Decide whether expert "
             "assessment is needed and, if so, write at most two concrete review questions, "
             "ordered by materiality and importance (most important first). "
-            "Do not make the specialist assessment. "
-            "If you are confident which experts should answer, you may recommend at most "
-            "two slot ids from the panel; otherwise leave recommended_expert_ids empty.\n\n"
+            "Do not make the specialist assessment and do not choose which experts should answer. "
+            "Use the panel information only to formulate relevant questions.\n\n"
             "Be conservative. Do not create questions just because text exists. "
             "Names, phone numbers, email, contact details, pure metadata, and trivial "
             "administration should normally not be reviewed. Do identify things that need "
             "judgment: ambiguities, contradictions, risks, material assumptions, missing "
             "information that actually matters, potential consequences, and feasibility problems. "
             "These are examples, not a domain-specific checklist.\n\n"
+            "Reviewer perspective (governs needs_review and question wording; "
+            "this is not the document author's voice):\n{review_context}\n\n"
+            "The document may be written from a different party, objective, or concern "
+            "than the reviewer's. Do not conflate them. "
+            "Formulate questions from the reviewer answers above.\n\n"
             "Panel:\n{expert_list}\n\n"
             "Section: {section_heading}\n\n"
             "This batch:\n{batch_text}\n\n"
-            "The full document is in the system message. "
-            "If a review intent is present there: formulate questions from it.\n\n"
+            "The full document is in the system message.\n\n"
             "Return needs_review, reason, and questions. At most two questions. "
             "Each question must have id, paragraph_indexes (only indexes from the batch), "
             "primary_anchor_paragraph_index (one of that question's paragraph_indexes), "
-            "question, why_it_matters, and optional recommended_expert_ids "
-            "(at most two panel slot ids, only when you are confident). "
+            "question, and why_it_matters. "
             "If needs_review is false: empty questions list."
+        ),
+    ),
+    _f(
+        "expertgranskning.word.expert.router",
+        "panel",
+        "Word — expertrouter",
+        "Word — expert router",
+        "Platshållare: {question}, {why_it_matters}, {review_context}, {expert_list}.",
+        "Placeholders: {question}, {why_it_matters}, {review_context}, {expert_list}.",
+        (
+            "Välj vilka panelexperter som ska svara på den här granskningsfrågan. "
+            "Gör inte specialistbedömningen. Välj bara bland slot-id i listan.\n\n"
+            "Fråga: {question}\n"
+            "Varför det spelar roll: {why_it_matters}\n\n"
+            "Granskarens perspektiv:\n{review_context}\n\n"
+            "Panel:\n{expert_list}\n\n"
+            "Returnera expert_ids: en lista med 1 eller 2 slot-id från panelen. "
+            "Välj den eller de experter vars kompetens faktiskt behövs. "
+            "Duplicera inte id. Hitta inte på id utanför listan."
+        ),
+        (
+            "Choose which panel experts should answer this review question. "
+            "Do not make the specialist assessment. Choose only slot ids from the list.\n\n"
+            "Question: {question}\n"
+            "Why it matters: {why_it_matters}\n\n"
+            "Reviewer perspective:\n{review_context}\n\n"
+            "Panel:\n{expert_list}\n\n"
+            "Return expert_ids: a list of 1 or 2 slot ids from the panel. "
+            "Choose the expert or experts whose competence is actually needed. "
+            "Do not duplicate ids. Do not invent ids outside the list."
         ),
     ),
     _f(

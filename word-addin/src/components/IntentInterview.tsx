@@ -1,5 +1,6 @@
 import {
   answerForQuestion,
+  isOtherAnswer,
   isQuestionAnswered,
 } from "@/lib/intentInterview"
 import type {
@@ -20,6 +21,8 @@ export function IntentInterviewCard(props: {
   onSelect: (questionId: string, value: string) => void
   onToggle: (questionId: string, value: string) => void
   onFreeText: (questionId: string, value: string) => void
+  onSelectOther: (questionId: string) => void
+  onOtherText: (questionId: string, value: string) => void
   onBack: () => void
   onNext: () => void
   onStart: () => void
@@ -32,8 +35,13 @@ export function IntentInterviewCard(props: {
         <h2>{props.t("interviewHeading")}</h2>
         <p className="hint">{props.t("interviewEmpty")}</p>
         <div className="interview-nav">
-          <button type="button" className="primary" onClick={props.onStart}>
-            {props.t("interviewStart")}
+          <button
+            type="button"
+            className="primary"
+            onClick={props.onStart}
+            disabled={!props.canStart}
+          >
+            {props.t("review")}
           </button>
         </div>
         <button type="button" className="link" onClick={props.onRestart}>
@@ -63,28 +71,30 @@ export function IntentInterviewCard(props: {
       <QuestionInputs
         question={question}
         answer={answer}
+        t={props.t}
         onSelect={props.onSelect}
         onToggle={props.onToggle}
         onFreeText={props.onFreeText}
+        onSelectOther={props.onSelectOther}
+        onOtherText={props.onOtherText}
       />
       <div className="interview-nav">
         <button type="button" onClick={props.onBack} disabled={props.index === 0}>
           {props.t("interviewBack")}
         </button>
         {props.index < total - 1 ? (
-          <button type="button" className="primary" onClick={props.onNext} disabled={!canNext}>
+          <button type="button" onClick={props.onNext} disabled={!canNext}>
             {props.t("interviewNext")}
           </button>
-        ) : (
-          <button
-            type="button"
-            className="primary"
-            onClick={props.onStart}
-            disabled={!props.canStart}
-          >
-            {props.t("interviewStart")}
-          </button>
-        )}
+        ) : null}
+        <button
+          type="button"
+          className="primary"
+          onClick={props.onStart}
+          disabled={!props.canStart}
+        >
+          {props.t("review")}
+        </button>
       </div>
       <button type="button" className="link" onClick={props.onRestart}>
         {props.t("interviewRestart")}
@@ -96,11 +106,15 @@ export function IntentInterviewCard(props: {
 function QuestionInputs(props: {
   question: IntentQuestion
   answer: IntentAnswer | undefined
+  t: Translate
   onSelect: (questionId: string, value: string) => void
   onToggle: (questionId: string, value: string) => void
   onFreeText: (questionId: string, value: string) => void
+  onSelectOther: (questionId: string) => void
+  onOtherText: (questionId: string, value: string) => void
 }) {
   const selected = new Set(props.answer?.selected_values ?? [])
+  const otherSelected = isOtherAnswer(props.answer)
   switch (props.question.type) {
     case "single_choice":
       return (
@@ -120,6 +134,15 @@ function QuestionInputs(props: {
               {option.label}
             </label>
           ))}
+          <OtherChoice
+            questionId={props.question.id}
+            inputType="radio"
+            selected={otherSelected}
+            freeText={props.answer?.free_text ?? ""}
+            t={props.t}
+            onSelectOther={props.onSelectOther}
+            onOtherText={props.onOtherText}
+          />
         </div>
       )
     case "multi_choice":
@@ -139,6 +162,15 @@ function QuestionInputs(props: {
               {option.label}
             </label>
           ))}
+          <OtherChoice
+            questionId={props.question.id}
+            inputType="checkbox"
+            selected={otherSelected}
+            freeText={props.answer?.free_text ?? ""}
+            t={props.t}
+            onSelectOther={props.onSelectOther}
+            onOtherText={props.onOtherText}
+          />
         </div>
       )
     case "free_text":
@@ -155,4 +187,41 @@ function QuestionInputs(props: {
       return _exhaustive
     }
   }
+}
+
+function OtherChoice(props: {
+  questionId: string
+  inputType: "radio" | "checkbox"
+  selected: boolean
+  freeText: string
+  t: Translate
+  onSelectOther: (questionId: string) => void
+  onOtherText: (questionId: string, value: string) => void
+}) {
+  return (
+    <div className="interview-other">
+      <label
+        className="interview-option"
+        data-selected={props.selected ? "true" : "false"}
+      >
+        <input
+          type={props.inputType}
+          name={props.inputType === "radio" ? props.questionId : undefined}
+          checked={props.selected}
+          onChange={() => props.onSelectOther(props.questionId)}
+        />
+        {props.t("interviewOther")}
+      </label>
+      {props.selected ? (
+        <textarea
+          className="interview-free-text interview-other-text"
+          rows={3}
+          value={props.freeText}
+          onChange={(event) => props.onOtherText(props.questionId, event.target.value)}
+          placeholder={props.t("interviewOtherPlaceholder")}
+          aria-label={props.t("interviewOther")}
+        />
+      ) : null}
+    </div>
+  )
 }

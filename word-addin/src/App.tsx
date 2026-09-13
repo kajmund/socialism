@@ -44,7 +44,9 @@ import {
   answersReady,
   isIntentInterviewInvalidError,
   normalizeIntentAnswers,
+  selectOtherAnswer,
   setFreeTextAnswer,
+  setOtherFreeText,
   setSingleChoice,
   toggleMultiChoice,
 } from "@/lib/intentInterview"
@@ -727,6 +729,12 @@ export function App() {
             }
             onFreeText={(questionId, value) =>
               updateDraft({ answers: setFreeTextAnswer(draft.answers, questionId, value) })
+            }
+            onSelectOther={(questionId) =>
+              updateDraft({ answers: selectOtherAnswer(draft.answers, questionId) })
+            }
+            onOtherText={(questionId, value) =>
+              updateDraft({ answers: setOtherFreeText(draft.answers, questionId, value) })
             }
             onBack={() => updateDraft({ index: Math.max(0, draft.index - 1) })}
             onNext={() =>

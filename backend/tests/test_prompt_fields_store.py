@@ -112,6 +112,7 @@ def test_module_providers_cover_all_catalog_keys_without_overlap_gaps():
         "expertgranskning.word.paragraph",
         "expertgranskning.word.heading",
         "expertgranskning.word.moderator.batch",
+        "expertgranskning.word.expert.router",
         "expertgranskning.word.expert.raise_hand",
         "expertgranskning.word.expert.comment",
         "expertgranskning.word.rewrite_convergence",
@@ -151,6 +152,7 @@ def test_module_providers_cover_all_catalog_keys_without_overlap_gaps():
     assert "expertgranskning.word.paragraph" in expert_keys
     assert "expertgranskning.word.heading" in expert_keys
     assert "expertgranskning.word.moderator.batch" in expert_keys
+    assert "expertgranskning.word.expert.router" in expert_keys
     assert "expertgranskning.word.expert.raise_hand" in expert_keys
     assert "expertgranskning.word.expert.comment" in expert_keys
     assert "expertgranskning.word.rewrite_convergence" in expert_keys

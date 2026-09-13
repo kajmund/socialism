@@ -48,6 +48,7 @@ from app.services.expertgranskning.schemas import (
     WordDocumentSection,
     WordExpertComment,
     WordExpertRaiseHand,
+    WordExpertRoute,
     WordHeadingAssessment,
     WordRewriteSuggestion,
     WordReviewQuestion,
@@ -687,10 +688,10 @@ def test_accepted_recommended_expert_ids_validates_panel_and_cap():
         [_para(1, "Ett giltigt stycke att granska här.")],
         panel_slot_ids=panel,
     )
-    assert kept[0].recommended_expert_ids == ["jurist", "teknik"]
+    assert kept[0].recommended_expert_ids == []
     routed, unresolved = routed_and_unresolved_questions(kept)
-    assert [question.id for question in routed] == ["q1"]
-    assert unresolved == []
+    assert routed == []
+    assert [question.id for question in unresolved] == ["q1"]
     fallback = accepted_review_questions(
         WordBatchModeration(
             needs_review=True,
@@ -710,10 +711,13 @@ def test_moderator_prompt_asks_for_two_questions_and_primary_anchor():
     text = default_prompts("sv")["expertgranskning.word.moderator.batch"]
     assert "högst två" in text
     assert "primary_anchor_paragraph_index" in text
-    assert "recommended_expert_ids" in text
+    assert "recommended_expert_ids" not in text
+    assert "{review_context}" in text
     english = default_prompts("en")["expertgranskning.word.moderator.batch"]
     assert "at most two" in english
     assert "primary_anchor_paragraph_index" in english
+    assert "recommended_expert_ids" not in english
+    assert "{review_context}" in english
 
 
 def test_intra_expert_duplicate_collapses_to_one_anchor():
@@ -1531,6 +1535,8 @@ async def test_analyze_batch_drops_invalid_primary_before_expert_calls():
         slots=_review_slots(),
         brief="",
         review_intent="",
+        review_context="",
+        router_context="",
         target=None,
         limiter=WordReviewLimiter(4, timings),
     )
@@ -1545,6 +1551,52 @@ async def test_analyze_batch_drops_invalid_primary_before_expert_calls():
     dumped = repr(snapshot)
     assert "Första giltiga" not in dumped
     assert "Ogiltigt ankare" not in dumped
+
+
+@pytest.mark.asyncio
+async def test_analyze_batch_supplies_review_context_before_router():
+    seen: list[tuple[str, str]] = []
+
+    async def completer(messages, response_model):
+        user = messages[-1]["content"]
+        seen.append((response_model.__name__, user))
+        if response_model is WordBatchModeration:
+            return WordBatchModeration(
+                needs_review=True,
+                reason="Behöver bedömning.",
+                questions=[_review_question("q1", [1], primary=1)],
+            )
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=["jurist"])
+        if response_model is WordExpertComment:
+            return WordExpertComment(kommentar="Routad kommentar.")
+        raise AssertionError(response_model)
+
+    set_structured_completer(completer)
+    timings = WordReviewTimings()
+    paragraphs = [_para(1, "Ett giltigt stycke att granska här.")]
+    review_context = (
+        "Structured review context\n"
+        "We represent the association, not the challenging members"
+    )
+    await _analyze_batch(
+        batch_index=0,
+        batch=paragraphs,
+        section=_review_section(paragraphs),
+        prompts=default_prompts("sv"),
+        slots=_review_slots(),
+        brief="Dokumenttext.",
+        review_intent="",
+        review_context=review_context,
+        router_context=review_context,
+        target=None,
+        limiter=WordReviewLimiter(4, timings),
+    )
+    names = [name for name, _user in seen]
+    assert names[:2] == ["WordBatchModeration", "WordExpertRoute"]
+    assert "We represent the association" in seen[0][1]
+    assert "We represent the association" in seen[1][1]
+    assert timings.snapshot()["raise_hand_calls"] == 0
 
 
 @pytest.mark.asyncio
@@ -1566,6 +1618,8 @@ async def test_analyze_batch_direct_routes_recommended_experts():
                     )
                 ],
             )
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=["jurist"])
         if response_model is WordExpertComment:
             return WordExpertComment(kommentar="Direkt routed kommentar.")
         raise AssertionError(response_model)
@@ -1581,15 +1635,20 @@ async def test_analyze_batch_direct_routes_recommended_experts():
         slots=_review_slots(),
         brief="",
         review_intent="",
+        review_context="",
+        router_context="",
         target=None,
         limiter=WordReviewLimiter(4, timings),
     )
     snapshot = timings.snapshot()
-    assert calls == ["WordBatchModeration", "WordExpertComment"]
+    assert calls == ["WordBatchModeration", "WordExpertRoute", "WordExpertComment"]
     assert snapshot["raise_hand_calls"] == 0
+    assert snapshot["router_calls"] == 1
     assert snapshot["expert_comment_calls"] == 1
     assert snapshot["direct_routed_questions"] == 1
     assert snapshot["raise_hand_questions"] == 0
+    assert snapshot["router_fallback_count"] == 0
+    assert snapshot["router_assignments"] == 1
     assert [(slot.slot_id, text, anchor) for slot, _question, text, anchor in analysis.comments] == [
         ("jurist", "Direkt routed kommentar.", 1)
     ]
@@ -1611,6 +1670,8 @@ async def test_analyze_batch_falls_back_to_raise_hand_for_unknown_experts():
                     _review_question("q2", [2], primary=2),
                 ],
             )
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=_question_ids_from_user(user))
         if response_model is WordExpertComment:
@@ -1633,18 +1694,23 @@ async def test_analyze_batch_falls_back_to_raise_hand_for_unknown_experts():
         slots=_review_slots(),
         brief="",
         review_intent="",
+        review_context="",
+        router_context="",
         target=None,
         limiter=WordReviewLimiter(4, timings),
     )
     snapshot = timings.snapshot()
     assert calls.count("WordBatchModeration") == 1
+    assert calls.count("WordExpertRoute") == 2
     assert calls.count("WordExpertRaiseHand") == 2
     assert calls.count("WordExpertComment") == 4
     assert "WordExpertRaiseHand" in calls
     assert snapshot["raise_hand_calls"] == 2
+    assert snapshot["router_calls"] == 2
     assert snapshot["expert_comment_calls"] == 4
     assert snapshot["direct_routed_questions"] == 0
     assert snapshot["raise_hand_questions"] == 2
+    assert snapshot["router_fallback_count"] == 2
     assert {slot.slot_id for slot, _question, _text, _anchor in analysis.comments} == {
         "jurist",
         "finansiell_analytiker",
@@ -1671,6 +1737,10 @@ async def test_analyze_batch_logs_routing_counts_without_document_text(caplog):
                     _review_question("q-hand", [2], primary=2),
                 ],
             )
+        if response_model is WordExpertRoute:
+            if "q-direct" in messages[-1]["content"] or "Fråga q-direct" in messages[-1]["content"]:
+                return WordExpertRoute(expert_ids=["jurist"])
+            return WordExpertRoute(expert_ids=["ghost"])
         if response_model is WordExpertRaiseHand:
             raise_hand_ids.append(_question_ids_from_user(messages[-1]["content"]))
             return WordExpertRaiseHand(question_ids=["q-hand"])
@@ -1695,6 +1765,8 @@ async def test_analyze_batch_logs_routing_counts_without_document_text(caplog):
             slots=_review_slots(),
             brief="",
             review_intent="",
+            review_context="",
+            router_context="",
             target=None,
             limiter=WordReviewLimiter(4, timings),
         )
@@ -1703,6 +1775,10 @@ async def test_analyze_batch_logs_routing_counts_without_document_text(caplog):
     assert snapshot["questions_dropped_invalid_anchor"] == 1
     assert snapshot["direct_routed_questions"] == 1
     assert snapshot["raise_hand_questions"] == 1
+    assert snapshot["router_calls"] == 2
+    assert snapshot["router_assignments"] == 1
+    assert snapshot["router_fallback_count"] == 1
+    assert snapshot["invalid_router_ids"] == 1
     assert snapshot["raise_hand_calls"] == 2
     assert snapshot["expert_comment_calls"] == 3
     assert raise_hand_ids
@@ -1710,6 +1786,8 @@ async def test_analyze_batch_logs_routing_counts_without_document_text(caplog):
     logged = " ".join(record.getMessage() for record in caplog.records)
     assert "direct_routed_questions=1" in logged
     assert "raise_hand_questions=1" in logged
+    assert "router_fallback_count=1" in logged
+    assert "invalid_router_ids=1" in logged
     assert "questions_dropped_invalid_anchor=1" in logged
     assert "Hemligt avtalsstycke" not in logged
     assert "Hemlig kommentar" not in logged
@@ -1718,7 +1796,9 @@ async def test_analyze_batch_logs_routing_counts_without_document_text(caplog):
 def test_word_alembic_chain_is_linear_after_main_head():
     cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     script = ScriptDirectory.from_config(cfg)
-    assert script.get_heads() == ["074_word_review_question_routing"]
+    assert script.get_heads() == ["075_word_review_intent_router"]
+    router = script.get_revision("075_word_review_intent_router")
+    assert router.down_revision == "074_word_review_question_routing"
     routing = script.get_revision("074_word_review_question_routing")
     assert routing.down_revision == "073_word_review_issue_quality"
     quality = script.get_revision("073_word_review_issue_quality")
@@ -2232,6 +2312,8 @@ async def test_word_review_raise_hand_then_comment_and_heading(
         if response_model is WordBatchModeration:
             calls.append("moderate")
             return _moderation_for_batch(user)
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             calls.append("raise")
             return WordExpertRaiseHand(question_ids=_question_ids_from_user(user)[:1])
@@ -2299,6 +2381,7 @@ async def test_word_review_raise_hand_then_comment_and_heading(
     assert result["questions_dropped_invalid_anchor"] == 0
     assert result["llm_call_count"] == (
         result["moderation_calls"]
+        + result["router_calls"]
         + result["raise_hand_calls"]
         + result["expert_comment_calls"]
         + result["comment_convergence_calls"]
@@ -2343,6 +2426,8 @@ async def test_word_review_selection_scope_stays_inside_target(client: AsyncClie
                     ),
                 ],
             )
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=["q-in", "q-out"])
         if response_model is WordExpertComment:
@@ -2426,6 +2511,8 @@ async def test_word_review_selection_scope_can_comment_and_replace(client: Async
         user = messages[-1]["content"]
         if response_model is WordBatchModeration:
             return _moderation_for_batch(user)
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=_question_ids_from_user(user)[:1])
         if response_model is WordExpertComment:
@@ -2481,6 +2568,8 @@ async def test_word_review_sends_document_brief_once_per_call(client: AsyncClien
         captured.append(messages)
         if response_model is WordBatchModeration:
             return _moderation_for_batch(messages[-1]["content"])
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=[])
         if response_model is WordHeadingAssessment:
@@ -2537,6 +2626,8 @@ async def test_word_review_includes_review_intent_in_system_messages(client: Asy
         captured.append(messages)
         if response_model is WordBatchModeration:
             return _moderation_for_batch(messages[-1]["content"])
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=[])
         if response_model is WordHeadingAssessment:
@@ -2605,6 +2696,8 @@ async def test_word_review_empty_raise_hand_writes_no_comment(client: AsyncClien
         nonlocal comment_calls
         if response_model is WordBatchModeration:
             return _moderation_for_batch(messages[-1]["content"])
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=[])
         if response_model is WordExpertComment:
@@ -2644,6 +2737,8 @@ async def test_word_review_out_of_batch_indexes_are_dropped(client: AsyncClient)
         nonlocal comment_calls
         if response_model is WordBatchModeration:
             return _moderation_for_batch(messages[-1]["content"])
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=["missing-q"])
         if response_model is WordExpertComment:
@@ -2681,6 +2776,8 @@ async def test_word_review_trivial_batch_skips_experts(client: AsyncClient):
                 reason="Endast kontaktuppgifter/administrativ information.",
                 questions=[],
             )
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             calls.append("raise")
             return WordExpertRaiseHand(question_ids=["q1"])
@@ -2736,6 +2833,8 @@ async def test_word_review_experts_select_subset_of_questions(client: AsyncClien
                     ),
                 ],
             )
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             label = _identity_label(messages)
             if label == DEFAULT_EXPERT_LABELS[0]:
@@ -2805,6 +2904,8 @@ async def test_word_review_question_can_span_paragraphs(client: AsyncClient):
                     )
                 ],
             )
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
@@ -2877,6 +2978,8 @@ async def test_word_review_rewrite_uses_resolved_anchor_not_question_scope(
                     )
                 ],
             )
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
@@ -2951,6 +3054,8 @@ async def test_word_review_rewrite_requires_same_paragraph_anchor(
                     )
                 ],
             )
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
@@ -3025,6 +3130,8 @@ async def test_word_review_single_paragraph_rewrite_still_converges(
                     )
                 ],
             )
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
@@ -3068,6 +3175,8 @@ async def test_word_review_empty_comment_is_not_written(client: AsyncClient):
     async def completer(messages, response_model):
         if response_model is WordBatchModeration:
             return _moderation_for_batch(messages[-1]["content"])
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=_question_ids_from_user(messages[-1]["content"]))
         if response_model is WordExpertComment:
@@ -3105,6 +3214,8 @@ async def test_word_review_commits_after_section_not_during_analysis(
     async def completer(messages, response_model):
         if response_model is WordBatchModeration:
             return _moderation_for_batch(messages[-1]["content"])
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(
                 question_ids=_question_ids_from_user(messages[-1]["content"])[:1]
@@ -3148,6 +3259,8 @@ async def test_word_review_no_rewrite_with_one_comment(client: AsyncClient):
         label = _identity_label(messages)
         if response_model is WordBatchModeration:
             return _moderation_for_batch(messages[-1]["content"])
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             if label == DEFAULT_EXPERT_LABELS[0]:
                 return WordExpertRaiseHand(question_ids=["q1"])
@@ -3186,6 +3299,8 @@ async def test_word_review_split_opinions_do_not_rewrite(client: AsyncClient):
     async def completer(messages, response_model):
         if response_model is WordBatchModeration:
             return _moderation_for_batch(messages[-1]["content"])
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
@@ -3222,6 +3337,8 @@ async def test_word_review_converging_comments_write_rewrite(client: AsyncClient
             return _moderation_for_batch(messages[-1]["content"])
         if response_model is WordExpertComment:
             return WordExpertComment(kommentar="Skriv om till tydligare mening.")
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordHeadingAssessment:
@@ -3280,6 +3397,8 @@ async def test_word_review_intra_expert_duplicate_writes_one_comment(
                     )
                 ],
             )
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
@@ -3348,6 +3467,8 @@ async def test_word_review_nearby_anchor_duplicate_writes_one_comment(
                     ),
                 ],
             )
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=["q1", "q2"])
         if response_model is WordExpertComment:
@@ -3414,6 +3535,8 @@ async def test_word_review_cross_batch_nearby_duplicate_writes_one_comment(
         user = messages[-1]["content"]
         if response_model is WordBatchModeration:
             return _moderation_for_batch(user)
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(
                 question_ids=_question_ids_from_user(user)
@@ -3459,6 +3582,8 @@ async def test_word_review_inter_expert_convergence_writes_one_comment(
         user = messages[-1]["content"]
         if response_model is WordBatchModeration:
             return _moderation_for_batch(user)
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
@@ -3545,6 +3670,8 @@ async def test_word_review_does_not_materialize_low_value_or_overlap(
         user = messages[-1]["content"]
         if response_model is WordBatchModeration:
             return _moderation_for_batch(user)
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
@@ -3621,6 +3748,8 @@ async def test_word_review_intent_changes_materialization_context(
         user = messages[-1]["content"]
         if response_model is WordBatchModeration:
             return _moderation_for_batch(user)
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
@@ -3706,6 +3835,8 @@ async def test_word_review_preserves_dissensus_as_separate_comments(
         label = _identity_label(messages)
         if response_model is WordBatchModeration:
             return _moderation_for_batch(messages[-1]["content"])
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
@@ -3783,6 +3914,8 @@ async def test_word_review_retries_truncated_comment_json(client: AsyncClient):
         nonlocal comment_calls
         if response_model is WordBatchModeration:
             return _moderation_for_batch(messages[-1]["content"])
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
@@ -3831,6 +3964,8 @@ async def test_word_review_second_truncated_comment_fails_job(client: AsyncClien
     async def completer(messages, response_model):
         if response_model is WordBatchModeration:
             return _moderation_for_batch(messages[-1]["content"])
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
@@ -3875,6 +4010,8 @@ async def test_failed_word_review_emits_llm_call_summary_once(
         user = messages[-1]["content"]
         if response_model is WordBatchModeration:
             return _moderation_for_batch(user)
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=_question_ids_from_user(user)[:1])
         if response_model is WordExpertComment:
@@ -3914,6 +4051,7 @@ async def test_failed_word_review_emits_llm_call_summary_once(
     assert "outcome=success" not in message
     assert "total=" in message
     assert "moderation=" in message
+    assert "router=" in message
     assert "raise_hand=" in message
     assert "expert_comment=" in message
     assert "comment_convergence=" in message
@@ -3951,6 +4089,8 @@ async def test_word_review_never_persists_anchor_outside_question_indexes(
                     )
                 ],
             )
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
@@ -4008,6 +4148,8 @@ async def test_word_review_uses_explicit_anchor_and_drops_invalid(
                     )
                 ],
             )
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
@@ -4068,6 +4210,8 @@ async def test_word_review_uses_moderator_primary_when_expert_omits_anchor(
                     )
                 ],
             )
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
@@ -4108,6 +4252,8 @@ async def test_word_review_patch_comment_id(client: AsyncClient):
     async def completer(messages, response_model):
         if response_model is WordBatchModeration:
             return _moderation_for_batch(messages[-1]["content"])
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=["q1"])
         if response_model is WordExpertComment:
@@ -4312,6 +4458,8 @@ async def test_word_review_publishes_first_section_before_later_sections(
             await release_slow.wait()
         if response_model is WordBatchModeration:
             return _moderation_for_batch(user)
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(
                 question_ids=_question_ids_from_user(user)[:1]
@@ -4419,6 +4567,8 @@ async def test_word_review_keeps_first_section_when_later_section_fails(
             raise RuntimeError("section two boom")
         if response_model is WordBatchModeration:
             return _moderation_for_batch(user)
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(
                 question_ids=_question_ids_from_user(user)[:1]
@@ -4537,6 +4687,8 @@ def _passthrough_word_completer(
                 raise RuntimeError(fail_after_hold)
         if response_model is WordBatchModeration:
             return _moderation_for_batch(user)
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=_question_ids_from_user(user)[:1])
         if response_model is WordExpertComment:

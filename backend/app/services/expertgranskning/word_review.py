@@ -47,6 +47,7 @@ from app.services.expertgranskning.schemas import (
     WordDocumentSection,
     WordExpertComment,
     WordExpertRaiseHand,
+    WordExpertRoute,
     WordHeadingAssessment,
     WordParagraphComments,
     WordReviewQuestion,
@@ -60,6 +61,14 @@ from app.services.expertgranskning.watch import (
 from app.services.expertgranskning.word_review_timing import (
     WordReviewLimiter,
     WordReviewTimings,
+)
+from app.services.expertgranskning.word_review_router import (
+    WORD_REVIEW_MAX_ROUTED_EXPERTS,
+    accepted_router_expert_ids,
+    apply_router_ids,
+    panel_experts_for_router,
+    record_router_outcome,
+    router_user_prompt,
 )
 from app.services.expertgranskning.word_review_units import (
     WordPublicationUnit,
@@ -90,7 +99,7 @@ _HEADING_1_TO_3 = re.compile(
 
 WORD_BATCH_MAX_SIZE = 4
 WORD_REVIEW_MAX_QUESTIONS_PER_BATCH = 2
-WORD_REVIEW_MAX_RECOMMENDED_EXPERTS = 2
+WORD_REVIEW_MAX_RECOMMENDED_EXPERTS = WORD_REVIEW_MAX_ROUTED_EXPERTS
 
 WordExpertCommentRow = tuple[PanelExpertSlot, WordReviewQuestion, str, int | None]
 
@@ -338,6 +347,9 @@ async def _llm[T](
     messages: list[dict[str, str]],
     response_model: type[T],
     prompts: dict[str, str],
+    *,
+    model: str | None = None,
+    max_tokens: int | None = None,
 ) -> T:
     return await limiter.run(
         category,
@@ -346,14 +358,24 @@ async def _llm[T](
             response_model,
             prompts=prompts,
             timings=limiter.timings,
+            model=model,
+            max_tokens=max_tokens,
         ),
     )
 
 
-def _messages_with_brief(*, identity: str, brief: str, user: str) -> list[dict[str, str]]:
+def _messages_with_brief(
+    *,
+    identity: str,
+    brief: str,
+    user: str,
+    review_context: str = "",
+) -> list[dict[str, str]]:
     messages: list[dict[str, str]] = []
     if identity.strip():
         messages.append({"role": "system", "content": identity})
+    if review_context.strip():
+        messages.append({"role": "system", "content": review_context})
     if brief.strip():
         messages.append({"role": "system", "content": brief})
     messages.append({"role": "user", "content": user})
@@ -378,16 +400,9 @@ def accepted_recommended_expert_ids(
     limit: int = WORD_REVIEW_MAX_RECOMMENDED_EXPERTS,
 ) -> list[str]:
     """Keep at most `limit` known panel slot IDs, in first-seen order."""
-    kept: list[str] = []
-    seen: set[str] = set()
-    for raw in raw_ids:
-        expert_id = raw.strip()
-        if not expert_id or expert_id in seen or expert_id not in panel_slot_ids:
-            continue
-        seen.add(expert_id)
-        kept.append(expert_id)
-        if len(kept) >= limit:
-            break
+    kept, _invalid = accepted_router_expert_ids(
+        raw_ids, panel_slot_ids, limit=limit
+    )
     return kept
 
 
@@ -445,7 +460,6 @@ def accepted_review_questions(
     allowed = {paragraph.index for paragraph in batch}
     if target_indexes is not None:
         allowed &= target_indexes
-    slot_ids = panel_slot_ids if panel_slot_ids is not None else frozenset()
     kept: list[WordReviewQuestion] = []
     seen_ids: set[str] = set()
     dropped_invalid_anchor = 0
@@ -477,10 +491,7 @@ def accepted_review_questions(
                 question=question.question.strip(),
                 why_it_matters=question.why_it_matters.strip(),
                 primary_anchor_paragraph_index=primary,
-                recommended_expert_ids=accepted_recommended_expert_ids(
-                    question.recommended_expert_ids,
-                    slot_ids,
-                ),
+                recommended_expert_ids=[],
             )
         )
     if dropped_invalid_anchor:
@@ -648,6 +659,7 @@ async def _moderate_batch(
     prompts: dict[str, str],
     slots: list[PanelExpertSlot],
     brief: str,
+    review_context: str,
     section: WordDocumentSection,
     batch: list[WordDocumentParagraph],
     limiter: WordReviewLimiter,
@@ -659,11 +671,17 @@ async def _moderate_batch(
         expert_list=_expert_list(slots),
         section_heading=section.heading,
         batch_text=_batch_text(batch),
+        review_context=review_context or "(none)",
     )
     parsed = await _llm(
         limiter,
         "moderation",
-        _messages_with_brief(identity="", brief=brief, user=user),
+        _messages_with_brief(
+            identity="",
+            brief=brief,
+            review_context=review_context,
+            user=user,
+        ),
         WordBatchModeration,
         prompts,
     )
@@ -674,6 +692,37 @@ async def _moderate_batch(
         panel_slot_ids=frozenset(slot.slot_id for slot in slots),
         timings=limiter.timings,
     )
+
+
+async def _route_question(
+    *,
+    prompts: dict[str, str],
+    question: WordReviewQuestion,
+    review_context: str,
+    slots: list[PanelExpertSlot],
+    limiter: WordReviewLimiter,
+) -> tuple[WordReviewQuestion, list[str], int]:
+    candidates = panel_experts_for_router(slots)
+    user = router_user_prompt(
+        prompts=prompts,
+        question=question,
+        review_context=review_context,
+        slots=candidates,
+    )
+    parsed = await _llm(
+        limiter,
+        "router",
+        [{"role": "user", "content": user}],
+        WordExpertRoute,
+        prompts,
+        model=settings.word_review_router_model,
+        max_tokens=settings.word_review_router_max_tokens,
+    )
+    kept, invalid = accepted_router_expert_ids(
+        parsed.expert_ids,
+        frozenset(slot.slot_id for slot in candidates),
+    )
+    return apply_router_ids(question, kept), kept, invalid
 
 
 async def _raise_hand(
@@ -922,6 +971,8 @@ async def _analyze_batch(
     slots: list[PanelExpertSlot],
     brief: str,
     review_intent: str,
+    review_context: str,
+    router_context: str,
     target: frozenset[int] | None,
     limiter: WordReviewLimiter,
 ) -> WordBatchAnalysis:
@@ -929,6 +980,7 @@ async def _analyze_batch(
         prompts=prompts,
         slots=slots,
         brief=brief,
+        review_context=review_context,
         section=section,
         batch=batch,
         limiter=limiter,
@@ -942,9 +994,27 @@ async def _analyze_batch(
             paragraphs=[],
             paragraph_reviews=len(batch),
         )
-    routed, unresolved = routed_and_unresolved_questions(questions)
-    limiter.timings.record_direct_routed_questions(len(routed))
-    limiter.timings.record_raise_hand_questions(len(unresolved))
+    routed_rows = await asyncio.gather(
+        *[
+            _route_question(
+                prompts=prompts,
+                question=question,
+                review_context=router_context,
+                slots=slots,
+                limiter=limiter,
+            )
+            for question in questions
+        ]
+    )
+    assigned: list[WordReviewQuestion] = []
+    for question, expert_ids, invalid in routed_rows:
+        record_router_outcome(
+            limiter.timings,
+            expert_ids=expert_ids,
+            invalid_ids=invalid,
+        )
+        assigned.append(question)
+    routed, unresolved = routed_and_unresolved_questions(assigned)
     slots_by_id = {slot.slot_id: slot for slot in slots}
     assignments: list[tuple[PanelExpertSlot, WordReviewQuestion]] = []
     seen_pairs: set[tuple[str, str]] = set()
@@ -1079,6 +1149,8 @@ async def _analyze_section(
     slots: list[PanelExpertSlot],
     brief: str,
     review_intent: str,
+    review_context: str,
+    router_context: str,
     target: frozenset[int] | None,
     limiter: WordReviewLimiter,
     emit: Callable[[WordPublicationUnit], Awaitable[None]],
@@ -1179,6 +1251,8 @@ async def _analyze_section(
                 slots=slots,
                 brief=brief,
                 review_intent=review_intent,
+                review_context=review_context,
+                router_context=router_context,
                 target=target,
                 limiter=limiter,
             )
@@ -1363,9 +1437,9 @@ def log_word_review_call_summary(
         "Word review timings job_id=%s outcome=%s total_ms=%s "
         "time_to_first_action_ms=%s publication_units_completed=%s "
         "actions_published_before_completion=%s moderation_ms=%s "
-        "raise_hand_ms=%s expert_comment_ms=%s rewrite_convergence_ms=%s "
-        "comment_convergence_ms=%s heading_ms=%s llm_call_count=%s "
-        "max_observed_llm_concurrency=%s",
+        "router_ms=%s raise_hand_ms=%s expert_comment_ms=%s "
+        "rewrite_convergence_ms=%s comment_convergence_ms=%s heading_ms=%s "
+        "llm_call_count=%s max_observed_llm_concurrency=%s",
         job_id,
         outcome,
         snapshot["total_ms"],
@@ -1373,6 +1447,7 @@ def log_word_review_call_summary(
         snapshot["publication_units_completed"],
         snapshot["actions_published_before_completion"],
         snapshot["moderation_ms"],
+        snapshot["router_ms"],
         snapshot["raise_hand_ms"],
         snapshot["expert_comment_ms"],
         snapshot["rewrite_convergence_ms"],
@@ -1383,15 +1458,17 @@ def log_word_review_call_summary(
     )
     logger.info(
         "Word review LLM calls job_id=%s outcome=%s total=%s moderation=%s "
-        "raise_hand=%s expert_comment=%s comment_convergence=%s "
+        "router=%s raise_hand=%s expert_comment=%s comment_convergence=%s "
         "rewrite_convergence=%s heading=%s structured_retries=%s "
         "direct_routed_questions=%s raise_hand_questions=%s "
+        "router_assignments=%s router_fallback_count=%s invalid_router_ids=%s "
         "questions_dropped_invalid_anchor=%s publication_units_completed=%s "
         "actions_published_before_completion=%s max_observed_llm_concurrency=%s",
         job_id,
         outcome,
         snapshot["llm_call_count"],
         snapshot["moderation_calls"],
+        snapshot["router_calls"],
         snapshot["raise_hand_calls"],
         snapshot["expert_comment_calls"],
         snapshot["comment_convergence_calls"],
@@ -1400,6 +1477,9 @@ def log_word_review_call_summary(
         snapshot["structured_retry_count"],
         snapshot["direct_routed_questions"],
         snapshot["raise_hand_questions"],
+        snapshot["router_assignments"],
+        snapshot["router_fallback_count"],
+        snapshot["invalid_router_ids"],
         snapshot["questions_dropped_invalid_anchor"],
         snapshot["publication_units_completed"],
         snapshot["actions_published_before_completion"],
@@ -1416,6 +1496,19 @@ async def run_word_paragraph_review(
     require_review_panel_task(payload.task)
     target = selection_target_indexes(payload.task)
     slots = await load_expert_slots_from_population(session, payload.panel_id)
+    review_context = compose_intent_prefix(
+        prompts,
+        interview=payload.intent_interview,
+        answers=payload.intent_answers,
+        review_intent=payload.review_intent,
+    )
+    review_context_concise = compose_intent_prefix(
+        prompts,
+        interview=payload.intent_interview,
+        answers=payload.intent_answers,
+        review_intent=payload.review_intent,
+        concise=True,
+    )
     brief = compose_expert_review_context(
         prompts,
         brief=_document_brief(payload),
@@ -1423,12 +1516,7 @@ async def run_word_paragraph_review(
         answers=payload.intent_answers,
         review_intent=payload.review_intent,
     )
-    review_intent = compose_intent_prefix(
-        prompts,
-        interview=payload.intent_interview,
-        answers=payload.intent_answers,
-        review_intent=payload.review_intent,
-    )
+    review_intent = review_context
     timings = WordReviewTimings()
     limiter = WordReviewLimiter(settings.word_review_max_concurrency, timings)
     sections_total = len(payload.sections)
@@ -1448,6 +1536,8 @@ async def run_word_paragraph_review(
                 slots=slots,
                 brief=brief,
                 review_intent=review_intent,
+                review_context=review_context,
+                router_context=review_context_concise,
                 target=target,
                 limiter=limiter,
                 emit=queue.put,
