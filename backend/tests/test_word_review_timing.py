@@ -8,6 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from app.llm import complete_structured, set_structured_completer
 from app.services.expertgranskning import word_review
 from app.services.expertgranskning.word_review import log_word_review_call_summary
 from app.services.expertgranskning.word_review_timing import (
@@ -54,11 +55,21 @@ def test_timing_snapshot_has_safe_aggregate_fields_only():
         "comments_generated",
         "comments_over_soft_length",
         "observations_split",
+        "llm_provider",
+        "llm_model",
+        "llm_reasoning_effort",
+        "prompt_tokens",
+        "completion_tokens",
         "llm_call_count",
         "structured_retry_count",
         "max_observed_llm_concurrency",
     }
-    dumped = repr(snapshot)
+    assert snapshot["llm_provider"] == "cerebras"
+    assert snapshot["llm_model"] == "gpt-oss-120b"
+    assert snapshot["llm_reasoning_effort"] == "medium"
+    assert snapshot["prompt_tokens"] == 0
+    assert snapshot["completion_tokens"] == 0
+    dumped = repr(snapshot).replace("'prompt_tokens'", "").replace('"prompt_tokens"', "")
     assert "prompt" not in dumped
     assert "document" not in dumped
     assert snapshot["llm_call_count"] == 1
@@ -101,7 +112,12 @@ def test_llm_call_summary_logs_counts_without_document_text(monkeypatch):
     assert "invalid_router_ids=0" in logged
     assert "questions_dropped_invalid_anchor=0" in logged
     assert "max_observed_llm_concurrency=" in logged
-    assert "prompt" not in logged
+    assert "provider=cerebras" in logged
+    assert "model=gpt-oss-120b" in logged
+    assert "reasoning_effort=medium" in logged
+    assert "prompt_tokens=0" in logged
+    assert "completion_tokens=0" in logged
+    assert "prompt " not in logged.replace("prompt_tokens", "")
     assert "document" not in logged
     assert "kommentar" not in logged
 
@@ -187,6 +203,44 @@ async def test_limiter_bounds_observed_llm_concurrency():
     assert timings.snapshot()["moderation_calls"] == 6
     assert timings.snapshot()["structured_retry_count"] == 0
     assert timings.snapshot()["moderation_ms"] >= 40
+
+
+@pytest.mark.asyncio
+async def test_limiter_records_provider_token_stats(monkeypatch):
+    from app.services.expertgranskning.schemas import WordCommentConvergence
+
+    set_structured_completer(None)
+
+    async def fake_create(**kwargs):
+        return SimpleNamespace(
+            choices=[
+                SimpleNamespace(message=SimpleNamespace(content='{"issues":[]}'))
+            ],
+            usage=SimpleNamespace(prompt_tokens=21, completion_tokens=9),
+        )
+
+    monkeypatch.setattr(
+        "app.llm.get_client",
+        lambda: SimpleNamespace(
+            chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))
+        ),
+    )
+    timings = WordReviewTimings()
+    limiter = WordReviewLimiter(1, timings)
+    parsed = await limiter.run(
+        "router",
+        lambda: complete_structured(
+            [{"role": "user", "content": "group"}],
+            WordCommentConvergence,
+        ),
+    )
+    assert parsed.issues == []
+    snapshot = timings.snapshot()
+    assert snapshot["llm_provider"] == "cerebras"
+    assert snapshot["llm_model"] == "gpt-oss-120b"
+    assert snapshot["llm_reasoning_effort"] == "medium"
+    assert snapshot["prompt_tokens"] == 21
+    assert snapshot["completion_tokens"] == 9
 
 
 @pytest.mark.asyncio

@@ -1,7 +1,8 @@
-"""Serialize chat + tool-call messages for DeepSeek's Chat Completions API.
+"""Serialize chat + tool-call messages for OpenAI-compatible providers.
 
 DeepSeek V4 rejects replayed assistant/tool turns that drop `type` on
 tool_calls or omit `reasoning_content` after a thinking-mode tool call.
+Cerebras gets standard OpenAI-compatible dicts without that extra field.
 Always send plain dicts (not SDK models) so `type` is not stripped.
 """
 
@@ -36,14 +37,33 @@ def tool_result_message(*, tool_call_id: str, content: object, name: str | None 
     return payload
 
 
+def normalize_messages_for_provider(
+    messages: list[dict[str, Any]],
+    provider: str,
+) -> list[dict[str, Any]]:
+    if provider == "deepseek":
+        return normalize_messages_for_deepseek(messages)
+    if provider == "cerebras":
+        return normalize_messages_for_openai(messages)
+    raise RuntimeError(f"unknown LLM_PROVIDER: {provider}")
+
+
 def normalize_messages_for_deepseek(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Coerce a working transcript into DeepSeek-safe dicts before the HTTP call."""
-    return [_normalize_message(item) for item in messages]
+    return [_normalize_message(item, include_reasoning=True) for item in messages]
 
 
-def _normalize_message(message: object) -> dict[str, Any]:
+def normalize_messages_for_openai(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Standard Chat Completions dicts: no DeepSeek reasoning_content field."""
+    return [_normalize_message(item, include_reasoning=False) for item in messages]
+
+
+def _normalize_message(message: object, *, include_reasoning: bool) -> dict[str, Any]:
     if not isinstance(message, dict):
-        return assistant_message_dict(message)
+        payload = assistant_message_dict(message)
+        if not include_reasoning:
+            payload.pop("reasoning_content", None)
+        return payload
 
     role = message.get("role")
     if role == "assistant":
@@ -51,9 +71,10 @@ def _normalize_message(message: object) -> dict[str, Any]:
             "role": "assistant",
             "content": _text_content(message.get("content")),
         }
-        reasoning = message.get("reasoning_content")
-        if reasoning is not None:
-            payload["reasoning_content"] = reasoning
+        if include_reasoning:
+            reasoning = message.get("reasoning_content")
+            if reasoning is not None:
+                payload["reasoning_content"] = reasoning
         normalized = _normalize_tool_calls(message.get("tool_calls"))
         if normalized:
             payload["tool_calls"] = normalized

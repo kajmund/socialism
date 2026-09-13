@@ -3,6 +3,7 @@ import tempfile
 from datetime import UTC, datetime, timedelta
 
 # Required before importing app.config — Settings fails without keys.
+os.environ.setdefault("CEREBRAS_API_KEY", "test-key-not-real")
 os.environ.setdefault("DEEPSEEK_API_KEY", "test-key-not-real")
 os.environ.setdefault("OPENAI_API_KEY", "test-openai-key-not-real")
 os.environ.setdefault("SUPABASE_URL", "https://test.supabase.co")
@@ -101,6 +102,7 @@ def _reset_llm_completers():
 @pytest.fixture
 async def client():
     settings.persona_generator = "stub"
+    settings.cerebras_api_key = "test-key-not-real"
     settings.deepseek_api_key = "test-key-not-real"
     settings.openai_api_key = "test-openai-key-not-real"
     settings.supabase_jwt_secret = TEST_JWT_SECRET

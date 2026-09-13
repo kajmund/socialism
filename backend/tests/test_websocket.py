@@ -8,6 +8,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
+os.environ.setdefault("CEREBRAS_API_KEY", "test-key-not-real")
 os.environ.setdefault("DEEPSEEK_API_KEY", "test-key-not-real")
 os.environ.setdefault("OPENAI_API_KEY", "test-openai-key-not-real")
 os.environ.setdefault("SUPABASE_URL", "https://test.supabase.co")

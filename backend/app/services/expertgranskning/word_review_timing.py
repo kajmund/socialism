@@ -11,6 +11,9 @@ import time
 from collections.abc import Awaitable, Callable
 from typing import TypeVar
 
+from app.config import settings
+from app.llm import LLMCallStats, bind_usage_recorder, reset_usage_recorder
+
 T = TypeVar("T")
 
 TIMING_CATEGORIES = (
@@ -34,6 +37,11 @@ class WordReviewTimings:
         self.llm_call_count = 0
         self.structured_retry_count = 0
         self.max_observed_llm_concurrency = 0
+        self.prompt_tokens = 0
+        self.completion_tokens = 0
+        self.llm_provider = settings.llm_provider
+        self.llm_model = settings.selected_llm_model
+        self.llm_reasoning_effort = settings.selected_reasoning_effort
         self.direct_routed_questions = 0
         self.raise_hand_questions = 0
         self.questions_dropped_invalid_anchor = 0
@@ -58,6 +66,13 @@ class WordReviewTimings:
     def record_structured_retry(self) -> None:
         self.structured_retry_count += 1
         self.llm_call_count += 1
+
+    def record_llm_stats(self, stats: LLMCallStats) -> None:
+        self.prompt_tokens += stats.prompt_tokens
+        self.completion_tokens += stats.completion_tokens
+        self.llm_provider = stats.provider
+        self.llm_model = stats.model
+        self.llm_reasoning_effort = stats.reasoning_effort
 
     def record_direct_routed_questions(self, count: int) -> None:
         self.direct_routed_questions += count
@@ -111,7 +126,7 @@ class WordReviewTimings:
         self._in_flight -= 1
         self._totals_ms[category] += (time.monotonic() - started_at) * 1000
 
-    def snapshot(self) -> dict[str, int | None]:
+    def snapshot(self) -> dict[str, int | str | None]:
         now = time.monotonic()
         first_action_ms = (
             round((self._first_action_at - self._started_at) * 1000)
@@ -119,6 +134,11 @@ class WordReviewTimings:
             else None
         )
         return {
+            "llm_provider": self.llm_provider,
+            "llm_model": self.llm_model,
+            "llm_reasoning_effort": self.llm_reasoning_effort,
+            "prompt_tokens": self.prompt_tokens,
+            "completion_tokens": self.completion_tokens,
             "total_ms": round((now - self._started_at) * 1000),
             "time_to_first_action_ms": first_action_ms,
             "moderation_ms": round(self._totals_ms["moderation"]),
@@ -176,7 +196,9 @@ class WordReviewLimiter:
         async with self._semaphore:
             self.timings.record_category(category)
             started_at = self.timings.begin_call()
+            token = bind_usage_recorder(self.timings.record_llm_stats)
             try:
                 return await factory()
             finally:
+                reset_usage_recorder(token)
                 self.timings.end_call(category, started_at)

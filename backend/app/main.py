@@ -39,10 +39,18 @@ from app.services.prompt_store import ensure_default_configurations
 logger = logging.getLogger(__name__)
 
 
+def _require_chat_llm() -> None:
+    if settings.selected_llm_api_key:
+        return
+    raise RuntimeError(
+        f"{settings.chat_llm_key_env_name} is required when "
+        f"LLM_PROVIDER={settings.llm_provider}"
+    )
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    if not settings.deepseek_api_key.strip():
-        raise RuntimeError("DEEPSEEK_API_KEY is required")
+    _require_chat_llm()
     if not settings.openai_api_key.strip():
         raise RuntimeError("OPENAI_API_KEY is required (embeddings / SSR)")
     if not settings.supabase_jwt_secret.strip():
@@ -74,8 +82,7 @@ def create_app() -> FastAPI:
     log_path = configure_logging()
     if log_path is not None:
         logger.info("File logging %s", log_path)
-    if not settings.deepseek_api_key.strip():
-        raise RuntimeError("DEEPSEEK_API_KEY is required")
+    _require_chat_llm()
     if not settings.openai_api_key.strip():
         raise RuntimeError("OPENAI_API_KEY is required (embeddings / SSR)")
     if not settings.supabase_jwt_secret.strip():
