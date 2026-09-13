@@ -5,7 +5,7 @@ a hand per question and comment only on questions they opted into. After
 expert replies, overlapping observations are consolidated at section
 scope before Word comments are written, so nearby duplicates can collapse
 across batch boundaries. Rewrite suggestions remain a separate step when
-at least two experts comment on the same paragraph.
+at least two experts comment on the same resolved paragraph anchor.
 """
 
 from __future__ import annotations
@@ -982,13 +982,16 @@ async def _analyze_batch(
             recommended_expert_ids=question.recommended_expert_ids,
         )
         section_comments.append((slot, prefixed, text, anchor))
-        for index in question.paragraph_indexes:
-            paragraph = by_index.get(index)
-            if paragraph is None:
-                continue
-            comments_by_index.setdefault(paragraph.index, []).append(
-                (slot.label, text)
-            )
+        # One resolved anchor per comment. Spreading across the question
+        # scope would qualify unrelated paragraphs for rewrite.
+        if anchor is None:
+            continue
+        paragraph = by_index.get(anchor)
+        if paragraph is None:
+            continue
+        comments_by_index.setdefault(paragraph.index, []).append(
+            (slot.label, text)
+        )
 
     rewrite_targets = [
         paragraph
