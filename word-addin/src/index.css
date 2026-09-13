@@ -418,6 +418,16 @@ button.link:hover:not(:disabled) {
   min-height: 72px;
 }
 
+.interview-other {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.interview-other-text {
+  min-height: 72px;
+}
+
 .interview-nav {
   display: flex;
   gap: 8px;

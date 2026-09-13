@@ -27,10 +27,13 @@ export const messages = {
     interviewQuestionProgress: "Fråga {current} av {total}",
     interviewNext: "Nästa",
     interviewBack: "Tillbaka",
-    interviewStart: "Starta granskning",
+    interviewStart: "Granska",
     interviewRestart: "Läs om dokumentet",
-    interviewEmpty: "Dokumentet räckte. Lägg till övrigt nedan om du vill, och starta granskningen.",
-    interviewHint: "Svaren styr analysen. De skrivs inte in i fältet Övrigt.",
+    interviewEmpty: "Dokumentet räckte. Lägg till övrigt nedan om du vill, och klicka Granska.",
+    interviewHint:
+      "Svaren styr analysen. De skrivs inte in i fältet Övrigt. Granska blir aktiv när alla obligatoriska frågor är besvarade.",
+    interviewOther: "Annat / Inget av ovanstående",
+    interviewOtherPlaceholder: "Skriv ditt svar",
     interviewInvalid: "Kunde inte läsa avsiktsfrågorna. Försök igen.",
     scopeLabel: "Omfattning",
     scopeDocument: "Hela dokumentet",
@@ -42,7 +45,8 @@ export const messages = {
     reviewing: "Granskar…",
     statusIdle: "Välj en panel och klicka Granska. Du får några frågor innan jobbet startar.",
     statusPreparing: "Läser dokumentet och tar fram frågor…",
-    statusInterview: "Svara på frågorna. Du kan gå tillbaka och ändra innan du startar.",
+    statusInterview:
+      "Svara på frågorna. Granska blir aktiv när alla obligatoriska svar är ifyllda. Du kan gå tillbaka och ändra.",
     statusConnecting: "Startar granskning…",
     statusLive:
       "Förslag visas i sidopanelen. Tillämpa eller avfärda dem. Inget skrivs i dokumentet förrän du väljer Tillämpa.",
@@ -113,10 +117,13 @@ export const messages = {
     interviewQuestionProgress: "Question {current} of {total}",
     interviewNext: "Next",
     interviewBack: "Back",
-    interviewStart: "Start review",
+    interviewStart: "Review",
     interviewRestart: "Recapture document",
-    interviewEmpty: "The document was enough. Add anything else below if you want, then start the review.",
-    interviewHint: "The answers guide the analysis. They are not written into the Anything else field.",
+    interviewEmpty: "The document was enough. Add anything else below if you want, then click Review.",
+    interviewHint:
+      "The answers guide the analysis. They are not written into the Anything else field. Review becomes active when every required question is answered.",
+    interviewOther: "Other / none of the above",
+    interviewOtherPlaceholder: "Write your answer",
     interviewInvalid: "Could not read the intent questions. Try again.",
     scopeLabel: "Scope",
     scopeDocument: "Whole document",
@@ -128,7 +135,8 @@ export const messages = {
     reviewing: "Reviewing…",
     statusIdle: "Choose a panel and click Review. You will get a few questions before the job starts.",
     statusPreparing: "Reading the document and generating questions…",
-    statusInterview: "Answer the questions. You can go back and change them before you start.",
+    statusInterview:
+      "Answer the questions. Review becomes active when every required answer is filled in. You can go back and change them.",
     statusConnecting: "Starting review…",
     statusLive:
       "Proposals appear in the pane. Apply or dismiss them. Nothing is written to the document until you choose Apply.",

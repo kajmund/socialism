@@ -14,6 +14,7 @@ from app.services.expertgranskning.intent_interview import (
     DOCUMENT_DATA_CLOSE,
     DOCUMENT_DATA_OPEN,
     LlmDocumentIntentInterview,
+    REVIEW_CONTEXT_PERSPECTIVE,
     compose_expert_review_context,
     compose_intent_prefix,
     document_as_user_data,
@@ -28,11 +29,13 @@ from app.services.expertgranskning.schemas import (
     ExpertgranskningWordJobCreate,
     ExpertgranskningWordJobRequest,
     IntentAnswer,
+    is_custom_choice_answer,
     WordBatchModeration,
     WordCommentConvergence,
     WordDocumentParagraph,
     WordDocumentSection,
     WordExpertRaiseHand,
+    WordExpertRoute,
     WordHeadingAssessment,
     slugify_intent_id,
 )
@@ -245,6 +248,122 @@ def test_composition_is_deterministic_and_keeps_review_intent_separate():
     )
     assert "Structured review context" in prefix
     assert "Avtalstext." not in prefix
+
+
+def test_review_context_preserves_reviewer_perspective_not_document_voice():
+    prompts = default_prompts("sv")
+    interview = DocumentIntentInterview.model_validate(_interview(_choice_question()))
+    challengers = [
+        IntentAnswer.model_validate(
+            {
+                "question_id": "party",
+                "selected_values": [],
+                "free_text": "We represent the challengers",
+            }
+        )
+    ]
+    association = [
+        IntentAnswer.model_validate(
+            {
+                "question_id": "party",
+                "selected_values": [],
+                "free_text": "We represent the association, not the challenging members",
+            }
+        )
+    ]
+    document = "The challenging members request that the association be ordered to pay."
+    left = compose_intent_prefix(
+        prompts, interview=interview, answers=challengers, review_intent=""
+    )
+    right = compose_intent_prefix(
+        prompts, interview=interview, answers=association, review_intent=""
+    )
+    assert REVIEW_CONTEXT_PERSPECTIVE in left
+    assert REVIEW_CONTEXT_PERSPECTIVE in right
+    assert "We represent the challengers" in left
+    assert "We represent the association, not the challenging members" in right
+    assert "We represent the association" not in left
+    assert "We represent the challengers" not in right
+    composed = compose_expert_review_context(
+        prompts,
+        brief=document,
+        interview=interview,
+        answers=association,
+        review_intent="",
+    )
+    assert REVIEW_CONTEXT_PERSPECTIVE in composed
+    assert "We represent the association, not the challenging members" in composed
+    assert composed.endswith(document)
+    concise = compose_intent_prefix(
+        prompts,
+        interview=interview,
+        answers=association,
+        review_intent="",
+        concise=True,
+    )
+    assert REVIEW_CONTEXT_PERSPECTIVE not in concise
+    assert "We represent the association, not the challenging members" in concise
+
+
+def test_custom_choice_answer_is_structured_and_reaches_review_context():
+    interview = DocumentIntentInterview.model_validate(_interview(_choice_question()))
+    custom = IntentAnswer.model_validate(
+        {
+            "question_id": "party",
+            "selected_values": [],
+            "free_text": "We represent the association, not the challenging members",
+        }
+    )
+    assert is_custom_choice_answer(custom)
+    ExpertgranskningWordJobCreate.model_validate(
+        {
+            "task": _review_task(),
+            "sections": [
+                {
+                    "heading": "Avtal",
+                    "heading_style": "Heading 1",
+                    "heading_paragraph_index": 0,
+                    "paragraphs": [
+                        {
+                            "index": 1,
+                            "text": "Detta stycke är tillräckligt långt.",
+                            "style": "Normal",
+                        }
+                    ],
+                }
+            ],
+            "intent_interview": _interview(_choice_question()),
+            "intent_answers": [custom.model_dump()],
+        }
+    )
+    section = render_intent_interview_section(interview, [custom])
+    assert "Köpare" not in section
+    assert "Säljare" not in section
+    assert "We represent the association, not the challenging members" in section
+    with pytest.raises(ValidationError, match="exactly one selected value"):
+        ExpertgranskningWordJobCreate.model_validate(
+            {
+                "task": _review_task(),
+                "sections": [
+                    {
+                        "heading": "Avtal",
+                        "heading_style": "Heading 1",
+                        "heading_paragraph_index": 0,
+                        "paragraphs": [
+                            {
+                                "index": 1,
+                                "text": "Detta stycke är tillräckligt långt.",
+                                "style": "Normal",
+                            }
+                        ],
+                    }
+                ],
+                "intent_interview": _interview(_choice_question()),
+                "intent_answers": [
+                    {"question_id": "party", "selected_values": [], "free_text": ""}
+                ],
+            }
+        )
 
 
 def test_empty_interview_composition_matches_review_intent_only():
@@ -771,6 +890,8 @@ async def test_word_review_includes_structured_interview_in_system_messages(
         captured.append(messages)
         if response_model is WordBatchModeration:
             return _moderation_for_batch(messages[-1]["content"])
+        if response_model is WordExpertRoute:
+            return WordExpertRoute(expert_ids=[])
         if response_model is WordExpertRaiseHand:
             return WordExpertRaiseHand(question_ids=[])
         if response_model is WordHeadingAssessment:
