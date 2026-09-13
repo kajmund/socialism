@@ -9,9 +9,45 @@ from __future__ import annotations
 import asyncio
 import time
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from typing import TypeVar
 
+from app.config import settings
+from app.llm import LLMCallStats, bind_usage_recorder, reset_usage_recorder
+
 T = TypeVar("T")
+UsageKey = tuple[str, str, str]
+
+
+@dataclass
+class _ModelUsage:
+    provider: str
+    model: str
+    reasoning_effort: str | None
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    calls: int = 0
+
+
+def _usage_key(provider: str, model: str, reasoning_effort: str | None) -> UsageKey:
+    return (provider, model, reasoning_effort or "")
+
+
+def format_llm_usage_log(usages: object) -> str:
+    if not isinstance(usages, list) or not usages:
+        return ""
+    parts: list[str] = []
+    for item in usages:
+        if not isinstance(item, dict):
+            continue
+        effort = item.get("reasoning_effort") or ""
+        parts.append(
+            f"{item.get('provider')}/{item.get('model')}/{effort}"
+            f":in={item.get('prompt_tokens', 0)}"
+            f":out={item.get('completion_tokens', 0)}"
+            f":calls={item.get('calls', 0)}"
+        )
+    return ";".join(parts)
 
 TIMING_CATEGORIES = (
     "moderation",
@@ -34,6 +70,7 @@ class WordReviewTimings:
         self.llm_call_count = 0
         self.structured_retry_count = 0
         self.max_observed_llm_concurrency = 0
+        self._usage_by_key: dict[UsageKey, _ModelUsage] = {}
         self.direct_routed_questions = 0
         self.raise_hand_questions = 0
         self.questions_dropped_invalid_anchor = 0
@@ -58,6 +95,60 @@ class WordReviewTimings:
     def record_structured_retry(self) -> None:
         self.structured_retry_count += 1
         self.llm_call_count += 1
+
+    def record_llm_stats(self, stats: LLMCallStats) -> None:
+        key = _usage_key(stats.provider, stats.model, stats.reasoning_effort)
+        bucket = self._usage_by_key.get(key)
+        if bucket is None:
+            bucket = _ModelUsage(
+                provider=stats.provider,
+                model=stats.model,
+                reasoning_effort=stats.reasoning_effort,
+            )
+            self._usage_by_key[key] = bucket
+        bucket.prompt_tokens += stats.prompt_tokens
+        bucket.completion_tokens += stats.completion_tokens
+        bucket.calls += 1
+
+    def _usage_rows(self) -> list[dict[str, int | str | None]]:
+        rows = [
+            {
+                "provider": bucket.provider,
+                "model": bucket.model,
+                "reasoning_effort": bucket.reasoning_effort,
+                "prompt_tokens": bucket.prompt_tokens,
+                "completion_tokens": bucket.completion_tokens,
+                "calls": bucket.calls,
+            }
+            for bucket in self._usage_by_key.values()
+        ]
+        rows.sort(
+            key=lambda row: (
+                str(row["provider"]),
+                str(row["model"]),
+                str(row["reasoning_effort"] or ""),
+            )
+        )
+        return rows
+
+    def _identity_from_usage(
+        self, rows: list[dict[str, int | str | None]]
+    ) -> tuple[str, str, str | None]:
+        if not rows:
+            return (
+                settings.llm_provider,
+                settings.selected_llm_model,
+                settings.selected_reasoning_effort,
+            )
+        providers = {row["provider"] for row in rows}
+        models = {row["model"] for row in rows}
+        efforts = {row["reasoning_effort"] for row in rows}
+        provider = str(rows[0]["provider"]) if len(providers) == 1 else "mixed"
+        model = str(rows[0]["model"]) if len(models) == 1 else "mixed"
+        if len(efforts) == 1:
+            effort = rows[0]["reasoning_effort"]
+            return provider, model, None if effort is None else str(effort)
+        return provider, model, "mixed"
 
     def record_direct_routed_questions(self, count: int) -> None:
         self.direct_routed_questions += count
@@ -111,14 +202,24 @@ class WordReviewTimings:
         self._in_flight -= 1
         self._totals_ms[category] += (time.monotonic() - started_at) * 1000
 
-    def snapshot(self) -> dict[str, int | None]:
+    def snapshot(self) -> dict[str, object]:
         now = time.monotonic()
         first_action_ms = (
             round((self._first_action_at - self._started_at) * 1000)
             if self._first_action_at is not None
             else None
         )
+        usage_rows = self._usage_rows()
+        provider, model, effort = self._identity_from_usage(usage_rows)
         return {
+            "llm_provider": provider,
+            "llm_model": model,
+            "llm_reasoning_effort": effort,
+            "prompt_tokens": sum(int(row["prompt_tokens"] or 0) for row in usage_rows),
+            "completion_tokens": sum(
+                int(row["completion_tokens"] or 0) for row in usage_rows
+            ),
+            "llm_usage": usage_rows,
             "total_ms": round((now - self._started_at) * 1000),
             "time_to_first_action_ms": first_action_ms,
             "moderation_ms": round(self._totals_ms["moderation"]),
@@ -176,7 +277,9 @@ class WordReviewLimiter:
         async with self._semaphore:
             self.timings.record_category(category)
             started_at = self.timings.begin_call()
+            token = bind_usage_recorder(self.timings.record_llm_stats)
             try:
                 return await factory()
             finally:
+                reset_usage_recorder(token)
                 self.timings.end_call(category, started_at)

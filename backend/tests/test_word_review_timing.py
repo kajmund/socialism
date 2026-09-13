@@ -8,6 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from app.llm import LLMCallStats, complete_structured, set_structured_completer
 from app.services.expertgranskning import word_review
 from app.services.expertgranskning.word_review import log_word_review_call_summary
 from app.services.expertgranskning.word_review_timing import (
@@ -54,11 +55,23 @@ def test_timing_snapshot_has_safe_aggregate_fields_only():
         "comments_generated",
         "comments_over_soft_length",
         "observations_split",
+        "llm_provider",
+        "llm_model",
+        "llm_reasoning_effort",
+        "prompt_tokens",
+        "completion_tokens",
+        "llm_usage",
         "llm_call_count",
         "structured_retry_count",
         "max_observed_llm_concurrency",
     }
-    dumped = repr(snapshot)
+    assert snapshot["llm_provider"] == "cerebras"
+    assert snapshot["llm_model"] == "gpt-oss-120b"
+    assert snapshot["llm_reasoning_effort"] == "medium"
+    assert snapshot["prompt_tokens"] == 0
+    assert snapshot["completion_tokens"] == 0
+    assert snapshot["llm_usage"] == []
+    dumped = repr(snapshot).replace("'prompt_tokens'", "").replace('"prompt_tokens"', "")
     assert "prompt" not in dumped
     assert "document" not in dumped
     assert snapshot["llm_call_count"] == 1
@@ -101,7 +114,13 @@ def test_llm_call_summary_logs_counts_without_document_text(monkeypatch):
     assert "invalid_router_ids=0" in logged
     assert "questions_dropped_invalid_anchor=0" in logged
     assert "max_observed_llm_concurrency=" in logged
-    assert "prompt" not in logged
+    assert "provider=cerebras" in logged
+    assert "model=gpt-oss-120b" in logged
+    assert "reasoning_effort=medium" in logged
+    assert "prompt_tokens=0" in logged
+    assert "completion_tokens=0" in logged
+    assert "llm_usage=" in logged
+    assert "prompt " not in logged.replace("prompt_tokens", "")
     assert "document" not in logged
     assert "kommentar" not in logged
 
@@ -187,6 +206,204 @@ async def test_limiter_bounds_observed_llm_concurrency():
     assert timings.snapshot()["moderation_calls"] == 6
     assert timings.snapshot()["structured_retry_count"] == 0
     assert timings.snapshot()["moderation_ms"] >= 40
+
+
+@pytest.mark.asyncio
+async def test_limiter_records_provider_token_stats(monkeypatch):
+    from app.services.expertgranskning.schemas import WordCommentConvergence
+
+    set_structured_completer(None)
+
+    async def fake_create(**kwargs):
+        return SimpleNamespace(
+            choices=[
+                SimpleNamespace(message=SimpleNamespace(content='{"issues":[]}'))
+            ],
+            usage=SimpleNamespace(prompt_tokens=21, completion_tokens=9),
+        )
+
+    monkeypatch.setattr(
+        "app.llm.get_client",
+        lambda: SimpleNamespace(
+            chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))
+        ),
+    )
+    timings = WordReviewTimings()
+    limiter = WordReviewLimiter(1, timings)
+    parsed = await limiter.run(
+        "router",
+        lambda: complete_structured(
+            [{"role": "user", "content": "group"}],
+            WordCommentConvergence,
+        ),
+    )
+    assert parsed.issues == []
+    snapshot = timings.snapshot()
+    assert snapshot["llm_provider"] == "cerebras"
+    assert snapshot["llm_model"] == "gpt-oss-120b"
+    assert snapshot["llm_reasoning_effort"] == "medium"
+    assert snapshot["prompt_tokens"] == 21
+    assert snapshot["completion_tokens"] == 9
+    assert snapshot["llm_usage"] == [
+        {
+            "provider": "cerebras",
+            "model": "gpt-oss-120b",
+            "reasoning_effort": "medium",
+            "prompt_tokens": 21,
+            "completion_tokens": 9,
+            "calls": 1,
+        }
+    ]
+
+
+def test_mixed_model_usage_is_reported_per_model_not_last_call():
+    timings = WordReviewTimings()
+    timings.record_llm_stats(
+        LLMCallStats(
+            provider="cerebras",
+            model="gpt-oss-120b",
+            reasoning_effort="medium",
+            prompt_tokens=100,
+            completion_tokens=40,
+            elapsed_ms=12.0,
+            kind="structured",
+        )
+    )
+    timings.record_llm_stats(
+        LLMCallStats(
+            provider="cerebras",
+            model="deepseek-chat",
+            reasoning_effort=None,
+            prompt_tokens=20,
+            completion_tokens=5,
+            elapsed_ms=3.0,
+            kind="structured",
+        )
+    )
+    snapshot = timings.snapshot()
+    assert snapshot["llm_provider"] == "cerebras"
+    assert snapshot["llm_model"] == "mixed"
+    assert snapshot["llm_reasoning_effort"] == "mixed"
+    assert snapshot["prompt_tokens"] == 120
+    assert snapshot["completion_tokens"] == 45
+    assert snapshot["llm_usage"] == [
+        {
+            "provider": "cerebras",
+            "model": "deepseek-chat",
+            "reasoning_effort": None,
+            "prompt_tokens": 20,
+            "completion_tokens": 5,
+            "calls": 1,
+        },
+        {
+            "provider": "cerebras",
+            "model": "gpt-oss-120b",
+            "reasoning_effort": "medium",
+            "prompt_tokens": 100,
+            "completion_tokens": 40,
+            "calls": 1,
+        },
+    ]
+
+
+def test_mixed_model_usage_is_stable_regardless_of_call_order():
+    first = WordReviewTimings()
+    second = WordReviewTimings()
+    global_call = LLMCallStats(
+        provider="cerebras",
+        model="gpt-oss-120b",
+        reasoning_effort="medium",
+        prompt_tokens=80,
+        completion_tokens=30,
+        elapsed_ms=8.0,
+        kind="structured",
+    )
+    router_call = LLMCallStats(
+        provider="cerebras",
+        model="deepseek-chat",
+        reasoning_effort=None,
+        prompt_tokens=10,
+        completion_tokens=4,
+        elapsed_ms=2.0,
+        kind="structured",
+    )
+    first.record_llm_stats(global_call)
+    first.record_llm_stats(router_call)
+    second.record_llm_stats(router_call)
+    second.record_llm_stats(global_call)
+    assert first.snapshot()["llm_usage"] == second.snapshot()["llm_usage"]
+    assert first.snapshot()["llm_model"] == "mixed"
+    assert second.snapshot()["llm_model"] == "mixed"
+
+
+def test_same_model_usage_accumulates_in_one_bucket():
+    timings = WordReviewTimings()
+    stats = LLMCallStats(
+        provider="cerebras",
+        model="gpt-oss-120b",
+        reasoning_effort="medium",
+        prompt_tokens=11,
+        completion_tokens=7,
+        elapsed_ms=5.0,
+        kind="structured",
+    )
+    timings.record_llm_stats(stats)
+    timings.record_llm_stats(stats)
+    snapshot = timings.snapshot()
+    assert snapshot["llm_model"] == "gpt-oss-120b"
+    assert snapshot["prompt_tokens"] == 22
+    assert snapshot["completion_tokens"] == 14
+    assert snapshot["llm_usage"] == [
+        {
+            "provider": "cerebras",
+            "model": "gpt-oss-120b",
+            "reasoning_effort": "medium",
+            "prompt_tokens": 22,
+            "completion_tokens": 14,
+            "calls": 2,
+        }
+    ]
+
+
+def test_mixed_model_summary_logs_per_model_usage(monkeypatch):
+    messages: list[str] = []
+
+    def capture(fmt: str, *args: object) -> None:
+        messages.append(fmt % args if args else fmt)
+
+    monkeypatch.setattr(word_review.logger, "info", capture)
+    timings = WordReviewTimings()
+    timings.record_llm_stats(
+        LLMCallStats(
+            provider="cerebras",
+            model="gpt-oss-120b",
+            reasoning_effort="medium",
+            prompt_tokens=100,
+            completion_tokens=40,
+            elapsed_ms=12.0,
+            kind="structured",
+        )
+    )
+    timings.record_llm_stats(
+        LLMCallStats(
+            provider="cerebras",
+            model="deepseek-chat",
+            reasoning_effort=None,
+            prompt_tokens=20,
+            completion_tokens=5,
+            elapsed_ms=3.0,
+            kind="structured",
+        )
+    )
+    log_word_review_call_summary("job_secret", timings.snapshot(), outcome="ok")
+    logged = " ".join(messages)
+    assert "model=mixed" in logged
+    assert "prompt_tokens=120" in logged
+    assert "completion_tokens=45" in logged
+    assert "cerebras/gpt-oss-120b/medium:in=100:out=40:calls=1" in logged
+    assert "cerebras/deepseek-chat/:in=20:out=5:calls=1" in logged
+    assert "model=deepseek-chat" not in logged
+    assert "document" not in logged
 
 
 @pytest.mark.asyncio

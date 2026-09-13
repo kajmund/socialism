@@ -1,10 +1,14 @@
-"""DeepSeek tool-call message serialization."""
+"""Provider-aware tool-call message serialization."""
 
 from types import SimpleNamespace
+
+import pytest
 
 from app.llm.tool_messages import (
     assistant_message_dict,
     normalize_messages_for_deepseek,
+    normalize_messages_for_openai,
+    normalize_messages_for_provider,
     tool_result_message,
 )
 
@@ -89,3 +93,42 @@ def test_normalize_messages_fills_missing_tool_call_type():
     assert out[2]["reasoning_content"] == "plan"
     assert out[3]["content"] == ""
     assert out[3]["tool_call_id"] == "call_9"
+
+
+def test_normalize_messages_for_openai_omits_reasoning_content():
+    messages = [
+        {
+            "role": "assistant",
+            "content": None,
+            "reasoning_content": "plan",
+            "tool_calls": [
+                {
+                    "id": "call_9",
+                    "function": {"name": "list_runs", "arguments": "{}"},
+                }
+            ],
+        }
+    ]
+    out = normalize_messages_for_openai(messages)
+    assert "reasoning_content" not in out[0]
+    assert out[0]["tool_calls"][0]["type"] == "function"
+    assert out[0]["content"] == ""
+
+
+def test_normalize_messages_for_provider_dispatches():
+    messages = [
+        {
+            "role": "assistant",
+            "content": "ok",
+            "reasoning_content": "plan",
+        }
+    ]
+    deepseek = normalize_messages_for_provider(messages, "deepseek")
+    cerebras = normalize_messages_for_provider(messages, "cerebras")
+    assert deepseek[0]["reasoning_content"] == "plan"
+    assert "reasoning_content" not in cerebras[0]
+
+
+def test_normalize_messages_for_unknown_provider_fails_loud():
+    with pytest.raises(RuntimeError, match="unknown LLM_PROVIDER"):
+        normalize_messages_for_provider([], "openai")
