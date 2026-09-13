@@ -120,17 +120,21 @@ async def publish_review_progress(
     sections_completed: int,
     sections_total: int,
     actions_created: int,
+    units_completed: int | None = None,
+    units_total: int | None = None,
 ) -> None:
-    await expertgranskning_broadcast.publish(
-        job_id,
-        {
-            "type": "expertgranskning.progress",
-            "job_id": job_id,
-            "sections_completed": sections_completed,
-            "sections_total": sections_total,
-            "actions_created": actions_created,
-        },
-    )
+    payload: dict[str, Any] = {
+        "type": "expertgranskning.progress",
+        "job_id": job_id,
+        "sections_completed": sections_completed,
+        "sections_total": sections_total,
+        "actions_created": actions_created,
+    }
+    if units_completed is not None:
+        payload["units_completed"] = units_completed
+    if units_total is not None:
+        payload["units_total"] = units_total
+    await expertgranskning_broadcast.publish(job_id, payload)
 
 
 async def publish_expertgranskning_finished(

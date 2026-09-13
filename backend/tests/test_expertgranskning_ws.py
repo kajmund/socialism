@@ -86,21 +86,29 @@ async def test_word_review_emits_result_created_then_finished(
         await jobs_service._run_job(job_id)
 
         types = [event["type"] for event in events]
-        assert types.count("expertgranskning.action.created") == 2
-        assert types.count("expertgranskning.progress") == 1
-        progress = next(
+        created_actions = [
+            event["action"]
+            for event in events
+            if event["type"] == "expertgranskning.action.created"
+        ]
+        assert len(created_actions) == 2
+        assert types.count("expertgranskning.progress") >= 1
+        progress = [
             event for event in events if event["type"] == "expertgranskning.progress"
-        )
-        assert progress["sections_completed"] == 1
-        assert progress["sections_total"] == 1
-        assert progress["actions_created"] == 2
+        ]
+        assert progress[-1]["sections_completed"] == 1
+        assert progress[-1]["sections_total"] == 1
+        assert progress[-1]["actions_created"] == 2
+        assert progress[-1]["units_completed"] == progress[-1]["units_total"]
         assert types[-1] == "expertgranskning.finished"
         assert events[-1]["status"] == "succeeded"
         assert events[-1]["job_id"] == job_id
-        assert events[0]["action"]["content"] == "Finansiell analytiker: En live-kommentar."
-        assert events[0]["action"]["action_type"] == "comment"
-        assert events[1]["action"]["action_type"] == "comment"
-        assert events[1]["action"]["content"] == "Tydligare rubrik"
+        contents = {row["content"] for row in created_actions}
+        assert contents == {
+            "Finansiell analytiker: En live-kommentar.",
+            "Tydligare rubrik",
+        }
+        assert {row["action_type"] for row in created_actions} == {"comment"}
     finally:
         jobs_service.set_schedule_hook(None)
 
@@ -118,7 +126,7 @@ async def test_word_review_emits_finished_on_failure(client: AsyncClient, monkey
 
     async def completer(messages, response_model):
         if response_model is WordBatchModeration:
-            return _moderation_for_batch(messages[-1]["content"])
+            raise RuntimeError("heading boom")
         if response_model is WordExpertRaiseHand:
             label = _identity_label(messages)
             if label == DEFAULT_EXPERT_LABELS[0]:

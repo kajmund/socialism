@@ -84,6 +84,7 @@ class WordConsolidatedComment:
     explanation: str = ""
     should_materialize: bool = True
     has_dissensus: bool = False
+    observation_ids: tuple[str, ...] = ()
 
 
 def comment_tokens(text: str) -> frozenset[str]:
@@ -416,6 +417,7 @@ def consolidated_from_observation(observation: WordObservation) -> WordConsolida
         explanation="",
         should_materialize=True,
         has_dissensus=False,
+        observation_ids=(observation.observation_id,),
     )
 
 
@@ -450,6 +452,9 @@ def _comment_from_members(
         explanation=explanation.strip(),
         should_materialize=should_materialize,
         has_dissensus=has_dissensus,
+        observation_ids=_unique_preserving(
+            [item.observation_id for item in members]
+        ),
     )
 
 

@@ -19,6 +19,7 @@ from pydantic import ValidationError
 from app.llm import set_structured_completer
 from app.services import jobs as jobs_service
 from app.services.expertgranskning import WORD_JOB_KIND
+from app.services.expertgranskning.watch import build_expertgranskning_replay_payload
 from app.services.expertgranskning.comment_convergence import (
     COMMENT_CONVERGENCE_CHUNK_HARD_CAP,
     COMMENT_CONVERGENCE_CHUNK_MAX_CHARS,
@@ -73,9 +74,11 @@ from app.services.expertgranskning.word_review import (
     routed_and_unresolved_questions,
     selected_review_questions,
     should_review_paragraph,
+    publication_unit_total,
     word_comment_anchor_suffix,
     word_paragraph_review,
 )
+from app.services.word.actions import load_word_actions
 from app.services.expertgranskning.word_review_timing import (
     WordReviewLimiter,
     WordReviewTimings,
@@ -809,6 +812,7 @@ def test_inter_expert_convergence_keeps_supporting_experts():
     assert comments[0].kommentar.count("försöker i möjligaste mån") == 1
     assert "slapphetsutrymme" in comments[0].explanation
     assert comments[0].should_materialize is True
+    assert comments[0].observation_ids == ("o1", "o2", "o3", "o4")
 
 
 def test_supporting_experts_keep_all_grouped_members():
@@ -4311,15 +4315,18 @@ async def test_word_review_publishes_first_section_before_later_sections(
         for event in events
         if event.get("type") == "expertgranskning.action.created"
     ]
-    assert progress and progress[0]["sections_completed"] == 1
-    assert progress[0]["sections_total"] == 2
-    assert progress[0]["actions_created"] >= 1
+    section_progress = [
+        event for event in progress if event.get("sections_completed") == 1
+    ]
+    assert section_progress
+    assert section_progress[0]["sections_total"] == 2
+    assert section_progress[0]["actions_created"] >= 1
     assert created_actions
     assert all(event.get("type") != "expertgranskning.finished" for event in events)
     release_slow.set()
     await runner
     types = [event["type"] for event in events]
-    assert types.count("expertgranskning.progress") == 2
+    assert types.count("expertgranskning.progress") >= 2
     assert types[-1] == "expertgranskning.finished"
     assert events[-1]["status"] == "succeeded"
 
@@ -4415,3 +4422,262 @@ async def test_word_review_keeps_first_section_when_later_section_fails(
     assert "section two boom" in (events[-1].get("error") or "")
     rows = (await client.get(f"/expertgranskning/word-jobs/{job_id}/results")).json()
     assert {row["paragraph_index"] for row in rows} == {1}
+
+
+def _numbered_review_paragraphs(count: int) -> list[WordDocumentParagraph]:
+    return [
+        _para(
+            index,
+            f"Stycke {index} är tillräckligt långt för granskning nummer {index}.",
+        )
+        for index in range(1, count + 1)
+    ]
+
+
+def _action_paragraph_index(event: dict) -> int | None:
+    action = event.get("action") or {}
+    anchor = action.get("anchor") or {}
+    return anchor.get("paragraph_index")
+
+
+async def _wait_for_events(events: list[dict], predicate, *, attempts: int = 80) -> None:
+    for _ in range(attempts):
+        if predicate(events):
+            return
+        await asyncio.sleep(0.02)
+    raise AssertionError("timed out waiting for Word review events")
+
+
+def _passthrough_word_completer(
+    *,
+    hold_marker: str | None = None,
+    hold_event: asyncio.Event | None = None,
+    saw_hold: asyncio.Event | None = None,
+    fail_after_hold: str | None = None,
+):
+    async def completer(messages, response_model):
+        user = messages[-1]["content"]
+        if (
+            hold_marker
+            and hold_event is not None
+            and hold_marker in user
+            and response_model is WordBatchModeration
+        ):
+            if saw_hold is not None:
+                saw_hold.set()
+            await hold_event.wait()
+            if fail_after_hold:
+                raise RuntimeError(fail_after_hold)
+        if response_model is WordBatchModeration:
+            return _moderation_for_batch(user)
+        if response_model is WordExpertRaiseHand:
+            return WordExpertRaiseHand(question_ids=_question_ids_from_user(user)[:1])
+        if response_model is WordExpertComment:
+            return WordExpertComment(kommentar="Progressiv kommentar.")
+        if response_model is WordHeadingAssessment:
+            return WordHeadingAssessment(forslag=None)
+        if response_model is WordRewriteSuggestion:
+            return WordRewriteSuggestion(ny_text="", motivering="")
+        if response_model is WordCommentConvergence:
+            return _passthrough_comment_convergence(user)
+        raise AssertionError(response_model)
+
+    return completer
+
+
+@pytest.mark.asyncio
+async def test_word_review_publishes_batch_action_before_later_batches(
+    client: AsyncClient, monkeypatch
+):
+    events: list[dict] = []
+    release_slow = asyncio.Event()
+    saw_slow = asyncio.Event()
+    original = expertgranskning_broadcast.publish
+
+    async def capture(job_id: str, event: dict) -> None:
+        events.append(event)
+        await original(job_id, event)
+
+    monkeypatch.setattr(expertgranskning_broadcast, "publish", capture)
+    paragraphs = _numbered_review_paragraphs(12)
+    section = WordDocumentSection(
+        heading="Avtal",
+        heading_style="Heading 1",
+        heading_paragraph_index=0,
+        paragraphs=paragraphs,
+    )
+    assert [[p.index for p in batch] for batch in build_batches(section)] == [
+        [1, 2, 3, 4],
+        [5, 6, 7, 8],
+        [9, 10, 11, 12],
+    ]
+    assert publication_unit_total([section], None) == 4
+
+    panel_id = await _create_expert_panel(client, n=1)
+    set_structured_completer(
+        _passthrough_word_completer(
+            hold_marker="nummer 9",
+            hold_event=release_slow,
+            saw_hold=saw_slow,
+        )
+    )
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    created = await client.post(
+        "/expertgranskning/word-jobs",
+        json=_payload(panel_id=panel_id, paragraphs=paragraphs),
+    )
+    assert created.status_code == 202, created.text
+    job_id = created.json()["job_id"]
+    runner = asyncio.create_task(jobs_service._run_job(job_id))
+    await saw_slow.wait()
+    await _wait_for_events(
+        events,
+        lambda rows: any(
+            event.get("type") == "expertgranskning.action.created"
+            and _action_paragraph_index(event) in {1, 2, 3, 4}
+            for event in rows
+        ),
+    )
+    assert all(event.get("type") != "expertgranskning.finished" for event in events)
+    progress = [
+        event
+        for event in events
+        if event.get("type") == "expertgranskning.progress"
+    ]
+    assert progress
+    assert any(
+        event.get("units_completed", 0) < event.get("units_total", 0)
+        for event in progress
+    )
+    created_before = [
+        event
+        for event in events
+        if event.get("type") == "expertgranskning.action.created"
+    ]
+    assert created_before
+    await asyncio.sleep(0.05)
+    release_slow.set()
+    await runner
+    assert events[-1]["type"] == "expertgranskning.finished"
+    assert events[-1]["status"] == "succeeded"
+    stats = events[-1].get("stats") or {}
+    assert stats["time_to_first_action_ms"] is not None
+    assert stats["time_to_first_action_ms"] < stats["total_ms"]
+    assert stats["publication_units_completed"] == 4
+    assert stats["actions_published_before_completion"] >= 1
+
+
+@pytest.mark.asyncio
+async def test_word_review_replay_during_running_job_returns_actions_once(
+    client: AsyncClient, monkeypatch
+):
+    events: list[dict] = []
+    release_slow = asyncio.Event()
+    saw_slow = asyncio.Event()
+    original = expertgranskning_broadcast.publish
+
+    async def capture(job_id: str, event: dict) -> None:
+        events.append(event)
+        await original(job_id, event)
+
+    monkeypatch.setattr(expertgranskning_broadcast, "publish", capture)
+    paragraphs = _numbered_review_paragraphs(12)
+    panel_id = await _create_expert_panel(client, n=1)
+    set_structured_completer(
+        _passthrough_word_completer(
+            hold_marker="nummer 9",
+            hold_event=release_slow,
+            saw_hold=saw_slow,
+        )
+    )
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    created = await client.post(
+        "/expertgranskning/word-jobs",
+        json=_payload(panel_id=panel_id, paragraphs=paragraphs, doc_id="doc-replay"),
+    )
+    job_id = created.json()["job_id"]
+    runner = asyncio.create_task(jobs_service._run_job(job_id))
+    await saw_slow.wait()
+    await _wait_for_events(
+        events,
+        lambda rows: any(
+            event.get("type") == "expertgranskning.action.created" for event in rows
+        ),
+    )
+    listed = (await client.get(f"/expertgranskning/word-jobs/{job_id}/actions")).json()
+    assert listed
+    factory = jobs_service.job_session_factory()
+    async with factory() as session:
+        job = await session.get(Job, job_id)
+        assert job is not None
+        assert job.status == "running"
+        actions = await load_word_actions(session, job_id)
+        replay = build_expertgranskning_replay_payload(job, actions)
+    replay_ids = [row["id"] for row in replay["actions"]]
+    listed_ids = [row["id"] for row in listed]
+    assert replay["status"] == "running"
+    assert replay_ids == listed_ids
+    assert len(replay_ids) == len(set(replay_ids))
+    created_ids = [
+        event["action"]["id"]
+        for event in events
+        if event.get("type") == "expertgranskning.action.created"
+    ]
+    assert set(replay_ids) == set(created_ids)
+    release_slow.set()
+    await runner
+    assert events[-1]["status"] == "succeeded"
+
+
+@pytest.mark.asyncio
+async def test_word_review_keeps_published_units_when_later_batch_fails(
+    client: AsyncClient, monkeypatch
+):
+    events: list[dict] = []
+    release_fail = asyncio.Event()
+    saw_fail = asyncio.Event()
+    original = expertgranskning_broadcast.publish
+
+    async def capture(job_id: str, event: dict) -> None:
+        events.append(event)
+        await original(job_id, event)
+
+    monkeypatch.setattr(expertgranskning_broadcast, "publish", capture)
+    paragraphs = _numbered_review_paragraphs(12)
+    panel_id = await _create_expert_panel(client, n=1)
+    set_structured_completer(
+        _passthrough_word_completer(
+            hold_marker="nummer 9",
+            hold_event=release_fail,
+            saw_hold=saw_fail,
+            fail_after_hold="later unit boom",
+        )
+    )
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    created = await client.post(
+        "/expertgranskning/word-jobs",
+        json=_payload(panel_id=panel_id, paragraphs=paragraphs),
+    )
+    job_id = created.json()["job_id"]
+    runner = asyncio.create_task(jobs_service._run_job(job_id))
+    await saw_fail.wait()
+    await _wait_for_events(
+        events,
+        lambda rows: any(
+            event.get("type") == "expertgranskning.action.created" for event in rows
+        ),
+    )
+    release_fail.set()
+    await runner
+    assert events[-1]["type"] == "expertgranskning.finished"
+    assert events[-1]["status"] == "failed"
+    assert "later unit boom" in (events[-1].get("error") or "")
+    rows = (await client.get(f"/expertgranskning/word-jobs/{job_id}/results")).json()
+    assert rows
+    assert {row["paragraph_index"] for row in rows}.isdisjoint({9, 10, 11, 12})
+    latest = await client.get(
+        "/expertgranskning/word-jobs/latest",
+        params={"doc_id": "doc-1"},
+    )
+    assert latest.status_code == 200
+    assert latest.json()["status"] == "failed"
