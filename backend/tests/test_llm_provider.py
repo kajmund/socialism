@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import json
 from types import SimpleNamespace
 
 import pytest
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from app.config import (
     CEREBRAS_DEFAULT_BASE_URL,
@@ -25,6 +26,8 @@ from app.llm import (
     set_text_completer,
     set_tools_completer,
 )
+from app.llm.structured_schema import strict_json_schema
+from app.schemas.domain import EditablePersona, FollowUpQuestions
 from app.services.expertgranskning.schemas import WordCommentConvergence
 
 
@@ -177,7 +180,18 @@ async def test_complete_structured_cerebras_sends_reasoning_effort(monkeypatch):
     assert parsed.issues == []
     assert captured["model"] == CEREBRAS_DEFAULT_MODEL
     assert captured["reasoning_effort"] == "medium"
-    assert captured["response_format"] == {"type": "json_object"}
+    response_format = captured["response_format"]
+    raw_schema = WordCommentConvergence.model_json_schema()
+    emitted = response_format["json_schema"]["schema"]
+    assert response_format["type"] == "json_schema"
+    assert response_format["json_schema"]["name"] == "WordCommentConvergence"
+    assert response_format["json_schema"]["strict"] is True
+    assert emitted == strict_json_schema(raw_schema)
+    assert emitted["additionalProperties"] is False
+    assert set(emitted["properties"]) == set(raw_schema["properties"])
+    assert set(emitted["required"]) == set(emitted["properties"])
+    assert captured["messages"] == [{"role": "user", "content": "group"}]
+    assert "tools" not in captured
     assert captured["max_tokens"] == settings.llm_max_tokens
     assert recorded[0].provider == "cerebras"
     assert recorded[0].model == CEREBRAS_DEFAULT_MODEL
@@ -218,6 +232,225 @@ async def test_complete_structured_deepseek_omits_reasoning_effort(monkeypatch):
         assert captured["model"] == "deepseek-chat"
         assert "reasoning_effort" not in captured
         assert captured["response_format"] == {"type": "json_object"}
+        schema_dump = json.dumps(
+            WordCommentConvergence.model_json_schema(), ensure_ascii=False
+        )
+        assert schema_dump in captured["messages"][-1]["content"]
+    finally:
+        settings.llm_provider = "cerebras"
+
+
+def _structured_completion(content: str) -> SimpleNamespace:
+    return SimpleNamespace(
+        choices=[SimpleNamespace(message=SimpleNamespace(content=content))],
+        usage=SimpleNamespace(prompt_tokens=3, completion_tokens=2),
+    )
+
+
+@pytest.mark.asyncio
+async def test_complete_structured_cerebras_sends_follow_up_json_schema(
+    monkeypatch,
+):
+    set_structured_completer(None)
+    captured: dict = {}
+    settings.llm_provider = "cerebras"
+    settings.llm_model = ""
+
+    async def fake_create(**kwargs):
+        captured.update(kwargs)
+        return _structured_completion(
+            '{"questions":["Hur mår du?","Vad händer sen?"]}'
+        )
+
+    monkeypatch.setattr(
+        "app.llm.get_client",
+        lambda: SimpleNamespace(
+            chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))
+        ),
+    )
+    parsed = await complete_structured(
+        [{"role": "user", "content": "chips"}],
+        FollowUpQuestions,
+    )
+    assert parsed.questions == ["Hur mår du?", "Vad händer sen?"]
+    response_format = captured["response_format"]
+    raw_schema = FollowUpQuestions.model_json_schema()
+    emitted = response_format["json_schema"]["schema"]
+    assert response_format["type"] == "json_schema"
+    assert response_format["json_schema"]["name"] == "FollowUpQuestions"
+    assert response_format["json_schema"]["strict"] is True
+    assert emitted == strict_json_schema(raw_schema)
+    assert emitted["additionalProperties"] is False
+    assert emitted["required"] == ["questions"]
+    assert "questions" in raw_schema["required"]
+    assert "minItems" not in emitted["properties"]["questions"]
+    assert "maxItems" not in emitted["properties"]["questions"]
+    assert captured["messages"] == [{"role": "user", "content": "chips"}]
+    assert "tools" not in captured
+
+
+def test_strict_json_schema_requires_every_property_on_editable_persona():
+    raw = EditablePersona.model_json_schema()
+    emitted = strict_json_schema(raw)
+    assert emitted["additionalProperties"] is False
+    assert set(emitted["required"]) == set(raw["properties"])
+    assert set(emitted["properties"]) == set(raw["properties"])
+    assert "name" in emitted["required"]
+
+
+def test_strict_json_schema_marks_nested_objects_closed():
+    emitted = strict_json_schema(WordCommentConvergence.model_json_schema())
+    assert emitted["additionalProperties"] is False
+    for definition in emitted["$defs"].values():
+        assert definition["additionalProperties"] is False
+        assert set(definition["required"]) == set(definition["properties"])
+
+
+class _StringMapOut(BaseModel):
+    labels: dict[str, str]
+
+
+class _NestedStringMapOut(BaseModel):
+    groups: dict[str, dict[str, str]]
+
+
+def test_strict_json_schema_preserves_string_mapping():
+    raw = _StringMapOut.model_json_schema()
+    emitted = strict_json_schema(raw)
+    assert emitted["additionalProperties"] is False
+    assert emitted["required"] == ["labels"]
+    labels = emitted["properties"]["labels"]
+    assert labels["type"] == "object"
+    assert labels["additionalProperties"] == {"type": "string"}
+    assert raw["properties"]["labels"]["additionalProperties"] == {"type": "string"}
+
+
+def test_strict_json_schema_preserves_nested_string_mapping():
+    raw = _NestedStringMapOut.model_json_schema()
+    emitted = strict_json_schema(raw)
+    assert emitted["additionalProperties"] is False
+    groups = emitted["properties"]["groups"]
+    assert groups["type"] == "object"
+    inner = groups["additionalProperties"]
+    assert inner["type"] == "object"
+    assert inner["additionalProperties"] == {"type": "string"}
+    assert raw["properties"]["groups"]["additionalProperties"][
+        "additionalProperties"
+    ] == {"type": "string"}
+
+
+@pytest.mark.asyncio
+async def test_complete_structured_cerebras_preserves_string_mapping(
+    monkeypatch,
+):
+    set_structured_completer(None)
+    captured: dict = {}
+    settings.llm_provider = "cerebras"
+    settings.llm_model = ""
+
+    async def fake_create(**kwargs):
+        captured.update(kwargs)
+        return _structured_completion('{"labels":{"sv":"Hej"}}')
+
+    monkeypatch.setattr(
+        "app.llm.get_client",
+        lambda: SimpleNamespace(
+            chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))
+        ),
+    )
+    parsed = await complete_structured(
+        [{"role": "user", "content": "map"}],
+        _StringMapOut,
+    )
+    assert parsed.labels == {"sv": "Hej"}
+    labels = captured["response_format"]["json_schema"]["schema"]["properties"][
+        "labels"
+    ]
+    assert labels["additionalProperties"] == {"type": "string"}
+    assert captured["messages"] == [{"role": "user", "content": "map"}]
+
+
+@pytest.mark.asyncio
+async def test_complete_structured_rejects_empty_follow_up_payload(monkeypatch):
+    """Reproduce the production {} payload; Pydantic still rejects it locally."""
+    set_structured_completer(None)
+    settings.llm_provider = "cerebras"
+    settings.llm_model = ""
+
+    async def fake_create(**kwargs):
+        return _structured_completion("{}")
+
+    monkeypatch.setattr(
+        "app.llm.get_client",
+        lambda: SimpleNamespace(
+            chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))
+        ),
+    )
+    with pytest.raises(ValidationError, match="questions") as exc_info:
+        await complete_structured(
+            [{"role": "user", "content": "chips"}],
+            FollowUpQuestions,
+        )
+    assert exc_info.value.error_count() == 1
+    assert exc_info.value.errors()[0]["type"] == "missing"
+
+
+@pytest.mark.asyncio
+async def test_complete_structured_rejects_malformed_follow_up_payload(
+    monkeypatch,
+):
+    set_structured_completer(None)
+    settings.llm_provider = "cerebras"
+    settings.llm_model = ""
+
+    async def fake_create(**kwargs):
+        return _structured_completion('{"questions":"not-a-list"}')
+
+    monkeypatch.setattr(
+        "app.llm.get_client",
+        lambda: SimpleNamespace(
+            chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))
+        ),
+    )
+    with pytest.raises(ValidationError, match="questions"):
+        await complete_structured(
+            [{"role": "user", "content": "chips"}],
+            FollowUpQuestions,
+        )
+
+
+@pytest.mark.asyncio
+async def test_complete_structured_deepseek_follow_ups_keep_json_object(
+    monkeypatch,
+):
+    set_structured_completer(None)
+    captured: dict = {}
+    settings.llm_provider = "deepseek"
+    settings.llm_model = ""
+    settings.deepseek_model = "deepseek-chat"
+
+    async def fake_create(**kwargs):
+        captured.update(kwargs)
+        return _structured_completion('{"questions":["A?","B?"]}')
+
+    monkeypatch.setattr(
+        "app.llm.get_client",
+        lambda: SimpleNamespace(
+            chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))
+        ),
+    )
+    try:
+        parsed = await complete_structured(
+            [{"role": "user", "content": "chips"}],
+            FollowUpQuestions,
+        )
+        assert parsed.questions == ["A?", "B?"]
+        assert captured["response_format"] == {"type": "json_object"}
+        schema_dump = json.dumps(
+            FollowUpQuestions.model_json_schema(), ensure_ascii=False
+        )
+        assert schema_dump in captured["messages"][-1]["content"]
+        assert "json_schema" not in captured["response_format"]
     finally:
         settings.llm_provider = "cerebras"
 
@@ -229,7 +462,7 @@ async def test_complete_with_tools_normalizes_per_provider(monkeypatch):
     seen: list[list] = []
 
     async def fake_create(**kwargs):
-        seen.append(kwargs["messages"])
+        seen.append(kwargs)
         return SimpleNamespace(
             choices=[SimpleNamespace(message=SimpleNamespace(content="ok"))],
             usage=None,
@@ -255,10 +488,12 @@ async def test_complete_with_tools_normalizes_per_provider(monkeypatch):
     await complete_with_tools(messages, None)
     settings.llm_provider = "cerebras"
     await complete_with_tools(messages, None)
-    deepseek_msg, cerebras_msg = seen
-    assert deepseek_msg[0]["reasoning_content"] == "plan"
-    assert "reasoning_content" not in cerebras_msg[0]
-    assert cerebras_msg[0]["tool_calls"][0]["type"] == "function"
+    deepseek_kwargs, cerebras_kwargs = seen
+    assert deepseek_kwargs["messages"][0]["reasoning_content"] == "plan"
+    assert "reasoning_content" not in cerebras_kwargs["messages"][0]
+    assert cerebras_kwargs["messages"][0]["tool_calls"][0]["type"] == "function"
+    assert "response_format" not in deepseek_kwargs
+    assert "response_format" not in cerebras_kwargs
 
 
 @pytest.mark.asyncio
