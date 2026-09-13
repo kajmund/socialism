@@ -69,6 +69,8 @@ describe("actionsForWatchEvent", () => {
         sections_completed: 2,
         sections_total: 5,
         actions_created: 7,
+        units_completed: 4,
+        units_total: 9,
       }),
     ).toEqual([
       {
@@ -76,6 +78,8 @@ describe("actionsForWatchEvent", () => {
         sections_completed: 2,
         sections_total: 5,
         actions_created: 7,
+        units_completed: 4,
+        units_total: 9,
       },
     ])
   })

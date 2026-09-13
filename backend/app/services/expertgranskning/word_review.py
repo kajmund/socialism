@@ -2,10 +2,11 @@
 
 A moderator filters each batch and writes review questions. Experts raise
 a hand per question and comment only on questions they opted into. After
-expert replies, overlapping observations are consolidated at section
-scope before Word comments are written, so nearby duplicates can collapse
-across batch boundaries. Rewrite suggestions remain a separate step when
-at least two experts comment on the same resolved paragraph anchor.
+expert replies, overlapping observations are consolidated in a sliding
+window with one-batch look-ahead, then persisted as soon as a batch owns
+them. Nearby duplicates can still collapse across batch boundaries.
+Rewrite suggestions publish when that batch finishes if at least two
+experts comment on the same resolved paragraph anchor.
 """
 
 from __future__ import annotations
@@ -14,7 +15,7 @@ import asyncio
 import logging
 import re
 import secrets
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 
 from sqlalchemy import select
@@ -60,6 +61,15 @@ from app.services.expertgranskning.word_review_timing import (
     WordReviewLimiter,
     WordReviewTimings,
 )
+from app.services.expertgranskning.word_review_units import (
+    WordPublicationUnit,
+    WordSectionDone,
+    WordSectionFailed,
+    WordSectionStats,
+    batch_owned_indexes,
+    leftover_observations,
+    partition_owned_comments,
+)
 from app.services.expertgranskning.word_structured import complete_word_structured
 from app.services.word.materialize import materialize_word_action
 from app.services.word.tasks import (
@@ -92,16 +102,6 @@ class WordBatchAnalysis:
     rewrites: list[tuple[WordDocumentParagraph, WordRewriteSuggestion]]
     paragraphs: list[WordDocumentParagraph]
     paragraph_reviews: int
-
-
-@dataclass(frozen=True)
-class WordSectionAnalysis:
-    section_index: int
-    comments: list[WordConsolidatedComment]
-    rewrites: list[tuple[WordDocumentParagraph, WordRewriteSuggestion]]
-    heading: WordHeadingAssessment | None
-    paragraph_reviews: int
-    heading_reviews: int
 
 
 # Output contract. Not part of the editable customer prompt.
@@ -774,6 +774,8 @@ async def _comment_question(
 def _observations_from_comments(
     comments: list[tuple[PanelExpertSlot, WordReviewQuestion, str, int | None]],
     by_index: dict[int, WordDocumentParagraph],
+    *,
+    id_prefix: str = "o",
 ) -> list[WordObservation]:
     observations: list[WordObservation] = []
     for slot, question, text, anchor in comments:
@@ -788,7 +790,7 @@ def _observations_from_comments(
             continue
         observations.append(
             WordObservation(
-                observation_id=f"o{len(observations) + 1}",
+                observation_id=f"{id_prefix}{len(observations) + 1}",
                 expert_id=slot.slot_id,
                 expert_label=slot.label,
                 question_id=question.id,
@@ -826,20 +828,18 @@ async def _comment_convergence(
     return finalize_word_comment_convergence(parsed)
 
 
-async def _consolidate_comments(
+async def _consolidate_observations(
     *,
     prompts: dict[str, str],
     section: WordDocumentSection,
     paragraphs: list[WordDocumentParagraph],
-    comments: list[WordExpertCommentRow],
-    by_index: dict[int, WordDocumentParagraph],
+    observations: list[WordObservation],
     limiter: WordReviewLimiter,
     review_intent: str = "",
-) -> list[WordConsolidatedComment]:
-    raw = _observations_from_comments(comments, by_index)
-    collapsed = collapse_intra_expert_duplicates(raw)
+) -> tuple[list[WordConsolidatedComment], list[WordObservation]]:
+    collapsed = collapse_intra_expert_duplicates(observations)
     if len(collapsed) < 2:
-        return [consolidated_from_observation(item) for item in collapsed]
+        return [consolidated_from_observation(item) for item in collapsed], collapsed
     written: list[WordConsolidatedComment] = []
     for chunk in chunk_observations_for_convergence(collapsed):
         if len(chunk) < 2:
@@ -859,6 +859,28 @@ async def _consolidate_comments(
             review_intent=review_intent,
         )
         written.extend(apply_word_comment_convergence(chunk, parsed))
+    return written, collapsed
+
+
+async def _consolidate_comments(
+    *,
+    prompts: dict[str, str],
+    section: WordDocumentSection,
+    paragraphs: list[WordDocumentParagraph],
+    comments: list[WordExpertCommentRow],
+    by_index: dict[int, WordDocumentParagraph],
+    limiter: WordReviewLimiter,
+    review_intent: str = "",
+) -> list[WordConsolidatedComment]:
+    raw = _observations_from_comments(comments, by_index)
+    written, _ = await _consolidate_observations(
+        prompts=prompts,
+        section=section,
+        paragraphs=paragraphs,
+        observations=raw,
+        limiter=limiter,
+        review_intent=review_intent,
+    )
     return written
 
 
@@ -1029,6 +1051,26 @@ async def _analyze_batch(
     )
 
 
+def publication_unit_total(
+    sections: Sequence[WordDocumentSection],
+    target: frozenset[int] | None,
+) -> int:
+    return sum(
+        len(_batches_for_target(section, target))
+        + (1 if heading_in_scope(section, target) else 0)
+        for section in sections
+    )
+
+
+def _observations_from_batch(analysis: WordBatchAnalysis) -> list[WordObservation]:
+    by_index = {paragraph.index: paragraph for paragraph in analysis.paragraphs}
+    return _observations_from_comments(
+        analysis.comments,
+        by_index,
+        id_prefix=f"b{analysis.batch_index}o",
+    )
+
+
 async def _analyze_section(
     *,
     section_index: int,
@@ -1039,88 +1081,183 @@ async def _analyze_section(
     review_intent: str,
     target: frozenset[int] | None,
     limiter: WordReviewLimiter,
-) -> WordSectionAnalysis:
+    emit: Callable[[WordPublicationUnit], Awaitable[None]],
+) -> WordSectionStats:
     batches = _batches_for_target(section, target)
     review_heading = heading_in_scope(section, target)
-    batch_tasks: list[asyncio.Task[WordBatchAnalysis]] = []
-    heading_task: asyncio.Task[WordHeadingAssessment] | None = None
-    try:
-        async with asyncio.TaskGroup() as group:
-            batch_tasks = [
-                group.create_task(
-                    _analyze_batch(
-                        batch_index=batch_index,
-                        batch=batch,
-                        section=section,
-                        prompts=prompts,
-                        slots=slots,
-                        brief=brief,
-                        review_intent=review_intent,
-                        target=target,
-                        limiter=limiter,
-                    )
-                )
-                for batch_index, batch in enumerate(batches)
-            ]
-            if review_heading:
-                heading_task = group.create_task(
-                    _review_heading(
-                        prompts=prompts,
-                        slots=slots,
-                        section=section,
-                        limiter=limiter,
-                        review_intent=review_intent,
-                    )
-                )
-    except ExceptionGroup as exc:
-        raise exc.exceptions[0] from exc
-
-    batch_results = [task.result() for task in batch_tasks]
-    section_comments: list[WordExpertCommentRow] = []
-    section_rewrites: list[tuple[WordDocumentParagraph, WordRewriteSuggestion]] = []
+    last_index = len(batches) - 1
+    batch_results: dict[int, WordBatchAnalysis] = {}
+    ingested: set[int] = set()
+    comment_finalized: set[int] = set()
+    published_rewrite_batches: set[int] = set()
+    pending_obs: list[WordObservation] = []
     section_by_index: dict[int, WordDocumentParagraph] = {}
+
+    async def emit_early_rewrites(analysis: WordBatchAnalysis) -> None:
+        if analysis.batch_index == last_index:
+            return
+        if not analysis.rewrites or analysis.batch_index in published_rewrite_batches:
+            return
+        published_rewrite_batches.add(analysis.batch_index)
+        await emit(
+            WordPublicationUnit(
+                section_index=section_index,
+                rewrites=analysis.rewrites,
+                completes_unit=False,
+            )
+        )
+
+    async def finalize_ready_comment_windows() -> None:
+        nonlocal pending_obs
+        while True:
+            nxt = next(
+                (
+                    index
+                    for index in range(len(batches))
+                    if index not in comment_finalized
+                ),
+                None,
+            )
+            if nxt is None or nxt not in batch_results:
+                return
+            is_last = nxt == last_index
+            lookahead_idx = None if is_last else nxt + 1
+            if lookahead_idx is not None and lookahead_idx not in batch_results:
+                return
+            if nxt not in ingested:
+                pending_obs.extend(_observations_from_batch(batch_results[nxt]))
+                ingested.add(nxt)
+            if lookahead_idx is not None and lookahead_idx not in ingested:
+                pending_obs.extend(
+                    _observations_from_batch(batch_results[lookahead_idx])
+                )
+                ingested.add(lookahead_idx)
+            comments, collapsed = await _consolidate_observations(
+                prompts=prompts,
+                section=section,
+                paragraphs=sorted(
+                    section_by_index.values(), key=lambda item: item.index
+                ),
+                observations=pending_obs,
+                limiter=limiter,
+                review_intent=review_intent,
+            )
+            if target is not None:
+                comments = [
+                    item for item in comments if item.paragraph_index in target
+                ]
+            current = batch_results[nxt]
+            owned = batch_owned_indexes(current.paragraphs)
+            if is_last:
+                to_publish = comments
+                pending_obs = []
+            else:
+                to_publish, consumed = partition_owned_comments(comments, owned)
+                pending_obs = leftover_observations(collapsed, consumed)
+            rewrites: list[tuple[WordDocumentParagraph, WordRewriteSuggestion]] = []
+            if nxt not in published_rewrite_batches:
+                rewrites = current.rewrites
+                published_rewrite_batches.add(nxt)
+            await emit(
+                WordPublicationUnit(
+                    section_index=section_index,
+                    comments=to_publish,
+                    rewrites=rewrites,
+                    completes_unit=True,
+                )
+            )
+            comment_finalized.add(nxt)
+
+    tasks: dict[asyncio.Task, str] = {}
+    for batch_index, batch in enumerate(batches):
+        task = asyncio.create_task(
+            _analyze_batch(
+                batch_index=batch_index,
+                batch=batch,
+                section=section,
+                prompts=prompts,
+                slots=slots,
+                brief=brief,
+                review_intent=review_intent,
+                target=target,
+                limiter=limiter,
+            )
+        )
+        tasks[task] = f"batch:{batch_index}"
+    if review_heading:
+        heading_task = asyncio.create_task(
+            _review_heading(
+                prompts=prompts,
+                slots=slots,
+                section=section,
+                limiter=limiter,
+                review_intent=review_intent,
+            )
+        )
+        tasks[heading_task] = "heading"
+    pending_tasks = set(tasks)
     paragraph_reviews = 0
-    for analysis in batch_results:
-        paragraph_reviews += analysis.paragraph_reviews
-        section_comments.extend(analysis.comments)
-        section_rewrites.extend(analysis.rewrites)
-        for paragraph in analysis.paragraphs:
-            section_by_index[paragraph.index] = paragraph
+    try:
+        while pending_tasks:
+            done, pending_tasks = await asyncio.wait(
+                pending_tasks, return_when=asyncio.FIRST_COMPLETED
+            )
+            failures: list[BaseException] = []
+            succeeded: list[asyncio.Task] = []
+            for task in done:
+                if task.cancelled():
+                    continue
+                exc = task.exception()
+                if exc is not None:
+                    failures.append(exc)
+                    continue
+                succeeded.append(task)
+            for task in succeeded:
+                kind = tasks[task]
+                if kind == "heading":
+                    heading = task.result()
+                    await emit(
+                        WordPublicationUnit(
+                            section_index=section_index,
+                            heading=heading,
+                            completes_unit=True,
+                        )
+                    )
+                    continue
+                analysis = task.result()
+                paragraph_reviews += analysis.paragraph_reviews
+                batch_results[analysis.batch_index] = analysis
+                for paragraph in analysis.paragraphs:
+                    section_by_index[paragraph.index] = paragraph
+                await emit_early_rewrites(analysis)
+                await finalize_ready_comment_windows()
+            if failures:
+                raise failures[0]
+    finally:
+        for task in pending_tasks:
+            if not task.done():
+                task.cancel()
+        if pending_tasks:
+            await asyncio.gather(*pending_tasks, return_exceptions=True)
 
-    written = await _consolidate_comments(
-        prompts=prompts,
-        section=section,
-        paragraphs=sorted(section_by_index.values(), key=lambda item: item.index),
-        comments=section_comments,
-        by_index=section_by_index,
-        limiter=limiter,
-        review_intent=review_intent,
-    )
-    if target is not None:
-        written = [item for item in written if item.paragraph_index in target]
-        section_rewrites = [
-            item for item in section_rewrites if item[0].index in target
-        ]
-    return WordSectionAnalysis(
+    return WordSectionStats(
         section_index=section_index,
-        comments=written,
-        rewrites=section_rewrites,
-        heading=heading_task.result() if heading_task is not None else None,
         paragraph_reviews=paragraph_reviews,
-        heading_reviews=1 if heading_task is not None else 0,
+        heading_reviews=1 if review_heading else 0,
     )
 
 
-async def _persist_section_analysis(
+async def _persist_publication_unit(
     session: AsyncSession,
     job: Job,
     payload: ExpertgranskningWordJobRequest,
-    analysis: WordSectionAnalysis,
+    unit: WordPublicationUnit,
     timings: WordReviewTimings,
+    source_ordinal: int,
 ) -> tuple[int, int]:
     pending: list[ExpertgranskningResult] = []
-    source_ordinal = 0
-    for item in analysis.comments:
+    ordinal = source_ordinal
+    for item in unit.comments:
         if not item.should_materialize:
             continue
         pending.append(
@@ -1128,7 +1265,7 @@ async def _persist_section_analysis(
                 session,
                 job_id=job.id,
                 customer_id=payload.customer_id,
-                section_index=analysis.section_index,
+                section_index=unit.section_index,
                 paragraph_index=item.paragraph_index,
                 expert_id=item.expert_id,
                 expert_namn=item.expert_namn,
@@ -1136,18 +1273,18 @@ async def _persist_section_analysis(
                 is_heading_suggestion=False,
                 explanation=item.explanation or None,
                 request=job.request,
-                source_ordinal=source_ordinal,
+                source_ordinal=ordinal,
                 commit=False,
             )
         )
-        source_ordinal += 1
-    for paragraph, suggestion in analysis.rewrites:
+        ordinal += 1
+    for paragraph, suggestion in unit.rewrites:
         pending.append(
             await _write_result(
                 session,
                 job_id=job.id,
                 customer_id=payload.customer_id,
-                section_index=analysis.section_index,
+                section_index=unit.section_index,
                 paragraph_index=paragraph.index,
                 expert_id="",
                 expert_namn="",
@@ -1156,32 +1293,33 @@ async def _persist_section_analysis(
                 is_rewrite_suggestion=True,
                 foreslagen_text=suggestion.ny_text.strip(),
                 request=job.request,
-                source_ordinal=source_ordinal,
+                source_ordinal=ordinal,
                 commit=False,
             )
         )
-        source_ordinal += 1
-    if analysis.heading is not None:
-        suggestion = (analysis.heading.forslag or "").strip()
+        ordinal += 1
+    if unit.heading is not None:
+        suggestion = (unit.heading.forslag or "").strip()
         if suggestion:
             pending.append(
                 await _write_result(
                     session,
                     job_id=job.id,
                     customer_id=payload.customer_id,
-                    section_index=analysis.section_index,
+                    section_index=unit.section_index,
                     paragraph_index=payload.sections[
-                        analysis.section_index
+                        unit.section_index
                     ].heading_paragraph_index,
                     expert_id="",
                     expert_namn="",
                     kommentar=suggestion,
                     is_heading_suggestion=True,
                     request=job.request,
-                    source_ordinal=source_ordinal,
+                    source_ordinal=ordinal,
                     commit=False,
                 )
             )
+            ordinal += 1
 
     if not pending:
         return 0, 0
@@ -1223,14 +1361,17 @@ def log_word_review_call_summary(
     """Emit one timing + LLM-count summary. Snapshot has counts only."""
     logger.info(
         "Word review timings job_id=%s outcome=%s total_ms=%s "
-        "time_to_first_action_ms=%s moderation_ms=%s raise_hand_ms=%s "
-        "expert_comment_ms=%s rewrite_convergence_ms=%s "
+        "time_to_first_action_ms=%s publication_units_completed=%s "
+        "actions_published_before_completion=%s moderation_ms=%s "
+        "raise_hand_ms=%s expert_comment_ms=%s rewrite_convergence_ms=%s "
         "comment_convergence_ms=%s heading_ms=%s llm_call_count=%s "
         "max_observed_llm_concurrency=%s",
         job_id,
         outcome,
         snapshot["total_ms"],
         snapshot["time_to_first_action_ms"],
+        snapshot["publication_units_completed"],
+        snapshot["actions_published_before_completion"],
         snapshot["moderation_ms"],
         snapshot["raise_hand_ms"],
         snapshot["expert_comment_ms"],
@@ -1245,7 +1386,8 @@ def log_word_review_call_summary(
         "raise_hand=%s expert_comment=%s comment_convergence=%s "
         "rewrite_convergence=%s heading=%s structured_retries=%s "
         "direct_routed_questions=%s raise_hand_questions=%s "
-        "questions_dropped_invalid_anchor=%s max_observed_llm_concurrency=%s",
+        "questions_dropped_invalid_anchor=%s publication_units_completed=%s "
+        "actions_published_before_completion=%s max_observed_llm_concurrency=%s",
         job_id,
         outcome,
         snapshot["llm_call_count"],
@@ -1259,6 +1401,8 @@ def log_word_review_call_summary(
         snapshot["direct_routed_questions"],
         snapshot["raise_hand_questions"],
         snapshot["questions_dropped_invalid_anchor"],
+        snapshot["publication_units_completed"],
+        snapshot["actions_published_before_completion"],
         snapshot["max_observed_llm_concurrency"],
     )
 
@@ -1288,9 +1432,16 @@ async def run_word_paragraph_review(
     timings = WordReviewTimings()
     limiter = WordReviewLimiter(settings.word_review_max_concurrency, timings)
     sections_total = len(payload.sections)
-    section_tasks = [
-        asyncio.create_task(
-            _analyze_section(
+    units_total = publication_unit_total(payload.sections, target)
+    queue: asyncio.Queue[
+        WordPublicationUnit | WordSectionDone | WordSectionFailed
+    ] = asyncio.Queue()
+
+    async def run_section(
+        section_index: int, section: WordDocumentSection
+    ) -> None:
+        try:
+            stats = await _analyze_section(
                 section_index=section_index,
                 section=section,
                 prompts=prompts,
@@ -1299,8 +1450,16 @@ async def run_word_paragraph_review(
                 review_intent=review_intent,
                 target=target,
                 limiter=limiter,
+                emit=queue.put,
             )
-        )
+            await queue.put(WordSectionDone(stats))
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            await queue.put(WordSectionFailed(section_index, exc))
+
+    section_tasks = [
+        asyncio.create_task(run_section(section_index, section))
         for section_index, section in enumerate(payload.sections)
     ]
     paragraph_reviews = 0
@@ -1308,24 +1467,75 @@ async def run_word_paragraph_review(
     result_count = 0
     actions_created = 0
     sections_completed = 0
+    units_completed = 0
+    source_ordinal = 0
     logged_summary = False
-    try:
-        for finished in asyncio.as_completed(section_tasks):
-            analysis = await finished
-            written, published = await _persist_section_analysis(
-                session, job, payload, analysis, timings
-            )
-            result_count += written
-            actions_created += published
-            paragraph_reviews += analysis.paragraph_reviews
-            heading_reviews += analysis.heading_reviews
-            sections_completed += 1
-            await publish_review_progress(
-                job.id,
-                sections_completed=sections_completed,
-                sections_total=sections_total,
+    failed: BaseException | None = None
+    pending_sections = len(section_tasks)
+
+    async def persist_unit(unit: WordPublicationUnit) -> None:
+        nonlocal result_count, actions_created, source_ordinal, units_completed
+        written, published = await _persist_publication_unit(
+            session, job, payload, unit, timings, source_ordinal
+        )
+        source_ordinal += written
+        result_count += written
+        actions_created += published
+        if unit.completes_unit:
+            units_completed += 1
+            timings.record_publication_progress(
+                units_completed=units_completed,
+                units_total=units_total,
                 actions_created=actions_created,
             )
+        await publish_review_progress(
+            job.id,
+            sections_completed=sections_completed,
+            sections_total=sections_total,
+            actions_created=actions_created,
+            units_completed=units_completed,
+            units_total=units_total,
+        )
+
+    async def drain_queue() -> None:
+        while True:
+            try:
+                item = queue.get_nowait()
+            except asyncio.QueueEmpty:
+                return
+            if isinstance(item, WordPublicationUnit):
+                await persist_unit(item)
+
+    try:
+        while pending_sections:
+            item = await queue.get()
+            if isinstance(item, WordPublicationUnit):
+                await persist_unit(item)
+                continue
+            if isinstance(item, WordSectionDone):
+                pending_sections -= 1
+                paragraph_reviews += item.stats.paragraph_reviews
+                heading_reviews += item.stats.heading_reviews
+                sections_completed += 1
+                await publish_review_progress(
+                    job.id,
+                    sections_completed=sections_completed,
+                    sections_total=sections_total,
+                    actions_created=actions_created,
+                    units_completed=units_completed,
+                    units_total=units_total,
+                )
+                continue
+            pending_sections -= 1
+            failed = item.error
+            for task in section_tasks:
+                if not task.done():
+                    task.cancel()
+            break
+        await asyncio.gather(*section_tasks, return_exceptions=True)
+        await drain_queue()
+        if failed is not None:
+            raise failed
         snapshot = timings.snapshot()
         logged_summary = True
         log_word_review_call_summary(job.id, snapshot, outcome="success")
@@ -1340,6 +1550,7 @@ async def run_word_paragraph_review(
             if not task.done():
                 task.cancel()
         await asyncio.gather(*section_tasks, return_exceptions=True)
+        await drain_queue()
         raise
     finally:
         if not logged_summary:
