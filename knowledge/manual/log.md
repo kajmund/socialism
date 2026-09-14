@@ -1,5 +1,13 @@
 # Manual update log
 
+## 2026-09-14
+
+* **LLM under Verktyg**: DeepSeek-profiler är **Flash** och **V4 Pro**. Max tokens upp till 393 216. Reasoning effort för DeepSeek: `none` / `low` / `high` / `max`.
+
+## 2026-09-13
+
+* **LLM under Verktyg**: Ny sida för att välja aktiv chat-modell (DeepSeek / Cerebras GPT OSS / Cerebras Qwen), justera temperatur och reasoning effort, samt köra en probe med latency- och tokenstatistik.
+
 ## 2026-09-13
 
 * **Expertgranskning i Word**: Avsiktsfrågorna hör till dokumentet. En senare granskning av en markering återanvänder samma svar. **Ändra granskningsavsikt** tar fram frågorna på nytt om mål eller perspektiv har ändrats. Rapporten visar rollen **Moderator** utan tillägg som "(Jag)".

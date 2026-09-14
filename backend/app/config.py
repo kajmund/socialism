@@ -16,7 +16,8 @@ _LOG_LEVELS = frozenset({"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"})
 SimulationEngine = Literal["none", "oasis"]
 PersonaGenerator = Literal["deepseek", "stub"]
 LLMProvider = Literal["cerebras", "deepseek"]
-LLMReasoningEffort = Literal["low", "medium", "high"]
+# Cerebras: low|medium|high. DeepSeek: none|low|high|max (medium/xhigh map on API).
+LLMReasoningEffort = Literal["none", "low", "medium", "high", "xhigh", "max"]
 
 CEREBRAS_DEFAULT_MODEL = "gpt-oss-120b"
 CEREBRAS_DEFAULT_BASE_URL = "https://api.cerebras.ai/v1"
@@ -40,11 +41,14 @@ class Settings(BaseSettings):
     llm_model: str = ""
     llm_reasoning_effort: LLMReasoningEffort = "medium"
     llm_max_tokens: int = Field(default=8192, ge=1)
+    # None = omit sampling param (provider default).
+    llm_temperature: float | None = Field(default=None, ge=0, le=2)
+    llm_top_p: float | None = Field(default=None, gt=0, le=1)
     llm_timeout_seconds: float = 60.0
     cerebras_api_key: str = ""
     cerebras_base_url: str = CEREBRAS_DEFAULT_BASE_URL
     deepseek_api_key: str = ""
-    deepseek_model: str = "deepseek-chat"
+    deepseek_model: str = "deepseek-flash"
     deepseek_base_url: str = "https://api.deepseek.com"
     # stub = weighted random (tests only); deepseek = call the selected chat LLM
     persona_generator: PersonaGenerator = "deepseek"
@@ -242,11 +246,9 @@ class Settings(BaseSettings):
         raise RuntimeError(f"unknown LLM_PROVIDER: {self.llm_provider}")
 
     @property
-    def selected_reasoning_effort(self) -> LLMReasoningEffort | None:
-        if self.llm_provider == "cerebras":
+    def selected_reasoning_effort(self) -> LLMReasoningEffort:
+        if self.llm_provider in ("cerebras", "deepseek"):
             return self.llm_reasoning_effort
-        if self.llm_provider == "deepseek":
-            return None
         raise RuntimeError(f"unknown LLM_PROVIDER: {self.llm_provider}")
 
     @property
