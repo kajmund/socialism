@@ -262,3 +262,84 @@ async def test_probe_returns_metrics(client, monkeypatch):
     assert body["round_trip_ms"] == 250.0
     assert body["time_to_first_token_ms"] == 40.0
     assert body["completion_tokens_per_second"] == pytest.approx(28.0)
+
+
+@pytest.mark.asyncio
+async def test_probe_keeps_admin_save_when_settings_change_during_probe(
+    client, monkeypatch
+):
+    settings.cerebras_api_key = "cb-test"
+    settings.deepseek_api_key = "ds-test"
+    runtime.apply_runtime_settings(
+        profile_id="gpt-oss-120b",
+        temperature=1.0,
+        top_p=1.0,
+        max_tokens=8192,
+        reasoning_effort="medium",
+    )
+
+    async def fake_metrics(messages):
+        runtime.apply_runtime_settings(
+            profile_id="deepseek-flash",
+            temperature=0.3,
+            top_p=0.8,
+            max_tokens=2048,
+            reasoning_effort="low",
+        )
+        return SimpleNamespace(
+            text="pong",
+            prompt_tokens=1,
+            completion_tokens=1,
+            elapsed_ms=10.0,
+            time_to_first_token_ms=1.0,
+            finish_reason="stop",
+        )
+
+    monkeypatch.setattr(
+        "app.api.llm_settings.stream_text_with_metrics",
+        fake_metrics,
+    )
+    response = await client.post(
+        "/llm/probe",
+        json={"prompt": "ping", "profile_id": "qwen-3.8-27b"},
+    )
+    assert response.status_code == 200, response.text
+    assert settings.llm_model == "deepseek-flash"
+    assert settings.llm_reasoning_effort == "low"
+
+
+@pytest.mark.asyncio
+async def test_save_runtime_settings_does_not_apply_when_commit_fails(
+    client_db, monkeypatch
+):
+    _client, factory = client_db
+    settings.cerebras_api_key = "cb-test"
+    runtime.apply_runtime_settings(
+        profile_id="gpt-oss-120b",
+        temperature=1.0,
+        top_p=1.0,
+        max_tokens=8192,
+        reasoning_effort="medium",
+    )
+    before_model = settings.llm_model
+    before_revision = runtime.settings_revision()
+
+    async def fail_commit(self):
+        raise RuntimeError("commit failed")
+
+    monkeypatch.setattr(
+        "sqlalchemy.ext.asyncio.session.AsyncSession.commit",
+        fail_commit,
+    )
+    async with factory() as session:
+        with pytest.raises(RuntimeError, match="commit failed"):
+            await runtime.save_runtime_settings(
+                session,
+                profile_id="qwen-3.8-27b",
+                temperature=0.5,
+                top_p=0.9,
+                max_tokens=1024,
+                reasoning_effort="high",
+            )
+    assert settings.llm_model == before_model
+    assert runtime.settings_revision() == before_revision

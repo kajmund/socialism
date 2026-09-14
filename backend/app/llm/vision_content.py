@@ -8,6 +8,22 @@ from app.services.image_cache import image_data_url
 from app.services.llm_runtime_settings import require_vision_support
 
 
+HistoryTurn = tuple[str, str] | tuple[str, str, str | None]
+
+
+def validate_chat_turn_images(
+    history: list[HistoryTurn],
+    user_message: str,
+    user_image_sha256: str | None,
+) -> None:
+    """Fail before persisting when history or the new turn references bad images."""
+    for entry in history:
+        text = entry[1]
+        image_sha = entry[2] if len(entry) > 2 else None
+        user_content_with_optional_image(text, image_sha)
+    user_content_with_optional_image(user_message, user_image_sha256)
+
+
 def user_content_with_optional_image(
     text: str,
     image_sha256: str | None,
