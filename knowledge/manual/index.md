@@ -63,6 +63,7 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 * [Använda playground](anvanda-playground.md) — Kalibrera anchors, jämföra SSR och prova promptvarianter
 * [Prova bildreaktion i playground](prova-bildreaktion-i-playground.md) — Testa persona-reaktion och SSR på uppladdad bild
 * [Hantera embedding-cache](hantera-embedding-cache.md) — Visa och rensa cachade SSR-ankarembeddings och budskapsbilder
+* [Välja LLM-modell](valja-llm-modell.md) — Byt aktiv chat-modell och mät latency med probe
 * [Följa bakgrundsjobb](folja-bakgrundsjobb.md) — Status för generering, simulering, sourcing, rättsunderlag och rapporter
 
 # Due Diligence (bolag)

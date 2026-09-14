@@ -99,6 +99,11 @@ const VIEW_MATCHES: ViewMatch[] = [
     key: "help.views.embeddingCache",
     viewKey: "tools.cache",
   },
+  {
+    test: (p) => p === "/tools/llm",
+    key: "help.views.llmSettings",
+    viewKey: "tools.llm",
+  },
   { test: (p) => p === "/tools", key: "help.views.tools", viewKey: "tools.home" },
   { test: (p) => p === "/jobs", key: "help.views.jobs", viewKey: "jobs.list" },
   { test: (p) => p === "/feedback", key: "help.views.feedback", viewKey: "feedback.list" },

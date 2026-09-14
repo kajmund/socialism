@@ -85,7 +85,7 @@ async def test_image_react_success(client):
             "temperature": "0.1",
             "vision_provider": "openai",
             "vision_model": "gpt-4o-mini",
-            "reaction_model": "deepseek-chat",
+            "reaction_model": "deepseek-flash",
         },
         files={"image": ("test.png", _TINY_PNG, "image/png")},
     )
@@ -95,7 +95,7 @@ async def test_image_react_success(client):
     assert data["persona_name"] == "Bildtest Persona"
     assert data["vision_provider"] == "openai"
     assert data["vision_model"] == "gpt-4o-mini"
-    assert data["reaction_model"] == "deepseek-chat"
+    assert data["reaction_model"] == "deepseek-flash"
     assert "skolan" in data["image_description"]
     assert "hoppfullt" in data["reaction"]
     assert data["ssr"]["tone"]["predicted_label"]
