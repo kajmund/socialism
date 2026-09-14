@@ -32,6 +32,7 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 * [Inspektera nätverk i simulering](inspektera-natverk-i-simulering.md) — Följare, tystnader och åtgärdsstatistik
 * [Intervjua persona i simulering](intervjua-persona-i-simulering.md) — Chatt med persona utifrån flödeskontext efter vald dag
 * [Lägga till SSR-ankare från körning](lagg-till-ssr-ankare-fran-korning.md) — Tagga kommentarer från flödet som ankare
+* [Förstå lexikal konvergens i simulering](forsta-lexikal-konvergens-i-simulering.md) — Tolka kvalitetsvarningar när många agenter delar samma fraser
 
 # Personas
 
@@ -76,6 +77,7 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 * [Visa och redigera expertpanel](visa-och-redigera-expertpanel.md) — Medlemmar och lägg till från biblioteket
 * [Hantera kampanjer](hantera-kampanjer.md) — Sök, öppna och ta bort Due Diligence-kampanjer
 * [Köra en Due Diligence-kampanj](kora-dd-kampanj.md) — Skapa kampanj, chatta fram bolag och köra Due Diligence per kandidat
+* [Byt namn på en Due Diligence-kampanj](byt-namn-pa-dd-kampanj.md) — Ändra kampanjens titel på fliken Översikt
 
 # Expertgranskning
 
