@@ -197,6 +197,7 @@ export type RunInterviewMessage = {
   variant_id?: string | null
   through_tick_index?: number | null
   asked_by?: "doctor" | "human" | null
+  image_sha256?: string | null
 }
 
 function interviewPath(

@@ -87,10 +87,50 @@ def _normalize_message(message: object, *, include_reasoning: bool) -> dict[str,
             name=str(message["name"]) if message.get("name") else None,
         )
 
+    content = message.get("content")
+    if role == "user" and _is_multimodal_content(content):
+        return {"role": role, "content": _normalize_multimodal_content(content)}
+
     return {
         "role": role,
-        "content": _text_content(message.get("content")),
+        "content": _text_content(content),
     }
+
+
+def _is_multimodal_content(content: object) -> bool:
+    if not isinstance(content, list) or not content:
+        return False
+    return any(
+        isinstance(part, dict)
+        and part.get("type") in {"image_url", "text", "input_image"}
+        for part in content
+    )
+
+
+def _normalize_multimodal_content(content: object) -> list[dict[str, Any]]:
+    """Keep text + image_url parts; drop unknown part types."""
+    if not isinstance(content, list):
+        return [{"type": "text", "text": _text_content(content)}]
+    out: list[dict[str, Any]] = []
+    for part in content:
+        if not isinstance(part, dict):
+            continue
+        part_type = part.get("type")
+        if part_type == "text":
+            text = part.get("text")
+            if isinstance(text, str) and text.strip():
+                out.append({"type": "text", "text": text})
+            continue
+        if part_type == "image_url":
+            image = part.get("image_url")
+            if isinstance(image, dict) and isinstance(image.get("url"), str):
+                out.append({"type": "image_url", "image_url": {"url": image["url"]}})
+            elif isinstance(image, str) and image.strip():
+                out.append({"type": "image_url", "image_url": {"url": image}})
+            continue
+    if not out:
+        return [{"type": "text", "text": ""}]
+    return out
 
 
 def _normalize_tool_calls(tool_calls: object) -> list[dict[str, Any]]:

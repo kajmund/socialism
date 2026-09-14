@@ -134,7 +134,20 @@ export function deleteMessageImageCacheEntry(sha256: string): Promise<{ deleted:
   return api.delete(`/messages/images/cache/${sha256}`)
 }
 
+export function uploadMessageImageRaw(
+  file: File,
+): Promise<{ entry: ImageCacheEntry; cache_hit: boolean }> {
+  const form = new FormData()
+  form.set("image", file)
+  return api.postForm("/messages/images/upload-raw", form, { timeoutMs: 60_000 })
+}
+
 export function cachedImageUrl(sha256: string): string {
   const base = env.apiBaseUrl.replace(/\/$/, "")
   return `${base}/messages/images/cache/${sha256}/file`
+}
+
+/** Authenticated fetch — plain `<img src={cachedImageUrl()}>` cannot send Bearer. */
+export function fetchCachedImageBlob(sha256: string): Promise<Blob> {
+  return api.getBlob(`/messages/images/cache/${sha256}/file`)
 }

@@ -6,7 +6,7 @@ import logging
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, model_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -137,9 +137,24 @@ class ReportsWatchHello(BaseModel):
 
 class ChatSend(BaseModel):
     type: Literal["send"]
-    message: str = Field(min_length=1)
+    message: str = ""
+    image_sha256: str | None = Field(default=None, min_length=64, max_length=64)
     view: HelpViewContext | None = None
     ground_population: bool = False
+
+    @model_validator(mode="after")
+    def require_message_or_image(self) -> "ChatSend":
+        # Help / spinndoctor always need text; persona scopes may send image-only.
+        text = (self.message or "").strip()
+        digest = (self.image_sha256 or "").strip().lower() or None
+        if digest is not None:
+            if len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
+                raise ValueError("image_sha256 must be a 64-char hex digest")
+            self.image_sha256 = digest
+        self.message = text
+        if not text and not self.image_sha256:
+            raise ValueError("message or image_sha256 is required")
+        return self
 
 
 async def _send_error(websocket: WebSocket, detail: str) -> None:
@@ -670,6 +685,7 @@ async def chat_websocket(websocket: WebSocket) -> None:
                             persona_id=hello.persona_id,
                             mode=hello.mode,
                             message=send.message,
+                            image_sha256=send.image_sha256,
                         )
                     else:
                         stream = stream_run_interview_turn(
@@ -680,6 +696,7 @@ async def chat_websocket(websocket: WebSocket) -> None:
                             persona_id=hello.persona_id,
                             through_tick_index=hello.through_tick_index,
                             message=send.message,
+                            image_sha256=send.image_sha256,
                             asked_by="human",
                         )
                     async for item in stream:

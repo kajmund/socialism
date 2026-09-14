@@ -39,9 +39,10 @@ I **persona-kompositören** bygger du en agents profil och testar den genom chat
 1. I chattpanelen växlar du mellan **In-character** (agenten svarar som sig själv) och **Intervju** (du ställer frågor).
 2. **Fäll in profil** döljer demografi och övriga lager så chatten får mer plats. **Visa profil** tar fram dem igen.
 3. Skriv meddelanden och skicka — persona måste vara sparad. Valda verktyg används i båda lägena.
-4. Efter varje svar (och när chatten är tom) föreslår assistenten **tre knappar** — följdfrågor i intervju, vardagsrepliker i in-character. Klicka för att skicka.
-5. **Rensa** tar bort chatthistoriken efter bekräftelse.
-6. **Regenerera svar** ger ett nytt svar på senaste meddelandet.
+4. När aktiv chat-modell stödjer vision (DeepSeek Flash, DeepSeek V4 Pro eller Qwen) visas knappen **Bild**. Du kan bifoga en bild tillsammans med eller i stället för text. Med GPT OSS visas ingen bildknapp. För Qwen gäller PNG och JPEG.
+5. Efter varje svar (och när chatten är tom) föreslår assistenten **tre knappar** — följdfrågor i intervju, vardagsrepliker i in-character. Klicka för att skicka.
+6. **Rensa** tar bort chatthistoriken efter bekräftelse.
+7. **Regenerera svar** ger ett nytt svar på senaste meddelandet (inklusive eventuell bifogad bild).
 
 ## Övriga åtgärder
 

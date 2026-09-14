@@ -2,6 +2,7 @@
 
 ## 2026-09-14
 
+* **Personachatt / körningsintervju**: Du kan bifoga bilder när aktiv chat-modell stödjer vision (DeepSeek Flash, DeepSeek V4 Pro, Qwen). Bildknappen döljs för GPT OSS. Qwen: PNG/JPEG.
 * **LLM under Verktyg**: DeepSeek-profiler är **Flash** och **V4 Pro**. Max tokens upp till 393 216. Reasoning effort för DeepSeek: `none` / `low` / `high` / `max`.
 
 ## 2026-09-13

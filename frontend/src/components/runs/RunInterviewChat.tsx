@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { uploadMessageImageRaw } from "@/api/messages"
 import {
   clearRunPersonaInterview,
   listRunPersonaInterviewMessages,
   type RunInterviewMessage,
 } from "@/api/runs"
 import { MessengerChat } from "@/components/chat/MessengerChat"
+import { useLlmCapabilities } from "@/components/chat/useLlmCapabilities"
 import { useChatSocket } from "@/components/chat/useChatSocket"
 import { AdminButton } from "@/components/ui/admin-button"
 import { ApiError } from "@/lib/api"
@@ -49,6 +51,11 @@ export function RunInterviewChat({
   const [personaId, setPersonaId] = useState("")
   const [messages, setMessages] = useState<RunInterviewMessage[]>([])
   const [optimisticUser, setOptimisticUser] = useState<string | null>(null)
+  const [optimisticImageUrl, setOptimisticImageUrl] = useState<string | null>(null)
+  const [pendingImageSha, setPendingImageSha] = useState<string | null>(null)
+  const [pendingImageUrl, setPendingImageUrl] = useState<string | null>(null)
+  const [imageBusy, setImageBusy] = useState(false)
+  const { allowImageAttach, imageAccept } = useLlmCapabilities()
   const [draft, setDraft] = useState("")
   const [restBusy, setRestBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -104,13 +111,16 @@ export function RunInterviewChat({
           variant_id: variant.id,
           through_tick_index: tickIndex,
           asked_by: message.asked_by ?? null,
+          image_sha256: message.image_sha256 ?? null,
         })),
       )
       setOptimisticUser(null)
+      setOptimisticImageUrl(null)
       setError(null)
     },
     onError: (detail) => {
       setOptimisticUser(null)
+      setOptimisticImageUrl(null)
       setError(detail || t("runs.interview.sendError"))
     },
     onInterviewMessage: (message) => {
@@ -129,6 +139,7 @@ export function RunInterviewChat({
             variant_id: variant.id,
             through_tick_index: tickIndex,
             asked_by: message.asked_by ?? null,
+            image_sha256: message.image_sha256 ?? null,
           },
         ]
       })
@@ -154,6 +165,7 @@ export function RunInterviewChat({
       )
       setMessages(rows)
       setOptimisticUser(null)
+      setOptimisticImageUrl(null)
     } catch (err) {
       setMessages([])
       setError(err instanceof ApiError ? err.message : t("runs.interview.loadError"))
@@ -163,20 +175,49 @@ export function RunInterviewChat({
   useEffect(() => {
     if (!chatReady) {
       setOptimisticUser(null)
+      setOptimisticImageUrl(null)
       return
     }
     void loadMessages()
   }, [chatReady, loadMessages])
 
+  function clearPendingImage() {
+    if (pendingImageUrl) URL.revokeObjectURL(pendingImageUrl)
+    setPendingImageSha(null)
+    setPendingImageUrl(null)
+  }
+
+  async function pickImage(file: File) {
+    if (!personaId || busy || imageBusy) return
+    setImageBusy(true)
+    setError(null)
+    try {
+      const { entry } = await uploadMessageImageRaw(file)
+      if (pendingImageUrl) URL.revokeObjectURL(pendingImageUrl)
+      setPendingImageSha(entry.sha256)
+      setPendingImageUrl(URL.createObjectURL(file))
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("chat.imageUploadError"))
+    } finally {
+      setImageBusy(false)
+    }
+  }
+
   function send() {
     const trimmed = draft.trim()
-    if (!trimmed || !personaId || busy) return
+    const sha = pendingImageSha
+    if ((!trimmed && !sha) || !personaId || busy || imageBusy) return
     setError(null)
-    setOptimisticUser(trimmed)
+    setOptimisticUser(trimmed || null)
+    setOptimisticImageUrl(pendingImageUrl)
+    setPendingImageSha(null)
+    setPendingImageUrl(null)
     setDraft("")
-    if (!socketSend(trimmed)) {
+    if (!socketSend(trimmed, sha)) {
       setOptimisticUser(null)
+      setOptimisticImageUrl(null)
       setDraft(trimmed)
+      if (sha) setPendingImageSha(sha)
       setError(t("chat.notConnected"))
     }
   }
@@ -195,6 +236,7 @@ export function RunInterviewChat({
       )
       setMessages([])
       setOptimisticUser(null)
+      setOptimisticImageUrl(null)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("runs.interview.clearError"))
     } finally {
@@ -292,14 +334,21 @@ export function RunInterviewChat({
           role: message.role,
           content: message.content,
           asked_by: message.asked_by ?? null,
+          image_sha256: message.image_sha256 ?? null,
         }))}
         optimisticUser={optimisticUser}
+        optimisticImageUrl={optimisticImageUrl}
+        allowImageAttach={allowImageAttach}
+        imageAccept={imageAccept}
+        pendingImageUrl={pendingImageUrl}
+        onPickImage={(file) => void pickImage(file)}
+        onClearImage={clearPendingImage}
         typing={chatTyping}
         streamText={streamText}
         draft={draft}
         onDraftChange={setDraft}
         onSend={() => send()}
-        busy={busy}
+        busy={busy || imageBusy}
         ready={chatReady}
         placeholder={t("runs.interview.placeholder")}
         empty={
