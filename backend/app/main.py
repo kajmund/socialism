@@ -9,6 +9,7 @@ from app.api import (
     catalog,
     configurations,
     embeddings,
+    llm_settings,
     execution,
     feedback,
     health,
@@ -35,6 +36,7 @@ from app.services import jobs as jobs_service
 from app.services.kund_store import ensure_default_kunder
 from app.services.panel.module_defaults import ensure_module_panel_defaults
 from app.services.prompt_store import ensure_default_configurations
+from app.services.llm_runtime_settings import load_runtime_settings
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +77,11 @@ async def lifespan(_app: FastAPI):
             await session.commit()
     except (OperationalError, ProgrammingError) as exc:
         logger.warning("Skipping configuration prompt backfill on startup: %s", exc)
+    try:
+        async with factory() as session:
+            await load_runtime_settings(session)
+    except (OperationalError, ProgrammingError) as exc:
+        logger.warning("Skipping LLM runtime settings load on startup: %s", exc)
     yield
 
 
@@ -117,6 +124,8 @@ def create_app() -> FastAPI:
     app.include_router(jobs.router)
     app.include_router(reports.router)
     app.include_router(embeddings.router)
+    app.include_router(llm_settings.router)
+    app.include_router(llm_settings.capabilities_router)
     app.include_router(feedback.router)
     app.include_router(help.router)
     app.include_router(spindoctor.router)

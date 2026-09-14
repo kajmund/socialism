@@ -33,8 +33,8 @@ VISION_PROVIDERS: dict[VisionProvider, dict[str, object]] = {
 }
 
 REACTION_MODELS: list[dict[str, str]] = [
-    {"id": "deepseek-chat", "label": "DeepSeek Chat"},
-    {"id": "deepseek-reasoner", "label": "DeepSeek Reasoner"},
+    {"id": "deepseek-flash", "label": "DeepSeek Flash"},
+    {"id": "deepseek-v4-pro", "label": "DeepSeek V4 Pro"},
 ]
 
 

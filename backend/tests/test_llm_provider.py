@@ -85,13 +85,13 @@ def test_deepseek_provider_uses_existing_deepseek_settings():
     try:
         settings.llm_provider = "deepseek"
         settings.llm_model = ""
-        settings.deepseek_model = "deepseek-chat"
+        settings.deepseek_model = "deepseek-flash"
         settings.deepseek_base_url = "https://api.deepseek.com"
         settings.deepseek_api_key = "sk-deepseek-test"
-        assert settings.selected_llm_model == "deepseek-chat"
+        assert settings.selected_llm_model == "deepseek-flash"
         assert settings.selected_llm_base_url == "https://api.deepseek.com"
         assert settings.selected_llm_api_key == "sk-deepseek-test"
-        assert settings.selected_reasoning_effort is None
+        assert settings.selected_reasoning_effort == settings.llm_reasoning_effort
         assert settings.chat_llm_key_env_name == "DEEPSEEK_API_KEY"
     finally:
         (
@@ -254,7 +254,7 @@ async def test_complete_structured_deepseek_strict_falls_back_to_json_object(
     captured: dict = {}
     settings.llm_provider = "deepseek"
     settings.llm_model = ""
-    settings.deepseek_model = "deepseek-chat"
+    settings.deepseek_model = "deepseek-flash"
 
     async def fake_create(**kwargs):
         captured.update(kwargs)
@@ -276,7 +276,10 @@ async def test_complete_structured_deepseek_strict_falls_back_to_json_object(
         )
         assert parsed.research_decision == "none"
         assert captured["response_format"] == {"type": "json_object"}
-        assert "reasoning_effort" not in captured
+        assert (
+            "reasoning_effort" in captured
+            or "reasoning_effort" in (captured.get("extra_body") or {})
+        )
         assert any(
             "Return ONLY a JSON object matching this JSON Schema" in item["content"]
             for item in captured["messages"]
@@ -287,12 +290,13 @@ async def test_complete_structured_deepseek_strict_falls_back_to_json_object(
 
 
 @pytest.mark.asyncio
-async def test_complete_structured_deepseek_omits_reasoning_effort(monkeypatch):
+async def test_complete_structured_deepseek_sends_reasoning_effort(monkeypatch):
     set_structured_completer(None)
     captured: dict = {}
     settings.llm_provider = "deepseek"
     settings.llm_model = ""
-    settings.deepseek_model = "deepseek-chat"
+    settings.deepseek_model = "deepseek-flash"
+    settings.llm_reasoning_effort = "high"
 
     async def fake_create(**kwargs):
         captured.update(kwargs)
@@ -315,8 +319,11 @@ async def test_complete_structured_deepseek_omits_reasoning_effort(monkeypatch):
             WordCommentConvergence,
         )
         assert parsed.issues == []
-        assert captured["model"] == "deepseek-chat"
-        assert "reasoning_effort" not in captured
+        assert captured["model"] == "deepseek-flash"
+        assert (
+            captured.get("reasoning_effort") == "high"
+            or (captured.get("extra_body") or {}).get("reasoning_effort") == "high"
+        )
         assert captured["response_format"] == {"type": "json_object"}
         schema_dump = json.dumps(
             WordCommentConvergence.model_json_schema(), ensure_ascii=False
@@ -373,6 +380,38 @@ async def test_complete_structured_cerebras_sends_follow_up_json_schema(
     assert "maxItems" not in emitted["properties"]["questions"]
     assert captured["messages"] == [{"role": "user", "content": "chips"}]
     assert "tools" not in captured
+
+
+@pytest.mark.asyncio
+async def test_complete_structured_cerebras_adds_user_turn_when_only_system(
+    monkeypatch,
+):
+    set_structured_completer(None)
+    captured: dict = {}
+    settings.llm_provider = "cerebras"
+    settings.llm_model = "qwen-3.8-27b"
+
+    async def fake_create(**kwargs):
+        captured.update(kwargs)
+        return _structured_completion(
+            '{"questions":["Hur mår du?","Vad händer sen?"]}'
+        )
+
+    monkeypatch.setattr(
+        "app.llm.get_client",
+        lambda: SimpleNamespace(
+            chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))
+        ),
+    )
+    parsed = await complete_structured(
+        [{"role": "system", "content": "Föreslå följdfrågor."}],
+        FollowUpQuestions,
+    )
+    assert parsed.questions == ["Hur mår du?", "Vad händer sen?"]
+    roles = [row["role"] for row in captured["messages"]]
+    assert roles == ["system", "user"]
+    assert captured["messages"][1]["content"]
+    assert captured["response_format"]["type"] == "json_schema"
 
 
 def test_strict_json_schema_requires_every_property_on_editable_persona():
@@ -513,7 +552,7 @@ async def test_complete_structured_deepseek_follow_ups_keep_json_object(
     captured: dict = {}
     settings.llm_provider = "deepseek"
     settings.llm_model = ""
-    settings.deepseek_model = "deepseek-chat"
+    settings.deepseek_model = "deepseek-flash"
 
     async def fake_create(**kwargs):
         captured.update(kwargs)

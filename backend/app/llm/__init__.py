@@ -20,7 +20,7 @@ from app.llm.structured_schema import strict_json_schema
 from app.llm.tool_messages import normalize_messages_for_provider
 from app.schemas.domain import EditablePersona
 
-ChatMessage = dict[str, str]
+ChatMessage = dict[str, Any]
 Completer = Callable[[list[ChatMessage], type[Any]], Awaitable[Any]]
 TextCompleter = Callable[[list[ChatMessage]], Awaitable[str]]
 TextStreamer = Callable[[list[ChatMessage]], AsyncIterator[str]]
@@ -111,7 +111,19 @@ def _resolved_model(model: str | None) -> str:
 
 
 def _supports_reasoning_effort(provider: str) -> bool:
-    return provider == "cerebras" and "reasoning_effort" in _openai_create_params
+    if provider == "cerebras":
+        return "reasoning_effort" in _openai_create_params
+    # Chat Completions field; Responses API uses reasoning.effort instead.
+    return provider == "deepseek"
+
+
+def _attach_reasoning_effort(kwargs: dict[str, Any], effort: str) -> None:
+    if "reasoning_effort" in _openai_create_params:
+        kwargs["reasoning_effort"] = effort
+        return
+    extra = dict(kwargs.get("extra_body") or {})
+    extra["reasoning_effort"] = effort
+    kwargs["extra_body"] = extra
 
 
 def _structured_schema_name(response_model: type[Any]) -> str:
@@ -147,6 +159,20 @@ def _json_object_guide_message(schema: dict[str, Any]) -> ChatMessage:
     }
 
 
+def _cerebras_structured_user_message() -> ChatMessage:
+    # Qwen (and some Cerebras chat templates) reject requests with no user turn.
+    return {
+        "role": "user",
+        "content": "Return a JSON object matching the required schema.",
+    }
+
+
+def _messages_have_user_turn(messages: list[Any]) -> bool:
+    return any(
+        isinstance(row, dict) and row.get("role") == "user" for row in messages
+    )
+
+
 def _chat_create_kwargs(
     *,
     model: str,
@@ -158,11 +184,16 @@ def _chat_create_kwargs(
         "model": model,
         "messages": messages,
     }
-    if max_tokens is not None:
-        kwargs["max_tokens"] = max_tokens
+    token_limit = settings.llm_max_tokens if max_tokens is None else max_tokens
+    if token_limit is not None:
+        kwargs["max_tokens"] = token_limit
+    if settings.llm_temperature is not None:
+        kwargs["temperature"] = settings.llm_temperature
+    if settings.llm_top_p is not None:
+        kwargs["top_p"] = settings.llm_top_p
     effort = settings.selected_reasoning_effort
     if effort is not None and _supports_reasoning_effort(settings.llm_provider):
-        kwargs["reasoning_effort"] = effort
+        _attach_reasoning_effort(kwargs, effort)
     if extra:
         kwargs.update(extra)
     return kwargs
@@ -220,6 +251,8 @@ async def complete_structured[T](
     guided = list(messages)
     if settings.llm_provider == "cerebras":
         schema = strict_json_schema(schema)
+        if not _messages_have_user_turn(guided):
+            guided.append(_cerebras_structured_user_message())
     else:
         guided.append(_json_object_guide_message(schema))
     chosen = _resolved_model(model)
@@ -314,6 +347,83 @@ async def stream_text(messages: list[ChatMessage]) -> AsyncIterator[str]:
         if piece:
             yield piece
     _record_call(model=chosen, kind="stream", started_at=started_at)
+
+
+@dataclass(frozen=True)
+class StreamTextMetrics:
+    text: str
+    prompt_tokens: int
+    completion_tokens: int
+    elapsed_ms: float
+    time_to_first_token_ms: float | None
+    finish_reason: str | None
+
+
+async def stream_text_with_metrics(messages: list[ChatMessage]) -> StreamTextMetrics:
+    """Stream a completion and return text plus usage / latency metrics."""
+    if _text_streamer is not None or _text_completer is not None:
+        raise RuntimeError(
+            "stream_text_with_metrics requires provider usage; "
+            "injected text completer/streamer cannot supply token counts"
+        )
+
+    client = get_client()
+    chosen = settings.selected_llm_model
+    started_at = time.monotonic()
+    stream = await client.chat.completions.create(
+        **_chat_create_kwargs(
+            model=chosen,
+            messages=messages,
+            extra={
+                "stream": True,
+                "stream_options": {"include_usage": True},
+            },
+        )
+    )
+    parts: list[str] = []
+    ttft_ms: float | None = None
+    finish_reason: str | None = None
+    prompt_tokens = 0
+    completion_tokens = 0
+    async for event in stream:
+        usage = getattr(event, "usage", None)
+        if usage is not None:
+            prompt_tokens, completion_tokens = _usage_tokens(event)
+        choice = event.choices[0] if event.choices else None
+        if choice is None:
+            continue
+        if getattr(choice, "finish_reason", None):
+            finish_reason = choice.finish_reason
+        delta = choice.delta
+        if delta is None:
+            continue
+        piece = delta.content
+        if piece:
+            if ttft_ms is None:
+                ttft_ms = (time.monotonic() - started_at) * 1000
+            parts.append(piece)
+    elapsed_ms = (time.monotonic() - started_at) * 1000
+    text_out = "".join(parts)
+    if prompt_tokens <= 0 and completion_tokens <= 0:
+        raise RuntimeError(
+            "LLM stream returned no usage tokens "
+            "(stream_options.include_usage required)"
+        )
+    _record_call(
+        model=chosen,
+        kind="stream",
+        started_at=started_at,
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+    )
+    return StreamTextMetrics(
+        text=text_out,
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        elapsed_ms=elapsed_ms,
+        time_to_first_token_ms=ttft_ms,
+        finish_reason=finish_reason,
+    )
 
 
 ToolsCompleter = Callable[
