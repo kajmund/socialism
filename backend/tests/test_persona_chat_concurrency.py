@@ -10,12 +10,41 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
+from app.config import settings
 from app.database.base import Base
 from app.database.models import Persona, PersonaMessage
-from app.llm import set_structured_completer, set_text_streamer
+from app.llm import reset_client, set_structured_completer, set_text_streamer
 from app.schemas.domain import FollowUpQuestions
-from app.services.persona_chat import stream_library_chat_turn
+from app.services.persona_chat import ChatTurnError, stream_library_chat_turn
 from app.services.prompt_store import ensure_default_configurations
+
+
+@pytest.fixture(autouse=True)
+def _restore_llm_settings():
+    previous = (
+        settings.llm_provider,
+        settings.llm_model,
+        settings.llm_temperature,
+        settings.llm_top_p,
+        settings.llm_max_tokens,
+        settings.llm_reasoning_effort,
+        settings.deepseek_api_key,
+        settings.cerebras_api_key,
+        settings.deepseek_model,
+    )
+    yield
+    (
+        settings.llm_provider,
+        settings.llm_model,
+        settings.llm_temperature,
+        settings.llm_top_p,
+        settings.llm_max_tokens,
+        settings.llm_reasoning_effort,
+        settings.deepseek_api_key,
+        settings.cerebras_api_key,
+        settings.deepseek_model,
+    ) = previous
+    reset_client()
 
 
 @pytest.fixture
@@ -133,5 +162,62 @@ async def test_user_message_persisted_before_assistant_stream(chat_sessions):
         assert len(messages) == 1
         assert messages[0].role == "user"
         assert messages[0].content == "orphan user"
+    finally:
+        set_text_streamer(None)
+
+
+@pytest.mark.asyncio
+async def test_library_chat_turn_discards_user_on_missing_image(chat_sessions):
+    from app.services import llm_runtime_settings as runtime
+
+    settings.cerebras_api_key = "cb-test"
+    settings.deepseek_api_key = "ds-test"
+    runtime.apply_runtime_settings(
+        profile_id="deepseek-flash",
+        temperature=1.0,
+        top_p=1.0,
+        max_tokens=8192,
+        reasoning_effort="high",
+    )
+
+    async with chat_sessions() as session:
+        with pytest.raises(ChatTurnError, match="not found"):
+            async for _item in stream_library_chat_turn(
+                session,
+                persona_id="p-concurrent",
+                mode="interview",
+                message="vad syns?",
+                image_sha256="a" * 64,
+            ):
+                pass
+
+        rows = await session.execute(
+            select(PersonaMessage).where(PersonaMessage.persona_id == "p-concurrent")
+        )
+        assert rows.scalars().all() == []
+
+
+@pytest.mark.asyncio
+async def test_library_chat_turn_discards_user_on_empty_reply(chat_sessions):
+    async def _empty_stream(_messages: list[dict[str, str]]) -> AsyncIterator[str]:
+        return
+        yield  # pragma: no cover
+
+    set_text_streamer(_empty_stream)
+    try:
+        async with chat_sessions() as session:
+            with pytest.raises(ChatTurnError, match="Empty reply"):
+                async for _item in stream_library_chat_turn(
+                    session,
+                    persona_id="p-concurrent",
+                    mode="interview",
+                    message="hej",
+                ):
+                    pass
+
+            rows = await session.execute(
+                select(PersonaMessage).where(PersonaMessage.persona_id == "p-concurrent")
+            )
+            assert rows.scalars().all() == []
     finally:
         set_text_streamer(None)

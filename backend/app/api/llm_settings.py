@@ -105,8 +105,6 @@ async def put_llm_settings(
 
 @router.post("/probe", response_model=LlmProbeOut)
 async def post_llm_probe(body: LlmProbeIn) -> LlmProbeOut:
-    from app.llm import reset_client
-
     snapshot = {
         "llm_provider": settings.llm_provider,
         "llm_model": settings.llm_model,
@@ -117,6 +115,7 @@ async def post_llm_probe(body: LlmProbeIn) -> LlmProbeOut:
         "deepseek_model": settings.deepseek_model,
     }
     overridden = body.profile_id is not None
+    probe_revision: int | None = None
     metrics = None
     probe_provider = settings.llm_provider
     probe_model = settings.selected_llm_model
@@ -137,6 +136,7 @@ async def post_llm_probe(body: LlmProbeIn) -> LlmProbeOut:
                 max_tokens=int(normalized["max_tokens"]),
                 reasoning_effort=normalized["reasoning_effort"],
             )
+            probe_revision = runtime.settings_revision()
         messages: list[dict[str, str]] = []
         if body.system and body.system.strip():
             messages.append({"role": "system", "content": body.system.strip()})
@@ -150,15 +150,12 @@ async def post_llm_probe(body: LlmProbeIn) -> LlmProbeOut:
     except RuntimeError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     finally:
-        if overridden:
-            settings.llm_provider = snapshot["llm_provider"]
-            settings.llm_model = snapshot["llm_model"]
-            settings.llm_temperature = snapshot["llm_temperature"]
-            settings.llm_top_p = snapshot["llm_top_p"]
-            settings.llm_max_tokens = snapshot["llm_max_tokens"]
-            settings.llm_reasoning_effort = snapshot["llm_reasoning_effort"]
-            settings.deepseek_model = snapshot["deepseek_model"]
-            reset_client()
+        if (
+            overridden
+            and probe_revision is not None
+            and runtime.settings_revision() == probe_revision
+        ):
+            runtime.restore_runtime_settings_snapshot(snapshot)
 
     assert metrics is not None
     elapsed_s = metrics.elapsed_ms / 1000.0 if metrics.elapsed_ms > 0 else 0.0

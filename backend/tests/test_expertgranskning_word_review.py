@@ -1817,7 +1817,11 @@ async def test_analyze_batch_logs_routing_counts_without_document_text(caplog):
 def test_word_alembic_chain_is_linear_after_main_head():
     cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     script = ScriptDirectory.from_config(cfg)
-    assert script.get_heads() == ["079_review_output_contract_prompt"]
+    assert script.get_heads() == ["081_persona_message_image_sha256"]
+    image = script.get_revision("081_persona_message_image_sha256")
+    assert image.down_revision == "080_llm_runtime_settings"
+    runtime = script.get_revision("080_llm_runtime_settings")
+    assert runtime.down_revision == "079_review_output_contract_prompt"
     prompt = script.get_revision("079_review_output_contract_prompt")
     assert prompt.down_revision == "078_word_review_output_contract"
     contract = script.get_revision("078_word_review_output_contract")
