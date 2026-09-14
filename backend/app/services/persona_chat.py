@@ -95,6 +95,11 @@ async def _publish_interview_message(row: PersonaMessage) -> None:
     )
 
 
+
+def _history_triples(rows: list[PersonaMessage]) -> list[tuple[str, str, str | None]]:
+    return [(row.role, row.content, row.image_sha256) for row in rows]
+
+
 def serialize_persona_message(row: PersonaMessage) -> PersonaMessageOut:
     asked_by = row.asked_by if row.asked_by in {"doctor", "human"} else None
     return PersonaMessageOut(
@@ -108,6 +113,7 @@ def serialize_persona_message(row: PersonaMessage) -> PersonaMessageOut:
         variant_id=row.variant_id,
         through_tick_index=row.through_tick_index,
         asked_by=asked_by,  # type: ignore[arg-type]
+        image_sha256=row.image_sha256,
     )
 
 
@@ -203,6 +209,7 @@ async def stream_library_chat_turn(
     persona_id: str,
     mode: ChatMode,
     message: str,
+    image_sha256: str | None = None,
 ) -> AsyncIterator[str | PersonaChatResponse | ChatSuggestions]:
     """Yield token strings, then PersonaChatResponse, then follow-up chips."""
     lock = await _chat_turn_lock(_library_lock_key(persona_id, mode))
@@ -217,7 +224,8 @@ async def stream_library_chat_turn(
             .where(*library_chat_filter(persona_id, mode))
             .order_by(PersonaMessage.id.asc())
         )
-        history = [(row.role, row.content) for row in history_rows.scalars().all()]
+        history_list = list(history_rows.scalars().all())
+        history = _history_triples(history_list)
         area_block = await area_block_for_name(session, profile.ort or persona.district)
         prompts = await require_prompts_for_persona(session, persona)
 
@@ -226,6 +234,7 @@ async def stream_library_chat_turn(
             mode=mode,
             role="user",
             content=message,
+            image_sha256=image_sha256,
             created_at=utcnow(),
         )
         session.add(user_row)
@@ -240,6 +249,7 @@ async def stream_library_chat_turn(
             area_block=area_block,
             profile_kind=persona.kind,
             tools=persona.tools,
+            user_image_sha256=image_sha256,
         )
         parts: list[str] = []
         try:
@@ -289,6 +299,7 @@ async def stream_run_interview_turn(
     persona_id: str,
     through_tick_index: int,
     message: str,
+    image_sha256: str | None = None,
     asked_by: Literal["doctor", "human"] = "human",
 ) -> AsyncIterator[str | PersonaChatResponse]:
     lock = await _chat_turn_lock(
@@ -354,13 +365,15 @@ async def stream_run_interview_turn(
             )
             .order_by(PersonaMessage.id.asc())
         )
-        history = [(row.role, row.content) for row in history_rows.scalars().all()]
+        history_list = list(history_rows.scalars().all())
+        history = _history_triples(history_list)
 
         user_row = PersonaMessage(
             persona_id=persona_id,
             mode="interview",
             role="user",
             content=message,
+            image_sha256=image_sha256,
             created_at=utcnow(),
             run_id=run_id,
             attempt_id=attempt_id,
@@ -384,6 +397,7 @@ async def stream_run_interview_turn(
                 system_prompt=system_prompt,
                 profile_kind=persona.kind,
                 tools=persona.tools,
+                user_image_sha256=image_sha256,
             ):
                 parts.append(chunk)
                 yield chunk
@@ -436,6 +450,7 @@ async def complete_run_interview_turn(
     persona_id: str,
     through_tick_index: int,
     message: str,
+    image_sha256: str | None = None,
     asked_by: Literal["doctor", "human"] = "human",
 ) -> PersonaChatResponse:
     """Run one interview turn to completion (used by Spinndoktor MCP tools)."""
@@ -448,6 +463,7 @@ async def complete_run_interview_turn(
         persona_id=persona_id,
         through_tick_index=through_tick_index,
         message=message,
+        image_sha256=image_sha256,
         asked_by=asked_by,
     ):
         if isinstance(item, PersonaChatResponse):

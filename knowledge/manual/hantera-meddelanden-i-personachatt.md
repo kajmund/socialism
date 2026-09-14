@@ -22,6 +22,8 @@ I **persona-kompositören** kan du justera chatten meddelande för meddelande �
 
 Personan måste vara sparad innan du kan chatta eller hantera meddelanden.
 
+Om du bifogat en bild och skickar om meddelandet återanvänds samma bild.
+
 ## Relaterade guider
 
 - [Skapa och redigera persona](skapa-och-redigera-persona.md)

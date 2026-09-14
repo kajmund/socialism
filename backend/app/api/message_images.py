@@ -19,7 +19,12 @@ from app.services.image_cache import (
     get_entry,
     image_bytes_path,
     list_entries,
+    store_raw_image,
     update_caption,
+)
+from app.services.llm_runtime_settings import (
+    allowed_image_types_for_active,
+    require_vision_support,
 )
 from app.services.playground_image import MAX_IMAGE_BYTES
 
@@ -103,6 +108,31 @@ async def upload_image(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except RuntimeError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return ImageUploadOut(entry=_serialize(entry), cache_hit=cache_hit)
+
+
+@router.post("/upload-raw", response_model=ImageUploadOut)
+async def upload_image_raw(
+    image: UploadFile = File(...),
+    _user: UserAccount = Depends(get_current_user),
+) -> ImageUploadOut:
+    """Store image bytes for persona-chat vision (no captioning)."""
+    try:
+        require_vision_support()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    raw = await image.read(MAX_IMAGE_BYTES + 1)
+    if len(raw) > MAX_IMAGE_BYTES:
+        mb = MAX_IMAGE_BYTES // (1024 * 1024)
+        raise HTTPException(status_code=400, detail=f"Image exceeds {mb} MB limit")
+    try:
+        entry, cache_hit = store_raw_image(
+            raw,
+            content_type=image.content_type or "application/octet-stream",
+            allowed_types=allowed_image_types_for_active(),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return ImageUploadOut(entry=_serialize(entry), cache_hit=cache_hit)
 
 

@@ -396,7 +396,21 @@ class FeedbackItemUpdate(BaseModel):
 
 class PersonaChatRequest(BaseModel):
     mode: ChatMode = "interview"
-    message: str = Field(min_length=1)
+    message: str = ""
+    image_sha256: str | None = Field(default=None, min_length=64, max_length=64)
+
+    @model_validator(mode="after")
+    def require_message_or_image(self) -> "PersonaChatRequest":
+        text = (self.message or "").strip()
+        digest = (self.image_sha256 or "").strip().lower() or None
+        if digest is not None:
+            if len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
+                raise ValueError("image_sha256 must be a 64-char hex digest")
+            self.image_sha256 = digest
+        self.message = text
+        if not text and not self.image_sha256:
+            raise ValueError("message or image_sha256 is required")
+        return self
 
 
 class PersonaMessageOut(BaseModel):
@@ -410,6 +424,7 @@ class PersonaMessageOut(BaseModel):
     variant_id: str | None = None
     through_tick_index: int | None = None
     asked_by: InterviewAskedBy | None = None
+    image_sha256: str | None = None
 
 
 class FollowUpQuestions(BaseModel):
@@ -439,7 +454,21 @@ class PersonaMessageDeleteResponse(BaseModel):
 
 class RunPersonaInterviewRequest(BaseModel):
     through_tick_index: int = Field(ge=0)
-    message: str = Field(min_length=1)
+    message: str = ""
+    image_sha256: str | None = Field(default=None, min_length=64, max_length=64)
+
+    @model_validator(mode="after")
+    def require_message_or_image(self) -> "RunPersonaInterviewRequest":
+        text = (self.message or "").strip()
+        digest = (self.image_sha256 or "").strip().lower() or None
+        if digest is not None:
+            if len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
+                raise ValueError("image_sha256 must be a 64-char hex digest")
+            self.image_sha256 = digest
+        self.message = text
+        if not text and not self.image_sha256:
+            raise ValueError("message or image_sha256 is required")
+        return self
 
 
 RunStatus = Literal["done", "running", "draft", "failed"]

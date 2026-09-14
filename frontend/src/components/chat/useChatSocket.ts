@@ -44,6 +44,7 @@ export type ChatDoneMessage = {
   mode?: ChatMode
   created_at?: string
   asked_by?: "doctor" | "human" | null
+  image_sha256?: string | null
 }
 
 export type InterviewPushMessage = ChatDoneMessage & {
@@ -129,6 +130,8 @@ function asDoneMessages(raw: unknown): ChatDoneMessage[] {
       created_at: typeof m.created_at === "string" ? m.created_at : undefined,
       asked_by:
         m.asked_by === "doctor" || m.asked_by === "human" ? m.asked_by : null,
+      image_sha256:
+        typeof m.image_sha256 === "string" ? m.image_sha256 : null,
     })
   }
   return out
@@ -262,9 +265,10 @@ export function useChatSocket({
   }, [key])
 
   const send = useCallback(
-    (text: string) => {
+    (text: string, imageSha256?: string | null) => {
       const trimmed = text.trim()
-      if (!trimmed || !hello || busy) return false
+      const digest = imageSha256?.trim() || null
+      if ((!trimmed && !digest) || !hello || busy) return false
       if (!sendRef.current || !ready) {
         return false
       }
@@ -272,7 +276,12 @@ export function useChatSocket({
       setTyping(true)
       setStreamText(null)
       const extras = sendExtrasRef.current?.() ?? {}
-      sendRef.current({ type: "send", message: trimmed, ...extras })
+      sendRef.current({
+        type: "send",
+        message: trimmed,
+        ...(digest ? { image_sha256: digest } : {}),
+        ...extras,
+      })
       return true
     },
     [hello, busy, ready],
@@ -291,5 +300,6 @@ export function doneToPersonaMessages(
     role: m.role,
     content: m.content,
     created_at: m.created_at ?? "",
+    image_sha256: m.image_sha256 ?? null,
   }))
 }

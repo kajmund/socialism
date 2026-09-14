@@ -438,6 +438,7 @@ def _serialize_persona_message(row: PersonaMessage) -> PersonaMessageOut:
         variant_id=row.variant_id,
         through_tick_index=row.through_tick_index,
         asked_by=asked_by,  # type: ignore[arg-type]
+        image_sha256=row.image_sha256,
     )
 
 
@@ -624,7 +625,7 @@ async def run_persona_interview(
         )
         .order_by(PersonaMessage.id.asc())
     )
-    history = [(row.role, row.content) for row in history_rows.scalars().all()]
+    history = [(row.role, row.content, row.image_sha256) for row in history_rows.scalars().all()]
 
     reply = await reply_as_persona(
         profile,
@@ -633,6 +634,7 @@ async def run_persona_interview(
         body.message,
         prompts=prompts,
         system_prompt=system_prompt,
+        user_image_sha256=body.image_sha256,
     )
 
     user_row = PersonaMessage(
@@ -640,6 +642,7 @@ async def run_persona_interview(
         mode="interview",
         role="user",
         content=body.message,
+        image_sha256=body.image_sha256,
         created_at=utcnow(),
         run_id=run_id,
         attempt_id=attempt_id,

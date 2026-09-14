@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from typing import Any
 
 from app.llm import complete_structured, complete_text, stream_text
+from app.llm.vision_content import user_content_with_optional_image
 from app.schemas.domain import ChatMode, EditablePersona, FollowUpQuestions
 from app.services.dd.company_mcp import complete_text_with_company_tools
 from app.services.expert_tools import expert_tool_prompt_extra, resolve_chat_tools
@@ -130,7 +132,7 @@ def build_run_interview_prompt(
 def _chat_messages(
     profile: EditablePersona,
     mode: ChatMode,
-    history: list[tuple[str, str]],
+    history: list[tuple[str, str]] | list[tuple[str, str, str | None]],
     user_message: str,
     *,
     prompts: dict[str, str],
@@ -139,7 +141,8 @@ def _chat_messages(
     system_prompt: str | None = None,
     extra_system: str = "",
     profile_kind: str = "persona",
-) -> list[dict[str, str]]:
+    user_image_sha256: str | None = None,
+) -> list[dict[str, Any]]:
     if system_prompt is None:
         content = build_chat_system_prompt(
             profile,
@@ -155,22 +158,37 @@ def _chat_messages(
         extra = extra_system.strip()
         if extra:
             content = f"{content}\n\n{extra}"
-    messages: list[dict[str, str]] = [
+    messages: list[dict[str, Any]] = [
         {
             "role": "system",
             "content": content,
         },
     ]
-    for role, content_row in history:
-        messages.append({"role": role, "content": content_row})
-    messages.append({"role": "user", "content": user_message})
+    for entry in history:
+        role = entry[0]
+        text = entry[1]
+        image_sha = entry[2] if len(entry) > 2 else None
+        messages.append(
+            {
+                "role": role,
+                "content": user_content_with_optional_image(text, image_sha),
+            }
+        )
+    messages.append(
+        {
+            "role": "user",
+            "content": user_content_with_optional_image(
+                user_message, user_image_sha256
+            ),
+        }
+    )
     return messages
 
 
 async def reply_as_persona(
     profile: EditablePersona,
     mode: ChatMode,
-    history: list[tuple[str, str]],
+    history: list[tuple[str, str]] | list[tuple[str, str, str | None]],
     user_message: str,
     *,
     prompts: dict[str, str],
@@ -180,6 +198,7 @@ async def reply_as_persona(
     extra_system: str = "",
     model: str | None = None,
     profile_kind: str = "persona",
+    user_image_sha256: str | None = None,
 ) -> str:
     messages = _chat_messages(
         profile,
@@ -192,6 +211,7 @@ async def reply_as_persona(
         system_prompt=system_prompt,
         extra_system=extra_system,
         profile_kind=profile_kind,
+        user_image_sha256=user_image_sha256,
     )
     return await complete_text(messages, model=model)
 
@@ -199,7 +219,7 @@ async def reply_as_persona(
 async def stream_reply_as_persona(
     profile: EditablePersona,
     mode: ChatMode,
-    history: list[tuple[str, str]],
+    history: list[tuple[str, str]] | list[tuple[str, str, str | None]],
     user_message: str,
     *,
     prompts: dict[str, str],
@@ -209,6 +229,7 @@ async def stream_reply_as_persona(
     extra_system: str = "",
     profile_kind: str = "persona",
     tools: list[str] | None = None,
+    user_image_sha256: str | None = None,
 ) -> AsyncIterator[str]:
     allowed = resolve_chat_tools(tools, kind=profile_kind)
     extra = expert_tool_prompt_extra(prompts, allowed)
@@ -226,6 +247,7 @@ async def stream_reply_as_persona(
         system_prompt=system_prompt,
         extra_system=combined_extra,
         profile_kind=profile_kind,
+        user_image_sha256=user_image_sha256,
     )
     if allowed:
         reply = await complete_text_with_company_tools(

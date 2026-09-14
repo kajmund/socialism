@@ -327,6 +327,8 @@ class PersonaMessage(Base):
     mode: Mapped[str] = mapped_column(String(32), nullable=False)
     role: Mapped[str] = mapped_column(String(32), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    # SHA256 of an attached image in the image cache (vision chat turns).
+    image_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -1495,7 +1497,6 @@ class ExecutionAttemptResult(Base):
     )
 
     attempt: Mapped[ExecutionAttempt] = relationship(back_populates="result")
-
 
 class LlmRuntimeSettings(Base):
     """Singleton row for admin-selected chat LLM profile + sampling params."""

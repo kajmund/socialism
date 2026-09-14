@@ -8,7 +8,6 @@ from typing import Literal
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Persona
-from app.llm.chat import reply_as_persona
 from app.llm.vision import VisionRequest, complete_vision_text
 from app.serializers import profile_from_dict
 from app.services.district_context import area_block_for_name
@@ -97,6 +96,10 @@ async def react_to_image(
     profile = profile_from_dict(persona.profile, persona.name)
     area_block = await area_block_for_name(session, profile.ort or persona.district)
     prompts = await require_prompts_for_persona(session, persona, language=locale)
+    # Lazy import: image_cache → this module must not import chat at module load
+    # (chat → vision_content → image_cache would otherwise cycle).
+    from app.llm.chat import reply_as_persona
+
     reaction = await reply_as_persona(
         profile,
         "character",
