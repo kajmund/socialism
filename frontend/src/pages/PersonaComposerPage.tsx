@@ -5,6 +5,7 @@ import {
   catalogToFieldOptions,
   listCatalog,
 } from "@/api/catalog"
+import { uploadMessageImageRaw } from "@/api/messages"
 import {
   chatWithPersona,
   clearPersonaMessages,
@@ -24,6 +25,7 @@ import {
 } from "@/api/personas"
 import { ChatMessageActions } from "@/components/chat/ChatMessageActions"
 import { MessengerChat } from "@/components/chat/MessengerChat"
+import { useLlmCapabilities } from "@/components/chat/useLlmCapabilities"
 import {
   doneToPersonaMessages,
   useChatSocket,
@@ -237,6 +239,11 @@ function Editor({
   })
   const [messages, setMessages] = useState<PersonaMessage[]>([])
   const [optimisticUser, setOptimisticUser] = useState<string | null>(null)
+  const [optimisticImageUrl, setOptimisticImageUrl] = useState<string | null>(null)
+  const [pendingImageSha, setPendingImageSha] = useState<string | null>(null)
+  const [pendingImageUrl, setPendingImageUrl] = useState<string | null>(null)
+  const [imageBusy, setImageBusy] = useState(false)
+  const { allowImageAttach, imageAccept } = useLlmCapabilities()
   const [draft, setDraft] = useState("")
   const [restBusy, setRestBusy] = useState(false)
   const [suggestions, setSuggestions] = useState<string[]>([])
@@ -264,12 +271,14 @@ function Editor({
     onDone: (rows) => {
       setMessages(doneToPersonaMessages(rows, icMode))
       setOptimisticUser(null)
+      setOptimisticImageUrl(null)
     },
     onSuggestions: (questions) => {
       setSuggestions(questions)
     },
     onError: (detail) => {
       setOptimisticUser(null)
+      setOptimisticImageUrl(null)
       onToast(detail || t("personas.composer.sendError"))
     },
   })
@@ -294,6 +303,7 @@ function Editor({
         if (!cancelled) {
           setMessages(rows)
           setOptimisticUser(null)
+          setOptimisticImageUrl(null)
         }
       })
       .catch((err: unknown) => {
@@ -319,16 +329,45 @@ function Editor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [personaId, icMode, chatReady])
 
+  function clearPendingImage() {
+    if (pendingImageUrl) URL.revokeObjectURL(pendingImageUrl)
+    setPendingImageSha(null)
+    setPendingImageUrl(null)
+  }
+
+  async function pickImage(file: File) {
+    if (!personaId || chatBusy || imageBusy) return
+    setImageBusy(true)
+    try {
+      const { entry } = await uploadMessageImageRaw(file)
+      if (pendingImageUrl) URL.revokeObjectURL(pendingImageUrl)
+      setPendingImageSha(entry.sha256)
+      setPendingImageUrl(URL.createObjectURL(file))
+    } catch (err) {
+      onToast(err instanceof ApiError ? err.message : t("chat.imageUploadError"))
+    } finally {
+      setImageBusy(false)
+    }
+  }
+
   function sendMessage(text: string) {
     const trimmed = text.trim()
-    if (!trimmed || !personaId || chatBusy) return
+    const sha = pendingImageSha
+    if ((!trimmed && !sha) || !personaId || chatBusy || imageBusy) return
     suggestGen.current += 1
     setSuggestions([])
-    setOptimisticUser(trimmed)
+    setOptimisticUser(trimmed || null)
+    setOptimisticImageUrl(pendingImageUrl)
+    setPendingImageSha(null)
+    setPendingImageUrl(null)
     setDraft("")
-    if (!socketSend(trimmed)) {
+    if (!socketSend(trimmed, sha)) {
       setOptimisticUser(null)
+      setOptimisticImageUrl(null)
       setDraft(trimmed)
+      if (sha) {
+        setPendingImageSha(sha)
+      }
       onToast(t("chat.notConnected"))
     }
   }
@@ -343,6 +382,7 @@ function Editor({
         const result = await chatWithPersona(personaId, {
           mode: icMode,
           message: lastUser.content,
+          image_sha256: lastUser.image_sha256,
         })
         setMessages(result.messages)
         setSuggestions(result.suggestions ?? [])
@@ -804,12 +844,18 @@ function Editor({
           <MessengerChat
             messages={messages}
             optimisticUser={optimisticUser}
+            optimisticImageUrl={optimisticImageUrl}
+            allowImageAttach={allowImageAttach}
+            imageAccept={imageAccept}
+            pendingImageUrl={pendingImageUrl}
+            onPickImage={(file) => void pickImage(file)}
+            onClearImage={clearPendingImage}
             typing={chatTyping}
             streamText={streamText}
             draft={draft}
             onDraftChange={setDraft}
             onSend={() => sendMessage(draft)}
-            busy={chatBusy}
+            busy={chatBusy || imageBusy}
             ready={chatReady}
             disabled={!personaId}
             suggestions={suggestions}
@@ -831,7 +877,7 @@ function Editor({
                 ? (m) => (
                     <ChatMessageActions
                       message={m}
-                      busy={chatBusy}
+                      busy={chatBusy || imageBusy}
                       onDelete={setConfirmDeleteMessageId}
                       onResend={(messageId) => void resendMessage(messageId)}
                     />
@@ -934,12 +980,18 @@ function Editor({
           <MessengerChat
             messages={messages}
             optimisticUser={optimisticUser}
+            optimisticImageUrl={optimisticImageUrl}
+            allowImageAttach={allowImageAttach}
+            imageAccept={imageAccept}
+            pendingImageUrl={pendingImageUrl}
+            onPickImage={(file) => void pickImage(file)}
+            onClearImage={clearPendingImage}
             typing={chatTyping}
             streamText={streamText}
             draft={draft}
             onDraftChange={setDraft}
             onSend={() => sendMessage(draft)}
-            busy={chatBusy}
+            busy={chatBusy || imageBusy}
             ready={chatReady}
             disabled={!personaId}
             suggestions={suggestions}
@@ -959,7 +1011,7 @@ function Editor({
                 ? (m) => (
                     <ChatMessageActions
                       message={m}
-                      busy={chatBusy}
+                      busy={chatBusy || imageBusy}
                       onDelete={setConfirmDeleteMessageId}
                       onResend={(messageId) => void resendMessage(messageId)}
                     />

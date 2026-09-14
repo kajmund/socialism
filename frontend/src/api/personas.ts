@@ -143,6 +143,7 @@ export type PersonaMessage = {
   role: "user" | "assistant"
   content: string
   created_at: string
+  image_sha256?: string | null
 }
 
 export type PersonaGenerateRequest = {
@@ -201,7 +202,7 @@ export function getSuggestedQuestions(
 
 export function chatWithPersona(
   id: string,
-  body: { mode: ChatMode; message: string },
+  body: { mode: ChatMode; message: string; image_sha256?: string | null },
 ): Promise<PersonaChatResponse> {
   return api.post(`/personas/${id}/chat`, body)
 }

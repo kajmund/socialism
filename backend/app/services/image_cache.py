@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import shutil
@@ -12,7 +13,11 @@ from typing import Any, Literal
 from app.config import settings
 from app.llm.vision import complete_vision_text
 from app.services.image_caption import rich_caption_prompt
-from app.services.playground_image import ALLOWED_IMAGE_TYPES, validate_image
+from app.services.playground_image import (
+    ALLOWED_IMAGE_TYPES,
+    MAX_IMAGE_BYTES,
+    validate_image,
+)
 from app.services.playground_image_models import resolve_vision_selection
 
 Locale = Literal["sv", "en"]
@@ -180,3 +185,60 @@ def compose_feed_body(*, body: str, caption: str | None) -> str:
     if cap:
         return cap
     return text
+
+
+def store_raw_image(
+    image_bytes: bytes,
+    *,
+    content_type: str,
+    allowed_types: frozenset[str] | None = None,
+) -> tuple[dict[str, Any], bool]:
+    """Store image bytes without running vision captioning.
+
+    Returns (entry, cache_hit). When ``allowed_types`` is set, only those MIME
+    types are accepted (used by persona chat for provider-specific limits).
+    """
+    mime = (content_type or "").split(";", 1)[0].strip().lower()
+    allowed = allowed_types if allowed_types is not None else ALLOWED_IMAGE_TYPES
+    if mime not in allowed:
+        raise ValueError(
+            f"Unsupported image type {mime!r} — allowed: {', '.join(sorted(allowed))}"
+        )
+    if len(image_bytes) <= 0:
+        raise ValueError("Image file is empty")
+    if len(image_bytes) > MAX_IMAGE_BYTES:
+        raise ValueError(f"Image exceeds {MAX_IMAGE_BYTES // (1024 * 1024)} MB limit")
+
+    digest = sha256_hex(image_bytes)
+    existing = get_entry(digest)
+    if existing is not None:
+        return existing, True
+
+    now = _now_iso()
+    meta: dict[str, Any] = {
+        "sha256": digest,
+        "caption": "",
+        "content_type": mime,
+        "size_bytes": len(image_bytes),
+        "vision_provider": "",
+        "vision_model": "",
+        "caption_edited": False,
+        "created_at": now,
+        "updated_at": now,
+    }
+    _bytes_path(digest).parent.mkdir(parents=True, exist_ok=True)
+    _bytes_path(digest).write_bytes(image_bytes)
+    _write_meta(_meta_path(digest), meta)
+    return meta, False
+
+
+def image_data_url(digest: str) -> str:
+    """Build a base64 data URI for a cached image (required by Cerebras vision)."""
+    meta = get_entry(digest)
+    path = image_bytes_path(digest)
+    if meta is None or path is None:
+        raise ValueError(f"Image cache entry {digest!r} not found")
+    raw = path.read_bytes()
+    mime = str(meta.get("content_type") or "application/octet-stream")
+    encoded = base64.standard_b64encode(raw).decode("ascii")
+    return f"data:{mime};base64,{encoded}"

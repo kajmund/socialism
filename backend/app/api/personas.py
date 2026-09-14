@@ -129,6 +129,7 @@ def _serialize_message(row: PersonaMessage) -> PersonaMessageOut:
         attempt_id=row.attempt_id,
         variant_id=row.variant_id,
         through_tick_index=row.through_tick_index,
+        image_sha256=row.image_sha256,
     )
 
 
@@ -494,7 +495,7 @@ async def chat_with_persona(
         .where(*_library_chat_filter(persona_id, body.mode))
         .order_by(PersonaMessage.id.asc())
     )
-    history = [(row.role, row.content) for row in history_rows.scalars().all()]
+    history = [(row.role, row.content, row.image_sha256) for row in history_rows.scalars().all()]
 
     area_block = await area_block_for_name(session, profile.ort or persona.district)
     prompts = await require_prompts_for_persona(session, persona)
@@ -505,6 +506,7 @@ async def chat_with_persona(
         body.message,
         prompts=prompts,
         area_block=area_block,
+        user_image_sha256=body.image_sha256,
     )
 
     user_row = PersonaMessage(
@@ -512,6 +514,7 @@ async def chat_with_persona(
         mode=body.mode,
         role="user",
         content=body.message,
+        image_sha256=body.image_sha256,
         created_at=utcnow(),
     )
     assistant_row = PersonaMessage(
@@ -649,8 +652,9 @@ async def resend_message(
     mode = target.mode
 
     if target.role == "user":
-        history = [(row.role, row.content) for row in kept]
+        history = [(row.role, row.content, row.image_sha256) for row in kept]
         user_message = target.content
+        image_sha256 = target.image_sha256
         reply = await reply_as_persona(
             profile,
             mode,
@@ -658,6 +662,7 @@ async def resend_message(
             user_message,
             prompts=prompts,
             area_block=area_block,
+            user_image_sha256=image_sha256,
         )
         session.add(
             PersonaMessage(
@@ -665,6 +670,7 @@ async def resend_message(
                 mode=mode,
                 role="user",
                 content=user_message,
+                image_sha256=image_sha256,
                 created_at=utcnow(),
             )
         )
