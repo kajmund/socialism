@@ -17,6 +17,7 @@ from app.llm.chat import (
     stream_reply_as_persona,
     suggest_follow_up_questions,
 )
+from app.llm.vision_content import validate_chat_turn_images
 from app.realtime.interview_broadcast import interview_broadcast, interview_key_tuple
 from app.schemas.domain import (
     ChatMode,
@@ -94,6 +95,12 @@ async def _publish_interview_message(row: PersonaMessage) -> None:
         serialize_persona_message(row).model_dump(mode="json"),
     )
 
+
+async def _discard_user_message(
+    session: AsyncSession, user_row: PersonaMessage
+) -> None:
+    await session.delete(user_row)
+    await session.commit()
 
 
 def _history_triples(rows: list[PersonaMessage]) -> list[tuple[str, str, str | None]]:
@@ -229,6 +236,11 @@ async def stream_library_chat_turn(
         area_block = await area_block_for_name(session, profile.ort or persona.district)
         prompts = await require_prompts_for_persona(session, persona)
 
+        try:
+            validate_chat_turn_images(history, message, image_sha256)
+        except ValueError as exc:
+            raise ChatTurnError(str(exc)) from exc
+
         user_row = PersonaMessage(
             persona_id=persona_id,
             mode=mode,
@@ -240,27 +252,33 @@ async def stream_library_chat_turn(
         session.add(user_row)
         await session.commit()
 
-        stream = stream_reply_as_persona(
-            profile,
-            mode,
-            history,
-            message,
-            prompts=prompts,
-            area_block=area_block,
-            profile_kind=persona.kind,
-            tools=persona.tools,
-            user_image_sha256=image_sha256,
-        )
         parts: list[str] = []
         try:
+            stream = stream_reply_as_persona(
+                profile,
+                mode,
+                history,
+                message,
+                prompts=prompts,
+                area_block=area_block,
+                profile_kind=persona.kind,
+                tools=persona.tools,
+                user_image_sha256=image_sha256,
+            )
             async for chunk in stream:
                 parts.append(chunk)
                 yield chunk
-        except CompanyMcpError as exc:
-            raise ChatTurnError(str(exc), status_code=502) from exc
+        except (CompanyMcpError, ValueError) as exc:
+            await _discard_user_message(session, user_row)
+            status = 502 if isinstance(exc, CompanyMcpError) else 400
+            raise ChatTurnError(str(exc), status_code=status) from exc
+        except Exception:
+            await _discard_user_message(session, user_row)
+            raise
 
         reply = "".join(parts).strip()
         if not reply:
+            await _discard_user_message(session, user_row)
             raise ChatTurnError("Empty reply from model", status_code=502)
 
         assistant_row = PersonaMessage(
@@ -368,6 +386,11 @@ async def stream_run_interview_turn(
         history_list = list(history_rows.scalars().all())
         history = _history_triples(history_list)
 
+        try:
+            validate_chat_turn_images(history, message, image_sha256)
+        except ValueError as exc:
+            raise ChatTurnError(str(exc)) from exc
+
         user_row = PersonaMessage(
             persona_id=persona_id,
             mode="interview",
@@ -401,11 +424,17 @@ async def stream_run_interview_turn(
             ):
                 parts.append(chunk)
                 yield chunk
-        except CompanyMcpError as exc:
-            raise ChatTurnError(str(exc), status_code=502) from exc
+        except (CompanyMcpError, ValueError) as exc:
+            await _discard_user_message(session, user_row)
+            status = 502 if isinstance(exc, CompanyMcpError) else 400
+            raise ChatTurnError(str(exc), status_code=status) from exc
+        except Exception:
+            await _discard_user_message(session, user_row)
+            raise
 
         reply = "".join(parts).strip()
         if not reply:
+            await _discard_user_message(session, user_row)
             raise ChatTurnError("Empty reply from model", status_code=502)
 
         assistant_row = PersonaMessage(

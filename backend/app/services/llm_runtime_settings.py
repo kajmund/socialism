@@ -22,6 +22,8 @@ ProfileId = Literal[
 
 SINGLETON_ID = 1
 
+_settings_revision = 0
+
 # Retired Chat Completions model id → current catalog profile.
 _LEGACY_PROFILE_IDS: dict[str, ProfileId] = {
     "deepseek-chat": "deepseek-flash",
@@ -288,6 +290,24 @@ def validate_and_normalize(
     return values
 
 
+def settings_revision() -> int:
+    return _settings_revision
+
+
+def restore_runtime_settings_snapshot(snapshot: dict[str, Any]) -> None:
+    """Restore in-memory LLM settings without touching the database."""
+    global _settings_revision
+    settings.llm_provider = snapshot["llm_provider"]
+    settings.llm_model = snapshot["llm_model"]
+    settings.llm_temperature = snapshot["llm_temperature"]
+    settings.llm_top_p = snapshot["llm_top_p"]
+    settings.llm_max_tokens = snapshot["llm_max_tokens"]
+    settings.llm_reasoning_effort = snapshot["llm_reasoning_effort"]
+    settings.deepseek_model = snapshot["deepseek_model"]
+    _settings_revision += 1
+    reset_client()
+
+
 def apply_runtime_settings(
     *,
     profile_id: str,
@@ -296,6 +316,7 @@ def apply_runtime_settings(
     max_tokens: int,
     reasoning_effort: str | None,
 ) -> None:
+    global _settings_revision
     profile = get_profile(profile_id)
     if not credentials_status().get(profile.provider):
         raise ValueError(f"API key missing for provider {profile.provider}")
@@ -309,6 +330,7 @@ def apply_runtime_settings(
     settings.llm_reasoning_effort = reasoning_effort  # type: ignore[assignment]
     if profile.provider == "deepseek":
         settings.deepseek_model = profile.model
+    _settings_revision += 1
     reset_client()
 
 
@@ -350,13 +372,6 @@ async def save_runtime_settings(
         max_tokens=max_tokens,
         reasoning_effort=reasoning_effort,
     )
-    apply_runtime_settings(
-        profile_id=normalized["profile_id"],
-        temperature=normalized["temperature"],
-        top_p=normalized["top_p"],
-        max_tokens=int(normalized["max_tokens"]),
-        reasoning_effort=normalized["reasoning_effort"],
-    )
     row = await session.get(LlmRuntimeSettings, SINGLETON_ID)
     now = datetime.now(timezone.utc)
     if row is None:
@@ -379,6 +394,13 @@ async def save_runtime_settings(
         row.updated_at = now
     await session.commit()
     await session.refresh(row)
+    apply_runtime_settings(
+        profile_id=normalized["profile_id"],
+        temperature=normalized["temperature"],
+        top_p=normalized["top_p"],
+        max_tokens=int(normalized["max_tokens"]),
+        reasoning_effort=normalized["reasoning_effort"],
+    )
     return row
 
 
