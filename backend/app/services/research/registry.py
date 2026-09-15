@@ -5,7 +5,13 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from app.services.knowledge.provider import SUPABASE_PROVIDER_ID, KnowledgeProvider
+from app.services.lagen_nu.registration import (
+    LAGEN_NU_ADAPTER,
+    LAGEN_NU_EVIDENCE_NATURES,
+    lagen_nu_capability_descriptors,
+)
 from app.services.research.knowledge_source import KnowledgeResearchSource
+from app.services.research.lagen_nu_source import LagenNuResearchSource
 from app.services.research.models import ResearchSourceType
 from app.services.research.provider import (
     KnowledgeProviderDescriptor,
@@ -31,6 +37,7 @@ def default_standard_capability_descriptors() -> tuple[KnowledgeProviderDescript
     return (
         knowledge_adapter_descriptor(SUPABASE_PROVIDER_ID, "case_knowledge"),
         knowledge_adapter_descriptor(SUPABASE_PROVIDER_ID, "customer_knowledge"),
+        *lagen_nu_capability_descriptors(),
     )
 
 
@@ -186,6 +193,8 @@ def _compose_standard_source(
     descriptor: KnowledgeProviderDescriptor,
 ) -> tuple[ResearchSource, KnowledgeProviderDescriptor]:
     adapter = descriptor.access.adapter
+    if adapter == LAGEN_NU_ADAPTER:
+        return _compose_lagen_nu_source(descriptor)
     if adapter != _KNOWLEDGE_RESEARCH_ADAPTER:
         raise ValueError(
             f"standard capability {descriptor.provider_id} uses unsupported adapter {adapter!r}"
@@ -202,8 +211,24 @@ def _compose_standard_source(
     )
 
 
+def _compose_lagen_nu_source(
+    descriptor: KnowledgeProviderDescriptor,
+) -> tuple[ResearchSource, KnowledgeProviderDescriptor]:
+    natures = _ordered_evidence_natures(descriptor)
+    if len(natures) != 1:
+        raise ValueError(
+            f"standard capability {descriptor.provider_id} must declare exactly one evidence nature"
+        )
+    nature = natures[0]
+    if nature not in LAGEN_NU_EVIDENCE_NATURES:
+        raise ValueError(
+            f"standard capability {descriptor.provider_id} declares unimplemented lagen.nu nature {nature!r}"
+        )
+    return LagenNuResearchSource(source_type=nature), descriptor  # type: ignore[arg-type]
+
+
 def build_research_registry(provider: KnowledgeProvider) -> ResearchSourceRegistry:
-    """Knowledge adapters only. domain_knowledge has no global namespace yet."""
+    """Standard production providers: tenant knowledge + official lagen.nu."""
     registry = KnowledgeProviderCapabilityRegistry()
     for descriptor in standard_capability_descriptors():
         source, live_descriptor = _compose_standard_source(provider, descriptor)
