@@ -24,7 +24,7 @@ def canonical_lagen_nu_uri(value: object) -> str | None:
     if not text.startswith(_CANONICAL_PREFIX):
         return None
     path = text[len(_CANONICAL_PREFIX) :]
-    if not path or path.startswith("/") or path.startswith("?"):
+    if not path or path.startswith(("/", "?")):
         return None
     return text
 
