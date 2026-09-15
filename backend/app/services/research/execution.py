@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable, Sequence
+from contextvars import ContextVar
 from dataclasses import dataclass
 
 from sqlalchemy import select
@@ -220,24 +221,48 @@ async def _result_from_attempt(
     )
 
 
+_write_fence: ContextVar[asyncio.Event | None] = ContextVar(
+    "research_write_fence", default=None
+)
+
+
+def _raise_if_write_fenced() -> None:
+    fence = _write_fence.get()
+    if fence is not None and fence.is_set():
+        raise asyncio.CancelledError
+
+
+async def fail_incomplete_research(
+    session: AsyncSession,
+    *,
+    attempt_id: str,
+    evidence_set_id: str | None = None,
+) -> None:
+    """Fail-close created or researching research. No-op for terminal Attempt."""
+    attempt = await get_attempt(session, attempt_id)
+    if attempt.status not in {"created", "researching"}:
+        return
+    target_set_id = evidence_set_id or attempt.evidence_set_id
+    if target_set_id is not None:
+        evidence_set = await get_evidence_set(session, target_set_id)
+        if evidence_set.status == "building":
+            await fail_evidence_set(session, target_set_id)
+    await fail_open_need_executions(session, attempt_id)
+    attempt = await get_attempt(session, attempt_id)
+    if attempt.status in {"created", "researching"}:
+        await fail_attempt(session, attempt_id)
+    await session.commit()
+
+
 async def _fail_claimed_research(
     session: AsyncSession,
     *,
     attempt_id: str,
     evidence_set_id: str | None,
 ) -> None:
-    attempt = await get_attempt(session, attempt_id)
-    if attempt.status in {"ready", "running", "completed"}:
-        return
-    if evidence_set_id is not None:
-        evidence_set = await get_evidence_set(session, evidence_set_id)
-        if evidence_set.status == "building":
-            await fail_evidence_set(session, evidence_set_id)
-    await fail_open_need_executions(session, attempt_id)
-    attempt = await get_attempt(session, attempt_id)
-    if attempt.status == "researching":
-        await fail_attempt(session, attempt_id)
-    await session.commit()
+    await fail_incomplete_research(
+        session, attempt_id=attempt_id, evidence_set_id=evidence_set_id
+    )
 
 
 async def _retrieve_need(
@@ -319,13 +344,16 @@ async def _execute_one_need(
                 question_graph=question_graph,
                 attempt_id=attempt_id,
             )
-    except BaseException:
+    except BaseException as exc:
+        if isinstance(exc, asyncio.CancelledError):
+            raise
         async with persist_lock, factory() as fail_session:
             await fail_need_execution(fail_session, execution_id)
             await fail_session.commit()
         raise
 
     async with persist_lock, factory() as persist_session:
+        _raise_if_write_fenced()
         row = await get_need_execution(persist_session, execution_id)
         if row.status in TERMINAL_NEED_EXECUTION_STATUSES:
             return
@@ -338,6 +366,7 @@ async def _execute_one_need(
         await persist_session.commit()
 
     async with persist_lock, factory() as graph_session:
+        _raise_if_write_fenced()
         await safe_upsert_persisted_evidence(
             graph_session,
             graph=question_graph,
@@ -639,6 +668,7 @@ async def _freeze_ready_attempt(
     attempt_id: str,
     evidence_set_id: str,
 ) -> None:
+    _raise_if_write_fenced()
     attempt = await get_attempt(session, attempt_id)
     if attempt.status == "ready":
         return
@@ -885,6 +915,7 @@ async def _run_research_loop(
                 concurrency=concurrency,
             )
         async with factory() as barrier_session:
+            _raise_if_write_fenced()
             await _assert_need_barrier(
                 barrier_session, attempt_id=attempt_id, evidence_set_id=evidence_set_id
             )
@@ -1265,6 +1296,7 @@ async def execute_attempt_research(
     max_follow_up_waves: int | None = None,
     max_needs: int | None = None,
     max_completeness_passes: int | None = None,
+    lease_lost: asyncio.Event | None = None,
 ) -> AttemptResearchResult:
     """Plan if needed, then run ResearchNeeds in bounded waves and freeze.
 
@@ -1322,6 +1354,7 @@ async def execute_attempt_research(
     need_concurrency = _concurrency_limit(concurrency)
     claimed = resume
     evidence_set_id: str | None = attempt.evidence_set_id
+    fence_token = _write_fence.set(lease_lost)
     try:
         if not resume:
             attempt = await claim_attempt_researching(
@@ -1372,6 +1405,8 @@ async def execute_attempt_research(
         await _refresh_caller_state(session, attempt_id, evidence_set_id)
         return result
     except BaseException as exc:
+        if isinstance(exc, asyncio.CancelledError):
+            raise
         if isinstance(exc, ExecutionStatusError) and not claimed:
             raise
         await session.rollback()
@@ -1387,6 +1422,8 @@ async def execute_attempt_research(
         if isinstance(exc, Exception):
             raise ResearchExecutionError(f"Attempt {attempt_id} research failed") from exc
         raise
+    finally:
+        _write_fence.reset(fence_token)
 
 
 async def _refresh_caller_state(

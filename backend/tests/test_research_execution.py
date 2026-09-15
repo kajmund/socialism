@@ -587,7 +587,7 @@ async def test_frozen_set_rejects_item_mutation(db):
 
 
 @pytest.mark.asyncio
-async def test_cancellation_marks_claimed_attempt_and_set_failed(db):
+async def test_cancellation_leaves_claimed_research_recoverable(db):
     session, _factory = db
     _customer_row, _run, attempt = await _created_attempt(session, slug="cancel-co")
     started = asyncio.Event()
@@ -618,8 +618,8 @@ async def test_cancellation_marks_claimed_attempt_and_set_failed(db):
         await task
     reloaded = await get_attempt(session, attempt.id)
     evidence_set = await get_evidence_set(session, reloaded.evidence_set_id)
-    assert reloaded.status == "failed"
-    assert evidence_set.status == "failed"
+    assert reloaded.status == "researching"
+    assert evidence_set.status == "building"
 
 
 def test_execution_package_import_is_not_circular():

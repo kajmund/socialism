@@ -115,6 +115,7 @@ async def renew_research_lease(
         .where(
             ExecutionResearchClaim.attempt_id == attempt_id,
             ExecutionResearchClaim.lease_token == lease_token,
+            ExecutionResearchClaim.lease_expires_at > now,
         )
         .values(lease_expires_at=now + lease_ttl())
     )
