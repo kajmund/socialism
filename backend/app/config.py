@@ -121,6 +121,12 @@ class Settings(BaseSettings):
     research_knowledge_freshness_max_age_seconds: int | None = Field(
         default=None, ge=1
     )
+    # Background research lease. Expired claims are reclaimable by another worker.
+    research_claim_lease_seconds: int = Field(default=60, ge=5, le=3600)
+    # How often the reclaim loop looks for expired/unclaimed research work.
+    research_worker_poll_seconds: float = Field(default=0.5, ge=0.05, le=60)
+    # Production starts a reclaim loop in lifespan. Tests turn this off.
+    research_worker_loop_enabled: bool = True
     # Max concurrent Word-review LLM calls within one expertgranskning job.
     word_review_max_concurrency: int = Field(default=8, ge=1, le=32)
     # Optional Word router override. Empty inherits the global LLM model.

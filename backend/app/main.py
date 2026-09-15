@@ -37,7 +37,10 @@ from app.services.kund_store import ensure_default_kunder
 from app.services.panel.module_defaults import ensure_module_panel_defaults
 from app.services.prompt_store import ensure_default_configurations
 from app.services.llm_runtime_settings import load_runtime_settings
-from app.services.research.execution import fail_interrupted_research_attempts
+from app.services.research.worker import (
+    start_research_reclaim_loop,
+    stop_research_reclaim_loop,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +70,6 @@ async def lifespan(_app: FastAPI):
     try:
         async with factory() as session:
             await jobs_service.fail_interrupted_jobs(session)
-            await fail_interrupted_research_attempts(session)
     except (OperationalError, ProgrammingError) as exc:
         # Fresh checkout / migration not applied yet — don't block boot.
         logger.warning("Skipping interrupted-job sweep on startup: %s", exc)
@@ -84,7 +86,12 @@ async def lifespan(_app: FastAPI):
             await load_runtime_settings(session)
     except (OperationalError, ProgrammingError) as exc:
         logger.warning("Skipping LLM runtime settings load on startup: %s", exc)
+    reclaim_stop = None
+    if settings.research_worker_loop_enabled:
+        reclaim_stop = start_research_reclaim_loop()
     yield
+    if reclaim_stop is not None:
+        await stop_research_reclaim_loop(reclaim_stop)
 
 
 def create_app() -> FastAPI:
