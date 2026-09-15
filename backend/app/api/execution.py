@@ -94,8 +94,8 @@ from app.services.research.composition import (
     ResearchCompositionError,
     build_standard_research_router,
     require_research_router_ready,
-    resolve_follow_up_planner,
     resolve_completeness_reviewer,
+    resolve_follow_up_planner,
     resolve_research_assessor,
     resolve_research_planner,
 )
@@ -112,6 +112,7 @@ from app.services.research.planner import (
     require_research_objective,
     research_objective_to_snapshot,
 )
+from app.services.research.question_graph_sql import SqlQuestionEvidenceGraph
 
 router = APIRouter(prefix="/execution", tags=["execution"])
 
@@ -729,6 +730,7 @@ async def post_attempt_research(
             assessor=assessor,
             planner=planner,
             completeness_reviewer=completeness_reviewer,
+            question_graph=SqlQuestionEvidenceGraph(),
         )
         attempt = await get_attempt(session, attempt_id)
     except (
