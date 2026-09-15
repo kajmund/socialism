@@ -104,6 +104,8 @@ class Settings(BaseSettings):
     # Max concurrent LLM calls when generating personas in one population batch.
     # 1 = serial (debug); higher values overlap profile/anecdote waves.
     persona_generate_concurrency: int = Field(default=8, ge=1, le=32)
+    # Max concurrent ResearchNeed executions under one Attempt.
+    research_need_concurrency: int = Field(default=8, ge=1, le=32)
     # Max concurrent Word-review LLM calls within one expertgranskning job.
     word_review_max_concurrency: int = Field(default=8, ge=1, le=32)
     # Optional Word router override. Empty inherits the global LLM model.
