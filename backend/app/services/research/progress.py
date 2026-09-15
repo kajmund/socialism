@@ -13,7 +13,7 @@ from contextvars import ContextVar
 from typing import Any, Literal, Self
 from uuid import uuid4
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -207,22 +207,13 @@ async def get_research_progress_event_by_key(
 async def _lock_attempt_event_allocation(
     session: AsyncSession, attempt_id: str
 ) -> None:
-    """Serialize per-Attempt sequence/key allocation across workers.
-
-    Postgres honors FOR UPDATE as a row lock. SQLite ignores it, so a
-    no-op write on the same row takes the write lock before MAX()+1.
-    """
+    """Serialize per-Attempt sequence/key allocation across workers."""
     result = await session.execute(
         select(ExecutionAttempt)
         .where(ExecutionAttempt.id == attempt_id)
         .with_for_update()
     )
-    attempt = result.scalar_one()
-    await session.execute(
-        update(ExecutionAttempt)
-        .where(ExecutionAttempt.id == attempt.id)
-        .values(id=attempt.id)
-    )
+    result.scalar_one()
 
 
 async def _next_sequence(session: AsyncSession, attempt_id: str) -> int:
@@ -263,26 +254,33 @@ async def append_research_progress_event(
     if existing is not None:
         _track(existing)
         return existing
-    row = ResearchProgressEvent(
-        id=uuid4().hex,
-        attempt_id=attempt_id,
-        sequence=await _next_sequence(session, attempt_id),
-        event_type=event_type,
-        payload=sanitize_progress_payload(payload),
-        idempotency_key=key,
-    )
-    try:
-        async with session.begin_nested():
-            session.add(row)
-            await session.flush()
-    except IntegrityError:
-        existing = await get_research_progress_event_by_key(session, attempt_id, key)
-        if existing is None:
-            raise
-        _track(existing)
-        return existing
-    _track(row)
-    return row
+    clean_payload = sanitize_progress_payload(payload)
+    last_error: IntegrityError | None = None
+    for _ in range(3):
+        row = ResearchProgressEvent(
+            id=uuid4().hex,
+            attempt_id=attempt_id,
+            sequence=await _next_sequence(session, attempt_id),
+            event_type=event_type,
+            payload=clean_payload,
+            idempotency_key=key,
+        )
+        try:
+            async with session.begin_nested():
+                session.add(row)
+                await session.flush()
+            _track(row)
+            return row
+        except IntegrityError as exc:
+            last_error = exc
+            existing = await get_research_progress_event_by_key(
+                session, attempt_id, key
+            )
+            if existing is not None:
+                _track(existing)
+                return existing
+    assert last_error is not None
+    raise last_error
 
 
 def schedule_research_progress_delivery(
