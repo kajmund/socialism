@@ -79,6 +79,7 @@ from app.services.research.followup import (
     validate_follow_up_drafts,
 )
 from app.services.research.models import (
+    InvalidResearchPlanError,
     ResearchContext,
     ResearchError,
     ResearchEvidence,
@@ -644,6 +645,11 @@ async def execute_attempt_research(
     bound_assessor = assessor or ProgrammaticResearchAssessor()
     bound_planner = planner or NoOpFollowUpPlanner()
     wave_limit, need_limit = _loop_limits(max_follow_up_waves, max_needs)
+    if len(plan.needs) > need_limit:
+        raise InvalidResearchPlanError(
+            f"ResearchPlan has {len(plan.needs)} needs; "
+            f"research_max_needs_per_attempt={need_limit}"
+        )
     if router_factory is not None:
         router_factory(session)
     run = await get_run(session, attempt.run_id)

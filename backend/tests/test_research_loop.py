@@ -26,6 +26,7 @@ from app.services.research.assessment import (
     ResearchNeedAssessment,
     programmatic_assessment,
 )
+from app.services.research.models import InvalidResearchPlanError, ResearchPlan, research_evidence
 from app.services.research.execution import execute_attempt_research
 from app.services.research.followup import (
     FollowUpNeedDraft,
@@ -34,7 +35,11 @@ from app.services.research.followup import (
     research_question_key,
     validate_follow_up_drafts,
 )
-from app.services.research.models import ResearchPlan, research_evidence
+from app.services.research.models import (
+    InvalidResearchPlanError,
+    ResearchPlan,
+    research_evidence,
+)
 from tests.test_research_assessment import RecordingAssessor, _fixed_draft
 from tests.test_research_execution import (
     GuardRouter,
@@ -60,6 +65,39 @@ async def db():
     await engine.dispose()
 
 
+def _cite_existing_evidence(
+    draft: ResearchAssessmentDraft,
+    evidence: Sequence[AssessableEvidence],
+) -> ResearchAssessmentDraft:
+    """Stamp real EvidenceSet IDs so sanitize does not flip scripted sufficient."""
+    if draft.result != "sufficient":
+        return draft
+    ids = [item.evidence_id for item in evidence]
+    if not ids:
+        return draft
+    return ResearchAssessmentDraft(
+        result=draft.result,
+        rationale=draft.rationale,
+        need_assessments=[
+            ResearchNeedAssessment(
+                research_need_id=row.research_need_id,
+                sufficient=row.sufficient,
+                supporting_evidence_ids=row.supporting_evidence_ids or ids,
+                missing_or_weak=row.missing_or_weak,
+                contradictions=list(row.contradictions),
+                further_information=row.further_information,
+            )
+            for row in draft.need_assessments
+        ],
+        gaps=list(draft.gaps),
+        contradictions=list(draft.contradictions),
+        considered_evidence_ids=list(draft.considered_evidence_ids) or ids,
+        model_provider=draft.model_provider,
+        model_name=draft.model_name,
+        model_version=draft.model_version,
+    )
+
+
 class SequenceAssessor:
     def __init__(self, drafts: list[ResearchAssessmentDraft]) -> None:
         self.drafts = drafts
@@ -71,7 +109,8 @@ class SequenceAssessor:
         evidence: Sequence[AssessableEvidence],
     ) -> ResearchAssessmentDraft:
         self.calls.append((plan, tuple(evidence)))
-        return self.drafts[min(len(self.calls) - 1, len(self.drafts) - 1)]
+        draft = self.drafts[min(len(self.calls) - 1, len(self.drafts) - 1)]
+        return _cite_existing_evidence(draft, evidence)
 
 
 class ScriptedPlanner:
@@ -401,6 +440,31 @@ async def test_max_needs_cap_is_enforced(db):
 
 
 @pytest.mark.asyncio
+async def test_initial_plan_over_need_limit_fails_closed_before_claim(db):
+    session, _factory = db
+    _customer, _run, attempt = await _created_attempt(session, slug="loop-over")
+    with pytest.raises(InvalidResearchPlanError, match="research_max_needs_per_attempt=1"):
+        await execute_attempt_research(
+            session,
+            attempt_id=attempt.id,
+            research_plan=ResearchPlan(
+                needs=[
+                    _need("research_1", "case_knowledge"),
+                    _need("research_2", "case_knowledge", question="Andra frågan?"),
+                ]
+            ),
+            router=GuardRouter(),  # type: ignore[arg-type]
+            max_needs=1,
+        )
+    reloaded = await session.get(ExecutionAttempt, attempt.id)
+    assert reloaded is not None
+    assert reloaded.status == "created"
+    assert reloaded.started_at is None
+    assert reloaded.evidence_set_id is None
+    assert reloaded.research_stop_reason is None
+
+
+@pytest.mark.asyncio
 async def test_duplicate_follow_up_questions_are_not_reexecuted(db):
     session, _factory = db
     _customer, _run, attempt = await _created_attempt(session, slug="loop-dupe")
@@ -661,7 +725,14 @@ async def test_llm_planner_validates_structured_output():
             ]
         )
 
-    planner = LlmFollowUpPlanner(completer=completer, system_prompt="föreslå frågor")
+    planner = LlmFollowUpPlanner(
+        completer=completer,
+        system_prompt="föreslå frågor",
+        user_prompt=(
+            "types {source_types}\n{plan_json}\n{assessment_json}\n"
+            "{previous_needs_json}\n{evidence_json}"
+        ),
+    )
     drafts = await planner.plan_follow_ups(
         plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
         assessment=programmatic_assessment(
@@ -671,9 +742,16 @@ async def test_llm_planner_validates_structured_output():
         evidence=[],
         previous_needs=[],
     )
+    accepted = validate_follow_up_drafts(
+        drafts,
+        previous_needs=[],
+        wave_number=1,
+        assessment_pass=1,
+    )
     assert captured == [FollowUpPlanModel]
     assert drafts[0].question == "Vad är taxa?"
-    assert drafts[0].source_types == ["case_knowledge"]
+    assert drafts[0].source_types == ["case_knowledge", "invented"]
+    assert accepted == []
 
 
 @pytest.mark.asyncio
@@ -681,7 +759,14 @@ async def test_llm_planner_failure_is_explicit():
     async def completer(messages, response_model):
         raise RuntimeError("model down")
 
-    planner = LlmFollowUpPlanner(completer=completer, system_prompt="föreslå frågor")
+    planner = LlmFollowUpPlanner(
+        completer=completer,
+        system_prompt="föreslå frågor",
+        user_prompt=(
+            "types {source_types}\n{plan_json}\n{assessment_json}\n"
+            "{previous_needs_json}\n{evidence_json}"
+        ),
+    )
     with pytest.raises(FollowUpPlannerError):
         await planner.plan_follow_ups(
             plan=ResearchPlan(),

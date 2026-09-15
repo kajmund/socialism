@@ -97,7 +97,17 @@ def test_modules_for_prompt_key_follows_prefix_convention():
         "politik",
         "expertgranskning",
     ]
+    assert modules_for_prompt_key("research.assessment.user") == [
+        "dd",
+        "politik",
+        "expertgranskning",
+    ]
     assert modules_for_prompt_key("research.followup.system") == [
+        "dd",
+        "politik",
+        "expertgranskning",
+    ]
+    assert modules_for_prompt_key("research.followup.user") == [
         "dd",
         "politik",
         "expertgranskning",

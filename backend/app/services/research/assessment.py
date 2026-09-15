@@ -294,10 +294,12 @@ def sanitize_assessment_draft(
         sufficient = row.sufficient
         missing = row.missing_or_weak
         further = row.further_information
-        if sufficient and row.supporting_evidence_ids and not supporting:
+        if sufficient and not supporting:
             sufficient = False
             missing = missing or (
-                "Supporting evidence IDs were not in the supplied EvidenceSet."
+                "Sufficient assessments must cite persisted EvidenceSet IDs."
+                if not row.supporting_evidence_ids
+                else "Supporting evidence IDs were not in the supplied EvidenceSet."
             )
             if not further:
                 further = need.question
