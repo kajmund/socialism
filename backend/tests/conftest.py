@@ -31,6 +31,7 @@ from app.llm.vision import set_vision_completer
 from app.main import create_app
 from app.schemas.domain import FollowUpQuestions
 from app.services import jobs as jobs_service
+from app.services import research_worker
 from app.services.panel.competency import ExpertCompetency
 from app.services.panel.research import empty_research_structured
 from app.services.panel.synthesis import GenericPanelSynthesis
@@ -190,6 +191,9 @@ async def client():
     jobs_service.set_schedule_hook(None)
     jobs_service.reset_simulation_job_semaphore()
     settings.max_concurrent_simulation_jobs = 2
+    settings.research_worker_loop_enabled = False
+    research_worker.set_research_session_factory(session_factory)
+    research_worker.set_research_schedule_hook(None)
 
     app = create_app()
 
@@ -208,6 +212,8 @@ async def client():
     ) as ac:
         yield ac
 
+    await research_worker.wait_research_workers()
+    research_worker.reset_research_worker()
     jobs_service.set_job_session_factory(None)
     jobs_service.set_schedule_hook(None)
     await engine.dispose()

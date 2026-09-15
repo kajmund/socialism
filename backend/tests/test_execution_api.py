@@ -37,6 +37,7 @@ from app.services.research.followup import NoOpFollowUpPlanner
 from app.services.research.models import ResearchContext, ResearchNeed, research_evidence
 from app.services.research.registry import ResearchSourceRegistry
 from app.services.research.router import ResearchRouter
+from app.services.research_worker import wait_research_workers
 from tests.conftest import TEST_CUSTOMER_ID
 
 PANEL_CONFIG = {
@@ -47,6 +48,26 @@ PANEL_CONFIG = {
         {"slot_id": "legal", "label": "Jurist", "profile": "Skatt"},
     ],
 }
+
+async def _research_out(
+    client: AsyncClient,
+    attempt_id: str,
+    body: dict | None = None,
+) -> dict:
+    payload = {"research_plan": RESEARCH_PLAN} if body is None else body
+    started = await client.post(
+        f"/execution/attempts/{attempt_id}/research",
+        json=payload,
+    )
+    assert started.status_code == 202, started.text
+    await wait_research_workers()
+    finished = await client.post(
+        f"/execution/attempts/{attempt_id}/research",
+        json=payload,
+    )
+    assert finished.status_code == 200, finished.text
+    return finished.json()
+
 
 RESEARCH_PLAN = {
     "needs": [
@@ -261,12 +282,7 @@ async def test_research_then_evidence_is_frozen_and_ordered(
     run = await _create_run(client)
     attempt = await _create_attempt(client, run["id"])
 
-    researched = await client.post(
-        f"/execution/attempts/{attempt['id']}/research",
-        json={"research_plan": RESEARCH_PLAN},
-    )
-    assert researched.status_code == 200, researched.text
-    body = researched.json()
+    body = await _research_out(client, attempt["id"])
     assert body["status"] == "ready"
     assert body["found_count"] == 1
     assert body["not_found_count"] == 1
@@ -294,7 +310,7 @@ async def test_research_then_evidence_is_frozen_and_ordered(
         "research_1",
         "research_2",
     }
-    assert researched.json()["assessment"]["id"] == assessment["id"]
+    assert body["assessment"]["id"] == assessment["id"]
     assert body["stop_reason"] == "no_novel_followups"
     assert body["completeness_passes"] == []
     assert body["completeness"] is None
@@ -343,17 +359,16 @@ async def test_research_read_model_exposes_global_completeness(
     found, _missing, _router = research_sources
     run = await _create_run(client)
     attempt = await _create_attempt(client, run["id"])
-    researched = await client.post(
-        f"/execution/attempts/{attempt['id']}/research",
-        json={
+    body = await _research_out(
+        client,
+        attempt["id"],
+        {
             "research_objective": "Kartlägg skattesatsen i kommunen",
             "research_plan": {
                 "needs": [RESEARCH_PLAN["needs"][0]],
             },
         },
     )
-    assert researched.status_code == 200, researched.text
-    body = researched.json()
     assert body["status"] == "ready"
     assert body["stop_reason"] == "sufficient"
     assert found.calls == 1
@@ -410,11 +425,7 @@ async def test_research_from_objective_persists_generated_plan(
         assert attempt.json()["research_objective_snapshot"]["objective"] == (
             "Vad är kommunens skattesats?"
         )
-        researched = await client.post(
-            f"/execution/attempts/{attempt.json()['id']}/research",
-            json={},
-        )
-        assert researched.status_code == 200, researched.text
+        await _research_out(client, attempt.json()["id"], {})
         detail = await client.get(f"/execution/attempts/{attempt.json()['id']}")
         body = detail.json()
         assert body["status"] == "ready"
@@ -434,12 +445,8 @@ async def test_ready_execute_returns_persisted_panel_result(
     client, factory = client_db
     run = await _create_run(client)
     attempt = await _create_attempt(client, run["id"])
-    researched = await client.post(
-        f"/execution/attempts/{attempt['id']}/research",
-        json={"research_plan": RESEARCH_PLAN},
-    )
-    assert researched.json()["status"] == "ready"
-    evidence_set_id = researched.json()["evidence_set_id"]
+    researched = await _research_out(client, attempt["id"])
+    evidence_set_id = researched["evidence_set_id"]
 
     executed = await client.post(f"/execution/attempts/{attempt['id']}/execute")
     assert executed.status_code == 200, executed.text
@@ -483,10 +490,7 @@ async def test_second_execute_is_idempotent(client_db, research_sources, panel_l
     client, factory = client_db
     run = await _create_run(client)
     attempt = await _create_attempt(client, run["id"])
-    await client.post(
-        f"/execution/attempts/{attempt['id']}/research",
-        json={"research_plan": RESEARCH_PLAN},
-    )
+    await _research_out(client, attempt["id"])
     first = await client.post(f"/execution/attempts/{attempt['id']}/execute")
     assert first.status_code == 200
     first_id = first.json()["result"]["id"]
@@ -514,10 +518,7 @@ async def test_completed_execute_skips_prompts_when_dependency_is_gone(
 ):
     run = await _create_run(client)
     attempt = await _create_attempt(client, run["id"])
-    await client.post(
-        f"/execution/attempts/{attempt['id']}/research",
-        json={"research_plan": RESEARCH_PLAN},
-    )
+    await _research_out(client, attempt["id"])
     first = await client.post(f"/execution/attempts/{attempt['id']}/execute")
     assert first.status_code == 200
     first_body = first.json()
@@ -543,12 +544,8 @@ async def test_second_research_is_idempotent(client: AsyncClient, research_sourc
     found, missing, _router = research_sources
     run = await _create_run(client)
     attempt = await _create_attempt(client, run["id"])
-    first = await client.post(
-        f"/execution/attempts/{attempt['id']}/research",
-        json={"research_plan": RESEARCH_PLAN},
-    )
-    assert first.status_code == 200
-    evidence_id = first.json()["evidence_set_id"]
+    first = await _research_out(client, attempt["id"])
+    evidence_id = first["evidence_set_id"]
     calls = found.calls + missing.calls
 
     second = await client.post(
@@ -567,12 +564,7 @@ async def test_ready_research_skips_router_when_dependency_is_gone(
 ):
     run = await _create_run(client)
     attempt = await _create_attempt(client, run["id"])
-    first = await client.post(
-        f"/execution/attempts/{attempt['id']}/research",
-        json={"research_plan": RESEARCH_PLAN},
-    )
-    assert first.status_code == 200
-    first_body = first.json()
+    first_body = await _research_out(client, attempt["id"])
 
     def _boom(_session):
         raise AssertionError("ResearchRouter must not be built for a ready Attempt")
@@ -596,11 +588,7 @@ async def test_ready_research_fast_path_still_enforces_scope(
     client.headers["Authorization"] = f"Bearer {admin_token}"
     run = await _create_run(client)
     attempt = await _create_attempt(client, run["id"])
-    first = await client.post(
-        f"/execution/attempts/{attempt['id']}/research",
-        json={"research_plan": RESEARCH_PLAN},
-    )
-    assert first.status_code == 200
+    await _research_out(client, attempt["id"])
     client.headers["Authorization"] = f"Bearer {bolag_token}"
     forbidden = await client.post(
         f"/execution/attempts/{attempt['id']}/research",
@@ -656,9 +644,10 @@ async def test_source_error_still_ready_and_visible(client: AsyncClient):
     try:
         run = await _create_run(client)
         attempt = await _create_attempt(client, run["id"])
-        researched = await client.post(
-            f"/execution/attempts/{attempt['id']}/research",
-            json={
+        researched = await _research_out(
+            client,
+            attempt["id"],
+            {
                 "research_plan": {
                     "needs": [
                         {
@@ -672,9 +661,8 @@ async def test_source_error_still_ready_and_visible(client: AsyncClient):
                 }
             },
         )
-        assert researched.status_code == 200
-        assert researched.json()["status"] == "ready"
-        assert researched.json()["error_count"] == 1
+        assert researched["status"] == "ready"
+        assert researched["error_count"] == 1
         evidence = await client.get(f"/execution/attempts/{attempt['id']}/evidence")
         assert evidence.json()["items"][0]["status"] == "error"
     finally:
@@ -686,11 +674,7 @@ async def test_unsupported_attempt_type_rejected(client_db, research_sources):
     client, _factory = client_db
     run = await _create_run(client)
     attempt = await _create_attempt(client, run["id"], attempt_type="word_review")
-    researched = await client.post(
-        f"/execution/attempts/{attempt['id']}/research",
-        json={"research_plan": RESEARCH_PLAN},
-    )
-    assert researched.status_code == 200
+    await _research_out(client, attempt["id"])
     response = await client.post(f"/execution/attempts/{attempt['id']}/execute")
     assert response.status_code == 422
     assert "word_review" in response.json()["detail"]
@@ -838,10 +822,7 @@ async def test_execute_does_not_run_research_router(
     found, missing, _router = research_sources
     run = await _create_run(client)
     attempt = await _create_attempt(client, run["id"])
-    await client.post(
-        f"/execution/attempts/{attempt['id']}/research",
-        json={"research_plan": RESEARCH_PLAN},
-    )
+    await _research_out(client, attempt["id"])
     calls_after_research = found.calls + missing.calls
     executed = await client.post(f"/execution/attempts/{attempt['id']}/execute")
     assert executed.status_code == 200
@@ -849,7 +830,7 @@ async def test_execute_does_not_run_research_router(
 
 
 @pytest.mark.asyncio
-async def test_research_in_progress_is_conflict(client_db, research_sources):
+async def test_research_in_progress_is_accepted(client_db, research_sources):
     client, factory = client_db
     run = await _create_run(client)
     attempt = await _create_attempt(client, run["id"])
@@ -861,7 +842,8 @@ async def test_research_in_progress_is_conflict(client_db, research_sources):
         f"/execution/attempts/{attempt['id']}/research",
         json={"research_plan": RESEARCH_PLAN},
     )
-    assert response.status_code == 409
+    assert response.status_code == 202
+    await wait_research_workers()
 
 
 @pytest.mark.asyncio
@@ -869,10 +851,7 @@ async def test_execute_in_progress_is_conflict(client_db, research_sources):
     client, factory = client_db
     run = await _create_run(client)
     attempt = await _create_attempt(client, run["id"])
-    await client.post(
-        f"/execution/attempts/{attempt['id']}/research",
-        json={"research_plan": RESEARCH_PLAN},
-    )
+    await _research_out(client, attempt["id"])
     async with factory() as session:
         row = await get_attempt(session, attempt["id"])
         row.status = "running"
@@ -883,12 +862,8 @@ async def test_execute_in_progress_is_conflict(client_db, research_sources):
 
 async def _research_ready(client: AsyncClient, run_id: str) -> tuple[dict, dict]:
     attempt = await _create_attempt(client, run_id)
-    researched = await client.post(
-        f"/execution/attempts/{attempt['id']}/research",
-        json={"research_plan": RESEARCH_PLAN},
-    )
-    assert researched.status_code == 200, researched.text
-    return attempt, researched.json()
+    researched = await _research_out(client, attempt["id"])
+    return attempt, researched
 
 
 @pytest.mark.asyncio

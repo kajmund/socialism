@@ -1453,6 +1453,40 @@ class ExecutionAttempt(Base):
     research_completeness_passes: Mapped[list["ResearchCompletenessPass"]] = relationship(
         back_populates="attempt",
     )
+    research_claim: Mapped["ExecutionResearchClaim | None"] = relationship(
+        back_populates="attempt",
+        uselist=False,
+    )
+
+
+class ExecutionResearchClaim(Base):
+    """Lease for one Attempt's background research. Not a business status."""
+
+    __tablename__ = "execution_research_claims"
+
+    attempt_id: Mapped[str] = mapped_column(
+        ForeignKey("execution_attempts.id", ondelete="RESTRICT"),
+        primary_key=True,
+    )
+    worker_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    lease_token: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        index=True,
+    )
+    claimed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    start_request: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    attempt: Mapped[ExecutionAttempt] = relationship(back_populates="research_claim")
 
 
 class ResearchNeedExecution(Base):
