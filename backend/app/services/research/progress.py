@@ -7,6 +7,7 @@ Live fan-out is best-effort and must not roll back research.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from contextvars import ContextVar
 from typing import Any, Literal, Self
@@ -23,6 +24,7 @@ from app.database.models import (
     ResearchProgressEvent,
     ResearchRuntimeNeed,
 )
+from app.realtime.research_progress_broadcast import research_progress_broadcast
 from app.services.research.models import ResearchNeed, ResearchPlan
 from app.services.research.planner import ResearchObjective
 
@@ -121,7 +123,7 @@ class ProgressTracker:
     async def publish_committed(self) -> None:
         pending = list(self.events)
         self.events.clear()
-        await deliver_research_progress_events(pending)
+        schedule_research_progress_delivery(pending)
 
 
 def preview_text(value: str | None, *, limit: int = PREVIEW_LIMIT) -> str:
@@ -251,24 +253,46 @@ async def append_research_progress_event(
     return row
 
 
+def schedule_research_progress_delivery(
+    events: list[ResearchProgressEvent],
+) -> None:
+    """Queue live fan-out after commit. Never blocks or fails research."""
+    if not events:
+        return
+    payloads = [
+        (event.attempt_id, progress_event_to_dict(event)) for event in events
+    ]
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        logger.exception(
+            "Research progress live delivery skipped: no running event loop"
+        )
+        return
+    loop.create_task(
+        _deliver_research_progress_payloads(payloads),
+        name="research-progress-fanout",
+    )
+
+
 async def deliver_research_progress_events(
     events: list[ResearchProgressEvent],
 ) -> None:
     """Best-effort live fan-out. Persistence already committed; never raise."""
-    if not events:
-        return
-    from app.realtime.research_progress_broadcast import research_progress_broadcast
+    schedule_research_progress_delivery(events)
 
-    for event in events:
+
+async def _deliver_research_progress_payloads(
+    payloads: list[tuple[str, dict[str, Any]]],
+) -> None:
+    for attempt_id, event in payloads:
         try:
-            await research_progress_broadcast.publish(
-                event.attempt_id, progress_event_to_dict(event)
-            )
+            await research_progress_broadcast.publish(attempt_id, event)
         except Exception:
             logger.exception(
                 "Research progress live delivery failed attempt=%s sequence=%s",
-                event.attempt_id,
-                event.sequence,
+                attempt_id,
+                event.get("sequence"),
             )
 
 

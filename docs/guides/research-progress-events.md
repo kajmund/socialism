@@ -9,17 +9,19 @@ durable state transition
 ResearchProgressEvent  (sequence, type, small payload)
         │  after commit only
         ▼
-in-process WebSocket fan-out   ← best-effort, at-least-once
-        │
+schedule in-process WebSocket fan-out   ← best-effort, at-least-once
+        │  never blocks or fails research
         ▼
 GET /execution/attempts/{id}/progress-events?after_sequence=N
 ```
 
-Live delivery is not the source of truth. A client that misses a socket frame (or if publish fails) catches up from the read API. Clients dedupe by event id / sequence. There is no exactly-once bus.
+Live delivery is not the source of truth. A hung or failed socket cannot roll back research; catch-up is the reconnect path. Clients dedupe by event id / sequence. There is no exactly-once bus.
+
+`/ws/research` authenticates, then **subscribes before the persisted replay snapshot**, so a transition committed in that window is delivered live (and may also appear in replay). Clients treat that as at-least-once.
 
 ## Why this transport
 
-`main` already has in-process WebSocket hubs (`EventHub` for jobs/reports, room registries for run/panel/Word watch). Research uses the same seam: an attempt-scoped registry + `/ws/research`. No new SSE stack. A background worker can emit without an HTTP request context because append + publish take a session / in-process hub only.
+`main` already has in-process WebSocket hubs (`EventHub` for jobs/reports, room registries for run/panel/Word watch). Research uses the same seam: an attempt-scoped registry + `/ws/research`. No new SSE stack. A background worker can emit without an HTTP request context because append + scheduled publish take a session / in-process hub only.
 
 ## Payload rules
 

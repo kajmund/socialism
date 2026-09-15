@@ -11,6 +11,8 @@ from starlette.websockets import WebSocketDisconnect, WebSocketState
 
 logger = logging.getLogger(__name__)
 
+_SEND_TIMEOUT_SECONDS = 2.0
+
 
 class ResearchProgressBroadcastRegistry:
     """Broadcast research progress to sockets subscribed by attempt_id."""
@@ -40,7 +42,12 @@ class ResearchProgressBroadcastRegistry:
                 dead.append(ws)
                 continue
             try:
-                await ws.send_json(event)
+                await asyncio.wait_for(
+                    ws.send_json(event), timeout=_SEND_TIMEOUT_SECONDS
+                )
+            except TimeoutError:
+                logger.debug("Dropping research-progress WS client after send timeout")
+                dead.append(ws)
             except (WebSocketDisconnect, RuntimeError) as exc:
                 logger.debug(
                     "Dropping research-progress WS client after send error: %s", exc

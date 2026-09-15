@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
@@ -60,6 +62,19 @@ async def db():
 
 def _types(events: list[ResearchProgressEvent]) -> list[str]:
     return [row.event_type for row in events]
+
+
+async def _cancel_research_progress_fanout() -> None:
+    current = asyncio.current_task()
+    pending = [
+        task
+        for task in asyncio.all_tasks()
+        if task is not current and task.get_name() == "research-progress-fanout"
+    ]
+    for task in pending:
+        task.cancel()
+    if pending:
+        await asyncio.gather(*pending, return_exceptions=True)
 
 
 def _payloads_are_small(events: list[ResearchProgressEvent]) -> None:
@@ -302,6 +317,42 @@ async def test_live_delivery_failure_does_not_roll_back_research(db, monkeypatch
     assert _types(events)[-1] == "research_frozen_ready"
     missed = await list_research_progress_events(session, attempt.id, after_sequence=2)
     assert missed[0].sequence == 3
+    await _cancel_research_progress_fanout()
+
+
+@pytest.mark.asyncio
+async def test_hanging_live_delivery_does_not_block_research(db, monkeypatch):
+    session, _factory = db
+    _customer, _run, attempt = await _created_attempt(session, slug="prog-hang")
+    release = asyncio.Event()
+
+    async def hang(_attempt_id: str, _event: dict) -> None:
+        await release.wait()
+
+    monkeypatch.setattr(
+        "app.realtime.research_progress_broadcast.research_progress_broadcast.publish",
+        hang,
+    )
+    try:
+        result = await asyncio.wait_for(
+            execute_attempt_research(
+                session,
+                attempt_id=attempt.id,
+                research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
+                router=_router(RecordingSource("case_knowledge"))[0],
+            ),
+            timeout=5,
+        )
+        events = await list_research_progress_events(session, attempt.id)
+        assert result.status == "ready"
+        assert _types(events)[-1] == "research_frozen_ready"
+        missed = await list_research_progress_events(
+            session, attempt.id, after_sequence=2
+        )
+        assert missed[0].sequence == 3
+    finally:
+        await _cancel_research_progress_fanout()
+        release.set()
 
 
 @pytest.mark.asyncio
