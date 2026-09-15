@@ -49,6 +49,8 @@ cp .env.example .env
 | `BOLAGSAPI_CACHE_DIR` | no | `data/bolagsapi_cache` | Disk cache for MCP tool results. Entries expire after 10 months |
 | `LAGEN_NU_OFFICIAL_MCP_URL` | no | `https://lagen.nu/mcp` | Official lagen.nu MCP for the generic research provider. Empty is a hard error (no mock) |
 | `LAGEN_NU_OFFICIAL_MCP_TIMEOUT_SECONDS` | no | `20` | Timeout for official lagen.nu MCP calls |
+| `RESEARCH_KNOWLEDGE_LOOKUP_LIMIT` | no | `10` | Max Question→Evidence graph hits per need (1–32) |
+| `RESEARCH_KNOWLEDGE_FRESHNESS_MAX_AGE_SECONDS` | no | unset | Age after which reused graph evidence is stale. Unset = freshness unknown; providers still run |
 | `SUPABASE_URL` | **yes** | — | Supabase project URL (Auth + Admin invite) |
 | `SUPABASE_JWT_SECRET` | **yes** | — | HS256 JWT secret for verifying access tokens |
 | `SUPABASE_SERVICE_ROLE_KEY` | **yes** | — | Backend-only; Admin invite API (never ship to the SPA) |

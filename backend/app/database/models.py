@@ -1756,6 +1756,103 @@ class ResearchCompletenessPass(Base):
     )
 
 
+class KnowledgeQuestionRow(Base):
+    """Persistent canonical question. Not a runtime ResearchNeed."""
+
+    __tablename__ = "knowledge_questions"
+    __table_args__ = (
+        UniqueConstraint(
+            "namespace",
+            "identity_key",
+            name="uq_knowledge_questions_namespace_identity",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    identity_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    normalized_text: Mapped[str] = mapped_column(Text, nullable=False)
+    display_text: Mapped[str] = mapped_column(Text, nullable=False)
+    namespace: Mapped[str] = mapped_column(String(64), nullable=False)
+    visibility: Mapped[str] = mapped_column(String(16), nullable=False)
+    customer_id: Mapped[int | None] = mapped_column(
+        ForeignKey("kunder.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
+    embedding_model: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    embedding_version: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    embedding_dimension: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    answers: Mapped[list["KnowledgeQuestionEvidenceLink"]] = relationship(
+        back_populates="question",
+        cascade="all, delete-orphan",
+    )
+
+
+class KnowledgeQuestionEvidenceLink(Base):
+    """ANSWERED_BY / BESVARAS_AV reference. Not a document copy."""
+
+    __tablename__ = "knowledge_question_evidence_links"
+    __table_args__ = (
+        UniqueConstraint(
+            "question_id",
+            "evidence_ref",
+            name="uq_knowledge_question_evidence_ref",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    question_id: Mapped[str] = mapped_column(
+        ForeignKey("knowledge_questions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    evidence_ref: Mapped[str] = mapped_column(String(64), nullable=False)
+    relation: Mapped[str] = mapped_column(String(32), nullable=False, default="ANSWERED_BY")
+    title: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    excerpt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    locator: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    source_id: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    source_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    source_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    provider: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    provenance: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    retrieved_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    observed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    freshness: Mapped[str] = mapped_column(String(16), nullable=False, default="unknown")
+    version: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    visibility: Mapped[str] = mapped_column(String(16), nullable=False, default="tenant")
+    source_attempt_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    question: Mapped[KnowledgeQuestionRow] = relationship(back_populates="answers")
+
+
 class LlmRuntimeSettings(Base):
     """Singleton row for admin-selected chat LLM profile + sampling params."""
 

@@ -48,13 +48,13 @@ from app.services.execution.service import (
     get_evidence_set,
     get_need_execution,
     get_research_assessment,
-    list_research_assessments,
     get_research_completeness,
     get_research_completeness_by_fingerprint,
     get_run,
     list_evidence_items,
     list_evidence_quality,
     list_need_executions,
+    list_research_assessments,
     list_research_completeness_passes,
     list_runtime_needs,
     mark_ready,
@@ -89,6 +89,7 @@ from app.services.research.completeness import (
     question_fingerprint,
     sanitize_completeness_draft,
 )
+from app.services.research.composition import standard_available_source_types
 from app.services.research.followup import (
     FollowUpPlannerError,
     FollowUpResearchPlanner,
@@ -122,7 +123,6 @@ from app.services.research.planner import (
     research_objective_from_snapshot,
     research_objective_to_snapshot,
 )
-from app.services.research.composition import standard_available_source_types
 from app.services.research.provider import KnowledgeProviderDescriptor
 from app.services.research.quality import (
     EVIDENCE_QUALITY_POLICY_VERSION,
@@ -132,6 +132,16 @@ from app.services.research.quality import (
     QualityFlag,
     assess_evidence_quality,
     quality_model_identity_key,
+)
+from app.services.research.question_graph import (
+    DisabledQuestionEvidenceGraph,
+    QuestionEvidenceGraph,
+)
+from app.services.research.question_reuse import (
+    annotate_fresh_retrieval,
+    safe_lookup_reusable_evidence,
+    safe_upsert_persisted_evidence,
+    should_skip_providers,
 )
 from app.services.research.registry import standard_capability_descriptors
 from app.services.research.router import ResearchRouter
@@ -262,6 +272,37 @@ async def _retrieve_need(
     return await router.execute_need(need, context)
 
 
+async def _candidates_then_providers(
+    *,
+    factory: async_sessionmaker[AsyncSession],
+    need: ResearchNeed,
+    context: ResearchContext,
+    router: ResearchRouter | None,
+    router_factory: ResearchRouterFactory | None,
+    question_graph: QuestionEvidenceGraph,
+    attempt_id: str,
+) -> list[ResearchEvidence]:
+    """Graph candidates re-enter EvidenceSet. Sufficiency may skip providers."""
+    async with factory() as graph_session:
+        reused = await safe_lookup_reusable_evidence(
+            graph_session,
+            graph=question_graph,
+            need=need,
+            context=context,
+            exclude_attempt_id=attempt_id,
+        )
+    if reused and should_skip_providers(need, reused):
+        return list(reused)
+    provider = await _retrieve_need(
+        factory=factory,
+        need=need,
+        context=context,
+        router=router,
+        router_factory=router_factory,
+    )
+    return annotate_fresh_retrieval(provider)
+
+
 async def _execute_one_need(
     *,
     factory: async_sessionmaker[AsyncSession],
@@ -273,6 +314,8 @@ async def _execute_one_need(
     evidence_set_id: str,
     router: ResearchRouter | None,
     router_factory: ResearchRouterFactory | None,
+    question_graph: QuestionEvidenceGraph,
+    attempt_id: str,
 ) -> None:
     async with persist_lock, factory() as claim_session:
         row = await claim_need_execution_running(claim_session, execution_id)
@@ -282,12 +325,14 @@ async def _execute_one_need(
 
     try:
         async with retrieve_slots:
-            evidence = await _retrieve_need(
+            evidence = await _candidates_then_providers(
                 factory=factory,
                 need=need,
                 context=context,
                 router=router,
                 router_factory=router_factory,
+                question_graph=question_graph,
+                attempt_id=attempt_id,
             )
     except BaseException:
         async with persist_lock, factory() as fail_session:
@@ -307,6 +352,17 @@ async def _execute_one_need(
         await complete_need_execution(persist_session, execution_id)
         await persist_session.commit()
 
+    async with persist_lock, factory() as graph_session:
+        await safe_upsert_persisted_evidence(
+            graph_session,
+            graph=question_graph,
+            need=need,
+            context=context,
+            evidence=evidence,
+            source_attempt_id=attempt_id,
+        )
+        await graph_session.commit()
+
 
 async def _run_need_executions(
     *,
@@ -317,6 +373,8 @@ async def _run_need_executions(
     context: ResearchContext,
     router: ResearchRouter | None,
     router_factory: ResearchRouterFactory | None,
+    question_graph: QuestionEvidenceGraph,
+    attempt_id: str,
     concurrency: int,
 ) -> None:
     if not pending:
@@ -337,6 +395,8 @@ async def _run_need_executions(
             evidence_set_id=evidence_set_id,
             router=router,
             router_factory=router_factory,
+            question_graph=question_graph,
+            attempt_id=attempt_id,
         )
 
     await asyncio.gather(
@@ -808,6 +868,7 @@ async def _run_research_loop(
     context: ResearchContext,
     router: ResearchRouter | None,
     router_factory: ResearchRouterFactory | None,
+    question_graph: QuestionEvidenceGraph,
     assessor: ResearchAssessor,
     planner: FollowUpResearchPlanner,
     completeness_reviewer: ResearchCompletenessReviewer,
@@ -834,6 +895,8 @@ async def _run_research_loop(
                 context=context,
                 router=router,
                 router_factory=router_factory,
+                question_graph=question_graph,
+                attempt_id=attempt_id,
                 concurrency=concurrency,
             )
         async with factory() as barrier_session:
@@ -1152,6 +1215,7 @@ async def execute_attempt_research(
     completeness_reviewer: ResearchCompletenessReviewer | None = None,
     relevance_assessor: EvidenceRelevanceAssessor | None = None,
     provider_descriptors: Sequence[KnowledgeProviderDescriptor] | None = None,
+    question_graph: QuestionEvidenceGraph | None = None,
     session_factory: async_sessionmaker[AsyncSession] | None = None,
     concurrency: int | None = None,
     max_follow_up_waves: int | None = None,
@@ -1189,6 +1253,7 @@ async def execute_attempt_research(
     bound_completeness = (
         completeness_reviewer or ProgrammaticResearchCompletenessReviewer()
     )
+    bound_graph = question_graph or DisabledQuestionEvidenceGraph()
     wave_limit, need_limit, completeness_limit = _loop_limits(
         max_follow_up_waves, max_needs, max_completeness_passes
     )
@@ -1248,6 +1313,7 @@ async def execute_attempt_research(
             context=context,
             router=router,
             router_factory=router_factory,
+            question_graph=bound_graph,
             assessor=bound_assessor,
             planner=bound_planner,
             completeness_reviewer=bound_completeness,

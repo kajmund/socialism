@@ -69,6 +69,27 @@ FOLLOWUP_PY = (
 PLANNER_PY = (
     Path(__file__).resolve().parents[1] / "app" / "services" / "research" / "planner.py"
 )
+QUESTION_PY = (
+    Path(__file__).resolve().parents[1]
+    / "app"
+    / "services"
+    / "research"
+    / "knowledge_question.py"
+)
+GRAPH_PY = (
+    Path(__file__).resolve().parents[1]
+    / "app"
+    / "services"
+    / "research"
+    / "question_graph.py"
+)
+REUSE_PY = (
+    Path(__file__).resolve().parents[1]
+    / "app"
+    / "services"
+    / "research"
+    / "question_reuse.py"
+)
 
 _FORBIDDEN_IMPORT_PREFIXES = (
     "app.services.panel",
@@ -631,7 +652,16 @@ def test_research_package_init_does_not_eagerly_import_orchestration():
 
 
 def test_execute_attempt_research_has_no_panel_or_ui_imports():
-    for path in (EXECUTION_PY, PLAN_PY, ASSESSMENT_PY, FOLLOWUP_PY, PLANNER_PY):
+    for path in (
+        EXECUTION_PY,
+        PLAN_PY,
+        ASSESSMENT_PY,
+        FOLLOWUP_PY,
+        PLANNER_PY,
+        QUESTION_PY,
+        GRAPH_PY,
+        REUSE_PY,
+    ):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for node in ast.walk(tree):
             names: list[str] = []
@@ -1046,7 +1076,7 @@ async def test_duplicate_evidence_from_one_need_is_stored_once(db):
 async def test_interrupted_research_attempts_fail_on_startup_sweep(db):
     session, _factory = db
     _customer_row, _run, attempt = await _created_attempt(session, slug="sweep-co")
-    router, _ = _router(RecordingSource("case_knowledge"))
+    _router_unused, _ = _router(RecordingSource("case_knowledge"))
     plan = ResearchPlan(needs=[_need("research_1", "case_knowledge")])
     await claim_attempt_researching(
         session, attempt.id, research_plan_snapshot=research_plan_to_snapshot(plan)
