@@ -52,7 +52,9 @@ from app.services.research import (
     research_evidence,
     research_plan_from_snapshot,
 )
+from app.services.research.execution import fail_interrupted_research_attempts
 from app.services.research.models import research_evidence as build_evidence
+from app.services.research.plan import research_plan_to_snapshot
 
 EXECUTION_PY = (
     Path(__file__).resolve().parents[1] / "app" / "services" / "research" / "execution.py"
@@ -1029,6 +1031,62 @@ async def test_duplicate_evidence_from_one_need_is_stored_once(db):
     items = await list_evidence_items(session, result.evidence_set_id)
     assert result.status == "ready"
     assert len(items) == 1
+
+
+@pytest.mark.asyncio
+async def test_interrupted_research_attempts_fail_on_startup_sweep(db):
+    session, _factory = db
+    _customer_row, _run, attempt = await _created_attempt(session, slug="sweep-co")
+    router, _ = _router(RecordingSource("case_knowledge"))
+    plan = ResearchPlan(needs=[_need("research_1", "case_knowledge")])
+    await claim_attempt_researching(
+        session, attempt.id, research_plan_snapshot=research_plan_to_snapshot(plan)
+    )
+    evidence_set = await create_evidence_set(
+        session, run_id=_run.id, created_from_attempt_id=attempt.id
+    )
+    await attach_evidence_set(
+        session, attempt_id=attempt.id, evidence_set_id=evidence_set.id
+    )
+    await seed_need_executions(session, attempt_id=attempt.id, need_ids=["research_1"])
+    await session.commit()
+
+    swept = await fail_interrupted_research_attempts(session)
+    assert swept == 1
+    reloaded = await get_attempt(session, attempt.id)
+    evidence_set = await get_evidence_set(session, evidence_set.id)
+    executions = await list_need_executions(session, attempt.id)
+    assert reloaded.status == "failed"
+    assert evidence_set.status == "failed"
+    assert {row.status for row in executions} == {"failed"}
+
+
+@pytest.mark.asyncio
+async def test_interrupted_sweep_allows_retry_on_new_attempt(db):
+    session, _factory = db
+    _customer_row, run, attempt = await _created_attempt(session, slug="retry-co")
+    await claim_attempt_researching(
+        session, attempt.id, research_plan_snapshot={"needs": []}
+    )
+    await session.commit()
+    assert await fail_interrupted_research_attempts(session) == 1
+
+    retry = await create_attempt(
+        session,
+        run_id=run.id,
+        attempt_type="generic_panel",
+        configuration_snapshot={"model": "config-a"},
+        input_snapshot={"question": "retry"},
+    )
+    router, sources = _router(RecordingSource("case_knowledge"))
+    result = await execute_attempt_research(
+        session,
+        attempt_id=retry.id,
+        research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
+        router=router,
+    )
+    assert result.status == "ready"
+    assert sources[0].calls == 1
 
 
 @pytest.mark.asyncio

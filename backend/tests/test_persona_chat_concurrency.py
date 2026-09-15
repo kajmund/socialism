@@ -135,8 +135,8 @@ async def test_concurrent_library_chat_turns_are_serialized(chat_sessions):
 
 
 @pytest.mark.asyncio
-async def test_user_message_persisted_before_assistant_stream(chat_sessions):
-    """User row survives if streaming stops before assistant commit."""
+async def test_library_chat_turn_discards_user_on_stream_cancellation(chat_sessions):
+    """Cancelled streaming must not leave an orphan user row."""
 
     async def _partial_stream(_messages: list[dict[str, str]]) -> AsyncIterator[str]:
         yield "partial"
@@ -158,10 +158,7 @@ async def test_user_message_persisted_before_assistant_stream(chat_sessions):
             rows = await session.execute(
                 select(PersonaMessage).where(PersonaMessage.persona_id == "p-concurrent")
             )
-            messages = rows.scalars().all()
-        assert len(messages) == 1
-        assert messages[0].role == "user"
-        assert messages[0].content == "orphan user"
+            assert rows.scalars().all() == []
     finally:
         set_text_streamer(None)
 
