@@ -263,6 +263,7 @@ async def test_derived_needs_use_same_bounded_async_machinery(db):
     _customer, _run, attempt = await _created_attempt(session, slug="loop-conc")
     in_flight = 0
     max_in_flight = 0
+    two_followups = asyncio.Event()
     release = asyncio.Event()
 
     class SlowSource:
@@ -271,48 +272,61 @@ async def test_derived_needs_use_same_bounded_async_machinery(db):
 
         async def research(self, need, context):
             nonlocal in_flight, max_in_flight
+            if need.id == "research_1":
+                return [
+                    research_evidence(
+                        research_need_id=need.id,
+                        source_type="case_knowledge",
+                        status="found",
+                        excerpt=f"hit-{need.id}",
+                        locator=need.id,
+                    )
+                ]
             in_flight += 1
             max_in_flight = max(max_in_flight, in_flight)
-            if need.id != "research_1":
+            if in_flight >= 2:
+                two_followups.set()
+            try:
                 await release.wait()
-            in_flight -= 1
-            return [
-                research_evidence(
-                    research_need_id=need.id,
-                    source_type="case_knowledge",
-                    status="found",
-                    excerpt=f"hit-{need.id}",
-                    locator=need.id,
-                )
-            ]
-
-    async def release_soon() -> None:
-        await asyncio.sleep(0.05)
-        release.set()
-
-    releaser = asyncio.create_task(release_soon())
-    await execute_attempt_research(
-        session,
-        attempt_id=attempt.id,
-        research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
-        router=_router(SlowSource())[0],
-        assessor=SequenceAssessor(
-            [
-                _fixed_draft(result="insufficient", need_id="research_1", evidence_ids=[]),
-                _fixed_draft(result="sufficient", need_id="research_1", evidence_ids=[]),
-            ]
-        ),
-        planner=ScriptedPlanner(
-            [
-                [
-                    _follow_up("Första uppföljningen"),
-                    _follow_up("Andra uppföljningen"),
+                return [
+                    research_evidence(
+                        research_need_id=need.id,
+                        source_type="case_knowledge",
+                        status="found",
+                        excerpt=f"hit-{need.id}",
+                        locator=need.id,
+                    )
                 ]
-            ]
-        ),
-        concurrency=2,
+            finally:
+                in_flight -= 1
+
+    exec_task = asyncio.create_task(
+        execute_attempt_research(
+            session,
+            attempt_id=attempt.id,
+            research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
+            router=_router(SlowSource())[0],
+            assessor=SequenceAssessor(
+                [
+                    _fixed_draft(result="insufficient", need_id="research_1", evidence_ids=[]),
+                    _fixed_draft(result="sufficient", need_id="research_1", evidence_ids=[]),
+                ]
+            ),
+            planner=ScriptedPlanner(
+                [
+                    [
+                        _follow_up("Första uppföljningen"),
+                        _follow_up("Andra uppföljningen"),
+                    ]
+                ]
+            ),
+            concurrency=2,
+        )
     )
-    await releaser
+    await asyncio.wait_for(two_followups.wait(), timeout=2)
+    assert max_in_flight == 2
+    release.set()
+    await exec_task
     executions = await list_need_executions(session, attempt.id)
     assert len(executions) == 3
     assert all(row.status == "completed" for row in executions)
