@@ -40,6 +40,7 @@ function attempt(partial: Partial<ExecutionAttempt> & Pick<ExecutionAttempt, "id
       ],
     },
     evidence: null,
+    assessment: null,
     result: null,
     created_at: "2026-04-01T10:00:00Z",
     started_at: null,
