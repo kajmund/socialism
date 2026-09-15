@@ -650,8 +650,6 @@ async def execute_attempt_research(
             f"ResearchPlan has {len(plan.needs)} needs; "
             f"research_max_needs_per_attempt={need_limit}"
         )
-    if router_factory is not None:
-        router_factory(session)
     run = await get_run(session, attempt.run_id)
     need_concurrency = _concurrency_limit(concurrency)
     claimed = False

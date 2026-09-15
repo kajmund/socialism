@@ -280,6 +280,28 @@ async def test_empty_plan_freezes_empty_set_and_is_ready(db):
 
 
 @pytest.mark.asyncio
+async def test_execute_does_not_preflight_caller_session_router(db):
+    session, _factory = db
+    _customer_row, _run, attempt = await _created_attempt(session, slug="no-preflight")
+    router, _ = _router(RecordingSource("case_knowledge"))
+    bound_sessions: list[object] = []
+
+    def factory(bound):
+        bound_sessions.append(bound)
+        return router
+
+    result = await execute_attempt_research(
+        session,
+        attempt_id=attempt.id,
+        research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
+        router_factory=factory,
+    )
+    assert result.status == "ready"
+    assert bound_sessions
+    assert session not in bound_sessions
+
+
+@pytest.mark.asyncio
 async def test_source_error_is_stored_and_attempt_is_ready(db):
     session, _factory = db
     _customer_row, _run, attempt = await _created_attempt(session, slug="err-co")
