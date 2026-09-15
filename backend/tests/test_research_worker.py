@@ -120,6 +120,28 @@ async def _attempt(session: AsyncSession, slug: str) -> tuple[object, object, Ex
     return kund, run, attempt
 
 
+async def _expire_until_claimable(
+    factory: async_sessionmaker[AsyncSession], attempt_id: str
+) -> None:
+    """Keep the lease expired until reclaim can observe it.
+
+    A heartbeat renew can overwrite a single expire. Re-apply until the
+    Attempt is claimable so the second worker actually starts.
+    """
+    deadline = utc_now() + timedelta(seconds=2)
+    while utc_now() < deadline:
+        async with factory() as expire:
+            row = await expire.get(ExecutionResearchClaim, attempt_id)
+            assert row is not None
+            row.lease_expires_at = utc_now() - timedelta(seconds=1)
+            await expire.commit()
+        async with factory() as check:
+            if attempt_id in await list_claimable_attempt_ids(check):
+                return
+        await asyncio.sleep(0.02)
+    raise AssertionError(f"attempt {attempt_id} never became claimable")
+
+
 @pytest.mark.asyncio
 async def test_two_workers_cannot_own_the_same_active_lease(worker_db):
     session, factory = worker_db
@@ -557,11 +579,7 @@ async def test_lease_loss_fences_old_worker_after_second_claimant(
         )
         first = asyncio.create_task(run_research_claim(attempt.id))
         await asyncio.wait_for(entered.wait(), timeout=2)
-        async with factory() as expire:
-            row = await expire.get(ExecutionResearchClaim, attempt.id)
-            assert row is not None
-            row.lease_expires_at = utc_now() - timedelta(seconds=1)
-            await expire.commit()
+        await _expire_until_claimable(factory, attempt.id)
         second = asyncio.create_task(run_research_claim(attempt.id))
         await asyncio.wait_for(second, timeout=5)
         await asyncio.wait_for(first, timeout=5)
@@ -774,11 +792,7 @@ async def test_lease_loss_does_not_emit_research_failed(worker_db, monkeypatch):
         )
         first = asyncio.create_task(run_research_claim(attempt.id))
         await asyncio.wait_for(entered.wait(), timeout=2)
-        async with factory() as expire:
-            row = await expire.get(ExecutionResearchClaim, attempt.id)
-            assert row is not None
-            row.lease_expires_at = utc_now() - timedelta(seconds=1)
-            await expire.commit()
+        await _expire_until_claimable(factory, attempt.id)
         second = asyncio.create_task(run_research_claim(attempt.id))
         await asyncio.wait_for(second, timeout=5)
         await asyncio.wait_for(first, timeout=5)

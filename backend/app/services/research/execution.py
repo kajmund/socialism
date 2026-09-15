@@ -1548,7 +1548,8 @@ async def execute_attempt_research(
             raise ResearchExecutionError(f"Attempt {attempt_id} research failed") from exc
         raise
     finally:
-        _write_fence.reset(fence_token)
+        if _write_fence.get() is lease_lost:
+            _write_fence.reset(fence_token)
 
 
 async def _refresh_caller_state(
