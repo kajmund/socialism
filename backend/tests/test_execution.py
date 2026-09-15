@@ -577,6 +577,25 @@ async def test_mixed_explicit_ordinals_do_not_collide(session):
         )
 
 
+@pytest.mark.asyncio
+async def test_add_evidence_items_skips_existing_original_evidence_id(session):
+    customer = await _customer(session, "dedupe-co")
+    run = await create_run(session, customer_id=customer.id, module="dd", title="R")
+    evidence_set = await create_evidence_set(session, run_id=run.id)
+    first = _evidence(need="research_1", excerpt="same hit", locator="p1")
+    stored = await add_evidence_items(
+        session, evidence_set_id=evidence_set.id, items=[first, first]
+    )
+    assert len(stored) == 1
+    again = await add_evidence_items(
+        session, evidence_set_id=evidence_set.id, items=[first]
+    )
+    assert again == []
+    items = await list_evidence_items(session, evidence_set.id)
+    assert len(items) == 1
+    assert items[0].original_evidence_id == first.evidence_id
+
+
 def test_execution_package_has_no_panel_word_or_api_imports():
     for path in sorted(EXECUTION_ROOT.rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))

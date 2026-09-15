@@ -30,7 +30,9 @@ from app.services.execution import (
     get_attempt,
     get_evidence_set,
     list_evidence_items,
+    list_need_executions,
     mark_researching,
+    seed_need_executions,
     start_attempt,
 )
 from app.services.research import (
@@ -593,3 +595,418 @@ def test_execute_attempt_research_has_no_panel_or_ui_imports():
                     assert name != prefix and not name.startswith(prefix + "."), (
                         f"{path} imports {name}"
                     )
+
+
+@pytest.mark.asyncio
+async def test_seed_need_executions_is_idempotent(db):
+    session, _factory = db
+    _customer_row, _run, attempt = await _created_attempt(session, slug="seed-co")
+    first = await seed_need_executions(
+        session, attempt_id=attempt.id, need_ids=["research_1", "research_2"]
+    )
+    second = await seed_need_executions(
+        session, attempt_id=attempt.id, need_ids=["research_1", "research_2"]
+    )
+    assert [row.research_need_id for row in first] == ["research_1", "research_2"]
+    assert [row.id for row in first] == [row.id for row in second]
+    assert all(row.status == "pending" for row in second)
+
+
+@pytest.mark.asyncio
+async def test_needs_run_concurrently_not_sequentially(db):
+    session, _factory = db
+    _customer_row, _run, attempt = await _created_attempt(session, slug="conc-co")
+    in_flight = 0
+    max_in_flight = 0
+    two_running = asyncio.Event()
+    release = asyncio.Event()
+
+    class OverlapSource:
+        source_type = "case_knowledge"
+        provider_id = "fake"
+
+        async def research(self, need: ResearchNeed, context: ResearchContext):
+            nonlocal in_flight, max_in_flight
+            in_flight += 1
+            max_in_flight = max(max_in_flight, in_flight)
+            if in_flight >= 2:
+                two_running.set()
+            try:
+                await release.wait()
+                return [
+                    research_evidence(
+                        research_need_id=need.id,
+                        source_type="case_knowledge",
+                        status="found",
+                        excerpt=f"hit-{need.id}",
+                    )
+                ]
+            finally:
+                in_flight -= 1
+
+    router, _ = _router(OverlapSource())
+    task = asyncio.create_task(
+        execute_attempt_research(
+            session,
+            attempt_id=attempt.id,
+            research_plan=ResearchPlan(
+                needs=[
+                    _need("research_1", "case_knowledge"),
+                    _need("research_2", "case_knowledge"),
+                ]
+            ),
+            router=router,
+            concurrency=2,
+        )
+    )
+    await asyncio.wait_for(two_running.wait(), timeout=2)
+    assert max_in_flight >= 2
+    release.set()
+    result = await task
+    assert result.status == "ready"
+    assert max_in_flight >= 2
+
+
+@pytest.mark.asyncio
+async def test_need_concurrency_is_bounded(db):
+    session, _factory = db
+    _customer_row, _run, attempt = await _created_attempt(session, slug="bound-co")
+    current = 0
+    max_seen = 0
+    lock = asyncio.Lock()
+
+    class CountingSource:
+        source_type = "case_knowledge"
+        provider_id = "fake"
+
+        async def research(self, need: ResearchNeed, context: ResearchContext):
+            nonlocal current, max_seen
+            async with lock:
+                current += 1
+                max_seen = max(max_seen, current)
+            try:
+                await asyncio.sleep(0.05)
+                return [
+                    research_evidence(
+                        research_need_id=need.id,
+                        source_type="case_knowledge",
+                        status="found",
+                        excerpt=f"hit-{need.id}",
+                    )
+                ]
+            finally:
+                async with lock:
+                    current -= 1
+
+    router, _ = _router(CountingSource())
+    result = await execute_attempt_research(
+        session,
+        attempt_id=attempt.id,
+        research_plan=ResearchPlan(
+            needs=[_need(f"research_{index}", "case_knowledge") for index in range(5)]
+        ),
+        router=router,
+        concurrency=2,
+    )
+    assert result.status == "ready"
+    assert result.found_count == 5
+    assert max_seen == 2
+
+
+@pytest.mark.asyncio
+async def test_persist_does_not_consume_retrieval_slots(db, monkeypatch):
+    session, _factory = db
+    _customer_row, _run, attempt = await _created_attempt(session, slug="persist-slot")
+    retrieved: list[str] = []
+    retrieve_lock = asyncio.Lock()
+    third_started = asyncio.Event()
+    persist_blocked = asyncio.Event()
+    release_persist = asyncio.Event()
+
+    class CountingSource:
+        source_type = "case_knowledge"
+        provider_id = "fake"
+
+        async def research(self, need: ResearchNeed, context: ResearchContext):
+            async with retrieve_lock:
+                retrieved.append(need.id)
+                if len(retrieved) == 3:
+                    third_started.set()
+            return [
+                research_evidence(
+                    research_need_id=need.id,
+                    source_type="case_knowledge",
+                    status="found",
+                    excerpt=f"hit-{need.id}",
+                )
+            ]
+
+    original_add = add_evidence_items
+
+    async def blocked_add(persist_session, *, evidence_set_id, items):
+        persist_blocked.set()
+        await release_persist.wait()
+        return await original_add(
+            persist_session,
+            evidence_set_id=evidence_set_id,
+            items=items,
+        )
+
+    monkeypatch.setattr(
+        "app.services.research.execution.add_evidence_items",
+        blocked_add,
+    )
+    router, _ = _router(CountingSource())
+    task = asyncio.create_task(
+        execute_attempt_research(
+            session,
+            attempt_id=attempt.id,
+            research_plan=ResearchPlan(
+                needs=[
+                    _need("research_1", "case_knowledge"),
+                    _need("research_2", "case_knowledge"),
+                    _need("research_3", "case_knowledge"),
+                ]
+            ),
+            router=router,
+            concurrency=2,
+        )
+    )
+    try:
+        await asyncio.wait_for(persist_blocked.wait(), timeout=2)
+        await asyncio.wait_for(third_started.wait(), timeout=2)
+    finally:
+        release_persist.set()
+    result = await task
+    assert result.status == "ready"
+    assert result.found_count == 3
+    assert len(retrieved) == 3
+
+
+@pytest.mark.asyncio
+async def test_fast_need_persists_before_slow_need_completes(db):
+    session, factory = db
+    _customer_row, _run, attempt = await _created_attempt(session, slug="incr-co")
+    attempt_id = attempt.id
+    release_slow = asyncio.Event()
+    fast_persisted = asyncio.Event()
+    fast_retrieving = asyncio.Event()
+
+    class SplitSource:
+        source_type = "case_knowledge"
+        provider_id = "fake"
+
+        async def research(self, need: ResearchNeed, context: ResearchContext):
+            if need.id == "fast":
+                fast_retrieving.set()
+            if need.id == "slow":
+                await release_slow.wait()
+            return [
+                research_evidence(
+                    research_need_id=need.id,
+                    source_type="case_knowledge",
+                    status="found",
+                    excerpt=f"hit-{need.id}",
+                    locator=need.id,
+                )
+            ]
+
+    async def watch() -> None:
+        await fast_retrieving.wait()
+        while True:
+            async with factory() as other:
+                items = []
+                row = await other.get(ExecutionAttempt, attempt_id)
+                if row is not None and row.evidence_set_id:
+                    items = await list_evidence_items(other, row.evidence_set_id)
+                if any(item.research_need_id == "fast" for item in items):
+                    evidence_set = await get_evidence_set(other, row.evidence_set_id)
+                    executions = await list_need_executions(other, attempt_id)
+                    by_need = {item.research_need_id: item.status for item in executions}
+                    assert evidence_set.status == "building"
+                    assert row.status == "researching"
+                    assert by_need["fast"] == "completed"
+                    assert by_need["slow"] in {"pending", "running"}
+                    assert not any(item.research_need_id == "slow" for item in items)
+                    fast_persisted.set()
+                    return
+            await asyncio.sleep(0.01)
+
+    router, _ = _router(SplitSource())
+    watch_task = asyncio.create_task(watch())
+    exec_task = asyncio.create_task(
+        execute_attempt_research(
+            session,
+            attempt_id=attempt_id,
+            research_plan=ResearchPlan(
+                needs=[
+                    _need("fast", "case_knowledge"),
+                    _need("slow", "case_knowledge"),
+                ]
+            ),
+            router=router,
+            session_factory=factory,
+            concurrency=2,
+        )
+    )
+    await asyncio.wait_for(fast_persisted.wait(), timeout=2)
+    release_slow.set()
+    result = await exec_task
+    await watch_task
+    assert result.status == "ready"
+    executions = await list_need_executions(session, attempt_id)
+    assert {row.research_need_id: row.status for row in executions} == {
+        "fast": "completed",
+        "slow": "completed",
+    }
+
+
+@pytest.mark.asyncio
+async def test_not_found_and_source_error_complete_the_barrier(db):
+    session, _factory = db
+    _customer_row, _run, attempt = await _created_attempt(session, slug="barrier-co")
+    found = RecordingSource("case_knowledge")
+    missing = RecordingSource("customer_knowledge", mode="empty")
+    boom = RecordingSource("swedish_law", error=RuntimeError("lagen down"))
+    router, _ = _router(found, missing, boom)
+    result = await execute_attempt_research(
+        session,
+        attempt_id=attempt.id,
+        research_plan=ResearchPlan(
+            needs=[
+                _need("research_1", "case_knowledge"),
+                _need("research_2", "customer_knowledge"),
+                _need("research_3", "swedish_law"),
+            ]
+        ),
+        router=router,
+        concurrency=3,
+    )
+    executions = await list_need_executions(session, attempt.id)
+    assert result.status == "ready"
+    assert result.found_count == 1
+    assert result.not_found_count == 1
+    assert result.error_count == 1
+    assert {row.status for row in executions} == {"completed"}
+    evidence_set = await get_evidence_set(session, result.evidence_set_id)
+    assert evidence_set.status == "frozen"
+
+
+@pytest.mark.asyncio
+async def test_worker_failure_after_partial_persist_is_fail_closed(db):
+    session, factory = db
+    _customer_row, _run, attempt = await _created_attempt(session, slug="partial-co")
+    attempt_id = attempt.id
+    hold_boom = asyncio.Event()
+    kept_retrieving = asyncio.Event()
+
+    class MixedRouter:
+        async def execute_need(self, need: ResearchNeed, context: ResearchContext):
+            if need.id == "boom":
+                await hold_boom.wait()
+                raise RuntimeError("worker exploded")
+            kept_retrieving.set()
+            return [
+                research_evidence(
+                    research_need_id=need.id,
+                    source_type="case_knowledge",
+                    status="found",
+                    excerpt="kept",
+                )
+            ]
+
+    async def release_after_fast() -> None:
+        await kept_retrieving.wait()
+        while True:
+            async with factory() as other:
+                row = await other.get(ExecutionAttempt, attempt_id)
+                if row is not None and row.evidence_set_id:
+                    items = await list_evidence_items(other, row.evidence_set_id)
+                    if any(item.research_need_id == "kept" for item in items):
+                        hold_boom.set()
+                        return
+            await asyncio.sleep(0.01)
+
+    exec_task = asyncio.create_task(
+        execute_attempt_research(
+            session,
+            attempt_id=attempt_id,
+            research_plan=ResearchPlan(
+                needs=[
+                    _need("kept", "case_knowledge"),
+                    _need("boom", "case_knowledge"),
+                ]
+            ),
+            router=MixedRouter(),  # type: ignore[arg-type]
+            session_factory=factory,
+            concurrency=2,
+        )
+    )
+    release_task = asyncio.create_task(release_after_fast())
+    with pytest.raises(ResearchExecutionError, match="research failed"):
+        await exec_task
+    await asyncio.wait_for(release_task, timeout=2)
+    reloaded = await get_attempt(session, attempt_id)
+    evidence_set = await get_evidence_set(session, reloaded.evidence_set_id)
+    executions = await list_need_executions(session, attempt_id)
+    by_need = {row.research_need_id: row.status for row in executions}
+    items = await list_evidence_items(session, evidence_set.id)
+    assert reloaded.status == "failed"
+    assert evidence_set.status == "failed"
+    assert evidence_set.frozen_at is None
+    assert by_need["kept"] == "completed"
+    assert by_need["boom"] == "failed"
+    assert any(item.research_need_id == "kept" for item in items)
+
+
+@pytest.mark.asyncio
+async def test_duplicate_evidence_from_one_need_is_stored_once(db):
+    session, _factory = db
+    _customer_row, _run, attempt = await _created_attempt(session, slug="dup-ev")
+
+    class DuplicateSource:
+        source_type = "case_knowledge"
+        provider_id = "fake"
+
+        async def research(self, need: ResearchNeed, context: ResearchContext):
+            item = research_evidence(
+                research_need_id=need.id,
+                source_type="case_knowledge",
+                status="found",
+                excerpt="same hit",
+                locator="p1",
+            )
+            return [item, item]
+
+    router, _ = _router(DuplicateSource())
+    result = await execute_attempt_research(
+        session,
+        attempt_id=attempt.id,
+        research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
+        router=router,
+    )
+    items = await list_evidence_items(session, result.evidence_set_id)
+    assert result.status == "ready"
+    assert len(items) == 1
+
+
+@pytest.mark.asyncio
+async def test_need_executions_are_completed_on_success(db):
+    session, _factory = db
+    _customer_row, _run, attempt = await _created_attempt(session, slug="needs-co")
+    router, _ = _router(RecordingSource("case_knowledge"))
+    await execute_attempt_research(
+        session,
+        attempt_id=attempt.id,
+        research_plan=ResearchPlan(
+            needs=[
+                _need("research_1", "case_knowledge"),
+                _need("research_2", "case_knowledge"),
+            ]
+        ),
+        router=router,
+    )
+    executions = await list_need_executions(session, attempt.id)
+    assert len(executions) == 2
+    assert {row.status for row in executions} == {"completed"}
+    assert {row.research_need_id for row in executions} == {"research_1", "research_2"}
