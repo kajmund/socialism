@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable, Sequence
+from contextvars import ContextVar
 from dataclasses import dataclass
 
 from sqlalchemy import select
@@ -220,19 +221,37 @@ async def _result_from_attempt(
     )
 
 
-async def fail_interrupted_research_attempts(session: AsyncSession) -> int:
-    """Mark in-flight research attempts failed on startup (no durable worker queue)."""
-    result = await session.execute(
-        select(ExecutionAttempt).where(ExecutionAttempt.status == "researching")
-    )
-    attempts = list(result.scalars().all())
-    for attempt in attempts:
-        await _fail_claimed_research(
-            session,
-            attempt_id=attempt.id,
-            evidence_set_id=attempt.evidence_set_id,
-        )
-    return len(attempts)
+_write_fence: ContextVar[asyncio.Event | None] = ContextVar(
+    "research_write_fence", default=None
+)
+
+
+def _raise_if_write_fenced() -> None:
+    fence = _write_fence.get()
+    if fence is not None and fence.is_set():
+        raise asyncio.CancelledError
+
+
+async def fail_incomplete_research(
+    session: AsyncSession,
+    *,
+    attempt_id: str,
+    evidence_set_id: str | None = None,
+) -> None:
+    """Fail-close created or researching research. No-op for terminal Attempt."""
+    attempt = await get_attempt(session, attempt_id)
+    if attempt.status not in {"created", "researching"}:
+        return
+    target_set_id = evidence_set_id or attempt.evidence_set_id
+    if target_set_id is not None:
+        evidence_set = await get_evidence_set(session, target_set_id)
+        if evidence_set.status == "building":
+            await fail_evidence_set(session, target_set_id)
+    await fail_open_need_executions(session, attempt_id)
+    attempt = await get_attempt(session, attempt_id)
+    if attempt.status in {"created", "researching"}:
+        await fail_attempt(session, attempt_id)
+    await session.commit()
 
 
 async def _fail_claimed_research(
@@ -241,18 +260,9 @@ async def _fail_claimed_research(
     attempt_id: str,
     evidence_set_id: str | None,
 ) -> None:
-    attempt = await get_attempt(session, attempt_id)
-    if attempt.status in {"ready", "running", "completed"}:
-        return
-    if evidence_set_id is not None:
-        evidence_set = await get_evidence_set(session, evidence_set_id)
-        if evidence_set.status == "building":
-            await fail_evidence_set(session, evidence_set_id)
-    await fail_open_need_executions(session, attempt_id)
-    attempt = await get_attempt(session, attempt_id)
-    if attempt.status == "researching":
-        await fail_attempt(session, attempt_id)
-    await session.commit()
+    await fail_incomplete_research(
+        session, attempt_id=attempt_id, evidence_set_id=evidence_set_id
+    )
 
 
 async def _retrieve_need(
@@ -334,13 +344,16 @@ async def _execute_one_need(
                 question_graph=question_graph,
                 attempt_id=attempt_id,
             )
-    except BaseException:
+    except BaseException as exc:
+        if isinstance(exc, asyncio.CancelledError):
+            raise
         async with persist_lock, factory() as fail_session:
             await fail_need_execution(fail_session, execution_id)
             await fail_session.commit()
         raise
 
     async with persist_lock, factory() as persist_session:
+        _raise_if_write_fenced()
         row = await get_need_execution(persist_session, execution_id)
         if row.status in TERMINAL_NEED_EXECUTION_STATUSES:
             return
@@ -353,6 +366,7 @@ async def _execute_one_need(
         await persist_session.commit()
 
     async with persist_lock, factory() as graph_session:
+        _raise_if_write_fenced()
         await safe_upsert_persisted_evidence(
             graph_session,
             graph=question_graph,
@@ -654,6 +668,7 @@ async def _freeze_ready_attempt(
     attempt_id: str,
     evidence_set_id: str,
 ) -> None:
+    _raise_if_write_fenced()
     attempt = await get_attempt(session, attempt_id)
     if attempt.status == "ready":
         return
@@ -877,8 +892,9 @@ async def _run_research_loop(
     max_follow_up_waves: int,
     max_needs: int,
     max_completeness_passes: int,
+    start_wave: int | None = None,
 ) -> None:
-    wave = INITIAL_RESEARCH_WAVE
+    wave = INITIAL_RESEARCH_WAVE if start_wave is None else start_wave
     while True:
         async with factory() as wave_session:
             pending = await _pending_need_pairs(wave_session, attempt_id)
@@ -899,6 +915,7 @@ async def _run_research_loop(
                 concurrency=concurrency,
             )
         async with factory() as barrier_session:
+            _raise_if_write_fenced()
             await _assert_need_barrier(
                 barrier_session, attempt_id=attempt_id, evidence_set_id=evidence_set_id
             )
@@ -1179,6 +1196,65 @@ def _assert_plan_within_budget(plan: ResearchPlan, need_limit: int) -> None:
         )
 
 
+async def _resolve_resume_plan(
+    attempt: ExecutionAttempt,
+    *,
+    research_plan: ResearchPlan | None,
+    need_limit: int,
+) -> ResearchPlan:
+    """Reuse the immutable initial plan. Never invoke the planner on reclaim."""
+    if attempt.research_plan_snapshot is not None:
+        plan = research_plan_from_snapshot(attempt.research_plan_snapshot)
+        _assert_plan_within_budget(plan, need_limit)
+        return plan
+    if research_plan is not None:
+        plan = validate_research_plan(research_plan)
+        _assert_plan_within_budget(plan, need_limit)
+        return plan
+    raise ResearchExecutionError(
+        f"Attempt {attempt.id} cannot resume research without a persisted plan"
+    )
+
+
+async def _ensure_research_inventory(
+    session: AsyncSession,
+    *,
+    attempt: ExecutionAttempt,
+    run: ExecutionRun,
+    plan: ResearchPlan,
+) -> str:
+    evidence_set_id = attempt.evidence_set_id
+    if evidence_set_id is None:
+        evidence_set = await create_evidence_set(
+            session,
+            run_id=run.id,
+            created_from_attempt_id=attempt.id,
+        )
+        evidence_set_id = evidence_set.id
+        await attach_evidence_set(
+            session,
+            attempt_id=attempt.id,
+            evidence_set_id=evidence_set.id,
+        )
+    else:
+        evidence_set = await get_evidence_set(session, evidence_set_id)
+        if evidence_set.status == "failed":
+            raise ResearchExecutionError(
+                f"Attempt {attempt.id} EvidenceSet {evidence_set_id} is failed"
+            )
+    await persist_runtime_needs(
+        session,
+        attempt_id=attempt.id,
+        needs=runtime_needs_from_plan(plan),
+    )
+    await seed_need_executions(
+        session,
+        attempt_id=attempt.id,
+        need_ids=[need.id for need in plan.needs],
+    )
+    return evidence_set_id
+
+
 async def _persist_start_snapshots(
     session: AsyncSession,
     *,
@@ -1220,6 +1296,7 @@ async def execute_attempt_research(
     max_follow_up_waves: int | None = None,
     max_needs: int | None = None,
     max_completeness_passes: int | None = None,
+    lease_lost: asyncio.Event | None = None,
 ) -> AttemptResearchResult:
     """Plan if needed, then run ResearchNeeds in bounded waves and freeze.
 
@@ -1227,10 +1304,12 @@ async def execute_attempt_research(
     validated initial ResearchPlan snapshot → retrieve / quality / assess /
     follow-up.
     An explicit ResearchPlan skips the planner (tests and internal callers).
-    Scope is always taken from ExecutionRun. Source-level error/not_found
-    complete that need and do not fail the Attempt. Planner failure leaves
-    the Attempt created. Assessor/follow-up/model/parsing/worker failure
-    marks both Attempt and EvidenceSet failed without freezing.
+    A researching Attempt resumes the same objective/plan/EvidenceSet
+    lineage without regenerating the initial plan. Scope is always taken
+    from ExecutionRun. Source-level error/not_found complete that need and
+    do not fail the Attempt. Planner failure leaves the Attempt created.
+    Assessor/follow-up/model/parsing/worker failure marks both Attempt and
+    EvidenceSet failed without freezing.
     """
     if router is None and router_factory is None:
         raise ResearchExecutionError("ResearchRouter is required")
@@ -1238,11 +1317,7 @@ async def execute_attempt_research(
     attempt = await get_attempt(session, attempt_id)
     if attempt.status == "ready":
         return await _result_from_attempt(session, attempt)
-    if attempt.status == "researching":
-        raise ExecutionStatusError(
-            f"Attempt {attempt.id} research is already in progress"
-        )
-    if attempt.status != "created":
+    if attempt.status not in {"created", "researching"}:
         raise ExecutionStatusError(
             f"Cannot start research on attempt {attempt.id} with status={attempt.status}"
         )
@@ -1256,50 +1331,47 @@ async def execute_attempt_research(
     wave_limit, need_limit, completeness_limit = _loop_limits(
         max_follow_up_waves, max_needs, max_completeness_passes
     )
-    objective = await _resolve_research_objective(attempt, research_objective)
-    plan = await _resolve_initial_plan(
-        session,
-        attempt=attempt,
-        research_plan=research_plan,
-        research_objective=objective,
-        research_planner=research_planner,
-        need_limit=need_limit,
-        router=router,
-    )
+    resume = attempt.status == "researching"
+    if resume:
+        await _resolve_research_objective(attempt, research_objective)
+        plan = await _resolve_resume_plan(
+            attempt,
+            research_plan=research_plan,
+            need_limit=need_limit,
+        )
+    else:
+        objective = await _resolve_research_objective(attempt, research_objective)
+        plan = await _resolve_initial_plan(
+            session,
+            attempt=attempt,
+            research_plan=research_plan,
+            research_objective=objective,
+            research_planner=research_planner,
+            need_limit=need_limit,
+            router=router,
+        )
     run = await get_run(session, attempt.run_id)
     need_concurrency = _concurrency_limit(concurrency)
-    claimed = False
-    evidence_set_id: str | None = None
+    claimed = resume
+    evidence_set_id: str | None = attempt.evidence_set_id
+    fence_token = _write_fence.set(lease_lost)
     try:
-        attempt = await claim_attempt_researching(
+        if not resume:
+            attempt = await claim_attempt_researching(
+                session,
+                attempt_id,
+                research_plan_snapshot=research_plan_to_snapshot(plan),
+            )
+            if attempt.status == "ready":
+                return await _result_from_attempt(session, attempt)
+            claimed = True
+        evidence_set_id = await _ensure_research_inventory(
             session,
-            attempt_id,
-            research_plan_snapshot=research_plan_to_snapshot(plan),
+            attempt=attempt,
+            run=run,
+            plan=plan,
         )
-        if attempt.status == "ready":
-            return await _result_from_attempt(session, attempt)
-        claimed = True
-        evidence_set = await create_evidence_set(
-            session,
-            run_id=run.id,
-            created_from_attempt_id=attempt.id,
-        )
-        evidence_set_id = evidence_set.id
-        await attach_evidence_set(
-            session,
-            attempt_id=attempt.id,
-            evidence_set_id=evidence_set.id,
-        )
-        await persist_runtime_needs(
-            session,
-            attempt_id=attempt.id,
-            needs=runtime_needs_from_plan(plan),
-        )
-        await seed_need_executions(
-            session,
-            attempt_id=attempt.id,
-            need_ids=[need.id for need in plan.needs],
-        )
+        start_wave = attempt.research_wave if resume else INITIAL_RESEARCH_WAVE
         context = research_context_from_run(run)
         factory = session_factory or _session_factory(session)
         await session.commit()
@@ -1307,7 +1379,7 @@ async def execute_attempt_research(
         await _run_research_loop(
             factory=factory,
             attempt_id=attempt_id,
-            evidence_set_id=evidence_set.id,
+            evidence_set_id=evidence_set_id,
             snapshot_plan=plan,
             context=context,
             router=router,
@@ -1324,6 +1396,7 @@ async def execute_attempt_research(
             max_follow_up_waves=wave_limit,
             max_needs=need_limit,
             max_completeness_passes=completeness_limit,
+            start_wave=start_wave,
         )
         async with factory() as final_session:
             result = await _result_from_attempt(
@@ -1332,6 +1405,8 @@ async def execute_attempt_research(
         await _refresh_caller_state(session, attempt_id, evidence_set_id)
         return result
     except BaseException as exc:
+        if isinstance(exc, asyncio.CancelledError):
+            raise
         if isinstance(exc, ExecutionStatusError) and not claimed:
             raise
         await session.rollback()
@@ -1347,6 +1422,8 @@ async def execute_attempt_research(
         if isinstance(exc, Exception):
             raise ResearchExecutionError(f"Attempt {attempt_id} research failed") from exc
         raise
+    finally:
+        _write_fence.reset(fence_token)
 
 
 async def _refresh_caller_state(
