@@ -80,7 +80,7 @@ Statuses on Attempt: `created`, `researching`, `ready`, `running`, `completed`, 
 
 `execute_generic_panel_attempt` (`app/services/panel/attempt_execution.py`) is the first method bridge: a `ready` Attempt with a same-run frozen EvidenceSet is claimed `ready → running`, the frozen items are rendered as `[E#]` prompt evidence, existing `generic_panel` runs in `frozen_evidence` mode (no new ResearchPlan, no live expert tools), and a historical `execution_attempt_results` row snapshots the `PanelResult`. Fatal panel failure marks the Attempt `failed` and leaves the EvidenceSet frozen.
 
-The first HTTP vertical is `/execution`: create Run/Attempt, `POST .../research` (202 accept + DB lease; worker calls `execute_attempt_research` + standard `ResearchRouter`), `POST .../execute` (method dispatcher, v1 `generic_panel` only), `POST .../clone` (reuse frozen EvidenceSet, optional config replacement), then read Attempt / Evidence / immutable Result. Scope comes from `ExecutionRun.customer_id`. The SPA has a read-only inspector at `/execution/runs/:runId`. No Word integration. See [research-durable-execution.md](guides/research-durable-execution.md).
+The first HTTP vertical is `/execution`: create Run/Attempt, `POST .../research` (202 accept + DB lease; worker calls `execute_attempt_research` + standard `ResearchRouter`), `POST .../execute` (method dispatcher, v1 `generic_panel` only), `POST .../clone` (reuse frozen EvidenceSet, optional config replacement), then read Attempt / Evidence / immutable Result. Persisted `ResearchProgressEvent` rows (`GET .../progress-events?after_sequence=`) are an audit/projection of those domain transitions — not a second source of truth. Live fan-out reuses the in-process WebSocket hub (`/ws/research`, attempt-scoped, same kund path as Attempt). Delivery is scheduled after commit (at-least-once, best-effort) so a hung socket cannot roll back research; catch-up works without a socket. The background worker emits the same stream from its own sessions. See [research-progress-events.md](guides/research-progress-events.md) and [research-durable-execution.md](guides/research-durable-execution.md). Scope comes from `ExecutionRun.customer_id`. The SPA has a read-only inspector at `/execution/runs/:runId`. No Word integration.
 
 ### Run timeline shape
 
@@ -116,6 +116,7 @@ Registered in `backend/app/main.py`:
 | Embeddings cache | `/embeddings/cache` | List/clear disk-backed SSR anchor embeddings |
 | Configurations | `/configurations` | Prompt maps + `ssr_temperature` (report SSR softmax) + per-config catalog; one active globally |
 | Execution | `/execution` | Generic Run → Attempt → research → method execute → Evidence/Result (not simulation `/runs`) |
+| Research WS | `WS /ws/research` | Attempt-scoped progress replay + live `research.progress` (persisted events remain authoritative) |
 
 Interactive OpenAPI: `http://localhost:8000/docs`.
 

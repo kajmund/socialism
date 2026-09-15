@@ -32,9 +32,9 @@ from app.services.research.composition import (
     set_research_planner_factory,
     set_research_router_factory,
 )
-from app.services.research.planner import FakeResearchPlanner, ResearchNeedDraft
 from app.services.research.followup import NoOpFollowUpPlanner
 from app.services.research.models import ResearchContext, ResearchNeed, research_evidence
+from app.services.research.planner import FakeResearchPlanner, ResearchNeedDraft
 from app.services.research.registry import ResearchSourceRegistry
 from app.services.research.router import ResearchRouter
 from app.services.research_worker import wait_research_workers
@@ -326,6 +326,23 @@ async def test_research_then_evidence_is_frozen_and_ordered(
     assert [row["research_need_id"] for row in detail_body["runtime_needs"]] == [
         "research_1",
         "research_2",
+    ]
+
+    progress = await client.get(f"/execution/attempts/{attempt['id']}/progress-events")
+    assert progress.status_code == 200
+    progress_body = progress.json()
+    sequences = [row["sequence"] for row in progress_body["events"]]
+    assert sequences == list(range(1, len(sequences) + 1))
+    assert progress_body["events"][0]["event_type"] == "initial_plan_accepted"
+    assert progress_body["events"][-1]["event_type"] == "research_frozen_ready"
+    cursor = progress_body["events"][1]["sequence"]
+    missed = await client.get(
+        f"/execution/attempts/{attempt['id']}/progress-events",
+        params={"after_sequence": cursor},
+    )
+    assert missed.status_code == 200
+    assert [row["sequence"] for row in missed.json()["events"]] == [
+        row["sequence"] for row in progress_body["events"] if row["sequence"] > cursor
     ]
 
     evidence = await client.get(f"/execution/attempts/{attempt['id']}/evidence")
@@ -738,6 +755,8 @@ async def test_cross_customer_access_is_forbidden(
     assert evidence.status_code == 403
     result = await client.get(f"/execution/attempts/{attempt['id']}/result")
     assert result.status_code == 403
+    progress = await client.get(f"/execution/attempts/{attempt['id']}/progress-events")
+    assert progress.status_code == 403
     research = await client.post(
         f"/execution/attempts/{attempt['id']}/research",
         json={"research_plan": RESEARCH_PLAN},

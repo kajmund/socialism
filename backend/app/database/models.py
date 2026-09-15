@@ -1457,6 +1457,9 @@ class ExecutionAttempt(Base):
         back_populates="attempt",
         uselist=False,
     )
+    research_progress_events: Mapped[list["ResearchProgressEvent"]] = relationship(
+        back_populates="attempt",
+    )
 
 
 class ExecutionResearchClaim(Base):
@@ -1885,6 +1888,49 @@ class KnowledgeQuestionEvidenceLink(Base):
     )
 
     question: Mapped[KnowledgeQuestionRow] = relationship(back_populates="answers")
+
+
+class ResearchProgressEvent(Base):
+    """Audit/projection of a persisted research-domain transition for one Attempt."""
+
+    __tablename__ = "research_progress_events"
+    __table_args__ = (
+        UniqueConstraint(
+            "attempt_id",
+            "sequence",
+            name="uq_research_progress_events_attempt_sequence",
+        ),
+        UniqueConstraint(
+            "attempt_id",
+            "idempotency_key",
+            name="uq_research_progress_events_attempt_key",
+        ),
+        Index(
+            "ix_research_progress_events_attempt_sequence",
+            "attempt_id",
+            "sequence",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    attempt_id: Mapped[str] = mapped_column(
+        ForeignKey("execution_attempts.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    sequence: Mapped[int] = mapped_column(Integer, nullable=False)
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    attempt: Mapped[ExecutionAttempt] = relationship(
+        back_populates="research_progress_events"
+    )
 
 
 class LlmRuntimeSettings(Base):

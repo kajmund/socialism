@@ -270,3 +270,18 @@ class EvidenceSetOut(BaseModel):
     created_at: datetime
     frozen_at: datetime | None
     items: list[EvidenceSetItemOut]
+
+
+class ResearchProgressEventOut(BaseModel):
+    id: str
+    attempt_id: str
+    sequence: int
+    event_type: str
+    payload: dict[str, Any]
+    occurred_at: datetime
+
+
+class ResearchProgressEventListOut(BaseModel):
+    attempt_id: str
+    after_sequence: int
+    events: list[ResearchProgressEventOut]
