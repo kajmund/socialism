@@ -1817,17 +1817,11 @@ async def test_analyze_batch_logs_routing_counts_without_document_text(caplog):
 def test_word_alembic_chain_is_linear_after_main_head():
     cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     script = ScriptDirectory.from_config(cfg)
-<<<<<<< HEAD
-    assert script.get_heads() == ["086_runtime_need_routing_constraints"]
-    constraints = script.get_revision("086_runtime_need_routing_constraints")
-    assert constraints.down_revision == "085_research_loop_user_prompts"
-=======
     assert script.get_heads() == ["087_research_objective_planner"]
     planner = script.get_revision("087_research_objective_planner")
     assert planner.down_revision == "086_runtime_need_routing_constraints"
     routing = script.get_revision("086_runtime_need_routing_constraints")
     assert routing.down_revision == "085_research_loop_user_prompts"
->>>>>>> 8c42a7b (Line the planner migration after the capability-registry revision.)
     user_prompts = script.get_revision("085_research_loop_user_prompts")
     assert user_prompts.down_revision == "084_research_runtime_loop"
     loop = script.get_revision("084_research_runtime_loop")
