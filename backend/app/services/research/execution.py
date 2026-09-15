@@ -462,8 +462,9 @@ def _quality_descriptors(
 ) -> tuple[KnowledgeProviderDescriptor, ...]:
     if descriptors is not None:
         return descriptors
-    if router is not None:
-        return router.registered_descriptors()
+    registered = getattr(router, "registered_descriptors", None)
+    if callable(registered):
+        return tuple(registered())
     return standard_capability_descriptors()
 
 
