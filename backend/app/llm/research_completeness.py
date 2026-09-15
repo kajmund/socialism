@@ -26,8 +26,9 @@ from app.services.research.completeness import (
     sanitize_completeness_draft,
 )
 from app.services.research.followup import RuntimeResearchNeed
-from app.services.research.models import RESEARCH_SOURCE_TYPES, ResearchPlan
+from app.services.research.models import ResearchPlan
 from app.services.research.planner import ResearchObjective
+from app.services.research.registry import production_registered_source_types
 
 Completer = Callable[[list[dict[str, Any]], type[Any]], Awaitable[Any]]
 
@@ -172,6 +173,7 @@ class LlmResearchCompletenessReviewer:
         provider: str | None = None,
         model: str | None = None,
         model_version: str | None = None,
+        source_types: Sequence[str] | None = None,
     ) -> None:
         text = system_prompt.strip()
         user = user_prompt.strip()
@@ -187,6 +189,10 @@ class LlmResearchCompletenessReviewer:
         self._provider = provider
         self._model = model
         self._model_version = model_version
+        offered = source_types if source_types is not None else production_registered_source_types()
+        self._source_types = tuple(
+            str(item).strip() for item in offered if str(item).strip()
+        )
 
     async def review(
         self,
@@ -197,6 +203,7 @@ class LlmResearchCompletenessReviewer:
         assessment: ResearchAssessmentDraft | None,
         assessments: Sequence[ResearchAssessmentDraft],
         evidence: Sequence[AssessableEvidence],
+        available_source_types: Sequence[str] | None = None,
     ) -> ResearchCompletenessDraft:
         if can_review_programmatically(objective):
             return programmatic_completeness(
@@ -207,6 +214,15 @@ class LlmResearchCompletenessReviewer:
         history = list(assessments)
         if assessment is not None and (not history or history[-1] != assessment):
             history.append(assessment)
+        types = (
+            tuple(
+                str(item).strip()
+                for item in available_source_types
+                if str(item).strip()
+            )
+            if available_source_types is not None
+            else self._source_types
+        )
         messages = [
             {"role": "system", "content": self._system_prompt},
             {
@@ -214,7 +230,7 @@ class LlmResearchCompletenessReviewer:
                 "content": render_prompt(
                     {"research.completeness.user": self._user_prompt},
                     "research.completeness.user",
-                    source_types=", ".join(RESEARCH_SOURCE_TYPES),
+                    source_types=", ".join(types),
                     objective=objective.objective if objective is not None else "",
                     objective_json=json.dumps(
                         {
@@ -269,6 +285,7 @@ class LlmResearchCompletenessReviewer:
             ),
             runtime_needs=runtime_needs,
             evidence=evidence,
+            allowed_source_types=types,
         )
 
 
@@ -289,4 +306,5 @@ async def build_llm_research_completeness_reviewer(
         user_prompt=prompts["research.completeness.user"],
         provider=settings.llm_provider,
         model=settings.selected_llm_model,
+        source_types=production_registered_source_types(),
     )

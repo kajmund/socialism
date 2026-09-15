@@ -59,7 +59,7 @@ Filter rules (all programmatic):
 
 A provider that does not declare a required axis does not match it. Empty need-side axes mean “no filter”.
 
-`ResearchPlanner` is only offered natures the attempt's registry can execute. A concrete `ResearchRouter` exposes `available_source_types()` from `registered_evidence_natures()`. The production API path (`router_factory=build_standard_research_router`, `router=None`) introspects the same session-independent capability descriptors that `build_research_registry` registers (`standard_available_source_types()`). Catalog membership is not enough. A generated empty plan is invalid.
+`ResearchPlanner` and `ResearchCompletenessReviewer` are only offered natures the attempt's registry can execute. A concrete `ResearchRouter` exposes `available_source_types()` from `registered_evidence_natures()`. The production API path (`router_factory=build_standard_research_router`, `router=None`) introspects the same session-independent capability descriptors that `build_research_registry` registers (`standard_available_source_types()`). Catalog membership is not enough. A generated empty plan is invalid. A globally missing question whose only source types are unregistered stays an explicit capability/unavailable gap; it is not a runnable follow-up.
 
 ## Provider descriptor
 

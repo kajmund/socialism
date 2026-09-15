@@ -28,6 +28,11 @@ from app.services.research.execution import ResearchExecutionError, execute_atte
 from app.services.research.followup import RuntimeResearchNeed
 from app.services.research.models import ResearchPlan
 from app.services.research.planner import ResearchObjective
+from app.services.research.provider import knowledge_adapter_descriptor
+from app.services.research.registry import (
+    default_standard_capability_descriptors,
+    set_standard_capability_descriptors,
+)
 from tests.test_research_assessment import RecordingAssessor, _fixed_draft
 from tests.test_research_execution import (
     RecordingSource,
@@ -56,8 +61,11 @@ class SequenceCompletenessReviewer:
     def __init__(self, drafts: list[ResearchCompletenessDraft]) -> None:
         self.drafts = drafts
         self.calls = 0
+        self.available_source_types_calls: list[tuple[str, ...]] = []
 
-    async def review(self, **_kwargs) -> ResearchCompletenessDraft:
+    async def review(self, **kwargs) -> ResearchCompletenessDraft:
+        offered = kwargs.get("available_source_types")
+        self.available_source_types_calls.append(tuple(offered or ()))
         draft = self.drafts[min(self.calls, len(self.drafts) - 1)]
         self.calls += 1
         return draft
@@ -494,6 +502,165 @@ def test_sanitize_drops_duplicate_and_complete_candidates():
         evidence=[],
     )
     assert [row.question for row in dropped.missing_questions] == ["Ny fråga"]
+
+
+def test_sanitize_keeps_identified_question_with_unavailable_source_type():
+    cleaned = sanitize_completeness_draft(
+        _incomplete(_missing("Vad säger skattelagen?", source_types=["swedish_law"])),
+        runtime_needs=[],
+        evidence=[],
+        allowed_source_types=("case_knowledge",),
+    )
+    assert cleaned.result == "incomplete"
+    question = cleaned.missing_questions[0]
+    assert question.question == "Vad säger skattelagen?"
+    assert question.source_types == []
+    assert question.unavailable_source_types == ["swedish_law"]
+    assert question.capability_gap == "unavailable source_type: swedish_law"
+
+
+def test_sanitize_keeps_executable_types_on_mixed_question():
+    cleaned = sanitize_completeness_draft(
+        _incomplete(
+            _missing(
+                "Både ärende och lag?",
+                source_types=["case_knowledge", "swedish_law"],
+            )
+        ),
+        runtime_needs=[],
+        evidence=[],
+        allowed_source_types=("case_knowledge", "customer_knowledge"),
+    )
+    question = cleaned.missing_questions[0]
+    assert question.source_types == ["case_knowledge"]
+    assert question.unavailable_source_types == ["swedish_law"]
+    assert question.capability_gap is None
+
+
+@pytest.mark.asyncio
+async def test_llm_completeness_reviewer_is_offered_only_executable_source_types():
+    captured: list[list[dict]] = []
+
+    async def completer(messages, response_model):
+        captured.append(messages)
+        return CompletenessModel(
+            result="complete",
+            rationale="ok",
+            missing_questions=[],
+        )
+
+    reviewer = LlmResearchCompletenessReviewer(
+        completer=completer,
+        system_prompt="bedöm fullständighet",
+        user_prompt="Tillåtna: {source_types}",
+        source_types=("case_knowledge", "customer_knowledge", "swedish_law"),
+    )
+    draft = await reviewer.review(
+        objective=_objective(),
+        plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
+        runtime_needs=[],
+        assessment=None,
+        assessments=[],
+        evidence=[],
+        available_source_types=("case_knowledge",),
+    )
+    offered = captured[0][1]["content"]
+    assert offered == "Tillåtna: case_knowledge"
+    assert "swedish_law" not in offered
+    assert "swedish_preparatory_works" not in offered
+    assert "web" not in offered
+    assert "domain_knowledge" not in offered
+    assert draft.result == "complete"
+
+
+@pytest.mark.asyncio
+async def test_factory_path_offers_standard_capability_natures_to_completeness_reviewer(
+    db,
+):
+    session, factory = db
+    _customer, _run, attempt = await _created_attempt(session, slug="comp-factory-cap")
+    reviewer = SequenceCompletenessReviewer([_complete()])
+    router, sources = _router(RecordingSource("case_knowledge"))
+    bound_sessions: list[object] = []
+
+    def router_factory(bound):
+        bound_sessions.append(bound)
+        return router
+
+    set_standard_capability_descriptors(
+        (
+            *default_standard_capability_descriptors(),
+            knowledge_adapter_descriptor("synthetic-provider", "swedish_law"),
+        )
+    )
+    try:
+        result = await execute_attempt_research(
+            session,
+            attempt_id=attempt.id,
+            research_objective=_objective(),
+            research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
+            router=None,
+            router_factory=router_factory,
+            assessor=RecordingAssessor(),
+            completeness_reviewer=reviewer,
+            session_factory=factory,
+        )
+    finally:
+        set_standard_capability_descriptors(None)
+
+    assert result.status == "ready"
+    assert reviewer.available_source_types_calls
+    offered = reviewer.available_source_types_calls[0]
+    assert "swedish_law" in offered
+    assert "case_knowledge" in offered
+    assert "customer_knowledge" in offered
+    assert bound_sessions
+    assert session not in bound_sessions
+    assert sources[0].calls == 1
+
+
+@pytest.mark.asyncio
+async def test_catalog_type_missing_from_capability_cannot_become_global_need(db):
+    session, factory = db
+    _customer, _run, attempt = await _created_attempt(session, slug="comp-factory-gap")
+    reviewer = SequenceCompletenessReviewer(
+        [_incomplete(_missing("Vad säger skattelagen?", source_types=["swedish_law"]))]
+    )
+    router, sources = _router(RecordingSource("case_knowledge"))
+    bound_sessions: list[object] = []
+
+    def router_factory(bound):
+        bound_sessions.append(bound)
+        return router
+
+    result = await execute_attempt_research(
+        session,
+        attempt_id=attempt.id,
+        research_objective=_objective(),
+        research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
+        router=None,
+        router_factory=router_factory,
+        assessor=RecordingAssessor(),
+        completeness_reviewer=reviewer,
+        session_factory=factory,
+    )
+    reloaded = await get_attempt(session, attempt.id)
+    needs = await list_runtime_needs(session, attempt.id)
+    passes = await list_research_completeness_passes(session, attempt.id)
+    assert result.status == "ready"
+    assert reloaded.research_stop_reason == "capability_unavailable"
+    assert [row.origin for row in needs] == ["initial"]
+    assert passes[0].result == "incomplete"
+    missing = passes[0].missing_questions[0]
+    assert missing["question"] == "Vad säger skattelagen?"
+    assert missing["source_types"] == []
+    assert missing["unavailable_source_types"] == ["swedish_law"]
+    assert missing["capability_gap"] == "unavailable source_type: swedish_law"
+    assert bound_sessions
+    assert session not in bound_sessions
+    assert sources[0].calls == 1
+    assert "swedish_law" not in reviewer.available_source_types_calls[0]
+    assert "web" not in reviewer.available_source_types_calls[0]
 
 
 def test_question_fingerprint_includes_objective():

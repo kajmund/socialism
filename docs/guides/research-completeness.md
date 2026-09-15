@@ -17,6 +17,8 @@ Asks: **relative to the immutable research objective, did the plan omit a materi
 - Runs only after the local loop is terminal: no pending/runnable need executions **and** the latest local assessment is `sufficient`.
 - Input is the persisted objective, the initial plan snapshot, all runtime needs, assessment history, and EvidenceSet summaries/provenance.
 - The reviewer does not retrieve. Missing questions are candidates. They go through the same validate / dedupe / budget path as local follow-ups, then the existing async retrieval loop.
+- Offered `source_types` are the same executable natures as the planner: `ResearchRouter.available_source_types()` when a concrete router is passed, otherwise the session-independent standard capability descriptors (`standard_available_source_types()`). Catalog membership is not enough.
+- A material omitted question may still be identified. It becomes a runnable `ResearchNeed` only when at least one source type is executable. Catalog types the capability registry cannot run stay on the pass as an explicit capability/unavailable gap (`unavailable_source_types`, `capability_gap`) and stop as `capability_unavailable` — not as a normal novel follow-up.
 - Persisted lineage is explicit: `origin=global_completeness`, `source_completeness_pass`, rationale in `source_gap`. These rows are not local evidence-gap follow-ups.
 
 ## Where freeze sits
@@ -36,7 +38,7 @@ objective → initial plan → retrieve / assess / follow-up
 Freeze is allowed only when:
 
 1. the local loop is terminal **and** the latest global pass is `complete`, or
-2. a hard budget/stop is reached (`max_iterations`, `max_needs`, `no_novel_followups`, `max_completeness_passes`).
+2. a hard budget/stop is reached (`max_iterations`, `max_needs`, `no_novel_followups`, `max_completeness_passes`, `capability_unavailable`).
 
 If a budget stop fires while the latest global pass is `incomplete`, research still finishes as `ready` with a frozen EvidenceSet. The incomplete pass and the stop reason stay on the read model. That is a completed research outcome, not a silent success.
 
