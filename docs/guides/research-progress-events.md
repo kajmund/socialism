@@ -44,4 +44,4 @@ Successful single-need run with an explicit objective + plan:
 9. `global_completeness_persisted`
 10. `research_frozen_ready`
 
-A follow-up wave inserts `follow_up_need_derived` + another queued/running/evidence/completed cycle before the next assessment. A global-completeness cycle inserts `global_need_derived` (or `capability_unavailable` when the gap is not executable). Provider/worker failure emits `need_failed` then `research_failed`.
+A follow-up wave inserts `follow_up_need_derived` + another queued/running/evidence/completed cycle before the next assessment. A global-completeness cycle inserts `global_need_derived` (or `capability_unavailable` when the gap is not executable). Provider/worker failure emits `need_failed` then `research_failed`. Lease loss, reclaim, and shutdown do not fail-close: a fenced or cancelled worker must not emit `research_failed` (or a second `research_frozen_ready`) while another worker still owns the Attempt.
