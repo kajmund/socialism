@@ -23,15 +23,14 @@ ResearchNeed
   → resolve/match KnowledgeQuestion
   → bounded one-hop lookup (Question → ANSWERED_BY)
   → normalize into ResearchEvidence
-  → existing local sufficiency on those candidates (programmatic need check)
-        ├ sufficient + freshness=fresh → persist reused candidates, skip providers
-        └ insufficient / stale / unknown → ResearchRouter / providers
-  → persist provider hits only (reused stay candidates, not automatic extra rows)
-  → idempotent upsert Question + ANSWERED_BY
-  → wave-level ResearchAssessment / completeness unchanged
+  → persist reused candidates into EvidenceSet
+  → ResearchRouter / providers always run in v1
+  → merge: live found hit wins the same evidence_ref; leftover candidates stay
+  → idempotent upsert Question + ANSWERED_BY (fresh retrieval only)
+  → wave-level evidence quality, then the configured ResearchAssessor / completeness
 ```
 
-Reuse is candidate retrieval, never automatic truth. Graph code cannot mark a need sufficient. Skip-provider uses the same `programmatic_assessment` rule as `ProgrammaticResearchAssessor`. Wave-level assessment still runs on the accumulated EvidenceSet.
+Reuse is candidate retrieval, never automatic truth. Graph code cannot mark a need sufficient. v1 does not skip live providers from a programmatic "found = sufficient" check: production assessment can be an LLM and now also sees evidence quality. A later conservative skip-gate must be tested against that real policy.
 
 ## Scope
 

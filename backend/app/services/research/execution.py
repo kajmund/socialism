@@ -138,7 +138,7 @@ from app.services.research.question_graph import (
     QuestionEvidenceGraph,
 )
 from app.services.research.question_reuse import (
-    annotate_fresh_retrieval,
+    merge_reused_with_provider,
     safe_lookup_reusable_evidence,
     safe_upsert_persisted_evidence,
     should_skip_providers,
@@ -282,7 +282,7 @@ async def _candidates_then_providers(
     question_graph: QuestionEvidenceGraph,
     attempt_id: str,
 ) -> list[ResearchEvidence]:
-    """Graph candidates re-enter EvidenceSet. Sufficiency may skip providers."""
+    """Graph candidates re-enter EvidenceSet. v1 still retrieves live."""
     async with factory() as graph_session:
         reused = await safe_lookup_reusable_evidence(
             graph_session,
@@ -300,7 +300,7 @@ async def _candidates_then_providers(
         router=router,
         router_factory=router_factory,
     )
-    return annotate_fresh_retrieval(provider)
+    return merge_reused_with_provider(reused, provider)
 
 
 async def _execute_one_need(
