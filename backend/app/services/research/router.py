@@ -168,7 +168,7 @@ class ResearchRouter:
         provider = _source_provider(source)
         try:
             evidence = await source.research(need, context)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 — isolate provider failures per need
             return [_error_evidence(need, source.source_type, exc, provider=provider)]
         if not evidence:
             return [_not_found_evidence(need, source.source_type, provider=provider)]
