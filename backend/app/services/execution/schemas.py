@@ -43,6 +43,9 @@ class ResearchNeedIn(BaseModel):
     why_needed: str = ""
     requested_by: list[str] = Field(default_factory=list)
     source_types: list[str] = Field(default_factory=list)
+    domains: list[str] = Field(default_factory=list)
+    modalities: list[str] = Field(default_factory=list)
+    capabilities: list[str] = Field(default_factory=list)
 
 
 class ResearchPlanIn(BaseModel):
@@ -86,6 +89,9 @@ class RuntimeResearchNeedOut(BaseModel):
     why_needed: str
     requested_by: list[str]
     source_types: list[str]
+    domains: list[str] = Field(default_factory=list)
+    modalities: list[str] = Field(default_factory=list)
+    capabilities: list[str] = Field(default_factory=list)
     origin: str
     wave_number: int
     parent_research_need_id: str | None

@@ -504,8 +504,8 @@ def test_router_source_has_no_llm():
     source = inspect.getsource(RouterImpl)
     for marker in _LLM_MARKERS:
         assert marker not in source
-    assert "source_types" in source
-    assert "sources_for" in source
+    assert "constraints_from_need" in source
+    assert "candidates_for" in source
 
 
 def test_research_package_has_no_panel_llm_or_mcp_imports():

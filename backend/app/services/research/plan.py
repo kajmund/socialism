@@ -19,7 +19,7 @@ def validate_research_plan(plan: ResearchPlan) -> ResearchPlan:
     """Fail closed before an Attempt leaves created.
 
     Empty plan is valid. Duplicate IDs, empty questions, and unknown
-    source_types are not.
+    source_types are not. Domain/modality/capability tokens are preserved.
     """
     seen_ids: set[str] = set()
     validated: list[ResearchNeed] = []
@@ -41,6 +41,17 @@ def validate_research_plan(plan: ResearchPlan) -> ResearchPlan:
                 why_needed=need.why_needed,
                 requested_by=list(need.requested_by),
                 source_types=source_types,
+                domains=_require_constraint_tokens(
+                    getattr(need, "domains", ()), field="domains", need_id=need_id
+                ),
+                modalities=_require_constraint_tokens(
+                    getattr(need, "modalities", ()), field="modalities", need_id=need_id
+                ),
+                capabilities=_require_constraint_tokens(
+                    getattr(need, "capabilities", ()),
+                    field="capabilities",
+                    need_id=need_id,
+                ),
             )
         )
     return ResearchPlan(needs=validated)
@@ -55,6 +66,9 @@ def research_plan_to_snapshot(plan: ResearchPlan) -> dict[str, Any]:
                 "why_needed": need.why_needed,
                 "requested_by": list(need.requested_by),
                 "source_types": list(need.source_types),
+                "domains": list(need.domains),
+                "modalities": list(need.modalities),
+                "capabilities": list(need.capabilities),
             }
             for need in plan.needs
         ]
@@ -79,15 +93,27 @@ def research_plan_from_snapshot(raw: object) -> ResearchPlan:
         requested_by = item.get("requested_by") or []
         if not isinstance(requested_by, list):
             raise InvalidResearchPlanError("ResearchNeed.requested_by must be a list")
+        need_id = str(item.get("id") or "")
         needs.append(
             ResearchNeed(
-                id=str(item.get("id") or ""),
+                id=need_id,
                 question=str(item.get("question") or ""),
                 why_needed=str(item.get("why_needed") or ""),
                 requested_by=[str(value) for value in requested_by],
                 source_types=_require_source_types(
                     [str(value) for value in source_types],
-                    need_id=str(item.get("id") or ""),
+                    need_id=need_id,
+                ),
+                domains=_require_constraint_tokens(
+                    item.get("domains") or [], field="domains", need_id=need_id
+                ),
+                modalities=_require_constraint_tokens(
+                    item.get("modalities") or [], field="modalities", need_id=need_id
+                ),
+                capabilities=_require_constraint_tokens(
+                    item.get("capabilities") or [],
+                    field="capabilities",
+                    need_id=need_id,
                 ),
             )
         )
@@ -108,3 +134,11 @@ def _require_source_types(
             )
         out.append(source_type)  # type: ignore[arg-type]
     return out
+
+
+def _require_constraint_tokens(values: object, *, field: str, need_id: str) -> list[str]:
+    if values is None:
+        return []
+    if not isinstance(values, list):
+        raise InvalidResearchPlanError(f"ResearchNeed {need_id} {field} must be a list")
+    return [str(item).strip() for item in values if str(item).strip()]

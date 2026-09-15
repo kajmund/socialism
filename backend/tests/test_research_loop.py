@@ -381,6 +381,9 @@ async def test_reassessment_sees_accumulated_evidence_then_freezes(db):
             "why_needed": "behövs för bedömning",
             "requested_by": ["legal"],
             "source_types": ["case_knowledge"],
+            "domains": [],
+            "modalities": [],
+            "capabilities": [],
         }
     ]
 

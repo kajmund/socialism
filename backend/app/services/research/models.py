@@ -44,6 +44,14 @@ class ResearchSourceNotRegisteredError(ResearchError):
         self.source_type = source_type
 
 
+class ResearchCapabilityUnavailableError(ResearchError):
+    """Need constraints matched no registered provider. Not a cue to try another."""
+
+    def __init__(self, *, evidence_nature: str | None, detail: str) -> None:
+        super().__init__(detail)
+        self.evidence_nature = evidence_nature
+
+
 class InvalidResearchPlanError(ResearchError, ValueError):
     """ResearchPlan failed validation before an Attempt may start research."""
 
@@ -55,10 +63,16 @@ class ResearchNeed:
     why_needed: str
     requested_by: list[str] = field(default_factory=list)
     source_types: list[ResearchSourceType] = field(default_factory=list)
+    domains: list[str] = field(default_factory=list)
+    modalities: list[str] = field(default_factory=list)
+    capabilities: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "requested_by", list(self.requested_by))
         object.__setattr__(self, "source_types", list(self.source_types))
+        object.__setattr__(self, "domains", list(self.domains))
+        object.__setattr__(self, "modalities", list(self.modalities))
+        object.__setattr__(self, "capabilities", list(self.capabilities))
 
 
 @dataclass(frozen=True)
@@ -95,7 +109,7 @@ class ResearchContext:
 class ResearchEvidence:
     evidence_id: str
     research_need_id: str
-    source_type: ResearchSourceType
+    source_type: str
     status: EvidenceStatus
     title: str | None
     excerpt: str | None
@@ -144,7 +158,7 @@ def make_evidence_id(
 def research_evidence(
     *,
     research_need_id: str,
-    source_type: ResearchSourceType,
+    source_type: str,
     status: EvidenceStatus,
     title: str | None = None,
     excerpt: str | None = None,
