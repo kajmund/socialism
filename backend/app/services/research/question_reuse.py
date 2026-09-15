@@ -48,6 +48,9 @@ from app.services.research.question_graph import (
 
 REUSE_ORIGIN_PERSISTENT: ReuseOrigin = "persistent_knowledge"
 REUSE_ORIGIN_FRESH: ReuseOrigin = "fresh_retrieval"
+SCOPE_CASE_KEY = "knowledge_case_id"
+SCOPE_MODULE_KEY = "knowledge_module"
+CASE_SCOPED_SOURCE_TYPES = frozenset({"case_knowledge"})
 
 
 def classify_freshness(
@@ -134,6 +137,8 @@ def should_skip_providers(
     }
     supporting = [item for item in reused if item.evidence_id in supporting_ids]
     if not supporting:
+        return False
+    if not all(_matches_need_source(item.source_type, need) for item in supporting):
         return False
     return all(_item_freshness(item) == "fresh" for item in supporting)
 
@@ -279,7 +284,13 @@ async def lookup_reusable_evidence(
         for link in links:
             if link.evidence_ref in seen_refs:
                 continue
-            if not _link_allowed(link, customer_id=customer_id, scope=scope):
+            if not _link_allowed(
+                link,
+                need=need,
+                context=context,
+                customer_id=customer_id,
+                scope=scope,
+            ):
                 continue
             seen_refs.add(link.evidence_ref)
             freshness = classify_freshness(
@@ -300,15 +311,50 @@ async def lookup_reusable_evidence(
     return reused
 
 
+def _matches_need_source(source_type: str | None, need: ResearchNeed) -> bool:
+    allowed = {item for item in need.source_types}
+    if not allowed:
+        return False
+    return (source_type or "") in allowed
+
+
 def _link_allowed(
     link: QuestionEvidenceLink,
     *,
+    need: ResearchNeed,
+    context: ResearchContext,
     customer_id: int,
     scope: KnowledgeQuestionScope,
 ) -> bool:
+    if not _matches_need_source(link.source_type, need):
+        return False
     if scope.visibility == "public":
         return link.visibility == "public"
-    return scope.customer_id == customer_id
+    if scope.customer_id != customer_id:
+        return False
+    stored_case = _provenance_text(link.provenance, SCOPE_CASE_KEY)
+    if stored_case is not None and stored_case != context.scope.case_id:
+        return False
+    stored_module = _provenance_text(link.provenance, SCOPE_MODULE_KEY)
+    return stored_module is None or stored_module == context.scope.module
+
+
+def _provenance_text(provenance: dict[str, object], key: str) -> str | None:
+    value = provenance.get(key)
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return None
+
+
+def _scope_provenance(
+    context: ResearchContext, source_type: str | None
+) -> dict[str, object]:
+    payload: dict[str, object] = {}
+    if source_type in CASE_SCOPED_SOURCE_TYPES and context.scope.case_id is not None:
+        payload[SCOPE_CASE_KEY] = context.scope.case_id
+    if context.scope.module is not None:
+        payload[SCOPE_MODULE_KEY] = context.scope.module
+    return payload
 
 
 async def safe_lookup_reusable_evidence(
@@ -335,6 +381,7 @@ async def safe_lookup_reusable_evidence(
             exclude_attempt_id=exclude_attempt_id,
         )
     except (QuestionEvidenceGraphError, SQLAlchemyError):
+        await session.rollback()
         return []
 
 
@@ -342,6 +389,7 @@ def evidence_to_link(
     question: KnowledgeQuestion,
     evidence: ResearchEvidence,
     *,
+    context: ResearchContext | None = None,
     observed_at: datetime | None = None,
     freshness: Freshness = "fresh",
     source_attempt_id: str | None = None,
@@ -362,6 +410,9 @@ def evidence_to_link(
     )
     version = evidence.metadata.get("version")
     version_text = version if isinstance(version, str) else None
+    provenance = dict(evidence.metadata)
+    if context is not None:
+        provenance.update(_scope_provenance(context, evidence.source_type))
     return QuestionEvidenceLink(
         question_id=question.id,
         evidence_ref=ref,
@@ -373,7 +424,7 @@ def evidence_to_link(
         source_url=evidence.source_url,
         source_type=evidence.source_type,
         provider=evidence.provider,
-        provenance=dict(evidence.metadata),
+        provenance=provenance,
         retrieved_at=evidence.retrieved_at,
         observed_at=observed_at or utc_now(),
         freshness=freshness,
@@ -413,9 +464,15 @@ async def upsert_persisted_evidence(
             excerpt=item.excerpt,
         )
         question_id = tenant_question.id
+        if _reuse_origin(item) == REUSE_ORIGIN_PERSISTENT:
+            annotated.append(item)
+            continue
         if item.status == "found":
             tenant_link = evidence_to_link(
-                tenant_question, item, source_attempt_id=source_attempt_id
+                tenant_question,
+                item,
+                context=context,
+                source_attempt_id=source_attempt_id,
             )
             if tenant_link is not None:
                 await graph.upsert_answer(session, tenant_link)
@@ -425,7 +482,10 @@ async def upsert_persisted_evidence(
                         session, identity, public_question_scope()
                     )
                 public_link = evidence_to_link(
-                    public_question, item, source_attempt_id=source_attempt_id
+                    public_question,
+                    item,
+                    context=context,
+                    source_attempt_id=source_attempt_id,
                 )
                 if public_link is not None:
                     await graph.upsert_answer(session, public_link)
@@ -441,12 +501,17 @@ async def upsert_persisted_evidence(
     return annotated
 
 
-def _has_reuse_lineage(item: ResearchEvidence) -> bool:
+def _reuse_origin(item: ResearchEvidence) -> ReuseOrigin | None:
     raw = item.metadata.get("reuse")
-    return isinstance(raw, dict) and raw.get("origin") in {
-        REUSE_ORIGIN_PERSISTENT,
-        REUSE_ORIGIN_FRESH,
-    }
+    if isinstance(raw, dict):
+        origin = raw.get("origin")
+        if origin in {REUSE_ORIGIN_PERSISTENT, REUSE_ORIGIN_FRESH}:
+            return origin
+    return None
+
+
+def _has_reuse_lineage(item: ResearchEvidence) -> bool:
+    return _reuse_origin(item) is not None
 
 
 async def safe_upsert_persisted_evidence(
@@ -460,7 +525,7 @@ async def safe_upsert_persisted_evidence(
 ) -> list[ResearchEvidence]:
     """Write-back failure must not fail the Attempt after evidence is persisted."""
     try:
-        return await upsert_persisted_evidence(
+        result = await upsert_persisted_evidence(
             session,
             graph=graph,
             need=need,
@@ -468,5 +533,8 @@ async def safe_upsert_persisted_evidence(
             evidence=evidence,
             source_attempt_id=source_attempt_id,
         )
+        await session.commit()
+        return result
     except (QuestionEvidenceGraphError, SQLAlchemyError):
+        await session.rollback()
         return list(evidence)

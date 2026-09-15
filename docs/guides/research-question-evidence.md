@@ -44,6 +44,13 @@ Namespaces are designed now so later customers do not need an unsafe compatibili
 
 Public reuse is allowed only when provenance says `public` (`public: true` or `visibility`/`scope` = `public`). Source type alone is not enough. Private tenant evidence is never written to `public` and is never visible to another customer.
 
+Reuse also has to match the current need:
+
+- `source_type` must be in the current `ResearchNeed.source_types`. A cached `web` hit cannot satisfy a later `swedish_law` need.
+- `case_knowledge` edges store `knowledge_case_id` and are only visible to that case.
+- Tenant edges store `knowledge_module` and stay inside that module.
+- Reused `persistent_knowledge` items are not written back. A cache hit must not refresh `observed_at` or keep an edge `fresh` forever.
+
 ## Freshness
 
 Persisted on each edge: `retrieved_at`, `observed_at`, source identity, `freshness`.
