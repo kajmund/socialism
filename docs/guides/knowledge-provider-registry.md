@@ -70,7 +70,7 @@ A provider that does not declare a required axis does not match it. Empty need-s
 - `modalities` — `text`, `image`, `tabular`, …
 - `capabilities` — `search`, `similarity`, `retrieve`, …
 - `evidence_natures` — logical source/evidence kinds the adapter can produce
-- `authority` — generic metadata (`tenant_bound`, `requires_case`, `retrieval_provider`)
+- `authority` — generic metadata (`tenant_bound`, `requires_case`, `retrieval_provider`). Optional quality keys (`official_publication`, `not_official_publication`, `automated_corpus`, `primary_source`, `source_nature`, `authority_warning`) are copied into evidence-quality scoring; undeclared keys stay `unknown`. See [research-evidence-quality.md](research-evidence-quality.md).
 - `access` — `ProviderAccess(mechanism=..., adapter=...)`
 - `rank` — integer tie-break before `provider_id`
 

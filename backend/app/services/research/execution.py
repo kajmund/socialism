@@ -9,7 +9,7 @@ ResearchNeedExecution rows while the Attempt is still researching.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 from sqlalchemy import select
@@ -23,6 +23,7 @@ from app.database.models import (
     ExecutionRun,
     ResearchAssessment,
     ResearchCompletenessPass,
+    ResearchEvidenceQuality,
     ResearchNeedExecution,
     ResearchRuntimeNeed,
 )
@@ -52,10 +53,12 @@ from app.services.execution.service import (
     get_research_completeness_by_fingerprint,
     get_run,
     list_evidence_items,
+    list_evidence_quality,
     list_need_executions,
     list_research_completeness_passes,
     list_runtime_needs,
     mark_ready,
+    persist_evidence_quality,
     persist_research_assessment,
     persist_research_completeness,
     persist_runtime_needs,
@@ -120,6 +123,17 @@ from app.services.research.planner import (
     research_objective_to_snapshot,
 )
 from app.services.research.composition import standard_available_source_types
+from app.services.research.provider import KnowledgeProviderDescriptor
+from app.services.research.quality import (
+    EVIDENCE_QUALITY_POLICY_VERSION,
+    EvidenceQualityDraft,
+    EvidenceRelevanceAssessor,
+    QualityEvidenceInput,
+    QualityFlag,
+    assess_evidence_quality,
+    quality_model_identity_key,
+)
+from app.services.research.registry import standard_capability_descriptors
 from app.services.research.router import ResearchRouter
 
 ResearchRouterFactory = Callable[[AsyncSession], ResearchRouter]
@@ -330,7 +344,10 @@ async def _run_need_executions(
     )
 
 
-def assessable_from_item(item: EvidenceSetItem) -> AssessableEvidence:
+def assessable_from_item(
+    item: EvidenceSetItem,
+    quality: EvidenceQualityDraft | None = None,
+) -> AssessableEvidence:
     return AssessableEvidence(
         evidence_id=item.original_evidence_id or item.id,
         research_need_id=item.research_need_id,
@@ -346,6 +363,54 @@ def assessable_from_item(item: EvidenceSetItem) -> AssessableEvidence:
         provenance=dict(item.provenance or {}),
         retrieved_at=item.retrieved_at,
         content_hash=item.content_hash,
+        quality=quality,
+    )
+
+
+def quality_input_from_item(item: EvidenceSetItem) -> QualityEvidenceInput:
+    return QualityEvidenceInput(
+        item_id=item.id,
+        original_evidence_id=item.original_evidence_id,
+        research_need_id=item.research_need_id,
+        source_type=item.source_type,
+        status=item.status,
+        title=item.title,
+        excerpt=item.excerpt,
+        locator=item.locator,
+        source_id=item.source_id,
+        source_url=item.source_url,
+        provider=item.provider,
+        provenance=dict(item.provenance or {}),
+        retrieved_at=item.retrieved_at,
+        content_hash=item.content_hash,
+    )
+
+
+def quality_draft_from_row(row: ResearchEvidenceQuality) -> EvidenceQualityDraft:
+    raw_flags = row.flags if isinstance(row.flags, list) else []
+    flags = []
+    for item in raw_flags:
+        if isinstance(item, dict) and item.get("code"):
+            flags.append(
+                QualityFlag(code=str(item["code"]), detail=str(item.get("detail") or ""))
+            )
+    return EvidenceQualityDraft(
+        evidence_set_item_id=row.evidence_set_item_id,
+        original_evidence_id=row.original_evidence_id,
+        scoring_policy_version=row.scoring_policy_version,
+        authority=row.authority,
+        relevance=row.relevance,
+        currentness=row.currentness,
+        source_nature=row.source_nature,
+        source_timestamp=row.source_timestamp,
+        independence_key=row.independence_key,
+        independent_source_count=row.independent_source_count,
+        flags=flags,
+        rationale=row.rationale,
+        declared_signals=dict(row.declared_signals or {}),
+        model_provider=row.model_provider,
+        model_name=row.model_name,
+        model_version=row.model_version,
     )
 
 
@@ -391,6 +456,75 @@ async def _runtime_plan(session: AsyncSession, attempt_id: str) -> ResearchPlan:
     return plan_from_runtime_needs([runtime_need_from_row(row) for row in rows])
 
 
+def _quality_descriptors(
+    router: ResearchRouter | None,
+    descriptors: tuple[KnowledgeProviderDescriptor, ...] | None,
+) -> tuple[KnowledgeProviderDescriptor, ...]:
+    if descriptors is not None:
+        return descriptors
+    registered = getattr(router, "registered_descriptors", None)
+    if callable(registered):
+        return tuple(registered())
+    return standard_capability_descriptors()
+
+
+async def _persist_evidence_quality(
+    session: AsyncSession,
+    *,
+    evidence_set_id: str,
+    plan: ResearchPlan,
+    descriptors: tuple[KnowledgeProviderDescriptor, ...],
+    relevance_assessor: EvidenceRelevanceAssessor | None,
+) -> list[EvidenceQualityDraft]:
+    """Score persisted items before local sufficiency. Does not mutate items."""
+    items = await list_evidence_items(session, evidence_set_id)
+    existing = await list_evidence_quality(
+        session,
+        evidence_set_id,
+        scoring_policy_version=EVIDENCE_QUALITY_POLICY_VERSION,
+    )
+    existing_keys = {
+        (row.evidence_set_item_id, row.scoring_policy_version, row.model_identity_key)
+        for row in existing
+    }
+    drafts = await assess_evidence_quality(
+        [quality_input_from_item(item) for item in items],
+        needs=plan.needs,
+        descriptors=descriptors,
+        relevance_assessor=relevance_assessor,
+    )
+    missing = [
+        draft
+        for draft in drafts
+        if (
+            draft.evidence_set_item_id,
+            draft.scoring_policy_version,
+            quality_model_identity_key(
+                model_provider=draft.model_provider,
+                model_name=draft.model_name,
+                model_version=draft.model_version,
+            ),
+        )
+        not in existing_keys
+    ]
+    if missing:
+        await persist_evidence_quality(
+            session, evidence_set_id=evidence_set_id, drafts=missing
+        )
+    stored = await list_evidence_quality(
+        session,
+        evidence_set_id,
+        scoring_policy_version=EVIDENCE_QUALITY_POLICY_VERSION,
+    )
+    return [quality_draft_from_row(row) for row in stored]
+
+
+def _quality_by_item(
+    drafts: list[EvidenceQualityDraft],
+) -> dict[str, EvidenceQualityDraft]:
+    return {draft.evidence_set_item_id: draft for draft in drafts}
+
+
 async def _assess_persisted_evidence(
     session: AsyncSession,
     *,
@@ -399,6 +533,7 @@ async def _assess_persisted_evidence(
     plan: ResearchPlan,
     assessor: ResearchAssessor,
     assessment_pass: int,
+    quality: list[EvidenceQualityDraft] | None = None,
 ) -> ResearchAssessment:
     """Judge persisted EvidenceSet items. Insufficient is a valid outcome."""
     existing = await get_research_assessment(
@@ -407,7 +542,10 @@ async def _assess_persisted_evidence(
     if existing is not None:
         return existing
     items = await list_evidence_items(session, evidence_set_id)
-    evidence = [assessable_from_item(item) for item in items]
+    quality_map = _quality_by_item(quality or [])
+    evidence = [
+        assessable_from_item(item, quality=quality_map.get(item.id)) for item in items
+    ]
     try:
         draft = await assessor.assess(plan, evidence)
     except ResearchAssessmentError:
@@ -673,6 +811,8 @@ async def _run_research_loop(
     assessor: ResearchAssessor,
     planner: FollowUpResearchPlanner,
     completeness_reviewer: ResearchCompletenessReviewer,
+    relevance_assessor: EvidenceRelevanceAssessor | None,
+    provider_descriptors: tuple[KnowledgeProviderDescriptor, ...] | None,
     concurrency: int,
     max_follow_up_waves: int,
     max_needs: int,
@@ -705,6 +845,15 @@ async def _run_research_loop(
                 return
             if attempt.research_plan_snapshot is not None:
                 snapshot_plan = research_plan_from_snapshot(attempt.research_plan_snapshot)
+            runtime_plan = await _runtime_plan(barrier_session, attempt_id)
+            quality_plan = runtime_plan if runtime_plan.needs else snapshot_plan
+            quality = await _persist_evidence_quality(
+                barrier_session,
+                evidence_set_id=evidence_set_id,
+                plan=quality_plan,
+                descriptors=_quality_descriptors(router, provider_descriptors),
+                relevance_assessor=relevance_assessor,
+            )
             assessment = await _assess_persisted_evidence(
                 barrier_session,
                 attempt=attempt,
@@ -712,6 +861,7 @@ async def _run_research_loop(
                 plan=snapshot_plan,
                 assessor=assessor,
                 assessment_pass=next_assessment_pass(wave),
+                quality=quality,
             )
             await set_research_loop_state(
                 barrier_session,
@@ -1000,6 +1150,8 @@ async def execute_attempt_research(
     assessor: ResearchAssessor | None = None,
     planner: FollowUpResearchPlanner | None = None,
     completeness_reviewer: ResearchCompletenessReviewer | None = None,
+    relevance_assessor: EvidenceRelevanceAssessor | None = None,
+    provider_descriptors: Sequence[KnowledgeProviderDescriptor] | None = None,
     session_factory: async_sessionmaker[AsyncSession] | None = None,
     concurrency: int | None = None,
     max_follow_up_waves: int | None = None,
@@ -1009,7 +1161,8 @@ async def execute_attempt_research(
     """Plan if needed, then run ResearchNeeds in bounded waves and freeze.
 
     Canonical path: persisted research_objective → ResearchPlanner →
-    validated initial ResearchPlan snapshot → retrieve / assess / follow-up.
+    validated initial ResearchPlan snapshot → retrieve / quality / assess /
+    follow-up.
     An explicit ResearchPlan skips the planner (tests and internal callers).
     Scope is always taken from ExecutionRun. Source-level error/not_found
     complete that need and do not fail the Attempt. Planner failure leaves
@@ -1098,6 +1251,10 @@ async def execute_attempt_research(
             assessor=bound_assessor,
             planner=bound_planner,
             completeness_reviewer=bound_completeness,
+            relevance_assessor=relevance_assessor,
+            provider_descriptors=(
+                None if provider_descriptors is None else tuple(provider_descriptors)
+            ),
             concurrency=need_concurrency,
             max_follow_up_waves=wave_limit,
             max_needs=need_limit,
@@ -1164,3 +1321,11 @@ async def _refresh_caller_state(
     )
     for row in cached_completeness.scalars():
         session.expire(row)
+    if evidence_set_id is not None:
+        cached_quality = await session.execute(
+            select(ResearchEvidenceQuality).where(
+                ResearchEvidenceQuality.evidence_set_id == evidence_set_id
+            )
+        )
+        for row in cached_quality.scalars():
+            session.expire(row)
