@@ -55,6 +55,7 @@ from app.services.research.registry import (
     KnowledgeProviderCapabilityRegistry,
     ResearchSourceRegistry,
     build_research_registry,
+    production_registered_source_types,
 )
 from app.services.research.router import ResearchRouter
 from app.services.research.source import ResearchSource
@@ -107,6 +108,7 @@ __all__ = [
     "constraints_from_need",
     "execute_attempt_research",
     "knowledge_adapter_descriptor",
+    "production_registered_source_types",
     "make_evidence_id",
     "plan_from_planner_drafts",
     "provenance_from_hit",

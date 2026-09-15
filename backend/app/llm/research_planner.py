@@ -12,12 +12,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.llm import complete_structured
 from app.services.prompt_catalog import render_prompt
 from app.services.prompt_store import require_active_prompts
-from app.services.research.models import RESEARCH_SOURCE_TYPES
 from app.services.research.planner import (
     ResearchNeedDraft,
     ResearchObjective,
     ResearchPlannerError,
 )
+from app.services.research.registry import production_registered_source_types
 
 Completer = Callable[[list[dict[str, Any]], type[Any]], Awaitable[Any]]
 
@@ -70,6 +70,13 @@ def _drafts_from_model(parsed: PlannedResearchModel) -> list[ResearchNeedDraft]:
     return drafts
 
 
+def _require_source_types(values: Sequence[str]) -> tuple[str, ...]:
+    types = tuple(str(item).strip() for item in values if str(item).strip())
+    if not types:
+        raise ResearchPlannerError("no executable research source types are available")
+    return types
+
+
 class LlmResearchPlanner:
     """Structured-output planner. Never retrieves, selects experts, or reports."""
 
@@ -79,6 +86,7 @@ class LlmResearchPlanner:
         completer: Completer | None = None,
         system_prompt: str,
         user_prompt: str,
+        source_types: Sequence[str],
     ) -> None:
         text = system_prompt.strip()
         user = user_prompt.strip()
@@ -89,10 +97,19 @@ class LlmResearchPlanner:
         self._completer = completer or complete_structured
         self._system_prompt = text
         self._user_prompt = user
+        self._source_types = _require_source_types(source_types)
 
     async def plan_research(
-        self, *, objective: ResearchObjective
+        self,
+        *,
+        objective: ResearchObjective,
+        available_source_types: Sequence[str] | None = None,
     ) -> Sequence[ResearchNeedDraft]:
+        types = (
+            _require_source_types(available_source_types)
+            if available_source_types is not None
+            else self._source_types
+        )
         messages = [
             {"role": "system", "content": self._system_prompt},
             {
@@ -100,7 +117,7 @@ class LlmResearchPlanner:
                 "content": render_prompt(
                     {"research.planner.user": self._user_prompt},
                     "research.planner.user",
-                    source_types=", ".join(RESEARCH_SOURCE_TYPES),
+                    source_types=", ".join(types),
                     objective=objective.objective,
                     objective_json=json.dumps(
                         _objective_payload(objective), ensure_ascii=False
@@ -138,4 +155,5 @@ async def build_llm_research_planner(
     return LlmResearchPlanner(
         system_prompt=render_prompt(prompts, "research.planner.system"),
         user_prompt=prompts["research.planner.user"],
+        source_types=production_registered_source_types(),
     )

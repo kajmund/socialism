@@ -37,6 +37,7 @@ from app.services.research import (
     ResearchSourceType,
     build_research_registry,
     make_evidence_id,
+    production_registered_source_types,
     provenance_from_hit,
     search_scope,
 )
@@ -495,6 +496,11 @@ async def test_unregistered_source_type_is_explicit_error():
 def test_default_registry_has_no_domain_or_web_adapter():
     registry = build_research_registry(RecordingKnowledgeProvider())
     assert registry.registered_types() == ["case_knowledge", "customer_knowledge"]
+    assert production_registered_source_types() == tuple(registry.registered_types())
+    assert ResearchRouter(registry).available_source_types() == (
+        "case_knowledge",
+        "customer_knowledge",
+    )
     assert registry.sources_for("domain_knowledge") == []
     assert registry.sources_for("swedish_law") == []
     assert registry.sources_for("web") == []

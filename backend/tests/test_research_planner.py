@@ -35,6 +35,11 @@ from app.services.research.planner import (
     plan_from_planner_drafts,
     require_research_objective,
 )
+from app.services.research.registry import (
+    ResearchSourceRegistry,
+    production_registered_source_types,
+)
+from app.services.research.router import ResearchRouter
 from tests.test_research_assessment import _fixed_draft
 from tests.test_research_execution import (
     RecordingSource,
@@ -138,7 +143,7 @@ async def test_planner_failure_leaves_research_unstarted(db):
     _customer, _run, attempt = await _created_attempt(session, slug="plan-fail")
 
     class BoomPlanner:
-        async def plan_research(self, *, objective):
+        async def plan_research(self, *, objective, available_source_types=None):
             raise RuntimeError("model down")
 
     with pytest.raises(ResearchPlannerError, match="planning failed"):
@@ -181,7 +186,7 @@ async def test_invalid_duplicate_and_over_budget_plans_fail_closed(db):
     assert reloaded.research_plan_snapshot is None
     assert sources[0].calls == 0
 
-    with pytest.raises(InvalidResearchPlanError, match="unknown source_type"):
+    with pytest.raises(InvalidResearchPlanError, match="unavailable source_type"):
         await execute_attempt_research(
             session,
             attempt_id=attempt.id,
@@ -389,6 +394,7 @@ async def test_llm_planner_uses_injected_prompt_and_objective_data():
         completer=completer,
         system_prompt="Bryt ner målet.",
         user_prompt="OVERRIDE {objective} :: {context_json} :: {source_types}",
+        source_types=["case_knowledge", "customer_knowledge"],
     )
     drafts = await planner.plan_research(
         objective=_objective("Vad är skattesatsen?", matter="tax")
@@ -413,6 +419,7 @@ async def test_llm_planner_parse_failure_raises(db):
         completer=completer,
         system_prompt="Bryt ner målet.",
         user_prompt="Mål: {objective} {objective_json} {context_json} {source_types}",
+        source_types=["case_knowledge", "customer_knowledge"],
     )
     with pytest.raises(ResearchPlannerError, match="model call failed"):
         await execute_attempt_research(
@@ -436,3 +443,124 @@ def test_plan_from_planner_drafts_assigns_ids_and_rejects_gaps():
         plan_from_planner_drafts([_draft(why="  ")])
     with pytest.raises(InvalidResearchPlanError, match="source_types"):
         plan_from_planner_drafts([_draft(source_types=[])])
+    with pytest.raises(InvalidResearchPlanError, match="at least one need"):
+        plan_from_planner_drafts([])
+
+
+@pytest.mark.asyncio
+async def test_generated_empty_plan_fails_closed(db):
+    session, _factory = db
+    _customer, _run, attempt = await _created_attempt(session, slug="plan-empty-gen")
+    router, sources = _router(RecordingSource("case_knowledge"))
+    planner = FakeResearchPlanner([])
+    with pytest.raises(InvalidResearchPlanError, match="at least one need"):
+        await execute_attempt_research(
+            session,
+            attempt_id=attempt.id,
+            research_objective=_objective(),
+            research_planner=planner,
+            router=router,
+        )
+    reloaded = await get_attempt(session, attempt.id)
+    assert planner.calls
+    assert reloaded.status == "created"
+    assert reloaded.research_plan_snapshot is None
+    assert reloaded.evidence_set_id is None
+    assert await list_need_executions(session, attempt.id) == []
+    assert await list_runtime_needs(session, attempt.id) == []
+    assert await list_research_assessments(session, attempt.id) == []
+    assert sources[0].calls == 0
+
+
+@pytest.mark.asyncio
+async def test_generated_plan_rejects_source_types_router_cannot_run(db):
+    session, _factory = db
+    _customer, _run, attempt = await _created_attempt(session, slug="plan-unreg")
+    router, sources = _router(RecordingSource("case_knowledge"))
+    planner = FakeResearchPlanner([_draft(source_types=["swedish_law"])])
+    with pytest.raises(InvalidResearchPlanError, match="unavailable source_type"):
+        await execute_attempt_research(
+            session,
+            attempt_id=attempt.id,
+            research_objective=_objective(),
+            research_planner=planner,
+            router=router,
+        )
+    reloaded = await get_attempt(session, attempt.id)
+    assert planner.available_source_types_calls == [("case_knowledge",)]
+    assert reloaded.status == "created"
+    assert reloaded.research_plan_snapshot is None
+    assert reloaded.evidence_set_id is None
+    assert await list_need_executions(session, attempt.id) == []
+    assert sources[0].calls == 0
+
+
+@pytest.mark.asyncio
+async def test_llm_planner_is_offered_only_executable_source_types():
+    captured: list[list[dict]] = []
+
+    async def completer(messages, response_model):
+        captured.append(messages)
+        return PlannedResearchModel.model_validate(
+            {
+                "needs": [
+                    {
+                        "question": "Vad gäller skattesatsen?",
+                        "why_needed": "behövs",
+                        "source_types": ["case_knowledge"],
+                    }
+                ]
+            }
+        )
+
+    planner = LlmResearchPlanner(
+        completer=completer,
+        system_prompt="Bryt ner målet.",
+        user_prompt="Tillåtna: {source_types}",
+        source_types=production_registered_source_types(),
+    )
+    await planner.plan_research(
+        objective=_objective(),
+        available_source_types=("case_knowledge",),
+    )
+    offered = captured[0][1]["content"]
+    assert offered == "Tillåtna: case_knowledge"
+    assert "swedish_law" not in offered
+    assert "swedish_preparatory_works" not in offered
+    assert "web" not in offered
+    assert "domain_knowledge" not in offered
+
+
+def test_production_registered_source_types_match_standard_registry():
+    types = production_registered_source_types()
+    assert types == ("case_knowledge", "customer_knowledge")
+    assert "swedish_law" not in types
+    assert "web" not in types
+
+
+def test_llm_planner_rejects_empty_source_types():
+    with pytest.raises(ResearchPlannerError, match="no executable"):
+        LlmResearchPlanner(
+            system_prompt="Bryt ner målet.",
+            user_prompt="Tillåtna: {source_types}",
+            source_types=(),
+        )
+
+
+@pytest.mark.asyncio
+async def test_planner_fails_closed_when_router_has_no_sources(db):
+    session, _factory = db
+    _customer, _run, attempt = await _created_attempt(session, slug="plan-nosrc")
+    planner = FakeResearchPlanner([_draft()])
+    with pytest.raises(ResearchPlannerError, match="no executable"):
+        await execute_attempt_research(
+            session,
+            attempt_id=attempt.id,
+            research_objective=_objective(),
+            research_planner=planner,
+            router=ResearchRouter(ResearchSourceRegistry()),
+        )
+    reloaded = await get_attempt(session, attempt.id)
+    assert planner.calls == []
+    assert reloaded.status == "created"
+    assert reloaded.research_plan_snapshot is None

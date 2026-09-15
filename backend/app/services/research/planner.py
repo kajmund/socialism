@@ -60,7 +60,10 @@ class ResearchNeedDraft:
 
 class ResearchPlanner(Protocol):
     async def plan_research(
-        self, *, objective: ResearchObjective
+        self,
+        *,
+        objective: ResearchObjective,
+        available_source_types: Sequence[str] | None = None,
     ) -> Sequence[ResearchNeedDraft]: ...
 
 
@@ -70,11 +73,16 @@ class FakeResearchPlanner:
     def __init__(self, drafts: Sequence[ResearchNeedDraft] | None = None) -> None:
         self.drafts = list(drafts or [])
         self.calls: list[ResearchObjective] = []
+        self.available_source_types_calls: list[tuple[str, ...]] = []
 
     async def plan_research(
-        self, *, objective: ResearchObjective
+        self,
+        *,
+        objective: ResearchObjective,
+        available_source_types: Sequence[str] | None = None,
     ) -> Sequence[ResearchNeedDraft]:
         self.calls.append(objective)
+        self.available_source_types_calls.append(tuple(available_source_types or ()))
         return list(self.drafts)
 
 
@@ -128,8 +136,26 @@ def assign_initial_need_id(
     return f"{base}_{suffix}"
 
 
-def plan_from_planner_drafts(drafts: Sequence[ResearchNeedDraft]) -> ResearchPlan:
-    """Turn planner candidates into a ResearchPlan. Validation stays authoritative."""
+def plan_from_planner_drafts(
+    drafts: Sequence[ResearchNeedDraft],
+    *,
+    allowed_source_types: Sequence[str] | None = None,
+) -> ResearchPlan:
+    """Turn planner candidates into a ResearchPlan. Validation stays authoritative.
+
+    A generated plan must contain at least one need. ``allowed_source_types``
+    is the executable registry for this attempt; catalog membership alone
+    is not enough when that set is provided.
+    """
+    if not drafts:
+        raise InvalidResearchPlanError(
+            "generated ResearchPlan must contain at least one need"
+        )
+    allowed = (
+        frozenset(str(item).strip() for item in allowed_source_types if str(item).strip())
+        if allowed_source_types is not None
+        else _SOURCE_TYPES
+    )
     existing_ids: set[str] = set()
     seen_keys: set[str] = set()
     needs: list[ResearchNeed] = []
@@ -158,10 +184,11 @@ def plan_from_planner_drafts(drafts: Sequence[ResearchNeedDraft]) -> ResearchPla
             raise InvalidResearchPlanError(
                 f"ResearchNeed {index} source_types is required"
             )
-        if any(item not in _SOURCE_TYPES for item in source_types):
-            unknown = next(item for item in source_types if item not in _SOURCE_TYPES)
+        if any(item not in allowed for item in source_types):
+            unknown = next(item for item in source_types if item not in allowed)
+            kind = "unknown" if allowed_source_types is None else "unavailable"
             raise InvalidResearchPlanError(
-                f"ResearchNeed {index} has unknown source_type={unknown!r}"
+                f"ResearchNeed {index} has {kind} source_type={unknown!r}"
             )
         need_id = assign_initial_need_id(
             index=index,

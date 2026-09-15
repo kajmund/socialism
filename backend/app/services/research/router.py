@@ -121,6 +121,10 @@ class ResearchRouter:
     def __init__(self, registry: KnowledgeProviderCapabilityRegistry) -> None:
         self._registry = registry
 
+    def available_source_types(self) -> tuple[str, ...]:
+        """Evidence natures this router's capability registry can execute."""
+        return self._registry.registered_evidence_natures()
+
     async def execute_need(
         self,
         need: ResearchNeed,
