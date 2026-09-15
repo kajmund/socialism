@@ -21,10 +21,6 @@ from app.database.models import (
     UserAccount,
 )
 from app.database.session import get_session
-from app.llm.research_assessment import build_llm_research_assessor
-from app.llm.research_completeness import build_llm_research_completeness_reviewer
-from app.llm.research_followup import build_llm_follow_up_planner
-from app.llm.research_planner import build_llm_research_planner
 from app.services.attempt_executors import (
     UnsupportedAttemptTypeError,
     execute_registered_attempt,
@@ -87,6 +83,10 @@ from app.services.panel.attempt_execution import (
     validate_generic_panel_snapshots,
 )
 from app.services.prompt_store import require_active_prompts
+from app.llm.research_assessment import build_llm_research_assessor
+from app.llm.research_completeness import build_llm_research_completeness_reviewer
+from app.llm.research_followup import build_llm_follow_up_planner
+from app.llm.research_planner import build_llm_research_planner
 from app.services.research.assessment import need_assessment_from_json
 from app.services.research.completeness import (
     ResearchCompletenessError,
