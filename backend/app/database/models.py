@@ -1436,12 +1436,59 @@ class ExecutionAttempt(Base):
         back_populates="attempt",
         uselist=False,
     )
+    need_executions: Mapped[list["ResearchNeedExecution"]] = relationship(
+        back_populates="attempt",
+    )
+
+
+class ResearchNeedExecution(Base):
+    """Per-need lifecycle under one Attempt. Plan snapshot owns the payload."""
+
+    __tablename__ = "research_need_executions"
+    __table_args__ = (
+        UniqueConstraint(
+            "attempt_id",
+            "research_need_id",
+            name="uq_research_need_executions_attempt_need",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    attempt_id: Mapped[str] = mapped_column(
+        ForeignKey("execution_attempts.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    research_need_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    attempt: Mapped[ExecutionAttempt] = relationship(back_populates="need_executions")
 
 
 class EvidenceSetItem(Base):
     """Historical snapshot of evidence the model saw — not a live pointer."""
 
     __tablename__ = "evidence_set_items"
+    __table_args__ = (
+        UniqueConstraint(
+            "evidence_set_id",
+            "original_evidence_id",
+            name="uq_evidence_set_items_set_original_evidence_id",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     evidence_set_id: Mapped[str] = mapped_column(

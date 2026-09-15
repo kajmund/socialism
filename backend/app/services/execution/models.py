@@ -58,6 +58,18 @@ EvidenceSetStatus = Literal["building", "frozen", "failed"]
 
 EVIDENCE_SET_STATUSES: tuple[EvidenceSetStatus, ...] = ("building", "frozen", "failed")
 
+ResearchNeedExecutionStatus = Literal["pending", "running", "completed", "failed"]
+
+RESEARCH_NEED_EXECUTION_STATUSES: tuple[ResearchNeedExecutionStatus, ...] = (
+    "pending",
+    "running",
+    "completed",
+    "failed",
+)
+TERMINAL_NEED_EXECUTION_STATUSES: frozenset[ResearchNeedExecutionStatus] = frozenset(
+    {"completed", "failed"}
+)
+
 # Documented examples only — attempt_type is an extensible string, not a DB enum.
 KNOWN_ATTEMPT_TYPES: tuple[str, ...] = (
     "generic_panel",

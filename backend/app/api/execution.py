@@ -66,6 +66,7 @@ from app.services.prompt_store import require_active_prompts
 from app.services.research.composition import (
     ResearchCompositionError,
     build_standard_research_router,
+    require_research_router_ready,
 )
 from app.services.research.execution import (
     AttemptResearchResult,
@@ -465,12 +466,12 @@ async def post_attempt_research(
         return await _research_out_from_attempt(session, attempt)
     try:
         plan = research_plan_from_snapshot(body.research_plan.model_dump())
-        router_impl = build_standard_research_router(session)
+        require_research_router_ready()
         result = await execute_attempt_research(
             session,
             attempt_id=attempt_id,
             research_plan=plan,
-            router=router_impl,
+            router_factory=build_standard_research_router,
         )
     except (
         ExecutionError,
