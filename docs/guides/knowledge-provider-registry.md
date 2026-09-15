@@ -59,6 +59,8 @@ Filter rules (all programmatic):
 
 A provider that does not declare a required axis does not match it. Empty need-side axes mean “no filter”.
 
+`ResearchPlanner` is only offered natures the attempt's registry can execute: `ResearchRouter.available_source_types()` reads `registered_evidence_natures()`. Catalog membership is not enough. A generated empty plan is invalid.
+
 ## Provider descriptor
 
 `KnowledgeProviderDescriptor` is the registration contract:
