@@ -54,6 +54,9 @@ EXECUTION_PY = (
     Path(__file__).resolve().parents[1] / "app" / "services" / "research" / "execution.py"
 )
 PLAN_PY = Path(__file__).resolve().parents[1] / "app" / "services" / "research" / "plan.py"
+ASSESSMENT_PY = (
+    Path(__file__).resolve().parents[1] / "app" / "services" / "research" / "assessment.py"
+)
 
 _FORBIDDEN_IMPORT_PREFIXES = (
     "app.services.panel",
@@ -582,7 +585,7 @@ def test_research_package_init_does_not_eagerly_import_orchestration():
 
 
 def test_execute_attempt_research_has_no_panel_or_ui_imports():
-    for path in (EXECUTION_PY, PLAN_PY):
+    for path in (EXECUTION_PY, PLAN_PY, ASSESSMENT_PY):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for node in ast.walk(tree):
             names: list[str] = []

@@ -21,9 +21,11 @@ from app.services.execution import (
 from app.services.panel.competency import ExpertCompetency
 from app.services.panel.research import empty_research_structured
 from app.services.panel.synthesis import GenericPanelSynthesis, SynthesizedClaim
+from app.services.research.assessment import ProgrammaticResearchAssessor
 from app.services.research.composition import (
     ResearchCompositionError,
     build_standard_research_router,
+    set_research_assessor_factory,
     set_research_router_factory,
 )
 from app.services.research.models import ResearchContext, ResearchNeed, research_evidence
@@ -91,6 +93,13 @@ class ScriptedSource:
         if self.mode == "empty":
             return []
         raise RuntimeError("source exploded")
+
+
+@pytest.fixture(autouse=True)
+def programmatic_research_assessor():
+    set_research_assessor_factory(ProgrammaticResearchAssessor)
+    yield
+    set_research_assessor_factory(None)
 
 
 @pytest.fixture
@@ -264,6 +273,16 @@ async def test_research_then_evidence_is_frozen_and_ordered(
     assert detail_body["evidence"]["status"] == "frozen"
     assert detail_body["evidence"]["found_count"] == 1
     assert detail_body["evidence"]["not_found_count"] == 1
+    assessment = detail_body["assessment"]
+    assert assessment["result"] in {"sufficient", "insufficient"}
+    assert assessment["attempt_id"] == attempt["id"]
+    assert assessment["evidence_set_id"] == body["evidence_set_id"]
+    assert assessment["evidence_fingerprint"]
+    assert {row["research_need_id"] for row in assessment["need_assessments"]} == {
+        "research_1",
+        "research_2",
+    }
+    assert researched.json()["assessment"]["id"] == assessment["id"]
 
     evidence = await client.get(f"/execution/attempts/{attempt['id']}/evidence")
     assert evidence.status_code == 200

@@ -30,6 +30,33 @@ export type EvidenceSummary = {
   error_count: number
 }
 
+export type ResearchNeedAssessment = {
+  research_need_id: string
+  sufficient: boolean
+  supporting_evidence_ids: string[]
+  missing_or_weak: string
+  contradictions: string[]
+  further_information: string | null
+}
+
+export type ResearchAssessment = {
+  id: string
+  attempt_id: string
+  evidence_set_id: string
+  assessment_pass: number
+  result: "sufficient" | "insufficient" | string
+  rationale: string
+  need_assessments: ResearchNeedAssessment[]
+  gaps: string[]
+  contradictions: string[]
+  considered_evidence_ids: string[]
+  evidence_fingerprint: string
+  model_provider: string | null
+  model_name: string | null
+  model_version: string | null
+  created_at: string
+}
+
 export type AttemptResult = {
   id: string
   result_type: string
@@ -50,6 +77,7 @@ export type ExecutionAttempt = {
   input_snapshot: Record<string, unknown>
   research_plan_snapshot: Record<string, unknown> | null
   evidence: EvidenceSummary | null
+  assessment: ResearchAssessment | null
   result: AttemptResult | null
   created_at: string
   started_at: string | null
