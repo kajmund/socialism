@@ -23,6 +23,15 @@ _IMPLEMENTED_KNOWLEDGE_TYPES: tuple[ResearchSourceType, ...] = (
 )
 
 
+def production_registered_source_types() -> tuple[ResearchSourceType, ...]:
+    """Evidence natures the standard production capability registry can execute.
+
+    Same set ``build_research_registry`` registers. Catalog types that are
+    not returned here must not be offered to planners.
+    """
+    return _IMPLEMENTED_KNOWLEDGE_TYPES
+
+
 class KnowledgeProviderCapabilityRegistry:
     """Register providers by capability metadata; resolve a bounded candidate set."""
 
@@ -58,6 +67,15 @@ class KnowledgeProviderCapabilityRegistry:
             if source_type not in seen:
                 seen.append(source_type)
         return seen
+
+    def registered_evidence_natures(self) -> tuple[str, ...]:
+        """Executable evidence natures. Planner source_types must stay inside this set."""
+        seen: list[str] = []
+        for entry in self._entries:
+            for nature in entry.descriptor.evidence_natures:
+                if nature not in seen:
+                    seen.append(nature)
+        return tuple(seen)
 
     def registered_providers(self) -> list[RegisteredProvider]:
         return list(self._entries)
@@ -127,7 +145,7 @@ ResearchSourceRegistry = KnowledgeProviderCapabilityRegistry
 def build_research_registry(provider: KnowledgeProvider) -> ResearchSourceRegistry:
     """Knowledge adapters only. domain_knowledge has no global namespace yet."""
     registry = KnowledgeProviderCapabilityRegistry()
-    for source_type in _IMPLEMENTED_KNOWLEDGE_TYPES:
+    for source_type in production_registered_source_types():
         registry.register(
             KnowledgeResearchSource(provider, source_type=source_type),
             descriptor=knowledge_adapter_descriptor(provider.provider_id, source_type),
