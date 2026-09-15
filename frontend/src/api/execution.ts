@@ -222,3 +222,47 @@ export function getExecutionEvidence(attemptId: string): Promise<EvidenceSet> {
 export function getExecutionResult(attemptId: string): Promise<AttemptResult> {
   return api.get<AttemptResult>(`/execution/attempts/${attemptId}/result`)
 }
+
+export type ResearchProgressEventType =
+  | "objective_accepted"
+  | "initial_plan_accepted"
+  | "research_need_planned"
+  | "follow_up_need_derived"
+  | "global_need_derived"
+  | "need_queued"
+  | "need_running"
+  | "need_completed"
+  | "need_failed"
+  | "evidence_found"
+  | "evidence_not_found"
+  | "evidence_error"
+  | "local_assessment_persisted"
+  | "global_completeness_persisted"
+  | "capability_unavailable"
+  | "research_frozen_ready"
+  | "research_failed"
+
+export type ResearchProgressEvent = {
+  id: string
+  attempt_id: string
+  sequence: number
+  event_type: ResearchProgressEventType | string
+  payload: Record<string, unknown>
+  occurred_at: string
+}
+
+export type ResearchProgressEventList = {
+  attempt_id: string
+  after_sequence: number
+  events: ResearchProgressEvent[]
+}
+
+export function getResearchProgressEvents(
+  attemptId: string,
+  afterSequence = 0,
+): Promise<ResearchProgressEventList> {
+  const query = afterSequence > 0 ? `?after_sequence=${afterSequence}` : ""
+  return api.get<ResearchProgressEventList>(
+    `/execution/attempts/${attemptId}/progress-events${query}`,
+  )
+}

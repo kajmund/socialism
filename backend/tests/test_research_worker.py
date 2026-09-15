@@ -19,6 +19,7 @@ from app.database.models import (
     ExecutionResearchClaim,
     Kund,
     ResearchNeedExecution,
+    ResearchProgressEvent,
     ResearchRuntimeNeed,
 )
 from app.services.execution import (
@@ -53,6 +54,7 @@ from app.services.research.execution import execute_attempt_research
 from app.services.research.models import ResearchContext, ResearchNeed, ResearchPlan
 from app.services.research.plan import research_plan_to_snapshot
 from app.services.research.planner import FakeResearchPlanner, ResearchNeedDraft
+from app.services.research.progress import list_research_progress_events
 from app.services.research.registry import ResearchSourceRegistry
 from app.services.research.router import ResearchRouter
 from app.config import settings
@@ -116,6 +118,28 @@ async def _attempt(session: AsyncSession, slug: str) -> tuple[object, object, Ex
         input_snapshot={"question": "Vad gäller skattesatsen?"},
     )
     return kund, run, attempt
+
+
+async def _expire_until_claimable(
+    factory: async_sessionmaker[AsyncSession], attempt_id: str
+) -> None:
+    """Keep the lease expired until reclaim can observe it.
+
+    A heartbeat renew can overwrite a single expire. Re-apply until the
+    Attempt is claimable so the second worker actually starts.
+    """
+    deadline = utc_now() + timedelta(seconds=2)
+    while utc_now() < deadline:
+        async with factory() as expire:
+            row = await expire.get(ExecutionResearchClaim, attempt_id)
+            assert row is not None
+            row.lease_expires_at = utc_now() - timedelta(seconds=1)
+            await expire.commit()
+        async with factory() as check:
+            if attempt_id in await list_claimable_attempt_ids(check):
+                return
+        await asyncio.sleep(0.02)
+    raise AssertionError(f"attempt {attempt_id} never became claimable")
 
 
 @pytest.mark.asyncio
@@ -555,11 +579,7 @@ async def test_lease_loss_fences_old_worker_after_second_claimant(
         )
         first = asyncio.create_task(run_research_claim(attempt.id))
         await asyncio.wait_for(entered.wait(), timeout=2)
-        async with factory() as expire:
-            row = await expire.get(ExecutionResearchClaim, attempt.id)
-            assert row is not None
-            row.lease_expires_at = utc_now() - timedelta(seconds=1)
-            await expire.commit()
+        await _expire_until_claimable(factory, attempt.id)
         second = asyncio.create_task(run_research_claim(attempt.id))
         await asyncio.wait_for(second, timeout=5)
         await asyncio.wait_for(first, timeout=5)
@@ -609,10 +629,15 @@ async def test_setup_failure_fail_closes_attempt(worker_db):
         set_research_assessor_factory(ProgrammaticResearchAssessor)
     async with factory() as check:
         row = await get_attempt(check, attempt.id)
+        events = await list_research_progress_events(check, attempt.id)
         claimable = await list_claimable_attempt_ids(check)
+    types = _event_types(events)
     assert row.status == "failed"
     assert claimable == []
     assert sources[0].calls == 0
+    assert "research_failed" in types
+    assert "research_frozen_ready" not in types
+    assert types[-1] == "research_failed"
 
 
 @pytest.mark.asyncio
@@ -664,10 +689,172 @@ async def test_stop_reclaim_loop_does_not_fail_inflight_research(worker_db):
         gate.set()
         await wait_research_workers()
         async with factory() as check:
+            events = await list_research_progress_events(check, attempt.id)
             done = await get_attempt(check, attempt.id)
+        types = _event_types(events)
         assert done.status == "ready"
+        assert "research_failed" not in types
+        assert types.count("research_frozen_ready") == 1
+        assert types[-1] == "research_frozen_ready"
     finally:
         gate.set()
         if stop is not None:
             await stop_research_reclaim_loop(stop)
         set_research_router_factory(None)
+
+
+def _event_types(events: list[ResearchProgressEvent]) -> list[str]:
+    return [row.event_type for row in events]
+
+
+@pytest.mark.asyncio
+async def test_worker_emits_progress_events_without_request_context(worker_db):
+    session, factory = worker_db
+    _kund, _run, attempt = await _attempt(session, "prog-worker")
+    plan = ResearchPlan(needs=[_need("research_1", "case_knowledge")])
+    router, _sources = _router(RecordingSource("case_knowledge"))
+    set_research_router_factory(lambda _session: router)
+    try:
+        status = await accept_attempt_research(
+            session,
+            attempt_id=attempt.id,
+            research_objective="Kartlägg kommunens skattesats",
+            research_context={},
+            research_plan=research_plan_to_snapshot(plan),
+        )
+        assert status == "202"
+        await run_research_claim(attempt.id)
+        await run_research_claim(attempt.id)
+    finally:
+        set_research_router_factory(None)
+
+    async with factory() as check:
+        events = await list_research_progress_events(check, attempt.id)
+        row = await get_attempt(check, attempt.id)
+    types = _event_types(events)
+    assert row.status == "ready"
+    assert [event.sequence for event in events] == list(range(1, len(events) + 1))
+    assert types[0] == "objective_accepted"
+    assert "initial_plan_accepted" in types
+    assert "research_need_planned" in types
+    assert "need_queued" in types
+    assert "need_running" in types
+    assert "evidence_found" in types
+    assert "need_completed" in types
+    assert "local_assessment_persisted" in types
+    assert types[-1] == "research_frozen_ready"
+    first = [(event.id, event.sequence, event.event_type) for event in events]
+    async with factory() as again:
+        repeated = await list_research_progress_events(again, attempt.id)
+    assert [(event.id, event.sequence, event.event_type) for event in repeated] == first
+
+
+@pytest.mark.asyncio
+async def test_lease_loss_does_not_emit_research_failed(worker_db, monkeypatch):
+    session, factory = worker_db
+    monkeypatch.setattr(settings, "research_claim_lease_seconds", 0.3)
+    _kund, _run, attempt = await _attempt(session, "prog-fence")
+    entered = asyncio.Event()
+    gate = asyncio.Event()
+    first_retrieve = True
+
+    class GatedSource:
+        source_type = "case_knowledge"
+        provider_id = "fake"
+
+        async def research(self, need: ResearchNeed, context: ResearchContext):
+            nonlocal first_retrieve
+            if first_retrieve:
+                first_retrieve = False
+                entered.set()
+                await gate.wait()
+            return [
+                research_evidence(
+                    research_need_id=need.id,
+                    source_type="case_knowledge",
+                    status="found",
+                    excerpt="skattesats 32%",
+                    locator="p. 14",
+                )
+            ]
+
+    registry = ResearchSourceRegistry()
+    registry.register(GatedSource())
+    set_research_router_factory(lambda _session: ResearchRouter(registry))
+    plan = ResearchPlan(needs=[_need("research_1", "case_knowledge")])
+    try:
+        await accept_attempt_research(
+            session,
+            attempt_id=attempt.id,
+            research_objective=None,
+            research_context={},
+            research_plan=research_plan_to_snapshot(plan),
+        )
+        first = asyncio.create_task(run_research_claim(attempt.id))
+        await asyncio.wait_for(entered.wait(), timeout=2)
+        await _expire_until_claimable(factory, attempt.id)
+        second = asyncio.create_task(run_research_claim(attempt.id))
+        await asyncio.wait_for(second, timeout=5)
+        await asyncio.wait_for(first, timeout=5)
+        async with factory() as check:
+            events = await list_research_progress_events(check, attempt.id)
+            done = await get_attempt(check, attempt.id)
+    finally:
+        gate.set()
+        await wait_research_workers()
+        set_research_router_factory(None)
+
+    types = _event_types(events)
+    assert done.status == "ready"
+    assert "research_failed" not in types
+    assert types.count("research_frozen_ready") == 1
+    assert types[-1] == "research_frozen_ready"
+
+
+@pytest.mark.asyncio
+async def test_fenced_exception_without_cancel_does_not_fail_close(worker_db):
+    session, factory = worker_db
+    _kund, _run, attempt = await _attempt(session, "prog-fence-exc")
+    await session.commit()
+    entered = asyncio.Event()
+    gate = asyncio.Event()
+    lease_lost = asyncio.Event()
+
+    class BoomAfterFence:
+        source_type = "case_knowledge"
+        provider_id = "fake"
+
+        async def research(self, need: ResearchNeed, context: ResearchContext):
+            entered.set()
+            await gate.wait()
+            raise RuntimeError("stale after fence")
+
+    router, _sources = _router(BoomAfterFence())
+    plan = ResearchPlan(needs=[_need("research_1", "case_knowledge")])
+    try:
+        task = asyncio.create_task(
+            execute_attempt_research(
+                session,
+                attempt_id=attempt.id,
+                research_plan=plan,
+                router=router,
+                session_factory=factory,
+                lease_lost=lease_lost,
+            )
+        )
+        await asyncio.wait_for(entered.wait(), timeout=2)
+        lease_lost.set()
+        gate.set()
+        with pytest.raises(asyncio.CancelledError):
+            await asyncio.wait_for(task, timeout=5)
+    finally:
+        gate.set()
+
+    async with factory() as check:
+        events = await list_research_progress_events(check, attempt.id)
+        row = await get_attempt(check, attempt.id)
+    types = _event_types(events)
+    assert row.status == "researching"
+    assert "need_failed" not in types
+    assert "research_failed" not in types
+    assert "research_frozen_ready" not in types
