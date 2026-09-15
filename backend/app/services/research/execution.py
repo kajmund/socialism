@@ -172,6 +172,7 @@ async def _execute_one_need(
     *,
     factory: async_sessionmaker[AsyncSession],
     persist_lock: asyncio.Lock,
+    retrieve_slots: asyncio.Semaphore,
     execution_id: str,
     need: ResearchNeed,
     context: ResearchContext,
@@ -186,13 +187,14 @@ async def _execute_one_need(
             return
 
     try:
-        evidence = await _retrieve_need(
-            factory=factory,
-            need=need,
-            context=context,
-            router=router,
-            router_factory=router_factory,
-        )
+        async with retrieve_slots:
+            evidence = await _retrieve_need(
+                factory=factory,
+                need=need,
+                context=context,
+                router=router,
+                router_factory=router_factory,
+            )
     except BaseException:
         async with persist_lock, factory() as fail_session:
             await fail_need_execution(fail_session, execution_id)
@@ -227,21 +229,21 @@ async def _run_need_executions(
         return
     needs_by_id = {need.id: need for need in plan.needs}
     persist_lock = asyncio.Lock()
-    semaphore = asyncio.Semaphore(concurrency)
+    retrieve_slots = asyncio.Semaphore(concurrency)
 
     async def worker(execution_id: str, need_id: str) -> None:
         need = needs_by_id[need_id]
-        async with semaphore:
-            await _execute_one_need(
-                factory=factory,
-                persist_lock=persist_lock,
-                execution_id=execution_id,
-                need=need,
-                context=context,
-                evidence_set_id=evidence_set_id,
-                router=router,
-                router_factory=router_factory,
-            )
+        await _execute_one_need(
+            factory=factory,
+            persist_lock=persist_lock,
+            retrieve_slots=retrieve_slots,
+            execution_id=execution_id,
+            need=need,
+            context=context,
+            evidence_set_id=evidence_set_id,
+            router=router,
+            router_factory=router_factory,
+        )
 
     await asyncio.gather(
         *(worker(execution_id, need_id) for execution_id, need_id in pending)
@@ -323,8 +325,6 @@ async def execute_attempt_research(
         )
 
     plan = validate_research_plan(research_plan)
-    if router_factory is not None:
-        router_factory(session)
     run = await get_run(session, attempt.run_id)
     need_concurrency = _concurrency_limit(concurrency)
     claimed = False

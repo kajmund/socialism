@@ -19,6 +19,11 @@ from app.services.research.router import ResearchRouter
 ResearchRouterFactory = Callable[[AsyncSession], ResearchRouter]
 KnowledgeVectorStoreFactory = Callable[[], KnowledgeVectorStore]
 
+_UNCONFIGURED_VECTOR_STORE = (
+    "KnowledgeVectorStore is not configured; "
+    "refusing to use an empty in-memory test store"
+)
+
 _router_factory: ResearchRouterFactory | None = None
 _vector_store_factory: KnowledgeVectorStoreFactory | None = None
 
@@ -41,14 +46,22 @@ def set_knowledge_vector_store_factory(
     _vector_store_factory = factory
 
 
+def require_research_router_ready() -> None:
+    """Fail closed if the standard router cannot be built.
+
+    Checks composition seams only. Does not construct a session-bound
+    router, embeddings, registry, or provider.
+    """
+    if _router_factory is not None or _vector_store_factory is not None:
+        return
+    raise ResearchCompositionError(_UNCONFIGURED_VECTOR_STORE)
+
+
 def build_standard_research_router(session: AsyncSession) -> ResearchRouter:
     if _router_factory is not None:
         return _router_factory(session)
     if _vector_store_factory is None:
-        raise ResearchCompositionError(
-            "KnowledgeVectorStore is not configured; "
-            "refusing to use an empty in-memory test store"
-        )
+        raise ResearchCompositionError(_UNCONFIGURED_VECTOR_STORE)
     registry = build_knowledge_registry(
         session,
         vector_store=_vector_store_factory(),
