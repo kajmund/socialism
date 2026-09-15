@@ -27,6 +27,8 @@ type MessengerChatProps = {
   disabled?: boolean
   placeholder: string
   empty?: ReactNode
+  /** Optional muted line above the composer (e.g. memory save notice). */
+  notice?: ReactNode
   /** Optional actions next to each bubble (delete/resend). */
   renderActions?: (message: MessengerChatMessage) => ReactNode
   suggestions?: string[]
@@ -58,6 +60,7 @@ export function MessengerChat({
   disabled = false,
   placeholder,
   empty = null,
+  notice = null,
   renderActions,
   suggestions = [],
   onSuggestion,
@@ -178,6 +181,7 @@ export function MessengerChat({
           </div>
         ) : null}
       </div>
+      {notice ? <div className="chat-memory-notice">{notice}</div> : null}
       {pendingImageUrl ? (
         <div className="chat-image-preview flex items-center gap-2 px-2 pb-1">
           <img
@@ -214,7 +218,7 @@ export function MessengerChat({
               type="button"
               variant="secondary"
               size="sm"
-              disabled={disabled || busy || !ready}
+              disabled={disabled || busy}
               aria-label={t("chat.attachImageAria")}
               onClick={() => fileRef.current?.click()}
             >

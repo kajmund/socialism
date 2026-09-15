@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import PanelSession
+from app.database.models import PanelSession, Population
 from app.llm import complete_text
 from app.services.dd.company_mcp import complete_text_with_company_tools
 from app.services.expert_tools import expert_tool_prompt_extra
+from app.services.expertgranskning.memory import get_expert_memory
 from app.services.panel.competency import (
     CompetencyState,
     assess_panel_competency,
@@ -16,8 +17,8 @@ from app.services.panel.competency import (
 from app.services.panel.raise_hand import raise_hand_is_yes
 from app.services.panel.research import (
     ExpertResearchNeeds,
-    build_research_plan,
     apply_research_decisions,
+    build_research_plan,
     collect_expert_research_needs,
     format_expert_research_need_turn,
     format_research_plan_turn,
@@ -481,7 +482,7 @@ async def run_generic_panel(
                 produce_content=produce_scratchpad,
             )
 
-            await run_turn(
+            expert_turn = await run_turn(
                 db,
                 panel,
                 transcript,
@@ -499,6 +500,29 @@ async def run_generic_panel(
                     allow_expert_tools=allow_expert_tools,
                 ),
             )
+            if config.module == "expertgranskning" and panel.panel_id is not None:
+                population = await db.get(Population, panel.panel_id)
+                if population is None:
+                    raise RuntimeError(
+                        f"Expert panel not found for memory: {panel.panel_id}"
+                    )
+                question = next(
+                    (
+                        turn.content
+                        for turn in reversed(transcript[:-1])
+                        if turn.speaker == "moderator"
+                        and turn.phase in {"opening", "sub_question"}
+                    ),
+                    config.topic,
+                )
+                await get_expert_memory().add_chat_turn(
+                    customer_id=population.customer_id,
+                    expert_id=slot.slot_id,
+                    user_message=question,
+                    assistant_message=expert_turn.content,
+                    source="panel_chat",
+                    session_id=panel.id,
+                )
 
     summary_turn = await run_turn(
         db,

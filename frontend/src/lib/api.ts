@@ -32,8 +32,12 @@ async function call<T>(
 }
 
 export const api = {
-  get<T>(path: string, query?: Query): Promise<T> {
-    return call<T>(path, { method: "GET", query })
+  get<T>(
+    path: string,
+    query?: Query,
+    options?: Pick<HttpRequestOptions, "timeoutMs" | "signal">,
+  ): Promise<T> {
+    return call<T>(path, { method: "GET", query, ...options })
   },
   post<T>(
     path: string,

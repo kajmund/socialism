@@ -100,6 +100,11 @@ const VIEW_MATCHES: ViewMatch[] = [
     viewKey: "tools.cache",
   },
   {
+    test: (p) => p === "/tools/memory",
+    key: "help.views.expertMemory",
+    viewKey: "tools.memory",
+  },
+  {
     test: (p) => p === "/tools/llm",
     key: "help.views.llmSettings",
     viewKey: "tools.llm",

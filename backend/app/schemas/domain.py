@@ -442,10 +442,51 @@ class SuggestedQuestionsResponse(BaseModel):
     questions: list[str]
 
 
+class ExpertMemoryOut(BaseModel):
+    id: str
+    text: str
+    source: str
+    expert_id: str = ""
+    expert_name: str = ""
+    persona_id: str | None = None
+    customer_id: int | None = None
+    created_at: str = ""
+    updated_at: str = ""
+    event: str = ""
+    image_sha256: str | None = None
+
+
+class ExpertMemoryUpdate(BaseModel):
+    text: str = Field(min_length=1)
+
+    @field_validator("text")
+    @classmethod
+    def strip_text(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("text is required")
+        return cleaned
+
+
+class ExpertMemoryExpertOut(BaseModel):
+    expert_id: str
+    name: str
+    persona_id: str | None = None
+    customer_id: int
+
+
+class ExpertMemoryListOut(BaseModel):
+    customer_id: int | None = None
+    count: int
+    memories: list[ExpertMemoryOut]
+    experts: list[ExpertMemoryExpertOut] = Field(default_factory=list)
+
+
 class PersonaChatResponse(BaseModel):
     reply: str
     messages: list[PersonaMessageOut]
     suggestions: list[str] = Field(default_factory=list)
+    saved_memories: list[ExpertMemoryOut] = Field(default_factory=list)
 
 
 class PersonaMessageDeleteResponse(BaseModel):

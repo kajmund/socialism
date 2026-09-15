@@ -8,6 +8,7 @@ import {
   type LlmProbeResult,
   type LlmSettingsResponse,
 } from "@/api/llmSettings"
+import { LLM_CAPABILITIES_CHANGED_EVENT } from "@/components/chat/useLlmCapabilities"
 import { Button } from "@/components/ui/button"
 import { useLocale } from "@/i18n"
 import { ApiError } from "@/lib/api"
@@ -99,6 +100,7 @@ export function LlmSettingsPage() {
       setData({ ...data, active })
       setDraft(draftFromActive(active, data.catalog))
       setSaved(true)
+      window.dispatchEvent(new Event(LLM_CAPABILITIES_CHANGED_EVENT))
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("tools.llm.saveError"))
     } finally {

@@ -32,6 +32,7 @@ _structured_completer: Completer | None = None
 _text_completer: TextCompleter | None = None
 _text_streamer: TextStreamer | None = None
 _openai_create_params = inspect.signature(AsyncCompletions.create).parameters
+_UNSET = object()
 
 
 @dataclass(frozen=True)
@@ -179,6 +180,7 @@ def _chat_create_kwargs(
     messages: list[Any],
     max_tokens: int | None = None,
     extra: dict[str, Any] | None = None,
+    reasoning_effort: Any = _UNSET,
 ) -> dict[str, Any]:
     kwargs: dict[str, Any] = {
         "model": model,
@@ -191,9 +193,13 @@ def _chat_create_kwargs(
         kwargs["temperature"] = settings.llm_temperature
     if settings.llm_top_p is not None:
         kwargs["top_p"] = settings.llm_top_p
-    effort = settings.selected_reasoning_effort
+    effort = (
+        settings.selected_reasoning_effort
+        if reasoning_effort is _UNSET
+        else reasoning_effort
+    )
     if effort is not None and _supports_reasoning_effort(settings.llm_provider):
-        _attach_reasoning_effort(kwargs, effort)
+        _attach_reasoning_effort(kwargs, str(effort))
     if extra:
         kwargs.update(extra)
     return kwargs
@@ -242,6 +248,8 @@ async def complete_structured[T](
     *,
     model: str | None = None,
     max_tokens: int | None = None,
+    timeout: float | None = None,
+    reasoning_effort: str | None = None,
 ) -> T:
     if _structured_completer is not None:
         return await _structured_completer(messages, response_model)  # type: ignore[return-value]
@@ -256,7 +264,7 @@ async def complete_structured[T](
     else:
         guided.append(_json_object_guide_message(schema))
     chosen = _resolved_model(model)
-    timeout = settings.llm_timeout_seconds
+    wait = settings.llm_timeout_seconds if timeout is None else timeout
     started_at = time.monotonic()
     completion = await asyncio.wait_for(
         client.chat.completions.create(
@@ -273,9 +281,12 @@ async def complete_structured[T](
                         response_model, schema
                     )
                 },
+                reasoning_effort=(
+                    reasoning_effort if reasoning_effort is not None else _UNSET
+                ),
             )
         ),
-        timeout=timeout,
+        timeout=wait,
     )
     prompt_tokens, completion_tokens = _usage_tokens(completion)
     _record_call(
