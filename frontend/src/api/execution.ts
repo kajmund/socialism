@@ -47,6 +47,7 @@ export type ResearchStopReason =
   | "max_needs"
   | "no_novel_followups"
   | "max_completeness_passes"
+  | "capability_unavailable"
 
 export type RuntimeResearchNeed = {
   research_need_id: string
@@ -71,6 +72,8 @@ export type MissingQuestion = {
   why_needed: string
   rationale: string
   source_types: string[]
+  unavailable_source_types?: string[]
+  capability_gap?: string | null
 }
 
 export type ResearchCompleteness = {

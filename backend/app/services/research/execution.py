@@ -80,6 +80,7 @@ from app.services.research.completeness import (
     ResearchCompletenessError,
     ResearchCompletenessReviewer,
     completeness_draft_from_row,
+    has_capability_unavailable_gap,
     missing_questions_to_follow_up_drafts,
     next_completeness_pass,
     question_fingerprint,
@@ -529,6 +530,7 @@ async def _review_and_persist_completeness(
     snapshot_plan: ResearchPlan,
     assessment: ResearchAssessment,
     reviewer: ResearchCompletenessReviewer,
+    router: ResearchRouter | None,
 ) -> ResearchCompletenessPass:
     """Judge the original objective. Incomplete is a valid outcome."""
     items = await list_evidence_items(session, evidence_set_id)
@@ -560,6 +562,7 @@ async def _review_and_persist_completeness(
         for row in await list_research_assessments(session, attempt.id)
     ]
     draft = assessment_draft_from_row(assessment)
+    allowed_source_types = _executable_source_types(router)
     try:
         reviewed = await reviewer.review(
             objective=objective,
@@ -568,6 +571,7 @@ async def _review_and_persist_completeness(
             assessment=draft,
             assessments=history,
             evidence=evidence,
+            available_source_types=allowed_source_types,
         )
     except ResearchCompletenessError:
         raise
@@ -576,7 +580,10 @@ async def _review_and_persist_completeness(
             f"Attempt {attempt.id} completeness review failed"
         ) from exc
     reviewed = sanitize_completeness_draft(
-        reviewed, runtime_needs=runtime_needs, evidence=evidence
+        reviewed,
+        runtime_needs=runtime_needs,
+        evidence=evidence,
+        allowed_source_types=allowed_source_types,
     )
     return await persist_research_completeness(
         session,
@@ -596,23 +603,31 @@ async def _plan_and_persist_global_needs(
     completeness: ResearchCompletenessPass,
     wave_number: int,
     max_needs: int,
+    router: ResearchRouter | None,
 ) -> list[RuntimeResearchNeed] | str:
     previous = [runtime_need_from_row(row) for row in await list_runtime_needs(session, attempt.id)]
     if len(previous) >= max_needs:
         return "max_needs"
     draft = completeness_draft_from_row(completeness)
+    allowed_source_types = _executable_source_types(router)
+    runnable = [row for row in draft.missing_questions if row.source_types]
     accepted = validate_follow_up_drafts(
-        missing_questions_to_follow_up_drafts(draft.missing_questions),
+        missing_questions_to_follow_up_drafts(runnable),
         previous_needs=previous,
         wave_number=wave_number,
         origin=GLOBAL_NEED_ORIGIN,
         source_completeness_pass=completeness.completeness_pass,
         id_prefix="global",
+        allowed_source_types=allowed_source_types,
     )
     accepted = take_needs_within_budget(
         accepted, current_count=len(previous), max_needs=max_needs
     )
     if not accepted:
+        if has_capability_unavailable_gap(
+            draft.missing_questions, allowed_source_types=allowed_source_types
+        ):
+            return "capability_unavailable"
         return "no_novel_followups" if len(previous) < max_needs else "max_needs"
     await persist_runtime_needs(session, attempt_id=attempt.id, needs=accepted)
     seeded = await seed_need_executions(
@@ -721,6 +736,7 @@ async def _run_research_loop(
                     snapshot_plan=snapshot_plan,
                     assessment=assessment,
                     reviewer=completeness_reviewer,
+                    router=router,
                 )
                 await barrier_session.commit()
                 if completeness.result == "complete":
@@ -769,6 +785,7 @@ async def _run_research_loop(
                     completeness=completeness,
                     wave_number=follow_up_wave,
                     max_needs=max_needs,
+                    router=router,
                 )
                 if isinstance(planned, str):
                     await set_research_loop_state(

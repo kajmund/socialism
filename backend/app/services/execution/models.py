@@ -90,6 +90,7 @@ ResearchStopReason = Literal[
     "max_needs",
     "no_novel_followups",
     "max_completeness_passes",
+    "capability_unavailable",
 ]
 
 RESEARCH_STOP_REASONS: tuple[ResearchStopReason, ...] = (
@@ -98,6 +99,7 @@ RESEARCH_STOP_REASONS: tuple[ResearchStopReason, ...] = (
     "max_needs",
     "no_novel_followups",
     "max_completeness_passes",
+    "capability_unavailable",
 )
 
 # Documented examples only — attempt_type is an extensible string, not a DB enum.

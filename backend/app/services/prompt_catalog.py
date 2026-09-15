@@ -2965,6 +2965,8 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "planen utelämnat en materiell fråga som målet kräver. "
             "Du hämtar inte evidens och du skriver inte rapport. "
             "Materialt saknade frågor är kandidater, inte färdiga ResearchNeeds. "
+            "Tilldela bara source_types som finns i den tillåtna listan. "
+            "Om en materiell fråga saknar körbar källa, identifiera den ändå. "
             "Upprepa inte redan ställda frågor. Hitta inte på evidence_id."
         ),
         (
@@ -2974,6 +2976,8 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "Ask whether the plan omitted a material question the objective "
             "requires. You do not retrieve evidence and you do not write a report. "
             "Missing questions are candidates, not finished ResearchNeeds. "
+            "Assign only source_types from the allowed list. "
+            "If a material question has no executable source, still identify it. "
             "Do not repeat questions already asked. Do not invent evidence IDs."
         ),
     ),
@@ -2987,7 +2991,9 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         (
             "Bedöm om forskningsmålet är globalt komplett. "
             "Lokal tillräcklighet räcker inte. Hämta inte evidens. "
-            "Tillåtna source_types: {source_types}.\n\n"
+            "Tillåtna körbara source_types: {source_types}. "
+            "Tilldela bara dessa till körbara kandidater. "
+            "Identifiera ändå materiella frågor som saknar körbar källa.\n\n"
             "Forskningsmål:\n{objective}\n\n"
             "Mål (JSON):\n{objective_json}\n\n"
             "Initial ResearchPlan:\n{plan_json}\n\n"
@@ -2999,7 +3005,9 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         (
             "Judge whether the research objective is globally complete. "
             "Local sufficiency is not enough. Do not retrieve evidence. "
-            "Allowed source_types: {source_types}.\n\n"
+            "Allowed executable source_types: {source_types}. "
+            "Assign only these to runnable candidates. "
+            "Still identify material questions that have no executable source.\n\n"
             "Research objective:\n{objective}\n\n"
             "Objective (JSON):\n{objective_json}\n\n"
             "Initial ResearchPlan:\n{plan_json}\n\n"

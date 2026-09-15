@@ -128,6 +128,8 @@ class MissingQuestionOut(BaseModel):
     why_needed: str
     rationale: str
     source_types: list[str]
+    unavailable_source_types: list[str] = []
+    capability_gap: str | None = None
 
 
 class ResearchCompletenessOut(BaseModel):

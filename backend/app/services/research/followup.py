@@ -202,10 +202,16 @@ def validate_follow_up_drafts(
     origin: ResearchNeedOrigin = "derived",
     source_completeness_pass: int | None = None,
     id_prefix: str = "followup",
+    allowed_source_types: Sequence[str] | None = None,
 ) -> list[RuntimeResearchNeed]:
     """Keep valid novel candidates. Invalid drafts are dropped, not executed."""
     existing_ids = {row.research_need_id for row in previous_needs}
     seen_keys = {row.question_key for row in previous_needs}
+    allowed = (
+        frozenset(str(item).strip() for item in allowed_source_types if str(item).strip())
+        if allowed_source_types is not None
+        else None
+    )
     accepted: list[RuntimeResearchNeed] = []
     for index, draft in enumerate(drafts, start=1):
         question = draft.question.strip()
@@ -221,6 +227,8 @@ def validate_follow_up_drafts(
             for item in draft.source_types
             if str(item).strip()
         ]
+        if allowed is not None:
+            source_types = [item for item in source_types if item in allowed]
         if not source_types or any(item not in _SOURCE_TYPES for item in source_types):
             continue
         need_id = assign_follow_up_need_id(

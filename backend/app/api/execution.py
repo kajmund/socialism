@@ -223,6 +223,8 @@ def _completeness_out(row: ResearchCompletenessPass) -> ResearchCompletenessOut:
                 why_needed=item.why_needed,
                 rationale=item.rationale,
                 source_types=list(item.source_types),
+                unavailable_source_types=list(item.unavailable_source_types),
+                capability_gap=item.capability_gap,
             )
             for item in (
                 missing_question_from_json(raw)

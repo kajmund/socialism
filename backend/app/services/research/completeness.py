@@ -50,9 +50,16 @@ class MaterialMissingQuestion:
     why_needed: str
     rationale: str
     source_types: list[ResearchSourceType] = field(default_factory=list)
+    unavailable_source_types: list[ResearchSourceType] = field(default_factory=list)
+    capability_gap: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "source_types", list(self.source_types))
+        object.__setattr__(
+            self, "unavailable_source_types", list(self.unavailable_source_types)
+        )
+        gap = self.capability_gap.strip() if self.capability_gap else None
+        object.__setattr__(self, "capability_gap", gap or None)
 
 
 @dataclass(frozen=True)
@@ -92,6 +99,7 @@ class ResearchCompletenessReviewer(Protocol):
         assessment: ResearchAssessmentDraft | None,
         assessments: Sequence[ResearchAssessmentDraft],
         evidence: Sequence[AssessableEvidence],
+        available_source_types: Sequence[str] | None = None,
     ) -> ResearchCompletenessDraft: ...
 
 
@@ -112,6 +120,8 @@ def missing_question_to_json(row: MaterialMissingQuestion) -> dict[str, object]:
         "why_needed": row.why_needed,
         "rationale": row.rationale,
         "source_types": list(row.source_types),
+        "unavailable_source_types": list(row.unavailable_source_types),
+        "capability_gap": row.capability_gap,
     }
 
 
@@ -121,11 +131,21 @@ def missing_question_from_json(raw: object) -> MaterialMissingQuestion:
     source_types = raw.get("source_types") or []
     if not isinstance(source_types, list):
         raise ResearchCompletenessError("missing question source_types must be an array")
+    unavailable = raw.get("unavailable_source_types") or []
+    if not isinstance(unavailable, list):
+        raise ResearchCompletenessError(
+            "missing question unavailable_source_types must be an array"
+        )
+    gap = raw.get("capability_gap")
     return MaterialMissingQuestion(
         question=str(raw.get("question") or ""),
         why_needed=str(raw.get("why_needed") or ""),
         rationale=str(raw.get("rationale") or ""),
         source_types=[str(item).strip() for item in source_types if str(item).strip()],  # type: ignore[misc]
+        unavailable_source_types=[
+            str(item).strip() for item in unavailable if str(item).strip()
+        ],  # type: ignore[misc]
+        capability_gap=None if gap is None else str(gap),
     )
 
 
@@ -147,16 +167,60 @@ def completeness_draft_from_row(row: object) -> ResearchCompletenessDraft:
     )
 
 
-def _clean_source_types(values: Sequence[object]) -> list[ResearchSourceType]:
-    cleaned: list[ResearchSourceType] = []
+def _classify_source_types(
+    values: Sequence[object],
+    *,
+    allowed_source_types: Sequence[str] | None = None,
+) -> tuple[list[ResearchSourceType], list[ResearchSourceType]]:
+    """Split catalog types into executable vs capability-unavailable."""
+    allowed = (
+        frozenset(str(item).strip() for item in allowed_source_types if str(item).strip())
+        if allowed_source_types is not None
+        else None
+    )
+    executable: list[ResearchSourceType] = []
+    unavailable: list[ResearchSourceType] = []
     seen: set[str] = set()
     for raw in values:
         item = str(raw).strip()
         if not item or item in seen or item not in _SOURCE_TYPES:
             continue
         seen.add(item)
-        cleaned.append(item)  # type: ignore[arg-type]
-    return cleaned
+        if allowed is not None and item not in allowed:
+            unavailable.append(item)  # type: ignore[arg-type]
+            continue
+        executable.append(item)  # type: ignore[arg-type]
+    return executable, unavailable
+
+
+def capability_gap_reason(unavailable_source_types: Sequence[str]) -> str | None:
+    if not unavailable_source_types:
+        return None
+    return "unavailable source_type: " + ", ".join(unavailable_source_types)
+
+
+def has_capability_unavailable_gap(
+    questions: Sequence[MaterialMissingQuestion],
+    *,
+    allowed_source_types: Sequence[str] | None = None,
+) -> bool:
+    """True when a material question has catalog types the registry cannot run."""
+    if any(row.capability_gap or row.unavailable_source_types for row in questions):
+        return True
+    if allowed_source_types is None:
+        return False
+    allowed = frozenset(
+        str(item).strip() for item in allowed_source_types if str(item).strip()
+    )
+    for row in questions:
+        catalog = [
+            str(item).strip()
+            for item in row.source_types
+            if str(item).strip() and str(item).strip() in _SOURCE_TYPES
+        ]
+        if catalog and not any(item in allowed for item in catalog):
+            return True
+    return False
 
 
 def sanitize_completeness_draft(
@@ -164,8 +228,13 @@ def sanitize_completeness_draft(
     *,
     runtime_needs: Sequence[RuntimeResearchNeed],
     evidence: Sequence[AssessableEvidence],
+    allowed_source_types: Sequence[str] | None = None,
 ) -> ResearchCompletenessDraft:
-    """Drop empty/duplicate questions. Complete drafts cannot carry candidates."""
+    """Drop empty/duplicate questions. Complete drafts cannot carry candidates.
+
+    Catalog types the capability registry cannot execute stay on the
+    question as an explicit unavailable gap. They are not runnable needs.
+    """
     considered_ids = [item.evidence_id for item in evidence]
     considered_keys = [row.question_key for row in runtime_needs]
     seen_keys = set(considered_keys)
@@ -180,13 +249,21 @@ def sanitize_completeness_draft(
         if key in seen_keys:
             continue
         seen_keys.add(key)
-        source_types = _clean_source_types(raw.source_types)
+        source_types, unavailable = _classify_source_types(
+            [*raw.source_types, *raw.unavailable_source_types],
+            allowed_source_types=allowed_source_types,
+        )
+        gap = raw.capability_gap if source_types else (
+            raw.capability_gap or capability_gap_reason(unavailable)
+        )
         questions.append(
             MaterialMissingQuestion(
                 question=question,
                 why_needed=why,
                 rationale=rationale,
                 source_types=source_types,
+                unavailable_source_types=unavailable,
+                capability_gap=None if source_types else gap,
             )
         )
     result = draft.result
@@ -267,6 +344,7 @@ class ProgrammaticResearchCompletenessReviewer:
         assessment: ResearchAssessmentDraft | None,
         assessments: Sequence[ResearchAssessmentDraft],
         evidence: Sequence[AssessableEvidence],
+        available_source_types: Sequence[str] | None = None,
     ) -> ResearchCompletenessDraft:
         return programmatic_completeness(
             objective=objective,
