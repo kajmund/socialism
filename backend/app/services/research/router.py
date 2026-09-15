@@ -1,61 +1,83 @@
-"""Deterministic ResearchNeed → registered sources → ResearchEvidence[].
+"""Deterministic ResearchNeed → provider candidates → ResearchEvidence[].
 
-Routing is the order of ``need.source_types``. No LLM, no early-exit on hits.
+Routing is metadata filtering + stable rank. No LLM, no early-exit on hits,
+no silent fallback to unrelated providers.
 """
 
 from __future__ import annotations
 
 from app.services.research.models import (
+    ResearchCapabilityUnavailableError,
     ResearchContext,
     ResearchEvidence,
     ResearchNeed,
     ResearchScopeRequiredError,
     ResearchSourceNotRegisteredError,
-    ResearchSourceType,
     research_evidence,
 )
-from app.services.research.registry import ResearchSourceRegistry
+from app.services.research.provider import ProviderCandidate, constraints_from_need
+from app.services.research.registry import KnowledgeProviderCapabilityRegistry
 from app.services.research.source import ResearchSource
 
-def _safe_error_metadata(source_type: ResearchSourceType, exc: BaseException) -> dict[str, object]:
-    return {"error_type": type(exc).__name__, "source_type": source_type}
+
+def _safe_error_metadata(source_type: str | None, exc: BaseException) -> dict[str, object]:
+    metadata: dict[str, object] = {"error_type": type(exc).__name__}
+    if source_type is not None:
+        metadata["source_type"] = source_type
+    return metadata
 
 
 def _safe_error_message(exc: BaseException) -> str:
-    if isinstance(exc, (ResearchScopeRequiredError, ResearchSourceNotRegisteredError)):
+    if isinstance(
+        exc,
+        (ResearchScopeRequiredError, ResearchSourceNotRegisteredError, ResearchCapabilityUnavailableError),
+    ):
         return str(exc)
     return f"{type(exc).__name__}: research source failed"
 
 
+def _evidence_source_type(need: ResearchNeed, candidate: ProviderCandidate) -> str:
+    if candidate.evidence_nature:
+        return candidate.evidence_nature
+    if candidate.source is not None:
+        return candidate.source.source_type
+    if need.source_types:
+        return need.source_types[0]
+    return "unavailable"
+
+
 def _error_evidence(
     need: ResearchNeed,
-    source_type: ResearchSourceType,
+    source_type: str,
     exc: BaseException,
     *,
     provider: str | None = None,
 ) -> ResearchEvidence:
-    metadata = _safe_error_metadata(source_type, exc)
     return research_evidence(
         research_need_id=need.id,
         source_type=source_type,
         status="error",
         provider=provider,
         excerpt=_safe_error_message(exc),
-        metadata=metadata,
+        metadata=_safe_error_metadata(source_type, exc),
     )
 
 
 def _not_found_evidence(
     need: ResearchNeed,
-    source_type: ResearchSourceType,
+    source_type: str,
     *,
     provider: str | None = None,
+    excerpt: str | None = None,
+    metadata: dict[str, object] | None = None,
 ) -> ResearchEvidence:
     return research_evidence(
         research_need_id=need.id,
         source_type=source_type,
         status="not_found",
         provider=provider,
+        excerpt=excerpt,
+        metadata=metadata or {},
     )
 
 
@@ -64,8 +86,23 @@ def _source_provider(source: ResearchSource) -> str | None:
     return provider if isinstance(provider, str) else None
 
 
+def _unavailable_detail(need: ResearchNeed, nature: str | None) -> str:
+    constraints = constraints_from_need(need)
+    parts = []
+    if nature:
+        parts.append(f"evidence_nature={nature}")
+    if constraints.domains:
+        parts.append("domains=" + ",".join(sorted(constraints.domains)))
+    if constraints.modalities:
+        parts.append("modalities=" + ",".join(sorted(constraints.modalities)))
+    if constraints.capabilities:
+        parts.append("capabilities=" + ",".join(sorted(constraints.capabilities)))
+    joined = " ".join(parts) if parts else "declared constraints"
+    return f"No knowledge provider matches {joined}"
+
+
 class ResearchRouter:
-    def __init__(self, registry: ResearchSourceRegistry) -> None:
+    def __init__(self, registry: KnowledgeProviderCapabilityRegistry) -> None:
         self._registry = registry
 
     async def execute_need(
@@ -74,16 +111,53 @@ class ResearchRouter:
         context: ResearchContext,
     ) -> list[ResearchEvidence]:
         collected: list[ResearchEvidence] = []
-        for source_type in need.source_types:
-            sources = self._registry.sources_for(source_type)
-            if not sources:
-                collected.append(
-                    _error_evidence(need, source_type, ResearchSourceNotRegisteredError(source_type))
-                )
-                continue
-            for source in sources:
-                collected.extend(await self._run_source(source, need, context))
+        for candidate in self._registry.candidates_for(constraints_from_need(need)):
+            collected.extend(await self._run_candidate(candidate, need, context))
         return collected
+
+    async def _run_candidate(
+        self,
+        candidate: ProviderCandidate,
+        need: ResearchNeed,
+        context: ResearchContext,
+    ) -> list[ResearchEvidence]:
+        source_type = _evidence_source_type(need, candidate)
+        if candidate.outcome == "unregistered":
+            return [
+                _error_evidence(
+                    need,
+                    source_type,
+                    ResearchSourceNotRegisteredError(source_type),
+                )
+            ]
+        if candidate.outcome == "unavailable":
+            unavailable = ResearchCapabilityUnavailableError(
+                evidence_nature=candidate.evidence_nature,
+                detail=_unavailable_detail(need, candidate.evidence_nature),
+            )
+            return [
+                _not_found_evidence(
+                    need,
+                    source_type,
+                    excerpt=str(unavailable),
+                    metadata={
+                        "error_type": type(unavailable).__name__,
+                        "reason": "no_matching_provider",
+                        **({"source_type": source_type} if candidate.evidence_nature else {}),
+                    },
+                )
+            ]
+        if candidate.outcome == "run":
+            if candidate.source is None:
+                return [
+                    _not_found_evidence(
+                        need,
+                        source_type,
+                        metadata={"reason": "no_matching_provider"},
+                    )
+                ]
+            return await self._run_source(candidate.source, need, context)
+        raise AssertionError(f"unhandled provider candidate outcome: {candidate.outcome}")
 
     async def _run_source(
         self,
