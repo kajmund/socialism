@@ -31,12 +31,16 @@ from app.services.execution import (
     get_evidence_set,
     list_evidence_items,
     list_need_executions,
+    list_runtime_needs,
     mark_researching,
     seed_need_executions,
     start_attempt,
 )
 from app.services.research import (
     InvalidResearchPlanError,
+    KnowledgeProviderCapabilityRegistry,
+    KnowledgeProviderDescriptor,
+    ProviderAccess,
     ResearchContext,
     ResearchExecutionError,
     ResearchNeed,
@@ -228,6 +232,9 @@ async def test_acceptance_found_and_not_found_reach_ready(db):
                 "why_needed": "behövs för bedömning",
                 "requested_by": ["legal"],
                 "source_types": ["case_knowledge"],
+                "domains": [],
+                "modalities": [],
+                "capabilities": [],
             },
             {
                 "id": "research_2",
@@ -235,6 +242,9 @@ async def test_acceptance_found_and_not_found_reach_ready(db):
                 "why_needed": "behövs för bedömning",
                 "requested_by": ["legal"],
                 "source_types": ["customer_knowledge"],
+                "domains": [],
+                "modalities": [],
+                "capabilities": [],
             },
         ]
     }
@@ -1038,3 +1048,66 @@ async def test_need_executions_are_completed_on_success(db):
     assert len(executions) == 2
     assert {row.status for row in executions} == {"completed"}
     assert {row.research_need_id for row in executions} == {"research_1", "research_2"}
+
+
+@pytest.mark.asyncio
+async def test_execute_attempt_research_keeps_capability_filters(db):
+    session, _factory = db
+    _customer, _run, attempt = await _created_attempt(session, slug="cap-e2e")
+    text = RecordingSource("case_knowledge", excerpt="text-hit")
+    image = RecordingSource("case_knowledge", excerpt="similar-image")
+    registry = KnowledgeProviderCapabilityRegistry()
+    registry.register(
+        text,
+        descriptor=KnowledgeProviderDescriptor(
+            provider_id="text.search",
+            modalities=frozenset({"text"}),
+            capabilities=frozenset({"search"}),
+            evidence_natures=frozenset({"case_knowledge"}),
+            access=ProviderAccess(mechanism="adapter", adapter="fake"),
+        ),
+    )
+    registry.register(
+        image,
+        descriptor=KnowledgeProviderDescriptor(
+            provider_id="synthetic.image_similarity",
+            modalities=frozenset({"image"}),
+            capabilities=frozenset({"similarity"}),
+            evidence_natures=frozenset({"case_knowledge"}),
+            access=ProviderAccess(mechanism="vector_store", adapter="fake_image"),
+        ),
+    )
+    plan = ResearchPlan(
+        needs=[
+            ResearchNeed(
+                id="research_1",
+                question="hitta liknande bild",
+                why_needed="behövs för bedömning",
+                requested_by=["legal"],
+                source_types=["case_knowledge"],
+                modalities=["image"],
+                capabilities=["similarity"],
+            )
+        ]
+    )
+
+    result = await execute_attempt_research(
+        session,
+        attempt_id=attempt.id,
+        research_plan=plan,
+        router=ResearchRouter(registry),
+    )
+
+    reloaded = await get_attempt(session, attempt.id)
+    restored = research_plan_from_snapshot(reloaded.research_plan_snapshot)
+    runtime = await list_runtime_needs(session, attempt.id)
+    items = await list_evidence_items(session, result.evidence_set_id)
+
+    assert result.status == "ready"
+    assert text.calls == 0
+    assert image.calls == 1
+    assert [item.excerpt for item in items] == ["similar-image"]
+    assert restored.needs[0].modalities == ["image"]
+    assert restored.needs[0].capabilities == ["similarity"]
+    assert list(runtime[0].modalities) == ["image"]
+    assert list(runtime[0].capabilities) == ["similarity"]

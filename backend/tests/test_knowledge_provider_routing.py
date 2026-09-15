@@ -13,11 +13,16 @@ from app.services.research import (
     NeedConstraints,
     ProviderAccess,
     ResearchNeed,
+    ResearchPlan,
     ResearchRouter,
     build_research_registry,
     constraints_from_need,
     rank_provider_candidates,
+    research_plan_from_snapshot,
+    research_plan_to_snapshot,
+    validate_research_plan,
 )
+from app.services.research.followup import runtime_needs_from_plan
 from app.services.research.provider import descriptor_from_source
 from app.services.research.router import ResearchRouter as RouterImpl
 from tests.test_research import (
@@ -77,6 +82,29 @@ def _found_source(
     )
     source = FakeResearchSource(source_type, [evidence], provider_id=provider_id)
     return source, descriptor or _descriptor(f"{provider_id}.{source_type}", source_type=source_type)
+
+
+def test_validate_and_snapshot_preserve_routing_constraints():
+    need = ResearchNeed(
+        id="research_1",
+        question="q",
+        why_needed="w",
+        source_types=["case_knowledge"],
+        domains=["tenant"],
+        modalities=["image"],
+        capabilities=["similarity"],
+    )
+    validated = validate_research_plan(ResearchPlan(needs=[need]))
+    assert validated.needs[0].domains == ["tenant"]
+    assert validated.needs[0].modalities == ["image"]
+    assert validated.needs[0].capabilities == ["similarity"]
+    restored = research_plan_from_snapshot(research_plan_to_snapshot(validated))
+    assert restored.needs[0].domains == ["tenant"]
+    assert restored.needs[0].modalities == ["image"]
+    assert restored.needs[0].capabilities == ["similarity"]
+    runtime = runtime_needs_from_plan(validated)
+    assert runtime[0].as_need().modalities == ["image"]
+    assert runtime[0].as_need().capabilities == ["similarity"]
 
 
 def test_constraints_from_need_use_source_types_as_evidence_natures():
@@ -319,6 +347,32 @@ async def test_synthetic_non_text_capability_needs_no_router_change():
     assert "image" not in router_source
     assert "similarity" not in router_source
     assert "vector_store" not in router_source
+
+
+async def test_synthesized_not_found_uses_descriptor_provider_id():
+    source = FakeResearchSource("case_knowledge", empty=True, provider_id=None)
+    registry = KnowledgeProviderCapabilityRegistry()
+    registry.register(
+        source,
+        descriptor=_descriptor("registry.case", source_type="case_knowledge"),
+    )
+    evidence = await ResearchRouter(registry).execute_need(_need("case_knowledge"), _context())
+    assert [item.status for item in evidence] == ["not_found"]
+    assert evidence[0].provider == "registry.case"
+    assert source.calls == 1
+
+
+async def test_synthesized_error_uses_descriptor_provider_id():
+    source = FakeResearchSource("case_knowledge", error=RuntimeError("boom"), provider_id=None)
+    registry = KnowledgeProviderCapabilityRegistry()
+    registry.register(
+        source,
+        descriptor=_descriptor("registry.case", source_type="case_knowledge"),
+    )
+    evidence = await ResearchRouter(registry).execute_need(_need("case_knowledge"), _context())
+    assert [item.status for item in evidence] == ["error"]
+    assert evidence[0].provider == "registry.case"
+    assert evidence[0].metadata["error_type"] == "RuntimeError"
 
 
 async def test_empty_need_does_not_select_all_providers():

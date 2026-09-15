@@ -15,7 +15,11 @@ from app.services.research.models import (
     ResearchSourceNotRegisteredError,
     research_evidence,
 )
-from app.services.research.provider import ProviderCandidate, constraints_from_need
+from app.services.research.provider import (
+    KnowledgeProviderDescriptor,
+    ProviderCandidate,
+    constraints_from_need,
+)
 from app.services.research.registry import KnowledgeProviderCapabilityRegistry
 from app.services.research.source import ResearchSource
 
@@ -81,9 +85,21 @@ def _not_found_evidence(
     )
 
 
-def _source_provider(source: ResearchSource) -> str | None:
+def _source_provider(source: ResearchSource | None) -> str | None:
+    if source is None:
+        return None
     provider = getattr(source, "provider_id", None)
-    return provider if isinstance(provider, str) else None
+    if isinstance(provider, str) and provider.strip():
+        return provider
+    return None
+
+
+def _registered_provider(
+    source: ResearchSource | None,
+    descriptor: KnowledgeProviderDescriptor | None,
+) -> str | None:
+    """Prefer the adapter id; fall back to the stable registry descriptor."""
+    return _source_provider(source) or (descriptor.provider_id if descriptor else None)
 
 
 def _unavailable_detail(need: ResearchNeed, nature: str | None) -> str:
@@ -153,10 +169,16 @@ class ResearchRouter:
                     _not_found_evidence(
                         need,
                         source_type,
+                        provider=_registered_provider(None, candidate.descriptor),
                         metadata={"reason": "no_matching_provider"},
                     )
                 ]
-            return await self._run_source(candidate.source, need, context)
+            return await self._run_source(
+                candidate.source,
+                need,
+                context,
+                descriptor=candidate.descriptor,
+            )
         raise AssertionError(f"unhandled provider candidate outcome: {candidate.outcome}")
 
     async def _run_source(
@@ -164,8 +186,10 @@ class ResearchRouter:
         source: ResearchSource,
         need: ResearchNeed,
         context: ResearchContext,
+        *,
+        descriptor: KnowledgeProviderDescriptor | None = None,
     ) -> list[ResearchEvidence]:
-        provider = _source_provider(source)
+        provider = _registered_provider(source, descriptor)
         try:
             evidence = await source.research(need, context)
         except Exception as exc:  # noqa: BLE001 — isolate provider failures per need
