@@ -30,6 +30,55 @@ export type EvidenceSummary = {
   error_count: number
 }
 
+export type ResearchNeedAssessment = {
+  research_need_id: string
+  sufficient: boolean
+  supporting_evidence_ids: string[]
+  missing_or_weak: string
+  contradictions: string[]
+  further_information: string | null
+}
+
+export type ResearchNeedOrigin = "initial" | "derived"
+
+export type ResearchStopReason =
+  | "sufficient"
+  | "max_iterations"
+  | "max_needs"
+  | "no_novel_followups"
+
+export type RuntimeResearchNeed = {
+  research_need_id: string
+  question: string
+  why_needed: string
+  requested_by: string[]
+  source_types: string[]
+  origin: ResearchNeedOrigin | string
+  wave_number: number
+  parent_research_need_id: string | null
+  source_assessment_pass: number | null
+  source_gap: string
+  question_key: string
+}
+
+export type ResearchAssessment = {
+  id: string
+  attempt_id: string
+  evidence_set_id: string
+  assessment_pass: number
+  result: "sufficient" | "insufficient" | string
+  rationale: string
+  need_assessments: ResearchNeedAssessment[]
+  gaps: string[]
+  contradictions: string[]
+  considered_evidence_ids: string[]
+  evidence_fingerprint: string
+  model_provider: string | null
+  model_name: string | null
+  model_version: string | null
+  created_at: string
+}
+
 export type AttemptResult = {
   id: string
   result_type: string
@@ -50,6 +99,11 @@ export type ExecutionAttempt = {
   input_snapshot: Record<string, unknown>
   research_plan_snapshot: Record<string, unknown> | null
   evidence: EvidenceSummary | null
+  assessment: ResearchAssessment | null
+  assessments?: ResearchAssessment[]
+  research_wave?: number
+  stop_reason?: ResearchStopReason | string | null
+  runtime_needs?: RuntimeResearchNeed[]
   result: AttemptResult | null
   created_at: string
   started_at: string | null

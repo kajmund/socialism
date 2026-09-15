@@ -48,7 +48,13 @@ _BACKEND_ROOT = Path(__file__).resolve().parents[1]
 
 def test_researchplan_migrations_are_linear_after_word_head():
     script = ScriptDirectory.from_config(Config(str(_BACKEND_ROOT / "alembic.ini")))
-    assert script.get_heads() == ["082_research_need_executions"]
+    assert script.get_heads() == ["085_research_loop_user_prompts"]
+    user_prompts = script.get_revision("085_research_loop_user_prompts")
+    assert user_prompts.down_revision == "084_research_runtime_loop"
+    loop = script.get_revision("084_research_runtime_loop")
+    assert loop.down_revision == "083_research_assessments"
+    assessment = script.get_revision("083_research_assessments")
+    assert assessment.down_revision == "082_research_need_executions"
     need_exec = script.get_revision("082_research_need_executions")
     assert need_exec.down_revision == "081_persona_message_image_sha256"
     image = script.get_revision("081_persona_message_image_sha256")

@@ -37,6 +37,7 @@ PromptSection = Literal[
     "oasis_agents",
     "report",
     "panel",
+    "research",
 ]
 
 PROMPT_SECTIONS: list[tuple[PromptSection, dict[str, str]]] = [
@@ -47,6 +48,7 @@ PROMPT_SECTIONS: list[tuple[PromptSection, dict[str, str]]] = [
     ("oasis_agents", {"sv": "OASIS — agenter", "en": "OASIS — agents"}),
     ("report", {"sv": "Rapport", "en": "Report"}),
     ("panel", {"sv": "Panel", "en": "Panel"}),
+    ("research", {"sv": "Research", "en": "Research"}),
 ]
 
 
@@ -2803,6 +2805,102 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         (
             "The previous response was invalid JSON. Return one complete JSON object "
             "that matches the required schema. No markdown and no extra text."
+        ),
+    ),
+    _f(
+        "research.assessment.system",
+        "research",
+        "Research — evidensbedömning",
+        "Research — evidence sufficiency",
+        "Bedöm om insamlad evidens räcker för ResearchPlan. Ingen expertrapport.",
+        "Judge whether collected evidence answers the ResearchPlan. No expert report.",
+        (
+            "Du bedömer om den redan uthämtade evidensen räcker för att besvara "
+            "ResearchPlan. Du skriver inte det slutliga expertutlåtandet. "
+            "Använd endast evidence_id som finns i underlaget. Hitta inte på ID:n. "
+            "Bedöm varje ResearchNeed: tillräckligt stödd, vilka evidensrader som "
+            "stödjer den, vad som saknas eller är svagt, konflikter, och vilken "
+            "ytterligare information som krävs om den är otillräcklig. "
+            "Otillräcklig evidens är ett giltigt resultat."
+        ),
+        (
+            "You assess whether already retrieved evidence is sufficient to answer "
+            "the ResearchPlan. You do not write the final expert answer. "
+            "Use only evidence_id values supplied in the input. Do not invent IDs. "
+            "For each ResearchNeed say whether it is sufficiently supported, which "
+            "evidence supports it, what is missing or weak, any conflicts, and what "
+            "further information would be required if it is insufficient. "
+            "Insufficient evidence is a valid outcome."
+        ),
+    ),
+    _f(
+        "research.assessment.user",
+        "research",
+        "Research — evidensbedömning (användare)",
+        "Research — evidence sufficiency (user)",
+        "Platshållare: {plan_json} {evidence_json}.",
+        "Placeholders: {plan_json} {evidence_json}.",
+        (
+            "Bedöm om den redan uthämtade evidensen räcker för ResearchPlan. "
+            "Använd endast evidence_id som finns i underlaget. Hitta inte på ID:n. "
+            "Skriv inte ett expertutlåtande.\n\n"
+            "ResearchPlan:\n{plan_json}\n\n"
+            "EvidenceSet:\n{evidence_json}"
+        ),
+        (
+            "Assess whether already retrieved evidence is sufficient to answer "
+            "the ResearchPlan. Use only evidence_id values supplied below. "
+            "Do not invent IDs. Do not produce an expert answer or report.\n\n"
+            "ResearchPlan:\n{plan_json}\n\n"
+            "EvidenceSet:\n{evidence_json}"
+        ),
+    ),
+    _f(
+        "research.followup.system",
+        "research",
+        "Research — uppföljningsfrågor",
+        "Research — follow-up questions",
+        "Föreslå nya ResearchNeeds från bedömningens luckor. Svara inte på frågorna.",
+        "Propose new ResearchNeeds from assessment gaps. Do not answer the questions.",
+        (
+            "Du föreslår uppföljande ResearchNeeds utifrån en otillräcklig "
+            "evidensbedömning. Du hämtar inte evidens och du svarar inte på "
+            "frågorna. Varje behov ska ha en konkret fråga, varför den behövs "
+            "kopplat till en lucka, och tillåtna source_types. "
+            "Upprepa inte tidigare frågor. Hitta inte på source_types."
+        ),
+        (
+            "You propose follow-up ResearchNeeds from an insufficient evidence "
+            "assessment. You do not retrieve evidence and you do not answer the "
+            "questions. Each need must have a concrete question, a why_needed "
+            "tied to a gap, and allowed source_types. "
+            "Do not repeat previous questions. Do not invent source_types."
+        ),
+    ),
+    _f(
+        "research.followup.user",
+        "research",
+        "Research — uppföljningsfrågor (användare)",
+        "Research — follow-up questions (user)",
+        "Platshållare: {source_types} {plan_json} {assessment_json} {previous_needs_json} {evidence_json}.",
+        "Placeholders: {source_types} {plan_json} {assessment_json} {previous_needs_json} {evidence_json}.",
+        (
+            "Föreslå uppföljande ResearchNeeds utifrån luckorna. "
+            "Svara inte på frågorna. Hämta inte evidens. "
+            "Tillåtna source_types: {source_types}.\n\n"
+            "ResearchPlan:\n{plan_json}\n\n"
+            "Assessment:\n{assessment_json}\n\n"
+            "Tidigare ResearchNeeds:\n{previous_needs_json}\n\n"
+            "EvidenceSet:\n{evidence_json}"
+        ),
+        (
+            "Propose follow-up ResearchNeeds for the gaps below. "
+            "Do not answer the questions. Do not retrieve evidence. "
+            "Allowed source_types: {source_types}.\n\n"
+            "ResearchPlan:\n{plan_json}\n\n"
+            "Assessment:\n{assessment_json}\n\n"
+            "Previous ResearchNeeds:\n{previous_needs_json}\n\n"
+            "EvidenceSet:\n{evidence_json}"
         ),
     ),
 ]

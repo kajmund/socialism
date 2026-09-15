@@ -70,6 +70,30 @@ TERMINAL_NEED_EXECUTION_STATUSES: frozenset[ResearchNeedExecutionStatus] = froze
     {"completed", "failed"}
 )
 
+AssessmentResult = Literal["sufficient", "insufficient"]
+
+ASSESSMENT_RESULTS: tuple[AssessmentResult, ...] = ("sufficient", "insufficient")
+INITIAL_ASSESSMENT_PASS = 1
+INITIAL_RESEARCH_WAVE = 0
+
+ResearchNeedOrigin = Literal["initial", "derived"]
+
+RESEARCH_NEED_ORIGINS: tuple[ResearchNeedOrigin, ...] = ("initial", "derived")
+
+ResearchStopReason = Literal[
+    "sufficient",
+    "max_iterations",
+    "max_needs",
+    "no_novel_followups",
+]
+
+RESEARCH_STOP_REASONS: tuple[ResearchStopReason, ...] = (
+    "sufficient",
+    "max_iterations",
+    "max_needs",
+    "no_novel_followups",
+)
+
 # Documented examples only — attempt_type is an extensible string, not a DB enum.
 KNOWN_ATTEMPT_TYPES: tuple[str, ...] = (
     "generic_panel",

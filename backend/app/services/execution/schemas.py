@@ -71,6 +71,47 @@ class AttemptCloneRequest(BaseModel):
     configuration_snapshot: dict[str, Any] | None = None
 
 
+class ResearchNeedAssessmentOut(BaseModel):
+    research_need_id: str
+    sufficient: bool
+    supporting_evidence_ids: list[str]
+    missing_or_weak: str
+    contradictions: list[str]
+    further_information: str | None
+
+
+class RuntimeResearchNeedOut(BaseModel):
+    research_need_id: str
+    question: str
+    why_needed: str
+    requested_by: list[str]
+    source_types: list[str]
+    origin: str
+    wave_number: int
+    parent_research_need_id: str | None
+    source_assessment_pass: int | None
+    source_gap: str
+    question_key: str
+
+
+class ResearchAssessmentOut(BaseModel):
+    id: str
+    attempt_id: str
+    evidence_set_id: str
+    assessment_pass: int
+    result: str
+    rationale: str
+    need_assessments: list[ResearchNeedAssessmentOut]
+    gaps: list[str]
+    contradictions: list[str]
+    considered_evidence_ids: list[str]
+    evidence_fingerprint: str
+    model_provider: str | None
+    model_name: str | None
+    model_version: str | None
+    created_at: datetime
+
+
 class AttemptResearchOut(BaseModel):
     attempt_id: str
     evidence_set_id: str | None
@@ -78,6 +119,11 @@ class AttemptResearchOut(BaseModel):
     found_count: int
     not_found_count: int
     error_count: int
+    assessment: ResearchAssessmentOut | None = None
+    assessments: list[ResearchAssessmentOut] = Field(default_factory=list)
+    research_wave: int = 0
+    stop_reason: str | None = None
+    runtime_needs: list[RuntimeResearchNeedOut] = Field(default_factory=list)
 
 
 class EvidenceSummaryOut(BaseModel):
@@ -108,6 +154,11 @@ class ExecutionAttemptOut(BaseModel):
     input_snapshot: dict[str, Any]
     research_plan_snapshot: dict[str, Any] | None
     evidence: EvidenceSummaryOut | None
+    assessment: ResearchAssessmentOut | None = None
+    assessments: list[ResearchAssessmentOut] = Field(default_factory=list)
+    research_wave: int = 0
+    stop_reason: str | None = None
+    runtime_needs: list[RuntimeResearchNeedOut] = Field(default_factory=list)
     result: AttemptResultOut | None
     created_at: datetime
     started_at: datetime | None

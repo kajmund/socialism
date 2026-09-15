@@ -92,6 +92,26 @@ def test_modules_for_prompt_key_follows_prefix_convention():
     assert modules_for_prompt_key("expertgranskning.word.structured_retry") == [
         "expertgranskning"
     ]
+    assert modules_for_prompt_key("research.assessment.system") == [
+        "dd",
+        "politik",
+        "expertgranskning",
+    ]
+    assert modules_for_prompt_key("research.assessment.user") == [
+        "dd",
+        "politik",
+        "expertgranskning",
+    ]
+    assert modules_for_prompt_key("research.followup.system") == [
+        "dd",
+        "politik",
+        "expertgranskning",
+    ]
+    assert modules_for_prompt_key("research.followup.user") == [
+        "dd",
+        "politik",
+        "expertgranskning",
+    ]
     assert modules_for_prompt_key("expertgranskning.word.intent_interview") == [
         "expertgranskning"
     ]
