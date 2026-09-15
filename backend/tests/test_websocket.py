@@ -32,9 +32,15 @@ from app.main import create_app
 from app.schemas.domain import FollowUpQuestions
 from app.serializers import utcnow
 from app.realtime.expertgranskning_broadcast import expertgranskning_broadcast
+from app.realtime.research_progress_broadcast import research_progress_broadcast
 from app.services import jobs as jobs_service
+from app.services.execution import create_attempt, create_run
 from app.services.expertgranskning import WORD_JOB_KIND
 from app.services.expertgranskning.watch import publish_action_created
+from app.services.research.progress import (
+    append_research_progress_event,
+    progress_event_to_dict,
+)
 from app.services.kund_store import (
     BOLAG_DEMO_KUND_SLUG,
     bolag_demo_customer_id,
@@ -199,6 +205,33 @@ def _reports_hello(*, customer_id: int | None = None) -> dict:
     if customer_id is not None:
         hello["customer_id"] = customer_id
     return hello
+
+
+def _research_hello(attempt_id: str, after_sequence: int = 0) -> dict:
+    return {
+        "type": "hello",
+        "scope": "research_watch",
+        "attempt_id": attempt_id,
+        "after_sequence": after_sequence,
+    }
+
+
+async def _seed_research_attempt(session, *, customer_id: int = 1):
+    run = await create_run(
+        session,
+        customer_id=customer_id,
+        module="dd",
+        title="Research WS",
+        context={"case_id": "ws-research"},
+    )
+    attempt = await create_attempt(
+        session,
+        run_id=run.id,
+        attempt_type="generic_panel",
+        configuration_snapshot={"model": "config-a"},
+        input_snapshot={"question": "Vad gäller skattesatsen?"},
+    )
+    return attempt
 
 
 def _bolag_customer_id(client) -> int:
@@ -796,3 +829,159 @@ def test_expertgranskning_websocket_unknown_or_wrong_kind_closes(ws_client):
             with pytest.raises(WebSocketDisconnect) as exc:
                 ws.receive_json()
             assert exc.value.code == 1003
+
+
+def test_research_websocket_replay_and_live_push(ws_client):
+    client, loop = ws_client
+
+    async def _seed() -> tuple[str, int]:
+        factory = jobs_service.job_session_factory()
+        async with factory() as session:
+            attempt = await _seed_research_attempt(session)
+            first = await append_research_progress_event(
+                session,
+                attempt_id=attempt.id,
+                event_type="objective_accepted",
+                idempotency_key="objective_accepted",
+                payload={"objective_preview": "Kartlägg skattesatsen"},
+            )
+            await session.commit()
+            return attempt.id, first.sequence
+
+    attempt_id, first_sequence = loop.run_until_complete(_seed())
+    token = _admin_token()
+    with client.websocket_connect(f"/ws/research?access_token={token}") as ws:
+        ws.send_json(_research_hello(attempt_id))
+        replay = ws.receive_json()
+        assert replay["type"] == "research.progress.replay"
+        assert replay["attempt_id"] == attempt_id
+        assert replay["after_sequence"] == 0
+        assert [row["event_type"] for row in replay["events"]] == ["objective_accepted"]
+        assert replay["events"][0]["sequence"] == first_sequence
+
+        async def _push_live() -> None:
+            factory = jobs_service.job_session_factory()
+            async with factory() as session:
+                row = await append_research_progress_event(
+                    session,
+                    attempt_id=attempt_id,
+                    event_type="initial_plan_accepted",
+                    idempotency_key="initial_plan_accepted",
+                    payload={"need_count": 1, "need_ids": ["research_1"]},
+                )
+                await session.commit()
+                await research_progress_broadcast.publish(
+                    attempt_id, progress_event_to_dict(row)
+                )
+
+        loop.run_until_complete(_push_live())
+        live = ws.receive_json()
+        assert live["type"] == "research.progress"
+        assert live["event_type"] == "initial_plan_accepted"
+        assert live["attempt_id"] == attempt_id
+        assert live["sequence"] == first_sequence + 1
+
+
+def test_research_websocket_subscribe_before_snapshot_keeps_race_write(
+    ws_client, monkeypatch
+):
+    """A persist+publish between subscribe and snapshot must not vanish."""
+    client, loop = ws_client
+
+    async def _seed() -> str:
+        factory = jobs_service.job_session_factory()
+        async with factory() as session:
+            attempt = await _seed_research_attempt(session)
+            await session.commit()
+            return attempt.id
+
+    attempt_id = loop.run_until_complete(_seed())
+    real_subscribe = research_progress_broadcast.subscribe
+
+    async def _subscribe_then_write(subscribed_attempt_id: str, websocket) -> None:
+        await real_subscribe(subscribed_attempt_id, websocket)
+        factory = jobs_service.job_session_factory()
+        async with factory() as session:
+            row = await append_research_progress_event(
+                session,
+                attempt_id=subscribed_attempt_id,
+                event_type="research_need_planned",
+                idempotency_key="need_planned:research_1",
+                payload={"research_need_id": "research_1", "origin": "initial"},
+            )
+            await session.commit()
+            await research_progress_broadcast.publish(
+                subscribed_attempt_id, progress_event_to_dict(row)
+            )
+
+    monkeypatch.setattr(research_progress_broadcast, "subscribe", _subscribe_then_write)
+
+    token = _admin_token()
+    with client.websocket_connect(f"/ws/research?access_token={token}") as ws:
+        ws.send_json(_research_hello(attempt_id))
+        first = ws.receive_json()
+        second = ws.receive_json()
+
+    by_type = {event["type"]: event for event in (first, second)}
+    assert set(by_type) == {"research.progress", "research.progress.replay"}
+    assert by_type["research.progress"]["event_type"] == "research_need_planned"
+    replay_types = [row["event_type"] for row in by_type["research.progress.replay"]["events"]]
+    assert replay_types == ["research_need_planned"]
+    assert (
+        by_type["research.progress"]["id"]
+        == by_type["research.progress.replay"]["events"][0]["id"]
+    )
+
+
+def test_research_websocket_reconnect_after_sequence(ws_client):
+    client, loop = ws_client
+
+    async def _seed() -> tuple[str, int]:
+        factory = jobs_service.job_session_factory()
+        async with factory() as session:
+            attempt = await _seed_research_attempt(session)
+            await append_research_progress_event(
+                session,
+                attempt_id=attempt.id,
+                event_type="objective_accepted",
+                idempotency_key="objective_accepted",
+                payload={"objective_preview": "Kartlägg skattesatsen"},
+            )
+            second = await append_research_progress_event(
+                session,
+                attempt_id=attempt.id,
+                event_type="initial_plan_accepted",
+                idempotency_key="initial_plan_accepted",
+                payload={"need_count": 1},
+            )
+            await session.commit()
+            return attempt.id, second.sequence - 1
+
+    attempt_id, cursor = loop.run_until_complete(_seed())
+    token = _admin_token()
+    with client.websocket_connect(f"/ws/research?access_token={token}") as ws:
+        ws.send_json(_research_hello(attempt_id, after_sequence=cursor))
+        replay = ws.receive_json()
+        assert replay["after_sequence"] == cursor
+        assert [row["event_type"] for row in replay["events"]] == [
+            "initial_plan_accepted"
+        ]
+
+
+def test_research_websocket_bolag_denied_foreign_attempt(ws_client):
+    client, loop = ws_client
+
+    async def _seed() -> str:
+        factory = jobs_service.job_session_factory()
+        async with factory() as session:
+            attempt = await _seed_research_attempt(session, customer_id=1)
+            await session.commit()
+            return attempt.id
+
+    attempt_id = loop.run_until_complete(_seed())
+    bolag_token = _bolag_token()
+    with pytest.raises(WebSocketDisconnect) as exc:
+        with client.websocket_connect(f"/ws/research?access_token={bolag_token}") as ws:
+            ws.send_json(_research_hello(attempt_id))
+            ws.receive_json()
+    assert exc.value.code == 4403

@@ -444,18 +444,23 @@ async def research_websocket(websocket: WebSocket) -> None:
             except HTTPException as exc:
                 await _close_auth_error(websocket, exc)
                 return
+            attempt_id = attempt.id
+
+        # Subscribe before the persisted snapshot so a transition committed
+        # between query and subscribe cannot vanish from both replay and live.
+        await research_progress_broadcast.subscribe(attempt_id, websocket)
+        async with factory() as session:
             missed = await list_research_progress_events(
-                session, attempt.id, after_sequence=hello.after_sequence
+                session, attempt_id, after_sequence=hello.after_sequence
             )
-            replay = {
+        await websocket.send_json(
+            {
                 "type": "research.progress.replay",
-                "attempt_id": attempt.id,
+                "attempt_id": attempt_id,
                 "after_sequence": hello.after_sequence,
                 "events": [progress_event_to_dict(row) for row in missed],
             }
-
-        await research_progress_broadcast.subscribe(hello.attempt_id, websocket)
-        await websocket.send_json(replay)
+        )
 
         while True:
             await websocket.receive_text()
