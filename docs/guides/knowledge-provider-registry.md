@@ -29,7 +29,7 @@ Routing stays programmatic. An LLM is not used to select providers. Embeddings a
 | Router looped `need.source_types` then `sources_for` | Router derives `NeedConstraints` and executes the ranked candidate list. |
 | Unregistered `source_type` → `error` | Unchanged. |
 | Empty `source_types` → no retrieval | Unchanged, unless the need also declares domain/modality/capability filters. |
-| `build_research_registry(provider)` | Registers adapters from `standard_capability_descriptors()` (today: `case_knowledge` and `customer_knowledge`). Planner availability is derived from the same descriptors. Each adapter carries tenant-bound text/search metadata. |
+| `build_research_registry(provider)` | Registers adapters from `standard_capability_descriptors()` (tenant knowledge plus official lagen.nu). Planner availability is derived from the same descriptors. |
 
 **Plan / runtime persistence:**
 
@@ -105,14 +105,18 @@ A synthetic non-text provider (for example image similarity) is the same path: d
 
 ## Existing knowledge providers
 
-`build_research_registry` wraps the shared `KnowledgeProvider` in one `KnowledgeResearchSource` per standard capability descriptor:
+`build_research_registry` composes each standard capability descriptor through its declared adapter. Tenant knowledge still wraps the shared `KnowledgeProvider`. Official lagen.nu is a separate public `ResearchSource` — MCP is only the access mechanism.
 
 | Registry id | Evidence nature | Scope |
 | --- | --- | --- |
 | `{provider}.case_knowledge` | `case_knowledge` | customer + case |
 | `{provider}.customer_knowledge` | `customer_knowledge` | customer only (case dropped) |
+| `lagen_nu.swedish_law` | `swedish_law` | public SFS via official lagen.nu MCP |
+| `lagen_nu.swedish_preparatory_works` | `swedish_preparatory_works` | public förarbeten via official lagen.nu MCP |
 
-Evidence `provider` remains the retrieval provider id (`supabase`). Tenant scope is identical or stricter than before.
+Tenant evidence `provider` remains the retrieval provider id (`supabase`). lagen.nu evidence `provider` is `lagen_nu`. Tenant scope is identical or stricter than before; the public adapter never receives `customer_id` / `case_id`.
+
+The lagen.nu descriptors come from one production registration (`app.services.lagen_nu.registration`). Planner and completeness see `swedish_law` / `swedish_preparatory_works` only because those natures are on that registration — not from a hardcoded legal list.
 
 ## Semantic ranking seam
 

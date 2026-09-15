@@ -284,13 +284,35 @@ async def test_existing_knowledge_providers_keep_tenant_behavior():
     provider = RecordingKnowledgeProvider([_hit()])
     registry = build_research_registry(provider)
     assert isinstance(registry, KnowledgeProviderCapabilityRegistry)
-    ids = [entry.descriptor.provider_id for entry in registry.registered_providers()]
-    assert ids == ["memory.case_knowledge", "memory.customer_knowledge"]
-    for entry in registry.registered_providers():
+    entries = registry.registered_providers()
+    knowledge = [
+        entry
+        for entry in entries
+        if entry.descriptor.access.adapter == "knowledge_research_source"
+    ]
+    lagen = [
+        entry
+        for entry in entries
+        if entry.descriptor.access.adapter == "lagen_nu_research_source"
+    ]
+    assert [entry.descriptor.provider_id for entry in knowledge] == [
+        "memory.case_knowledge",
+        "memory.customer_knowledge",
+    ]
+    assert [entry.descriptor.provider_id for entry in lagen] == [
+        "lagen_nu.swedish_law",
+        "lagen_nu.swedish_preparatory_works",
+    ]
+    for entry in knowledge:
         assert entry.descriptor.modalities == frozenset({"text"})
         assert entry.descriptor.capabilities == frozenset({"search"})
         assert entry.descriptor.access.mechanism == "adapter"
         assert entry.descriptor.authority["tenant_bound"] is True
+    for entry in lagen:
+        assert entry.descriptor.domains == frozenset({"law"})
+        assert entry.descriptor.access.mechanism == "mcp"
+        assert entry.descriptor.authority["tenant_bound"] is False
+        assert entry.descriptor.authority["jurisdiction"] == "SE"
     source = KnowledgeResearchSource(provider, source_type="customer_knowledge")
     await source.research(_need("customer_knowledge"), _context(customer_id=7, case_id="case-1"))
     assert provider.queries[-1].scope.customer_id == 7
