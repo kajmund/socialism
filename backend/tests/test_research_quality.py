@@ -16,6 +16,8 @@ from app.services.execution import (
     create_attempt,
     create_evidence_set,
     create_run,
+    get_attempt,
+    get_evidence_set,
     list_evidence_items,
     list_evidence_quality,
     persist_evidence_quality,
@@ -33,6 +35,7 @@ from app.services.research import (
     ResearchPlan,
     ResearchRouter,
     ResearchSourceRegistry,
+    ResearchExecutionError,
     execute_attempt_research,
     research_evidence,
 )
@@ -45,10 +48,12 @@ from app.services.research.quality import (
     EVIDENCE_QUALITY_POLICY_VERSION,
     FLAG_AUTHORITY_WARNING,
     FLAG_NOT_OFFICIAL_PUBLICATION,
-    FLAG_RELEVANCE_FAILED,
+    EvidenceQualityError,
+    EvidenceRelevanceJudgment,
     QualityEvidenceInput,
     assess_evidence_quality,
     independence_key,
+    quality_model_identity_key,
 )
 from app.services.research.registry import standard_capability_descriptors
 from tests.test_lagen_nu_provider import FakeLagenNuClient, _document, _hit, _source
@@ -274,23 +279,41 @@ async def test_relevance_failure_cannot_produce_high_quality():
         async def judge(self, need: ResearchNeed, item: QualityEvidenceInput):
             raise RuntimeError("model down")
 
-    drafts = await assess_evidence_quality(
-        [
-            _input(
-                provenance={
-                    "not_official_publication": True,
-                    "automated_corpus": True,
-                }
-            )
-        ],
-        needs=[_need_row()],
-        descriptors=(lagen_nu_descriptor("swedish_law"),),
-        relevance_assessor=Boom(),
+    with pytest.raises(EvidenceQualityError, match="Relevance assessor failed"):
+        await assess_evidence_quality(
+            [
+                _input(
+                    provenance={
+                        "not_official_publication": True,
+                        "automated_corpus": True,
+                    }
+                )
+            ],
+            needs=[_need_row()],
+            descriptors=(lagen_nu_descriptor("swedish_law"),),
+            relevance_assessor=Boom(),
+        )
+
+
+def test_model_identity_key_includes_provider_name_and_version():
+    programmatic = quality_model_identity_key(
+        model_provider=None, model_name=None, model_version=None
     )
-    assert drafts[0].relevance == "unknown"
-    assert drafts[0].authority == "limited"
-    assert any(flag.code == FLAG_RELEVANCE_FAILED for flag in drafts[0].flags)
-    assert drafts[0].model_provider is None
+    same_version_a = quality_model_identity_key(
+        model_provider="cerebras", model_name="gpt-oss-120b", model_version="1"
+    )
+    same_version_b = quality_model_identity_key(
+        model_provider="deepseek", model_name="deepseek-chat", model_version="1"
+    )
+    unnamed = quality_model_identity_key(
+        model_provider="cerebras", model_name="gpt-oss-120b", model_version=None
+    )
+    assert programmatic != same_version_a
+    assert same_version_a != same_version_b
+    assert same_version_a != unnamed
+    assert quality_model_identity_key(
+        model_provider="cerebras", model_name="gpt-oss-120b", model_version="1"
+    ) == same_version_a
 
 
 async def test_quality_does_not_flip_programmatic_sufficient():
@@ -451,3 +474,102 @@ async def test_loop_tenant_evidence_stays_unknown_authority(db: AsyncSession):
     assert quality[0].authority == "unknown"
     assert quality[0].currentness == "unknown"
     assert quality[0].source_nature == "unknown"
+
+
+@pytest.mark.asyncio
+async def test_distinct_relevance_models_persist_separate_rows(db: AsyncSession):
+    kund = Kund(name="acme", slug="acme-quality-models", available_modules=["dd"])
+    db.add(kund)
+    await db.flush()
+    run = await create_run(
+        db, customer_id=kund.id, module="dd", title="Kvalitet", context={}
+    )
+    attempt = await create_attempt(
+        db,
+        run_id=run.id,
+        attempt_type="generic_panel",
+        configuration_snapshot={},
+        input_snapshot={},
+    )
+    evidence_set = await create_evidence_set(
+        db, run_id=run.id, created_from_attempt_id=attempt.id
+    )
+    items = await add_evidence_items(
+        db,
+        evidence_set_id=evidence_set.id,
+        items=[
+            research_evidence(
+                research_need_id="need-1",
+                source_type="swedish_law",
+                status="found",
+                excerpt="jämkas",
+                source_id="https://lagen.nu/1915:218",
+                provider=LAGEN_NU_PROVIDER_ID,
+            )
+        ],
+    )
+
+    class Fixed:
+        def __init__(self, provider: str, name: str, version: str) -> None:
+            self.provider = provider
+            self.name = name
+            self.version = version
+
+        async def judge(self, need: ResearchNeed, item: QualityEvidenceInput):
+            return EvidenceRelevanceJudgment(
+                relevance="medium",
+                model_provider=self.provider,
+                model_name=self.name,
+                model_version=self.version,
+            )
+
+    first = await assess_evidence_quality(
+        [quality_input_from_item(item) for item in items],
+        needs=[_need_row()],
+        relevance_assessor=Fixed("cerebras", "gpt-oss-120b", "1"),
+    )
+    second = await assess_evidence_quality(
+        [quality_input_from_item(item) for item in items],
+        needs=[_need_row()],
+        relevance_assessor=Fixed("deepseek", "deepseek-chat", "1"),
+    )
+    stored = await persist_evidence_quality(
+        db, evidence_set_id=evidence_set.id, drafts=[*first, *second]
+    )
+    await db.commit()
+    rows = await list_evidence_quality(db, evidence_set.id)
+    assert len(stored) == 2
+    assert len(rows) == 2
+    assert {row.model_provider for row in rows} == {"cerebras", "deepseek"}
+    assert {row.model_identity_key for row in rows} == {
+        quality_model_identity_key(
+            model_provider="cerebras", model_name="gpt-oss-120b", model_version="1"
+        ),
+        quality_model_identity_key(
+            model_provider="deepseek", model_name="deepseek-chat", model_version="1"
+        ),
+    }
+
+
+@pytest.mark.asyncio
+async def test_relevance_failure_fail_closes_attempt(db: AsyncSession):
+    class Boom:
+        async def judge(self, need: ResearchNeed, item: QualityEvidenceInput):
+            raise RuntimeError("model down")
+
+    _customer, _run, attempt = await _created_attempt(db, slug="quality-fail")
+    found = RecordingSource("case_knowledge")
+    router, _ = _router(found)
+    with pytest.raises(ResearchExecutionError):
+        await execute_attempt_research(
+            db,
+            attempt_id=attempt.id,
+            research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
+            router=router,
+            relevance_assessor=Boom(),
+            max_follow_up_waves=0,
+        )
+    reloaded = await get_attempt(db, attempt.id)
+    evidence_set = await get_evidence_set(db, reloaded.evidence_set_id)
+    assert reloaded.status == "failed"
+    assert evidence_set.status == "failed"

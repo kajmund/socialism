@@ -25,7 +25,7 @@ retrieve  →  persist EvidenceSet items  →  need-wave barrier
 
 ## Artifact
 
-`research_evidence_quality` is immutable per `(evidence_set_item_id, scoring_policy_version, model_version_key)`.
+`research_evidence_quality` is immutable per `(evidence_set_item_id, scoring_policy_version, model_identity_key)`. `model_identity_key` hashes `model_provider` + `model_name` + `model_version` so two models cannot share a row.
 
 | Field | Meaning |
 | --- | --- |
@@ -40,7 +40,7 @@ retrieve  →  persist EvidenceSet items  →  need-wave barrier
 | `scoring_policy_version` | `1` today (`EVIDENCE_QUALITY_POLICY_VERSION`) |
 | `model_*` | Relevance-model identity when a model ran; empty for programmatic scoring |
 
-Retry with the same item + policy + model version returns the existing row. A new policy or model version may add a new row; old rows stay so earlier runs remain reproducible.
+Retry with the same item + policy + model identity returns the existing row. A new policy or a different provider/name/version may add a new row; old rows stay so earlier runs remain reproducible.
 
 ## Signals (programmatic first)
 
@@ -61,7 +61,7 @@ lagen.nu demonstrates this with the keys it already declares (`not_official_publ
 
 `EvidenceRelevanceAssessor.judge(need, item)` is optional structured output. The research package does not call an LLM. A production implementation may live under `app.llm/` and be injected into `execute_attempt_research`.
 
-Model or parse failure records `relevance=unknown` plus `relevance_assessment_failed`. It must not become `high` and must not fail the Attempt.
+Model or parse failure raises `EvidenceQualityError`. The research loop fail-closes (Attempt and EvidenceSet `failed`, no freeze). It must not become `high` and must not leave a `ready` result. When no assessor is injected, relevance stays `unknown` without a model call.
 
 ## Local sufficiency (conservative)
 

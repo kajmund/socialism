@@ -1586,7 +1586,7 @@ class ResearchEvidenceQuality(Base):
         UniqueConstraint(
             "evidence_set_item_id",
             "scoring_policy_version",
-            "model_version_key",
+            "model_identity_key",
             name="uq_research_evidence_quality_item_policy_model",
         ),
     )
@@ -1619,7 +1619,7 @@ class ResearchEvidenceQuality(Base):
     model_provider: Mapped[str | None] = mapped_column(String(64), nullable=True)
     model_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
     model_version: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    model_version_key: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    model_identity_key: Mapped[str] = mapped_column(String(64), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
