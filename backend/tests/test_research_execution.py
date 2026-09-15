@@ -165,10 +165,16 @@ class RaisingRouter:
     async def execute_need(self, need: ResearchNeed, context: ResearchContext):
         raise RuntimeError("router exploded")
 
+    def available_source_types(self) -> tuple[str, ...]:
+        return ()
+
 
 class GuardRouter:
     async def execute_need(self, need: ResearchNeed, context: ResearchContext):
         raise AssertionError("empty plan must not call the router")
+
+    def available_source_types(self) -> tuple[str, ...]:
+        return ()
 
 
 def _router(*sources: RecordingSource) -> tuple[ResearchRouter, list[RecordingSource]]:
@@ -944,6 +950,9 @@ async def test_worker_failure_after_partial_persist_is_fail_closed(db):
     kept_retrieving = asyncio.Event()
 
     class MixedRouter:
+        def available_source_types(self) -> tuple[str, ...]:
+            return ("case_knowledge",)
+
         async def execute_need(self, need: ResearchNeed, context: ResearchContext):
             if need.id == "boom":
                 await hold_boom.wait()

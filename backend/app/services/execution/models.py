@@ -76,15 +76,21 @@ ASSESSMENT_RESULTS: tuple[AssessmentResult, ...] = ("sufficient", "insufficient"
 INITIAL_ASSESSMENT_PASS = 1
 INITIAL_RESEARCH_WAVE = 0
 
-ResearchNeedOrigin = Literal["initial", "derived"]
+ResearchNeedOrigin = Literal["initial", "derived", "global_completeness"]
 
-RESEARCH_NEED_ORIGINS: tuple[ResearchNeedOrigin, ...] = ("initial", "derived")
+RESEARCH_NEED_ORIGINS: tuple[ResearchNeedOrigin, ...] = (
+    "initial",
+    "derived",
+    "global_completeness",
+)
 
 ResearchStopReason = Literal[
     "sufficient",
     "max_iterations",
     "max_needs",
     "no_novel_followups",
+    "max_completeness_passes",
+    "capability_unavailable",
 ]
 
 RESEARCH_STOP_REASONS: tuple[ResearchStopReason, ...] = (
@@ -92,6 +98,8 @@ RESEARCH_STOP_REASONS: tuple[ResearchStopReason, ...] = (
     "max_iterations",
     "max_needs",
     "no_novel_followups",
+    "max_completeness_passes",
+    "capability_unavailable",
 )
 
 # Documented examples only — attempt_type is an extensible string, not a DB enum.

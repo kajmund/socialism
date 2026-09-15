@@ -39,13 +39,15 @@ export type ResearchNeedAssessment = {
   further_information: string | null
 }
 
-export type ResearchNeedOrigin = "initial" | "derived"
+export type ResearchNeedOrigin = "initial" | "derived" | "global_completeness"
 
 export type ResearchStopReason =
   | "sufficient"
   | "max_iterations"
   | "max_needs"
   | "no_novel_followups"
+  | "max_completeness_passes"
+  | "capability_unavailable"
 
 export type RuntimeResearchNeed = {
   research_need_id: string
@@ -60,8 +62,36 @@ export type RuntimeResearchNeed = {
   wave_number: number
   parent_research_need_id: string | null
   source_assessment_pass: number | null
+  source_completeness_pass?: number | null
   source_gap: string
   question_key: string
+}
+
+export type MissingQuestion = {
+  question: string
+  why_needed: string
+  rationale: string
+  source_types: string[]
+  unavailable_source_types?: string[]
+  capability_gap?: string | null
+}
+
+export type ResearchCompleteness = {
+  id: string
+  attempt_id: string
+  evidence_set_id: string
+  completeness_pass: number
+  result: "complete" | "incomplete" | string
+  rationale: string
+  missing_questions: MissingQuestion[]
+  considered_evidence_ids: string[]
+  considered_question_keys: string[]
+  evidence_fingerprint: string
+  question_fingerprint: string
+  model_provider: string | null
+  model_name: string | null
+  model_version: string | null
+  created_at: string
 }
 
 export type ResearchAssessment = {
@@ -105,6 +135,8 @@ export type ExecutionAttempt = {
   evidence: EvidenceSummary | null
   assessment: ResearchAssessment | null
   assessments?: ResearchAssessment[]
+  completeness?: ResearchCompleteness | null
+  completeness_passes?: ResearchCompleteness[]
   research_wave?: number
   stop_reason?: ResearchStopReason | string | null
   runtime_needs?: RuntimeResearchNeed[]

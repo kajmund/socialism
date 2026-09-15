@@ -2951,6 +2951,72 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "Task context:\n{context_json}"
         ),
     ),
+    _f(
+        "research.completeness.system",
+        "research",
+        "Research — global fullständighet",
+        "Research — global completeness",
+        "Bedöm om forskningsmålet är täckt, inte bara om kända frågor har evidens.",
+        "Judge whether the research objective is covered, not only whether known questions have evidence.",
+        (
+            "Du bedömer global forskningsfullständighet mot det ursprungliga "
+            "forskningsmålet. Lokal evidensbedömning har redan sagt att kända "
+            "ResearchNeeds är tillräckligt stödda. Det räcker inte. Fråga om "
+            "planen utelämnat en materiell fråga som målet kräver. "
+            "Du hämtar inte evidens och du skriver inte rapport. "
+            "Materialt saknade frågor är kandidater, inte färdiga ResearchNeeds. "
+            "Tilldela bara source_types som finns i den tillåtna listan. "
+            "Om en materiell fråga saknar körbar källa, identifiera den ändå. "
+            "Upprepa inte redan ställda frågor. Hitta inte på evidence_id."
+        ),
+        (
+            "You judge global research completeness against the original "
+            "research objective. Local evidence assessment already said the "
+            "known ResearchNeeds are sufficiently supported. That is not enough. "
+            "Ask whether the plan omitted a material question the objective "
+            "requires. You do not retrieve evidence and you do not write a report. "
+            "Missing questions are candidates, not finished ResearchNeeds. "
+            "Assign only source_types from the allowed list. "
+            "If a material question has no executable source, still identify it. "
+            "Do not repeat questions already asked. Do not invent evidence IDs."
+        ),
+    ),
+    _f(
+        "research.completeness.user",
+        "research",
+        "Research — global fullständighet (användare)",
+        "Research — global completeness (user)",
+        "Platshållare: {source_types} {objective} {objective_json} {plan_json} {runtime_needs_json} {assessment_json} {assessments_json} {evidence_json}.",
+        "Placeholders: {source_types} {objective} {objective_json} {plan_json} {runtime_needs_json} {assessment_json} {assessments_json} {evidence_json}.",
+        (
+            "Bedöm om forskningsmålet är globalt komplett. "
+            "Lokal tillräcklighet räcker inte. Hämta inte evidens. "
+            "Tillåtna körbara source_types: {source_types}. "
+            "Tilldela bara dessa till körbara kandidater. "
+            "Identifiera ändå materiella frågor som saknar körbar källa.\n\n"
+            "Forskningsmål:\n{objective}\n\n"
+            "Mål (JSON):\n{objective_json}\n\n"
+            "Initial ResearchPlan:\n{plan_json}\n\n"
+            "Runtime ResearchNeeds:\n{runtime_needs_json}\n\n"
+            "Senaste lokala bedömning:\n{assessment_json}\n\n"
+            "Bedömningshistorik:\n{assessments_json}\n\n"
+            "EvidenceSet:\n{evidence_json}"
+        ),
+        (
+            "Judge whether the research objective is globally complete. "
+            "Local sufficiency is not enough. Do not retrieve evidence. "
+            "Allowed executable source_types: {source_types}. "
+            "Assign only these to runnable candidates. "
+            "Still identify material questions that have no executable source.\n\n"
+            "Research objective:\n{objective}\n\n"
+            "Objective (JSON):\n{objective_json}\n\n"
+            "Initial ResearchPlan:\n{plan_json}\n\n"
+            "Runtime ResearchNeeds:\n{runtime_needs_json}\n\n"
+            "Latest local assessment:\n{assessment_json}\n\n"
+            "Assessment history:\n{assessments_json}\n\n"
+            "EvidenceSet:\n{evidence_json}"
+        ),
+    ),
 ]
 
 PROMPT_KEYS: tuple[str, ...] = tuple(f["key"] for f in PROMPT_FIELDS)

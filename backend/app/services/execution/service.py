@@ -18,6 +18,7 @@ from app.database.models import (
     ExecutionRun,
     Kund,
     ResearchAssessment,
+    ResearchCompletenessPass,
     ResearchNeedExecution,
     ResearchRuntimeNeed,
 )
@@ -58,6 +59,12 @@ from app.services.execution.snapshots import (
 from app.services.research.assessment import (
     ResearchAssessmentDraft,
     need_assessment_to_json,
+)
+from app.services.research.completeness import (
+    COMPLETENESS_RESULTS,
+    INITIAL_COMPLETENESS_PASS,
+    ResearchCompletenessDraft,
+    missing_question_to_json,
 )
 from app.services.research.followup import RuntimeResearchNeed
 from app.services.research.models import ResearchEvidence
@@ -866,6 +873,140 @@ async def persist_research_assessment(
     return row
 
 
+def _require_completeness_result(value: str) -> str:
+    if value not in COMPLETENESS_RESULTS:
+        raise ExecutionError(f"Unknown completeness result: {value}")
+    return value
+
+
+async def get_research_completeness(
+    session: AsyncSession,
+    attempt_id: str,
+    *,
+    completeness_pass: int = INITIAL_COMPLETENESS_PASS,
+) -> ResearchCompletenessPass | None:
+    await get_attempt(session, attempt_id)
+    result = await session.execute(
+        select(ResearchCompletenessPass).where(
+            ResearchCompletenessPass.attempt_id == attempt_id,
+            ResearchCompletenessPass.completeness_pass == completeness_pass,
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def get_research_completeness_by_fingerprint(
+    session: AsyncSession,
+    attempt_id: str,
+    *,
+    evidence_fingerprint: str,
+    question_fingerprint: str,
+) -> ResearchCompletenessPass | None:
+    await get_attempt(session, attempt_id)
+    result = await session.execute(
+        select(ResearchCompletenessPass)
+        .where(
+            ResearchCompletenessPass.attempt_id == attempt_id,
+            ResearchCompletenessPass.evidence_fingerprint == evidence_fingerprint,
+            ResearchCompletenessPass.question_fingerprint == question_fingerprint,
+        )
+        .order_by(ResearchCompletenessPass.completeness_pass.desc())
+    )
+    return result.scalars().first()
+
+
+async def list_research_completeness_passes(
+    session: AsyncSession, attempt_id: str
+) -> list[ResearchCompletenessPass]:
+    await get_attempt(session, attempt_id)
+    result = await session.execute(
+        select(ResearchCompletenessPass)
+        .where(ResearchCompletenessPass.attempt_id == attempt_id)
+        .order_by(
+            ResearchCompletenessPass.completeness_pass,
+            ResearchCompletenessPass.created_at,
+        )
+    )
+    return list(result.scalars().all())
+
+
+async def list_research_completeness_for_attempts(
+    session: AsyncSession, attempt_ids: list[str]
+) -> dict[str, list[ResearchCompletenessPass]]:
+    if not attempt_ids:
+        return {}
+    result = await session.execute(
+        select(ResearchCompletenessPass)
+        .where(ResearchCompletenessPass.attempt_id.in_(attempt_ids))
+        .order_by(
+            ResearchCompletenessPass.attempt_id,
+            ResearchCompletenessPass.completeness_pass,
+            ResearchCompletenessPass.created_at,
+        )
+    )
+    grouped: dict[str, list[ResearchCompletenessPass]] = {
+        attempt_id: [] for attempt_id in attempt_ids
+    }
+    for row in result.scalars().all():
+        grouped.setdefault(row.attempt_id, []).append(row)
+    return grouped
+
+
+async def persist_research_completeness(
+    session: AsyncSession,
+    *,
+    attempt_id: str,
+    evidence_set_id: str,
+    draft: ResearchCompletenessDraft,
+    evidence_fingerprint: str,
+    question_fingerprint: str,
+    completeness_pass: int = INITIAL_COMPLETENESS_PASS,
+) -> ResearchCompletenessPass:
+    """Insert one row per Attempt completeness pass. Re-runs return the existing row."""
+    existing = await get_research_completeness(
+        session, attempt_id, completeness_pass=completeness_pass
+    )
+    if existing is not None:
+        return existing
+    matched = await get_research_completeness_by_fingerprint(
+        session,
+        attempt_id,
+        evidence_fingerprint=evidence_fingerprint,
+        question_fingerprint=question_fingerprint,
+    )
+    if matched is not None:
+        return matched
+    attempt = await get_attempt(session, attempt_id)
+    evidence_set = await get_evidence_set(session, evidence_set_id)
+    if evidence_set.run_id != attempt.run_id:
+        raise ExecutionScopeError(
+            "ResearchCompletenessPass evidence must belong to the same run as the Attempt"
+        )
+    if not evidence_fingerprint.strip() or not question_fingerprint.strip():
+        raise ExecutionError("completeness fingerprints are required")
+    row = ResearchCompletenessPass(
+        id=new_id(),
+        attempt_id=attempt.id,
+        evidence_set_id=evidence_set.id,
+        completeness_pass=completeness_pass,
+        result=_require_completeness_result(draft.result),
+        rationale=draft.rationale,
+        missing_questions=[
+            missing_question_to_json(item) for item in draft.missing_questions
+        ],
+        considered_evidence_ids=list(draft.considered_evidence_ids),
+        considered_question_keys=list(draft.considered_question_keys),
+        evidence_fingerprint=evidence_fingerprint.strip(),
+        question_fingerprint=question_fingerprint.strip(),
+        model_provider=draft.model_provider,
+        model_name=draft.model_name,
+        model_version=draft.model_version,
+    )
+    session.add(row)
+    await session.flush()
+    return row
+
+
 def _require_need_origin(value: str) -> ResearchNeedOrigin:
     if value not in RESEARCH_NEED_ORIGINS:
         raise ExecutionError(f"Unknown research need origin: {value}")
@@ -894,6 +1035,7 @@ def runtime_need_from_row(row: ResearchRuntimeNeed) -> RuntimeResearchNeed:
         wave_number=row.wave_number,
         parent_research_need_id=row.parent_research_need_id,
         source_assessment_pass=row.source_assessment_pass,
+        source_completeness_pass=row.source_completeness_pass,
         source_gap=row.source_gap or "",
         question_key=row.question_key,
     )
@@ -965,6 +1107,7 @@ async def persist_runtime_needs(
                 wave_number=need.wave_number,
                 parent_research_need_id=need.parent_research_need_id,
                 source_assessment_pass=need.source_assessment_pass,
+                source_completeness_pass=need.source_completeness_pass,
                 source_gap=need.source_gap,
                 question_key=need.question_key,
             )

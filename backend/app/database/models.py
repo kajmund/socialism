@@ -1450,6 +1450,9 @@ class ExecutionAttempt(Base):
     runtime_needs: Mapped[list["ResearchRuntimeNeed"]] = relationship(
         back_populates="attempt",
     )
+    research_completeness_passes: Mapped[list["ResearchCompletenessPass"]] = relationship(
+        back_populates="attempt",
+    )
 
 
 class ResearchNeedExecution(Base):
@@ -1519,10 +1522,11 @@ class ResearchRuntimeNeed(Base):
     domains: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     modalities: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     capabilities: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
-    origin: Mapped[str] = mapped_column(String(16), nullable=False, default="initial")
+    origin: Mapped[str] = mapped_column(String(32), nullable=False, default="initial")
     wave_number: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     parent_research_need_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     source_assessment_pass: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    source_completeness_pass: Mapped[int | None] = mapped_column(Integer, nullable=True)
     source_gap: Mapped[str] = mapped_column(Text, nullable=False, default="")
     question_key: Mapped[str] = mapped_column(String(64), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
@@ -1645,6 +1649,55 @@ class ResearchAssessment(Base):
     )
 
     attempt: Mapped[ExecutionAttempt] = relationship(back_populates="research_assessments")
+
+
+class ResearchCompletenessPass(Base):
+    """Persisted global-completeness judgment for one Attempt pass."""
+
+    __tablename__ = "research_completeness_passes"
+    __table_args__ = (
+        UniqueConstraint(
+            "attempt_id",
+            "completeness_pass",
+            name="uq_research_completeness_passes_attempt_pass",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    attempt_id: Mapped[str] = mapped_column(
+        ForeignKey("execution_attempts.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    evidence_set_id: Mapped[str] = mapped_column(
+        ForeignKey("evidence_sets.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    completeness_pass: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    result: Mapped[str] = mapped_column(String(32), nullable=False)
+    rationale: Mapped[str] = mapped_column(Text, nullable=False)
+    missing_questions: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    considered_evidence_ids: Mapped[list] = mapped_column(
+        JSON, nullable=False, default=list
+    )
+    considered_question_keys: Mapped[list] = mapped_column(
+        JSON, nullable=False, default=list
+    )
+    evidence_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    question_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    model_provider: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    model_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    model_version: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    attempt: Mapped[ExecutionAttempt] = relationship(
+        back_populates="research_completeness_passes"
+    )
 
 
 class LlmRuntimeSettings(Base):

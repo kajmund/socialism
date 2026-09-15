@@ -100,6 +100,7 @@ class RuntimeResearchNeedOut(BaseModel):
     wave_number: int
     parent_research_need_id: str | None
     source_assessment_pass: int | None
+    source_completeness_pass: int | None = None
     source_gap: str
     question_key: str
 
@@ -122,6 +123,33 @@ class ResearchAssessmentOut(BaseModel):
     created_at: datetime
 
 
+class MissingQuestionOut(BaseModel):
+    question: str
+    why_needed: str
+    rationale: str
+    source_types: list[str]
+    unavailable_source_types: list[str] = []
+    capability_gap: str | None = None
+
+
+class ResearchCompletenessOut(BaseModel):
+    id: str
+    attempt_id: str
+    evidence_set_id: str
+    completeness_pass: int
+    result: str
+    rationale: str
+    missing_questions: list[MissingQuestionOut]
+    considered_evidence_ids: list[str]
+    considered_question_keys: list[str]
+    evidence_fingerprint: str
+    question_fingerprint: str
+    model_provider: str | None
+    model_name: str | None
+    model_version: str | None
+    created_at: datetime
+
+
 class AttemptResearchOut(BaseModel):
     attempt_id: str
     evidence_set_id: str | None
@@ -131,6 +159,8 @@ class AttemptResearchOut(BaseModel):
     error_count: int
     assessment: ResearchAssessmentOut | None = None
     assessments: list[ResearchAssessmentOut] = Field(default_factory=list)
+    completeness: ResearchCompletenessOut | None = None
+    completeness_passes: list[ResearchCompletenessOut] = Field(default_factory=list)
     research_wave: int = 0
     stop_reason: str | None = None
     runtime_needs: list[RuntimeResearchNeedOut] = Field(default_factory=list)
@@ -167,6 +197,8 @@ class ExecutionAttemptOut(BaseModel):
     evidence: EvidenceSummaryOut | None
     assessment: ResearchAssessmentOut | None = None
     assessments: list[ResearchAssessmentOut] = Field(default_factory=list)
+    completeness: ResearchCompletenessOut | None = None
+    completeness_passes: list[ResearchCompletenessOut] = Field(default_factory=list)
     research_wave: int = 0
     stop_reason: str | None = None
     runtime_needs: list[RuntimeResearchNeedOut] = Field(default_factory=list)

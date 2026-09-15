@@ -110,6 +110,8 @@ class Settings(BaseSettings):
     research_max_follow_up_waves: int = Field(default=2, ge=0, le=8)
     # Initial + derived ResearchNeeds allowed on one Attempt.
     research_max_needs_per_attempt: int = Field(default=16, ge=1, le=64)
+    # Global completeness reviews after local sufficiency. Prevents cycles.
+    research_max_completeness_passes: int = Field(default=2, ge=1, le=8)
     # Max concurrent Word-review LLM calls within one expertgranskning job.
     word_review_max_concurrency: int = Field(default=8, ge=1, le=32)
     # Optional Word router override. Empty inherits the global LLM model.

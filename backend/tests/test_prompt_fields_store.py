@@ -122,6 +122,16 @@ def test_modules_for_prompt_key_follows_prefix_convention():
         "politik",
         "expertgranskning",
     ]
+    assert modules_for_prompt_key("research.completeness.system") == [
+        "dd",
+        "politik",
+        "expertgranskning",
+    ]
+    assert modules_for_prompt_key("research.completeness.user") == [
+        "dd",
+        "politik",
+        "expertgranskning",
+    ]
     assert modules_for_prompt_key("expertgranskning.word.intent_interview") == [
         "expertgranskning"
     ]
