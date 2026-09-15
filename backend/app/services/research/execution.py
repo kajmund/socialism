@@ -21,6 +21,7 @@ from app.database.models import (
     EvidenceSetItem,
     ExecutionAttempt,
     ExecutionRun,
+    ResearchAssessment,
     ResearchNeedExecution,
 )
 from app.services.execution.errors import ExecutionStatusError
@@ -40,13 +41,24 @@ from app.services.execution.service import (
     get_attempt,
     get_evidence_set,
     get_need_execution,
+    get_research_assessment,
     get_run,
     list_evidence_items,
     list_need_executions,
     mark_ready,
+    persist_research_assessment,
     seed_need_executions,
 )
 from app.services.knowledge.models import KnowledgeScope
+from app.services.research.assessment import (
+    INITIAL_ASSESSMENT_PASS,
+    AssessableEvidence,
+    ProgrammaticResearchAssessor,
+    ResearchAssessmentError,
+    ResearchAssessor,
+    evidence_fingerprint,
+    sanitize_assessment_draft,
+)
 from app.services.research.models import (
     ResearchContext,
     ResearchError,
@@ -54,7 +66,11 @@ from app.services.research.models import (
     ResearchNeed,
     ResearchPlan,
 )
-from app.services.research.plan import research_plan_to_snapshot, validate_research_plan
+from app.services.research.plan import (
+    research_plan_from_snapshot,
+    research_plan_to_snapshot,
+    validate_research_plan,
+)
 from app.services.research.router import ResearchRouter
 
 ResearchRouterFactory = Callable[[AsyncSession], ResearchRouter]
@@ -248,13 +264,69 @@ async def _run_need_executions(
     )
 
 
+def assessable_from_item(item: EvidenceSetItem) -> AssessableEvidence:
+    return AssessableEvidence(
+        evidence_id=item.original_evidence_id or item.id,
+        research_need_id=item.research_need_id,
+        source_type=item.source_type,
+        status=item.status,
+        title=item.title,
+        excerpt=item.excerpt,
+        locator=item.locator,
+        source_id=item.source_id,
+        source_url=item.source_url,
+        provider=item.provider,
+        score=item.score,
+        provenance=dict(item.provenance or {}),
+        retrieved_at=item.retrieved_at,
+        content_hash=item.content_hash,
+    )
+
+
+async def _assess_persisted_evidence(
+    session: AsyncSession,
+    *,
+    attempt: ExecutionAttempt,
+    evidence_set_id: str,
+    plan: ResearchPlan,
+    assessor: ResearchAssessor,
+) -> None:
+    """Judge persisted EvidenceSet items. Insufficient is a valid outcome."""
+    existing = await get_research_assessment(
+        session, attempt.id, assessment_pass=INITIAL_ASSESSMENT_PASS
+    )
+    if existing is not None:
+        return
+    items = await list_evidence_items(session, evidence_set_id)
+    evidence = [assessable_from_item(item) for item in items]
+    try:
+        draft = await assessor.assess(plan, evidence)
+    except ResearchAssessmentError:
+        raise
+    except Exception as exc:
+        raise ResearchAssessmentError(
+            f"Attempt {attempt.id} evidence assessment failed"
+        ) from exc
+    draft = sanitize_assessment_draft(draft, plan=plan, evidence=evidence)
+    await persist_research_assessment(
+        session,
+        attempt_id=attempt.id,
+        evidence_set_id=evidence_set_id,
+        draft=draft,
+        evidence_fingerprint=evidence_fingerprint(evidence),
+        assessment_pass=INITIAL_ASSESSMENT_PASS,
+    )
+
+
 async def _finalize_attempt_research(
     session: AsyncSession,
     *,
     attempt_id: str,
     evidence_set_id: str,
+    plan: ResearchPlan,
+    assessor: ResearchAssessor,
 ) -> None:
-    """Barrier: freeze + ready only after every need execution is completed."""
+    """Barrier: assess persisted evidence, then freeze + ready."""
     executions = await list_need_executions(session, attempt_id)
     if any(row.status == "failed" for row in executions):
         raise ResearchExecutionError(
@@ -272,6 +344,15 @@ async def _finalize_attempt_research(
     attempt = await get_attempt(session, attempt_id)
     if attempt.status == "ready":
         return
+    if attempt.research_plan_snapshot is not None:
+        plan = research_plan_from_snapshot(attempt.research_plan_snapshot)
+    await _assess_persisted_evidence(
+        session,
+        attempt=attempt,
+        evidence_set_id=evidence_set_id,
+        plan=plan,
+        assessor=assessor,
+    )
     frozen = await claim_freeze_evidence_set(session, evidence_set_id)
     if frozen is None:
         evidence_set = await get_evidence_set(session, evidence_set_id)
@@ -298,14 +379,16 @@ async def execute_attempt_research(
     research_plan: ResearchPlan,
     router: ResearchRouter | None = None,
     router_factory: ResearchRouterFactory | None = None,
+    assessor: ResearchAssessor | None = None,
     session_factory: async_sessionmaker[AsyncSession] | None = None,
     concurrency: int | None = None,
 ) -> AttemptResearchResult:
-    """Run each ResearchNeed concurrently, persist incrementally, then freeze.
+    """Run each ResearchNeed concurrently, persist incrementally, assess, then freeze.
 
     Scope is always taken from ExecutionRun. Source-level error/not_found
-    complete that need and do not fail the Attempt. Orchestration or worker
-    failure marks both Attempt and EvidenceSet failed without freezing.
+    complete that need and do not fail the Attempt. Insufficient assessment
+    is a valid v1 outcome and still freezes. Assessor/model/parsing failure
+    marks both Attempt and EvidenceSet failed without freezing.
     """
     if router is None and router_factory is None:
         raise ResearchExecutionError("ResearchRouter is required")
@@ -323,6 +406,7 @@ async def execute_attempt_research(
         )
 
     plan = validate_research_plan(research_plan)
+    bound_assessor = assessor or ProgrammaticResearchAssessor()
     if router_factory is not None:
         router_factory(session)
     run = await get_run(session, attempt.run_id)
@@ -379,6 +463,8 @@ async def execute_attempt_research(
                 final_session,
                 attempt_id=attempt_id,
                 evidence_set_id=evidence_set.id,
+                plan=plan,
+                assessor=bound_assessor,
             )
             result = await _result_from_attempt(
                 final_session, await get_attempt(final_session, attempt_id)
@@ -422,4 +508,9 @@ async def _refresh_caller_state(
         )
     )
     for row in cached_needs.scalars():
+        session.expire(row)
+    cached_assessments = await session.execute(
+        select(ResearchAssessment).where(ResearchAssessment.attempt_id == attempt_id)
+    )
+    for row in cached_assessments.scalars():
         session.expire(row)

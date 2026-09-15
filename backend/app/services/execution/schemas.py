@@ -71,6 +71,33 @@ class AttemptCloneRequest(BaseModel):
     configuration_snapshot: dict[str, Any] | None = None
 
 
+class ResearchNeedAssessmentOut(BaseModel):
+    research_need_id: str
+    sufficient: bool
+    supporting_evidence_ids: list[str]
+    missing_or_weak: str
+    contradictions: list[str]
+    further_information: str | None
+
+
+class ResearchAssessmentOut(BaseModel):
+    id: str
+    attempt_id: str
+    evidence_set_id: str
+    assessment_pass: int
+    result: str
+    rationale: str
+    need_assessments: list[ResearchNeedAssessmentOut]
+    gaps: list[str]
+    contradictions: list[str]
+    considered_evidence_ids: list[str]
+    evidence_fingerprint: str
+    model_provider: str | None
+    model_name: str | None
+    model_version: str | None
+    created_at: datetime
+
+
 class AttemptResearchOut(BaseModel):
     attempt_id: str
     evidence_set_id: str | None
@@ -78,6 +105,7 @@ class AttemptResearchOut(BaseModel):
     found_count: int
     not_found_count: int
     error_count: int
+    assessment: ResearchAssessmentOut | None = None
 
 
 class EvidenceSummaryOut(BaseModel):
@@ -108,6 +136,7 @@ class ExecutionAttemptOut(BaseModel):
     input_snapshot: dict[str, Any]
     research_plan_snapshot: dict[str, Any] | None
     evidence: EvidenceSummaryOut | None
+    assessment: ResearchAssessmentOut | None = None
     result: AttemptResultOut | None
     created_at: datetime
     started_at: datetime | None
