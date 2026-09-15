@@ -714,6 +714,76 @@ async def test_need_concurrency_is_bounded(db):
 
 
 @pytest.mark.asyncio
+async def test_persist_does_not_consume_retrieval_slots(db, monkeypatch):
+    session, _factory = db
+    _customer_row, _run, attempt = await _created_attempt(session, slug="persist-slot")
+    retrieved: list[str] = []
+    retrieve_lock = asyncio.Lock()
+    third_started = asyncio.Event()
+    persist_blocked = asyncio.Event()
+    release_persist = asyncio.Event()
+
+    class CountingSource:
+        source_type = "case_knowledge"
+        provider_id = "fake"
+
+        async def research(self, need: ResearchNeed, context: ResearchContext):
+            async with retrieve_lock:
+                retrieved.append(need.id)
+                if len(retrieved) == 3:
+                    third_started.set()
+            return [
+                research_evidence(
+                    research_need_id=need.id,
+                    source_type="case_knowledge",
+                    status="found",
+                    excerpt=f"hit-{need.id}",
+                )
+            ]
+
+    original_add = add_evidence_items
+
+    async def blocked_add(persist_session, *, evidence_set_id, items):
+        persist_blocked.set()
+        await release_persist.wait()
+        return await original_add(
+            persist_session,
+            evidence_set_id=evidence_set_id,
+            items=items,
+        )
+
+    monkeypatch.setattr(
+        "app.services.research.execution.add_evidence_items",
+        blocked_add,
+    )
+    router, _ = _router(CountingSource())
+    task = asyncio.create_task(
+        execute_attempt_research(
+            session,
+            attempt_id=attempt.id,
+            research_plan=ResearchPlan(
+                needs=[
+                    _need("research_1", "case_knowledge"),
+                    _need("research_2", "case_knowledge"),
+                    _need("research_3", "case_knowledge"),
+                ]
+            ),
+            router=router,
+            concurrency=2,
+        )
+    )
+    try:
+        await asyncio.wait_for(persist_blocked.wait(), timeout=2)
+        await asyncio.wait_for(third_started.wait(), timeout=2)
+    finally:
+        release_persist.set()
+    result = await task
+    assert result.status == "ready"
+    assert result.found_count == 3
+    assert len(retrieved) == 3
+
+
+@pytest.mark.asyncio
 async def test_fast_need_persists_before_slow_need_completes(db):
     session, factory = db
     _customer_row, _run, attempt = await _created_attempt(session, slug="incr-co")
