@@ -2833,6 +2833,28 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "Insufficient evidence is a valid outcome."
         ),
     ),
+    _f(
+        "research.followup.system",
+        "research",
+        "Research — uppföljningsfrågor",
+        "Research — follow-up questions",
+        "Föreslå nya ResearchNeeds från bedömningens luckor. Svara inte på frågorna.",
+        "Propose new ResearchNeeds from assessment gaps. Do not answer the questions.",
+        (
+            "Du föreslår uppföljande ResearchNeeds utifrån en otillräcklig "
+            "evidensbedömning. Du hämtar inte evidens och du svarar inte på "
+            "frågorna. Varje behov ska ha en konkret fråga, varför den behövs "
+            "kopplat till en lucka, och tillåtna source_types. "
+            "Upprepa inte tidigare frågor. Hitta inte på source_types."
+        ),
+        (
+            "You propose follow-up ResearchNeeds from an insufficient evidence "
+            "assessment. You do not retrieve evidence and you do not answer the "
+            "questions. Each need must have a concrete question, a why_needed "
+            "tied to a gap, and allowed source_types. "
+            "Do not repeat previous questions. Do not invent source_types."
+        ),
+    ),
 ]
 
 PROMPT_KEYS: tuple[str, ...] = tuple(f["key"] for f in PROMPT_FIELDS)

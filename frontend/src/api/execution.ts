@@ -39,6 +39,28 @@ export type ResearchNeedAssessment = {
   further_information: string | null
 }
 
+export type ResearchNeedOrigin = "initial" | "derived"
+
+export type ResearchStopReason =
+  | "sufficient"
+  | "max_iterations"
+  | "max_needs"
+  | "no_novel_followups"
+
+export type RuntimeResearchNeed = {
+  research_need_id: string
+  question: string
+  why_needed: string
+  requested_by: string[]
+  source_types: string[]
+  origin: ResearchNeedOrigin | string
+  wave_number: number
+  parent_research_need_id: string | null
+  source_assessment_pass: number | null
+  source_gap: string
+  question_key: string
+}
+
 export type ResearchAssessment = {
   id: string
   attempt_id: string
@@ -78,6 +100,10 @@ export type ExecutionAttempt = {
   research_plan_snapshot: Record<string, unknown> | null
   evidence: EvidenceSummary | null
   assessment: ResearchAssessment | null
+  assessments?: ResearchAssessment[]
+  research_wave?: number
+  stop_reason?: ResearchStopReason | string | null
+  runtime_needs?: RuntimeResearchNeed[]
   result: AttemptResult | null
   created_at: string
   started_at: string | null
