@@ -1439,6 +1439,9 @@ class ExecutionAttempt(Base):
     need_executions: Mapped[list["ResearchNeedExecution"]] = relationship(
         back_populates="attempt",
     )
+    research_assessments: Mapped[list["ResearchAssessment"]] = relationship(
+        back_populates="attempt",
+    )
 
 
 class ResearchNeedExecution(Base):
@@ -1544,6 +1547,52 @@ class ExecutionAttemptResult(Base):
     )
 
     attempt: Mapped[ExecutionAttempt] = relationship(back_populates="result")
+
+
+class ResearchAssessment(Base):
+    """Persisted evidence-sufficiency judgment for one Attempt research pass."""
+
+    __tablename__ = "research_assessments"
+    __table_args__ = (
+        UniqueConstraint(
+            "attempt_id",
+            "assessment_pass",
+            name="uq_research_assessments_attempt_pass",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    attempt_id: Mapped[str] = mapped_column(
+        ForeignKey("execution_attempts.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    evidence_set_id: Mapped[str] = mapped_column(
+        ForeignKey("evidence_sets.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    assessment_pass: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    result: Mapped[str] = mapped_column(String(32), nullable=False)
+    rationale: Mapped[str] = mapped_column(Text, nullable=False)
+    need_assessments: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    gaps: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    contradictions: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    considered_evidence_ids: Mapped[list] = mapped_column(
+        JSON, nullable=False, default=list
+    )
+    evidence_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    model_provider: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    model_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    model_version: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    attempt: Mapped[ExecutionAttempt] = relationship(back_populates="research_assessments")
+
 
 class LlmRuntimeSettings(Base):
     """Singleton row for admin-selected chat LLM profile + sampling params."""

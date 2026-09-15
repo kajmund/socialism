@@ -37,6 +37,7 @@ PromptSection = Literal[
     "oasis_agents",
     "report",
     "panel",
+    "research",
 ]
 
 PROMPT_SECTIONS: list[tuple[PromptSection, dict[str, str]]] = [
@@ -47,6 +48,7 @@ PROMPT_SECTIONS: list[tuple[PromptSection, dict[str, str]]] = [
     ("oasis_agents", {"sv": "OASIS — agenter", "en": "OASIS — agents"}),
     ("report", {"sv": "Rapport", "en": "Report"}),
     ("panel", {"sv": "Panel", "en": "Panel"}),
+    ("research", {"sv": "Research", "en": "Research"}),
 ]
 
 
@@ -2803,6 +2805,32 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         (
             "The previous response was invalid JSON. Return one complete JSON object "
             "that matches the required schema. No markdown and no extra text."
+        ),
+    ),
+    _f(
+        "research.assessment.system",
+        "research",
+        "Research — evidensbedömning",
+        "Research — evidence sufficiency",
+        "Bedöm om insamlad evidens räcker för ResearchPlan. Ingen expertrapport.",
+        "Judge whether collected evidence answers the ResearchPlan. No expert report.",
+        (
+            "Du bedömer om den redan uthämtade evidensen räcker för att besvara "
+            "ResearchPlan. Du skriver inte det slutliga expertutlåtandet. "
+            "Använd endast evidence_id som finns i underlaget. Hitta inte på ID:n. "
+            "Bedöm varje ResearchNeed: tillräckligt stödd, vilka evidensrader som "
+            "stödjer den, vad som saknas eller är svagt, konflikter, och vilken "
+            "ytterligare information som krävs om den är otillräcklig. "
+            "Otillräcklig evidens är ett giltigt resultat."
+        ),
+        (
+            "You assess whether already retrieved evidence is sufficient to answer "
+            "the ResearchPlan. You do not write the final expert answer. "
+            "Use only evidence_id values supplied in the input. Do not invent IDs. "
+            "For each ResearchNeed say whether it is sufficiently supported, which "
+            "evidence supports it, what is missing or weak, any conflicts, and what "
+            "further information would be required if it is insufficient. "
+            "Insufficient evidence is a valid outcome."
         ),
     ),
 ]
