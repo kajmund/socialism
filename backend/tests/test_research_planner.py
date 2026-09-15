@@ -35,9 +35,12 @@ from app.services.research.planner import (
     plan_from_planner_drafts,
     require_research_objective,
 )
+from app.services.research.provider import knowledge_adapter_descriptor
 from app.services.research.registry import (
     ResearchSourceRegistry,
+    default_standard_capability_descriptors,
     production_registered_source_types,
+    set_standard_capability_descriptors,
 )
 from app.services.research.router import ResearchRouter
 from tests.test_research_assessment import _fixed_draft
@@ -534,8 +537,55 @@ async def test_llm_planner_is_offered_only_executable_source_types():
 def test_production_registered_source_types_match_standard_registry():
     types = production_registered_source_types()
     assert types == ("case_knowledge", "customer_knowledge")
+    assert types == tuple(
+        next(iter(descriptor.evidence_natures))
+        for descriptor in default_standard_capability_descriptors()
+    )
     assert "swedish_law" not in types
     assert "web" not in types
+
+
+@pytest.mark.asyncio
+async def test_factory_path_offers_standard_capability_natures_without_caller_session_router(
+    db,
+):
+    session, _factory = db
+    _customer, _run, attempt = await _created_attempt(session, slug="plan-factory-cap")
+    planner = FakeResearchPlanner([_draft()])
+    router, sources = _router(RecordingSource("case_knowledge"))
+    bound_sessions: list[object] = []
+
+    def factory(bound):
+        bound_sessions.append(bound)
+        return router
+
+    set_standard_capability_descriptors(
+        (
+            *default_standard_capability_descriptors(),
+            knowledge_adapter_descriptor("synthetic-provider", "swedish_law"),
+        )
+    )
+    try:
+        result = await execute_attempt_research(
+            session,
+            attempt_id=attempt.id,
+            research_objective=_objective(),
+            research_planner=planner,
+            router=None,
+            router_factory=factory,
+        )
+    finally:
+        set_standard_capability_descriptors(None)
+
+    assert result.status == "ready"
+    assert planner.available_source_types_calls
+    offered = planner.available_source_types_calls[0]
+    assert "swedish_law" in offered
+    assert "case_knowledge" in offered
+    assert "customer_knowledge" in offered
+    assert bound_sessions
+    assert session not in bound_sessions
+    assert sources[0].calls == 1
 
 
 def test_llm_planner_rejects_empty_source_types():

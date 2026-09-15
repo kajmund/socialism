@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from app.services.knowledge.provider import KnowledgeProvider
+from collections.abc import Sequence
+
+from app.services.knowledge.provider import SUPABASE_PROVIDER_ID, KnowledgeProvider
 from app.services.research.knowledge_source import KnowledgeResearchSource
 from app.services.research.models import ResearchSourceType
 from app.services.research.provider import (
@@ -17,19 +19,56 @@ from app.services.research.provider import (
 )
 from app.services.research.source import ResearchSource
 
-_IMPLEMENTED_KNOWLEDGE_TYPES: tuple[ResearchSourceType, ...] = (
-    "case_knowledge",
-    "customer_knowledge",
-)
+_KNOWLEDGE_RESEARCH_ADAPTER = "knowledge_research_source"
+_standard_capability_descriptors: tuple[KnowledgeProviderDescriptor, ...] | None = None
+
+
+def default_standard_capability_descriptors() -> tuple[KnowledgeProviderDescriptor, ...]:
+    """Session-independent production capability contract.
+
+    ``build_research_registry`` and planner availability both read this set.
+    """
+    return (
+        knowledge_adapter_descriptor(SUPABASE_PROVIDER_ID, "case_knowledge"),
+        knowledge_adapter_descriptor(SUPABASE_PROVIDER_ID, "customer_knowledge"),
+    )
+
+
+def set_standard_capability_descriptors(
+    descriptors: Sequence[KnowledgeProviderDescriptor] | None,
+) -> None:
+    """Test seam for the standard capability definition. Production leaves this unset."""
+    global _standard_capability_descriptors
+    if descriptors is None:
+        _standard_capability_descriptors = None
+        return
+    _standard_capability_descriptors = tuple(descriptors)
+
+
+def standard_capability_descriptors() -> tuple[KnowledgeProviderDescriptor, ...]:
+    if _standard_capability_descriptors is not None:
+        return _standard_capability_descriptors
+    return default_standard_capability_descriptors()
+
+
+def _ordered_evidence_natures(
+    descriptor: KnowledgeProviderDescriptor,
+) -> tuple[str, ...]:
+    return tuple(sorted(descriptor.evidence_natures))
 
 
 def production_registered_source_types() -> tuple[ResearchSourceType, ...]:
     """Evidence natures the standard production capability registry can execute.
 
-    Same set ``build_research_registry`` registers. Catalog types that are
-    not returned here must not be offered to planners.
+    Derived from the same descriptors ``build_research_registry`` registers.
+    Catalog types that are not returned here must not be offered to planners.
     """
-    return _IMPLEMENTED_KNOWLEDGE_TYPES
+    seen: list[ResearchSourceType] = []
+    for descriptor in standard_capability_descriptors():
+        for nature in _ordered_evidence_natures(descriptor):
+            if nature not in seen:
+                seen.append(nature)  # type: ignore[arg-type]
+    return tuple(seen)
 
 
 class KnowledgeProviderCapabilityRegistry:
@@ -142,12 +181,31 @@ class KnowledgeProviderCapabilityRegistry:
 ResearchSourceRegistry = KnowledgeProviderCapabilityRegistry
 
 
+def _compose_standard_source(
+    provider: KnowledgeProvider,
+    descriptor: KnowledgeProviderDescriptor,
+) -> tuple[ResearchSource, KnowledgeProviderDescriptor]:
+    adapter = descriptor.access.adapter
+    if adapter != _KNOWLEDGE_RESEARCH_ADAPTER:
+        raise ValueError(
+            f"standard capability {descriptor.provider_id} uses unsupported adapter {adapter!r}"
+        )
+    natures = _ordered_evidence_natures(descriptor)
+    if len(natures) != 1:
+        raise ValueError(
+            f"standard capability {descriptor.provider_id} must declare exactly one evidence nature"
+        )
+    nature = natures[0]
+    return (
+        KnowledgeResearchSource(provider, source_type=nature),  # type: ignore[arg-type]
+        knowledge_adapter_descriptor(provider.provider_id, nature),  # type: ignore[arg-type]
+    )
+
+
 def build_research_registry(provider: KnowledgeProvider) -> ResearchSourceRegistry:
     """Knowledge adapters only. domain_knowledge has no global namespace yet."""
     registry = KnowledgeProviderCapabilityRegistry()
-    for source_type in production_registered_source_types():
-        registry.register(
-            KnowledgeResearchSource(provider, source_type=source_type),
-            descriptor=knowledge_adapter_descriptor(provider.provider_id, source_type),
-        )
+    for descriptor in standard_capability_descriptors():
+        source, live_descriptor = _compose_standard_source(provider, descriptor)
+        registry.register(source, descriptor=live_descriptor)
     return registry
