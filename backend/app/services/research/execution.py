@@ -258,6 +258,7 @@ async def fail_incomplete_research(
     attempt = await get_attempt(session, attempt_id)
     if attempt.status not in {"created", "researching"}:
         return
+    _raise_if_write_fenced()
     with ProgressTracker() as progress:
         target_set_id = evidence_set_id or attempt.evidence_set_id
         if target_set_id is not None:
@@ -373,6 +374,7 @@ async def _execute_one_need(
     except BaseException as exc:
         if isinstance(exc, asyncio.CancelledError):
             raise
+        _raise_if_write_fenced()
         async with persist_lock, factory() as fail_session:
             with ProgressTracker() as progress:
                 failed = await fail_need_execution(fail_session, execution_id)
@@ -1529,6 +1531,9 @@ async def execute_attempt_research(
             raise
         if isinstance(exc, ExecutionStatusError) and not claimed:
             raise
+        fence = _write_fence.get()
+        if fence is not None and fence.is_set():
+            raise asyncio.CancelledError from exc
         await session.rollback()
         if claimed:
             factory = session_factory or _session_factory(session)
