@@ -28,6 +28,11 @@ from app.services.research import (
     execute_attempt_research,
     research_evidence,
 )
+from app.services.research.assessment import (
+    ResearchAssessmentDraft,
+    ResearchNeedAssessment,
+)
+from app.services.research.execution import research_context_from_run
 from app.services.research.graphiti_adapter import (
     GraphitiQuestionEvidenceGraph,
     InMemoryGraphitiClient,
@@ -53,6 +58,7 @@ from app.services.research.question_graph_sql import SqlQuestionEvidenceGraph
 from app.services.research.question_reuse import (
     classify_freshness,
     should_skip_providers,
+    upsert_persisted_evidence,
 )
 
 
@@ -181,22 +187,8 @@ def test_evidence_visibility_is_public_only_when_provenance_says_so():
     assert evidence_visibility({}) == "tenant"
 
 
-def test_stale_or_unknown_reuse_does_not_skip_providers():
+def test_v1_reuse_gate_never_skips_providers():
     need = _need("research_1", "case_knowledge")
-    stale = research_evidence(
-        research_need_id="research_1",
-        source_type="case_knowledge",
-        status="found",
-        excerpt="old",
-        metadata={"reuse": {"origin": "persistent_knowledge", "freshness": "stale"}},
-    )
-    unknown = research_evidence(
-        research_need_id="research_1",
-        source_type="case_knowledge",
-        status="found",
-        excerpt="maybe",
-        metadata={"reuse": {"origin": "persistent_knowledge", "freshness": "unknown"}},
-    )
     fresh = research_evidence(
         research_need_id="research_1",
         source_type="case_knowledge",
@@ -204,9 +196,7 @@ def test_stale_or_unknown_reuse_does_not_skip_providers():
         excerpt="current",
         metadata={"reuse": {"origin": "persistent_knowledge", "freshness": "fresh"}},
     )
-    assert should_skip_providers(need, [stale]) is False
-    assert should_skip_providers(need, [unknown]) is False
-    assert should_skip_providers(need, [fresh]) is True
+    assert should_skip_providers(need, [fresh]) is False
     assert should_skip_providers(need, []) is False
 
 
@@ -279,11 +269,13 @@ async def test_later_attempt_reuses_candidates_without_duplicate_edges(db, monke
     second_items = await list_evidence_items(session, second_result.evidence_set_id)
 
     assert first_result.status == second_result.status == "ready"
-    assert source.calls == 1
+    assert source.calls == 2
     assert len(graph.questions()) == 1
     assert len(links) == 1
     assert first_items[0].locator == "p1"
-    assert second_items[0].provenance["reuse"]["origin"] == "persistent_knowledge"
+    assert {item.provenance["reuse"]["origin"] for item in second_items} == {
+        "fresh_retrieval"
+    }
     assert second_items[0].locator == first_items[0].locator
     assert second_items[0].provenance["version"] == "3"
     assert second_items[0].provenance["document_id"] == "doc-brief"
@@ -325,10 +317,11 @@ async def test_stale_reused_evidence_still_calls_providers(db, monkeypatch):
         question_graph=graph,
     )
     items = await list_evidence_items(session, result.evidence_set_id)
-    origins = [item.provenance.get("reuse", {}).get("origin") for item in items]
+    origins = {item.provenance.get("reuse", {}).get("origin") for item in items}
+    excerpts = {item.excerpt for item in items}
     assert source.calls == 1
-    assert origins == ["fresh_retrieval"]
-    assert [item.excerpt for item in items] == ["live hit"]
+    assert origins == {"persistent_knowledge", "fresh_retrieval"}
+    assert excerpts == {"old excerpt", "live hit"}
 
 
 @pytest.mark.asyncio
@@ -402,9 +395,11 @@ async def test_public_evidence_is_reusable_across_customers(db, monkeypatch):
     )
     assert public_q is not None
     assert public_q.scope.visibility == "public"
-    assert source_b.calls == 0
-    assert [item.excerpt for item in items] == ["SFS text"]
-    assert items[0].provenance["reuse"]["origin"] == "persistent_knowledge"
+    assert source_b.calls == 1
+    excerpts = {item.excerpt for item in items}
+    assert excerpts == {"SFS text", "should not run"}
+    origins = {item.provenance["reuse"]["origin"] for item in items}
+    assert origins == {"persistent_knowledge", "fresh_retrieval"}
 
 
 @pytest.mark.asyncio
@@ -594,9 +589,9 @@ async def test_sql_graph_reuses_across_attempts(db, monkeypatch):
     assert question is not None
     links = await graph.lookup_answers(session, question=question, limit=10)
     assert result.status == "ready"
-    assert source.calls == 1
+    assert source.calls == 2
     assert len(links) == 1
-    assert items[0].provenance["reuse"]["origin"] == "persistent_knowledge"
+    assert items[0].provenance["reuse"]["origin"] == "fresh_retrieval"
 
 
 class _FailingWriteGraph(InMemoryQuestionEvidenceGraph):
@@ -675,14 +670,79 @@ async def test_reused_hit_does_not_refresh_edge_timestamps(db, monkeypatch):
     session, _factory = db
     graph = InMemoryQuestionEvidenceGraph()
     _customer, run, first = await _created_attempt(session, slug="fresh-stamp")
+    need = _need("research_1", "case_knowledge")
     await execute_attempt_research(
         session,
         attempt_id=first.id,
-        research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
+        research_plan=ResearchPlan(needs=[need]),
         router=_router(RecordingSource("case_knowledge"))[0],
         question_graph=graph,
     )
     before = graph.links()[0]
+    reused = research_evidence(
+        research_need_id="research_1",
+        source_type="case_knowledge",
+        status="found",
+        excerpt="skattesats 32%",
+        locator="p1",
+        source_id="doc-brief",
+        provider="fake",
+        metadata={
+            "reuse": {
+                "origin": "persistent_knowledge",
+                "evidence_ref": before.evidence_ref,
+                "freshness": "fresh",
+            }
+        },
+    )
+    await upsert_persisted_evidence(
+        session,
+        graph=graph,
+        need=need,
+        context=research_context_from_run(run),
+        evidence=[reused],
+        source_attempt_id=first.id,
+    )
+    after = graph.links()[0]
+    assert len(graph.links()) == 1
+    assert after.observed_at == before.observed_at
+    assert after.retrieved_at == before.retrieved_at
+    assert after.freshness == before.freshness
+
+
+class _InsufficientAssessor:
+    async def assess(self, plan, evidence):
+        return ResearchAssessmentDraft(
+            result="insufficient",
+            rationale="configured policy rejects thin reused excerpt",
+            need_assessments=[
+                ResearchNeedAssessment(
+                    research_need_id=plan.needs[0].id,
+                    sufficient=False,
+                    missing_or_weak="reused excerpt is insufficient",
+                    further_information=plan.needs[0].question,
+                )
+            ],
+            gaps=["thin reuse"],
+            considered_evidence_ids=[item.evidence_id for item in evidence],
+        )
+
+
+@pytest.mark.asyncio
+async def test_insufficient_assessor_does_not_let_fresh_reuse_skip_providers(
+    db, monkeypatch
+):
+    monkeypatch.setattr(settings, "research_knowledge_freshness_max_age_seconds", 86_400)
+    session, _factory = db
+    graph = InMemoryQuestionEvidenceGraph()
+    _customer, run, first = await _created_attempt(session, slug="no-skip-policy")
+    await execute_attempt_research(
+        session,
+        attempt_id=first.id,
+        research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
+        router=_router(RecordingSource("case_knowledge", excerpt="thin cache"))[0],
+        question_graph=graph,
+    )
     second = await create_attempt(
         session,
         run_id=run.id,
@@ -690,18 +750,20 @@ async def test_reused_hit_does_not_refresh_edge_timestamps(db, monkeypatch):
         configuration_snapshot={"model": "config-a"},
         input_snapshot={"question": "Vad gäller skattesatsen?"},
     )
-    await execute_attempt_research(
+    live = RecordingSource("case_knowledge", excerpt="live retrieval")
+    result = await execute_attempt_research(
         session,
         attempt_id=second.id,
         research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
-        router=_router(RecordingSource("case_knowledge", excerpt="should skip"))[0],
+        router=_router(live)[0],
         question_graph=graph,
+        assessor=_InsufficientAssessor(),
     )
-    after = graph.links()[0]
-    assert len(graph.links()) == 1
-    assert after.observed_at == before.observed_at
-    assert after.retrieved_at == before.retrieved_at
-    assert after.freshness == before.freshness
+    items = await list_evidence_items(session, result.evidence_set_id)
+    excerpts = {item.excerpt for item in items}
+    assert live.calls == 1
+    assert "live retrieval" in excerpts
+    assert "thin cache" in excerpts
 
 
 @pytest.mark.asyncio

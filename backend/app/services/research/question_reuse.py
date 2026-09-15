@@ -6,7 +6,6 @@ outage must not fail the Attempt or invent a sufficient outcome.
 
 from __future__ import annotations
 
-import hashlib
 from collections.abc import Sequence
 from datetime import UTC, datetime
 
@@ -14,10 +13,6 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.services.research.assessment import (
-    AssessableEvidence,
-    programmatic_assessment,
-)
 from app.services.research.knowledge_question import (
     KnowledgeQuestion,
     KnowledgeQuestionScope,
@@ -32,7 +27,6 @@ from app.services.research.models import (
     ResearchContext,
     ResearchEvidence,
     ResearchNeed,
-    ResearchPlan,
     research_evidence,
     utc_now,
 )
@@ -97,59 +91,51 @@ def reuse_lineage(
     }
 
 
-def _assessable(item: ResearchEvidence) -> AssessableEvidence:
-    return AssessableEvidence(
-        evidence_id=item.evidence_id,
-        research_need_id=item.research_need_id,
-        source_type=item.source_type,
-        status=item.status,
-        title=item.title,
-        excerpt=item.excerpt,
-        locator=item.locator,
-        source_id=item.source_id,
-        source_url=item.source_url,
-        provider=item.provider,
-        score=item.score,
-        provenance=dict(item.metadata),
-        retrieved_at=item.retrieved_at,
-        content_hash=hashlib.sha256((item.excerpt or "").encode("utf-8")).hexdigest(),
-    )
-
-
 def should_skip_providers(
     need: ResearchNeed,
     reused: Sequence[ResearchEvidence],
 ) -> bool:
-    """True only when existing local sufficiency is met by fresh reused found items."""
-    if not reused:
-        return False
-    draft = programmatic_assessment(
-        ResearchPlan(needs=[need]),
-        [_assessable(item) for item in reused],
-    )
-    if draft.result != "sufficient":
-        return False
-    supporting_ids = {
-        evidence_id
-        for row in draft.need_assessments
-        if row.research_need_id == need.id
-        for evidence_id in row.supporting_evidence_ids
+    """v1 never skips live retrieval.
+
+    Graph hits are candidates. Production local assessment can be an LLM
+    and now also sees evidence quality. A programmatic "found = sufficient"
+    check must not become a parallel truth that under-researches.
+    """
+    del need, reused
+    return False
+
+
+def merge_reused_with_provider(
+    reused: Sequence[ResearchEvidence],
+    provider: Sequence[ResearchEvidence],
+) -> list[ResearchEvidence]:
+    """Keep unused candidates and prefer a live found hit for the same ref."""
+    annotated = annotate_fresh_retrieval(provider)
+    found_refs = {
+        ref
+        for item in annotated
+        if item.status == "found"
+        for ref in [_item_evidence_ref(item)]
+        if ref is not None
     }
-    supporting = [item for item in reused if item.evidence_id in supporting_ids]
-    if not supporting:
-        return False
-    if not all(_matches_need_source(item.source_type, need) for item in supporting):
-        return False
-    return all(_item_freshness(item) == "fresh" for item in supporting)
+    kept = [
+        item for item in reused if _item_evidence_ref(item) not in found_refs
+    ]
+    return [*kept, *annotated]
 
 
-def _item_freshness(item: ResearchEvidence) -> Freshness:
+def _item_evidence_ref(item: ResearchEvidence) -> str | None:
     raw = item.metadata.get("reuse")
     if isinstance(raw, dict):
-        value = raw.get("freshness")
-        if value in {"fresh", "stale", "unknown"}:
-            return value
-    return "unknown"
+        ref = raw.get("evidence_ref")
+        if isinstance(ref, str) and ref.strip():
+            return ref.strip()
+    return stable_evidence_ref(
+        provider=item.provider,
+        source_id=item.source_id,
+        locator=item.locator,
+        excerpt=item.excerpt,
+    )
 
 
 def link_to_research_evidence(
