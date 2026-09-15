@@ -146,6 +146,32 @@ export type ExecutionAttempt = {
   completed_at: string | null
 }
 
+export type EvidenceQualityFlag = {
+  code: string
+  detail: string
+}
+
+export type EvidenceQuality = {
+  id: string
+  evidence_set_item_id: string
+  original_evidence_id: string | null
+  scoring_policy_version: string
+  authority: string
+  relevance: string
+  currentness: string
+  source_nature: string
+  source_timestamp: string | null
+  independence_key: string
+  independent_source_count: number
+  flags: EvidenceQualityFlag[]
+  rationale: string
+  declared_signals: Record<string, unknown>
+  model_provider: string | null
+  model_name: string | null
+  model_version: string | null
+  created_at: string
+}
+
 export type EvidenceSetItem = {
   id: string
   evidence_set_id: string
@@ -164,6 +190,7 @@ export type EvidenceSetItem = {
   provenance: Record<string, unknown>
   retrieved_at: string
   content_hash: string
+  quality?: EvidenceQuality | null
 }
 
 export type EvidenceSet = {

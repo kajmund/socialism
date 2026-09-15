@@ -1573,6 +1573,62 @@ class EvidenceSetItem(Base):
     content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
 
     evidence_set: Mapped[EvidenceSet] = relationship(back_populates="items")
+    quality_assessments: Mapped[list["ResearchEvidenceQuality"]] = relationship(
+        back_populates="evidence_set_item",
+    )
+
+
+class ResearchEvidenceQuality(Base):
+    """Immutable per-item quality artifact. Does not mutate EvidenceSet contents."""
+
+    __tablename__ = "research_evidence_quality"
+    __table_args__ = (
+        UniqueConstraint(
+            "evidence_set_item_id",
+            "scoring_policy_version",
+            "model_version_key",
+            name="uq_research_evidence_quality_item_policy_model",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    evidence_set_item_id: Mapped[str] = mapped_column(
+        ForeignKey("evidence_set_items.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    evidence_set_id: Mapped[str] = mapped_column(
+        ForeignKey("evidence_sets.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    original_evidence_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    scoring_policy_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    authority: Mapped[str] = mapped_column(String(32), nullable=False)
+    relevance: Mapped[str] = mapped_column(String(32), nullable=False)
+    currentness: Mapped[str] = mapped_column(String(32), nullable=False)
+    source_nature: Mapped[str] = mapped_column(String(32), nullable=False)
+    source_timestamp: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    independence_key: Mapped[str] = mapped_column(String(1024), nullable=False)
+    independent_source_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    flags: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    rationale: Mapped[str] = mapped_column(Text, nullable=False)
+    declared_signals: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    model_provider: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    model_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    model_version: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    model_version_key: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    evidence_set_item: Mapped[EvidenceSetItem] = relationship(
+        back_populates="quality_assessments"
+    )
 
 
 class ExecutionAttemptResult(Base):
