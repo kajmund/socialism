@@ -53,7 +53,8 @@ the request `AsyncSession` for the worker.
    `SessionLocal` via the jobs factory; tests inject the in-memory factory).
 2. CAS-claim the Attempt.
 3. Build router / assessor / planners in that session.
-4. Call `execute_attempt_research(..., session_factory=factory)`.
+4. Call `execute_attempt_research(..., session_factory=factory)` from
+   `app/services/research_worker.py` (outside the LLM-free research package).
 5. Heartbeat until the engine returns, then release the lease.
 
 `execute_attempt_research` is the single execution implementation. Direct

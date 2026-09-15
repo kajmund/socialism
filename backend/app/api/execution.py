@@ -91,12 +91,12 @@ from app.services.research.execution import ResearchExecutionError
 from app.services.research.models import InvalidResearchPlanError
 from app.services.research.planner import (
     InvalidResearchObjectiveError,
-    ResearchPlannerError,
     ResearchObjective,
+    ResearchPlannerError,
     require_research_objective,
     research_objective_to_snapshot,
 )
-from app.services.research.worker import accept_attempt_research
+from app.services.research_worker import accept_attempt_research
 
 router = APIRouter(prefix="/execution", tags=["execution"])
 

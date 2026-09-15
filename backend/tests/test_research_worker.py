@@ -40,14 +40,22 @@ from app.services.research.claims import (
     release_research_lease,
     start_request_payload,
 )
-from app.services.research.composition import set_research_router_factory
+from app.services.research.assessment import ProgrammaticResearchAssessor
+from app.services.research.completeness import ProgrammaticResearchCompletenessReviewer
+from app.services.research.composition import (
+    set_completeness_reviewer_factory,
+    set_follow_up_planner_factory,
+    set_research_assessor_factory,
+    set_research_router_factory,
+)
+from app.services.research.followup import NoOpFollowUpPlanner
 from app.services.research.execution import execute_attempt_research
 from app.services.research.models import ResearchContext, ResearchNeed, ResearchPlan
 from app.services.research.plan import research_plan_to_snapshot
 from app.services.research.planner import FakeResearchPlanner, ResearchNeedDraft
 from app.services.research.registry import ResearchSourceRegistry
 from app.services.research.router import ResearchRouter
-from app.services.research.worker import (
+from app.services.research_worker import (
     accept_attempt_research,
     run_due_research_claims,
     run_research_claim,
@@ -72,11 +80,17 @@ async def worker_db():
         await conn.run_sync(Base.metadata.create_all)
     set_research_session_factory(factory)
     set_research_schedule_hook(lambda _attempt_id: None)
+    set_research_assessor_factory(ProgrammaticResearchAssessor)
+    set_follow_up_planner_factory(NoOpFollowUpPlanner)
+    set_completeness_reviewer_factory(ProgrammaticResearchCompletenessReviewer)
     async with factory() as session:
         yield session, factory
     await wait_research_workers()
     set_research_session_factory(None)
     set_research_schedule_hook(None)
+    set_research_assessor_factory(None)
+    set_follow_up_planner_factory(None)
+    set_completeness_reviewer_factory(None)
     await engine.dispose()
 
 
@@ -313,7 +327,7 @@ async def test_worker_uses_its_own_session_not_the_request_session(worker_db):
 
     router, _sources = _router(RecordingSource("case_knowledge"))
     set_research_router_factory(lambda _session: router)
-    from app.services.research import worker as worker_mod
+    from app.services import research_worker as worker_mod
 
     worker_mod.execute_attempt_research = _capture  # type: ignore[method-assign]
     try:
@@ -360,12 +374,19 @@ async def test_http_start_returns_before_gated_source_finishes(
     registry = ResearchSourceRegistry()
     registry.register(GatedSource())
     set_research_router_factory(lambda _session: ResearchRouter(registry))
+    set_research_assessor_factory(ProgrammaticResearchAssessor)
+    set_follow_up_planner_factory(NoOpFollowUpPlanner)
+    set_completeness_reviewer_factory(ProgrammaticResearchCompletenessReviewer)
     try:
         run = await _create_run(client)
         attempt = await _create_attempt(client, run["id"])
         started = await client.post(
             f"/execution/attempts/{attempt['id']}/research",
-            json={"research_plan": RESEARCH_PLAN},
+            json={
+                "research_plan": {
+                    "needs": [RESEARCH_PLAN["needs"][0]],
+                }
+            },
         )
         assert started.status_code == 202, started.text
         assert started.json()["status"] in {"created", "researching"}
@@ -379,6 +400,9 @@ async def test_http_start_returns_before_gated_source_finishes(
     finally:
         gate.set()
         set_research_router_factory(None)
+        set_research_assessor_factory(None)
+        set_follow_up_planner_factory(None)
+        set_completeness_reviewer_factory(None)
 
 
 @pytest.mark.asyncio
