@@ -632,9 +632,9 @@ async def _resolve_research_objective(
 
 def _executable_source_types(router: ResearchRouter | None) -> tuple[str, ...]:
     """Types the attempt's production router/registry can actually run."""
-    if router is not None:
-        return router.available_source_types()
-    return production_registered_source_types()
+    if router is None:
+        return production_registered_source_types()
+    return router.available_source_types()
 
 
 async def _resolve_initial_plan(
@@ -645,7 +645,7 @@ async def _resolve_initial_plan(
     research_objective: ResearchObjective | None,
     research_planner: ResearchPlanner | None,
     need_limit: int,
-    allowed_source_types: tuple[str, ...],
+    router: ResearchRouter | None,
 ) -> ResearchPlan:
     """Persist objective + initial plan before research is claimed.
 
@@ -674,6 +674,7 @@ async def _resolve_initial_plan(
         )
     if research_planner is None:
         raise ResearchPlannerError("ResearchPlanner is required")
+    allowed_source_types = _executable_source_types(router)
     if not allowed_source_types:
         raise ResearchPlannerError("no executable research source types are available")
     try:
@@ -781,7 +782,7 @@ async def execute_attempt_research(
         research_objective=objective,
         research_planner=research_planner,
         need_limit=need_limit,
-        allowed_source_types=_executable_source_types(router),
+        router=router,
     )
     run = await get_run(session, attempt.run_id)
     need_concurrency = _concurrency_limit(concurrency)
