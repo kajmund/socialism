@@ -272,6 +272,9 @@ async def stream_library_chat_turn(
             await _discard_user_message(session, user_row)
             status = 502 if isinstance(exc, CompanyMcpError) else 400
             raise ChatTurnError(str(exc), status_code=status) from exc
+        except asyncio.CancelledError:
+            await _discard_user_message(session, user_row)
+            raise
         except Exception:
             await _discard_user_message(session, user_row)
             raise
@@ -428,6 +431,9 @@ async def stream_run_interview_turn(
             await _discard_user_message(session, user_row)
             status = 502 if isinstance(exc, CompanyMcpError) else 400
             raise ChatTurnError(str(exc), status_code=status) from exc
+        except asyncio.CancelledError:
+            await _discard_user_message(session, user_row)
+            raise
         except Exception:
             await _discard_user_message(session, user_row)
             raise
