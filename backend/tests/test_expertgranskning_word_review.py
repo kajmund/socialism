@@ -1817,7 +1817,9 @@ async def test_analyze_batch_logs_routing_counts_without_document_text(caplog):
 def test_word_alembic_chain_is_linear_after_main_head():
     cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     script = ScriptDirectory.from_config(cfg)
-    assert script.get_heads() == ["084_research_runtime_loop"]
+    assert script.get_heads() == ["085_research_loop_user_prompts"]
+    user_prompts = script.get_revision("085_research_loop_user_prompts")
+    assert user_prompts.down_revision == "084_research_runtime_loop"
     loop = script.get_revision("084_research_runtime_loop")
     assert loop.down_revision == "083_research_assessments"
     assessment = script.get_revision("083_research_assessments")

@@ -13,6 +13,11 @@ from sqlalchemy.pool import StaticPool
 
 from app.database.base import Base
 from app.database.models import EvidenceSet, ExecutionAttempt, ResearchAssessment
+from app.llm.research_assessment import (
+    EvidenceSufficiencyModel,
+    LlmResearchAssessor,
+    NeedSufficiencyModel,
+)
 from app.services.execution import (
     get_attempt,
     get_evidence_set,
@@ -21,6 +26,7 @@ from app.services.execution import (
     list_need_executions,
     list_research_assessments,
 )
+from app.services.prompt_catalog import default_prompts, render_prompt
 from app.services.research.assessment import (
     AssessableEvidence,
     ResearchAssessmentDraft,
@@ -30,11 +36,6 @@ from app.services.research.assessment import (
     evidence_fingerprint,
     programmatic_assessment,
     sanitize_assessment_draft,
-)
-from app.llm.research_assessment import (
-    EvidenceSufficiencyModel,
-    LlmResearchAssessor,
-    NeedSufficiencyModel,
 )
 from app.services.research.execution import execute_attempt_research
 from app.services.research.models import ResearchPlan, research_evidence
@@ -352,6 +353,7 @@ async def test_empty_plan_is_sufficient_without_llm(db):
         assessor=LlmResearchAssessor(
             completer=completer,
             system_prompt="bedöm evidens",
+            user_prompt="ResearchPlan:\n{plan_json}\n\nEvidenceSet:\n{evidence_json}",
             provider="cerebras",
             model="unused",
         ),
@@ -386,6 +388,7 @@ async def test_empty_evidence_with_needs_is_insufficient_without_llm(db):
         assessor=LlmResearchAssessor(
             completer=completer,
             system_prompt="bedöm evidens",
+            user_prompt="ResearchPlan:\n{plan_json}\n\nEvidenceSet:\n{evidence_json}",
         ),
     )
     row = await get_research_assessment(session, attempt.id)
@@ -452,6 +455,40 @@ def test_invalid_evidence_ids_are_discarded():
     assert closed.need_assessments[0].supporting_evidence_ids == []
     assert closed.considered_evidence_ids == ["real-1"]
 
+    uncited = ResearchAssessmentDraft(
+        result="sufficient",
+        rationale="inga citat",
+        need_assessments=[
+            ResearchNeedAssessment(
+                research_need_id="research_1",
+                sufficient=True,
+                supporting_evidence_ids=[],
+            )
+        ],
+    )
+    rejected = sanitize_assessment_draft(uncited, plan=plan, evidence=evidence)
+    assert rejected.result == "insufficient"
+    assert rejected.need_assessments[0].sufficient is False
+    assert rejected.need_assessments[0].supporting_evidence_ids == []
+    assert (
+        "cite persisted EvidenceSet IDs"
+        in rejected.need_assessments[0].missing_or_weak
+    )
+
+
+def test_assessment_user_prompt_is_rendered_at_call_time():
+    prompts = default_prompts("sv")
+    with pytest.raises(RuntimeError, match="missing placeholder"):
+        render_prompt(prompts, "research.assessment.user")
+    rendered = render_prompt(
+        prompts,
+        "research.assessment.user",
+        plan_json='{"needs":[]}',
+        evidence_json="[]",
+    )
+    assert '{"needs":[]}' in rendered
+    assert "EvidenceSet:" in rendered
+
 
 @pytest.mark.asyncio
 async def test_llm_assessor_sanitizes_structured_output():
@@ -494,6 +531,7 @@ async def test_llm_assessor_sanitizes_structured_output():
     assessor = LlmResearchAssessor(
         completer=completer,
         system_prompt="bedöm evidens",
+        user_prompt="ResearchPlan:\n{plan_json}\n\nEvidenceSet:\n{evidence_json}",
         provider="cerebras",
         model="gpt-oss-120b",
     )
@@ -510,7 +548,11 @@ async def test_llm_parse_failure_raises_assessment_error():
     async def completer(messages, response_model):
         raise ValueError("not json")
 
-    assessor = LlmResearchAssessor(completer=completer, system_prompt="bedöm evidens")
+    assessor = LlmResearchAssessor(
+        completer=completer,
+        system_prompt="bedöm evidens",
+        user_prompt="ResearchPlan:\n{plan_json}\n\nEvidenceSet:\n{evidence_json}",
+    )
     with pytest.raises(ResearchAssessmentError, match="model call failed"):
         await assessor.assess(
             ResearchPlan(needs=[_need("research_1", "case_knowledge")]),

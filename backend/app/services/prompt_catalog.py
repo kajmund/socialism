@@ -2834,6 +2834,28 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         ),
     ),
     _f(
+        "research.assessment.user",
+        "research",
+        "Research — evidensbedömning (användare)",
+        "Research — evidence sufficiency (user)",
+        "Platshållare: {plan_json} {evidence_json}.",
+        "Placeholders: {plan_json} {evidence_json}.",
+        (
+            "Bedöm om den redan uthämtade evidensen räcker för ResearchPlan. "
+            "Använd endast evidence_id som finns i underlaget. Hitta inte på ID:n. "
+            "Skriv inte ett expertutlåtande.\n\n"
+            "ResearchPlan:\n{plan_json}\n\n"
+            "EvidenceSet:\n{evidence_json}"
+        ),
+        (
+            "Assess whether already retrieved evidence is sufficient to answer "
+            "the ResearchPlan. Use only evidence_id values supplied below. "
+            "Do not invent IDs. Do not produce an expert answer or report.\n\n"
+            "ResearchPlan:\n{plan_json}\n\n"
+            "EvidenceSet:\n{evidence_json}"
+        ),
+    ),
+    _f(
         "research.followup.system",
         "research",
         "Research — uppföljningsfrågor",
@@ -2853,6 +2875,32 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "questions. Each need must have a concrete question, a why_needed "
             "tied to a gap, and allowed source_types. "
             "Do not repeat previous questions. Do not invent source_types."
+        ),
+    ),
+    _f(
+        "research.followup.user",
+        "research",
+        "Research — uppföljningsfrågor (användare)",
+        "Research — follow-up questions (user)",
+        "Platshållare: {source_types} {plan_json} {assessment_json} {previous_needs_json} {evidence_json}.",
+        "Placeholders: {source_types} {plan_json} {assessment_json} {previous_needs_json} {evidence_json}.",
+        (
+            "Föreslå uppföljande ResearchNeeds utifrån luckorna. "
+            "Svara inte på frågorna. Hämta inte evidens. "
+            "Tillåtna source_types: {source_types}.\n\n"
+            "ResearchPlan:\n{plan_json}\n\n"
+            "Assessment:\n{assessment_json}\n\n"
+            "Tidigare ResearchNeeds:\n{previous_needs_json}\n\n"
+            "EvidenceSet:\n{evidence_json}"
+        ),
+        (
+            "Propose follow-up ResearchNeeds for the gaps below. "
+            "Do not answer the questions. Do not retrieve evidence. "
+            "Allowed source_types: {source_types}.\n\n"
+            "ResearchPlan:\n{plan_json}\n\n"
+            "Assessment:\n{assessment_json}\n\n"
+            "Previous ResearchNeeds:\n{previous_needs_json}\n\n"
+            "EvidenceSet:\n{evidence_json}"
         ),
     ),
 ]

@@ -120,15 +120,13 @@ def _evidence_payload(item: AssessableEvidence) -> dict[str, object]:
 
 
 def _drafts_from_model(parsed: FollowUpPlanModel) -> list[FollowUpNeedDraft]:
-    allowed = set(RESEARCH_SOURCE_TYPES)
     drafts: list[FollowUpNeedDraft] = []
     for row in parsed.needs:
-        source_types = [item for item in row.source_types if item in allowed]
         drafts.append(
             FollowUpNeedDraft(
                 question=row.question,
                 why_needed=row.why_needed,
-                source_types=source_types,  # type: ignore[arg-type]
+                source_types=list(row.source_types),  # type: ignore[arg-type]
                 parent_research_need_id=row.parent_research_need_id or None,
                 source_gap=row.source_gap,
                 proposed_id=row.id,
@@ -145,12 +143,17 @@ class LlmFollowUpPlanner:
         *,
         completer: Completer | None = None,
         system_prompt: str,
+        user_prompt: str,
     ) -> None:
         text = system_prompt.strip()
+        user = user_prompt.strip()
         if not text:
             raise FollowUpPlannerError("research follow-up prompt is required")
+        if not user:
+            raise FollowUpPlannerError("research follow-up user prompt is required")
         self._completer = completer or complete_structured
         self._system_prompt = text
+        self._user_prompt = user
 
     async def plan_follow_ups(
         self,
@@ -164,18 +167,22 @@ class LlmFollowUpPlanner:
             {"role": "system", "content": self._system_prompt},
             {
                 "role": "user",
-                "content": (
-                    "Propose follow-up ResearchNeeds for the gaps below. "
-                    "Do not answer the questions. Do not retrieve evidence. "
-                    f"Allowed source_types: {list(RESEARCH_SOURCE_TYPES)}.\n\n"
-                    "ResearchPlan:\n"
-                    f"{json.dumps(_plan_payload(plan), ensure_ascii=False)}\n\n"
-                    "Assessment:\n"
-                    f"{json.dumps(_assessment_payload(assessment), ensure_ascii=False)}\n\n"
-                    "Previous ResearchNeeds:\n"
-                    f"{json.dumps([_need_payload(row) for row in previous_needs], ensure_ascii=False)}\n\n"
-                    "EvidenceSet:\n"
-                    f"{json.dumps([_evidence_payload(item) for item in evidence], ensure_ascii=False)}"
+                "content": render_prompt(
+                    {"research.followup.user": self._user_prompt},
+                    "research.followup.user",
+                    source_types=", ".join(RESEARCH_SOURCE_TYPES),
+                    plan_json=json.dumps(_plan_payload(plan), ensure_ascii=False),
+                    assessment_json=json.dumps(
+                        _assessment_payload(assessment), ensure_ascii=False
+                    ),
+                    previous_needs_json=json.dumps(
+                        [_need_payload(row) for row in previous_needs],
+                        ensure_ascii=False,
+                    ),
+                    evidence_json=json.dumps(
+                        [_evidence_payload(item) for item in evidence],
+                        ensure_ascii=False,
+                    ),
                 ),
             },
         ]
@@ -207,4 +214,5 @@ async def build_llm_follow_up_planner(
     )
     return LlmFollowUpPlanner(
         system_prompt=render_prompt(prompts, "research.followup.system"),
+        user_prompt=prompts["research.followup.user"],
     )

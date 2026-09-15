@@ -154,15 +154,20 @@ class LlmResearchAssessor:
         *,
         completer: Completer | None = None,
         system_prompt: str,
+        user_prompt: str,
         provider: str | None = None,
         model: str | None = None,
         model_version: str | None = None,
     ) -> None:
         text = system_prompt.strip()
+        user = user_prompt.strip()
         if not text:
             raise ResearchAssessmentError("research assessment prompt is required")
+        if not user:
+            raise ResearchAssessmentError("research assessment user prompt is required")
         self._completer = completer or complete_structured
         self._system_prompt = text
+        self._user_prompt = user
         self._provider = provider
         self._model = model
         self._model_version = model_version
@@ -184,15 +189,14 @@ class LlmResearchAssessor:
             {"role": "system", "content": self._system_prompt},
             {
                 "role": "user",
-                "content": (
-                    "Assess whether the persisted evidence is sufficient to "
-                    "answer the ResearchPlan. Use only the evidence_id values "
-                    "supplied below. Do not invent IDs. Do not produce an "
-                    "expert answer or report.\n\n"
-                    "ResearchPlan:\n"
-                    f"{json.dumps(_plan_payload(plan), ensure_ascii=False)}\n\n"
-                    "EvidenceSet:\n"
-                    f"{json.dumps([_evidence_payload(item) for item in evidence], ensure_ascii=False)}"
+                "content": render_prompt(
+                    {"research.assessment.user": self._user_prompt},
+                    "research.assessment.user",
+                    plan_json=json.dumps(_plan_payload(plan), ensure_ascii=False),
+                    evidence_json=json.dumps(
+                        [_evidence_payload(item) for item in evidence],
+                        ensure_ascii=False,
+                    ),
                 ),
             },
         ]
@@ -235,6 +239,7 @@ async def build_llm_research_assessor(
     )
     return LlmResearchAssessor(
         system_prompt=render_prompt(prompts, "research.assessment.system"),
+        user_prompt=prompts["research.assessment.user"],
         provider=settings.llm_provider,
         model=settings.selected_llm_model,
     )
