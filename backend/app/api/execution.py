@@ -74,6 +74,7 @@ from app.services.panel.attempt_execution import (
 from app.services.prompt_store import require_active_prompts
 from app.llm.research_assessment import build_llm_research_assessor
 from app.llm.research_followup import build_llm_follow_up_planner
+from app.llm.research_planner import build_llm_research_planner
 from app.services.research.assessment import need_assessment_from_json
 from app.services.research.composition import (
     ResearchCompositionError,
@@ -81,6 +82,7 @@ from app.services.research.composition import (
     require_research_router_ready,
     resolve_follow_up_planner,
     resolve_research_assessor,
+    resolve_research_planner,
 )
 from app.services.research.execution import (
     ResearchExecutionError,
@@ -88,6 +90,13 @@ from app.services.research.execution import (
 )
 from app.services.research.models import InvalidResearchPlanError
 from app.services.research.plan import research_plan_from_snapshot
+from app.services.research.planner import (
+    InvalidResearchObjectiveError,
+    ResearchObjective,
+    ResearchPlannerError,
+    require_research_objective,
+    research_objective_to_snapshot,
+)
 
 router = APIRouter(prefix="/execution", tags=["execution"])
 
@@ -102,11 +111,22 @@ def _http_for_execution_error(exc: Exception) -> HTTPException:
         (ExecutionStatusError, ExecutionImmutableError, ExecutionFrozenError),
     ):
         return HTTPException(status_code=409, detail=str(exc))
-    if isinstance(exc, (InvalidResearchPlanError, ValidationError)):
+    if isinstance(
+        exc,
+        (InvalidResearchPlanError, InvalidResearchObjectiveError, ValidationError),
+    ):
         return HTTPException(status_code=422, detail=str(exc))
     if isinstance(exc, UnsupportedAttemptTypeError):
         return HTTPException(status_code=422, detail=str(exc))
-    if isinstance(exc, (ResearchExecutionError, PanelAttemptError, ResearchCompositionError)):
+    if isinstance(
+        exc,
+        (
+            ResearchExecutionError,
+            ResearchPlannerError,
+            PanelAttemptError,
+            ResearchCompositionError,
+        ),
+    ):
         return HTTPException(status_code=500, detail=str(exc))
     if isinstance(exc, ExecutionError):
         return HTTPException(status_code=400, detail=str(exc))
@@ -293,6 +313,7 @@ def _attempt_out_from_loaded(
         status=attempt.status,
         configuration_snapshot=dict(attempt.configuration_snapshot or {}),
         input_snapshot=dict(attempt.input_snapshot or {}),
+        research_objective_snapshot=attempt.research_objective_snapshot,
         research_plan_snapshot=attempt.research_plan_snapshot,
         evidence=evidence,
         assessment=None if latest is None else _assessment_out(latest),
@@ -446,14 +467,23 @@ async def post_execution_attempt(
         except (ValidationError, ExecutionError) as exc:
             raise _http_for_execution_error(exc) from exc
     try:
+        objective_snapshot = None
+        if body.research_objective is not None:
+            objective_snapshot = research_objective_to_snapshot(
+                ResearchObjective(
+                    objective=require_research_objective(body.research_objective),
+                    context=dict(body.research_context),
+                )
+            )
         attempt = await create_attempt(
             session,
             run_id=run.id,
             attempt_type=body.attempt_type,
             configuration_snapshot=body.configuration_snapshot,
             input_snapshot=body.input_snapshot,
+            research_objective_snapshot=objective_snapshot,
         )
-    except ExecutionError as exc:
+    except (ExecutionError, InvalidResearchObjectiveError) as exc:
         raise _http_for_execution_error(exc) from exc
     await session.commit()
     return await _attempt_out(session, attempt, run)
@@ -550,7 +580,15 @@ async def post_attempt_research(
     if attempt.status == "ready":
         return await _research_out_from_attempt(session, attempt)
     try:
-        plan = research_plan_from_snapshot(body.research_plan.model_dump())
+        plan = None
+        if body.research_plan is not None:
+            plan = research_plan_from_snapshot(body.research_plan.model_dump())
+        objective = None
+        if body.research_objective is not None:
+            objective = ResearchObjective(
+                objective=require_research_objective(body.research_objective),
+                context=dict(body.research_context),
+            )
         require_research_router_ready()
         assessor = resolve_research_assessor()
         if assessor is None:
@@ -562,10 +600,17 @@ async def post_attempt_research(
             planner = await build_llm_follow_up_planner(
                 session, customer_id=run.customer_id, module=run.module
             )
+        research_planner = resolve_research_planner()
+        if research_planner is None and plan is None:
+            research_planner = await build_llm_research_planner(
+                session, customer_id=run.customer_id, module=run.module
+            )
         await execute_attempt_research(
             session,
             attempt_id=attempt_id,
             research_plan=plan,
+            research_objective=objective,
+            research_planner=research_planner,
             router_factory=build_standard_research_router,
             assessor=assessor,
             planner=planner,
@@ -573,8 +618,10 @@ async def post_attempt_research(
         attempt = await get_attempt(session, attempt_id)
     except (
         ExecutionError,
+        InvalidResearchObjectiveError,
         InvalidResearchPlanError,
         ResearchExecutionError,
+        ResearchPlannerError,
         ResearchCompositionError,
     ) as exc:
         raise _http_for_execution_error(exc) from exc

@@ -29,7 +29,7 @@ Routing stays programmatic. An LLM is not used to select providers. Embeddings a
 | Router looped `need.source_types` then `sources_for` | Router derives `NeedConstraints` and executes the ranked candidate list. |
 | Unregistered `source_type` → `error` | Unchanged. |
 | Empty `source_types` → no retrieval | Unchanged, unless the need also declares domain/modality/capability filters. |
-| `build_research_registry(provider)` | Still registers `case_knowledge` and `customer_knowledge` adapters only. Each now carries tenant-bound text/search metadata. |
+| `build_research_registry(provider)` | Registers adapters from `standard_capability_descriptors()` (today: `case_knowledge` and `customer_knowledge`). Planner availability is derived from the same descriptors. Each adapter carries tenant-bound text/search metadata. |
 
 **Plan / runtime persistence:**
 
@@ -58,6 +58,8 @@ Filter rules (all programmatic):
 7. If the need has no constraints at all, nothing is selected.
 
 A provider that does not declare a required axis does not match it. Empty need-side axes mean “no filter”.
+
+`ResearchPlanner` is only offered natures the attempt's registry can execute. A concrete `ResearchRouter` exposes `available_source_types()` from `registered_evidence_natures()`. The production API path (`router_factory=build_standard_research_router`, `router=None`) introspects the same session-independent capability descriptors that `build_research_registry` registers (`standard_available_source_types()`). Catalog membership is not enough. A generated empty plan is invalid.
 
 ## Provider descriptor
 
@@ -103,7 +105,7 @@ A synthetic non-text provider (for example image similarity) is the same path: d
 
 ## Existing knowledge providers
 
-`build_research_registry` still wraps the shared `KnowledgeProvider` in two `KnowledgeResearchSource` adapters:
+`build_research_registry` wraps the shared `KnowledgeProvider` in one `KnowledgeResearchSource` per standard capability descriptor:
 
 | Registry id | Evidence nature | Scope |
 | --- | --- | --- |

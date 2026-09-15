@@ -100,6 +100,7 @@ export type ExecutionAttempt = {
   status: AttemptStatus | string
   configuration_snapshot: Record<string, unknown>
   input_snapshot: Record<string, unknown>
+  research_objective_snapshot?: Record<string, unknown> | null
   research_plan_snapshot: Record<string, unknown> | null
   evidence: EvidenceSummary | null
   assessment: ResearchAssessment | null
