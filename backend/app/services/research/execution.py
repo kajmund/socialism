@@ -361,7 +361,6 @@ async def _execute_one_need(
             evidence=evidence,
             source_attempt_id=attempt_id,
         )
-        await graph_session.commit()
 
 
 async def _run_need_executions(

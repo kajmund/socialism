@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
@@ -140,14 +141,21 @@ def _router(*sources: RecordingSource) -> tuple[ResearchRouter, list[RecordingSo
     return ResearchRouter(registry), list(sources)
 
 
-async def _created_attempt(session: AsyncSession, *, slug: str, customer: Kund | None = None):
+async def _created_attempt(
+    session: AsyncSession,
+    *,
+    slug: str,
+    customer: Kund | None = None,
+    case_id: str = "case-1",
+    module: str = "dd",
+):
     kund = customer or await _customer(session, slug)
     run = await create_run(
         session,
         customer_id=kund.id,
-        module="dd",
+        module=module,
         title="Skattesats",
-        context={"case_id": "case-1"},
+        context={"case_id": case_id},
     )
     attempt = await create_attempt(
         session,
@@ -589,3 +597,126 @@ async def test_sql_graph_reuses_across_attempts(db, monkeypatch):
     assert source.calls == 1
     assert len(links) == 1
     assert items[0].provenance["reuse"]["origin"] == "persistent_knowledge"
+
+
+class _FailingWriteGraph(InMemoryQuestionEvidenceGraph):
+    async def upsert_answer(self, session, link):
+        raise SQLAlchemyError("unique constraint")
+
+
+@pytest.mark.asyncio
+async def test_reused_web_hit_does_not_satisfy_swedish_law_need(db, monkeypatch):
+    monkeypatch.setattr(settings, "research_knowledge_freshness_max_age_seconds", 86_400)
+    session, _factory = db
+    graph = InMemoryQuestionEvidenceGraph()
+    _customer, run, first = await _created_attempt(session, slug="src-filter")
+    await execute_attempt_research(
+        session,
+        attempt_id=first.id,
+        research_plan=ResearchPlan(needs=[_need("research_1", "web")]),
+        router=_router(RecordingSource("web", excerpt="web hit"))[0],
+        question_graph=graph,
+    )
+    second = await create_attempt(
+        session,
+        run_id=run.id,
+        attempt_type="generic_panel",
+        configuration_snapshot={"model": "config-a"},
+        input_snapshot={"question": "Vad gäller skattesatsen?"},
+    )
+    law = RecordingSource("swedish_law", excerpt="SFS live")
+    result = await execute_attempt_research(
+        session,
+        attempt_id=second.id,
+        research_plan=ResearchPlan(needs=[_need("research_1", "swedish_law")]),
+        router=_router(law)[0],
+        question_graph=graph,
+    )
+    items = await list_evidence_items(session, result.evidence_set_id)
+    assert law.calls == 1
+    assert [item.excerpt for item in items] == ["SFS live"]
+    assert items[0].source_type == "swedish_law"
+
+
+@pytest.mark.asyncio
+async def test_case_knowledge_does_not_reuse_across_cases(db, monkeypatch):
+    monkeypatch.setattr(settings, "research_knowledge_freshness_max_age_seconds", 86_400)
+    session, _factory = db
+    graph = InMemoryQuestionEvidenceGraph()
+    customer, _run, first = await _created_attempt(
+        session, slug="case-scope", case_id="case-a"
+    )
+    await execute_attempt_research(
+        session,
+        attempt_id=first.id,
+        research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
+        router=_router(RecordingSource("case_knowledge", excerpt="case a secret"))[0],
+        question_graph=graph,
+    )
+    _same, _run_b, second = await _created_attempt(
+        session, slug="case-b", customer=customer, case_id="case-b"
+    )
+    live = RecordingSource("case_knowledge", excerpt="case b live")
+    result = await execute_attempt_research(
+        session,
+        attempt_id=second.id,
+        research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
+        router=_router(live)[0],
+        question_graph=graph,
+    )
+    items = await list_evidence_items(session, result.evidence_set_id)
+    assert live.calls == 1
+    assert [item.excerpt for item in items] == ["case b live"]
+
+
+@pytest.mark.asyncio
+async def test_reused_hit_does_not_refresh_edge_timestamps(db, monkeypatch):
+    monkeypatch.setattr(settings, "research_knowledge_freshness_max_age_seconds", 86_400)
+    session, _factory = db
+    graph = InMemoryQuestionEvidenceGraph()
+    _customer, run, first = await _created_attempt(session, slug="fresh-stamp")
+    await execute_attempt_research(
+        session,
+        attempt_id=first.id,
+        research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
+        router=_router(RecordingSource("case_knowledge"))[0],
+        question_graph=graph,
+    )
+    before = graph.links()[0]
+    second = await create_attempt(
+        session,
+        run_id=run.id,
+        attempt_type="generic_panel",
+        configuration_snapshot={"model": "config-a"},
+        input_snapshot={"question": "Vad gäller skattesatsen?"},
+    )
+    await execute_attempt_research(
+        session,
+        attempt_id=second.id,
+        research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
+        router=_router(RecordingSource("case_knowledge", excerpt="should skip"))[0],
+        question_graph=graph,
+    )
+    after = graph.links()[0]
+    assert len(graph.links()) == 1
+    assert after.observed_at == before.observed_at
+    assert after.retrieved_at == before.retrieved_at
+    assert after.freshness == before.freshness
+
+
+@pytest.mark.asyncio
+async def test_failed_graph_write_does_not_fail_ready_attempt(db):
+    session, _factory = db
+    _customer, _run, attempt = await _created_attempt(session, slug="write-fail")
+    source = RecordingSource("case_knowledge")
+    result = await execute_attempt_research(
+        session,
+        attempt_id=attempt.id,
+        research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
+        router=_router(source)[0],
+        question_graph=_FailingWriteGraph(),
+    )
+    items = await list_evidence_items(session, result.evidence_set_id)
+    assert result.status == "ready"
+    assert source.calls == 1
+    assert items[0].status == "found"
