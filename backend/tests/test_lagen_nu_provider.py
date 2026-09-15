@@ -11,7 +11,13 @@ from app.services.lagen_nu.mcp_client import (
     parse_resolved_citations,
     parse_search_results,
 )
-from app.services.lagen_nu.models import LagenNuDocument, LagenNuPin, LagenNuSearchHit, ResolvedCitations, SearchResults
+from app.services.lagen_nu.models import (
+    LagenNuDocument,
+    LagenNuPin,
+    LagenNuSearchHit,
+    ResolvedCitations,
+    SearchResults,
+)
 from app.services.lagen_nu.registration import (
     LAGEN_NU_ADAPTER,
     LAGEN_NU_AUTHORITY_WARNING,
