@@ -110,6 +110,23 @@ class LagenNuResearchSource:
         need: ResearchNeed,
         context: ResearchContext,
     ) -> list[ResearchEvidence]:
+        try:
+            return await self._research(need, context)
+        finally:
+            await self._aclose_owned_client()
+
+    async def _aclose_owned_client(self) -> None:
+        client = self._owned_client
+        if client is None:
+            return
+        self._owned_client = None
+        await client.aclose()
+
+    async def _research(
+        self,
+        need: ResearchNeed,
+        context: ResearchContext,
+    ) -> list[ResearchEvidence]:
         # Public corpus: never send ResearchContext.scope to lagen.nu.
         budget = _CallBudget(MAX_MCP_TOOL_CALLS)
         mcp_source = mcp_source_for_nature(self.source_type)
@@ -165,9 +182,12 @@ class LagenNuResearchSource:
             if budget.remaining <= 0:
                 break
             uri, pinpoint = _fetch_target(hit)
-            if uri is None or uri in seen:
+            if uri is None:
                 continue
-            seen.add(uri if pinpoint is None else f"{uri}#{pinpoint}")
+            target_key = uri if pinpoint is None else f"{uri}#{pinpoint}"
+            if target_key in seen:
+                continue
+            seen.add(target_key)
             try:
                 document = await budget.call(
                     "get_document",

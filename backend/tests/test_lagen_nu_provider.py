@@ -119,6 +119,7 @@ class FakeLagenNuClient:
         self.search_error = search_error
         self.resolve_error = resolve_error
         self.document_error = document_error
+        self.closed = False
 
     async def search(self, query: str, *, source: str | None = None, kind: str | None = None, limit: int = 10):
         self.calls.append(("search", {"query": query, "source": source, "kind": kind, "limit": limit}))
@@ -144,6 +145,9 @@ class FakeLagenNuClient:
         if uri in self.documents:
             return self.documents[uri]
         raise OfficialLagenNuMcpError(f"missing document {key}")
+
+    async def aclose(self) -> None:
+        self.closed = True
 
 
 def _source(
@@ -500,6 +504,89 @@ def test_adapter_is_programmatic():
         assert marker not in source
     assert "resolve_citation" in source
     assert "get_document" in source
+
+
+async def test_owned_client_is_closed_on_no_hit_and_error():
+    no_hit = FakeLagenNuClient(search=SearchResults(query="q", total=0, results=()))
+    source = LagenNuResearchSource(source_type="swedish_law")
+    source._owned_client = no_hit
+    evidence = await source.research(
+        _need("swedish_law", question="okänt påhittat lagrum"),
+        _context(),
+    )
+    assert [item.status for item in evidence] == ["not_found"]
+    assert no_hit.closed is True
+    assert source._owned_client is None
+    assert source._client is None
+
+    boom = FakeLagenNuClient(search_error=OfficialLagenNuMcpError("lagen.nu MCP timed out"))
+    failing = LagenNuResearchSource(source_type="swedish_law")
+    failing._owned_client = boom
+    try:
+        await failing.research(_need("swedish_law", question="jämkning"), _context())
+    except OfficialLagenNuMcpError:
+        pass
+    else:
+        raise AssertionError("expected OfficialLagenNuMcpError")
+    assert boom.closed is True
+    assert failing._owned_client is None
+    assert failing._client is None
+
+
+async def test_injected_client_is_not_owned_or_closed():
+    client = FakeLagenNuClient(search=SearchResults(query="q", total=0, results=()))
+    source = LagenNuResearchSource(source_type="swedish_law", client=client)
+    evidence = await source.research(
+        _need("swedish_law", question="okänt påhittat lagrum"),
+        _context(),
+    )
+    assert [item.status for item in evidence] == ["not_found"]
+    assert client.closed is False
+    assert source._owned_client is None
+    assert source._client is client
+
+
+async def test_duplicate_fetch_targets_do_not_consume_later_distinct_hit():
+    duplicate = _hit()
+    later = _hit(
+        uri="https://lagen.nu/1981:130",
+        title="Preskriptionslag",
+        pinpoint="P2",
+        highlight="Preskription innebär",
+    )
+    client = FakeLagenNuClient(
+        search=SearchResults(
+            query="q",
+            total=5,
+            results=(duplicate, duplicate, duplicate, duplicate, later),
+        ),
+        documents={
+            "https://lagen.nu/1915:218#P36": _document(),
+            "https://lagen.nu/1981:130#P2": _document(
+                uri="https://lagen.nu/1981:130",
+                pinpoint="P2",
+                text="Preskription innebär att fordran faller.",
+            ),
+        },
+    )
+    evidence = await _source(client).research(
+        _need("swedish_law", question="preskription av fordran"),
+        _context(),
+    )
+    fetch_targets = [
+        (args["uri"], args["pinpoint"])
+        for name, args in client.calls
+        if name == "get_document"
+    ]
+    assert fetch_targets == [
+        ("https://lagen.nu/1915:218", "P36"),
+        ("https://lagen.nu/1981:130", "P2"),
+    ]
+    assert [item.source_id for item in evidence] == [
+        "https://lagen.nu/1915:218#P36",
+        "https://lagen.nu/1981:130#P2",
+    ]
+    assert client.closed is False
 
 
 def test_flow_selection_is_deterministic():
