@@ -19,6 +19,7 @@ from app.database.models import (
     Kund,
     ResearchAssessment,
     ResearchCompletenessPass,
+    ResearchEvidenceQuality,
     ResearchNeedExecution,
     ResearchRuntimeNeed,
 )
@@ -68,6 +69,10 @@ from app.services.research.completeness import (
 )
 from app.services.research.followup import RuntimeResearchNeed
 from app.services.research.models import ResearchEvidence
+from app.services.research.quality import (
+    EvidenceQualityDraft,
+    quality_model_identity_key,
+)
 
 
 def new_id() -> str:
@@ -871,6 +876,97 @@ async def persist_research_assessment(
     session.add(row)
     await session.flush()
     return row
+
+
+async def list_evidence_quality(
+    session: AsyncSession,
+    evidence_set_id: str,
+    *,
+    scoring_policy_version: str | None = None,
+) -> list[ResearchEvidenceQuality]:
+    await get_evidence_set(session, evidence_set_id)
+    query = select(ResearchEvidenceQuality).where(
+        ResearchEvidenceQuality.evidence_set_id == evidence_set_id
+    )
+    if scoring_policy_version is not None:
+        query = query.where(
+            ResearchEvidenceQuality.scoring_policy_version == scoring_policy_version
+        )
+    result = await session.execute(
+        query.order_by(
+            ResearchEvidenceQuality.evidence_set_item_id,
+            ResearchEvidenceQuality.created_at,
+        )
+    )
+    return list(result.scalars().all())
+
+
+async def persist_evidence_quality(
+    session: AsyncSession,
+    *,
+    evidence_set_id: str,
+    drafts: list[EvidenceQualityDraft],
+) -> list[ResearchEvidenceQuality]:
+    """Insert missing (item, policy, model) rows. Existing rows are returned as-is."""
+    evidence_set = await get_evidence_set(session, evidence_set_id)
+    if not drafts:
+        return []
+    item_ids = [draft.evidence_set_item_id for draft in drafts]
+    existing_result = await session.execute(
+        select(ResearchEvidenceQuality).where(
+            ResearchEvidenceQuality.evidence_set_item_id.in_(item_ids)
+        )
+    )
+    existing_by_key: dict[tuple[str, str, str], ResearchEvidenceQuality] = {}
+    for row in existing_result.scalars().all():
+        existing_by_key[
+            (row.evidence_set_item_id, row.scoring_policy_version, row.model_identity_key)
+        ] = row
+    stored: list[ResearchEvidenceQuality] = []
+    for draft in drafts:
+        identity_key = quality_model_identity_key(
+            model_provider=draft.model_provider,
+            model_name=draft.model_name,
+            model_version=draft.model_version,
+        )
+        key = (draft.evidence_set_item_id, draft.scoring_policy_version, identity_key)
+        existing = existing_by_key.get(key)
+        if existing is not None:
+            stored.append(existing)
+            continue
+        item = await session.get(EvidenceSetItem, draft.evidence_set_item_id)
+        if item is None:
+            raise ExecutionNotFoundError("evidence_set_item", draft.evidence_set_item_id)
+        if item.evidence_set_id != evidence_set.id:
+            raise ExecutionScopeError(
+                "Evidence quality must belong to the supplied EvidenceSet"
+            )
+        row = ResearchEvidenceQuality(
+            id=new_id(),
+            evidence_set_item_id=item.id,
+            evidence_set_id=evidence_set.id,
+            original_evidence_id=draft.original_evidence_id or item.original_evidence_id,
+            scoring_policy_version=draft.scoring_policy_version,
+            authority=draft.authority,
+            relevance=draft.relevance,
+            currentness=draft.currentness,
+            source_nature=draft.source_nature,
+            source_timestamp=draft.source_timestamp,
+            independence_key=draft.independence_key,
+            independent_source_count=draft.independent_source_count,
+            flags=[flag.to_json() for flag in draft.flags],
+            rationale=draft.rationale,
+            declared_signals=dict(draft.declared_signals),
+            model_provider=draft.model_provider,
+            model_name=draft.model_name,
+            model_version=draft.model_version,
+            model_identity_key=identity_key,
+        )
+        session.add(row)
+        existing_by_key[key] = row
+        stored.append(row)
+    await session.flush()
+    return stored
 
 
 def _require_completeness_result(value: str) -> str:

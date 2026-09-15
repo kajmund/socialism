@@ -213,6 +213,34 @@ class AttemptExecuteOut(BaseModel):
     result: AttemptResultOut | None
 
 
+class EvidenceQualityFlagOut(BaseModel):
+    code: str
+    detail: str
+
+
+class EvidenceQualityOut(BaseModel):
+    """Auditable per-item quality. Separate from EvidenceSet contents."""
+
+    id: str
+    evidence_set_item_id: str
+    original_evidence_id: str | None
+    scoring_policy_version: str
+    authority: str
+    relevance: str
+    currentness: str
+    source_nature: str
+    source_timestamp: datetime | None
+    independence_key: str
+    independent_source_count: int
+    flags: list[EvidenceQualityFlagOut]
+    rationale: str
+    declared_signals: dict[str, Any]
+    model_provider: str | None
+    model_name: str | None
+    model_version: str | None
+    created_at: datetime
+
+
 class EvidenceSetItemOut(BaseModel):
     id: str
     evidence_set_id: str
@@ -231,6 +259,7 @@ class EvidenceSetItemOut(BaseModel):
     provenance: dict[str, Any]
     retrieved_at: datetime
     content_hash: str
+    quality: EvidenceQualityOut | None = None
 
 
 class EvidenceSetOut(BaseModel):

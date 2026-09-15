@@ -325,6 +325,15 @@ async def test_research_then_evidence_is_frozen_and_ordered(
     assert first["content_hash"]
     assert first["provenance"]
     assert first["retrieved_at"]
+    quality = first["quality"]
+    assert quality["evidence_set_item_id"] == first["id"]
+    assert quality["original_evidence_id"] == first["original_evidence_id"]
+    assert quality["scoring_policy_version"] == "1"
+    assert quality["authority"] == "unknown"
+    assert quality["relevance"] == "unknown"
+    assert quality["currentness"] == "unknown"
+    assert quality["independence_key"]
+    assert quality["rationale"]
 
 
 @pytest.mark.asyncio

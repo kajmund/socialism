@@ -21,10 +21,14 @@ Asks: **relative to the immutable research objective, did the plan omit a materi
 - A material omitted question may still be identified. It becomes a runnable `ResearchNeed` only when at least one source type is executable. Catalog types the capability registry cannot run stay on the pass as an explicit capability/unavailable gap (`unavailable_source_types`, `capability_gap`) and stop as `capability_unavailable` — not as a normal novel follow-up.
 - Persisted lineage is explicit: `origin=global_completeness`, `source_completeness_pass`, rationale in `source_gap`. These rows are not local evidence-gap follow-ups.
 
+## Evidence quality (before local sufficiency)
+
+After each need-wave barrier, a separate `research_evidence_quality` row is persisted per EvidenceSet item (policy + model version). See [research-evidence-quality.md](research-evidence-quality.md). Quality is inspectable by the local assessor. v1 does not discard items or flip `sufficient` from an aggregate score. Freeze still freezes item contents only.
+
 ## Where freeze sits
 
 ```text
-objective → initial plan → retrieve / assess / follow-up
+objective → initial plan → retrieve / quality / assess / follow-up
         → no pending needs + latest local assessment sufficient
         → GLOBAL COMPLETENESS CHECK
               ├─ complete → freeze EvidenceSet, Attempt ready

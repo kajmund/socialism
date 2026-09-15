@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Literal, Protocol
 
 from app.services.research.models import ResearchError, ResearchPlan
+from app.services.research.quality import EvidenceQualityDraft
 
 AssessmentResult = Literal["sufficient", "insufficient"]
 
@@ -42,6 +43,7 @@ class AssessableEvidence:
     provenance: dict[str, object]
     retrieved_at: datetime
     content_hash: str
+    quality: EvidenceQualityDraft | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "provenance", dict(self.provenance))

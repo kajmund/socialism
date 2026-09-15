@@ -125,6 +125,10 @@ class ResearchRouter:
         """Evidence natures this router's capability registry can execute."""
         return self._registry.registered_evidence_natures()
 
+    def registered_descriptors(self) -> tuple[KnowledgeProviderDescriptor, ...]:
+        """Registration contracts the quality scorer may read. No invented authority."""
+        return tuple(entry.descriptor for entry in self._registry.registered_providers())
+
     async def execute_need(
         self,
         need: ResearchNeed,
