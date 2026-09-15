@@ -22,9 +22,11 @@ from app.services.panel.competency import ExpertCompetency
 from app.services.panel.research import empty_research_structured
 from app.services.panel.synthesis import GenericPanelSynthesis, SynthesizedClaim
 from app.services.research.assessment import ProgrammaticResearchAssessor
+from app.services.research.completeness import ProgrammaticResearchCompletenessReviewer
 from app.services.research.composition import (
     ResearchCompositionError,
     build_standard_research_router,
+    set_completeness_reviewer_factory,
     set_follow_up_planner_factory,
     set_research_assessor_factory,
     set_research_planner_factory,
@@ -103,10 +105,12 @@ class ScriptedSource:
 def programmatic_research_assessor():
     set_research_assessor_factory(ProgrammaticResearchAssessor)
     set_follow_up_planner_factory(NoOpFollowUpPlanner)
+    set_completeness_reviewer_factory(ProgrammaticResearchCompletenessReviewer)
     yield
     set_research_assessor_factory(None)
     set_follow_up_planner_factory(None)
     set_research_planner_factory(None)
+    set_completeness_reviewer_factory(None)
 
 
 @pytest.fixture
@@ -292,6 +296,8 @@ async def test_research_then_evidence_is_frozen_and_ordered(
     }
     assert researched.json()["assessment"]["id"] == assessment["id"]
     assert body["stop_reason"] == "no_novel_followups"
+    assert body["completeness_passes"] == []
+    assert body["completeness"] is None
     assert body["research_wave"] == 0
     assert [row["assessment_pass"] for row in body["assessments"]] == [1]
     assert {row["origin"] for row in body["runtime_needs"]} == {"initial"}
@@ -319,6 +325,38 @@ async def test_research_then_evidence_is_frozen_and_ordered(
     assert first["content_hash"]
     assert first["provenance"]
     assert first["retrieved_at"]
+
+
+@pytest.mark.asyncio
+async def test_research_read_model_exposes_global_completeness(
+    client: AsyncClient, research_sources
+):
+    found, _missing, _router = research_sources
+    run = await _create_run(client)
+    attempt = await _create_attempt(client, run["id"])
+    researched = await client.post(
+        f"/execution/attempts/{attempt['id']}/research",
+        json={
+            "research_objective": "Kartlägg skattesatsen i kommunen",
+            "research_plan": {
+                "needs": [RESEARCH_PLAN["needs"][0]],
+            },
+        },
+    )
+    assert researched.status_code == 200, researched.text
+    body = researched.json()
+    assert body["status"] == "ready"
+    assert body["stop_reason"] == "sufficient"
+    assert found.calls == 1
+    assert body["completeness"]["result"] == "complete"
+    assert body["completeness"]["evidence_fingerprint"]
+    assert body["completeness"]["question_fingerprint"]
+    assert [row["result"] for row in body["completeness_passes"]] == ["complete"]
+    detail = await client.get(f"/execution/attempts/{attempt['id']}")
+    assert detail.status_code == 200
+    assert detail.json()["completeness"]["id"] == body["completeness"]["id"]
+    listed = await client.get(f"/execution/runs/{run['id']}/attempts")
+    assert listed.json()[0]["completeness"]["result"] == "complete"
 
 
 @pytest.mark.asyncio

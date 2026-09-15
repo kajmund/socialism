@@ -15,6 +15,7 @@ from app.database.models import (
     ExecutionAttemptResult,
     ExecutionRun,
     ResearchAssessment,
+    ResearchCompletenessPass,
     ResearchRuntimeNeed,
     UserAccount,
 )
@@ -45,7 +46,9 @@ from app.services.execution.schemas import (
     ExecutionAttemptOut,
     ExecutionRunCreate,
     ExecutionRunOut,
+    MissingQuestionOut,
     ResearchAssessmentOut,
+    ResearchCompletenessOut,
     ResearchNeedAssessmentOut,
     RuntimeResearchNeedOut,
 )
@@ -62,6 +65,8 @@ from app.services.execution.service import (
     list_evidence_summaries,
     list_research_assessments,
     list_research_assessments_for_attempts,
+    list_research_completeness_for_attempts,
+    list_research_completeness_passes,
     list_run_attempts,
     list_runtime_needs,
     list_runtime_needs_for_attempts,
@@ -74,13 +79,19 @@ from app.services.panel.attempt_execution import (
 from app.services.prompt_store import require_active_prompts
 from app.llm.research_assessment import build_llm_research_assessor
 from app.llm.research_followup import build_llm_follow_up_planner
+from app.llm.research_completeness import build_llm_research_completeness_reviewer
 from app.llm.research_planner import build_llm_research_planner
 from app.services.research.assessment import need_assessment_from_json
+from app.services.research.completeness import (
+    ResearchCompletenessError,
+    missing_question_from_json,
+)
 from app.services.research.composition import (
     ResearchCompositionError,
     build_standard_research_router,
     require_research_router_ready,
     resolve_follow_up_planner,
+    resolve_completeness_reviewer,
     resolve_research_assessor,
     resolve_research_planner,
 )
@@ -192,8 +203,42 @@ def _runtime_need_out(row: ResearchRuntimeNeed) -> RuntimeResearchNeedOut:
         wave_number=row.wave_number,
         parent_research_need_id=row.parent_research_need_id,
         source_assessment_pass=row.source_assessment_pass,
+        source_completeness_pass=row.source_completeness_pass,
         source_gap=row.source_gap or "",
         question_key=row.question_key,
+    )
+
+
+def _completeness_out(row: ResearchCompletenessPass) -> ResearchCompletenessOut:
+    return ResearchCompletenessOut(
+        id=row.id,
+        attempt_id=row.attempt_id,
+        evidence_set_id=row.evidence_set_id,
+        completeness_pass=row.completeness_pass,
+        result=row.result,
+        rationale=row.rationale,
+        missing_questions=[
+            MissingQuestionOut(
+                question=item.question,
+                why_needed=item.why_needed,
+                rationale=item.rationale,
+                source_types=list(item.source_types),
+                unavailable_source_types=list(item.unavailable_source_types),
+                capability_gap=item.capability_gap,
+            )
+            for item in (
+                missing_question_from_json(raw)
+                for raw in (row.missing_questions or [])
+            )
+        ],
+        considered_evidence_ids=list(row.considered_evidence_ids or []),
+        considered_question_keys=list(row.considered_question_keys or []),
+        evidence_fingerprint=row.evidence_fingerprint,
+        question_fingerprint=row.question_fingerprint,
+        model_provider=row.model_provider,
+        model_name=row.model_name,
+        model_version=row.model_version,
+        created_at=row.created_at,
     )
 
 
@@ -301,10 +346,13 @@ def _attempt_out_from_loaded(
     result_row: ExecutionAttemptResult | None,
     assessment_row: ResearchAssessment | None = None,
     assessment_rows: list[ResearchAssessment] | None = None,
+    completeness_rows: list[ResearchCompletenessPass] | None = None,
     runtime_need_rows: list[ResearchRuntimeNeed] | None = None,
 ) -> ExecutionAttemptOut:
     history = assessment_rows or []
     latest = assessment_row or (history[-1] if history else None)
+    completeness_history = completeness_rows or []
+    latest_completeness = completeness_history[-1] if completeness_history else None
     return ExecutionAttemptOut(
         id=attempt.id,
         run_id=attempt.run_id,
@@ -318,6 +366,10 @@ def _attempt_out_from_loaded(
         evidence=evidence,
         assessment=None if latest is None else _assessment_out(latest),
         assessments=[_assessment_out(row) for row in history],
+        completeness=(
+            None if latest_completeness is None else _completeness_out(latest_completeness)
+        ),
+        completeness_passes=[_completeness_out(row) for row in completeness_history],
         research_wave=attempt.research_wave,
         stop_reason=attempt.research_stop_reason,
         runtime_needs=[_runtime_need_out(row) for row in (runtime_need_rows or [])],
@@ -362,12 +414,14 @@ async def _attempt_out(
         evidence = _summary_from_counts(attempt.evidence_set_id, *raw)
     result_row = await get_attempt_result(session, attempt.id)
     history = await list_research_assessments(session, attempt.id)
+    completeness = await list_research_completeness_passes(session, attempt.id)
     runtime_needs = await list_runtime_needs(session, attempt.id)
     return _attempt_out_from_loaded(
         attempt,
         evidence=evidence,
         result_row=result_row,
         assessment_rows=history,
+        completeness_rows=completeness,
         runtime_need_rows=runtime_needs,
     )
 
@@ -420,6 +474,7 @@ async def get_execution_run_attempts(
     results = await list_attempt_results(session, [attempt.id for attempt in attempts])
     attempt_ids = [attempt.id for attempt in attempts]
     assessments = await list_research_assessments_for_attempts(session, attempt_ids)
+    completeness = await list_research_completeness_for_attempts(session, attempt_ids)
     runtime_needs = await list_runtime_needs_for_attempts(session, attempt_ids)
     out: list[ExecutionAttemptOut] = []
     for attempt in attempts:
@@ -438,6 +493,7 @@ async def get_execution_run_attempts(
                 evidence=evidence,
                 result_row=results.get(attempt.id),
                 assessment_rows=assessments.get(attempt.id, []),
+                completeness_rows=completeness.get(attempt.id, []),
                 runtime_need_rows=runtime_needs.get(attempt.id, []),
             )
         )
@@ -550,6 +606,8 @@ async def _research_out_from_attempt(
             _status, found, not_found, error = raw
     history = await list_research_assessments(session, attempt.id)
     latest = history[-1] if history else None
+    completeness_history = await list_research_completeness_passes(session, attempt.id)
+    latest_completeness = completeness_history[-1] if completeness_history else None
     runtime_needs = await list_runtime_needs(session, attempt.id)
     return AttemptResearchOut(
         attempt_id=attempt.id,
@@ -560,6 +618,10 @@ async def _research_out_from_attempt(
         error_count=error,
         assessment=None if latest is None else _assessment_out(latest),
         assessments=[_assessment_out(row) for row in history],
+        completeness=(
+            None if latest_completeness is None else _completeness_out(latest_completeness)
+        ),
+        completeness_passes=[_completeness_out(row) for row in completeness_history],
         research_wave=attempt.research_wave,
         stop_reason=attempt.research_stop_reason,
         runtime_needs=[_runtime_need_out(row) for row in runtime_needs],
@@ -605,6 +667,11 @@ async def post_attempt_research(
             research_planner = await build_llm_research_planner(
                 session, customer_id=run.customer_id, module=run.module
             )
+        completeness_reviewer = resolve_completeness_reviewer()
+        if completeness_reviewer is None:
+            completeness_reviewer = await build_llm_research_completeness_reviewer(
+                session, customer_id=run.customer_id, module=run.module
+            )
         await execute_attempt_research(
             session,
             attempt_id=attempt_id,
@@ -614,12 +681,14 @@ async def post_attempt_research(
             router_factory=build_standard_research_router,
             assessor=assessor,
             planner=planner,
+            completeness_reviewer=completeness_reviewer,
         )
         attempt = await get_attempt(session, attempt_id)
     except (
         ExecutionError,
         InvalidResearchObjectiveError,
         InvalidResearchPlanError,
+        ResearchCompletenessError,
         ResearchExecutionError,
         ResearchPlannerError,
         ResearchCompositionError,
