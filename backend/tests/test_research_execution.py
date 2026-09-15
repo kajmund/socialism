@@ -54,6 +54,12 @@ EXECUTION_PY = (
     Path(__file__).resolve().parents[1] / "app" / "services" / "research" / "execution.py"
 )
 PLAN_PY = Path(__file__).resolve().parents[1] / "app" / "services" / "research" / "plan.py"
+ASSESSMENT_PY = (
+    Path(__file__).resolve().parents[1] / "app" / "services" / "research" / "assessment.py"
+)
+FOLLOWUP_PY = (
+    Path(__file__).resolve().parents[1] / "app" / "services" / "research" / "followup.py"
+)
 
 _FORBIDDEN_IMPORT_PREFIXES = (
     "app.services.panel",
@@ -271,6 +277,28 @@ async def test_empty_plan_freezes_empty_set_and_is_ready(db):
     assert reloaded.research_plan_snapshot == {"needs": []}
     assert evidence_set.status == "frozen"
     assert await list_evidence_items(session, evidence_set.id) == []
+
+
+@pytest.mark.asyncio
+async def test_execute_does_not_preflight_caller_session_router(db):
+    session, _factory = db
+    _customer_row, _run, attempt = await _created_attempt(session, slug="no-preflight")
+    router, _ = _router(RecordingSource("case_knowledge"))
+    bound_sessions: list[object] = []
+
+    def factory(bound):
+        bound_sessions.append(bound)
+        return router
+
+    result = await execute_attempt_research(
+        session,
+        attempt_id=attempt.id,
+        research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
+        router_factory=factory,
+    )
+    assert result.status == "ready"
+    assert bound_sessions
+    assert session not in bound_sessions
 
 
 @pytest.mark.asyncio
@@ -582,7 +610,7 @@ def test_research_package_init_does_not_eagerly_import_orchestration():
 
 
 def test_execute_attempt_research_has_no_panel_or_ui_imports():
-    for path in (EXECUTION_PY, PLAN_PY):
+    for path in (EXECUTION_PY, PLAN_PY, ASSESSMENT_PY, FOLLOWUP_PY):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for node in ast.walk(tree):
             names: list[str] = []

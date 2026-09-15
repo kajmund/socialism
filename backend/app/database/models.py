@@ -1402,6 +1402,8 @@ class ExecutionAttempt(Base):
     configuration_snapshot: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     input_snapshot: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     research_plan_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    research_wave: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    research_stop_reason: Mapped[str | None] = mapped_column(String(32), nullable=True)
     evidence_set_id: Mapped[str | None] = mapped_column(
         ForeignKey("evidence_sets.id", ondelete="RESTRICT"),
         nullable=True,
@@ -1437,6 +1439,12 @@ class ExecutionAttempt(Base):
         uselist=False,
     )
     need_executions: Mapped[list["ResearchNeedExecution"]] = relationship(
+        back_populates="attempt",
+    )
+    research_assessments: Mapped[list["ResearchAssessment"]] = relationship(
+        back_populates="attempt",
+    )
+    runtime_needs: Mapped[list["ResearchRuntimeNeed"]] = relationship(
         back_populates="attempt",
     )
 
@@ -1476,6 +1484,48 @@ class ResearchNeedExecution(Base):
     )
 
     attempt: Mapped[ExecutionAttempt] = relationship(back_populates="need_executions")
+
+
+class ResearchRuntimeNeed(Base):
+    """Initial or derived ResearchNeed payload under one Attempt.
+
+    The frozen research_plan_snapshot stays the original plan. This table
+    is the runtime inventory used for recovery, lineage, and follow-ups.
+    """
+
+    __tablename__ = "research_runtime_needs"
+    __table_args__ = (
+        UniqueConstraint(
+            "attempt_id",
+            "research_need_id",
+            name="uq_research_runtime_needs_attempt_need",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    attempt_id: Mapped[str] = mapped_column(
+        ForeignKey("execution_attempts.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    research_need_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    question: Mapped[str] = mapped_column(Text, nullable=False)
+    why_needed: Mapped[str] = mapped_column(Text, nullable=False)
+    requested_by: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    source_types: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    origin: Mapped[str] = mapped_column(String(16), nullable=False, default="initial")
+    wave_number: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    parent_research_need_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    source_assessment_pass: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    source_gap: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    question_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    attempt: Mapped[ExecutionAttempt] = relationship(back_populates="runtime_needs")
 
 
 class EvidenceSetItem(Base):
@@ -1544,6 +1594,52 @@ class ExecutionAttemptResult(Base):
     )
 
     attempt: Mapped[ExecutionAttempt] = relationship(back_populates="result")
+
+
+class ResearchAssessment(Base):
+    """Persisted evidence-sufficiency judgment for one Attempt research pass."""
+
+    __tablename__ = "research_assessments"
+    __table_args__ = (
+        UniqueConstraint(
+            "attempt_id",
+            "assessment_pass",
+            name="uq_research_assessments_attempt_pass",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    attempt_id: Mapped[str] = mapped_column(
+        ForeignKey("execution_attempts.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    evidence_set_id: Mapped[str] = mapped_column(
+        ForeignKey("evidence_sets.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    assessment_pass: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    result: Mapped[str] = mapped_column(String(32), nullable=False)
+    rationale: Mapped[str] = mapped_column(Text, nullable=False)
+    need_assessments: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    gaps: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    contradictions: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    considered_evidence_ids: Mapped[list] = mapped_column(
+        JSON, nullable=False, default=list
+    )
+    evidence_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    model_provider: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    model_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    model_version: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    attempt: Mapped[ExecutionAttempt] = relationship(back_populates="research_assessments")
+
 
 class LlmRuntimeSettings(Base):
     """Singleton row for admin-selected chat LLM profile + sampling params."""
