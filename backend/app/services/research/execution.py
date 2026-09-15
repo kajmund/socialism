@@ -55,6 +55,7 @@ from app.services.execution.service import (
     persist_runtime_needs,
     runtime_need_from_row,
     seed_need_executions,
+    set_attempt_snapshots,
     set_research_loop_state,
 )
 from app.services.knowledge.models import KnowledgeScope
@@ -90,6 +91,15 @@ from app.services.research.plan import (
     research_plan_from_snapshot,
     research_plan_to_snapshot,
     validate_research_plan,
+)
+from app.services.research.planner import (
+    InvalidResearchObjectiveError,
+    ResearchObjective,
+    ResearchPlanner,
+    ResearchPlannerError,
+    plan_from_planner_drafts,
+    research_objective_from_snapshot,
+    research_objective_to_snapshot,
 )
 from app.services.research.router import ResearchRouter
 
@@ -604,11 +614,112 @@ async def _run_research_loop(
             wave = follow_up_wave
 
 
+async def _resolve_research_objective(
+    attempt: ExecutionAttempt,
+    research_objective: ResearchObjective | None,
+) -> ResearchObjective | None:
+    persisted = attempt.research_objective_snapshot
+    if persisted is not None:
+        existing = research_objective_from_snapshot(persisted)
+        if research_objective is not None and research_objective != existing:
+            raise ExecutionStatusError(
+                f"Attempt {attempt.id} research_objective is immutable once persisted"
+            )
+        return existing
+    return research_objective
+
+
+async def _resolve_initial_plan(
+    session: AsyncSession,
+    *,
+    attempt: ExecutionAttempt,
+    research_plan: ResearchPlan | None,
+    research_objective: ResearchObjective | None,
+    research_planner: ResearchPlanner | None,
+    need_limit: int,
+) -> ResearchPlan:
+    """Persist objective + initial plan before research is claimed.
+
+    A snapshot already on the Attempt is reused. Planner/model failure
+    leaves the Attempt created.
+    """
+    if attempt.research_plan_snapshot is not None:
+        plan = research_plan_from_snapshot(attempt.research_plan_snapshot)
+        _assert_plan_within_budget(plan, need_limit)
+        return plan
+
+    if research_plan is not None:
+        plan = validate_research_plan(research_plan)
+        _assert_plan_within_budget(plan, need_limit)
+        await _persist_start_snapshots(
+            session,
+            attempt=attempt,
+            objective=research_objective,
+            plan=plan,
+        )
+        return plan
+
+    if research_objective is None:
+        raise InvalidResearchObjectiveError(
+            "research_objective is required when no ResearchPlan is supplied"
+        )
+    if research_planner is None:
+        raise ResearchPlannerError("ResearchPlanner is required")
+    try:
+        drafts = await research_planner.plan_research(objective=research_objective)
+    except ResearchPlannerError:
+        raise
+    except Exception as exc:
+        raise ResearchPlannerError(
+            f"Attempt {attempt.id} research planning failed"
+        ) from exc
+    plan = plan_from_planner_drafts(drafts)
+    _assert_plan_within_budget(plan, need_limit)
+    await _persist_start_snapshots(
+        session,
+        attempt=attempt,
+        objective=research_objective,
+        plan=plan,
+    )
+    return plan
+
+
+def _assert_plan_within_budget(plan: ResearchPlan, need_limit: int) -> None:
+    if len(plan.needs) > need_limit:
+        raise InvalidResearchPlanError(
+            f"ResearchPlan has {len(plan.needs)} needs; "
+            f"research_max_needs_per_attempt={need_limit}"
+        )
+
+
+async def _persist_start_snapshots(
+    session: AsyncSession,
+    *,
+    attempt: ExecutionAttempt,
+    objective: ResearchObjective | None,
+    plan: ResearchPlan,
+) -> None:
+    if objective is not None:
+        await set_attempt_snapshots(
+            session,
+            attempt_id=attempt.id,
+            research_objective_snapshot=research_objective_to_snapshot(objective),
+        )
+    await set_attempt_snapshots(
+        session,
+        attempt_id=attempt.id,
+        research_plan_snapshot=research_plan_to_snapshot(plan),
+    )
+    await session.refresh(attempt)
+
+
 async def execute_attempt_research(
     session: AsyncSession,
     *,
     attempt_id: str,
-    research_plan: ResearchPlan,
+    research_plan: ResearchPlan | None = None,
+    research_objective: ResearchObjective | None = None,
+    research_planner: ResearchPlanner | None = None,
     router: ResearchRouter | None = None,
     router_factory: ResearchRouterFactory | None = None,
     assessor: ResearchAssessor | None = None,
@@ -618,13 +729,15 @@ async def execute_attempt_research(
     max_follow_up_waves: int | None = None,
     max_needs: int | None = None,
 ) -> AttemptResearchResult:
-    """Run ResearchNeeds in bounded waves, assess, and freeze once the loop stops.
+    """Plan if needed, then run ResearchNeeds in bounded waves and freeze.
 
+    Canonical path: persisted research_objective → ResearchPlanner →
+    validated initial ResearchPlan snapshot → retrieve / assess / follow-up.
+    An explicit ResearchPlan skips the planner (tests and internal callers).
     Scope is always taken from ExecutionRun. Source-level error/not_found
-    complete that need and do not fail the Attempt. A sufficient assessment or
-    an explicit research-budget stop freezes the EvidenceSet and marks the
-    Attempt ready. Assessor/planner/model/parsing/worker failure marks both
-    Attempt and EvidenceSet failed without freezing.
+    complete that need and do not fail the Attempt. Planner failure leaves
+    the Attempt created. Assessor/follow-up/model/parsing/worker failure
+    marks both Attempt and EvidenceSet failed without freezing.
     """
     if router is None and router_factory is None:
         raise ResearchExecutionError("ResearchRouter is required")
@@ -641,15 +754,18 @@ async def execute_attempt_research(
             f"Cannot start research on attempt {attempt.id} with status={attempt.status}"
         )
 
-    plan = validate_research_plan(research_plan)
     bound_assessor = assessor or ProgrammaticResearchAssessor()
     bound_planner = planner or NoOpFollowUpPlanner()
     wave_limit, need_limit = _loop_limits(max_follow_up_waves, max_needs)
-    if len(plan.needs) > need_limit:
-        raise InvalidResearchPlanError(
-            f"ResearchPlan has {len(plan.needs)} needs; "
-            f"research_max_needs_per_attempt={need_limit}"
-        )
+    objective = await _resolve_research_objective(attempt, research_objective)
+    plan = await _resolve_initial_plan(
+        session,
+        attempt=attempt,
+        research_plan=research_plan,
+        research_objective=objective,
+        research_planner=research_planner,
+        need_limit=need_limit,
+    )
     run = await get_run(session, attempt.run_id)
     need_concurrency = _concurrency_limit(concurrency)
     claimed = False

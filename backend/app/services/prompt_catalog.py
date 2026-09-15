@@ -2903,6 +2903,54 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "EvidenceSet:\n{evidence_json}"
         ),
     ),
+    _f(
+        "research.planner.system",
+        "research",
+        "Research — inledande plan",
+        "Research — initial plan",
+        "Bryt ner forskningsmålet i smala, oberoende ResearchNeeds. Hämta inte evidens.",
+        "Decompose the research objective into narrow independent ResearchNeeds. Do not retrieve evidence.",
+        (
+            "Du bryter ner ett forskningsmål till en initial ResearchPlan. "
+            "Du hämtar inte evidens, väljer inte experter och skriver inte rapport. "
+            "Varje behov ska vara tillräckligt smalt för att hämtas självständigt, "
+            "ha en konkret fråga, en why_needed, och tillåtna source_types. "
+            "Upprepa inte samma eller parafraserade frågor. "
+            "Hitta inte på source_types. Välj inte bland framtida providers."
+        ),
+        (
+            "You decompose a research objective into an initial ResearchPlan. "
+            "You do not retrieve evidence, select experts, or write a report. "
+            "Each need must be narrow enough to retrieve independently, with a "
+            "concrete question, a why_needed, and allowed source_types. "
+            "Do not repeat the same or paraphrased questions. "
+            "Do not invent source_types. Do not choose among future providers."
+        ),
+    ),
+    _f(
+        "research.planner.user",
+        "research",
+        "Research — inledande plan (användare)",
+        "Research — initial plan (user)",
+        "Platshållare: {source_types} {objective} {objective_json} {context_json}.",
+        "Placeholders: {source_types} {objective} {objective_json} {context_json}.",
+        (
+            "Bryt ner forskningsmålet i initiala ResearchNeeds. "
+            "Svara inte på frågorna. Hämta inte evidens. "
+            "Tillåtna source_types: {source_types}.\n\n"
+            "Forskningsmål:\n{objective}\n\n"
+            "Mål (JSON):\n{objective_json}\n\n"
+            "Uppgiftskontext:\n{context_json}"
+        ),
+        (
+            "Decompose the research objective into initial ResearchNeeds. "
+            "Do not answer the questions. Do not retrieve evidence. "
+            "Allowed source_types: {source_types}.\n\n"
+            "Research objective:\n{objective}\n\n"
+            "Objective (JSON):\n{objective_json}\n\n"
+            "Task context:\n{context_json}"
+        ),
+    ),
 ]
 
 PROMPT_KEYS: tuple[str, ...] = tuple(f["key"] for f in PROMPT_FIELDS)

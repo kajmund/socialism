@@ -1401,6 +1401,9 @@ class ExecutionAttempt(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="created")
     configuration_snapshot: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     input_snapshot: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    research_objective_snapshot: Mapped[dict | None] = mapped_column(
+        JSON, nullable=True
+    )
     research_plan_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     research_wave: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     research_stop_reason: Mapped[str | None] = mapped_column(String(32), nullable=True)

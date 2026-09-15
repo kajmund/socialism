@@ -33,6 +33,8 @@ class ExecutionAttemptCreate(BaseModel):
     attempt_type: str
     configuration_snapshot: dict[str, Any] = Field(default_factory=dict)
     input_snapshot: dict[str, Any] = Field(default_factory=dict)
+    research_objective: str | None = None
+    research_context: dict[str, Any] = Field(default_factory=dict)
 
 
 class ResearchNeedIn(BaseModel):
@@ -57,7 +59,9 @@ class ResearchPlanIn(BaseModel):
 class AttemptResearchRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    research_plan: ResearchPlanIn = Field(default_factory=ResearchPlanIn)
+    research_objective: str | None = None
+    research_context: dict[str, Any] = Field(default_factory=dict)
+    research_plan: ResearchPlanIn | None = None
 
 
 class AttemptExecuteRequest(BaseModel):
@@ -158,6 +162,7 @@ class ExecutionAttemptOut(BaseModel):
     status: str
     configuration_snapshot: dict[str, Any]
     input_snapshot: dict[str, Any]
+    research_objective_snapshot: dict[str, Any] | None = None
     research_plan_snapshot: dict[str, Any] | None
     evidence: EvidenceSummaryOut | None
     assessment: ResearchAssessmentOut | None = None
