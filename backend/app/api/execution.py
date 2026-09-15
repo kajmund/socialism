@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,6 +21,10 @@ from app.database.models import (
     UserAccount,
 )
 from app.database.session import get_session
+from app.llm.research_assessment import build_llm_research_assessor
+from app.llm.research_completeness import build_llm_research_completeness_reviewer
+from app.llm.research_followup import build_llm_follow_up_planner
+from app.llm.research_planner import build_llm_research_planner
 from app.services.attempt_executors import (
     UnsupportedAttemptTypeError,
     execute_registered_attempt,
@@ -53,6 +57,8 @@ from app.services.execution.schemas import (
     ResearchAssessmentOut,
     ResearchCompletenessOut,
     ResearchNeedAssessmentOut,
+    ResearchProgressEventListOut,
+    ResearchProgressEventOut,
     RuntimeResearchNeedOut,
 )
 from app.services.execution.service import (
@@ -96,6 +102,7 @@ from app.services.research.planner import (
     require_research_objective,
     research_objective_to_snapshot,
 )
+from app.services.research.progress import list_research_progress_events
 from app.services.research_worker import accept_attempt_research
 
 router = APIRouter(prefix="/execution", tags=["execution"])
@@ -729,6 +736,37 @@ async def post_attempt_execute(
     except (ExecutionError, PanelAttemptError, ValidationError) as exc:
         raise _http_for_execution_error(exc) from exc
     return AttemptExecuteOut(attempt=detail, result=detail.result)
+
+
+@router.get(
+    "/attempts/{attempt_id}/progress-events",
+    response_model=ResearchProgressEventListOut,
+)
+async def get_attempt_progress_events(
+    attempt_id: str,
+    after_sequence: int = Query(default=0, ge=0),
+    session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
+) -> ResearchProgressEventListOut:
+    await _require_attempt(session, user, attempt_id)
+    rows = await list_research_progress_events(
+        session, attempt_id, after_sequence=after_sequence
+    )
+    return ResearchProgressEventListOut(
+        attempt_id=attempt_id,
+        after_sequence=after_sequence,
+        events=[
+            ResearchProgressEventOut(
+                id=row.id,
+                attempt_id=row.attempt_id,
+                sequence=row.sequence,
+                event_type=row.event_type,
+                payload=dict(row.payload or {}),
+                occurred_at=row.occurred_at,
+            )
+            for row in rows
+        ],
+    )
 
 
 @router.get(

@@ -124,6 +124,22 @@ from app.services.research.planner import (
     research_objective_from_snapshot,
     research_objective_to_snapshot,
 )
+from app.services.research.progress import (
+    ProgressTracker,
+    emit_assessment_persisted,
+    emit_capability_unavailable,
+    emit_completeness_persisted,
+    emit_evidence_item,
+    emit_initial_plan_accepted,
+    emit_need_completed,
+    emit_need_failed,
+    emit_need_queued,
+    emit_need_running,
+    emit_objective_accepted,
+    emit_research_failed,
+    emit_research_frozen_ready,
+    emit_runtime_need_created,
+)
 from app.services.research.provider import KnowledgeProviderDescriptor
 from app.services.research.quality import (
     EVIDENCE_QUALITY_POLICY_VERSION,
@@ -242,16 +258,22 @@ async def fail_incomplete_research(
     attempt = await get_attempt(session, attempt_id)
     if attempt.status not in {"created", "researching"}:
         return
-    target_set_id = evidence_set_id or attempt.evidence_set_id
-    if target_set_id is not None:
-        evidence_set = await get_evidence_set(session, target_set_id)
-        if evidence_set.status == "building":
-            await fail_evidence_set(session, target_set_id)
-    await fail_open_need_executions(session, attempt_id)
-    attempt = await get_attempt(session, attempt_id)
-    if attempt.status in {"created", "researching"}:
-        await fail_attempt(session, attempt_id)
-    await session.commit()
+    with ProgressTracker() as progress:
+        target_set_id = evidence_set_id or attempt.evidence_set_id
+        if target_set_id is not None:
+            evidence_set = await get_evidence_set(session, target_set_id)
+            if evidence_set.status == "building":
+                await fail_evidence_set(session, target_set_id)
+        failed_needs = await fail_open_need_executions(session, attempt_id)
+        for row in failed_needs:
+            if row.status == "failed":
+                await emit_need_failed(session, execution=row)
+        attempt = await get_attempt(session, attempt_id)
+        if attempt.status in {"created", "researching"}:
+            await fail_attempt(session, attempt_id)
+            await emit_research_failed(session, attempt_id=attempt_id)
+        await session.commit()
+        await progress.publish_committed()
 
 
 async def _fail_claimed_research(
@@ -328,8 +350,12 @@ async def _execute_one_need(
     attempt_id: str,
 ) -> None:
     async with persist_lock, factory() as claim_session:
-        row = await claim_need_execution_running(claim_session, execution_id)
-        await claim_session.commit()
+        with ProgressTracker() as progress:
+            row = await claim_need_execution_running(claim_session, execution_id)
+            if row.status == "running":
+                await emit_need_running(claim_session, execution=row)
+            await claim_session.commit()
+            await progress.publish_committed()
         if row.status in TERMINAL_NEED_EXECUTION_STATUSES:
             return
 
@@ -348,22 +374,32 @@ async def _execute_one_need(
         if isinstance(exc, asyncio.CancelledError):
             raise
         async with persist_lock, factory() as fail_session:
-            await fail_need_execution(fail_session, execution_id)
-            await fail_session.commit()
+            with ProgressTracker() as progress:
+                failed = await fail_need_execution(fail_session, execution_id)
+                await emit_need_failed(fail_session, execution=failed)
+                await fail_session.commit()
+                await progress.publish_committed()
         raise
 
     async with persist_lock, factory() as persist_session:
         _raise_if_write_fenced()
-        row = await get_need_execution(persist_session, execution_id)
-        if row.status in TERMINAL_NEED_EXECUTION_STATUSES:
-            return
-        await add_evidence_items(
-            persist_session,
-            evidence_set_id=evidence_set_id,
-            items=evidence,
-        )
-        await complete_need_execution(persist_session, execution_id)
-        await persist_session.commit()
+        with ProgressTracker() as progress:
+            row = await get_need_execution(persist_session, execution_id)
+            if row.status in TERMINAL_NEED_EXECUTION_STATUSES:
+                return
+            stored = await add_evidence_items(
+                persist_session,
+                evidence_set_id=evidence_set_id,
+                items=evidence,
+            )
+            for item in stored:
+                await emit_evidence_item(
+                    persist_session, attempt_id=row.attempt_id, item=item
+                )
+            completed = await complete_need_execution(persist_session, execution_id)
+            await emit_need_completed(persist_session, execution=completed)
+            await persist_session.commit()
+            await progress.publish_committed()
 
     async with persist_lock, factory() as graph_session:
         _raise_if_write_fenced()
@@ -415,6 +451,22 @@ async def _run_need_executions(
     await asyncio.gather(
         *(worker(execution_id, need_id) for execution_id, need_id in pending)
     )
+
+
+async def _emit_seeded_runtime_needs(
+    session: AsyncSession,
+    *,
+    attempt_id: str,
+    accepted_ids: set[str],
+    stored: list[ResearchRuntimeNeed],
+    seeded: list[ResearchNeedExecution],
+) -> None:
+    for row in stored:
+        if row.research_need_id in accepted_ids:
+            await emit_runtime_need_created(session, attempt_id=attempt_id, need=row)
+    for row in seeded:
+        if row.research_need_id in accepted_ids:
+            await emit_need_queued(session, execution=row)
 
 
 def assessable_from_item(
@@ -628,7 +680,7 @@ async def _assess_persisted_evidence(
             f"Attempt {attempt.id} evidence assessment failed"
         ) from exc
     draft = sanitize_assessment_draft(draft, plan=plan, evidence=evidence)
-    return await persist_research_assessment(
+    assessment = await persist_research_assessment(
         session,
         attempt_id=attempt.id,
         evidence_set_id=evidence_set_id,
@@ -636,6 +688,8 @@ async def _assess_persisted_evidence(
         evidence_fingerprint=evidence_fingerprint(evidence),
         assessment_pass=assessment_pass,
     )
+    await emit_assessment_persisted(session, assessment=assessment)
+    return assessment
 
 
 async def _assert_need_barrier(
@@ -676,7 +730,13 @@ async def _freeze_ready_attempt(
     if frozen is None:
         evidence_set = await get_evidence_set(session, evidence_set_id)
         if evidence_set.status == "frozen" and attempt.status == "researching":
-            await mark_ready(session, attempt_id)
+            ready = await mark_ready(session, attempt_id)
+            await emit_research_frozen_ready(
+                session,
+                attempt_id=attempt_id,
+                evidence_set_id=evidence_set_id,
+                stop_reason=ready.research_stop_reason,
+            )
             await session.commit()
             return
         raise ResearchExecutionError(
@@ -687,7 +747,13 @@ async def _freeze_ready_attempt(
         raise ResearchExecutionError(
             f"Attempt {attempt_id} cannot become ready from status={attempt.status}"
         )
-    await mark_ready(session, attempt_id)
+    ready = await mark_ready(session, attempt_id)
+    await emit_research_frozen_ready(
+        session,
+        attempt_id=attempt_id,
+        evidence_set_id=evidence_set_id,
+        stop_reason=ready.research_stop_reason,
+    )
     await session.commit()
 
 
@@ -732,16 +798,24 @@ async def _plan_and_persist_follow_ups(
     )
     if not accepted:
         return "no_novel_followups" if len(previous) < max_needs else "max_needs"
-    await persist_runtime_needs(session, attempt_id=attempt.id, needs=accepted)
+    stored = await persist_runtime_needs(session, attempt_id=attempt.id, needs=accepted)
+    accepted_ids = {need.research_need_id for need in accepted}
     seeded = await seed_need_executions(
         session,
         attempt_id=attempt.id,
         need_ids=[need.research_need_id for need in accepted],
     )
+    await _emit_seeded_runtime_needs(
+        session,
+        attempt_id=attempt.id,
+        accepted_ids=accepted_ids,
+        stored=stored,
+        seeded=seeded,
+    )
     pending = [
         row.research_need_id
         for row in seeded
-        if row.research_need_id in {need.research_need_id for need in accepted}
+        if row.research_need_id in accepted_ids
         and row.status not in TERMINAL_NEED_EXECUTION_STATUSES
     ]
     if not pending:
@@ -812,7 +886,7 @@ async def _review_and_persist_completeness(
         evidence=evidence,
         allowed_source_types=allowed_source_types,
     )
-    return await persist_research_completeness(
+    completeness = await persist_research_completeness(
         session,
         attempt_id=attempt.id,
         evidence_set_id=evidence_set_id,
@@ -821,6 +895,8 @@ async def _review_and_persist_completeness(
         question_fingerprint=question_fp,
         completeness_pass=completeness_pass,
     )
+    await emit_completeness_persisted(session, completeness=completeness)
+    return completeness
 
 
 async def _plan_and_persist_global_needs(
@@ -856,16 +932,24 @@ async def _plan_and_persist_global_needs(
         ):
             return "capability_unavailable"
         return "no_novel_followups" if len(previous) < max_needs else "max_needs"
-    await persist_runtime_needs(session, attempt_id=attempt.id, needs=accepted)
+    stored = await persist_runtime_needs(session, attempt_id=attempt.id, needs=accepted)
+    accepted_ids = {need.research_need_id for need in accepted}
     seeded = await seed_need_executions(
         session,
         attempt_id=attempt.id,
         need_ids=[need.research_need_id for need in accepted],
     )
+    await _emit_seeded_runtime_needs(
+        session,
+        attempt_id=attempt.id,
+        accepted_ids=accepted_ids,
+        stored=stored,
+        seeded=seeded,
+    )
     pending = [
         row.research_need_id
         for row in seeded
-        if row.research_need_id in {need.research_need_id for need in accepted}
+        if row.research_need_id in accepted_ids
         and row.status not in TERMINAL_NEED_EXECUTION_STATUSES
     ]
     if not pending:
@@ -915,100 +999,158 @@ async def _run_research_loop(
                 concurrency=concurrency,
             )
         async with factory() as barrier_session:
-            _raise_if_write_fenced()
-            await _assert_need_barrier(
-                barrier_session, attempt_id=attempt_id, evidence_set_id=evidence_set_id
-            )
-            attempt = await get_attempt(barrier_session, attempt_id)
-            if attempt.status == "ready":
-                return
-            if attempt.research_plan_snapshot is not None:
-                snapshot_plan = research_plan_from_snapshot(attempt.research_plan_snapshot)
-            runtime_plan = await _runtime_plan(barrier_session, attempt_id)
-            quality_plan = runtime_plan if runtime_plan.needs else snapshot_plan
-            quality = await _persist_evidence_quality(
-                barrier_session,
-                evidence_set_id=evidence_set_id,
-                plan=quality_plan,
-                descriptors=_quality_descriptors(router, provider_descriptors),
-                relevance_assessor=relevance_assessor,
-            )
-            assessment = await _assess_persisted_evidence(
-                barrier_session,
-                attempt=attempt,
-                evidence_set_id=evidence_set_id,
-                plan=snapshot_plan,
-                assessor=assessor,
-                assessment_pass=next_assessment_pass(wave),
-                quality=quality,
-            )
-            await set_research_loop_state(
-                barrier_session,
-                attempt_id,
-                research_wave=wave,
-                stop_reason=None,
-            )
-            await barrier_session.commit()
-
-            if assessment.result == "sufficient":
-                existing_passes = await list_research_completeness_passes(
-                    barrier_session, attempt_id
+            with ProgressTracker() as progress:
+                _raise_if_write_fenced()
+                await _assert_need_barrier(
+                    barrier_session, attempt_id=attempt_id, evidence_set_id=evidence_set_id
                 )
-                if len(existing_passes) >= max_completeness_passes:
-                    latest = existing_passes[-1]
-                    stop = (
-                        "sufficient"
-                        if latest.result == "complete"
-                        else "max_completeness_passes"
-                    )
-                    await set_research_loop_state(
-                        barrier_session,
-                        attempt_id,
-                        research_wave=wave,
-                        stop_reason=stop,
-                    )
-                    await _freeze_ready_attempt(
-                        barrier_session,
-                        attempt_id=attempt_id,
-                        evidence_set_id=evidence_set_id,
-                    )
+                attempt = await get_attempt(barrier_session, attempt_id)
+                if attempt.status == "ready":
                     return
-                completeness = await _review_and_persist_completeness(
+                if attempt.research_plan_snapshot is not None:
+                    snapshot_plan = research_plan_from_snapshot(attempt.research_plan_snapshot)
+                runtime_plan = await _runtime_plan(barrier_session, attempt_id)
+                quality_plan = runtime_plan if runtime_plan.needs else snapshot_plan
+                quality = await _persist_evidence_quality(
+                    barrier_session,
+                    evidence_set_id=evidence_set_id,
+                    plan=quality_plan,
+                    descriptors=_quality_descriptors(router, provider_descriptors),
+                    relevance_assessor=relevance_assessor,
+                )
+                assessment = await _assess_persisted_evidence(
                     barrier_session,
                     attempt=attempt,
                     evidence_set_id=evidence_set_id,
-                    snapshot_plan=snapshot_plan,
-                    assessment=assessment,
-                    reviewer=completeness_reviewer,
-                    router=router,
+                    plan=snapshot_plan,
+                    assessor=assessor,
+                    assessment_pass=next_assessment_pass(wave),
+                    quality=quality,
+                )
+                await set_research_loop_state(
+                    barrier_session,
+                    attempt_id,
+                    research_wave=wave,
+                    stop_reason=None,
                 )
                 await barrier_session.commit()
-                if completeness.result == "complete":
+                await progress.publish_committed()
+
+                if assessment.result == "sufficient":
+                    existing_passes = await list_research_completeness_passes(
+                        barrier_session, attempt_id
+                    )
+                    if len(existing_passes) >= max_completeness_passes:
+                        latest = existing_passes[-1]
+                        stop = (
+                            "sufficient"
+                            if latest.result == "complete"
+                            else "max_completeness_passes"
+                        )
+                        await set_research_loop_state(
+                            barrier_session,
+                            attempt_id,
+                            research_wave=wave,
+                            stop_reason=stop,
+                        )
+                        await _freeze_ready_attempt(
+                            barrier_session,
+                            attempt_id=attempt_id,
+                            evidence_set_id=evidence_set_id,
+                        )
+                        await progress.publish_committed()
+                        return
+                    completeness = await _review_and_persist_completeness(
+                        barrier_session,
+                        attempt=attempt,
+                        evidence_set_id=evidence_set_id,
+                        snapshot_plan=snapshot_plan,
+                        assessment=assessment,
+                        reviewer=completeness_reviewer,
+                        router=router,
+                    )
+                    await barrier_session.commit()
+                    await progress.publish_committed()
+                    if completeness.result == "complete":
+                        await set_research_loop_state(
+                            barrier_session,
+                            attempt_id,
+                            research_wave=wave,
+                            stop_reason="sufficient",
+                        )
+                        await _freeze_ready_attempt(
+                            barrier_session,
+                            attempt_id=attempt_id,
+                            evidence_set_id=evidence_set_id,
+                        )
+                        await progress.publish_committed()
+                        return
+                    if completeness.completeness_pass >= max_completeness_passes:
+                        await set_research_loop_state(
+                            barrier_session,
+                            attempt_id,
+                            research_wave=wave,
+                            stop_reason="max_completeness_passes",
+                        )
+                        await _freeze_ready_attempt(
+                            barrier_session,
+                            attempt_id=attempt_id,
+                            evidence_set_id=evidence_set_id,
+                        )
+                        await progress.publish_committed()
+                        return
+                    if wave >= max_follow_up_waves:
+                        await set_research_loop_state(
+                            barrier_session,
+                            attempt_id,
+                            research_wave=wave,
+                            stop_reason="max_iterations",
+                        )
+                        await _freeze_ready_attempt(
+                            barrier_session,
+                            attempt_id=attempt_id,
+                            evidence_set_id=evidence_set_id,
+                        )
+                        await progress.publish_committed()
+                        return
+                    follow_up_wave = wave + 1
+                    planned = await _plan_and_persist_global_needs(
+                        barrier_session,
+                        attempt=attempt,
+                        completeness=completeness,
+                        wave_number=follow_up_wave,
+                        max_needs=max_needs,
+                        router=router,
+                    )
+                    if isinstance(planned, str):
+                        await set_research_loop_state(
+                            barrier_session,
+                            attempt_id,
+                            research_wave=wave,
+                            stop_reason=planned,
+                        )
+                        if planned == "capability_unavailable":
+                            await emit_capability_unavailable(
+                                barrier_session, completeness=completeness
+                            )
+                        await _freeze_ready_attempt(
+                            barrier_session,
+                            attempt_id=attempt_id,
+                            evidence_set_id=evidence_set_id,
+                        )
+                        await progress.publish_committed()
+                        return
                     await set_research_loop_state(
                         barrier_session,
                         attempt_id,
-                        research_wave=wave,
-                        stop_reason="sufficient",
+                        research_wave=follow_up_wave,
+                        stop_reason=None,
                     )
-                    await _freeze_ready_attempt(
-                        barrier_session,
-                        attempt_id=attempt_id,
-                        evidence_set_id=evidence_set_id,
-                    )
-                    return
-                if completeness.completeness_pass >= max_completeness_passes:
-                    await set_research_loop_state(
-                        barrier_session,
-                        attempt_id,
-                        research_wave=wave,
-                        stop_reason="max_completeness_passes",
-                    )
-                    await _freeze_ready_attempt(
-                        barrier_session,
-                        attempt_id=attempt_id,
-                        evidence_set_id=evidence_set_id,
-                    )
-                    return
+                    await barrier_session.commit()
+                    await progress.publish_committed()
+                    wave = follow_up_wave
+                    continue
+
                 if wave >= max_follow_up_waves:
                     await set_research_loop_state(
                         barrier_session,
@@ -1021,15 +1163,19 @@ async def _run_research_loop(
                         attempt_id=attempt_id,
                         evidence_set_id=evidence_set_id,
                     )
+                    await progress.publish_committed()
                     return
+
                 follow_up_wave = wave + 1
-                planned = await _plan_and_persist_global_needs(
+                planned = await _plan_and_persist_follow_ups(
                     barrier_session,
                     attempt=attempt,
-                    completeness=completeness,
+                    snapshot_plan=snapshot_plan,
+                    assessment=assessment,
+                    evidence_set_id=evidence_set_id,
+                    planner=planner,
                     wave_number=follow_up_wave,
                     max_needs=max_needs,
-                    router=router,
                 )
                 if isinstance(planned, str):
                     await set_research_loop_state(
@@ -1043,6 +1189,7 @@ async def _run_research_loop(
                         attempt_id=attempt_id,
                         evidence_set_id=evidence_set_id,
                     )
+                    await progress.publish_committed()
                     return
                 await set_research_loop_state(
                     barrier_session,
@@ -1051,55 +1198,8 @@ async def _run_research_loop(
                     stop_reason=None,
                 )
                 await barrier_session.commit()
+                await progress.publish_committed()
                 wave = follow_up_wave
-                continue
-
-            if wave >= max_follow_up_waves:
-                await set_research_loop_state(
-                    barrier_session,
-                    attempt_id,
-                    research_wave=wave,
-                    stop_reason="max_iterations",
-                )
-                await _freeze_ready_attempt(
-                    barrier_session,
-                    attempt_id=attempt_id,
-                    evidence_set_id=evidence_set_id,
-                )
-                return
-
-            follow_up_wave = wave + 1
-            planned = await _plan_and_persist_follow_ups(
-                barrier_session,
-                attempt=attempt,
-                snapshot_plan=snapshot_plan,
-                assessment=assessment,
-                evidence_set_id=evidence_set_id,
-                planner=planner,
-                wave_number=follow_up_wave,
-                max_needs=max_needs,
-            )
-            if isinstance(planned, str):
-                await set_research_loop_state(
-                    barrier_session,
-                    attempt_id,
-                    research_wave=wave,
-                    stop_reason=planned,
-                )
-                await _freeze_ready_attempt(
-                    barrier_session,
-                    attempt_id=attempt_id,
-                    evidence_set_id=evidence_set_id,
-                )
-                return
-            await set_research_loop_state(
-                barrier_session,
-                attempt_id,
-                research_wave=follow_up_wave,
-                stop_reason=None,
-            )
-            await barrier_session.commit()
-            wave = follow_up_wave
 
 
 async def _resolve_research_objective(
@@ -1242,15 +1342,22 @@ async def _ensure_research_inventory(
             raise ResearchExecutionError(
                 f"Attempt {attempt.id} EvidenceSet {evidence_set_id} is failed"
             )
-    await persist_runtime_needs(
+    stored_needs = await persist_runtime_needs(
         session,
         attempt_id=attempt.id,
         needs=runtime_needs_from_plan(plan),
     )
-    await seed_need_executions(
+    seeded = await seed_need_executions(
         session,
         attempt_id=attempt.id,
         need_ids=[need.id for need in plan.needs],
+    )
+    await _emit_seeded_runtime_needs(
+        session,
+        attempt_id=attempt.id,
+        accepted_ids={need.id for need in plan.needs},
+        stored=stored_needs,
+        seeded=seeded,
     )
     return evidence_set_id
 
@@ -1268,11 +1375,15 @@ async def _persist_start_snapshots(
             attempt_id=attempt.id,
             research_objective_snapshot=research_objective_to_snapshot(objective),
         )
+        await emit_objective_accepted(
+            session, attempt_id=attempt.id, objective=objective
+        )
     await set_attempt_snapshots(
         session,
         attempt_id=attempt.id,
         research_plan_snapshot=research_plan_to_snapshot(plan),
     )
+    await emit_initial_plan_accepted(session, attempt_id=attempt.id, plan=plan)
     await session.refresh(attempt)
 
 
@@ -1356,25 +1467,34 @@ async def execute_attempt_research(
     evidence_set_id: str | None = attempt.evidence_set_id
     fence_token = _write_fence.set(lease_lost)
     try:
-        if not resume:
-            attempt = await claim_attempt_researching(
+        with ProgressTracker() as progress:
+            if not resume:
+                attempt = await claim_attempt_researching(
+                    session,
+                    attempt_id,
+                    research_plan_snapshot=research_plan_to_snapshot(plan),
+                )
+                if attempt.status == "ready":
+                    return await _result_from_attempt(session, attempt)
+                claimed = True
+                if objective is not None:
+                    await emit_objective_accepted(
+                        session, attempt_id=attempt.id, objective=objective
+                    )
+                await emit_initial_plan_accepted(
+                    session, attempt_id=attempt.id, plan=plan
+                )
+            evidence_set_id = await _ensure_research_inventory(
                 session,
-                attempt_id,
-                research_plan_snapshot=research_plan_to_snapshot(plan),
+                attempt=attempt,
+                run=run,
+                plan=plan,
             )
-            if attempt.status == "ready":
-                return await _result_from_attempt(session, attempt)
-            claimed = True
-        evidence_set_id = await _ensure_research_inventory(
-            session,
-            attempt=attempt,
-            run=run,
-            plan=plan,
-        )
-        start_wave = attempt.research_wave if resume else INITIAL_RESEARCH_WAVE
-        context = research_context_from_run(run)
-        factory = session_factory or _session_factory(session)
-        await session.commit()
+            start_wave = attempt.research_wave if resume else INITIAL_RESEARCH_WAVE
+            context = research_context_from_run(run)
+            factory = session_factory or _session_factory(session)
+            await session.commit()
+            await progress.publish_committed()
 
         await _run_research_loop(
             factory=factory,
