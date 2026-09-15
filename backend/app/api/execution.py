@@ -15,6 +15,7 @@ from app.database.models import (
     ExecutionAttemptResult,
     ExecutionRun,
     ResearchAssessment,
+    ResearchRuntimeNeed,
     UserAccount,
 )
 from app.database.session import get_session
@@ -46,6 +47,7 @@ from app.services.execution.schemas import (
     ExecutionRunOut,
     ResearchAssessmentOut,
     ResearchNeedAssessmentOut,
+    RuntimeResearchNeedOut,
 )
 from app.services.execution.service import (
     clone_attempt,
@@ -58,8 +60,11 @@ from app.services.execution.service import (
     list_attempt_results,
     list_evidence_items,
     list_evidence_summaries,
-    list_latest_research_assessments,
+    list_research_assessments,
+    list_research_assessments_for_attempts,
     list_run_attempts,
+    list_runtime_needs,
+    list_runtime_needs_for_attempts,
 )
 from app.services.panel.attempt_execution import (
     GENERIC_PANEL_ATTEMPT_TYPE,
@@ -68,11 +73,13 @@ from app.services.panel.attempt_execution import (
 )
 from app.services.prompt_store import require_active_prompts
 from app.llm.research_assessment import build_llm_research_assessor
+from app.llm.research_followup import build_llm_follow_up_planner
 from app.services.research.assessment import need_assessment_from_json
 from app.services.research.composition import (
     ResearchCompositionError,
     build_standard_research_router,
     require_research_router_ready,
+    resolve_follow_up_planner,
     resolve_research_assessor,
 )
 from app.services.research.execution import (
@@ -148,6 +155,22 @@ def _assessment_out(row: ResearchAssessment) -> ResearchAssessmentOut:
         model_name=row.model_name,
         model_version=row.model_version,
         created_at=row.created_at,
+    )
+
+
+def _runtime_need_out(row: ResearchRuntimeNeed) -> RuntimeResearchNeedOut:
+    return RuntimeResearchNeedOut(
+        research_need_id=row.research_need_id,
+        question=row.question,
+        why_needed=row.why_needed,
+        requested_by=list(row.requested_by or []),
+        source_types=list(row.source_types or []),
+        origin=row.origin,
+        wave_number=row.wave_number,
+        parent_research_need_id=row.parent_research_need_id,
+        source_assessment_pass=row.source_assessment_pass,
+        source_gap=row.source_gap or "",
+        question_key=row.question_key,
     )
 
 
@@ -254,7 +277,11 @@ def _attempt_out_from_loaded(
     evidence: EvidenceSummaryOut | None,
     result_row: ExecutionAttemptResult | None,
     assessment_row: ResearchAssessment | None = None,
+    assessment_rows: list[ResearchAssessment] | None = None,
+    runtime_need_rows: list[ResearchRuntimeNeed] | None = None,
 ) -> ExecutionAttemptOut:
+    history = assessment_rows or []
+    latest = assessment_row or (history[-1] if history else None)
     return ExecutionAttemptOut(
         id=attempt.id,
         run_id=attempt.run_id,
@@ -265,7 +292,11 @@ def _attempt_out_from_loaded(
         input_snapshot=dict(attempt.input_snapshot or {}),
         research_plan_snapshot=attempt.research_plan_snapshot,
         evidence=evidence,
-        assessment=None if assessment_row is None else _assessment_out(assessment_row),
+        assessment=None if latest is None else _assessment_out(latest),
+        assessments=[_assessment_out(row) for row in history],
+        research_wave=attempt.research_wave,
+        stop_reason=attempt.research_stop_reason,
+        runtime_needs=[_runtime_need_out(row) for row in (runtime_need_rows or [])],
         result=None if result_row is None else _result_out(result_row),
         created_at=attempt.created_at,
         started_at=attempt.started_at,
@@ -306,12 +337,14 @@ async def _attempt_out(
             )
         evidence = _summary_from_counts(attempt.evidence_set_id, *raw)
     result_row = await get_attempt_result(session, attempt.id)
-    assessments = await list_latest_research_assessments(session, [attempt.id])
+    history = await list_research_assessments(session, attempt.id)
+    runtime_needs = await list_runtime_needs(session, attempt.id)
     return _attempt_out_from_loaded(
         attempt,
         evidence=evidence,
         result_row=result_row,
-        assessment_row=assessments.get(attempt.id),
+        assessment_rows=history,
+        runtime_need_rows=runtime_needs,
     )
 
 
@@ -361,9 +394,9 @@ async def get_execution_run_attempts(
     ]
     summaries = await list_evidence_summaries(session, set_ids, run_id=run.id)
     results = await list_attempt_results(session, [attempt.id for attempt in attempts])
-    assessments = await list_latest_research_assessments(
-        session, [attempt.id for attempt in attempts]
-    )
+    attempt_ids = [attempt.id for attempt in attempts]
+    assessments = await list_research_assessments_for_attempts(session, attempt_ids)
+    runtime_needs = await list_runtime_needs_for_attempts(session, attempt_ids)
     out: list[ExecutionAttemptOut] = []
     for attempt in attempts:
         evidence = None
@@ -380,7 +413,8 @@ async def get_execution_run_attempts(
                 attempt,
                 evidence=evidence,
                 result_row=results.get(attempt.id),
-                assessment_row=assessments.get(attempt.id),
+                assessment_rows=assessments.get(attempt.id, []),
+                runtime_need_rows=runtime_needs.get(attempt.id, []),
             )
         )
     return out
@@ -481,8 +515,9 @@ async def _research_out_from_attempt(
         raw = summaries.get(attempt.evidence_set_id)
         if raw is not None:
             _status, found, not_found, error = raw
-    assessments = await list_latest_research_assessments(session, [attempt.id])
-    assessment_row = assessments.get(attempt.id)
+    history = await list_research_assessments(session, attempt.id)
+    latest = history[-1] if history else None
+    runtime_needs = await list_runtime_needs(session, attempt.id)
     return AttemptResearchOut(
         attempt_id=attempt.id,
         evidence_set_id=attempt.evidence_set_id,
@@ -490,7 +525,11 @@ async def _research_out_from_attempt(
         found_count=found,
         not_found_count=not_found,
         error_count=error,
-        assessment=None if assessment_row is None else _assessment_out(assessment_row),
+        assessment=None if latest is None else _assessment_out(latest),
+        assessments=[_assessment_out(row) for row in history],
+        research_wave=attempt.research_wave,
+        stop_reason=attempt.research_stop_reason,
+        runtime_needs=[_runtime_need_out(row) for row in runtime_needs],
     )
 
 
@@ -515,12 +554,18 @@ async def post_attempt_research(
             assessor = await build_llm_research_assessor(
                 session, customer_id=run.customer_id, module=run.module
             )
+        planner = resolve_follow_up_planner()
+        if planner is None:
+            planner = await build_llm_follow_up_planner(
+                session, customer_id=run.customer_id, module=run.module
+            )
         await execute_attempt_research(
             session,
             attempt_id=attempt_id,
             research_plan=plan,
             router_factory=build_standard_research_router,
             assessor=assessor,
+            planner=planner,
         )
         attempt = await get_attempt(session, attempt_id)
     except (

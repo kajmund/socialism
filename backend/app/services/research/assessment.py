@@ -120,6 +120,29 @@ def need_assessment_to_json(row: ResearchNeedAssessment) -> dict[str, object]:
     }
 
 
+def assessment_draft_from_row(row: object) -> ResearchAssessmentDraft:
+    """Rebuild a draft from a persisted ResearchAssessment row."""
+    result = getattr(row, "result")
+    rationale = getattr(row, "rationale")
+    need_raw = getattr(row, "need_assessments") or []
+    gaps = getattr(row, "gaps") or []
+    contradictions = getattr(row, "contradictions") or []
+    considered = getattr(row, "considered_evidence_ids") or []
+    if not isinstance(need_raw, list):
+        raise ResearchAssessmentError("need_assessments must be a JSON array")
+    return ResearchAssessmentDraft(
+        result=result,
+        rationale=str(rationale),
+        need_assessments=[need_assessment_from_json(item) for item in need_raw],
+        gaps=[str(item) for item in gaps],
+        contradictions=[str(item) for item in contradictions],
+        considered_evidence_ids=[str(item) for item in considered],
+        model_provider=getattr(row, "model_provider", None),
+        model_name=getattr(row, "model_name", None),
+        model_version=getattr(row, "model_version", None),
+    )
+
+
 def need_assessment_from_json(raw: object) -> ResearchNeedAssessment:
     if not isinstance(raw, dict):
         raise ResearchAssessmentError("need assessment must be a JSON object")

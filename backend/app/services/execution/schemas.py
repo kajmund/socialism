@@ -80,6 +80,20 @@ class ResearchNeedAssessmentOut(BaseModel):
     further_information: str | None
 
 
+class RuntimeResearchNeedOut(BaseModel):
+    research_need_id: str
+    question: str
+    why_needed: str
+    requested_by: list[str]
+    source_types: list[str]
+    origin: str
+    wave_number: int
+    parent_research_need_id: str | None
+    source_assessment_pass: int | None
+    source_gap: str
+    question_key: str
+
+
 class ResearchAssessmentOut(BaseModel):
     id: str
     attempt_id: str
@@ -106,6 +120,10 @@ class AttemptResearchOut(BaseModel):
     not_found_count: int
     error_count: int
     assessment: ResearchAssessmentOut | None = None
+    assessments: list[ResearchAssessmentOut] = Field(default_factory=list)
+    research_wave: int = 0
+    stop_reason: str | None = None
+    runtime_needs: list[RuntimeResearchNeedOut] = Field(default_factory=list)
 
 
 class EvidenceSummaryOut(BaseModel):
@@ -137,6 +155,10 @@ class ExecutionAttemptOut(BaseModel):
     research_plan_snapshot: dict[str, Any] | None
     evidence: EvidenceSummaryOut | None
     assessment: ResearchAssessmentOut | None = None
+    assessments: list[ResearchAssessmentOut] = Field(default_factory=list)
+    research_wave: int = 0
+    stop_reason: str | None = None
+    runtime_needs: list[RuntimeResearchNeedOut] = Field(default_factory=list)
     result: AttemptResultOut | None
     created_at: datetime
     started_at: datetime | None

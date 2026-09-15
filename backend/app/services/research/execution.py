@@ -23,9 +23,13 @@ from app.database.models import (
     ExecutionRun,
     ResearchAssessment,
     ResearchNeedExecution,
+    ResearchRuntimeNeed,
 )
 from app.services.execution.errors import ExecutionStatusError
-from app.services.execution.models import TERMINAL_NEED_EXECUTION_STATUSES
+from app.services.execution.models import (
+    INITIAL_RESEARCH_WAVE,
+    TERMINAL_NEED_EXECUTION_STATUSES,
+)
 from app.services.execution.service import (
     add_evidence_items,
     attach_evidence_set,
@@ -45,19 +49,34 @@ from app.services.execution.service import (
     get_run,
     list_evidence_items,
     list_need_executions,
+    list_runtime_needs,
     mark_ready,
     persist_research_assessment,
+    persist_runtime_needs,
+    runtime_need_from_row,
     seed_need_executions,
+    set_research_loop_state,
 )
 from app.services.knowledge.models import KnowledgeScope
 from app.services.research.assessment import (
-    INITIAL_ASSESSMENT_PASS,
     AssessableEvidence,
     ProgrammaticResearchAssessor,
     ResearchAssessmentError,
     ResearchAssessor,
+    assessment_draft_from_row,
     evidence_fingerprint,
     sanitize_assessment_draft,
+)
+from app.services.research.followup import (
+    FollowUpPlannerError,
+    FollowUpResearchPlanner,
+    NoOpFollowUpPlanner,
+    RuntimeResearchNeed,
+    next_assessment_pass,
+    plan_from_runtime_needs,
+    runtime_needs_from_plan,
+    take_needs_within_budget,
+    validate_follow_up_drafts,
 )
 from app.services.research.models import (
     ResearchContext,
@@ -285,6 +304,39 @@ def assessable_from_item(item: EvidenceSetItem) -> AssessableEvidence:
     )
 
 
+def _loop_limits(
+    max_follow_up_waves: int | None, max_needs: int | None
+) -> tuple[int, int]:
+    waves = (
+        settings.research_max_follow_up_waves
+        if max_follow_up_waves is None
+        else max_follow_up_waves
+    )
+    needs = (
+        settings.research_max_needs_per_attempt if max_needs is None else max_needs
+    )
+    if waves < 0:
+        raise ValueError("research_max_follow_up_waves must be >= 0")
+    if needs < 1:
+        raise ValueError("research_max_needs_per_attempt must be >= 1")
+    return waves, needs
+
+
+async def _pending_need_pairs(
+    session: AsyncSession, attempt_id: str
+) -> list[tuple[str, str]]:
+    return [
+        (row.id, row.research_need_id)
+        for row in await list_need_executions(session, attempt_id)
+        if row.status not in TERMINAL_NEED_EXECUTION_STATUSES
+    ]
+
+
+async def _runtime_plan(session: AsyncSession, attempt_id: str) -> ResearchPlan:
+    rows = await list_runtime_needs(session, attempt_id)
+    return plan_from_runtime_needs([runtime_need_from_row(row) for row in rows])
+
+
 async def _assess_persisted_evidence(
     session: AsyncSession,
     *,
@@ -292,13 +344,14 @@ async def _assess_persisted_evidence(
     evidence_set_id: str,
     plan: ResearchPlan,
     assessor: ResearchAssessor,
-) -> None:
+    assessment_pass: int,
+) -> ResearchAssessment:
     """Judge persisted EvidenceSet items. Insufficient is a valid outcome."""
     existing = await get_research_assessment(
-        session, attempt.id, assessment_pass=INITIAL_ASSESSMENT_PASS
+        session, attempt.id, assessment_pass=assessment_pass
     )
     if existing is not None:
-        return
+        return existing
     items = await list_evidence_items(session, evidence_set_id)
     evidence = [assessable_from_item(item) for item in items]
     try:
@@ -310,25 +363,19 @@ async def _assess_persisted_evidence(
             f"Attempt {attempt.id} evidence assessment failed"
         ) from exc
     draft = sanitize_assessment_draft(draft, plan=plan, evidence=evidence)
-    await persist_research_assessment(
+    return await persist_research_assessment(
         session,
         attempt_id=attempt.id,
         evidence_set_id=evidence_set_id,
         draft=draft,
         evidence_fingerprint=evidence_fingerprint(evidence),
-        assessment_pass=INITIAL_ASSESSMENT_PASS,
+        assessment_pass=assessment_pass,
     )
 
 
-async def _finalize_attempt_research(
-    session: AsyncSession,
-    *,
-    attempt_id: str,
-    evidence_set_id: str,
-    plan: ResearchPlan,
-    assessor: ResearchAssessor,
+async def _assert_need_barrier(
+    session: AsyncSession, *, attempt_id: str, evidence_set_id: str
 ) -> None:
-    """Barrier: assess persisted evidence, then freeze + ready."""
     executions = await list_need_executions(session, attempt_id)
     if any(row.status == "failed" for row in executions):
         raise ResearchExecutionError(
@@ -342,19 +389,23 @@ async def _finalize_attempt_research(
         raise ResearchExecutionError(
             f"Attempt {attempt_id} research failed: need executions are not completed"
         )
+    evidence_set = await get_evidence_set(session, evidence_set_id)
+    if evidence_set.status != "building":
+        raise ResearchExecutionError(
+            f"Attempt {attempt_id} EvidenceSet {evidence_set_id} left building "
+            f"(status={evidence_set.status}) before the research loop stopped"
+        )
 
+
+async def _freeze_ready_attempt(
+    session: AsyncSession,
+    *,
+    attempt_id: str,
+    evidence_set_id: str,
+) -> None:
     attempt = await get_attempt(session, attempt_id)
     if attempt.status == "ready":
         return
-    if attempt.research_plan_snapshot is not None:
-        plan = research_plan_from_snapshot(attempt.research_plan_snapshot)
-    await _assess_persisted_evidence(
-        session,
-        attempt=attempt,
-        evidence_set_id=evidence_set_id,
-        plan=plan,
-        assessor=assessor,
-    )
     frozen = await claim_freeze_evidence_set(session, evidence_set_id)
     if frozen is None:
         evidence_set = await get_evidence_set(session, evidence_set_id)
@@ -374,6 +425,184 @@ async def _finalize_attempt_research(
     await session.commit()
 
 
+async def _plan_and_persist_follow_ups(
+    session: AsyncSession,
+    *,
+    attempt: ExecutionAttempt,
+    snapshot_plan: ResearchPlan,
+    assessment: ResearchAssessment,
+    evidence_set_id: str,
+    planner: FollowUpResearchPlanner,
+    wave_number: int,
+    max_needs: int,
+) -> list[RuntimeResearchNeed] | str:
+    previous = [runtime_need_from_row(row) for row in await list_runtime_needs(session, attempt.id)]
+    if len(previous) >= max_needs:
+        return "max_needs"
+    items = await list_evidence_items(session, evidence_set_id)
+    evidence = [assessable_from_item(item) for item in items]
+    draft = assessment_draft_from_row(assessment)
+    try:
+        raw_drafts = await planner.plan_follow_ups(
+            plan=snapshot_plan,
+            assessment=draft,
+            evidence=evidence,
+            previous_needs=previous,
+        )
+    except FollowUpPlannerError:
+        raise
+    except Exception as exc:
+        raise FollowUpPlannerError(
+            f"Attempt {attempt.id} follow-up planning failed"
+        ) from exc
+    accepted = validate_follow_up_drafts(
+        raw_drafts,
+        previous_needs=previous,
+        wave_number=wave_number,
+        assessment_pass=assessment.assessment_pass,
+    )
+    accepted = take_needs_within_budget(
+        accepted, current_count=len(previous), max_needs=max_needs
+    )
+    if not accepted:
+        return "no_novel_followups" if len(previous) < max_needs else "max_needs"
+    await persist_runtime_needs(session, attempt_id=attempt.id, needs=accepted)
+    seeded = await seed_need_executions(
+        session,
+        attempt_id=attempt.id,
+        need_ids=[need.research_need_id for need in accepted],
+    )
+    pending = [
+        row.research_need_id
+        for row in seeded
+        if row.research_need_id in {need.research_need_id for need in accepted}
+        and row.status not in TERMINAL_NEED_EXECUTION_STATUSES
+    ]
+    if not pending:
+        return "no_novel_followups"
+    return accepted
+
+
+async def _run_research_loop(
+    *,
+    factory: async_sessionmaker[AsyncSession],
+    attempt_id: str,
+    evidence_set_id: str,
+    snapshot_plan: ResearchPlan,
+    context: ResearchContext,
+    router: ResearchRouter | None,
+    router_factory: ResearchRouterFactory | None,
+    assessor: ResearchAssessor,
+    planner: FollowUpResearchPlanner,
+    concurrency: int,
+    max_follow_up_waves: int,
+    max_needs: int,
+) -> None:
+    wave = INITIAL_RESEARCH_WAVE
+    while True:
+        async with factory() as wave_session:
+            pending = await _pending_need_pairs(wave_session, attempt_id)
+            runtime_plan = await _runtime_plan(wave_session, attempt_id)
+            if not runtime_plan.needs:
+                runtime_plan = snapshot_plan
+        if pending:
+            await _run_need_executions(
+                factory=factory,
+                pending=pending,
+                evidence_set_id=evidence_set_id,
+                plan=runtime_plan,
+                context=context,
+                router=router,
+                router_factory=router_factory,
+                concurrency=concurrency,
+            )
+        async with factory() as barrier_session:
+            await _assert_need_barrier(
+                barrier_session, attempt_id=attempt_id, evidence_set_id=evidence_set_id
+            )
+            attempt = await get_attempt(barrier_session, attempt_id)
+            if attempt.status == "ready":
+                return
+            if attempt.research_plan_snapshot is not None:
+                snapshot_plan = research_plan_from_snapshot(attempt.research_plan_snapshot)
+            assessment = await _assess_persisted_evidence(
+                barrier_session,
+                attempt=attempt,
+                evidence_set_id=evidence_set_id,
+                plan=snapshot_plan,
+                assessor=assessor,
+                assessment_pass=next_assessment_pass(wave),
+            )
+            await set_research_loop_state(
+                barrier_session,
+                attempt_id,
+                research_wave=wave,
+                stop_reason=None,
+            )
+            await barrier_session.commit()
+
+            if assessment.result == "sufficient":
+                await set_research_loop_state(
+                    barrier_session,
+                    attempt_id,
+                    research_wave=wave,
+                    stop_reason="sufficient",
+                )
+                await _freeze_ready_attempt(
+                    barrier_session,
+                    attempt_id=attempt_id,
+                    evidence_set_id=evidence_set_id,
+                )
+                return
+
+            if wave >= max_follow_up_waves:
+                await set_research_loop_state(
+                    barrier_session,
+                    attempt_id,
+                    research_wave=wave,
+                    stop_reason="max_iterations",
+                )
+                await _freeze_ready_attempt(
+                    barrier_session,
+                    attempt_id=attempt_id,
+                    evidence_set_id=evidence_set_id,
+                )
+                return
+
+            follow_up_wave = wave + 1
+            planned = await _plan_and_persist_follow_ups(
+                barrier_session,
+                attempt=attempt,
+                snapshot_plan=snapshot_plan,
+                assessment=assessment,
+                evidence_set_id=evidence_set_id,
+                planner=planner,
+                wave_number=follow_up_wave,
+                max_needs=max_needs,
+            )
+            if isinstance(planned, str):
+                await set_research_loop_state(
+                    barrier_session,
+                    attempt_id,
+                    research_wave=wave,
+                    stop_reason=planned,
+                )
+                await _freeze_ready_attempt(
+                    barrier_session,
+                    attempt_id=attempt_id,
+                    evidence_set_id=evidence_set_id,
+                )
+                return
+            await set_research_loop_state(
+                barrier_session,
+                attempt_id,
+                research_wave=follow_up_wave,
+                stop_reason=None,
+            )
+            await barrier_session.commit()
+            wave = follow_up_wave
+
+
 async def execute_attempt_research(
     session: AsyncSession,
     *,
@@ -382,15 +611,19 @@ async def execute_attempt_research(
     router: ResearchRouter | None = None,
     router_factory: ResearchRouterFactory | None = None,
     assessor: ResearchAssessor | None = None,
+    planner: FollowUpResearchPlanner | None = None,
     session_factory: async_sessionmaker[AsyncSession] | None = None,
     concurrency: int | None = None,
+    max_follow_up_waves: int | None = None,
+    max_needs: int | None = None,
 ) -> AttemptResearchResult:
-    """Run each ResearchNeed concurrently, persist incrementally, assess, then freeze.
+    """Run ResearchNeeds in bounded waves, assess, and freeze once the loop stops.
 
     Scope is always taken from ExecutionRun. Source-level error/not_found
-    complete that need and do not fail the Attempt. Insufficient assessment
-    is a valid v1 outcome and still freezes. Assessor/model/parsing failure
-    marks both Attempt and EvidenceSet failed without freezing.
+    complete that need and do not fail the Attempt. A sufficient assessment or
+    an explicit research-budget stop freezes the EvidenceSet and marks the
+    Attempt ready. Assessor/planner/model/parsing/worker failure marks both
+    Attempt and EvidenceSet failed without freezing.
     """
     if router is None and router_factory is None:
         raise ResearchExecutionError("ResearchRouter is required")
@@ -409,6 +642,8 @@ async def execute_attempt_research(
 
     plan = validate_research_plan(research_plan)
     bound_assessor = assessor or ProgrammaticResearchAssessor()
+    bound_planner = planner or NoOpFollowUpPlanner()
+    wave_limit, need_limit = _loop_limits(max_follow_up_waves, max_needs)
     if router_factory is not None:
         router_factory(session)
     run = await get_run(session, attempt.run_id)
@@ -435,39 +670,35 @@ async def execute_attempt_research(
             attempt_id=attempt.id,
             evidence_set_id=evidence_set.id,
         )
-        seeded = await seed_need_executions(
+        await persist_runtime_needs(
+            session,
+            attempt_id=attempt.id,
+            needs=runtime_needs_from_plan(plan),
+        )
+        await seed_need_executions(
             session,
             attempt_id=attempt.id,
             need_ids=[need.id for need in plan.needs],
         )
-        pending = [
-            (row.id, row.research_need_id)
-            for row in seeded
-            if row.status not in TERMINAL_NEED_EXECUTION_STATUSES
-        ]
         context = research_context_from_run(run)
         factory = session_factory or _session_factory(session)
         await session.commit()
 
-        if pending:
-            await _run_need_executions(
-                factory=factory,
-                pending=pending,
-                evidence_set_id=evidence_set.id,
-                plan=plan,
-                context=context,
-                router=router,
-                router_factory=router_factory,
-                concurrency=need_concurrency,
-            )
+        await _run_research_loop(
+            factory=factory,
+            attempt_id=attempt_id,
+            evidence_set_id=evidence_set.id,
+            snapshot_plan=plan,
+            context=context,
+            router=router,
+            router_factory=router_factory,
+            assessor=bound_assessor,
+            planner=bound_planner,
+            concurrency=need_concurrency,
+            max_follow_up_waves=wave_limit,
+            max_needs=need_limit,
+        )
         async with factory() as final_session:
-            await _finalize_attempt_research(
-                final_session,
-                attempt_id=attempt_id,
-                evidence_set_id=evidence_set.id,
-                plan=plan,
-                assessor=bound_assessor,
-            )
             result = await _result_from_attempt(
                 final_session, await get_attempt(final_session, attempt_id)
             )
@@ -510,6 +741,11 @@ async def _refresh_caller_state(
         )
     )
     for row in cached_needs.scalars():
+        session.expire(row)
+    cached_runtime = await session.execute(
+        select(ResearchRuntimeNeed).where(ResearchRuntimeNeed.attempt_id == attempt_id)
+    )
+    for row in cached_runtime.scalars():
         session.expire(row)
     cached_assessments = await session.execute(
         select(ResearchAssessment).where(ResearchAssessment.attempt_id == attempt_id)

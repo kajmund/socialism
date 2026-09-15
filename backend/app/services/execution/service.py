@@ -19,6 +19,7 @@ from app.database.models import (
     Kund,
     ResearchAssessment,
     ResearchNeedExecution,
+    ResearchRuntimeNeed,
 )
 from app.services.execution.errors import (
     ExecutionError,
@@ -37,12 +38,16 @@ from app.services.execution.models import (
     INITIAL_ASSESSMENT_PASS,
     PREPARATION_STATUSES,
     RESEARCH_NEED_EXECUTION_STATUSES,
+    RESEARCH_NEED_ORIGINS,
+    RESEARCH_STOP_REASONS,
     SNAPSHOT_LOCKED_STATUSES,
     TERMINAL_NEED_EXECUTION_STATUSES,
     AssessmentResult,
     AttemptStatus,
     EvidenceSetStatus,
     ResearchNeedExecutionStatus,
+    ResearchNeedOrigin,
+    ResearchStopReason,
 )
 from app.services.execution.snapshots import (
     EvidenceItemSnapshot,
@@ -54,6 +59,7 @@ from app.services.research.assessment import (
     ResearchAssessmentDraft,
     need_assessment_to_json,
 )
+from app.services.research.followup import RuntimeResearchNeed
 from app.services.research.models import ResearchEvidence
 
 
@@ -822,6 +828,141 @@ async def persist_research_assessment(
     session.add(row)
     await session.flush()
     return row
+
+
+def _require_need_origin(value: str) -> ResearchNeedOrigin:
+    if value not in RESEARCH_NEED_ORIGINS:
+        raise ExecutionError(f"Unknown research need origin: {value}")
+    return value  # type: ignore[return-value]
+
+
+def _require_stop_reason(value: str | None) -> ResearchStopReason | None:
+    if value is None:
+        return None
+    if value not in RESEARCH_STOP_REASONS:
+        raise ExecutionError(f"Unknown research stop reason: {value}")
+    return value  # type: ignore[return-value]
+
+
+def runtime_need_from_row(row: ResearchRuntimeNeed) -> RuntimeResearchNeed:
+    return RuntimeResearchNeed(
+        research_need_id=row.research_need_id,
+        question=row.question,
+        why_needed=row.why_needed,
+        requested_by=list(row.requested_by or []),
+        source_types=list(row.source_types or []),
+        origin=_require_need_origin(row.origin),
+        wave_number=row.wave_number,
+        parent_research_need_id=row.parent_research_need_id,
+        source_assessment_pass=row.source_assessment_pass,
+        source_gap=row.source_gap or "",
+        question_key=row.question_key,
+    )
+
+
+async def list_runtime_needs(
+    session: AsyncSession, attempt_id: str
+) -> list[ResearchRuntimeNeed]:
+    await get_attempt(session, attempt_id)
+    result = await session.execute(
+        select(ResearchRuntimeNeed)
+        .where(ResearchRuntimeNeed.attempt_id == attempt_id)
+        .order_by(
+            ResearchRuntimeNeed.wave_number,
+            ResearchRuntimeNeed.created_at,
+            ResearchRuntimeNeed.research_need_id,
+        )
+    )
+    return list(result.scalars().all())
+
+
+async def list_runtime_needs_for_attempts(
+    session: AsyncSession, attempt_ids: list[str]
+) -> dict[str, list[ResearchRuntimeNeed]]:
+    if not attempt_ids:
+        return {}
+    result = await session.execute(
+        select(ResearchRuntimeNeed)
+        .where(ResearchRuntimeNeed.attempt_id.in_(attempt_ids))
+        .order_by(
+            ResearchRuntimeNeed.attempt_id,
+            ResearchRuntimeNeed.wave_number,
+            ResearchRuntimeNeed.created_at,
+            ResearchRuntimeNeed.research_need_id,
+        )
+    )
+    grouped: dict[str, list[ResearchRuntimeNeed]] = {attempt_id: [] for attempt_id in attempt_ids}
+    for row in result.scalars().all():
+        grouped.setdefault(row.attempt_id, []).append(row)
+    return grouped
+
+
+async def persist_runtime_needs(
+    session: AsyncSession,
+    *,
+    attempt_id: str,
+    needs: list[RuntimeResearchNeed],
+) -> list[ResearchRuntimeNeed]:
+    """Insert missing runtime needs. Existing ids/question keys are left unchanged."""
+    await get_attempt(session, attempt_id)
+    existing = await list_runtime_needs(session, attempt_id)
+    by_id = {row.research_need_id: row for row in existing}
+    for need in needs:
+        if need.research_need_id in by_id:
+            continue
+        session.add(
+            ResearchRuntimeNeed(
+                id=new_id(),
+                attempt_id=attempt_id,
+                research_need_id=need.research_need_id,
+                question=need.question,
+                why_needed=need.why_needed,
+                requested_by=list(need.requested_by),
+                source_types=list(need.source_types),
+                origin=_require_need_origin(need.origin),
+                wave_number=need.wave_number,
+                parent_research_need_id=need.parent_research_need_id,
+                source_assessment_pass=need.source_assessment_pass,
+                source_gap=need.source_gap,
+                question_key=need.question_key,
+            )
+        )
+    await session.flush()
+    return await list_runtime_needs(session, attempt_id)
+
+
+async def set_research_loop_state(
+    session: AsyncSession,
+    attempt_id: str,
+    *,
+    research_wave: int,
+    stop_reason: str | None,
+) -> ExecutionAttempt:
+    attempt = await get_attempt(session, attempt_id)
+    attempt.research_wave = research_wave
+    attempt.research_stop_reason = _require_stop_reason(stop_reason)
+    await session.flush()
+    return attempt
+
+
+async def list_research_assessments_for_attempts(
+    session: AsyncSession, attempt_ids: list[str]
+) -> dict[str, list[ResearchAssessment]]:
+    if not attempt_ids:
+        return {}
+    result = await session.execute(
+        select(ResearchAssessment)
+        .where(ResearchAssessment.attempt_id.in_(attempt_ids))
+        .order_by(
+            ResearchAssessment.attempt_id,
+            ResearchAssessment.assessment_pass,
+            ResearchAssessment.created_at,
+        )
+    )
+    grouped: dict[str, list[ResearchAssessment]] = {attempt_id: [] for attempt_id in attempt_ids}
+    for row in result.scalars().all():
+        grouped.setdefault(row.attempt_id, []).append(row)
+    return grouped
 
 
 async def claim_attempt_researching(
