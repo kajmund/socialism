@@ -17,6 +17,7 @@ from app.database.models import (
     ExecutionAttemptResult,
     ExecutionRun,
     Kund,
+    ResearchAssessment,
     ResearchNeedExecution,
 )
 from app.services.execution.errors import (
@@ -29,13 +30,16 @@ from app.services.execution.errors import (
 )
 from app.services.execution.models import (
     ALLOWED_ATTEMPT_TRANSITIONS,
+    ASSESSMENT_RESULTS,
     ATTEMPT_STATUSES,
     CLONEABLE_ATTEMPT_STATUSES,
     EVIDENCE_REQUIRED_FROZEN_STATUSES,
+    INITIAL_ASSESSMENT_PASS,
     PREPARATION_STATUSES,
     RESEARCH_NEED_EXECUTION_STATUSES,
     SNAPSHOT_LOCKED_STATUSES,
     TERMINAL_NEED_EXECUTION_STATUSES,
+    AssessmentResult,
     AttemptStatus,
     EvidenceSetStatus,
     ResearchNeedExecutionStatus,
@@ -45,6 +49,10 @@ from app.services.execution.snapshots import (
     compute_content_hash,
     require_json_object,
     snapshot_research_evidence,
+)
+from app.services.research.assessment import (
+    ResearchAssessmentDraft,
+    need_assessment_to_json,
 )
 from app.services.research.models import ResearchEvidence
 
@@ -710,6 +718,106 @@ async def persist_attempt_result(
         payload=require_json_object(payload, field="payload"),
         evidence_refs=require_json_object(evidence_refs or {}, field="evidence_refs"),
         panel_session_id=panel_session_id,
+    )
+    session.add(row)
+    await session.flush()
+    return row
+
+
+def _require_assessment_result(value: str) -> AssessmentResult:
+    if value not in ASSESSMENT_RESULTS:
+        raise ExecutionError(f"Unknown assessment result: {value}")
+    return value  # type: ignore[return-value]
+
+
+async def get_research_assessment(
+    session: AsyncSession,
+    attempt_id: str,
+    *,
+    assessment_pass: int = INITIAL_ASSESSMENT_PASS,
+) -> ResearchAssessment | None:
+    await get_attempt(session, attempt_id)
+    result = await session.execute(
+        select(ResearchAssessment).where(
+            ResearchAssessment.attempt_id == attempt_id,
+            ResearchAssessment.assessment_pass == assessment_pass,
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def list_research_assessments(
+    session: AsyncSession, attempt_id: str
+) -> list[ResearchAssessment]:
+    await get_attempt(session, attempt_id)
+    result = await session.execute(
+        select(ResearchAssessment)
+        .where(ResearchAssessment.attempt_id == attempt_id)
+        .order_by(ResearchAssessment.assessment_pass, ResearchAssessment.created_at)
+    )
+    return list(result.scalars().all())
+
+
+async def list_latest_research_assessments(
+    session: AsyncSession, attempt_ids: list[str]
+) -> dict[str, ResearchAssessment]:
+    if not attempt_ids:
+        return {}
+    result = await session.execute(
+        select(ResearchAssessment)
+        .where(ResearchAssessment.attempt_id.in_(attempt_ids))
+        .order_by(
+            ResearchAssessment.attempt_id,
+            ResearchAssessment.assessment_pass.desc(),
+            ResearchAssessment.created_at.desc(),
+        )
+    )
+    latest: dict[str, ResearchAssessment] = {}
+    for row in result.scalars().all():
+        if row.attempt_id not in latest:
+            latest[row.attempt_id] = row
+    return latest
+
+
+async def persist_research_assessment(
+    session: AsyncSession,
+    *,
+    attempt_id: str,
+    evidence_set_id: str,
+    draft: ResearchAssessmentDraft,
+    evidence_fingerprint: str,
+    assessment_pass: int = INITIAL_ASSESSMENT_PASS,
+) -> ResearchAssessment:
+    """Insert one row per Attempt pass. Re-runs return the existing row."""
+    existing = await get_research_assessment(
+        session, attempt_id, assessment_pass=assessment_pass
+    )
+    if existing is not None:
+        return existing
+    attempt = await get_attempt(session, attempt_id)
+    evidence_set = await get_evidence_set(session, evidence_set_id)
+    if evidence_set.run_id != attempt.run_id:
+        raise ExecutionScopeError(
+            "ResearchAssessment evidence must belong to the same run as the Attempt"
+        )
+    fingerprint = evidence_fingerprint.strip()
+    if not fingerprint:
+        raise ExecutionError("evidence_fingerprint is required")
+    row = ResearchAssessment(
+        id=new_id(),
+        attempt_id=attempt.id,
+        evidence_set_id=evidence_set.id,
+        assessment_pass=assessment_pass,
+        result=_require_assessment_result(draft.result),
+        rationale=draft.rationale,
+        need_assessments=[need_assessment_to_json(item) for item in draft.need_assessments],
+        gaps=list(draft.gaps),
+        contradictions=list(draft.contradictions),
+        considered_evidence_ids=list(draft.considered_evidence_ids),
+        evidence_fingerprint=fingerprint,
+        model_provider=draft.model_provider,
+        model_name=draft.model_name,
+        model_version=draft.model_version,
     )
     session.add(row)
     await session.flush()

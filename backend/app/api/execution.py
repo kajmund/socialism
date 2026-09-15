@@ -14,6 +14,7 @@ from app.database.models import (
     ExecutionAttempt,
     ExecutionAttemptResult,
     ExecutionRun,
+    ResearchAssessment,
     UserAccount,
 )
 from app.database.session import get_session
@@ -43,6 +44,8 @@ from app.services.execution.schemas import (
     ExecutionAttemptOut,
     ExecutionRunCreate,
     ExecutionRunOut,
+    ResearchAssessmentOut,
+    ResearchNeedAssessmentOut,
 )
 from app.services.execution.service import (
     clone_attempt,
@@ -55,6 +58,7 @@ from app.services.execution.service import (
     list_attempt_results,
     list_evidence_items,
     list_evidence_summaries,
+    list_latest_research_assessments,
     list_run_attempts,
 )
 from app.services.panel.attempt_execution import (
@@ -63,13 +67,14 @@ from app.services.panel.attempt_execution import (
     validate_generic_panel_snapshots,
 )
 from app.services.prompt_store import require_active_prompts
+from app.services.research.assessment import need_assessment_from_json
 from app.services.research.composition import (
     ResearchCompositionError,
+    build_standard_research_assessor,
     build_standard_research_router,
     require_research_router_ready,
 )
 from app.services.research.execution import (
-    AttemptResearchResult,
     ResearchExecutionError,
     execute_attempt_research,
 )
@@ -109,6 +114,39 @@ def _run_out(run: ExecutionRun) -> ExecutionRunOut:
         context=dict(run.context or {}),
         created_at=run.created_at,
         updated_at=run.updated_at,
+    )
+
+
+def _assessment_out(row: ResearchAssessment) -> ResearchAssessmentOut:
+    return ResearchAssessmentOut(
+        id=row.id,
+        attempt_id=row.attempt_id,
+        evidence_set_id=row.evidence_set_id,
+        assessment_pass=row.assessment_pass,
+        result=row.result,
+        rationale=row.rationale,
+        need_assessments=[
+            ResearchNeedAssessmentOut(
+                research_need_id=item.research_need_id,
+                sufficient=item.sufficient,
+                supporting_evidence_ids=list(item.supporting_evidence_ids),
+                missing_or_weak=item.missing_or_weak,
+                contradictions=list(item.contradictions),
+                further_information=item.further_information,
+            )
+            for item in (
+                need_assessment_from_json(raw)
+                for raw in (row.need_assessments or [])
+            )
+        ],
+        gaps=list(row.gaps or []),
+        contradictions=list(row.contradictions or []),
+        considered_evidence_ids=list(row.considered_evidence_ids or []),
+        evidence_fingerprint=row.evidence_fingerprint,
+        model_provider=row.model_provider,
+        model_name=row.model_name,
+        model_version=row.model_version,
+        created_at=row.created_at,
     )
 
 
@@ -155,17 +193,6 @@ def _evidence_set_out(row: EvidenceSet, items: list[EvidenceSetItem]) -> Evidenc
         created_at=row.created_at,
         frozen_at=row.frozen_at,
         items=[_item_out(item) for item in items],
-    )
-
-
-def _research_out(result: AttemptResearchResult) -> AttemptResearchOut:
-    return AttemptResearchOut(
-        attempt_id=result.attempt_id,
-        evidence_set_id=result.evidence_set_id,
-        status=result.status,
-        found_count=result.found_count,
-        not_found_count=result.not_found_count,
-        error_count=result.error_count,
     )
 
 
@@ -225,6 +252,7 @@ def _attempt_out_from_loaded(
     *,
     evidence: EvidenceSummaryOut | None,
     result_row: ExecutionAttemptResult | None,
+    assessment_row: ResearchAssessment | None = None,
 ) -> ExecutionAttemptOut:
     return ExecutionAttemptOut(
         id=attempt.id,
@@ -236,6 +264,7 @@ def _attempt_out_from_loaded(
         input_snapshot=dict(attempt.input_snapshot or {}),
         research_plan_snapshot=attempt.research_plan_snapshot,
         evidence=evidence,
+        assessment=None if assessment_row is None else _assessment_out(assessment_row),
         result=None if result_row is None else _result_out(result_row),
         created_at=attempt.created_at,
         started_at=attempt.started_at,
@@ -276,7 +305,13 @@ async def _attempt_out(
             )
         evidence = _summary_from_counts(attempt.evidence_set_id, *raw)
     result_row = await get_attempt_result(session, attempt.id)
-    return _attempt_out_from_loaded(attempt, evidence=evidence, result_row=result_row)
+    assessments = await list_latest_research_assessments(session, [attempt.id])
+    return _attempt_out_from_loaded(
+        attempt,
+        evidence=evidence,
+        result_row=result_row,
+        assessment_row=assessments.get(attempt.id),
+    )
 
 
 @router.post("/runs", response_model=ExecutionRunOut, status_code=201)
@@ -325,6 +360,9 @@ async def get_execution_run_attempts(
     ]
     summaries = await list_evidence_summaries(session, set_ids, run_id=run.id)
     results = await list_attempt_results(session, [attempt.id for attempt in attempts])
+    assessments = await list_latest_research_assessments(
+        session, [attempt.id for attempt in attempts]
+    )
     out: list[ExecutionAttemptOut] = []
     for attempt in attempts:
         evidence = None
@@ -341,6 +379,7 @@ async def get_execution_run_attempts(
                 attempt,
                 evidence=evidence,
                 result_row=results.get(attempt.id),
+                assessment_row=assessments.get(attempt.id),
             )
         )
     return out
@@ -441,6 +480,8 @@ async def _research_out_from_attempt(
         raw = summaries.get(attempt.evidence_set_id)
         if raw is not None:
             _status, found, not_found, error = raw
+    assessments = await list_latest_research_assessments(session, [attempt.id])
+    assessment_row = assessments.get(attempt.id)
     return AttemptResearchOut(
         attempt_id=attempt.id,
         evidence_set_id=attempt.evidence_set_id,
@@ -448,6 +489,7 @@ async def _research_out_from_attempt(
         found_count=found,
         not_found_count=not_found,
         error_count=error,
+        assessment=None if assessment_row is None else _assessment_out(assessment_row),
     )
 
 
@@ -461,18 +503,23 @@ async def post_attempt_research(
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> AttemptResearchOut:
-    attempt, _run = await _require_attempt(session, user, attempt_id)
+    attempt, run = await _require_attempt(session, user, attempt_id)
     if attempt.status == "ready":
         return await _research_out_from_attempt(session, attempt)
     try:
         plan = research_plan_from_snapshot(body.research_plan.model_dump())
         require_research_router_ready()
-        result = await execute_attempt_research(
+        assessor = await build_standard_research_assessor(
+            session, customer_id=run.customer_id, module=run.module
+        )
+        await execute_attempt_research(
             session,
             attempt_id=attempt_id,
             research_plan=plan,
             router_factory=build_standard_research_router,
+            assessor=assessor,
         )
+        attempt = await get_attempt(session, attempt_id)
     except (
         ExecutionError,
         InvalidResearchPlanError,
@@ -480,7 +527,7 @@ async def post_attempt_research(
         ResearchCompositionError,
     ) as exc:
         raise _http_for_execution_error(exc) from exc
-    return _research_out(result)
+    return await _research_out_from_attempt(session, attempt)
 
 
 @router.post(

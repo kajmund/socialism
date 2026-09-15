@@ -1,0 +1,240 @@
+"""LLM-backed ResearchAssessor using complete_structured. No live retrieval."""
+
+from __future__ import annotations
+
+import json
+from collections.abc import Awaitable, Callable, Sequence
+from typing import Any, Literal
+
+from pydantic import BaseModel, Field, field_validator
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.config import settings
+from app.llm import complete_structured
+from app.services.prompt_catalog import render_prompt
+from app.services.prompt_store import require_active_prompts
+from app.services.research.assessment import (
+    AssessableEvidence,
+    ResearchAssessmentDraft,
+    ResearchAssessmentError,
+    ResearchNeedAssessment,
+    can_assess_programmatically,
+    programmatic_assessment,
+    sanitize_assessment_draft,
+)
+from app.services.research.models import ResearchPlan
+
+Completer = Callable[[list[dict[str, Any]], type[Any]], Awaitable[Any]]
+
+
+class NeedSufficiencyModel(BaseModel):
+    research_need_id: str
+    sufficient: bool
+    supporting_evidence_ids: list[str] = Field(default_factory=list)
+    missing_or_weak: str = ""
+    contradictions: list[str] = Field(default_factory=list)
+    further_information: str = ""
+
+    @field_validator(
+        "research_need_id",
+        "missing_or_weak",
+        "further_information",
+        mode="before",
+    )
+    @classmethod
+    def strip_text(cls, value: object) -> str:
+        if value is None:
+            return ""
+        return str(value).strip()
+
+    @field_validator("supporting_evidence_ids", "contradictions", mode="before")
+    @classmethod
+    def list_of_text(cls, value: object) -> list[str]:
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            raise ValueError("must be a list")
+        return [str(item).strip() for item in value if str(item).strip()]
+
+
+class EvidenceSufficiencyModel(BaseModel):
+    result: Literal["sufficient", "insufficient"]
+    rationale: str
+    need_assessments: list[NeedSufficiencyModel] = Field(default_factory=list)
+    gaps: list[str] = Field(default_factory=list)
+    contradictions: list[str] = Field(default_factory=list)
+    considered_evidence_ids: list[str] = Field(default_factory=list)
+
+    @field_validator("rationale", mode="before")
+    @classmethod
+    def strip_rationale(cls, value: object) -> str:
+        if value is None:
+            return ""
+        return str(value).strip()
+
+    @field_validator("gaps", "contradictions", "considered_evidence_ids", mode="before")
+    @classmethod
+    def list_of_text(cls, value: object) -> list[str]:
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            raise ValueError("must be a list")
+        return [str(item).strip() for item in value if str(item).strip()]
+
+
+def _evidence_payload(item: AssessableEvidence) -> dict[str, object]:
+    return {
+        "evidence_id": item.evidence_id,
+        "research_need_id": item.research_need_id,
+        "source_type": item.source_type,
+        "status": item.status,
+        "title": item.title,
+        "excerpt": item.excerpt,
+        "locator": item.locator,
+        "source_id": item.source_id,
+        "source_url": item.source_url,
+        "provider": item.provider,
+        "score": item.score,
+        "provenance": dict(item.provenance),
+        "retrieved_at": item.retrieved_at.isoformat(),
+        "content_hash": item.content_hash,
+    }
+
+
+def _plan_payload(plan: ResearchPlan) -> dict[str, object]:
+    return {
+        "needs": [
+            {
+                "id": need.id,
+                "question": need.question,
+                "why_needed": need.why_needed,
+                "requested_by": list(need.requested_by),
+                "source_types": list(need.source_types),
+            }
+            for need in plan.needs
+        ]
+    }
+
+
+def _draft_from_model(
+    parsed: EvidenceSufficiencyModel,
+    *,
+    provider: str | None,
+    model: str | None,
+    model_version: str | None,
+) -> ResearchAssessmentDraft:
+    return ResearchAssessmentDraft(
+        result=parsed.result,
+        rationale=parsed.rationale,
+        need_assessments=[
+            ResearchNeedAssessment(
+                research_need_id=row.research_need_id,
+                sufficient=row.sufficient,
+                supporting_evidence_ids=list(row.supporting_evidence_ids),
+                missing_or_weak=row.missing_or_weak,
+                contradictions=list(row.contradictions),
+                further_information=row.further_information or None,
+            )
+            for row in parsed.need_assessments
+        ],
+        gaps=list(parsed.gaps),
+        contradictions=list(parsed.contradictions),
+        considered_evidence_ids=list(parsed.considered_evidence_ids),
+        model_provider=provider,
+        model_name=model,
+        model_version=model_version,
+    )
+
+
+class LlmResearchAssessor:
+    """Structured-output assessor. Never retrieves; never invents source IDs."""
+
+    def __init__(
+        self,
+        *,
+        completer: Completer | None = None,
+        system_prompt: str,
+        provider: str | None = None,
+        model: str | None = None,
+        model_version: str | None = None,
+    ) -> None:
+        text = system_prompt.strip()
+        if not text:
+            raise ResearchAssessmentError("research assessment prompt is required")
+        self._completer = completer or complete_structured
+        self._system_prompt = text
+        self._provider = provider
+        self._model = model
+        self._model_version = model_version
+
+    async def assess(
+        self,
+        plan: ResearchPlan,
+        evidence: Sequence[AssessableEvidence],
+    ) -> ResearchAssessmentDraft:
+        if can_assess_programmatically(plan, evidence):
+            return programmatic_assessment(
+                plan,
+                evidence,
+                model_provider="programmatic",
+                model_name=None,
+                model_version=None,
+            )
+        messages = [
+            {"role": "system", "content": self._system_prompt},
+            {
+                "role": "user",
+                "content": (
+                    "Assess whether the persisted evidence is sufficient to "
+                    "answer the ResearchPlan. Use only the evidence_id values "
+                    "supplied below. Do not invent IDs. Do not produce an "
+                    "expert answer or report.\n\n"
+                    "ResearchPlan:\n"
+                    f"{json.dumps(_plan_payload(plan), ensure_ascii=False)}\n\n"
+                    "EvidenceSet:\n"
+                    f"{json.dumps([_evidence_payload(item) for item in evidence], ensure_ascii=False)}"
+                ),
+            },
+        ]
+        try:
+            parsed = await self._completer(messages, EvidenceSufficiencyModel)
+        except Exception as exc:
+            raise ResearchAssessmentError(
+                "Evidence sufficiency model call failed"
+            ) from exc
+        if not isinstance(parsed, EvidenceSufficiencyModel):
+            try:
+                parsed = EvidenceSufficiencyModel.model_validate(parsed)
+            except Exception as exc:
+                raise ResearchAssessmentError(
+                    "Evidence sufficiency model returned an invalid payload"
+                ) from exc
+        return sanitize_assessment_draft(
+            _draft_from_model(
+                parsed,
+                provider=self._provider,
+                model=self._model,
+                model_version=self._model_version,
+            ),
+            plan=plan,
+            evidence=evidence,
+        )
+
+
+async def build_llm_research_assessor(
+    session: AsyncSession,
+    *,
+    customer_id: int,
+    module: str,
+) -> LlmResearchAssessor:
+    prompts = await require_active_prompts(
+        session,
+        customer_id=customer_id,
+        module=module,
+        language="sv",
+    )
+    return LlmResearchAssessor(
+        system_prompt=render_prompt(prompts, "research.assessment.system"),
+        provider=settings.llm_provider,
+        model=settings.selected_llm_model,
+    )
