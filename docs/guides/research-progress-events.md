@@ -21,7 +21,9 @@ Live delivery is not the source of truth. A hung or failed socket cannot roll ba
 
 ## Why this transport
 
-`main` already has in-process WebSocket hubs (`EventHub` for jobs/reports, room registries for run/panel/Word watch). Research uses the same seam: an attempt-scoped registry + `/ws/research`. No new SSE stack. A background worker can emit without an HTTP request context because append + scheduled publish take a session / in-process hub only.
+`main` already has in-process WebSocket hubs (`EventHub` for jobs/reports, room registries for run/panel/Word watch). Research uses the same seam: an attempt-scoped registry + `/ws/research`. No new SSE stack.
+
+The durable background worker (`research_worker.py`) calls the same `execute_attempt_research` on its own sessions. Domain transitions emit `ResearchProgressEvent` there; claim/lease/heartbeat rows do not. There is no HTTP request context on that path.
 
 ## Payload rules
 
