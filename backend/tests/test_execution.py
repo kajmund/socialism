@@ -159,6 +159,7 @@ async def test_acceptance_clone_reuses_frozen_evidence_without_mutating_source(s
     assert attempt_b.configuration_snapshot != attempt_a.configuration_snapshot
     assert attempt_b.input_snapshot == source_before["input"]
     assert attempt_b.status == "ready"
+    assert attempt_b.research_objective_snapshot == attempt_a.research_objective_snapshot
     assert attempt_b.research_plan_snapshot == attempt_a.research_plan_snapshot
 
     reloaded_a = await get_attempt(session, attempt_a.id)
@@ -426,6 +427,7 @@ async def test_clone_without_config_copies_source_exactly(session):
     clone = await clone_attempt(session, attempt_a.id)
     assert clone.configuration_snapshot == attempt_a.configuration_snapshot
     assert clone.input_snapshot == attempt_a.input_snapshot
+    assert clone.research_objective_snapshot == attempt_a.research_objective_snapshot
     assert clone.research_plan_snapshot == attempt_a.research_plan_snapshot
     assert clone.attempt_type == attempt_a.attempt_type
     assert clone.evidence_set_id == frozen.id

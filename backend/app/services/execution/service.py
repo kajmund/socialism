@@ -558,6 +558,7 @@ async def create_attempt(
     attempt_type: str,
     configuration_snapshot: dict[str, object] | None = None,
     input_snapshot: dict[str, object] | None = None,
+    research_objective_snapshot: dict[str, object] | None = None,
     evidence_set_id: str | None = None,
     parent_attempt_id: str | None = None,
 ) -> ExecutionAttempt:
@@ -582,6 +583,13 @@ async def create_attempt(
             configuration_snapshot or {}, field="configuration_snapshot"
         ),
         input_snapshot=require_json_object(input_snapshot or {}, field="input_snapshot"),
+        research_objective_snapshot=(
+            require_json_object(
+                research_objective_snapshot, field="research_objective_snapshot"
+            )
+            if research_objective_snapshot is not None
+            else None
+        ),
         research_plan_snapshot=None,
         evidence_set_id=attached_id,
     )
@@ -613,6 +621,7 @@ async def set_attempt_snapshots(
     attempt_id: str,
     configuration_snapshot: dict[str, object] | None = None,
     input_snapshot: dict[str, object] | None = None,
+    research_objective_snapshot: dict[str, object] | None = None,
     research_plan_snapshot: dict[str, object] | None = None,
 ) -> ExecutionAttempt:
     attempt = await get_attempt(session, attempt_id)
@@ -625,12 +634,39 @@ async def set_attempt_snapshots(
         attempt.input_snapshot = require_json_object(
             input_snapshot, field="input_snapshot"
         )
+    if research_objective_snapshot is not None:
+        attempt.research_objective_snapshot = _set_once_snapshot(
+            attempt.research_objective_snapshot,
+            research_objective_snapshot,
+            field="research_objective_snapshot",
+            attempt_id=attempt.id,
+        )
     if research_plan_snapshot is not None:
-        attempt.research_plan_snapshot = require_json_object(
-            research_plan_snapshot, field="research_plan_snapshot"
+        attempt.research_plan_snapshot = _set_once_snapshot(
+            attempt.research_plan_snapshot,
+            research_plan_snapshot,
+            field="research_plan_snapshot",
+            attempt_id=attempt.id,
         )
     await session.flush()
     return attempt
+
+
+def _set_once_snapshot(
+    current: dict | None,
+    incoming: dict[str, object],
+    *,
+    field: str,
+    attempt_id: str,
+) -> dict[str, object]:
+    snapshot = require_json_object(incoming, field=field)
+    if current is None:
+        return snapshot
+    if current != snapshot:
+        raise ExecutionImmutableError(
+            f"Attempt {attempt_id} {field} is immutable once persisted"
+        )
+    return current
 
 
 async def require_frozen_evidence_for_attempt(
@@ -1086,6 +1122,7 @@ async def clone_attempt(
 
     source_config = deepcopy(source.configuration_snapshot)
     source_input = deepcopy(source.input_snapshot)
+    source_objective = deepcopy(source.research_objective_snapshot)
     source_plan = deepcopy(source.research_plan_snapshot)
     source_started = source.started_at
     source_completed = source.completed_at
@@ -1106,6 +1143,7 @@ async def clone_attempt(
         attempt_type=source.attempt_type,
         configuration_snapshot=new_config,
         input_snapshot=deepcopy(source.input_snapshot),
+        research_objective_snapshot=deepcopy(source_objective),
         evidence_set_id=evidence_set.id,
         parent_attempt_id=source.id,
     )
@@ -1117,6 +1155,7 @@ async def clone_attempt(
     if (
         reloaded.configuration_snapshot != source_config
         or reloaded.input_snapshot != source_input
+        or reloaded.research_objective_snapshot != source_objective
         or reloaded.research_plan_snapshot != source_plan
         or reloaded.status != source_status
         or reloaded.started_at != source_started
