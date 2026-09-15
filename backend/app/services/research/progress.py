@@ -13,11 +13,13 @@ from contextvars import ContextVar
 from typing import Any, Literal, Self
 from uuid import uuid4
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import (
     EvidenceSetItem,
+    ExecutionAttempt,
     ResearchAssessment,
     ResearchCompletenessPass,
     ResearchNeedExecution,
@@ -202,6 +204,27 @@ async def get_research_progress_event_by_key(
     return result.scalar_one_or_none()
 
 
+async def _lock_attempt_event_allocation(
+    session: AsyncSession, attempt_id: str
+) -> None:
+    """Serialize per-Attempt sequence/key allocation across workers.
+
+    Postgres honors FOR UPDATE as a row lock. SQLite ignores it, so a
+    no-op write on the same row takes the write lock before MAX()+1.
+    """
+    result = await session.execute(
+        select(ExecutionAttempt)
+        .where(ExecutionAttempt.id == attempt_id)
+        .with_for_update()
+    )
+    attempt = result.scalar_one()
+    await session.execute(
+        update(ExecutionAttempt)
+        .where(ExecutionAttempt.id == attempt.id)
+        .values(id=attempt.id)
+    )
+
+
 async def _next_sequence(session: AsyncSession, attempt_id: str) -> int:
     result = await session.execute(
         select(func.max(ResearchProgressEvent.sequence)).where(
@@ -235,6 +258,7 @@ async def append_research_progress_event(
     key = idempotency_key.strip()
     if not key:
         raise ValueError("idempotency_key is required")
+    await _lock_attempt_event_allocation(session, attempt_id)
     existing = await get_research_progress_event_by_key(session, attempt_id, key)
     if existing is not None:
         _track(existing)
@@ -247,8 +271,16 @@ async def append_research_progress_event(
         payload=sanitize_progress_payload(payload),
         idempotency_key=key,
     )
-    session.add(row)
-    await session.flush()
+    try:
+        async with session.begin_nested():
+            session.add(row)
+            await session.flush()
+    except IntegrityError:
+        existing = await get_research_progress_event_by_key(session, attempt_id, key)
+        if existing is None:
+            raise
+        _track(existing)
+        return existing
     _track(row)
     return row
 

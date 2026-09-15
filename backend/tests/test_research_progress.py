@@ -5,11 +5,12 @@ from __future__ import annotations
 import asyncio
 
 import pytest
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from app.database.base import Base
-from app.database.models import ResearchProgressEvent
+from app.database.models import ExecutionAttempt, ResearchProgressEvent
 from app.services.execution import (
     complete_need_execution,
     get_attempt,
@@ -55,6 +56,21 @@ async def db():
     factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    async with factory() as session:
+        yield session, factory
+    await engine.dispose()
+
+
+@pytest.fixture
+async def file_db(tmp_path):
+    engine = create_async_engine(
+        f"sqlite+aiosqlite:///{tmp_path}/progress-events.sqlite",
+        connect_args={"check_same_thread": False, "timeout": 15},
+    )
+    factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(text("PRAGMA journal_mode=WAL"))
     async with factory() as session:
         yield session, factory
     await engine.dispose()
@@ -401,3 +417,64 @@ def test_sanitize_progress_payload_strips_prompts():
         "research_need_id": "n1",
         "nested": {"source_type": "case_knowledge"},
     }
+
+
+async def _append_with_domain(
+    factory: async_sessionmaker[AsyncSession],
+    *,
+    attempt_id: str,
+    key: str,
+    wave: int,
+) -> ResearchProgressEvent:
+    async with factory() as session:
+        attempt = await session.get(ExecutionAttempt, attempt_id)
+        assert attempt is not None
+        attempt.research_wave = wave
+        event = await append_research_progress_event(
+            session,
+            attempt_id=attempt_id,
+            event_type="need_queued",
+            idempotency_key=key,
+            payload={"wave": wave},
+        )
+        await session.commit()
+        return event
+
+
+@pytest.mark.asyncio
+async def test_concurrent_appends_distinct_keys_stay_monotonic(file_db):
+    session, factory = file_db
+    _customer, _run, attempt = await _created_attempt(session, slug="prog-race-keys")
+    await session.commit()
+    first, second = await asyncio.gather(
+        _append_with_domain(factory, attempt_id=attempt.id, key="need_queued:a", wave=3),
+        _append_with_domain(factory, attempt_id=attempt.id, key="need_queued:b", wave=4),
+    )
+    async with factory() as check:
+        events = await list_research_progress_events(check, attempt.id)
+        done = await check.get(ExecutionAttempt, attempt.id)
+    assert done is not None
+    assert done.research_wave in {3, 4}
+    assert {first.id, second.id} == {row.id for row in events}
+    assert [row.sequence for row in events] == [1, 2]
+    assert {row.idempotency_key for row in events} == {"need_queued:a", "need_queued:b"}
+
+
+@pytest.mark.asyncio
+async def test_concurrent_appends_same_key_are_idempotent(file_db):
+    session, factory = file_db
+    _customer, _run, attempt = await _created_attempt(session, slug="prog-race-same")
+    await session.commit()
+    first, second = await asyncio.gather(
+        _append_with_domain(factory, attempt_id=attempt.id, key="need_queued:a", wave=3),
+        _append_with_domain(factory, attempt_id=attempt.id, key="need_queued:a", wave=4),
+    )
+    async with factory() as check:
+        events = await list_research_progress_events(check, attempt.id)
+        done = await check.get(ExecutionAttempt, attempt.id)
+    assert done is not None
+    assert done.research_wave in {3, 4}
+    assert first.id == second.id
+    assert first.sequence == second.sequence == 1
+    assert [row.id for row in events] == [first.id]
+    assert [row.sequence for row in events] == [1]
