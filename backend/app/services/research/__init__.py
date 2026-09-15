@@ -12,6 +12,7 @@ from app.services.research.knowledge_source import (
     provenance_from_hit,
     search_scope,
 )
+from app.services.research.lagen_nu_source import LagenNuResearchSource
 from app.services.research.models import (
     RESEARCH_SOURCE_TYPES,
     InvalidResearchPlanError,
@@ -89,6 +90,7 @@ __all__ = [
     "ResearchObjective",
     "ResearchPlannerError",
     "KnowledgeResearchSource",
+    "LagenNuResearchSource",
     "NeedConstraints",
     "ProviderAccess",
     "ResearchCapabilityUnavailableError",

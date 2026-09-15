@@ -624,7 +624,7 @@ async def test_catalog_type_missing_from_capability_cannot_become_global_need(db
     session, factory = db
     _customer, _run, attempt = await _created_attempt(session, slug="comp-factory-gap")
     reviewer = SequenceCompletenessReviewer(
-        [_incomplete(_missing("Vad säger skattelagen?", source_types=["swedish_law"]))]
+        [_incomplete(_missing("Vad säger webben?", source_types=["web"]))]
     )
     router, sources = _router(RecordingSource("case_knowledge"))
     bound_sessions: list[object] = []
@@ -652,15 +652,15 @@ async def test_catalog_type_missing_from_capability_cannot_become_global_need(db
     assert [row.origin for row in needs] == ["initial"]
     assert passes[0].result == "incomplete"
     missing = passes[0].missing_questions[0]
-    assert missing["question"] == "Vad säger skattelagen?"
+    assert missing["question"] == "Vad säger webben?"
     assert missing["source_types"] == []
-    assert missing["unavailable_source_types"] == ["swedish_law"]
-    assert missing["capability_gap"] == "unavailable source_type: swedish_law"
+    assert missing["unavailable_source_types"] == ["web"]
+    assert missing["capability_gap"] == "unavailable source_type: web"
     assert bound_sessions
     assert session not in bound_sessions
     assert sources[0].calls == 1
-    assert "swedish_law" not in reviewer.available_source_types_calls[0]
     assert "web" not in reviewer.available_source_types_calls[0]
+    assert "domain_knowledge" not in reviewer.available_source_types_calls[0]
 
 
 def test_question_fingerprint_includes_objective():
