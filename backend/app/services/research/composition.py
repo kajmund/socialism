@@ -13,6 +13,7 @@ from app.services.knowledge import (
 )
 from app.services.knowledge.vector_store import KnowledgeVectorStore
 from app.services.research.assessment import ResearchAssessor
+from app.services.research.completeness import ResearchCompletenessReviewer
 from app.services.research.followup import FollowUpResearchPlanner
 from app.services.research.models import ResearchError
 from app.services.research.planner import ResearchPlanner
@@ -26,6 +27,7 @@ ResearchRouterFactory = Callable[[AsyncSession], ResearchRouter]
 ResearchAssessorFactory = Callable[[], ResearchAssessor]
 FollowUpPlannerFactory = Callable[[], FollowUpResearchPlanner]
 ResearchPlannerFactory = Callable[[], ResearchPlanner]
+ResearchCompletenessReviewerFactory = Callable[[], ResearchCompletenessReviewer]
 KnowledgeVectorStoreFactory = Callable[[], KnowledgeVectorStore]
 
 _UNCONFIGURED_VECTOR_STORE = (
@@ -37,6 +39,7 @@ _router_factory: ResearchRouterFactory | None = None
 _assessor_factory: ResearchAssessorFactory | None = None
 _planner_factory: FollowUpPlannerFactory | None = None
 _research_planner_factory: ResearchPlannerFactory | None = None
+_completeness_reviewer_factory: ResearchCompletenessReviewerFactory | None = None
 _vector_store_factory: KnowledgeVectorStoreFactory | None = None
 
 
@@ -66,6 +69,14 @@ def set_research_planner_factory(factory: ResearchPlannerFactory | None) -> None
     """Test seam for the initial ResearchPlanner. Production leaves this unset."""
     global _research_planner_factory
     _research_planner_factory = factory
+
+
+def set_completeness_reviewer_factory(
+    factory: ResearchCompletenessReviewerFactory | None,
+) -> None:
+    """Test seam for the global completeness reviewer. Production leaves this unset."""
+    global _completeness_reviewer_factory
+    _completeness_reviewer_factory = factory
 
 
 def set_knowledge_vector_store_factory(
@@ -128,4 +139,11 @@ def resolve_research_planner() -> ResearchPlanner | None:
     """Test-injected initial planner, or None so the API can wire the LLM adapter."""
     if _research_planner_factory is not None:
         return _research_planner_factory()
+    return None
+
+
+def resolve_completeness_reviewer() -> ResearchCompletenessReviewer | None:
+    """Test-injected reviewer, or None so the API can wire the LLM adapter."""
+    if _completeness_reviewer_factory is not None:
+        return _completeness_reviewer_factory()
     return None
