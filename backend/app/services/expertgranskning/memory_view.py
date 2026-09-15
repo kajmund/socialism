@@ -2,13 +2,26 @@
 
 from __future__ import annotations
 
+import re
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Persona
 from app.schemas.domain import ExpertMemoryExpertOut, ExpertMemoryOut
-from app.services.dd.expert_keys import persona_catalog_key
 from app.services.expertgranskning.memory import ExpertMemoryHit, memory_image_sha256
+
+_EXPERT_KEY_RE = re.compile(r"[^a-z0-9]+")
+
+
+def _catalog_key(persona: Persona) -> str:
+    prefix = f"exp_{persona.customer_id}_"
+    if persona.id.startswith(prefix):
+        return persona.id[len(prefix) :]
+    if persona.id.startswith("exp_"):
+        return persona.id[4:]
+    slug = _EXPERT_KEY_RE.sub("_", persona.name.strip().casefold()).strip("_")
+    return slug or "expert"
 
 
 def serialize_memory_hit(
@@ -45,7 +58,7 @@ async def expert_directory(
     result = await session.execute(stmt)
     directory: dict[tuple[int, str], tuple[str, str]] = {}
     for persona in result.scalars().all():
-        directory[(persona.customer_id, persona_catalog_key(persona))] = (
+        directory[(persona.customer_id, _catalog_key(persona))] = (
             persona.name,
             persona.id,
         )
