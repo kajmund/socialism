@@ -55,12 +55,16 @@ from app.services.research.plan import research_plan_to_snapshot
 from app.services.research.planner import FakeResearchPlanner, ResearchNeedDraft
 from app.services.research.registry import ResearchSourceRegistry
 from app.services.research.router import ResearchRouter
+from app.config import settings
 from app.services.research_worker import (
     accept_attempt_research,
+    reset_research_worker,
     run_due_research_claims,
     run_research_claim,
     set_research_schedule_hook,
     set_research_session_factory,
+    start_research_reclaim_loop,
+    stop_research_reclaim_loop,
     wait_research_workers,
 )
 from app.services.research.models import research_evidence
@@ -86,8 +90,7 @@ async def worker_db():
     async with factory() as session:
         yield session, factory
     await wait_research_workers()
-    set_research_session_factory(None)
-    set_research_schedule_hook(None)
+    reset_research_worker()
     set_research_assessor_factory(None)
     set_follow_up_planner_factory(None)
     set_completeness_reviewer_factory(None)
@@ -422,6 +425,7 @@ async def test_due_claim_loop_completes_unclaimed_work(worker_db):
         )
         assert status == "202"
         assert await run_due_research_claims() == 1
+        await wait_research_workers()
     finally:
         set_research_router_factory(None)
     async with factory() as check:
@@ -450,3 +454,220 @@ async def test_release_clears_ownership(worker_db):
     again = await claim_research_lease(session, attempt.id, worker_id="w2")
     assert again is not None
     assert again.worker_id == "w2"
+
+
+@pytest.mark.asyncio
+async def test_due_claim_loop_does_not_await_reclaimed_work_inline(worker_db):
+    session, factory = worker_db
+    _kund, _run, attempt = await _attempt(session, "poll-co")
+    entered = asyncio.Event()
+    gate = asyncio.Event()
+
+    class GatedSource:
+        source_type = "case_knowledge"
+        provider_id = "fake"
+
+        async def research(self, need: ResearchNeed, context: ResearchContext):
+            entered.set()
+            await gate.wait()
+            return [
+                research_evidence(
+                    research_need_id=need.id,
+                    source_type="case_knowledge",
+                    status="found",
+                    excerpt="skattesats 32%",
+                    locator="p. 14",
+                )
+            ]
+
+    registry = ResearchSourceRegistry()
+    registry.register(GatedSource())
+    set_research_router_factory(lambda _session: ResearchRouter(registry))
+    plan = ResearchPlan(needs=[_need("research_1", "case_knowledge")])
+    try:
+        status = await accept_attempt_research(
+            session,
+            attempt_id=attempt.id,
+            research_objective=None,
+            research_context={},
+            research_plan=research_plan_to_snapshot(plan),
+        )
+        assert status == "202"
+        started = asyncio.get_running_loop().time()
+        assert await run_due_research_claims() == 1
+        elapsed = asyncio.get_running_loop().time() - started
+        await asyncio.wait_for(entered.wait(), timeout=2)
+        assert elapsed < 0.5
+        async with factory() as check:
+            row = await get_attempt(check, attempt.id)
+        assert row.status in {"created", "researching"}
+    finally:
+        gate.set()
+        await wait_research_workers()
+        set_research_router_factory(None)
+
+
+@pytest.mark.asyncio
+async def test_lease_loss_fences_old_worker_after_second_claimant(
+    worker_db, monkeypatch
+):
+    session, factory = worker_db
+    monkeypatch.setattr(settings, "research_claim_lease_seconds", 0.3)
+    _kund, _run, attempt = await _attempt(session, "fence-co")
+    entered = asyncio.Event()
+    gate = asyncio.Event()
+    first_retrieve = True
+
+    class GatedSource:
+        source_type = "case_knowledge"
+        provider_id = "fake"
+        calls = 0
+
+        async def research(self, need: ResearchNeed, context: ResearchContext):
+            self.calls += 1
+            nonlocal first_retrieve
+            if first_retrieve:
+                first_retrieve = False
+                entered.set()
+                await gate.wait()
+            return [
+                research_evidence(
+                    research_need_id=need.id,
+                    source_type="case_knowledge",
+                    status="found",
+                    excerpt="skattesats 32%",
+                    locator="p. 14",
+                )
+            ]
+
+    source = GatedSource()
+    registry = ResearchSourceRegistry()
+    registry.register(source)
+    set_research_router_factory(lambda _session: ResearchRouter(registry))
+    plan = ResearchPlan(needs=[_need("research_1", "case_knowledge")])
+    try:
+        await accept_attempt_research(
+            session,
+            attempt_id=attempt.id,
+            research_objective=None,
+            research_context={},
+            research_plan=research_plan_to_snapshot(plan),
+        )
+        first = asyncio.create_task(run_research_claim(attempt.id))
+        await asyncio.wait_for(entered.wait(), timeout=2)
+        async with factory() as expire:
+            row = await expire.get(ExecutionResearchClaim, attempt.id)
+            assert row is not None
+            row.lease_expires_at = utc_now() - timedelta(seconds=1)
+            await expire.commit()
+        second = asyncio.create_task(run_research_claim(attempt.id))
+        await asyncio.wait_for(second, timeout=5)
+        await asyncio.wait_for(first, timeout=5)
+        async with factory() as check:
+            done = await get_attempt(check, attempt.id)
+            items = (
+                await check.execute(select(func.count()).select_from(EvidenceSetItem))
+            ).scalar()
+            claimable = await list_claimable_attempt_ids(check)
+        assert done.status == "ready"
+        assert items == 1
+        assert claimable == []
+        assert source.calls >= 1
+    finally:
+        gate.set()
+        await wait_research_workers()
+        set_research_router_factory(None)
+
+
+@pytest.mark.asyncio
+async def test_setup_failure_fail_closes_attempt(worker_db):
+    session, factory = worker_db
+    _kund, _run, attempt = await _attempt(session, "setup-co")
+
+    class BoomAssessor:
+        def __init__(self) -> None:
+            raise RuntimeError("assessor catalog missing")
+
+    router, sources = _router(RecordingSource("case_knowledge"))
+    set_research_router_factory(lambda _session: router)
+    set_research_assessor_factory(BoomAssessor)
+    plan = ResearchPlan(needs=[_need("research_1", "case_knowledge")])
+    try:
+        status = await accept_attempt_research(
+            session,
+            attempt_id=attempt.id,
+            research_objective=None,
+            research_context={},
+            research_plan=research_plan_to_snapshot(plan),
+        )
+        assert status == "202"
+        await run_research_claim(attempt.id)
+        await run_due_research_claims()
+        await wait_research_workers()
+    finally:
+        set_research_router_factory(None)
+        set_research_assessor_factory(ProgrammaticResearchAssessor)
+    async with factory() as check:
+        row = await get_attempt(check, attempt.id)
+        claimable = await list_claimable_attempt_ids(check)
+    assert row.status == "failed"
+    assert claimable == []
+    assert sources[0].calls == 0
+
+
+@pytest.mark.asyncio
+async def test_stop_reclaim_loop_does_not_fail_inflight_research(worker_db):
+    session, factory = worker_db
+    _kund, _run, attempt = await _attempt(session, "stop-co")
+    entered = asyncio.Event()
+    gate = asyncio.Event()
+
+    class GatedSource:
+        source_type = "case_knowledge"
+        provider_id = "fake"
+
+        async def research(self, need: ResearchNeed, context: ResearchContext):
+            entered.set()
+            await gate.wait()
+            return [
+                research_evidence(
+                    research_need_id=need.id,
+                    source_type="case_knowledge",
+                    status="found",
+                    excerpt="skattesats 32%",
+                    locator="p. 14",
+                )
+            ]
+
+    registry = ResearchSourceRegistry()
+    registry.register(GatedSource())
+    set_research_router_factory(lambda _session: ResearchRouter(registry))
+    plan = ResearchPlan(needs=[_need("research_1", "case_knowledge")])
+    stop = None
+    try:
+        await accept_attempt_research(
+            session,
+            attempt_id=attempt.id,
+            research_objective=None,
+            research_context={},
+            research_plan=research_plan_to_snapshot(plan),
+        )
+        assert await run_due_research_claims() == 1
+        await asyncio.wait_for(entered.wait(), timeout=2)
+        stop = start_research_reclaim_loop()
+        await stop_research_reclaim_loop(stop)
+        stop = None
+        assert await run_due_research_claims() == 0
+        async with factory() as check:
+            paused = await get_attempt(check, attempt.id)
+        assert paused.status in {"created", "researching"}
+        gate.set()
+        await wait_research_workers()
+        async with factory() as check:
+            done = await get_attempt(check, attempt.id)
+        assert done.status == "ready"
+    finally:
+        gate.set()
+        if stop is not None:
+            await stop_research_reclaim_loop(stop)
+        set_research_router_factory(None)

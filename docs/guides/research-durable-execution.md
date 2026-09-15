@@ -31,6 +31,8 @@ WHERE attempt_id = ?
 Two workers cannot hold the same active lease. The owner heartbeats
 (`research_claim_lease_seconds`, default 60s) by token. Release clears
 ownership. A lost heartbeat does **not** mark research complete or failed.
+If renew returns false after another worker reclaimed, the old worker
+sets a lease-lost fence and cancels its executor so it cannot keep writing.
 
 ## Start / idempotency
 
@@ -57,6 +59,13 @@ the request `AsyncSession` for the worker.
    `app/services/research_worker.py` (outside the LLM-free research package).
 5. Heartbeat until the engine returns, then release the lease.
 
+The reclaim loop only **schedules** tracked worker tasks. It does not
+await a reclaimed job inline, so scanning other expired claims continues.
+Shutdown stops accepting new work and cancels only the poll loop. In-flight
+executors keep running; `CancelledError` does not fail-close recoverable
+research. Errors while binding assessor / follow-up / completeness (before
+`execute_attempt_research`) persist `failed` via `fail_incomplete_research`.
+
 `execute_attempt_research` is the single execution implementation. Direct
 calls remain the synchronous test seam.
 
@@ -72,8 +81,10 @@ worker. Resume:
 - continues the loop from persisted `research_wave`
 
 Need rows still `running` are retrieved again; evidence item uniqueness
-prevents duplicate items. Actual engine failures still fail-closed
-(`researching` → `failed`, EvidenceSet failed, no freeze).
+prevents duplicate items. `CancelledError` and lease-lost fencing leave
+that work recoverable. Actual engine or pre-loop setup failures still
+fail-closed (`created`/`researching` → `failed`, EvidenceSet failed, no
+freeze).
 
 Startup no longer marks in-flight research failed.
 
