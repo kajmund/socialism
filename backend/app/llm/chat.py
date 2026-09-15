@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from typing import Any
 
+from app.config import settings
 from app.llm import complete_structured, complete_text, stream_text
 from app.llm.vision_content import user_content_with_optional_image
 from app.schemas.domain import ChatMode, EditablePersona, FollowUpQuestions
@@ -14,6 +15,16 @@ from app.services.prompt_catalog import render_prompt
 
 MAX_FOLLOW_UPS = 3
 MAX_QUESTION_CHARS = 140
+# Chips are short JSON. Thinking-mode DeepSeek otherwise occupies the
+# same connection the first chat turn needs (HTTP 200, then a long body).
+_FOLLOW_UP_MAX_TOKENS = 512
+_FOLLOW_UP_TIMEOUT_SECONDS = 15.0
+
+
+def _follow_up_reasoning_effort() -> str | None:
+    if settings.llm_provider == "deepseek":
+        return "none"
+    return None
 
 
 def _expert_block(profile: EditablePersona) -> str:
@@ -365,5 +376,8 @@ async def suggest_follow_up_questions(
     result = await complete_structured(
         [{"role": "system", "content": f"{system}\n\n{voice}"}],
         FollowUpQuestions,
+        max_tokens=_FOLLOW_UP_MAX_TOKENS,
+        timeout=_FOLLOW_UP_TIMEOUT_SECONDS,
+        reasoning_effort=_follow_up_reasoning_effort(),
     )
     return normalize_follow_up_questions(result.questions)

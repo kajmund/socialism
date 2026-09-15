@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
+from types import SimpleNamespace
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
+from app.config import settings
 from app.database.base import Base
 from app.database.models import Persona
 from app.llm import set_structured_completer, set_text_streamer
@@ -17,7 +20,7 @@ from app.llm.chat import (
     suggest_follow_up_questions,
 )
 from app.schemas.domain import EditablePersona, FollowUpQuestions, PersonaChatResponse
-from app.services.persona_chat import ChatSuggestions, stream_library_chat_turn
+from app.services.persona_chat import library_follow_up_questions, stream_library_chat_turn
 from app.services.prompt_catalog import default_prompts
 from app.services.prompt_store import ensure_default_configurations
 
@@ -114,6 +117,51 @@ async def test_suggest_follow_ups_in_character_uses_partner_voice():
     assert "Intervjuare:" not in blob
 
 
+@pytest.mark.asyncio
+async def test_suggest_follow_ups_disables_deepseek_reasoning(monkeypatch):
+    set_structured_completer(None)
+    captured: dict = {}
+    previous = (settings.llm_provider, settings.llm_reasoning_effort)
+    settings.llm_provider = "deepseek"
+    settings.llm_reasoning_effort = "high"
+
+    async def fake_create(**kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace(
+            choices=[
+                SimpleNamespace(
+                    message=SimpleNamespace(
+                        content='{"questions":["Läget?","Fika?","Kväll?"]}'
+                    )
+                )
+            ],
+            usage=SimpleNamespace(prompt_tokens=4, completion_tokens=3),
+        )
+
+    monkeypatch.setattr(
+        "app.llm.get_client",
+        lambda: SimpleNamespace(
+            chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))
+        ),
+    )
+    try:
+        questions = await suggest_follow_up_questions(
+            EditablePersona(name="Anna Lind"),
+            "character",
+            [("user", "Hej"), ("assistant", "Tjena")],
+            prompts=default_prompts("sv"),
+        )
+    finally:
+        settings.llm_provider, settings.llm_reasoning_effort = previous
+
+    assert questions == ["Läget?", "Fika?", "Kväll?"]
+    assert captured["max_tokens"] == 512
+    assert (
+        captured.get("reasoning_effort") == "none"
+        or (captured.get("extra_body") or {}).get("reasoning_effort") == "none"
+    )
+
+
 @pytest.fixture
 async def follow_up_sessions():
     engine = create_async_engine(
@@ -169,10 +217,9 @@ async def test_stream_library_chat_turn_yields_suggestions(follow_up_sessions):
                 items.append(item)
         tokens = [i for i in items if isinstance(i, str)]
         done = next(i for i in items if isinstance(i, PersonaChatResponse))
-        chips = next(i for i in items if isinstance(i, ChatSuggestions))
         assert tokens == ["Svar från persona."]
         assert done.reply == "Svar från persona."
-        assert chips.questions == ["Fråga A?", "Fråga B?", "Fråga C?"]
+        assert len(items) == 2
     finally:
         set_text_streamer(None)
         set_structured_completer(None)
@@ -236,3 +283,33 @@ async def test_suggested_questions_endpoint_omits_chips_when_llm_fails(client):
 
     assert res.status_code == 200
     assert res.json()["questions"] == []
+
+
+@pytest.mark.asyncio
+async def test_library_follow_ups_are_single_flight(follow_up_sessions):
+    calls = 0
+
+    async def _structured(messages: list[dict[str, str]], response_model: type):
+        del messages
+        assert response_model is FollowUpQuestions
+        nonlocal calls
+        calls += 1
+        await asyncio.sleep(0.05)
+        return FollowUpQuestions(questions=["A?", "B?", "C?"])
+
+    set_structured_completer(_structured)
+    try:
+
+        async def _one() -> list[str]:
+            async with follow_up_sessions() as session:
+                return await library_follow_up_questions(
+                    session,
+                    persona_id="p-follow",
+                    mode="interview",
+                )
+
+        first, second = await asyncio.gather(_one(), _one())
+        assert first == second == ["A?", "B?", "C?"]
+        assert calls == 1
+    finally:
+        set_structured_completer(None)

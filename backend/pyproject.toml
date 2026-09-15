@@ -7,11 +7,15 @@ dependencies = [
     "alembic>=1.18.5",
     # AWS SigV4 + S3 protocol for Supabase Storage; not something we write in <30 lines.
     "boto3==1.43.85",
+    # Embedded persistent vector index for Mem0 expert memory; no container/server.
+    "chromadb==1.5.9",
     "fastapi>=0.140.7",
     "greenlet==3.5.4",
     "httpx>=0.28.1",
     # PDF text extraction for personal underlag; not something we write correctly in <30 lines.
     "mammoth==1.11.0",
+    # LLM extraction, dedupe, multimodal parsing, and retrieval for expert memory.
+    "mem0ai==2.0.20",
     "openai==2.48.0",
     "pdfplumber==0.11.9",
     "pydantic>=2.13.4",

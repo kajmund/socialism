@@ -33,7 +33,7 @@ Om API-nyckel saknas för leverantören visas ett fel och du kan varken spara el
 
 ## Bild i personachatt
 
-DeepSeek Flash, DeepSeek V4 Pro och Qwen kan ta emot bilder i personachatten och körningsintervjun. GPT OSS är text-only — då visas ingen bildknapp. Qwen tar bara PNG och JPEG.
+DeepSeek Flash och Qwen kan ta emot bilder i personachatten och körningsintervjun. DeepSeek V4 Pro och GPT OSS är text-only — då visas ingen bildknapp. Qwen tar bara PNG och JPEG.
 
 ## Probe med statistik
 

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
+from collections.abc import AsyncIterator
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
@@ -54,8 +56,8 @@ from app.services.help_chat import ChatTurnError as HelpChatTurnError
 from app.services.help_chat import stream_help_chat_turn
 from app.services.panel.watch import build_panel_replay_payload
 from app.services.persona_chat import (
-    ChatSuggestions,
     ChatTurnError,
+    library_follow_up_questions,
     stream_library_chat_turn,
     stream_run_interview_turn,
 )
@@ -763,11 +765,14 @@ async def chat_websocket(websocket: WebSocket) -> None:
                         continue
 
                     done: PersonaChatResponse | None = None
-                    if isinstance(hello, LibraryHello):
-                        stream = stream_library_chat_turn(
+                    library_hello = hello if isinstance(hello, LibraryHello) else None
+                    if library_hello is not None:
+                        stream: AsyncIterator[
+                            str | PersonaChatResponse
+                        ] = stream_library_chat_turn(
                             session,
-                            persona_id=hello.persona_id,
-                            mode=hello.mode,
+                            persona_id=library_hello.persona_id,
+                            mode=library_hello.mode,
                             message=send.message,
                             image_sha256=send.image_sha256,
                         )
@@ -783,31 +788,61 @@ async def chat_websocket(websocket: WebSocket) -> None:
                             image_sha256=send.image_sha256,
                             asked_by="human",
                         )
-                    async for item in stream:
-                        if isinstance(item, PersonaChatResponse):
-                            done = item
-                            await websocket.send_json(
-                                {
-                                    "type": "done",
-                                    "reply": done.reply,
-                                    "messages": [
-                                        m.model_dump(mode="json") for m in done.messages
-                                    ],
-                                    "suggestions": done.suggestions,
-                                }
-                            )
-                        elif isinstance(item, ChatSuggestions):
-                            await websocket.send_json(
-                                {
-                                    "type": "suggestions",
-                                    "questions": item.questions,
-                                }
-                            )
-                        else:
-                            await websocket.send_json({"type": "token", "text": item})
+                    try:
+                        async for item in stream:
+                            if isinstance(item, PersonaChatResponse):
+                                done = item
+                                await websocket.send_json(
+                                    {
+                                        "type": "done",
+                                        "reply": done.reply,
+                                        "messages": [
+                                            m.model_dump(mode="json")
+                                            for m in done.messages
+                                        ],
+                                        "saved_memories": [
+                                            m.model_dump(mode="json")
+                                            for m in done.saved_memories
+                                        ],
+                                    }
+                                )
+                            else:
+                                await websocket.send_json(
+                                    {"type": "token", "text": item}
+                                )
+                    finally:
+                        await stream.aclose()
                     if done is None:
                         await _send_error(websocket, "Chat turn produced no reply")
                         continue
+                    if library_hello is not None:
+                        follow_persona_id = library_hello.persona_id
+                        follow_mode = library_hello.mode
+
+                        async def push_library_suggestions(
+                            persona_id: str = follow_persona_id,
+                            mode: ChatMode = follow_mode,
+                        ) -> None:
+                            try:
+                                factory = jobs_service.job_session_factory()
+                                async with factory() as bg_session:
+                                    questions = await library_follow_up_questions(
+                                        bg_session,
+                                        persona_id=persona_id,
+                                        mode=mode,
+                                    )
+                                await websocket.send_json(
+                                    {
+                                        "type": "suggestions",
+                                        "questions": questions,
+                                    }
+                                )
+                            except (WebSocketDisconnect, RuntimeError):
+                                return
+                            except Exception:
+                                logger.exception("Follow-up push failed")
+
+                        asyncio.create_task(push_library_suggestions())
             except WebSocketDisconnect:
                 raise
             except HelpChatTurnError as exc:
@@ -821,6 +856,14 @@ async def chat_websocket(websocket: WebSocket) -> None:
                 await _send_error(websocket, "Chat turn failed")
     except WebSocketDisconnect:
         pass
+    except RuntimeError as exc:
+        if "WebSocket is not connected" not in str(exc):
+            logger.exception("Chat WebSocket failed")
+            try:
+                await _send_error(websocket, "WebSocket error")
+                await websocket.close(code=1011)
+            except Exception:
+                pass
     except Exception:
         logger.exception("Chat WebSocket failed")
         try:

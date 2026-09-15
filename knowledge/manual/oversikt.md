@@ -21,7 +21,7 @@ Huvudmenyn ligger som en **vertikal list till vänster**. Vilka länkar som syns
 2. **Personas** — biblioteket av AI-agenter
 3. **Populationer** — grupper av personas
 4. **Budskap** — budskapsbibliotek och verkstad
-5. **Verktyg** — konfigurationer (prompts, SSR-temperatur, grunddata), kunder och panelkatalog, playground och embedding-cache. Bara **administratör** ser den här ytan.
+5. **Verktyg** — konfigurationer (prompts, SSR-temperatur, grunddata), kunder och panelkatalog, playground, cache, expertminnen och LLM. Bara **administratör** ser den här ytan.
 6. **Rapporter** — beställda rapporter, uppdelade per modul om kontot har både politik och Due Diligence
 7. **Återkoppling** — buggar, idéer och åsikter sparade från hjälpchatten
 8. **Jobb** — bakgrundsjobb (generering, simulering, rapporter)
@@ -39,3 +39,4 @@ Rapporter beställs från en körnings resultat och listas under **Rapporter**.
 - [Använda hjälpchatten](anvanda-hjalpchatten.md)
 - [Använda playground](anvanda-playground.md)
 - [Hantera embedding-cache](hantera-embedding-cache.md)
+- [Visa expertminnen](visa-expertminnen.md)

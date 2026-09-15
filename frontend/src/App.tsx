@@ -26,6 +26,7 @@ import { DdCampaignEditorPage } from "@/pages/DdCampaignEditorPage"
 import { DdCampaignRunPage } from "@/pages/DdCampaignRunPage"
 import { DdCampaignsPage } from "@/pages/DdCampaignsPage"
 import { EmbeddingCachePage } from "@/pages/EmbeddingCachePage"
+import { ExpertMemoryPage } from "@/pages/ExpertMemoryPage"
 import { LlmSettingsPage } from "@/pages/LlmSettingsPage"
 import {
   BolagExpertgranskningPage,
@@ -109,6 +110,7 @@ export default function App() {
               <Route path="anchor-sets/:id/edit" element={<AnchorSetEditorPage />} />
               <Route path="playground" element={<PlaygroundPage />} />
               <Route path="cache" element={<EmbeddingCachePage />} />
+              <Route path="memory" element={<ExpertMemoryPage />} />
               <Route path="llm" element={<LlmSettingsPage />} />
             </Route>
 

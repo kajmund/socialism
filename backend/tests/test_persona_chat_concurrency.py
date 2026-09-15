@@ -15,7 +15,12 @@ from app.database.base import Base
 from app.database.models import Persona, PersonaMessage
 from app.llm import reset_client, set_structured_completer, set_text_streamer
 from app.schemas.domain import FollowUpQuestions
-from app.services.persona_chat import ChatTurnError, stream_library_chat_turn
+from app.services import persona_chat
+from app.services.persona_chat import (
+    ChatTurnError,
+    library_chat_tools,
+    stream_library_chat_turn,
+)
 from app.services.prompt_store import ensure_default_configurations
 
 
@@ -73,6 +78,16 @@ async def chat_sessions():
         await seed_session.commit()
     yield session_factory
     await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_library_chat_ignores_tools_on_persona_rows(chat_sessions):
+    async with chat_sessions() as session:
+        row = await session.get(Persona, "p-concurrent")
+        assert row is not None
+        row.tools = ["search_wiki", "search_duckduckgo"]
+        await session.commit()
+    assert library_chat_tools(row) is None  # type: ignore[arg-type]
 
 
 @pytest.mark.asyncio
@@ -192,6 +207,52 @@ async def test_library_chat_turn_discards_user_on_missing_image(chat_sessions):
             select(PersonaMessage).where(PersonaMessage.persona_id == "p-concurrent")
         )
         assert rows.scalars().all() == []
+
+
+@pytest.mark.asyncio
+async def test_library_chat_lock_times_out_when_previous_turn_stuck(
+    chat_sessions, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setattr(persona_chat, "_LIBRARY_LOCK_WAIT_SECONDS", 0.1)
+    gate = asyncio.Event()
+
+    async def _blocked_stream(_messages: list[dict[str, str]]) -> AsyncIterator[str]:
+        gate.set()
+        await asyncio.Event().wait()
+        yield "never"
+
+    set_text_streamer(_blocked_stream)
+    try:
+
+        async def _stuck_turn() -> None:
+            async with chat_sessions() as session:
+                stream = stream_library_chat_turn(
+                    session,
+                    persona_id="p-concurrent",
+                    mode="character",
+                    message="stuck",
+                )
+                async for _item in stream:
+                    pass
+
+        stuck = asyncio.create_task(_stuck_turn())
+        await gate.wait()
+
+        async with chat_sessions() as session:
+            with pytest.raises(ChatTurnError, match="still running"):
+                async for _item in stream_library_chat_turn(
+                    session,
+                    persona_id="p-concurrent",
+                    mode="character",
+                    message="blocked",
+                ):
+                    pass
+
+        stuck.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await stuck
+    finally:
+        set_text_streamer(None)
 
 
 @pytest.mark.asyncio
