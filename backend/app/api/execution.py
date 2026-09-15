@@ -1,11 +1,8 @@
 """Execution HTTP API: Run → Research → method execute → read models."""
 
-# Import order is load-bearing. See the llm imports below.
-# ruff: noqa: I001
-
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -84,41 +81,22 @@ from app.services.panel.attempt_execution import (
     validate_generic_panel_snapshots,
 )
 from app.services.prompt_store import require_active_prompts
-
-# After execution.service. Earlier llm imports pull followup while
-# execution.__init__ is still loading and raise ImportError.
-from app.llm.research_assessment import build_llm_research_assessor
-from app.llm.research_completeness import build_llm_research_completeness_reviewer
-from app.llm.research_followup import build_llm_follow_up_planner
-from app.llm.research_planner import build_llm_research_planner
 from app.services.research.assessment import need_assessment_from_json
 from app.services.research.completeness import (
     ResearchCompletenessError,
     missing_question_from_json,
 )
-from app.services.research.composition import (
-    ResearchCompositionError,
-    build_standard_research_router,
-    require_research_router_ready,
-    resolve_completeness_reviewer,
-    resolve_follow_up_planner,
-    resolve_research_assessor,
-    resolve_research_planner,
-)
-from app.services.research.execution import (
-    ResearchExecutionError,
-    execute_attempt_research,
-)
+from app.services.research.composition import ResearchCompositionError
+from app.services.research.execution import ResearchExecutionError
 from app.services.research.models import InvalidResearchPlanError
-from app.services.research.plan import research_plan_from_snapshot
 from app.services.research.planner import (
     InvalidResearchObjectiveError,
-    ResearchObjective,
     ResearchPlannerError,
+    ResearchObjective,
     require_research_objective,
     research_objective_to_snapshot,
 )
-from app.services.research.question_graph_sql import SqlQuestionEvidenceGraph
+from app.services.research.worker import accept_attempt_research
 
 router = APIRouter(prefix="/execution", tags=["execution"])
 
@@ -689,54 +667,20 @@ async def _research_out_from_attempt(
 async def post_attempt_research(
     attempt_id: str,
     body: AttemptResearchRequest,
+    response: Response,
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> AttemptResearchOut:
-    attempt, run = await _require_attempt(session, user, attempt_id)
-    if attempt.status == "ready":
-        return await _research_out_from_attempt(session, attempt)
+    attempt, _run = await _require_attempt(session, user, attempt_id)
     try:
-        plan = None
-        if body.research_plan is not None:
-            plan = research_plan_from_snapshot(body.research_plan.model_dump())
-        objective = None
-        if body.research_objective is not None:
-            objective = ResearchObjective(
-                objective=require_research_objective(body.research_objective),
-                context=dict(body.research_context),
-            )
-        require_research_router_ready()
-        assessor = resolve_research_assessor()
-        if assessor is None:
-            assessor = await build_llm_research_assessor(
-                session, customer_id=run.customer_id, module=run.module
-            )
-        planner = resolve_follow_up_planner()
-        if planner is None:
-            planner = await build_llm_follow_up_planner(
-                session, customer_id=run.customer_id, module=run.module
-            )
-        research_planner = resolve_research_planner()
-        if research_planner is None and plan is None:
-            research_planner = await build_llm_research_planner(
-                session, customer_id=run.customer_id, module=run.module
-            )
-        completeness_reviewer = resolve_completeness_reviewer()
-        if completeness_reviewer is None:
-            completeness_reviewer = await build_llm_research_completeness_reviewer(
-                session, customer_id=run.customer_id, module=run.module
-            )
-        await execute_attempt_research(
+        status = await accept_attempt_research(
             session,
-            attempt_id=attempt_id,
-            research_plan=plan,
-            research_objective=objective,
-            research_planner=research_planner,
-            router_factory=build_standard_research_router,
-            assessor=assessor,
-            planner=planner,
-            completeness_reviewer=completeness_reviewer,
-            question_graph=SqlQuestionEvidenceGraph(),
+            attempt_id=attempt.id,
+            research_objective=body.research_objective,
+            research_context=dict(body.research_context),
+            research_plan=(
+                None if body.research_plan is None else body.research_plan.model_dump()
+            ),
         )
         attempt = await get_attempt(session, attempt_id)
     except (
@@ -749,6 +693,7 @@ async def post_attempt_research(
         ResearchCompositionError,
     ) as exc:
         raise _http_for_execution_error(exc) from exc
+    response.status_code = int(status)
     return await _research_out_from_attempt(session, attempt)
 
 
