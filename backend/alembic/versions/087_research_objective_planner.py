@@ -1,7 +1,7 @@
 """Attempt research objective snapshot and initial planner prompts.
 
-Revision ID: 086_research_objective_planner
-Revises: 085_research_loop_user_prompts
+Revision ID: 087_research_objective_planner
+Revises: 086_runtime_need_routing_constraints
 """
 
 from __future__ import annotations
@@ -15,8 +15,8 @@ from alembic import op
 from app.services.prompt_catalog import PROMPT_FIELDS
 from app.services.prompt_defaults import modules_for_prompt_key
 
-revision: str = "086_research_objective_planner"
-down_revision: Union[str, Sequence[str], None] = "085_research_loop_user_prompts"
+revision: str = "087_research_objective_planner"
+down_revision: Union[str, Sequence[str], None] = "086_runtime_need_routing_constraints"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
