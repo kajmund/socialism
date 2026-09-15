@@ -101,7 +101,7 @@ from app.services.research.planner import (
     research_objective_from_snapshot,
     research_objective_to_snapshot,
 )
-from app.services.research.registry import production_registered_source_types
+from app.services.research.composition import standard_available_source_types
 from app.services.research.router import ResearchRouter
 
 ResearchRouterFactory = Callable[[AsyncSession], ResearchRouter]
@@ -632,9 +632,9 @@ async def _resolve_research_objective(
 
 def _executable_source_types(router: ResearchRouter | None) -> tuple[str, ...]:
     """Types the attempt's production router/registry can actually run."""
-    if router is None:
-        return production_registered_source_types()
-    return router.available_source_types()
+    if router is not None:
+        return router.available_source_types()
+    return standard_available_source_types()
 
 
 async def _resolve_initial_plan(

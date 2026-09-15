@@ -36,11 +36,13 @@ from app.services.research import (
     ResearchSourceRegistry,
     ResearchSourceType,
     build_research_registry,
+    knowledge_adapter_descriptor,
     make_evidence_id,
     production_registered_source_types,
     provenance_from_hit,
     search_scope,
 )
+from app.services.research.registry import set_standard_capability_descriptors
 from app.services.research.router import ResearchRouter as RouterImpl
 from tests.knowledge_fakes import FakeEmbeddingProvider, fake_embed_text
 
@@ -507,6 +509,23 @@ def test_default_registry_has_no_domain_or_web_adapter():
     assert registry.sources_for("domain_knowledge") == []
     assert registry.sources_for("swedish_law") == []
     assert registry.sources_for("web") == []
+
+
+def test_build_research_registry_follows_standard_capability_descriptors():
+    set_standard_capability_descriptors(
+        (knowledge_adapter_descriptor(SUPABASE_PROVIDER_ID, "case_knowledge"),)
+    )
+    try:
+        registry = build_research_registry(RecordingKnowledgeProvider())
+        assert production_registered_source_types() == ("case_knowledge",)
+        assert registry.registered_evidence_natures() == ("case_knowledge",)
+        assert registry.sources_for("customer_knowledge") == []
+    finally:
+        set_standard_capability_descriptors(None)
+    assert production_registered_source_types() == (
+        "case_knowledge",
+        "customer_knowledge",
+    )
 
 
 def test_router_source_has_no_llm():
