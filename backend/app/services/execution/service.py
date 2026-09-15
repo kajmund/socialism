@@ -17,6 +17,7 @@ from app.database.models import (
     ExecutionAttemptResult,
     ExecutionRun,
     Kund,
+    ResearchNeedExecution,
 )
 from app.services.execution.errors import (
     ExecutionError,
@@ -33,8 +34,11 @@ from app.services.execution.models import (
     EVIDENCE_REQUIRED_FROZEN_STATUSES,
     PREPARATION_STATUSES,
     SNAPSHOT_LOCKED_STATUSES,
+    RESEARCH_NEED_EXECUTION_STATUSES,
+    TERMINAL_NEED_EXECUTION_STATUSES,
     AttemptStatus,
     EvidenceSetStatus,
+    ResearchNeedExecutionStatus,
 )
 from app.services.execution.snapshots import (
     EvidenceItemSnapshot,
@@ -261,6 +265,35 @@ def _allocate_ordinals(items: list[EvidenceItemSnapshot], used: set[int]) -> lis
     return allocated
 
 
+async def _existing_original_evidence_ids(
+    session: AsyncSession, evidence_set_id: str
+) -> set[str]:
+    result = await session.execute(
+        select(EvidenceSetItem.original_evidence_id).where(
+            EvidenceSetItem.evidence_set_id == evidence_set_id,
+            EvidenceSetItem.original_evidence_id.is_not(None),
+        )
+    )
+    return {value for value in result.scalars().all() if value}
+
+
+def _dedupe_snapshots(
+    snapshots: list[EvidenceItemSnapshot],
+    existing_ids: set[str],
+) -> list[EvidenceItemSnapshot]:
+    """Keep the first item per original_evidence_id; skip ids already on the set."""
+    seen = set(existing_ids)
+    unique: list[EvidenceItemSnapshot] = []
+    for snapshot in snapshots:
+        evidence_id = snapshot.original_evidence_id
+        if evidence_id:
+            if evidence_id in seen:
+                continue
+            seen.add(evidence_id)
+        unique.append(snapshot)
+    return unique
+
+
 async def add_evidence_items(
     session: AsyncSession,
     *,
@@ -270,10 +303,15 @@ async def add_evidence_items(
     evidence_set = await get_evidence_set(session, evidence_set_id)
     _assert_building(evidence_set)
     stored: list[EvidenceSetItem] = []
-    snapshots = [
-        raw if isinstance(raw, EvidenceItemSnapshot) else snapshot_research_evidence(raw)
-        for raw in items
-    ]
+    snapshots = _dedupe_snapshots(
+        [
+            raw if isinstance(raw, EvidenceItemSnapshot) else snapshot_research_evidence(raw)
+            for raw in items
+        ],
+        await _existing_original_evidence_ids(session, evidence_set.id),
+    )
+    if not snapshots:
+        return stored
     ordinals = _allocate_ordinals(
         snapshots, await _used_ordinals(session, evidence_set.id)
     )
@@ -322,6 +360,146 @@ async def fail_evidence_set(session: AsyncSession, evidence_set_id: str) -> Evid
     evidence_set.status = "failed"
     await session.flush()
     return evidence_set
+
+
+async def claim_freeze_evidence_set(
+    session: AsyncSession, evidence_set_id: str
+) -> EvidenceSet | None:
+    """Compare-and-set building → frozen. None if another path already finalized."""
+    now = utc_now()
+    result = await session.execute(
+        update(EvidenceSet)
+        .where(
+            EvidenceSet.id == evidence_set_id,
+            EvidenceSet.status == "building",
+        )
+        .values(status="frozen", frozen_at=now)
+    )
+    if result.rowcount != 1:
+        return None
+    evidence_set = await get_evidence_set(session, evidence_set_id)
+    await session.refresh(evidence_set)
+    return evidence_set
+
+
+def _require_need_status(value: str) -> ResearchNeedExecutionStatus:
+    if value not in RESEARCH_NEED_EXECUTION_STATUSES:
+        raise ExecutionStatusError(f"Unknown need execution status: {value}")
+    return value  # type: ignore[return-value]
+
+
+async def get_need_execution(
+    session: AsyncSession, execution_id: str
+) -> ResearchNeedExecution:
+    row = await session.get(ResearchNeedExecution, execution_id)
+    if row is None:
+        raise ExecutionNotFoundError("research_need_execution", execution_id)
+    return row
+
+
+async def list_need_executions(
+    session: AsyncSession, attempt_id: str
+) -> list[ResearchNeedExecution]:
+    await get_attempt(session, attempt_id)
+    result = await session.execute(
+        select(ResearchNeedExecution)
+        .where(ResearchNeedExecution.attempt_id == attempt_id)
+        .order_by(ResearchNeedExecution.created_at, ResearchNeedExecution.research_need_id)
+    )
+    return list(result.scalars().all())
+
+
+async def seed_need_executions(
+    session: AsyncSession,
+    *,
+    attempt_id: str,
+    need_ids: list[str],
+) -> list[ResearchNeedExecution]:
+    """Create pending rows for plan need ids. Does not copy ResearchNeed payloads."""
+    await get_attempt(session, attempt_id)
+    existing = {
+        row.research_need_id: row for row in await list_need_executions(session, attempt_id)
+    }
+    for need_id in need_ids:
+        if need_id in existing:
+            continue
+        session.add(
+            ResearchNeedExecution(
+                id=new_id(),
+                attempt_id=attempt_id,
+                research_need_id=need_id,
+                status="pending",
+            )
+        )
+    await session.flush()
+    return await list_need_executions(session, attempt_id)
+
+
+async def claim_need_execution_running(
+    session: AsyncSession, execution_id: str
+) -> ResearchNeedExecution:
+    """Compare-and-set pending → running. Terminal rows are returned unchanged."""
+    now = utc_now()
+    result = await session.execute(
+        update(ResearchNeedExecution)
+        .where(
+            ResearchNeedExecution.id == execution_id,
+            ResearchNeedExecution.status == "pending",
+        )
+        .values(status="running", started_at=now)
+    )
+    row = await get_need_execution(session, execution_id)
+    if result.rowcount == 1:
+        await session.refresh(row)
+    return row
+
+
+async def complete_need_execution(
+    session: AsyncSession, execution_id: str
+) -> ResearchNeedExecution:
+    row = await get_need_execution(session, execution_id)
+    status = _require_need_status(row.status)
+    if status == "completed":
+        return row
+    if status == "failed":
+        return row
+    row.status = "completed"
+    row.completed_at = utc_now()
+    if row.started_at is None:
+        row.started_at = row.completed_at
+    await session.flush()
+    return row
+
+
+async def fail_need_execution(
+    session: AsyncSession, execution_id: str
+) -> ResearchNeedExecution:
+    row = await get_need_execution(session, execution_id)
+    status = _require_need_status(row.status)
+    if status in TERMINAL_NEED_EXECUTION_STATUSES:
+        return row
+    row.status = "failed"
+    row.completed_at = utc_now()
+    if row.started_at is None:
+        row.started_at = row.completed_at
+    await session.flush()
+    return row
+
+
+async def fail_open_need_executions(
+    session: AsyncSession, attempt_id: str
+) -> list[ResearchNeedExecution]:
+    now = utc_now()
+    rows = await list_need_executions(session, attempt_id)
+    for row in rows:
+        if row.status in TERMINAL_NEED_EXECUTION_STATUSES:
+            continue
+        row.status = "failed"
+        row.completed_at = now
+        if row.started_at is None:
+            row.started_at = now
+    await session.flush()
+    return rows
 
 
 async def _load_evidence_set_for_run(
