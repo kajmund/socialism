@@ -37,6 +37,7 @@ from app.services.kund_store import ensure_default_kunder
 from app.services.panel.module_defaults import ensure_module_panel_defaults
 from app.services.prompt_store import ensure_default_configurations
 from app.services.llm_runtime_settings import load_runtime_settings
+from app.services.research.execution import fail_interrupted_research_attempts
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +67,7 @@ async def lifespan(_app: FastAPI):
     try:
         async with factory() as session:
             await jobs_service.fail_interrupted_jobs(session)
+            await fail_interrupted_research_attempts(session)
     except (OperationalError, ProgrammingError) as exc:
         # Fresh checkout / migration not applied yet — don't block boot.
         logger.warning("Skipping interrupted-job sweep on startup: %s", exc)

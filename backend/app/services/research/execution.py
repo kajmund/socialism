@@ -131,6 +131,21 @@ async def _result_from_attempt(
     )
 
 
+async def fail_interrupted_research_attempts(session: AsyncSession) -> int:
+    """Mark in-flight research attempts failed on startup (no durable worker queue)."""
+    result = await session.execute(
+        select(ExecutionAttempt).where(ExecutionAttempt.status == "researching")
+    )
+    attempts = list(result.scalars().all())
+    for attempt in attempts:
+        await _fail_claimed_research(
+            session,
+            attempt_id=attempt.id,
+            evidence_set_id=attempt.evidence_set_id,
+        )
+    return len(attempts)
+
+
 async def _fail_claimed_research(
     session: AsyncSession,
     *,
