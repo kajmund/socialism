@@ -31,7 +31,7 @@ from app.llm.vision import set_vision_completer
 from app.main import create_app
 from app.schemas.domain import FollowUpQuestions
 from app.services import jobs as jobs_service
-from app.services.research import worker as research_worker
+from app.services import research_worker
 from app.services.panel.competency import ExpertCompetency
 from app.services.panel.research import empty_research_structured
 from app.services.panel.synthesis import GenericPanelSynthesis

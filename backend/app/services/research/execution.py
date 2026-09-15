@@ -1301,7 +1301,7 @@ async def execute_attempt_research(
     )
     resume = attempt.status == "researching"
     if resume:
-        objective = await _resolve_research_objective(attempt, research_objective)
+        await _resolve_research_objective(attempt, research_objective)
         plan = await _resolve_resume_plan(
             attempt,
             research_plan=research_plan,

@@ -37,7 +37,7 @@ from app.services.research.followup import NoOpFollowUpPlanner
 from app.services.research.models import ResearchContext, ResearchNeed, research_evidence
 from app.services.research.registry import ResearchSourceRegistry
 from app.services.research.router import ResearchRouter
-from app.services.research.worker import wait_research_workers
+from app.services.research_worker import wait_research_workers
 from tests.conftest import TEST_CUSTOMER_ID
 
 PANEL_CONFIG = {

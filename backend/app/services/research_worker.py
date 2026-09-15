@@ -10,11 +10,11 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.config import settings
-from app.services import jobs as jobs_service
 from app.llm.research_assessment import build_llm_research_assessor
 from app.llm.research_completeness import build_llm_research_completeness_reviewer
 from app.llm.research_followup import build_llm_follow_up_planner
 from app.llm.research_planner import build_llm_research_planner
+from app.services import jobs as jobs_service
 from app.services.execution.errors import ExecutionStatusError
 from app.services.execution.service import get_attempt, get_run, new_id, set_attempt_snapshots
 from app.services.research.claims import (
@@ -265,10 +265,13 @@ async def _execute_claimed_research(
         if attempt.status not in {"created", "researching"}:
             return
         run = await get_run(session, attempt.run_id)
-        plan = None
         raw_plan = start_request.get("research_plan")
-        if attempt.research_plan_snapshot is None and isinstance(raw_plan, dict):
+        if attempt.research_plan_snapshot is not None:
+            plan = research_plan_from_snapshot(attempt.research_plan_snapshot)
+        elif isinstance(raw_plan, dict):
             plan = research_plan_from_snapshot(raw_plan)
+        else:
+            plan = None
         objective = None
         raw_objective = start_request.get("research_objective")
         if attempt.research_objective_snapshot is None and raw_objective is not None:

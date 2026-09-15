@@ -37,7 +37,7 @@ from app.services.kund_store import ensure_default_kunder
 from app.services.panel.module_defaults import ensure_module_panel_defaults
 from app.services.prompt_store import ensure_default_configurations
 from app.services.llm_runtime_settings import load_runtime_settings
-from app.services.research.worker import (
+from app.services.research_worker import (
     start_research_reclaim_loop,
     stop_research_reclaim_loop,
 )
