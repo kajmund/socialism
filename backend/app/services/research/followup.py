@@ -72,6 +72,7 @@ class RuntimeResearchNeed:
     wave_number: int = INITIAL_RESEARCH_WAVE
     parent_research_need_id: str | None = None
     source_assessment_pass: int | None = None
+    source_completeness_pass: int | None = None
     source_gap: str = ""
     question_key: str = ""
 
@@ -163,11 +164,13 @@ def assign_follow_up_need_id(
     index: int,
     existing_ids: set[str],
     proposed_id: str = "",
+    id_prefix: str = "followup",
 ) -> str:
     candidate = proposed_id.strip()
     if candidate and candidate not in existing_ids:
         return candidate
-    base = f"followup_{wave_number}_{index}"
+    prefix = id_prefix.strip() or "followup"
+    base = f"{prefix}_{wave_number}_{index}"
     if base not in existing_ids:
         return base
     suffix = 1
@@ -195,7 +198,10 @@ def validate_follow_up_drafts(
     *,
     previous_needs: Sequence[RuntimeResearchNeed],
     wave_number: int,
-    assessment_pass: int,
+    assessment_pass: int | None = None,
+    origin: ResearchNeedOrigin = "derived",
+    source_completeness_pass: int | None = None,
+    id_prefix: str = "followup",
 ) -> list[RuntimeResearchNeed]:
     """Keep valid novel candidates. Invalid drafts are dropped, not executed."""
     existing_ids = {row.research_need_id for row in previous_needs}
@@ -222,6 +228,7 @@ def validate_follow_up_drafts(
             index=index,
             existing_ids=existing_ids,
             proposed_id=draft.proposed_id,
+            id_prefix=id_prefix,
         )
         try:
             validated = validate_research_plan(
@@ -254,12 +261,13 @@ def validate_follow_up_drafts(
                 domains=list(need.domains),
                 modalities=list(need.modalities),
                 capabilities=list(need.capabilities),
-                origin="derived",
+                origin=origin,
                 wave_number=wave_number,
                 parent_research_need_id=_known_parent(
                     draft.parent_research_need_id, previous_needs
                 ),
                 source_assessment_pass=assessment_pass,
+                source_completeness_pass=source_completeness_pass,
                 source_gap=source_gap,
                 question_key=key,
             )
