@@ -82,6 +82,9 @@ class Settings(BaseSettings):
     # lagen-nu-mcp. Empty URL uses the mock corpus. Set URL to talk live (fail loud).
     lagen_nu_mcp_url: str = ""
     lagen_nu_mcp_key: str = ""
+    # Official lagen.nu MCP for the generic research KnowledgeProvider. No auth.
+    lagen_nu_official_mcp_url: str = "https://lagen.nu/mcp"
+    lagen_nu_official_mcp_timeout_seconds: float = Field(default=20.0, gt=0)
 
     # Supabase Auth — JWT verify + Admin invite (service_role never goes to the SPA).
     supabase_url: str = ""

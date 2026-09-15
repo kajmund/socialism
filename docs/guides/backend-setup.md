@@ -47,6 +47,8 @@ cp .env.example .env
 | `BOLAGSAPI_API_KEY` | for DD company tools | — | When set, company tools use BolagsAPI MCP. When empty, the same tools scrape Allabolag.se |
 | `BOLAGSAPI_MCP_URL` | no | `https://mcp.bolagsapi.se/mcp` | BolagsAPI remote MCP |
 | `BOLAGSAPI_CACHE_DIR` | no | `data/bolagsapi_cache` | Disk cache for MCP tool results. Entries expire after 10 months |
+| `LAGEN_NU_OFFICIAL_MCP_URL` | no | `https://lagen.nu/mcp` | Official lagen.nu MCP for the generic research provider. Empty is a hard error (no mock) |
+| `LAGEN_NU_OFFICIAL_MCP_TIMEOUT_SECONDS` | no | `20` | Timeout for official lagen.nu MCP calls |
 | `SUPABASE_URL` | **yes** | — | Supabase project URL (Auth + Admin invite) |
 | `SUPABASE_JWT_SECRET` | **yes** | — | HS256 JWT secret for verifying access tokens |
 | `SUPABASE_SERVICE_ROLE_KEY` | **yes** | — | Backend-only; Admin invite API (never ship to the SPA) |

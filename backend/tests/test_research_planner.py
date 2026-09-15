@@ -536,12 +536,16 @@ async def test_llm_planner_is_offered_only_executable_source_types():
 
 def test_production_registered_source_types_match_standard_registry():
     types = production_registered_source_types()
-    assert types == ("case_knowledge", "customer_knowledge")
+    assert types == (
+        "case_knowledge",
+        "customer_knowledge",
+        "swedish_law",
+        "swedish_preparatory_works",
+    )
     assert types == tuple(
         next(iter(descriptor.evidence_natures))
         for descriptor in default_standard_capability_descriptors()
     )
-    assert "swedish_law" not in types
     assert "web" not in types
 
 

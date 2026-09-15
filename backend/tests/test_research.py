@@ -497,17 +497,25 @@ async def test_unregistered_source_type_is_explicit_error():
 
 def test_default_registry_has_no_domain_or_web_adapter():
     registry = build_research_registry(RecordingKnowledgeProvider())
-    assert registry.registered_types() == ["case_knowledge", "customer_knowledge"]
+    assert registry.registered_types() == [
+        "case_knowledge",
+        "customer_knowledge",
+        "swedish_law",
+        "swedish_preparatory_works",
+    ]
     assert registry.registered_evidence_natures() == (
         "case_knowledge",
         "customer_knowledge",
+        "swedish_law",
+        "swedish_preparatory_works",
     )
     assert production_registered_source_types() == registry.registered_evidence_natures()
     assert ResearchRouter(registry).available_source_types() == (
         registry.registered_evidence_natures()
     )
     assert registry.sources_for("domain_knowledge") == []
-    assert registry.sources_for("swedish_law") == []
+    assert registry.sources_for("swedish_law")
+    assert registry.sources_for("swedish_preparatory_works")
     assert registry.sources_for("web") == []
 
 
@@ -525,6 +533,8 @@ def test_build_research_registry_follows_standard_capability_descriptors():
     assert production_registered_source_types() == (
         "case_knowledge",
         "customer_knowledge",
+        "swedish_law",
+        "swedish_preparatory_works",
     )
 
 
@@ -554,11 +564,16 @@ def test_research_package_has_no_panel_llm_or_mcp_imports():
 
 
 def test_research_package_does_not_implement_web_or_law_clients():
-    banned = {"lagen.nu", "LagenNu", "google", "mcp", "Riksdag", "OCR"}
+    banned = {"google", "Riksdag", "OCR"}
+    adapter_names = {"lagen_nu_source.py"}
     for path in RESEARCH_ROOT.rglob("*.py"):
         text = path.read_text(encoding="utf-8")
         for token in banned:
             assert token not in text, f"{path} mentions {token}"
+        if path.name in adapter_names:
+            continue
+        assert "httpx" not in text
+        assert "https://lagen.nu/mcp" not in text
 
 
 def test_knowledge_source_uses_provider_search_not_domain_fallback():
