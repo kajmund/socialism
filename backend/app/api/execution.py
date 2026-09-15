@@ -1,5 +1,8 @@
 """Execution HTTP API: Run → Research → method execute → read models."""
 
+# Import order is load-bearing. See the llm imports below.
+# ruff: noqa: I001
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -81,9 +84,12 @@ from app.services.panel.attempt_execution import (
     validate_generic_panel_snapshots,
 )
 from app.services.prompt_store import require_active_prompts
+
+# After execution.service. Earlier llm imports pull followup while
+# execution.__init__ is still loading and raise ImportError.
 from app.llm.research_assessment import build_llm_research_assessor
-from app.llm.research_followup import build_llm_follow_up_planner
 from app.llm.research_completeness import build_llm_research_completeness_reviewer
+from app.llm.research_followup import build_llm_follow_up_planner
 from app.llm.research_planner import build_llm_research_planner
 from app.services.research.assessment import need_assessment_from_json
 from app.services.research.completeness import (
@@ -94,8 +100,8 @@ from app.services.research.composition import (
     ResearchCompositionError,
     build_standard_research_router,
     require_research_router_ready,
-    resolve_follow_up_planner,
     resolve_completeness_reviewer,
+    resolve_follow_up_planner,
     resolve_research_assessor,
     resolve_research_planner,
 )
@@ -112,6 +118,7 @@ from app.services.research.planner import (
     require_research_objective,
     research_objective_to_snapshot,
 )
+from app.services.research.question_graph_sql import SqlQuestionEvidenceGraph
 
 router = APIRouter(prefix="/execution", tags=["execution"])
 
@@ -729,6 +736,7 @@ async def post_attempt_research(
             assessor=assessor,
             planner=planner,
             completeness_reviewer=completeness_reviewer,
+            question_graph=SqlQuestionEvidenceGraph(),
         )
         attempt = await get_attempt(session, attempt_id)
     except (

@@ -115,6 +115,12 @@ class Settings(BaseSettings):
     research_max_needs_per_attempt: int = Field(default=16, ge=1, le=64)
     # Global completeness reviews after local sufficiency. Prevents cycles.
     research_max_completeness_passes: int = Field(default=2, ge=1, le=8)
+    # Bounded Question → Evidence graph read-through before provider retrieval.
+    research_knowledge_lookup_limit: int = Field(default=10, ge=1, le=32)
+    # Age after which reused graph evidence is stale. None = freshness unknown.
+    research_knowledge_freshness_max_age_seconds: int | None = Field(
+        default=None, ge=1
+    )
     # Max concurrent Word-review LLM calls within one expertgranskning job.
     word_review_max_concurrency: int = Field(default=8, ge=1, le=32)
     # Optional Word router override. Empty inherits the global LLM model.
