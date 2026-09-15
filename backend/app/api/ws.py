@@ -18,6 +18,8 @@ from app.auth.scope import (
 )
 from app.auth.tokens import user_from_bearer_token
 from app.database.models import (
+    ExecutionAttempt,
+    ExecutionRun,
     Job,
     PanelSession,
     Persona,
@@ -32,12 +34,8 @@ from app.realtime.expertgranskning_broadcast import expertgranskning_broadcast
 from app.realtime.hub import job_hub, report_hub
 from app.realtime.interview_broadcast import interview_broadcast, interview_key_tuple
 from app.realtime.panel_broadcast import panel_broadcast
+from app.realtime.research_progress_broadcast import research_progress_broadcast
 from app.realtime.run_broadcast import run_broadcast
-from app.services.expertgranskning import WORD_JOB_KIND
-from app.services.expertgranskning.watch import (
-    build_expertgranskning_replay_payload,
-)
-from app.services.word.actions import load_word_actions
 from app.schemas.domain import (
     ChatMode,
     HelpChatResponse,
@@ -48,21 +46,30 @@ from app.schemas.domain import (
 )
 from app.services import jobs as jobs_service
 from app.services.customer_scope import customer_id_for_panel_session
+from app.services.expertgranskning import WORD_JOB_KIND
+from app.services.expertgranskning.watch import (
+    build_expertgranskning_replay_payload,
+)
 from app.services.help_chat import ChatTurnError as HelpChatTurnError
 from app.services.help_chat import stream_help_chat_turn
+from app.services.panel.watch import build_panel_replay_payload
 from app.services.persona_chat import (
     ChatSuggestions,
     ChatTurnError,
     stream_library_chat_turn,
     stream_run_interview_turn,
 )
+from app.services.report_realtime import list_reports, serialize_report
+from app.services.research.progress import (
+    list_research_progress_events,
+    progress_event_to_dict,
+)
+from app.services.run_watch import build_run_replay_payload
 from app.services.spindoctor_chat import (
     SpindoctorChatTurnError,
     stream_spindoctor_chat_turn,
 )
-from app.services.report_realtime import list_reports, serialize_report
-from app.services.run_watch import build_run_replay_payload
-from app.services.panel.watch import build_panel_replay_payload
+from app.services.word.actions import load_word_actions
 
 logger = logging.getLogger(__name__)
 
@@ -117,6 +124,13 @@ class PanelWatchHello(BaseModel):
     session_id: str = Field(min_length=1)
 
 
+class ResearchWatchHello(BaseModel):
+    type: Literal["hello"] = "hello"
+    scope: Literal["research_watch"]
+    attempt_id: str = Field(min_length=1)
+    after_sequence: int = Field(default=0, ge=0)
+
+
 class ExpertgranskningWatchHello(BaseModel):
     type: Literal["hello"] = "hello"
     scope: Literal["expertgranskning_watch"]
@@ -143,7 +157,7 @@ class ChatSend(BaseModel):
     ground_population: bool = False
 
     @model_validator(mode="after")
-    def require_message_or_image(self) -> "ChatSend":
+    def require_message_or_image(self) -> ChatSend:
         # Help / spinndoctor always need text; persona scopes may send image-only.
         text = (self.message or "").strip()
         digest = (self.image_sha256 or "").strip().lower() or None
@@ -391,6 +405,71 @@ async def runs_websocket(websocket: WebSocket) -> None:
             pass
     finally:
         await run_broadcast.unsubscribe(websocket)
+
+
+@router.websocket("/ws/research")
+async def research_websocket(websocket: WebSocket) -> None:
+    await websocket.accept()
+    user = await _authenticate_websocket(websocket)
+    if user is None:
+        return
+    hello: ResearchWatchHello | None = None
+    try:
+        raw = await websocket.receive_json()
+        if not isinstance(raw, dict):
+            await _send_error(websocket, "Expected JSON object")
+            await websocket.close(code=1003)
+            return
+        try:
+            hello = ResearchWatchHello.model_validate(raw)
+        except ValidationError as exc:
+            await _send_error(websocket, str(exc.errors()[0]["msg"]))
+            await websocket.close(code=1003)
+            return
+
+        factory = jobs_service.job_session_factory()
+        async with factory() as session:
+            attempt = await session.get(ExecutionAttempt, hello.attempt_id)
+            if attempt is None:
+                await _send_error(websocket, f"Attempt {hello.attempt_id} not found")
+                await websocket.close(code=1003)
+                return
+            run = await session.get(ExecutionRun, attempt.run_id)
+            if run is None:
+                await _send_error(websocket, f"Attempt {hello.attempt_id} not found")
+                await websocket.close(code=1003)
+                return
+            try:
+                assert_kund_access(user, run.customer_id)
+            except HTTPException as exc:
+                await _close_auth_error(websocket, exc)
+                return
+            missed = await list_research_progress_events(
+                session, attempt.id, after_sequence=hello.after_sequence
+            )
+            replay = {
+                "type": "research.progress.replay",
+                "attempt_id": attempt.id,
+                "after_sequence": hello.after_sequence,
+                "events": [progress_event_to_dict(row) for row in missed],
+            }
+
+        await research_progress_broadcast.subscribe(hello.attempt_id, websocket)
+        await websocket.send_json(replay)
+
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        logger.exception("Research progress watch WebSocket failed")
+        try:
+            await _send_error(websocket, "WebSocket error")
+            await websocket.close(code=1011)
+        except Exception:
+            pass
+    finally:
+        await research_progress_broadcast.unsubscribe(websocket)
 
 
 @router.websocket("/ws/panels")
