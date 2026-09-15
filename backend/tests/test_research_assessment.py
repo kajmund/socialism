@@ -31,7 +31,7 @@ from app.services.research.assessment import (
     programmatic_assessment,
     sanitize_assessment_draft,
 )
-from app.services.research.assessment_llm import (
+from app.llm.research_assessment import (
     EvidenceSufficiencyModel,
     LlmResearchAssessor,
     NeedSufficiencyModel,
