@@ -29,24 +29,24 @@ from app.database.models import Job, UserAccount, WordAction
 from app.database.session import get_session
 from app.llm import set_structured_completer, set_text_completer, set_text_streamer
 from app.main import create_app
-from app.schemas.domain import FollowUpQuestions
-from app.serializers import utcnow
 from app.realtime.expertgranskning_broadcast import expertgranskning_broadcast
 from app.realtime.research_progress_broadcast import research_progress_broadcast
+from app.schemas.domain import FollowUpQuestions
+from app.serializers import utcnow
 from app.services import jobs as jobs_service
 from app.services.execution import create_attempt, create_run
 from app.services.expertgranskning import WORD_JOB_KIND
 from app.services.expertgranskning.watch import publish_action_created
-from app.services.research.progress import (
-    append_research_progress_event,
-    progress_event_to_dict,
-)
 from app.services.kund_store import (
     BOLAG_DEMO_KUND_SLUG,
     bolag_demo_customer_id,
     ensure_default_kunder,
 )
 from app.services.prompt_store import ensure_default_configurations
+from app.services.research.progress import (
+    append_research_progress_event,
+    progress_event_to_dict,
+)
 from tests.conftest import (
     ADMIN_USER_ID,
     BOLAG_USER_ID,
@@ -980,8 +980,10 @@ def test_research_websocket_bolag_denied_foreign_attempt(ws_client):
 
     attempt_id = loop.run_until_complete(_seed())
     bolag_token = _bolag_token()
-    with pytest.raises(WebSocketDisconnect) as exc:
-        with client.websocket_connect(f"/ws/research?access_token={bolag_token}") as ws:
-            ws.send_json(_research_hello(attempt_id))
-            ws.receive_json()
+    with (
+        pytest.raises(WebSocketDisconnect) as exc,
+        client.websocket_connect(f"/ws/research?access_token={bolag_token}") as ws,
+    ):
+        ws.send_json(_research_hello(attempt_id))
+        ws.receive_json()
     assert exc.value.code == 4403
