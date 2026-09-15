@@ -13,7 +13,6 @@ from app.services.knowledge import (
 )
 from app.services.knowledge.vector_store import KnowledgeVectorStore
 from app.services.research.assessment import ResearchAssessor
-from app.services.research.assessment_llm import build_llm_research_assessor
 from app.services.research.models import ResearchError
 from app.services.research.registry import build_research_registry
 from app.services.research.router import ResearchRouter
@@ -68,14 +67,8 @@ def build_standard_research_router(session: AsyncSession) -> ResearchRouter:
     return ResearchRouter(build_research_registry(provider))
 
 
-async def build_standard_research_assessor(
-    session: AsyncSession,
-    *,
-    customer_id: int,
-    module: str,
-) -> ResearchAssessor:
+def resolve_research_assessor() -> ResearchAssessor | None:
+    """Test-injected assessor, or None so the API can wire the LLM adapter."""
     if _assessor_factory is not None:
         return _assessor_factory()
-    return await build_llm_research_assessor(
-        session, customer_id=customer_id, module=module
-    )
+    return None
