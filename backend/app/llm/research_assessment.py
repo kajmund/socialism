@@ -98,6 +98,26 @@ def _evidence_payload(item: AssessableEvidence) -> dict[str, object]:
         "provenance": dict(item.provenance),
         "retrieved_at": item.retrieved_at.isoformat(),
         "content_hash": item.content_hash,
+        **(
+            {
+                "quality": {
+                    "scoring_policy_version": item.quality.scoring_policy_version,
+                    "authority": item.quality.authority,
+                    "relevance": item.quality.relevance,
+                    "currentness": item.quality.currentness,
+                    "source_nature": item.quality.source_nature,
+                    "independence_key": item.quality.independence_key,
+                    "independent_source_count": item.quality.independent_source_count,
+                    "flags": [flag.to_json() for flag in item.quality.flags],
+                    "rationale": item.quality.rationale,
+                    "model_provider": item.quality.model_provider,
+                    "model_name": item.quality.model_name,
+                    "model_version": item.quality.model_version,
+                }
+            }
+            if item.quality is not None
+            else {}
+        ),
     }
 
 

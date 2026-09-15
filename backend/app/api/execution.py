@@ -16,6 +16,7 @@ from app.database.models import (
     ExecutionRun,
     ResearchAssessment,
     ResearchCompletenessPass,
+    ResearchEvidenceQuality,
     ResearchRuntimeNeed,
     UserAccount,
 )
@@ -39,6 +40,8 @@ from app.services.execution.schemas import (
     AttemptResearchOut,
     AttemptResearchRequest,
     AttemptResultOut,
+    EvidenceQualityFlagOut,
+    EvidenceQualityOut,
     EvidenceSetItemOut,
     EvidenceSetOut,
     EvidenceSummaryOut,
@@ -62,6 +65,7 @@ from app.services.execution.service import (
     get_run,
     list_attempt_results,
     list_evidence_items,
+    list_evidence_quality,
     list_evidence_summaries,
     list_research_assessments,
     list_research_assessments_for_attempts,
@@ -254,7 +258,42 @@ def _result_out(row: ExecutionAttemptResult) -> AttemptResultOut:
     )
 
 
-def _item_out(item: EvidenceSetItem) -> EvidenceSetItemOut:
+def _quality_out(row: ResearchEvidenceQuality) -> EvidenceQualityOut:
+    raw_flags = row.flags if isinstance(row.flags, list) else []
+    flags = [
+        EvidenceQualityFlagOut(
+            code=str(item.get("code") or ""),
+            detail=str(item.get("detail") or ""),
+        )
+        for item in raw_flags
+        if isinstance(item, dict)
+    ]
+    return EvidenceQualityOut(
+        id=row.id,
+        evidence_set_item_id=row.evidence_set_item_id,
+        original_evidence_id=row.original_evidence_id,
+        scoring_policy_version=row.scoring_policy_version,
+        authority=row.authority,
+        relevance=row.relevance,
+        currentness=row.currentness,
+        source_nature=row.source_nature,
+        source_timestamp=row.source_timestamp,
+        independence_key=row.independence_key,
+        independent_source_count=row.independent_source_count,
+        flags=flags,
+        rationale=row.rationale,
+        declared_signals=dict(row.declared_signals or {}),
+        model_provider=row.model_provider,
+        model_name=row.model_name,
+        model_version=row.model_version,
+        created_at=row.created_at,
+    )
+
+
+def _item_out(
+    item: EvidenceSetItem,
+    quality: ResearchEvidenceQuality | None = None,
+) -> EvidenceSetItemOut:
     return EvidenceSetItemOut(
         id=item.id,
         evidence_set_id=item.evidence_set_id,
@@ -273,10 +312,18 @@ def _item_out(item: EvidenceSetItem) -> EvidenceSetItemOut:
         provenance=dict(item.provenance or {}),
         retrieved_at=item.retrieved_at,
         content_hash=item.content_hash,
+        quality=None if quality is None else _quality_out(quality),
     )
 
 
-def _evidence_set_out(row: EvidenceSet, items: list[EvidenceSetItem]) -> EvidenceSetOut:
+def _evidence_set_out(
+    row: EvidenceSet,
+    items: list[EvidenceSetItem],
+    quality_rows: list[ResearchEvidenceQuality] | None = None,
+) -> EvidenceSetOut:
+    latest: dict[str, ResearchEvidenceQuality] = {}
+    for quality in quality_rows or []:
+        latest[quality.evidence_set_item_id] = quality
     return EvidenceSetOut(
         id=row.id,
         run_id=row.run_id,
@@ -284,7 +331,7 @@ def _evidence_set_out(row: EvidenceSet, items: list[EvidenceSetItem]) -> Evidenc
         status=row.status,
         created_at=row.created_at,
         frozen_at=row.frozen_at,
-        items=[_item_out(item) for item in items],
+        items=[_item_out(item, latest.get(item.id)) for item in items],
     )
 
 
@@ -745,7 +792,8 @@ async def get_attempt_evidence(
     if attached is None:
         raise HTTPException(status_code=404, detail="Attempt has no attached EvidenceSet")
     evidence_set, items = attached
-    return _evidence_set_out(evidence_set, items)
+    quality_rows = await list_evidence_quality(session, evidence_set.id)
+    return _evidence_set_out(evidence_set, items, quality_rows)
 
 
 @router.get(
