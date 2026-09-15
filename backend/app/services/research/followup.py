@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Protocol
@@ -18,6 +17,7 @@ from app.services.research.assessment import (
     AssessableEvidence,
     ResearchAssessmentDraft,
 )
+from app.services.research.knowledge_question import research_question_key
 from app.services.research.models import (
     RESEARCH_SOURCE_TYPES,
     InvalidResearchPlanError,
@@ -123,15 +123,6 @@ class NoOpFollowUpPlanner:
         previous_needs: Sequence[RuntimeResearchNeed],
     ) -> Sequence[FollowUpNeedDraft]:
         return []
-
-
-def normalize_research_question(question: str) -> str:
-    return " ".join(question.casefold().split())
-
-
-def research_question_key(question: str) -> str:
-    """Deterministic hash of a normalized question. No embeddings."""
-    return hashlib.sha256(normalize_research_question(question).encode("utf-8")).hexdigest()
 
 
 def runtime_needs_from_plan(
