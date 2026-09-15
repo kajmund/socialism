@@ -31,11 +31,11 @@ Routing stays programmatic. An LLM is not used to select providers. Embeddings a
 | Empty `source_types` → no retrieval | Unchanged, unless the need also declares domain/modality/capability filters. |
 | `build_research_registry(provider)` | Still registers `case_knowledge` and `customer_knowledge` adapters only. Each now carries tenant-bound text/search metadata. |
 
-**Unchanged (intentional isolation from planner work):**
+**Plan / runtime persistence:**
 
-- `ResearchPlan` snapshot shape still persists `id`, `question`, `why_needed`, `requested_by`, `source_types`.
-- Plan validation still rejects unknown `source_types`. Extra routing axes on `ResearchNeed` (`domains`, `modalities`, `capabilities`) are not snapshotted in this PR.
-- No Alembic migration.
+- `validate_research_plan` keeps `domains` / `modalities` / `capabilities`.
+- `research_plan_snapshot` and `research_runtime_needs` persist those axes so `execute_attempt_research` reconstructs the same `ResearchNeed` the router filters on.
+- Plan validation still rejects unknown `source_types`. Extra axes are free-form tokens, not a closed taxonomy.
 - `ResearchSource` adapter seam and `KnowledgeResearchSource` tenant rules stay.
 
 `source_types` remain the v1 **evidence nature** constraint. They are logical evidence kinds (`case_knowledge`, `swedish_law`, …), not MCP servers or vector-store brands.
