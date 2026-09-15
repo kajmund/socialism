@@ -32,6 +32,17 @@ from app.services.research.plan import (
     research_plan_to_snapshot,
     validate_research_plan,
 )
+from app.services.research.planner import (
+    FakeResearchPlanner,
+    InvalidResearchObjectiveError,
+    ResearchNeedDraft,
+    ResearchObjective,
+    ResearchPlannerError,
+    plan_from_planner_drafts,
+    research_objective_from_snapshot,
+    research_objective_to_snapshot,
+    require_research_objective,
+)
 from app.services.research.provider import (
     KnowledgeProviderDescriptor,
     NeedConstraints,
@@ -44,6 +55,7 @@ from app.services.research.registry import (
     KnowledgeProviderCapabilityRegistry,
     ResearchSourceRegistry,
     build_research_registry,
+    production_registered_source_types,
 )
 from app.services.research.router import ResearchRouter
 from app.services.research.source import ResearchSource
@@ -68,9 +80,14 @@ _LAZY_EXECUTION = frozenset(
 __all__ = [
     "RESEARCH_SOURCE_TYPES",
     "AttemptResearchResult",
+    "FakeResearchPlanner",
+    "InvalidResearchObjectiveError",
     "InvalidResearchPlanError",
     "KnowledgeProviderCapabilityRegistry",
     "KnowledgeProviderDescriptor",
+    "ResearchNeedDraft",
+    "ResearchObjective",
+    "ResearchPlannerError",
     "KnowledgeResearchSource",
     "NeedConstraints",
     "ProviderAccess",
@@ -91,11 +108,16 @@ __all__ = [
     "constraints_from_need",
     "execute_attempt_research",
     "knowledge_adapter_descriptor",
+    "production_registered_source_types",
     "make_evidence_id",
+    "plan_from_planner_drafts",
     "provenance_from_hit",
     "rank_provider_candidates",
+    "require_research_objective",
     "research_context_from_run",
     "research_evidence",
+    "research_objective_from_snapshot",
+    "research_objective_to_snapshot",
     "research_plan_from_snapshot",
     "research_plan_to_snapshot",
     "search_scope",

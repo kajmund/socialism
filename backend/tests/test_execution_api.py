@@ -27,8 +27,10 @@ from app.services.research.composition import (
     build_standard_research_router,
     set_follow_up_planner_factory,
     set_research_assessor_factory,
+    set_research_planner_factory,
     set_research_router_factory,
 )
+from app.services.research.planner import FakeResearchPlanner, ResearchNeedDraft
 from app.services.research.followup import NoOpFollowUpPlanner
 from app.services.research.models import ResearchContext, ResearchNeed, research_evidence
 from app.services.research.registry import ResearchSourceRegistry
@@ -104,6 +106,7 @@ def programmatic_research_assessor():
     yield
     set_research_assessor_factory(None)
     set_follow_up_planner_factory(None)
+    set_research_planner_factory(None)
 
 
 @pytest.fixture
@@ -226,6 +229,7 @@ async def test_create_run_and_attempt_are_created(client: AsyncClient):
     assert attempt["attempt_type"] == "generic_panel"
     assert attempt["run_id"] == run["id"]
     assert attempt["parent_attempt_id"] is None
+    assert attempt["research_objective_snapshot"] is None
     assert attempt["research_plan_snapshot"] is None
     assert attempt["evidence"] is None
     assert attempt["result"] is None
@@ -315,6 +319,65 @@ async def test_research_then_evidence_is_frozen_and_ordered(
     assert first["content_hash"]
     assert first["provenance"]
     assert first["retrieved_at"]
+
+
+@pytest.mark.asyncio
+async def test_research_from_objective_persists_generated_plan(
+    client: AsyncClient, research_sources
+):
+    _found, _missing, _router = research_sources
+    set_research_planner_factory(
+        lambda: FakeResearchPlanner(
+            [
+                ResearchNeedDraft(
+                    question="Vad är skattesatsen?",
+                    why_needed="behövs för bedömning",
+                    source_types=["customer_knowledge"],
+                    proposed_id="research_1",
+                )
+            ]
+        )
+    )
+    try:
+        created = await client.post(
+            "/execution/runs",
+            json={
+                "customer_id": TEST_CUSTOMER_ID,
+                "module": "dd",
+                "title": "Skattesats",
+                "context": {"case_id": "case-1"},
+            },
+        )
+        run = created.json()
+        attempt = await client.post(
+            f"/execution/runs/{run['id']}/attempts",
+            json={
+                "attempt_type": "generic_panel",
+                "configuration_snapshot": dict(PANEL_CONFIG),
+                "input_snapshot": {"topic": "Vad gäller skattesatsen?"},
+                "research_objective": "Vad är kommunens skattesats?",
+                "research_context": {"matter": "tax"},
+            },
+        )
+        assert attempt.status_code == 201, attempt.text
+        assert attempt.json()["research_objective_snapshot"]["objective"] == (
+            "Vad är kommunens skattesats?"
+        )
+        researched = await client.post(
+            f"/execution/attempts/{attempt.json()['id']}/research",
+            json={},
+        )
+        assert researched.status_code == 200, researched.text
+        detail = await client.get(f"/execution/attempts/{attempt.json()['id']}")
+        body = detail.json()
+        assert body["status"] == "ready"
+        assert body["research_objective_snapshot"]["context"]["matter"] == "tax"
+        assert body["research_plan_snapshot"]["needs"][0]["id"] == "research_1"
+        assert body["research_plan_snapshot"]["needs"][0]["question"] == (
+            "Vad är skattesatsen?"
+        )
+    finally:
+        set_research_planner_factory(None)
 
 
 @pytest.mark.asyncio

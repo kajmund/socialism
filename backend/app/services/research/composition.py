@@ -15,12 +15,17 @@ from app.services.knowledge.vector_store import KnowledgeVectorStore
 from app.services.research.assessment import ResearchAssessor
 from app.services.research.followup import FollowUpResearchPlanner
 from app.services.research.models import ResearchError
-from app.services.research.registry import build_research_registry
+from app.services.research.planner import ResearchPlanner
+from app.services.research.registry import (
+    build_research_registry,
+    production_registered_source_types,
+)
 from app.services.research.router import ResearchRouter
 
 ResearchRouterFactory = Callable[[AsyncSession], ResearchRouter]
 ResearchAssessorFactory = Callable[[], ResearchAssessor]
 FollowUpPlannerFactory = Callable[[], FollowUpResearchPlanner]
+ResearchPlannerFactory = Callable[[], ResearchPlanner]
 KnowledgeVectorStoreFactory = Callable[[], KnowledgeVectorStore]
 
 _UNCONFIGURED_VECTOR_STORE = (
@@ -31,6 +36,7 @@ _UNCONFIGURED_VECTOR_STORE = (
 _router_factory: ResearchRouterFactory | None = None
 _assessor_factory: ResearchAssessorFactory | None = None
 _planner_factory: FollowUpPlannerFactory | None = None
+_research_planner_factory: ResearchPlannerFactory | None = None
 _vector_store_factory: KnowledgeVectorStoreFactory | None = None
 
 
@@ -56,6 +62,12 @@ def set_follow_up_planner_factory(factory: FollowUpPlannerFactory | None) -> Non
     _planner_factory = factory
 
 
+def set_research_planner_factory(factory: ResearchPlannerFactory | None) -> None:
+    """Test seam for the initial ResearchPlanner. Production leaves this unset."""
+    global _research_planner_factory
+    _research_planner_factory = factory
+
+
 def set_knowledge_vector_store_factory(
     factory: KnowledgeVectorStoreFactory | None,
 ) -> None:
@@ -73,6 +85,15 @@ def require_research_router_ready() -> None:
     if _router_factory is not None or _vector_store_factory is not None:
         return
     raise ResearchCompositionError(_UNCONFIGURED_VECTOR_STORE)
+
+
+def standard_available_source_types() -> tuple[str, ...]:
+    """Executable natures for the production ``router_factory`` path.
+
+    Same capability descriptors ``build_standard_research_router`` registers.
+    Session-independent: does not construct a router or retrieval adapter.
+    """
+    return production_registered_source_types()
 
 
 def build_standard_research_router(session: AsyncSession) -> ResearchRouter:
@@ -100,4 +121,11 @@ def resolve_follow_up_planner() -> FollowUpResearchPlanner | None:
     """Test-injected planner, or None so the API can wire the LLM adapter."""
     if _planner_factory is not None:
         return _planner_factory()
+    return None
+
+
+def resolve_research_planner() -> ResearchPlanner | None:
+    """Test-injected initial planner, or None so the API can wire the LLM adapter."""
+    if _research_planner_factory is not None:
+        return _research_planner_factory()
     return None
