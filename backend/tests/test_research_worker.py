@@ -611,10 +611,15 @@ async def test_setup_failure_fail_closes_attempt(worker_db):
         set_research_assessor_factory(ProgrammaticResearchAssessor)
     async with factory() as check:
         row = await get_attempt(check, attempt.id)
+        events = await list_research_progress_events(check, attempt.id)
         claimable = await list_claimable_attempt_ids(check)
+    types = _event_types(events)
     assert row.status == "failed"
     assert claimable == []
     assert sources[0].calls == 0
+    assert "research_failed" in types
+    assert "research_frozen_ready" not in types
+    assert types[-1] == "research_failed"
 
 
 @pytest.mark.asyncio
@@ -666,8 +671,13 @@ async def test_stop_reclaim_loop_does_not_fail_inflight_research(worker_db):
         gate.set()
         await wait_research_workers()
         async with factory() as check:
+            events = await list_research_progress_events(check, attempt.id)
             done = await get_attempt(check, attempt.id)
+        types = _event_types(events)
         assert done.status == "ready"
+        assert "research_failed" not in types
+        assert types.count("research_frozen_ready") == 1
+        assert types[-1] == "research_frozen_ready"
     finally:
         gate.set()
         if stop is not None:
@@ -785,3 +795,130 @@ async def test_lease_loss_does_not_emit_research_failed(worker_db, monkeypatch):
     assert "research_failed" not in types
     assert types.count("research_frozen_ready") == 1
     assert types[-1] == "research_frozen_ready"
+
+
+@pytest.mark.asyncio
+async def test_fenced_worker_exception_does_not_emit_research_failed(
+    worker_db, monkeypatch
+):
+    session, factory = worker_db
+    monkeypatch.setattr(settings, "research_claim_lease_seconds", 0.3)
+    _kund, _run, attempt = await _attempt(session, "prog-stale")
+    first_entered = asyncio.Event()
+    second_entered = asyncio.Event()
+    stale_gate = asyncio.Event()
+    second_hold = asyncio.Event()
+    first_retrieve = True
+
+    class StaleThenOkSource:
+        source_type = "case_knowledge"
+        provider_id = "fake"
+
+        async def research(self, need: ResearchNeed, context: ResearchContext):
+            nonlocal first_retrieve
+            if first_retrieve:
+                first_retrieve = False
+                first_entered.set()
+                await stale_gate.wait()
+                raise RuntimeError("stale worker retrieve")
+            second_entered.set()
+            await second_hold.wait()
+            return [
+                research_evidence(
+                    research_need_id=need.id,
+                    source_type="case_knowledge",
+                    status="found",
+                    excerpt="skattesats 32%",
+                    locator="p. 14",
+                )
+            ]
+
+    registry = ResearchSourceRegistry()
+    registry.register(StaleThenOkSource())
+    set_research_router_factory(lambda _session: ResearchRouter(registry))
+    plan = ResearchPlan(needs=[_need("research_1", "case_knowledge")])
+    try:
+        await accept_attempt_research(
+            session,
+            attempt_id=attempt.id,
+            research_objective=None,
+            research_context={},
+            research_plan=research_plan_to_snapshot(plan),
+        )
+        first = asyncio.create_task(run_research_claim(attempt.id))
+        await asyncio.wait_for(first_entered.wait(), timeout=2)
+        async with factory() as expire:
+            row = await expire.get(ExecutionResearchClaim, attempt.id)
+            assert row is not None
+            row.lease_expires_at = utc_now() - timedelta(seconds=1)
+            await expire.commit()
+        second = asyncio.create_task(run_research_claim(attempt.id))
+        await asyncio.wait_for(second_entered.wait(), timeout=5)
+        stale_gate.set()
+        await asyncio.wait_for(first, timeout=5)
+        second_hold.set()
+        await asyncio.wait_for(second, timeout=5)
+        async with factory() as check:
+            events = await list_research_progress_events(check, attempt.id)
+            done = await get_attempt(check, attempt.id)
+    finally:
+        stale_gate.set()
+        second_hold.set()
+        await wait_research_workers()
+        set_research_router_factory(None)
+
+    types = _event_types(events)
+    assert done.status == "ready"
+    assert "need_failed" not in types
+    assert "research_failed" not in types
+    assert types.count("research_frozen_ready") == 1
+    assert types[-1] == "research_frozen_ready"
+
+
+@pytest.mark.asyncio
+async def test_fenced_exception_without_cancel_does_not_fail_close(worker_db):
+    session, factory = worker_db
+    _kund, _run, attempt = await _attempt(session, "prog-fence-exc")
+    await session.commit()
+    entered = asyncio.Event()
+    gate = asyncio.Event()
+    lease_lost = asyncio.Event()
+
+    class BoomAfterFence:
+        source_type = "case_knowledge"
+        provider_id = "fake"
+
+        async def research(self, need: ResearchNeed, context: ResearchContext):
+            entered.set()
+            await gate.wait()
+            raise RuntimeError("stale after fence")
+
+    router, _sources = _router(BoomAfterFence())
+    plan = ResearchPlan(needs=[_need("research_1", "case_knowledge")])
+    try:
+        task = asyncio.create_task(
+            execute_attempt_research(
+                session,
+                attempt_id=attempt.id,
+                research_plan=plan,
+                router=router,
+                session_factory=factory,
+                lease_lost=lease_lost,
+            )
+        )
+        await asyncio.wait_for(entered.wait(), timeout=2)
+        lease_lost.set()
+        gate.set()
+        with pytest.raises(asyncio.CancelledError):
+            await asyncio.wait_for(task, timeout=5)
+    finally:
+        gate.set()
+
+    async with factory() as check:
+        events = await list_research_progress_events(check, attempt.id)
+        row = await get_attempt(check, attempt.id)
+    types = _event_types(events)
+    assert row.status == "researching"
+    assert "need_failed" not in types
+    assert "research_failed" not in types
+    assert "research_frozen_ready" not in types
