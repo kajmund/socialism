@@ -131,7 +131,7 @@ from app.services.research.quality import (
     QualityEvidenceInput,
     QualityFlag,
     assess_evidence_quality,
-    quality_model_version_key,
+    quality_model_identity_key,
 )
 from app.services.research.registry import standard_capability_descriptors
 from app.services.research.router import ResearchRouter
@@ -484,7 +484,7 @@ async def _persist_evidence_quality(
         scoring_policy_version=EVIDENCE_QUALITY_POLICY_VERSION,
     )
     existing_keys = {
-        (row.evidence_set_item_id, row.scoring_policy_version, row.model_version_key)
+        (row.evidence_set_item_id, row.scoring_policy_version, row.model_identity_key)
         for row in existing
     }
     drafts = await assess_evidence_quality(
@@ -499,7 +499,11 @@ async def _persist_evidence_quality(
         if (
             draft.evidence_set_item_id,
             draft.scoring_policy_version,
-            quality_model_version_key(draft.model_version),
+            quality_model_identity_key(
+                model_provider=draft.model_provider,
+                model_name=draft.model_name,
+                model_version=draft.model_version,
+            ),
         )
         not in existing_keys
     ]

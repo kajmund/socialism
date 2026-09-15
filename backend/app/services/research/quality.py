@@ -7,6 +7,7 @@ Scoring is generic: it only reads declared provider/provenance keys.
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -159,11 +160,25 @@ class EvidenceQualityDraft:
         object.__setattr__(self, "declared_signals", dict(self.declared_signals))
 
 
-def quality_model_version_key(model_version: str | None) -> str:
-    """Stable unique-key token. Empty means programmatic / no relevance model."""
-    if model_version is None:
-        return ""
-    return model_version.strip()
+def quality_model_identity_key(
+    *,
+    model_provider: str | None,
+    model_name: str | None,
+    model_version: str | None,
+) -> str:
+    """Stable unique-key token for policy + model identity.
+
+    Programmatic scoring (all identity fields empty) hashes to one key.
+    Provider, name, and version are all required to distinguish models.
+    """
+    payload = "\x1f".join(
+        (
+            (model_provider or "").strip(),
+            (model_name or "").strip(),
+            (model_version or "").strip(),
+        )
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 def independence_key(item: QualityEvidenceInput) -> str:
@@ -418,19 +433,16 @@ async def assess_evidence_quality(
         if relevance_assessor is not None and item.status == "found" and need is not None:
             try:
                 judgment = await relevance_assessor.judge(need, item)
+            except EvidenceQualityError:
+                raise
             except Exception as exc:
-                flags = [
-                    *flags,
-                    QualityFlag(
-                        code=FLAG_RELEVANCE_FAILED,
-                        detail=f"Relevance assessor failed: {type(exc).__name__}",
-                    ),
-                ]
-            else:
-                relevance = judgment.relevance
-                model_provider = judgment.model_provider
-                model_name = judgment.model_name
-                model_version = judgment.model_version
+                raise EvidenceQualityError(
+                    f"Relevance assessor failed for item {item.item_id}"
+                ) from exc
+            relevance = judgment.relevance
+            model_provider = judgment.model_provider
+            model_name = judgment.model_name
+            model_version = judgment.model_version
         drafts.append(
             EvidenceQualityDraft(
                 evidence_set_item_id=item.item_id,

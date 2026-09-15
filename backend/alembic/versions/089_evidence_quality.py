@@ -38,7 +38,7 @@ def upgrade() -> None:
         sa.Column("model_provider", sa.String(length=64), nullable=True),
         sa.Column("model_name", sa.String(length=128), nullable=True),
         sa.Column("model_version", sa.String(length=64), nullable=True),
-        sa.Column("model_version_key", sa.String(length=64), nullable=False),
+        sa.Column("model_identity_key", sa.String(length=64), nullable=False),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -57,7 +57,7 @@ def upgrade() -> None:
         sa.UniqueConstraint(
             "evidence_set_item_id",
             "scoring_policy_version",
-            "model_version_key",
+            "model_identity_key",
             name="uq_research_evidence_quality_item_policy_model",
         ),
     )

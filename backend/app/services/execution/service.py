@@ -71,7 +71,7 @@ from app.services.research.followup import RuntimeResearchNeed
 from app.services.research.models import ResearchEvidence
 from app.services.research.quality import (
     EvidenceQualityDraft,
-    quality_model_version_key,
+    quality_model_identity_key,
 )
 
 
@@ -920,12 +920,16 @@ async def persist_evidence_quality(
     existing_by_key: dict[tuple[str, str, str], ResearchEvidenceQuality] = {}
     for row in existing_result.scalars().all():
         existing_by_key[
-            (row.evidence_set_item_id, row.scoring_policy_version, row.model_version_key)
+            (row.evidence_set_item_id, row.scoring_policy_version, row.model_identity_key)
         ] = row
     stored: list[ResearchEvidenceQuality] = []
     for draft in drafts:
-        version_key = quality_model_version_key(draft.model_version)
-        key = (draft.evidence_set_item_id, draft.scoring_policy_version, version_key)
+        identity_key = quality_model_identity_key(
+            model_provider=draft.model_provider,
+            model_name=draft.model_name,
+            model_version=draft.model_version,
+        )
+        key = (draft.evidence_set_item_id, draft.scoring_policy_version, identity_key)
         existing = existing_by_key.get(key)
         if existing is not None:
             stored.append(existing)
@@ -956,7 +960,7 @@ async def persist_evidence_quality(
             model_provider=draft.model_provider,
             model_name=draft.model_name,
             model_version=draft.model_version,
-            model_version_key=version_key,
+            model_identity_key=identity_key,
         )
         session.add(row)
         existing_by_key[key] = row
