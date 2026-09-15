@@ -42,12 +42,18 @@ class FollowUpNeedDraft:
     question: str
     why_needed: str
     source_types: list[ResearchSourceType] = field(default_factory=list)
+    domains: list[str] = field(default_factory=list)
+    modalities: list[str] = field(default_factory=list)
+    capabilities: list[str] = field(default_factory=list)
     parent_research_need_id: str | None = None
     source_gap: str = ""
     proposed_id: str = ""
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "source_types", list(self.source_types))
+        object.__setattr__(self, "domains", list(self.domains))
+        object.__setattr__(self, "modalities", list(self.modalities))
+        object.__setattr__(self, "capabilities", list(self.capabilities))
 
 
 @dataclass(frozen=True)
@@ -59,6 +65,9 @@ class RuntimeResearchNeed:
     why_needed: str
     requested_by: list[str] = field(default_factory=list)
     source_types: list[ResearchSourceType] = field(default_factory=list)
+    domains: list[str] = field(default_factory=list)
+    modalities: list[str] = field(default_factory=list)
+    capabilities: list[str] = field(default_factory=list)
     origin: ResearchNeedOrigin = "initial"
     wave_number: int = INITIAL_RESEARCH_WAVE
     parent_research_need_id: str | None = None
@@ -71,6 +80,9 @@ class RuntimeResearchNeed:
             raise FollowUpPlannerError(f"Unknown research need origin: {self.origin}")
         object.__setattr__(self, "requested_by", list(self.requested_by))
         object.__setattr__(self, "source_types", list(self.source_types))
+        object.__setattr__(self, "domains", list(self.domains))
+        object.__setattr__(self, "modalities", list(self.modalities))
+        object.__setattr__(self, "capabilities", list(self.capabilities))
         key = self.question_key or research_question_key(self.question)
         object.__setattr__(self, "question_key", key)
 
@@ -81,6 +93,9 @@ class RuntimeResearchNeed:
             why_needed=self.why_needed,
             requested_by=list(self.requested_by),
             source_types=list(self.source_types),
+            domains=list(self.domains),
+            modalities=list(self.modalities),
+            capabilities=list(self.capabilities),
         )
 
 
@@ -128,6 +143,9 @@ def runtime_needs_from_plan(
             why_needed=need.why_needed,
             requested_by=list(need.requested_by),
             source_types=list(need.source_types),
+            domains=list(need.domains),
+            modalities=list(need.modalities),
+            capabilities=list(need.capabilities),
             origin="initial",
             wave_number=wave_number,
         )
@@ -214,6 +232,9 @@ def validate_follow_up_drafts(
                             question=question,
                             why_needed=why_needed,
                             source_types=source_types,  # type: ignore[arg-type]
+                            domains=list(draft.domains),
+                            modalities=list(draft.modalities),
+                            capabilities=list(draft.capabilities),
                         )
                     ]
                 )
@@ -230,6 +251,9 @@ def validate_follow_up_drafts(
                 why_needed=need.why_needed,
                 requested_by=list(need.requested_by),
                 source_types=list(need.source_types),
+                domains=list(need.domains),
+                modalities=list(need.modalities),
+                capabilities=list(need.capabilities),
                 origin="derived",
                 wave_number=wave_number,
                 parent_research_need_id=_known_parent(

@@ -15,6 +15,7 @@ from app.services.research.knowledge_source import (
 from app.services.research.models import (
     RESEARCH_SOURCE_TYPES,
     InvalidResearchPlanError,
+    ResearchCapabilityUnavailableError,
     ResearchContext,
     ResearchError,
     ResearchEvidence,
@@ -31,7 +32,19 @@ from app.services.research.plan import (
     research_plan_to_snapshot,
     validate_research_plan,
 )
-from app.services.research.registry import ResearchSourceRegistry, build_research_registry
+from app.services.research.provider import (
+    KnowledgeProviderDescriptor,
+    NeedConstraints,
+    ProviderAccess,
+    constraints_from_need,
+    knowledge_adapter_descriptor,
+    rank_provider_candidates,
+)
+from app.services.research.registry import (
+    KnowledgeProviderCapabilityRegistry,
+    ResearchSourceRegistry,
+    build_research_registry,
+)
 from app.services.research.router import ResearchRouter
 from app.services.research.source import ResearchSource
 
@@ -56,7 +69,12 @@ __all__ = [
     "RESEARCH_SOURCE_TYPES",
     "AttemptResearchResult",
     "InvalidResearchPlanError",
+    "KnowledgeProviderCapabilityRegistry",
+    "KnowledgeProviderDescriptor",
     "KnowledgeResearchSource",
+    "NeedConstraints",
+    "ProviderAccess",
+    "ResearchCapabilityUnavailableError",
     "ResearchContext",
     "ResearchError",
     "ResearchEvidence",
@@ -70,9 +88,12 @@ __all__ = [
     "ResearchSourceRegistry",
     "ResearchSourceType",
     "build_research_registry",
+    "constraints_from_need",
     "execute_attempt_research",
+    "knowledge_adapter_descriptor",
     "make_evidence_id",
     "provenance_from_hit",
+    "rank_provider_candidates",
     "research_context_from_run",
     "research_evidence",
     "research_plan_from_snapshot",

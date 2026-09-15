@@ -53,6 +53,9 @@ export type RuntimeResearchNeed = {
   why_needed: string
   requested_by: string[]
   source_types: string[]
+  domains: string[]
+  modalities: string[]
+  capabilities: string[]
   origin: ResearchNeedOrigin | string
   wave_number: number
   parent_research_need_id: string | null
