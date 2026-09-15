@@ -88,20 +88,37 @@ def search_scope(source_type: ResearchSourceType, context: ResearchContext) -> K
     if source_type == "case_knowledge":
         if not scope.case_id:
             raise ResearchScopeRequiredError("case_knowledge requires case_id")
-        return KnowledgeScope(
+        narrowed = KnowledgeScope(
             customer_id=scope.customer_id,
             case_id=scope.case_id,
             module=scope.module,
         )
+        _refuse_widened_scope(scope, narrowed)
+        return narrowed
     if source_type == "customer_knowledge":
-        return KnowledgeScope(
+        narrowed = KnowledgeScope(
             customer_id=scope.customer_id,
             case_id=None,
             module=scope.module,
         )
+        _refuse_widened_scope(scope, narrowed)
+        return narrowed
     raise ResearchScopeRequiredError(
         f"{source_type} has no Knowledge adapter; refusing customer_id=None fallback"
     )
+
+
+def _refuse_widened_scope(supplied: KnowledgeScope, used: KnowledgeScope) -> None:
+    if used.customer_id != supplied.customer_id:
+        raise ResearchScopeRequiredError("refusing to change customer_id")
+    if supplied.case_id is None and used.case_id is not None:
+        raise ResearchScopeRequiredError("refusing to invent case_id")
+    if (
+        supplied.case_id is not None
+        and used.case_id is not None
+        and used.case_id != supplied.case_id
+    ):
+        raise ResearchScopeRequiredError("refusing to change case_id")
 
 
 def provenance_from_hit(hit: KnowledgeHit) -> dict[str, object]:
