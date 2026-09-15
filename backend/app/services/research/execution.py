@@ -12,10 +12,17 @@ import asyncio
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.config import settings
-from app.database.models import EvidenceSetItem, ExecutionAttempt, ExecutionRun
+from app.database.models import (
+    EvidenceSet,
+    EvidenceSetItem,
+    ExecutionAttempt,
+    ExecutionRun,
+    ResearchNeedExecution,
+)
 from app.services.execution.errors import ExecutionStatusError
 from app.services.execution.models import TERMINAL_NEED_EXECUTION_STATUSES
 from app.services.execution.service import (
@@ -130,7 +137,6 @@ async def _fail_claimed_research(
     attempt_id: str,
     evidence_set_id: str | None,
 ) -> None:
-    session.expire_all()
     attempt = await get_attempt(session, attempt_id)
     if attempt.status in {"ready", "running", "completed"}:
         return
@@ -173,12 +179,11 @@ async def _execute_one_need(
     router: ResearchRouter | None,
     router_factory: ResearchRouterFactory | None,
 ) -> None:
-    async with persist_lock:
-        async with factory() as claim_session:
-            row = await claim_need_execution_running(claim_session, execution_id)
-            await claim_session.commit()
-            if row.status in TERMINAL_NEED_EXECUTION_STATUSES:
-                return
+    async with persist_lock, factory() as claim_session:
+        row = await claim_need_execution_running(claim_session, execution_id)
+        await claim_session.commit()
+        if row.status in TERMINAL_NEED_EXECUTION_STATUSES:
+            return
 
     try:
         evidence = await _retrieve_need(
@@ -189,30 +194,28 @@ async def _execute_one_need(
             router_factory=router_factory,
         )
     except BaseException:
-        async with persist_lock:
-            async with factory() as fail_session:
-                await fail_need_execution(fail_session, execution_id)
-                await fail_session.commit()
+        async with persist_lock, factory() as fail_session:
+            await fail_need_execution(fail_session, execution_id)
+            await fail_session.commit()
         raise
 
-    async with persist_lock:
-        async with factory() as persist_session:
-            row = await get_need_execution(persist_session, execution_id)
-            if row.status in TERMINAL_NEED_EXECUTION_STATUSES:
-                return
-            await add_evidence_items(
-                persist_session,
-                evidence_set_id=evidence_set_id,
-                items=evidence,
-            )
-            await complete_need_execution(persist_session, execution_id)
-            await persist_session.commit()
+    async with persist_lock, factory() as persist_session:
+        row = await get_need_execution(persist_session, execution_id)
+        if row.status in TERMINAL_NEED_EXECUTION_STATUSES:
+            return
+        await add_evidence_items(
+            persist_session,
+            evidence_set_id=evidence_set_id,
+            items=evidence,
+        )
+        await complete_need_execution(persist_session, execution_id)
+        await persist_session.commit()
 
 
 async def _run_need_executions(
-    session: AsyncSession,
     *,
-    attempt_id: str,
+    factory: async_sessionmaker[AsyncSession],
+    pending: list[tuple[str, str]],
     evidence_set_id: str,
     plan: ResearchPlan,
     context: ResearchContext,
@@ -220,16 +223,9 @@ async def _run_need_executions(
     router_factory: ResearchRouterFactory | None,
     concurrency: int,
 ) -> None:
-    executions = await list_need_executions(session, attempt_id)
-    pending = [
-        row
-        for row in executions
-        if row.status not in TERMINAL_NEED_EXECUTION_STATUSES
-    ]
     if not pending:
         return
     needs_by_id = {need.id: need for need in plan.needs}
-    factory = _session_factory(session)
     persist_lock = asyncio.Lock()
     semaphore = asyncio.Semaphore(concurrency)
 
@@ -248,7 +244,7 @@ async def _run_need_executions(
             )
 
     await asyncio.gather(
-        *(worker(row.id, row.research_need_id) for row in pending)
+        *(worker(execution_id, need_id) for execution_id, need_id in pending)
     )
 
 
@@ -259,7 +255,6 @@ async def _finalize_attempt_research(
     evidence_set_id: str,
 ) -> None:
     """Barrier: freeze + ready only after every need execution is completed."""
-    session.expire_all()
     executions = await list_need_executions(session, attempt_id)
     if any(row.status == "failed" for row in executions):
         raise ResearchExecutionError(
@@ -303,6 +298,7 @@ async def execute_attempt_research(
     research_plan: ResearchPlan,
     router: ResearchRouter | None = None,
     router_factory: ResearchRouterFactory | None = None,
+    session_factory: async_sessionmaker[AsyncSession] | None = None,
     concurrency: int | None = None,
 ) -> AttemptResearchResult:
     """Run each ResearchNeed concurrently, persist incrementally, then freeze.
@@ -327,6 +323,8 @@ async def execute_attempt_research(
         )
 
     plan = validate_research_plan(research_plan)
+    if router_factory is not None:
+        router_factory(session)
     run = await get_run(session, attempt.run_id)
     need_concurrency = _concurrency_limit(concurrency)
     claimed = False
@@ -351,18 +349,24 @@ async def execute_attempt_research(
             attempt_id=attempt.id,
             evidence_set_id=evidence_set.id,
         )
-        await seed_need_executions(
+        seeded = await seed_need_executions(
             session,
             attempt_id=attempt.id,
             need_ids=[need.id for need in plan.needs],
         )
+        pending = [
+            (row.id, row.research_need_id)
+            for row in seeded
+            if row.status not in TERMINAL_NEED_EXECUTION_STATUSES
+        ]
+        context = research_context_from_run(run)
+        factory = session_factory or _session_factory(session)
         await session.commit()
 
-        context = research_context_from_run(run)
-        if plan.needs:
+        if pending:
             await _run_need_executions(
-                session,
-                attempt_id=attempt.id,
+                factory=factory,
+                pending=pending,
                 evidence_set_id=evidence_set.id,
                 plan=plan,
                 context=context,
@@ -370,23 +374,52 @@ async def execute_attempt_research(
                 router_factory=router_factory,
                 concurrency=need_concurrency,
             )
-        await _finalize_attempt_research(
-            session,
-            attempt_id=attempt.id,
-            evidence_set_id=evidence_set.id,
-        )
-        session.expire_all()
-        return await _result_from_attempt(session, await get_attempt(session, attempt.id))
+        async with factory() as final_session:
+            await _finalize_attempt_research(
+                final_session,
+                attempt_id=attempt_id,
+                evidence_set_id=evidence_set.id,
+            )
+            result = await _result_from_attempt(
+                final_session, await get_attempt(final_session, attempt_id)
+            )
+        await _refresh_caller_state(session, attempt_id, evidence_set_id)
+        return result
     except BaseException as exc:
         if isinstance(exc, ExecutionStatusError) and not claimed:
             raise
         await session.rollback()
         if claimed:
-            await _fail_claimed_research(
-                session,
-                attempt_id=attempt_id,
-                evidence_set_id=evidence_set_id,
-            )
+            factory = session_factory or _session_factory(session)
+            async with factory() as fail_session:
+                await _fail_claimed_research(
+                    fail_session,
+                    attempt_id=attempt_id,
+                    evidence_set_id=evidence_set_id,
+                )
+            await _refresh_caller_state(session, attempt_id, evidence_set_id)
         if isinstance(exc, Exception):
             raise ResearchExecutionError(f"Attempt {attempt_id} research failed") from exc
         raise
+
+
+async def _refresh_caller_state(
+    session: AsyncSession,
+    attempt_id: str,
+    evidence_set_id: str | None,
+) -> None:
+    cached_attempt = await session.get(ExecutionAttempt, attempt_id)
+    if cached_attempt is not None:
+        await session.refresh(cached_attempt)
+    if evidence_set_id is None:
+        return
+    cached_set = await session.get(EvidenceSet, evidence_set_id)
+    if cached_set is not None:
+        await session.refresh(cached_set)
+    cached_needs = await session.execute(
+        select(ResearchNeedExecution).where(
+            ResearchNeedExecution.attempt_id == attempt_id
+        )
+    )
+    for row in cached_needs.scalars():
+        session.expire(row)

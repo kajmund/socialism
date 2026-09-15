@@ -720,12 +720,15 @@ async def test_fast_need_persists_before_slow_need_completes(db):
     attempt_id = attempt.id
     release_slow = asyncio.Event()
     fast_persisted = asyncio.Event()
+    fast_retrieving = asyncio.Event()
 
     class SplitSource:
         source_type = "case_knowledge"
         provider_id = "fake"
 
         async def research(self, need: ResearchNeed, context: ResearchContext):
+            if need.id == "fast":
+                fast_retrieving.set()
             if need.id == "slow":
                 await release_slow.wait()
             return [
@@ -739,6 +742,7 @@ async def test_fast_need_persists_before_slow_need_completes(db):
             ]
 
     async def watch() -> None:
+        await fast_retrieving.wait()
         while True:
             async with factory() as other:
                 items = []
@@ -771,6 +775,7 @@ async def test_fast_need_persists_before_slow_need_completes(db):
                 ]
             ),
             router=router,
+            session_factory=factory,
             concurrency=2,
         )
     )
@@ -823,12 +828,14 @@ async def test_worker_failure_after_partial_persist_is_fail_closed(db):
     _customer_row, _run, attempt = await _created_attempt(session, slug="partial-co")
     attempt_id = attempt.id
     hold_boom = asyncio.Event()
+    kept_retrieving = asyncio.Event()
 
     class MixedRouter:
         async def execute_need(self, need: ResearchNeed, context: ResearchContext):
             if need.id == "boom":
                 await hold_boom.wait()
                 raise RuntimeError("worker exploded")
+            kept_retrieving.set()
             return [
                 research_evidence(
                     research_need_id=need.id,
@@ -839,6 +846,7 @@ async def test_worker_failure_after_partial_persist_is_fail_closed(db):
             ]
 
     async def release_after_fast() -> None:
+        await kept_retrieving.wait()
         while True:
             async with factory() as other:
                 row = await other.get(ExecutionAttempt, attempt_id)
@@ -849,9 +857,8 @@ async def test_worker_failure_after_partial_persist_is_fail_closed(db):
                         return
             await asyncio.sleep(0.01)
 
-    release_task = asyncio.create_task(release_after_fast())
-    with pytest.raises(ResearchExecutionError, match="research failed"):
-        await execute_attempt_research(
+    exec_task = asyncio.create_task(
+        execute_attempt_research(
             session,
             attempt_id=attempt_id,
             research_plan=ResearchPlan(
@@ -861,8 +868,13 @@ async def test_worker_failure_after_partial_persist_is_fail_closed(db):
                 ]
             ),
             router=MixedRouter(),  # type: ignore[arg-type]
+            session_factory=factory,
             concurrency=2,
         )
+    )
+    release_task = asyncio.create_task(release_after_fast())
+    with pytest.raises(ResearchExecutionError, match="research failed"):
+        await exec_task
     await asyncio.wait_for(release_task, timeout=2)
     reloaded = await get_attempt(session, attempt_id)
     evidence_set = await get_evidence_set(session, reloaded.evidence_set_id)
