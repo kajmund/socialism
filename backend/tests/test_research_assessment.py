@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
@@ -58,6 +58,22 @@ async def db():
     factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    async with factory() as session:
+        yield session, factory
+    await engine.dispose()
+
+
+@pytest.fixture
+async def file_db(tmp_path):
+    """Own connections so concurrent workers do not share SQLite savepoints."""
+    engine = create_async_engine(
+        f"sqlite+aiosqlite:///{tmp_path}/research.sqlite",
+        connect_args={"check_same_thread": False, "timeout": 15},
+    )
+    factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(text("PRAGMA journal_mode=WAL"))
     async with factory() as session:
         yield session, factory
     await engine.dispose()
@@ -114,8 +130,8 @@ def _fixed_draft(
 
 
 @pytest.mark.asyncio
-async def test_assessment_runs_only_after_need_executions_complete(db):
-    session, factory = db
+async def test_assessment_runs_only_after_need_executions_complete(file_db):
+    session, factory = file_db
     _customer, _run, attempt = await _created_attempt(session, slug="assess-barrier")
     attempt_id = attempt.id
     release_slow = asyncio.Event()

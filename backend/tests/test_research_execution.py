@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
@@ -109,6 +110,22 @@ async def db():
     factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    async with factory() as session:
+        yield session, factory
+    await engine.dispose()
+
+
+@pytest.fixture
+async def file_db(tmp_path):
+    """Own connections so concurrent workers do not share SQLite savepoints."""
+    engine = create_async_engine(
+        f"sqlite+aiosqlite:///{tmp_path}/research.sqlite",
+        connect_args={"check_same_thread": False, "timeout": 15},
+    )
+    factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(text("PRAGMA journal_mode=WAL"))
     async with factory() as session:
         yield session, factory
     await engine.dispose()
@@ -467,8 +484,8 @@ async def test_double_claim_is_rejected(db):
 
 
 @pytest.mark.asyncio
-async def test_tx1_commits_before_router_runs(db):
-    session, factory = db
+async def test_tx1_commits_before_router_runs(file_db):
+    session, factory = file_db
     _customer_row, _run, attempt = await _created_attempt(session, slug="tx-co")
     attempt_id = attempt.id
 
@@ -866,8 +883,8 @@ async def test_persist_does_not_consume_retrieval_slots(db, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_fast_need_persists_before_slow_need_completes(db):
-    session, factory = db
+async def test_fast_need_persists_before_slow_need_completes(file_db):
+    session, factory = file_db
     _customer_row, _run, attempt = await _created_attempt(session, slug="incr-co")
     attempt_id = attempt.id
     release_slow = asyncio.Event()
@@ -975,8 +992,8 @@ async def test_not_found_and_source_error_complete_the_barrier(db):
 
 
 @pytest.mark.asyncio
-async def test_worker_failure_after_partial_persist_is_fail_closed(db):
-    session, factory = db
+async def test_worker_failure_after_partial_persist_is_fail_closed(file_db):
+    session, factory = file_db
     _customer_row, _run, attempt = await _created_attempt(session, slug="partial-co")
     attempt_id = attempt.id
     hold_boom = asyncio.Event()
