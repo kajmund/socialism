@@ -1,3 +1,4 @@
+import type { ExpertMemory } from "@/api/expertMemory"
 import { api } from "@/lib/api"
 import { BOLAG_DEMO_CUSTOMER_ID, OS_CUSTOMER_ID } from "@/lib/scoping"
 import type {
@@ -157,6 +158,7 @@ export type PersonaChatResponse = {
   reply: string
   messages: PersonaMessage[]
   suggestions?: string[]
+  saved_memories?: ExpertMemory[]
 }
 
 export function generatePersonas(
@@ -194,10 +196,13 @@ export function listPersonaMessages(
 export function getSuggestedQuestions(
   id: string,
   mode: ChatMode,
+  options?: { signal?: AbortSignal },
 ): Promise<{ questions: string[] }> {
-  return api.get<{ questions: string[] }>(`/personas/${id}/suggested-questions`, {
-    mode,
-  })
+  return api.get<{ questions: string[] }>(
+    `/personas/${id}/suggested-questions`,
+    { mode },
+    options,
+  )
 }
 
 export function chatWithPersona(

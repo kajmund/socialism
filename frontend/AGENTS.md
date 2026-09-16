@@ -155,6 +155,7 @@ Still hardcoded (next slices): OASIS simulation prompts (intentionally Swedish).
 | `/tools/configurations/new`, `/tools/configurations/:id/edit` | Skapa/redigera konfiguration |
 | `/tools/playground` | Anchor-/SSR-kalibrering + prompt-iteration |
 | `/tools/cache` | Lista/rensa diskcachade SSR-ankarembeddings |
+| `/tools/memory` | Expertminnen (Mem0) per kund och expert |
 | `/configurations`, `/playground`, `/config` | Redirect → `/tools/...` |
 Home is `/` (dashboard). Unknown routes redirect to `/`.
 

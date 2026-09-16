@@ -88,8 +88,10 @@ MODEL_CATALOG: tuple[ModelProfile, ...] = (
         provider="deepseek",
         model="deepseek-v4-pro",
         params=(_TEMP, _TOP_P, _MAX_TOKENS_DEEPSEEK, _REASONING_DEEPSEEK),
-        supports_vision=True,
-        allowed_image_types=_DEEPSEEK_IMAGE_TYPES,
+        # DeepSeek accepts image parts but returns text-only replies (no pixels).
+        # Native vision is on deepseek-flash (V4.1-Flash) only.
+        supports_vision=False,
+        allowed_image_types=(),
     ),
     ModelProfile(
         id="gpt-oss-120b",

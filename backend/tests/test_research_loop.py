@@ -6,6 +6,7 @@ import asyncio
 from collections.abc import Sequence
 
 import pytest
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
@@ -60,6 +61,22 @@ async def db():
     factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    async with factory() as session:
+        yield session, factory
+    await engine.dispose()
+
+
+@pytest.fixture
+async def file_db(tmp_path):
+    """Own connections so concurrent workers do not share SQLite savepoints."""
+    engine = create_async_engine(
+        f"sqlite+aiosqlite:///{tmp_path}/research.sqlite",
+        connect_args={"check_same_thread": False, "timeout": 15},
+    )
+    factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(text("PRAGMA journal_mode=WAL"))
     async with factory() as session:
         yield session, factory
     await engine.dispose()
@@ -184,8 +201,8 @@ async def test_sufficient_after_initial_assessment_skips_planner(db):
 
 
 @pytest.mark.asyncio
-async def test_follow_up_needs_are_persisted_before_retrieval(db):
-    session, factory = db
+async def test_follow_up_needs_are_persisted_before_retrieval(file_db):
+    session, factory = file_db
     _customer, _run, attempt = await _created_attempt(session, slug="loop-persist")
     attempt_id = attempt.id
     followup_started = asyncio.Event()
@@ -258,8 +275,8 @@ async def test_follow_up_needs_are_persisted_before_retrieval(db):
 
 
 @pytest.mark.asyncio
-async def test_derived_needs_use_same_bounded_async_machinery(db):
-    session, _factory = db
+async def test_derived_needs_use_same_bounded_async_machinery(file_db):
+    session, _factory = file_db
     _customer, _run, attempt = await _created_attempt(session, slug="loop-conc")
     in_flight = 0
     max_in_flight = 0

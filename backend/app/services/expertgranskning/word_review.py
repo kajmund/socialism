@@ -44,6 +44,7 @@ from app.services.expertgranskning.intent_interview import (
     compose_expert_review_context,
     compose_intent_prefix,
 )
+from app.services.expertgranskning.memory import get_expert_memory
 from app.services.expertgranskning.observation import (
     WordExpertCommentDraft,
     comment_exceeds_soft_cap,
@@ -1675,6 +1676,13 @@ async def run_word_paragraph_review(
         review_intent=payload.review_intent,
     )
     review_intent = review_context
+    memory = get_expert_memory()
+    await memory.add_intent(
+        customer_id=payload.customer_id,
+        expert_ids=[slot.slot_id for slot in slots],
+        text=review_context,
+        job_id=job.id,
+    )
     timings = WordReviewTimings()
     limiter = WordReviewLimiter(settings.word_review_max_concurrency, timings)
     sections_total = len(payload.sections)
@@ -1801,6 +1809,35 @@ async def run_word_paragraph_review(
         if failed is not None:
             raise failed
         snapshot = timings.snapshot()
+        result_rows = (
+            await session.execute(
+                select(ExpertgranskningResult)
+                .where(ExpertgranskningResult.job_id == job.id)
+                .order_by(ExpertgranskningResult.id.asc())
+            )
+        ).scalars().all()
+        findings_by_expert: dict[str, list[str]] = {}
+        for row in result_rows:
+            if not row.expert_id.strip():
+                continue
+            finding = row.kommentar.strip()
+            if row.explanation and row.explanation.strip():
+                finding = f"{finding}\nBakgrund: {row.explanation.strip()}"
+            findings_by_expert.setdefault(row.expert_id, []).append(finding)
+        if payload.doc_id:
+            for expert_id, findings in findings_by_expert.items():
+                await memory.replace_word_findings(
+                    customer_id=payload.customer_id,
+                    expert_id=expert_id,
+                    doc_id=payload.doc_id,
+                    job_id=job.id,
+                    findings=findings,
+                )
+        elif findings_by_expert:
+            logger.warning(
+                "Skipping word_findings memory for job %s: request has no doc_id",
+                job.id,
+            )
         logged_summary = True
         log_word_review_call_summary(job.id, snapshot, outcome="success")
         return {

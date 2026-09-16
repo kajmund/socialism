@@ -32,12 +32,16 @@ from app.main import create_app
 from app.schemas.domain import FollowUpQuestions
 from app.services import jobs as jobs_service
 from app.services import research_worker
-from app.services.panel.competency import ExpertCompetency
-from app.services.panel.research import empty_research_structured
-from app.services.panel.synthesis import GenericPanelSynthesis
+from app.services.expertgranskning.memory import (
+    ExpertMemoryHit,
+    set_expert_memory_factory,
+)
 from app.services.image_cache import clear_image_cache
 from app.services.kund_store import bolag_demo_customer_id, ensure_default_kunder
 from app.services.object_storage import MemoryObjectStorage, set_object_storage
+from app.services.panel.competency import ExpertCompetency
+from app.services.panel.research import empty_research_structured
+from app.services.panel.synthesis import GenericPanelSynthesis
 from app.services.ssr import clear_embedding_cache, set_embedder
 
 # Isolate disk cache / rotating logs from developer machine data/.
@@ -58,6 +62,45 @@ TEST_JWT_SECRET = "test-supabase-jwt-secret-not-real"
 ADMIN_USER_ID = "00000000-0000-4000-8000-aaaaaaaaaaaa"
 USER_USER_ID = "00000000-0000-4000-8000-bbbbbbbbbbbb"
 BOLAG_USER_ID = "00000000-0000-4000-8000-cccccccccccc"
+
+
+class NoopExpertMemory:
+    async def search(self, **_kwargs) -> list[ExpertMemoryHit]:
+        return []
+
+    async def list_all(self, **_kwargs) -> list[ExpertMemoryHit]:
+        return []
+
+    async def list_for_customer(self, **_kwargs) -> list[ExpertMemoryHit]:
+        return []
+
+    async def add_chat_turn(self, **_kwargs) -> list[ExpertMemoryHit]:
+        return []
+
+    async def add_intent(self, **_kwargs) -> None:
+        return None
+
+    async def replace_word_findings(self, **_kwargs) -> None:
+        return None
+
+    async def get(self, **_kwargs) -> ExpertMemoryHit | None:
+        return None
+
+    async def update(self, **_kwargs) -> ExpertMemoryHit:
+        raise ValueError("memory_id is required")
+
+    async def delete(self, **_kwargs) -> None:
+        return None
+
+    async def delete_all(self, **_kwargs) -> None:
+        return None
+
+
+@pytest.fixture(autouse=True)
+def _expert_memory():
+    set_expert_memory_factory(NoopExpertMemory)
+    yield
+    set_expert_memory_factory(None)
 
 
 def mint_access_token(
@@ -147,8 +190,8 @@ async def client():
         backfill_configuration_anchor_sets,
         ensure_default_anchor_sets,
     )
-    from app.services.label_vocabulary import ensure_vocabularies_seeded
     from app.services.dd.default_experts import ensure_default_expert_personas
+    from app.services.label_vocabulary import ensure_vocabularies_seeded
     from app.services.panel.module_defaults import ensure_module_panel_defaults
     from app.services.prompt_store import ensure_default_configurations
 

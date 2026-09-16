@@ -5,6 +5,13 @@ import {
   catalogToFieldOptions,
   listCatalog,
 } from "@/api/catalog"
+import {
+  clearPersonaMemories,
+  deletePersonaMemory,
+  listPersonaMemories,
+  updatePersonaMemory,
+  type ExpertMemory,
+} from "@/api/expertMemory"
 import { uploadMessageImageRaw } from "@/api/messages"
 import {
   chatWithPersona,
@@ -35,6 +42,8 @@ import { PersonaAnekdotEditor, PersonaAnekdotPresentation } from "@/components/p
 import { PersonaLibrarySaveAction } from "@/components/personas/PersonaLibrarySaveAction"
 import { AdminButton } from "@/components/ui/admin-button"
 import { Card, CardContent } from "@/components/ui/card"
+import { ExpertMemoryDialog } from "@/components/experts/ExpertMemoryDialog"
+import { memoryNoticeText } from "@/components/experts/memoryNotice"
 import { ExpertToolsFields } from "@/components/experts/ExpertToolsFields"
 import { blankEditableExpert, blankEditablePersona } from "@/data/library"
 import type { EditablePersona, PersonaKind, PersonaOrigin } from "@/data/library-types"
@@ -225,6 +234,7 @@ function Editor({
   tools = DEFAULT_EXPERT_TOOLS,
   onToolsChange,
 }: EditorProps) {
+  const { intl } = useLocale()
   const [mode, setMode] = useState<"work" | "present">("work")
   const [icMode, setIcMode] = useState<ChatMode>("interview")
   const [layersOpen, setLayersOpen] = useState(true)
@@ -248,10 +258,16 @@ function Editor({
   const [restBusy, setRestBusy] = useState(false)
   const [suggestions, setSuggestions] = useState<string[]>([])
   const suggestGen = useRef(0)
+  const suggestAbort = useRef<AbortController | null>(null)
   const [confirmClearInterview, setConfirmClearInterview] = useState(false)
   const [confirmDeleteMessageId, setConfirmDeleteMessageId] = useState<number | null>(
     null,
   )
+  const [memoryLogOpen, setMemoryLogOpen] = useState(false)
+  const [memoryLog, setMemoryLog] = useState<ExpertMemory[]>([])
+  const [memoryLogLoading, setMemoryLogLoading] = useState(false)
+  const [memoryLogError, setMemoryLogError] = useState<string | null>(null)
+  const [savedMemories, setSavedMemories] = useState<ExpertMemory[] | null>(null)
   const chatHello = useMemo(
     () =>
       personaId
@@ -268,10 +284,11 @@ function Editor({
     send: socketSend,
   } = useChatSocket({
     hello: chatHello,
-    onDone: (rows) => {
+    onDone: (rows, memories) => {
       setMessages(doneToPersonaMessages(rows, icMode))
       setOptimisticUser(null)
       setOptimisticImageUrl(null)
+      if (kind === "expert") setSavedMemories(memories ?? [])
     },
     onSuggestions: (questions) => {
       setSuggestions(questions)
@@ -290,6 +307,8 @@ function Editor({
       setMessages([])
       setOptimisticUser(null)
       setSuggestions([])
+      setSavedMemories(null)
+      setMemoryLog([])
       return
     }
     if (!chatReady) {
@@ -298,6 +317,9 @@ function Editor({
     }
     let cancelled = false
     const gen = ++suggestGen.current
+    suggestAbort.current?.abort()
+    const ac = new AbortController()
+    suggestAbort.current = ac
     listPersonaMessages(personaId, icMode)
       .then((rows) => {
         if (!cancelled) {
@@ -311,7 +333,7 @@ function Editor({
           onToast(err instanceof ApiError ? err.message : t("personas.composer.fetchChatError"))
         }
       })
-    getSuggestedQuestions(personaId, icMode)
+    getSuggestedQuestions(personaId, icMode, { signal: ac.signal })
       .then((res) => {
         if (!cancelled && gen === suggestGen.current) {
           setSuggestions(res.questions)
@@ -324,6 +346,7 @@ function Editor({
       })
     return () => {
       cancelled = true
+      ac.abort()
     }
     // intentionally omit onToast/t — parent recreates them each render
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -354,8 +377,10 @@ function Editor({
     const trimmed = text.trim()
     const sha = pendingImageSha
     if ((!trimmed && !sha) || !personaId || chatBusy || imageBusy) return
+    suggestAbort.current?.abort()
     suggestGen.current += 1
     setSuggestions([])
+    setSavedMemories(null)
     setOptimisticUser(trimmed || null)
     setOptimisticImageUrl(pendingImageUrl)
     setPendingImageSha(null)
@@ -386,6 +411,7 @@ function Editor({
         })
         setMessages(result.messages)
         setSuggestions(result.suggestions ?? [])
+        if (kind === "expert") setSavedMemories(result.saved_memories ?? [])
       } else {
         setMessages([])
         setSuggestions([])
@@ -408,8 +434,13 @@ function Editor({
       setOptimisticUser(null)
       setConfirmClearInterview(false)
       const gen = ++suggestGen.current
+      suggestAbort.current?.abort()
+      const ac = new AbortController()
+      suggestAbort.current = ac
       try {
-        const res = await getSuggestedQuestions(personaId, icMode)
+        const res = await getSuggestedQuestions(personaId, icMode, {
+          signal: ac.signal,
+        })
         if (gen === suggestGen.current) setSuggestions(res.questions)
       } catch {
         if (gen === suggestGen.current) setSuggestions([])
@@ -481,6 +512,26 @@ function Editor({
   }
 
   const messagePendingDelete = messages.find((m) => m.id === confirmDeleteMessageId)
+  const showMemoryUi = kind === "expert" && Boolean(personaId)
+  const memoryNotice =
+    showMemoryUi && savedMemories != null ? memoryNoticeText(savedMemories, t) : null
+
+  async function openMemoryLog() {
+    if (!personaId) return
+    setMemoryLogOpen(true)
+    setMemoryLogLoading(true)
+    setMemoryLogError(null)
+    try {
+      const listed = await listPersonaMemories(personaId)
+      setMemoryLog(listed.memories)
+    } catch (err) {
+      setMemoryLogError(
+        err instanceof ApiError ? err.message : t("experts.memory.logError"),
+      )
+    } finally {
+      setMemoryLogLoading(false)
+    }
+  }
 
   async function resendMessage(messageId: number) {
     if (!personaId || chatBusy) return
@@ -490,6 +541,7 @@ function Editor({
       setMessages(result.messages)
       setOptimisticUser(null)
       setSuggestions(result.suggestions ?? [])
+      if (kind === "expert") setSavedMemories(result.saved_memories ?? [])
     } catch (err) {
       onToast(err instanceof ApiError ? err.message : t("personas.composer.resendError"))
     } finally {
@@ -823,6 +875,17 @@ function Editor({
               </div>
             </div>
             <div className="chat-top-actions">
+              {showMemoryUi ? (
+                <AdminButton
+                  variant="secondary"
+                  size="sm"
+                  disabled={!personaId || chatBusy}
+                  onClick={() => void openMemoryLog()}
+                  aria-label={t("experts.memory.logAria", { name: persona.name })}
+                >
+                  {t("experts.memory.log")}
+                </AdminButton>
+              ) : null}
               <AdminButton
                 variant="secondary"
                 size="sm"
@@ -858,6 +921,7 @@ function Editor({
             busy={chatBusy || imageBusy}
             ready={chatReady}
             disabled={!personaId}
+            notice={memoryNotice}
             suggestions={suggestions}
             onSuggestion={sendMessage}
             placeholder={
@@ -966,16 +1030,29 @@ function Editor({
             <h3 style={{ fontStyle: "italic", fontSize: 22, margin: 0 }}>
               {t("personas.composer.interviewTab")}
             </h3>
-            {personaId && messages.length > 0 ? (
-              <AdminButton
-                variant="secondary"
-                size="sm"
-                disabled={chatBusy}
-                onClick={() => setConfirmClearInterview(true)}
-              >
-                {clearChatLabel}
-              </AdminButton>
-            ) : null}
+            <div className="flex flex-wrap items-center gap-2">
+              {showMemoryUi ? (
+                <AdminButton
+                  variant="secondary"
+                  size="sm"
+                  disabled={!personaId || chatBusy}
+                  onClick={() => void openMemoryLog()}
+                  aria-label={t("experts.memory.logAria", { name: persona.name })}
+                >
+                  {t("experts.memory.log")}
+                </AdminButton>
+              ) : null}
+              {personaId && messages.length > 0 ? (
+                <AdminButton
+                  variant="secondary"
+                  size="sm"
+                  disabled={chatBusy}
+                  onClick={() => setConfirmClearInterview(true)}
+                >
+                  {clearChatLabel}
+                </AdminButton>
+              ) : null}
+            </div>
           </div>
           <MessengerChat
             messages={messages}
@@ -996,6 +1073,7 @@ function Editor({
             disabled={!personaId}
             suggestions={suggestions}
             onSuggestion={sendMessage}
+            notice={memoryNotice}
             placeholder={t("personas.composer.askPersonaPlaceholder", {
               name: persona.name,
             })}
@@ -1119,6 +1197,49 @@ function Editor({
           </div>
         ) : null}
       </ConfirmModal>
+
+      <ExpertMemoryDialog
+        open={memoryLogOpen}
+        name={persona.name}
+        memories={memoryLog}
+        loading={memoryLogLoading}
+        error={memoryLogError}
+        formatWhen={(iso) => {
+          if (!iso) return ""
+          const d = new Date(iso)
+          if (Number.isNaN(d.getTime())) return iso
+          return new Intl.DateTimeFormat(intl, {
+            dateStyle: "short",
+            timeStyle: "short",
+          }).format(d)
+        }}
+        onSave={
+          personaId
+            ? async (row, text) => {
+                const updated = await updatePersonaMemory(personaId, row.id, text)
+                setMemoryLog((prev) => prev.map((item) => (item.id === row.id ? updated : item)))
+                return updated
+              }
+            : undefined
+        }
+        onDelete={
+          personaId
+            ? async (row) => {
+                await deletePersonaMemory(personaId, row.id)
+                setMemoryLog((prev) => prev.filter((item) => item.id !== row.id))
+              }
+            : undefined
+        }
+        onClearAll={
+          personaId
+            ? async () => {
+                await clearPersonaMemories(personaId)
+                setMemoryLog([])
+              }
+            : undefined
+        }
+        onClose={() => setMemoryLogOpen(false)}
+      />
     </>
   )
 }

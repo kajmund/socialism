@@ -71,6 +71,15 @@ class Settings(BaseSettings):
     embedding_cache_dir: str = "data/embedding_cache"
     # Budskap image bytes + vision captions keyed by SHA256.
     image_cache_dir: str = "data/image_cache"
+    # Persistent expert memory (Mem0 OSS + embedded Chroma).
+    mem0_chroma_path: str = "data/mem0/chroma"
+    mem0_history_db_path: str = "data/mem0/history.db"
+    mem0_collection_name: str = "expert_memories"
+    mem0_embedding_model: str = "text-embedding-3-small"
+    mem0_search_limit: int = Field(default=10, ge=1, le=50)
+    mem0_vision_model: str = "qwen-3.8-27b"
+    mem0_vision_details: Literal["auto", "low", "high"] = "high"
+    mem0_telemetry: bool = False
     # OKF operator manuals for in-app help chat (empty = repo knowledge/manual).
     okf_manual_dir: str = ""
 
@@ -158,6 +167,27 @@ class Settings(BaseSettings):
     def strip_optional_model(cls, value: str) -> str:
         return value.strip()
 
+    @field_validator(
+        "mem0_chroma_path",
+        "mem0_history_db_path",
+        "mem0_collection_name",
+        "mem0_embedding_model",
+        "mem0_vision_model",
+    )
+    @classmethod
+    def require_mem0_value(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("Mem0 settings must not be empty")
+        return cleaned
+
+    @field_validator("mem0_vision_model")
+    @classmethod
+    def require_non_gpt_mem0_vision_model(cls, value: str) -> str:
+        if "gpt" in value.casefold():
+            raise ValueError("MEM0_VISION_MODEL must be a Cerebras vision model, not GPT/gpt-oss")
+        return value
+
     @field_validator("cerebras_api_key", "deepseek_api_key")
     @classmethod
     def strip_provider_api_key(cls, value: str) -> str:
@@ -171,6 +201,14 @@ class Settings(BaseSettings):
             raise ValueError(
                 f"{env_name} is required when LLM_PROVIDER={self.llm_provider} "
                 "— set it in backend/.env (no heuristic/stub LLM fallback)"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def require_mem0_vision_credentials(self) -> Self:
+        if not self.cerebras_api_key:
+            raise ValueError(
+                "CEREBRAS_API_KEY is required for Mem0 multimodal expert memory"
             )
         return self
 
@@ -294,3 +332,6 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+# Mem0 reads this directly during import. Mirror the typed setting here so the
+# SDK never owns application configuration or enables outbound telemetry.
+os.environ["MEM0_TELEMETRY"] = "true" if settings.mem0_telemetry else "false"

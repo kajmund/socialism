@@ -38,6 +38,7 @@ pnpm-debug.log*
 /backend/data/embedding_cache/
 /backend/data/image_cache/
 /backend/data/bolagsapi_cache/
+/backend/data/mem0/
 /backend/data/logs/
 /backend/data/benchmark_*.json
 

@@ -31,6 +31,8 @@ tags: [personas]
 
 I chattpanelen kan du intervjua experten eller prata in-character. **Fäll in profil** döljer kompetens- och bakgrundsfälten så chatten får mer plats. **Visa profil** tar fram dem igen. Experten använder bara de verktyg du valt. Om ett bolagsuppslag saknar organisationsnummer eller inte hittas fortsätter chatten — den avbryts inte.
 
+Efter ett svar kan en liten rad visa om något sparades i expertens långtidsminne. **Minnen** öppnar loggen för den experten, där du kan redigera eller ta bort sparade fakta. Hela översikten finns under **Verktyg** → **Minnen**. Se [Visa expertminnen](visa-expertminnen.md).
+
 ## Relaterade guider
 
 - [Hantera experter](hantera-experter.md)

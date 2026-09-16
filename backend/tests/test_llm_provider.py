@@ -333,6 +333,50 @@ async def test_complete_structured_deepseek_sends_reasoning_effort(monkeypatch):
         settings.llm_provider = "cerebras"
 
 
+@pytest.mark.asyncio
+async def test_complete_structured_reasoning_effort_override(monkeypatch):
+    set_structured_completer(None)
+    captured: dict = {}
+    settings.llm_provider = "deepseek"
+    settings.llm_model = ""
+    settings.deepseek_model = "deepseek-flash"
+    settings.llm_reasoning_effort = "high"
+
+    async def fake_create(**kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace(
+            choices=[
+                SimpleNamespace(
+                    message=SimpleNamespace(content='{"questions":["A?"]}')
+                )
+            ],
+            usage=SimpleNamespace(prompt_tokens=2, completion_tokens=1),
+        )
+
+    monkeypatch.setattr(
+        "app.llm.get_client",
+        lambda: SimpleNamespace(
+            chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))
+        ),
+    )
+    try:
+        parsed = await complete_structured(
+            [{"role": "user", "content": "chips"}],
+            FollowUpQuestions,
+            reasoning_effort="none",
+            max_tokens=512,
+            timeout=15.0,
+        )
+        assert parsed.questions == ["A?"]
+        assert captured["max_tokens"] == 512
+        assert (
+            captured.get("reasoning_effort") == "none"
+            or (captured.get("extra_body") or {}).get("reasoning_effort") == "none"
+        )
+    finally:
+        settings.llm_provider = "cerebras"
+
+
 def _structured_completion(content: str) -> SimpleNamespace:
     return SimpleNamespace(
         choices=[SimpleNamespace(message=SimpleNamespace(content=content))],

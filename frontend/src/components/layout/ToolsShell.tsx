@@ -14,6 +14,7 @@ const TOOL_TABS: { key: MessageKey; to: string; end?: boolean }[] = [
   { key: "tools.tabAnchorSets", to: "/tools/anchor-sets" },
   { key: "tools.tabPlayground", to: "/tools/playground", end: true },
   { key: "tools.tabCache", to: "/tools/cache", end: true },
+  { key: "tools.tabMemory", to: "/tools/memory", end: true },
   { key: "tools.tabLlm", to: "/tools/llm", end: true },
 ]
 

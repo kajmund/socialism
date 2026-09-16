@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
+import type { ExpertMemory } from "@/api/expertMemory"
 import type { ChatMode, PersonaMessage } from "@/api/personas"
 import type { SpindoctorWidget } from "@/api/spindoctorWidgets"
 import { parseSpindoctorWidget } from "@/api/spindoctorWidgets"
@@ -57,7 +58,7 @@ export type InterviewPushMessage = ChatDoneMessage & {
 type UseChatSocketOptions = {
   hello: ChatHello | null
   sendExtras?: () => Record<string, unknown>
-  onDone: (messages: ChatDoneMessage[]) => void
+  onDone: (messages: ChatDoneMessage[], savedMemories?: ExpertMemory[]) => void
   onError: (detail: string) => void
   onSuggestions?: (questions: string[]) => void
   onWidget?: (widget: SpindoctorWidget) => void
@@ -137,6 +138,33 @@ function asDoneMessages(raw: unknown): ChatDoneMessage[] {
   return out
 }
 
+function asSavedMemories(raw: unknown): ExpertMemory[] {
+  if (!Array.isArray(raw)) return []
+  const out: ExpertMemory[] = []
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue
+    const row = item as Record<string, unknown>
+    if (typeof row.text !== "string" || !row.text.trim()) continue
+    out.push({
+      id: typeof row.id === "string" ? row.id : "",
+      text: row.text,
+      source: typeof row.source === "string" ? row.source : "",
+      expert_id: typeof row.expert_id === "string" ? row.expert_id : "",
+      expert_name: typeof row.expert_name === "string" ? row.expert_name : "",
+      persona_id: typeof row.persona_id === "string" ? row.persona_id : null,
+      customer_id: typeof row.customer_id === "number" ? row.customer_id : null,
+      created_at: typeof row.created_at === "string" ? row.created_at : "",
+      updated_at: typeof row.updated_at === "string" ? row.updated_at : "",
+      event: typeof row.event === "string" ? row.event : "",
+      image_sha256:
+        typeof row.image_sha256 === "string" && row.image_sha256.length === 64
+          ? row.image_sha256
+          : null,
+    })
+  }
+  return out
+}
+
 function asQuestions(raw: unknown): string[] {
   if (!Array.isArray(raw)) return []
   const out: string[] = []
@@ -211,7 +239,9 @@ export function useChatSocket({
             setStreamText(null)
             setBusy(false)
             const rows = asDoneMessages(msg.messages)
-            if (rows.length > 0) onDoneRef.current(rows)
+            if (rows.length > 0) {
+              onDoneRef.current(rows, asSavedMemories(msg.saved_memories))
+            }
             break
           }
           case "suggestions": {

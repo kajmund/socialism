@@ -63,7 +63,7 @@ def _activate(profile_id: str, *, effort: str) -> None:
 def test_catalog_vision_flags():
     rows = {row["id"]: row for row in runtime.catalog_as_dicts()}
     assert rows["deepseek-flash"]["supports_vision"] is True
-    assert rows["deepseek-v4-pro"]["supports_vision"] is True
+    assert rows["deepseek-v4-pro"]["supports_vision"] is False
     assert rows["qwen-3.8-27b"]["supports_vision"] is True
     assert rows["gpt-oss-120b"]["supports_vision"] is False
     assert rows["qwen-3.8-27b"]["allowed_image_types"] == [
