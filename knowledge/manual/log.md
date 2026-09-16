@@ -1,8 +1,15 @@
 # Manual update log
 
+## 2026-09-15
+
+* **Expertminnen**: En bild från expertchatten följer med minnet och visas i loggen under **Verktyg** och i chatten.
+* **Expertminnen**: **Rensa alla** tar bort minnen för det filter du valt under **Verktyg**, eller alla minnen för den öppnade experten i chatten.
+* **Expertminnen**: Under **Verktyg** → **Minnen** och i expertchatten kan du redigera eller ta bort sparade minnen. Nya minnen skrivs på samma språk som källan.
+* **Expertminnen**: Under **Verktyg** → **Minnen** kan du läsa långtidsminnen per kund och expert. I expertchatten öppnar **Minnen** samma logg, och en liten rad visar om något just sparades.
+
 ## 2026-09-14
 
-* **Personachatt / körningsintervju**: Du kan bifoga bilder när aktiv chat-modell stödjer vision (DeepSeek Flash, DeepSeek V4 Pro, Qwen). Bildknappen döljs för GPT OSS. Qwen: PNG/JPEG.
+* **Personachatt / körningsintervju**: Bildbifogning gäller bara modeller med vision — **DeepSeek Flash** och **Qwen**. **DeepSeek V4 Pro** och GPT OSS är text-only (bildknappen döljs). Qwen: PNG/JPEG.
 * **LLM under Verktyg**: DeepSeek-profiler är **Flash** och **V4 Pro**. Max tokens upp till 393 216. Reasoning effort för DeepSeek: `none` / `low` / `high` / `max`.
 
 ## 2026-09-13

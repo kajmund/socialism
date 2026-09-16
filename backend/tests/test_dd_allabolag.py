@@ -782,21 +782,21 @@ async def test_persona_library_chat_uses_configured_tools():
             await ensure_default_configurations(session)
             session.add(
                 Persona(
-                    id="p-wiki",
+                    id="exp_1_wiki",
                     customer_id=1,
-                    kind="persona",
-                    name="Wiki-persona",
+                    kind="expert",
+                    name="Wiki-experten",
                     age=42,
                     occ="Lärare",
                     district="Malmö",
-                    profile={"name": "Wiki-persona", "yrke": "Lärare"},
+                    profile={"name": "Wiki-experten", "yrke": "Lärare"},
                     tools=["search_wiki"],
                 )
             )
             await session.commit()
             async for item in stream_library_chat_turn(
                 session,
-                persona_id="p-wiki",
+                persona_id="exp_1_wiki",
                 mode="interview",
                 message="Vad är Spotify?",
             ):

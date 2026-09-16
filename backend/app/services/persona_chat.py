@@ -5,12 +5,15 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Any, Literal
 
+from openai import APITimeoutError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database.models import Persona, PersonaMessage, Run
 from app.llm.chat import (
     build_run_interview_prompt,
@@ -22,13 +25,19 @@ from app.realtime.interview_broadcast import interview_broadcast, interview_key_
 from app.schemas.domain import (
     ChatMode,
     EditablePersona,
+    ExpertMemoryOut,
     PersonaChatResponse,
     PersonaMessageOut,
 )
 from app.serializers import format_date, profile_from_dict, utcnow
 from app.services.dd.company_mcp import CompanyMcpError
+from app.services.dd.expert_keys import persona_catalog_key
 from app.services.district_context import area_block_for_name
+from app.services.expert_tools import resolve_chat_tools
+from app.services.expertgranskning.memory import get_expert_memory
+from app.services.expertgranskning.memory_view import serialize_memory_hit
 from app.services.oasis_run import previous_attempts
+from app.services.prompt_catalog import render_prompt
 from app.services.prompt_store import require_prompts_for_persona
 from app.services.run_tick_context import build_persona_feed_context
 
@@ -49,6 +58,9 @@ class ChatSuggestions:
 
 _chat_locks: dict[str, asyncio.Lock] = {}
 _chat_locks_guard = asyncio.Lock()
+_LIBRARY_LOCK_WAIT_SECONDS = 30.0
+_follow_up_tasks: dict[str, asyncio.Task[list[str]]] = {}
+_follow_up_tasks_guard = asyncio.Lock()
 
 
 async def _chat_turn_lock(key: str) -> asyncio.Lock:
@@ -58,6 +70,40 @@ async def _chat_turn_lock(key: str) -> asyncio.Lock:
             lock = asyncio.Lock()
             _chat_locks[key] = lock
         return lock
+
+
+@asynccontextmanager
+async def _library_chat_lock(persona_id: str, mode: ChatMode):
+    lock = await _chat_turn_lock(_library_lock_key(persona_id, mode))
+    try:
+        await asyncio.wait_for(lock.acquire(), timeout=_LIBRARY_LOCK_WAIT_SECONDS)
+    except TimeoutError as exc:
+        raise ChatTurnError(
+            "Previous chat turn still running; wait a moment and try again",
+            status_code=409,
+        ) from exc
+    try:
+        yield
+    finally:
+        lock.release()
+
+
+def _llm_reply_timeout_seconds(*, with_tools: bool) -> float:
+    base = settings.llm_timeout_seconds
+    if with_tools:
+        return base * 5
+    return base + 15.0
+
+
+def library_chat_tools(persona: Persona) -> list[str] | None:
+    """Library interview/character chat uses tools only for experts."""
+    if persona.kind != "expert":
+        return None
+    return persona.tools
+
+
+def _library_chat_uses_tools(persona: Persona) -> bool:
+    return bool(resolve_chat_tools(library_chat_tools(persona), kind=persona.kind))
 
 
 def _library_lock_key(persona_id: str, mode: ChatMode) -> str:
@@ -105,6 +151,58 @@ async def _discard_user_message(
 
 def _history_triples(rows: list[PersonaMessage]) -> list[tuple[str, str, str | None]]:
     return [(row.role, row.content, row.image_sha256) for row in rows]
+
+
+async def expert_memory_context(
+    persona: Persona,
+    message: str,
+    prompts: dict[str, str],
+    *,
+    image_sha256: str | None = None,
+) -> str:
+    if persona.kind != "expert":
+        return ""
+    hits = await get_expert_memory().search(
+        customer_id=persona.customer_id,
+        expert_id=persona_catalog_key(persona),
+        query=message,
+        image_sha256=image_sha256,
+        sources=frozenset(
+            {"persona_chat", "panel_chat", "intent_interview", "word_findings"}
+        ),
+    )
+    if not hits:
+        return ""
+    memories = "\n".join(f"- {hit.text}" for hit in hits)
+    return render_prompt(prompts, "chat.expert.memory", memories=memories)
+
+
+async def remember_expert_chat_turn(
+    persona: Persona,
+    *,
+    message: str,
+    reply: str,
+    image_sha256: str | None,
+) -> list[ExpertMemoryOut]:
+    if persona.kind != "expert":
+        return []
+    hits = await get_expert_memory().add_chat_turn(
+        customer_id=persona.customer_id,
+        expert_id=persona_catalog_key(persona),
+        user_message=message,
+        assistant_message=reply,
+        source="persona_chat",
+        image_sha256=image_sha256,
+    )
+    return [
+        serialize_memory_hit(
+            hit,
+            customer_id=persona.customer_id,
+            expert_name=persona.name,
+            persona_id=persona.id,
+        )
+        for hit in hits
+    ]
 
 
 def serialize_persona_message(row: PersonaMessage) -> PersonaMessageOut:
@@ -162,17 +260,19 @@ def _find_attempt_variant(
         for variant in variants:
             if variant.get("id") == variant_id:
                 return variant
-        if results.get("posts") is not None or results.get("agents") is not None:
-            if variant_id == "main":
-                return {
-                    "id": "main",
-                    "agents": results.get("agents") or [],
-                    "posts": results.get("posts") or [],
-                    "comments": results.get("comments") or [],
-                    "trace": results.get("trace") or [],
-                    "tick_markers": results.get("tick_markers") or [],
-                    "ticks_run": results.get("ticks_run"),
-                }
+        if (
+            results.get("posts") is not None
+            or results.get("agents") is not None
+        ) and variant_id == "main":
+            return {
+                "id": "main",
+                "agents": results.get("agents") or [],
+                "posts": results.get("posts") or [],
+                "comments": results.get("comments") or [],
+                "trace": results.get("trace") or [],
+                "tick_markers": results.get("tick_markers") or [],
+                "ticks_run": results.get("ticks_run"),
+            }
     if attempt is None:
         raise ChatTurnError("Result attempt not found", status_code=404)
     for variant in attempt.get("variants") or []:
@@ -217,10 +317,13 @@ async def stream_library_chat_turn(
     mode: ChatMode,
     message: str,
     image_sha256: str | None = None,
-) -> AsyncIterator[str | PersonaChatResponse | ChatSuggestions]:
-    """Yield token strings, then PersonaChatResponse, then follow-up chips."""
-    lock = await _chat_turn_lock(_library_lock_key(persona_id, mode))
-    async with lock:
+) -> AsyncIterator[str | PersonaChatResponse]:
+    """Yield token strings, then PersonaChatResponse.
+
+    Follow-up chips are fetched separately (WebSocket sends them in the
+    background) so a slow structured LLM call cannot block the next turn.
+    """
+    async with _library_chat_lock(persona_id, mode):
         persona = await session.get(Persona, persona_id)
         if persona is None:
             raise ChatTurnError("Persona not found", status_code=404)
@@ -235,11 +338,15 @@ async def stream_library_chat_turn(
         history = _history_triples(history_list)
         area_block = await area_block_for_name(session, profile.ort or persona.district)
         prompts = await require_prompts_for_persona(session, persona)
-
         try:
             validate_chat_turn_images(history, message, image_sha256)
         except ValueError as exc:
             raise ChatTurnError(str(exc)) from exc
+        memory_context = await expert_memory_context(
+            persona, message, prompts, image_sha256=image_sha256
+        )
+        chat_tools = library_chat_tools(persona)
+        with_tools = _library_chat_uses_tools(persona)
 
         user_row = PersonaMessage(
             persona_id=persona_id,
@@ -262,16 +369,21 @@ async def stream_library_chat_turn(
                 prompts=prompts,
                 area_block=area_block,
                 profile_kind=persona.kind,
-                tools=persona.tools,
+                tools=chat_tools,
+                extra_system=memory_context,
                 user_image_sha256=image_sha256,
             )
-            async for chunk in stream:
-                parts.append(chunk)
-                yield chunk
+            async with asyncio.timeout(_llm_reply_timeout_seconds(with_tools=with_tools)):
+                async for chunk in stream:
+                    parts.append(chunk)
+                    yield chunk
         except (CompanyMcpError, ValueError) as exc:
             await _discard_user_message(session, user_row)
             status = 502 if isinstance(exc, CompanyMcpError) else 400
             raise ChatTurnError(str(exc), status_code=status) from exc
+        except (TimeoutError, APITimeoutError) as exc:
+            await _discard_user_message(session, user_row)
+            raise ChatTurnError("LLM request timed out", status_code=504) from exc
         except asyncio.CancelledError:
             await _discard_user_message(session, user_row)
             raise
@@ -293,6 +405,12 @@ async def stream_library_chat_turn(
         )
         session.add(assistant_row)
         await session.commit()
+        saved_memories = await remember_expert_chat_turn(
+            persona,
+            message=message,
+            reply=reply,
+            image_sha256=image_sha256,
+        )
 
         all_rows = await session.execute(
             select(PersonaMessage)
@@ -300,14 +418,10 @@ async def stream_library_chat_turn(
             .order_by(PersonaMessage.id.asc())
         )
         messages = [serialize_persona_message(row) for row in all_rows.scalars().all()]
-        yield PersonaChatResponse(reply=reply, messages=messages)
-        yield ChatSuggestions(
-            questions=await safe_library_follow_ups(
-                profile,
-                mode,
-                [(row.role, row.content) for row in messages],
-                prompts=prompts,
-            )
+        yield PersonaChatResponse(
+            reply=reply,
+            messages=messages,
+            saved_memories=saved_memories,
         )
 
 
@@ -422,7 +536,7 @@ async def stream_run_interview_turn(
                 prompts=prompts,
                 system_prompt=system_prompt,
                 profile_kind=persona.kind,
-                tools=persona.tools,
+                tools=library_chat_tools(persona),
                 user_image_sha256=image_sha256,
             ):
                 parts.append(chunk)
@@ -508,6 +622,13 @@ async def complete_run_interview_turn(
     return done
 
 
+def _follow_up_flight_key(
+    persona_id: str, mode: ChatMode, history: list[tuple[str, str]]
+) -> str:
+    last = history[-1] if history else ("", "")
+    return f"{persona_id}:{mode}:{len(history)}:{last[0]}:{last[1]}"
+
+
 async def library_follow_up_questions(
     session: AsyncSession,
     *,
@@ -518,6 +639,8 @@ async def library_follow_up_questions(
 
     Missing persona or active prompts still fail. LLM/parse errors omit chips
     (same as after a successful reply) so opening the composer is not a 500.
+    Concurrent callers for the same thread share one LLM call so opening the
+    composer cannot pile DeepSeek structured requests in front of the first turn.
     """
     persona = await session.get(Persona, persona_id)
     if persona is None:
@@ -530,12 +653,27 @@ async def library_follow_up_questions(
     )
     history = [(row.role, row.content) for row in history_rows.scalars().all()]
     prompts = await require_prompts_for_persona(session, persona)
-    return await safe_library_follow_ups(
-        profile,
-        mode,
-        history,
-        prompts=prompts,
-    )
+    await session.commit()
+    key = _follow_up_flight_key(persona_id, mode, history)
+    async with _follow_up_tasks_guard:
+        task = _follow_up_tasks.get(key)
+        if task is None or task.done():
+            task = asyncio.create_task(
+                safe_library_follow_ups(
+                    profile,
+                    mode,
+                    history,
+                    prompts=prompts,
+                )
+            )
+            _follow_up_tasks[key] = task
+    try:
+        return await task
+    finally:
+        async with _follow_up_tasks_guard:
+            current = _follow_up_tasks.get(key)
+            if current is task and task.done():
+                del _follow_up_tasks[key]
 
 
 async def safe_library_follow_ups(

@@ -9,13 +9,14 @@ from app.api import (
     catalog,
     configurations,
     embeddings,
-    llm_settings,
     execution,
+    expert_memory,
     feedback,
     health,
     help,
     jobs,
     kunder,
+    llm_settings,
     local_login,
     me,
     modules,
@@ -34,9 +35,9 @@ from app.logging import configure_logging
 from app.modules.registry import MODULE_REGISTRY
 from app.services import jobs as jobs_service
 from app.services.kund_store import ensure_default_kunder
+from app.services.llm_runtime_settings import load_runtime_settings
 from app.services.panel.module_defaults import ensure_module_panel_defaults
 from app.services.prompt_store import ensure_default_configurations
-from app.services.llm_runtime_settings import load_runtime_settings
 from app.services.research_worker import (
     start_research_reclaim_loop,
     stop_research_reclaim_loop,
@@ -133,6 +134,7 @@ def create_app() -> FastAPI:
     app.include_router(jobs.router)
     app.include_router(reports.router)
     app.include_router(embeddings.router)
+    app.include_router(expert_memory.router)
     app.include_router(llm_settings.router)
     app.include_router(llm_settings.capabilities_router)
     app.include_router(feedback.router)
