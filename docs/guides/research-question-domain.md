@@ -28,14 +28,19 @@ The same `KnowledgeQuestion` may be used by several `SpecificQuestion` rows. Eac
 
 `materialize_runtime_needs_as_questions` converts existing `RuntimeResearchNeed` values into the new domain while preserving requester lineage when the caller can map requester IDs to expert IDs. Missing mappings remain explicit as `unassigned`; they are not silently assigned to an unrelated expert.
 
-This first stage is persistence only. It does not change the current planner, research executor, Expertgranskning, expert chat, or Word add-in behavior. In particular, Word cannot start research.
+The question DAG executor runs dependency-ready questions in bounded parallel waves. It persists a wave's results only after its worker calls return, then makes newly unblocked questions eligible for the next wave. A worker may return follow-up questions; those become `derived` nodes, inherit the responsible expert by default, and depend on the question whose evidence exposed the gap.
+
+`QuestionResearchWorker` is the integration seam to the existing research engine. It keeps DAG scheduling separate from provider routing, evidence persistence, assessment, and completeness. Product entry points are not switched in this stage, so Expertgranskning and expert chat retain their current behavior and Word cannot start research.
+
+An unassigned question pauses the graph with `waiting_for_assignment`; the executor never guesses an expert. A worker error marks the affected question failed and stops fail-closed. Cycles and cross-Attempt dependencies are rejected when an edge is created.
 
 ## Next stages
 
-1. Execute ready nodes in dependency waves and allow evidence assessment to add follow-up questions.
-2. Match each question to an existing expert competency and invoke the existing expert creator when none matches.
+1. Match each question to an existing expert competency and invoke the existing expert creator when none matches.
+2. Adapt each DAG worker call to the existing Attempt research engine and its frozen EvidenceSet.
 3. Replace Expertgranskning `ResearchNeed` entry points with general questions.
 4. Route expert chat questions through the same engine.
 5. Add semantic matching for `KnowledgeQuestion` using the configured vector store.
+6. Build neutral document-understanding Q&A during ingest, with PDF text anchors, as another `case_knowledge` source. It has no expert ownership and must not contain risk or problem analysis.
 
 Evidence continues to freeze into an `EvidenceSet` before consumers use it. Comments and Word may receive read-only access to frozen evidence in a later stage, but remain outside research initiation.
