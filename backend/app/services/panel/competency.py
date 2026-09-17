@@ -28,6 +28,7 @@ class ExpertCompetency(BaseModel):
     """Structured LLM decision for one expert. Fail closed when omitted."""
 
     has_domain_competence: bool = False
+    competence_score: int = Field(default=0, ge=0, le=100)
     competence_reason: str = ""
 
     @field_validator("competence_reason", mode="before")
@@ -36,9 +37,10 @@ class ExpertCompetency(BaseModel):
         return _strip_text(value)
 
     @model_validator(mode="after")
-    def apply_competence_disclaimer(self) -> "ExpertCompetency":
+    def apply_competence_disclaimer(self) -> ExpertCompetency:
         if has_competence_disclaimer(self.competence_reason) or not self.has_domain_competence:
             self.has_domain_competence = False
+            self.competence_score = 0
         return self
 
 
