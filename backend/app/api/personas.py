@@ -61,6 +61,10 @@ from app.serializers import (
 from app.services.dd.default_experts import ensure_default_expert_personas
 from app.services.dd.expert_keys import persona_catalog_key
 from app.services.district_context import area_block_for_name
+from app.services.expert_chat_evidence import (
+    combine_expert_chat_context,
+    reusable_expert_chat_evidence_context,
+)
 from app.services.expert_tools import resolve_chat_tools
 from app.services.expertgranskning.memory import get_expert_memory, memory_belongs_to
 from app.services.expertgranskning.memory_view import (
@@ -609,6 +613,14 @@ async def chat_with_persona(
     memory_context = await expert_memory_context(
         persona, body.message, prompts, image_sha256=body.image_sha256
     )
+    evidence_context = ""
+    if persona.kind == "expert":
+        evidence_context = await reusable_expert_chat_evidence_context(
+            session,
+            customer_id=persona.customer_id,
+            question=body.message,
+            prompts=prompts,
+        )
     reply = await reply_as_persona(
         profile,
         body.mode,
@@ -616,7 +628,7 @@ async def chat_with_persona(
         body.message,
         prompts=prompts,
         area_block=area_block,
-        extra_system=memory_context,
+        extra_system=combine_expert_chat_context(memory_context, evidence_context),
         user_image_sha256=body.image_sha256,
     )
 
@@ -780,6 +792,14 @@ async def resend_message(
         memory_context = await expert_memory_context(
             persona, user_message, prompts, image_sha256=image_sha256
         )
+        evidence_context = ""
+        if persona.kind == "expert":
+            evidence_context = await reusable_expert_chat_evidence_context(
+                session,
+                customer_id=persona.customer_id,
+                question=user_message,
+                prompts=prompts,
+            )
         reply = await reply_as_persona(
             profile,
             mode,
@@ -787,7 +807,7 @@ async def resend_message(
             user_message,
             prompts=prompts,
             area_block=area_block,
-            extra_system=memory_context,
+            extra_system=combine_expert_chat_context(memory_context, evidence_context),
             user_image_sha256=image_sha256,
         )
         session.add(
@@ -821,6 +841,14 @@ async def resend_message(
         memory_context = await expert_memory_context(
             persona, user_message, prompts, image_sha256=image_sha256
         )
+        evidence_context = ""
+        if persona.kind == "expert":
+            evidence_context = await reusable_expert_chat_evidence_context(
+                session,
+                customer_id=persona.customer_id,
+                question=user_message,
+                prompts=prompts,
+            )
         reply = await reply_as_persona(
             profile,
             mode,
@@ -828,7 +856,7 @@ async def resend_message(
             user_message,
             prompts=prompts,
             area_block=area_block,
-            extra_system=memory_context,
+            extra_system=combine_expert_chat_context(memory_context, evidence_context),
             user_image_sha256=image_sha256,
         )
         session.add(

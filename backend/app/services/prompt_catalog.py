@@ -615,6 +615,30 @@ Return JSON with field anekdot.""",
         ),
     ),
     _f(
+        "chat.expert.research_evidence",
+        "chat",
+        "Expertchatt — återanvänd research",
+        "Expert chat — reused research",
+        "Platshållare: {evidence}",
+        "Placeholder: {evidence}",
+        (
+            "Tidigare fryst researchevidens som matchar användarens fråga:\n"
+            "{evidence}\n\n"
+            "Använd endast evidensen när den faktiskt besvarar den aktuella frågan. "
+            "Hänvisa till använda belägg med [R1], [R2] och så vidare. Redovisa "
+            "osäker eller inaktuell evidens tydligt. Om evidensen inte räcker ska du "
+            "säga det; starta inte research och fyll inte luckan med antaganden."
+        ),
+        (
+            "Previously frozen research evidence matching the user's question:\n"
+            "{evidence}\n\n"
+            "Use evidence only when it actually answers the current question. Cite "
+            "used support as [R1], [R2], and so on. Clearly disclose uncertain or stale "
+            "evidence. If it is insufficient, say so; do not start research or fill the "
+            "gap with assumptions."
+        ),
+    ),
+    _f(
         "chat.follow_up.questions",
         "chat",
         "Chat — föreslagna följdfrågor",
