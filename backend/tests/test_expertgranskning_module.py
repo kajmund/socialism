@@ -25,10 +25,29 @@ from app.services.kund_store import (
     OS_DEFAULT_KUND_SLUG,
     default_os_customer_id,
 )
-from tests.conftest import BOLAG_USER_ID, mint_access_token
 from app.services.panel.expert_profiles_store import get_expert_profile_by_key
 from app.services.prompt_fields_store import get_prompt_field_by_key
+from app.services.research.assessment import ProgrammaticResearchAssessor
+from app.services.research.completeness import ProgrammaticResearchCompletenessReviewer
+from app.services.research.composition import (
+    set_completeness_reviewer_factory,
+    set_follow_up_planner_factory,
+    set_research_assessor_factory,
+    set_research_planner_factory,
+    set_research_router_factory,
+)
+from app.services.research.followup import NoOpFollowUpPlanner
+from app.services.research.models import (
+    ResearchContext,
+    ResearchEvidence,
+    ResearchNeed,
+    research_evidence,
+)
+from app.services.research.planner import FakeResearchPlanner, ResearchNeedDraft
+from app.services.research.registry import ResearchSourceRegistry
+from app.services.research.router import ResearchRouter
 from app.services.spindoctor_context import build_spindoctor_context
+from tests.conftest import BOLAG_USER_ID, mint_access_token
 
 _MODULE_ROOT = Path(__file__).resolve().parents[1] / "app"
 _FORBIDDEN_IMPORT_PREFIXES = (
@@ -110,9 +129,51 @@ def mock_panel_llm():
 
     set_text_completer(_complete)
     set_tools_completer(_tools)
+    planner = FakeResearchPlanner(
+        [
+            ResearchNeedDraft(
+                question="Vilket relevant kundunderlag finns för granskningen?",
+                why_needed="Panelen behöver ett fryst externt underlag.",
+                source_types=["customer_knowledge"],
+            )
+        ]
+    )
+
+    class _Source:
+        source_type = "customer_knowledge"
+
+        async def research(
+            self, need: ResearchNeed, context: ResearchContext
+        ) -> list[ResearchEvidence]:
+            return [
+                research_evidence(
+                    research_need_id=need.id,
+                    source_type=self.source_type,
+                    status="found",
+                    title="Kundunderlag",
+                    excerpt="Relevant bakgrund för dokumentgranskningen.",
+                    provider="test",
+                )
+            ]
+
+    def _router(_session) -> ResearchRouter:
+        registry = ResearchSourceRegistry()
+        registry.register(_Source())
+        return ResearchRouter(registry)
+
+    set_research_router_factory(_router)
+    set_research_planner_factory(lambda: planner)
+    set_research_assessor_factory(ProgrammaticResearchAssessor)
+    set_follow_up_planner_factory(NoOpFollowUpPlanner)
+    set_completeness_reviewer_factory(ProgrammaticResearchCompletenessReviewer)
     yield
     set_text_completer(None)
     set_tools_completer(None)
+    set_research_router_factory(None)
+    set_research_planner_factory(None)
+    set_research_assessor_factory(None)
+    set_follow_up_planner_factory(None)
+    set_completeness_reviewer_factory(None)
 
 
 async def _create_expert_panel(client: AsyncClient) -> int:
@@ -192,7 +253,18 @@ async def test_expertgranskning_session_report_and_spindoctor(
 
         session = await client.get(f"/expertgranskning/sessions/{session_id}")
         assert session.status_code == 200
-        assert session.json()["status"] == "succeeded"
+        job = await client.get(f"/jobs/{run.json()['job_id']}")
+        assert job.status_code == 200
+        assert session.json()["status"] == "succeeded", job.json()
+        assert session.json()["execution_run_id"]
+        assert session.json()["execution_attempt_id"]
+
+        execution = await client.get(
+            f"/execution/attempts/{session.json()['execution_attempt_id']}"
+        )
+        assert execution.status_code == 200
+        assert execution.json()["status"] == "completed"
+        assert execution.json()["evidence"]["found_count"] == 1
 
         factory = jobs_service.job_session_factory()
         assert factory is not None

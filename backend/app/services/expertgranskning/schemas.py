@@ -125,6 +125,8 @@ class ExpertgranskningSessionOut(BaseModel):
     panel_name: str | None = None
     project_id: int | None
     job_id: str | None
+    execution_run_id: str | None = None
+    execution_attempt_id: str | None = None
     error: str | None
     created_at: str
     updated_at: str
