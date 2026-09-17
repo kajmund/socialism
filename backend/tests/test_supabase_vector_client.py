@@ -86,6 +86,23 @@ async def test_live_client_queries_with_scope_filters_and_normalizes_score():
     assert records[0].text == "Ett underlag"
 
 
+async def test_live_client_replace_upserts_before_deleting_stale_keys():
+    index = FakeIndex()
+    index.list_pages = [
+        SimpleNamespace(
+            vectors=[
+                VectorMatch(key="old-a", metadata={"document_id": "doc-1"}),
+                VectorMatch(key="keep", metadata={"document_id": "doc-2"}),
+            ],
+            nextToken=None,
+        ),
+    ]
+    client = SupabaseStorageVectorClient(index)
+    await client.replace("doc-1", [_record(number=2)])
+    assert len(index.put_batches) == 1
+    assert index.deleted_batches == [["old-a"]]
+
+
 async def test_live_client_deletes_every_chunk_for_document():
     index = FakeIndex()
     index.list_pages = [
