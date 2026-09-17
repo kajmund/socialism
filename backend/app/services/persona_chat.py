@@ -33,6 +33,10 @@ from app.serializers import format_date, profile_from_dict, utcnow
 from app.services.dd.company_mcp import CompanyMcpError
 from app.services.dd.expert_keys import persona_catalog_key
 from app.services.district_context import area_block_for_name
+from app.services.expert_chat_evidence import (
+    combine_expert_chat_context,
+    reusable_expert_chat_evidence_context,
+)
 from app.services.expert_tools import resolve_chat_tools
 from app.services.expertgranskning.memory import get_expert_memory
 from app.services.expertgranskning.memory_view import serialize_memory_hit
@@ -345,6 +349,14 @@ async def stream_library_chat_turn(
         memory_context = await expert_memory_context(
             persona, message, prompts, image_sha256=image_sha256
         )
+        evidence_context = ""
+        if persona.kind == "expert":
+            evidence_context = await reusable_expert_chat_evidence_context(
+                session,
+                customer_id=persona.customer_id,
+                question=message,
+                prompts=prompts,
+            )
         chat_tools = library_chat_tools(persona)
         with_tools = _library_chat_uses_tools(persona)
 
@@ -370,7 +382,9 @@ async def stream_library_chat_turn(
                 area_block=area_block,
                 profile_kind=persona.kind,
                 tools=chat_tools,
-                extra_system=memory_context,
+                extra_system=combine_expert_chat_context(
+                    memory_context, evidence_context
+                ),
                 user_image_sha256=image_sha256,
             )
             async with asyncio.timeout(_llm_reply_timeout_seconds(with_tools=with_tools)):
