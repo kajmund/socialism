@@ -7,6 +7,7 @@ type Options = {
   onSuggestions: (threadId: string, questions: string[]) => void
   onError: (threadId: string | null, detail: string) => void
   onToken: (threadId: string, text: string) => void
+  onDisconnected: () => void
 }
 
 function messagesFromUnknown(raw: unknown): SmeMessage[] {
@@ -45,18 +46,38 @@ export function useSmeChatSocket({
   onSuggestions,
   onError,
   onToken,
+  onDisconnected,
 }: Options) {
   const [ready, setReady] = useState(false)
   const sendRef = useRef<((payload: unknown) => void) | null>(null)
-  const callbacksRef = useRef({ onDone, onSuggestions, onError, onToken })
-  callbacksRef.current = { onDone, onSuggestions, onError, onToken }
+  const wasReadyRef = useRef(false)
+  const callbacksRef = useRef({
+    onDone,
+    onSuggestions,
+    onError,
+    onToken,
+    onDisconnected,
+  })
+  callbacksRef.current = {
+    onDone,
+    onSuggestions,
+    onError,
+    onToken,
+    onDisconnected,
+  }
 
   useEffect(() => {
     const connection = connectJsonWebSocket({
       path: "/ws/sme",
       onOpen: () => undefined,
       onStatus: (status) => {
-        if (status !== "open") setReady(false)
+        if (status !== "open") {
+          setReady(false)
+          if (status === "closed" && wasReadyRef.current) {
+            wasReadyRef.current = false
+            callbacksRef.current.onDisconnected()
+          }
+        }
       },
       onMessage: (raw) => {
         if (!raw || typeof raw !== "object") return
@@ -65,6 +86,7 @@ export function useSmeChatSocket({
           typeof event.thread_id === "string" ? event.thread_id : null
         switch (event.type) {
           case "ready":
+            wasReadyRef.current = true
             setReady(true)
             break
           case "token":
@@ -101,6 +123,7 @@ export function useSmeChatSocket({
     })
     sendRef.current = connection.send
     return () => {
+      wasReadyRef.current = false
       connection.close()
       sendRef.current = null
       setReady(false)
