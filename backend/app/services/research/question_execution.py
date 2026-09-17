@@ -50,11 +50,14 @@ class QuestionFollowUpDraft:
     assigned_expert_id: str | None = None
     raised_by_expert_ids: tuple[str, ...] = ()
     additional_dependency_ids: tuple[str, ...] = ()
+    runtime_need_id: str | None = None
+    already_researched: bool = False
 
 
 @dataclass(frozen=True)
 class QuestionResearchOutcome:
     follow_ups: tuple[QuestionFollowUpDraft, ...] = ()
+    execution_attempt_id: str | None = None
 
 
 class QuestionResearchWorker(Protocol):
@@ -127,6 +130,8 @@ async def execute_research_question_dag(
                     failures.append((question.id, outcome))
                     continue
                 row.status = "completed"
+                if outcome.execution_attempt_id is not None:
+                    row.execution_attempt_id = outcome.execution_attempt_id
                 await _persist_follow_ups(session, parent=question, outcome=outcome)
             await session.commit()
         if failures:
@@ -255,12 +260,16 @@ async def _persist_follow_ups(
                 why_needed=follow_up.why_needed,
                 raised_by_expert_ids=list(raised_by),
                 assigned_expert_id=assigned,
+                runtime_need_id=follow_up.runtime_need_id,
                 origin="derived",
                 depth=parent.depth + 1,
             ),
         )
         if child.id == parent.id:
             continue
+        if follow_up.already_researched:
+            child.status = "completed"
+            child.execution_attempt_id = outcome.execution_attempt_id
         await add_question_dependency(
             session,
             question_id=child.id,
