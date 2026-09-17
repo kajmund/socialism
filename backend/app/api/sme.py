@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import asyncio
 from collections import defaultdict
+from contextlib import asynccontextmanager
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -42,6 +44,16 @@ from app.services.persona_chat import (
 from app.services.prompt_store import require_prompts_for_persona
 
 router = APIRouter(prefix="/sme", tags=["sme"])
+_panel_locks: dict[int, asyncio.Lock] = {}
+_panel_locks_guard = asyncio.Lock()
+
+
+@asynccontextmanager
+async def _panel_chat_lock(panel_id: int):
+    async with _panel_locks_guard:
+        lock = _panel_locks.setdefault(panel_id, asyncio.Lock())
+    async with lock:
+        yield
 
 
 async def _require_sme_customer(
@@ -235,6 +247,16 @@ async def create_panel_message(
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> list[SmeMessageOut]:
+    async with _panel_chat_lock(panel_id):
+        return await _create_panel_message(panel_id, body, session, user)
+
+
+async def _create_panel_message(
+    panel_id: int,
+    body: SmePanelMessageCreate,
+    session: AsyncSession,
+    user: UserAccount,
+) -> list[SmeMessageOut]:
     customer_id = await _require_sme_customer(session, user)
     panel = await _require_panel(session, panel_id, customer_id)
     message = body.message.strip()
@@ -304,6 +326,7 @@ async def create_panel_message(
             message=message,
             reply=reply,
             image_sha256=None,
+            source="panel_chat",
         )
     await session.commit()
     return [
@@ -353,25 +376,31 @@ async def mark_thread_read(
             .limit(1)
         )
     last_id = result.scalar_one_or_none()
-    cursor_result = await session.execute(
-        select(SmeReadCursor).where(
+    now = utcnow()
+    cursor_update = (
+        update(SmeReadCursor)
+        .where(
             SmeReadCursor.user_id == user.id,
             SmeReadCursor.thread_type == thread_type,
             SmeReadCursor.thread_id == thread_id,
         )
+        .values(last_read_message_id=last_id, updated_at=now)
     )
-    cursor = cursor_result.scalar_one_or_none()
-    if cursor is None:
-        cursor = SmeReadCursor(
-            user_id=user.id,
-            thread_type=thread_type,
-            thread_id=thread_id,
-            last_read_message_id=last_id,
-            updated_at=utcnow(),
-        )
-        session.add(cursor)
-    else:
-        cursor.last_read_message_id = last_id
-        cursor.updated_at = utcnow()
+    updated = await session.execute(cursor_update)
+    if updated.rowcount == 0:
+        try:
+            async with session.begin_nested():
+                session.add(
+                    SmeReadCursor(
+                        user_id=user.id,
+                        thread_type=thread_type,
+                        thread_id=thread_id,
+                        last_read_message_id=last_id,
+                        updated_at=now,
+                    )
+                )
+                await session.flush()
+        except IntegrityError:
+            await session.execute(cursor_update)
     await session.commit()
     return SmeReadOut(last_read_message_id=last_id)

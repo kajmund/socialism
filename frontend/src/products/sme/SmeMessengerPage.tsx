@@ -153,6 +153,35 @@ export function SmeMessengerPage() {
   }, [selected, t])
 
   const expertSocket = useSmeChatSocket({
+    onDisconnected: () => {
+      setPendingThreads(
+        (current) =>
+          new Set([...current].filter((key) => !key.startsWith("expert:"))),
+      )
+      setStreamByThread({})
+      const active = selectedRef.current
+      if (active?.thread_type === "expert") {
+        void listPersonaMessages(active.thread_id, "interview")
+          .then((rows) =>
+            setMessages(
+              rows.map((row) => ({
+                id: row.id,
+                role: row.role,
+                content: row.content,
+                created_at: row.created_at,
+                persona_id:
+                  row.role === "assistant" ? active.thread_id : null,
+                persona_name: null,
+                image_sha256: row.image_sha256,
+              })),
+            ),
+          )
+          .catch((error: unknown) =>
+            setChatError(errorMessage(error, t("sme.chatError"))),
+          )
+      }
+      void loadInbox(filterRef.current)
+    },
     onToken: (threadId, text) => {
       setStreamByThread((current) => ({
         ...current,

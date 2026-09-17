@@ -7,7 +7,13 @@ import logging
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import (
+    BaseModel,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 from app.auth.tokens import user_from_bearer_token
 from app.database.models import Kund, Persona, UserAccount
@@ -30,6 +36,17 @@ class SmeExpertSend(BaseModel):
     thread_id: str = Field(min_length=1, max_length=64)
     message: str = Field(max_length=10_000)
     image_sha256: str | None = Field(default=None, min_length=64, max_length=64)
+
+    @field_validator("message")
+    @classmethod
+    def normalize_message(cls, value: str) -> str:
+        return value.strip()
+
+    @model_validator(mode="after")
+    def require_message_or_image(self) -> SmeExpertSend:
+        if not self.message and not self.image_sha256:
+            raise ValueError("message is required")
+        return self
 
 
 async def _authenticate(websocket: WebSocket) -> UserAccount:
