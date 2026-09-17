@@ -81,6 +81,7 @@ from app.services.persona_chat import (
     expert_memory_context,
     library_follow_up_questions,
     remember_expert_chat_turn,
+    research_tool_handler_for_chat,
     safe_library_follow_ups,
 )
 from app.services.population_generate import stub_persona
@@ -630,6 +631,18 @@ async def chat_with_persona(
         area_block=area_block,
         extra_system=combine_expert_chat_context(memory_context, evidence_context),
         user_image_sha256=body.image_sha256,
+        profile_kind=persona.kind,
+        tools=persona.tools,
+        research_tool_handler=(
+            research_tool_handler_for_chat(
+                session,
+                persona=persona,
+                history=history,
+                user_message=body.message,
+            )
+            if persona.kind == "expert"
+            else None
+        ),
     )
 
     user_row = PersonaMessage(
@@ -809,6 +822,18 @@ async def resend_message(
             area_block=area_block,
             extra_system=combine_expert_chat_context(memory_context, evidence_context),
             user_image_sha256=image_sha256,
+            profile_kind=persona.kind,
+            tools=persona.tools,
+            research_tool_handler=(
+                research_tool_handler_for_chat(
+                    session,
+                    persona=persona,
+                    history=history,
+                    user_message=user_message,
+                )
+                if persona.kind == "expert"
+                else None
+            ),
         )
         session.add(
             PersonaMessage(
@@ -858,6 +883,18 @@ async def resend_message(
             area_block=area_block,
             extra_system=combine_expert_chat_context(memory_context, evidence_context),
             user_image_sha256=image_sha256,
+            profile_kind=persona.kind,
+            tools=persona.tools,
+            research_tool_handler=(
+                research_tool_handler_for_chat(
+                    session,
+                    persona=persona,
+                    history=history,
+                    user_message=user_message,
+                )
+                if persona.kind == "expert"
+                else None
+            ),
         )
         session.add(
             PersonaMessage(

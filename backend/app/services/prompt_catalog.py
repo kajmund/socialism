@@ -639,6 +639,31 @@ Return JSON with field anekdot.""",
         ),
     ),
     _f(
+        "chat.expert.research_tool",
+        "chat",
+        "Expertchatt — starta research",
+        "Expert chat — start research",
+        "Instruktion för verktyget start_research.",
+        "Instruction for the start_research tool.",
+        (
+            "Du har verktyget start_research för att köa research i bakgrunden. "
+            "Du får ALDRIG anropa verktyget direkt när ett kunskapsgap upptäcks. "
+            "Fråga först uttryckligen användaren om du ska starta research och förklara "
+            "kort vilken fråga som ska undersökas. Anropa verktyget först i ett senare "
+            "svar när användaren uttryckligen har bekräftat. Skicka en fristående, "
+            "generell och researchbar fråga som argumentet question. Verktyget köar "
+            "arbetet; påstå inte att resultatet redan finns."
+        ),
+        (
+            "You have the start_research tool for queueing background research. NEVER "
+            "call it immediately when a knowledge gap is found. First explicitly ask "
+            "the user whether research should be started and briefly state the question "
+            "to investigate. Call the tool only in a later response after the user has "
+            "explicitly confirmed. Pass a standalone, general, researchable question in "
+            "the question argument. The tool only queues work; do not claim results exist."
+        ),
+    ),
+    _f(
         "chat.follow_up.questions",
         "chat",
         "Chat — föreslagna följdfrågor",
