@@ -30,6 +30,11 @@ def profile_text_for_expert(persona: Persona) -> str:
     return "\n".join(line for line in lines if line).strip()
 
 
+def expert_slot_id_for_persona(persona: Persona) -> str:
+    """Public panel identity used to map a slot back to its Persona."""
+    return persona_catalog_key(persona)
+
+
 async def require_expert_panel(session: AsyncSession, panel_id: int) -> Population:
     result = await session.execute(
         select(Population)
@@ -62,7 +67,7 @@ async def load_expert_slots_from_population(
         persona = member.persona
         if persona is None:
             raise RuntimeError(f"Expert panel member missing persona: {member.id}")
-        key = persona_catalog_key(persona)
+        key = expert_slot_id_for_persona(persona)
         slots.append(
             PanelExpertSlot(
                 slot_id=key,

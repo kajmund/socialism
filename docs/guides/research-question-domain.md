@@ -30,7 +30,7 @@ The same `KnowledgeQuestion` may be used by several `SpecificQuestion` rows. Eac
 
 The question DAG executor runs dependency-ready questions in bounded parallel waves. It persists a wave's results only after its worker calls return, then makes newly unblocked questions eligible for the next wave. A worker may return follow-up questions; those become `derived` nodes, inherit the responsible expert by default, and depend on the question whose evidence exposed the gap.
 
-`QuestionResearchWorker` is the integration seam to the existing research engine. It keeps DAG scheduling separate from provider routing, evidence persistence, assessment, and completeness. Product entry points are not switched in this stage, so Expertgranskning and expert chat retain their current behavior and Word cannot start research.
+`QuestionResearchWorker` is the integration seam to the existing research engine. It keeps DAG scheduling separate from provider routing, evidence persistence, assessment, and completeness. Expertgranskning is the first product entry point: its experts propose general questions, the moderator consolidates them, and the DAG executes them before the panel starts. Expert chat retains its current behavior and Word cannot start research.
 
 `AttemptResearchQuestionWorker` implements that seam. Each general question gets a `research_question` child Attempt under the DAG's parent Attempt. The child runs the unchanged planner → router → evidence quality → assessment → completeness loop and freezes its own EvidenceSet. `ResearchQuestion.execution_attempt_id` is the durable link to that evidence lineage. A retry reuses a ready child Attempt instead of retrieving again.
 
@@ -42,11 +42,18 @@ Before execution, `assign_unowned_research_questions` resolves every unassigned 
 
 Assignment never rewrites provenance. A question must already have at least one `raised_by` expert; otherwise matching fails. The selected or created Persona is added only as `assigned_to`. Persona IDs are the canonical expert identity for this flow, which also makes an automatically created expert available to expert chat later.
 
+## Expertgranskning integration
+
+The web Expertgranskning flow creates one context-bound `SpecificQuestion` for the review and one `ResearchQuestion` per consolidated general question. Every proposing panel expert is preserved as `raised_by`; assignment then independently selects or creates the competent `assigned_to` expert.
+
+Dependency-ready questions execute in parallel through `AttemptResearchQuestionWorker`. When the DAG is complete, the parent `generic_panel` Attempt receives a new frozen aggregate EvidenceSet copied from the child Attempts. Each aggregate item preserves its original evidence identity and records both `research_question_id` and `research_question_attempt_id` in provenance. The panel only starts after this aggregate is frozen and therefore cannot perform ad hoc research or use live expert tools.
+
+An empty expert research plan is valid when the document itself is sufficient. The parent still receives an empty frozen EvidenceSet, making the no-research decision explicit and keeping the final panel on the same immutable-input path.
+
 ## Next stages
 
-1. Replace Expertgranskning `ResearchNeed` entry points with general questions and aggregate the child EvidenceSets for its frozen panel input.
-2. Route expert chat questions through the same engine.
-3. Add semantic matching for `KnowledgeQuestion` using the configured vector store.
-4. Build neutral document-understanding Q&A during ingest, with PDF text anchors, as another `case_knowledge` source. It has no expert ownership and must not contain risk or problem analysis.
+1. Route expert chat questions through the same engine.
+2. Add semantic matching for `KnowledgeQuestion` using the configured vector store.
+3. Build neutral document-understanding Q&A during ingest, with PDF text anchors, as another `case_knowledge` source. It has no expert ownership and must not contain risk or problem analysis.
 
 Evidence continues to freeze into an `EvidenceSet` before consumers use it. Comments and Word may receive read-only access to frozen evidence in a later stage, but remain outside research initiation.
