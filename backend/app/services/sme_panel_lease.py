@@ -20,6 +20,10 @@ def _lease_ttl() -> timedelta:
     return timedelta(seconds=PANEL_TURN_LEASE_SECONDS)
 
 
+def panel_lease_heartbeat_seconds() -> float:
+    return max(0.05, PANEL_TURN_LEASE_SECONDS / 3)
+
+
 async def try_acquire_panel_lease(
     session: AsyncSession,
     panel_id: int,
@@ -85,6 +89,31 @@ async def acquire_panel_lease(
         await asyncio.sleep(PANEL_TURN_LEASE_POLL_SECONDS)
 
 
+async def renew_panel_lease(
+    session: AsyncSession,
+    panel_id: int,
+    *,
+    token: str,
+    fence: int,
+) -> bool:
+    """Extend TTL only while this worker still owns token+fence."""
+    now = utcnow()
+    result = await session.execute(
+        update(SmePanelTurnLease)
+        .where(
+            SmePanelTurnLease.panel_id == panel_id,
+            SmePanelTurnLease.lease_token == token,
+            SmePanelTurnLease.fence == fence,
+        )
+        .values(
+            lease_expires_at=now + _lease_ttl(),
+            updated_at=now,
+        )
+        .execution_options(synchronize_session=False)
+    )
+    return result.rowcount == 1
+
+
 async def panel_lease_still_held(
     session: AsyncSession,
     panel_id: int,
@@ -126,3 +155,55 @@ async def release_panel_lease(
         )
         .execution_options(synchronize_session=False)
     )
+
+
+class PanelLeaseHeartbeat:
+    """Renew a held panel lease until stopped. Stale token/fence never renews."""
+
+    def __init__(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+        panel_id: int,
+        *,
+        token: str,
+        fence: int,
+    ) -> None:
+        self._session_factory = session_factory
+        self._panel_id = panel_id
+        self._token = token
+        self._fence = fence
+        self.lost = asyncio.Event()
+        self._stop = asyncio.Event()
+        self._task: asyncio.Task[None] | None = None
+
+    def start(self) -> PanelLeaseHeartbeat:
+        self._task = asyncio.create_task(self._run())
+        return self
+
+    async def _run(self) -> None:
+        interval = panel_lease_heartbeat_seconds()
+        while not self._stop.is_set():
+            try:
+                await asyncio.wait_for(self._stop.wait(), timeout=interval)
+                return
+            except TimeoutError:
+                pass
+            async with self._session_factory() as session:
+                held = await renew_panel_lease(
+                    session,
+                    self._panel_id,
+                    token=self._token,
+                    fence=self._fence,
+                )
+                await session.commit()
+            if not held:
+                self.lost.set()
+                return
+
+    async def aclose(self) -> None:
+        self._stop.set()
+        task = self._task
+        if task is None:
+            return
+        self._task = None
+        await task

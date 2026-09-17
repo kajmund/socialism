@@ -51,6 +51,8 @@ def upgrade() -> None:
         sa.Column("status", sa.String(length=16), nullable=False),
         sa.Column("error", sa.Text(), nullable=True),
         sa.Column("fence", sa.Integer(), nullable=False),
+        sa.Column("lease_token", sa.String(length=64), nullable=True),
+        sa.Column("lease_expires_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -92,9 +94,19 @@ def upgrade() -> None:
         ["user_id", "persona_id"],
         unique=False,
     )
+    op.create_index(
+        op.f("ix_sme_expert_turns_lease_expires_at"),
+        "sme_expert_turns",
+        ["lease_expires_at"],
+        unique=False,
+    )
 
 
 def downgrade() -> None:
+    op.drop_index(
+        op.f("ix_sme_expert_turns_lease_expires_at"),
+        table_name="sme_expert_turns",
+    )
     op.drop_index("ix_sme_expert_turns_user_persona", table_name="sme_expert_turns")
     op.drop_index(op.f("ix_sme_expert_turns_persona_id"), table_name="sme_expert_turns")
     op.drop_index(op.f("ix_sme_expert_turns_user_id"), table_name="sme_expert_turns")

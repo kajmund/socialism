@@ -797,6 +797,46 @@ def test_sme_websocket_recovers_turn_after_disconnect_during_tokens(ws_client):
     assert "andra" in body["messages"][-1]["content"]
 
 
+def test_sme_websocket_rejects_request_id_payload_mismatch(ws_client):
+    client, _loop = ws_client
+    persona_id = _enable_sme_expert(client, tools=[])
+    request_id = "request-payload-conflict"
+
+    async def stream(_messages: list[dict[str, str]]) -> AsyncIterator[str]:
+        yield "Första svaret"
+
+    set_text_streamer(stream)
+    with client.websocket_connect(f"/ws/sme?access_token={_bolag_token()}") as websocket:
+        assert websocket.receive_json() == {"type": "ready", "scope": "sme"}
+        websocket.send_json(
+            {
+                "type": "send",
+                "request_id": request_id,
+                "thread_type": "expert",
+                "thread_id": persona_id,
+                "message": "Första frågan",
+            }
+        )
+        while True:
+            event = websocket.receive_json()
+            if event["type"] == "suggestions":
+                break
+        assert websocket.receive_json()["type"] == "typing"
+        websocket.send_json(
+            {
+                "type": "send",
+                "request_id": request_id,
+                "thread_type": "expert",
+                "thread_id": persona_id,
+                "message": "Annan fråga",
+            }
+        )
+        assert websocket.receive_json()["type"] == "typing"
+        denied = websocket.receive_json()
+        assert denied["type"] == "error"
+        assert denied["detail"] == "request_id conflict"
+
+
 def _expertgranskning_hello(job_id: str) -> dict:
     return {
         "type": "hello",

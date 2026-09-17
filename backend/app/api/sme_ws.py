@@ -17,16 +17,12 @@ from pydantic import (
 
 from app.auth.tokens import user_from_bearer_token
 from app.database.models import Kund, Persona, UserAccount
-from app.schemas.domain import PersonaChatResponse
 from app.services import jobs as jobs_service
-from app.services.persona_chat import (
-    ChatTurnError,
-    library_follow_up_questions,
-    stream_library_chat_turn,
-)
+from app.services.persona_chat import ChatTurnError, library_follow_up_questions
 from app.services.sme_expert_turns import (
     SmeExpertTurnConflict,
     accept_expert_turn,
+    execute_expert_turn,
     finish_expert_turn,
     get_owned_expert_turn,
     mark_expert_turn_running,
@@ -174,6 +170,7 @@ async def sme_chat_websocket(websocket: WebSocket) -> None:
         }
         await emit({"type": "typing", "on": True, **envelope})
         fence: int | None = None
+        token: str | None = None
         should_run = False
         try:
             async with factory() as session:
@@ -195,48 +192,44 @@ async def sme_chat_websocket(websocket: WebSocket) -> None:
                 except SmeExpertTurnConflict as exc:
                     raise ChatTurnError(str(exc), status_code=409) from exc
                 fence = turn.fence
-                if should_run:
-                    await mark_expert_turn_running(
-                        session, send.request_id, fence=fence
+                token = turn.lease_token
+                if should_run and turn.status == "accepted":
+                    if token is None:
+                        raise ChatTurnError("stale_expert_turn", status_code=409)
+                    marked = await mark_expert_turn_running(
+                        session,
+                        send.request_id,
+                        fence=fence,
+                        token=token,
                     )
+                    if not marked:
+                        raise ChatTurnError("stale_expert_turn", status_code=409)
                 await session.commit()
             if not should_run:
                 await _emit_completed_turn(send, envelope)
                 return
-            done: PersonaChatResponse | None = None
+            if token is None:
+                raise ChatTurnError("stale_expert_turn", status_code=409)
+
+            async def on_token(text: str) -> None:
+                await emit({"type": "token", "text": text, **envelope})
+
+            done = await execute_expert_turn(
+                factory,
+                request_id=send.request_id,
+                persona_id=send.thread_id,
+                message=send.message,
+                image_sha256=send.image_sha256,
+                fence=fence,
+                token=token,
+                on_token=on_token,
+            )
             async with factory() as session:
-                stream = stream_library_chat_turn(
-                    session,
-                    persona_id=send.thread_id,
-                    mode="interview",
-                    message=send.message,
-                    image_sha256=send.image_sha256,
-                )
-                try:
-                    async for item in stream:
-                        if isinstance(item, PersonaChatResponse):
-                            done = item
-                        else:
-                            await emit({"type": "token", "text": item, **envelope})
-                finally:
-                    await stream.aclose()
-            if done is None:
-                raise ChatTurnError("Chat turn produced no reply", status_code=502)
-            async with factory() as session:
-                wrote = await finish_expert_turn(
-                    session,
-                    send.request_id,
-                    fence=fence,
-                    status="succeeded",
-                )
                 questions = await library_follow_up_questions(
                     session,
                     persona_id=send.thread_id,
                     mode="interview",
                 )
-                await session.commit()
-            if not wrote:
-                raise ChatTurnError("stale_expert_turn", status_code=409)
             await emit(
                 {
                     "type": "done",
