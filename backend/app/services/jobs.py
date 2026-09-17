@@ -13,7 +13,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.config import settings
-from app.database.models import DdCampaign, Job, PanelSession, Report, Run
+from app.database.models import DdCampaign, Job, PanelSession, Persona, Report, Run
 from app.database.session import SessionLocal
 from app.realtime.hub import job_hub
 from app.schemas.domain import (
@@ -197,6 +197,14 @@ async def create_job(session: AsyncSession, body: JobCreate) -> Job:
         label = (body.label or "").strip() or (
             f"Word-granskning: {payload.doc_id}" if payload.doc_id else "Word-granskning"
         )
+    elif body.kind == "expert_chat_research":
+        from app.services.expert_chat_research import ExpertChatResearchJobRequest
+
+        payload = ExpertChatResearchJobRequest.model_validate(body.request)
+        persona = await session.get(Persona, payload.persona_id)
+        if persona is None or persona.kind != "expert":
+            raise ValueError(f"Expert not found: {payload.persona_id}")
+        label = (body.label or "").strip() or f"Expertresearch: {payload.question[:80]}"
     else:
         raise ValueError(f"Unsupported job kind: {body.kind}")
 
@@ -265,6 +273,13 @@ async def _execute_job_kind(job_id: str, kind: str) -> None:
         await run_rattsunderlag_research_job(job_id)
     elif kind == WORD_JOB_KIND:
         await run_word_paragraph_review_for_job(job_id)
+    elif kind == "expert_chat_research":
+        from app.services.expert_chat_research import run_expert_chat_research_job
+
+        factory = job_session_factory()
+        result = await run_expert_chat_research_job(factory, job_id=job_id)
+        async with factory() as session:
+            await _succeed(session, job_id, result)
     else:
         factory = job_session_factory()
         async with factory() as session:

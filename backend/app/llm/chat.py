@@ -9,7 +9,10 @@ from app.config import settings
 from app.llm import complete_structured, complete_text, stream_text
 from app.llm.vision_content import user_content_with_optional_image
 from app.schemas.domain import ChatMode, EditablePersona, FollowUpQuestions
-from app.services.dd.company_mcp import complete_text_with_company_tools
+from app.services.dd.company_mcp import (
+    ResearchToolHandler,
+    complete_text_with_company_tools,
+)
 from app.services.expert_tools import expert_tool_prompt_extra, resolve_chat_tools
 from app.services.prompt_catalog import render_prompt
 
@@ -210,7 +213,16 @@ async def reply_as_persona(
     model: str | None = None,
     profile_kind: str = "persona",
     user_image_sha256: str | None = None,
+    tools: list[str] | None = None,
+    research_tool_handler: ResearchToolHandler | None = None,
 ) -> str:
+    allowed = resolve_chat_tools(tools, kind=profile_kind)
+    tool_extra = expert_tool_prompt_extra(prompts, allowed)
+    combined_extra = extra_system
+    if tool_extra:
+        combined_extra = (
+            f"{extra_system}\n\n{tool_extra}".strip() if extra_system else tool_extra
+        )
     messages = _chat_messages(
         profile,
         mode,
@@ -220,10 +232,16 @@ async def reply_as_persona(
         area_block=area_block,
         simulation_context=simulation_context,
         system_prompt=system_prompt,
-        extra_system=extra_system,
+        extra_system=combined_extra,
         profile_kind=profile_kind,
         user_image_sha256=user_image_sha256,
     )
+    if allowed:
+        return await complete_text_with_company_tools(
+            messages,
+            allowed_tools=frozenset(allowed),
+            research_tool_handler=research_tool_handler,
+        )
     return await complete_text(messages, model=model)
 
 
@@ -241,6 +259,7 @@ async def stream_reply_as_persona(
     profile_kind: str = "persona",
     tools: list[str] | None = None,
     user_image_sha256: str | None = None,
+    research_tool_handler: ResearchToolHandler | None = None,
 ) -> AsyncIterator[str]:
     allowed = resolve_chat_tools(tools, kind=profile_kind)
     extra = expert_tool_prompt_extra(prompts, allowed)
@@ -262,7 +281,9 @@ async def stream_reply_as_persona(
     )
     if allowed:
         reply = await complete_text_with_company_tools(
-            messages, allowed_tools=frozenset(allowed)
+            messages,
+            allowed_tools=frozenset(allowed),
+            research_tool_handler=research_tool_handler,
         )
         if reply:
             yield reply

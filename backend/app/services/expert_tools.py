@@ -8,6 +8,7 @@ from app.services.prompt_catalog import render_prompt
 
 COMPANY_EXPERT_TOOLS = frozenset({"search_companies", "lookup_company", "validate_orgnr"})
 SEARCH_EXPERT_TOOLS = frozenset({"search_duckduckgo", "search_wiki"})
+RESEARCH_EXPERT_TOOLS = frozenset({"start_research"})
 
 DEFAULT_EXPERT_TOOL_IDS: tuple[str, ...] = (
     "search_companies",
@@ -15,6 +16,7 @@ DEFAULT_EXPERT_TOOL_IDS: tuple[str, ...] = (
     "validate_orgnr",
     "search_duckduckgo",
     "search_wiki",
+    "start_research",
 )
 
 EXPERT_TOOL_IDS = frozenset(DEFAULT_EXPERT_TOOL_IDS)
@@ -77,4 +79,6 @@ def expert_tool_prompt_extra(prompts: dict[str, str], tools: list[str]) -> str:
         parts.append(render_prompt(prompts, "chat.expert.company_tools"))
     if names & SEARCH_EXPERT_TOOLS:
         parts.append(render_prompt(prompts, "chat.expert.search_tools"))
+    if names & RESEARCH_EXPERT_TOOLS:
+        parts.append(render_prompt(prompts, "chat.expert.research_tool"))
     return "\n\n".join(parts)
