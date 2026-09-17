@@ -80,6 +80,10 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 * [Köra en Due Diligence-kampanj](kora-dd-kampanj.md) — Skapa kampanj, chatta fram bolag och köra Due Diligence per kandidat
 * [Byt namn på en Due Diligence-kampanj](byt-namn-pa-dd-kampanj.md) — Ändra kampanjens titel på fliken Översikt
 
+# SME
+
+* [Använda SME-chatten](anvanda-sme-chatten.md) — Chatta med experter och expertpaneler, och följ olästa svar
+
 # Expertgranskning
 
 * [Använda expertgranskning](anvanda-expertgranskning.md) — Ladda upp eller klistra in text, ange granskningsavsikt, välj panel och kör en granskning

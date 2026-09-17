@@ -3,7 +3,7 @@ import type { Kund } from "@/api/kunder"
 import { kunderForScope, moduleScopeForNav, uniqueModuleIds } from "@/modules/kundModules"
 
 function kund(slug: string, available_modules: string[], id: number): Kund {
-  return { id, name: slug, slug, available_modules, projekt: [] }
+  return { id, name: slug, slug, product: null, available_modules, projekt: [] }
 }
 
 const os = kund("devbrains", ["politik", "expertgranskning"], 1)
