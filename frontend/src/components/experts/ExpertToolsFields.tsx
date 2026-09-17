@@ -4,16 +4,19 @@ import { Wrench } from "lucide-react"
 import { AdminButton } from "@/components/ui/admin-button"
 import {
   EXPERT_TOOLS,
+  selectAllExpertTools,
+  toggleExpertTool,
   type ExpertToolGroup,
   type ExpertToolId,
 } from "@/data/expert-tools"
 import { useLocale, type MessageKey } from "@/i18n"
 
-const GROUP_ORDER: ExpertToolGroup[] = ["company", "search"]
+const GROUP_ORDER: ExpertToolGroup[] = ["company", "search", "research"]
 
 const GROUP_LABEL: Record<ExpertToolGroup, MessageKey> = {
   company: "experts.tools.groupCompany",
   search: "experts.tools.groupSearch",
+  research: "experts.tools.groupResearch",
 }
 
 const TOOL_LABEL: Record<ExpertToolId, MessageKey> = {
@@ -22,6 +25,7 @@ const TOOL_LABEL: Record<ExpertToolId, MessageKey> = {
   validate_orgnr: "experts.tools.validate_orgnr",
   search_duckduckgo: "experts.tools.search_duckduckgo",
   search_wiki: "experts.tools.search_wiki",
+  start_research: "experts.tools.start_research",
 }
 
 export type ExpertToolsFieldsProps = {
@@ -51,19 +55,11 @@ function ExpertToolsTable({
   }, [allSelected, someSelected])
 
   function setAll(checked: boolean) {
-    onChange(checked ? EXPERT_TOOLS.map((tool) => tool.id) : [])
+    onChange(selectAllExpertTools(checked))
   }
 
   function toggle(id: ExpertToolId, checked: boolean) {
-    if (checked) {
-      onChange([
-        ...EXPERT_TOOLS.map((tool) => tool.id).filter(
-          (name) => selected.has(name) || name === id,
-        ),
-      ])
-      return
-    }
-    onChange(tools.filter((name) => name !== id))
+    onChange(toggleExpertTool(tools, id, checked))
   }
 
   return (

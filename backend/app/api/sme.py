@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import asyncio
 from collections import defaultdict
-from contextlib import asynccontextmanager
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -26,34 +24,21 @@ from app.database.models import (
     UserAccount,
 )
 from app.database.session import get_session
-from app.llm.chat import reply_as_persona
 from app.schemas.sme import (
+    SmeExpertTurnOut,
     SmeInboxItem,
     SmeMessageOut,
     SmePanelMessageCreate,
     SmeReadOut,
     SmeThreadType,
 )
-from app.serializers import persona_initials, profile_from_dict, utcnow
+from app.serializers import persona_initials, utcnow
+from app.services import jobs as jobs_service
 from app.services.dd.default_experts import ensure_default_expert_personas
-from app.services.district_context import area_block_for_name
-from app.services.persona_chat import (
-    expert_memory_context,
-    remember_expert_chat_turn,
-)
-from app.services.prompt_store import require_prompts_for_persona
+from app.services.sme_expert_turns import get_owned_expert_turn, serialize_expert_turn
+from app.services.sme_panel_chat import run_panel_message
 
 router = APIRouter(prefix="/sme", tags=["sme"])
-_panel_locks: dict[int, asyncio.Lock] = {}
-_panel_locks_guard = asyncio.Lock()
-
-
-@asynccontextmanager
-async def _panel_chat_lock(panel_id: int):
-    async with _panel_locks_guard:
-        lock = _panel_locks.setdefault(panel_id, asyncio.Lock())
-    async with lock:
-        yield
 
 
 async def _require_sme_customer(
@@ -158,29 +143,28 @@ async def list_inbox(
                     unread_count=unread,
                 )
             )
-    if filter in {"groups", "unread"}:
-        for panel in panels:
-            messages = panel_messages[panel.id]
-            last = messages[-1] if messages else None
-            thread_id = str(panel.id)
-            cursor = cursors.get(("panel", thread_id), 0)
-            unread = sum(row.role == "assistant" and row.id > cursor for row in messages)
-            member_names = [
-                member.persona.name if member.persona else member.name for member in panel.members
-            ]
-            items.append(
-                SmeInboxItem(
-                    thread_type="panel",
-                    thread_id=thread_id,
-                    name=panel.name,
-                    initials=persona_initials(panel.name),
-                    subtitle=", ".join(member_names),
-                    preview=last.content if last else "",
-                    last_message_at=last.created_at if last else None,
-                    unread_count=unread,
-                    member_names=member_names,
-                )
+    for panel in panels:
+        messages = panel_messages[panel.id]
+        last = messages[-1] if messages else None
+        thread_id = str(panel.id)
+        cursor = cursors.get(("panel", thread_id), 0)
+        unread = sum(row.role == "assistant" and row.id > cursor for row in messages)
+        member_names = [
+            member.persona.name if member.persona else member.name for member in panel.members
+        ]
+        items.append(
+            SmeInboxItem(
+                thread_type="panel",
+                thread_id=thread_id,
+                name=panel.name,
+                initials=persona_initials(panel.name),
+                subtitle=", ".join(member_names),
+                preview=last.content if last else "",
+                last_message_at=last.created_at if last else None,
+                unread_count=unread,
+                member_names=member_names,
             )
+        )
     if filter == "unread":
         items = [item for item in items if item.unread_count > 0]
     return sorted(
@@ -247,99 +231,36 @@ async def create_panel_message(
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> list[SmeMessageOut]:
-    async with _panel_chat_lock(panel_id):
-        return await _create_panel_message(panel_id, body, session, user)
-
-
-async def _create_panel_message(
-    panel_id: int,
-    body: SmePanelMessageCreate,
-    session: AsyncSession,
-    user: UserAccount,
-) -> list[SmeMessageOut]:
     customer_id = await _require_sme_customer(session, user)
-    panel = await _require_panel(session, panel_id, customer_id)
-    message = body.message.strip()
-    if not message:
-        raise HTTPException(status_code=400, detail="message is required")
-    experts = [member.persona for member in panel.members if member.persona]
-    if not experts:
-        raise HTTPException(status_code=400, detail="Expert panel has no linked experts")
-
-    previous_result = await session.execute(
-        select(SmePanelMessage)
-        .where(SmePanelMessage.population_id == panel_id)
-        .order_by(SmePanelMessage.id.asc())
-    )
-    previous = list(previous_result.scalars().all())
-    now = utcnow()
-    user_row = SmePanelMessage(
-        customer_id=customer_id,
-        population_id=panel_id,
-        role="user",
-        content=message,
-        created_at=now,
-    )
-    session.add(user_row)
-    await session.flush()
-
-    reply_calls = []
-    for expert in experts:
-        history = [
-            (row.role, row.content)
-            for row in previous
-            if row.role == "user" or row.persona_id == expert.id
-        ]
-        profile = profile_from_dict(expert.profile, expert.name)
-        prompts = await require_prompts_for_persona(session, expert)
-        area_block = await area_block_for_name(session, profile.ort or expert.district)
-        memory_context = await expert_memory_context(expert, message, prompts)
-        reply_calls.append(
-            reply_as_persona(
-                profile,
-                "interview",
-                history,
-                message,
-                prompts=prompts,
-                area_block=area_block,
-                extra_system=memory_context,
-                profile_kind="expert",
-            )
-        )
-    replies = await asyncio.gather(*reply_calls)
-
-    created: list[tuple[SmePanelMessage, str | None]] = [(user_row, None)]
-    for expert, reply in zip(experts, replies, strict=True):
-        reply_row = SmePanelMessage(
-            customer_id=customer_id,
-            population_id=panel_id,
-            role="assistant",
-            persona_id=expert.id,
-            content=reply,
-            created_at=utcnow(),
-        )
-        session.add(reply_row)
-        await session.flush()
-        created.append((reply_row, expert.name))
-        await remember_expert_chat_turn(
-            expert,
-            message=message,
-            reply=reply,
-            image_sha256=None,
-            source="panel_chat",
-        )
     await session.commit()
-    return [
-        SmeMessageOut(
-            id=row.id,
-            role=row.role,  # type: ignore[arg-type]
-            content=row.content,
-            created_at=row.created_at,
-            persona_id=row.persona_id,
-            persona_name=name,
-        )
-        for row, name in created
-    ]
+    factory = jobs_service.job_session_factory()
+    if factory is None:
+        raise RuntimeError("job session factory is not configured")
+    return await run_panel_message(
+        factory,
+        panel_id=panel_id,
+        customer_id=customer_id,
+        user=user,
+        message=body.message,
+    )
+
+
+@router.get("/expert-turns/{request_id}", response_model=SmeExpertTurnOut)
+async def get_expert_turn(
+    request_id: str,
+    session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
+) -> SmeExpertTurnOut:
+    customer_id = await _require_sme_customer(session, user)
+    turn = await get_owned_expert_turn(
+        session,
+        request_id,
+        customer_id=customer_id,
+        user_id=user.id,
+    )
+    if turn is None:
+        raise HTTPException(status_code=404, detail="Expert turn not found")
+    return await serialize_expert_turn(session, turn)
 
 
 @router.post(

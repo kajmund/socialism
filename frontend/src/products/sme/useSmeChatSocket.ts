@@ -3,10 +3,11 @@ import type { SmeMessage } from "@/api/sme"
 import { connectJsonWebSocket } from "@/lib/ws"
 
 type Options = {
-  onDone: (threadId: string, messages: SmeMessage[]) => void
+  onDone: (threadId: string, messages: SmeMessage[], requestId: string) => void
   onSuggestions: (threadId: string, questions: string[]) => void
-  onError: (threadId: string | null, detail: string) => void
-  onToken: (threadId: string, text: string) => void
+  onError: (threadId: string | null, detail: string, requestId: string | null) => void
+  onToken: (threadId: string, text: string, requestId: string) => void
+  onReady: () => void
   onDisconnected: () => void
 }
 
@@ -46,6 +47,7 @@ export function useSmeChatSocket({
   onSuggestions,
   onError,
   onToken,
+  onReady,
   onDisconnected,
 }: Options) {
   const [ready, setReady] = useState(false)
@@ -56,6 +58,7 @@ export function useSmeChatSocket({
     onSuggestions,
     onError,
     onToken,
+    onReady,
     onDisconnected,
   })
   callbacksRef.current = {
@@ -63,6 +66,7 @@ export function useSmeChatSocket({
     onSuggestions,
     onError,
     onToken,
+    onReady,
     onDisconnected,
   }
 
@@ -84,21 +88,25 @@ export function useSmeChatSocket({
         const event = raw as Record<string, unknown>
         const threadId =
           typeof event.thread_id === "string" ? event.thread_id : null
+        const requestId =
+          typeof event.request_id === "string" ? event.request_id : null
         switch (event.type) {
           case "ready":
             wasReadyRef.current = true
             setReady(true)
+            callbacksRef.current.onReady()
             break
           case "token":
-            if (threadId && typeof event.text === "string") {
-              callbacksRef.current.onToken(threadId, event.text)
+            if (threadId && requestId && typeof event.text === "string") {
+              callbacksRef.current.onToken(threadId, event.text, requestId)
             }
             break
           case "done":
-            if (threadId) {
+            if (threadId && requestId) {
               callbacksRef.current.onDone(
                 threadId,
                 messagesFromUnknown(event.messages),
+                requestId,
               )
             }
             break
@@ -114,6 +122,7 @@ export function useSmeChatSocket({
             callbacksRef.current.onError(
               threadId,
               typeof event.detail === "string" ? event.detail : "Chat error",
+              requestId,
             )
             break
           default:
@@ -132,10 +141,32 @@ export function useSmeChatSocket({
 
   const send = useCallback(
     (threadId: string, message: string, imageSha256?: string | null) => {
+      if (!ready || !sendRef.current) return null
+      const requestId = crypto.randomUUID()
+      sendRef.current({
+        type: "send",
+        request_id: requestId,
+        thread_type: "expert",
+        thread_id: threadId,
+        message,
+        ...(imageSha256 ? { image_sha256: imageSha256 } : {}),
+      })
+      return requestId
+    },
+    [ready],
+  )
+
+  const resend = useCallback(
+    (
+      requestId: string,
+      threadId: string,
+      message: string,
+      imageSha256?: string | null,
+    ) => {
       if (!ready || !sendRef.current) return false
       sendRef.current({
         type: "send",
-        request_id: crypto.randomUUID(),
+        request_id: requestId,
         thread_type: "expert",
         thread_id: threadId,
         message,
@@ -146,5 +177,5 @@ export function useSmeChatSocket({
     [ready],
   )
 
-  return { ready, send }
+  return { ready, send, resend }
 }

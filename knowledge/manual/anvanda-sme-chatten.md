@@ -11,9 +11,9 @@ När din kund har produkten **SME** öppnas chatten direkt efter inloggning. Den
 
 ## Välj konversation
 
-- **Alla** visar alla experter.
+- **Alla** visar både enskilda experter och expertpaneler.
 - **Olästa** visar experter och expertpaneler som har nya svar.
-- **Grupper** visar expertpaneler.
+- **Grupper** visar bara expertpaneler.
 - Sökfältet filtrerar den lista som är öppen.
 
 En gul punkt längst till höger betyder att konversationen innehåller olästa expertsvar. När du öppnar konversationen markeras de som lästa.
@@ -28,7 +28,9 @@ Förslag på följdfrågor visas som valbara knappar under konversationen. Om de
 
 Knappen **Minnen** i chatthuvudet öppnar samma minneslogg som i expertchatten. Där kan du läsa, redigera, ta bort eller rensa expertens sparade minnen.
 
-Verktygsikonen i samma chatthuvud öppnar expertchattens verktygsval. Kryssa i vilka bolags- och sökverktyg experten får använda. Ändringen sparas direkt för experten.
+Verktygsikonen i samma chatthuvud öppnar expertchattens verktygsval. Kryssa i vilka bolags-, sök- och researchverktyg experten får använda. Ändringen sparas direkt för experten. En expert som saknar ett verktyg använder det inte i chatten.
+
+När en expert startar research skapas ett vanligt bakgrundsjobb. Öppna **Bakgrundsjobb** via portföljikonen uppe till höger och följ status där, samma lista som för andra längre jobb.
 
 ## Chatta med en expertpanel
 
@@ -41,3 +43,12 @@ På en mindre skärm visas en kolumn åt gången. Använd tillbaka-knappen i cha
 Dina initialer visas längst upp till höger. Klicka på dem för att öppna menyn. **Logga ut** ligger längst ned.
 
 Administratörer ser även **Admin**. Det öppnar den vanliga vyn **Verktyg** i en stor modal ovanpå SME-chatten. Stäng modalvyn för att återgå till chatten.
+
+## Bakgrundsjobb
+
+Portföljikonen i SME-huvudet öppnar samma **Bakgrundsjobb**-lista som övriga ytor. Där syns researchjobb som en expert har startat, med status pending, running, succeeded eller failed. En siffra på ikonen visar hur många jobb som fortfarande pågår. Tillbaka-länken återför dig till chatten.
+
+## Relaterade guider
+
+- [Följa bakgrundsjobb](folja-bakgrundsjobb.md)
+- [Skapa och redigera expert](skapa-och-redigera-expert.md)

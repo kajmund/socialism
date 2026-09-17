@@ -4,6 +4,7 @@ import {
   listPersonaMessages,
 } from "@/api/personas"
 import {
+  getSmeExpertTurn,
   listSmeInbox,
   listSmePanelMessages,
   markSmeThreadRead,
@@ -17,8 +18,20 @@ import { useLocale } from "@/i18n"
 import { ApiError } from "@/lib/api"
 import { SmeChatPane } from "@/products/sme/SmeChatPane"
 import { SmeConversationList } from "@/products/sme/SmeConversationList"
+import { SmeJobsButton } from "@/products/sme/SmeJobsButton"
 import { SmeUserMenu } from "@/products/sme/SmeUserMenu"
+import {
+  smeTurnRecoveryAction,
+  type SmeExpertTurnLookup,
+} from "@/products/sme/smeTurnRecovery"
 import { useSmeChatSocket } from "@/products/sme/useSmeChatSocket"
+
+type PendingExpertTurn = {
+  requestId: string
+  threadId: string
+  message: string
+  imageSha256?: string | null
+}
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof ApiError ? error.message : fallback
@@ -43,6 +56,19 @@ export function SmeMessengerPage() {
   const initialSelectionDone = useRef(false)
   const selectedRef = useRef<SmeInboxItem | null>(null)
   const filterRef = useRef<SmeInboxFilter>("all")
+  const pendingExpertTurnsRef = useRef<Map<string, PendingExpertTurn>>(
+    new Map(),
+  )
+  const pollTimersRef = useRef<Map<string, number>>(new Map())
+  const recoverPendingRef = useRef<() => void>(() => undefined)
+  const resendRef = useRef<
+    (
+      requestId: string,
+      threadId: string,
+      message: string,
+      imageSha256?: string | null,
+    ) => boolean
+  >(() => false)
   selectedRef.current = selected
   filterRef.current = filter
 
@@ -152,49 +178,29 @@ export function SmeMessengerPage() {
     }
   }, [selected, t])
 
-  const expertSocket = useSmeChatSocket({
-    onDisconnected: () => {
-      setPendingThreads(
-        (current) =>
-          new Set([...current].filter((key) => !key.startsWith("expert:"))),
-      )
-      setStreamByThread({})
-      const active = selectedRef.current
-      if (active?.thread_type === "expert") {
-        void listPersonaMessages(active.thread_id, "interview")
-          .then((rows) =>
-            setMessages(
-              rows.map((row) => ({
-                id: row.id,
-                role: row.role,
-                content: row.content,
-                created_at: row.created_at,
-                persona_id:
-                  row.role === "assistant" ? active.thread_id : null,
-                persona_name: null,
-                image_sha256: row.image_sha256,
-              })),
-            ),
-          )
-          .catch((error: unknown) =>
-            setChatError(errorMessage(error, t("sme.chatError"))),
-          )
-      }
-      void loadInbox(filterRef.current)
-    },
-    onToken: (threadId, text) => {
-      setStreamByThread((current) => ({
-        ...current,
-        [threadId]: (current[threadId] ?? "") + text,
-      }))
-    },
-    onDone: (threadId, rows) => {
+  const clearExpertTurn = useCallback((requestId: string, threadId: string) => {
+    pendingExpertTurnsRef.current.delete(requestId)
+    const timer = pollTimersRef.current.get(requestId)
+    if (timer != null) {
+      window.clearInterval(timer)
+      pollTimersRef.current.delete(requestId)
+    }
+    const stillPending = [...pendingExpertTurnsRef.current.values()].some(
+      (turn) => turn.threadId === threadId,
+    )
+    if (!stillPending) {
       setThreadKeyPending(`expert:${threadId}`, false)
       setStreamByThread((current) => {
         const next = { ...current }
         delete next[threadId]
         return next
       })
+    }
+  }, [])
+
+  const applyExpertDone = useCallback(
+    (threadId: string, rows: SmeMessage[], requestId: string) => {
+      clearExpertTurn(requestId, threadId)
       const active = selectedRef.current
       if (active?.thread_type === "expert" && active.thread_id === threadId) {
         setMessages(
@@ -210,14 +216,14 @@ export function SmeMessengerPage() {
         void loadInbox(filterRef.current)
       }
     },
-    onSuggestions: (threadId, questions) => {
-      const active = selectedRef.current
-      if (active?.thread_type === "expert" && active.thread_id === threadId) {
-        setSuggestions(questions)
-      }
-    },
-    onError: (threadId, detail) => {
-      if (threadId) {
+    [clearExpertTurn, loadInbox],
+  )
+
+  const applyExpertError = useCallback(
+    (threadId: string | null, detail: string, requestId: string | null) => {
+      if (requestId && threadId) {
+        clearExpertTurn(requestId, threadId)
+      } else if (threadId) {
         setThreadKeyPending(`expert:${threadId}`, false)
         setStreamByThread((current) => {
           const next = { ...current }
@@ -231,7 +237,108 @@ export function SmeMessengerPage() {
         setChatError(detail)
       }
     },
+    [clearExpertTurn],
+  )
+
+  const expertSocket = useSmeChatSocket({
+    onDisconnected: () => {
+      void loadInbox(filterRef.current)
+    },
+    onReady: () => {
+      recoverPendingRef.current()
+    },
+    onToken: (threadId, text) => {
+      setStreamByThread((current) => ({
+        ...current,
+        [threadId]: (current[threadId] ?? "") + text,
+      }))
+    },
+    onDone: applyExpertDone,
+    onSuggestions: (threadId, questions) => {
+      const active = selectedRef.current
+      if (active?.thread_type === "expert" && active.thread_id === threadId) {
+        setSuggestions(questions)
+      }
+    },
+    onError: applyExpertError,
   })
+
+  const recoverOneExpertTurn = useCallback(
+    async (pending: PendingExpertTurn) => {
+      let lookup: SmeExpertTurnLookup | null = null
+      try {
+        lookup = await getSmeExpertTurn(pending.requestId)
+      } catch (error: unknown) {
+        if (!(error instanceof ApiError) || error.status !== 404) {
+          return
+        }
+      }
+      const action = smeTurnRecoveryAction(lookup)
+      switch (action) {
+        case "wait":
+          if (!pollTimersRef.current.has(pending.requestId)) {
+            const timer = window.setInterval(() => {
+              void recoverOneExpertTurn(pending)
+            }, 1000)
+            pollTimersRef.current.set(pending.requestId, timer)
+          }
+          break
+        case "apply":
+          if (lookup) {
+            applyExpertDone(pending.threadId, lookup.messages, pending.requestId)
+          }
+          break
+        case "fail":
+          applyExpertError(
+            pending.threadId,
+            lookup?.error ?? t("sme.chatError"),
+            pending.requestId,
+          )
+          break
+        case "resend":
+          if (
+            !resendRef.current(
+              pending.requestId,
+              pending.threadId,
+              pending.message,
+              pending.imageSha256,
+            )
+          ) {
+            if (!pollTimersRef.current.has(pending.requestId)) {
+              const timer = window.setInterval(() => {
+                void recoverOneExpertTurn(pending)
+              }, 1000)
+              pollTimersRef.current.set(pending.requestId, timer)
+            }
+          }
+          break
+        default: {
+          const _exhaustive: never = action
+          return _exhaustive
+        }
+      }
+    },
+    [applyExpertDone, applyExpertError, t],
+  )
+
+  const recoverPendingExpertTurns = useCallback(async () => {
+    const pending = [...pendingExpertTurnsRef.current.values()]
+    await Promise.all(pending.map((turn) => recoverOneExpertTurn(turn)))
+  }, [recoverOneExpertTurn])
+
+  recoverPendingRef.current = () => {
+    void recoverPendingExpertTurns()
+  }
+  resendRef.current = expertSocket.resend
+
+  useEffect(() => {
+    return () => {
+      for (const timer of pollTimersRef.current.values()) {
+        window.clearInterval(timer)
+      }
+      pollTimersRef.current.clear()
+    }
+  }, [])
 
   function selectThread(item: SmeInboxItem) {
     setSelected(item)
@@ -264,12 +371,19 @@ export function SmeMessengerPage() {
           image_sha256: imageSha256,
         },
       ])
-      if (!expertSocket.send(thread.thread_id, message, imageSha256)) {
+      const requestId = expertSocket.send(thread.thread_id, message, imageSha256)
+      if (!requestId) {
         setThreadPending(thread, false)
         setMessages((rows) => rows.filter((row) => row.id >= 0))
         setChatError(t("chat.notConnected"))
         return false
       }
+      pendingExpertTurnsRef.current.set(requestId, {
+        requestId,
+        threadId: thread.thread_id,
+        message,
+        imageSha256,
+      })
       return true
     }
     void sendSmePanelMessage(thread.thread_id, message)
@@ -314,6 +428,7 @@ export function SmeMessengerPage() {
           {t("sme.productName")}
         </span>
         <div className="ml-auto flex items-center gap-2">
+          <SmeJobsButton />
           <LocaleSwitcher locale={locale} setLocale={setLocale} t={t} />
           <SmeUserMenu />
         </div>

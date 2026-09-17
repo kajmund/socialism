@@ -2,8 +2,11 @@
 
 ## 2026-09-17
 
+* **SME**: **Alla** visar både experter och expertpaneler. **Grupper** visar bara paneler. **Olästa** samlar olästa trådar av båda typerna.
+* **SME**: Portföljikonen öppnar samma **Bakgrundsjobb**-lista som övriga längre jobb, så du kan följa research som en expert har startat.
+* **Experter**: Verktygsvalet har en grupp **Research** med **Starta research**. Att ändra ett annat verktyg tar inte bort researchverktyget.
 * **Expertgranskning**: Webbgranskningen samlar och fryser researchunderlag innan expertpanelen startar. Under **Live-panel** kan du öppna researchkörningen och läsa plan, källor och kvarvarande luckor. Panelen gör inga egna live-sökningar. Word-tillägget startar fortfarande ingen research.
-* **SME**: Chatten använder samma Devbrains-design och chattkomponent som expertchatten. **Alla** visar experter, **Grupper** visar expertpaneler och **Olästa** samlar nya expertsvar.
+* **SME**: Chatten använder samma Devbrains-design och chattkomponent som expertchatten. **Alla** visar experter och expertpaneler, **Grupper** visar expertpaneler och **Olästa** samlar nya expertsvar.
 * **SME**: Ett expertsvar fortsätter att tas fram när du byter konversation. Nya svar markeras med en gul punkt centrerad i chatkortets högra kant.
 * **SME**: **Minnen** i expertens chatthuvud öppnar expertchattens minneslogg för läsning, redigering och rensning.
 * **SME**: Initialerna längst upp till höger öppnar användarmenyn. Administratörer kan öppna **Verktyg** i en stor modal; **Logga ut** ligger längst ned.
