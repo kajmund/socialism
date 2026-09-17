@@ -35,7 +35,12 @@ from app.schemas.sme import (
 from app.serializers import persona_initials, utcnow
 from app.services import jobs as jobs_service
 from app.services.dd.default_experts import ensure_default_expert_personas
-from app.services.sme_expert_turns import get_owned_expert_turn, serialize_expert_turn
+from app.services.sme_expert_turns import (
+    get_owned_expert_turn,
+    reclaim_expired_expert_turn,
+    schedule_expert_turn_rerun,
+    serialize_expert_turn,
+)
 from app.services.sme_panel_chat import run_panel_message
 
 router = APIRouter(prefix="/sme", tags=["sme"])
@@ -260,6 +265,13 @@ async def get_expert_turn(
     )
     if turn is None:
         raise HTTPException(status_code=404, detail="Expert turn not found")
+    outcome = await reclaim_expired_expert_turn(session, turn)
+    await session.commit()
+    if outcome == "rerun":
+        factory = jobs_service.job_session_factory()
+        if factory is None:
+            raise RuntimeError("job session factory is not configured")
+        schedule_expert_turn_rerun(factory, turn)
     return await serialize_expert_turn(session, turn)
 
 

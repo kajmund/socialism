@@ -25,6 +25,7 @@ from app.services.expert_tools import panel_chat_tools
 from app.services.persona_chat import expert_memory_context, remember_expert_chat_turn
 from app.services.prompt_store import require_prompts_for_persona
 from app.services.sme_panel_lease import (
+    PanelLeaseHeartbeat,
     acquire_panel_lease,
     panel_lease_still_held,
     release_panel_lease,
@@ -80,6 +81,9 @@ async def run_panel_message(
         await _require_panel(session, panel_id, customer_id)
         await session.commit()
     fence = await acquire_panel_lease(session_factory, panel_id, token=token)
+    heartbeat = PanelLeaseHeartbeat(
+        session_factory, panel_id, token=token, fence=fence
+    ).start()
     try:
         async with session_factory() as session:
             panel = await _require_panel(session, panel_id, customer_id)
@@ -124,6 +128,8 @@ async def run_panel_message(
                 for expert, history, profile, prompts, area_block, memory_context in reply_inputs
             ]
         )
+        if heartbeat.lost.is_set():
+            raise HTTPException(status_code=409, detail="stale_panel_turn")
 
         async with session_factory() as session:
             if not await panel_lease_still_held(
@@ -163,6 +169,7 @@ async def run_panel_message(
             await session.commit()
         return [_message_out(row, name) for row, name in created]
     finally:
+        await heartbeat.aclose()
         async with session_factory() as session:
             await release_panel_lease(session, panel_id, token=token, fence=fence)
             await session.commit()
