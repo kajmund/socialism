@@ -258,6 +258,7 @@ export const en: LocalizedTree<SvMessages> = {
       createPanel: "Create expert panel",
       run: "Run expert review",
       running: "Running panel…",
+      openResearch: "Open research evidence",
       missingDocument: "Paste a text or pick a source file to review.",
       missingPanel: "Choose an expert panel.",
       runError: "Could not start the expert review.",
@@ -273,7 +274,7 @@ export const en: LocalizedTree<SvMessages> = {
       status: {
         draft: "Draft",
         pending: "Queued",
-        running: "Running",
+        running: "Researching and running panel",
         succeeded: "Done",
         failed: "Failed",
       },

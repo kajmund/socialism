@@ -45,6 +45,7 @@ from app.services.knowledge.vector_store import (
     VectorBucketRecord,
     chunk_in_scope,
     cosine_score,
+    record_in_scope,
 )
 from app.services.object_storage import get_object, get_object_storage, put_object
 from tests.knowledge_fakes import FakeEmbeddingProvider, fake_embed_text
@@ -451,6 +452,20 @@ async def test_supabase_vector_bucket_store_normalizes_and_filters():
     assert client.last_query is not None
     assert client.last_query["vector"] == query.embedding
     assert "query" not in client.last_query
+
+
+def test_vector_record_scope_accepts_integral_supabase_metadata_number():
+    record = VectorBucketRecord(
+        document_id="doc-a",
+        chunk_id="c1",
+        text="text",
+        title="title",
+        metadata={"customer_id": 7.0, "module": "expertgranskning"},
+    )
+    assert record_in_scope(
+        record,
+        KnowledgeScope(customer_id=7, module="expertgranskning"),
+    )
 
 
 def test_provider_api_is_read_only():

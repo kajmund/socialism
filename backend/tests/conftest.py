@@ -52,6 +52,7 @@ settings.image_cache_dir = _IMAGE_CACHE_ROOT
 _BOLAGSAPI_CACHE_ROOT = tempfile.mkdtemp(prefix="bolagsapi-cache-")
 settings.bolagsapi_cache_dir = _BOLAGSAPI_CACHE_ROOT
 settings.log_dir = ""
+settings.research_worker_loop_enabled = False
 
 # Seeded by ensure_default_kunder() as Devbrains (primary OS tenant).
 TEST_CUSTOMER_ID = 1
@@ -234,7 +235,6 @@ async def client():
     jobs_service.set_schedule_hook(None)
     jobs_service.reset_simulation_job_semaphore()
     settings.max_concurrent_simulation_jobs = 2
-    settings.research_worker_loop_enabled = False
     research_worker.set_research_session_factory(session_factory)
     research_worker.set_research_schedule_hook(None)
 

@@ -34,10 +34,13 @@ from app.config import settings
 from app.logging import configure_logging
 from app.modules.registry import MODULE_REGISTRY
 from app.services import jobs as jobs_service
+from app.services.knowledge.supabase_vector_client import start_supabase_vector_runtime
+from app.services.knowledge.vector_store import SupabaseVectorBucketStore
 from app.services.kund_store import ensure_default_kunder
 from app.services.llm_runtime_settings import load_runtime_settings
 from app.services.panel.module_defaults import ensure_module_panel_defaults
 from app.services.prompt_store import ensure_default_configurations
+from app.services.research.composition import set_knowledge_vector_store_factory
 from app.services.research_worker import (
     start_research_reclaim_loop,
     stop_research_reclaim_loop,
@@ -87,12 +90,28 @@ async def lifespan(_app: FastAPI):
             await load_runtime_settings(session)
     except (OperationalError, ProgrammingError) as exc:
         logger.warning("Skipping LLM runtime settings load on startup: %s", exc)
+    vector_runtime = None
+    _app.state.research_vector = {"status": "disabled"}
     reclaim_stop = None
     if settings.research_worker_loop_enabled:
+        vector_runtime = await start_supabase_vector_runtime(settings)
+        vector_store = SupabaseVectorBucketStore(vector_runtime.client)
+        set_knowledge_vector_store_factory(lambda: vector_store)
+        _app.state.research_vector = {
+            "status": vector_runtime.health.status,
+            "bucket": vector_runtime.health.bucket,
+            "index": vector_runtime.health.index,
+            "dimension": vector_runtime.health.dimension,
+        }
         reclaim_stop = start_research_reclaim_loop()
-    yield
-    if reclaim_stop is not None:
-        await stop_research_reclaim_loop(reclaim_stop)
+    try:
+        yield
+    finally:
+        if reclaim_stop is not None:
+            await stop_research_reclaim_loop(reclaim_stop)
+        set_knowledge_vector_store_factory(None)
+        if vector_runtime is not None:
+            await vector_runtime.close()
 
 
 def create_app() -> FastAPI:

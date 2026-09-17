@@ -256,6 +256,7 @@ export const sv = {
       createPanel: "Skapa expertpanel",
       run: "Kör expertgranskning",
       running: "Kör panel…",
+      openResearch: "Öppna researchunderlag",
       missingDocument: "Klistra in en text eller välj ett underlag att granska.",
       missingPanel: "Välj en expertpanel.",
       runError: "Kunde inte starta expertgranskningen.",
@@ -271,7 +272,7 @@ export const sv = {
       status: {
         draft: "Utkast",
         pending: "Köad",
-        running: "Kör",
+        running: "Samlar research och kör panel",
         succeeded: "Klar",
         failed: "Misslyckades",
       },

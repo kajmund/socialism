@@ -4,6 +4,12 @@ async def test_health(client):
     assert response.json() == {"status": "ok"}
 
 
+async def test_research_vector_health_before_lifespan(client):
+    response = await client.get("/health/research-vector")
+    assert response.status_code == 200
+    assert response.json() == {"status": "not_started"}
+
+
 async def test_persona_crud(client):
     create = await client.post(
         "/personas",
@@ -1524,5 +1530,4 @@ async def test_start_run_with_branch_stores_a_and_b_variants(client):
     cleared = await client.delete(f"/runs/{run['id']}/results/attempts/{second_id}")
     assert cleared.status_code == 200
     assert cleared.json()["results"] is None
-
 
