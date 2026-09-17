@@ -38,12 +38,15 @@ Derived runtime needs that the child engine has already researched are materiali
 
 An unassigned question pauses the graph with `waiting_for_assignment`; the executor never guesses an expert. A worker error marks the affected question failed and stops fail-closed. Cycles and cross-Attempt dependencies are rejected when an edge is created.
 
+Before execution, `assign_unowned_research_questions` resolves every unassigned question against the customer's expert Personas. `PanelCompetencyQuestionMatcher` reuses the panel's evidence-free competency gate: profile versus question only. It checks no evidence and cannot assign an expert outside the customer's catalog. If no existing expert is competent, `UnderlagExpertCreator` reuses the existing structured expert-profile generator, persists a customer-scoped expert Persona with `origin=research_auto`, and assigns it to the question. The newly created Persona is immediately available when later questions in the same batch are matched.
+
+Assignment never rewrites provenance. A question must already have at least one `raised_by` expert; otherwise matching fails. The selected or created Persona is added only as `assigned_to`. Persona IDs are the canonical expert identity for this flow, which also makes an automatically created expert available to expert chat later.
+
 ## Next stages
 
-1. Match each question to an existing expert competency and invoke the existing expert creator when none matches.
-2. Replace Expertgranskning `ResearchNeed` entry points with general questions and aggregate the child EvidenceSets for its frozen panel input.
-3. Route expert chat questions through the same engine.
-4. Add semantic matching for `KnowledgeQuestion` using the configured vector store.
-5. Build neutral document-understanding Q&A during ingest, with PDF text anchors, as another `case_knowledge` source. It has no expert ownership and must not contain risk or problem analysis.
+1. Replace Expertgranskning `ResearchNeed` entry points with general questions and aggregate the child EvidenceSets for its frozen panel input.
+2. Route expert chat questions through the same engine.
+3. Add semantic matching for `KnowledgeQuestion` using the configured vector store.
+4. Build neutral document-understanding Q&A during ingest, with PDF text anchors, as another `case_knowledge` source. It has no expert ownership and must not contain risk or problem analysis.
 
 Evidence continues to freeze into an `EvidenceSet` before consumers use it. Comments and Word may receive read-only access to frozen evidence in a later stage, but remain outside research initiation.
