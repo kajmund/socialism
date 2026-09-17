@@ -54,6 +54,9 @@ cp .env.example .env
 | `SUPABASE_URL` | **yes** | — | Supabase project URL (Auth + Admin invite) |
 | `SUPABASE_JWT_SECRET` | **yes** | — | HS256 JWT secret for verifying access tokens |
 | `SUPABASE_SERVICE_ROLE_KEY` | **yes** | — | Backend-only; Admin invite API (never ship to the SPA) |
+| `SUPABASE_VECTOR_BUCKET` | no | `research-knowledge` | Storage Vector Bucket for persistent research knowledge |
+| `SUPABASE_VECTOR_INDEX` | no | `documents-openai` | Vector index inside the research bucket |
+| `SUPABASE_VECTOR_DISTANCE_METRIC` | no | `cosine` | Immutable index metric: `cosine` or `euclidean` |
 | `ALLOW_LOCAL_LOGIN` | no | `false` | Local only. Enables `POST /auth/local-login` (used by `/dev-in`). **Never set in production.** |
 | `SUPABASE_S3_ACCESS_KEY_ID` | for Storage | — | S3 access key from Dashboard → Storage → S3. Required to upload annual reports or persist report artifacts |
 | `SUPABASE_S3_SECRET_ACCESS_KEY` | for Storage | — | Matching S3 secret. Backend only |
@@ -87,6 +90,9 @@ LOG_LEVEL=INFO
 SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 SUPABASE_JWT_SECRET=your-jwt-secret
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+SUPABASE_VECTOR_BUCKET=research-knowledge
+SUPABASE_VECTOR_INDEX=documents-openai
+SUPABASE_VECTOR_DISTANCE_METRIC=cosine
 SUPABASE_S3_ACCESS_KEY_ID=your-s3-access-key
 SUPABASE_S3_SECRET_ACCESS_KEY=your-s3-secret
 SUPABASE_S3_REGION=eu-central-1
@@ -97,6 +103,7 @@ Constraints:
 - The selected chat provider key (`CEREBRAS_API_KEY` or `DEEPSEEK_API_KEY`) is required at startup even when `PERSONA_GENERATOR=stub`. There is no keyword/heuristic LLM fallback for chat or reports, and no automatic fallback between providers.
 - `OPENAI_API_KEY` is required for Semantic Similarity Rating (report tone/style). The SSR embeddings client reads `settings.openai_api_key` explicitly — not the process env after OASIS mirrors DeepSeek into `OPENAI_API_KEY`.
 - `SUPABASE_URL`, `SUPABASE_JWT_SECRET`, and `SUPABASE_SERVICE_ROLE_KEY` are required at startup (Auth verify + Admin invite). The service role key must never be exposed to the frontend.
+- When the research worker is enabled, startup creates the configured Supabase Vector Bucket/index if needed and verifies that its dimension equals `EMBEDDING_DIMENSION`. An existing index with another dimension, metric, or data type stops startup. `GET /health/research-vector` exposes the active bucket, index, and dimension without credentials.
 - `ALLOW_LOCAL_LOGIN=true` unlocks a localhost-only shortcut: open `/dev-in` to sign in as `erik@fremred.se` on the Devbrains kund without a magic-link email. Leave unset (or `false`) everywhere except a developer machine.
 - `SUPABASE_S3_*` are required when storing files (annual reports, generated report HTML). Missing keys fail the upload or report job — there is no disk fallback for new artifacts. See [Supabase setup](supabase-setup.md#storage-s3).
 - Settings live only in `app/config.py` — do not call `os.getenv` / `load_dotenv` in app code.
@@ -305,4 +312,3 @@ See [supabase-setup.md](supabase-setup.md).
 ### LibreOffice (Word underlag)
 
 Uploading a `.docx` underlag converts it to PDF with LibreOffice (`soffice --headless`). Set `LIBREOFFICE_BIN` if the binary is not on `PATH`. Railway images install `libreoffice-writer` via `backend/nixpacks.toml`. Locally: install LibreOffice, or leave Word uploads for environments that have it.
-

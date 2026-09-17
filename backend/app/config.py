@@ -99,6 +99,10 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_jwt_secret: str = ""
     supabase_service_role_key: str = ""
+    # Supabase Storage Vector Bucket used by the shared research KnowledgeProvider.
+    supabase_vector_bucket: str = "research-knowledge"
+    supabase_vector_index: str = "documents-openai"
+    supabase_vector_distance_metric: Literal["cosine", "euclidean"] = "cosine"
     # Local-only shortcut: POST /auth/local-login. Never enable in production.
     allow_local_login: bool = False
     # Supabase Storage S3-compatible API (Dashboard → Storage → S3 access keys).
@@ -267,6 +271,14 @@ class Settings(BaseSettings):
                 "(backend-only; used for Admin invite API)"
             )
         return key
+
+    @field_validator("supabase_vector_bucket", "supabase_vector_index")
+    @classmethod
+    def require_supabase_vector_names(cls, value: str) -> str:
+        name = value.strip()
+        if not name:
+            raise ValueError("Supabase vector bucket and index names must not be empty")
+        return name
 
     def uses_llm_generator(self) -> bool:
         return self.persona_generator == "deepseek"

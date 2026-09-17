@@ -155,6 +155,7 @@ async def execute_generic_panel_attempt(
     attempt_id: str,
     prompts: dict[str, str],
     run_panel: PanelRunner | None = None,
+    panel_session_id: str | None = None,
 ) -> AttemptPanelResult:
     """Run generic_panel against a ready Attempt's frozen EvidenceSet.
 
@@ -194,26 +195,27 @@ async def execute_generic_panel_attempt(
     allowed_refs = frozenset(rendered.refs)
 
     claimed = False
-    panel_session_id: str | None = None
     try:
         attempt = await claim_attempt_running(session, attempt_id)
         if attempt.status == "completed":
             return await _existing_completed_result(session, attempt)
         claimed = True
-        created = await create_panel_session(
-            session, PanelSessionCreate(config=config)
-        )
-        panel_session_id = created.id
-        panel = await get_panel_session(session, created.id)
+        if panel_session_id is None:
+            created = await create_panel_session(
+                session, PanelSessionCreate(config=config)
+            )
+            panel_session_id = created.id
+        panel = await get_panel_session(session, panel_session_id)
         if panel is None:
-            raise PanelAttemptError(f"Panel session {created.id} was not created")
+            raise PanelAttemptError(f"Panel session {panel_session_id} was not found")
         panel.status = "running"
+        panel.error = None
         await session.flush()
         await session.commit()
 
-        panel = await get_panel_session(session, created.id)
+        panel = await get_panel_session(session, panel_session_id)
         if panel is None:
-            raise PanelAttemptError(f"Panel session {created.id} was not created")
+            raise PanelAttemptError(f"Panel session {panel_session_id} was not found")
         panel = await runner(
             session,
             panel,

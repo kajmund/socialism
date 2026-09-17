@@ -40,10 +40,6 @@ from app.services.expertgranskning import WORD_JOB_KIND
 from app.services.expertgranskning.schemas import ExpertgranskningWordJobRequest
 from app.services.expertgranskning.watch import publish_expertgranskning_finished
 from app.services.expertgranskning.word_review import run_word_paragraph_review_for_job
-from app.services.rattsunderlag import JOB_KIND
-from app.services.rattsunderlag.run_job import run_rattsunderlag_research_job
-from app.services.rattsunderlag.schemas import RattsunderlagResearchJobRequest
-from app.services.rattsunderlag.sessions import apply_job_status
 from app.services.oasis_run import (
     OasisUnavailable,
     attempt_all_failed,
@@ -62,6 +58,10 @@ from app.services.population_persist import (
     update_population_from_generation,
 )
 from app.services.prompt_store import require_active_prompts
+from app.services.rattsunderlag import JOB_KIND
+from app.services.rattsunderlag.run_job import run_rattsunderlag_research_job
+from app.services.rattsunderlag.schemas import RattsunderlagResearchJobRequest
+from app.services.rattsunderlag.sessions import apply_job_status
 from app.services.report_realtime import publish_report
 
 logger = logging.getLogger(__name__)
@@ -677,17 +677,35 @@ async def _run_panel_session(job_id: str) -> None:
             else:
                 module = "politik"
             customer_id = await customer_id_for_panel_session(session, panel.id)
-            prompts = await require_active_prompts(
-                session,
-                customer_id=customer_id,
-                module=module,
-                language="sv",
+            if module == "expertgranskning" and config.research_before_review:
+                session_id = panel.id
+            else:
+                session_id = None
+            if session_id is not None:
+                await session.commit()
+            else:
+                prompts = await require_active_prompts(
+                    session,
+                    customer_id=customer_id,
+                    module=module,
+                    language="sv",
+                )
+                method_name = PROTOCOL_METHODS.get(panel.protocol)
+                if method_name is None:
+                    raise RuntimeError(f"Unsupported panel protocol: {panel.protocol}")
+                await deliberation_method(method_name)(session, panel, prompts)
+                await session.commit()
+
+        if session_id is not None:
+            from app.services.expertgranskning.execution import (
+                run_expertgranskning_with_research,
             )
-            method_name = PROTOCOL_METHODS.get(panel.protocol)
-            if method_name is None:
-                raise RuntimeError(f"Unsupported panel protocol: {panel.protocol}")
-            await deliberation_method(method_name)(session, panel, prompts)
-            await session.commit()
+
+            await run_expertgranskning_with_research(
+                factory,
+                session_id=session_id,
+                customer_id=customer_id,
+            )
 
         await publish_panel_finished(payload.session_id, status="succeeded")
 

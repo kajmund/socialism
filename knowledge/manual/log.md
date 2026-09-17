@@ -1,5 +1,9 @@
 # Manual update log
 
+## 2026-09-17
+
+* **Expertgranskning**: Webbgranskningen samlar och fryser researchunderlag innan expertpanelen startar. Under **Live-panel** kan du öppna researchkörningen och läsa plan, källor och kvarvarande luckor. Panelen gör inga egna live-sökningar. Word-tillägget startar fortfarande ingen research.
+
 ## 2026-09-15
 
 * **Expertminnen**: En bild från expertchatten följer med minnet och visas i loggen under **Verktyg** och i chatten.

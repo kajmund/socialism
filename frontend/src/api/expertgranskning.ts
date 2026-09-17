@@ -20,6 +20,8 @@ export type ExpertgranskningSession = {
   panel_name: string | null
   project_id: number | null
   job_id: string | null
+  execution_run_id: string | null
+  execution_attempt_id: string | null
   error: string | null
   created_at: string
   updated_at: string
