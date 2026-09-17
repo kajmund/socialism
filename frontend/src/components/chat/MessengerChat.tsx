@@ -11,6 +11,7 @@ export type MessengerChatMessage = {
   content: string
   asked_by?: "doctor" | "human" | null
   image_sha256?: string | null
+  speakerName?: string | null
 }
 
 type MessengerChatProps = {
@@ -115,6 +116,9 @@ export function MessengerChat({
             className={"chat-msg-row " + (m.role === "assistant" ? "them" : "me")}
           >
             <div className="chat-msg-stack">
+              {m.role === "assistant" && m.speakerName ? (
+                <span className="chat-msg-asked-by">{m.speakerName}</span>
+              ) : null}
               {m.role === "user" && m.asked_by ? (
                 <span className="chat-msg-asked-by">
                   {m.asked_by === "doctor"

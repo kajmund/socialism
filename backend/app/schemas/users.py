@@ -16,6 +16,7 @@ class MeOut(BaseModel):
     role: UserRole
     kund_id: int | None
     kund_slug: str | None
+    product: str | None
     available_modules: list[str]
 
 

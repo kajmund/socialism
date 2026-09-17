@@ -11,6 +11,7 @@ function user(role: AuthUser["role"], modules: string[]): AuthUser {
     modules,
     kundSlug: role === "bolag" ? "bolag-demo" : "devbrains",
     kundId: role === "bolag" ? 2 : 1,
+    product: null,
   }
 }
 

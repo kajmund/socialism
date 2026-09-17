@@ -11,6 +11,7 @@ export type Kund = {
   id: number
   name: string
   slug: string
+  product: string | null
   available_modules: string[]
   projekt: KundProjekt[]
 }
@@ -33,4 +34,8 @@ export function createKund(body: {
 
 export function updateKundModules(id: number, available_modules: string[]): Promise<Kund> {
   return api.patch<Kund>(`/kunder/${id}`, { available_modules })
+}
+
+export function updateKundProduct(id: number, product: string | null): Promise<Kund> {
+  return api.patch<Kund>(`/kunder/${id}`, { product })
 }

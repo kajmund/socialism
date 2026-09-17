@@ -566,6 +566,100 @@ def test_chat_websocket_streams_tokens(ws_client):
         ]
 
 
+def test_sme_websocket_routes_expert_output_by_thread(ws_client):
+    client, _loop = ws_client
+    bolag_id = _bolag_customer_id(client)
+    enabled = client.patch(f"/kunder/{bolag_id}", json={"product": "sme"})
+    assert enabled.status_code == 200
+    created = client.post(
+        "/personas",
+        json={
+            "kind": "expert",
+            "customer_id": bolag_id,
+            "name": "SME-expert",
+            "occ": "Analytiker",
+            "district": "—",
+            "quote": "Testexpert",
+            "tools": ["search_companies"],
+        },
+    )
+    assert created.status_code == 201
+    persona_id = created.json()["id"]
+    os_id = next(
+        row["id"]
+        for row in client.get("/kunder").json()
+        if row["slug"] != BOLAG_DEMO_KUND_SLUG
+    )
+    other_expert = client.post(
+        "/personas",
+        json={
+            "kind": "expert",
+            "customer_id": os_id,
+            "name": "Annan kunds expert",
+            "occ": "Jurist",
+            "district": "—",
+            "quote": "Ska inte nås",
+        },
+    )
+    assert other_expert.status_code == 201
+
+    with client.websocket_connect(
+        f"/ws/sme?access_token={_bolag_token()}"
+    ) as websocket:
+        assert websocket.receive_json() == {"type": "ready", "scope": "sme"}
+        websocket.send_json(
+            {
+                "type": "send",
+                "request_id": "request-1",
+                "thread_type": "expert",
+                "thread_id": persona_id,
+                "message": "Granska bolaget",
+            }
+        )
+        typing = websocket.receive_json()
+        assert typing["type"] == "typing"
+        assert typing["thread_id"] == persona_id
+
+        tokens: list[str] = []
+        done = None
+        for _ in range(10):
+            event = websocket.receive_json()
+            assert event["thread_id"] == persona_id
+            assert event["request_id"] == "request-1"
+            if event["type"] == "token":
+                tokens.append(event["text"])
+            elif event["type"] == "done":
+                done = event
+                break
+        assert tokens == ["Mockad personasvar för tester."]
+        assert done is not None
+        assert done["reply"] == "Mockad personasvar för tester."
+
+        suggestions = websocket.receive_json()
+        assert suggestions["type"] == "suggestions"
+        assert suggestions["thread_id"] == persona_id
+        assert suggestions["questions"] == [
+            "Vad händer sen?",
+            "Kan du ge ett exempel?",
+            "Hur känner du inför det?",
+        ]
+        assert websocket.receive_json()["type"] == "typing"
+
+        websocket.send_json(
+            {
+                "type": "send",
+                "request_id": "request-forbidden",
+                "thread_type": "expert",
+                "thread_id": other_expert.json()["id"],
+                "message": "Otillåten fråga",
+            }
+        )
+        assert websocket.receive_json()["type"] == "typing"
+        denied = websocket.receive_json()
+        assert denied["type"] == "error"
+        assert denied["detail"] == "kund_access_denied"
+
+
 def _expertgranskning_hello(job_id: str) -> dict:
     return {
         "type": "hello",

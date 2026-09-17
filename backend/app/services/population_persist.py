@@ -189,6 +189,15 @@ async def create_expert_panel(
     ids = list(dict.fromkeys(pid.strip() for pid in persona_ids if pid and pid.strip()))
     if not ids:
         raise ValueError("Expert panel requires at least one expert persona")
+    scoped = await session.execute(
+        select(Persona.id).where(
+            Persona.id.in_(ids),
+            Persona.customer_id == customer_id,
+            Persona.kind == "expert",
+        )
+    )
+    if set(scoped.scalars().all()) != set(ids):
+        raise ValueError("Expert panel personas must belong to the panel customer")
     library = await load_library_personas(session, ids, required_kind="expert")
     members: list[PopulationMemberCreate] = []
     for persona_id in ids:

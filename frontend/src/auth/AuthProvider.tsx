@@ -22,6 +22,7 @@ type MeResponse = {
   role: Role
   kund_id: number | null
   kund_slug: string | null
+  product: string | null
   available_modules: string[]
 }
 
@@ -64,6 +65,7 @@ async function hydrateFromMe(base: AuthSession): Promise<AuthSession> {
       modules: me.available_modules,
       kundSlug: me.kund_slug,
       kundId: me.kund_id,
+      product: me.product,
     },
   }
 }

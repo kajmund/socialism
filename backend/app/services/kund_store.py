@@ -13,9 +13,9 @@ OS_DEFAULT_KUND_SLUG = "devbrains"
 BOLAG_DEMO_KUND_SLUG = "bolag-demo"
 DEFAULT_PROJEKT_SLUG = "default"
 
-_SEED_KUNDER: tuple[tuple[str, str, tuple[str, ...]], ...] = (
-    (OS_DEFAULT_KUND_SLUG, "Devbrains", ("politik", "expertgranskning")),
-    (BOLAG_DEMO_KUND_SLUG, "Bolag demo", ("dd",)),
+_SEED_KUNDER: tuple[tuple[str, str, tuple[str, ...], str | None], ...] = (
+    (OS_DEFAULT_KUND_SLUG, "Devbrains", ("politik", "expertgranskning"), None),
+    (BOLAG_DEMO_KUND_SLUG, "Bolag demo", ("dd",), None),
 )
 
 
@@ -31,7 +31,7 @@ async def ensure_default_kunder(session: AsyncSession) -> bool:
     now = utcnow()
     os_kund_id: int | None = None
 
-    for slug, name, modules in _SEED_KUNDER:
+    for slug, name, modules, product in _SEED_KUNDER:
         result = await session.execute(select(Kund).where(Kund.slug == slug))
         row = result.scalar_one_or_none()
         if row is None:
@@ -39,6 +39,7 @@ async def ensure_default_kunder(session: AsyncSession) -> bool:
                 Kund(
                     name=name,
                     slug=slug,
+                    product=product,
                     available_modules=list(modules),
                     created_at=now,
                     updated_at=now,

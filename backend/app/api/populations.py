@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.auth.dependencies import get_current_user
-from app.auth.scope import customer_id_for_user, require_user_kund_id
+from app.auth.scope import customer_id_for_user
 from app.database.models import Persona, Population, PopulationMember, Run, UserAccount
 from app.database.session import get_session
 from app.schemas.domain import (
@@ -25,6 +25,7 @@ from app.serializers import (
     utcnow,
 )
 from app.services import population_generate as gen
+from app.services.population_fingerprint import infer_slots_from_profile
 from app.services.population_generation_store import pop_generation
 from app.services.population_persist import (
     create_expert_panel,
@@ -32,7 +33,6 @@ from app.services.population_persist import (
     members_from_generation,
     reconcile_population_metadata,
 )
-from app.services.population_fingerprint import infer_slots_from_profile
 
 router = APIRouter(prefix="/populations", tags=["populations"])
 
@@ -74,7 +74,7 @@ async def assert_population_access(
 
 async def _assert_personas_in_kund(
     session: AsyncSession,
-    user: UserAccount,
+    customer_id: int,
     persona_ids: list[str],
 ) -> None:
     ids = sorted({pid for pid in persona_ids if pid})
@@ -86,11 +86,30 @@ async def _assert_personas_in_kund(
     missing = [pid for pid in ids if pid not in found]
     if missing:
         raise HTTPException(status_code=404, detail=f"Persona not found: {missing[0]}")
-    if user.role == "admin":
-        return
-    kund_id = require_user_kund_id(user)
-    if any(p.customer_id != kund_id for p in personas):
+    if any(p.customer_id != customer_id for p in personas):
         raise HTTPException(status_code=403, detail="kund_access_denied")
+
+
+async def _owner_customer_id_for_personas(
+    session: AsyncSession,
+    user: UserAccount,
+    persona_ids: list[str],
+) -> int:
+    ids = sorted({pid for pid in persona_ids if pid})
+    if user.role != "admin" or not ids:
+        return await customer_id_for_user(session, user)
+    result = await session.execute(
+        select(Persona.id, Persona.customer_id).where(Persona.id.in_(ids))
+    )
+    rows = list(result.all())
+    found = {row.id for row in rows}
+    missing = [persona_id for persona_id in ids if persona_id not in found]
+    if missing:
+        raise HTTPException(status_code=404, detail=f"Persona not found: {missing[0]}")
+    customer_ids = {row.customer_id for row in rows}
+    if len(customer_ids) != 1:
+        raise HTTPException(status_code=403, detail="kund_access_denied")
+    return customer_ids.pop()
 
 
 def _persona_ids_from_members(members: list[PopulationMemberCreate]) -> list[str]:
@@ -202,7 +221,8 @@ async def generate_population(
     for cand in body.existing:
         if cand.source == "library" and cand.persona_id:
             ids.append(cand.persona_id)
-    await _assert_personas_in_kund(session, user, ids)
+    customer_id = await _owner_customer_id_for_personas(session, user, ids)
+    await _assert_personas_in_kund(session, customer_id, ids)
     try:
         library = await gen.load_library_personas(session, ids)
     except ValueError as exc:
@@ -232,12 +252,16 @@ async def create_population(
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> PopulationDetail:
-    owner_customer_id = await customer_id_for_user(session, user)
     if body.kind == "expert_panel":
         persona_ids = list(body.include_persona_ids)
         if not persona_ids:
             persona_ids = [member.persona_id for member in body.members if member.persona_id]
-        await _assert_personas_in_kund(session, user, [pid for pid in persona_ids if pid])
+        owner_customer_id = await _owner_customer_id_for_personas(
+            session, user, [pid for pid in persona_ids if pid]
+        )
+        await _assert_personas_in_kund(
+            session, owner_customer_id, [pid for pid in persona_ids if pid]
+        )
         try:
             recipe = dict(body.recipe or {})
             recipe.pop("modules", None)
@@ -254,6 +278,7 @@ async def create_population(
         population = await _get_population(session, population.id)
         return serialize_population_detail(population, 0, list(population.members))
 
+    owner_customer_id = await customer_id_for_user(session, user)
     existing = await session.execute(
         select(Population).where(
             Population.customer_id == owner_customer_id,
@@ -275,7 +300,9 @@ async def create_population(
             customer_id=owner_customer_id,
         )
 
-    await _assert_personas_in_kund(session, user, _persona_ids_from_members(members))
+    await _assert_personas_in_kund(
+        session, owner_customer_id, _persona_ids_from_members(members)
+    )
 
     population = Population(
         customer_id=owner_customer_id,
@@ -344,7 +371,9 @@ async def update_population(
             extras,
             customer_id=population.customer_id,
         )
-        await _assert_personas_in_kund(session, user, _persona_ids_from_members(built))
+        await _assert_personas_in_kund(
+            session, population.customer_id, _persona_ids_from_members(built)
+        )
         for existing_member in list(population.members):
             await session.delete(existing_member)
         await session.flush()
@@ -366,7 +395,7 @@ async def update_population(
             )
             prepared_list.append(prepared)
         await _assert_personas_in_kund(
-            session, user, _persona_ids_from_members(prepared_list)
+            session, population.customer_id, _persona_ids_from_members(prepared_list)
         )
         for existing_member in list(population.members):
             await session.delete(existing_member)
@@ -480,7 +509,9 @@ async def add_member(
 ) -> PopulationMemberOut:
     population = await assert_population_access(session, user, population_id)
     if body.persona_id:
-        await _assert_personas_in_kund(session, user, [body.persona_id])
+        await _assert_personas_in_kund(
+            session, population.customer_id, [body.persona_id]
+        )
         persona = await session.get(Persona, body.persona_id)
         if persona is None:
             raise HTTPException(status_code=404, detail="Persona not found")

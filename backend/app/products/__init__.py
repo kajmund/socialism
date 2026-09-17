@@ -1,0 +1,1 @@
+"""Customer-level product manifests."""
