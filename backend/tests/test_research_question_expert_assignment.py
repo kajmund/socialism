@@ -245,14 +245,20 @@ async def test_assignment_requires_expert_who_raised_question(session):
         )
 
 
-async def test_panel_competency_matcher_uses_profile_and_question_only():
+async def test_panel_competency_matcher_ranks_all_profiles_without_evidence():
     captured = []
 
     async def complete(messages, response_model):
         captured.append(messages)
+        is_tax = "Skattejurist" in str(messages)
         return response_model(
-            has_domain_competence="Skattejurist" in str(messages),
-            competence_reason="Svensk skatterätt är kärnkompetensen.",
+            has_domain_competence=True,
+            competence_score=95 if is_tax else 55,
+            competence_reason=(
+                "Svensk skatterätt är kärnkompetensen."
+                if is_tax
+                else "Närliggande transaktionskompetens."
+            ),
         )
 
     set_structured_completer(complete)
