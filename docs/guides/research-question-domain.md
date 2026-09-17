@@ -50,10 +50,16 @@ Dependency-ready questions execute in parallel through `AttemptResearchQuestionW
 
 An empty expert research plan is valid when the document itself is sufficient. The parent still receives an empty frozen EvidenceSet, making the no-research decision explicit and keeping the final panel on the same immutable-input path.
 
+## Expert chat read-through
+
+Library expert chat performs a read-only exact lookup against tenant and public `KnowledgeQuestion` identities before answering. Only links backed by an Attempt in `ready` or `completed` state and an attached frozen EvidenceSet are exposed to the chat model. Case-scoped evidence is excluded because a library chat has no document case context, and another tenant's evidence can never match.
+
+Matching frozen evidence is added to the expert's system context with stable `[R1]`, `[R2]` references and explicit freshness. The expert must disclose gaps or stale evidence rather than invent an answer. This seam creates no Run, Attempt, question, or provider request. Both REST and streaming chat use the same read-through behavior; Word remains outside it.
+
 ## Next stages
 
-1. Route expert chat questions through the same engine.
-2. Add semantic matching for `KnowledgeQuestion` using the configured vector store.
+1. Add semantic matching for `KnowledgeQuestion` using the configured vector store.
+2. Let expert chat create a `SpecificQuestion` and initiate the question DAG only when reused evidence is insufficient.
 3. Build neutral document-understanding Q&A during ingest, with PDF text anchors, as another `case_knowledge` source. It has no expert ownership and must not contain risk or problem analysis.
 
 Evidence continues to freeze into an `EvidenceSet` before consumers use it. Comments and Word may receive read-only access to frozen evidence in a later stage, but remain outside research initiation.
