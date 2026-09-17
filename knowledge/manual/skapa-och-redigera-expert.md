@@ -22,6 +22,7 @@ tags: [personas]
 
 - **Bolag** — sök bolag, slå upp ett bolag, validera organisationsnummer.
 - **Sök** — webbsökning (DuckDuckGo) och Wikipedia.
+- **Research** — starta en researchkörning från expertchatten efter att du bekräftat. Word startar inte research.
 
 **Alla verktyg** markerar eller avmarkerar allt. En expert utan verktyg svarar bara utifrån sin profil.
 

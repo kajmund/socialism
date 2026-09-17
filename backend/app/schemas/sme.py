@@ -37,3 +37,12 @@ class SmePanelMessageCreate(BaseModel):
 
 class SmeReadOut(BaseModel):
     last_read_message_id: int | None
+
+
+class SmeExpertTurnOut(BaseModel):
+    request_id: str
+    thread_type: Literal["expert"]
+    thread_id: str
+    status: Literal["accepted", "running", "succeeded", "failed"]
+    error: str | None = None
+    messages: list[SmeMessageOut] = Field(default_factory=list)

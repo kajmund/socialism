@@ -8,7 +8,7 @@ import {
 } from "react-router-dom"
 import { useAuth } from "@/auth/AuthProvider"
 import { RequireAdmin } from "@/auth/RequireAdmin"
-import { RequireAuth } from "@/auth/RequireAuth"
+import { AuthSplash, RequireAuth } from "@/auth/RequireAuth"
 import { RequireBolag } from "@/auth/RequireBolag"
 import { RequireExpertgranskning } from "@/auth/RequireExpertgranskning"
 import { RequireRattsunderlag } from "@/auth/RequireRattsunderlag"
@@ -66,7 +66,9 @@ import { BolagReportsPage, ReportsPage } from "@/pages/ReportsPage"
 import { RunsPage } from "@/pages/RunsPage"
 import { JobsRealtimeProvider } from "@/realtime/JobsRealtimeProvider"
 import { ReportsRealtimeProvider } from "@/realtime/ReportsRealtimeProvider"
+import { SmeJobsShell } from "@/products/sme/SmeJobsShell"
 import { SmeMessengerPage } from "@/products/sme/SmeMessengerPage"
+import { smeProductAllowsPath } from "@/products/sme/smePaths"
 
 function RedirectPopulationEdit() {
   const { id } = useParams<{ id: string }>()
@@ -100,8 +102,25 @@ function ProductGate() {
   const embeddedTools =
     isAdmin && isSameOriginFrame() && pathname.startsWith("/tools")
   if (embeddedTools) return <Outlet />
-  if (user?.product === "sme") return <SmeMessengerPage />
+  if (user?.product === "sme") {
+    if (smeProductAllowsPath(pathname)) return <Outlet />
+    return (
+      <JobsRealtimeProvider>
+        <SmeMessengerPage />
+      </JobsRealtimeProvider>
+    )
+  }
   return <Outlet />
+}
+
+function JobsRoute() {
+  const { user, hasModule, loading, resolvedModules } = useAuth()
+  if (loading) return <AuthSplash />
+  if (user?.product === "sme") return <JobsPage Shell={SmeJobsShell} />
+  if (!hasModule("politik")) {
+    return <Navigate to={homePathForUser(resolvedModules)} replace />
+  }
+  return <JobsPage />
 }
 
 export default function App() {
@@ -180,6 +199,7 @@ export default function App() {
           </Route>
 
           <Route path="/execution/runs/:runId" element={<ExecutionRunPage />} />
+          <Route path="/jobs" element={<JobsRoute />} />
 
           <Route element={<RequireOsUser />}>
           <Route path="/" element={<DashboardPage />} />
@@ -200,7 +220,6 @@ export default function App() {
           <Route path="/messages/new" element={<MessagesWorkshopPage />} />
           <Route path="/messages/:id/edit" element={<MessagesWorkshopPage />} />
 
-          <Route path="/jobs" element={<JobsPage />} />
           <Route path="/feedback" element={<FeedbackPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/reports/:id" element={<ReportPage />} />

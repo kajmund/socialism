@@ -82,7 +82,7 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 
 # SME
 
-* [Använda SME-chatten](anvanda-sme-chatten.md) — Chatta med experter och expertpaneler, och följ olästa svar
+* [Använda SME-chatten](anvanda-sme-chatten.md) — Chatta med experter och expertpaneler, följ olästa svar och bakgrundsjobb
 
 # Expertgranskning
 
