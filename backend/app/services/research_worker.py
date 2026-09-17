@@ -34,7 +34,6 @@ from app.services.research.composition import (
     resolve_research_planner,
 )
 from app.services.research.execution import execute_attempt_research, fail_incomplete_research
-from app.services.research.question_graph_sql import SqlQuestionEvidenceGraph
 from app.services.research.plan import research_plan_from_snapshot, research_plan_to_snapshot
 from app.services.research.planner import (
     InvalidResearchObjectiveError,
@@ -42,6 +41,7 @@ from app.services.research.planner import (
     require_research_objective,
     research_objective_to_snapshot,
 )
+from app.services.research.question_graph_sql import SqlQuestionEvidenceGraph
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +109,7 @@ async def accept_attempt_research(
     research_objective: str | None,
     research_context: dict[str, Any],
     research_plan: dict[str, Any] | None,
+    schedule: bool = True,
 ) -> str:
     """Persist start input and one claim. Returns the HTTP status to emit."""
     attempt = await get_attempt(session, attempt_id)
@@ -150,7 +151,8 @@ async def accept_attempt_research(
         ),
     )
     await session.commit()
-    enqueue_research(attempt_id)
+    if schedule:
+        enqueue_research(attempt_id)
     return "202"
 
 

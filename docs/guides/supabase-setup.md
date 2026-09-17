@@ -28,6 +28,28 @@ One bucket per kund, named `{kund-slug}` (for example `devbrains`, `bolag-demo`)
 
 S3 credentials stay on the backend. The SPA uploads and downloads through FastAPI.
 
+## Research Vector Bucket
+
+The backend uses Supabase Storage Vector Buckets for searchable, persistent research
+knowledge. The service-role key authenticates this server-only path; the S3 access keys
+are not used for vector queries.
+
+Defaults:
+
+```env
+SUPABASE_VECTOR_BUCKET=research-knowledge
+SUPABASE_VECTOR_INDEX=documents-openai
+SUPABASE_VECTOR_DISTANCE_METRIC=cosine
+```
+
+At startup, the research worker creates a missing bucket/index and verifies `float32`,
+the configured metric, and `EMBEDDING_DIMENSION`. The dimension must match
+`EMBEDDING_MODEL` (3072 for the default `text-embedding-3-large`). A mismatch is a hard
+startup error because an existing vector index cannot change dimension or metric.
+
+`GET /health/research-vector` reports the configured bucket, index, and dimension after
+startup. It never returns credentials.
+
 ## Auth settings
 
 Target: magic link (email OTP) only — no Google/SSO, no password management in-app.

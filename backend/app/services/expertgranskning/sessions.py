@@ -78,6 +78,10 @@ def serialize_expertgranskning_session(
         panel_name=panel_name,
         project_id=row.project_id,
         job_id=row.job_id,
+        execution_run_id=str(config.get("execution_run_id") or "").strip() or None,
+        execution_attempt_id=(
+            str(config.get("execution_attempt_id") or "").strip() or None
+        ),
         error=row.error,
         created_at=format_date(row.created_at) if row.created_at else "",
         updated_at=format_date(row.updated_at) if row.updated_at else "",
@@ -203,6 +207,7 @@ async def _create_draft_without_panel(
         topic=topic,
         brief=document_text,
         review_intent=review_intent,
+        research_before_review=True,
         underlag_id=underlag_id,
         expert_slots=[],
     )
@@ -261,6 +266,7 @@ async def create_expertgranskning_session(
                     topic=topic,
                     brief=body.document_text,
                     review_intent=body.review_intent,
+                    research_before_review=True,
                     underlag_id=body.underlag_id,
                 ),
                 panel_id=body.panel_id,
@@ -368,6 +374,7 @@ async def update_expertgranskning_session(
             "topic": topic,
             "brief": document_text,
             "review_intent": review_intent,
+            "research_before_review": True,
             "underlag_id": underlag_id,
             "expert_slots": expert_slots,
         }

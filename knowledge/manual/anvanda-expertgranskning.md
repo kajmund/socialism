@@ -31,10 +31,12 @@ tags: [rapporter]
 ## Resultat
 
 1. Fliken **Resultat** öppnas automatiskt när en körning inte längre är utkast.
-2. **Live-panel** visar moderator och experter medan jobbet körs. Efter öppningen anger varje expert om frågan ligger inom hens faktiska kompetens, och i så fall vilka underlag som behövs. Moderatorn slår ihop det till en researchplan. Experter utanför området skapar inte sakfrågor åt någon annan. Därefter räcker bara de med relevant kompetens upp handen. Noll händer är ett giltigt svar. Saknas relevant kompetens stoppas den sakliga diskussionen och frågan lämnas obesvarad. Moderatorn ställer en fråga i taget — nästa delfråga syns först när den har ställts, och hålls inte igång med analogier. Experternas turer visas formaterade (listor, fetstil, länkar) om de skriver markdown.
+2. Körningen samlar först det externa underlag som behövs och fryser det innan panelen startar. **Öppna researchunderlag** visar researchplan, hittade källor, luckor och bedömning. Därefter visar **Live-panel** moderator och experter. Panelen får bara använda det frysta underlaget och startar inga egna sökningar. Bara experter med relevant kompetens räcker upp handen. Noll händer är ett giltigt svar. Saknas relevant kompetens stoppas den sakliga diskussionen och frågan lämnas obesvarad. Moderatorn ställer en fråga i taget — nästa delfråga syns först när den har ställts, och hålls inte igång med analogier. Experternas turer visas formaterade (listor, fetstil, länkar) om de skriver markdown.
 3. När panelen är klar öppnas **Rapport**. Där finns flikarna **Rapport** och **PDF** om underlaget var en PDF (eller Word som konverterats). Originaltexten ingår inte i HTML-rapporten. Därifrån kan du prata med **Spinndoktor**.
 
 Underlag du laddar upp är personliga — andra på samma kund ser inte dina filer eller mappar.
+
+Researchsteget gäller Expertgranskning i webbläsaren. Word-tillägget startar ingen research.
 
 ## Relaterade guider
 

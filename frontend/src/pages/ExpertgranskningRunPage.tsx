@@ -620,6 +620,16 @@ function ExpertgranskningRunInner({ bolag }: { bolag: boolean }) {
                   {liveStatus ? (
                     <span className={statusClassName(liveStatus)}>{t(statusLabelKey(liveStatus))}</span>
                   ) : null}
+                  {session?.execution_run_id ? (
+                    <div>
+                      <Link
+                        className="text-sm font-medium text-db-gold-500 hover:underline"
+                        to={`/execution/runs/${session.execution_run_id}?attempt=${session.execution_attempt_id ?? ""}`}
+                      >
+                        {t("expertgranskning.page.openResearch")}
+                      </Link>
+                    </div>
+                  ) : null}
                   <PanelLiveFeedPanel key={sessionId} sessionId={sessionId} enabled={showLiveFeed} />
                 </div>
               ) : (
