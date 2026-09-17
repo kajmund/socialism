@@ -28,6 +28,7 @@ export type ExpertToolsFieldsProps = {
   tools: ExpertToolId[]
   onChange: (tools: ExpertToolId[]) => void
   disabled?: boolean
+  error?: string | null
   titleKey?: MessageKey
   introKey?: MessageKey
 }
@@ -121,6 +122,7 @@ export function ExpertToolsFields({
   tools,
   onChange,
   disabled = false,
+  error = null,
   titleKey = "experts.composer.layerTools",
   introKey = "experts.tools.intro",
 }: ExpertToolsFieldsProps) {
@@ -198,6 +200,11 @@ export function ExpertToolsFields({
                     onChange={onChange}
                     disabled={disabled}
                   />
+                  {error ? (
+                    <p className="mt-3 text-sm text-destructive" role="alert">
+                      {error}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="flex justify-end border-t border-[color:var(--border-hairline)] px-5 py-3">
                   <AdminButton

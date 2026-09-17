@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from "react"
 import { listModules, type ProductModule } from "@/api/modules"
-import { listKunder, updateKundModules, type Kund } from "@/api/kunder"
+import {
+  listKunder,
+  updateKundModules,
+  updateKundProduct,
+  type Kund,
+} from "@/api/kunder"
 import { useLocale } from "@/i18n"
 import { ApiError } from "@/lib/api"
 import { MODULE_REGISTRY } from "@/modules/moduleRegistry"
@@ -67,6 +72,20 @@ export function KunderPage() {
     }
   }
 
+  async function changeProduct(kund: Kund, product: string | null) {
+    setSavingId(kund.id)
+    setError(null)
+    try {
+      const updated = await updateKundProduct(kund.id, product)
+      setKunder((prev) => prev.map((row) => (row.id === updated.id ? updated : row)))
+      setToast(t("tools.kunder.productSaved"))
+    } catch (err: unknown) {
+      setError(err instanceof ApiError ? err.message : t("common.saveError"))
+    } finally {
+      setSavingId(null)
+    }
+  }
+
   return (
     <div className="space-y-4">
       <p className="muted">{t("tools.kunder.intro")}</p>
@@ -87,6 +106,7 @@ export function KunderPage() {
               <tr className="border-b border-[color:var(--border-hairline)]">
                 <th className="px-2 py-1.5 font-medium">{t("tools.kunder.colName")}</th>
                 <th className="px-2 py-1.5 font-medium">{t("tools.kunder.colSlug")}</th>
+                <th className="px-2 py-1.5 font-medium">{t("tools.kunder.colProduct")}</th>
                 {knownIds.map((id) => (
                   <th key={id} className="px-2 py-1.5 font-medium">
                     {moduleLabel(id)}
@@ -99,6 +119,20 @@ export function KunderPage() {
                 <tr key={kund.id} className="border-b border-[color:var(--border-hairline)]">
                   <td className="px-2 py-2">{kund.name}</td>
                   <td className="px-2 py-2 font-mono text-xs">{kund.slug}</td>
+                  <td className="px-2 py-2">
+                    <select
+                      className="h-8 rounded-md border border-[color:var(--border-hairline)] bg-transparent px-2 text-sm"
+                      value={kund.product ?? ""}
+                      disabled={savingId === kund.id}
+                      aria-label={t("tools.kunder.productAria", { kund: kund.name })}
+                      onChange={(event) => {
+                        void changeProduct(kund, event.target.value || null)
+                      }}
+                    >
+                      <option value="">{t("tools.kunder.noProduct")}</option>
+                      <option value="sme">{t("tools.kunder.productSme")}</option>
+                    </select>
+                  </td>
                   {knownIds.map((id) => {
                     const checked = kund.available_modules.includes(id)
                     return (

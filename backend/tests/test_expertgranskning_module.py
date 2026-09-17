@@ -484,9 +484,10 @@ async def test_expertgranskning_shares_spinndoctor_catalog(client_db):
 
 
 @pytest.mark.asyncio
-async def test_non_admin_denied_when_panel_experts_span_kunder(client: AsyncClient):
+async def test_admin_cannot_create_panel_with_experts_from_another_kund(
+    client: AsyncClient,
+):
     from app.services.kund_store import OS_DEFAULT_KUND_SLUG
-    from tests.conftest import BOLAG_USER_ID, mint_access_token
 
     listed = await client.get("/kunder")
     assert listed.status_code == 200
@@ -519,22 +520,12 @@ async def test_non_admin_denied_when_panel_experts_span_kunder(client: AsyncClie
             "recipe": {"size": 2, "dist": {}},
         },
     )
-    assert created.status_code == 201, created.text
-    panel_id = created.json()["id"]
-
-    client.headers["Authorization"] = (
-        f"Bearer {mint_access_token(sub=BOLAG_USER_ID, email='bolag@test.local')}"
-    )
-    denied = await client.post(
-        "/expertgranskning/sessions",
-        json={"document_text": "En text", "panel_id": panel_id},
-    )
-    assert denied.status_code == 403
-    assert denied.json()["detail"] == "kund_access_denied"
+    assert created.status_code == 403
+    assert created.json()["detail"] == "kund_access_denied"
 
 
 @pytest.mark.asyncio
-async def test_non_admin_denied_when_patch_attaches_mixed_kund_panel(client: AsyncClient):
+async def test_admin_cannot_create_second_mixed_kund_panel(client: AsyncClient):
     listed = await client.get("/kunder")
     assert listed.status_code == 200
     kunder = {row["slug"]: row["id"] for row in listed.json()}
@@ -566,26 +557,8 @@ async def test_non_admin_denied_when_patch_attaches_mixed_kund_panel(client: Asy
             "recipe": {"size": 2, "dist": {}},
         },
     )
-    assert mixed_panel.status_code == 201, mixed_panel.text
-    mixed_panel_id = mixed_panel.json()["id"]
-
-    own_panel_id = await _create_expert_panel(client)
-    client.headers["Authorization"] = (
-        f"Bearer {mint_access_token(sub=BOLAG_USER_ID, email='bolag@test.local')}"
-    )
-    created = await client.post(
-        "/expertgranskning/sessions",
-        json={"document_text": "Egen kundtext", "panel_id": own_panel_id},
-    )
-    assert created.status_code == 201, created.text
-    session_id = created.json()["id"]
-
-    denied = await client.patch(
-        f"/expertgranskning/sessions/{session_id}",
-        json={"panel_id": mixed_panel_id},
-    )
-    assert denied.status_code == 403
-    assert denied.json()["detail"] == "kund_access_denied"
+    assert mixed_panel.status_code == 403
+    assert mixed_panel.json()["detail"] == "kund_access_denied"
 
 
 @pytest.mark.asyncio

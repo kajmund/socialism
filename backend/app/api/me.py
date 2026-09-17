@@ -49,6 +49,7 @@ async def get_me(
             role="admin",
             kund_id=None,
             kund_slug=None,
+            product=None,
             available_modules=_with_admin_modules(modules, "admin"),
         )
 
@@ -62,5 +63,6 @@ async def get_me(
         role=user.role,  # type: ignore[arg-type]
         kund_id=user.kund_id,
         kund_slug=kund.slug if kund is not None else None,
+        product=kund.product if kund is not None else None,
         available_modules=_with_admin_modules(modules, user.role),
     )

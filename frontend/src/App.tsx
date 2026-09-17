@@ -1,4 +1,11 @@
-import { Navigate, Outlet, Route, Routes, useParams } from "react-router-dom"
+import {
+  Navigate,
+  Outlet,
+  Route,
+  Routes,
+  useLocation,
+  useParams,
+} from "react-router-dom"
 import { useAuth } from "@/auth/AuthProvider"
 import { RequireAdmin } from "@/auth/RequireAdmin"
 import { RequireAuth } from "@/auth/RequireAuth"
@@ -58,6 +65,7 @@ import { BolagReportsPage, ReportsPage } from "@/pages/ReportsPage"
 import { RunsPage } from "@/pages/RunsPage"
 import { JobsRealtimeProvider } from "@/realtime/JobsRealtimeProvider"
 import { ReportsRealtimeProvider } from "@/realtime/ReportsRealtimeProvider"
+import { SmeMessengerPage } from "@/products/sme/SmeMessengerPage"
 
 function RedirectPopulationEdit() {
   const { id } = useParams<{ id: string }>()
@@ -85,6 +93,16 @@ function AuthenticatedShell() {
   )
 }
 
+function ProductGate() {
+  const { pathname } = useLocation()
+  const { isAdmin, user } = useAuth()
+  const embeddedTools =
+    isAdmin && window.self !== window.top && pathname.startsWith("/tools")
+  if (embeddedTools) return <Outlet />
+  if (user?.product === "sme") return <SmeMessengerPage />
+  return <Outlet />
+}
+
 export default function App() {
   return (
     <Routes>
@@ -92,6 +110,7 @@ export default function App() {
       <Route path="/dev-in" element={<LocalLoginPage />} />
 
       <Route element={<RequireAuth />}>
+        <Route element={<ProductGate />}>
         <Route element={<AuthenticatedShell />}>
           <Route path="/valj-modul" element={<RedirectToHome />} />
 
@@ -187,6 +206,7 @@ export default function App() {
 
           <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
+        </Route>
         </Route>
       </Route>
     </Routes>

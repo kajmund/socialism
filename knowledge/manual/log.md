@@ -3,6 +3,15 @@
 ## 2026-09-17
 
 * **Expertgranskning**: Webbgranskningen samlar och fryser researchunderlag innan expertpanelen startar. Under **Live-panel** kan du öppna researchkörningen och läsa plan, källor och kvarvarande luckor. Panelen gör inga egna live-sökningar. Word-tillägget startar fortfarande ingen research.
+* **SME**: Chatten använder samma Devbrains-design och chattkomponent som expertchatten. **Alla** visar experter, **Grupper** visar expertpaneler och **Olästa** samlar nya expertsvar.
+* **SME**: Ett expertsvar fortsätter att tas fram när du byter konversation. Nya svar markeras med en gul punkt centrerad i chatkortets högra kant.
+* **SME**: **Minnen** i expertens chatthuvud öppnar expertchattens minneslogg för läsning, redigering och rensning.
+* **SME**: Initialerna längst upp till höger öppnar användarmenyn. Administratörer kan öppna **Verktyg** i en stor modal; **Logga ut** ligger längst ned.
+* **SME**: Expertchatten visar förslag på följdfrågor och erbjuder bilduppladdning när den aktiva modellen har stöd för bilder.
+* **SME**: Verktygsikonen i expertens chatthuvud öppnar samma verktygsval som expertchatten och sparar ändringarna direkt.
+* **SME**: Expertsvar går genom en gemensam livekanal och routas till rätt konversation. Valda expertverktyg används även när du byter chatt under svaret.
+* **SME**: Experterna i en grupp hör alltid till samma kund som gruppen och visas därför även under **Alla**.
+* **Kunder**: Under **Verktyg** → **Kunder** kan administratören välja en GUI-produkt separat från kundens moduler.
 
 ## 2026-09-15
 

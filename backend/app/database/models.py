@@ -28,6 +28,7 @@ class Kund(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
     available_modules: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    product: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -339,6 +340,66 @@ class PersonaMessage(Base):
     through_tick_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # Run-scoped interview user turns: who asked (doctor via Spinndoktor tools vs human in UI).
     asked_by: Mapped[str | None] = mapped_column(String(16), nullable=True)
+
+
+class SmePanelMessage(Base):
+    """One message in a customer-scoped SME expert-panel thread."""
+
+    __tablename__ = "sme_panel_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("kunder.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    population_id: Mapped[int] = mapped_column(
+        ForeignKey("populations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    role: Mapped[str] = mapped_column(String(32), nullable=False)
+    persona_id: Mapped[str | None] = mapped_column(
+        ForeignKey("personas.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+
+class SmeReadCursor(Base):
+    """Per-user last-read message for an SME expert or panel thread."""
+
+    __tablename__ = "sme_read_cursors"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "thread_type",
+            "thread_id",
+            name="uq_sme_read_cursors_user_thread",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("user_accounts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    thread_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    thread_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    last_read_message_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
 
 
 class Message(Base):

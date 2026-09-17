@@ -16,6 +16,7 @@ class KundOut(BaseModel):
     id: int
     name: str
     slug: str
+    product: str | None = None
     available_modules: list[str] = Field(default_factory=list)
     projekt: list[ProjektOut] = Field(default_factory=list)
 
@@ -23,10 +24,12 @@ class KundOut(BaseModel):
 class KundCreate(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     slug: str = Field(min_length=1, max_length=64)
+    product: str | None = None
     available_modules: list[str] = Field(default_factory=list)
 
 
 class KundUpdate(BaseModel):
+    product: str | None = None
     available_modules: list[str] | None = None
 
 
