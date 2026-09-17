@@ -1927,6 +1927,11 @@ class ResearchQuestion(Base):
         index=True,
     )
     runtime_need_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    execution_attempt_id: Mapped[str | None] = mapped_column(
+        ForeignKey("execution_attempts.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
     why_needed: Mapped[str] = mapped_column(Text, nullable=False, default="")
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
     origin: Mapped[str] = mapped_column(String(32), nullable=False, default="initial")
