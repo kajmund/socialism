@@ -87,6 +87,7 @@ async def mark_expert_turn_running(
             SmeExpertTurn.status == "accepted",
         )
         .values(status="running", updated_at=utcnow())
+        .execution_options(synchronize_session=False)
     )
     return result.rowcount == 1
 
@@ -114,6 +115,7 @@ async def finish_expert_turn(
             fence=fence + 1,
             updated_at=utcnow(),
         )
+        .execution_options(synchronize_session=False)
     )
     return result.rowcount == 1
 

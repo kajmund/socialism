@@ -61,6 +61,7 @@ async def try_acquire_panel_lease(
             lease_expires_at=now + _lease_ttl(),
             updated_at=now,
         )
+        .execution_options(synchronize_session=False)
     )
     if result.rowcount != 1:
         return None
@@ -99,6 +100,7 @@ async def panel_lease_still_held(
             SmePanelTurnLease.fence == fence,
         )
         .values(updated_at=utcnow())
+        .execution_options(synchronize_session=False)
     )
     return result.rowcount == 1
 
@@ -122,4 +124,5 @@ async def release_panel_lease(
             lease_expires_at=None,
             updated_at=utcnow(),
         )
+        .execution_options(synchronize_session=False)
     )

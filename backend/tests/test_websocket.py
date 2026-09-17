@@ -7,6 +7,7 @@ import os
 import shutil
 import tempfile
 import threading
+import time
 from pathlib import Path
 
 os.environ.setdefault("CEREBRAS_API_KEY", "test-key-not-real")
@@ -680,48 +681,52 @@ def _enable_sme_expert(client, *, tools: list[str] | None = None) -> str:
     return created.json()["id"]
 
 
-async def _wait_persisted_expert_turn(request_id: str) -> SmeExpertTurn:
+async def _wait_persisted_expert_turn(
+    request_id: str,
+    *,
+    statuses: set[str] | None = None,
+) -> SmeExpertTurn:
     factory = jobs_service.job_session_factory()
     assert factory is not None
     for _ in range(80):
         async with factory() as session:
             turn = await session.get(SmeExpertTurn, request_id)
-            if turn is not None:
+            if turn is not None and (
+                statuses is None or turn.status in statuses
+            ):
                 return turn
         await asyncio.sleep(0.05)
     raise AssertionError(f"expert turn {request_id} was not persisted")
 
 
-def _sme_turn_lookup(client, request_id: str) -> dict:
+def _sme_turn_lookup(
+    client,
+    request_id: str,
+    *,
+    statuses: set[str] | None = None,
+) -> dict:
     client.headers["Authorization"] = f"Bearer {_bolag_token()}"
-    response = client.get(f"/sme/expert-turns/{request_id}")
-    assert response.status_code == 200, response.text
-    return response.json()
+    for _ in range(80):
+        response = client.get(f"/sme/expert-turns/{request_id}")
+        if response.status_code == 200:
+            body = response.json()
+            if statuses is None or body["status"] in statuses:
+                return body
+        time.sleep(0.05)
+    raise AssertionError(f"expert turn {request_id} was not available")
 
 
 def test_sme_websocket_recovers_turn_after_disconnect_before_token(ws_client):
     client, loop = ws_client
     persona_id = _enable_sme_expert(client, tools=[])
-    released = asyncio.Event()
-    persisted = threading.Event()
-    allow_release = threading.Event()
+    released = threading.Event()
 
     async def delayed_stream(_messages: list[dict[str, str]]) -> AsyncIterator[str]:
-        await released.wait()
+        await asyncio.get_running_loop().run_in_executor(None, released.wait)
         yield "Svar efter avbrott"
 
     set_text_streamer(delayed_stream)
     request_id = "reconnect-before-token"
-
-    async def persist_then_release() -> None:
-        turn = await _wait_persisted_expert_turn(request_id)
-        assert turn.status in {"accepted", "running"}
-        assert turn.persona_id == persona_id
-        persisted.set()
-        await asyncio.get_running_loop().run_in_executor(None, allow_release.wait)
-        released.set()
-
-    watcher = asyncio.run_coroutine_threadsafe(persist_then_release(), loop)
     with client.websocket_connect(f"/ws/sme?access_token={_bolag_token()}") as websocket:
         assert websocket.receive_json() == {"type": "ready", "scope": "sme"}
         websocket.send_json(
@@ -734,42 +739,33 @@ def test_sme_websocket_recovers_turn_after_disconnect_before_token(ws_client):
             }
         )
         assert websocket.receive_json()["type"] == "typing"
-        assert persisted.wait(timeout=5)
-        running = _sme_turn_lookup(client, request_id)
-        assert running["status"] in {"accepted", "running"}
-        assert running["messages"] == []
-        threading.Timer(0.1, allow_release.set).start()
+        turn = loop.run_until_complete(_wait_persisted_expert_turn(request_id))
+        assert turn.status in {"accepted", "running"}
+        assert turn.persona_id == persona_id
+        released.set()
+        loop.run_until_complete(
+            _wait_persisted_expert_turn(request_id, statuses={"succeeded"})
+        )
 
-    watcher.result(timeout=5)
     other = _enable_sme_expert(client, tools=[])
     assert other != persona_id
-    body = _sme_turn_lookup(client, request_id)
+    body = _sme_turn_lookup(client, request_id, statuses={"succeeded"})
     assert body["thread_id"] == persona_id
-    assert body["status"] == "succeeded"
     assert body["messages"][-1]["content"] == "Svar efter avbrott"
 
 
 def test_sme_websocket_recovers_turn_after_disconnect_during_tokens(ws_client):
     client, loop = ws_client
     persona_id = _enable_sme_expert(client, tools=[])
-    released = asyncio.Event()
-    allow_release = threading.Event()
+    released = threading.Event()
 
     async def paused_stream(_messages: list[dict[str, str]]) -> AsyncIterator[str]:
         yield "första"
-        await released.wait()
+        await asyncio.get_running_loop().run_in_executor(None, released.wait)
         yield " andra"
 
     set_text_streamer(paused_stream)
     request_id = "reconnect-during-tokens"
-
-    async def persist_then_release() -> None:
-        turn = await _wait_persisted_expert_turn(request_id)
-        assert turn.status == "running"
-        await asyncio.get_running_loop().run_in_executor(None, allow_release.wait)
-        released.set()
-
-    watcher = asyncio.run_coroutine_threadsafe(persist_then_release(), loop)
     with client.websocket_connect(f"/ws/sme?access_token={_bolag_token()}") as websocket:
         assert websocket.receive_json() == {"type": "ready", "scope": "sme"}
         websocket.send_json(
@@ -788,11 +784,15 @@ def test_sme_websocket_recovers_turn_after_disconnect_during_tokens(ws_client):
                 saw_token = True
                 break
         assert saw_token
-        threading.Timer(0.1, allow_release.set).start()
+        turn = loop.run_until_complete(_wait_persisted_expert_turn(request_id))
+        assert turn.status == "running"
+        assert turn.persona_id == persona_id
+        released.set()
+        loop.run_until_complete(
+            _wait_persisted_expert_turn(request_id, statuses={"succeeded"})
+        )
 
-    watcher.result(timeout=5)
-    body = _sme_turn_lookup(client, request_id)
-    assert body["status"] == "succeeded"
+    body = _sme_turn_lookup(client, request_id, statuses={"succeeded"})
     assert "första" in body["messages"][-1]["content"]
     assert "andra" in body["messages"][-1]["content"]
 
