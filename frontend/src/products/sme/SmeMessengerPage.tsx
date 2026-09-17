@@ -332,11 +332,12 @@ export function SmeMessengerPage() {
   resendRef.current = expertSocket.resend
 
   useEffect(() => {
+    const timers = pollTimersRef
     return () => {
-      for (const timer of pollTimersRef.current.values()) {
+      for (const timer of timers.current.values()) {
         window.clearInterval(timer)
       }
-      pollTimersRef.current.clear()
+      timers.current.clear()
     }
   }, [])
 
