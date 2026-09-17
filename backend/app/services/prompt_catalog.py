@@ -1731,7 +1731,11 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "Ett utmärkt rättsligt underlag gör inte en M&A-, värderings-, marknads- "
             "eller PMO-expert till straffrättsjurist.\n"
             "Om kompetensen saknas: has_domain_competence = false och "
-            "competence_reason ska vara missing expertise / requires domain expert.\n"
+            "competence_score = 0 och competence_reason ska vara missing expertise / "
+            "requires domain expert.\n"
+            "Om kompetensen finns: sätt competence_score 1–100 efter hur direkt, djup "
+            "och specifik profilens kompetens är för just frågan. 100 kräver att frågan "
+            "ligger i profilens uttalade kärnkompetens.\n"
             "Gör inte sakbedömningen här. Anropa inte verktyg."
         ),
         (
@@ -1747,7 +1751,11 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "Excellent legal evidence does not make an M&A, valuation, market, "
             "or PMO expert a criminal-law lawyer.\n"
             "If competence is missing: has_domain_competence = false and "
-            "competence_reason should be missing expertise / requires domain expert.\n"
+            "competence_score = 0 and competence_reason should be missing expertise / "
+            "requires domain expert.\n"
+            "If competence exists: set competence_score from 1–100 based on how directly, "
+            "deeply, and specifically the profile covers this exact question. A score of "
+            "100 requires the question to be in the profile's stated core competence.\n"
             "Do not make the substance assessment here. Do not call tools."
         ),
     ),

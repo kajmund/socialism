@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Persona
@@ -19,7 +21,7 @@ from app.services.research.question_expert_assignment import (
 
 
 class PanelCompetencyQuestionMatcher:
-    """Reuse the panel's evidence-free competency gate for each candidate."""
+    """Rank all candidates with the panel's evidence-free competency gate."""
 
     def __init__(self, *, prompts: dict[str, str], locale: str = "sv") -> None:
         self._prompts = dict(prompts)
@@ -31,7 +33,7 @@ class PanelCompetencyQuestionMatcher:
         question: ExpertAssignmentQuestion,
         candidates: tuple[ExpertCandidateIdentity, ...],
     ) -> str | None:
-        for candidate in candidates:
+        async def assess(candidate: ExpertCandidateIdentity):
             slot = PanelExpertSlot(
                 slot_id=candidate.expert_id,
                 label=candidate.name,
@@ -46,9 +48,14 @@ class PanelCompetencyQuestionMatcher:
                 expert_slots=[slot],
             )
             decision = await assess_expert_competency(slot, config, self._prompts)
-            if decision.has_domain_competence:
-                return candidate.expert_id
-        return None
+            return candidate, decision
+
+        assessed = await asyncio.gather(*(assess(candidate) for candidate in candidates))
+        competent = [pair for pair in assessed if pair[1].has_domain_competence]
+        if not competent:
+            return None
+        best, _decision = max(competent, key=lambda pair: pair[1].competence_score)
+        return best.expert_id
 
 
 class UnderlagExpertCreator:
