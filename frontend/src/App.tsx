@@ -14,6 +14,7 @@ import { RequireExpertgranskning } from "@/auth/RequireExpertgranskning"
 import { RequireRattsunderlag } from "@/auth/RequireRattsunderlag"
 import { RequireOsUser } from "@/auth/RequireOsUser"
 import { homePathForUser } from "@/lib/auth"
+import { isSameOriginFrame } from "@/lib/frame"
 import { BolagShell } from "@/components/layout/BolagShell"
 import { HelpChatWidget } from "@/components/help/HelpChatWidget"
 import { ToolsShell } from "@/components/layout/ToolsShell"
@@ -97,7 +98,7 @@ function ProductGate() {
   const { pathname } = useLocation()
   const { isAdmin, user } = useAuth()
   const embeddedTools =
-    isAdmin && window.self !== window.top && pathname.startsWith("/tools")
+    isAdmin && isSameOriginFrame() && pathname.startsWith("/tools")
   if (embeddedTools) return <Outlet />
   if (user?.product === "sme") return <SmeMessengerPage />
   return <Outlet />

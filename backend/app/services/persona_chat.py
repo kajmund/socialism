@@ -280,6 +280,7 @@ async def remember_expert_chat_turn(
     message: str,
     reply: str,
     image_sha256: str | None,
+    source: Literal["persona_chat", "panel_chat"] = "persona_chat",
 ) -> list[ExpertMemoryOut]:
     if persona.kind != "expert":
         return []
@@ -288,7 +289,7 @@ async def remember_expert_chat_turn(
         expert_id=persona_catalog_key(persona),
         user_message=message,
         assistant_message=reply,
-        source="persona_chat",
+        source=source,
         image_sha256=image_sha256,
     )
     return [

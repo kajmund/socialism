@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useLocation } from "react-router-dom"
 import { AdminShell } from "@/components/layout/AdminShell"
 import { useLocale, type MessageKey } from "@/i18n"
+import { isSameOriginFrame } from "@/lib/frame"
 import { cn } from "@/lib/utils"
 
 function isConfigurationEditorPath(pathname: string): boolean {
@@ -61,7 +62,7 @@ export function ToolsShell() {
       <Outlet />
     </div>
   )
-  if (window.self !== window.top) {
+  if (isSameOriginFrame()) {
     return (
       <main className="theme-admin h-dvh overflow-hidden bg-db-ink-0">
         {content}
