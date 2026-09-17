@@ -528,6 +528,23 @@ async def _seed_expert_turn(
     return turn
 
 
+def _bound_chat_message(
+    *,
+    persona_id: str,
+    request_id: str,
+    role: str,
+    content: str,
+) -> PersonaMessage:
+    return PersonaMessage(
+        persona_id=persona_id,
+        mode="interview",
+        role=role,
+        content=content,
+        sme_expert_turn_request_id=request_id,
+        created_at=utcnow(),
+    )
+
+
 @pytest.mark.asyncio
 async def test_expert_turn_request_id_payload_mismatch_conflicts(
     client_db,
@@ -619,21 +636,19 @@ async def test_expired_expert_turn_reclaims_saved_messages_without_duplicates(
             message="Fråga efter sparning",
         )
         first.add(
-            PersonaMessage(
+            _bound_chat_message(
                 persona_id=persona_id,
-                mode="interview",
+                request_id=request_id,
                 role="user",
                 content="Fråga efter sparning",
-                created_at=utcnow(),
             )
         )
         first.add(
-            PersonaMessage(
+            _bound_chat_message(
                 persona_id=persona_id,
-                mode="interview",
+                request_id=request_id,
                 role="assistant",
                 content="Sparat svar",
-                created_at=utcnow(),
             )
         )
         await first.commit()
@@ -703,6 +718,85 @@ async def test_expired_expert_turn_reruns_after_process_loss_before_save(
 
     stored = await _wait_expert_status(factory, request_id, {"succeeded"})
     assert stored.status == "succeeded"
+    async with factory() as session:
+        bound = list(
+            (
+                await session.execute(
+                    select(PersonaMessage).where(
+                        PersonaMessage.sme_expert_turn_request_id == request_id
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+    assert {row.role for row in bound} == {"user", "assistant"}
+
+
+@pytest.mark.asyncio
+async def test_unbound_identical_text_does_not_complete_expired_turn(
+    client_db,
+) -> None:
+    client, factory = client_db
+    await _enable_sme(client)
+    persona_id = await _first_expert_id(factory)
+    request_id = "req-unbound-text"
+    text = "Identisk obunden fråga"
+    async with factory() as first:
+        await _seed_expert_turn(
+            first,
+            request_id=request_id,
+            persona_id=persona_id,
+            message=text,
+        )
+        first.add(
+            PersonaMessage(
+                persona_id=persona_id,
+                mode="interview",
+                role="user",
+                content=text,
+                created_at=utcnow(),
+            )
+        )
+        first.add(
+            PersonaMessage(
+                persona_id=persona_id,
+                mode="interview",
+                role="assistant",
+                content="Främmande svar",
+                created_at=utcnow(),
+            )
+        )
+        await first.commit()
+
+    async with factory() as second:
+        assert second is not first
+        lookup = await client.get(f"/sme/expert-turns/{request_id}")
+        assert lookup.status_code == 200
+        assert lookup.json()["status"] in {"accepted", "running"}
+
+    body = await _wait_expert_lookup(client, request_id, {"succeeded", "failed"})
+    assert body["status"] == "succeeded"
+    async with factory() as session:
+        rows = list(
+            (
+                await session.execute(
+                    select(PersonaMessage)
+                    .where(PersonaMessage.persona_id == persona_id)
+                    .order_by(PersonaMessage.id.asc())
+                )
+            )
+            .scalars()
+            .all()
+        )
+    assert [row.content for row in rows if row.role == "assistant"] == [
+        "Främmande svar",
+        rows[-1].content,
+    ]
+    bound = [row for row in rows if row.sme_expert_turn_request_id == request_id]
+    assert [row.role for row in bound] == ["user", "assistant"]
+    assert bound[0].content == text
+    assert bound[1].content != "Främmande svar"
 
 
 @pytest.mark.asyncio
@@ -719,21 +813,19 @@ async def test_expired_expert_turn_fails_when_rerun_is_unsafe(client_db) -> None
             message="Ofärdig fråga",
         )
         first.add(
-            PersonaMessage(
+            _bound_chat_message(
                 persona_id=persona_id,
-                mode="interview",
+                request_id=request_id,
                 role="user",
                 content="Ofärdig fråga",
-                created_at=utcnow(),
             )
         )
         first.add(
-            PersonaMessage(
+            _bound_chat_message(
                 persona_id=persona_id,
-                mode="interview",
+                request_id=request_id,
                 role="user",
-                content="Senare fråga",
-                created_at=utcnow(),
+                content="Ofärdig fråga igen",
             )
         )
         await first.commit()
@@ -757,7 +849,167 @@ async def test_expired_expert_turn_fails_when_rerun_is_unsafe(client_db) -> None
             .scalars()
             .all()
         )
-    assert [row.content for row in rows] == ["Ofärdig fråga", "Senare fråga"]
+    assert [row.content for row in rows] == ["Ofärdig fråga", "Ofärdig fråga igen"]
+    assert {row.sme_expert_turn_request_id for row in rows} == {request_id}
+
+
+@pytest.mark.asyncio
+async def test_reclaim_ignores_identical_text_from_another_request(
+    client_db,
+) -> None:
+    client, factory = client_db
+    await _enable_sme(client)
+    persona_id = await _first_expert_id(factory)
+    shared = "Samma fråga två gånger"
+    async with factory() as first:
+        await _seed_expert_turn(
+            first,
+            request_id="req-overlap-a",
+            persona_id=persona_id,
+            message=shared,
+        )
+        await _seed_expert_turn(
+            first,
+            request_id="req-overlap-b",
+            persona_id=persona_id,
+            message=shared,
+            expired=False,
+        )
+        first.add(
+            _bound_chat_message(
+                persona_id=persona_id,
+                request_id="req-overlap-b",
+                role="user",
+                content=shared,
+            )
+        )
+        first.add(
+            _bound_chat_message(
+                persona_id=persona_id,
+                request_id="req-overlap-b",
+                role="assistant",
+                content="Svar B",
+            )
+        )
+        first.add(
+            PersonaMessage(
+                persona_id=persona_id,
+                mode="interview",
+                role="user",
+                content=shared,
+                created_at=utcnow(),
+            )
+        )
+        await first.commit()
+
+    async with factory() as second:
+        assert second is not first
+        lookup_a = await client.get("/sme/expert-turns/req-overlap-a")
+        assert lookup_a.status_code == 200
+        assert lookup_a.json()["status"] in {"accepted", "running"}
+
+        turn_b = await second.get(SmeExpertTurn, "req-overlap-b")
+        assert turn_b is not None
+        assert turn_b.status == "running"
+        outcome_b = await reclaim_expired_expert_turn(second, turn_b)
+        await second.commit()
+        assert outcome_b == "held"
+
+    body_a = await _wait_expert_lookup(client, "req-overlap-a", {"succeeded", "failed"})
+    assert body_a["status"] == "succeeded"
+    async with factory() as session:
+        rows = list(
+            (
+                await session.execute(
+                    select(PersonaMessage)
+                    .where(PersonaMessage.persona_id == persona_id)
+                    .order_by(PersonaMessage.id.asc())
+                )
+            )
+            .scalars()
+            .all()
+        )
+    bound_a = [row for row in rows if row.sme_expert_turn_request_id == "req-overlap-a"]
+    bound_b = [row for row in rows if row.sme_expert_turn_request_id == "req-overlap-b"]
+    assert [row.role for row in bound_a] == ["user", "assistant"]
+    assert [row.content for row in bound_a if row.role == "user"] == [shared]
+    assert [row.content for row in bound_b] == [shared, "Svar B"]
+    turn_b = await _wait_expert_status(factory, "req-overlap-b", {"running"})
+    assert turn_b.status == "running"
+
+
+@pytest.mark.asyncio
+async def test_reclaim_orphan_does_not_touch_other_request_rows(
+    client_db,
+) -> None:
+    _client, factory = client_db
+    persona_id = await _first_expert_id(factory)
+    shared = "Överlappande fråga"
+    async with factory() as first:
+        await _seed_expert_turn(
+            first,
+            request_id="req-orphan-a",
+            persona_id=persona_id,
+            message=shared,
+        )
+        await _seed_expert_turn(
+            first,
+            request_id="req-orphan-b",
+            persona_id=persona_id,
+            message=shared,
+            expired=False,
+        )
+        first.add(
+            _bound_chat_message(
+                persona_id=persona_id,
+                request_id="req-orphan-a",
+                role="user",
+                content=shared,
+            )
+        )
+        first.add(
+            _bound_chat_message(
+                persona_id=persona_id,
+                request_id="req-orphan-b",
+                role="user",
+                content=shared,
+            )
+        )
+        first.add(
+            _bound_chat_message(
+                persona_id=persona_id,
+                request_id="req-orphan-b",
+                role="assistant",
+                content="Svar B",
+            )
+        )
+        await first.commit()
+
+    async with factory() as second:
+        assert second is not first
+        turn_a = await second.get(SmeExpertTurn, "req-orphan-a")
+        assert turn_a is not None
+        outcome = await reclaim_expired_expert_turn(second, turn_a)
+        await second.commit()
+    assert outcome == "rerun"
+
+    async with factory() as session:
+        rows = list(
+            (
+                await session.execute(
+                    select(PersonaMessage)
+                    .where(PersonaMessage.persona_id == persona_id)
+                    .order_by(PersonaMessage.id.asc())
+                )
+            )
+            .scalars()
+            .all()
+        )
+    assert [row.sme_expert_turn_request_id for row in rows] == [
+        "req-orphan-b",
+        "req-orphan-b",
+    ]
+    assert [row.content for row in rows] == [shared, "Svar B"]
 
 
 async def _wait_expert_status(

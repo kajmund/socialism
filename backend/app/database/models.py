@@ -340,6 +340,12 @@ class PersonaMessage(Base):
     through_tick_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # Run-scoped interview user turns: who asked (doctor via Spinndoktor tools vs human in UI).
     asked_by: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    sme_expert_turn_request_id: Mapped[str | None] = mapped_column(
+        String(64),
+        ForeignKey("sme_expert_turns.request_id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
 
 class SmePanelMessage(Base):

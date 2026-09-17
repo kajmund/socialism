@@ -284,40 +284,28 @@ async def serialize_expert_turn(
     )
 
 
-async def _messages_since_turn(
+async def _messages_for_request(
     session: AsyncSession,
-    turn: SmeExpertTurn,
+    request_id: str,
 ) -> list[PersonaMessage]:
     result = await session.execute(
         select(PersonaMessage)
-        .where(
-            PersonaMessage.persona_id == turn.persona_id,
-            PersonaMessage.mode == "interview",
-            PersonaMessage.run_id.is_(None),
-        )
+        .where(PersonaMessage.sme_expert_turn_request_id == request_id)
         .order_by(PersonaMessage.id.asc())
     )
-    start = _aware(turn.created_at)
-    return [row for row in result.scalars().all() if _aware(row.created_at) >= start]
+    return list(result.scalars().all())
 
 
-def _classify_saved_turn(
+def _classify_bound_messages(
     rows: list[PersonaMessage],
-    turn: SmeExpertTurn,
 ) -> Literal["none", "complete", "orphan", "unsafe"]:
-    matches = [
-        index
-        for index, row in enumerate(rows)
-        if row.role == "user"
-        and row.content == turn.message
-        and row.image_sha256 == turn.image_sha256
-    ]
-    if not matches:
-        return "unsafe" if rows else "none"
-    index = matches[0]
-    if index + 1 < len(rows) and rows[index + 1].role == "assistant":
+    users = [row for row in rows if row.role == "user"]
+    assistants = [row for row in rows if row.role == "assistant"]
+    if not rows:
+        return "none"
+    if len(users) == 1 and len(assistants) == 1:
         return "complete"
-    if index == len(rows) - 1:
+    if len(users) == 1 and not assistants:
         return "orphan"
     return "unsafe"
 
@@ -355,8 +343,8 @@ async def reclaim_expired_expert_turn(
         await session.refresh(turn)
         return "held"
     await session.refresh(turn)
-    rows = await _messages_since_turn(session, turn)
-    kind = _classify_saved_turn(rows, turn)
+    rows = await _messages_for_request(session, turn.request_id)
+    kind = _classify_bound_messages(rows)
     if kind == "complete":
         await finish_expert_turn(
             session,
@@ -367,7 +355,8 @@ async def reclaim_expired_expert_turn(
         await session.refresh(turn)
         return "succeeded"
     if kind == "orphan":
-        await session.delete(rows[-1])
+        for row in rows:
+            await session.delete(row)
         await session.flush()
         kind = "none"
     if kind == "none":
@@ -475,6 +464,15 @@ async def execute_expert_turn(
     ).start()
     try:
         done: PersonaChatResponse | None = None
+
+        async def persist_guard(session: AsyncSession) -> bool:
+            return await renew_expert_turn_lease(
+                session,
+                request_id,
+                token=token,
+                fence=fence,
+            )
+
         async with session_factory() as session:
             stream = stream_library_chat_turn(
                 session,
@@ -482,6 +480,8 @@ async def execute_expert_turn(
                 mode="interview",
                 message=message,
                 image_sha256=image_sha256,
+                sme_expert_turn_request_id=request_id,
+                persist_guard=persist_guard,
             )
             try:
                 async for item in stream:

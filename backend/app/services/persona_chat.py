@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Any, Literal
@@ -48,6 +48,8 @@ from app.services.prompt_store import require_prompts_for_persona
 from app.services.run_tick_context import build_persona_feed_context
 
 logger = logging.getLogger(__name__)
+
+LibraryTurnWriteGuard = Callable[[AsyncSession], Awaitable[bool]]
 
 
 class ChatTurnError(Exception):
@@ -242,7 +244,26 @@ async def _publish_interview_message(row: PersonaMessage) -> None:
 async def _discard_user_message(
     session: AsyncSession, user_row: PersonaMessage
 ) -> None:
-    await session.delete(user_row)
+    if user_row.id is None:
+        return
+    existing = await session.get(PersonaMessage, user_row.id)
+    if existing is None:
+        return
+    await session.delete(existing)
+    await session.commit()
+
+
+async def _commit_library_message(
+    session: AsyncSession,
+    row: PersonaMessage,
+    *,
+    sme_expert_turn_request_id: str | None,
+    persist_guard: LibraryTurnWriteGuard | None,
+) -> None:
+    if persist_guard is not None and not await persist_guard(session):
+        raise ChatTurnError("stale_expert_turn", status_code=409)
+    row.sme_expert_turn_request_id = sme_expert_turn_request_id
+    session.add(row)
     await session.commit()
 
 
@@ -415,6 +436,8 @@ async def stream_library_chat_turn(
     mode: ChatMode,
     message: str,
     image_sha256: str | None = None,
+    sme_expert_turn_request_id: str | None = None,
+    persist_guard: LibraryTurnWriteGuard | None = None,
 ) -> AsyncIterator[str | PersonaChatResponse]:
     """Yield token strings, then PersonaChatResponse.
 
@@ -470,8 +493,12 @@ async def stream_library_chat_turn(
             image_sha256=image_sha256,
             created_at=utcnow(),
         )
-        session.add(user_row)
-        await session.commit()
+        await _commit_library_message(
+            session,
+            user_row,
+            sme_expert_turn_request_id=sme_expert_turn_request_id,
+            persist_guard=persist_guard,
+        )
 
         parts: list[str] = []
         try:
@@ -520,8 +547,12 @@ async def stream_library_chat_turn(
             content=reply,
             created_at=utcnow(),
         )
-        session.add(assistant_row)
-        await session.commit()
+        await _commit_library_message(
+            session,
+            assistant_row,
+            sme_expert_turn_request_id=sme_expert_turn_request_id,
+            persist_guard=persist_guard,
+        )
         saved_memories = await remember_expert_chat_turn(
             persona,
             message=message,
