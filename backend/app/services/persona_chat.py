@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -26,11 +27,12 @@ from app.schemas.domain import (
     ChatMode,
     EditablePersona,
     ExpertMemoryOut,
+    JobCreate,
     PersonaChatResponse,
     PersonaMessageOut,
 )
 from app.serializers import format_date, profile_from_dict, utcnow
-from app.services.dd.company_mcp import CompanyMcpError
+from app.services.dd.company_mcp import CompanyMcpError, ResearchToolHandler
 from app.services.dd.expert_keys import persona_catalog_key
 from app.services.district_context import area_block_for_name
 from app.services.expert_chat_evidence import (
@@ -65,6 +67,97 @@ _chat_locks_guard = asyncio.Lock()
 _LIBRARY_LOCK_WAIT_SECONDS = 30.0
 _follow_up_tasks: dict[str, asyncio.Task[list[str]]] = {}
 _follow_up_tasks_guard = asyncio.Lock()
+
+
+def _explicit_research_confirmation(message: str) -> bool:
+    normalized = " ".join(re.sub(r"[^\w]+", " ", message.casefold()).split())
+    return normalized in {
+        "ja",
+        "ja tack",
+        "ja gör det",
+        "ja starta research",
+        "absolut",
+        "gör det",
+        "starta research",
+        "starta den",
+        "kör",
+        "kör igång",
+        "kör researchen",
+        "yes",
+        "yes please",
+        "start the research",
+        "go ahead",
+    }
+
+
+def _assistant_offered_research(message: str) -> bool:
+    normalized = " ".join(re.sub(r"[^\w]+", " ", message.casefold()).split())
+    asks_to_start = any(
+        phrase in normalized
+        for phrase in (
+            "starta research",
+            "starta en research",
+            "startar research",
+            "startar en research",
+            "start a research",
+            "start research",
+            "begin research",
+        )
+    )
+    return asks_to_start and "?" in message
+
+
+def research_tool_handler_for_chat(
+    session: AsyncSession,
+    *,
+    persona: Persona,
+    history: list[tuple[str, str, str | None]],
+    user_message: str,
+) -> ResearchToolHandler:
+    queued_job_id: str | None = None
+    previous_assistant = (
+        history[-1][1] if history and history[-1][0] == "assistant" else ""
+    )
+    specific_question = next(
+        (content for role, content, _image in reversed(history) if role == "user"),
+        "",
+    )
+
+    async def handle(arguments: dict[str, Any]) -> str:
+        nonlocal queued_job_id
+        if queued_job_id is not None:
+            return f"Researchjobbet är redan köat: {queued_job_id}"
+        offered = _assistant_offered_research(previous_assistant)
+        if not offered or not _explicit_research_confirmation(user_message):
+            return (
+                "Research startades inte. Du måste först fråga användaren och invänta "
+                "ett uttryckligt bekräftande svar i nästa chattmeddelande."
+            )
+        question = str(arguments.get("question") or "").strip()
+        if not question or len(question) > 4000:
+            return "Research startades inte: question måste vara 1–4000 tecken."
+        from app.services import jobs as jobs_service
+
+        job = await jobs_service.create_job(
+            session,
+            JobCreate(
+                kind="expert_chat_research",
+                label=f"Expertresearch: {question[:80]}",
+                request={
+                    "persona_id": persona.id,
+                    "specific_question": specific_question or question,
+                    "question": question,
+                },
+            ),
+        )
+        jobs_service.enqueue_job(job.id)
+        queued_job_id = job.id
+        return (
+            f"Researchjobbet är köat i bakgrunden med id {job.id}. "
+            "Resultatet finns inte ännu."
+        )
+
+    return handle
 
 
 async def _chat_turn_lock(key: str) -> asyncio.Lock:
@@ -359,6 +452,14 @@ async def stream_library_chat_turn(
             )
         chat_tools = library_chat_tools(persona)
         with_tools = _library_chat_uses_tools(persona)
+        research_tool_handler = None
+        if persona.kind == "expert" and "start_research" in (chat_tools or []):
+            research_tool_handler = research_tool_handler_for_chat(
+                session,
+                persona=persona,
+                history=history,
+                user_message=message,
+            )
 
         user_row = PersonaMessage(
             persona_id=persona_id,
@@ -386,6 +487,7 @@ async def stream_library_chat_turn(
                     memory_context, evidence_context
                 ),
                 user_image_sha256=image_sha256,
+                research_tool_handler=research_tool_handler,
             )
             async with asyncio.timeout(_llm_reply_timeout_seconds(with_tools=with_tools)):
                 async for chunk in stream:

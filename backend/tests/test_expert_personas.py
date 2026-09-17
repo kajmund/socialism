@@ -39,6 +39,7 @@ async def test_create_expert_without_age(client: AsyncClient):
         "validate_orgnr",
         "search_duckduckgo",
         "search_wiki",
+        "start_research",
     ]
 
 

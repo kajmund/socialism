@@ -30,7 +30,7 @@ The same `KnowledgeQuestion` may be used by several `SpecificQuestion` rows. Eac
 
 The question DAG executor runs dependency-ready questions in bounded parallel waves. It persists a wave's results only after its worker calls return, then makes newly unblocked questions eligible for the next wave. A worker may return follow-up questions; those become `derived` nodes, inherit the responsible expert by default, and depend on the question whose evidence exposed the gap.
 
-`QuestionResearchWorker` is the integration seam to the existing research engine. It keeps DAG scheduling separate from provider routing, evidence persistence, assessment, and completeness. Expertgranskning is the first product entry point: its experts propose general questions, the moderator consolidates them, and the DAG executes them before the panel starts. Expert chat retains its current behavior and Word cannot start research.
+`QuestionResearchWorker` is the integration seam to the existing research engine. It keeps DAG scheduling separate from provider routing, evidence persistence, assessment, and completeness. Expertgranskning is the first product entry point: its experts propose general questions, the moderator consolidates them, and the DAG executes them before the panel starts. Word cannot start research.
 
 `AttemptResearchQuestionWorker` implements that seam. Each general question gets a `research_question` child Attempt under the DAG's parent Attempt. The child runs the unchanged planner → router → evidence quality → assessment → completeness loop and freezes its own EvidenceSet. `ResearchQuestion.execution_attempt_id` is the durable link to that evidence lineage. A retry reuses a ready child Attempt instead of retrieving again.
 
@@ -56,10 +56,14 @@ Library expert chat performs a read-only exact lookup against tenant and public 
 
 Matching frozen evidence is added to the expert's system context with stable `[R1]`, `[R2]` references and explicit freshness. The expert must disclose gaps or stale evidence rather than invent an answer. This seam creates no Run, Attempt, question, or provider request. Both REST and streaming chat use the same read-through behavior; Word remains outside it.
 
+When the frozen read-through is insufficient, a library expert can offer to start research. This is an explicit two-turn protocol: the expert first asks the user and states what should be researched; only a later affirmative user message unlocks the native `start_research` tool. The server validates both turns instead of trusting the model prompt alone.
+
+The tool creates an `expert_chat_research` Job and returns immediately. The user's original chat question becomes the context-bound `SpecificQuestion`; the standalone question proposed by the expert becomes the initial general `ResearchQuestion`. Its background worker creates the parent Attempt and preserves the initiating expert as `raised_by`. Normal expert assignment then selects or creates the responsible expert before the existing question DAG runs through planning, routing, frozen evidence, assessment and completeness. The chat does not wait for the result or claim that it already exists. Word has neither this tool nor this initiation path.
+
 ## Next stages
 
 1. Add semantic matching for `KnowledgeQuestion` using the configured vector store.
-2. Let expert chat create a `SpecificQuestion` and initiate the question DAG only when reused evidence is insufficient.
+2. Surface completed expert-chat research proactively in its originating conversation.
 3. Build neutral document-understanding Q&A during ingest, with PDF text anchors, as another `case_knowledge` source. It has no expert ownership and must not contain risk or problem analysis.
 
 Evidence continues to freeze into an `EvidenceSet` before consumers use it. Comments and Word may receive read-only access to frozen evidence in a later stage, but remain outside research initiation.
