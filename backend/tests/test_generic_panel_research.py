@@ -48,7 +48,7 @@ _BACKEND_ROOT = Path(__file__).resolve().parents[1]
 
 def test_researchplan_migrations_are_linear_after_word_head():
     script = ScriptDirectory.from_config(Config(str(_BACKEND_ROOT / "alembic.ini")))
-    assert script.get_heads() == ["098_sme_chat_turn_state"]
+    assert script.get_heads() == ["099_persona_message_expert_turn"]
     progress = script.get_revision("092_research_progress_events")
     assert progress.down_revision == "091_execution_research_claims"
     claims = script.get_revision("091_execution_research_claims")
