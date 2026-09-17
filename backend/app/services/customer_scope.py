@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import DdCampaign, Job, PanelSession, Projekt, Report, Run
+from app.database.models import DdCampaign, Job, PanelSession, Persona, Projekt, Report, Run
 from app.schemas.domain import (
     JobCreate,
     PopulationGenerateJobRequest,
@@ -14,9 +14,9 @@ from app.schemas.domain import (
 )
 from app.services.dd.schemas import DdResearchJobRequest
 from app.services.expertgranskning.schemas import ExpertgranskningWordJobRequest
-from app.services.rattsunderlag.schemas import RattsunderlagResearchJobRequest
 from app.services.kund_store import bolag_demo_customer_id, default_os_customer_id
 from app.services.panel.schemas import PanelSessionRunJobRequest
+from app.services.rattsunderlag.schemas import RattsunderlagResearchJobRequest
 
 
 async def customer_id_for_run(session: AsyncSession, run_id: int) -> int:
@@ -106,4 +106,10 @@ async def customer_id_for_new_job(session: AsyncSession, body: JobCreate) -> int
     if body.kind == "expertgranskning_word_review":
         payload = ExpertgranskningWordJobRequest.model_validate(body.request)
         return payload.customer_id
+    if body.kind == "expert_chat_research":
+        persona_id = str(body.request.get("persona_id") or "").strip()
+        persona = await session.get(Persona, persona_id)
+        if persona is None or persona.kind != "expert":
+            return await default_os_customer_id(session)
+        return persona.customer_id
     return await default_os_customer_id(session)
