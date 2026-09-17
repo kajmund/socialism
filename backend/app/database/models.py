@@ -49,14 +49,10 @@ class Kund(Base):
     dd_campaigns: Mapped[list["DdCampaign"]] = relationship(back_populates="kund")
     jobs: Mapped[list["Job"]] = relationship(back_populates="kund")
     reports: Mapped[list["Report"]] = relationship(back_populates="kund")
-    prompt_overrides: Mapped[list["PromptOverride"]] = relationship(
-        back_populates="kund"
-    )
+    prompt_overrides: Mapped[list["PromptOverride"]] = relationship(back_populates="kund")
     user_accounts: Mapped[list["UserAccount"]] = relationship(back_populates="kund")
     populations: Mapped[list["Population"]] = relationship(back_populates="kund")
-    expert_profiles: Mapped[list["PanelExpertProfile"]] = relationship(
-        back_populates="kund"
-    )
+    expert_profiles: Mapped[list["PanelExpertProfile"]] = relationship(back_populates="kund")
     execution_runs: Mapped[list["ExecutionRun"]] = relationship(back_populates="kund")
 
 
@@ -112,9 +108,7 @@ class Projekt(Base):
     runs: Mapped[list["Run"]] = relationship(back_populates="projekt")
     messages: Mapped[list["Message"]] = relationship(back_populates="projekt")
 
-    __table_args__ = (
-        UniqueConstraint("customer_id", "slug", name="uq_projekt_customer_slug"),
-    )
+    __table_args__ = (UniqueConstraint("customer_id", "slug", name="uq_projekt_customer_slug"),)
 
 
 class Persona(Base):
@@ -126,7 +120,9 @@ class Persona(Base):
         nullable=False,
         index=True,
     )
-    kind: Mapped[str] = mapped_column(String(32), nullable=False, default="persona", server_default="persona")
+    kind: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="persona", server_default="persona"
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     age: Mapped[int | None] = mapped_column(Integer, nullable=True)
     occ: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -151,9 +147,7 @@ class Persona(Base):
 
 class Population(Base):
     __tablename__ = "populations"
-    __table_args__ = (
-        UniqueConstraint("customer_id", "name", name="uq_populations_customer_name"),
-    )
+    __table_args__ = (UniqueConstraint("customer_id", "name", name="uq_populations_customer_name"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     customer_id: Mapped[int] = mapped_column(
@@ -161,7 +155,9 @@ class Population(Base):
         nullable=False,
         index=True,
     )
-    kind: Mapped[str] = mapped_column(String(32), nullable=False, default="persona", server_default="persona")
+    kind: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="persona", server_default="persona"
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     size: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     versions: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
@@ -202,7 +198,9 @@ class PopulationMember(Base):
         nullable=True,
         index=True,
     )
-    kind: Mapped[str] = mapped_column(String(32), nullable=False, default="persona", server_default="persona")
+    kind: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="persona", server_default="persona"
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     initials: Mapped[str] = mapped_column(String(8), nullable=False)
     age: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -583,9 +581,7 @@ class SsrMisclassificationFlag(Base):
         nullable=True,
     )
 
-    anchor_set: Mapped["SsrAnchorSet"] = relationship(
-        back_populates="misclassification_flags"
-    )
+    anchor_set: Mapped["SsrAnchorSet"] = relationship(back_populates="misclassification_flags")
 
 
 class CatalogList(Base):
@@ -1040,9 +1036,7 @@ class PanelSubQuestion(Base):
     __tablename__ = "panel_sub_questions"
     __table_args__ = (
         UniqueConstraint("module", "key", name="uq_panel_sub_questions_module_key"),
-        UniqueConstraint(
-            "module", "sort_order", name="uq_panel_sub_questions_module_sort_order"
-        ),
+        UniqueConstraint("module", "sort_order", name="uq_panel_sub_questions_module_sort_order"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -1069,9 +1063,7 @@ class PanelExpertProfile(Base):
 
     __tablename__ = "panel_expert_profiles"
     __table_args__ = (
-        UniqueConstraint(
-            "customer_id", "key", name="uq_panel_expert_profiles_customer_key"
-        ),
+        UniqueConstraint("customer_id", "key", name="uq_panel_expert_profiles_customer_key"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -1277,7 +1269,9 @@ class KnowledgeDocumentRecord(Base):
 
     __tablename__ = "knowledge_documents"
     __table_args__ = (
-        UniqueConstraint("provider", "external_id", name="uq_knowledge_documents_provider_external"),
+        UniqueConstraint(
+            "provider", "external_id", name="uq_knowledge_documents_provider_external"
+        ),
     )
 
     document_id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -1401,9 +1395,7 @@ class ExecutionAttempt(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="created")
     configuration_snapshot: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     input_snapshot: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-    research_objective_snapshot: Mapped[dict | None] = mapped_column(
-        JSON, nullable=True
-    )
+    research_objective_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     research_plan_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     research_wave: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     research_stop_reason: Mapped[str | None] = mapped_column(String(32), nullable=True)
@@ -1663,16 +1655,16 @@ class ResearchEvidenceQuality(Base):
         nullable=False,
     )
 
-    evidence_set_item: Mapped[EvidenceSetItem] = relationship(
-        back_populates="quality_assessments"
-    )
+    evidence_set_item: Mapped[EvidenceSetItem] = relationship(back_populates="quality_assessments")
 
 
 class ExecutionAttemptResult(Base):
     """Historical method output for one ExecutionAttempt (v1: generic_panel)."""
 
     __tablename__ = "execution_attempt_results"
-    __table_args__ = (UniqueConstraint("attempt_id", name="uq_execution_attempt_results_attempt_id"),)
+    __table_args__ = (
+        UniqueConstraint("attempt_id", name="uq_execution_attempt_results_attempt_id"),
+    )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     attempt_id: Mapped[str] = mapped_column(
@@ -1728,9 +1720,7 @@ class ResearchAssessment(Base):
     need_assessments: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     gaps: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     contradictions: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
-    considered_evidence_ids: Mapped[list] = mapped_column(
-        JSON, nullable=False, default=list
-    )
+    considered_evidence_ids: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     evidence_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
     model_provider: Mapped[str | None] = mapped_column(String(64), nullable=True)
     model_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
@@ -1771,12 +1761,8 @@ class ResearchCompletenessPass(Base):
     result: Mapped[str] = mapped_column(String(32), nullable=False)
     rationale: Mapped[str] = mapped_column(Text, nullable=False)
     missing_questions: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
-    considered_evidence_ids: Mapped[list] = mapped_column(
-        JSON, nullable=False, default=list
-    )
-    considered_question_keys: Mapped[list] = mapped_column(
-        JSON, nullable=False, default=list
-    )
+    considered_evidence_ids: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    considered_question_keys: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     evidence_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
     question_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
     model_provider: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -1788,9 +1774,7 @@ class ResearchCompletenessPass(Base):
         nullable=False,
     )
 
-    attempt: Mapped[ExecutionAttempt] = relationship(
-        back_populates="research_completeness_passes"
-    )
+    attempt: Mapped[ExecutionAttempt] = relationship(back_populates="research_completeness_passes")
 
 
 class KnowledgeQuestionRow(Base):
@@ -1865,12 +1849,8 @@ class KnowledgeQuestionEvidenceLink(Base):
     source_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
     provider: Mapped[str | None] = mapped_column(String(64), nullable=True)
     provenance: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-    retrieved_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    observed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    retrieved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    observed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     freshness: Mapped[str] = mapped_column(String(16), nullable=False, default="unknown")
     version: Mapped[str | None] = mapped_column(String(64), nullable=True)
     visibility: Mapped[str] = mapped_column(String(16), nullable=False, default="tenant")
@@ -1888,6 +1868,133 @@ class KnowledgeQuestionEvidenceLink(Base):
     )
 
     question: Mapped[KnowledgeQuestionRow] = relationship(back_populates="answers")
+
+
+class SpecificQuestion(Base):
+    """Context-bound user or review question that can require several general questions."""
+
+    __tablename__ = "specific_questions"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    run_id: Mapped[str] = mapped_column(
+        ForeignKey("execution_runs.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    context: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    origin_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    origin_ref: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="open")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+
+class ResearchQuestion(Base):
+    """One canonical general question participating in an Attempt's question DAG."""
+
+    __tablename__ = "research_questions"
+    __table_args__ = (
+        UniqueConstraint(
+            "attempt_id",
+            "specific_question_id",
+            "knowledge_question_id",
+            name="uq_research_questions_attempt_specific_knowledge",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    attempt_id: Mapped[str] = mapped_column(
+        ForeignKey("execution_attempts.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    specific_question_id: Mapped[str] = mapped_column(
+        ForeignKey("specific_questions.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    knowledge_question_id: Mapped[str] = mapped_column(
+        ForeignKey("knowledge_questions.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    runtime_need_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    why_needed: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    origin: Mapped[str] = mapped_column(String(32), nullable=False, default="initial")
+    depth: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+
+class ResearchQuestionExpert(Base):
+    """Expert lineage: who raised a question and who is responsible for it."""
+
+    __tablename__ = "research_question_experts"
+    __table_args__ = (
+        UniqueConstraint(
+            "question_id",
+            "expert_id",
+            "role",
+            name="uq_research_question_experts_question_expert_role",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    question_id: Mapped[str] = mapped_column(
+        ForeignKey("research_questions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    expert_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    role: Mapped[str] = mapped_column(String(16), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class ResearchQuestionDependency(Base):
+    """Directed edge: question waits for depends_on_question."""
+
+    __tablename__ = "research_question_dependencies"
+    __table_args__ = (
+        UniqueConstraint(
+            "question_id",
+            "depends_on_question_id",
+            name="uq_research_question_dependencies_edge",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    question_id: Mapped[str] = mapped_column(
+        ForeignKey("research_questions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    depends_on_question_id: Mapped[str] = mapped_column(
+        ForeignKey("research_questions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    reason: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
 
 class ResearchProgressEvent(Base):
@@ -1928,9 +2035,7 @@ class ResearchProgressEvent(Base):
         nullable=False,
     )
 
-    attempt: Mapped[ExecutionAttempt] = relationship(
-        back_populates="research_progress_events"
-    )
+    attempt: Mapped[ExecutionAttempt] = relationship(back_populates="research_progress_events")
 
 
 class LlmRuntimeSettings(Base):
@@ -1950,4 +2055,3 @@ class LlmRuntimeSettings(Base):
         onupdate=func.now(),
         nullable=False,
     )
-
