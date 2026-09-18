@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import StoredObject
 from app.services.object_storage import UNDERLAG_DOCX_TYPE
 
-ExtractionStatus = Literal["pending", "ok", "failed", "empty", "unsupported"]
+ExtractionStatus = Literal["pending", "ok", "failed", "empty", "unsupported", "needs_ocr"]
 
 
 def extract_underlag_text(content_type: str, data: bytes) -> tuple[str | None, ExtractionStatus]:

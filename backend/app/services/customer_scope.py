@@ -4,7 +4,16 @@ from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import DdCampaign, Job, PanelSession, Persona, Projekt, Report, Run
+from app.database.models import (
+    DdCampaign,
+    Job,
+    PanelSession,
+    Persona,
+    Projekt,
+    Report,
+    Run,
+    StoredObject,
+)
 from app.schemas.domain import (
     JobCreate,
     PopulationGenerateJobRequest,
@@ -13,6 +22,7 @@ from app.schemas.domain import (
     RunSimulateJobRequest,
 )
 from app.services.dd.schemas import DdResearchJobRequest
+from app.services.document_knowledge import DocumentIngestJobRequest
 from app.services.expertgranskning.schemas import ExpertgranskningWordJobRequest
 from app.services.kund_store import bolag_demo_customer_id, default_os_customer_id
 from app.services.panel.schemas import PanelSessionRunJobRequest
@@ -112,4 +122,10 @@ async def customer_id_for_new_job(session: AsyncSession, body: JobCreate) -> int
         if persona is None or persona.kind != "expert":
             return await default_os_customer_id(session)
         return persona.customer_id
+    if body.kind == "document_ingest":
+        payload = DocumentIngestJobRequest.model_validate(body.request)
+        source = await session.get(StoredObject, payload.object_id)
+        if source is None or source.owner_user_id != payload.owner_user_id:
+            raise ValueError("Underlag not found for document ingest")
+        return source.customer_id
     return await default_os_customer_id(session)

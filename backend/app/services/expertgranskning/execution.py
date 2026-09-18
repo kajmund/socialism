@@ -8,7 +8,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.database.models import PanelSession, Persona, ResearchQuestion
+from app.database.models import PanelSession, Persona, ResearchQuestion, StoredObject
 from app.services.execution.service import (
     add_evidence_items,
     attach_evidence_set,
@@ -257,12 +257,21 @@ async def run_expertgranskning_with_research(
             language=config.locale,
         )
         plan = await _plan_questions(config, prompts)
+        run_context: dict[str, object] = {
+            "consumer": "expertgranskning",
+            "panel_session_id": panel.id,
+        }
+        if config.underlag_id:
+            source = await session.get(StoredObject, config.underlag_id)
+            if source is not None and source.customer_id == customer_id:
+                run_context["case_id"] = source.id
+                run_context["knowledge_module"] = source.module
         run = await create_run(
             session,
             customer_id=customer_id,
             module=MODULE_ID,
             title=config.topic,
-            context={"consumer": "expertgranskning", "panel_session_id": panel.id},
+            context=run_context,
         )
         attempt = await create_attempt(
             session,

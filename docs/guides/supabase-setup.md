@@ -57,6 +57,12 @@ document chunks and from other customers. SQL stores the canonical question
 and its embedding model, version, and dimension; the vector match is only a
 candidate selector.
 
+Underlag ingest also reuses this index for case-scoped raw document chunks and
+curated document facts/Q&A. Metadata distinguishes `document_chunk` and
+`document_item` from canonical questions. The uploaded object's id is the
+`case_id`, so a document item cannot leak into unrelated research. Bookmarks
+and notes are stored in SQL only and are not indexed as evidence.
+
 `GET /health/research-vector` reports the configured bucket, index, and dimension after
 startup. It never returns credentials.
 

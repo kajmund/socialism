@@ -35,6 +35,8 @@ function statusKey(status: UnderlagExtractionStatus): MessageKey {
       return "underlag.status.empty"
     case "unsupported":
       return "underlag.status.unsupported"
+    case "needs_ocr":
+      return "underlag.status.needs_ocr"
     default: {
       const _exhaustive: never = status
       return _exhaustive
@@ -54,6 +56,8 @@ function badgeVariant(
     case "unsupported":
       return "destructive"
     case "empty":
+      return "outline"
+    case "needs_ocr":
       return "outline"
     default: {
       const _exhaustive: never = status

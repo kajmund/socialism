@@ -11,6 +11,14 @@ from app.llm.expert_gen import (
     ExpertCandidatesOut,
     llm_experts_from_underlag,
 )
+from app.services import jobs as jobs_service
+
+
+@pytest.fixture(autouse=True)
+def _hold_document_ingest_jobs(monkeypatch):
+    """Suggestion tests exercise their existing on-demand extraction deterministically."""
+
+    monkeypatch.setattr(jobs_service, "enqueue_job", lambda _job_id: None)
 
 
 def _candidates(count: int = DEFAULT_SUGGEST_COUNT) -> list[ExpertCandidate]:
@@ -184,7 +192,7 @@ async def test_suggest_experts_other_owners_file_is_404(
 
 @pytest.mark.asyncio
 async def test_suggest_experts_failed_extraction_is_400(client_db, monkeypatch):
-    client, factory = client_db
+    client, _factory = client_db
     underlag_id = await _upload_underlag(client)
 
     async def boom(_row):
@@ -206,7 +214,7 @@ async def test_suggest_experts_failed_extraction_is_400(client_db, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_suggest_experts_empty_text_is_400(client_db, monkeypatch):
-    client, factory = client_db
+    client, _factory = client_db
     underlag_id = await _upload_underlag(client)
 
     async def empty_bytes(_row):

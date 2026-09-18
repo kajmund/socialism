@@ -21,7 +21,7 @@ tags: [rapporter]
 
 1. Öppna fliken **Konfiguration** (via **Ny** eller en sparad körning).
 2. Lägg in texten som ska granskas på ett av två sätt:
-   - **Välj underlag** och ladda upp eller återanvänd en egen fil (txt, md, PDF eller Word), inklusive rättsunderlag som du har tagit fram i **Rättsunderlag**, eller öppna **rapporter** under bolagets övriga moduler. Du kan förhandsgranska PDF och rapporter, dra filer mellan mappar och ta bort en fil med **Ta bort** på raden. Filen sparas som den är (Word konverteras till PDF). Texten läses först när experterna körs. Du kan i stället klistra in text direkt.
+   - **Välj underlag** och ladda upp eller återanvänd en egen fil (txt, md, PDF eller Word), inklusive rättsunderlag som du har tagit fram i **Rättsunderlag**, eller öppna **rapporter** under bolagets övriga moduler. Du kan förhandsgranska PDF och rapporter, dra filer mellan mappar och ta bort en fil med **Ta bort** på raden. Word konverteras till PDF. Texten läses i bakgrunden redan vid uppladdning och en neutral dokumentöversikt skapas bredvid PDF:en. Du kan i stället klistra in text direkt.
    - Klistra in text direkt i dokumentfältet. Titel är valfritt.
 3. Fyll i **Granskningsavsikt** om du vill styra vad experterna ska fokusera på. Till exempel att Devbrains är motpart i avtalet. Fältet är valfritt — lämna det tomt om dokumentet räcker.
 4. Välj en **expertpanel**. Finns ingen panel skapar du en under **Expertpaneler**.
@@ -42,6 +42,7 @@ Researchsteget gäller Expertgranskning i webbläsaren. Word-tillägget startar 
 ## Relaterade guider
 
 - [Hantera kundmoduler](hantera-kundmoduler.md)
+- [Förstå och annotera underlag](forsta-och-annotera-underlag.md)
 - [Använda expertgranskning i bolagsytan](anvanda-expertgranskning-i-bolagsytan.md)
 - [Granska ett dokument i Word](granska-dokument-i-word.md)
 - [Hantera expertpaneler](hantera-expertpaneler.md)

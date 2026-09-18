@@ -9,6 +9,8 @@ export type JobKind =
   | "dd_research"
   | "rattsunderlag_research"
   | "expertgranskning_word_review"
+  | "expert_chat_research"
+  | "document_ingest"
 export type JobStatus = "pending" | "running" | "succeeded" | "failed"
 
 export type PopulationGenerateJobRequest = {

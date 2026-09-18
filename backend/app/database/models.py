@@ -869,6 +869,13 @@ class StoredObject(Base):
     )
     extracted_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     extraction_status: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    knowledge_status: Mapped[str | None] = mapped_column(String(24), nullable=True, index=True)
+    knowledge_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    knowledge_job_id: Mapped[str | None] = mapped_column(
+        ForeignKey("jobs.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     folder_id: Mapped[str | None] = mapped_column(
         String(64),
         ForeignKey("underlag_folders.id", ondelete="SET NULL"),
@@ -1421,6 +1428,11 @@ class KnowledgeDocumentRecord(Base):
         nullable=False,
         index=True,
     )
+    source_object_id: Mapped[str | None] = mapped_column(
+        ForeignKey("stored_objects.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
     case_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     module: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
     title: Mapped[str] = mapped_column(String(512), nullable=False)
@@ -1440,6 +1452,132 @@ class KnowledgeDocumentRecord(Base):
         onupdate=func.now(),
         nullable=False,
     )
+
+
+class DocumentKnowledgeItem(Base):
+    """Mutable human-facing knowledge attached to one uploaded document."""
+
+    __tablename__ = "document_knowledge_items"
+    __table_args__ = (
+        Index(
+            "ix_document_knowledge_items_document_status",
+            "source_object_id",
+            "status",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    source_object_id: Mapped[str] = mapped_column(
+        ForeignKey("stored_objects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("kunder.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    kind: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    origin: Mapped[str] = mapped_column(String(16), nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="active", index=True)
+    title: Mapped[str] = mapped_column(String(500), nullable=False)
+    question: Mapped[str | None] = mapped_column(Text, nullable=True)
+    content: Mapped[str | None] = mapped_column(Text, nullable=True)
+    retrieval_queries: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    created_by_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("user_accounts.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    updated_by_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("user_accounts.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    anchors: Mapped[list["DocumentKnowledgeAnchor"]] = relationship(
+        back_populates="item",
+        cascade="all, delete-orphan",
+        order_by="DocumentKnowledgeAnchor.ordinal",
+    )
+    revisions: Mapped[list["DocumentKnowledgeRevision"]] = relationship(
+        back_populates="item",
+        cascade="all, delete-orphan",
+        order_by="DocumentKnowledgeRevision.revision",
+    )
+
+
+class DocumentKnowledgeAnchor(Base):
+    """A source region. v1 writes text anchors; the shape also supports visuals."""
+
+    __tablename__ = "document_knowledge_anchors"
+    __table_args__ = (
+        UniqueConstraint("item_id", "ordinal", name="uq_document_knowledge_anchor_ordinal"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    item_id: Mapped[str] = mapped_column(
+        ForeignKey("document_knowledge_items.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    ordinal: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    anchor_type: Mapped[str] = mapped_column(String(16), nullable=False, default="text")
+    page_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    locator: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    exact_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    prefix_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    suffix_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    rects: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    asset_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    item: Mapped[DocumentKnowledgeItem] = relationship(back_populates="anchors")
+
+
+class DocumentKnowledgeRevision(Base):
+    """Append-only audit snapshot for edits to document knowledge."""
+
+    __tablename__ = "document_knowledge_revisions"
+    __table_args__ = (
+        UniqueConstraint("item_id", "revision", name="uq_document_knowledge_revision"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    item_id: Mapped[str] = mapped_column(
+        ForeignKey("document_knowledge_items.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    snapshot: Mapped[dict] = mapped_column(JSON, nullable=False)
+    changed_by_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("user_accounts.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    item: Mapped[DocumentKnowledgeItem] = relationship(back_populates="revisions")
 
 
 class ExecutionRun(Base):

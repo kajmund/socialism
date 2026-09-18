@@ -10,6 +10,18 @@ from app.auth.scope import customer_id_for_user
 from app.database.models import StoredObject, UserAccount
 from app.database.session import get_session
 from app.modules.registry import MODULE_REGISTRY
+from app.schemas.domain import JobCreate
+from app.services import jobs as jobs_service
+from app.services.document_knowledge import (
+    DOCUMENT_INGEST_JOB_KIND,
+    archive_document_knowledge,
+    create_manual_document_knowledge,
+    delete_document_vectors,
+    get_document_knowledge_item,
+    list_document_knowledge,
+    serialize_document_knowledge_item,
+    update_document_knowledge,
+)
 from app.services.object_storage import KIND_UNDERLAG, MAX_UNDERLAG_BYTES, ObjectStorageError
 from app.services.stored_objects import (
     create_underlag_folder,
@@ -27,6 +39,9 @@ from app.services.stored_objects import (
     upload_underlag,
 )
 from app.services.underlag_schemas import (
+    DocumentKnowledgeItemOut,
+    DocumentKnowledgeItemUpdate,
+    DocumentKnowledgeItemWrite,
     UnderlagFolderCreate,
     UnderlagFolderOut,
     UnderlagListingOut,
@@ -177,7 +192,20 @@ async def post_underlag(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except ObjectStorageError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+    try:
+        job = await jobs_service.create_job(
+            session,
+            JobCreate(
+                kind=DOCUMENT_INGEST_JOB_KIND,
+                label=f"Dokumentförståelse: {row.filename[:80]}",
+                request={"object_id": row.id, "owner_user_id": user.id},
+            ),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    row.knowledge_job_id = job.id
     await session.commit()
+    jobs_service.enqueue_job(job.id)
     return UnderlagOut(**serialize_underlag(row, include_text=True))
 
 
@@ -253,8 +281,117 @@ async def delete_underlag(
         user_id=user.id,
     )
     try:
+        await delete_document_vectors(session, row.id)
         await delete_stored_object(session, row)
     except ObjectStorageError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+    await session.commit()
+    return Response(status_code=204)
+
+
+@router.get(
+    "/{object_id}/knowledge",
+    response_model=list[DocumentKnowledgeItemOut],
+)
+async def get_underlag_knowledge(
+    object_id: str,
+    session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
+) -> list[DocumentKnowledgeItemOut]:
+    customer_id = await customer_id_for_user(session, user)
+    row = _own_underlag(
+        await get_stored_object(session, object_id),
+        customer_id=customer_id,
+        user_id=user.id,
+    )
+    items = await list_document_knowledge(session, source_object_id=row.id)
+    return [DocumentKnowledgeItemOut(**serialize_document_knowledge_item(item)) for item in items]
+
+
+@router.post(
+    "/{object_id}/knowledge",
+    response_model=DocumentKnowledgeItemOut,
+    status_code=201,
+)
+async def post_underlag_knowledge(
+    object_id: str,
+    body: DocumentKnowledgeItemWrite,
+    session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
+) -> DocumentKnowledgeItemOut:
+    customer_id = await customer_id_for_user(session, user)
+    row = _own_underlag(
+        await get_stored_object(session, object_id),
+        customer_id=customer_id,
+        user_id=user.id,
+    )
+    if row.extraction_status != "ok":
+        raise HTTPException(status_code=409, detail="Document text is not ready")
+    item = await create_manual_document_knowledge(
+        session,
+        source=row,
+        user_id=user.id,
+        body=body,
+    )
+    await session.commit()
+    return DocumentKnowledgeItemOut(**serialize_document_knowledge_item(item))
+
+
+@router.put(
+    "/{object_id}/knowledge/{item_id}",
+    response_model=DocumentKnowledgeItemOut,
+)
+async def put_underlag_knowledge(
+    object_id: str,
+    item_id: str,
+    body: DocumentKnowledgeItemUpdate,
+    session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
+) -> DocumentKnowledgeItemOut:
+    customer_id = await customer_id_for_user(session, user)
+    row = _own_underlag(
+        await get_stored_object(session, object_id),
+        customer_id=customer_id,
+        user_id=user.id,
+    )
+    item = await get_document_knowledge_item(
+        session,
+        source_object_id=row.id,
+        item_id=item_id,
+    )
+    if item is None or item.status == "archived":
+        raise HTTPException(status_code=404, detail="Document knowledge item not found")
+    item = await update_document_knowledge(
+        session,
+        source=row,
+        item=item,
+        user_id=user.id,
+        body=body,
+    )
+    await session.commit()
+    return DocumentKnowledgeItemOut(**serialize_document_knowledge_item(item))
+
+
+@router.delete("/{object_id}/knowledge/{item_id}", status_code=204)
+async def delete_underlag_knowledge(
+    object_id: str,
+    item_id: str,
+    session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
+) -> Response:
+    customer_id = await customer_id_for_user(session, user)
+    row = _own_underlag(
+        await get_stored_object(session, object_id),
+        customer_id=customer_id,
+        user_id=user.id,
+    )
+    item = await get_document_knowledge_item(
+        session,
+        source_object_id=row.id,
+        item_id=item_id,
+    )
+    if item is None or item.status == "archived":
+        raise HTTPException(status_code=404, detail="Document knowledge item not found")
+    await archive_document_knowledge(session, item=item, user_id=user.id)
     await session.commit()
     return Response(status_code=204)
