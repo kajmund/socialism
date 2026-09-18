@@ -10,13 +10,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import EvidenceSet, ExecutionAttempt
 from app.services.knowledge.models import KnowledgeScope
 from app.services.prompt_catalog import render_prompt
+from app.services.research.composition import build_standard_question_graph
 from app.services.research.models import (
     RESEARCH_SOURCE_TYPES,
     ResearchContext,
     ResearchEvidence,
     ResearchNeed,
 )
-from app.services.research.question_graph_sql import SqlQuestionEvidenceGraph
 from app.services.research.question_reuse import safe_lookup_reusable_evidence
 
 
@@ -55,7 +55,7 @@ async def reusable_expert_chat_evidence_context(
     """
     reused = await safe_lookup_reusable_evidence(
         session,
-        graph=SqlQuestionEvidenceGraph(),
+        graph=build_standard_question_graph(),
         need=ResearchNeed(
             id="expert_chat_reuse",
             question=question,

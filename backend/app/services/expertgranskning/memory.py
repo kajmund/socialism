@@ -89,6 +89,16 @@ class ExpertMemoryPort(Protocol):
         job_id: str,
     ) -> None: ...
 
+    async def add_research_receipt(
+        self,
+        *,
+        customer_id: int,
+        expert_id: str,
+        question: str,
+        knowledge_question_id: str,
+        source_attempt_id: str,
+    ) -> None: ...
+
     async def replace_word_findings(
         self,
         *,
@@ -558,6 +568,43 @@ class ExpertMemory:
                 },
                 prompt=LANGUAGE_PRESERVATION_INSTRUCTIONS,
             )
+
+    async def add_research_receipt(
+        self,
+        *,
+        customer_id: int,
+        expert_id: str,
+        question: str,
+        knowledge_question_id: str,
+        source_attempt_id: str,
+    ) -> None:
+        cleaned = question.strip()
+        if not cleaned:
+            raise ValueError("question is required for a research receipt")
+        existing = await self.list_all(customer_id=customer_id, expert_id=expert_id)
+        if any(
+            hit.source == "research_receipt"
+            and hit.metadata.get("knowledge_question_id") == knowledge_question_id
+            and hit.metadata.get("source_attempt_id") == source_attempt_id
+            for hit in existing
+        ):
+            return
+        await asyncio.to_thread(
+            self._text_client.add,
+            [{"role": "assistant", "content": cleaned}],
+            user_id=memory_user_id(customer_id),
+            agent_id=memory_agent_id(expert_id),
+            metadata={
+                "source": "research_receipt",
+                "knowledge_question_id": knowledge_question_id,
+                "source_attempt_id": source_attempt_id,
+                "content_hash": _stable_hash(
+                    [knowledge_question_id, source_attempt_id, cleaned]
+                ),
+            },
+            infer=False,
+            prompt=LANGUAGE_PRESERVATION_INSTRUCTIONS,
+        )
 
     async def replace_word_findings(
         self,

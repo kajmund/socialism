@@ -42,11 +42,13 @@ class KnowledgeQuery:
     query: str
     scope: KnowledgeScope
     limit: int = 10
+    filters: dict[str, str | int | float | bool] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         require_scope(self.scope)
         if self.limit < 1:
             raise ValueError("KnowledgeQuery.limit must be >= 1")
+        object.__setattr__(self, "filters", dict(self.filters))
 
 
 @dataclass(frozen=True)

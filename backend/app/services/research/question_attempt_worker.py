@@ -15,9 +15,14 @@ from app.services.execution.service import (
 )
 from app.services.research.assessment import ResearchAssessor
 from app.services.research.completeness import ResearchCompletenessReviewer
+from app.services.research.composition import build_standard_question_graph
 from app.services.research.execution import (
     ResearchRouterFactory,
     execute_attempt_research,
+)
+from app.services.research.expert_knowledge import (
+    publish_research_question_knowledge,
+    remember_published_question,
 )
 from app.services.research.followup import FollowUpResearchPlanner
 from app.services.research.planner import ResearchObjective, ResearchPlanner
@@ -28,7 +33,6 @@ from app.services.research.question_execution import (
     QuestionResearchOutcome,
 )
 from app.services.research.question_graph import QuestionEvidenceGraph
-from app.services.research.question_graph_sql import SqlQuestionEvidenceGraph
 
 
 class AttemptResearchQuestionWorker:
@@ -54,7 +58,7 @@ class AttemptResearchQuestionWorker:
         self._follow_up_planner = follow_up_planner
         self._completeness_reviewer = completeness_reviewer
         self._relevance_assessor = relevance_assessor
-        self._question_graph = question_graph or SqlQuestionEvidenceGraph()
+        self._question_graph = question_graph or build_standard_question_graph()
         self._research_concurrency = research_concurrency
 
     async def research_question(
@@ -89,6 +93,14 @@ class AttemptResearchQuestionWorker:
             raise RuntimeError(
                 f"research child Attempt {child_attempt_id} finished as {result.status}"
             )
+        async with self._factory() as session:
+            memories = await publish_research_question_knowledge(
+                session,
+                research_question_id=question.id,
+                graph=self._question_graph,
+            )
+            await session.commit()
+        await remember_published_question(memories)
         follow_ups = await self._completed_follow_ups(
             child_attempt_id=child_attempt_id,
             assigned_expert_id=question.assigned_expert_id,

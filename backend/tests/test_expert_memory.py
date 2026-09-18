@@ -437,14 +437,18 @@ async def test_expert_chat_context_includes_all_memory_sources():
                     "panel_chat",
                     "intent_interview",
                     "word_findings",
+                    "research_receipt",
                 }
             )
             return [
                 ExpertMemoryHit(
                     id="m1",
                     text="Jag betonade tidigare att ansvar måste preciseras.",
-                    source="word_findings",
-                    metadata={},
+                    source="research_receipt",
+                    metadata={
+                        "knowledge_question_id": "question-1",
+                        "source_attempt_id": "attempt-1",
+                    },
                 )
             ]
 
@@ -466,6 +470,8 @@ async def test_expert_chat_context_includes_all_memory_sources():
     )
 
     assert "ansvar måste preciseras" in context
+    assert "knowledge_question_id=question-1" in context
+    assert "source_attempt_id=attempt-1" in context
     assert "tidigare chattar" in context
 
 
@@ -611,6 +617,41 @@ async def test_add_chat_turn_passes_language_instructions():
         source="persona_chat",
     )
     assert text.adds[0][1]["prompt"] == LANGUAGE_PRESERVATION_INSTRUCTIONS
+
+
+@pytest.mark.asyncio
+async def test_research_receipt_is_structured_and_idempotent():
+    text = FakeMem0Client()
+    memory = ExpertMemory(text, FakeMem0Client())  # type: ignore[arg-type]
+
+    await memory.add_research_receipt(
+        customer_id=1,
+        expert_id="legal",
+        question="Vilka rekvisit gäller enligt 36 § avtalslagen?",
+        knowledge_question_id="question-1",
+        source_attempt_id="attempt-1",
+    )
+    _messages, kwargs = text.adds[0]
+    text.rows = [
+        {
+            "id": "receipt-1",
+            "memory": "Vilka rekvisit gäller enligt 36 § avtalslagen?",
+            "metadata": dict(kwargs["metadata"]),
+        }
+    ]
+    await memory.add_research_receipt(
+        customer_id=1,
+        expert_id="legal",
+        question="Vilka rekvisit gäller enligt 36 § avtalslagen?",
+        knowledge_question_id="question-1",
+        source_attempt_id="attempt-1",
+    )
+
+    assert len(text.adds) == 1
+    assert kwargs["infer"] is False
+    assert kwargs["metadata"]["source"] == "research_receipt"
+    assert kwargs["metadata"]["knowledge_question_id"] == "question-1"
+    assert kwargs["metadata"]["source_attempt_id"] == "attempt-1"
 
 
 @pytest.mark.asyncio
