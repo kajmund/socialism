@@ -113,6 +113,20 @@ class RecordingWorker:
         return self.outcomes.get(question.question, QuestionResearchOutcome())
 
 
+async def test_empty_question_graph_is_not_reported_as_completed_research(factory):
+    attempt_id, _specific_id = await _setup(factory)
+
+    result = await execute_research_question_dag(
+        factory,
+        attempt_id=attempt_id,
+        worker=RecordingWorker(),
+    )
+
+    assert result.status == "not_needed"
+    assert result.completed_count == 0
+    assert result.waves == 0
+
+
 async def test_independent_questions_run_in_bounded_parallel(factory):
     attempt_id, specific_id = await _setup(factory)
     for text in ("Fråga A?", "Fråga B?", "Fråga C?"):

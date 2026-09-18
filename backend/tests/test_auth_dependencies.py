@@ -129,7 +129,10 @@ async def test_auth_probe_provisioned_user_returns_200(auth_probe_client) -> Non
 
 
 @pytest.mark.asyncio
-async def test_last_seen_lock_does_not_fail_valid_auth(auth_probe_client, monkeypatch) -> None:
+async def test_last_seen_lock_does_not_fail_valid_auth(
+    auth_probe_client, monkeypatch, caplog
+) -> None:
+    caplog.set_level("INFO", logger="app.auth.tokens")
     client, session_factory = auth_probe_client
     user_id = "00000000-0000-4000-8000-000000000003"
     async with session_factory() as session:
@@ -155,6 +158,12 @@ async def test_last_seen_lock_does_not_fail_valid_auth(auth_probe_client, monkey
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200
+    lock_record = next(
+        record
+        for record in caplog.records
+        if "last_seen_at skipped because sqlite is busy" in record.message
+    )
+    assert lock_record.exc_info is None
     async with session_factory() as session:
         row = await session.get(UserAccount, user_id)
         assert row is not None

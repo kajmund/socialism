@@ -17,9 +17,10 @@ export function ResearchMonitorPanel({ attemptId, compact = false, href }: Props
   const { overview } = live
   const isRunning = overview.phase === "researching"
   const hasGaps = overview.phase === "completed_with_gaps"
+  const notNeeded = overview.phase === "not_needed"
   const gaps = overview.counts.insufficient + overview.counts.unanswered + overview.counts.failed + overview.counts.blocked
-  const title = isRunning ? t("execution.researchMonitor.researchingTitle") : hasGaps ? t("execution.researchMonitor.gapsTitle") : t("execution.researchMonitor.completedTitle")
-  const body = isRunning ? t("execution.researchMonitor.researchingBody") : hasGaps ? t("execution.researchMonitor.gapsBody") : t("execution.researchMonitor.completedBody")
+  const title = isRunning ? t("execution.researchMonitor.researchingTitle") : notNeeded ? t("execution.researchMonitor.notNeededTitle") : hasGaps ? t("execution.researchMonitor.gapsTitle") : t("execution.researchMonitor.completedTitle")
+  const body = isRunning ? t("execution.researchMonitor.researchingBody") : notNeeded ? t("execution.researchMonitor.notNeededBody") : hasGaps ? t("execution.researchMonitor.gapsBody") : t("execution.researchMonitor.completedBody")
   const percent = overview.counts.total === 0 ? 0 : Math.round(((overview.counts.answered + gaps) / overview.counts.total) * 100)
 
   if (compact) {
@@ -33,7 +34,7 @@ export function ResearchMonitorPanel({ attemptId, compact = false, href }: Props
                 <h3 className="font-semibold">{title}</h3>
               </div>
               <p className="text-sm leading-6 text-muted-foreground">{body}</p>
-              <p className="mt-2 text-sm font-medium">{t("execution.researchMonitor.summary", { answered: overview.counts.answered, total: overview.counts.total, running: overview.counts.running, waiting: overview.counts.waiting })}</p>
+              {!notNeeded ? <p className="mt-2 text-sm font-medium">{t("execution.researchMonitor.summary", { answered: overview.counts.answered, total: overview.counts.total, running: overview.counts.running, waiting: overview.counts.waiting })}</p> : null}
             </div>
             {href ? <Link className="text-sm font-medium text-db-gold-500 hover:underline" to={href}>{t("execution.researchMonitor.open")}</Link> : null}
           </div>
@@ -64,18 +65,18 @@ export function ResearchMonitorPanel({ attemptId, compact = false, href }: Props
             </div>
             <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-muted-foreground">{t("execution.researchMonitor.persisted")}</span>
           </div>
-          <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-db-gold-500 transition-[width] duration-500" style={{ width: `${percent}%` }} /></div>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {!notNeeded ? <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-db-gold-500 transition-[width] duration-500" style={{ width: `${percent}%` }} /></div> : null}
+          {!notNeeded ? <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {stats.map(([key, value, label]) => <div key={key} className="rounded-lg border border-white/10 bg-black/10 p-3"><div className="text-2xl font-medium">{value}</div><div className="text-xs text-muted-foreground">{t(label)}</div></div>)}
-          </div>
+          </div> : null}
         </CardContent>
       </Card>
       <div className="grid grid-cols-4 gap-2" aria-label={t("execution.researchMonitor.progress")}>
-        {(["questions", "evidence", "assessment", "review"] as const).map((stage, index) => <div key={stage} className={cn("rounded-lg border px-3 py-2 text-center text-xs", index < 3 || !isRunning ? "border-db-gold-500/30 bg-db-gold-500/[0.06] text-db-gold-500" : "border-white/10 text-muted-foreground")}>{t(`execution.researchMonitor.stages.${stage}`)}</div>)}
+        {(["questions", "evidence", "assessment", "review"] as const).map((stage, index) => <div key={stage} className={cn("rounded-lg border px-3 py-2 text-center text-xs", !notNeeded && (index < 3 || !isRunning) ? "border-db-gold-500/30 bg-db-gold-500/[0.06] text-db-gold-500" : "border-white/10 text-muted-foreground")}>{t(`execution.researchMonitor.stages.${stage}`)}</div>)}
       </div>
       <section>
         <h2 className="mb-3 text-lg font-medium">{t("execution.researchMonitor.questionsTitle")}</h2>
-        {overview.questions.length === 0 ? <div className="empty-state">{t("execution.researchMonitor.questionsEmpty")}</div> : <div className="space-y-3">{overview.questions.map((question) => <ResearchQuestionCard key={question.id} question={question} />)}</div>}
+        {overview.questions.length === 0 ? <div className="empty-state">{t(notNeeded ? "execution.researchMonitor.questionsNotNeeded" : "execution.researchMonitor.questionsEmpty")}</div> : <div className="space-y-3">{overview.questions.map((question) => <ResearchQuestionCard key={question.id} question={question} />)}</div>}
       </section>
       <ResearchEventLog events={live.events} />
     </div>

@@ -448,7 +448,7 @@ async def run_expertgranskning_with_research(
             attempt_id=attempt_id,
             worker=worker,
         )
-        if result.status not in {"completed", "completed_with_gaps"}:
+        if result.status not in {"completed", "completed_with_gaps", "not_needed"}:
             raise RuntimeError(f"Expertgranskning question research stopped as {result.status}")
 
         async with factory() as session:

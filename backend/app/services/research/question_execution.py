@@ -316,7 +316,7 @@ def _terminal_result(
     waves: int,
 ) -> QuestionDagExecutionResult:
     if not states:
-        return QuestionDagExecutionResult(attempt_id, "completed", 0, 0, 0, 0, waves)
+        return QuestionDagExecutionResult(attempt_id, "not_needed", 0, 0, 0, 0, waves)
     completed = sum(state.row.status == "completed" for state in states.values())
     failed = sum(state.row.status == "failed" for state in states.values())
     unassigned = sum(state.assigned_to is None for state in states.values())
