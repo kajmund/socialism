@@ -1,3 +1,5 @@
+import { useAuth } from "@/auth/AuthProvider"
+import { ProfileProposals } from "@/components/profiles/ProfileProposals"
 import { ArrowLeft, UserRound, UsersRound } from "lucide-react"
 import { useEffect, useState } from "react"
 import { uploadMessageImageRaw } from "@/api/messages"
@@ -36,6 +38,7 @@ export function SmeChatPane({
   onSend,
   onBack,
 }: Props) {
+  const { refreshProfile } = useAuth()
   const { t } = useLocale()
   const [draft, setDraft] = useState("")
   const [pendingImageSha, setPendingImageSha] = useState<string | null>(null)
@@ -170,15 +173,16 @@ export function SmeChatPane({
             {loading ? t("sme.loading") : t("personas.composer.askToStart")}
           </div>
         }
-        notice={
-          imageError || error ? (
+        notice={<>
+          <div className="max-h-72 overflow-auto"><ProfileProposals conversation={thread.thread_type === "expert" ? `expert:${thread.thread_id}:interview` : `panel:${thread.thread_id}`} refreshKey={messages.length} onSaved={refreshProfile} /></div>
+          {imageError || error ? (
             <span className="text-destructive" role="alert">
               {imageError || error}
             </span>
           ) : !ready && thread.thread_type === "expert" ? (
             t("sme.reconnecting")
-          ) : null
-        }
+          ) : null}
+        </>}
       />
     </section>
   )

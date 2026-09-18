@@ -474,6 +474,9 @@ async def execute_expert_turn(
             )
 
         async with session_factory() as session:
+            turn = await session.get(SmeExpertTurn, request_id)
+            if turn is None:
+                raise ChatTurnError("expert_turn_not_found", status_code=404)
             stream = stream_library_chat_turn(
                 session,
                 persona_id=persona_id,
@@ -481,6 +484,7 @@ async def execute_expert_turn(
                 message=message,
                 image_sha256=image_sha256,
                 sme_expert_turn_request_id=request_id,
+                actor_user_id=turn.user_id,
                 persist_guard=persist_guard,
             )
             try:

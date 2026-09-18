@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from app.services.actor_profiles import ActorToolHandler
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import PanelSession, Population
@@ -199,12 +201,15 @@ async def _expert_complete(
     slot: PanelExpertSlot,
     *,
     allow_expert_tools: bool,
+    actor_tool_handler: ActorToolHandler | None = None,
 ) -> str:
     """Frozen-evidence mode uses plain completion even if the slot lists tools."""
     if not allow_expert_tools:
         return (await complete_text(messages)).strip()
     return (
-        await complete_text_with_company_tools(messages, allowed_tools=frozenset(slot.tools))
+        await complete_text_with_company_tools(
+            messages, allowed_tools=frozenset(slot.tools), actor_tool_handler=actor_tool_handler
+        )
     ).strip()
 
 
@@ -217,6 +222,7 @@ async def _expert_scratchpad(
     *,
     evidence_prompt: str | None = None,
     allow_expert_tools: bool = True,
+    actor_tool_handler: ActorToolHandler | None = None,
 ) -> str:
     messages = _messages_with_brief(
         identity=_expert_system(prompts, slot, with_tools=allow_expert_tools),
@@ -231,7 +237,9 @@ async def _expert_scratchpad(
             scratchpad=scratchpad or "(tom)",
         ),
     )
-    return await _expert_complete(messages, slot, allow_expert_tools=allow_expert_tools)
+    return await _expert_complete(
+        messages, slot, allow_expert_tools=allow_expert_tools, actor_tool_handler=actor_tool_handler
+    )
 
 
 async def _expert_turn(
@@ -243,6 +251,7 @@ async def _expert_turn(
     *,
     evidence_prompt: str | None = None,
     allow_expert_tools: bool = True,
+    actor_tool_handler: ActorToolHandler | None = None,
 ) -> str:
     messages = _messages_with_brief(
         identity=_expert_system(prompts, slot, with_tools=allow_expert_tools),
@@ -257,7 +266,9 @@ async def _expert_turn(
             scratchpad=scratchpad or "(tom)",
         ),
     )
-    return await _expert_complete(messages, slot, allow_expert_tools=allow_expert_tools)
+    return await _expert_complete(
+        messages, slot, allow_expert_tools=allow_expert_tools, actor_tool_handler=actor_tool_handler
+    )
 
 
 async def _moderator_analysis(
@@ -378,6 +389,21 @@ async def run_generic_panel(
     """
     config = PanelSessionConfig.model_validate(panel.config or {})
     allow_expert_tools = not frozen_evidence
+    actor_tool_handler = None
+    if allow_expert_tools and panel.job_id:
+        from app.database.models import Job
+        from app.services.actor_profiles import ActorProfileTools
+
+        job = await db.get(Job, panel.job_id)
+        owner = (job.request or {}).get("owner_user_id") if job else None
+        if owner and job.customer_id is not None:
+            actor_tool_handler = ActorProfileTools(
+                db,
+                user_id=owner,
+                customer_id=job.customer_id,
+                conversation=f"review:{panel.id}",
+                requested_by_id=owner,
+            )
     if panel.status == "succeeded" and panel.result:
         return panel
     transcript = load_transcript(panel)
@@ -510,6 +536,7 @@ async def run_generic_panel(
                     prompts,
                     evidence_prompt=evidence_prompt,
                     allow_expert_tools=allow_expert_tools,
+                    actor_tool_handler=actor_tool_handler,
                 )
                 scratchpads[pad_slot_id] = updated_pad
                 return updated_pad
@@ -543,6 +570,7 @@ async def run_generic_panel(
                     prompts,
                     evidence_prompt=evidence_prompt,
                     allow_expert_tools=allow_expert_tools,
+                    actor_tool_handler=actor_tool_handler,
                 ),
                 scratchpads=scratchpads,
             )

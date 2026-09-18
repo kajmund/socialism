@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from app.services.actor_profiles import ActorToolHandler
+
 import json
 import re
 from collections.abc import Awaitable, Callable
@@ -265,8 +267,7 @@ def tool_calls_from_leaked_markup(text: str) -> list[Any]:
     for match in _INVOKE_RE.finditer(text):
         name = match.group(1)
         args = {
-            param.group(1): param.group(2).strip()
-            for param in _PARAM_RE.finditer(match.group(2))
+            param.group(1): param.group(2).strip() for param in _PARAM_RE.finditer(match.group(2))
         }
         if name and any(value for value in args.values()):
             calls.append(_fake_tool_call(len(calls) + 1, name, args))
@@ -306,13 +307,12 @@ async def run_company_tool_loop(
     with_search: bool = False,
     allowed_tools: frozenset[str] | None = None,
     research_tool_handler: ResearchToolHandler | None = None,
+    actor_tool_handler: ActorToolHandler | None = None,
 ) -> tuple[list[dict[str, Any]], list[DdCandidateCompany]]:
     """Run search/lookup tool rounds. Returns the working transcript and parsed hits."""
     found: list[DdCandidateCompany] = []
     working = list(messages)
-    company_tools_enabled = allowed_tools is None or bool(
-        allowed_tools & COMPANY_TOOL_NAMES
-    )
+    company_tools_enabled = allowed_tools is None or bool(allowed_tools & COMPANY_TOOL_NAMES)
     async with AsyncExitStack() as stack:
         mcp = None
         tools: list[dict[str, Any]] = []
@@ -323,6 +323,10 @@ async def run_company_tool_loop(
             tools = [*tools, *search_tool_specs()]
         if research_tool_handler is not None:
             tools = [*tools, _RESEARCH_TOOL_SPEC]
+        if actor_tool_handler is not None:
+            from app.services.actor_profiles import actor_tool_specs
+
+            tools.extend(actor_tool_specs())
         if allowed_tools is not None:
             tools = filter_openai_tools(tools, allowed_tools)
         if not tools:
@@ -353,17 +357,20 @@ async def run_company_tool_loop(
                 arguments = parse_tool_args(call.function.arguments)
                 allowed = allowed_tools is None or name in allowed_tools
                 try:
-                    if allowed and name in COMPANY_TOOL_NAMES and mcp is not None:
-                        tool_text, parsed = await mcp.call_tool_with_candidates(
-                            name, arguments
-                        )
+                    if (
+                        allowed
+                        and actor_tool_handler is not None
+                        and name in {"get_actor_context", "propose_actor_context_update"}
+                    ):
+                        tool_text = await actor_tool_handler(name, arguments)
+                        parsed = []
+                    elif allowed and name in COMPANY_TOOL_NAMES and mcp is not None:
+                        tool_text, parsed = await mcp.call_tool_with_candidates(name, arguments)
                     elif allowed and with_search and name in SEARCH_TOOL_NAMES:
                         tool_text = run_search_tool(name, arguments)
                         parsed = []
                     elif (
-                        allowed
-                        and name == RESEARCH_TOOL_NAME
-                        and research_tool_handler is not None
+                        allowed and name == RESEARCH_TOOL_NAME and research_tool_handler is not None
                     ):
                         tool_text = await research_tool_handler(arguments)
                         parsed = []
@@ -395,6 +402,7 @@ async def complete_text_with_company_tools(
     *,
     allowed_tools: frozenset[str] | None = None,
     research_tool_handler: ResearchToolHandler | None = None,
+    actor_tool_handler: ActorToolHandler | None = None,
 ) -> str:
     """Tool loop then a visible assistant reply. Used by DD experts and chats."""
     if allowed_tools is not None and not allowed_tools:
@@ -407,6 +415,7 @@ async def complete_text_with_company_tools(
         with_search=True,
         allowed_tools=allowed_tools,
         research_tool_handler=research_tool_handler,
+        actor_tool_handler=actor_tool_handler,
     )
     content = visible_assistant_text(working[-1])
     if content:

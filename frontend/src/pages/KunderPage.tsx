@@ -1,3 +1,5 @@
+import { ProfileForm } from "@/components/profiles/ProfileForm"
+import { api } from "@/lib/api"
 import { useEffect, useMemo, useState } from "react"
 import { listModules, type ProductModule } from "@/api/modules"
 import {
@@ -117,7 +119,7 @@ export function KunderPage() {
             <tbody>
               {kunder.map((kund) => (
                 <tr key={kund.id} className="border-b border-[color:var(--border-hairline)]">
-                  <td className="px-2 py-2">{kund.name}</td>
+                  <td className="px-2 py-2">{kund.name}<details><summary>{t("profile.organization")}</summary><ProfileForm organization values={kund} onSave={async (changes) => { const updated = await api.patch<Kund>(`/kunder/${kund.id}`, changes); setKunder((rows) => rows.map((row) => row.id === updated.id ? updated : row)) }} /></details></td>
                   <td className="px-2 py-2 font-mono text-xs">{kund.slug}</td>
                   <td className="px-2 py-2">
                     <select
