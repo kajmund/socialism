@@ -82,6 +82,15 @@ def test_score_turn_roundtrip_is_exact():
         round_index=1,
         slot_id="fin",
         sub_question_id="finansiell_halsa",
+        checkpoint={
+            "expert_slot_id": "fin",
+            "expert_label": "Finansiell analytiker",
+            "sub_question_id": "finansiell_halsa",
+            "sub_question_label": "Finansiell hälsa",
+            "score": 7,
+            "motivation": "Committad bedömning.",
+            "source": source.model_dump(mode="json"),
+        },
     )
     rebuilt = score_from_committed_turn(
         turn,
@@ -125,9 +134,7 @@ async def test_resume_after_committed_score_skips_model_and_matches_transcript(c
         if "Första raden: JA eller NEJ" in user or "First line: YES or NO" in user:
             return "JA\nDelfrågan är min kärnkompetens."
         if "ENDAST med JSON" in user or "ONLY with JSON" in user:
-            committed = (
-                "Finansiell hälsa" in user and "Finansiell analytiker" in identity
-            )
+            committed = "Finansiell hälsa" in user and "Finansiell analytiker" in identity
             if phase["resume"] and committed:
                 calls["score_resume_committed"] += 1
                 raise AssertionError("resume rescored a committed turn")
