@@ -5,10 +5,12 @@ export const EXPERT_TOOL_IDS = [
   "search_duckduckgo",
   "search_wiki",
   "start_research",
+  "get_actor_context",
+  "propose_actor_context_update",
 ] as const
 
 export type ExpertToolId = (typeof EXPERT_TOOL_IDS)[number]
-export type ExpertToolGroup = "company" | "search" | "research"
+export type ExpertToolGroup = "company" | "search" | "research" | "context"
 
 export type ExpertToolDef = {
   id: ExpertToolId
@@ -22,6 +24,8 @@ export const EXPERT_TOOLS: readonly ExpertToolDef[] = [
   { id: "search_duckduckgo", group: "search" },
   { id: "search_wiki", group: "search" },
   { id: "start_research", group: "research" },
+  { id: "get_actor_context", group: "context" },
+  { id: "propose_actor_context_update", group: "context" },
 ] as const
 
 export const DEFAULT_EXPERT_TOOLS: ExpertToolId[] = [...EXPERT_TOOL_IDS]

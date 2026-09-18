@@ -33,8 +33,13 @@ def compose_brief_with_review_intent(
 
 
 def session_brief_for_llm(config: PanelSessionConfig, prompts: dict[str, str]) -> str:
-    return compose_brief_with_review_intent(
+    brief = compose_brief_with_review_intent(
         prompts,
         brief=config.brief,
         review_intent=config.review_intent,
     )
+
+    if config.actor_profile_context is not None:
+        import json
+        brief += "\n\n" + json.dumps({"actor_profile_data": config.actor_profile_context}, ensure_ascii=False)
+    return brief

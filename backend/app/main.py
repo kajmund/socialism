@@ -138,6 +138,8 @@ def create_app() -> FastAPI:
     )
     app.include_router(health.router)
     app.include_router(local_login.router)
+    from app.api import profiles
+    app.include_router(profiles.router)
     app.include_router(me.router)
     app.include_router(configurations.router)
     app.include_router(kunder.router)

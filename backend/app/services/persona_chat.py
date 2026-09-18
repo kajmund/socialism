@@ -117,9 +117,7 @@ def research_tool_handler_for_chat(
     user_message: str,
 ) -> ResearchToolHandler:
     queued_job_id: str | None = None
-    previous_assistant = (
-        history[-1][1] if history and history[-1][0] == "assistant" else ""
-    )
+    previous_assistant = history[-1][1] if history and history[-1][0] == "assistant" else ""
     specific_question = next(
         (content for role, content, _image in reversed(history) if role == "user"),
         "",
@@ -154,10 +152,7 @@ def research_tool_handler_for_chat(
         )
         jobs_service.enqueue_job(job.id)
         queued_job_id = job.id
-        return (
-            f"Researchjobbet är köat i bakgrunden med id {job.id}. "
-            "Resultatet finns inte ännu."
-        )
+        return f"Researchjobbet är köat i bakgrunden med id {job.id}. Resultatet finns inte ännu."
 
     return handle
 
@@ -217,10 +212,7 @@ def _interview_lock_key(
     variant_id: str,
     through_tick_index: int,
 ) -> str:
-    return (
-        f"interview:{persona_id}:{run_id}:{attempt_id}:"
-        f"{variant_id}:{through_tick_index}"
-    )
+    return f"interview:{persona_id}:{run_id}:{attempt_id}:{variant_id}:{through_tick_index}"
 
 
 async def _publish_interview_message(row: PersonaMessage) -> None:
@@ -241,9 +233,7 @@ async def _publish_interview_message(row: PersonaMessage) -> None:
     )
 
 
-async def _discard_user_message(
-    session: AsyncSession, user_row: PersonaMessage
-) -> None:
+async def _discard_user_message(session: AsyncSession, user_row: PersonaMessage) -> None:
     if user_row.id is None:
         return
     existing = await session.get(PersonaMessage, user_row.id)
@@ -398,8 +388,7 @@ def _find_attempt_variant(
             if variant.get("id") == variant_id:
                 return variant
         if (
-            results.get("posts") is not None
-            or results.get("agents") is not None
+            results.get("posts") is not None or results.get("agents") is not None
         ) and variant_id == "main":
             return {
                 "id": "main",
@@ -437,10 +426,7 @@ def validate_interview_variant(
     if ticks_run > 0 and through_tick_index > ticks_run - 1:
         raise ChatTurnError("through_tick_index beyond ticks_run")
     agents = variant.get("agents") or []
-    if not any(
-        a.get("persona_id") == persona_id and a.get("role") != "injector"
-        for a in agents
-    ):
+    if not any(a.get("persona_id") == persona_id and a.get("role") != "injector" for a in agents):
         raise ChatTurnError(
             "Persona not found in this simulation variant",
             status_code=404,
@@ -455,6 +441,7 @@ async def stream_library_chat_turn(
     message: str,
     image_sha256: str | None = None,
     sme_expert_turn_request_id: str | None = None,
+    actor_user_id: str | None = None,
     persist_guard: LibraryTurnWriteGuard | None = None,
 ) -> AsyncIterator[str | PersonaChatResponse]:
     """Yield token strings, then PersonaChatResponse.
@@ -518,6 +505,18 @@ async def stream_library_chat_turn(
             persist_guard=persist_guard,
         )
 
+        from app.services.actor_profiles import ActorProfileTools
+
+        actor_handler = (
+            ActorProfileTools(
+                session,
+                user_id=actor_user_id,
+                customer_id=persona.customer_id,
+                conversation=f"expert:{persona_id}:{mode}",
+            )
+            if actor_user_id and persona.kind == "expert"
+            else None
+        )
         parts: list[str] = []
         try:
             stream = stream_reply_as_persona(
@@ -529,11 +528,10 @@ async def stream_library_chat_turn(
                 area_block=area_block,
                 profile_kind=persona.kind,
                 tools=chat_tools,
-                extra_system=combine_expert_chat_context(
-                    memory_context, evidence_context
-                ),
+                extra_system=combine_expert_chat_context(memory_context, evidence_context),
                 user_image_sha256=image_sha256,
                 research_tool_handler=research_tool_handler,
+                actor_tool_handler=actor_handler,
             )
             async with asyncio.timeout(_llm_reply_timeout_seconds(with_tools=with_tools)):
                 async for chunk in stream:
@@ -788,9 +786,7 @@ async def complete_run_interview_turn(
     return done
 
 
-def _follow_up_flight_key(
-    persona_id: str, mode: ChatMode, history: list[tuple[str, str]]
-) -> str:
+def _follow_up_flight_key(persona_id: str, mode: ChatMode, history: list[tuple[str, str]]) -> str:
     last = history[-1] if history else ("", "")
     return f"{persona_id}:{mode}:{len(history)}:{last[0]}:{last[1]}"
 

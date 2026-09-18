@@ -1,7 +1,8 @@
 import { api } from "@/lib/api"
+import type { Profile } from "@/api/profiles"
 import type { Role } from "@/lib/auth"
 
-export type UserAccountRow = {
+export type UserAccountRow = Profile & {
   id: string
   email: string
   role: Role

@@ -1,3 +1,4 @@
+import { ProfilePage } from "@/pages/ProfilePage"
 import {
   Navigate,
   Outlet,
@@ -133,6 +134,7 @@ export default function App() {
       <Route element={<RequireAuth />}>
         <Route element={<ProductGate />}>
         <Route element={<AuthenticatedShell />}>
+          <Route path="/profil" element={<ProfilePage />} />
           <Route path="/valj-modul" element={<RedirectToHome />} />
 
           <Route element={<RequireAdmin />}>

@@ -1,4 +1,5 @@
 import { api } from "@/lib/api"
+import type { Organization } from "@/api/profiles"
 
 export type KundProjekt = {
   id: number
@@ -7,7 +8,7 @@ export type KundProjekt = {
   slug: string
 }
 
-export type Kund = {
+export type Kund = Organization & {
   id: number
   name: string
   slug: string

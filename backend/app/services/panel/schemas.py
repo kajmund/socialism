@@ -45,6 +45,7 @@ class PanelSessionConfig(BaseModel):
     brief: str = ""
     locale: Literal["sv", "en", "nb"] = "sv"
     review_intent: str = Field(default="", max_length=8_000)
+    actor_profile_context: dict[str, Any] | None = None
     research_before_review: bool = False
     underlag_id: str | None = None
     expert_slots: list[PanelExpertSlot] = Field(default_factory=list, max_length=6)

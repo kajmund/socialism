@@ -1,0 +1,13 @@
+# Actor profiles
+
+UserAccount stores first_name, last_name, job_title and a private avatar object key. Kund stores organization_name, organization_number and structured address fields. Migration 103 adds the nullable fields, profile_revision and actor_context_proposals. Apply with `uv run alembic upgrade head` before starting the updated service.
+
+GET/PATCH /me serves editable own-profile fields. Admin user and kund endpoints share the schemas. PATCH distinguishes omission from explicit null. Profile writes increment profile_revision. Photos use the existing S3 client in a separate user-profiles bucket so accounts without customers can own photos. Uploaded files are decoded, limited to 5 MiB/16 megapixels, resized to at most 1024px and reencoded without metadata. Files are only returned through authenticated profile endpoints.
+
+The expert catalog exposes get_actor_context and propose_actor_context_update. No identity IDs come from the model. REST, library WebSocket, durable SME turns and SME panel chats bind handlers to the authenticated caller and resource customer. Durable turns use persisted user_id when resumed. Research/panel jobs persist owner_user_id server-side. Proposal tools validate writable fields and do not approve proposals. `/me/profile-proposals/{id}/decision` checks ownership, conversation, current access and the exact stored proposal. A conditional revision update prevents a stale proposal from overwriting newer edits. Repeating the same decision is idempotent; opposite decisions conflict. Proposal records contain old/new values and decision timestamps.
+
+Prompts are catalog-backed and seeded through the existing prompt-field store. The instruction is need-driven: do not inspect profiles routinely or ask about unrelated empty fields. Test the tool loop with no tool call as well as actual dispatch; having an available tool must not read profile data.
+
+Live panel expert turns use the same handler. Word's existing structured actor-context step and Expertgranskning research-needs step can request profile context through needs_actor_profile. Only then is the read performed. The result is persisted in the job request; Word reuses that snapshot on retry and research passes the snapshot into the attempt configuration. Frozen generic-panel execution continues to disable live tools. Profile values remain data and cannot replace explicit review intent.
+
+Profile change approval is available inline in SME expert/panel chat and on the web profile page, including for proposals created by live panel tools. Structured Word/background review phases only read context; they do not perform profile mutations.

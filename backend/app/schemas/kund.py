@@ -5,6 +5,9 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 
+from app.schemas.profiles import OrganizationFields
+
+
 class ProjektOut(BaseModel):
     id: int
     customer_id: int
@@ -12,7 +15,7 @@ class ProjektOut(BaseModel):
     slug: str
 
 
-class KundOut(BaseModel):
+class KundOut(OrganizationFields):
     id: int
     name: str
     slug: str
@@ -21,14 +24,14 @@ class KundOut(BaseModel):
     projekt: list[ProjektOut] = Field(default_factory=list)
 
 
-class KundCreate(BaseModel):
+class KundCreate(OrganizationFields):
     name: str = Field(min_length=1, max_length=255)
     slug: str = Field(min_length=1, max_length=64)
     product: str | None = None
     available_modules: list[str] = Field(default_factory=list)
 
 
-class KundUpdate(BaseModel):
+class KundUpdate(OrganizationFields):
     product: str | None = None
     available_modules: list[str] | None = None
 

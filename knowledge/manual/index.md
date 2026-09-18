@@ -105,3 +105,5 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 # Taggar
 
 Återanvänd dessa taggar i nya guider: `korningar`, `personas`, `populationer`, `budskap`, `grunddata`, `jobb`, `rapporter`.
+
+- [Profil och organisationsuppgifter](profil-och-organisation.md)
