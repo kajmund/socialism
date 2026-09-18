@@ -17,13 +17,13 @@ GlobalWorkerOptions.workerSrc = workerUrl
 
 export function PdfKnowledgeViewer({
   url,
-  focusAnchor,
+  focusAnchors,
   selectionActive,
   onSelection,
   onError,
 }: {
   url: string
-  focusAnchor: DocumentKnowledgeAnchor | null
+  focusAnchors: DocumentKnowledgeAnchor[]
   selectionActive: boolean
   onSelection: (anchor: DocumentKnowledgeAnchor) => void
   onError: (message: string) => void
@@ -127,23 +127,27 @@ export function PdfKnowledgeViewer({
     const root = pagesRef.current
     if (!root) return
     root.querySelectorAll("[data-document-anchor-highlight]").forEach((node) => node.remove())
-    if (!focusAnchor?.page_number) return
-    const page = root.querySelector<HTMLElement>(
-      `[data-page-number="${focusAnchor.page_number}"]`,
-    )
-    if (!page) return
-    for (const rect of focusAnchor.rects) {
-      const marker = window.document.createElement("div")
-      marker.dataset.documentAnchorHighlight = "true"
-      marker.className = "pointer-events-none absolute z-20 rounded-sm bg-db-gold-400/35 ring-1 ring-db-gold-500/70"
-      marker.style.left = `${rect.x * 100}%`
-      marker.style.top = `${rect.y * 100}%`
-      marker.style.width = `${rect.width * 100}%`
-      marker.style.height = `${rect.height * 100}%`
-      page.append(marker)
+    let firstMarker: HTMLElement | null = null
+    for (const anchor of focusAnchors) {
+      if (!anchor.page_number) continue
+      const page = root.querySelector<HTMLElement>(
+        `[data-page-number="${anchor.page_number}"]`,
+      )
+      if (!page) continue
+      for (const rect of anchor.rects) {
+        const marker = window.document.createElement("div")
+        marker.dataset.documentAnchorHighlight = "true"
+        marker.className = "pointer-events-none absolute z-20 rounded-sm bg-db-gold-500/60 mix-blend-multiply ring-1 ring-db-gold-700"
+        marker.style.left = `${rect.x * 100}%`
+        marker.style.top = `${rect.y * 100}%`
+        marker.style.width = `${rect.width * 100}%`
+        marker.style.height = `${rect.height * 100}%`
+        page.append(marker)
+        firstMarker ??= marker
+      }
     }
-    page.scrollIntoView({ behavior: "smooth", block: "center" })
-  }, [focusAnchor, rendered])
+    firstMarker?.scrollIntoView({ behavior: "smooth", block: "center" })
+  }, [focusAnchors, rendered])
 
   useEffect(() => {
     if (selectionActive) return
