@@ -340,6 +340,12 @@ class PersonaMessage(Base):
     through_tick_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # Run-scoped interview user turns: who asked (doctor via Spinndoktor tools vs human in UI).
     asked_by: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    sme_expert_turn_request_id: Mapped[str | None] = mapped_column(
+        String(64),
+        ForeignKey("sme_expert_turns.request_id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
 
 class SmePanelMessage(Base):
@@ -394,6 +400,78 @@ class SmeReadCursor(Base):
     thread_type: Mapped[str] = mapped_column(String(16), nullable=False)
     thread_id: Mapped[str] = mapped_column(String(64), nullable=False)
     last_read_message_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+
+class SmePanelTurnLease(Base):
+    """Per-panel lease so concurrent workers serialize SME panel turns."""
+
+    __tablename__ = "sme_panel_turn_leases"
+
+    panel_id: Mapped[int] = mapped_column(
+        ForeignKey("populations.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    fence: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    lease_token: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        index=True,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+
+class SmeExpertTurn(Base):
+    """Durable SME expert-chat turn keyed by the client's request_id."""
+
+    __tablename__ = "sme_expert_turns"
+    __table_args__ = (
+        Index("ix_sme_expert_turns_user_persona", "user_id", "persona_id"),
+    )
+
+    request_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("kunder.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("user_accounts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    persona_id: Mapped[str] = mapped_column(
+        ForeignKey("personas.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    image_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="accepted")
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    fence: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    lease_token: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

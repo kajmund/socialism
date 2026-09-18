@@ -61,6 +61,11 @@ def resolve_chat_tools(raw: list[str] | None, *, kind: str) -> list[str]:
     return resolve_persona_tools(raw)
 
 
+def panel_chat_tools(raw: list[str] | None) -> list[str]:
+    """Company/search tools an expert may use in panel chat. No research initiation."""
+    return [name for name in resolve_expert_tools(raw) if name not in RESEARCH_EXPERT_TOOLS]
+
+
 def filter_openai_tools(
     specs: list[dict[str, Any]],
     allowed: frozenset[str],

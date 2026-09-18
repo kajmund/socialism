@@ -17,12 +17,16 @@ from pydantic import (
 
 from app.auth.tokens import user_from_bearer_token
 from app.database.models import Kund, Persona, UserAccount
-from app.schemas.domain import PersonaChatResponse
 from app.services import jobs as jobs_service
-from app.services.persona_chat import (
-    ChatTurnError,
-    library_follow_up_questions,
-    stream_library_chat_turn,
+from app.services.persona_chat import ChatTurnError, library_follow_up_questions
+from app.services.sme_expert_turns import (
+    SmeExpertTurnConflict,
+    accept_expert_turn,
+    execute_expert_turn,
+    finish_expert_turn,
+    get_owned_expert_turn,
+    mark_expert_turn_running,
+    serialize_expert_turn,
 )
 
 logger = logging.getLogger(__name__)
@@ -88,6 +92,76 @@ async def sme_chat_websocket(websocket: WebSocket) -> None:
             except (RuntimeError, WebSocketDisconnect):
                 disconnected.set()
 
+    async def _fail_expert_turn(
+        request_id: str,
+        turn_fence: int | None,
+        detail: str,
+    ) -> None:
+        if turn_fence is None:
+            return
+        async with factory() as session:
+            await finish_expert_turn(
+                session,
+                request_id,
+                fence=turn_fence,
+                status="failed",
+                error=detail,
+            )
+            await session.commit()
+
+    async def _emit_completed_turn(send: SmeExpertSend, envelope: dict) -> None:
+        async with factory() as session:
+            if user.kund_id is None:
+                raise ChatTurnError("kund_access_denied", status_code=403)
+            turn = await get_owned_expert_turn(
+                session,
+                send.request_id,
+                customer_id=user.kund_id,
+                user_id=user.id,
+            )
+            if turn is None:
+                raise ChatTurnError("Expert turn not found", status_code=404)
+            if turn.status in {"accepted", "running"}:
+                await emit({"type": "turn", "status": turn.status, **envelope})
+                return
+            payload = await serialize_expert_turn(session, turn)
+            if turn.status == "failed":
+                await emit(
+                    {
+                        "type": "error",
+                        "detail": turn.error or "Chat error",
+                        **envelope,
+                    }
+                )
+                return
+            questions = await library_follow_up_questions(
+                session,
+                persona_id=send.thread_id,
+                mode="interview",
+            )
+        await emit(
+            {
+                "type": "done",
+                "reply": next(
+                    (
+                        row.content
+                        for row in reversed(payload.messages)
+                        if row.role == "assistant"
+                    ),
+                    "",
+                ),
+                "messages": [row.model_dump(mode="json") for row in payload.messages],
+                **envelope,
+            }
+        )
+        await emit(
+            {
+                "type": "suggestions",
+                "questions": questions,
+                **envelope,
+            }
+        )
+
     async def run_expert_turn(send: SmeExpertSend) -> None:
         envelope = {
             "thread_type": send.thread_type,
@@ -95,6 +169,9 @@ async def sme_chat_websocket(websocket: WebSocket) -> None:
             "request_id": send.request_id,
         }
         await emit({"type": "typing", "on": True, **envelope})
+        fence: int | None = None
+        token: str | None = None
+        should_run = False
         try:
             async with factory() as session:
                 persona = await session.get(Persona, send.thread_id)
@@ -102,53 +179,84 @@ async def sme_chat_websocket(websocket: WebSocket) -> None:
                     raise ChatTurnError("Expert not found", status_code=404)
                 if persona.customer_id != user.kund_id:
                     raise HTTPException(status_code=403, detail="kund_access_denied")
-                done: PersonaChatResponse | None = None
-                stream = stream_library_chat_turn(
-                    session,
-                    persona_id=send.thread_id,
-                    mode="interview",
-                    message=send.message,
-                    image_sha256=send.image_sha256,
-                )
                 try:
-                    async for item in stream:
-                        if isinstance(item, PersonaChatResponse):
-                            done = item
-                        else:
-                            await emit({"type": "token", "text": item, **envelope})
-                finally:
-                    await stream.aclose()
-                if done is None:
-                    raise ChatTurnError("Chat turn produced no reply", status_code=502)
-                await emit(
-                    {
-                        "type": "done",
-                        "reply": done.reply,
-                        "messages": [
-                            message.model_dump(mode="json")
-                            for message in done.messages
-                        ],
-                        **envelope,
-                    }
-                )
+                    turn, should_run = await accept_expert_turn(
+                        session,
+                        request_id=send.request_id,
+                        customer_id=persona.customer_id,
+                        user_id=user.id,
+                        persona_id=send.thread_id,
+                        message=send.message,
+                        image_sha256=send.image_sha256,
+                    )
+                except SmeExpertTurnConflict as exc:
+                    raise ChatTurnError(str(exc), status_code=409) from exc
+                fence = turn.fence
+                token = turn.lease_token
+                if should_run and turn.status == "accepted":
+                    if token is None:
+                        raise ChatTurnError("stale_expert_turn", status_code=409)
+                    marked = await mark_expert_turn_running(
+                        session,
+                        send.request_id,
+                        fence=fence,
+                        token=token,
+                    )
+                    if not marked:
+                        raise ChatTurnError("stale_expert_turn", status_code=409)
+                await session.commit()
+            if not should_run:
+                await _emit_completed_turn(send, envelope)
+                return
+            if token is None:
+                raise ChatTurnError("stale_expert_turn", status_code=409)
+
+            async def on_token(text: str) -> None:
+                await emit({"type": "token", "text": text, **envelope})
+
+            done = await execute_expert_turn(
+                factory,
+                request_id=send.request_id,
+                persona_id=send.thread_id,
+                message=send.message,
+                image_sha256=send.image_sha256,
+                fence=fence,
+                token=token,
+                on_token=on_token,
+            )
+            async with factory() as session:
                 questions = await library_follow_up_questions(
                     session,
                     persona_id=send.thread_id,
                     mode="interview",
                 )
-                await emit(
-                    {
-                        "type": "suggestions",
-                        "questions": questions,
-                        **envelope,
-                    }
-                )
+            await emit(
+                {
+                    "type": "done",
+                    "reply": done.reply,
+                    "messages": [
+                        message.model_dump(mode="json")
+                        for message in done.messages
+                    ],
+                    **envelope,
+                }
+            )
+            await emit(
+                {
+                    "type": "suggestions",
+                    "questions": questions,
+                    **envelope,
+                }
+            )
         except HTTPException as exc:
+            await _fail_expert_turn(send.request_id, fence, str(exc.detail))
             await emit({"type": "error", "detail": str(exc.detail), **envelope})
         except ChatTurnError as exc:
+            await _fail_expert_turn(send.request_id, fence, exc.detail)
             await emit({"type": "error", "detail": exc.detail, **envelope})
         except Exception:
             logger.exception("SME expert chat turn failed")
+            await _fail_expert_turn(send.request_id, fence, "Chat error")
             await emit({"type": "error", "detail": "Chat error", **envelope})
         finally:
             await emit({"type": "typing", "on": False, **envelope})

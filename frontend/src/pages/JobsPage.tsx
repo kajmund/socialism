@@ -138,6 +138,8 @@ function kindLabel(kind: string, t: Translate): string {
       return t("jobs.kind.rattsunderlag_research")
     case "expertgranskning_word_review":
       return t("jobs.kind.expertgranskning_word_review")
+    case "expert_chat_research":
+      return t("jobs.kind.expert_chat_research")
     default:
       return kind
   }
@@ -155,6 +157,7 @@ function progressLabel(job: Job, t: Translate): string {
     case "dd_sourcing_run":
       return t("jobs.progress.sourcing")
     case "dd_research":
+    case "expert_chat_research":
       return t("jobs.progress.research")
     default:
       return t("jobs.progress.generating")

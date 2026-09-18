@@ -6,6 +6,8 @@ import asyncio
 import os
 import shutil
 import tempfile
+import threading
+import time
 from pathlib import Path
 
 os.environ.setdefault("CEREBRAS_API_KEY", "test-key-not-real")
@@ -25,7 +27,7 @@ from starlette.websockets import WebSocketDisconnect
 
 from app.config import settings
 from app.database.base import Base
-from app.database.models import Job, UserAccount, WordAction
+from app.database.models import Job, SmeExpertTurn, UserAccount, WordAction
 from app.database.session import get_session
 from app.llm import set_structured_completer, set_text_completer, set_text_streamer
 from app.main import create_app
@@ -658,6 +660,181 @@ def test_sme_websocket_routes_expert_output_by_thread(ws_client):
         denied = websocket.receive_json()
         assert denied["type"] == "error"
         assert denied["detail"] == "kund_access_denied"
+
+
+def _enable_sme_expert(client, *, tools: list[str] | None = None) -> str:
+    bolag_id = _bolag_customer_id(client)
+    enabled = client.patch(f"/kunder/{bolag_id}", json={"product": "sme"})
+    assert enabled.status_code == 200
+    payload = {
+        "kind": "expert",
+        "customer_id": bolag_id,
+        "name": "SME-reconnect",
+        "occ": "Analytiker",
+        "district": "—",
+        "quote": "Testexpert",
+    }
+    if tools is not None:
+        payload["tools"] = tools
+    created = client.post("/personas", json=payload)
+    assert created.status_code == 201
+    return created.json()["id"]
+
+
+async def _wait_persisted_expert_turn(
+    request_id: str,
+    *,
+    statuses: set[str] | None = None,
+) -> SmeExpertTurn:
+    factory = jobs_service.job_session_factory()
+    assert factory is not None
+    for _ in range(80):
+        async with factory() as session:
+            turn = await session.get(SmeExpertTurn, request_id)
+            if turn is not None and (
+                statuses is None or turn.status in statuses
+            ):
+                return turn
+        await asyncio.sleep(0.05)
+    raise AssertionError(f"expert turn {request_id} was not persisted")
+
+
+def _sme_turn_lookup(
+    client,
+    request_id: str,
+    *,
+    statuses: set[str] | None = None,
+) -> dict:
+    client.headers["Authorization"] = f"Bearer {_bolag_token()}"
+    for _ in range(80):
+        response = client.get(f"/sme/expert-turns/{request_id}")
+        if response.status_code == 200:
+            body = response.json()
+            if statuses is None or body["status"] in statuses:
+                return body
+        time.sleep(0.05)
+    raise AssertionError(f"expert turn {request_id} was not available")
+
+
+def test_sme_websocket_recovers_turn_after_disconnect_before_token(ws_client):
+    client, loop = ws_client
+    persona_id = _enable_sme_expert(client, tools=[])
+    released = threading.Event()
+
+    async def delayed_stream(_messages: list[dict[str, str]]) -> AsyncIterator[str]:
+        await asyncio.get_running_loop().run_in_executor(None, released.wait)
+        yield "Svar efter avbrott"
+
+    set_text_streamer(delayed_stream)
+    request_id = "reconnect-before-token"
+    with client.websocket_connect(f"/ws/sme?access_token={_bolag_token()}") as websocket:
+        assert websocket.receive_json() == {"type": "ready", "scope": "sme"}
+        websocket.send_json(
+            {
+                "type": "send",
+                "request_id": request_id,
+                "thread_type": "expert",
+                "thread_id": persona_id,
+                "message": "Fråga före token",
+            }
+        )
+        assert websocket.receive_json()["type"] == "typing"
+        turn = loop.run_until_complete(_wait_persisted_expert_turn(request_id))
+        assert turn.status in {"accepted", "running"}
+        assert turn.persona_id == persona_id
+        released.set()
+        loop.run_until_complete(
+            _wait_persisted_expert_turn(request_id, statuses={"succeeded"})
+        )
+
+    other = _enable_sme_expert(client, tools=[])
+    assert other != persona_id
+    body = _sme_turn_lookup(client, request_id, statuses={"succeeded"})
+    assert body["thread_id"] == persona_id
+    assert body["messages"][-1]["content"] == "Svar efter avbrott"
+
+
+def test_sme_websocket_recovers_turn_after_disconnect_during_tokens(ws_client):
+    client, loop = ws_client
+    persona_id = _enable_sme_expert(client, tools=[])
+    released = threading.Event()
+
+    async def paused_stream(_messages: list[dict[str, str]]) -> AsyncIterator[str]:
+        yield "första"
+        await asyncio.get_running_loop().run_in_executor(None, released.wait)
+        yield " andra"
+
+    set_text_streamer(paused_stream)
+    request_id = "reconnect-during-tokens"
+    with client.websocket_connect(f"/ws/sme?access_token={_bolag_token()}") as websocket:
+        assert websocket.receive_json() == {"type": "ready", "scope": "sme"}
+        websocket.send_json(
+            {
+                "type": "send",
+                "request_id": request_id,
+                "thread_type": "expert",
+                "thread_id": persona_id,
+                "message": "Fråga under svar",
+            }
+        )
+        saw_token = False
+        for _ in range(10):
+            event = websocket.receive_json()
+            if event["type"] == "token":
+                saw_token = True
+                break
+        assert saw_token
+        turn = loop.run_until_complete(_wait_persisted_expert_turn(request_id))
+        assert turn.status == "running"
+        assert turn.persona_id == persona_id
+        released.set()
+        loop.run_until_complete(
+            _wait_persisted_expert_turn(request_id, statuses={"succeeded"})
+        )
+
+    body = _sme_turn_lookup(client, request_id, statuses={"succeeded"})
+    assert "första" in body["messages"][-1]["content"]
+    assert "andra" in body["messages"][-1]["content"]
+
+
+def test_sme_websocket_rejects_request_id_payload_mismatch(ws_client):
+    client, _loop = ws_client
+    persona_id = _enable_sme_expert(client, tools=[])
+    request_id = "request-payload-conflict"
+
+    async def stream(_messages: list[dict[str, str]]) -> AsyncIterator[str]:
+        yield "Första svaret"
+
+    set_text_streamer(stream)
+    with client.websocket_connect(f"/ws/sme?access_token={_bolag_token()}") as websocket:
+        assert websocket.receive_json() == {"type": "ready", "scope": "sme"}
+        websocket.send_json(
+            {
+                "type": "send",
+                "request_id": request_id,
+                "thread_type": "expert",
+                "thread_id": persona_id,
+                "message": "Första frågan",
+            }
+        )
+        while True:
+            event = websocket.receive_json()
+            if event["type"] == "suggestions":
+                break
+        assert websocket.receive_json()["type"] == "typing"
+        websocket.send_json(
+            {
+                "type": "send",
+                "request_id": request_id,
+                "thread_type": "expert",
+                "thread_id": persona_id,
+                "message": "Annan fråga",
+            }
+        )
+        assert websocket.receive_json()["type"] == "typing"
+        denied = websocket.receive_json()
+        assert denied["type"] == "error"
+        assert denied["detail"] == "request_id conflict"
 
 
 def _expertgranskning_hello(job_id: str) -> dict:
