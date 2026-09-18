@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import UTC, datetime, timedelta
+from functools import lru_cache
+from typing import Any
 
 import jwt
 from fastapi import HTTPException
@@ -14,7 +17,8 @@ from app.config import settings
 from app.database.models import UserAccount
 from app.serializers import utcnow
 
-_TOKEN_ALGORITHM = "HS256"
+_LOCAL_TOKEN_ALGORITHM = "HS256"
+_SUPABASE_TOKEN_ALGORITHMS = ("ES256", "RS256")
 _TOKEN_AUDIENCE = "authenticated"
 _LAST_SEEN_MIN_INTERVAL = timedelta(minutes=1)
 
@@ -27,7 +31,9 @@ def mint_access_token(
     email: str,
     expires_delta: timedelta = timedelta(days=7),
 ) -> str:
-    """HS256 access token accepted by user_from_bearer_token (same secret as Supabase)."""
+    """Mint a local-development token; Supabase tokens are minted by Supabase Auth."""
+    if not settings.local_auth_jwt_secret:
+        raise RuntimeError("LOCAL_AUTH_JWT_SECRET is required for local login")
     now = datetime.now(UTC)
     payload = {
         "sub": user_id,
@@ -37,7 +43,43 @@ def mint_access_token(
         "iat": int(now.timestamp()),
         "exp": int((now + expires_delta).timestamp()),
     }
-    return jwt.encode(payload, settings.supabase_jwt_secret, algorithm=_TOKEN_ALGORITHM)
+    return jwt.encode(
+        payload,
+        settings.local_auth_jwt_secret,
+        algorithm=_LOCAL_TOKEN_ALGORITHM,
+    )
+
+
+@lru_cache(maxsize=4)
+def _jwks_client(url: str) -> jwt.PyJWKClient:
+    return jwt.PyJWKClient(url)
+
+
+def _decode_token(raw: str) -> dict[str, Any]:
+    header = jwt.get_unverified_header(raw)
+    algorithm = header.get("alg")
+    if algorithm == _LOCAL_TOKEN_ALGORITHM:
+        if not settings.local_auth_jwt_secret:
+            raise jwt.InvalidTokenError("Local token verification is disabled")
+        return jwt.decode(
+            raw,
+            settings.local_auth_jwt_secret,
+            algorithms=[_LOCAL_TOKEN_ALGORITHM],
+            audience=_TOKEN_AUDIENCE,
+        )
+    if algorithm not in _SUPABASE_TOKEN_ALGORITHMS:
+        raise jwt.InvalidAlgorithmError("Unsupported JWT algorithm")
+    base_url = settings.supabase_url.rstrip("/")
+    signing_key = _jwks_client(
+        f"{base_url}/auth/v1/.well-known/jwks.json"
+    ).get_signing_key_from_jwt(raw)
+    return jwt.decode(
+        raw,
+        signing_key.key,
+        algorithms=[algorithm],
+        audience=_TOKEN_AUDIENCE,
+        issuer=f"{base_url}/auth/v1",
+    )
 
 
 async def user_from_bearer_token(session: AsyncSession, token: str | None) -> UserAccount:
@@ -47,12 +89,7 @@ async def user_from_bearer_token(session: AsyncSession, token: str | None) -> Us
     if not raw:
         raise HTTPException(status_code=401, detail="invalid_token")
     try:
-        payload = jwt.decode(
-            raw,
-            settings.supabase_jwt_secret,
-            algorithms=[_TOKEN_ALGORITHM],
-            audience=_TOKEN_AUDIENCE,
-        )
+        payload = await asyncio.to_thread(_decode_token, raw)
     except jwt.PyJWTError as exc:
         raise HTTPException(status_code=401, detail="invalid_token") from exc
     user_id = payload.get("sub")

@@ -123,7 +123,7 @@ def test_settings_require_selected_provider_key(monkeypatch):
     monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-deepseek-unused")
     monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
     monkeypatch.setenv("SUPABASE_URL", "https://test.supabase.co")
-    monkeypatch.setenv("SUPABASE_JWT_SECRET", "secret")
+    monkeypatch.setenv("LOCAL_AUTH_JWT_SECRET", "secret")
     monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "role")
     with pytest.raises(ValidationError, match="CEREBRAS_API_KEY"):
         Settings()

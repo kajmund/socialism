@@ -15,7 +15,7 @@ os.environ.setdefault("CEREBRAS_API_KEY", "test-key-not-real")
 os.environ.setdefault("DEEPSEEK_API_KEY", "test-key-not-real")
 os.environ.setdefault("OPENAI_API_KEY", "test-openai-key-not-real")
 os.environ.setdefault("SUPABASE_URL", "https://test.supabase.co")
-os.environ.setdefault("SUPABASE_JWT_SECRET", "test-supabase-jwt-secret-not-real")
+os.environ.setdefault("LOCAL_AUTH_JWT_SECRET", "test-supabase-jwt-secret-not-real")
 os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "test-supabase-service-role-not-real")
 
 from app.config import settings
@@ -428,7 +428,7 @@ def test_confidence_notes_respect_frozen_thresholds():
 
 def test_ws_rejects_unknown_scope():
     settings.deepseek_api_key = "test-key-not-real"
-    settings.supabase_jwt_secret = TEST_JWT_SECRET
+    settings.local_auth_jwt_secret = TEST_JWT_SECRET
 
     engine = create_async_engine(
         "sqlite+aiosqlite://",

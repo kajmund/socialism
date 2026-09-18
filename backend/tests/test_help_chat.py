@@ -15,7 +15,7 @@ os.environ.setdefault("CEREBRAS_API_KEY", "test-key-not-real")
 os.environ.setdefault("DEEPSEEK_API_KEY", "test-key-not-real")
 os.environ.setdefault("OPENAI_API_KEY", "test-openai-key-not-real")
 os.environ.setdefault("SUPABASE_URL", "https://test.supabase.co")
-os.environ.setdefault("SUPABASE_JWT_SECRET", "test-supabase-jwt-secret-not-real")
+os.environ.setdefault("LOCAL_AUTH_JWT_SECRET", "test-supabase-jwt-secret-not-real")
 os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "test-supabase-service-role-not-real")
 
 from app.config import settings
@@ -52,7 +52,7 @@ def test_looks_like_leaked_tool_markup_detects_dsml_and_invoke():
 @pytest.fixture
 def help_client():
     settings.deepseek_api_key = "test-key-not-real"
-    settings.supabase_jwt_secret = TEST_JWT_SECRET
+    settings.local_auth_jwt_secret = TEST_JWT_SECRET
 
     async def _mock_text(_messages: list[dict[str, str]]) -> str:
         return "Mockat hjälpssvar."

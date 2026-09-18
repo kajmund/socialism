@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 
 import jwt
 import pytest
+from cryptography.hazmat.primitives.asymmetric import ec
 from fastapi import Depends, FastAPI
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from app.auth.dependencies import get_current_user
+from app.auth.tokens import _decode_token
 from app.config import settings
 from app.database.base import Base
 from app.database.models import UserAccount
@@ -33,10 +36,40 @@ def _mint_token(*, sub: str, email: str = "probe@example.com") -> str:
     return jwt.encode(payload, TEST_JWT_SECRET, algorithm="HS256")
 
 
+def test_supabase_es256_token_is_verified_with_project_jwks(monkeypatch) -> None:
+    private_key = ec.generate_private_key(ec.SECP256R1())
+    now = datetime.now(UTC)
+    token = jwt.encode(
+        {
+            "sub": "00000000-0000-4000-8000-000000000004",
+            "email": "magic@example.com",
+            "aud": "authenticated",
+            "role": "authenticated",
+            "iss": "https://test.supabase.co/auth/v1",
+            "iat": int(now.timestamp()),
+            "exp": int((now + timedelta(hours=1)).timestamp()),
+        },
+        private_key,
+        algorithm="ES256",
+        headers={"kid": "test-key"},
+    )
+
+    class FakeJwksClient:
+        def get_signing_key_from_jwt(self, _token: str):
+            return SimpleNamespace(key=private_key.public_key())
+
+    monkeypatch.setattr("app.auth.tokens._jwks_client", lambda _url: FakeJwksClient())
+    settings.supabase_url = "https://test.supabase.co"
+
+    payload = _decode_token(token)
+
+    assert payload["email"] == "magic@example.com"
+
+
 @pytest.fixture
 async def auth_probe_client():
     """Minimal app with one protected route — production routers stay open in Fas A."""
-    settings.supabase_jwt_secret = TEST_JWT_SECRET
+    settings.local_auth_jwt_secret = TEST_JWT_SECRET
 
     engine = create_async_engine(
         "sqlite+aiosqlite://",
