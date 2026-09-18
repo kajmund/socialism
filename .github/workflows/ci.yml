@@ -16,9 +16,80 @@ permissions:
   contents: read
 
 jobs:
-  backend:
-    name: Backend tests
+  changes:
+    name: Detect changed areas
     runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      word_addin: ${{ steps.filter.outputs.word_addin }}
+      knowledge: ${{ steps.filter.outputs.knowledge }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Select required test areas
+        id: filter
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          backend=false
+          frontend=false
+          word_addin=false
+          knowledge=false
+
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            backend=true
+            frontend=true
+            word_addin=true
+            knowledge=true
+          else
+            while IFS= read -r path; do
+              case "$path" in
+                backend/*|integrations/*|data/*)
+                  backend=true
+                  ;;
+                frontend/*)
+                  frontend=true
+                  ;;
+                word-addin/*)
+                  word_addin=true
+                  ;;
+                knowledge/*|okf.project.yaml|Makefile)
+                  knowledge=true
+                  ;;
+                docs/*|features/*|inspiration/*|README.md|AGENTS.md)
+                  # Reference material and project instructions do not affect a test target.
+                  ;;
+                *)
+                  # New or shared areas are safety-sensitive until classified here.
+                  backend=true
+                  frontend=true
+                  word_addin=true
+                  knowledge=true
+                  ;;
+              esac
+            done < <(git diff --name-only --no-renames "$BASE_SHA" "$HEAD_SHA")
+          fi
+
+          {
+            echo "backend=$backend"
+            echo "frontend=$frontend"
+            echo "word_addin=$word_addin"
+            echo "knowledge=$knowledge"
+          } >> "$GITHUB_OUTPUT"
+
+  backend:
+    name: Backend tests (${{ matrix.group }}/4)
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3, 4]
     defaults:
       run:
         working-directory: backend
@@ -31,10 +102,16 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
       - name: Run pytest
-        run: uv run pytest
+        run: >-
+          uv run pytest
+          --splits 4
+          --group ${{ matrix.group }}
+          --splitting-algorithm least_duration
 
   frontend:
     name: Frontend tests
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -58,6 +135,8 @@ jobs:
 
   word-addin:
     name: Word add-in tests
+    needs: changes
+    if: needs.changes.outputs.word_addin == 'true'
     runs-on: ubuntu-latest
     env:
       VITE_API_BASE_URL: http://127.0.0.1:8000
@@ -83,6 +162,8 @@ jobs:
 
   knowledge:
     name: Knowledge validate
+    needs: changes
+    if: needs.changes.outputs.knowledge == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -95,15 +176,25 @@ jobs:
   ci:
     name: CI
     if: always()
-    needs: [backend, frontend, word-addin, knowledge]
+    needs: [changes, backend, frontend, word-addin, knowledge]
     runs-on: ubuntu-latest
     steps:
       - name: Require all jobs
         run: |
-          if [ "${{ needs.backend.result }}" != "success" ] \
-          || [ "${{ needs.frontend.result }}" != "success" ] \
-          || [ "${{ needs.word-addin.result }}" != "success" ] \
-          || [ "${{ needs.knowledge.result }}" != "success" ]; then
-            echo "Required jobs: backend=${{ needs.backend.result }} frontend=${{ needs.frontend.result }} word-addin=${{ needs.word-addin.result }} knowledge=${{ needs.knowledge.result }}"
+          changes="${{ needs.changes.result }}"
+          backend="${{ needs.backend.result }}"
+          frontend="${{ needs.frontend.result }}"
+          word_addin="${{ needs.word-addin.result }}"
+          knowledge="${{ needs.knowledge.result }}"
+
+          if [ "$changes" != "success" ]; then
+            echo "Change detection failed: changes=$changes"
             exit 1
           fi
+
+          for result in "$backend" "$frontend" "$word_addin" "$knowledge"; do
+            if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
+              echo "Required jobs: backend=$backend frontend=$frontend word-addin=$word_addin knowledge=$knowledge"
+              exit 1
+            fi
+          done
