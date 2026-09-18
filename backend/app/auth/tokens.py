@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 
 import jwt
 from fastapi import HTTPException
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -77,9 +78,7 @@ def should_touch_last_seen(account: UserAccount, *, now: datetime | None = None)
     return current - _aware(seen) >= _LAST_SEEN_MIN_INTERVAL
 
 
-async def _touch_last_seen_best_effort(
-    session: AsyncSession, account: UserAccount
-) -> UserAccount:
+async def _touch_last_seen_best_effort(session: AsyncSession, account: UserAccount) -> UserAccount:
     """Telemetry write. Lock or commit failure must not fail a valid auth read."""
     if not should_touch_last_seen(account):
         return account
@@ -88,12 +87,18 @@ async def _touch_last_seen_best_effort(
     try:
         await session.commit()
         return account
-    except Exception:
-        logger.warning(
-            "user_accounts.last_seen_at update failed account_id=%s",
-            account_id,
-            exc_info=True,
-        )
+    except Exception as exc:
+        if isinstance(exc, OperationalError) and "database is locked" in str(exc).lower():
+            logger.info(
+                "user_accounts.last_seen_at skipped because sqlite is busy account_id=%s",
+                account_id,
+            )
+        else:
+            logger.warning(
+                "user_accounts.last_seen_at update failed account_id=%s",
+                account_id,
+                exc_info=True,
+            )
         await session.rollback()
         restored = await session.get(UserAccount, account_id)
         return restored if restored is not None else account

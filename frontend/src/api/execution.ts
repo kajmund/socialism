@@ -312,7 +312,7 @@ export type ResearchOverview = {
   run_id: string
   attempt_id: string
   attempt_status: string
-  phase: string
+  phase: "researching" | "completed" | "completed_with_gaps" | "not_needed"
   latest_sequence: number
   counts: {
     total: number

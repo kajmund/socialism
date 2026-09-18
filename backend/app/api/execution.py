@@ -987,7 +987,16 @@ async def get_attempt_research_overview(
         + status_counts["failed"]
         + status_counts["blocked"]
     )
-    phase = "researching" if active else "completed_with_gaps" if gaps else "completed"
+    if not questions and attempt.status in {"ready", "running", "completed"}:
+        phase = "not_needed"
+    else:
+        phase = (
+            "researching"
+            if active or not questions
+            else "completed_with_gaps"
+            if gaps
+            else "completed"
+        )
     return ResearchOverviewOut(
         run_id=attempt.run_id,
         attempt_id=attempt.id,
