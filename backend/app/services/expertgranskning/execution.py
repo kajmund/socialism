@@ -129,14 +129,10 @@ async def _persist_questions(
     persona_by_slot = await _slot_persona_ids(session, customer_id=customer_id)
     for need in plan.needs:
         raised_by = [
-            persona_by_slot[slot_id]
-            for slot_id in need.requested_by
-            if slot_id in persona_by_slot
+            persona_by_slot[slot_id] for slot_id in need.requested_by if slot_id in persona_by_slot
         ]
         if not raised_by:
-            raise RuntimeError(
-                f"Research question {need.id} has no customer expert provenance"
-            )
+            raise RuntimeError(f"Research question {need.id} has no customer expert provenance")
         await create_general_question(
             session,
             attempt_id=attempt_id,
@@ -317,7 +313,7 @@ async def run_expertgranskning_with_research(
         attempt_id=attempt_id,
         worker=worker,
     )
-    if result.status != "completed":
+    if result.status not in {"completed", "completed_with_gaps"}:
         raise RuntimeError(f"Expertgranskning question research stopped as {result.status}")
 
     async with factory() as session:

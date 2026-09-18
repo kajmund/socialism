@@ -2073,6 +2073,7 @@ class ResearchQuestion(Base):
     )
     why_needed: Mapped[str] = mapped_column(Text, nullable=False, default="")
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    outcome_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     origin: Mapped[str] = mapped_column(String(32), nullable=False, default="initial")
     depth: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(

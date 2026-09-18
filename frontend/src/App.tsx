@@ -61,6 +61,7 @@ import { PopulationDetailPage } from "@/pages/PopulationDetailPage"
 import { PopulationsPage } from "@/pages/PopulationsPage"
 import { RattsunderlagPage } from "@/pages/RattsunderlagPage"
 import { RattsunderlagRunPage } from "@/pages/RattsunderlagRunPage"
+import { ResearchMonitorPage } from "@/pages/ResearchMonitorPage"
 import { ReportPage } from "@/pages/ReportPage"
 import { BolagReportsPage, ReportsPage } from "@/pages/ReportsPage"
 import { RunsPage } from "@/pages/RunsPage"
@@ -199,6 +200,7 @@ export default function App() {
           </Route>
 
           <Route path="/execution/runs/:runId" element={<ExecutionRunPage />} />
+          <Route path="/research/:attemptId" element={<ResearchMonitorPage />} />
           <Route path="/jobs" element={<JobsRoute />} />
 
           <Route element={<RequireOsUser />}>
