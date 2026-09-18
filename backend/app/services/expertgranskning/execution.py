@@ -466,6 +466,7 @@ async def run_expertgranskning_with_research(
                 run_id=run_id,
                 attempt_id=attempt_id,
             )
+            await session.commit()
 
     async with factory() as session:
         prompts = await require_active_prompts(
