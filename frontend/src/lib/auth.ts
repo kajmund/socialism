@@ -10,6 +10,7 @@ export type Role = "admin" | "user" | "bolag"
 
 export type AuthUser = {
   id: string
+  avatarUrl?: string | null
   username: string
   email: string
   role: Role

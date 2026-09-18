@@ -203,7 +203,7 @@ async def post_expertgranskning_session_run(
         JobCreate(
             kind="panel_session_run",
             label=f"Expertgranskning: {(row.config or {}).get('topic', session_id)[:80]}",
-            request={"session_id": session_id},
+            request={"session_id": session_id, "owner_user_id": user.id},
         ),
     )
     row.job_id = job.id

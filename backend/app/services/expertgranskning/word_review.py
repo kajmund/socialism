@@ -196,16 +196,12 @@ def render_expert_comment_user_prompt(
         profile=slot.profile or slot.label,
         paragraph_text=_batch_text(paragraphs),
         list_string=", ".join(
-            paragraph.list_string
-            for paragraph in paragraphs
-            if paragraph.list_string.strip()
+            paragraph.list_string for paragraph in paragraphs if paragraph.list_string.strip()
         ),
         section_heading=section.heading,
         question=question.question,
         why_it_matters=question.why_it_matters,
-        allowed_paragraph_indexes=", ".join(
-            str(index) for index in question.paragraph_indexes
-        ),
+        allowed_paragraph_indexes=", ".join(str(index) for index in question.paragraph_indexes),
     )
     return f"{body}\n\n{word_comment_anchor_suffix(question.paragraph_indexes)}"
 
@@ -227,14 +223,15 @@ def should_review_paragraph(paragraph: WordDocumentParagraph) -> bool:
 
 def _expert_list(slots: list[PanelExpertSlot]) -> str:
     return "\n".join(
-        f"- {slot.slot_id} ({slot.label}): {slot.profile or slot.label}"
-        for slot in slots
+        f"- {slot.slot_id} ({slot.label}): {slot.profile or slot.label}" for slot in slots
     )
 
 
 def _section_body(section: WordDocumentSection) -> str:
     parts = [section.heading.strip()] if section.heading.strip() else []
-    parts.extend(paragraph.text.strip() for paragraph in section.paragraphs if paragraph.text.strip())
+    parts.extend(
+        paragraph.text.strip() for paragraph in section.paragraphs if paragraph.text.strip()
+    )
     return "\n\n".join(parts)
 
 
@@ -308,7 +305,9 @@ def build_batches(
     max_size: int = WORD_BATCH_MAX_SIZE,
 ) -> list[list[WordDocumentParagraph]]:
     """Group reviewable paragraphs; never split a numbered clause."""
-    reviewable = [paragraph for paragraph in section.paragraphs if should_review_paragraph(paragraph)]
+    reviewable = [
+        paragraph for paragraph in section.paragraphs if should_review_paragraph(paragraph)
+    ]
     if not reviewable:
         return []
 
@@ -432,9 +431,7 @@ def accepted_recommended_expert_ids(
     limit: int = WORD_REVIEW_MAX_RECOMMENDED_EXPERTS,
 ) -> list[str]:
     """Keep at most `limit` known panel slot IDs, in first-seen order."""
-    kept, _invalid = accepted_router_expert_ids(
-        raw_ids, panel_slot_ids, limit=limit
-    )
+    kept, _invalid = accepted_router_expert_ids(raw_ids, panel_slot_ids, limit=limit)
     return kept
 
 
@@ -509,9 +506,7 @@ def accepted_review_questions(
                 indexes.append(index)
         if not indexes:
             continue
-        primary = resolve_question_primary_anchor(
-            indexes, question.primary_anchor_paragraph_index
-        )
+        primary = resolve_question_primary_anchor(indexes, question.primary_anchor_paragraph_index)
         if primary is None:
             dropped_invalid_anchor += 1
             continue
@@ -625,11 +620,7 @@ def rewrite_suggestion_or_none(
 ) -> WordRewriteSuggestion | None:
     if parsed is None:
         return None
-    suggestion = (
-        parsed.omskrivning_forslag
-        if isinstance(parsed, WordParagraphComments)
-        else parsed
-    )
+    suggestion = parsed.omskrivning_forslag if isinstance(parsed, WordParagraphComments) else parsed
     if suggestion is None:
         return None
     if not suggestion.ny_text.strip():
@@ -837,9 +828,7 @@ def resolve_comment_anchor(
         return primary
     if len(allowed) == 1:
         return allowed[0]
-    logger.info(
-        "Dropped Word comment: multi-paragraph question has no valid anchor"
-    )
+    logger.info("Dropped Word comment: multi-paragraph question has no valid anchor")
     return None
 
 
@@ -990,11 +979,7 @@ async def _consolidate_observations(
         parsed = await _comment_convergence(
             prompts=prompts,
             section=section,
-            batch=[
-                paragraph
-                for paragraph in paragraphs
-                if paragraph.index in referenced
-            ],
+            batch=[paragraph for paragraph in paragraphs if paragraph.index in referenced],
             observations=chunk,
             limiter=limiter,
             review_intent=review_intent,
@@ -1038,9 +1023,7 @@ async def _rewrite_convergence(
     review_intent: str = "",
     actor_context: str = "",
 ) -> WordRewriteSuggestion | None:
-    comments_text = "\n".join(
-        f"- {name}: {text}" for name, text in comments
-    )
+    comments_text = "\n".join(f"- {name}: {text}" for name, text in comments)
     user = render_prompt(
         prompts,
         "expertgranskning.word.rewrite_convergence",
@@ -1155,9 +1138,7 @@ async def _analyze_batch(
             section=section,
             question=question,
             paragraphs=[
-                by_index[index]
-                for index in question.paragraph_indexes
-                if index in by_index
+                by_index[index] for index in question.paragraph_indexes if index in by_index
             ],
             limiter=limiter,
             target_indexes=target,
@@ -1190,9 +1171,7 @@ async def _analyze_batch(
         paragraph = by_index.get(anchor)
         if paragraph is None:
             continue
-        comments_by_index.setdefault(paragraph.index, []).append(
-            (slot.label, draft.kommentar)
-        )
+        comments_by_index.setdefault(paragraph.index, []).append((slot.label, draft.kommentar))
 
     rewrite_targets = [
         paragraph
@@ -1236,8 +1215,7 @@ def publication_unit_total(
     target: frozenset[int] | None,
 ) -> int:
     return sum(
-        len(_batches_for_target(section, target))
-        + (1 if heading_in_scope(section, target) else 0)
+        len(_batches_for_target(section, target)) + (1 if heading_in_scope(section, target) else 0)
         for section in sections
     )
 
@@ -1291,17 +1269,11 @@ async def _analyze_section(
             )
         )
 
-    async def finalize_ready_comment_windows(
-        *, allow_missing_lookahead: bool = False
-    ) -> None:
+    async def finalize_ready_comment_windows(*, allow_missing_lookahead: bool = False) -> None:
         nonlocal pending_obs
         while True:
             nxt = next(
-                (
-                    index
-                    for index in range(len(batches))
-                    if index not in comment_finalized
-                ),
+                (index for index in range(len(batches)) if index not in comment_finalized),
                 None,
             )
             if nxt is None or nxt not in batch_results:
@@ -1316,25 +1288,19 @@ async def _analyze_section(
                 pending_obs.extend(_observations_from_batch(batch_results[nxt]))
                 ingested.add(nxt)
             if lookahead_idx is not None and lookahead_idx not in ingested:
-                pending_obs.extend(
-                    _observations_from_batch(batch_results[lookahead_idx])
-                )
+                pending_obs.extend(_observations_from_batch(batch_results[lookahead_idx]))
                 ingested.add(lookahead_idx)
             comments, collapsed = await _consolidate_observations(
                 prompts=prompts,
                 section=section,
-                paragraphs=sorted(
-                    section_by_index.values(), key=lambda item: item.index
-                ),
+                paragraphs=sorted(section_by_index.values(), key=lambda item: item.index),
                 observations=pending_obs,
                 limiter=limiter,
                 review_intent=review_intent,
                 actor_context=actor_context,
             )
             if target is not None:
-                comments = [
-                    item for item in comments if item.paragraph_index in target
-                ]
+                comments = [item for item in comments if item.paragraph_index in target]
             current = batch_results[nxt]
             owned = batch_owned_indexes(current.paragraphs)
             if is_last:
@@ -1491,9 +1457,7 @@ async def _persist_publication_unit(
                 commit=False,
             )
         )
-        timings.record_comment_generated(
-            over_soft_length=comment_exceeds_soft_cap(item.kommentar)
-        )
+        timings.record_comment_generated(over_soft_length=comment_exceeds_soft_cap(item.kommentar))
         ordinal += 1
     for paragraph, suggestion in unit.rewrites:
         pending.append(
@@ -1524,9 +1488,7 @@ async def _persist_publication_unit(
                     job_id=job.id,
                     customer_id=payload.customer_id,
                     section_index=unit.section_index,
-                    paragraph_index=payload.sections[
-                        unit.section_index
-                    ].heading_paragraph_index,
+                    paragraph_index=payload.sections[unit.section_index].heading_paragraph_index,
                     expert_id="",
                     expert_namn="",
                     kommentar=suggestion,
@@ -1543,13 +1505,17 @@ async def _persist_publication_unit(
     await session.commit()
     source_ids = {row.id for row in pending}
     actions = (
-        await session.execute(
-            select(WordAction).where(
-                WordAction.job_id == job.id,
-                WordAction.source_id.in_(source_ids),
+        (
+            await session.execute(
+                select(WordAction).where(
+                    WordAction.job_id == job.id,
+                    WordAction.source_id.in_(source_ids),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     by_source = {action.source_id: action for action in actions}
     ordered = [by_source[row.id] for row in pending if row.id in by_source]
     published = await publish_created_actions(ordered, timings)
@@ -1687,9 +1653,9 @@ async def run_word_paragraph_review(
     limiter = WordReviewLimiter(settings.word_review_max_concurrency, timings)
     sections_total = len(payload.sections)
     units_total = publication_unit_total(payload.sections, target)
-    queue: asyncio.Queue[
-        WordPublicationUnit | WordSectionDone | WordSectionFailed
-    ] = asyncio.Queue()
+    queue: asyncio.Queue[WordPublicationUnit | WordSectionDone | WordSectionFailed] = (
+        asyncio.Queue()
+    )
     actor_context = ""
     section_tasks: list[asyncio.Task] = []
     paragraph_reviews = 0
@@ -1703,9 +1669,7 @@ async def run_word_paragraph_review(
     failed: BaseException | None = None
     pending_sections = 0
 
-    async def run_section(
-        section_index: int, section: WordDocumentSection
-    ) -> None:
+    async def run_section(section_index: int, section: WordDocumentSection) -> None:
         try:
             stats = await _analyze_section(
                 section_index=section_index,
@@ -1762,6 +1726,25 @@ async def run_word_paragraph_review(
                 await persist_unit(item)
 
     try:
+        from app.services.actor_profiles import ActorProfileTools
+
+        async def read_actor_profile(name: str, arguments: dict) -> str:
+            import json
+
+            request = dict(job.request or {})
+            if "actor_profile_snapshot" not in request:
+                handler = ActorProfileTools(
+                    session,
+                    user_id=payload.owner_user_id,
+                    customer_id=payload.customer_id,
+                    conversation=f"word:{job.id}",
+                    requested_by_id=payload.owner_user_id,
+                )
+                request["actor_profile_snapshot"] = json.loads(await handler(name, arguments))
+                job.request = request
+                await session.commit()
+            return json.dumps(request["actor_profile_snapshot"], ensure_ascii=False)
+
         actor = await resolve_actor_context(
             prompts=prompts,
             interview=payload.intent_interview,
@@ -1769,6 +1752,9 @@ async def run_word_paragraph_review(
             review_intent=payload.review_intent,
             limiter=limiter,
             locale=payload.locale,
+            actor_profile_handler=read_actor_profile
+            if any("get_actor_context" in slot.tools for slot in slots)
+            else None,
         )
         actor_context = compose_review_system_context(
             prompts=prompts,
@@ -1810,12 +1796,16 @@ async def run_word_paragraph_review(
             raise failed
         snapshot = timings.snapshot()
         result_rows = (
-            await session.execute(
-                select(ExpertgranskningResult)
-                .where(ExpertgranskningResult.job_id == job.id)
-                .order_by(ExpertgranskningResult.id.asc())
+            (
+                await session.execute(
+                    select(ExpertgranskningResult)
+                    .where(ExpertgranskningResult.job_id == job.id)
+                    .order_by(ExpertgranskningResult.id.asc())
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         findings_by_expert: dict[str, list[str]] = {}
         for row in result_rows:
             if not row.expert_id.strip():
@@ -1855,9 +1845,7 @@ async def run_word_paragraph_review(
         raise
     finally:
         if not logged_summary:
-            log_word_review_call_summary(
-                job.id, timings.snapshot(), outcome="failed"
-            )
+            log_word_review_call_summary(job.id, timings.snapshot(), outcome="failed")
 
 
 async def word_paragraph_review(

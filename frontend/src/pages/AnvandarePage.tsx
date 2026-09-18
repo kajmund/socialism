@@ -1,3 +1,4 @@
+import { AdminProfileEditor } from "@/components/profiles/AdminProfileEditor"
 import { useEffect, useState, type FormEvent } from "react"
 import { createPortal } from "react-dom"
 import { createKund, listKunder, type Kund } from "@/api/kunder"
@@ -248,7 +249,7 @@ export function AnvandarePage() {
                   <tbody>
                     {users.map((row) => (
                       <tr key={row.id} className="border-b border-[color:var(--border-hairline)]">
-                        <td className="px-2 py-2">{row.email}</td>
+                        <td className="px-2 py-2">{row.email}<AdminProfileEditor user={row} onSaved={reload} /></td>
                         <td className="px-2 py-2">{roleLabel(row.role)}</td>
                         <td className="px-2 py-2">
                           {row.kund_name ?? t("tools.users.noKund")}

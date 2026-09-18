@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from app.services.actor_profiles import ActorToolHandler
+
 import asyncio
 from typing import Any
 
@@ -82,10 +84,14 @@ def _research_context(config: PanelSessionConfig) -> dict[str, Any]:
 async def _plan_questions(
     config: PanelSessionConfig,
     prompts: dict[str, str],
+    *,
+    actor_profile_handler: ActorToolHandler | None = None,
 ) -> ResearchPlan:
     proposals = await asyncio.gather(
         *(
-            collect_expert_research_needs(slot, config, config.topic, prompts)
+            collect_expert_research_needs(
+                slot, config, config.topic, prompts, actor_profile_handler=actor_profile_handler
+            )
             for slot in config.expert_slots
         )
     )
@@ -256,7 +262,34 @@ async def run_expertgranskning_with_research(
             module=MODULE_ID,
             language=config.locale,
         )
-        plan = await _plan_questions(config, prompts)
+        from app.database.models import Job
+        from app.services.actor_profiles import ActorProfileTools
+        import json
+
+        actor_lock = asyncio.Lock()
+        job = await session.get(Job, panel.job_id) if panel.job_id else None
+        owner = (job.request or {}).get("owner_user_id") if job else None
+
+        async def read_actor_profile(name: str, arguments: dict) -> str:
+            async with actor_lock:
+                request = dict(job.request or {})
+                if "actor_profile_snapshot" not in request:
+                    handler = ActorProfileTools(
+                        session,
+                        user_id=owner,
+                        customer_id=customer_id,
+                        conversation=f"review:{panel.id}",
+                        requested_by_id=owner,
+                    )
+                    request["actor_profile_snapshot"] = json.loads(await handler(name, arguments))
+                    job.request = request
+                    await session.commit()
+                config.actor_profile_context = request["actor_profile_snapshot"]
+                return json.dumps(config.actor_profile_context, ensure_ascii=False)
+
+        plan = await _plan_questions(
+            config, prompts, actor_profile_handler=read_actor_profile if owner else None
+        )
         run_context: dict[str, object] = {
             "consumer": "expertgranskning",
             "panel_session_id": panel.id,
