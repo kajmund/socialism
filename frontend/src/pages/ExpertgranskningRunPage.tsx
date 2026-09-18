@@ -363,7 +363,13 @@ function ExpertgranskningRunInner({ bolag }: { bolag: boolean }) {
       const saved = await persistSession()
       const started = await runExpertgranskningSession(saved.id)
       rememberJobPending(started.job_id)
-      setSession({ ...saved, status: "pending", job_id: started.job_id })
+      setSession({
+        ...saved,
+        status: "pending",
+        job_id: started.job_id,
+        execution_run_id: null,
+        execution_attempt_id: null,
+      })
       setLocalReportId(null)
       autoReportStarted.current = false
       navigate(`${base}/${saved.id}?tab=results&view=live`, { replace: true })

@@ -438,9 +438,21 @@ async def prepare_session_for_run(session: AsyncSession, row: PanelSession) -> N
     if not slots:
         loaded = await load_expert_slots_from_population(session, row.panel_id)
         config["expert_slots"] = [slot.model_dump(mode="json") for slot in loaded]
-        row.config = config
-        row.scratchpads = {slot.slot_id: "" for slot in loaded}
-        await session.flush()
+        slots = config["expert_slots"]
+
+    config.pop("execution_run_id", None)
+    config.pop("execution_attempt_id", None)
+    row.config = config
+    row.transcript = []
+    row.scratchpads = {
+        str(slot.get("slot_id") or slot.get("id") or ""): ""
+        for slot in slots
+        if isinstance(slot, dict)
+    }
+    row.analysis = None
+    row.result = None
+    row.research_plan = None
+    await session.flush()
 
 
 async def _customer_id_for_session(session: AsyncSession, row: PanelSession) -> int:

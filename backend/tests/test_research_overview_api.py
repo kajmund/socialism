@@ -21,6 +21,53 @@ from app.services.research.question_domain import (
 from tests.conftest import TEST_CUSTOMER_ID
 
 
+async def test_empty_research_is_only_not_needed_after_attempt_is_ready(client_db):
+    client, factory = client_db
+    run_response = await client.post(
+        "/execution/runs",
+        json={
+            "customer_id": TEST_CUSTOMER_ID,
+            "module": "expertgranskning",
+            "title": "Avtalsgranskning",
+            "context": {},
+        },
+    )
+    run = run_response.json()
+    async with factory() as session:
+        parent = await create_attempt(
+            session,
+            run_id=run["id"],
+            attempt_type="generic_panel",
+            configuration_snapshot={},
+            input_snapshot={},
+        )
+        await session.commit()
+
+    response = await client.get(f"/execution/attempts/{parent.id}/research-overview")
+    assert response.json()["phase"] == "researching"
+
+    async with factory() as session:
+        evidence_set = await create_evidence_set(
+            session,
+            run_id=run["id"],
+            created_from_attempt_id=parent.id,
+        )
+        await claim_freeze_evidence_set(session, evidence_set.id)
+        await attach_evidence_set(
+            session,
+            attempt_id=parent.id,
+            evidence_set_id=evidence_set.id,
+        )
+        await mark_ready(session, parent.id)
+        await session.commit()
+
+    response = await client.get(f"/execution/attempts/{parent.id}/research-overview")
+    body = response.json()
+    assert body["phase"] == "not_needed"
+    assert body["counts"]["total"] == 0
+    assert body["questions"] == []
+
+
 async def test_research_overview_aggregates_question_graph_and_sources(client_db):
     client, factory = client_db
     run_response = await client.post(
