@@ -7,14 +7,14 @@ tags: [grunddata]
 
 # Förstå och annotera underlag
 
-När du laddar upp ett underlag läses dokumentet i bakgrunden. Word-filer konverteras först till PDF. Systemet skapar en neutral dokumentöversikt med fakta och frågor och svar som hjälper dig att förstå innehållet. Översikten beskriver vad som står i dokumentet; den letar inte efter problem, risker eller råd.
+När du laddar upp ett underlag läses dokumentet i bakgrunden. Word-filer konverteras först till PDF. Systemet skapar en neutral dokumentöversikt med fakta och frågor och svar som hjälper dig att förstå innehållet. Korten lyfter ett fåtal praktiska nyckeluppgifter, till exempel parter, pris, löptid och uppsägning. De återger inte varje klausul. Hela dokumenttexten är fortfarande sökbar. Översikten beskriver vad som står i dokumentet; den letar inte efter problem, risker eller råd.
 
 ## Läs dokumentkunskapen
 
 1. Öppna **Välj underlag** från till exempel Expertgranskning eller **Föreslå experter**.
 2. Välj filen. PDF:en visas tillsammans med **Dokumentkunskap**.
 3. Medan filen bearbetas står det att dokumentkunskapen byggs i bakgrunden. Du kan lämna vyn och komma tillbaka senare.
-4. Klicka på ett fakta- eller frågekort. PDF:en rullar till rätt sida och markerar texten som uppgiften bygger på.
+4. Klicka på ett fakta- eller frågekort. PDF:en rullar till källavsnittet och visar alla kopplade textmarkeringar med gul bakgrund. Källavsnittet ska täcka hela uppgiften, inklusive relevanta villkor.
 5. **AI-genererad** eller **Manuell** visar hur posten skapades. Du kan redigera och ta bort båda typerna.
 
 En PDF utan läsbart textlager markeras med **Textlager saknas**. OCR ingår inte i det här steget, så sådana dokument får ingen automatisk dokumentkunskap ännu.

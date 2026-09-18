@@ -22,13 +22,13 @@ export function DocumentKnowledgePanel({
   file,
   selection,
   onClearSelection,
-  onFocusAnchor,
+  onFocusAnchors,
   onFileUpdate,
 }: {
   file: UnderlagFile
   selection: DocumentKnowledgeAnchor | null
   onClearSelection: () => void
-  onFocusAnchor: (anchor: DocumentKnowledgeAnchor) => void
+  onFocusAnchors: (anchors: DocumentKnowledgeAnchor[]) => void
   onFileUpdate: (file: UnderlagFile) => void
 }) {
   const { t } = useLocale()
@@ -159,7 +159,7 @@ export function DocumentKnowledgePanel({
                     type="button"
                     className="block w-full text-left"
                     disabled={!anchor}
-                    onClick={() => anchor && onFocusAnchor(anchor)}
+                    onClick={() => anchor && onFocusAnchors(item.anchors)}
                   >
                     <span className="flex items-start gap-2">
                       <KindIcon kind={item.kind} />
@@ -212,7 +212,7 @@ export function DocumentKnowledgePanel({
                           title={t("underlag.knowledge.edit")}
                           onClick={() => {
                             setEditing(item)
-                            if (anchor) onFocusAnchor(anchor)
+                            if (anchor) onFocusAnchors(item.anchors)
                           }}
                         >
                           <Pencil className="size-3.5" aria-hidden />
