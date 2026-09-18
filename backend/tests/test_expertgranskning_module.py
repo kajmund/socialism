@@ -14,6 +14,7 @@ from sqlalchemy import select
 from app.database.models import (
     EvidenceSetItem,
     ExecutionAttempt,
+    PanelSession,
     ResearchQuestion,
     ResearchQuestionExpert,
     SpecificQuestion,
@@ -261,6 +262,68 @@ async def _create_expert_panel(client: AsyncClient) -> int:
             client.headers.pop("Authorization", None)
     assert created.status_code == 201, created.text
     return created.json()["id"]
+
+
+@pytest.mark.asyncio
+async def test_rerun_clears_previous_execution_and_panel_state(client: AsyncClient):
+    panel_id = await _create_expert_panel(client)
+    created = await client.post(
+        "/expertgranskning/sessions",
+        json={
+            "document_text": "Ett avtal som ska granskas.",
+            "panel_id": panel_id,
+            "title": "Avtalsgranskning",
+        },
+    )
+    assert created.status_code == 201, created.text
+    session_id = created.json()["id"]
+
+    factory = jobs_service.job_session_factory()
+    assert factory is not None
+    async with factory() as db:
+        row = await db.get(PanelSession, session_id)
+        assert row is not None
+        row.status = "succeeded"
+        row.config = {
+            **dict(row.config or {}),
+            "execution_run_id": "run_old",
+            "execution_attempt_id": "attempt_old",
+        }
+        row.transcript = [
+            {
+                "turn_id": "old-opening",
+                "speaker": "moderator",
+                "phase": "opening",
+                "content": "Gammal öppning",
+                "checkpoint": {"competency": {"slots": []}},
+            }
+        ]
+        row.scratchpads = {"old-expert": "Gammal anteckning"}
+        row.analysis = "Gammal analys"
+        row.result = {"protocol": "generic_panel"}
+        row.research_plan = {"needs": []}
+        await db.commit()
+
+    jobs_service.set_schedule_hook(lambda _job_id: None)
+    try:
+        response = await client.post(f"/expertgranskning/sessions/{session_id}/run")
+        assert response.status_code == 202, response.text
+    finally:
+        jobs_service.set_schedule_hook(None)
+
+    async with factory() as db:
+        row = await db.get(PanelSession, session_id)
+        assert row is not None
+        assert "execution_run_id" not in row.config
+        assert "execution_attempt_id" not in row.config
+        assert row.transcript == []
+        assert row.analysis is None
+        assert row.result is None
+        assert row.research_plan is None
+        assert set(row.scratchpads) == {
+            str(slot["slot_id"]) for slot in row.config["expert_slots"]
+        }
+        assert all(value == "" for value in row.scratchpads.values())
 
 
 @pytest.mark.asyncio
