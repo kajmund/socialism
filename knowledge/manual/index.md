@@ -80,9 +80,14 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 * [Köra en Due Diligence-kampanj](kora-dd-kampanj.md) — Skapa kampanj, chatta fram bolag och köra Due Diligence per kandidat
 * [Byt namn på en Due Diligence-kampanj](byt-namn-pa-dd-kampanj.md) — Ändra kampanjens titel på fliken Översikt
 
+# SME
+
+* [Använda SME-chatten](anvanda-sme-chatten.md) — Chatta med experter och expertpaneler, följ olästa svar och bakgrundsjobb
+
 # Expertgranskning
 
 * [Använda expertgranskning](anvanda-expertgranskning.md) — Ladda upp eller klistra in text, ange granskningsavsikt, välj panel och kör en granskning
+* [Förstå och annotera underlag](forsta-och-annotera-underlag.md) — Läs dokumentets översikt och lägg till egna fakta, frågor, bokmärken och anteckningar i PDF:en
 * [Använda expertgranskning i bolagsytan](anvanda-expertgranskning-i-bolagsytan.md) — Samma funktion under Bolag-menyn för DD-only-konton
 * [Granska ett dokument i Word](granska-dokument-i-word.md) — Välj panel och omfattning, svara på avsiktsfrågor i Word-tillägget; tillämpa eller avfärda förslag medan granskningen körs
 
@@ -100,3 +105,5 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 # Taggar
 
 Återanvänd dessa taggar i nya guider: `korningar`, `personas`, `populationer`, `budskap`, `grunddata`, `jobb`, `rapporter`.
+
+- [Profil och organisationsuppgifter](profil-och-organisation.md)

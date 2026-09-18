@@ -135,6 +135,12 @@ def test_modules_for_prompt_key_follows_prefix_convention():
     assert modules_for_prompt_key("expertgranskning.word.intent_interview") == [
         "expertgranskning"
     ]
+    assert modules_for_prompt_key("document_knowledge.ingest.system") == [
+        "dd",
+        "politik",
+        "expertgranskning",
+        "rattsunderlag",
+    ]
 
 
 def test_module_providers_cover_all_catalog_keys_without_overlap_gaps():
@@ -145,7 +151,10 @@ def test_module_providers_cover_all_catalog_keys_without_overlap_gaps():
     all_keys = {field["key"] for field in PROMPT_FIELDS}
     assert dd_keys | politik_keys | ratts_keys | expert_keys == all_keys
     spinndoctor_keys = {key for key in all_keys if key.startswith("spinndoctor.")}
-    shared_with_dd = spinndoctor_keys | {"panel.expert.system"}
+    document_knowledge_keys = {
+        key for key in all_keys if key.startswith("document_knowledge.")
+    }
+    shared_with_dd = spinndoctor_keys | document_knowledge_keys | {"panel.expert.system"}
     assert shared_with_dd <= ratts_keys
     assert ratts_keys.isdisjoint(dd_keys - shared_with_dd)
     assert {

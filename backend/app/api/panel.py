@@ -99,7 +99,7 @@ async def post_panel_session_run(
     row.error = None
     await session.flush()
 
-    request: dict[str, object] = {"session_id": session_id}
+    request: dict[str, object] = {"session_id": session_id, "owner_user_id": user.id}
     if row.campaign_id is not None:
         request["campaign_id"] = row.campaign_id
     candidate_id = (row.config or {}).get("candidate_id")

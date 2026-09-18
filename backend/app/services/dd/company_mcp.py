@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+from app.services.actor_profiles import ActorToolHandler
+
 import json
 import re
+from collections.abc import Awaitable, Callable
+from contextlib import AsyncExitStack
 from types import SimpleNamespace
 from typing import Any, Self
 
@@ -18,8 +22,8 @@ from app.services.dd.bolagsapi_mcp import (
     mcp_tools_to_openai,
 )
 from app.services.dd.schemas import DdCandidateCompany
-from app.services.help_chat import looks_like_leaked_tool_markup
 from app.services.expert_tools import filter_openai_tools
+from app.services.help_chat import looks_like_leaked_tool_markup
 from app.services.oasis_agent_tools import (
     SEARCH_TOOL_NAMES,
     run_search_tool,
@@ -42,6 +46,29 @@ _TOOL_CALL_JSON_RE = re.compile(
 )
 
 COMPANY_TOOL_NAMES = frozenset({"search_companies", "lookup_company", "validate_orgnr"})
+RESEARCH_TOOL_NAME = "start_research"
+ResearchToolHandler = Callable[[dict[str, Any]], Awaitable[str]]
+
+_RESEARCH_TOOL_SPEC: dict[str, Any] = {
+    "type": "function",
+    "function": {
+        "name": RESEARCH_TOOL_NAME,
+        "description": (
+            "Queue background research after the user has explicitly approved it. "
+            "Never call this merely to ask for approval."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "question": {
+                    "type": "string",
+                    "description": "Standalone general research question",
+                }
+            },
+            "required": ["question"],
+        },
+    },
+}
 
 _ALLABOLAG_SPECS: list[dict[str, Any]] = [
     {
@@ -240,8 +267,7 @@ def tool_calls_from_leaked_markup(text: str) -> list[Any]:
     for match in _INVOKE_RE.finditer(text):
         name = match.group(1)
         args = {
-            param.group(1): param.group(2).strip()
-            for param in _PARAM_RE.finditer(match.group(2))
+            param.group(1): param.group(2).strip() for param in _PARAM_RE.finditer(match.group(2))
         }
         if name and any(value for value in args.values()):
             calls.append(_fake_tool_call(len(calls) + 1, name, args))
@@ -280,14 +306,27 @@ async def run_company_tool_loop(
     max_rounds: int = _MAX_TOOL_ROUNDS,
     with_search: bool = False,
     allowed_tools: frozenset[str] | None = None,
+    research_tool_handler: ResearchToolHandler | None = None,
+    actor_tool_handler: ActorToolHandler | None = None,
 ) -> tuple[list[dict[str, Any]], list[DdCandidateCompany]]:
     """Run search/lookup tool rounds. Returns the working transcript and parsed hits."""
     found: list[DdCandidateCompany] = []
     working = list(messages)
-    async with CompanyMcpClient() as mcp:
-        tools = await mcp.openai_tools()
+    company_tools_enabled = allowed_tools is None or bool(allowed_tools & COMPANY_TOOL_NAMES)
+    async with AsyncExitStack() as stack:
+        mcp = None
+        tools: list[dict[str, Any]] = []
+        if company_tools_enabled:
+            mcp = await stack.enter_async_context(CompanyMcpClient())
+            tools = await mcp.openai_tools()
         if with_search:
             tools = [*tools, *search_tool_specs()]
+        if research_tool_handler is not None:
+            tools = [*tools, _RESEARCH_TOOL_SPEC]
+        if actor_tool_handler is not None:
+            from app.services.actor_profiles import actor_tool_specs
+
+            tools.extend(actor_tool_specs())
         if allowed_tools is not None:
             tools = filter_openai_tools(tools, allowed_tools)
         if not tools:
@@ -318,12 +357,22 @@ async def run_company_tool_loop(
                 arguments = parse_tool_args(call.function.arguments)
                 allowed = allowed_tools is None or name in allowed_tools
                 try:
-                    if allowed and name in COMPANY_TOOL_NAMES:
-                        tool_text, parsed = await mcp.call_tool_with_candidates(
-                            name, arguments
-                        )
+                    if (
+                        allowed
+                        and actor_tool_handler is not None
+                        and name in {"get_actor_context", "propose_actor_context_update"}
+                    ):
+                        tool_text = await actor_tool_handler(name, arguments)
+                        parsed = []
+                    elif allowed and name in COMPANY_TOOL_NAMES and mcp is not None:
+                        tool_text, parsed = await mcp.call_tool_with_candidates(name, arguments)
                     elif allowed and with_search and name in SEARCH_TOOL_NAMES:
                         tool_text = run_search_tool(name, arguments)
+                        parsed = []
+                    elif (
+                        allowed and name == RESEARCH_TOOL_NAME and research_tool_handler is not None
+                    ):
+                        tool_text = await research_tool_handler(arguments)
                         parsed = []
                     else:
                         tool_text = f"Unknown tool: {name}"
@@ -352,6 +401,8 @@ async def complete_text_with_company_tools(
     messages: list[dict[str, Any]],
     *,
     allowed_tools: frozenset[str] | None = None,
+    research_tool_handler: ResearchToolHandler | None = None,
+    actor_tool_handler: ActorToolHandler | None = None,
 ) -> str:
     """Tool loop then a visible assistant reply. Used by DD experts and chats."""
     if allowed_tools is not None and not allowed_tools:
@@ -360,7 +411,11 @@ async def complete_text_with_company_tools(
             raise CompanyMcpError("Company tools produced an empty reply")
         return reply
     working, _found = await run_company_tool_loop(
-        messages, with_search=True, allowed_tools=allowed_tools
+        messages,
+        with_search=True,
+        allowed_tools=allowed_tools,
+        research_tool_handler=research_tool_handler,
+        actor_tool_handler=actor_tool_handler,
     )
     content = visible_assistant_text(working[-1])
     if content:

@@ -773,6 +773,7 @@ async def chat_websocket(websocket: WebSocket) -> None:
                             session,
                             persona_id=library_hello.persona_id,
                             mode=library_hello.mode,
+                            actor_user_id=user.id,
                             message=send.message,
                             image_sha256=send.image_sha256,
                         )

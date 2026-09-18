@@ -1,12 +1,21 @@
-import { Navigate, Outlet, Route, Routes, useParams } from "react-router-dom"
+import { ProfilePage } from "@/pages/ProfilePage"
+import {
+  Navigate,
+  Outlet,
+  Route,
+  Routes,
+  useLocation,
+  useParams,
+} from "react-router-dom"
 import { useAuth } from "@/auth/AuthProvider"
 import { RequireAdmin } from "@/auth/RequireAdmin"
-import { RequireAuth } from "@/auth/RequireAuth"
+import { AuthSplash, RequireAuth } from "@/auth/RequireAuth"
 import { RequireBolag } from "@/auth/RequireBolag"
 import { RequireExpertgranskning } from "@/auth/RequireExpertgranskning"
 import { RequireRattsunderlag } from "@/auth/RequireRattsunderlag"
 import { RequireOsUser } from "@/auth/RequireOsUser"
 import { homePathForUser } from "@/lib/auth"
+import { isSameOriginFrame } from "@/lib/frame"
 import { BolagShell } from "@/components/layout/BolagShell"
 import { HelpChatWidget } from "@/components/help/HelpChatWidget"
 import { ToolsShell } from "@/components/layout/ToolsShell"
@@ -53,11 +62,15 @@ import { PopulationDetailPage } from "@/pages/PopulationDetailPage"
 import { PopulationsPage } from "@/pages/PopulationsPage"
 import { RattsunderlagPage } from "@/pages/RattsunderlagPage"
 import { RattsunderlagRunPage } from "@/pages/RattsunderlagRunPage"
+import { ResearchMonitorPage } from "@/pages/ResearchMonitorPage"
 import { ReportPage } from "@/pages/ReportPage"
 import { BolagReportsPage, ReportsPage } from "@/pages/ReportsPage"
 import { RunsPage } from "@/pages/RunsPage"
 import { JobsRealtimeProvider } from "@/realtime/JobsRealtimeProvider"
 import { ReportsRealtimeProvider } from "@/realtime/ReportsRealtimeProvider"
+import { SmeJobsShell } from "@/products/sme/SmeJobsShell"
+import { SmeMessengerPage } from "@/products/sme/SmeMessengerPage"
+import { smeProductAllowsPath } from "@/products/sme/smePaths"
 
 function RedirectPopulationEdit() {
   const { id } = useParams<{ id: string }>()
@@ -85,6 +98,33 @@ function AuthenticatedShell() {
   )
 }
 
+function ProductGate() {
+  const { pathname } = useLocation()
+  const { isAdmin, user } = useAuth()
+  const embeddedTools =
+    isAdmin && isSameOriginFrame() && pathname.startsWith("/tools")
+  if (embeddedTools) return <Outlet />
+  if (user?.product === "sme") {
+    if (smeProductAllowsPath(pathname)) return <Outlet />
+    return (
+      <JobsRealtimeProvider>
+        <SmeMessengerPage />
+      </JobsRealtimeProvider>
+    )
+  }
+  return <Outlet />
+}
+
+function JobsRoute() {
+  const { user, hasModule, loading, resolvedModules } = useAuth()
+  if (loading) return <AuthSplash />
+  if (user?.product === "sme") return <JobsPage Shell={SmeJobsShell} />
+  if (!hasModule("politik")) {
+    return <Navigate to={homePathForUser(resolvedModules)} replace />
+  }
+  return <JobsPage />
+}
+
 export default function App() {
   return (
     <Routes>
@@ -92,7 +132,9 @@ export default function App() {
       <Route path="/dev-in" element={<LocalLoginPage />} />
 
       <Route element={<RequireAuth />}>
+        <Route element={<ProductGate />}>
         <Route element={<AuthenticatedShell />}>
+          <Route path="/profil" element={<ProfilePage />} />
           <Route path="/valj-modul" element={<RedirectToHome />} />
 
           <Route element={<RequireAdmin />}>
@@ -160,6 +202,8 @@ export default function App() {
           </Route>
 
           <Route path="/execution/runs/:runId" element={<ExecutionRunPage />} />
+          <Route path="/research/:attemptId" element={<ResearchMonitorPage />} />
+          <Route path="/jobs" element={<JobsRoute />} />
 
           <Route element={<RequireOsUser />}>
           <Route path="/" element={<DashboardPage />} />
@@ -180,13 +224,13 @@ export default function App() {
           <Route path="/messages/new" element={<MessagesWorkshopPage />} />
           <Route path="/messages/:id/edit" element={<MessagesWorkshopPage />} />
 
-          <Route path="/jobs" element={<JobsPage />} />
           <Route path="/feedback" element={<FeedbackPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/reports/:id" element={<ReportPage />} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
+        </Route>
         </Route>
       </Route>
     </Routes>

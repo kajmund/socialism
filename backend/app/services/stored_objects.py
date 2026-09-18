@@ -17,8 +17,8 @@ from app.services.object_storage import (
     KIND_REPORT_SLOTS,
     KIND_REPORT_SOURCE_PDF,
     KIND_UNDERLAG,
-    ObjectStorageError,
     UNDERLAG_DOCX_TYPE,
+    ObjectStorageError,
     bucket_name,
     delete_object,
     ensure_bucket,
@@ -57,6 +57,9 @@ def serialize_underlag(row: StoredObject, *, include_text: bool) -> dict:
         "owner_user_id": row.owner_user_id,
         "folder_id": row.folder_id,
         "extraction_status": row.extraction_status,
+        "knowledge_status": row.knowledge_status,
+        "knowledge_error": row.knowledge_error,
+        "knowledge_job_id": row.knowledge_job_id,
         "created_at": format_date(row.created_at) if row.created_at else "",
     }
     if include_text:
@@ -323,6 +326,9 @@ async def upload_underlag(
         folder_id=folder_id,
         extracted_text=None,
         extraction_status="pending",
+        knowledge_status="pending",
+        knowledge_error=None,
+        knowledge_job_id=None,
         created_at=utcnow(),
     )
     session.add(row)

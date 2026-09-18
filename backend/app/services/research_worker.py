@@ -26,6 +26,7 @@ from app.services.research.claims import (
     start_request_payload,
 )
 from app.services.research.composition import (
+    build_standard_question_graph,
     build_standard_research_router,
     require_research_router_ready,
     resolve_completeness_reviewer,
@@ -41,7 +42,6 @@ from app.services.research.planner import (
     require_research_objective,
     research_objective_to_snapshot,
 )
-from app.services.research.question_graph_sql import SqlQuestionEvidenceGraph
 
 logger = logging.getLogger(__name__)
 
@@ -334,7 +334,7 @@ async def _execute_claimed_research(
             assessor=bound["assessor"],
             planner=bound["planner"],
             completeness_reviewer=bound["completeness_reviewer"],
-            question_graph=SqlQuestionEvidenceGraph(),
+            question_graph=build_standard_question_graph(),
             session_factory=factory,
             lease_lost=lease_lost,
         )
@@ -369,30 +369,53 @@ async def _bind_claimed_research(
             objective=require_research_objective(str(raw_objective)),
             context=dict(context),
         )
+    components = await bind_research_components(
+        session,
+        customer_id=run.customer_id,
+        module=run.module,
+        require_planner=plan is None,
+    )
+    return {
+        "plan": plan,
+        "objective": objective,
+        **components,
+    }
+
+
+async def bind_research_components(
+    session: AsyncSession,
+    *,
+    customer_id: int,
+    module: str,
+    require_planner: bool = True,
+) -> dict[str, Any]:
+    """Resolve the same production collaborators used by claimed research.
+
+    Synchronous product flows such as Expertgranskning use this public seam
+    instead of duplicating the worker's composition rules.
+    """
     require_research_router_ready()
     assessor = resolve_research_assessor()
     if assessor is None:
         assessor = await build_llm_research_assessor(
-            session, customer_id=run.customer_id, module=run.module
+            session, customer_id=customer_id, module=module
         )
     planner = resolve_follow_up_planner()
     if planner is None:
         planner = await build_llm_follow_up_planner(
-            session, customer_id=run.customer_id, module=run.module
+            session, customer_id=customer_id, module=module
         )
     research_planner = resolve_research_planner()
-    if research_planner is None and plan is None:
+    if research_planner is None and require_planner:
         research_planner = await build_llm_research_planner(
-            session, customer_id=run.customer_id, module=run.module
+            session, customer_id=customer_id, module=module
         )
     completeness_reviewer = resolve_completeness_reviewer()
     if completeness_reviewer is None:
         completeness_reviewer = await build_llm_research_completeness_reviewer(
-            session, customer_id=run.customer_id, module=run.module
+            session, customer_id=customer_id, module=module
         )
     return {
-        "plan": plan,
-        "objective": objective,
         "research_planner": research_planner,
         "assessor": assessor,
         "planner": planner,

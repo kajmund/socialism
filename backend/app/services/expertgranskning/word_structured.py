@@ -1,28 +1,26 @@
-"""Word-local structured LLM calls with one JSON-syntax retry.
+"""Word structured LLM calls reuse the shared retry seam.
 
 Does not repair JSON in code. A second syntax failure fails closed.
+Retry ownership lives in ``complete_structured_retry`` — this wrapper
+only supplies the Word catalog instruction and job timings.
 """
 
 from __future__ import annotations
 
-import logging
-
-from pydantic import ValidationError
-
-from app.llm import ChatMessage, complete_structured
+from app.llm import (
+    ChatMessage,
+    complete_structured_retry,
+    is_json_syntax_validation_error,
+    validation_category,
+)
 from app.services.expertgranskning.word_review_timing import WordReviewTimings
 from app.services.prompt_catalog import render_prompt
 
-logger = logging.getLogger(__name__)
-
-
-def is_json_syntax_validation_error(exc: ValidationError) -> bool:
-    return any(error.get("type") == "json_invalid" for error in exc.errors())
-
-
-def validation_category(exc: ValidationError) -> str:
-    types = [error.get("type") for error in exc.errors() if error.get("type")]
-    return str(types[0]) if types else "unknown"
+__all__ = [
+    "complete_word_structured",
+    "is_json_syntax_validation_error",
+    "validation_category",
+]
 
 
 async def complete_word_structured[T](
@@ -34,36 +32,13 @@ async def complete_word_structured[T](
     model: str | None = None,
     max_tokens: int | None = None,
 ) -> T:
-    try:
-        return await complete_structured(
-            messages,
-            response_model,
-            model=model,
-            max_tokens=max_tokens,
-        )
-    except ValidationError as exc:
-        category = validation_category(exc)
-        if not is_json_syntax_validation_error(exc):
-            raise
-        logger.info(
-            "Word structured output schema=%s attempt=1 category=%s, retrying once",
-            response_model.__name__,
-            category,
-        )
-        if timings is not None:
-            timings.record_structured_retry()
-        retry = render_prompt(prompts, "expertgranskning.word.structured_retry")
-        try:
-            return await complete_structured(
-                [*messages, {"role": "user", "content": retry}],
-                response_model,
-                model=model,
-                max_tokens=max_tokens,
-            )
-        except ValidationError as retry_exc:
-            logger.info(
-                "Word structured output schema=%s attempt=2 category=%s",
-                response_model.__name__,
-                validation_category(retry_exc),
-            )
-            raise
+    return await complete_structured_retry(
+        messages,
+        response_model,
+        retry_instruction=render_prompt(
+            prompts, "expertgranskning.word.structured_retry"
+        ),
+        on_retry=timings.record_structured_retry if timings is not None else None,
+        model=model,
+        max_tokens=max_tokens,
+    )

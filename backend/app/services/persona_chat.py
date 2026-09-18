@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import AsyncIterator
+import re
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Any, Literal
@@ -26,15 +27,20 @@ from app.schemas.domain import (
     ChatMode,
     EditablePersona,
     ExpertMemoryOut,
+    JobCreate,
     PersonaChatResponse,
     PersonaMessageOut,
 )
 from app.serializers import format_date, profile_from_dict, utcnow
-from app.services.dd.company_mcp import CompanyMcpError
+from app.services.dd.company_mcp import CompanyMcpError, ResearchToolHandler
 from app.services.dd.expert_keys import persona_catalog_key
 from app.services.district_context import area_block_for_name
+from app.services.expert_chat_evidence import (
+    combine_expert_chat_context,
+    reusable_expert_chat_evidence_context,
+)
 from app.services.expert_tools import resolve_chat_tools
-from app.services.expertgranskning.memory import get_expert_memory
+from app.services.expertgranskning.memory import ExpertMemoryHit, get_expert_memory
 from app.services.expertgranskning.memory_view import serialize_memory_hit
 from app.services.oasis_run import previous_attempts
 from app.services.prompt_catalog import render_prompt
@@ -42,6 +48,8 @@ from app.services.prompt_store import require_prompts_for_persona
 from app.services.run_tick_context import build_persona_feed_context
 
 logger = logging.getLogger(__name__)
+
+LibraryTurnWriteGuard = Callable[[AsyncSession], Awaitable[bool]]
 
 
 class ChatTurnError(Exception):
@@ -61,6 +69,92 @@ _chat_locks_guard = asyncio.Lock()
 _LIBRARY_LOCK_WAIT_SECONDS = 30.0
 _follow_up_tasks: dict[str, asyncio.Task[list[str]]] = {}
 _follow_up_tasks_guard = asyncio.Lock()
+
+
+def _explicit_research_confirmation(message: str) -> bool:
+    normalized = " ".join(re.sub(r"[^\w]+", " ", message.casefold()).split())
+    return normalized in {
+        "ja",
+        "ja tack",
+        "ja gör det",
+        "ja starta research",
+        "absolut",
+        "gör det",
+        "starta research",
+        "starta den",
+        "kör",
+        "kör igång",
+        "kör researchen",
+        "yes",
+        "yes please",
+        "start the research",
+        "go ahead",
+    }
+
+
+def _assistant_offered_research(message: str) -> bool:
+    normalized = " ".join(re.sub(r"[^\w]+", " ", message.casefold()).split())
+    asks_to_start = any(
+        phrase in normalized
+        for phrase in (
+            "starta research",
+            "starta en research",
+            "startar research",
+            "startar en research",
+            "start a research",
+            "start research",
+            "begin research",
+        )
+    )
+    return asks_to_start and "?" in message
+
+
+def research_tool_handler_for_chat(
+    session: AsyncSession,
+    *,
+    persona: Persona,
+    history: list[tuple[str, str, str | None]],
+    user_message: str,
+) -> ResearchToolHandler:
+    queued_job_id: str | None = None
+    previous_assistant = history[-1][1] if history and history[-1][0] == "assistant" else ""
+    specific_question = next(
+        (content for role, content, _image in reversed(history) if role == "user"),
+        "",
+    )
+
+    async def handle(arguments: dict[str, Any]) -> str:
+        nonlocal queued_job_id
+        if queued_job_id is not None:
+            return f"Researchjobbet är redan köat: {queued_job_id}"
+        offered = _assistant_offered_research(previous_assistant)
+        if not offered or not _explicit_research_confirmation(user_message):
+            return (
+                "Research startades inte. Du måste först fråga användaren och invänta "
+                "ett uttryckligt bekräftande svar i nästa chattmeddelande."
+            )
+        question = str(arguments.get("question") or "").strip()
+        if not question or len(question) > 4000:
+            return "Research startades inte: question måste vara 1–4000 tecken."
+        from app.services import jobs as jobs_service
+
+        job = await jobs_service.create_job(
+            session,
+            JobCreate(
+                kind="expert_chat_research",
+                label=f"Expertresearch: {question[:80]}",
+                request={
+                    "persona_id": persona.id,
+                    "specific_question": specific_question or question,
+                    "question": question,
+                },
+            ),
+        )
+        jobs_service.enqueue_job(job.id)
+        queued_job_id = job.id
+        return f"Researchjobbet är köat i bakgrunden med id {job.id}. Resultatet finns inte ännu."
+
+    return handle
 
 
 async def _chat_turn_lock(key: str) -> asyncio.Lock:
@@ -118,10 +212,7 @@ def _interview_lock_key(
     variant_id: str,
     through_tick_index: int,
 ) -> str:
-    return (
-        f"interview:{persona_id}:{run_id}:{attempt_id}:"
-        f"{variant_id}:{through_tick_index}"
-    )
+    return f"interview:{persona_id}:{run_id}:{attempt_id}:{variant_id}:{through_tick_index}"
 
 
 async def _publish_interview_message(row: PersonaMessage) -> None:
@@ -142,10 +233,27 @@ async def _publish_interview_message(row: PersonaMessage) -> None:
     )
 
 
-async def _discard_user_message(
-    session: AsyncSession, user_row: PersonaMessage
+async def _discard_user_message(session: AsyncSession, user_row: PersonaMessage) -> None:
+    if user_row.id is None:
+        return
+    existing = await session.get(PersonaMessage, user_row.id)
+    if existing is None:
+        return
+    await session.delete(existing)
+    await session.commit()
+
+
+async def _commit_library_message(
+    session: AsyncSession,
+    row: PersonaMessage,
+    *,
+    sme_expert_turn_request_id: str | None,
+    persist_guard: LibraryTurnWriteGuard | None,
 ) -> None:
-    await session.delete(user_row)
+    if persist_guard is not None and not await persist_guard(session):
+        raise ChatTurnError("stale_expert_turn", status_code=409)
+    row.sme_expert_turn_request_id = sme_expert_turn_request_id
+    session.add(row)
     await session.commit()
 
 
@@ -168,13 +276,31 @@ async def expert_memory_context(
         query=message,
         image_sha256=image_sha256,
         sources=frozenset(
-            {"persona_chat", "panel_chat", "intent_interview", "word_findings"}
+            {
+                "persona_chat",
+                "panel_chat",
+                "intent_interview",
+                "word_findings",
+                "research_receipt",
+            }
         ),
     )
     if not hits:
         return ""
-    memories = "\n".join(f"- {hit.text}" for hit in hits)
+    memories = "\n".join(_expert_memory_context_line(hit) for hit in hits)
     return render_prompt(prompts, "chat.expert.memory", memories=memories)
+
+
+def _expert_memory_context_line(hit: ExpertMemoryHit) -> str:
+    if hit.source != "research_receipt":
+        return f"- {hit.text}"
+    question_id = str(hit.metadata.get("knowledge_question_id") or "unknown")
+    attempt_id = str(hit.metadata.get("source_attempt_id") or "unknown")
+    return (
+        "- [research_receipt; "
+        f"knowledge_question_id={question_id}; source_attempt_id={attempt_id}] "
+        f"{hit.text}"
+    )
 
 
 async def remember_expert_chat_turn(
@@ -183,6 +309,7 @@ async def remember_expert_chat_turn(
     message: str,
     reply: str,
     image_sha256: str | None,
+    source: Literal["persona_chat", "panel_chat"] = "persona_chat",
 ) -> list[ExpertMemoryOut]:
     if persona.kind != "expert":
         return []
@@ -191,7 +318,7 @@ async def remember_expert_chat_turn(
         expert_id=persona_catalog_key(persona),
         user_message=message,
         assistant_message=reply,
-        source="persona_chat",
+        source=source,
         image_sha256=image_sha256,
     )
     return [
@@ -261,8 +388,7 @@ def _find_attempt_variant(
             if variant.get("id") == variant_id:
                 return variant
         if (
-            results.get("posts") is not None
-            or results.get("agents") is not None
+            results.get("posts") is not None or results.get("agents") is not None
         ) and variant_id == "main":
             return {
                 "id": "main",
@@ -300,10 +426,7 @@ def validate_interview_variant(
     if ticks_run > 0 and through_tick_index > ticks_run - 1:
         raise ChatTurnError("through_tick_index beyond ticks_run")
     agents = variant.get("agents") or []
-    if not any(
-        a.get("persona_id") == persona_id and a.get("role") != "injector"
-        for a in agents
-    ):
+    if not any(a.get("persona_id") == persona_id and a.get("role") != "injector" for a in agents):
         raise ChatTurnError(
             "Persona not found in this simulation variant",
             status_code=404,
@@ -317,6 +440,9 @@ async def stream_library_chat_turn(
     mode: ChatMode,
     message: str,
     image_sha256: str | None = None,
+    sme_expert_turn_request_id: str | None = None,
+    actor_user_id: str | None = None,
+    persist_guard: LibraryTurnWriteGuard | None = None,
 ) -> AsyncIterator[str | PersonaChatResponse]:
     """Yield token strings, then PersonaChatResponse.
 
@@ -345,8 +471,24 @@ async def stream_library_chat_turn(
         memory_context = await expert_memory_context(
             persona, message, prompts, image_sha256=image_sha256
         )
+        evidence_context = ""
+        if persona.kind == "expert":
+            evidence_context = await reusable_expert_chat_evidence_context(
+                session,
+                customer_id=persona.customer_id,
+                question=message,
+                prompts=prompts,
+            )
         chat_tools = library_chat_tools(persona)
         with_tools = _library_chat_uses_tools(persona)
+        research_tool_handler = None
+        if persona.kind == "expert" and "start_research" in (chat_tools or []):
+            research_tool_handler = research_tool_handler_for_chat(
+                session,
+                persona=persona,
+                history=history,
+                user_message=message,
+            )
 
         user_row = PersonaMessage(
             persona_id=persona_id,
@@ -356,9 +498,25 @@ async def stream_library_chat_turn(
             image_sha256=image_sha256,
             created_at=utcnow(),
         )
-        session.add(user_row)
-        await session.commit()
+        await _commit_library_message(
+            session,
+            user_row,
+            sme_expert_turn_request_id=sme_expert_turn_request_id,
+            persist_guard=persist_guard,
+        )
 
+        from app.services.actor_profiles import ActorProfileTools
+
+        actor_handler = (
+            ActorProfileTools(
+                session,
+                user_id=actor_user_id,
+                customer_id=persona.customer_id,
+                conversation=f"expert:{persona_id}:{mode}",
+            )
+            if actor_user_id and persona.kind == "expert"
+            else None
+        )
         parts: list[str] = []
         try:
             stream = stream_reply_as_persona(
@@ -370,8 +528,10 @@ async def stream_library_chat_turn(
                 area_block=area_block,
                 profile_kind=persona.kind,
                 tools=chat_tools,
-                extra_system=memory_context,
+                extra_system=combine_expert_chat_context(memory_context, evidence_context),
                 user_image_sha256=image_sha256,
+                research_tool_handler=research_tool_handler,
+                actor_tool_handler=actor_handler,
             )
             async with asyncio.timeout(_llm_reply_timeout_seconds(with_tools=with_tools)):
                 async for chunk in stream:
@@ -403,8 +563,12 @@ async def stream_library_chat_turn(
             content=reply,
             created_at=utcnow(),
         )
-        session.add(assistant_row)
-        await session.commit()
+        await _commit_library_message(
+            session,
+            assistant_row,
+            sme_expert_turn_request_id=sme_expert_turn_request_id,
+            persist_guard=persist_guard,
+        )
         saved_memories = await remember_expert_chat_turn(
             persona,
             message=message,
@@ -622,9 +786,7 @@ async def complete_run_interview_turn(
     return done
 
 
-def _follow_up_flight_key(
-    persona_id: str, mode: ChatMode, history: list[tuple[str, str]]
-) -> str:
+def _follow_up_flight_key(persona_id: str, mode: ChatMode, history: list[tuple[str, str]]) -> str:
     last = history[-1] if history else ("", "")
     return f"{persona_id}:{mode}:{len(history)}:{last[0]}:{last[1]}"
 

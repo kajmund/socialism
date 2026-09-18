@@ -16,9 +16,9 @@ from app.services.panel.competency import (
 from app.services.panel.engine import run_generic_panel
 from app.services.panel.raise_hand import parse_raise_hand_reply, raise_hand_is_yes
 from app.services.panel.research import (
+    MISSING_EXPERTISE_SIGNAL,
     ConsolidatedResearchNeed,
     ExpertResearchNeeds,
-    MISSING_EXPERTISE_SIGNAL,
     ModeratorResearchPlan,
     ResearchNeedDraft,
     ResearchPlan,
@@ -183,9 +183,11 @@ def test_expert_competency_fails_closed_and_drops_disclaimer():
     assert ExpertCompetency().has_domain_competence is False
     contradicted = ExpertCompetency(
         has_domain_competence=True,
+        competence_score=90,
         competence_reason="Faller utanför mitt kompetensområde.",
     )
     assert contradicted.has_domain_competence is False
+    assert contradicted.competence_score == 0
 
 
 def test_competency_state_is_authoritative_slot_set():
@@ -283,6 +285,7 @@ def test_research_and_raise_hand_prompts_require_domain_competence():
     assert "missing expertise" in research
     assert "Analogier" in research
     assert "has_domain_competence" in competency
+    assert "competence_score" in competency
     assert "straffrättsjurist" in competency
     assert "faktisk domänkompetens" in raise_hand
     assert "Svara endast JA eller NEJ" in raise_hand

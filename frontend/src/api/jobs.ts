@@ -9,6 +9,8 @@ export type JobKind =
   | "dd_research"
   | "rattsunderlag_research"
   | "expertgranskning_word_review"
+  | "expert_chat_research"
+  | "document_ingest"
 export type JobStatus = "pending" | "running" | "succeeded" | "failed"
 
 export type PopulationGenerateJobRequest = {
@@ -43,6 +45,9 @@ export type Job = {
     session_id?: string
     campaign_id?: number
     candidate_id?: string
+    attempt_id?: string
+    execution_run_id?: string
+    execution_attempt_id?: string
     html_path?: string
     sources?: number
     dry_run?: boolean

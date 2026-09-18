@@ -86,6 +86,11 @@ class KnowledgeQuestion:
 class QuestionIdentityMatcher(Protocol):
     """Optional semantic match after the deterministic identity key misses."""
 
+    @property
+    def embedding_metadata(self) -> EmbeddingMetadata | None: ...
+
+    async def index(self, candidates: Sequence[KnowledgeQuestion]) -> None: ...
+
     async def match(
         self,
         *,
@@ -97,6 +102,13 @@ class QuestionIdentityMatcher(Protocol):
 
 class ExactQuestionIdentityMatcher:
     """v1 default: identity_key only. No embeddings, no fuzzy match."""
+
+    @property
+    def embedding_metadata(self) -> EmbeddingMetadata | None:
+        return None
+
+    async def index(self, candidates: Sequence[KnowledgeQuestion]) -> None:
+        del candidates
 
     async def match(
         self,

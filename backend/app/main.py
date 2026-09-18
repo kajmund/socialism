@@ -25,6 +25,8 @@ from app.api import (
     personas,
     populations,
     reports,
+    sme,
+    sme_ws,
     spindoctor,
     underlag,
     users,
@@ -53,8 +55,7 @@ def _require_chat_llm() -> None:
     if settings.selected_llm_api_key:
         return
     raise RuntimeError(
-        f"{settings.chat_llm_key_env_name} is required when "
-        f"LLM_PROVIDER={settings.llm_provider}"
+        f"{settings.chat_llm_key_env_name} is required when LLM_PROVIDER={settings.llm_provider}"
     )
 
 
@@ -137,6 +138,8 @@ def create_app() -> FastAPI:
     )
     app.include_router(health.router)
     app.include_router(local_login.router)
+    from app.api import profiles
+    app.include_router(profiles.router)
     app.include_router(me.router)
     app.include_router(configurations.router)
     app.include_router(kunder.router)
@@ -152,6 +155,8 @@ def create_app() -> FastAPI:
     app.include_router(execution.router)
     app.include_router(jobs.router)
     app.include_router(reports.router)
+    app.include_router(sme.router)
+    app.include_router(sme_ws.router)
     app.include_router(embeddings.router)
     app.include_router(expert_memory.router)
     app.include_router(llm_settings.router)

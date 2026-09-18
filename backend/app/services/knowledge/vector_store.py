@@ -76,14 +76,23 @@ class VectorBucketClient(Protocol):
     async def delete(self, document_id: str) -> None: ...
 
 
-def scope_filters(scope: KnowledgeScope) -> dict[str, Any]:
+def scope_filters(
+    scope: KnowledgeScope,
+    filters: Mapping[str, str | int | float | bool] | None = None,
+) -> dict[str, Any]:
     require_scope(scope)
-    filters: dict[str, Any] = {"customer_id": scope.customer_id}
+    merged: dict[str, Any] = {"customer_id": scope.customer_id}
     if scope.case_id is not None:
-        filters["case_id"] = scope.case_id
+        merged["case_id"] = scope.case_id
     if scope.module is not None:
-        filters["module"] = scope.module
-    return filters
+        merged["module"] = scope.module
+    for key, value in (filters or {}).items():
+        if key in {"customer_id", "case_id", "module"}:
+            raise KnowledgeVectorStoreError(
+                f"KnowledgeQuery filter cannot override scope: {key}"
+            )
+        merged[key] = value
+    return merged
 
 
 def record_in_scope(record: VectorBucketRecord, scope: KnowledgeScope) -> bool:
@@ -233,6 +242,11 @@ class MemoryKnowledgeVectorStore:
             chunk = item.chunk
             if not chunk_in_scope(chunk, query.query.scope):
                 continue
+            if any(
+                chunk.metadata.get(key) != value
+                for key, value in query.query.filters.items()
+            ):
+                continue
             score = cosine_score(query.embedding, item.embedding)
             if score <= 0:
                 continue
@@ -264,7 +278,7 @@ class SupabaseVectorBucketStore:
         )
 
     async def search(self, query: EmbeddedKnowledgeQuery) -> list[KnowledgeHit]:
-        filters = scope_filters(query.query.scope)
+        filters = scope_filters(query.query.scope, query.query.filters)
         try:
             records = await self._client.query(
                 vector=query.embedding,

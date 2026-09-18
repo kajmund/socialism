@@ -24,10 +24,20 @@ class Kund(Base):
 
     __tablename__ = "kunder"
 
+    organization_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    organization_number: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    address_line1: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    address_line2: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    postal_code: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    city: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    country_code: Mapped[str | None] = mapped_column(String(2), nullable=True)
+    profile_revision: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
     available_modules: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    product: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -49,14 +59,10 @@ class Kund(Base):
     dd_campaigns: Mapped[list["DdCampaign"]] = relationship(back_populates="kund")
     jobs: Mapped[list["Job"]] = relationship(back_populates="kund")
     reports: Mapped[list["Report"]] = relationship(back_populates="kund")
-    prompt_overrides: Mapped[list["PromptOverride"]] = relationship(
-        back_populates="kund"
-    )
+    prompt_overrides: Mapped[list["PromptOverride"]] = relationship(back_populates="kund")
     user_accounts: Mapped[list["UserAccount"]] = relationship(back_populates="kund")
     populations: Mapped[list["Population"]] = relationship(back_populates="kund")
-    expert_profiles: Mapped[list["PanelExpertProfile"]] = relationship(
-        back_populates="kund"
-    )
+    expert_profiles: Mapped[list["PanelExpertProfile"]] = relationship(back_populates="kund")
     execution_runs: Mapped[list["ExecutionRun"]] = relationship(back_populates="kund")
 
 
@@ -64,6 +70,12 @@ class UserAccount(Base):
     """Roll + kund-koppling för en Supabase-autentiserad användare."""
 
     __tablename__ = "user_accounts"
+
+    first_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    last_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    job_title: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    avatar_key: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    profile_revision: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)  # Supabase auth.users.id
     email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
@@ -112,9 +124,7 @@ class Projekt(Base):
     runs: Mapped[list["Run"]] = relationship(back_populates="projekt")
     messages: Mapped[list["Message"]] = relationship(back_populates="projekt")
 
-    __table_args__ = (
-        UniqueConstraint("customer_id", "slug", name="uq_projekt_customer_slug"),
-    )
+    __table_args__ = (UniqueConstraint("customer_id", "slug", name="uq_projekt_customer_slug"),)
 
 
 class Persona(Base):
@@ -126,7 +136,9 @@ class Persona(Base):
         nullable=False,
         index=True,
     )
-    kind: Mapped[str] = mapped_column(String(32), nullable=False, default="persona", server_default="persona")
+    kind: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="persona", server_default="persona"
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     age: Mapped[int | None] = mapped_column(Integer, nullable=True)
     occ: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -151,9 +163,7 @@ class Persona(Base):
 
 class Population(Base):
     __tablename__ = "populations"
-    __table_args__ = (
-        UniqueConstraint("customer_id", "name", name="uq_populations_customer_name"),
-    )
+    __table_args__ = (UniqueConstraint("customer_id", "name", name="uq_populations_customer_name"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     customer_id: Mapped[int] = mapped_column(
@@ -161,7 +171,9 @@ class Population(Base):
         nullable=False,
         index=True,
     )
-    kind: Mapped[str] = mapped_column(String(32), nullable=False, default="persona", server_default="persona")
+    kind: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="persona", server_default="persona"
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     size: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     versions: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
@@ -202,7 +214,9 @@ class PopulationMember(Base):
         nullable=True,
         index=True,
     )
-    kind: Mapped[str] = mapped_column(String(32), nullable=False, default="persona", server_default="persona")
+    kind: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="persona", server_default="persona"
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     initials: Mapped[str] = mapped_column(String(8), nullable=False)
     age: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -341,6 +355,144 @@ class PersonaMessage(Base):
     through_tick_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # Run-scoped interview user turns: who asked (doctor via Spinndoktor tools vs human in UI).
     asked_by: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    sme_expert_turn_request_id: Mapped[str | None] = mapped_column(
+        String(64),
+        ForeignKey("sme_expert_turns.request_id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+
+class SmePanelMessage(Base):
+    """One message in a customer-scoped SME expert-panel thread."""
+
+    __tablename__ = "sme_panel_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("kunder.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    population_id: Mapped[int] = mapped_column(
+        ForeignKey("populations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    role: Mapped[str] = mapped_column(String(32), nullable=False)
+    persona_id: Mapped[str | None] = mapped_column(
+        ForeignKey("personas.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+
+class SmeReadCursor(Base):
+    """Per-user last-read message for an SME expert or panel thread."""
+
+    __tablename__ = "sme_read_cursors"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "thread_type",
+            "thread_id",
+            name="uq_sme_read_cursors_user_thread",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("user_accounts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    thread_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    thread_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    last_read_message_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+
+class SmePanelTurnLease(Base):
+    """Per-panel lease so concurrent workers serialize SME panel turns."""
+
+    __tablename__ = "sme_panel_turn_leases"
+
+    panel_id: Mapped[int] = mapped_column(
+        ForeignKey("populations.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    fence: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    lease_token: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        index=True,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+
+class SmeExpertTurn(Base):
+    """Durable SME expert-chat turn keyed by the client's request_id."""
+
+    __tablename__ = "sme_expert_turns"
+    __table_args__ = (
+        Index("ix_sme_expert_turns_user_persona", "user_id", "persona_id"),
+    )
+
+    request_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("kunder.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("user_accounts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    persona_id: Mapped[str] = mapped_column(
+        ForeignKey("personas.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    image_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="accepted")
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    fence: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    lease_token: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
 
 
 class Message(Base):
@@ -583,9 +735,7 @@ class SsrMisclassificationFlag(Base):
         nullable=True,
     )
 
-    anchor_set: Mapped["SsrAnchorSet"] = relationship(
-        back_populates="misclassification_flags"
-    )
+    anchor_set: Mapped["SsrAnchorSet"] = relationship(back_populates="misclassification_flags")
 
 
 class CatalogList(Base):
@@ -734,6 +884,13 @@ class StoredObject(Base):
     )
     extracted_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     extraction_status: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    knowledge_status: Mapped[str | None] = mapped_column(String(24), nullable=True, index=True)
+    knowledge_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    knowledge_job_id: Mapped[str | None] = mapped_column(
+        ForeignKey("jobs.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     folder_id: Mapped[str | None] = mapped_column(
         String(64),
         ForeignKey("underlag_folders.id", ondelete="SET NULL"),
@@ -1040,9 +1197,7 @@ class PanelSubQuestion(Base):
     __tablename__ = "panel_sub_questions"
     __table_args__ = (
         UniqueConstraint("module", "key", name="uq_panel_sub_questions_module_key"),
-        UniqueConstraint(
-            "module", "sort_order", name="uq_panel_sub_questions_module_sort_order"
-        ),
+        UniqueConstraint("module", "sort_order", name="uq_panel_sub_questions_module_sort_order"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -1069,9 +1224,7 @@ class PanelExpertProfile(Base):
 
     __tablename__ = "panel_expert_profiles"
     __table_args__ = (
-        UniqueConstraint(
-            "customer_id", "key", name="uq_panel_expert_profiles_customer_key"
-        ),
+        UniqueConstraint("customer_id", "key", name="uq_panel_expert_profiles_customer_key"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -1277,7 +1430,9 @@ class KnowledgeDocumentRecord(Base):
 
     __tablename__ = "knowledge_documents"
     __table_args__ = (
-        UniqueConstraint("provider", "external_id", name="uq_knowledge_documents_provider_external"),
+        UniqueConstraint(
+            "provider", "external_id", name="uq_knowledge_documents_provider_external"
+        ),
     )
 
     document_id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -1286,6 +1441,11 @@ class KnowledgeDocumentRecord(Base):
     customer_id: Mapped[int] = mapped_column(
         ForeignKey("kunder.id", ondelete="RESTRICT"),
         nullable=False,
+        index=True,
+    )
+    source_object_id: Mapped[str | None] = mapped_column(
+        ForeignKey("stored_objects.id", ondelete="CASCADE"),
+        nullable=True,
         index=True,
     )
     case_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
@@ -1307,6 +1467,132 @@ class KnowledgeDocumentRecord(Base):
         onupdate=func.now(),
         nullable=False,
     )
+
+
+class DocumentKnowledgeItem(Base):
+    """Mutable human-facing knowledge attached to one uploaded document."""
+
+    __tablename__ = "document_knowledge_items"
+    __table_args__ = (
+        Index(
+            "ix_document_knowledge_items_document_status",
+            "source_object_id",
+            "status",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    source_object_id: Mapped[str] = mapped_column(
+        ForeignKey("stored_objects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("kunder.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    kind: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    origin: Mapped[str] = mapped_column(String(16), nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="active", index=True)
+    title: Mapped[str] = mapped_column(String(500), nullable=False)
+    question: Mapped[str | None] = mapped_column(Text, nullable=True)
+    content: Mapped[str | None] = mapped_column(Text, nullable=True)
+    retrieval_queries: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    created_by_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("user_accounts.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    updated_by_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("user_accounts.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    anchors: Mapped[list["DocumentKnowledgeAnchor"]] = relationship(
+        back_populates="item",
+        cascade="all, delete-orphan",
+        order_by="DocumentKnowledgeAnchor.ordinal",
+    )
+    revisions: Mapped[list["DocumentKnowledgeRevision"]] = relationship(
+        back_populates="item",
+        cascade="all, delete-orphan",
+        order_by="DocumentKnowledgeRevision.revision",
+    )
+
+
+class DocumentKnowledgeAnchor(Base):
+    """A source region. v1 writes text anchors; the shape also supports visuals."""
+
+    __tablename__ = "document_knowledge_anchors"
+    __table_args__ = (
+        UniqueConstraint("item_id", "ordinal", name="uq_document_knowledge_anchor_ordinal"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    item_id: Mapped[str] = mapped_column(
+        ForeignKey("document_knowledge_items.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    ordinal: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    anchor_type: Mapped[str] = mapped_column(String(16), nullable=False, default="text")
+    page_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    locator: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    exact_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    prefix_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    suffix_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    rects: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    asset_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    item: Mapped[DocumentKnowledgeItem] = relationship(back_populates="anchors")
+
+
+class DocumentKnowledgeRevision(Base):
+    """Append-only audit snapshot for edits to document knowledge."""
+
+    __tablename__ = "document_knowledge_revisions"
+    __table_args__ = (
+        UniqueConstraint("item_id", "revision", name="uq_document_knowledge_revision"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    item_id: Mapped[str] = mapped_column(
+        ForeignKey("document_knowledge_items.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    snapshot: Mapped[dict] = mapped_column(JSON, nullable=False)
+    changed_by_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("user_accounts.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    item: Mapped[DocumentKnowledgeItem] = relationship(back_populates="revisions")
 
 
 class ExecutionRun(Base):
@@ -1401,9 +1687,7 @@ class ExecutionAttempt(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="created")
     configuration_snapshot: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     input_snapshot: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-    research_objective_snapshot: Mapped[dict | None] = mapped_column(
-        JSON, nullable=True
-    )
+    research_objective_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     research_plan_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     research_wave: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     research_stop_reason: Mapped[str | None] = mapped_column(String(32), nullable=True)
@@ -1663,16 +1947,16 @@ class ResearchEvidenceQuality(Base):
         nullable=False,
     )
 
-    evidence_set_item: Mapped[EvidenceSetItem] = relationship(
-        back_populates="quality_assessments"
-    )
+    evidence_set_item: Mapped[EvidenceSetItem] = relationship(back_populates="quality_assessments")
 
 
 class ExecutionAttemptResult(Base):
     """Historical method output for one ExecutionAttempt (v1: generic_panel)."""
 
     __tablename__ = "execution_attempt_results"
-    __table_args__ = (UniqueConstraint("attempt_id", name="uq_execution_attempt_results_attempt_id"),)
+    __table_args__ = (
+        UniqueConstraint("attempt_id", name="uq_execution_attempt_results_attempt_id"),
+    )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     attempt_id: Mapped[str] = mapped_column(
@@ -1728,9 +2012,7 @@ class ResearchAssessment(Base):
     need_assessments: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     gaps: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     contradictions: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
-    considered_evidence_ids: Mapped[list] = mapped_column(
-        JSON, nullable=False, default=list
-    )
+    considered_evidence_ids: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     evidence_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
     model_provider: Mapped[str | None] = mapped_column(String(64), nullable=True)
     model_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
@@ -1771,12 +2053,8 @@ class ResearchCompletenessPass(Base):
     result: Mapped[str] = mapped_column(String(32), nullable=False)
     rationale: Mapped[str] = mapped_column(Text, nullable=False)
     missing_questions: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
-    considered_evidence_ids: Mapped[list] = mapped_column(
-        JSON, nullable=False, default=list
-    )
-    considered_question_keys: Mapped[list] = mapped_column(
-        JSON, nullable=False, default=list
-    )
+    considered_evidence_ids: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    considered_question_keys: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     evidence_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
     question_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
     model_provider: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -1788,9 +2066,7 @@ class ResearchCompletenessPass(Base):
         nullable=False,
     )
 
-    attempt: Mapped[ExecutionAttempt] = relationship(
-        back_populates="research_completeness_passes"
-    )
+    attempt: Mapped[ExecutionAttempt] = relationship(back_populates="research_completeness_passes")
 
 
 class KnowledgeQuestionRow(Base):
@@ -1865,12 +2141,8 @@ class KnowledgeQuestionEvidenceLink(Base):
     source_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
     provider: Mapped[str | None] = mapped_column(String(64), nullable=True)
     provenance: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-    retrieved_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    observed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    retrieved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    observed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     freshness: Mapped[str] = mapped_column(String(16), nullable=False, default="unknown")
     version: Mapped[str | None] = mapped_column(String(64), nullable=True)
     visibility: Mapped[str] = mapped_column(String(16), nullable=False, default="tenant")
@@ -1888,6 +2160,195 @@ class KnowledgeQuestionEvidenceLink(Base):
     )
 
     question: Mapped[KnowledgeQuestionRow] = relationship(back_populates="answers")
+
+
+class ExpertKnowledgeReceipt(Base):
+    """An expert remembers receiving frozen evidence for a canonical question."""
+
+    __tablename__ = "expert_knowledge_receipts"
+    __table_args__ = (
+        UniqueConstraint(
+            "expert_id",
+            "knowledge_question_id",
+            "source_attempt_id",
+            "role",
+            name="uq_expert_knowledge_receipt_lineage",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("kunder.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    expert_id: Mapped[str] = mapped_column(
+        ForeignKey("personas.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    knowledge_question_id: Mapped[str] = mapped_column(
+        ForeignKey("knowledge_questions.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    research_question_id: Mapped[str] = mapped_column(
+        ForeignKey("research_questions.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    source_attempt_id: Mapped[str] = mapped_column(
+        ForeignKey("execution_attempts.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    evidence_set_id: Mapped[str] = mapped_column(
+        ForeignKey("evidence_sets.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    role: Mapped[str] = mapped_column(String(16), nullable=False)
+    origin_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    origin_ref: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    confirmed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class SpecificQuestion(Base):
+    """Context-bound user or review question that can require several general questions."""
+
+    __tablename__ = "specific_questions"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    run_id: Mapped[str] = mapped_column(
+        ForeignKey("execution_runs.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    context: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    origin_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    origin_ref: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="open")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+
+class ResearchQuestion(Base):
+    """One canonical general question participating in an Attempt's question DAG."""
+
+    __tablename__ = "research_questions"
+    __table_args__ = (
+        UniqueConstraint(
+            "attempt_id",
+            "specific_question_id",
+            "knowledge_question_id",
+            name="uq_research_questions_attempt_specific_knowledge",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    attempt_id: Mapped[str] = mapped_column(
+        ForeignKey("execution_attempts.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    specific_question_id: Mapped[str] = mapped_column(
+        ForeignKey("specific_questions.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    knowledge_question_id: Mapped[str] = mapped_column(
+        ForeignKey("knowledge_questions.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    runtime_need_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    execution_attempt_id: Mapped[str | None] = mapped_column(
+        ForeignKey("execution_attempts.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
+    why_needed: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    outcome_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    origin: Mapped[str] = mapped_column(String(32), nullable=False, default="initial")
+    depth: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+
+class ResearchQuestionExpert(Base):
+    """Expert lineage: who raised a question and who is responsible for it."""
+
+    __tablename__ = "research_question_experts"
+    __table_args__ = (
+        UniqueConstraint(
+            "question_id",
+            "expert_id",
+            "role",
+            name="uq_research_question_experts_question_expert_role",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    question_id: Mapped[str] = mapped_column(
+        ForeignKey("research_questions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    expert_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    role: Mapped[str] = mapped_column(String(16), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class ResearchQuestionDependency(Base):
+    """Directed edge: question waits for depends_on_question."""
+
+    __tablename__ = "research_question_dependencies"
+    __table_args__ = (
+        UniqueConstraint(
+            "question_id",
+            "depends_on_question_id",
+            name="uq_research_question_dependencies_edge",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    question_id: Mapped[str] = mapped_column(
+        ForeignKey("research_questions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    depends_on_question_id: Mapped[str] = mapped_column(
+        ForeignKey("research_questions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    reason: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
 
 class ResearchProgressEvent(Base):
@@ -1928,9 +2389,7 @@ class ResearchProgressEvent(Base):
         nullable=False,
     )
 
-    attempt: Mapped[ExecutionAttempt] = relationship(
-        back_populates="research_progress_events"
-    )
+    attempt: Mapped[ExecutionAttempt] = relationship(back_populates="research_progress_events")
 
 
 class LlmRuntimeSettings(Base):
@@ -1951,3 +2410,20 @@ class LlmRuntimeSettings(Base):
         nullable=False,
     )
 
+
+class ActorContextProposal(Base):
+    """Exact, user-confirmed profile edits; model tools cannot approve these."""
+
+    __tablename__ = "actor_context_proposals"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    customer_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    conversation: Mapped[str] = mapped_column(String(255), nullable=False)
+    target: Mapped[str] = mapped_column(String(16), nullable=False)
+    target_label: Mapped[str] = mapped_column(String(255), nullable=False)
+    changes: Mapped[dict] = mapped_column(JSON, nullable=False)
+    previous: Mapped[dict] = mapped_column(JSON, nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

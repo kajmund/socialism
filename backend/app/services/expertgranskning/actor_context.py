@@ -6,6 +6,8 @@ inferred document type. Document voice is never a source.
 
 from __future__ import annotations
 
+from app.services.actor_profiles import ActorToolHandler
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.config import settings
@@ -40,6 +42,10 @@ class ActorContext(BaseModel):
 
     model_config = ConfigDict(extra="ignore")
 
+    needs_actor_profile: bool = Field(
+        default=False,
+        description="Request get_actor_context only if a concrete uncertainty about the user/customer matters here and is not answered by the supplied context. Never for routine completeness checks.",
+    )
     user_role: str = Field(default="", description="Reviewer's role relative to the document")
     counterpart_or_audience: str = Field(
         default="",
@@ -113,9 +119,7 @@ def actor_context_source_text(
 ) -> str:
     """Interview answers, free review intent, and inferred document type only."""
     parts: list[str] = []
-    interview_section = render_intent_interview_section(
-        interview, answers, concise=True
-    )
+    interview_section = render_intent_interview_section(interview, answers, concise=True)
     if interview_section:
         parts.append(interview_section)
     intent = (review_intent or "").strip()
@@ -168,6 +172,7 @@ async def resolve_actor_context(
     review_intent: str,
     limiter: WordReviewLimiter,
     locale: str = "sv",
+    actor_profile_handler: ActorToolHandler | None = None,
 ) -> ActorContext:
     """One cheap structured call when answers or free intent exist; else unknown."""
     if not has_usable_actor_source(interview, answers, review_intent):
@@ -193,6 +198,32 @@ async def resolve_actor_context(
             ),
         ),
     )
+    if raw.needs_actor_profile and actor_profile_handler is not None:
+        import json
+
+        profile_context = await actor_profile_handler("get_actor_context", {})
+        messages = actor_context_messages(prompts=prompts, source=source, locale=locale)
+        messages.append(
+            {
+                "role": "user",
+                "content": json.dumps(
+                    {"actor_profile_data": json.loads(profile_context)}, ensure_ascii=False
+                ),
+            }
+        )
+        raw = await limiter.run(
+            "actor_context",
+            lambda: complete_word_structured(
+                messages,
+                ActorContext,
+                prompts=prompts,
+                timings=limiter.timings,
+                model=settings.word_review_router_model_override,
+                max_tokens=WORD_ACTOR_CONTEXT_MAX_TOKENS
+                if settings.word_review_router_model_override
+                else None,
+            ),
+        )
     resolved = finalize_actor_context(raw)
     limiter.timings.record_actor_context_resolved(resolved.perspective_known)
     return resolved

@@ -27,6 +27,8 @@ cp .env.example .env
 | `LLM_REASONING_EFFORT` | no | `medium` | Sent only when the selected provider/model supports it (Cerebras) |
 | `LLM_MAX_TOKENS` | no | `8192` | Completion cap for structured JSON (`complete_structured`) |
 | `LLM_TIMEOUT_SECONDS` | no | `60` | HTTP timeout for chat/completions |
+| `DOCUMENT_KNOWLEDGE_LLM_MAX_TOKENS` | no | `8192` | Per-batch completion cap for generated document facts/Q&A; does not inherit a larger global cap |
+| `DOCUMENT_KNOWLEDGE_LLM_TIMEOUT_SECONDS` | no | `180` | Per-batch timeout for generated document facts/Q&A |
 | `CEREBRAS_API_KEY` | **when `LLM_PROVIDER=cerebras`** | — | App will not boot without a non-empty key |
 | `CEREBRAS_BASE_URL` | no | `https://api.cerebras.ai/v1` | |
 | `DEEPSEEK_API_KEY` | **when `LLM_PROVIDER=deepseek`** (also OASIS) | — | Same `app.llm` path; required for OASIS regardless of chat provider |
@@ -72,6 +74,8 @@ LLM_PROVIDER=cerebras
 LLM_REASONING_EFFORT=medium
 LLM_MAX_TOKENS=8192
 LLM_TIMEOUT_SECONDS=60
+DOCUMENT_KNOWLEDGE_LLM_MAX_TOKENS=8192
+DOCUMENT_KNOWLEDGE_LLM_TIMEOUT_SECONDS=180
 CEREBRAS_API_KEY=csk-...
 DEEPSEEK_API_KEY=sk-...
 DEEPSEEK_MODEL=deepseek-chat

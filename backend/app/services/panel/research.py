@@ -7,13 +7,15 @@ evidence execution lives here.
 
 from __future__ import annotations
 
+from app.services.actor_profiles import ActorToolHandler
+
 import re
 from collections.abc import Sequence
 from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.llm import complete_structured
+from app.llm import complete_structured_retry
 from app.services.panel.competency import CompetencyState, ExpertCompetency, SlotCompetency
 from app.services.panel.review_intent import session_brief_for_llm
 from app.services.panel.schemas import PanelExpertSlot, PanelSessionConfig
@@ -132,10 +134,12 @@ class ExpertResearchNeeds(ExpertCompetency):
     has_domain_competence: bool = True
     research_decision: ResearchDecision = "none"
     can_answer_from_document: bool = True
-    claims_requiring_verification: list[ClaimRequiringVerification] = Field(
-        default_factory=list
-    )
+    claims_requiring_verification: list[ClaimRequiringVerification] = Field(default_factory=list)
     assumptions: list[ResearchAssumption] = Field(default_factory=list)
+    needs_actor_profile: bool = Field(
+        default=False,
+        description="Request get_actor_context only when a concrete uncertainty about who the review is for affects this task and is not already answered. Never for routine profile checks.",
+    )
     needs: list[ResearchNeedDraft] = Field(default_factory=list)
     rationale: str = ""
 
@@ -292,9 +296,7 @@ def requested_by_from_proposals(
 ) -> list[str]:
     by_id = {item.proposal_id: item.slot_id for item in proposals}
     return _unique_ids(
-        by_id[proposal_id]
-        for proposal_id in _unique_ids(proposal_ids)
-        if proposal_id in by_id
+        by_id[proposal_id] for proposal_id in _unique_ids(proposal_ids) if proposal_id in by_id
     )
 
 
@@ -553,6 +555,8 @@ async def collect_expert_research_needs(
     config: PanelSessionConfig,
     opening: str,
     prompts: dict[str, str],
+    *,
+    actor_profile_handler: ActorToolHandler | None = None,
 ) -> ExpertResearchNeeds:
     brief = _session_brief(config, prompts)
     messages = _messages_with_brief(
@@ -571,7 +575,25 @@ async def collect_expert_research_needs(
             source_types=source_types_prompt(),
         ),
     )
-    return await complete_structured(messages, ExpertResearchNeeds)
+    result = await complete_structured_retry(messages, ExpertResearchNeeds)
+    if (
+        result.needs_actor_profile
+        and actor_profile_handler is not None
+        and "get_actor_context" in slot.tools
+    ):
+        import json
+
+        context = await actor_profile_handler("get_actor_context", {})
+        messages.append(
+            {
+                "role": "user",
+                "content": json.dumps(
+                    {"actor_profile_data": json.loads(context)}, ensure_ascii=False
+                ),
+            }
+        )
+        result = await complete_structured_retry(messages, ExpertResearchNeeds)
+    return result
 
 
 async def consolidate_research_plan(
@@ -611,7 +633,7 @@ async def consolidate_research_plan(
                 ),
             }
         )
-    return await complete_structured(messages, ModeratorResearchPlan)
+    return await complete_structured_retry(messages, ModeratorResearchPlan)
 
 
 def plan_from_moderator_draft(
@@ -636,19 +658,15 @@ def plan_from_moderator_draft(
         unknown = [item for item in proposal_ids if item not in known]
         if unknown:
             raise InvalidResearchPlanError(
-                "Unknown proposal IDs cannot create a research need: "
-                + ", ".join(unknown)
+                "Unknown proposal IDs cannot create a research need: " + ", ".join(unknown)
             )
         reused = [item for item in proposal_ids if item in consumed]
         if reused:
             raise InvalidResearchPlanError(
-                "Proposal IDs consumed by multiple canonical needs: "
-                + ", ".join(reused)
+                "Proposal IDs consumed by multiple canonical needs: " + ", ".join(reused)
             )
         if not need.question:
-            raise InvalidResearchPlanError(
-                "Canonical research need question is required"
-            )
+            raise InvalidResearchPlanError("Canonical research need question is required")
         source_types = source_types_from_proposals(proposal_ids, proposals)
         if not source_types:
             raise InvalidResearchPlanError(
@@ -664,9 +682,7 @@ def plan_from_moderator_draft(
                 source_types=source_types,
             )
         )
-    omitted = [
-        item.proposal_id for item in proposals if item.proposal_id not in consumed
-    ]
+    omitted = [item.proposal_id for item in proposals if item.proposal_id not in consumed]
     if omitted:
         raise InvalidResearchPlanError(
             "Valid research proposals were omitted: " + ", ".join(omitted)
@@ -683,9 +699,7 @@ async def build_research_plan(
     numbered, empty_slots = assign_proposal_ids(proposals)
     if not numbered:
         return ResearchPlan()
-    draft = await consolidate_research_plan(
-        config, opening, numbered, empty_slots, prompts
-    )
+    draft = await consolidate_research_plan(config, opening, numbered, empty_slots, prompts)
     try:
         return plan_from_moderator_draft(draft, numbered)
     except InvalidResearchPlanError as exc:

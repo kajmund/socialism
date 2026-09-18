@@ -138,6 +138,10 @@ function kindLabel(kind: string, t: Translate): string {
       return t("jobs.kind.rattsunderlag_research")
     case "expertgranskning_word_review":
       return t("jobs.kind.expertgranskning_word_review")
+    case "expert_chat_research":
+      return t("jobs.kind.expert_chat_research")
+    case "document_ingest":
+      return t("jobs.kind.document_ingest")
     default:
       return kind
   }
@@ -155,6 +159,7 @@ function progressLabel(job: Job, t: Translate): string {
     case "dd_sourcing_run":
       return t("jobs.progress.sourcing")
     case "dd_research":
+    case "expert_chat_research":
       return t("jobs.progress.research")
     default:
       return t("jobs.progress.generating")
@@ -187,7 +192,13 @@ function jobIds(job: Job) {
       : typeof job.request.candidate_id === "string"
         ? job.request.candidate_id
         : null
-  return { popId, runId, reportId, sessionId, campaignId, candidateId }
+  const researchAttemptId =
+    typeof job.result?.execution_attempt_id === "string"
+      ? job.result.execution_attempt_id
+      : typeof job.result?.attempt_id === "string"
+        ? job.result.attempt_id
+        : null
+  return { popId, runId, reportId, sessionId, campaignId, candidateId, researchAttemptId }
 }
 
 function ddCampaignHref(job: Job): string | null {
@@ -250,7 +261,7 @@ function JobActionLinks({
   t: Translate
   paths: JobLinkPaths
 }) {
-  const { popId, runId, reportId, sessionId } = jobIds(job)
+  const { popId, runId, reportId, sessionId, researchAttemptId } = jobIds(job)
   const links: ReactNode[] = []
 
   if (job.status === "succeeded" && popId != null) {
@@ -314,6 +325,13 @@ function JobActionLinks({
         </Link>,
       )
     }
+  }
+  if (researchAttemptId) {
+    links.push(
+      <Link key="research" to={`/research/${researchAttemptId}`}>
+        {t("jobs.openResearch")}
+      </Link>,
+    )
   }
   if ((job.status === "pending" || job.status === "running") && job.kind === "run_simulate" && runId != null) {
     links.push(

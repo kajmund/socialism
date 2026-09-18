@@ -18,7 +18,7 @@ from app.database.base import Base
 from app.database.models import KnowledgeDocumentRecord, Kund
 from app.services.knowledge.chunking import KnowledgeChunker, hash_text, make_chunk_id
 from app.services.knowledge.embeddings import EmbeddingSpec, OpenAIEmbeddingProvider
-from app.services.knowledge.extractors import DOCX_MIME, DefaultTextExtractor
+from app.services.knowledge.extractors import DOCX_MIME, MARKDOWN_MIME, DefaultTextExtractor
 from app.services.knowledge.ingest import KnowledgeIngestService
 from app.services.knowledge.models import (
     EmbeddedKnowledgeChunk,
@@ -305,6 +305,33 @@ async def test_docx_is_indexed(session: AsyncSession):
     )
     assert [hit.document_id for hit in hits] == ["doc-docx"]
     assert hits[0].locator == "paragraph:1"
+
+
+async def test_markdown_is_indexed_as_plain_text(session: AsyncSession):
+    kund = await _customer(session, "acme")
+    await _index_document(
+        session,
+        customer_id=kund.id,
+        document_id="doc-markdown",
+        mime_type=MARKDOWN_MIME,
+        key="dd/files/brief.md",
+    )
+    await put_object(
+        "acme",
+        "dd/files/brief.md",
+        b"# Avtal\n\nAvtalet galler fran januari.",
+        MARKDOWN_MIME,
+    )
+    store = MemoryKnowledgeVectorStore()
+    embeddings = FakeEmbeddingProvider()
+    provider = _provider(session, store, embeddings)
+    result = await _ingest(provider, store, embeddings).ingest_document(
+        document_id="doc-markdown",
+        scope=_scope(customer_id=kund.id),
+    )
+    assert result.status == "indexed"
+    assert result.extracted is not None
+    assert [block.locator for block in result.extracted.blocks] == ["line:1", "line:3"]
 
 
 async def test_empty_document_returns_empty(session: AsyncSession):
