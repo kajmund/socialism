@@ -347,6 +347,7 @@ export const en: LocalizedTree<SvMessages> = {
       processing: "The document is being read and document knowledge is being built…",
       needsOcr: "The PDF has no readable text layer. OCR is not included yet.",
       noText: "The document contains no readable text.",
+      partial: "The document text is ready, but some automatic Q&A could not be created. Successful results remain available.",
       failed: "Document ingest failed.",
       empty: "No document knowledge has been added yet.",
       selectionHint: "Select text in the PDF to add a fact, Q&A, bookmark, or note.",

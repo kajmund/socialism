@@ -286,7 +286,10 @@ async def complete_structured[T](
                 extra={
                     "response_format": _structured_response_format(
                         response_model, schema
-                    )
+                    ),
+                    # Override the client's global timeout for call sites with a
+                    # deliberately different structured-output budget.
+                    "timeout": wait,
                 },
                 reasoning_effort=(
                     reasoning_effort if reasoning_effort is not None else _UNSET

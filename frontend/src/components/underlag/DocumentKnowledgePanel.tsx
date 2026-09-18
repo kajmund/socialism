@@ -363,6 +363,8 @@ function KnowledgeStatus({ file }: { file: UnderlagFile }) {
       return <p className="mb-3 text-xs text-amber-600">{t("underlag.knowledge.needsOcr")}</p>
     case "empty":
       return <p className="mb-3 text-xs text-muted-foreground">{t("underlag.knowledge.noText")}</p>
+    case "partial":
+      return <p className="mb-3 text-xs text-amber-600">{t("underlag.knowledge.partial")}</p>
     case "failed":
       return (
         <p className="mb-3 text-xs text-destructive">

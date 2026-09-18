@@ -3,18 +3,22 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import re
 import secrets
 from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
 from io import BytesIO
 from typing import Literal
 
 import pdfplumber
-from pydantic import BaseModel, Field, field_validator, model_validator
+from openai import APITimeoutError
+from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import selectinload
 
+from app.config import settings
 from app.database.models import (
     DocumentKnowledgeAnchor,
     DocumentKnowledgeItem,
@@ -24,6 +28,7 @@ from app.database.models import (
     StoredObject,
 )
 from app.llm import complete_structured_retry
+from app.llm.structured_retry import StructuredOutputError
 from app.serializers import format_date, utcnow
 from app.services.knowledge import (
     SUPABASE_PROVIDER_ID,
@@ -50,6 +55,8 @@ DOCUMENT_INGEST_JOB_KIND = "document_ingest"
 DOCUMENT_ITEM_VECTOR_PREFIX = "document-knowledge:"
 _BATCH_CHARS = 16_000
 _MAX_GENERATED_ITEMS = 80
+
+logger = logging.getLogger(__name__)
 
 
 class DocumentIngestJobRequest(BaseModel):
@@ -96,6 +103,17 @@ class GeneratedDocumentKnowledge(BaseModel):
 
 class GeneratedDocumentKnowledgeBatch(BaseModel):
     items: list[GeneratedDocumentKnowledge] = Field(default_factory=list, max_length=20)
+
+
+@dataclass(frozen=True)
+class DocumentKnowledgeGenerationResult:
+    items: list[GeneratedDocumentKnowledge]
+    successful_batches: int
+    failed_batches: int
+
+    @property
+    def total_batches(self) -> int:
+        return self.successful_batches + self.failed_batches
 
 
 def item_vector_document_id(item_id: str) -> str:
@@ -364,27 +382,43 @@ async def _run_document_ingest_job(
             language="sv",
         )
         data, _content_type = await read_stored_bytes(source)
-        generated = await generate_document_knowledge(
+        generation = await generate_document_knowledge(
             blocks=result.extracted.blocks,
             prompts=prompts,
         )
         accepted = await asyncio.to_thread(
             _accepted_generated_items,
-            generated,
+            generation.items,
             blocks=result.extracted.blocks,
             pdf_bytes=data if source.content_type == "application/pdf" else None,
         )
-        await _archive_generated_items(session, source, mark_manual_stale=is_reingest)
-        rows = await _persist_generated_items(session, source=source, items=accepted)
-        await _index_generated_items(session, source=source, items=rows)
-        source.knowledge_status = "ready"
-        source.knowledge_error = None
+        # A transient enrichment failure must not discard earlier generated
+        # knowledge on re-ingest. Replace it only when at least one batch
+        # completed, or when all batches completed successfully with no items.
+        replace_generated = (
+            generation.successful_batches > 0 or generation.failed_batches == 0
+        )
+        rows: list[DocumentKnowledgeItem] = []
+        if replace_generated:
+            await _archive_generated_items(session, source, mark_manual_stale=is_reingest)
+            rows = await _persist_generated_items(session, source=source, items=accepted)
+            await _index_generated_items(session, source=source, items=rows)
+        partial = generation.failed_batches > 0
+        source.knowledge_status = "partial" if partial else "ready"
+        source.knowledge_error = (
+            f"{generation.failed_batches} of {generation.total_batches} "
+            "document-knowledge batches failed"
+            if partial
+            else None
+        )
         await session.commit()
         return {
             "object_id": source.id,
-            "status": "ready",
+            "status": source.knowledge_status,
             "chunks_indexed": result.chunks_indexed,
             "items_created": len(rows),
+            "successful_batches": generation.successful_batches,
+            "failed_batches": generation.failed_batches,
         }
 
 
@@ -392,40 +426,67 @@ async def generate_document_knowledge(
     *,
     blocks: Sequence[ExtractedBlock],
     prompts: dict[str, str],
-) -> list[GeneratedDocumentKnowledge]:
+) -> DocumentKnowledgeGenerationResult:
     batches = _source_batches(blocks)
     semaphore = asyncio.Semaphore(3)
 
-    async def generate(excerpt: str) -> list[GeneratedDocumentKnowledge]:
+    async def generate(
+        batch_number: int,
+        excerpt: str,
+    ) -> tuple[list[GeneratedDocumentKnowledge], bool]:
         async with semaphore:
-            response = await complete_structured_retry(
-                [
-                    {
-                        "role": "system",
-                        "content": render_prompt(
-                            prompts,
-                            "document_knowledge.ingest.system",
-                        ),
-                    },
-                    {
-                        "role": "user",
-                        "content": render_prompt(
-                            prompts,
-                            "document_knowledge.ingest.user",
-                            document_excerpt=excerpt,
-                        ),
-                    },
-                ],
-                GeneratedDocumentKnowledgeBatch,
-                retry_instruction=render_prompt(
-                    prompts,
-                    "document_knowledge.structured_retry",
-                ),
-            )
-            return response.items
+            try:
+                response = await complete_structured_retry(
+                    [
+                        {
+                            "role": "system",
+                            "content": render_prompt(
+                                prompts,
+                                "document_knowledge.ingest.system",
+                            ),
+                        },
+                        {
+                            "role": "user",
+                            "content": render_prompt(
+                                prompts,
+                                "document_knowledge.ingest.user",
+                                document_excerpt=excerpt,
+                            ),
+                        },
+                    ],
+                    GeneratedDocumentKnowledgeBatch,
+                    retry_instruction=render_prompt(
+                        prompts,
+                        "document_knowledge.structured_retry",
+                    ),
+                    max_tokens=settings.document_knowledge_llm_max_tokens,
+                    timeout=settings.document_knowledge_llm_timeout_seconds,
+                )
+            except (
+                TimeoutError,
+                APITimeoutError,
+                StructuredOutputError,
+                ValidationError,
+            ) as exc:
+                logger.warning(
+                    "Document-knowledge generation batch %s/%s failed: %s",
+                    batch_number,
+                    len(batches),
+                    exc.__class__.__name__,
+                )
+                return [], False
+            return response.items, True
 
-    nested = await asyncio.gather(*(generate(batch) for batch in batches))
-    return [item for group in nested for item in group][:_MAX_GENERATED_ITEMS]
+    outcomes = await asyncio.gather(
+        *(generate(index, batch) for index, batch in enumerate(batches, start=1))
+    )
+    items = [item for group, _succeeded in outcomes for item in group]
+    successful_batches = sum(1 for _group, succeeded in outcomes if succeeded)
+    return DocumentKnowledgeGenerationResult(
+        items=items[:_MAX_GENERATED_ITEMS],
+        successful_batches=successful_batches,
+        failed_batches=len(outcomes) - successful_batches,
+    )
 
 
 def _source_batches(blocks: Sequence[ExtractedBlock]) -> list[str]:

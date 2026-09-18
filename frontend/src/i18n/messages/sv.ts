@@ -345,6 +345,7 @@ export const sv = {
       processing: "Dokumentet läses och dokumentkunskapen byggs i bakgrunden…",
       needsOcr: "PDF-filen saknar ett läsbart textlager. OCR ingår inte ännu.",
       noText: "Dokumentet innehåller ingen text som kan läsas.",
+      partial: "Dokumenttexten är klar, men delar av automatiska Q&A kunde inte skapas. Det som lyckades finns tillgängligt.",
       failed: "Dokumentets ingest misslyckades.",
       empty: "Ingen dokumentkunskap har lagts till ännu.",
       selectionHint: "Markera text i PDF:en för att lägga till fakta, Q&A, bokmärke eller anteckning.",
