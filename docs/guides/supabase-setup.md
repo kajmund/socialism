@@ -1,7 +1,6 @@
 # Supabase setup
 
-Auth (magic link) is being wired in phases; Postgres for product state remains later.
-SQLAlchemy models + Alembic stay the schema source of truth.
+Supabase provides Auth, Storage and the production PostgreSQL database. SQLAlchemy models + Alembic remain the schema source of truth.
 
 ## Credentials
 
@@ -13,9 +12,15 @@ SQLAlchemy models + Alembic stay the schema source of truth.
 | JWT Secret | Project Settings → API → JWT Secret | Backend (`SUPABASE_JWT_SECRET`) — HS256 verify |
 | S3 access key + secret | Storage → S3 | Backend (`SUPABASE_S3_ACCESS_KEY_ID`, `SUPABASE_S3_SECRET_ACCESS_KEY`) |
 | S3 region | Same Storage S3 page | Backend (`SUPABASE_S3_REGION`) — must match the project region |
-| Direct database URL | Project Settings → Database | Later: Alembic + SQLAlchemy Postgres |
+| Direct/session database URL | Connect / Project Settings → Database | Backend `DATABASE_URL`, Alembic and the one-time importer |
 
 Keep `service_role` and S3 secrets out of git, client bundles, and frontend env files.
+
+## PostgreSQL
+
+Use the direct or session connection string for the long-running Railway backend. Do not use Supavisor transaction mode: the application owns normal SQLAlchemy transactions and persistent connection pooling. Plain `postgres://` or `postgresql://` values are normalized to `postgresql+psycopg://` at startup.
+
+Apply schema migrations with `uv run alembic upgrade head`. For the one-time SQLite import, follow [Backend setup](backend-setup.md#supabase-postgres-migration). The importer requires a dedicated new target, explicitly clears migration-created catalog rows with `--replace-target`, and verifies the copy before its transaction commits.
 
 ## Storage (S3)
 

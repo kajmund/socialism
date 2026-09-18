@@ -18,9 +18,9 @@ Phase 1: admin CRUD is API-backed (SQLite). Simulation start defaults to status-
 | ----- | ------ |
 | Backend | Python 3.12+ · FastAPI · SQLAlchemy · Alembic |
 | Frontend | Vite · React · TypeScript · Tailwind · shadcn |
-| Database (phase 1) | SQLite (`aiosqlite`) under `backend/data/` |
-| Database (later) | Supabase Postgres |
-| Auth (later) | Supabase Auth (email) |
+| Production database | Supabase Postgres |
+| Local/test database | SQLite (`aiosqlite`) under `backend/data/` |
+| Auth | Supabase Auth (email) |
 | LLM | DeepSeek (OpenAI-compatible SDK; stub persona sampling for tests) |
 | Hosting | Railway |
 
@@ -124,7 +124,7 @@ Tests: `make test` (backend `pytest` + frontend lint/vitest). CI runs the same s
 | [docs/guides/backend-setup.md](docs/guides/backend-setup.md) | Backend setup, jobs, OASIS, troubleshooting |
 | [docs/guides/frontend-setup.md](docs/guides/frontend-setup.md) | Frontend setup, routes, env |
 | [docs/guides/runs-interviews-and-quality.md](docs/guides/runs-interviews-and-quality.md) | Interviews, branches, quality warnings |
-| [docs/guides/supabase-setup.md](docs/guides/supabase-setup.md) | Future Supabase migration notes |
+| [docs/guides/supabase-setup.md](docs/guides/supabase-setup.md) | Supabase database, Auth and Storage setup |
 | [docs/architecture.md](docs/architecture.md) | Current system architecture |
 | [AGENTS.md](AGENTS.md) | Agent / contributor conventions |
 

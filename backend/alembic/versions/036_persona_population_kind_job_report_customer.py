@@ -20,8 +20,7 @@ _OS_DEFAULT_CUSTOMER_ID = 1
 
 
 def _column_names(table: str) -> set[str]:
-    rows = op.get_bind().execute(sa.text(f"PRAGMA table_info({table})")).all()
-    return {row[1] for row in rows}
+    return {str(column["name"]) for column in sa.inspect(op.get_bind()).get_columns(table)}
 
 
 def _add_column_if_missing(table: str, column: sa.Column) -> None:
@@ -72,18 +71,29 @@ def upgrade() -> None:
     conn.execute(sa.text(f"UPDATE jobs SET customer_id = {_OS_DEFAULT_CUSTOMER_ID}"))
     conn.execute(sa.text(f"UPDATE reports SET customer_id = {_OS_DEFAULT_CUSTOMER_ID}"))
 
+    if conn.dialect.name == "postgresql":
+        job_run_id = "jobs.request ->> 'run_id'"
+        report_session_id = "reports.sources -> 0 ->> 'session_id'"
+        report_run_id = "reports.sources -> 0 ->> 'run_id'"
+        job_report_id = "jobs.request ->> 'report_id'"
+    else:
+        job_run_id = "json_extract(jobs.request, '$.run_id')"
+        report_session_id = "json_extract(reports.sources, '$[0].session_id')"
+        report_run_id = "json_extract(reports.sources, '$[0].run_id')"
+        job_report_id = "json_extract(jobs.request, '$.report_id')"
+
     conn.execute(
         sa.text(
-            """
+            f"""
             UPDATE jobs
             SET customer_id = COALESCE((
                 SELECT p.customer_id
                 FROM runs r
                 JOIN projekt p ON r.project_id = p.id
-                WHERE r.id = CAST(json_extract(jobs.request, '$.run_id') AS INTEGER)
+                WHERE r.id = CAST({job_run_id} AS INTEGER)
             ), customer_id)
             WHERE jobs.kind = 'run_simulate'
-              AND json_extract(jobs.request, '$.run_id') IS NOT NULL
+              AND {job_run_id} IS NOT NULL
             """
         )
     )
@@ -103,45 +113,45 @@ def upgrade() -> None:
     )
     conn.execute(
         sa.text(
-            """
+            f"""
             UPDATE reports
             SET customer_id = COALESCE((
                 SELECT dc.customer_id
                 FROM panel_sessions ps
                 JOIN dd_campaigns dc ON ps.campaign_id = dc.id
-                WHERE ps.id = json_extract(reports.sources, '$[0].session_id')
+                WHERE ps.id = {report_session_id}
             ), customer_id)
             WHERE reports.mode = 'dd'
-              AND json_extract(reports.sources, '$[0].session_id') IS NOT NULL
+              AND {report_session_id} IS NOT NULL
             """
         )
     )
     conn.execute(
         sa.text(
-            """
+            f"""
             UPDATE reports
             SET customer_id = COALESCE((
                 SELECT p.customer_id
                 FROM runs r
                 JOIN projekt p ON r.project_id = p.id
-                WHERE r.id = CAST(json_extract(reports.sources, '$[0].run_id') AS INTEGER)
+                WHERE r.id = CAST({report_run_id} AS INTEGER)
             ), customer_id)
             WHERE reports.mode != 'dd'
-              AND json_extract(reports.sources, '$[0].run_id') IS NOT NULL
+              AND {report_run_id} IS NOT NULL
             """
         )
     )
     conn.execute(
         sa.text(
-            """
+            f"""
             UPDATE jobs
             SET customer_id = COALESCE((
                 SELECT r.customer_id
                 FROM reports r
-                WHERE r.id = json_extract(jobs.request, '$.report_id')
+                WHERE r.id = {job_report_id}
             ), customer_id)
             WHERE jobs.kind = 'report_generate'
-              AND json_extract(jobs.request, '$.report_id') IS NOT NULL
+              AND {job_report_id} IS NOT NULL
             """
         )
     )

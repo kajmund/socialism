@@ -4,7 +4,7 @@
 
 Opinionssimulator is an internal tool for testing political messaging against AI agent populations grounded in local civic context. Swedish UI by default.
 
-This document describes the **current phase 1** system: FastAPI + React SPA + SQLite, optional OASIS multi-agent simulation, and hybrid HTML reports. It is verified against the codebase — not a future-state sketch.
+This document describes the current system: FastAPI + React SPA + Supabase Postgres in production, SQLite for local development and tests, optional OASIS multi-agent simulation, and hybrid HTML reports.
 
 ## High-level view
 
@@ -18,25 +18,26 @@ flowchart LR
         backend[Backend service<br/>FastAPI]
     end
 
-    sqlite[(SQLite<br/>backend/data/)]
+    postgres[(Supabase Postgres<br/>product state)]
+    sqlite[(SQLite<br/>local/test + OASIS artifacts)]
     chatllm[Chat LLM<br/>Cerebras / DeepSeek]
     oasis[Optional OASIS<br/>camel-oasis]
 
     frontend -->|serves SPA| browser
     browser -->|JSON API| backend
-    backend --> sqlite
+    backend --> postgres
     backend -->|persona gen, chat,<br/>messages, Word review| chatllm
     backend -.->|SIMULATION_ENGINE=oasis| oasis
     oasis -.->|artifacts| sqlite
 ```
 
-## Stack (phase 1)
+## Stack
 
 | Layer | Choice |
 | ----- | ------ |
 | Frontend | Vite · React · TypeScript · Tailwind · shadcn · React Router |
 | Backend | Python 3.12+ · FastAPI · SQLAlchemy · Alembic · pydantic-settings |
-| Database | SQLite via `aiosqlite` (`backend/data/`) |
+| Database | Supabase Postgres via `psycopg` in production; SQLite via `aiosqlite` locally and in tests |
 | API logs | Rotating file `backend/data/logs/app.log` (uvicorn stdout unchanged) |
 | LLM | Cerebras `gpt-oss-120b` default (`CEREBRAS_API_KEY`); DeepSeek via `LLM_PROVIDER=deepseek` |
 | Embeddings (SSR) | OpenAI `text-embedding-3-large` (`OPENAI_API_KEY` required) |
@@ -44,13 +45,14 @@ flowchart LR
 | Auth | Not wired — Supabase Auth planned later |
 | Hosting | Railway (frontend + backend services) |
 
-Phase 1 deliberately uses SQLite before Supabase. Models/migrations stay portable so `DATABASE_URL` can point at Postgres later.
+`DATABASE_URL` selects the database. Production uses `postgresql+psycopg://`; SQLite remains a supported local/test dialect.
 
 ## System boundaries
 
 - **Browser:** thin SPA. Renders admin UI; calls FastAPI over JSON. Never holds service-role credentials or runs simulation logic.
 - **Backend:** authoritative for CRUD, LLM calls, background jobs, OASIS orchestration, and report generation.
-- **SQLite:** durable product state (personas, populations, runs, messages, catalog, jobs, reports, persona chat history).
+- **Supabase Postgres:** durable production product state (personas, populations, runs, messages, catalog, jobs, reports, and persona chat history).
+- **SQLite:** local/test product state and OASIS simulation artifacts.
 - **Chat LLM:** persona generation, anecdotes, library chat, run-scoped interviews, message variants/URL summarize, Word review, panel/help chat. Default Cerebras `gpt-oss-120b` + medium reasoning; DeepSeek is the same `app.llm` path for A/B.
 - **OASIS (optional):** multi-agent Twitter/Reddit-style simulation via `camel-oasis`. Heavy optional install (`uv sync --extra oasis`).
 
@@ -190,7 +192,7 @@ Fail fast on missing required config.
 - Static frontend login only (not backend-enforced; not multi-tenant)
 - No durable external job queue (in-process background tasks; Attempt research uses a DB lease, not a second job model)
 - Reports are hybrid HTML, not PDF
-- Supabase Postgres/Auth not used for product state yet
+- Supabase cutover requires a configured production `DATABASE_URL` and a one-time verified import of the existing SQLite data
 
 ## Related docs
 
@@ -199,7 +201,7 @@ Fail fast on missing required config.
 - [CI](guides/ci.md)
 - [Backend setup](guides/backend-setup.md)
 - [Frontend setup](guides/frontend-setup.md)
-- [Supabase (later)](guides/supabase-setup.md)
+- [Supabase](guides/supabase-setup.md)
 - [Client brief](client-brief.md)
 - Operator OKF manuals: [knowledge/manual/](../knowledge/manual/)
 - Root [README](../README.md) and [AGENTS.md](../AGENTS.md)

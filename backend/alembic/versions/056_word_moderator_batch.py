@@ -6,7 +6,6 @@ Revises: 055_rattsunderlag_sessions
 
 from __future__ import annotations
 
-import json
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -112,11 +111,13 @@ def upgrade() -> None:
             "default_sv, default_en, default_nb, active"
             ") VALUES ("
             ":key, :modules, :section, :label_sv, :label_en, :hint_sv, :hint_en, "
-            ":default_sv, :default_en, :default_nb, 1"
+            ":default_sv, :default_en, :default_nb, :active"
             ")"
         ).bindparams(
+            sa.bindparam("modules", type_=sa.JSON()),
+            sa.bindparam("active", type_=sa.Boolean()),
             key=_NEW_KEY,
-            modules=json.dumps(["expertgranskning"]),
+            modules=["expertgranskning"],
             section=field["section"],
             label_sv=labels["sv"],
             label_en=labels["en"],
@@ -125,6 +126,7 @@ def upgrade() -> None:
             default_sv=defaults["sv"],
             default_en=defaults["en"],
             default_nb=defaults["nb"],
+            active=True,
         )
     )
 
