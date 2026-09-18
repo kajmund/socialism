@@ -599,10 +599,17 @@ async def test_expert_memory_api_lists_and_scopes(client, user_token, admin_toke
     client.headers["Authorization"] = f"Bearer {admin_token}"
 
 
-def test_memory_config_includes_language_preservation():
+def test_memory_config_includes_language_preservation(monkeypatch):
+    monkeypatch.setattr(
+        "app.services.expertgranskning.memory.settings.database_url",
+        "postgresql+psycopg://user:pass@example.test/postgres",
+    )
     config = _memory_config(vision=False)
     assert config["custom_instructions"] == LANGUAGE_PRESERVATION_INSTRUCTIONS
     assert "Never translate memories into English" in LANGUAGE_PRESERVATION_INSTRUCTIONS
+    assert config["vector_store"]["provider"] == "pgvector"
+    assert config["vector_store"]["config"]["embedding_model_dims"] == 1536
+    assert config["history_db_path"].startswith("postgresql://")
 
 
 @pytest.mark.asyncio

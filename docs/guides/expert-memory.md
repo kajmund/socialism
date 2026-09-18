@@ -1,12 +1,13 @@
 # Expertminne med Mem0
 
-Fas 1 använder Mem0 OSS med Chroma inbäddat på disk. Ingen Chroma- eller
-Qdrant-server och ingen container behövs.
+Mem0 OSS använder samma Supabase Postgres-databas som backend. Vektorer lagras
+med pgvector och Mem0-historiken ligger i vanliga Postgres-tabeller. Ingen lokal
+Chroma- eller SQLite-databas används i drift.
 
 ## Lagring och scope
 
-- Chroma: `MEM0_CHROMA_PATH` (standard `data/mem0/chroma`)
-- Mem0-historik: `MEM0_HISTORY_DB_PATH`
+- Vektorer: `expert_memories` och `expert_memories_entities`
+- Mem0-historik: `mem0_history` och `mem0_messages`
 - Kundscope: `user_id=kund:{customer_id}`
 - Expertscope: `agent_id=expert:{catalog_key}`. Samma stabila katalognyckel används
   i expertchat och panel så att båda ytorna delar expertens minne.
@@ -60,9 +61,9 @@ Vid **skrivning** extraherar vision-klienten fakta från bild + text. Vid
 bara en sträng) och den texten används mot Chroma. En bild utan
 bildtext är ett giltigt sökunderlag.
 
-Chroma lagrar de textfakta som Mem0 extraherar. `image_sha256` sparas som
+pgvector-tabellerna lagrar de textfakta som Mem0 extraherar. `image_sha256` sparas som
 metadata och exponeras i API/UI så att man kan se bilden i minnesloggen;
-råa bildbytes lagras inte i Chroma. Om extraktionen inte hittar ett
+råa bildbytes lagras inte i Mem0. Om extraktionen inte hittar ett
 nytt faktum sparas visionbeskrivningen tillsammans med bilden (`infer=False`)
 så att bildturen ändå hamnar i minnet.
 

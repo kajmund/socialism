@@ -1,4 +1,4 @@
-"""Persistent expert memory backed by Mem0 OSS and local Chroma."""
+"""Persistent expert memory backed by Mem0 OSS and Supabase Postgres."""
 
 from __future__ import annotations
 
@@ -13,10 +13,17 @@ from dataclasses import dataclass
 from functools import cache
 from typing import Any, Protocol
 
-from app.config import settings
+from app.config import EMBEDDING_MODEL_DIMENSIONS, settings
+from app.services.expertgranskning.mem0_postgres_history import PostgresHistoryManager
 from app.services.image_cache import image_data_url
+import mem0.memory.main as mem0_main
 from mem0 import Memory
 from mem0.memory.utils import parse_vision_messages
+
+# Mem0 OSS 2.0.20 hardcodes its SQLite history class. The SDK resolves this
+# module global when each Memory instance is created, so pinning the version and
+# replacing that storage boundary keeps all runtime state in Postgres.
+mem0_main.SQLiteManager = PostgresHistoryManager
 
 MemorySource = str
 
@@ -183,10 +190,14 @@ def _memory_config(*, vision: bool) -> dict[str, Any]:
         )
     return {
         "vector_store": {
-            "provider": "chroma",
+            "provider": "pgvector",
             "config": {
                 "collection_name": settings.mem0_collection_name,
-                "path": settings.mem0_chroma_path,
+                "embedding_model_dims": EMBEDDING_MODEL_DIMENSIONS[
+                    settings.mem0_embedding_model
+                ],
+                "connection_string": _mem0_database_url(),
+                "sslmode": "require",
             },
         },
         "llm": {"provider": "openai", "config": llm_config},
@@ -198,9 +209,18 @@ def _memory_config(*, vision: bool) -> dict[str, Any]:
                 "openai_base_url": settings.embedding_base_url,
             },
         },
-        "history_db_path": settings.mem0_history_db_path,
+        # The field name belongs to Mem0; our patched manager interprets it as
+        # a PostgreSQL connection string rather than a filesystem path.
+        "history_db_path": _mem0_database_url(),
         "custom_instructions": LANGUAGE_PRESERVATION_INSTRUCTIONS,
     }
+
+
+def _mem0_database_url() -> str:
+    url = settings.database_url.replace("postgresql+psycopg://", "postgresql://", 1)
+    if not url.startswith("postgresql://"):
+        raise ValueError("Mem0 requires the Supabase PostgreSQL DATABASE_URL")
+    return url
 
 
 def _row_metadata(row: dict[str, Any]) -> dict[str, Any]:
