@@ -52,7 +52,7 @@ An empty expert research plan is valid when the document itself is sufficient. T
 
 ## Expert chat read-through
 
-Library expert chat performs a read-only exact lookup against tenant and public `KnowledgeQuestion` identities before answering. Only links backed by an Attempt in `ready` or `completed` state and an attached frozen EvidenceSet are exposed to the chat model. Case-scoped evidence is excluded because a library chat has no document case context, and another tenant's evidence can never match.
+Library expert chat performs a read-only semantic lookup against tenant and public `KnowledgeQuestion` identities before answering. Exact identity is checked first; an exact miss uses the configured vector store, while SQL remains authoritative for which questions belong to the namespace. Only links backed by an Attempt in `ready` or `completed` state and an attached frozen EvidenceSet are exposed to the chat model. Case-scoped evidence is excluded because a library chat has no document case context, and another tenant's evidence can never match.
 
 Matching frozen evidence is added to the expert's system context with stable `[R1]`, `[R2]` references and explicit freshness. The expert must disclose gaps or stale evidence rather than invent an answer. This seam creates no Run, Attempt, question, or provider request. Both REST and streaming chat use the same read-through behavior; Word remains outside it.
 
@@ -60,10 +60,15 @@ When the frozen read-through is insufficient, a library expert can offer to star
 
 The tool creates an `expert_chat_research` Job and returns immediately. The user's original chat question becomes the context-bound `SpecificQuestion`; the standalone question proposed by the expert becomes the initial general `ResearchQuestion`. Its background worker creates the parent Attempt and preserves the initiating expert as `raised_by`. Normal expert assignment then selects or creates the responsible expert before the existing question DAG runs through planning, routing, frozen evidence, assessment and completeness. The chat does not wait for the result or claim that it already exists. Word has neither this tool nor this initiation path.
 
+When the child Attempt has frozen its evidence, found items are published as
+`ANSWERED_BY` links on the canonical high-level question. Each expert in the
+question lineage receives a durable `ExpertKnowledgeReceipt` and an idempotent
+Mem0 receipt. The receipt means “this expert received research for this
+question”; it does not duplicate or replace the shared evidence.
+
 ## Next stages
 
-1. Add semantic matching for `KnowledgeQuestion` using the configured vector store.
-2. Surface completed expert-chat research proactively in its originating conversation.
-3. Build neutral document-understanding Q&A during ingest, with PDF text anchors, as another `case_knowledge` source. It has no expert ownership and must not contain risk or problem analysis.
+1. Surface completed expert-chat research proactively in its originating conversation.
+2. Build neutral document-understanding Q&A during ingest, with PDF text anchors, as another `case_knowledge` source. It has no expert ownership and must not contain risk or problem analysis.
 
 Evidence continues to freeze into an `EvidenceSet` before consumers use it. Comments and Word may receive read-only access to frozen evidence in a later stage, but remain outside research initiation.

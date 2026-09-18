@@ -12,7 +12,14 @@ from app.services.panel.question_expert_adapters import (
     UnderlagExpertCreator,
 )
 from app.services.prompt_store import require_active_prompts
-from app.services.research.composition import build_standard_research_router
+from app.services.research.composition import (
+    build_standard_question_graph,
+    build_standard_research_router,
+)
+from app.services.research.expert_knowledge import (
+    publish_completed_attempt_knowledge,
+    remember_published_question,
+)
 from app.services.research.question_attempt_worker import AttemptResearchQuestionWorker
 from app.services.research.question_domain import (
     GeneralQuestionDraft,
@@ -132,6 +139,14 @@ async def run_expert_chat_research_job(
     )
     if result.status not in {"completed", "completed_with_gaps"}:
         raise RuntimeError(f"Expert chat research stopped as {result.status}")
+    async with factory() as session:
+        memories = await publish_completed_attempt_knowledge(
+            session,
+            attempt_id=attempt_id,
+            graph=build_standard_question_graph(),
+        )
+        await session.commit()
+    await remember_published_question(memories)
     return {
         "run_id": run_id,
         "attempt_id": attempt_id,

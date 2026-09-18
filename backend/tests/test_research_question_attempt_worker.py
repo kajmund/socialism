@@ -6,12 +6,22 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 
 from app.database.base import Base
-from app.database.models import EvidenceSet, ExecutionAttempt, Kund, ResearchQuestion
+from app.database.models import (
+    EvidenceSet,
+    ExecutionAttempt,
+    ExpertKnowledgeReceipt,
+    KnowledgeQuestionEvidenceLink,
+    Kund,
+    Persona,
+    ResearchQuestion,
+)
 from app.services.execution import create_attempt, create_run
+from app.services.expertgranskning.memory import set_expert_memory_factory
 from app.services.research.assessment import (
     ResearchAssessmentDraft,
     ResearchNeedAssessment,
 )
+from app.services.research.expert_knowledge import publish_completed_attempt_knowledge
 from app.services.research.followup import FollowUpNeedDraft
 from app.services.research.models import (
     ResearchContext,
@@ -26,6 +36,7 @@ from app.services.research.question_domain import (
     create_specific_question,
 )
 from app.services.research.question_execution import execute_research_question_dag
+from app.services.research.question_graph_sql import SqlQuestionEvidenceGraph
 from app.services.research.registry import ResearchSourceRegistry
 from app.services.research.router import ResearchRouter
 
@@ -48,6 +59,18 @@ async def _setup(factory):
     async with factory() as session:
         customer = Kund(name="Acme", slug="acme", available_modules=["expertgranskning"])
         session.add(customer)
+        await session.flush()
+        session.add(
+            Persona(
+                id="avtalsjurist",
+                customer_id=customer.id,
+                kind="expert",
+                name="Avtalsjuristen",
+                occ="Jurist",
+                district="—",
+                profile={},
+            )
+        )
         await session.flush()
         run = await create_run(
             session,
@@ -159,9 +182,19 @@ class OneFollowUpPlanner:
         ]
 
 
+class ReceiptMemory:
+    def __init__(self) -> None:
+        self.receipts: list[dict[str, object]] = []
+
+    async def add_research_receipt(self, **kwargs) -> None:
+        self.receipts.append(dict(kwargs))
+
+
 async def test_question_runs_as_child_attempt_with_frozen_evidence(factory):
     parent_id, question_id = await _setup(factory)
     source = FoundSource()
+    memory = ReceiptMemory()
+    set_expert_memory_factory(lambda: memory)
 
     def router_factory(_session):
         registry = ResearchSourceRegistry()
@@ -196,7 +229,35 @@ async def test_question_runs_as_child_attempt_with_frozen_evidence(factory):
         evidence_set = await session.get(EvidenceSet, child.evidence_set_id)
         assert evidence_set is not None
         assert evidence_set.status == "frozen"
+        links = list(
+            (
+                await session.execute(
+                    select(KnowledgeQuestionEvidenceLink).where(
+                        KnowledgeQuestionEvidenceLink.question_id == question.knowledge_question_id
+                    )
+                )
+            ).scalars()
+        )
+        receipts = list(
+            (
+                await session.execute(
+                    select(ExpertKnowledgeReceipt).where(
+                        ExpertKnowledgeReceipt.knowledge_question_id
+                        == question.knowledge_question_id
+                    )
+                )
+            ).scalars()
+        )
+        assert len(links) == 1
+        assert links[0].source_attempt_id == child.id
+        assert links[0].excerpt == "Avtalsvillkoret får jämkas om det är oskäligt."
+        assert {receipt.role for receipt in receipts} == {"raised_by", "assigned_to"}
+        assert {receipt.expert_id for receipt in receipts} == {"avtalsjurist"}
+        assert {receipt.evidence_set_id for receipt in receipts} == {evidence_set.id}
     assert source.calls == 1
+    assert len(memory.receipts) == 1
+    assert memory.receipts[0]["expert_id"] == "avtalsjuristen"
+    assert memory.receipts[0]["knowledge_question_id"] == question.knowledge_question_id
 
 
 async def test_ready_child_attempt_is_reused_without_new_retrieval(factory):
@@ -272,6 +333,12 @@ async def test_researched_engine_follow_up_becomes_completed_dag_question(factor
     assert result.status == "completed"
     assert result.completed_count == 2
     async with factory() as session:
+        await publish_completed_attempt_knowledge(
+            session,
+            attempt_id=parent_id,
+            graph=SqlQuestionEvidenceGraph(),
+        )
+        await session.commit()
         questions = list(
             (
                 await session.execute(
@@ -279,9 +346,14 @@ async def test_researched_engine_follow_up_becomes_completed_dag_question(factor
                 )
             ).scalars()
         )
+        receipts = list((await session.execute(select(ExpertKnowledgeReceipt))).scalars())
     parent = next(row for row in questions if row.origin == "initial")
     follow_up = next(row for row in questions if row.origin == "derived")
     assert follow_up.status == "completed"
     assert follow_up.execution_attempt_id == parent.execution_attempt_id
     assert follow_up.runtime_need_id == "followup_1_1"
+    assert {receipt.knowledge_question_id for receipt in receipts} == {
+        parent.knowledge_question_id,
+        follow_up.knowledge_question_id,
+    }
     assert source.calls == 2

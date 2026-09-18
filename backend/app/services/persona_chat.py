@@ -40,7 +40,7 @@ from app.services.expert_chat_evidence import (
     reusable_expert_chat_evidence_context,
 )
 from app.services.expert_tools import resolve_chat_tools
-from app.services.expertgranskning.memory import get_expert_memory
+from app.services.expertgranskning.memory import ExpertMemoryHit, get_expert_memory
 from app.services.expertgranskning.memory_view import serialize_memory_hit
 from app.services.oasis_run import previous_attempts
 from app.services.prompt_catalog import render_prompt
@@ -286,13 +286,31 @@ async def expert_memory_context(
         query=message,
         image_sha256=image_sha256,
         sources=frozenset(
-            {"persona_chat", "panel_chat", "intent_interview", "word_findings"}
+            {
+                "persona_chat",
+                "panel_chat",
+                "intent_interview",
+                "word_findings",
+                "research_receipt",
+            }
         ),
     )
     if not hits:
         return ""
-    memories = "\n".join(f"- {hit.text}" for hit in hits)
+    memories = "\n".join(_expert_memory_context_line(hit) for hit in hits)
     return render_prompt(prompts, "chat.expert.memory", memories=memories)
+
+
+def _expert_memory_context_line(hit: ExpertMemoryHit) -> str:
+    if hit.source != "research_receipt":
+        return f"- {hit.text}"
+    question_id = str(hit.metadata.get("knowledge_question_id") or "unknown")
+    attempt_id = str(hit.metadata.get("source_attempt_id") or "unknown")
+    return (
+        "- [research_receipt; "
+        f"knowledge_question_id={question_id}; source_attempt_id={attempt_id}] "
+        f"{hit.text}"
+    )
 
 
 async def remember_expert_chat_turn(

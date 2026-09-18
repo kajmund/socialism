@@ -14,7 +14,13 @@ Reusable persistent knowledge for research. This is a seam on the existing engin
 
 A runtime need may resolve to a `KnowledgeQuestion`. Execution state never moves into the graph. Documents stay in EvidenceSet storage. The graph stores a stable reference, excerpt/locator when useful, provider/provenance, timestamps, and version metadata.
 
-Identity is the existing deterministic `research_question_key` (normalized casefold + whitespace) plus an explicit namespace. Semantic matching is a seam (`QuestionIdentityMatcher`); v1 is exact identity only. If embeddings are added later, persist model / version / dimension together.
+Identity starts with the existing deterministic `research_question_key` (normalized casefold + whitespace) plus an explicit namespace. On an exact miss, production uses `SemanticQuestionIdentityMatcher` against the same Supabase Vector Bucket as document knowledge. Question vectors use a dedicated vector customer partition plus `knowledge_kind=knowledge_question` and namespace metadata, so ordinary document retrieval cannot return them. The canonical SQL row remains authoritative; the vector index only proposes one of the SQL candidates. Model, embedding version, and dimension are persisted together on `knowledge_questions`.
+
+The similarity threshold and candidate bound are configured with
+`RESEARCH_QUESTION_SEMANTIC_MATCH_THRESHOLD` and
+`RESEARCH_QUESTION_SEMANTIC_MATCH_LIMIT`. Public and tenant questions use
+different namespaces, and tenant questions cannot match another customer's
+vectors.
 
 ## Target flow
 
@@ -31,6 +37,12 @@ ResearchNeed
 ```
 
 Reuse is candidate retrieval, never automatic truth. Graph code cannot mark a need sufficient. v1 does not skip live providers from a programmatic "found = sufficient" check: production assessment can be an LLM and now also sees evidence quality. A later conservative skip-gate must be tested against that real policy.
+
+Library expert chat is intentionally different from an executing research
+Attempt: it performs read-only semantic question matching and may answer from
+matching frozen evidence without starting research. If that evidence does not
+answer the user's question, the existing explicit confirmation flow is still
+required before the expert can create a background research job.
 
 ## Scope
 
@@ -91,5 +103,11 @@ Graph lookup or write failure falls back to normal provider retrieval / keeps al
 ```
 
 Retries upsert the same `(question, evidence_ref)` edge. They do not duplicate nodes or EvidenceSet items. Edges store `source_attempt_id` so the current Attempt cannot reuse its own in-flight writes; a later Attempt can.
+
+When a question child Attempt is ready, its found frozen EvidenceSet items are
+also linked directly to the high-level canonical `KnowledgeQuestion`. One
+`expert_knowledge_receipts` row is then written for each `raised_by` and
+`assigned_to` relationship. This is durable expert-to-question lineage; Mem0
+receives only an idempotent receipt pointing back to it.
 
 Sibling work (evidence quality / source authority, progress events, durable workers) can land later. Reused candidates already re-enter the existing evidence + sufficiency path.
