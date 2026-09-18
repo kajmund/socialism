@@ -19,6 +19,7 @@ flowchart LR
     end
 
     postgres[(Supabase Postgres<br/>product state)]
+    knowledge[(Support project<br/>shared vectors)]
     sqlite[(SQLite<br/>local/test + OASIS artifacts)]
     chatllm[Chat LLM<br/>Cerebras / DeepSeek]
     oasis[Optional OASIS<br/>camel-oasis]
@@ -26,6 +27,7 @@ flowchart LR
     frontend -->|serves SPA| browser
     browser -->|JSON API| backend
     backend --> postgres
+    backend -->|research knowledge| knowledge
     backend -->|persona gen, chat,<br/>messages, Word review| chatllm
     backend -.->|SIMULATION_ENGINE=oasis| oasis
     oasis -.->|artifacts| sqlite
@@ -52,6 +54,7 @@ flowchart LR
 - **Browser:** thin SPA. Renders admin UI; calls FastAPI over JSON. Never holds service-role credentials or runs simulation logic.
 - **Backend:** authoritative for CRUD, LLM calls, background jobs, OASIS orchestration, and report generation.
 - **Supabase Postgres:** durable production product state (personas, populations, runs, messages, catalog, jobs, reports, and persona chat history).
+- **Support project:** shared research vectors and knowledge infrastructure, connected separately from Socialism's product/Auth project.
 - **SQLite:** local/test product state and OASIS simulation artifacts.
 - **Chat LLM:** persona generation, anecdotes, library chat, run-scoped interviews, message variants/URL summarize, Word review, panel/help chat. Default Cerebras `gpt-oss-120b` + medium reasoning; DeepSeek is the same `app.llm` path for A/B.
 - **OASIS (optional):** multi-agent Twitter/Reddit-style simulation via `camel-oasis`. Heavy optional install (`uv sync --extra oasis`).
