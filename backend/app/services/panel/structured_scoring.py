@@ -3,16 +3,16 @@
 from __future__ import annotations
 
 import json
-import re
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import PanelSession
 from app.llm import complete_text
+from app.services.customer_scope import customer_id_for_panel_session
 from app.services.dd.company_mcp import run_company_tool_loop, visible_assistant_text
 from app.services.dd.research import format_research_brief
 from app.services.dd.schemas import DdCandidateCompany, DdResearchDossier
-from app.services.dd.source_attribution import SourceBadge, SourceKind, resolve_source_badge
+from app.services.dd.source_attribution import SourceBadge, resolve_source_badge
 from app.services.dd.sub_questions import SubQuestionRef
 from app.services.panel.raise_hand import parse_raise_hand_reply
 from app.services.panel.result import envelope_from_dd_panel_result
@@ -29,7 +29,6 @@ from app.services.panel.spinndoctor_profile import (
     render_spinndoctor_identity,
     require_spinndoctor_profile,
 )
-from app.services.customer_scope import customer_id_for_panel_session
 from app.services.panel.sub_questions_store import get_sub_questions
 from app.services.panel.watch import existing_turn, load_transcript, run_turn
 from app.services.prompt_catalog import render_prompt
@@ -91,22 +90,8 @@ def _visible_moderator_text(text: str) -> str:
     return strip_spindoctor_refs(text)
 
 
-_SCORE_TURN_RE = re.compile(
-    r"^Poäng (?P<score>[1-9]|10)/10 — (?P<motivation>.+) "
-    r"\[Källa: (?P<label>[^:]+): (?P<detail>.*)\]$"
-)
-
-
 def format_score_turn(score: int, motivation: str, source: SourceBadge) -> str:
     return f"Poäng {score}/10 — {motivation} [Källa: {source.label}: {source.detail}]"
-
-
-def _source_kind_for_label(label: str) -> SourceKind:
-    if label == "Webb":
-        return "web"
-    if label in {"Grunddata", "Modellbedömning"}:
-        return "llm"
-    raise RuntimeError(f"Committed score turn has unknown source label: {label}")
 
 
 def score_from_committed_turn(
@@ -115,28 +100,20 @@ def score_from_committed_turn(
     slot: PanelExpertSlot,
     sub_question: SubQuestionRef,
 ) -> DdExpertScore:
-    """Rebuild a score from the committed public turn. No LLM."""
-    matched = _SCORE_TURN_RE.fullmatch(turn.content.strip())
-    if matched is None:
-        raise RuntimeError(f"Committed score turn is not parseable: {turn.turn_id}")
-    score = int(matched.group("score"))
-    motivation = matched.group("motivation").strip()
-    label = matched.group("label").strip()
-    if not motivation:
-        raise RuntimeError(f"Committed score turn is missing motivation: {turn.turn_id}")
-    return DdExpertScore(
-        expert_slot_id=slot.slot_id,
-        expert_label=slot.label,
-        sub_question_id=sub_question.id,
-        sub_question_label=sub_question.label,
-        score=score,
-        motivation=motivation,
-        source=SourceBadge(
-            kind=_source_kind_for_label(label),
-            label=label,
-            detail=matched.group("detail"),
-        ),
-    )
+    """Load exact domain state from a committed turn. No text parsing or LLM."""
+    if turn.checkpoint is None:
+        raise RuntimeError(f"Committed score turn has no checkpoint: {turn.turn_id}")
+    score = DdExpertScore.model_validate(turn.checkpoint)
+    if (
+        score.expert_slot_id != slot.slot_id
+        or score.expert_label != slot.label
+        or score.sub_question_id != sub_question.id
+        or score.sub_question_label != sub_question.label
+    ):
+        raise RuntimeError(f"Committed score checkpoint has wrong binding: {turn.turn_id}")
+    if format_score_turn(score.score, score.motivation, score.source) != turn.content:
+        raise RuntimeError(f"Committed score checkpoint disagrees with turn: {turn.turn_id}")
+    return score
 
 
 def unanswered_from_committed_turn(
@@ -330,9 +307,7 @@ async def _expert_score(
     transcript: list[PanelTurn],
     prompts: dict[str, str],
 ) -> tuple[int, str]:
-    system = render_prompt(
-        prompts, "panel.expert.system", label=slot.label, profile=slot.profile
-    )
+    system = render_prompt(prompts, "panel.expert.system", label=slot.label, profile=slot.profile)
     if slot.tools:
         system = system + "\n\n" + render_prompt(prompts, "panel.expert.tools")
     messages = [
@@ -415,8 +390,7 @@ async def _moderator_summary(
         for note in dissensus
     ] or ["- Ingen tydlig dissensus (spridning < 3)"]
     unanswered_lines = [
-        f"- {note.sub_question_label}: {note.moderator_note}"
-        for note in unanswered
+        f"- {note.sub_question_label}: {note.moderator_note}" for note in unanswered
     ] or ["- Inga obesvarade delfrågor"]
 
     messages = assemble_dd_moderator_messages(
@@ -497,9 +471,7 @@ async def run_structured_scoring(
         )
         if stored_unanswered is not None:
             unanswered.append(
-                unanswered_from_committed_turn(
-                    stored_unanswered, sub_question=sub_question
-                )
+                unanswered_from_committed_turn(stored_unanswered, sub_question=sub_question)
             )
             continue
 
@@ -537,9 +509,7 @@ async def run_structured_scoring(
                     config, sq, config.expert_slots, prompts, identity
                 ),
             )
-            unanswered.append(
-                unanswered_from_committed_turn(note_turn, sub_question=sub_question)
-            )
+            unanswered.append(unanswered_from_committed_turn(note_turn, sub_question=sub_question))
             continue
 
         for slot in participating:
@@ -553,9 +523,7 @@ async def run_structured_scoring(
             )
             if stored_score is not None:
                 scores.append(
-                    score_from_committed_turn(
-                        stored_score, slot=slot, sub_question=sub_question
-                    )
+                    score_from_committed_turn(stored_score, slot=slot, sub_question=sub_question)
                 )
                 continue
             source = resolve_source_badge(
@@ -588,9 +556,10 @@ async def run_structured_scoring(
                 round_index=round_index,
                 slot_id=slot.slot_id,
                 sub_question_id=sub_question.id,
-                produce_content=lambda text=format_score_turn(
-                    score_value, motivation, source
-                ): _static_text(text),
+                produce_content=lambda text=format_score_turn(score_value, motivation, source): (
+                    _static_text(text)
+                ),
+                checkpoint=score_row.model_dump(mode="json"),
             )
 
     dissensus = _dissensus_notes(scores)

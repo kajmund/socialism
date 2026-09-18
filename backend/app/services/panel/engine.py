@@ -34,7 +34,12 @@ from app.services.panel.synthesis import (
     public_transcript_text,
     synthesize_generic_panel_result,
 )
-from app.services.panel.watch import existing_turn, load_transcript, run_turn
+from app.services.panel.watch import (
+    commit_turn_checkpoint,
+    existing_turn,
+    load_transcript,
+    run_turn,
+)
 from app.services.prompt_catalog import render_prompt
 from app.services.review_contract import (
     display_speaker_label,
@@ -48,9 +53,7 @@ def _expert_system(
     *,
     with_tools: bool = False,
 ) -> str:
-    text = render_prompt(
-        prompts, "panel.expert.system", label=slot.label, profile=slot.profile
-    )
+    text = render_prompt(prompts, "panel.expert.system", label=slot.label, profile=slot.profile)
     if not with_tools:
         return text
     extra = expert_tool_prompt_extra(prompts, slot.tools)
@@ -60,7 +63,9 @@ def _expert_system(
 
 
 def _expert_list(config: PanelSessionConfig) -> str:
-    return "\n".join(f"- {slot.label}: {slot.profile or slot.label}" for slot in config.expert_slots)
+    return "\n".join(
+        f"- {slot.label}: {slot.profile or slot.label}" for slot in config.expert_slots
+    )
 
 
 def _transcript_text(transcript: list[PanelTurn]) -> str:
@@ -199,9 +204,7 @@ async def _expert_complete(
     if not allow_expert_tools:
         return (await complete_text(messages)).strip()
     return (
-        await complete_text_with_company_tools(
-            messages, allowed_tools=frozenset(slot.tools)
-        )
+        await complete_text_with_company_tools(messages, allowed_tools=frozenset(slot.tools))
     ).strip()
 
 
@@ -228,9 +231,7 @@ async def _expert_scratchpad(
             scratchpad=scratchpad or "(tom)",
         ),
     )
-    return await _expert_complete(
-        messages, slot, allow_expert_tools=allow_expert_tools
-    )
+    return await _expert_complete(messages, slot, allow_expert_tools=allow_expert_tools)
 
 
 async def _expert_turn(
@@ -256,9 +257,7 @@ async def _expert_turn(
             scratchpad=scratchpad or "(tom)",
         ),
     )
-    return await _expert_complete(
-        messages, slot, allow_expert_tools=allow_expert_tools
-    )
+    return await _expert_complete(messages, slot, allow_expert_tools=allow_expert_tools)
 
 
 async def _moderator_analysis(
@@ -285,6 +284,10 @@ async def _moderator_analysis(
 
 async def _static_unassessable_note() -> str:
     return UNASSESSABLE_PANEL_NOTE
+
+
+async def _static_text(value: str) -> str:
+    return value
 
 
 def _slot_by_id(config: PanelSessionConfig, slot_id: str) -> PanelExpertSlot:
@@ -314,29 +317,28 @@ async def _run_research_plan_phase(
             slot_id=slot.slot_id,
         )
 
-        async def produce_research_need(
-            expert_slot: PanelExpertSlot = slot,
-        ) -> str:
-            bundle = await collect_expert_research_needs(
-                expert_slot, config, opening, prompts
-            )
-            proposals.append((expert_slot, bundle))
-            return format_expert_research_need_turn(bundle, locale=config.locale)
-
-        if stored is None:
-            await run_turn(
-                db,
-                panel,
-                transcript,
-                speaker=slot.label,
-                phase="research_need",
-                slot_id=slot.slot_id,
-                produce_content=produce_research_need,
-                scratchpads=scratchpads,
-            )
+        if stored is not None:
+            if stored.checkpoint is None:
+                raise RuntimeError(f"Committed research need has no checkpoint: {stored.turn_id}")
+            bundle = ExpertResearchNeeds.model_validate(stored.checkpoint)
+            proposals.append((slot, bundle))
             continue
-        # Resume: keep the committed turn; refresh structured needs for the plan.
-        await produce_research_need()
+
+        bundle = await collect_expert_research_needs(slot, config, opening, prompts)
+        proposals.append((slot, bundle))
+        await run_turn(
+            db,
+            panel,
+            transcript,
+            speaker=slot.label,
+            phase="research_need",
+            slot_id=slot.slot_id,
+            produce_content=lambda value=format_expert_research_need_turn(bundle, locale=config.locale): (
+                _static_text(value)
+            ),
+            scratchpads=scratchpads,
+            checkpoint=bundle.model_dump(mode="json"),
+        )
 
     async def produce_research_plan() -> str:
         plan = await build_research_plan(config, opening, proposals, prompts)
@@ -394,7 +396,12 @@ async def run_generic_panel(
         ),
         scratchpads=scratchpads,
     )
-    if frozen_evidence:
+    saved_competency = (
+        opening_turn.checkpoint.get("competency") if opening_turn.checkpoint is not None else None
+    )
+    if saved_competency is not None:
+        competency = CompetencyState.model_validate(saved_competency)
+    elif frozen_evidence:
         competency = await assess_panel_competency(config, prompts)
     else:
         competency = await _run_research_plan_phase(
@@ -405,6 +412,14 @@ async def run_generic_panel(
             prompts,
             scratchpads,
             opening=opening_turn.content,
+        )
+    if saved_competency is None:
+        await commit_turn_checkpoint(
+            db,
+            panel,
+            transcript,
+            opening_turn,
+            {"competency": competency.model_dump(mode="json")},
         )
     competent_ids = competency.competent_slot_ids()
 
@@ -538,15 +553,12 @@ async def run_generic_panel(
             ):
                 population = await db.get(Population, panel.panel_id)
                 if population is None:
-                    raise RuntimeError(
-                        f"Expert panel not found for memory: {panel.panel_id}"
-                    )
+                    raise RuntimeError(f"Expert panel not found for memory: {panel.panel_id}")
                 question = next(
                     (
                         turn.content
                         for turn in reversed(transcript[:-1])
-                        if turn.speaker == "moderator"
-                        and turn.phase in {"opening", "sub_question"}
+                        if turn.speaker == "moderator" and turn.phase in {"opening", "sub_question"}
                     ),
                     config.topic,
                 )

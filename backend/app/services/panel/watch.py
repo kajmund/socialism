@@ -136,6 +136,22 @@ async def append_turn_live(
     return turn
 
 
+async def commit_turn_checkpoint(
+    db: AsyncSession,
+    panel: PanelSession,
+    transcript: list[PanelTurn],
+    turn: PanelTurn,
+    checkpoint: dict[str, Any],
+) -> None:
+    """Persist machine state for an existing turn in a short transaction."""
+    if not any(row.turn_id == turn.turn_id for row in transcript):
+        raise RuntimeError(f"Panel turn is outside transcript: {turn.turn_id}")
+    turn.checkpoint = dict(checkpoint)
+    panel.transcript = [row.model_dump(mode="json") for row in transcript]
+    await db.flush()
+    await db.commit()
+
+
 async def run_turn(
     db: AsyncSession,
     panel: PanelSession,
@@ -148,6 +164,7 @@ async def run_turn(
     slot_id: str | None = None,
     sub_question_id: str | None = None,
     scratchpads: dict[str, str] | None = None,
+    checkpoint: dict[str, Any] | None = None,
 ) -> PanelTurn:
     existing = existing_turn(
         transcript,
@@ -178,7 +195,6 @@ async def run_turn(
         round_index=round_index,
         slot_id=slot_id,
         sub_question_id=sub_question_id,
+        checkpoint=checkpoint,
     )
-    return await append_turn_live(
-        db, panel, transcript, turn, scratchpads=scratchpads
-    )
+    return await append_turn_live(db, panel, transcript, turn, scratchpads=scratchpads)
