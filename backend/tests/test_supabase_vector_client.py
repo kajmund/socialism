@@ -86,6 +86,31 @@ async def test_live_client_queries_with_scope_filters_and_normalizes_score():
     assert records[0].text == "Ett underlag"
 
 
+async def test_live_client_combines_multiple_filters_with_explicit_and():
+    index = FakeIndex()
+    client = SupabaseStorageVectorClient(index)
+
+    await client.query(
+        vector=[0.1, 0.2, 0.3],
+        filters={
+            "customer_id": 7,
+            "case_id": "document-1",
+            "module": "expertgranskning",
+            "knowledge_kind": "document_item",
+        },
+        limit=4,
+    )
+
+    assert index.query_kwargs["filter"] == {
+        "$and": [
+            {"customer_id": 7},
+            {"case_id": "document-1"},
+            {"module": "expertgranskning"},
+            {"knowledge_kind": "document_item"},
+        ]
+    }
+
+
 async def test_live_client_deletes_every_chunk_for_document():
     index = FakeIndex()
     index.list_pages = [
