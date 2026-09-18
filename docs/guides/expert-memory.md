@@ -22,6 +22,17 @@ Mem0 innehåller extraherade långtidsminnen.
 - Word-granskning skriver destillerade findings efter lyckad körning.
   Findings ersätts per `kund × expert × doc_id`; oförändrat innehåll hoppas över.
 - Word-granskningens egna LLM-anrop läser inte minnet i fas 1.
+- När en generell researchfråga får fryst evidens sparas ett kort
+  `research_receipt` hos varje expert som ställde eller ansvarade för frågan.
+  Kvittot pekar på `knowledge_question_id` och `source_attempt_id`; själva
+  evidensen ligger fortsatt i det generella kunskapslagret och kopieras inte
+  till Mem0.
+
+Expertchatten kan därför minnas att experten redan har fått ett svar utan att
+blanda ihop expertens personliga långtidsminne med den gemensamma evidensen.
+Chatten gör samtidigt en semantisk, kundavgränsad sökning efter den kanoniska
+frågan och använder bara evidens från ett fryst EvidenceSet. Ett minneskvitto
+är aldrig i sig en källa eller ett tillräcklighetsbeslut.
 
 Minnesfel får avbryta anropet. Det finns ingen alternativ provider eller tyst
 degradering.

@@ -10,6 +10,7 @@ const SOURCE_KEYS: Record<string, MessageKey> = {
   panel_chat: "experts.memory.sourcePanelChat",
   intent_interview: "experts.memory.sourceIntent",
   word_findings: "experts.memory.sourceWord",
+  research_receipt: "experts.memory.sourceResearch",
 }
 
 function sourceLabel(source: string, t: (key: MessageKey) => string): string {

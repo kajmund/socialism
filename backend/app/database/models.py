@@ -2009,6 +2009,62 @@ class KnowledgeQuestionEvidenceLink(Base):
     question: Mapped[KnowledgeQuestionRow] = relationship(back_populates="answers")
 
 
+class ExpertKnowledgeReceipt(Base):
+    """An expert remembers receiving frozen evidence for a canonical question."""
+
+    __tablename__ = "expert_knowledge_receipts"
+    __table_args__ = (
+        UniqueConstraint(
+            "expert_id",
+            "knowledge_question_id",
+            "source_attempt_id",
+            "role",
+            name="uq_expert_knowledge_receipt_lineage",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("kunder.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    expert_id: Mapped[str] = mapped_column(
+        ForeignKey("personas.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    knowledge_question_id: Mapped[str] = mapped_column(
+        ForeignKey("knowledge_questions.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    research_question_id: Mapped[str] = mapped_column(
+        ForeignKey("research_questions.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    source_attempt_id: Mapped[str] = mapped_column(
+        ForeignKey("execution_attempts.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    evidence_set_id: Mapped[str] = mapped_column(
+        ForeignKey("evidence_sets.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    role: Mapped[str] = mapped_column(String(16), nullable=False)
+    origin_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    origin_ref: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    confirmed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 class SpecificQuestion(Base):
     """Context-bound user or review question that can require several general questions."""
 

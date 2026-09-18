@@ -393,6 +393,7 @@ export const en: LocalizedTree<SvMessages> = {
       sourcePanelChat: "Expert panel",
       sourceIntent: "Review intent",
       sourceWord: "Word review",
+      sourceResearch: "Research answer",
       saved: "Saved to memory: {text}",
       updated: "Updated in memory: {text}",
       savedMany: "Saved to memory: {text} (+{count} more)",

@@ -130,6 +130,13 @@ class Settings(BaseSettings):
     research_max_completeness_passes: int = Field(default=2, ge=1, le=8)
     # Bounded Question → Evidence graph read-through before provider retrieval.
     research_knowledge_lookup_limit: int = Field(default=10, ge=1, le=32)
+    research_question_semantic_match_threshold: float = Field(
+        default=0.88, ge=0.0, le=1.0
+    )
+    research_question_semantic_match_limit: int = Field(default=8, ge=1, le=32)
+    research_question_embedding_version: str = Field(
+        default="knowledge-question-v1", min_length=1
+    )
     # Age after which reused graph evidence is stale. None = freshness unknown.
     research_knowledge_freshness_max_age_seconds: int | None = Field(
         default=None, ge=1
