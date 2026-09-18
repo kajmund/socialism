@@ -91,6 +91,18 @@ async def user_from_bearer_token(session: AsyncSession, token: str | None) -> Us
     try:
         payload = await asyncio.to_thread(_decode_token, raw)
     except jwt.PyJWTError as exc:
+        try:
+            header = jwt.get_unverified_header(raw)
+            unverified = jwt.decode(raw, options={"verify_signature": False})
+            logger.warning(
+                "Bearer token rejected error=%s alg=%s kid=%s issuer=%s",
+                type(exc).__name__,
+                header.get("alg"),
+                header.get("kid"),
+                unverified.get("iss"),
+            )
+        except jwt.PyJWTError:
+            logger.warning("Malformed bearer token rejected error=%s", type(exc).__name__)
         raise HTTPException(status_code=401, detail="invalid_token") from exc
     user_id = payload.get("sub")
     if not isinstance(user_id, str) or not user_id:

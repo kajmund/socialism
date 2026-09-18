@@ -57,7 +57,7 @@ export const sv = {
     sendAgain: "Skicka en ny länk",
     magicLinkFailed: "Kunde inte skicka inloggningslänken. Kontrollera adressen eller försök igen.",
     notProvisioned: "Kontot är inte inbjudet ännu. Be en administratör bjuda in dig.",
-    invalidToken: "Inloggningen misslyckades mot servern (ogiltig token). Kontrollera SUPABASE_JWT_SECRET.",
+    invalidToken: "Inloggningslänken är ogiltig eller har gått ut. Begär en ny länk och använd det senaste mejlet.",
     profileFailed: "Inloggningen misslyckades när profilen skulle hämtas. Försök igen.",
     noModules: "Inga moduler är tilldelade det här kontot.",
     signOut: "Logga ut",
