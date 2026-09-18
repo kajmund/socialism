@@ -9,8 +9,8 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
 
+from app.config import settings
 from app.database.base import Base
 from app.database.models import (
     EvidenceSet,
@@ -22,6 +22,7 @@ from app.database.models import (
     ResearchProgressEvent,
     ResearchRuntimeNeed,
 )
+from app.database.sqlite import async_engine_kwargs, register_sqlite_pragmas
 from app.services.execution import (
     claim_attempt_researching,
     create_attempt,
@@ -34,6 +35,7 @@ from app.services.execution import (
 )
 from app.services.execution.errors import ExecutionStatusError
 from app.services.execution.service import attach_evidence_set, utc_now
+from app.services.research.assessment import ProgrammaticResearchAssessor
 from app.services.research.claims import (
     claim_research_lease,
     enqueue_research_claim,
@@ -41,7 +43,6 @@ from app.services.research.claims import (
     release_research_lease,
     start_request_payload,
 )
-from app.services.research.assessment import ProgrammaticResearchAssessor
 from app.services.research.completeness import ProgrammaticResearchCompletenessReviewer
 from app.services.research.composition import (
     set_completeness_reviewer_factory,
@@ -49,15 +50,19 @@ from app.services.research.composition import (
     set_research_assessor_factory,
     set_research_router_factory,
 )
-from app.services.research.followup import NoOpFollowUpPlanner
 from app.services.research.execution import execute_attempt_research
-from app.services.research.models import ResearchContext, ResearchNeed, ResearchPlan
+from app.services.research.followup import NoOpFollowUpPlanner
+from app.services.research.models import (
+    ResearchContext,
+    ResearchNeed,
+    ResearchPlan,
+    research_evidence,
+)
 from app.services.research.plan import research_plan_to_snapshot
 from app.services.research.planner import FakeResearchPlanner, ResearchNeedDraft
 from app.services.research.progress import list_research_progress_events
 from app.services.research.registry import ResearchSourceRegistry
 from app.services.research.router import ResearchRouter
-from app.config import settings
 from app.services.research_worker import (
     accept_attempt_research,
     reset_research_worker,
@@ -69,18 +74,15 @@ from app.services.research_worker import (
     stop_research_reclaim_loop,
     wait_research_workers,
 )
-from app.services.research.models import research_evidence
 from tests.test_execution_api import RESEARCH_PLAN, _create_attempt, _create_run
 from tests.test_research_execution import RecordingSource, _need, _router
 
 
 @pytest.fixture
-async def worker_db():
-    engine = create_async_engine(
-        "sqlite+aiosqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
+async def worker_db(tmp_path):
+    url = f"sqlite+aiosqlite:///{tmp_path}/research-worker.sqlite"
+    engine = create_async_engine(url, **async_engine_kwargs(url))
+    register_sqlite_pragmas(engine, url)
     factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

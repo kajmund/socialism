@@ -50,7 +50,18 @@ class SqlQuestionEvidenceGraph:
                 KnowledgeQuestionRow.namespace == scope.namespace
             )
         )
-        candidates = [_question_from_row(item) for item in namespace_result.scalars()]
+        rows = list(namespace_result.scalars())
+        candidates = [_question_from_row(item) for item in rows]
+        await self._matcher.index(candidates)
+        metadata = self._matcher.embedding_metadata
+        if metadata is not None:
+            model, version, dimension = metadata
+            for row in rows:
+                row.embedding_model = model
+                row.embedding_version = version
+                row.embedding_dimension = dimension
+            await session.flush()
+            candidates = [_question_from_row(item) for item in rows]
         return await self._matcher.match(
             normalized_text=identity.normalized_text,
             identity_key=identity.identity_key,
@@ -77,6 +88,12 @@ class SqlQuestionEvidenceGraph:
         )
         session.add(row)
         await session.flush()
+        question = _question_from_row(row)
+        await self._matcher.index([question])
+        metadata = self._matcher.embedding_metadata
+        if metadata is not None:
+            row.embedding_model, row.embedding_version, row.embedding_dimension = metadata
+            await session.flush()
         return _question_from_row(row)
 
     async def lookup_answers(

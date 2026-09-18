@@ -391,6 +391,7 @@ export const sv = {
       sourcePanelChat: "Expertpanel",
       sourceIntent: "Granskningsavsikt",
       sourceWord: "Word-granskning",
+      sourceResearch: "Researchsvar",
       saved: "Sparat i minnet: {text}",
       updated: "Uppdaterat i minnet: {text}",
       savedMany: "Sparat i minnet: {text} (+{count} till)",

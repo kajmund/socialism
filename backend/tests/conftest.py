@@ -81,6 +81,9 @@ class NoopExpertMemory:
     async def add_intent(self, **_kwargs) -> None:
         return None
 
+    async def add_research_receipt(self, **_kwargs) -> None:
+        return None
+
     async def replace_word_findings(self, **_kwargs) -> None:
         return None
 

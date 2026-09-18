@@ -16,9 +16,9 @@ from app.database.models import (
     SpecificQuestion,
 )
 from app.services.execution.service import get_attempt, get_run, new_id
+from app.services.research.composition import build_standard_question_graph
 from app.services.research.followup import RuntimeResearchNeed
 from app.services.research.knowledge_question import identity_from_text, tenant_question_scope
-from app.services.research.question_graph_sql import SqlQuestionEvidenceGraph
 
 SpecificQuestionOrigin = Literal["expertgranskning", "expert_chat", "api"]
 QuestionExpertRole = Literal["raised_by", "assigned_to"]
@@ -90,7 +90,7 @@ async def create_general_question(
             "specific question and Attempt must belong to the same Run"
         )
 
-    graph = SqlQuestionEvidenceGraph()
+    graph = build_standard_question_graph()
     canonical = await graph.upsert_question(
         session,
         identity_from_text(draft.question),

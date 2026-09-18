@@ -26,6 +26,7 @@ from app.services.research.claims import (
     start_request_payload,
 )
 from app.services.research.composition import (
+    build_standard_question_graph,
     build_standard_research_router,
     require_research_router_ready,
     resolve_completeness_reviewer,
@@ -41,7 +42,6 @@ from app.services.research.planner import (
     require_research_objective,
     research_objective_to_snapshot,
 )
-from app.services.research.question_graph_sql import SqlQuestionEvidenceGraph
 
 logger = logging.getLogger(__name__)
 
@@ -334,7 +334,7 @@ async def _execute_claimed_research(
             assessor=bound["assessor"],
             planner=bound["planner"],
             completeness_reviewer=bound["completeness_reviewer"],
-            question_graph=SqlQuestionEvidenceGraph(),
+            question_graph=build_standard_question_graph(),
             session_factory=factory,
             lease_lost=lease_lost,
         )

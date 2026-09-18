@@ -3,6 +3,8 @@
 ## 2026-09-18
 
 * **Expertgranskning**: Under research visas en beständig livevy med generella frågor, ansvariga experter, beroenden, källor, bedömningar och kunskapsluckor. Vyn kan lämnas och öppnas igen utan att historiken försvinner. En obesvarad fråga stoppar inte längre oberoende researchgrenar, och expertgranskningen fortsätter med tillgänglig fryst evidens.
+* **Expertchatten**: Frågor matchas semantiskt mot kundens tidigare generella researchfrågor. Finns relevant fryst evidens kan experten använda den utan att starta ny research; annars måste experten fortfarande be om bekräftelse innan ett bakgrundsjobb skapas.
+* **Expertminnen**: En expert som har ställt eller ansvarat för en besvarad researchfråga får en separat minnesnotering märkt **Researchsvar**. Källorna ligger kvar i det gemensamma kunskapslagret och kopieras inte in i expertens minne.
 
 ## 2026-09-17
 

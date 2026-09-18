@@ -40,12 +40,22 @@ Defaults:
 SUPABASE_VECTOR_BUCKET=research-knowledge
 SUPABASE_VECTOR_INDEX=documents-openai
 SUPABASE_VECTOR_DISTANCE_METRIC=cosine
+RESEARCH_QUESTION_SEMANTIC_MATCH_THRESHOLD=0.88
+RESEARCH_QUESTION_SEMANTIC_MATCH_LIMIT=8
+RESEARCH_QUESTION_EMBEDDING_VERSION=knowledge-question-v1
 ```
 
 At startup, the research worker creates a missing bucket/index and verifies `float32`,
 the configured metric, and `EMBEDDING_DIMENSION`. The dimension must match
 `EMBEDDING_MODEL` (3072 for the default `text-embedding-3-large`). A mismatch is a hard
 startup error because an existing vector index cannot change dimension or metric.
+
+Canonical `KnowledgeQuestion` embeddings use this same index. A dedicated
+vector customer partition and metadata (`knowledge_kind=knowledge_question`
+plus the public or tenant namespace) keep question identities separate from
+document chunks and from other customers. SQL stores the canonical question
+and its embedding model, version, and dimension; the vector match is only a
+candidate selector.
 
 `GET /health/research-vector` reports the configured bucket, index, and dimension after
 startup. It never returns credentials.

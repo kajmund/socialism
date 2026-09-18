@@ -63,7 +63,12 @@ class SupabaseKnowledgeProvider:
         while len(allowed) < query.limit:
             raw_hits = await self._vector_store.search(
                 EmbeddedKnowledgeQuery(
-                    query=KnowledgeQuery(query=query.query, scope=query.scope, limit=fetch_limit),
+                    query=KnowledgeQuery(
+                        query=query.query,
+                        scope=query.scope,
+                        limit=fetch_limit,
+                        filters=query.filters,
+                    ),
                     embedding=embedding,
                 )
             )

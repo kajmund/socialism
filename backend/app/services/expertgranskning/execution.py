@@ -34,7 +34,14 @@ from app.services.panel.research import (
 )
 from app.services.panel.schemas import PanelSessionConfig
 from app.services.prompt_store import require_active_prompts
-from app.services.research.composition import build_standard_research_router
+from app.services.research.composition import (
+    build_standard_question_graph,
+    build_standard_research_router,
+)
+from app.services.research.expert_knowledge import (
+    publish_completed_attempt_knowledge,
+    remember_published_question,
+)
 from app.services.research.question_attempt_worker import AttemptResearchQuestionWorker
 from app.services.research.question_domain import (
     GeneralQuestionDraft,
@@ -315,6 +322,15 @@ async def run_expertgranskning_with_research(
     )
     if result.status not in {"completed", "completed_with_gaps"}:
         raise RuntimeError(f"Expertgranskning question research stopped as {result.status}")
+
+    async with factory() as session:
+        memories = await publish_completed_attempt_knowledge(
+            session,
+            attempt_id=attempt_id,
+            graph=build_standard_question_graph(),
+        )
+        await session.commit()
+    await remember_published_question(memories)
 
     async with factory() as session:
         await _freeze_aggregate_evidence(
