@@ -114,7 +114,9 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_jwt_secret: str = ""
     supabase_service_role_key: str = ""
-    # Supabase Storage Vector Bucket used by the shared research KnowledgeProvider.
+    # Shared Support-project Storage Vector Bucket used by the research provider.
+    supabase_vector_url: str = ""
+    supabase_vector_service_role_key: str = ""
     supabase_vector_bucket: str = "research-knowledge"
     supabase_vector_index: str = "documents-openai"
     supabase_vector_distance_metric: Literal["cosine", "euclidean"] = "cosine"
@@ -291,6 +293,28 @@ class Settings(BaseSettings):
             raise ValueError(
                 "SUPABASE_SERVICE_ROLE_KEY is required — set it in backend/.env "
                 "(backend-only; used for Admin invite API)"
+            )
+        return key
+
+    @field_validator("supabase_vector_url")
+    @classmethod
+    def require_supabase_vector_url(cls, value: str) -> str:
+        url = value.strip()
+        if not url:
+            raise ValueError(
+                "SUPABASE_VECTOR_URL is required — set it to the shared "
+                "knowledge project's URL"
+            )
+        return url
+
+    @field_validator("supabase_vector_service_role_key")
+    @classmethod
+    def require_supabase_vector_service_role_key(cls, value: str) -> str:
+        key = value.strip()
+        if not key:
+            raise ValueError(
+                "SUPABASE_VECTOR_SERVICE_ROLE_KEY is required — set the "
+                "backend-only key for the shared knowledge project"
             )
         return key
 
