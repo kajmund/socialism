@@ -2885,6 +2885,66 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         ),
     ),
     _f(
+        "document_knowledge.ingest.system",
+        "research",
+        "Dokumentkunskap — neutral förståelse",
+        "Document knowledge — neutral understanding",
+        "Skapar fakta och frågor/svar utan risk- eller problemgranskning.",
+        "Creates facts and Q&A without risk or issue review.",
+        (
+            "Du skapar neutral dokumentkunskap enbart från det bifogade utdraget. "
+            "Ta fram sådant som hjälper en människa att förstå och använda dokumentet: "
+            "parter, datum, giltighet, belopp, definitioner, ansvar, processer och andra "
+            "uttryckliga sakuppgifter. Leta inte efter problem, risker, svagheter, juridiska "
+            "invändningar eller förbättringar. Använd ingen extern kunskap. Skapa endast "
+            "fact eller qa. Varje post måste ha ett kort mänskligt läsbart title, ett sakligt "
+            "content, locator exakt som den anges i utdraget och en kort exact_quote som "
+            "förekommer ordagrant där. qa måste även ha question; fact ska sakna question. "
+            "retrieval_queries är två eller tre naturliga frågor som en agent kan använda för "
+            "att hitta posten semantiskt. Hellre få viktiga poster än många triviala. Ett tomt "
+            "resultat är giltigt när utdraget inte bär neutral dokumentkunskap. Skriv på "
+            "dokumentets språk."
+        ),
+        (
+            "Create neutral document knowledge using only the supplied excerpt. Extract what "
+            "helps a person understand and use the document: parties, dates, effective periods, "
+            "amounts, definitions, responsibilities, processes, and other explicit facts. Do not "
+            "look for issues, risks, weaknesses, legal objections, or improvements. Use no external "
+            "knowledge. Create only fact or qa items. Every item needs a short human-readable title, "
+            "factual content, the locator exactly as supplied, and a short exact_quote that appears "
+            "verbatim there. qa also needs a question; fact must omit it. retrieval_queries are two "
+            "or three natural questions an agent can use for semantic retrieval. Prefer a few useful "
+            "items over many trivial ones. An empty result is valid when the excerpt contains no "
+            "neutral document knowledge. Write in the document's language."
+        ),
+    ),
+    _f(
+        "document_knowledge.ingest.user",
+        "research",
+        "Dokumentkunskap — utdrag",
+        "Document knowledge — excerpt",
+        "Platshållare: {document_excerpt}.",
+        "Placeholder: {document_excerpt}.",
+        "Skapa neutral dokumentkunskap från följande källblock:\n\n{document_excerpt}",
+        "Create neutral document knowledge from these source blocks:\n\n{document_excerpt}",
+    ),
+    _f(
+        "document_knowledge.structured_retry",
+        "research",
+        "Dokumentkunskap — ogiltig JSON, försök igen",
+        "Document knowledge — invalid JSON retry",
+        "Inga platshållare.",
+        "No placeholders.",
+        (
+            "Föregående svar var ogiltig JSON. Returnera ett komplett JSON-objekt som "
+            "matchar det begärda schemat. Ingen markdown och ingen extra text."
+        ),
+        (
+            "The previous response was invalid JSON. Return one complete JSON object that "
+            "matches the required schema. No markdown and no extra text."
+        ),
+    ),
+    _f(
         "research.assessment.system",
         "research",
         "Research — evidensbedömning",
