@@ -12,6 +12,7 @@ export type UnderlagKnowledgeStatus =
   | "pending"
   | "running"
   | "ready"
+  | "partial"
   | "failed"
   | "empty"
   | "needs_ocr"

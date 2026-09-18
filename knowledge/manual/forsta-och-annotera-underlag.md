@@ -19,6 +19,8 @@ När du laddar upp ett underlag läses dokumentet i bakgrunden. Word-filer konve
 
 En PDF utan läsbart textlager markeras med **Textlager saknas**. OCR ingår inte i det här steget, så sådana dokument får ingen automatisk dokumentkunskap ännu.
 
+Om bara en del av den automatiska fråge- och svarsgenereringen misslyckas visas en gul informationstext. Dokumenttexten och den dokumentkunskap som hann skapas finns fortfarande kvar och kan användas.
+
 ## Lägg till egen kunskap
 
 1. Markera text på en sida i PDF:en.

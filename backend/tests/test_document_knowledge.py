@@ -2,13 +2,16 @@ from __future__ import annotations
 
 from sqlalchemy import func, select
 
+from app.config import settings
 from app.database.models import DocumentKnowledgeItem, DocumentKnowledgeRevision, Job, StoredObject
 from app.llm import set_structured_completer
 from app.services import jobs as jobs_service
 from app.services.document_knowledge import (
     GeneratedDocumentKnowledge,
     GeneratedDocumentKnowledgeBatch,
+    generate_document_knowledge,
 )
+from app.services.knowledge.extractors import ExtractedBlock
 from app.services.knowledge.models import KnowledgeQuery, KnowledgeScope
 from app.services.knowledge.supabase_provider import SupabaseKnowledgeProvider
 from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
@@ -252,5 +255,104 @@ async def test_document_ingest_marks_scanned_pdf_as_needs_ocr(
             assert job is not None and job.status == "succeeded"
             assert store.chunks == []
     finally:
+        set_knowledge_vector_store_factory(None)
+        jobs_service.set_schedule_hook(None)
+
+
+async def test_document_knowledge_generation_keeps_successful_batches(
+    monkeypatch,
+):
+    captured_options: list[tuple[int | None, float | None]] = []
+
+    async def structured(messages, response_model, **kwargs):
+        assert response_model is GeneratedDocumentKnowledgeBatch
+        captured_options.append((kwargs.get("max_tokens"), kwargs.get("timeout")))
+        excerpt = messages[1]["content"]
+        if "FAIL_BATCH" in excerpt:
+            raise TimeoutError
+        return GeneratedDocumentKnowledgeBatch(
+            items=[
+                GeneratedDocumentKnowledge(
+                    kind="fact",
+                    title="Lyckad batch",
+                    content="SUCCESS_BATCH",
+                    locator="page:2",
+                    exact_quote="SUCCESS_BATCH",
+                )
+            ]
+        )
+
+    monkeypatch.setattr(
+        "app.services.document_knowledge.complete_structured_retry",
+        structured,
+    )
+    result = await generate_document_knowledge(
+        blocks=[
+            ExtractedBlock(text="FAIL_BATCH " + "x" * 9_000, locator="page:1"),
+            ExtractedBlock(text="SUCCESS_BATCH " + "y" * 9_000, locator="page:2"),
+        ],
+        prompts={
+            "document_knowledge.ingest.system": "system",
+            "document_knowledge.ingest.user": "{document_excerpt}",
+            "document_knowledge.structured_retry": "retry",
+        },
+    )
+
+    assert result.failed_batches == 1
+    assert result.successful_batches == 1
+    assert [item.title for item in result.items] == ["Lyckad batch"]
+    expected_options = (
+        settings.document_knowledge_llm_max_tokens,
+        settings.document_knowledge_llm_timeout_seconds,
+    )
+    assert captured_options == [expected_options, expected_options]
+
+
+async def test_document_ingest_timeout_is_partial_not_failed(
+    user_client,
+    client_db,
+    monkeypatch,
+):
+    (_client, factory) = client_db
+    pdf = build_text_pdf("Avtalet galler fran 1 januari 2027.")
+    uploaded, job_id = await _upload_without_worker(
+        user_client,
+        "agreement.pdf",
+        pdf,
+        "application/pdf",
+    )
+    store = MemoryKnowledgeVectorStore()
+    set_knowledge_vector_store_factory(lambda: store)
+    monkeypatch.setattr(
+        "app.services.document_knowledge.OpenAIEmbeddingProvider.from_settings",
+        FakeEmbeddingProvider,
+    )
+
+    async def structured(_messages, _response_model):
+        raise TimeoutError
+
+    set_structured_completer(structured)
+    jobs_service.set_schedule_hook(None)
+    try:
+        await jobs_service._run_job(job_id)
+
+        async with factory() as session:
+            source = await session.get(StoredObject, uploaded["id"])
+            job = await session.get(Job, job_id)
+            assert source is not None
+            assert source.extraction_status == "ok"
+            assert source.knowledge_status == "partial"
+            assert source.knowledge_error == "1 of 1 document-knowledge batches failed"
+            assert "Avtalet galler" in (source.extracted_text or "")
+            assert job is not None and job.status == "succeeded"
+            assert job.result is not None
+            assert job.result["failed_batches"] == 1
+            assert store.chunks
+
+        detail = await user_client.get(f"/underlag/{uploaded['id']}")
+        assert detail.status_code == 200
+        assert detail.json()["knowledge_status"] == "partial"
+    finally:
+        set_structured_completer(None)
         set_knowledge_vector_store_factory(None)
         jobs_service.set_schedule_hook(None)

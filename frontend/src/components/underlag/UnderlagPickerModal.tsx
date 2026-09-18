@@ -192,6 +192,8 @@ export function UnderlagPickerModal({
   const folderId = browse.kind === "underlag" ? browse.folderId : null
   const browsingUnderlag = browse.kind === "underlag"
   const browsingReports = browse.kind === "reports"
+  const previewPdfId =
+    preview?.kind === "underlag" && isPdf(preview.file) ? preview.file.id : null
 
   const moduleIds = useMemo(() => {
     const ids: string[] = []
@@ -338,7 +340,7 @@ export function UnderlagPickerModal({
   }, [namingFolder])
 
   useEffect(() => {
-    if (preview?.kind !== "underlag" || !isPdf(preview.file)) {
+    if (!previewPdfId) {
       clearPdfUrl()
       setPdfError(null)
       setPdfLoading(false)
@@ -348,7 +350,7 @@ export function UnderlagPickerModal({
     setPdfLoading(true)
     setPdfError(null)
     clearPdfUrl()
-    getUnderlagFile(preview.file.id)
+    getUnderlagFile(previewPdfId)
       .then((blob) => {
         if (cancelled) return
         const url = URL.createObjectURL(blob)
@@ -366,7 +368,7 @@ export function UnderlagPickerModal({
     return () => {
       cancelled = true
     }
-  }, [preview, t])
+  }, [previewPdfId, t])
 
   async function loadPreview(id: string) {
     const requestId = ++previewRequestRef.current

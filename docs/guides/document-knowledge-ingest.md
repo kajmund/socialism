@@ -15,7 +15,7 @@ StoredObject upload
   -> fact/Q&A item vectors in the same case-scoped index
 ```
 
-The upload returns immediately. `StoredObject.knowledge_status`, `knowledge_error`, and `knowledge_job_id` provide durable state for leaving and reopening the picker. PDF files without a usable text layer end in `needs_ocr`; this phase deliberately has no OCR fallback and no tool calls.
+The upload returns immediately. `StoredObject.knowledge_status`, `knowledge_error`, and `knowledge_job_id` provide durable state for leaving and reopening the picker. PDF files without a usable text layer end in `needs_ocr`; this phase deliberately has no OCR fallback and no tool calls. Generated Q&A is an isolated enrichment stage: raw text/chunks remain usable when one or more model batches fail, successful batches are saved, and the durable status becomes `partial` so the failure stays visible.
 
 ## Data model
 
