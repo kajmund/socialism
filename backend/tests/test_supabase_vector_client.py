@@ -4,6 +4,7 @@ import pytest
 from storage3.types import VectorData, VectorMatch
 
 from app.config import settings
+from app.services.knowledge import supabase_vector_client as module
 from app.services.knowledge.provider import KnowledgeVectorStoreError
 from app.services.knowledge.supabase_vector_client import (
     SupabaseStorageVectorClient,
@@ -196,3 +197,55 @@ async def test_ensure_index_rejects_dimension_mismatch():
     )
     with pytest.raises(KnowledgeVectorStoreError, match="dimension"):
         await _ensure_index(bucket, settings)
+
+
+async def test_vector_runtime_uses_product_project_credentials(monkeypatch):
+    captured = {}
+    index = object()
+
+    class RuntimeBucket:
+        def index(self, name):
+            captured["index_name"] = name
+            return index
+
+    class RuntimeVectors:
+        def from_(self, name):
+            captured["bucket_name"] = name
+            return RuntimeBucket()
+
+    class RuntimeStorage:
+        session = SimpleNamespace(aclose=None)
+
+        def __init__(self, url, *, headers):
+            captured["url"] = url
+            captured["headers"] = headers
+
+        def vectors(self):
+            return RuntimeVectors()
+
+    async def noop(*_args):
+        return None
+
+    monkeypatch.setattr(module, "AsyncStorageClient", RuntimeStorage)
+    monkeypatch.setattr(module, "_ensure_bucket", noop)
+    monkeypatch.setattr(module, "_ensure_index", noop)
+    runtime_settings = SimpleNamespace(
+        supabase_url="https://product.supabase.co/",
+        supabase_service_role_key="product-secret",
+        supabase_vector_bucket="research-knowledge",
+        supabase_vector_index="documents-openai",
+        embedding_dimension=3072,
+    )
+
+    runtime = await module.start_supabase_vector_runtime(runtime_settings)
+
+    assert captured == {
+        "url": "https://product.supabase.co/storage/v1",
+        "headers": {
+            "Authorization": "Bearer product-secret",
+            "apikey": "product-secret",
+        },
+        "bucket_name": "research-knowledge",
+        "index_name": "documents-openai",
+    }
+    assert runtime.client._index is index

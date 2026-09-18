@@ -114,10 +114,10 @@ class SupabaseVectorRuntime:
 
 async def start_supabase_vector_runtime(settings: Settings) -> SupabaseVectorRuntime:
     storage = AsyncStorageClient(
-        f"{settings.supabase_vector_url.rstrip('/')}/storage/v1",
+        f"{settings.supabase_url.rstrip('/')}/storage/v1",
         headers={
-            "Authorization": f"Bearer {settings.supabase_vector_service_role_key}",
-            "apikey": settings.supabase_vector_service_role_key,
+            "Authorization": f"Bearer {settings.supabase_service_role_key}",
+            "apikey": settings.supabase_service_role_key,
         },
     )
     try:
