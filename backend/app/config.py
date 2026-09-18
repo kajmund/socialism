@@ -28,7 +28,7 @@ CEREBRAS_DEFAULT_BASE_URL = "https://api.cerebras.ai/v1"
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    database_url: str = "sqlite+aiosqlite:///./data/opinionssimulator.db"
+    database_url: str
 
     @field_validator("database_url", mode="before")
     @classmethod
