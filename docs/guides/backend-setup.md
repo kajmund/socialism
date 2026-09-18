@@ -56,7 +56,9 @@ cp .env.example .env
 | `SUPABASE_URL` | **yes** | — | Supabase project URL (Auth + Admin invite) |
 | `SUPABASE_JWT_SECRET` | **yes** | — | HS256 JWT secret for verifying access tokens |
 | `SUPABASE_SERVICE_ROLE_KEY` | **yes** | — | Backend-only; Admin invite API (never ship to the SPA) |
-| `SUPABASE_VECTOR_BUCKET` | no | `research-knowledge` | Storage Vector Bucket for persistent research knowledge |
+| `SUPABASE_VECTOR_URL` | **yes** | — | Shared Support-project URL for research knowledge; intentionally separate from the product/Auth project |
+| `SUPABASE_VECTOR_SERVICE_ROLE_KEY` | **yes** | — | Backend-only service key for the shared Support project |
+| `SUPABASE_VECTOR_BUCKET` | no | `research-knowledge` | Storage Vector Bucket in the shared Support project |
 | `SUPABASE_VECTOR_INDEX` | no | `documents-openai` | Vector index inside the research bucket |
 | `SUPABASE_VECTOR_DISTANCE_METRIC` | no | `cosine` | Immutable index metric: `cosine` or `euclidean` |
 | `ALLOW_LOCAL_LOGIN` | no | `false` | Local only. Enables `POST /auth/local-login` (used by `/dev-in`). **Never set in production.** |
