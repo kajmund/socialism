@@ -190,7 +190,13 @@ function jobIds(job: Job) {
       : typeof job.request.candidate_id === "string"
         ? job.request.candidate_id
         : null
-  return { popId, runId, reportId, sessionId, campaignId, candidateId }
+  const researchAttemptId =
+    typeof job.result?.execution_attempt_id === "string"
+      ? job.result.execution_attempt_id
+      : typeof job.result?.attempt_id === "string"
+        ? job.result.attempt_id
+        : null
+  return { popId, runId, reportId, sessionId, campaignId, candidateId, researchAttemptId }
 }
 
 function ddCampaignHref(job: Job): string | null {
@@ -253,7 +259,7 @@ function JobActionLinks({
   t: Translate
   paths: JobLinkPaths
 }) {
-  const { popId, runId, reportId, sessionId } = jobIds(job)
+  const { popId, runId, reportId, sessionId, researchAttemptId } = jobIds(job)
   const links: ReactNode[] = []
 
   if (job.status === "succeeded" && popId != null) {
@@ -317,6 +323,13 @@ function JobActionLinks({
         </Link>,
       )
     }
+  }
+  if (researchAttemptId) {
+    links.push(
+      <Link key="research" to={`/research/${researchAttemptId}`}>
+        {t("jobs.openResearch")}
+      </Link>,
+    )
   }
   if ((job.status === "pending" || job.status === "running") && job.kind === "run_simulate" && runId != null) {
     links.push(

@@ -43,6 +43,9 @@ export type Job = {
     session_id?: string
     campaign_id?: number
     candidate_id?: string
+    attempt_id?: string
+    execution_run_id?: string
+    execution_attempt_id?: string
     html_path?: string
     sources?: number
     dry_run?: boolean
