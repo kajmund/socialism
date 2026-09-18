@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom"
+import { ProfileAvatar } from "@/components/profiles/ProfileAvatar"
 import { LogOut, Settings } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { useAuth } from "@/auth/AuthProvider"
@@ -48,7 +50,7 @@ export function SmeUserMenu() {
           aria-expanded={open}
           onClick={() => setOpen((current) => !current)}
         >
-          {userInitials(label)}
+          {user?.avatarUrl ? <ProfileAvatar path={user.avatarUrl} /> : userInitials(label)}
         </button>
         {open ? (
           <div
@@ -58,6 +60,7 @@ export function SmeUserMenu() {
             <p className="truncate border-b border-[color:var(--border-hairline)] px-3 py-2 text-xs text-[color:var(--text-muted)]">
               {label}
             </p>
+            <Link role="menuitem" className="block px-3 py-2.5 text-sm" to="/profil" onClick={() => setOpen(false)}>{t("profile.title")}</Link>
             {isAdmin ? (
               <button
                 type="button"

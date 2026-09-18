@@ -28,6 +28,9 @@ const apiPrefixes = [
   'feedback',
   'spindoctor',
   'me',
+  'profiles',
+  'users',
+  'kunder',
   'execution',
 ] as const
 

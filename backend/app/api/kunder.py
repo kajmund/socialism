@@ -15,6 +15,8 @@ from app.modules.registry import MODULE_REGISTRY
 from app.products.registry import PRODUCT_REGISTRY
 from app.schemas.kund import KundCreate, KundOut, KundUpdate, ProjektOut
 from app.serializers import utcnow
+from app.schemas.profiles import ORGANIZATION_FIELDS
+from app.services.profiles import apply_fields, patch_fields, organization_values
 from app.services.dd.default_experts import ensure_default_expert_personas
 from app.services.kund_store import DEFAULT_PROJEKT_SLUG, ensure_default_kunder
 from app.services.object_storage import ObjectStorageError
@@ -42,6 +44,7 @@ def _available_modules(raw: object) -> list[str]:
 def _serialize_kund(row: Kund, *, include_projekt: bool) -> KundOut:
     projekt = [_serialize_projekt(p) for p in row.projekt] if include_projekt else []
     return KundOut(
+        **organization_values(row),
         id=row.id,
         name=row.name,
         slug=row.slug,
@@ -132,6 +135,7 @@ async def create_kund(
         created_at=now,
         updated_at=now,
     )
+    apply_fields(row, body, ORGANIZATION_FIELDS)
     session.add(row)
     await session.flush()
     session.add(
@@ -196,6 +200,7 @@ async def patch_kund(
         row.available_modules = _normalize_available_modules(body.available_modules)
     if "product" in body.model_fields_set:
         row.product = _normalize_product(body.product)
+    await patch_fields(session, row, body, ORGANIZATION_FIELDS)
     row.updated_at = utcnow()
     try:
         await ensure_kund_bucket(row)

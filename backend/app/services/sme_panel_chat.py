@@ -71,7 +71,6 @@ async def run_panel_message(
     user: UserAccount,
     message: str,
 ) -> list[SmeMessageOut]:
-    del user
     text = message.strip()
     if not text:
         raise HTTPException(status_code=400, detail="message is required")
@@ -81,9 +80,7 @@ async def run_panel_message(
         await _require_panel(session, panel_id, customer_id)
         await session.commit()
     fence = await acquire_panel_lease(session_factory, panel_id, token=token)
-    heartbeat = PanelLeaseHeartbeat(
-        session_factory, panel_id, token=token, fence=fence
-    ).start()
+    heartbeat = PanelLeaseHeartbeat(session_factory, panel_id, token=token, fence=fence).start()
     try:
         async with session_factory() as session:
             panel = await _require_panel(session, panel_id, customer_id)
@@ -112,9 +109,11 @@ async def run_panel_message(
                 reply_inputs.append((expert, history, profile, prompts, area_block, memory_context))
             await session.commit()
 
-        replies = await asyncio.gather(
-            *[
-                reply_as_persona(
+        from app.services.actor_profiles import ActorProfileTools
+
+        async def panel_reply(expert, history, profile, prompts, area_block, memory_context):
+            async with session_factory() as actor_session:
+                return await reply_as_persona(
                     profile,
                     "interview",
                     history,
@@ -124,7 +123,17 @@ async def run_panel_message(
                     extra_system=memory_context,
                     profile_kind="expert",
                     tools=panel_chat_tools(expert.tools),
+                    actor_tool_handler=ActorProfileTools(
+                        actor_session,
+                        user_id=user.id,
+                        customer_id=customer_id,
+                        conversation=f"panel:{panel_id}",
+                    ),
                 )
+
+        replies = await asyncio.gather(
+            *[
+                panel_reply(expert, history, profile, prompts, area_block, memory_context)
                 for expert, history, profile, prompts, area_block, memory_context in reply_inputs
             ]
         )
@@ -132,9 +141,7 @@ async def run_panel_message(
             raise HTTPException(status_code=409, detail="stale_panel_turn")
 
         async with session_factory() as session:
-            if not await panel_lease_still_held(
-                session, panel_id, token=token, fence=fence
-            ):
+            if not await panel_lease_still_held(session, panel_id, token=token, fence=fence):
                 raise HTTPException(status_code=409, detail="stale_panel_turn")
             now = utcnow()
             user_row = SmePanelMessage(

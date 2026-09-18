@@ -24,6 +24,15 @@ class Kund(Base):
 
     __tablename__ = "kunder"
 
+    organization_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    organization_number: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    address_line1: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    address_line2: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    postal_code: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    city: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    country_code: Mapped[str | None] = mapped_column(String(2), nullable=True)
+    profile_revision: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
@@ -61,6 +70,12 @@ class UserAccount(Base):
     """Roll + kund-koppling för en Supabase-autentiserad användare."""
 
     __tablename__ = "user_accounts"
+
+    first_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    last_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    job_title: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    avatar_key: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    profile_revision: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)  # Supabase auth.users.id
     email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
@@ -2394,3 +2409,21 @@ class LlmRuntimeSettings(Base):
         onupdate=func.now(),
         nullable=False,
     )
+
+
+class ActorContextProposal(Base):
+    """Exact, user-confirmed profile edits; model tools cannot approve these."""
+
+    __tablename__ = "actor_context_proposals"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    customer_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    conversation: Mapped[str] = mapped_column(String(255), nullable=False)
+    target: Mapped[str] = mapped_column(String(16), nullable=False)
+    target_label: Mapped[str] = mapped_column(String(255), nullable=False)
+    changes: Mapped[dict] = mapped_column(JSON, nullable=False)
+    previous: Mapped[dict] = mapped_column(JSON, nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

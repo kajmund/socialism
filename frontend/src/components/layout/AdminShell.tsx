@@ -1,3 +1,4 @@
+import { ProfileAvatar } from "@/components/profiles/ProfileAvatar"
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom"
 import type { Job, JobStatus } from "@/api/jobs"
@@ -320,6 +321,7 @@ function SessionActions() {
     <div className="admin-sidenav-session">
       {user ? (
         <div className="flex flex-col gap-1 text-xs text-white/45">
+          <ProfileAvatar path={user.avatarUrl} /><button className="self-start text-xs underline" onClick={() => navigate("/profil")}>{t("profile.title")}</button>
           <span className="break-all">
             {t("auth.signedInAs", { name: user.username })}
             <span className="text-white/30"> · {roleLabel(user.role, t)}</span>

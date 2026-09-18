@@ -622,6 +622,7 @@ async def chat_with_persona(
             question=body.message,
             prompts=prompts,
         )
+    from app.services.actor_profiles import ActorProfileTools
     reply = await reply_as_persona(
         profile,
         body.mode,
@@ -633,6 +634,7 @@ async def chat_with_persona(
         user_image_sha256=body.image_sha256,
         profile_kind=persona.kind,
         tools=persona.tools,
+        actor_tool_handler=ActorProfileTools(session, user_id=user.id, customer_id=persona.customer_id, conversation=f"expert:{persona.id}:{body.mode}") if persona.kind == "expert" else None,
         research_tool_handler=(
             research_tool_handler_for_chat(
                 session,

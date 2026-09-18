@@ -7,10 +7,14 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.schemas.profiles import ProfileFields
+
 UserRole = Literal["admin", "user", "bolag"]
 
 
-class MeOut(BaseModel):
+class MeOut(ProfileFields):
+    avatar_url: str | None = None
+    profile_revision: int = 0
     id: str
     email: str
     role: UserRole
@@ -27,7 +31,9 @@ class LocalLoginOut(BaseModel):
     kund_slug: str
 
 
-class UserAccountOut(BaseModel):
+class UserAccountOut(ProfileFields):
+    avatar_url: str | None = None
+    profile_revision: int = 0
     id: str
     email: str
     role: UserRole
@@ -60,6 +66,6 @@ class UserInviteRequest(BaseModel):
         return self
 
 
-class UserAccountUpdate(BaseModel):
+class UserAccountUpdate(ProfileFields):
     role: UserRole | None = None
     kund_id: int | None = None

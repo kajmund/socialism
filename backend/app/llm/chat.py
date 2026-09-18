@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from app.services.actor_profiles import ActorToolHandler
+
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -91,9 +93,7 @@ def build_chat_system_prompt(
         role_lock = render_prompt(prompts, "chat.role_lock", name=profile.name)
     else:
         mode_rules = render_prompt(prompts, "chat.mode.in_character")
-        role_lock = render_prompt(
-            prompts, "chat.role_lock.in_character", name=profile.name
-        )
+        role_lock = render_prompt(prompts, "chat.role_lock.in_character", name=profile.name)
     parts = [
         mode_rules,
         role_lock,
@@ -191,9 +191,7 @@ def _chat_messages(
     messages.append(
         {
             "role": "user",
-            "content": user_content_with_optional_image(
-                user_message, user_image_sha256
-            ),
+            "content": user_content_with_optional_image(user_message, user_image_sha256),
         }
     )
     return messages
@@ -215,14 +213,13 @@ async def reply_as_persona(
     user_image_sha256: str | None = None,
     tools: list[str] | None = None,
     research_tool_handler: ResearchToolHandler | None = None,
+    actor_tool_handler: ActorToolHandler | None = None,
 ) -> str:
     allowed = resolve_chat_tools(tools, kind=profile_kind)
     tool_extra = expert_tool_prompt_extra(prompts, allowed)
     combined_extra = extra_system
     if tool_extra:
-        combined_extra = (
-            f"{extra_system}\n\n{tool_extra}".strip() if extra_system else tool_extra
-        )
+        combined_extra = f"{extra_system}\n\n{tool_extra}".strip() if extra_system else tool_extra
     messages = _chat_messages(
         profile,
         mode,
@@ -241,6 +238,7 @@ async def reply_as_persona(
             messages,
             allowed_tools=frozenset(allowed),
             research_tool_handler=research_tool_handler,
+            actor_tool_handler=actor_tool_handler,
         )
     return await complete_text(messages, model=model)
 
@@ -260,6 +258,7 @@ async def stream_reply_as_persona(
     tools: list[str] | None = None,
     user_image_sha256: str | None = None,
     research_tool_handler: ResearchToolHandler | None = None,
+    actor_tool_handler: ActorToolHandler | None = None,
 ) -> AsyncIterator[str]:
     allowed = resolve_chat_tools(tools, kind=profile_kind)
     extra = expert_tool_prompt_extra(prompts, allowed)
@@ -284,6 +283,7 @@ async def stream_reply_as_persona(
             messages,
             allowed_tools=frozenset(allowed),
             research_tool_handler=research_tool_handler,
+            actor_tool_handler=actor_tool_handler,
         )
         if reply:
             yield reply
