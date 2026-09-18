@@ -15,10 +15,11 @@ import pdfplumber
 ExtractionStatus = Literal["ok", "empty", "unsupported", "needs_ocr", "failed"]
 
 PLAIN_TEXT_MIME = "text/plain"
+MARKDOWN_MIME = "text/markdown"
 PDF_MIME = "application/pdf"
 DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
-_SUPPORTED_MIMES = frozenset({PLAIN_TEXT_MIME, PDF_MIME, DOCX_MIME})
+_SUPPORTED_MIMES = frozenset({PLAIN_TEXT_MIME, MARKDOWN_MIME, PDF_MIME, DOCX_MIME})
 
 
 @dataclass(frozen=True)
@@ -57,7 +58,7 @@ class DefaultTextExtractor:
                 status="unsupported",
                 message=f"Unsupported mime type: {kind or mime_type}",
             )
-        if kind == PLAIN_TEXT_MIME:
+        if kind in {PLAIN_TEXT_MIME, MARKDOWN_MIME}:
             return _extract_plaintext(content)
         if kind == PDF_MIME:
             return _extract_pdf(content)

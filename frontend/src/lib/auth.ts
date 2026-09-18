@@ -10,12 +10,14 @@ export type Role = "admin" | "user" | "bolag"
 
 export type AuthUser = {
   id: string
+  avatarUrl?: string | null
   username: string
   email: string
   role: Role
   modules: string[]
   kundSlug: string | null
   kundId: number | null
+  product: string | null
 }
 
 export type AuthSession = {
@@ -55,6 +57,7 @@ function sessionFromSupabase(
       modules: [],
       kundSlug: null,
       kundId: null,
+      product: null,
     },
   }
 }

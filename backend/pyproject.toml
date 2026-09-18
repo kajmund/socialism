@@ -18,6 +18,8 @@ dependencies = [
     "mem0ai==2.0.20",
     "openai==2.48.0",
     "pdfplumber==0.11.9",
+    # Decode, validate and strip image metadata; robust codecs are not a small helper.
+    "pillow>=10.4.0",
     "pydantic>=2.13.4",
     "pydantic-settings>=2.14.2",
     "pyjwt>=2.10.1",
@@ -63,6 +65,7 @@ dev = [
     "httpx>=0.28.1",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
+    "pytest-split==0.11.0",
     "ruff>=0.16.0",
 ]
 

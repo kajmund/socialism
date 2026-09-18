@@ -61,7 +61,7 @@ class SupabaseStorageVectorClient(VectorBucketClient):
         response = await self._index.query(
             VectorData(float32=list(vector)),
             topK=limit,
-            filter=dict(filters),
+            filter=_vector_filter(filters),
             return_distance=True,
             return_metadata=True,
         )
@@ -91,6 +91,15 @@ class SupabaseStorageVectorClient(VectorBucketClient):
             if not next_token:
                 break
         return keys
+
+
+def _vector_filter(filters: Mapping[str, Any]) -> dict[str, Any] | None:
+    conditions = [{key: value} for key, value in filters.items()]
+    if not conditions:
+        return None
+    if len(conditions) == 1:
+        return conditions[0]
+    return {"$and": conditions}
 
 
 @dataclass

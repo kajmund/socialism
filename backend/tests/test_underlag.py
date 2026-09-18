@@ -6,6 +6,7 @@ from io import BytesIO
 import pytest
 from httpx import AsyncClient
 
+from app.services import jobs as jobs_service
 from app.services.object_storage import (
     KIND_UNDERLAG,
     MAX_UNDERLAG_BYTES,
@@ -14,6 +15,13 @@ from app.services.object_storage import (
 )
 from app.services.underlag_extract import extract_underlag_text
 from tests.conftest import USER_USER_ID
+
+
+@pytest.fixture(autouse=True)
+def _hold_document_ingest_jobs(monkeypatch):
+    """Underlag API tests inspect upload mutations before background ingest runs."""
+
+    monkeypatch.setattr(jobs_service, "enqueue_job", lambda _job_id: None)
 
 
 def _minimal_docx(paragraph: str) -> bytes:
@@ -49,7 +57,7 @@ def _minimal_docx(paragraph: str) -> bytes:
 
 
 def test_extract_underlag_plaintext_ok_empty_failed():
-    text, status = extract_underlag_text("text/plain", "Hej underlag\n".encode())
+    text, status = extract_underlag_text("text/plain", b"Hej underlag\n")
     assert status == "ok"
     assert text == "Hej underlag"
     empty, empty_status = extract_underlag_text("text/markdown", b"   \n")
@@ -87,7 +95,7 @@ async def test_underlag_upload_list_get_is_owner_scoped(
     uploaded = await client.post(
         "/underlag",
         params={"module": "expertgranskning"},
-        files={"file": ("brief.txt", "Personligt underlag.\n".encode(), "text/plain")},
+        files={"file": ("brief.txt", b"Personligt underlag.\n", "text/plain")},
     )
     assert uploaded.status_code == 201, uploaded.text
     body = uploaded.json()

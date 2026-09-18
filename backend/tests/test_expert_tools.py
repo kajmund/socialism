@@ -9,6 +9,7 @@ from app.services.expert_tools import (
     expert_tool_prompt_extra,
     filter_openai_tools,
     normalize_expert_tools,
+    panel_chat_tools,
     resolve_chat_tools,
     resolve_persona_tools,
 )
@@ -41,6 +42,12 @@ def test_filter_openai_tools():
     ]
     filtered = filter_openai_tools(specs, frozenset({"lookup_company"}))
     assert [row["function"]["name"] for row in filtered] == ["lookup_company"]
+
+
+def test_panel_chat_tools_drop_research_and_honor_stored_selection():
+    assert "start_research" not in panel_chat_tools(None)
+    assert panel_chat_tools(["search_wiki", "start_research"]) == ["search_wiki"]
+    assert panel_chat_tools([]) == []
 
 
 def test_prompt_extra_only_includes_selected_groups():

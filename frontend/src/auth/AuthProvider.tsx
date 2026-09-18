@@ -17,11 +17,15 @@ import {
 } from "@/lib/auth"
 
 type MeResponse = {
+  first_name: string | null
+  last_name: string | null
+  avatar_url: string | null
   id: string
   email: string
   role: Role
   kund_id: number | null
   kund_slug: string | null
+  product: string | null
   available_modules: string[]
 }
 
@@ -40,6 +44,7 @@ type AuthContextValue = {
   profileError: ProfileError | null
   requestMagicLink: (email: string) => Promise<void>
   signOut: () => Promise<void>
+  refreshProfile: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -58,12 +63,14 @@ async function hydrateFromMe(base: AuthSession): Promise<AuthSession> {
     accessToken: base.accessToken,
     user: {
       id: me.id,
-      username: me.email,
+      username: [me.first_name, me.last_name].filter(Boolean).join(" ") || me.email,
+      avatarUrl: me.avatar_url,
       email: me.email,
       role: me.role,
       modules: me.available_modules,
       kundSlug: me.kund_slug,
       kundId: me.kund_id,
+      product: me.product,
     },
   }
 }
@@ -155,8 +162,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profileError,
       requestMagicLink,
       signOut,
+      refreshProfile: async () => { if (session) await applySession(session) },
     }
-  }, [loading, profileError, resolvedModules, session, requestMagicLink, signOut])
+  }, [loading, profileError, resolvedModules, session, requestMagicLink, signOut, applySession])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

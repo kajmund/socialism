@@ -6,6 +6,7 @@ from collections.abc import Callable
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.services.knowledge import (
     SUPABASE_PROVIDER_ID,
     OpenAIEmbeddingProvider,
@@ -17,6 +18,8 @@ from app.services.research.completeness import ResearchCompletenessReviewer
 from app.services.research.followup import FollowUpResearchPlanner
 from app.services.research.models import ResearchError
 from app.services.research.planner import ResearchPlanner
+from app.services.research.question_graph_sql import SqlQuestionEvidenceGraph
+from app.services.research.question_semantic import SemanticQuestionIdentityMatcher
 from app.services.research.registry import (
     build_research_registry,
     production_registered_source_types,
@@ -87,6 +90,13 @@ def set_knowledge_vector_store_factory(
     _vector_store_factory = factory
 
 
+def require_knowledge_vector_store() -> KnowledgeVectorStore:
+    """Return the configured shared vector store for ingest and research."""
+    if _vector_store_factory is None:
+        raise ResearchCompositionError(_UNCONFIGURED_VECTOR_STORE)
+    return _vector_store_factory()
+
+
 def require_research_router_ready() -> None:
     """Fail closed if the standard router cannot be built.
 
@@ -119,6 +129,20 @@ def build_standard_research_router(session: AsyncSession) -> ResearchRouter:
     )
     provider = registry.get(SUPABASE_PROVIDER_ID)
     return ResearchRouter(build_research_registry(provider))
+
+
+def build_standard_question_graph() -> SqlQuestionEvidenceGraph:
+    if _vector_store_factory is None:
+        return SqlQuestionEvidenceGraph()
+    return SqlQuestionEvidenceGraph(
+        matcher=SemanticQuestionIdentityMatcher(
+            vector_store=_vector_store_factory(),
+            embeddings=OpenAIEmbeddingProvider.from_settings(),
+            version=settings.research_question_embedding_version,
+            threshold=settings.research_question_semantic_match_threshold,
+            limit=settings.research_question_semantic_match_limit,
+        )
+    )
 
 
 def resolve_research_assessor() -> ResearchAssessor | None:

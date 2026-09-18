@@ -13,7 +13,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.config import settings
-from app.database.models import DdCampaign, Job, PanelSession, Report, Run
+from app.database.models import DdCampaign, Job, PanelSession, Persona, Report, Run, StoredObject
 from app.database.session import SessionLocal
 from app.realtime.hub import job_hub
 from app.schemas.domain import (
@@ -36,6 +36,11 @@ from app.services.dd.campaigns import get_campaign
 from app.services.dd.candidate_runs import get_candidate_run, upsert_research
 from app.services.dd.research import DdResearchError, run_dd_research
 from app.services.dd.schemas import DdCandidateCompany, DdResearchDossier, DdResearchJobRequest
+from app.services.document_knowledge import (
+    DOCUMENT_INGEST_JOB_KIND,
+    DocumentIngestJobRequest,
+    run_document_ingest_job,
+)
 from app.services.expertgranskning import WORD_JOB_KIND
 from app.services.expertgranskning.schemas import ExpertgranskningWordJobRequest
 from app.services.expertgranskning.watch import publish_expertgranskning_finished
@@ -197,6 +202,24 @@ async def create_job(session: AsyncSession, body: JobCreate) -> Job:
         label = (body.label or "").strip() or (
             f"Word-granskning: {payload.doc_id}" if payload.doc_id else "Word-granskning"
         )
+    elif body.kind == "expert_chat_research":
+        from app.services.expert_chat_research import ExpertChatResearchJobRequest
+
+        payload = ExpertChatResearchJobRequest.model_validate(body.request)
+        persona = await session.get(Persona, payload.persona_id)
+        if persona is None or persona.kind != "expert":
+            raise ValueError(f"Expert not found: {payload.persona_id}")
+        label = (body.label or "").strip() or f"Expertresearch: {payload.question[:80]}"
+    elif body.kind == DOCUMENT_INGEST_JOB_KIND:
+        payload = DocumentIngestJobRequest.model_validate(body.request)
+        source = await session.get(StoredObject, payload.object_id)
+        if (
+            source is None
+            or source.kind != "underlag"
+            or source.owner_user_id != payload.owner_user_id
+        ):
+            raise ValueError("Underlag not found for document ingest")
+        label = (body.label or "").strip() or f"Dokumentförståelse: {source.filename[:80]}"
     else:
         raise ValueError(f"Unsupported job kind: {body.kind}")
 
@@ -265,6 +288,18 @@ async def _execute_job_kind(job_id: str, kind: str) -> None:
         await run_rattsunderlag_research_job(job_id)
     elif kind == WORD_JOB_KIND:
         await run_word_paragraph_review_for_job(job_id)
+    elif kind == "expert_chat_research":
+        from app.services.expert_chat_research import run_expert_chat_research_job
+
+        factory = job_session_factory()
+        result = await run_expert_chat_research_job(factory, job_id=job_id)
+        async with factory() as session:
+            await _succeed(session, job_id, result)
+    elif kind == DOCUMENT_INGEST_JOB_KIND:
+        factory = job_session_factory()
+        result = await run_document_ingest_job(factory, job_id=job_id)
+        async with factory() as session:
+            await _succeed(session, job_id, result)
     else:
         factory = job_session_factory()
         async with factory() as session:
@@ -340,9 +375,7 @@ async def _fail(session: AsyncSession, job_id: str, message: str) -> None:
     await session.refresh(job)
     await publish_job(job)
     if job.kind == WORD_JOB_KIND:
-        await publish_expertgranskning_finished(
-            job_id, status="failed", error=job.error
-        )
+        await publish_expertgranskning_finished(job_id, status="failed", error=job.error)
 
 
 async def _succeed(session: AsyncSession, job_id: str, result: dict) -> None:
@@ -717,6 +750,14 @@ async def _run_panel_session(job_id: str) -> None:
             candidate_id = (panel.config or {}).get("candidate_id") if panel else None
             if isinstance(candidate_id, str) and candidate_id:
                 result["candidate_id"] = candidate_id
+            execution_run_id = (panel.config or {}).get("execution_run_id") if panel else None
+            execution_attempt_id = (
+                (panel.config or {}).get("execution_attempt_id") if panel else None
+            )
+            if isinstance(execution_run_id, str) and execution_run_id:
+                result["execution_run_id"] = execution_run_id
+            if isinstance(execution_attempt_id, str) and execution_attempt_id:
+                result["execution_attempt_id"] = execution_attempt_id
             await _succeed(session, job_id, result)
     except Exception as exc:
         logger.exception("Panel session job %s failed", job_id)
@@ -877,9 +918,7 @@ async def fail_interrupted_jobs(
 ) -> int:
     """Mark pending/running jobs as failed on startup (no durable worker queue)."""
     now = utcnow()
-    active = await session.execute(
-        select(Job).where(Job.status.in_(("pending", "running")))
-    )
+    active = await session.execute(select(Job).where(Job.status.in_(("pending", "running"))))
     run_ids: list[int] = []
     report_ids: list[str] = []
     panel_session_ids: list[str] = []

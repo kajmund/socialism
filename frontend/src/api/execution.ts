@@ -224,6 +224,9 @@ export function getExecutionResult(attemptId: string): Promise<AttemptResult> {
 }
 
 export type ResearchProgressEventType =
+  | "question_running"
+  | "question_completed"
+  | "question_failed"
   | "objective_accepted"
   | "initial_plan_accepted"
   | "research_need_planned"
@@ -264,5 +267,68 @@ export function getResearchProgressEvents(
   const query = afterSequence > 0 ? `?after_sequence=${afterSequence}` : ""
   return api.get<ResearchProgressEventList>(
     `/execution/attempts/${attemptId}/progress-events${query}`,
+  )
+}
+
+export type ResearchOverviewSource = {
+  id: string
+  status: string
+  title: string | null
+  excerpt: string | null
+  locator: string | null
+  source_url: string | null
+  source_type: string
+  provider: string | null
+}
+
+export type ResearchOverviewExpert = {
+  id: string
+  name: string
+}
+
+export type ResearchOverviewQuestion = {
+  id: string
+  question: string
+  specific_question: string
+  why_needed: string
+  status: string
+  raw_status: string
+  outcome_reason: string | null
+  origin: string
+  depth: number
+  child_attempt_id: string | null
+  child_attempt_status: string | null
+  dependency_ids: string[]
+  raised_by: ResearchOverviewExpert[]
+  assigned_to: ResearchOverviewExpert | null
+  sources: ResearchOverviewSource[]
+  assessment_result: string | null
+  assessment_rationale: string | null
+  completeness_result: string | null
+  completeness_rationale: string | null
+}
+
+export type ResearchOverview = {
+  run_id: string
+  attempt_id: string
+  attempt_status: string
+  phase: string
+  latest_sequence: number
+  counts: {
+    total: number
+    answered: number
+    running: number
+    waiting: number
+    insufficient: number
+    unanswered: number
+    failed: number
+    blocked: number
+  }
+  questions: ResearchOverviewQuestion[]
+}
+
+export function getResearchOverview(attemptId: string): Promise<ResearchOverview> {
+  return api.get<ResearchOverview>(
+    `/execution/attempts/${attemptId}/research-overview`,
   )
 }

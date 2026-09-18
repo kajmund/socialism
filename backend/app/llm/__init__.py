@@ -16,6 +16,13 @@ from openai import AsyncOpenAI
 from openai.resources.chat.completions import AsyncCompletions
 
 from app.config import settings
+from app.llm.structured_retry import (
+    StructuredOutputError,
+    classify_structured_failure,
+    is_json_syntax_validation_error,
+    run_structured_with_retry,
+    validation_category,
+)
 from app.llm.structured_schema import strict_json_schema
 from app.llm.tool_messages import normalize_messages_for_provider
 from app.schemas.domain import EditablePersona
@@ -279,7 +286,10 @@ async def complete_structured[T](
                 extra={
                     "response_format": _structured_response_format(
                         response_model, schema
-                    )
+                    ),
+                    # Override the client's global timeout for call sites with a
+                    # deliberately different structured-output budget.
+                    "timeout": wait,
                 },
                 reasoning_effort=(
                     reasoning_effort if reasoning_effort is not None else _UNSET
@@ -296,10 +306,53 @@ async def complete_structured[T](
         prompt_tokens=prompt_tokens,
         completion_tokens=completion_tokens,
     )
-    content = completion.choices[0].message.content
+    choice = completion.choices[0]
+    finish_reason = getattr(choice, "finish_reason", None)
+    content = getattr(choice.message, "content", None)
+    if finish_reason == "length":
+        raise StructuredOutputError("length", finish_reason=finish_reason)
     if not content:
-        raise RuntimeError("LLM returned empty structured response")
+        raise StructuredOutputError(
+            "empty",
+            finish_reason=finish_reason,
+            message="LLM returned empty structured response",
+        )
     return response_model.model_validate_json(content)  # type: ignore[attr-defined, no-any-return]
+
+
+async def complete_structured_retry[T](
+    messages: list[ChatMessage],
+    response_model: type[T],
+    *,
+    retry_instruction: str | None = None,
+    on_retry: Callable[[], None] | None = None,
+    model: str | None = None,
+    max_tokens: int | None = None,
+    timeout: float | None = None,
+    reasoning_effort: str | None = None,
+) -> T:
+    """Structured completion with one retry on truncated or invalid JSON."""
+
+    async def _complete(
+        retry_messages: list[ChatMessage],
+        retry_model: type[T],
+    ) -> T:
+        return await complete_structured(
+            retry_messages,
+            retry_model,
+            model=model,
+            max_tokens=max_tokens,
+            timeout=timeout,
+            reasoning_effort=reasoning_effort,
+        )
+
+    return await run_structured_with_retry(
+        _complete,
+        messages,
+        response_model,
+        retry_instruction=retry_instruction,
+        on_retry=on_retry,
+    )
 
 
 async def complete_text(messages: list[ChatMessage], *, model: str | None = None) -> str:

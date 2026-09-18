@@ -285,3 +285,62 @@ class ResearchProgressEventListOut(BaseModel):
     attempt_id: str
     after_sequence: int
     events: list[ResearchProgressEventOut]
+
+
+class ResearchExpertOut(BaseModel):
+    id: str
+    name: str
+
+
+class ResearchSourceOut(BaseModel):
+    id: str
+    status: str
+    title: str | None
+    excerpt: str | None
+    locator: str | None
+    source_url: str | None
+    source_type: str
+    provider: str | None
+
+
+class ResearchQuestionOverviewOut(BaseModel):
+    id: str
+    question: str
+    specific_question: str
+    why_needed: str
+    status: str
+    raw_status: str
+    outcome_reason: str | None
+    origin: str
+    depth: int
+    child_attempt_id: str | None
+    child_attempt_status: str | None
+    dependency_ids: list[str]
+    raised_by: list[ResearchExpertOut]
+    assigned_to: ResearchExpertOut | None
+    sources: list[ResearchSourceOut]
+    assessment_result: str | None
+    assessment_rationale: str | None
+    completeness_result: str | None
+    completeness_rationale: str | None
+
+
+class ResearchOverviewCountsOut(BaseModel):
+    total: int
+    answered: int
+    running: int
+    waiting: int
+    insufficient: int
+    unanswered: int
+    failed: int
+    blocked: int
+
+
+class ResearchOverviewOut(BaseModel):
+    run_id: str
+    attempt_id: str
+    attempt_status: str
+    phase: str
+    latest_sequence: int
+    counts: ResearchOverviewCountsOut
+    questions: list[ResearchQuestionOverviewOut]

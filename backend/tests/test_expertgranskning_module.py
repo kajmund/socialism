@@ -9,8 +9,16 @@ from types import SimpleNamespace
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 
-from app.llm import set_text_completer, set_tools_completer
+from app.database.models import (
+    EvidenceSetItem,
+    ExecutionAttempt,
+    ResearchQuestion,
+    ResearchQuestionExpert,
+    SpecificQuestion,
+)
+from app.llm import set_structured_completer, set_text_completer, set_tools_completer
 from app.modules.registry import (
     MODULE_REGISTRY,
     module_id_for_report_mode,
@@ -25,7 +33,18 @@ from app.services.kund_store import (
     OS_DEFAULT_KUND_SLUG,
     default_os_customer_id,
 )
+from app.services.panel.competency import ExpertCompetency
 from app.services.panel.expert_profiles_store import get_expert_profile_by_key
+from app.services.panel.research import (
+    ConsolidatedResearchNeed,
+    ExpertResearchNeeds,
+    ModeratorResearchPlan,
+    empty_research_structured,
+)
+from app.services.panel.research import (
+    ResearchNeedDraft as PanelResearchNeedDraft,
+)
+from app.services.panel.synthesis import GenericPanelSynthesis
 from app.services.prompt_fields_store import get_prompt_field_by_key
 from app.services.research.assessment import ProgrammaticResearchAssessor
 from app.services.research.completeness import ProgrammaticResearchCompletenessReviewer
@@ -129,6 +148,40 @@ def mock_panel_llm():
 
     set_text_completer(_complete)
     set_tools_completer(_tools)
+
+    async def _structured(_messages, response_model):
+        if response_model is ExpertResearchNeeds:
+            return ExpertResearchNeeds(
+                research_decision="required",
+                can_answer_from_document=False,
+                needs=[
+                    PanelResearchNeedDraft(
+                        question="Vilket relevant kundunderlag finns för granskningen?",
+                        why_needed="Panelen behöver ett fryst externt underlag.",
+                        source_types=["customer_knowledge"],
+                    )
+                ],
+            )
+        if response_model is ModeratorResearchPlan:
+            return ModeratorResearchPlan(
+                needs=[
+                    ConsolidatedResearchNeed(
+                        question="Vilket relevant kundunderlag finns för granskningen?",
+                        why_needed="Panelen behöver ett fryst externt underlag.",
+                        proposal_ids=["proposal_1", "proposal_2"],
+                    )
+                ]
+            )
+        if response_model is ExpertCompetency:
+            return ExpertCompetency(has_domain_competence=True)
+        if response_model is GenericPanelSynthesis:
+            return GenericPanelSynthesis(summary="", claims=[], unanswered=[])
+        empty = empty_research_structured(response_model)
+        if empty is not None:
+            return empty
+        raise RuntimeError(f"Unexpected structured model {response_model}")
+
+    set_structured_completer(_structured)
     planner = FakeResearchPlanner(
         [
             ResearchNeedDraft(
@@ -167,6 +220,7 @@ def mock_panel_llm():
     set_follow_up_planner_factory(NoOpFollowUpPlanner)
     set_completeness_reviewer_factory(ProgrammaticResearchCompletenessReviewer)
     yield
+    set_structured_completer(None)
     set_text_completer(None)
     set_tools_completer(None)
     set_research_router_factory(None)
@@ -268,6 +322,54 @@ async def test_expertgranskning_session_report_and_spindoctor(
 
         factory = jobs_service.job_session_factory()
         assert factory is not None
+        async with factory() as db:
+            attempt_id = session.json()["execution_attempt_id"]
+            specific = (
+                await db.execute(
+                    select(SpecificQuestion).where(
+                        SpecificQuestion.origin_kind == "expertgranskning",
+                        SpecificQuestion.origin_ref == session_id,
+                    )
+                )
+            ).scalar_one()
+            question = (
+                await db.execute(
+                    select(ResearchQuestion).where(
+                        ResearchQuestion.attempt_id == attempt_id,
+                        ResearchQuestion.specific_question_id == specific.id,
+                    )
+                )
+            ).scalar_one()
+            assert question.status == "completed"
+            assert question.execution_attempt_id
+            child = await db.get(ExecutionAttempt, question.execution_attempt_id)
+            assert child is not None
+            assert child.parent_attempt_id == attempt_id
+            assert child.attempt_type == "research_question"
+            links = list(
+                (
+                    await db.execute(
+                        select(ResearchQuestionExpert).where(
+                            ResearchQuestionExpert.question_id == question.id
+                        )
+                    )
+                ).scalars()
+            )
+            assert {link.role for link in links} == {"raised_by", "assigned_to"}
+            parent = await db.get(ExecutionAttempt, attempt_id)
+            assert parent is not None and parent.evidence_set_id
+            aggregate_item = (
+                await db.execute(
+                    select(EvidenceSetItem).where(
+                        EvidenceSetItem.evidence_set_id == parent.evidence_set_id
+                    )
+                )
+            ).scalar_one()
+            assert aggregate_item.provenance["research_question_id"] == question.id
+            assert (
+                aggregate_item.provenance["research_question_attempt_id"]
+                == child.id
+            )
         binding = report_binding_for_mode(REPORT_MODE)
         generated = await binding.generate(
             ReportGenerateContext(
@@ -382,9 +484,10 @@ async def test_expertgranskning_shares_spinndoctor_catalog(client_db):
 
 
 @pytest.mark.asyncio
-async def test_non_admin_denied_when_panel_experts_span_kunder(client: AsyncClient):
+async def test_admin_cannot_create_panel_with_experts_from_another_kund(
+    client: AsyncClient,
+):
     from app.services.kund_store import OS_DEFAULT_KUND_SLUG
-    from tests.conftest import BOLAG_USER_ID, mint_access_token
 
     listed = await client.get("/kunder")
     assert listed.status_code == 200
@@ -417,22 +520,12 @@ async def test_non_admin_denied_when_panel_experts_span_kunder(client: AsyncClie
             "recipe": {"size": 2, "dist": {}},
         },
     )
-    assert created.status_code == 201, created.text
-    panel_id = created.json()["id"]
-
-    client.headers["Authorization"] = (
-        f"Bearer {mint_access_token(sub=BOLAG_USER_ID, email='bolag@test.local')}"
-    )
-    denied = await client.post(
-        "/expertgranskning/sessions",
-        json={"document_text": "En text", "panel_id": panel_id},
-    )
-    assert denied.status_code == 403
-    assert denied.json()["detail"] == "kund_access_denied"
+    assert created.status_code == 403
+    assert created.json()["detail"] == "kund_access_denied"
 
 
 @pytest.mark.asyncio
-async def test_non_admin_denied_when_patch_attaches_mixed_kund_panel(client: AsyncClient):
+async def test_admin_cannot_create_second_mixed_kund_panel(client: AsyncClient):
     listed = await client.get("/kunder")
     assert listed.status_code == 200
     kunder = {row["slug"]: row["id"] for row in listed.json()}
@@ -464,26 +557,8 @@ async def test_non_admin_denied_when_patch_attaches_mixed_kund_panel(client: Asy
             "recipe": {"size": 2, "dist": {}},
         },
     )
-    assert mixed_panel.status_code == 201, mixed_panel.text
-    mixed_panel_id = mixed_panel.json()["id"]
-
-    own_panel_id = await _create_expert_panel(client)
-    client.headers["Authorization"] = (
-        f"Bearer {mint_access_token(sub=BOLAG_USER_ID, email='bolag@test.local')}"
-    )
-    created = await client.post(
-        "/expertgranskning/sessions",
-        json={"document_text": "Egen kundtext", "panel_id": own_panel_id},
-    )
-    assert created.status_code == 201, created.text
-    session_id = created.json()["id"]
-
-    denied = await client.patch(
-        f"/expertgranskning/sessions/{session_id}",
-        json={"panel_id": mixed_panel_id},
-    )
-    assert denied.status_code == 403
-    assert denied.json()["detail"] == "kund_access_denied"
+    assert mixed_panel.status_code == 403
+    assert mixed_panel.json()["detail"] == "kund_access_denied"
 
 
 @pytest.mark.asyncio

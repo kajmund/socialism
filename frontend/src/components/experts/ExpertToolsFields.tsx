@@ -4,16 +4,20 @@ import { Wrench } from "lucide-react"
 import { AdminButton } from "@/components/ui/admin-button"
 import {
   EXPERT_TOOLS,
+  selectAllExpertTools,
+  toggleExpertTool,
   type ExpertToolGroup,
   type ExpertToolId,
 } from "@/data/expert-tools"
 import { useLocale, type MessageKey } from "@/i18n"
 
-const GROUP_ORDER: ExpertToolGroup[] = ["company", "search"]
+const GROUP_ORDER: ExpertToolGroup[] = ["company", "search", "research", "context"]
 
 const GROUP_LABEL: Record<ExpertToolGroup, MessageKey> = {
   company: "experts.tools.groupCompany",
   search: "experts.tools.groupSearch",
+  research: "experts.tools.groupResearch",
+  context: "profile.groupContext",
 }
 
 const TOOL_LABEL: Record<ExpertToolId, MessageKey> = {
@@ -22,12 +26,16 @@ const TOOL_LABEL: Record<ExpertToolId, MessageKey> = {
   validate_orgnr: "experts.tools.validate_orgnr",
   search_duckduckgo: "experts.tools.search_duckduckgo",
   search_wiki: "experts.tools.search_wiki",
+  start_research: "experts.tools.start_research",
+  get_actor_context: "profile.get_actor_context",
+  propose_actor_context_update: "profile.propose_actor_context_update",
 }
 
 export type ExpertToolsFieldsProps = {
   tools: ExpertToolId[]
   onChange: (tools: ExpertToolId[]) => void
   disabled?: boolean
+  error?: string | null
   titleKey?: MessageKey
   introKey?: MessageKey
 }
@@ -50,19 +58,11 @@ function ExpertToolsTable({
   }, [allSelected, someSelected])
 
   function setAll(checked: boolean) {
-    onChange(checked ? EXPERT_TOOLS.map((tool) => tool.id) : [])
+    onChange(selectAllExpertTools(checked))
   }
 
   function toggle(id: ExpertToolId, checked: boolean) {
-    if (checked) {
-      onChange([
-        ...EXPERT_TOOLS.map((tool) => tool.id).filter(
-          (name) => selected.has(name) || name === id,
-        ),
-      ])
-      return
-    }
-    onChange(tools.filter((name) => name !== id))
+    onChange(toggleExpertTool(tools, id, checked))
   }
 
   return (
@@ -121,6 +121,7 @@ export function ExpertToolsFields({
   tools,
   onChange,
   disabled = false,
+  error = null,
   titleKey = "experts.composer.layerTools",
   introKey = "experts.tools.intro",
 }: ExpertToolsFieldsProps) {
@@ -198,6 +199,11 @@ export function ExpertToolsFields({
                     onChange={onChange}
                     disabled={disabled}
                   />
+                  {error ? (
+                    <p className="mt-3 text-sm text-destructive" role="alert">
+                      {error}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="flex justify-end border-t border-[color:var(--border-hairline)] px-5 py-3">
                   <AdminButton

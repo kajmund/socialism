@@ -209,7 +209,7 @@ export function chatWithPersona(
   id: string,
   body: { mode: ChatMode; message: string; image_sha256?: string | null },
 ): Promise<PersonaChatResponse> {
-  return api.post(`/personas/${id}/chat`, body)
+  return api.post(`/personas/${id}/chat`, body, { timeoutMs: 120_000 })
 }
 
 export function clearPersonaMessages(id: string, mode: ChatMode): Promise<void> {

@@ -8,6 +8,7 @@ from app.services.prompt_catalog import render_prompt
 
 COMPANY_EXPERT_TOOLS = frozenset({"search_companies", "lookup_company", "validate_orgnr"})
 SEARCH_EXPERT_TOOLS = frozenset({"search_duckduckgo", "search_wiki"})
+RESEARCH_EXPERT_TOOLS = frozenset({"start_research"})
 
 DEFAULT_EXPERT_TOOL_IDS: tuple[str, ...] = (
     "search_companies",
@@ -15,6 +16,9 @@ DEFAULT_EXPERT_TOOL_IDS: tuple[str, ...] = (
     "validate_orgnr",
     "search_duckduckgo",
     "search_wiki",
+    "start_research",
+    "get_actor_context",
+    "propose_actor_context_update",
 )
 
 EXPERT_TOOL_IDS = frozenset(DEFAULT_EXPERT_TOOL_IDS)
@@ -59,6 +63,11 @@ def resolve_chat_tools(raw: list[str] | None, *, kind: str) -> list[str]:
     return resolve_persona_tools(raw)
 
 
+def panel_chat_tools(raw: list[str] | None) -> list[str]:
+    """Company/search tools an expert may use in panel chat. No research initiation."""
+    return [name for name in resolve_expert_tools(raw) if name not in RESEARCH_EXPERT_TOOLS]
+
+
 def filter_openai_tools(
     specs: list[dict[str, Any]],
     allowed: frozenset[str],
@@ -77,4 +86,8 @@ def expert_tool_prompt_extra(prompts: dict[str, str], tools: list[str]) -> str:
         parts.append(render_prompt(prompts, "chat.expert.company_tools"))
     if names & SEARCH_EXPERT_TOOLS:
         parts.append(render_prompt(prompts, "chat.expert.search_tools"))
+    if names & RESEARCH_EXPERT_TOOLS:
+        parts.append(render_prompt(prompts, "chat.expert.research_tool"))
+    if names & {"get_actor_context", "propose_actor_context_update"}:
+        parts.append(render_prompt(prompts, "chat.expert.actor_context"))
     return "\n\n".join(parts)

@@ -1,8 +1,28 @@
 # Manual update log
 
+## 2026-09-18
+
+* **Underlag**: Uppladdade filer läses nu automatiskt som ett bakgrundsjobb. Bredvid PDF:en visas neutral dokumentkunskap med fakta och frågor och svar. Klick på en post går till källtexten. Markerad text kan sparas manuellt som fakta, fråga och svar, bokmärke eller anteckning. OCR ingår inte ännu; PDF:er utan textlager markeras tydligt.
+* **Underlag**: PDF-förhandsgranskningen ligger kvar stabilt medan dokumentkunskap byggs. Om en automatisk Q&A-batch tar för lång tid behålls dokumenttexten och lyckade poster, och vyn visar att resultatet är delvis klart.
+* **Expertgranskning**: Under research visas en beständig livevy med generella frågor, ansvariga experter, beroenden, källor, bedömningar och kunskapsluckor. Vyn kan lämnas och öppnas igen utan att historiken försvinner. En obesvarad fråga stoppar inte längre oberoende researchgrenar, och expertgranskningen fortsätter med tillgänglig fryst evidens.
+* **Expertchatten**: Frågor matchas semantiskt mot kundens tidigare generella researchfrågor. Finns relevant fryst evidens kan experten använda den utan att starta ny research; annars måste experten fortfarande be om bekräftelse innan ett bakgrundsjobb skapas.
+* **Expertminnen**: En expert som har ställt eller ansvarat för en besvarad researchfråga får en separat minnesnotering märkt **Researchsvar**. Källorna ligger kvar i det gemensamma kunskapslagret och kopieras inte in i expertens minne.
+
 ## 2026-09-17
 
+* **SME**: **Alla** visar både experter och expertpaneler. **Grupper** visar bara paneler. **Olästa** samlar olästa trådar av båda typerna.
+* **SME**: Portföljikonen öppnar samma **Bakgrundsjobb**-lista som övriga längre jobb, så du kan följa research som en expert har startat.
+* **Experter**: Verktygsvalet har en grupp **Research** med **Starta research**. Att ändra ett annat verktyg tar inte bort researchverktyget.
 * **Expertgranskning**: Webbgranskningen samlar och fryser researchunderlag innan expertpanelen startar. Under **Live-panel** kan du öppna researchkörningen och läsa plan, källor och kvarvarande luckor. Panelen gör inga egna live-sökningar. Word-tillägget startar fortfarande ingen research.
+* **SME**: Chatten använder samma Devbrains-design och chattkomponent som expertchatten. **Alla** visar experter och expertpaneler, **Grupper** visar expertpaneler och **Olästa** samlar nya expertsvar.
+* **SME**: Ett expertsvar fortsätter att tas fram när du byter konversation. Nya svar markeras med en gul punkt centrerad i chatkortets högra kant.
+* **SME**: **Minnen** i expertens chatthuvud öppnar expertchattens minneslogg för läsning, redigering och rensning.
+* **SME**: Initialerna längst upp till höger öppnar användarmenyn. Administratörer kan öppna **Verktyg** i en stor modal; **Logga ut** ligger längst ned.
+* **SME**: Expertchatten visar förslag på följdfrågor och erbjuder bilduppladdning när den aktiva modellen har stöd för bilder.
+* **SME**: Verktygsikonen i expertens chatthuvud öppnar samma verktygsval som expertchatten och sparar ändringarna direkt.
+* **SME**: Expertsvar går genom en gemensam livekanal och routas till rätt konversation. Valda expertverktyg används även när du byter chatt under svaret.
+* **SME**: Experterna i en grupp hör alltid till samma kund som gruppen och visas därför även under **Alla**.
+* **Kunder**: Under **Verktyg** → **Kunder** kan administratören välja en GUI-produkt separat från kundens moduler.
 
 ## 2026-09-15
 

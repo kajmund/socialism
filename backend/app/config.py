@@ -45,6 +45,11 @@ class Settings(BaseSettings):
     llm_temperature: float | None = Field(default=None, ge=0, le=2)
     llm_top_p: float | None = Field(default=None, gt=0, le=1)
     llm_timeout_seconds: float = 60.0
+    # Document-understanding batches are bounded separately from the global LLM
+    # settings. They contain at most 20 short items and should never inherit a
+    # very large global completion budget.
+    document_knowledge_llm_max_tokens: int = Field(default=8192, ge=512, le=32768)
+    document_knowledge_llm_timeout_seconds: float = Field(default=180.0, gt=0, le=900)
     cerebras_api_key: str = ""
     cerebras_base_url: str = CEREBRAS_DEFAULT_BASE_URL
     deepseek_api_key: str = ""
@@ -130,6 +135,13 @@ class Settings(BaseSettings):
     research_max_completeness_passes: int = Field(default=2, ge=1, le=8)
     # Bounded Question → Evidence graph read-through before provider retrieval.
     research_knowledge_lookup_limit: int = Field(default=10, ge=1, le=32)
+    research_question_semantic_match_threshold: float = Field(
+        default=0.88, ge=0.0, le=1.0
+    )
+    research_question_semantic_match_limit: int = Field(default=8, ge=1, le=32)
+    research_question_embedding_version: str = Field(
+        default="knowledge-question-v1", min_length=1
+    )
     # Age after which reused graph evidence is stale. None = freshness unknown.
     research_knowledge_freshness_max_age_seconds: int | None = Field(
         default=None, ge=1

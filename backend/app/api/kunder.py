@@ -12,8 +12,11 @@ from app.auth.scope import assert_kund_access
 from app.database.models import Kund, Projekt, UserAccount
 from app.database.session import get_session
 from app.modules.registry import MODULE_REGISTRY
+from app.products.registry import PRODUCT_REGISTRY
 from app.schemas.kund import KundCreate, KundOut, KundUpdate, ProjektOut
 from app.serializers import utcnow
+from app.schemas.profiles import ORGANIZATION_FIELDS
+from app.services.profiles import apply_fields, patch_fields, organization_values
 from app.services.dd.default_experts import ensure_default_expert_personas
 from app.services.kund_store import DEFAULT_PROJEKT_SLUG, ensure_default_kunder
 from app.services.object_storage import ObjectStorageError
@@ -41,9 +44,11 @@ def _available_modules(raw: object) -> list[str]:
 def _serialize_kund(row: Kund, *, include_projekt: bool) -> KundOut:
     projekt = [_serialize_projekt(p) for p in row.projekt] if include_projekt else []
     return KundOut(
+        **organization_values(row),
         id=row.id,
         name=row.name,
         slug=row.slug,
+        product=row.product,
         available_modules=_available_modules(row.available_modules),
         projekt=projekt,
     )
@@ -71,6 +76,15 @@ def _normalize_available_modules(ids: list[str]) -> list[str]:
             detail=f"Unknown module id(s): {', '.join(unknown)}",
         )
     return out
+
+
+def _normalize_product(product: str | None) -> str | None:
+    if product is None:
+        return None
+    normalized = product.strip().lower()
+    if normalized not in PRODUCT_REGISTRY:
+        raise HTTPException(status_code=400, detail=f"Unknown product id: {normalized}")
+    return normalized
 
 
 def _normalize_slug(raw: str) -> str:
@@ -116,10 +130,12 @@ async def create_kund(
     row = Kund(
         name=name,
         slug=slug,
+        product=_normalize_product(body.product),
         available_modules=modules,
         created_at=now,
         updated_at=now,
     )
+    apply_fields(row, body, ORGANIZATION_FIELDS)
     session.add(row)
     await session.flush()
     session.add(
@@ -154,9 +170,7 @@ async def get_kund(
     assert_kund_access(user, kund_id)
     await ensure_default_kunder(session)
     result = await session.execute(
-        select(Kund)
-        .where(Kund.id == kund_id)
-        .options(selectinload(Kund.projekt))
+        select(Kund).where(Kund.id == kund_id).options(selectinload(Kund.projekt))
     )
     row = result.scalar_one_or_none()
     if row is None:
@@ -173,16 +187,20 @@ async def patch_kund(
 ) -> KundOut:
     await ensure_default_kunder(session)
     result = await session.execute(
-        select(Kund)
-        .where(Kund.id == kund_id)
-        .options(selectinload(Kund.projekt))
+        select(Kund).where(Kund.id == kund_id).options(selectinload(Kund.projekt))
     )
     row = result.scalar_one_or_none()
     if row is None:
         raise HTTPException(status_code=404, detail="Kund not found")
-    if body.available_modules is None:
-        raise HTTPException(status_code=400, detail="PATCH body must include available_modules")
-    row.available_modules = _normalize_available_modules(body.available_modules)
+    if not body.model_fields_set:
+        raise HTTPException(status_code=400, detail="PATCH body must include a field")
+    if "available_modules" in body.model_fields_set:
+        if body.available_modules is None:
+            raise HTTPException(status_code=400, detail="available_modules cannot be null")
+        row.available_modules = _normalize_available_modules(body.available_modules)
+    if "product" in body.model_fields_set:
+        row.product = _normalize_product(body.product)
+    await patch_fields(session, row, body, ORGANIZATION_FIELDS)
     row.updated_at = utcnow()
     try:
         await ensure_kund_bucket(row)

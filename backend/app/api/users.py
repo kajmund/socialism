@@ -11,6 +11,8 @@ from app.auth.dependencies import require_admin
 from app.database.models import Kund, UserAccount
 from app.database.session import get_session
 from app.schemas.users import UserAccountOut, UserAccountUpdate, UserInviteRequest
+from app.services.profiles import profile_values, patch_fields
+from app.schemas.profiles import PROFILE_FIELDS
 from app.services.supabase_admin import SupabaseInviteError, invite_user_by_email
 
 router = APIRouter(
@@ -23,6 +25,7 @@ router = APIRouter(
 def _serialize(row: UserAccount) -> UserAccountOut:
     kund_name = row.kund.name if row.kund is not None else None
     return UserAccountOut(
+        **profile_values(row),
         id=row.id,
         email=row.email,
         role=row.role,  # type: ignore[arg-type]
@@ -121,6 +124,7 @@ async def patch_user(
         if kund is None:
             raise HTTPException(status_code=400, detail="kund_not_found")
 
+    await patch_fields(session, account, body, PROFILE_FIELDS)
     account.role = new_role
     account.kund_id = new_kund_id
     await session.commit()

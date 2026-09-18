@@ -146,6 +146,7 @@ def link_to_research_evidence(
     question_id: str,
 ) -> ResearchEvidence:
     metadata = dict(link.provenance)
+    metadata["source_attempt_id"] = link.source_attempt_id
     metadata["reuse"] = reuse_lineage(
         origin=REUSE_ORIGIN_PERSISTENT,
         knowledge_question_id=question_id,

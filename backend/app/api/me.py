@@ -10,6 +10,8 @@ from app.auth.dependencies import get_current_user
 from app.database.models import Kund, UserAccount
 from app.database.session import get_session
 from app.schemas.users import MeOut
+from app.schemas.profiles import ProfileFields, PROFILE_FIELDS
+from app.services.profiles import profile_values, patch_fields
 
 router = APIRouter(tags=["me"])
 
@@ -44,11 +46,13 @@ async def get_me(
                 seen.add(mid)
                 modules.append(mid)
         return MeOut(
+            **profile_values(user),
             id=user.id,
             email=user.email,
             role="admin",
             kund_id=None,
             kund_slug=None,
+            product=None,
             available_modules=_with_admin_modules(modules, "admin"),
         )
 
@@ -57,10 +61,23 @@ async def get_me(
         kund = await session.get(Kund, user.kund_id)
     modules = _modules_from_kund(kund)
     return MeOut(
+        **profile_values(user),
         id=user.id,
         email=user.email,
         role=user.role,  # type: ignore[arg-type]
         kund_id=user.kund_id,
         kund_slug=kund.slug if kund is not None else None,
+        product=kund.product if kund is not None else None,
         available_modules=_with_admin_modules(modules, user.role),
     )
+
+
+@router.patch("/me", response_model=MeOut)
+async def update_me(
+    body: ProfileFields,
+    user: UserAccount = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> MeOut:
+    await patch_fields(session, user, body, PROFILE_FIELDS)
+    await session.commit()
+    return await get_me(user, session)

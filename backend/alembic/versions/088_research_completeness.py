@@ -7,18 +7,18 @@ Revises: 087_research_objective_planner
 from __future__ import annotations
 
 import json
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
-from alembic import op
 
+from alembic import op
 from app.services.prompt_catalog import PROMPT_FIELDS
 from app.services.prompt_defaults import modules_for_prompt_key
 
 revision: str = "088_research_completeness"
-down_revision: Union[str, Sequence[str], None] = "087_research_objective_planner"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = "087_research_objective_planner"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 _NEW_KEYS = (
     "research.completeness.system",
@@ -31,13 +31,13 @@ def _field(key: str) -> dict:
 
 
 def upgrade() -> None:
-    op.alter_column(
-        "research_runtime_needs",
-        "origin",
-        existing_type=sa.String(length=16),
-        type_=sa.String(length=32),
-        existing_nullable=False,
-    )
+    with op.batch_alter_table("research_runtime_needs") as batch_op:
+        batch_op.alter_column(
+            "origin",
+            existing_type=sa.String(length=16),
+            type_=sa.String(length=32),
+            existing_nullable=False,
+        )
     op.add_column(
         "research_runtime_needs",
         sa.Column("source_completeness_pass", sa.Integer(), nullable=True),
@@ -149,10 +149,10 @@ def downgrade() -> None:
     )
     op.drop_table("research_completeness_passes")
     op.drop_column("research_runtime_needs", "source_completeness_pass")
-    op.alter_column(
-        "research_runtime_needs",
-        "origin",
-        existing_type=sa.String(length=32),
-        type_=sa.String(length=16),
-        existing_nullable=False,
-    )
+    with op.batch_alter_table("research_runtime_needs") as batch_op:
+        batch_op.alter_column(
+            "origin",
+            existing_type=sa.String(length=32),
+            type_=sa.String(length=16),
+            existing_nullable=False,
+        )

@@ -1,29 +1,31 @@
-"""Expertgranskning execution bridge — resume ready research without re-running."""
+"""Expertgranskning retries reuse persisted research and frozen evidence."""
 
 from __future__ import annotations
 
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
-import pytest
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import PanelSession
-from app.llm import set_text_completer, set_tools_completer
+from app.database.models import ExecutionAttempt, PanelSession, ResearchQuestion
 from app.services.execution import (
     add_evidence_items,
     create_attempt,
     create_evidence_set,
     create_run,
     freeze_evidence_set,
-    get_attempt,
     mark_ready,
 )
 from app.services.expertgranskning import MODULE_ID
 from app.services.expertgranskning.execution import run_expertgranskning_with_research
 from app.services.panel.schemas import PanelExpertSlot, PanelSessionConfig
-from app.services.research.composition import set_knowledge_vector_store_factory
 from app.services.research.models import research_evidence
+from app.services.research.question_domain import (
+    GeneralQuestionDraft,
+    create_general_question,
+    create_specific_question,
+)
 from tests.conftest import TEST_CUSTOMER_ID
 
 
@@ -41,13 +43,13 @@ def _panel_config() -> PanelSessionConfig:
     )
 
 
-async def _ready_attempt(session: AsyncSession):
+async def _ready_attempt(session: AsyncSession, *, panel_id: str) -> tuple[str, str]:
     run = await create_run(
         session,
         customer_id=TEST_CUSTOMER_ID,
         module=MODULE_ID,
         title="Höstens kampanjlinje",
-        context={"consumer": "expertgranskning"},
+        context={"consumer": "expertgranskning", "panel_session_id": panel_id},
     )
     evidence_set = await create_evidence_set(session, run_id=run.id)
     await add_evidence_items(
@@ -74,125 +76,217 @@ async def _ready_attempt(session: AsyncSession):
         input_snapshot={"topic": config.topic, "brief": config.brief},
         evidence_set_id=frozen.id,
     )
-    attempt = await mark_ready(session, attempt.id)
+    await mark_ready(session, attempt.id)
     await session.commit()
-    return run, attempt
+    return run.id, attempt.id
 
 
-@pytest.fixture
-def mock_panel_llm():
-    async def _complete(messages, *, model=None):
-        user = messages[-1]["content"]
-        if "JA eller NEJ" in user or "YES or NO" in user:
-            return "JA"
-        if "privata anteckningar" in user or "private notes" in user.lower():
-            return "Anteckning"
-        if "offentliga inlägg" in user or "public contribution" in user.lower():
-            return "Inlägg med [E1]."
-        if "strukturerad syntes" in user or "structured synthesis" in user.lower():
-            return "Syntes: dokumentet är tydligt."
-        if "Öppna panelen" in user or "Open the panel" in user:
-            return "Välkommen."
-        return "Svar"
-
-    async def _tools(messages, tools=None):
-        return SimpleNamespace(content=await _complete(messages), tool_calls=None)
-
-    set_text_completer(_complete)
-    set_tools_completer(_tools)
-    yield
-    set_text_completer(None)
-    set_tools_completer(None)
-
-
-@pytest.mark.asyncio
 async def test_expertgranskning_resumes_ready_attempt_without_research(
     client_db,
-    mock_panel_llm,
     monkeypatch,
 ):
     _client, factory = client_db
+    panel_id = "eg-resume-ready"
     async with factory() as session:
-        run, attempt = await _ready_attempt(session)
+        run_id, attempt_id = await _ready_attempt(session, panel_id=panel_id)
         config = _panel_config()
-        panel = PanelSession(
-            id="eg-resume-ready",
-            protocol="generic_panel",
-            status="failed",
-            config={
-                **config.model_dump(mode="json"),
-                "execution_run_id": run.id,
-                "execution_attempt_id": attempt.id,
-            },
+        session.add(
+            PanelSession(
+                id=panel_id,
+                protocol="generic_panel",
+                status="failed",
+                config={
+                    **config.model_dump(mode="json"),
+                    "execution_run_id": run_id,
+                    "execution_attempt_id": attempt_id,
+                },
+            )
         )
-        session.add(panel)
         await session.commit()
 
-    claim = AsyncMock()
+    plan_questions = AsyncMock(side_effect=AssertionError("research was replanned"))
+    execute_dag = AsyncMock(side_effect=AssertionError("research DAG was rerun"))
+    freeze_evidence = AsyncMock(side_effect=AssertionError("evidence was frozen again"))
+    bind_components = AsyncMock(side_effect=AssertionError("research components were rebound"))
+    execute_panel = AsyncMock()
     monkeypatch.setattr(
-        "app.services.expertgranskning.execution.run_research_claim",
-        claim,
+        "app.services.expertgranskning.execution.require_active_prompts",
+        AsyncMock(return_value={}),
+    )
+    monkeypatch.setattr(
+        "app.services.expertgranskning.execution._plan_questions",
+        plan_questions,
+    )
+    monkeypatch.setattr(
+        "app.services.expertgranskning.execution.execute_research_question_dag",
+        execute_dag,
+    )
+    monkeypatch.setattr(
+        "app.services.expertgranskning.execution._freeze_aggregate_evidence",
+        freeze_evidence,
+    )
+    monkeypatch.setattr(
+        "app.services.expertgranskning.execution.bind_research_components",
+        bind_components,
+    )
+    monkeypatch.setattr(
+        "app.services.expertgranskning.execution.execute_generic_panel_attempt",
+        execute_panel,
     )
 
     result_id = await run_expertgranskning_with_research(
         factory,
-        session_id="eg-resume-ready",
+        session_id=panel_id,
         customer_id=TEST_CUSTOMER_ID,
     )
 
-    claim.assert_not_awaited()
-    assert result_id == attempt.id
-    async with factory() as check:
-        reloaded_attempt = await get_attempt(check, attempt.id)
-    assert reloaded_attempt.status == "completed"
+    assert result_id == attempt_id
+    plan_questions.assert_not_awaited()
+    execute_dag.assert_not_awaited()
+    freeze_evidence.assert_not_awaited()
+    bind_components.assert_not_awaited()
+    execute_panel.assert_awaited_once()
+    assert execute_panel.await_args.kwargs["attempt_id"] == attempt_id
+    async with factory() as session:
+        attempt_count = await session.scalar(select(func.count()).select_from(ExecutionAttempt))
+    assert attempt_count == 1
 
 
-@pytest.mark.asyncio
-async def test_expertgranskning_creates_new_attempt_when_prior_failed(
+async def test_expertgranskning_retry_requeues_interrupted_question_on_same_attempt(
     client_db,
-    mock_panel_llm,
+    monkeypatch,
+):
+    _client, factory = client_db
+    panel_id = "eg-resume-created"
+    config = _panel_config()
+    async with factory() as session:
+        run = await create_run(
+            session,
+            customer_id=TEST_CUSTOMER_ID,
+            module=MODULE_ID,
+            title=config.topic,
+            context={"consumer": "expertgranskning", "panel_session_id": panel_id},
+        )
+        attempt = await create_attempt(
+            session,
+            run_id=run.id,
+            attempt_type="generic_panel",
+            configuration_snapshot=config.model_dump(mode="json"),
+            input_snapshot={"topic": config.topic, "brief": config.brief},
+        )
+        specific = await create_specific_question(
+            session,
+            run_id=run.id,
+            text="Vad behöver granskas?",
+            context={},
+            origin_kind="expertgranskning",
+            origin_ref=panel_id,
+        )
+        question = await create_general_question(
+            session,
+            attempt_id=attempt.id,
+            specific_question_id=specific.id,
+            draft=GeneralQuestionDraft(question="Vilka rekvisit gäller?"),
+        )
+        question.status = "running"
+        session.add(
+            PanelSession(
+                id=panel_id,
+                protocol="generic_panel",
+                status="failed",
+                config={
+                    **config.model_dump(mode="json"),
+                    "execution_run_id": run.id,
+                    "execution_attempt_id": attempt.id,
+                },
+            )
+        )
+        await session.commit()
+        attempt_id = attempt.id
+        question_id = question.id
+
+    monkeypatch.setattr(
+        "app.services.expertgranskning.execution.require_active_prompts",
+        AsyncMock(return_value={}),
+    )
+    monkeypatch.setattr(
+        "app.services.expertgranskning.execution._plan_questions",
+        AsyncMock(side_effect=AssertionError("research was replanned")),
+    )
+    monkeypatch.setattr(
+        "app.services.expertgranskning.execution.bind_research_components",
+        AsyncMock(
+            return_value={
+                "research_planner": object(),
+                "assessor": None,
+                "planner": None,
+                "completeness_reviewer": None,
+            }
+        ),
+    )
+
+    async def assert_requeued(_factory, *, attempt_id: str, worker):
+        async with factory() as session:
+            question = await session.get(ResearchQuestion, question_id)
+            assert question is not None
+            assert question.status == "pending"
+        return SimpleNamespace(status="waiting_for_assignment")
+
+    monkeypatch.setattr(
+        "app.services.expertgranskning.execution.execute_research_question_dag",
+        assert_requeued,
+    )
+
+    try:
+        await run_expertgranskning_with_research(
+            factory,
+            session_id=panel_id,
+            customer_id=TEST_CUSTOMER_ID,
+        )
+    except RuntimeError as exc:
+        assert "waiting_for_assignment" in str(exc)
+    else:
+        raise AssertionError("resumed incomplete DAG unexpectedly completed")
+
+    async with factory() as session:
+        attempts = list((await session.execute(select(ExecutionAttempt))).scalars())
+    assert [attempt.id for attempt in attempts] == [attempt_id]
+
+
+async def test_expertgranskning_rejects_persisted_attempt_from_another_panel(
+    client_db,
     monkeypatch,
 ):
     _client, factory = client_db
     async with factory() as session:
-        run, attempt = await _ready_attempt(session)
-        attempt.status = "failed"
+        run_id, attempt_id = await _ready_attempt(session, panel_id="original-panel")
         config = _panel_config()
-        panel = PanelSession(
-            id="eg-new-after-failed",
-            protocol="generic_panel",
-            status="failed",
-            config={
-                **config.model_dump(mode="json"),
-                "execution_run_id": run.id,
-                "execution_attempt_id": attempt.id,
-            },
+        session.add(
+            PanelSession(
+                id="other-panel",
+                protocol="generic_panel",
+                status="failed",
+                config={
+                    **config.model_dump(mode="json"),
+                    "execution_run_id": run_id,
+                    "execution_attempt_id": attempt_id,
+                },
+            )
         )
-        session.add(panel)
         await session.commit()
-        failed_attempt_id = attempt.id
-
-    async def _skip_research(attempt_id: str) -> None:
-        async with factory() as inner:
-            row = await get_attempt(inner, attempt_id)
-            assert row.status == "created"
 
     monkeypatch.setattr(
-        "app.services.expertgranskning.execution.run_research_claim",
-        _skip_research,
+        "app.services.expertgranskning.execution.require_active_prompts",
+        AsyncMock(return_value={}),
     )
-    set_knowledge_vector_store_factory(lambda: object())
-    try:
-        with pytest.raises(RuntimeError, match="did not become ready"):
-            await run_expertgranskning_with_research(
-                factory,
-                session_id="eg-new-after-failed",
-                customer_id=TEST_CUSTOMER_ID,
-            )
-    finally:
-        set_knowledge_vector_store_factory(None)
 
-    async with factory() as check:
-        panel = await check.get(PanelSession, "eg-new-after-failed")
-    assert panel is not None
-    assert panel.config["execution_attempt_id"] != failed_attempt_id
+    try:
+        await run_expertgranskning_with_research(
+            factory,
+            session_id="other-panel",
+            customer_id=TEST_CUSTOMER_ID,
+        )
+    except RuntimeError as exc:
+        assert "outside panel scope" in str(exc)
+    else:
+        raise AssertionError("cross-panel Attempt reuse was accepted")
