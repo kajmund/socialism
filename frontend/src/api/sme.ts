@@ -50,3 +50,16 @@ export function markSmeThreadRead(
 ): Promise<{ last_read_message_id: number | null }> {
   return api.post(`/sme/threads/${type}/${id}/read`)
 }
+
+export type SmeExpertTurn = {
+  request_id: string
+  thread_type: "expert"
+  thread_id: string
+  status: "accepted" | "running" | "succeeded" | "failed"
+  error: string | null
+  messages: SmeMessage[]
+}
+
+export function getSmeExpertTurn(requestId: string): Promise<SmeExpertTurn> {
+  return api.get<SmeExpertTurn>(`/sme/expert-turns/${requestId}`)
+}
