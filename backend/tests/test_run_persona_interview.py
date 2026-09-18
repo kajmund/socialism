@@ -76,7 +76,7 @@ def _variant_payload(persona_id: str) -> dict:
 async def interview_client():
     settings.persona_generator = "stub"
     settings.deepseek_api_key = "test-key-not-real"
-    settings.supabase_jwt_secret = TEST_JWT_SECRET
+    settings.local_auth_jwt_secret = TEST_JWT_SECRET
     settings.simulation_engine = "none"
 
     async def _mock_text(messages: list[dict[str, str]]) -> str:

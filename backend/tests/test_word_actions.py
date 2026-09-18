@@ -5,12 +5,11 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from alembic import command
 from alembic.config import Config
 from pydantic import ValidationError
 from sqlalchemy import create_engine, inspect, select, text
 
-from app.config import settings
+from alembic import command
 from app.database.models import ExpertgranskningResult, Job, WordAction
 from app.serializers import utcnow
 from app.services.expertgranskning import WORD_JOB_KIND
@@ -333,7 +332,7 @@ async def test_materialize_drops_actions_when_task_is_missing(client_db):
 
 def test_word_actions_migration_round_trip(tmp_path, monkeypatch):
     db_path = tmp_path / "word_actions.db"
-    monkeypatch.setattr(settings, "database_url", f"sqlite+aiosqlite:///{db_path}")
+    monkeypatch.setenv("DATABASE_URL", f"sqlite+aiosqlite:///{db_path}")
     cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
 
     command.upgrade(cfg, "069_word_actions")

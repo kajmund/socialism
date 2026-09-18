@@ -64,8 +64,6 @@ async def lifespan(_app: FastAPI):
     _require_chat_llm()
     if not settings.openai_api_key.strip():
         raise RuntimeError("OPENAI_API_KEY is required (embeddings / SSR)")
-    if not settings.supabase_jwt_secret.strip():
-        raise RuntimeError("SUPABASE_JWT_SECRET is required")
     if not settings.supabase_url.strip():
         raise RuntimeError("SUPABASE_URL is required")
     if not settings.supabase_service_role_key.strip():
@@ -122,8 +120,6 @@ def create_app() -> FastAPI:
     _require_chat_llm()
     if not settings.openai_api_key.strip():
         raise RuntimeError("OPENAI_API_KEY is required (embeddings / SSR)")
-    if not settings.supabase_jwt_secret.strip():
-        raise RuntimeError("SUPABASE_JWT_SECRET is required")
     if not settings.supabase_url.strip():
         raise RuntimeError("SUPABASE_URL is required")
     if not settings.supabase_service_role_key.strip():

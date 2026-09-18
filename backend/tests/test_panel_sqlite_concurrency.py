@@ -84,7 +84,7 @@ async def test_sqlite_file_uses_wal_and_busy_timeout(file_sessions):
 async def test_panel_llm_pause_allows_auth_read_and_independent_write(file_sessions):
     opened = asyncio.Event()
     release = asyncio.Event()
-    settings.supabase_jwt_secret = "test-supabase-jwt-secret-not-real"
+    settings.local_auth_jwt_secret = "test-supabase-jwt-secret-not-real"
 
     async def complete_text(messages, *, model=None):
         user = messages[-1]["content"]

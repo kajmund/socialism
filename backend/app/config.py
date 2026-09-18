@@ -5,6 +5,8 @@ from typing import Annotated, Literal, Self
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
+from app.database_url import normalize_database_url
+
 EMBEDDING_MODEL_DIMENSIONS = {
     "text-embedding-3-large": 3072,
     "text-embedding-3-small": 1536,
@@ -31,12 +33,7 @@ class Settings(BaseSettings):
     @field_validator("database_url", mode="before")
     @classmethod
     def normalize_database_url(cls, value: object) -> str:
-        url = str(value).strip()
-        if url.startswith("postgres://"):
-            return "postgresql+psycopg://" + url.removeprefix("postgres://")
-        if url.startswith("postgresql://"):
-            return "postgresql+psycopg://" + url.removeprefix("postgresql://")
-        return url
+        return normalize_database_url(value)
     allowed_origins: Annotated[list[str], NoDecode] = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
@@ -110,18 +107,16 @@ class Settings(BaseSettings):
     lagen_nu_official_mcp_url: str = "https://lagen.nu/mcp"
     lagen_nu_official_mcp_timeout_seconds: float = Field(default=20.0, gt=0)
 
-    # Supabase Auth — JWT verify + Admin invite (service_role never goes to the SPA).
+    # Supabase Auth — JWKS verify + Admin invite (service_role never goes to the SPA).
     supabase_url: str = ""
-    supabase_jwt_secret: str = ""
     supabase_service_role_key: str = ""
-    # Shared Support-project Storage Vector Bucket used by the research provider.
-    supabase_vector_url: str = ""
-    supabase_vector_service_role_key: str = ""
+    # Storage Vector Bucket used by the research provider in the product project.
     supabase_vector_bucket: str = "research-knowledge"
     supabase_vector_index: str = "documents-openai"
     supabase_vector_distance_metric: Literal["cosine", "euclidean"] = "cosine"
     # Local-only shortcut: POST /auth/local-login. Never enable in production.
     allow_local_login: bool = False
+    local_auth_jwt_secret: str = ""
     # Supabase Storage S3-compatible API (Dashboard → Storage → S3 access keys).
     supabase_s3_access_key_id: str = ""
     supabase_s3_secret_access_key: str = ""
@@ -274,17 +269,6 @@ class Settings(BaseSettings):
             )
         return url
 
-    @field_validator("supabase_jwt_secret")
-    @classmethod
-    def require_supabase_jwt_secret(cls, value: str) -> str:
-        secret = value.strip()
-        if not secret:
-            raise ValueError(
-                "SUPABASE_JWT_SECRET is required — set it in backend/.env "
-                "(HS256 secret for verifying Supabase access tokens)"
-            )
-        return secret
-
     @field_validator("supabase_service_role_key")
     @classmethod
     def require_supabase_service_role_key(cls, value: str) -> str:
@@ -293,28 +277,6 @@ class Settings(BaseSettings):
             raise ValueError(
                 "SUPABASE_SERVICE_ROLE_KEY is required — set it in backend/.env "
                 "(backend-only; used for Admin invite API)"
-            )
-        return key
-
-    @field_validator("supabase_vector_url")
-    @classmethod
-    def require_supabase_vector_url(cls, value: str) -> str:
-        url = value.strip()
-        if not url:
-            raise ValueError(
-                "SUPABASE_VECTOR_URL is required — set it to the shared "
-                "knowledge project's URL"
-            )
-        return url
-
-    @field_validator("supabase_vector_service_role_key")
-    @classmethod
-    def require_supabase_vector_service_role_key(cls, value: str) -> str:
-        key = value.strip()
-        if not key:
-            raise ValueError(
-                "SUPABASE_VECTOR_SERVICE_ROLE_KEY is required — set the "
-                "backend-only key for the shared knowledge project"
             )
         return key
 
