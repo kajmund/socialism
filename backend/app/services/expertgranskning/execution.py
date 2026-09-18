@@ -2,15 +2,22 @@
 
 from __future__ import annotations
 
-from app.services.actor_profiles import ActorToolHandler
-
 import asyncio
+import json
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.database.models import PanelSession, Persona, ResearchQuestion, StoredObject
+from app.database.models import (
+    ExecutionAttempt,
+    Job,
+    PanelSession,
+    Persona,
+    ResearchQuestion,
+    StoredObject,
+)
+from app.services.actor_profiles import ActorProfileTools, ActorToolHandler
 from app.services.execution.service import (
     add_evidence_items,
     attach_evidence_set,
@@ -19,6 +26,7 @@ from app.services.execution.service import (
     create_evidence_set,
     create_run,
     get_attempt,
+    get_run,
     list_evidence_items,
     mark_ready,
 )
@@ -58,6 +66,10 @@ from app.services.research_worker import bind_research_components
 
 from . import MODULE_ID
 from .sessions import document_text_from_config, review_intent_from_config
+
+_RESUMABLE_RESEARCH_STATUSES = frozenset(
+    {"created", "researching", "ready", "running", "completed"}
+)
 
 
 def _research_objective(config: PanelSessionConfig) -> str:
@@ -244,13 +256,64 @@ async def _freeze_aggregate_evidence(
     await mark_ready(session, attempt_id)
 
 
+async def _resumable_execution_attempt(
+    session: AsyncSession,
+    *,
+    panel: PanelSession,
+    customer_id: int,
+) -> ExecutionAttempt | None:
+    """Resolve the panel's persisted Attempt without crossing scope boundaries."""
+    stored = panel.config if isinstance(panel.config, dict) else {}
+    attempt_id = str(stored.get("execution_attempt_id") or "").strip()
+    if not attempt_id:
+        return None
+    attempt = await session.get(ExecutionAttempt, attempt_id)
+    if attempt is None or attempt.status not in _RESUMABLE_RESEARCH_STATUSES:
+        return None
+    if attempt.attempt_type != "generic_panel":
+        raise RuntimeError(f"Expertgranskning Attempt has invalid type: {attempt.id}")
+    run = await get_run(session, attempt.run_id)
+    context = run.context if isinstance(run.context, dict) else {}
+    if (
+        run.customer_id != customer_id
+        or run.module != MODULE_ID
+        or context.get("panel_session_id") != panel.id
+    ):
+        raise RuntimeError(f"Expertgranskning Attempt is outside panel scope: {attempt.id}")
+    stored_run_id = str(stored.get("execution_run_id") or "").strip()
+    if stored_run_id and stored_run_id != run.id:
+        raise RuntimeError(f"Expertgranskning Run does not match Attempt: {attempt.id}")
+    return attempt
+
+
+async def _requeue_interrupted_questions(
+    session: AsyncSession,
+    *,
+    attempt_id: str,
+) -> None:
+    """Make questions left running by an interrupted worker resumable."""
+    questions = list(
+        (
+            await session.execute(
+                select(ResearchQuestion).where(
+                    ResearchQuestion.attempt_id == attempt_id,
+                    ResearchQuestion.status == "running",
+                )
+            )
+        ).scalars()
+    )
+    for question in questions:
+        question.status = "pending"
+
+
 async def run_expertgranskning_with_research(
     factory: async_sessionmaker[AsyncSession],
     *,
     session_id: str,
     customer_id: int,
 ) -> str:
-    """Plan expert questions, research them in parallel, then run the panel."""
+    """Resume or plan expert questions, freeze evidence, then run the panel."""
+    needs_research = False
     async with factory() as session:
         panel = await session.get(PanelSession, session_id)
         if panel is None:
@@ -262,124 +325,150 @@ async def run_expertgranskning_with_research(
             module=MODULE_ID,
             language=config.locale,
         )
-        from app.database.models import Job
-        from app.services.actor_profiles import ActorProfileTools
-        import json
-
-        actor_lock = asyncio.Lock()
-        job = await session.get(Job, panel.job_id) if panel.job_id else None
-        owner = (job.request or {}).get("owner_user_id") if job else None
-
-        async def read_actor_profile(name: str, arguments: dict) -> str:
-            async with actor_lock:
-                request = dict(job.request or {})
-                if "actor_profile_snapshot" not in request:
-                    handler = ActorProfileTools(
-                        session,
-                        user_id=owner,
-                        customer_id=customer_id,
-                        conversation=f"review:{panel.id}",
-                        requested_by_id=owner,
-                    )
-                    request["actor_profile_snapshot"] = json.loads(await handler(name, arguments))
-                    job.request = request
-                    await session.commit()
-                config.actor_profile_context = request["actor_profile_snapshot"]
-                return json.dumps(config.actor_profile_context, ensure_ascii=False)
-
-        plan = await _plan_questions(
-            config, prompts, actor_profile_handler=read_actor_profile if owner else None
-        )
-        run_context: dict[str, object] = {
-            "consumer": "expertgranskning",
-            "panel_session_id": panel.id,
-        }
-        if config.underlag_id:
-            source = await session.get(StoredObject, config.underlag_id)
-            if source is not None and source.customer_id == customer_id:
-                run_context["case_id"] = source.id
-                run_context["knowledge_module"] = source.module
-        run = await create_run(
+        attempt = await _resumable_execution_attempt(
             session,
-            customer_id=customer_id,
-            module=MODULE_ID,
-            title=config.topic,
-            context=run_context,
-        )
-        attempt = await create_attempt(
-            session,
-            run_id=run.id,
-            attempt_type="generic_panel",
-            configuration_snapshot=config.model_dump(mode="json"),
-            input_snapshot={
-                "topic": config.topic,
-                "brief": document_text_from_config(panel.config or {}),
-                "review_intent": review_intent_from_config(panel.config or {}),
-            },
-        )
-        await _persist_questions(
-            session,
-            run_id=run.id,
-            attempt_id=attempt.id,
-            panel_session_id=panel.id,
-            config=config,
-            plan=plan,
+            panel=panel,
             customer_id=customer_id,
         )
-        await assign_unowned_research_questions(
-            session,
-            attempt_id=attempt.id,
-            matcher=PanelCompetencyQuestionMatcher(prompts=prompts, locale=config.locale),
-            creator=UnderlagExpertCreator(prompts=prompts, language=config.locale),
-        )
-        components = await bind_research_components(
-            session,
-            customer_id=customer_id,
-            module=MODULE_ID,
-        )
-        research_planner = components["research_planner"]
-        if research_planner is None:
-            raise RuntimeError("Research planner is required for question execution")
-        stored_config = dict(panel.config or {})
-        stored_config["execution_run_id"] = run.id
-        stored_config["execution_attempt_id"] = attempt.id
-        panel.config = stored_config
-        panel.research_plan = plan.model_dump(mode="json")
-        await session.commit()
-        attempt_id = attempt.id
-        run_id = run.id
+        if attempt is not None:
+            attempt_id = attempt.id
+            run_id = attempt.run_id
+            needs_research = attempt.status in {"created", "researching"}
+            if needs_research:
+                await _requeue_interrupted_questions(session, attempt_id=attempt_id)
+                components = await bind_research_components(
+                    session,
+                    customer_id=customer_id,
+                    module=MODULE_ID,
+                )
+                research_planner = components["research_planner"]
+                if research_planner is None:
+                    raise RuntimeError("Research planner is required for question execution")
+                await session.commit()
+        else:
+            actor_lock = asyncio.Lock()
+            job = await session.get(Job, panel.job_id) if panel.job_id else None
+            owner = (job.request or {}).get("owner_user_id") if job else None
 
-    worker = AttemptResearchQuestionWorker(
-        session_factory=factory,
-        router_factory=build_standard_research_router,
-        research_planner=research_planner,
-        assessor=components["assessor"],
-        follow_up_planner=components["planner"],
-        completeness_reviewer=components["completeness_reviewer"],
-    )
-    result = await execute_research_question_dag(
-        factory,
-        attempt_id=attempt_id,
-        worker=worker,
-    )
-    if result.status not in {"completed", "completed_with_gaps"}:
-        raise RuntimeError(f"Expertgranskning question research stopped as {result.status}")
+            async def read_actor_profile(name: str, arguments: dict) -> str:
+                async with actor_lock:
+                    request = dict(job.request or {})
+                    if "actor_profile_snapshot" not in request:
+                        handler = ActorProfileTools(
+                            session,
+                            user_id=owner,
+                            customer_id=customer_id,
+                            conversation=f"review:{panel.id}",
+                            requested_by_id=owner,
+                        )
+                        request["actor_profile_snapshot"] = json.loads(
+                            await handler(name, arguments)
+                        )
+                        job.request = request
+                        await session.commit()
+                    config.actor_profile_context = request["actor_profile_snapshot"]
+                    return json.dumps(config.actor_profile_context, ensure_ascii=False)
+
+            plan = await _plan_questions(
+                config,
+                prompts,
+                actor_profile_handler=read_actor_profile if owner else None,
+            )
+            run_context: dict[str, object] = {
+                "consumer": "expertgranskning",
+                "panel_session_id": panel.id,
+            }
+            if config.underlag_id:
+                source = await session.get(StoredObject, config.underlag_id)
+                if source is not None and source.customer_id == customer_id:
+                    run_context["case_id"] = source.id
+                    run_context["knowledge_module"] = source.module
+            run = await create_run(
+                session,
+                customer_id=customer_id,
+                module=MODULE_ID,
+                title=config.topic,
+                context=run_context,
+            )
+            attempt = await create_attempt(
+                session,
+                run_id=run.id,
+                attempt_type="generic_panel",
+                configuration_snapshot=config.model_dump(mode="json"),
+                input_snapshot={
+                    "topic": config.topic,
+                    "brief": document_text_from_config(panel.config or {}),
+                    "review_intent": review_intent_from_config(panel.config or {}),
+                },
+            )
+            await _persist_questions(
+                session,
+                run_id=run.id,
+                attempt_id=attempt.id,
+                panel_session_id=panel.id,
+                config=config,
+                plan=plan,
+                customer_id=customer_id,
+            )
+            await assign_unowned_research_questions(
+                session,
+                attempt_id=attempt.id,
+                matcher=PanelCompetencyQuestionMatcher(prompts=prompts, locale=config.locale),
+                creator=UnderlagExpertCreator(prompts=prompts, language=config.locale),
+            )
+            components = await bind_research_components(
+                session,
+                customer_id=customer_id,
+                module=MODULE_ID,
+            )
+            research_planner = components["research_planner"]
+            if research_planner is None:
+                raise RuntimeError("Research planner is required for question execution")
+            stored_config = dict(panel.config or {})
+            stored_config["execution_run_id"] = run.id
+            stored_config["execution_attempt_id"] = attempt.id
+            panel.config = stored_config
+            panel.research_plan = plan.model_dump(mode="json")
+            await session.commit()
+            attempt_id = attempt.id
+            run_id = run.id
+            needs_research = True
+
+    if needs_research:
+        worker = AttemptResearchQuestionWorker(
+            session_factory=factory,
+            router_factory=build_standard_research_router,
+            research_planner=research_planner,
+            assessor=components["assessor"],
+            follow_up_planner=components["planner"],
+            completeness_reviewer=components["completeness_reviewer"],
+        )
+        result = await execute_research_question_dag(
+            factory,
+            attempt_id=attempt_id,
+            worker=worker,
+        )
+        if result.status not in {"completed", "completed_with_gaps"}:
+            raise RuntimeError(f"Expertgranskning question research stopped as {result.status}")
+
+        async with factory() as session:
+            memories = await publish_completed_attempt_knowledge(
+                session,
+                attempt_id=attempt_id,
+                graph=build_standard_question_graph(),
+            )
+            await session.commit()
+        await remember_published_question(memories)
+
+        async with factory() as session:
+            await _freeze_aggregate_evidence(
+                session,
+                run_id=run_id,
+                attempt_id=attempt_id,
+            )
+            await session.commit()
 
     async with factory() as session:
-        memories = await publish_completed_attempt_knowledge(
-            session,
-            attempt_id=attempt_id,
-            graph=build_standard_question_graph(),
-        )
-        await session.commit()
-    await remember_published_question(memories)
-
-    async with factory() as session:
-        await _freeze_aggregate_evidence(
-            session,
-            run_id=run_id,
-            attempt_id=attempt_id,
-        )
         prompts = await require_active_prompts(
             session,
             customer_id=customer_id,

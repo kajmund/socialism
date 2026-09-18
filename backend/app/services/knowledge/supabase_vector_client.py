@@ -40,8 +40,16 @@ class SupabaseStorageVectorClient(VectorBucketClient):
         document_id: str,
         records: Sequence[VectorBucketRecord],
     ) -> None:
-        await self.delete(document_id)
-        await self.upsert(records)
+        records_list = list(records)
+        await self.upsert(records_list)
+        new_keys = {_record_key(record) for record in records_list}
+        stale_keys = [
+            key
+            for key in await self._list_keys_for_document(document_id)
+            if key not in new_keys
+        ]
+        for offset in range(0, len(stale_keys), _BATCH_SIZE):
+            await self._index.delete(stale_keys[offset : offset + _BATCH_SIZE])
 
     async def query(
         self,
@@ -60,6 +68,11 @@ class SupabaseStorageVectorClient(VectorBucketClient):
         return [_record_from_match(match) for match in response.vectors]
 
     async def delete(self, document_id: str) -> None:
+        keys = await self._list_keys_for_document(document_id)
+        for offset in range(0, len(keys), _BATCH_SIZE):
+            await self._index.delete(keys[offset : offset + _BATCH_SIZE])
+
+    async def _list_keys_for_document(self, document_id: str) -> list[str]:
         keys: list[str] = []
         next_token: str | None = None
         while True:
@@ -77,8 +90,7 @@ class SupabaseStorageVectorClient(VectorBucketClient):
             next_token = page.nextToken
             if not next_token:
                 break
-        for offset in range(0, len(keys), _BATCH_SIZE):
-            await self._index.delete(keys[offset : offset + _BATCH_SIZE])
+        return keys
 
 
 def _vector_filter(filters: Mapping[str, Any]) -> dict[str, Any] | None:

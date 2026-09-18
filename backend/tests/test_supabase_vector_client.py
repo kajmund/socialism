@@ -16,11 +16,13 @@ class FakeIndex:
     def __init__(self) -> None:
         self.put_batches = []
         self.deleted_batches = []
+        self.events = []
         self.query_kwargs = None
         self.list_pages = []
 
     async def put(self, vectors):
         self.put_batches.append(vectors)
+        self.events.append(("put", [vector.key for vector in vectors]))
 
     async def query(self, query_vector, **kwargs):
         self.query_kwargs = {"query_vector": query_vector, **kwargs}
@@ -45,6 +47,7 @@ class FakeIndex:
 
     async def delete(self, keys):
         self.deleted_batches.append(keys)
+        self.events.append(("delete", list(keys)))
 
 
 def _record(number: int = 1) -> VectorBucketRecord:
@@ -84,6 +87,24 @@ async def test_live_client_queries_with_scope_filters_and_normalizes_score():
     }
     assert records[0].score == pytest.approx(0.8)
     assert records[0].text == "Ett underlag"
+
+
+async def test_live_client_replace_upserts_before_deleting_stale_keys():
+    index = FakeIndex()
+    index.list_pages = [
+        SimpleNamespace(
+            vectors=[
+                VectorMatch(key="old-a", metadata={"document_id": "doc-1"}),
+                VectorMatch(key="keep", metadata={"document_id": "doc-2"}),
+            ],
+            nextToken=None,
+        ),
+    ]
+    client = SupabaseStorageVectorClient(index)
+    await client.replace("doc-1", [_record(number=2)])
+    assert len(index.put_batches) == 1
+    assert index.deleted_batches == [["old-a"]]
+    assert [event for event, _keys in index.events] == ["put", "delete"]
 
 
 async def test_live_client_combines_multiple_filters_with_explicit_and():
