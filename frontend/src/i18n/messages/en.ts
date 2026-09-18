@@ -59,7 +59,7 @@ export const en: LocalizedTree<SvMessages> = {
     sendAgain: "Send a new link",
     magicLinkFailed: "Could not send the sign-in link. Check the address or try again.",
     notProvisioned: "This account has not been invited yet. Ask an administrator to invite you.",
-    invalidToken: "Sign-in failed against the server (invalid token). Check SUPABASE_JWT_SECRET.",
+    invalidToken: "The sign-in link is invalid or has expired. Request a new link and use the latest email.",
     profileFailed: "Sign-in failed while loading your profile. Try again.",
     noModules: "No modules are assigned to this account.",
     signOut: "Sign out",
