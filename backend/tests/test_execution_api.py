@@ -501,6 +501,20 @@ async def test_ready_execute_returns_persisted_panel_result(
     assert results == 1
     assert sets == 1
 
+    from app.services.expertgranskning.sessions import delete_expertgranskning_session
+
+    async with factory() as session:
+        panel = await session.get(PanelSession, result["panel_session_id"])
+        assert panel is not None
+        await delete_expertgranskning_session(session, panel)
+        await session.commit()
+
+    async with factory() as session:
+        assert await session.get(PanelSession, result["panel_session_id"]) is None
+        persisted_result = await session.get(ExecutionAttemptResult, result["id"])
+        assert persisted_result is not None
+        assert persisted_result.panel_session_id is None
+
 
 @pytest.mark.asyncio
 async def test_second_execute_is_idempotent(client_db, research_sources, panel_llm):
