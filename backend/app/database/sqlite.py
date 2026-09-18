@@ -37,20 +37,16 @@ def _pragma_statements() -> tuple[str, ...]:
     )
 
 
+def _sqlite3_connection(dbapi_connection: Any) -> Any:
+    """Unwrap SQLAlchemy/aiosqlite adapters to the stdlib sqlite3 connection."""
+    aio = getattr(dbapi_connection, "_connection", dbapi_connection)
+    raw = getattr(aio, "_conn", None) or getattr(aio, "_connection", None)
+    return raw if raw is not None else dbapi_connection
+
+
 def _execute_pragmas(dbapi_connection: Any) -> None:
-    raw = getattr(dbapi_connection, "dbapi_connection", None)
-    if raw is None:
-        raw = getattr(dbapi_connection, "_connection", dbapi_connection)
-    if hasattr(raw, "execute") and not callable(
-        getattr(getattr(raw, "execute", None), "__await__", None)
-    ):
-        try:
-            for statement in _pragma_statements():
-                raw.execute(statement)
-            return
-        except TypeError:
-            pass
-    cursor = dbapi_connection.cursor()
+    raw = _sqlite3_connection(dbapi_connection)
+    cursor = raw.cursor()
     try:
         for statement in _pragma_statements():
             cursor.execute(statement)
