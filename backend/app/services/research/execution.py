@@ -189,11 +189,12 @@ def research_context_from_run(run: ExecutionRun) -> ResearchContext:
         case_id = text or None
     else:
         case_id = None
+    knowledge_module = str(raw.get("knowledge_module") or run.module).strip()
     return ResearchContext(
         scope=KnowledgeScope(
             customer_id=run.customer_id,
             case_id=case_id,
-            module=run.module,
+            module=knowledge_module,
         )
     )
 

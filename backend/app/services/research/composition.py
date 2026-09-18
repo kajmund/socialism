@@ -90,6 +90,13 @@ def set_knowledge_vector_store_factory(
     _vector_store_factory = factory
 
 
+def require_knowledge_vector_store() -> KnowledgeVectorStore:
+    """Return the configured shared vector store for ingest and research."""
+    if _vector_store_factory is None:
+        raise ResearchCompositionError(_UNCONFIGURED_VECTOR_STORE)
+    return _vector_store_factory()
+
+
 def require_research_router_ready() -> None:
     """Fail closed if the standard router cannot be built.
 

@@ -140,6 +140,8 @@ function kindLabel(kind: string, t: Translate): string {
       return t("jobs.kind.expertgranskning_word_review")
     case "expert_chat_research":
       return t("jobs.kind.expert_chat_research")
+    case "document_ingest":
+      return t("jobs.kind.document_ingest")
     default:
       return kind
   }

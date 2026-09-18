@@ -578,6 +578,25 @@ async def test_scope_always_derives_from_run(db):
 
 
 @pytest.mark.asyncio
+async def test_scope_uses_document_module_recorded_on_run(db):
+    session, _factory = db
+    customer = await _customer(session, "document-scope-co")
+    run = await create_run(
+        session,
+        customer_id=customer.id,
+        module="expertgranskning",
+        title="Avtalsgranskning",
+        context={"case_id": "underlag-1", "knowledge_module": "dd"},
+    )
+
+    context = research_context_from_run(run)
+
+    assert context.scope.customer_id == customer.id
+    assert context.scope.case_id == "underlag-1"
+    assert context.scope.module == "dd"
+
+
+@pytest.mark.asyncio
 async def test_frozen_set_rejects_item_mutation(db):
     session, _factory = db
     _customer_row, _run, attempt = await _created_attempt(session, slug="freeze-co")

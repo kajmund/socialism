@@ -1,4 +1,14 @@
-import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react"
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent,
+  type ReactNode,
+} from "react"
 import { useLocation } from "react-router-dom"
 import { FileText, Folder } from "lucide-react"
 import { getReportHtml, listReports, type Report } from "@/api/reports"
@@ -11,6 +21,7 @@ import {
   listUnderlagFolders,
   moveUnderlag,
   uploadUnderlag,
+  type DocumentKnowledgeAnchor,
   type UnderlagExtractionStatus,
   type UnderlagFile,
   type UnderlagFolder,
@@ -27,6 +38,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { canUseUnderlag } from "@/components/underlag/canUseUnderlag"
+import { DocumentKnowledgePanel } from "@/components/underlag/DocumentKnowledgePanel"
 import { htmlToPlainText } from "@/components/underlag/htmlToPlainText"
 import { useLocale, type MessageKey } from "@/i18n"
 import { ApiError } from "@/lib/api"
@@ -37,6 +49,11 @@ import { MODULE_REGISTRY } from "@/modules/moduleRegistry"
 import { useKundModules } from "@/modules/useKundModules"
 
 const ACCEPT = ".txt,.md,.markdown,.pdf,.docx"
+const PdfKnowledgeViewer = lazy(() =>
+  import("@/components/underlag/PdfKnowledgeViewer").then((module) => ({
+    default: module.PdfKnowledgeViewer,
+  })),
+)
 
 type PreviewTab = "pdf" | "text" | "html"
 
@@ -67,6 +84,8 @@ function statusKey(status: UnderlagExtractionStatus | null): MessageKey {
       return "underlag.status.empty"
     case "unsupported":
       return "underlag.status.unsupported"
+    case "needs_ocr":
+      return "underlag.status.needs_ocr"
     case null:
       return "underlag.status.pending"
     default: {
@@ -88,6 +107,8 @@ function statusVariant(
     case "failed":
     case "unsupported":
       return "destructive"
+    case "needs_ocr":
+      return "outline"
     case "empty":
       return "outline"
     default: {
@@ -165,6 +186,8 @@ export function UnderlagPickerModal({
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [usingReport, setUsingReport] = useState(false)
+  const [selectedAnchor, setSelectedAnchor] = useState<DocumentKnowledgeAnchor | null>(null)
+  const [focusAnchor, setFocusAnchor] = useState<DocumentKnowledgeAnchor | null>(null)
 
   const folderId = browse.kind === "underlag" ? browse.folderId : null
   const browsingUnderlag = browse.kind === "underlag"
@@ -220,6 +243,8 @@ export function UnderlagPickerModal({
     setPdfLoading(false)
     clearPdfUrl()
     setConfirmDeleteId(null)
+    setSelectedAnchor(null)
+    setFocusAnchor(null)
   }
 
   async function refreshFolders() {
@@ -352,6 +377,8 @@ export function UnderlagPickerModal({
       const row = await getUnderlag(id)
       if (requestId !== previewRequestRef.current) return
       setPreview({ kind: "underlag", file: row })
+      setSelectedAnchor(null)
+      setFocusAnchor(null)
       setPreviewTab(isPdf(row) ? "pdf" : "text")
       setRows((current) => current.map((item) => (item.id === row.id ? { ...item, ...row } : item)))
     } catch (err: unknown) {
@@ -586,11 +613,23 @@ export function UnderlagPickerModal({
   const canUse =
     (underlagPreview != null && canUseUnderlag(underlagPreview)) ||
     (reportPreview != null && !reportPreview.loading && Boolean(reportPreview.text?.trim()))
+  const handlePdfError = useCallback(
+    (message: string) => setPdfError(message || t("underlag.previewPdfError")),
+    [t],
+  )
+  const handleUnderlagUpdate = useCallback((updated: UnderlagFile) => {
+    setPreview((current) =>
+      current?.kind === "underlag" && current.file.id === updated.id
+        ? { kind: "underlag", file: updated }
+        : current,
+    )
+    setRows((current) => current.map((row) => (row.id === updated.id ? updated : row)))
+  }, [])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="theme-admin flex h-[min(880px,92vh)] w-full max-w-6xl flex-col overflow-hidden bg-db-ink-0 p-0 sm:max-w-6xl"
+        className="theme-admin flex h-[min(920px,94vh)] w-[96vw] max-w-[1500px] flex-col overflow-hidden bg-db-ink-0 p-0 sm:max-w-[96vw]"
         showCloseButton={false}
       >
         <div className="flex min-h-0 flex-1 flex-col">
@@ -645,7 +684,7 @@ export function UnderlagPickerModal({
             </div>
           ) : null}
 
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:grid md:grid-cols-[minmax(260px,36%)_minmax(0,1fr)]">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:grid md:grid-cols-[minmax(250px,28%)_minmax(0,1fr)]">
             <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 border-b border-[color:var(--border-hairline)] px-5 py-4 md:flex-none md:border-r md:border-b-0">
               <div className="min-h-0 flex-[0.9] overflow-y-auto rounded-md border border-[color:var(--border-hairline)]">
                 <ul className="text-sm">
@@ -965,7 +1004,14 @@ export function UnderlagPickerModal({
                   })}
                 </div>
               ) : null}
-              <div className="min-h-0 w-full flex-1 overflow-hidden rounded-md border border-[color:var(--border-hairline)] bg-muted/20">
+              <div
+                className={cn(
+                  "min-h-0 w-full flex-1 overflow-hidden",
+                  showPdfPreview
+                    ? "grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(300px,38%)]"
+                    : "rounded-md border border-[color:var(--border-hairline)] bg-muted/20",
+                )}
+              >
                 {previewLoading || reportPreview?.loading ? (
                   <p className="px-3 py-3 text-sm text-muted-foreground">{t("underlag.loading")}</p>
                 ) : preview == null ? (
@@ -997,22 +1043,45 @@ export function UnderlagPickerModal({
                       {t("underlag.previewReportError")}
                     </p>
                   )
-                ) : showPdfPreview ? (
-                  pdfLoading ? (
-                    <p className="px-3 py-3 text-sm text-muted-foreground">{t("underlag.previewPdfLoading")}</p>
-                  ) : pdfError ? (
-                    <p className="px-3 py-3 text-sm text-muted-foreground" role="alert">
-                      {pdfError}
-                    </p>
-                  ) : pdfUrl && underlagPreview ? (
-                    <iframe
-                      title={underlagPreview.filename}
-                      src={pdfUrl}
-                      className="h-full w-full border-0 bg-white"
+                ) : showPdfPreview && underlagPreview ? (
+                  <>
+                    <div className="min-h-0 overflow-hidden rounded-md border border-[color:var(--border-hairline)] bg-muted/20">
+                      {pdfLoading ? (
+                        <p className="px-3 py-3 text-sm text-muted-foreground">{t("underlag.previewPdfLoading")}</p>
+                      ) : pdfError ? (
+                        <p className="px-3 py-3 text-sm text-muted-foreground" role="alert">
+                          {pdfError}
+                        </p>
+                      ) : pdfUrl ? (
+                        <Suspense
+                          fallback={
+                            <p className="px-3 py-3 text-sm text-muted-foreground">
+                              {t("underlag.previewPdfLoading")}
+                            </p>
+                          }
+                        >
+                          <PdfKnowledgeViewer
+                            url={pdfUrl}
+                            focusAnchor={focusAnchor}
+                            onSelection={(anchor) => {
+                              setSelectedAnchor(anchor)
+                              setFocusAnchor(anchor)
+                            }}
+                            onError={handlePdfError}
+                          />
+                        </Suspense>
+                      ) : (
+                        <p className="px-3 py-3 text-sm text-muted-foreground">{t("underlag.previewPdfError")}</p>
+                      )}
+                    </div>
+                    <DocumentKnowledgePanel
+                      file={underlagPreview}
+                      selection={selectedAnchor}
+                      onClearSelection={() => setSelectedAnchor(null)}
+                      onFocusAnchor={setFocusAnchor}
+                      onFileUpdate={handleUnderlagUpdate}
                     />
-                  ) : (
-                    <p className="px-3 py-3 text-sm text-muted-foreground">{t("underlag.previewPdfError")}</p>
-                  )
+                  </>
                 ) : (
                   <p className="px-3 py-3 text-sm text-muted-foreground">
                     {t("underlag.previewDeferred")}

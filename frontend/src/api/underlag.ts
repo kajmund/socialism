@@ -6,6 +6,63 @@ export type UnderlagExtractionStatus =
   | "failed"
   | "empty"
   | "unsupported"
+  | "needs_ocr"
+
+export type UnderlagKnowledgeStatus =
+  | "pending"
+  | "running"
+  | "ready"
+  | "failed"
+  | "empty"
+  | "needs_ocr"
+
+export type DocumentKnowledgeKind = "fact" | "qa" | "bookmark" | "note"
+
+export type DocumentAnchorRect = {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+export type DocumentKnowledgeAnchor = {
+  id?: string
+  ordinal?: number
+  anchor_type: "text" | "image" | "chart" | "table"
+  page_number: number | null
+  locator: string | null
+  exact_text: string | null
+  prefix_text: string | null
+  suffix_text: string | null
+  rects: DocumentAnchorRect[]
+  asset_id: string | null
+}
+
+export type DocumentKnowledgeItem = {
+  id: string
+  source_object_id: string
+  kind: DocumentKnowledgeKind
+  origin: "generated" | "manual"
+  status: "active" | "needs_review" | "archived"
+  title: string
+  question: string | null
+  content: string | null
+  retrieval_queries: string[]
+  anchors: DocumentKnowledgeAnchor[]
+  revision: number
+  created_by_user_id: string | null
+  updated_by_user_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type DocumentKnowledgeWrite = {
+  kind: DocumentKnowledgeKind
+  title: string
+  question?: string | null
+  content?: string | null
+  anchors: DocumentKnowledgeAnchor[]
+}
 
 export type UnderlagFile = {
   id: string
@@ -18,6 +75,9 @@ export type UnderlagFile = {
   folder_id: string | null
   extraction_status: UnderlagExtractionStatus | null
   extracted_text?: string | null
+  knowledge_status?: UnderlagKnowledgeStatus | null
+  knowledge_error?: string | null
+  knowledge_job_id?: string | null
   created_at: string
 }
 
@@ -91,4 +151,27 @@ export function moveUnderlag(id: string, folderId: string | null): Promise<Under
 
 export function deleteUnderlag(id: string): Promise<void> {
   return api.delete(`/underlag/${id}`)
+}
+
+export function listDocumentKnowledge(id: string): Promise<DocumentKnowledgeItem[]> {
+  return api.get<DocumentKnowledgeItem[]>(`/underlag/${id}/knowledge`)
+}
+
+export function createDocumentKnowledge(
+  id: string,
+  body: DocumentKnowledgeWrite,
+): Promise<DocumentKnowledgeItem> {
+  return api.post<DocumentKnowledgeItem>(`/underlag/${id}/knowledge`, body)
+}
+
+export function updateDocumentKnowledge(
+  id: string,
+  itemId: string,
+  body: DocumentKnowledgeWrite,
+): Promise<DocumentKnowledgeItem> {
+  return api.put<DocumentKnowledgeItem>(`/underlag/${id}/knowledge/${itemId}`, body)
+}
+
+export function deleteDocumentKnowledge(id: string, itemId: string): Promise<void> {
+  return api.delete(`/underlag/${id}/knowledge/${itemId}`)
 }

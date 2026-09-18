@@ -13,7 +13,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.config import settings
-from app.database.models import DdCampaign, Job, PanelSession, Persona, Report, Run
+from app.database.models import DdCampaign, Job, PanelSession, Persona, Report, Run, StoredObject
 from app.database.session import SessionLocal
 from app.realtime.hub import job_hub
 from app.schemas.domain import (
@@ -36,6 +36,11 @@ from app.services.dd.campaigns import get_campaign
 from app.services.dd.candidate_runs import get_candidate_run, upsert_research
 from app.services.dd.research import DdResearchError, run_dd_research
 from app.services.dd.schemas import DdCandidateCompany, DdResearchDossier, DdResearchJobRequest
+from app.services.document_knowledge import (
+    DOCUMENT_INGEST_JOB_KIND,
+    DocumentIngestJobRequest,
+    run_document_ingest_job,
+)
 from app.services.expertgranskning import WORD_JOB_KIND
 from app.services.expertgranskning.schemas import ExpertgranskningWordJobRequest
 from app.services.expertgranskning.watch import publish_expertgranskning_finished
@@ -205,6 +210,16 @@ async def create_job(session: AsyncSession, body: JobCreate) -> Job:
         if persona is None or persona.kind != "expert":
             raise ValueError(f"Expert not found: {payload.persona_id}")
         label = (body.label or "").strip() or f"Expertresearch: {payload.question[:80]}"
+    elif body.kind == DOCUMENT_INGEST_JOB_KIND:
+        payload = DocumentIngestJobRequest.model_validate(body.request)
+        source = await session.get(StoredObject, payload.object_id)
+        if (
+            source is None
+            or source.kind != "underlag"
+            or source.owner_user_id != payload.owner_user_id
+        ):
+            raise ValueError("Underlag not found for document ingest")
+        label = (body.label or "").strip() or f"Dokumentförståelse: {source.filename[:80]}"
     else:
         raise ValueError(f"Unsupported job kind: {body.kind}")
 
@@ -278,6 +293,11 @@ async def _execute_job_kind(job_id: str, kind: str) -> None:
 
         factory = job_session_factory()
         result = await run_expert_chat_research_job(factory, job_id=job_id)
+        async with factory() as session:
+            await _succeed(session, job_id, result)
+    elif kind == DOCUMENT_INGEST_JOB_KIND:
+        factory = job_session_factory()
+        result = await run_document_ingest_job(factory, job_id=job_id)
         async with factory() as session:
             await _succeed(session, job_id, result)
     else:
