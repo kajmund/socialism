@@ -355,9 +355,7 @@ async def _fail(session: AsyncSession, job_id: str, message: str) -> None:
     await session.refresh(job)
     await publish_job(job)
     if job.kind == WORD_JOB_KIND:
-        await publish_expertgranskning_finished(
-            job_id, status="failed", error=job.error
-        )
+        await publish_expertgranskning_finished(job_id, status="failed", error=job.error)
 
 
 async def _succeed(session: AsyncSession, job_id: str, result: dict) -> None:
@@ -732,6 +730,14 @@ async def _run_panel_session(job_id: str) -> None:
             candidate_id = (panel.config or {}).get("candidate_id") if panel else None
             if isinstance(candidate_id, str) and candidate_id:
                 result["candidate_id"] = candidate_id
+            execution_run_id = (panel.config or {}).get("execution_run_id") if panel else None
+            execution_attempt_id = (
+                (panel.config or {}).get("execution_attempt_id") if panel else None
+            )
+            if isinstance(execution_run_id, str) and execution_run_id:
+                result["execution_run_id"] = execution_run_id
+            if isinstance(execution_attempt_id, str) and execution_attempt_id:
+                result["execution_attempt_id"] = execution_attempt_id
             await _succeed(session, job_id, result)
     except Exception as exc:
         logger.exception("Panel session job %s failed", job_id)
@@ -892,9 +898,7 @@ async def fail_interrupted_jobs(
 ) -> int:
     """Mark pending/running jobs as failed on startup (no durable worker queue)."""
     now = utcnow()
-    active = await session.execute(
-        select(Job).where(Job.status.in_(("pending", "running")))
-    )
+    active = await session.execute(select(Job).where(Job.status.in_(("pending", "running"))))
     run_ids: list[int] = []
     report_ids: list[str] = []
     panel_session_ids: list[str] = []

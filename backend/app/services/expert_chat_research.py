@@ -50,11 +50,7 @@ async def run_expert_chat_research_job(
             raise ValueError(f"Job not found: {job_id}")
         payload = ExpertChatResearchJobRequest.model_validate(job.request or {})
         persona = await session.get(Persona, payload.persona_id)
-        if (
-            persona is None
-            or persona.customer_id != job.customer_id
-            or persona.kind != "expert"
-        ):
+        if persona is None or persona.customer_id != job.customer_id or persona.kind != "expert":
             raise ValueError("Expert not found for research job")
         prompts = await require_active_prompts(
             session,
@@ -134,7 +130,7 @@ async def run_expert_chat_research_job(
         attempt_id=attempt_id,
         worker=worker,
     )
-    if result.status != "completed":
+    if result.status not in {"completed", "completed_with_gaps"}:
         raise RuntimeError(f"Expert chat research stopped as {result.status}")
     return {
         "run_id": run_id,
@@ -142,4 +138,6 @@ async def run_expert_chat_research_job(
         "specific_question_id": specific_id,
         "research_question_id": question_id,
         "completed_questions": result.completed_count,
+        "failed_questions": result.failed_count,
+        "blocked_questions": result.blocked_count,
     }

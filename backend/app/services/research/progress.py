@@ -35,6 +35,9 @@ logger = logging.getLogger(__name__)
 PREVIEW_LIMIT = 160
 
 ResearchProgressEventType = Literal[
+    "question_running",
+    "question_completed",
+    "question_failed",
     "objective_accepted",
     "initial_plan_accepted",
     "research_need_planned",
@@ -55,6 +58,9 @@ ResearchProgressEventType = Literal[
 ]
 
 RESEARCH_PROGRESS_EVENT_TYPES: tuple[ResearchProgressEventType, ...] = (
+    "question_running",
+    "question_completed",
+    "question_failed",
     "objective_accepted",
     "initial_plan_accepted",
     "research_need_planned",
@@ -149,9 +155,7 @@ def sanitize_progress_payload(payload: dict[str, Any]) -> dict[str, Any]:
             continue
         if isinstance(value, list):
             clean[key] = [
-                item
-                for item in value
-                if isinstance(item, (str, int, float, bool)) or item is None
+                item for item in value if isinstance(item, (str, int, float, bool)) or item is None
             ]
             continue
         if isinstance(value, dict):
@@ -204,14 +208,10 @@ async def get_research_progress_event_by_key(
     return result.scalar_one_or_none()
 
 
-async def _lock_attempt_event_allocation(
-    session: AsyncSession, attempt_id: str
-) -> None:
+async def _lock_attempt_event_allocation(session: AsyncSession, attempt_id: str) -> None:
     """Serialize per-Attempt sequence/key allocation across workers."""
     result = await session.execute(
-        select(ExecutionAttempt)
-        .where(ExecutionAttempt.id == attempt_id)
-        .with_for_update()
+        select(ExecutionAttempt).where(ExecutionAttempt.id == attempt_id).with_for_update()
     )
     result.scalar_one()
 
@@ -236,6 +236,43 @@ def _track(event: ResearchProgressEvent) -> None:
 
 
 async def append_research_progress_event(
+    session: AsyncSession,
+    *,
+    attempt_id: str,
+    event_type: ResearchProgressEventType,
+    payload: dict[str, Any],
+    idempotency_key: str,
+) -> ResearchProgressEvent:
+    """Insert one event and project child research onto its parent Attempt."""
+    row = await _append_research_progress_event(
+        session,
+        attempt_id=attempt_id,
+        event_type=event_type,
+        payload=payload,
+        idempotency_key=idempotency_key,
+    )
+    attempt = await session.get(ExecutionAttempt, attempt_id)
+    if (
+        attempt is not None
+        and attempt.attempt_type == "research_question"
+        and attempt.parent_attempt_id is not None
+    ):
+        context = attempt.input_snapshot if isinstance(attempt.input_snapshot, dict) else {}
+        await _append_research_progress_event(
+            session,
+            attempt_id=attempt.parent_attempt_id,
+            event_type=event_type,
+            idempotency_key=f"child:{attempt.id}:{idempotency_key}",
+            payload={
+                **payload,
+                "child_attempt_id": attempt.id,
+                "research_question_id": context.get("research_question_id"),
+            },
+        )
+    return row
+
+
+async def _append_research_progress_event(
     session: AsyncSession,
     *,
     attempt_id: str,
@@ -273,14 +310,37 @@ async def append_research_progress_event(
             return row
         except IntegrityError as exc:
             last_error = exc
-            existing = await get_research_progress_event_by_key(
-                session, attempt_id, key
-            )
+            existing = await get_research_progress_event_by_key(session, attempt_id, key)
             if existing is not None:
                 _track(existing)
                 return existing
     assert last_error is not None
     raise last_error
+
+
+async def emit_question_status(
+    session: AsyncSession,
+    *,
+    attempt_id: str,
+    question_id: str,
+    status: Literal["running", "completed", "failed"],
+    child_attempt_id: str | None = None,
+    reason: str | None = None,
+) -> ResearchProgressEvent:
+    payload: dict[str, Any] = {
+        "research_question_id": question_id,
+        "status": status,
+        "child_attempt_id": child_attempt_id,
+    }
+    if reason:
+        payload["reason"] = preview_text(reason)
+    return await append_research_progress_event(
+        session,
+        attempt_id=attempt_id,
+        event_type=f"question_{status}",  # type: ignore[arg-type]
+        idempotency_key=f"question:{question_id}:{status}",
+        payload=payload,
+    )
 
 
 def schedule_research_progress_delivery(
@@ -289,15 +349,11 @@ def schedule_research_progress_delivery(
     """Queue live fan-out after commit. Never blocks or fails research."""
     if not events:
         return
-    payloads = [
-        (event.attempt_id, progress_event_to_dict(event)) for event in events
-    ]
+    payloads = [(event.attempt_id, progress_event_to_dict(event)) for event in events]
     try:
         loop = asyncio.get_running_loop()
     except RuntimeError:
-        logger.exception(
-            "Research progress live delivery skipped: no running event loop"
-        )
+        logger.exception("Research progress live delivery skipped: no running event loop")
         return
     loop.create_task(
         _deliver_research_progress_payloads(payloads),

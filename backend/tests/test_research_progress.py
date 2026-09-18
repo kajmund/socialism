@@ -13,6 +13,7 @@ from app.database.base import Base
 from app.database.models import ExecutionAttempt, ResearchProgressEvent
 from app.services.execution import (
     complete_need_execution,
+    create_attempt,
     get_attempt,
     list_need_executions,
     seed_need_executions,
@@ -109,9 +110,7 @@ async def test_canonical_successful_run_emits_ordered_events(db):
     result = await execute_attempt_research(
         session,
         attempt_id=attempt.id,
-        research_objective=ResearchObjective(
-            objective="Kartlägg kommunens skattesats", context={}
-        ),
+        research_objective=ResearchObjective(objective="Kartlägg kommunens skattesats", context={}),
         research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
         router=_router(RecordingSource("case_knowledge"))[0],
     )
@@ -221,9 +220,7 @@ async def test_provider_error_and_capability_unavailable_are_accurate(db):
     assert result.status == "ready"
     assert "capability_unavailable" in _types(cap_events)
     assert "global_need_derived" not in _types(cap_events)
-    cap = next(
-        row for row in cap_events if row.event_type == "capability_unavailable"
-    )
+    cap = next(row for row in cap_events if row.event_type == "capability_unavailable")
     assert "swedish_law" in cap.payload["unavailable_source_types"]
     assert _types(cap_events)[-1] == "research_frozen_ready"
 
@@ -241,9 +238,7 @@ async def test_reconnect_after_sequence_returns_only_missed_events(db):
     all_events = await list_research_progress_events(session, attempt.id)
     assert len(all_events) >= 4
     cursor = all_events[2].sequence
-    missed = await list_research_progress_events(
-        session, attempt.id, after_sequence=cursor
-    )
+    missed = await list_research_progress_events(session, attempt.id, after_sequence=cursor)
     assert [row.sequence for row in missed] == [
         row.sequence for row in all_events if row.sequence > cursor
     ]
@@ -274,9 +269,7 @@ async def test_duplicate_retry_does_not_emit_contradictory_transitions(db):
     ]
 
     executions = await list_need_executions(session, attempt.id)
-    seeded = await seed_need_executions(
-        session, attempt_id=attempt.id, need_ids=["research_1"]
-    )
+    seeded = await seed_need_executions(session, attempt_id=attempt.id, need_ids=["research_1"])
     completed = await complete_need_execution(session, executions[0].id)
     await append_research_progress_event(
         session,
@@ -362,9 +355,7 @@ async def test_hanging_live_delivery_does_not_block_research(db, monkeypatch):
         events = await list_research_progress_events(session, attempt.id)
         assert result.status == "ready"
         assert _types(events)[-1] == "research_frozen_ready"
-        missed = await list_research_progress_events(
-            session, attempt.id, after_sequence=2
-        )
+        missed = await list_research_progress_events(session, attempt.id, after_sequence=2)
         assert missed[0].sequence == 3
     finally:
         await _cancel_research_progress_fanout()
@@ -419,6 +410,35 @@ def test_sanitize_progress_payload_strips_prompts():
     }
 
 
+@pytest.mark.asyncio
+async def test_child_attempt_events_are_projected_to_parent(db):
+    session, _factory = db
+    _customer, run, parent = await _created_attempt(session, slug="prog-parent")
+    child = await create_attempt(
+        session,
+        run_id=run.id,
+        parent_attempt_id=parent.id,
+        attempt_type="research_question",
+        input_snapshot={"research_question_id": "question-1"},
+    )
+    child_event = await append_research_progress_event(
+        session,
+        attempt_id=child.id,
+        event_type="need_running",
+        idempotency_key="need_running:need-1",
+        payload={"research_need_id": "need-1"},
+    )
+    await session.commit()
+
+    child_events = await list_research_progress_events(session, child.id)
+    parent_events = await list_research_progress_events(session, parent.id)
+    assert [row.id for row in child_events] == [child_event.id]
+    assert len(parent_events) == 1
+    assert parent_events[0].event_type == "need_running"
+    assert parent_events[0].payload["child_attempt_id"] == child.id
+    assert parent_events[0].payload["research_question_id"] == "question-1"
+
+
 async def _append_with_domain(
     factory: async_sessionmaker[AsyncSession],
     *,
@@ -458,6 +478,50 @@ async def test_concurrent_appends_distinct_keys_stay_monotonic(file_db):
     assert {first.id, second.id} == {row.id for row in events}
     assert [row.sequence for row in events] == [1, 2]
     assert {row.idempotency_key for row in events} == {"need_queued:a", "need_queued:b"}
+
+
+@pytest.mark.asyncio
+async def test_concurrent_child_events_project_monotonically_to_parent(file_db):
+    session, factory = file_db
+    _customer, run, parent = await _created_attempt(session, slug="prog-parent-race")
+    first_child = await create_attempt(
+        session,
+        run_id=run.id,
+        parent_attempt_id=parent.id,
+        attempt_type="research_question",
+        input_snapshot={"research_question_id": "question-a"},
+    )
+    second_child = await create_attempt(
+        session,
+        run_id=run.id,
+        parent_attempt_id=parent.id,
+        attempt_type="research_question",
+        input_snapshot={"research_question_id": "question-b"},
+    )
+    await session.commit()
+
+    await asyncio.gather(
+        _append_with_domain(
+            factory,
+            attempt_id=first_child.id,
+            key="need_queued:a",
+            wave=1,
+        ),
+        _append_with_domain(
+            factory,
+            attempt_id=second_child.id,
+            key="need_queued:b",
+            wave=1,
+        ),
+    )
+
+    async with factory() as check:
+        events = await list_research_progress_events(check, parent.id)
+    assert [row.sequence for row in events] == [1, 2]
+    assert {row.payload["research_question_id"] for row in events} == {
+        "question-a",
+        "question-b",
+    }
 
 
 @pytest.mark.asyncio

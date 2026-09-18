@@ -1,5 +1,9 @@
 # Manual update log
 
+## 2026-09-18
+
+* **Expertgranskning**: Under research visas en beständig livevy med generella frågor, ansvariga experter, beroenden, källor, bedömningar och kunskapsluckor. Vyn kan lämnas och öppnas igen utan att historiken försvinner. En obesvarad fråga stoppar inte längre oberoende researchgrenar, och expertgranskningen fortsätter med tillgänglig fryst evidens.
+
 ## 2026-09-17
 
 * **SME**: **Alla** visar både experter och expertpaneler. **Grupper** visar bara paneler. **Olästa** samlar olästa trådar av båda typerna.

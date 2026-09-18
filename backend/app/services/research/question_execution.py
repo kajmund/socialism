@@ -17,6 +17,7 @@ from app.database.models import (
     ResearchQuestionExpert,
 )
 from app.services.execution.service import get_attempt
+from app.services.research.progress import ProgressTracker, emit_question_status
 from app.services.research.question_domain import (
     GeneralQuestionDraft,
     add_question_dependency,
@@ -74,6 +75,7 @@ class QuestionDagExecutionResult:
     status: str
     completed_count: int
     failed_count: int
+    blocked_count: int
     waiting_for_assignment_count: int
     waves: int
 
@@ -104,41 +106,63 @@ async def execute_research_question_dag(
     waves = 0
     while True:
         async with factory() as session:
-            await get_attempt(session, attempt_id)
-            states, dependencies = await _load_graph(session, attempt_id)
-            ready = _ready_questions(states, dependencies)
-            if not ready:
-                return _terminal_result(attempt_id, states, dependencies, waves)
-            for state in ready:
-                state.row.status = "running"
-            await session.commit()
+            with ProgressTracker() as progress:
+                await get_attempt(session, attempt_id)
+                states, dependencies = await _load_graph(session, attempt_id)
+                ready = _ready_questions(states, dependencies)
+                if not ready:
+                    return _terminal_result(attempt_id, states, dependencies, waves)
+                for state in ready:
+                    state.row.status = "running"
+                    await emit_question_status(
+                        session,
+                        attempt_id=attempt_id,
+                        question_id=state.row.id,
+                        status="running",
+                        child_attempt_id=state.row.execution_attempt_id,
+                    )
+                await session.commit()
+                await progress.publish_committed()
 
         waves += 1
         executable = [_as_executable(state, attempt_id) for state in ready]
         outcomes = await _run_wave(worker, executable, concurrency=concurrency)
 
-        failures: list[tuple[str, BaseException]] = []
         async with factory() as session:
-            for question, outcome in zip(executable, outcomes, strict=True):
-                row = await session.get(ResearchQuestion, question.id)
-                if row is None:
-                    raise ResearchQuestionExecutionError(
-                        f"research question disappeared during execution: {question.id}"
+            with ProgressTracker() as progress:
+                for question, outcome in zip(executable, outcomes, strict=True):
+                    row = await session.get(ResearchQuestion, question.id)
+                    if row is None:
+                        raise ResearchQuestionExecutionError(
+                            f"research question disappeared during execution: {question.id}"
+                        )
+                    if isinstance(outcome, BaseException):
+                        reason = (str(outcome) or outcome.__class__.__name__)[:2000]
+                        row.status = "failed"
+                        row.outcome_reason = reason
+                        await emit_question_status(
+                            session,
+                            attempt_id=attempt_id,
+                            question_id=question.id,
+                            status="failed",
+                            child_attempt_id=row.execution_attempt_id,
+                            reason=reason,
+                        )
+                        continue
+                    row.status = "completed"
+                    row.outcome_reason = None
+                    if outcome.execution_attempt_id is not None:
+                        row.execution_attempt_id = outcome.execution_attempt_id
+                    await _persist_follow_ups(session, parent=question, outcome=outcome)
+                    await emit_question_status(
+                        session,
+                        attempt_id=attempt_id,
+                        question_id=question.id,
+                        status="completed",
+                        child_attempt_id=row.execution_attempt_id,
                     )
-                if isinstance(outcome, BaseException):
-                    row.status = "failed"
-                    failures.append((question.id, outcome))
-                    continue
-                row.status = "completed"
-                if outcome.execution_attempt_id is not None:
-                    row.execution_attempt_id = outcome.execution_attempt_id
-                await _persist_follow_ups(session, parent=question, outcome=outcome)
-            await session.commit()
-        if failures:
-            failed_ids = ", ".join(question_id for question_id, _error in failures)
-            raise ResearchQuestionExecutionError(
-                f"research question worker failed for: {failed_ids}"
-            ) from failures[0][1]
+                await session.commit()
+                await progress.publish_committed()
 
 
 async def _load_graph(
@@ -292,14 +316,15 @@ def _terminal_result(
     waves: int,
 ) -> QuestionDagExecutionResult:
     if not states:
-        return QuestionDagExecutionResult(attempt_id, "completed", 0, 0, 0, waves)
+        return QuestionDagExecutionResult(attempt_id, "completed", 0, 0, 0, 0, waves)
     completed = sum(state.row.status == "completed" for state in states.values())
     failed = sum(state.row.status == "failed" for state in states.values())
     unassigned = sum(state.assigned_to is None for state in states.values())
+    blocked = sum(state.row.status == "blocked" for state in states.values())
     unfinished = [state for state in states.values() if state.row.status != "completed"]
     if not unfinished:
         return QuestionDagExecutionResult(
-            attempt_id, "completed", completed, failed, unassigned, waves
+            attempt_id, "completed", completed, failed, blocked, unassigned, waves
         )
     if unassigned:
         return QuestionDagExecutionResult(
@@ -307,6 +332,7 @@ def _terminal_result(
             "waiting_for_assignment",
             completed,
             failed,
+            blocked,
             unassigned,
             waves,
         )
@@ -318,7 +344,17 @@ def _terminal_result(
         for question_id, required in dependencies.items()
         if required & failed_ids and states[question_id].row.status != "completed"
     ]
-    detail = ", ".join(blocked_by_failure or [state.row.id for state in unfinished])
+    if failed_ids or blocked_by_failure:
+        return QuestionDagExecutionResult(
+            attempt_id,
+            "completed_with_gaps",
+            completed,
+            failed,
+            blocked,
+            unassigned,
+            waves,
+        )
+    detail = ", ".join(state.row.id for state in unfinished)
     raise ResearchQuestionExecutionError(
-        f"research question DAG cannot make progress; blocked questions: {detail}"
+        f"research question DAG cannot make progress; unresolved questions: {detail}"
     )
