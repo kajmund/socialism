@@ -6,16 +6,26 @@ raise-hand. Frozen evidence must never manufacture expertise.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Sequence
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
-from app.llm import complete_structured
+from app.llm import (
+    StructuredOutputError,
+    classify_structured_failure,
+    complete_structured_retry,
+)
 from app.services.panel.raise_hand import has_competence_disclaimer
 from app.services.panel.review_intent import session_brief_for_llm
 from app.services.panel.schemas import PanelExpertSlot, PanelSessionConfig
 from app.services.prompt_catalog import render_prompt
+
+logger = logging.getLogger(__name__)
+
+UNASSESSABLE_REASON = "ej bedömningsbar"
+UNASSESSABLE_PANEL_NOTE = "Ingen expert kunde bedömas. Sakfrågan är obesvarad."
 
 
 def _strip_text(value: object) -> str:
@@ -70,6 +80,19 @@ class CompetencyState(BaseModel):
     def is_competent(self, slot_id: str) -> bool:
         return slot_id in self.competent_slot_ids()
 
+    def all_unassessable(self) -> bool:
+        return bool(self.slots) and all(
+            UNASSESSABLE_REASON in row.reason for row in self.slots
+        )
+
+
+def fail_closed_unassessable(category: str) -> ExpertCompetency:
+    return ExpertCompetency(
+        has_domain_competence=False,
+        competence_score=0,
+        competence_reason=f"{UNASSESSABLE_REASON} ({category})",
+    )
+
 
 def slot_competency(slot: PanelExpertSlot, decision: ExpertCompetency) -> SlotCompetency:
     return SlotCompetency(
@@ -119,7 +142,17 @@ async def assess_expert_competency(
             ),
         }
     )
-    return await complete_structured(messages, ExpertCompetency)
+    try:
+        return await complete_structured_retry(messages, ExpertCompetency)
+    except (ValidationError, StructuredOutputError) as exc:
+        category = classify_structured_failure(exc)
+        logger.info(
+            "structured output schema=ExpertCompetency attempt=closed "
+            "category=%s slot_id=%s, fail-closed unassessable",
+            category,
+            slot.slot_id,
+        )
+        return fail_closed_unassessable(category)
 
 
 async def assess_panel_competency(

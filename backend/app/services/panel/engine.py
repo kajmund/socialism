@@ -10,6 +10,7 @@ from app.services.dd.company_mcp import complete_text_with_company_tools
 from app.services.expert_tools import expert_tool_prompt_extra
 from app.services.expertgranskning.memory import get_expert_memory
 from app.services.panel.competency import (
+    UNASSESSABLE_PANEL_NOTE,
     CompetencyState,
     assess_panel_competency,
     competency_state_from_decisions,
@@ -33,7 +34,12 @@ from app.services.panel.synthesis import (
     public_transcript_text,
     synthesize_generic_panel_result,
 )
-from app.services.panel.watch import run_turn
+from app.services.panel.watch import (
+    commit_turn_checkpoint,
+    existing_turn,
+    load_transcript,
+    run_turn,
+)
 from app.services.prompt_catalog import render_prompt
 from app.services.review_contract import (
     display_speaker_label,
@@ -47,9 +53,7 @@ def _expert_system(
     *,
     with_tools: bool = False,
 ) -> str:
-    text = render_prompt(
-        prompts, "panel.expert.system", label=slot.label, profile=slot.profile
-    )
+    text = render_prompt(prompts, "panel.expert.system", label=slot.label, profile=slot.profile)
     if not with_tools:
         return text
     extra = expert_tool_prompt_extra(prompts, slot.tools)
@@ -59,7 +63,9 @@ def _expert_system(
 
 
 def _expert_list(config: PanelSessionConfig) -> str:
-    return "\n".join(f"- {slot.label}: {slot.profile or slot.label}" for slot in config.expert_slots)
+    return "\n".join(
+        f"- {slot.label}: {slot.profile or slot.label}" for slot in config.expert_slots
+    )
 
 
 def _transcript_text(transcript: list[PanelTurn]) -> str:
@@ -198,9 +204,7 @@ async def _expert_complete(
     if not allow_expert_tools:
         return (await complete_text(messages)).strip()
     return (
-        await complete_text_with_company_tools(
-            messages, allowed_tools=frozenset(slot.tools)
-        )
+        await complete_text_with_company_tools(messages, allowed_tools=frozenset(slot.tools))
     ).strip()
 
 
@@ -227,9 +231,7 @@ async def _expert_scratchpad(
             scratchpad=scratchpad or "(tom)",
         ),
     )
-    return await _expert_complete(
-        messages, slot, allow_expert_tools=allow_expert_tools
-    )
+    return await _expert_complete(messages, slot, allow_expert_tools=allow_expert_tools)
 
 
 async def _expert_turn(
@@ -255,9 +257,7 @@ async def _expert_turn(
             scratchpad=scratchpad or "(tom)",
         ),
     )
-    return await _expert_complete(
-        messages, slot, allow_expert_tools=allow_expert_tools
-    )
+    return await _expert_complete(messages, slot, allow_expert_tools=allow_expert_tools)
 
 
 async def _moderator_analysis(
@@ -282,6 +282,14 @@ async def _moderator_analysis(
     return (await complete_text(messages)).strip()
 
 
+async def _static_unassessable_note() -> str:
+    return UNASSESSABLE_PANEL_NOTE
+
+
+async def _static_text(value: str) -> str:
+    return value
+
+
 def _slot_by_id(config: PanelSessionConfig, slot_id: str) -> PanelExpertSlot:
     for slot in config.expert_slots:
         if slot.slot_id == slot_id:
@@ -295,22 +303,29 @@ async def _run_research_plan_phase(
     transcript: list[PanelTurn],
     config: PanelSessionConfig,
     prompts: dict[str, str],
+    scratchpads: dict[str, str],
     *,
     opening: str,
 ) -> CompetencyState:
     """Collect research needs. Competency is taken from the same structured reply."""
     proposals: list[tuple[PanelExpertSlot, ExpertResearchNeeds]] = []
     for slot in config.expert_slots:
+        stored = existing_turn(
+            transcript,
+            speaker=slot.label,
+            phase="research_need",
+            slot_id=slot.slot_id,
+        )
 
-        async def produce_research_need(
-            expert_slot: PanelExpertSlot = slot,
-        ) -> str:
-            bundle = await collect_expert_research_needs(
-                expert_slot, config, opening, prompts
-            )
-            proposals.append((expert_slot, bundle))
-            return format_expert_research_need_turn(bundle, locale=config.locale)
+        if stored is not None:
+            if stored.checkpoint is None:
+                raise RuntimeError(f"Committed research need has no checkpoint: {stored.turn_id}")
+            bundle = ExpertResearchNeeds.model_validate(stored.checkpoint)
+            proposals.append((slot, bundle))
+            continue
 
+        bundle = await collect_expert_research_needs(slot, config, opening, prompts)
+        proposals.append((slot, bundle))
         await run_turn(
             db,
             panel,
@@ -318,13 +333,16 @@ async def _run_research_plan_phase(
             speaker=slot.label,
             phase="research_need",
             slot_id=slot.slot_id,
-            produce_content=produce_research_need,
+            produce_content=lambda value=format_expert_research_need_turn(bundle, locale=config.locale): (
+                _static_text(value)
+            ),
+            scratchpads=scratchpads,
+            checkpoint=bundle.model_dump(mode="json"),
         )
 
     async def produce_research_plan() -> str:
         plan = await build_research_plan(config, opening, proposals, prompts)
         panel.research_plan = plan.model_dump(mode="json")
-        await db.flush()
         return format_research_plan_turn(plan, locale=config.locale)
 
     await run_turn(
@@ -334,6 +352,7 @@ async def _run_research_plan_phase(
         speaker="moderator",
         phase="research_plan",
         produce_content=produce_research_plan,
+        scratchpads=scratchpads,
     )
     return apply_research_decisions(
         competency_state_from_decisions(proposals),
@@ -359,7 +378,9 @@ async def run_generic_panel(
     """
     config = PanelSessionConfig.model_validate(panel.config or {})
     allow_expert_tools = not frozen_evidence
-    transcript: list[PanelTurn] = []
+    if panel.status == "succeeded" and panel.result:
+        return panel
+    transcript = load_transcript(panel)
     scratchpads: dict[str, str] = dict(panel.scratchpads or {})
     for slot in config.expert_slots:
         scratchpads.setdefault(slot.slot_id, "")
@@ -373,8 +394,14 @@ async def run_generic_panel(
         produce_content=lambda: _moderator_opening(
             config, prompts, evidence_prompt=evidence_prompt
         ),
+        scratchpads=scratchpads,
     )
-    if frozen_evidence:
+    saved_competency = (
+        opening_turn.checkpoint.get("competency") if opening_turn.checkpoint is not None else None
+    )
+    if saved_competency is not None:
+        competency = CompetencyState.model_validate(saved_competency)
+    elif frozen_evidence:
         competency = await assess_panel_competency(config, prompts)
     else:
         competency = await _run_research_plan_phase(
@@ -383,7 +410,16 @@ async def run_generic_panel(
             transcript,
             config,
             prompts,
+            scratchpads,
             opening=opening_turn.content,
+        )
+    if saved_competency is None:
+        await commit_turn_checkpoint(
+            db,
+            panel,
+            transcript,
+            opening_turn,
+            {"competency": competency.model_dump(mode="json")},
         )
     competent_ids = competency.competent_slot_ids()
 
@@ -394,9 +430,14 @@ async def run_generic_panel(
             transcript,
             speaker="moderator",
             phase="unanswered",
-            produce_content=lambda: _moderator_missing_expertise(
-                config, prompts, evidence_prompt=evidence_prompt
+            produce_content=(
+                _static_unassessable_note
+                if competency.all_unassessable()
+                else lambda: _moderator_missing_expertise(
+                    config, prompts, evidence_prompt=evidence_prompt
+                )
             ),
+            scratchpads=scratchpads,
         )
     for round_index in range(1, config.max_rounds + 1):
         if not competency.has_relevant_expert():
@@ -416,6 +457,7 @@ async def run_generic_panel(
                     round_index=r,
                     evidence_prompt=evidence_prompt,
                 ),
+                scratchpads=scratchpads,
             )
         raise_hand_queue: list[str] = []
         for slot in config.expert_slots:
@@ -444,6 +486,7 @@ async def run_generic_panel(
                 round_index=round_index,
                 slot_id=slot.slot_id,
                 produce_content=produce_raise_hand,
+                scratchpads=scratchpads,
             )
             # A later JA cannot override a failed competency decision.
             if turn.content == "JA" and slot.slot_id in competent_ids:
@@ -480,8 +523,10 @@ async def run_generic_panel(
                 round_index=round_index,
                 slot_id=slot_id,
                 produce_content=produce_scratchpad,
+                scratchpads=scratchpads,
             )
 
+            known_ids = {row.turn_id for row in transcript}
             expert_turn = await run_turn(
                 db,
                 panel,
@@ -499,19 +544,21 @@ async def run_generic_panel(
                     evidence_prompt=evidence_prompt,
                     allow_expert_tools=allow_expert_tools,
                 ),
+                scratchpads=scratchpads,
             )
-            if config.module == "expertgranskning" and panel.panel_id is not None:
+            if (
+                expert_turn.turn_id not in known_ids
+                and config.module == "expertgranskning"
+                and panel.panel_id is not None
+            ):
                 population = await db.get(Population, panel.panel_id)
                 if population is None:
-                    raise RuntimeError(
-                        f"Expert panel not found for memory: {panel.panel_id}"
-                    )
+                    raise RuntimeError(f"Expert panel not found for memory: {panel.panel_id}")
                 question = next(
                     (
                         turn.content
                         for turn in reversed(transcript[:-1])
-                        if turn.speaker == "moderator"
-                        and turn.phase in {"opening", "sub_question"}
+                        if turn.speaker == "moderator" and turn.phase in {"opening", "sub_question"}
                     ),
                     config.topic,
                 )
@@ -533,6 +580,7 @@ async def run_generic_panel(
         produce_content=lambda: _moderator_analysis(
             config, transcript, prompts, evidence_prompt=evidence_prompt
         ),
+        scratchpads=scratchpads,
     )
 
     panel.scratchpads = scratchpads
@@ -551,5 +599,6 @@ async def run_generic_panel(
     panel.status = "succeeded"
     panel.error = None
     await db.flush()
+    await db.commit()
     await db.refresh(panel)
     return panel
