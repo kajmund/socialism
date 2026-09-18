@@ -2,10 +2,17 @@
 
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import PanelSession, Population, Projekt, StoredObject
+from app.database.models import (
+    DdCandidateRun,
+    ExecutionAttemptResult,
+    PanelSession,
+    Population,
+    Projekt,
+    StoredObject,
+)
 from app.serializers import format_date
 from app.services.expertgranskning import MODULE_ID
 from app.services.expertgranskning.schemas import (
@@ -403,6 +410,21 @@ async def update_expertgranskning_session(
 async def delete_expertgranskning_session(session: AsyncSession, row: PanelSession) -> None:
     if row.status in {"pending", "running"}:
         raise RuntimeError("Cannot delete a running session")
+    # Attempt results are immutable audit artifacts and intentionally use a
+    # RESTRICT foreign key. Detach their optional UI-session pointer before the
+    # session is removed; the execution history itself remains intact.
+    await session.execute(
+        update(ExecutionAttemptResult)
+        .where(ExecutionAttemptResult.panel_session_id == row.id)
+        .values(panel_session_id=None)
+    )
+    # Keep deletion behavior identical even when the database does not apply
+    # the declared SET NULL action for an already-open SQLite connection.
+    await session.execute(
+        update(DdCandidateRun)
+        .where(DdCandidateRun.panel_session_id == row.id)
+        .values(panel_session_id=None)
+    )
     await session.delete(row)
     await session.flush()
 
