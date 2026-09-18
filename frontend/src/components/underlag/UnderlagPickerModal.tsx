@@ -187,7 +187,7 @@ export function UnderlagPickerModal({
   const [deleting, setDeleting] = useState(false)
   const [usingReport, setUsingReport] = useState(false)
   const [selectedAnchor, setSelectedAnchor] = useState<DocumentKnowledgeAnchor | null>(null)
-  const [focusAnchor, setFocusAnchor] = useState<DocumentKnowledgeAnchor | null>(null)
+  const [focusAnchors, setFocusAnchors] = useState<DocumentKnowledgeAnchor[]>([])
 
   const folderId = browse.kind === "underlag" ? browse.folderId : null
   const browsingUnderlag = browse.kind === "underlag"
@@ -246,7 +246,7 @@ export function UnderlagPickerModal({
     clearPdfUrl()
     setConfirmDeleteId(null)
     setSelectedAnchor(null)
-    setFocusAnchor(null)
+    setFocusAnchors([])
   }
 
   async function refreshFolders() {
@@ -380,7 +380,7 @@ export function UnderlagPickerModal({
       if (requestId !== previewRequestRef.current) return
       setPreview({ kind: "underlag", file: row })
       setSelectedAnchor(null)
-      setFocusAnchor(null)
+      setFocusAnchors([])
       setPreviewTab(isPdf(row) ? "pdf" : "text")
       setRows((current) => current.map((item) => (item.id === row.id ? { ...item, ...row } : item)))
     } catch (err: unknown) {
@@ -621,7 +621,7 @@ export function UnderlagPickerModal({
   )
   const handleClearDocumentSelection = useCallback(() => {
     setSelectedAnchor(null)
-    setFocusAnchor(null)
+    setFocusAnchors([])
   }, [])
   const handleUnderlagUpdate = useCallback((updated: UnderlagFile) => {
     setPreview((current) =>
@@ -1068,11 +1068,11 @@ export function UnderlagPickerModal({
                         >
                           <PdfKnowledgeViewer
                             url={pdfUrl}
-                            focusAnchor={focusAnchor}
+                            focusAnchors={focusAnchors}
                             selectionActive={selectedAnchor !== null}
                             onSelection={(anchor) => {
                               setSelectedAnchor(anchor)
-                              setFocusAnchor(anchor)
+                              setFocusAnchors([anchor])
                             }}
                             onError={handlePdfError}
                           />
@@ -1085,7 +1085,7 @@ export function UnderlagPickerModal({
                       file={underlagPreview}
                       selection={selectedAnchor}
                       onClearSelection={handleClearDocumentSelection}
-                      onFocusAnchor={setFocusAnchor}
+                      onFocusAnchors={setFocusAnchors}
                       onFileUpdate={handleUnderlagUpdate}
                     />
                   </>
