@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import ValidationError
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
@@ -14,10 +15,17 @@ from app.database.models import (
     ExecutionAttempt,
     ExecutionAttemptResult,
     ExecutionRun,
+    KnowledgeQuestionRow,
+    Persona,
     ResearchAssessment,
     ResearchCompletenessPass,
     ResearchEvidenceQuality,
+    ResearchProgressEvent,
+    ResearchQuestion,
+    ResearchQuestionDependency,
+    ResearchQuestionExpert,
     ResearchRuntimeNeed,
+    SpecificQuestion,
     UserAccount,
 )
 from app.database.session import get_session
@@ -52,9 +60,14 @@ from app.services.execution.schemas import (
     MissingQuestionOut,
     ResearchAssessmentOut,
     ResearchCompletenessOut,
+    ResearchExpertOut,
     ResearchNeedAssessmentOut,
+    ResearchOverviewCountsOut,
+    ResearchOverviewOut,
     ResearchProgressEventListOut,
     ResearchProgressEventOut,
+    ResearchQuestionOverviewOut,
+    ResearchSourceOut,
     RuntimeResearchNeedOut,
 )
 from app.services.execution.service import (
@@ -83,10 +96,6 @@ from app.services.panel.attempt_execution import (
     validate_generic_panel_snapshots,
 )
 from app.services.prompt_store import require_active_prompts
-from app.llm.research_assessment import build_llm_research_assessor
-from app.llm.research_completeness import build_llm_research_completeness_reviewer
-from app.llm.research_followup import build_llm_follow_up_planner
-from app.llm.research_planner import build_llm_research_planner
 from app.services.research.assessment import need_assessment_from_json
 from app.services.research.completeness import (
     ResearchCompletenessError,
@@ -169,10 +178,7 @@ def _assessment_out(row: ResearchAssessment) -> ResearchAssessmentOut:
                 contradictions=list(item.contradictions),
                 further_information=item.further_information,
             )
-            for item in (
-                need_assessment_from_json(raw)
-                for raw in (row.need_assessments or [])
-            )
+            for item in (need_assessment_from_json(raw) for raw in (row.need_assessments or []))
         ],
         gaps=list(row.gaps or []),
         contradictions=list(row.contradictions or []),
@@ -222,10 +228,7 @@ def _completeness_out(row: ResearchCompletenessPass) -> ResearchCompletenessOut:
                 unavailable_source_types=list(item.unavailable_source_types),
                 capability_gap=item.capability_gap,
             )
-            for item in (
-                missing_question_from_json(raw)
-                for raw in (row.missing_questions or [])
-            )
+            for item in (missing_question_from_json(raw) for raw in (row.missing_questions or []))
         ],
         considered_evidence_ids=list(row.considered_evidence_ids or []),
         considered_question_keys=list(row.considered_question_keys or []),
@@ -364,14 +367,10 @@ async def _attached_evidence(
     try:
         evidence_set = await get_evidence_set(session, attempt.evidence_set_id)
         if evidence_set.run_id != run.id:
-            raise ExecutionScopeError(
-                "Attempt evidence must belong to the same run"
-            )
+            raise ExecutionScopeError("Attempt evidence must belong to the same run")
         evidence_run = await get_run(session, evidence_set.run_id)
         if evidence_run.customer_id != run.customer_id:
-            raise ExecutionScopeError(
-                "Attempt evidence must belong to the same customer"
-            )
+            raise ExecutionScopeError("Attempt evidence must belong to the same customer")
         items = await list_evidence_items(session, evidence_set.id)
     except ExecutionError as exc:
         raise _http_for_execution_error(exc) from exc
@@ -442,9 +441,7 @@ async def _attempt_out(
 ) -> ExecutionAttemptOut:
     evidence = None
     if attempt.evidence_set_id is not None:
-        summaries = await list_evidence_summaries(
-            session, [attempt.evidence_set_id], run_id=run.id
-        )
+        summaries = await list_evidence_summaries(session, [attempt.evidence_set_id], run_id=run.id)
         raw = summaries.get(attempt.evidence_set_id)
         if raw is None:
             raise HTTPException(
@@ -505,9 +502,7 @@ async def get_execution_run_attempts(
     run = await _require_run(session, user, run_id)
     attempts = await list_run_attempts(session, run.id)
     set_ids = [
-        attempt.evidence_set_id
-        for attempt in attempts
-        if attempt.evidence_set_id is not None
+        attempt.evidence_set_id for attempt in attempts if attempt.evidence_set_id is not None
     ]
     summaries = await list_evidence_summaries(session, set_ids, run_id=run.id)
     results = await list_attempt_results(session, [attempt.id for attempt in attempts])
@@ -685,9 +680,7 @@ async def post_attempt_research(
             attempt_id=attempt.id,
             research_objective=body.research_objective,
             research_context=dict(body.research_context),
-            research_plan=(
-                None if body.research_plan is None else body.research_plan.model_dump()
-            ),
+            research_plan=(None if body.research_plan is None else body.research_plan.model_dump()),
         )
         attempt = await get_attempt(session, attempt_id)
     except (
@@ -749,9 +742,7 @@ async def get_attempt_progress_events(
     user: UserAccount = Depends(get_current_user),
 ) -> ResearchProgressEventListOut:
     await _require_attempt(session, user, attempt_id)
-    rows = await list_research_progress_events(
-        session, attempt_id, after_sequence=after_sequence
-    )
+    rows = await list_research_progress_events(session, attempt_id, after_sequence=after_sequence)
     return ResearchProgressEventListOut(
         attempt_id=attempt_id,
         after_sequence=after_sequence,
@@ -767,6 +758,272 @@ async def get_attempt_progress_events(
             for row in rows
         ],
     )
+
+
+@router.get(
+    "/attempts/{attempt_id}/research-overview",
+    response_model=ResearchOverviewOut,
+)
+async def get_attempt_research_overview(
+    attempt_id: str,
+    session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
+) -> ResearchOverviewOut:
+    attempt, _run = await _require_attempt(session, user, attempt_id)
+    question_rows = (
+        await session.execute(
+            select(
+                ResearchQuestion,
+                KnowledgeQuestionRow.display_text,
+                SpecificQuestion.text,
+            )
+            .join(
+                KnowledgeQuestionRow,
+                KnowledgeQuestionRow.id == ResearchQuestion.knowledge_question_id,
+            )
+            .join(
+                SpecificQuestion,
+                SpecificQuestion.id == ResearchQuestion.specific_question_id,
+            )
+            .where(ResearchQuestion.attempt_id == attempt_id)
+            .order_by(ResearchQuestion.created_at, ResearchQuestion.id)
+        )
+    ).all()
+    question_ids = [row.id for row, _question, _specific in question_rows]
+    child_ids = [
+        row.execution_attempt_id
+        for row, _question, _specific in question_rows
+        if row.execution_attempt_id is not None
+    ]
+    expert_links = (
+        list(
+            (
+                await session.execute(
+                    select(ResearchQuestionExpert).where(
+                        ResearchQuestionExpert.question_id.in_(question_ids)
+                    )
+                )
+            ).scalars()
+        )
+        if question_ids
+        else []
+    )
+    expert_ids = {link.expert_id for link in expert_links}
+    personas = (
+        list((await session.execute(select(Persona).where(Persona.id.in_(expert_ids)))).scalars())
+        if expert_ids
+        else []
+    )
+    expert_names = {persona.id: persona.name for persona in personas}
+    dependencies = (
+        list(
+            (
+                await session.execute(
+                    select(ResearchQuestionDependency).where(
+                        ResearchQuestionDependency.question_id.in_(question_ids)
+                    )
+                )
+            ).scalars()
+        )
+        if question_ids
+        else []
+    )
+    children = (
+        list(
+            (
+                await session.execute(
+                    select(ExecutionAttempt).where(ExecutionAttempt.id.in_(child_ids))
+                )
+            ).scalars()
+        )
+        if child_ids
+        else []
+    )
+    child_by_id = {child.id: child for child in children}
+    evidence_set_ids = [child.evidence_set_id for child in children if child.evidence_set_id]
+    evidence_items = (
+        list(
+            (
+                await session.execute(
+                    select(EvidenceSetItem)
+                    .where(EvidenceSetItem.evidence_set_id.in_(evidence_set_ids))
+                    .order_by(EvidenceSetItem.ordinal, EvidenceSetItem.id)
+                )
+            ).scalars()
+        )
+        if evidence_set_ids
+        else []
+    )
+    assessments = (
+        list(
+            (
+                await session.execute(
+                    select(ResearchAssessment)
+                    .where(ResearchAssessment.attempt_id.in_(child_ids))
+                    .order_by(ResearchAssessment.assessment_pass)
+                )
+            ).scalars()
+        )
+        if child_ids
+        else []
+    )
+    completeness = (
+        list(
+            (
+                await session.execute(
+                    select(ResearchCompletenessPass)
+                    .where(ResearchCompletenessPass.attempt_id.in_(child_ids))
+                    .order_by(ResearchCompletenessPass.completeness_pass)
+                )
+            ).scalars()
+        )
+        if child_ids
+        else []
+    )
+
+    links_by_question: dict[str, list[ResearchQuestionExpert]] = {}
+    for link in expert_links:
+        links_by_question.setdefault(link.question_id, []).append(link)
+    dependency_ids: dict[str, list[str]] = {}
+    for dependency in dependencies:
+        dependency_ids.setdefault(dependency.question_id, []).append(
+            dependency.depends_on_question_id
+        )
+    items_by_set: dict[str, list[EvidenceSetItem]] = {}
+    for item in evidence_items:
+        items_by_set.setdefault(item.evidence_set_id, []).append(item)
+    assessment_by_attempt = {row.attempt_id: row for row in assessments}
+    completeness_by_attempt = {row.attempt_id: row for row in completeness}
+
+    questions: list[ResearchQuestionOverviewOut] = []
+    for row, question_text, specific_text in question_rows:
+        child = child_by_id.get(row.execution_attempt_id or "")
+        items = (
+            items_by_set.get(child.evidence_set_id, []) if child and child.evidence_set_id else []
+        )
+        assessment = assessment_by_attempt.get(child.id) if child else None
+        complete = completeness_by_attempt.get(child.id) if child else None
+        status = _research_question_display_status(
+            raw_status=row.status,
+            items=items,
+            assessment=assessment,
+            completeness=complete,
+        )
+        links = links_by_question.get(row.id, [])
+        raised = [link for link in links if link.role == "raised_by"]
+        assigned = next((link for link in links if link.role == "assigned_to"), None)
+        questions.append(
+            ResearchQuestionOverviewOut(
+                id=row.id,
+                question=question_text,
+                specific_question=specific_text,
+                why_needed=row.why_needed,
+                status=status,
+                raw_status=row.status,
+                outcome_reason=row.outcome_reason,
+                origin=row.origin,
+                depth=row.depth,
+                child_attempt_id=row.execution_attempt_id,
+                child_attempt_status=child.status if child else None,
+                dependency_ids=dependency_ids.get(row.id, []),
+                raised_by=[
+                    ResearchExpertOut(
+                        id=link.expert_id,
+                        name=expert_names.get(link.expert_id, link.expert_id),
+                    )
+                    for link in raised
+                ],
+                assigned_to=None
+                if assigned is None
+                else ResearchExpertOut(
+                    id=assigned.expert_id,
+                    name=expert_names.get(assigned.expert_id, assigned.expert_id),
+                ),
+                sources=[
+                    ResearchSourceOut(
+                        id=item.id,
+                        status=item.status,
+                        title=item.title,
+                        excerpt=(item.excerpt[:1000] if item.excerpt else None),
+                        locator=item.locator,
+                        source_url=item.source_url,
+                        source_type=item.source_type,
+                        provider=item.provider,
+                    )
+                    for item in items
+                ],
+                assessment_result=assessment.result if assessment else None,
+                assessment_rationale=assessment.rationale if assessment else None,
+                completeness_result=complete.result if complete else None,
+                completeness_rationale=complete.rationale if complete else None,
+            )
+        )
+    status_counts = {
+        status: sum(question.status == status for question in questions)
+        for status in (
+            "answered",
+            "running",
+            "waiting",
+            "insufficient",
+            "unanswered",
+            "failed",
+            "blocked",
+        )
+    }
+    latest_sequence = int(
+        (
+            await session.execute(
+                select(func.max(ResearchProgressEvent.sequence)).where(
+                    ResearchProgressEvent.attempt_id == attempt_id
+                )
+            )
+        ).scalar_one()
+        or 0
+    )
+    active = status_counts["running"] + status_counts["waiting"]
+    gaps = (
+        status_counts["insufficient"]
+        + status_counts["unanswered"]
+        + status_counts["failed"]
+        + status_counts["blocked"]
+    )
+    phase = "researching" if active else "completed_with_gaps" if gaps else "completed"
+    return ResearchOverviewOut(
+        run_id=attempt.run_id,
+        attempt_id=attempt.id,
+        attempt_status=attempt.status,
+        phase=phase,
+        latest_sequence=latest_sequence,
+        counts=ResearchOverviewCountsOut(total=len(questions), **status_counts),
+        questions=questions,
+    )
+
+
+def _research_question_display_status(
+    *,
+    raw_status: str,
+    items: list[EvidenceSetItem],
+    assessment: ResearchAssessment | None,
+    completeness: ResearchCompletenessPass | None,
+) -> str:
+    if raw_status == "running":
+        return "running"
+    if raw_status in {"pending", "unassigned"}:
+        return "waiting"
+    if raw_status == "blocked":
+        return "blocked"
+    if raw_status == "failed":
+        return "failed"
+    if raw_status != "completed":
+        return raw_status
+    found = any(item.status == "found" for item in items)
+    if not found:
+        return "unanswered"
+    if completeness is not None and completeness.result != "complete":
+        return "insufficient"
+    if completeness is None and assessment is not None and assessment.result != "sufficient":
+        return "insufficient"
+    return "answered"
 
 
 @router.get(

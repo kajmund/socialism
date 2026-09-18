@@ -21,7 +21,6 @@ from app.services.research.question_execution import (
     QuestionDagExecutionResult,
     QuestionFollowUpDraft,
     QuestionResearchOutcome,
-    ResearchQuestionExecutionError,
     execute_research_question_dag,
 )
 
@@ -132,6 +131,7 @@ async def test_independent_questions_run_in_bounded_parallel(factory):
         status="completed",
         completed_count=3,
         failed_count=0,
+        blocked_count=0,
         waiting_for_assignment_count=0,
         waves=1,
     )
@@ -231,7 +231,7 @@ async def test_unassigned_question_pauses_without_calling_worker(factory):
     assert worker.calls == []
 
 
-async def test_worker_failure_is_persisted_and_fails_closed(factory):
+async def test_worker_failure_is_persisted_without_stopping_independent_questions(factory):
     attempt_id, specific_id = await _setup(factory)
     question_id = await _question(
         factory,
@@ -240,9 +240,50 @@ async def test_worker_failure_is_persisted_and_fails_closed(factory):
         text="Vilka rekvisit gäller?",
     )
     worker = RecordingWorker(failures={"Vilka rekvisit gäller?"})
-    with pytest.raises(ResearchQuestionExecutionError, match=question_id):
-        await execute_research_question_dag(factory, attempt_id=attempt_id, worker=worker)
+    await _question(
+        factory,
+        attempt_id=attempt_id,
+        specific_id=specific_id,
+        text="Vilken praxis finns?",
+    )
+    result = await execute_research_question_dag(factory, attempt_id=attempt_id, worker=worker)
+    assert result.status == "completed_with_gaps"
+    assert result.completed_count == 1
+    assert result.failed_count == 1
+    assert set(worker.calls) == {"Vilka rekvisit gäller?", "Vilken praxis finns?"}
     async with factory() as session:
         row = await session.get(ResearchQuestion, question_id)
         assert row is not None
         assert row.status == "failed"
+        assert row.outcome_reason == "provider failed"
+
+
+async def test_failed_dependency_blocks_only_its_dependent_branch(factory):
+    attempt_id, specific_id = await _setup(factory)
+    parent_id = await _question(
+        factory,
+        attempt_id=attempt_id,
+        specific_id=specific_id,
+        text="Vilka rekvisit gäller?",
+    )
+    child_id = await _question(
+        factory,
+        attempt_id=attempt_id,
+        specific_id=specific_id,
+        text="Hur tillämpas rekvisiten?",
+    )
+    async with factory() as session:
+        await add_question_dependency(
+            session,
+            question_id=child_id,
+            depends_on_question_id=parent_id,
+        )
+        await session.commit()
+
+    worker = RecordingWorker(failures={"Vilka rekvisit gäller?"})
+    result = await execute_research_question_dag(factory, attempt_id=attempt_id, worker=worker)
+
+    assert result.status == "completed_with_gaps"
+    assert result.failed_count == 1
+    assert result.blocked_count == 1
+    assert worker.calls == ["Vilka rekvisit gäller?"]
