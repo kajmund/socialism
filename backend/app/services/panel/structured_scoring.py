@@ -30,7 +30,7 @@ from app.services.panel.spinndoctor_profile import (
 )
 from app.services.customer_scope import customer_id_for_panel_session
 from app.services.panel.sub_questions_store import get_sub_questions
-from app.services.panel.watch import run_turn
+from app.services.panel.watch import load_transcript, run_turn
 from app.services.prompt_catalog import render_prompt
 from app.services.spindoctor_refs import strip_spindoctor_refs
 
@@ -385,7 +385,9 @@ async def run_structured_scoring(
         raise RuntimeError("structured_scoring requires config.module")
 
     candidate = config.candidate
-    transcript: list[PanelTurn] = []
+    if panel.status == "succeeded" and panel.result:
+        return panel
+    transcript = load_transcript(panel)
     scratchpads: dict[str, str] = dict(panel.scratchpads or {})
     for slot in config.expert_slots:
         scratchpads.setdefault(slot.slot_id, "")
@@ -530,5 +532,6 @@ async def run_structured_scoring(
     panel.status = "succeeded"
     panel.error = None
     await db.flush()
+    await db.commit()
     await db.refresh(panel)
     return panel

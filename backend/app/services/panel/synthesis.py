@@ -8,7 +8,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from app.llm import complete_structured
+from app.llm import complete_structured_retry
 from app.services.panel.competency import CompetencyState
 from app.services.panel.research import (
     MISSING_EXPERTISE_SIGNAL,
@@ -381,7 +381,7 @@ async def synthesize_generic_panel_result(
             ),
         }
     )
-    synthesis = await complete_structured(messages, GenericPanelSynthesis)
+    synthesis = await complete_structured_retry(messages, GenericPanelSynthesis)
     return panel_result_from_synthesis(
         synthesis,
         transcript=transcript,

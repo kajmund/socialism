@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.llm import complete_structured
+from app.llm import complete_structured_retry
 from app.services.prompt_catalog import render_prompt
 from app.services.prompt_store import require_active_prompts
 from app.services.research.assessment import (
@@ -185,7 +185,7 @@ class LlmResearchAssessor:
             raise ResearchAssessmentError("research assessment prompt is required")
         if not user:
             raise ResearchAssessmentError("research assessment user prompt is required")
-        self._completer = completer or complete_structured
+        self._completer = completer or complete_structured_retry
         self._system_prompt = text
         self._user_prompt = user
         self._provider = provider

@@ -111,3 +111,69 @@ async def test_auth_probe_provisioned_user_returns_200(auth_probe_client) -> Non
     body = response.json()
     assert body["id"] == user_id
     assert body["role"] == "admin"
+    async with session_factory() as session:
+        row = await session.get(UserAccount, user_id)
+        assert row is not None
+        assert row.last_seen_at is not None
+        first_seen = row.last_seen_at
+
+    response = await client.get(
+        "/_auth_probe",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    async with session_factory() as session:
+        row = await session.get(UserAccount, user_id)
+        assert row is not None
+        assert row.last_seen_at == first_seen
+
+
+@pytest.mark.asyncio
+async def test_last_seen_lock_does_not_fail_valid_auth(auth_probe_client, monkeypatch) -> None:
+    client, session_factory = auth_probe_client
+    user_id = "00000000-0000-4000-8000-000000000003"
+    async with session_factory() as session:
+        session.add(
+            UserAccount(
+                id=user_id,
+                email="locked@example.com",
+                role="admin",
+                kund_id=None,
+            )
+        )
+        await session.commit()
+
+    from sqlalchemy.exc import OperationalError
+
+    async def boom(self) -> None:
+        raise OperationalError("UPDATE user_accounts", {}, Exception("database is locked"))
+
+    monkeypatch.setattr("sqlalchemy.ext.asyncio.session.AsyncSession.commit", boom)
+    token = _mint_token(sub=user_id, email="locked@example.com")
+    response = await client.get(
+        "/_auth_probe",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    async with session_factory() as session:
+        row = await session.get(UserAccount, user_id)
+        assert row is not None
+        assert row.last_seen_at is None
+
+
+@pytest.mark.asyncio
+async def test_invalid_token_still_401_when_telemetry_would_fail(
+    auth_probe_client, monkeypatch
+) -> None:
+    from sqlalchemy.exc import OperationalError
+
+    async def boom(self) -> None:
+        raise OperationalError("UPDATE user_accounts", {}, Exception("database is locked"))
+
+    monkeypatch.setattr("sqlalchemy.ext.asyncio.session.AsyncSession.commit", boom)
+    client, _ = auth_probe_client
+    response = await client.get(
+        "/_auth_probe",
+        headers={"Authorization": "Bearer not-a-jwt"},
+    )
+    assert response.status_code == 401
