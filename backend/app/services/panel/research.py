@@ -13,7 +13,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.llm import complete_structured
+from app.llm import complete_structured_retry
 from app.services.panel.competency import CompetencyState, ExpertCompetency, SlotCompetency
 from app.services.panel.review_intent import session_brief_for_llm
 from app.services.panel.schemas import PanelExpertSlot, PanelSessionConfig
@@ -571,7 +571,7 @@ async def collect_expert_research_needs(
             source_types=source_types_prompt(),
         ),
     )
-    return await complete_structured(messages, ExpertResearchNeeds)
+    return await complete_structured_retry(messages, ExpertResearchNeeds)
 
 
 async def consolidate_research_plan(
@@ -611,7 +611,7 @@ async def consolidate_research_plan(
                 ),
             }
         )
-    return await complete_structured(messages, ModeratorResearchPlan)
+    return await complete_structured_retry(messages, ModeratorResearchPlan)
 
 
 def plan_from_moderator_draft(

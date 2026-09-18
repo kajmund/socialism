@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime, timedelta
 
 import jwt
@@ -14,6 +15,9 @@ from app.serializers import utcnow
 
 _TOKEN_ALGORITHM = "HS256"
 _TOKEN_AUDIENCE = "authenticated"
+_LAST_SEEN_MIN_INTERVAL = timedelta(minutes=1)
+
+logger = logging.getLogger(__name__)
 
 
 def mint_access_token(
@@ -56,6 +60,40 @@ async def user_from_bearer_token(session: AsyncSession, token: str | None) -> Us
     account = await session.get(UserAccount, user_id)
     if account is None:
         raise HTTPException(status_code=403, detail="not_provisioned")
+    return await _touch_last_seen_best_effort(session, account)
+
+
+def _aware(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value
+
+
+def should_touch_last_seen(account: UserAccount, *, now: datetime | None = None) -> bool:
+    seen = account.last_seen_at
+    if seen is None:
+        return True
+    current = now or utcnow()
+    return current - _aware(seen) >= _LAST_SEEN_MIN_INTERVAL
+
+
+async def _touch_last_seen_best_effort(
+    session: AsyncSession, account: UserAccount
+) -> UserAccount:
+    """Telemetry write. Lock or commit failure must not fail a valid auth read."""
+    if not should_touch_last_seen(account):
+        return account
+    account_id = account.id
     account.last_seen_at = utcnow()
-    await session.commit()
-    return account
+    try:
+        await session.commit()
+        return account
+    except Exception:
+        logger.warning(
+            "user_accounts.last_seen_at update failed account_id=%s",
+            account_id,
+            exc_info=True,
+        )
+        await session.rollback()
+        restored = await session.get(UserAccount, account_id)
+        return restored if restored is not None else account
