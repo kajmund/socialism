@@ -3,6 +3,7 @@
 ## 2026-09-18
 
 * **Underlag**: Uppladdade filer läses nu automatiskt som ett bakgrundsjobb. Bredvid PDF:en visas neutral dokumentkunskap med fakta och frågor och svar. Klick på en post går till källtexten. Markerad text kan sparas manuellt som fakta, fråga och svar, bokmärke eller anteckning. OCR ingår inte ännu; PDF:er utan textlager markeras tydligt.
+* **Underlag**: PDF-förhandsgranskningen ligger kvar stabilt medan dokumentkunskap byggs. Om en automatisk Q&A-batch tar för lång tid behålls dokumenttexten och lyckade poster, och vyn visar att resultatet är delvis klart.
 * **Expertgranskning**: Under research visas en beständig livevy med generella frågor, ansvariga experter, beroenden, källor, bedömningar och kunskapsluckor. Vyn kan lämnas och öppnas igen utan att historiken försvinner. En obesvarad fråga stoppar inte längre oberoende researchgrenar, och expertgranskningen fortsätter med tillgänglig fryst evidens.
 * **Expertchatten**: Frågor matchas semantiskt mot kundens tidigare generella researchfrågor. Finns relevant fryst evidens kan experten använda den utan att starta ny research; annars måste experten fortfarande be om bekräftelse innan ett bakgrundsjobb skapas.
 * **Expertminnen**: En expert som har ställt eller ansvarat för en besvarad researchfråga får en separat minnesnotering märkt **Researchsvar**. Källorna ligger kvar i det gemensamma kunskapslagret och kopieras inte in i expertens minne.

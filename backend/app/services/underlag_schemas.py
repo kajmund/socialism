@@ -7,7 +7,15 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 ExtractionStatus = Literal["pending", "ok", "failed", "empty", "unsupported", "needs_ocr"]
-KnowledgeStatus = Literal["pending", "running", "ready", "failed", "empty", "needs_ocr"]
+KnowledgeStatus = Literal[
+    "pending",
+    "running",
+    "ready",
+    "partial",
+    "failed",
+    "empty",
+    "needs_ocr",
+]
 KnowledgeItemKind = Literal["fact", "qa", "bookmark", "note"]
 KnowledgeItemStatus = Literal["active", "needs_review", "archived"]
 KnowledgeAnchorType = Literal["text", "image", "chart", "table"]
