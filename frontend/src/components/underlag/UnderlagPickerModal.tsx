@@ -619,6 +619,10 @@ export function UnderlagPickerModal({
     (message: string) => setPdfError(message || t("underlag.previewPdfError")),
     [t],
   )
+  const handleClearDocumentSelection = useCallback(() => {
+    setSelectedAnchor(null)
+    setFocusAnchor(null)
+  }, [])
   const handleUnderlagUpdate = useCallback((updated: UnderlagFile) => {
     setPreview((current) =>
       current?.kind === "underlag" && current.file.id === updated.id
@@ -1065,6 +1069,7 @@ export function UnderlagPickerModal({
                           <PdfKnowledgeViewer
                             url={pdfUrl}
                             focusAnchor={focusAnchor}
+                            selectionActive={selectedAnchor !== null}
                             onSelection={(anchor) => {
                               setSelectedAnchor(anchor)
                               setFocusAnchor(anchor)
@@ -1079,7 +1084,7 @@ export function UnderlagPickerModal({
                     <DocumentKnowledgePanel
                       file={underlagPreview}
                       selection={selectedAnchor}
-                      onClearSelection={() => setSelectedAnchor(null)}
+                      onClearSelection={handleClearDocumentSelection}
                       onFocusAnchor={setFocusAnchor}
                       onFileUpdate={handleUnderlagUpdate}
                     />
