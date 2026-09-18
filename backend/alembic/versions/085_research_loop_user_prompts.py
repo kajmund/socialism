@@ -6,7 +6,6 @@ Revises: 084_research_runtime_loop
 
 from __future__ import annotations
 
-import json
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -49,11 +48,12 @@ def upgrade() -> None:
                 "default_sv, default_en, default_nb, active"
                 ") VALUES ("
                 ":key, :modules, :section, :label_sv, :label_en, :hint_sv, :hint_en, "
-                ":default_sv, :default_en, :default_nb, 1"
+                ":default_sv, :default_en, :default_nb, TRUE"
                 ")"
             ).bindparams(
+                sa.bindparam("modules", type_=sa.JSON()),
                 key=key,
-                modules=json.dumps(modules_for_prompt_key(key)),
+                modules=modules_for_prompt_key(key),
                 section=field["section"],
                 label_sv=labels["sv"],
                 label_en=labels["en"],

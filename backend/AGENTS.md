@@ -10,8 +10,8 @@ This is the FastAPI service for **Socialism**. Read [../AGENTS.md](../AGENTS.md)
 - `httpx` for outbound HTTP
 - `pytest` for tests
 - SQLAlchemy models + Alembic migrations for database schema changes
-- **Phase 1 DB:** SQLite via `aiosqlite` (local file under `backend/data/`)
-- **Later:** Supabase Postgres + Auth (not wired yet)
+- **Production DB:** Supabase Postgres via `psycopg`
+- **Local/test DB:** SQLite via `aiosqlite` (local file under `backend/data/`)
 - **LLM:** Cerebras `gpt-oss-120b` default via OpenAI-compatible SDK (`app/llm/`); DeepSeek via `LLM_PROVIDER=deepseek`
 - `structlog` for logging
 - `uv` for dependency + project management
@@ -41,7 +41,7 @@ backend/
 │   ├── llm/             # OpenAI-compatible chat client, persona gen, interview chat
 │   ├── schemas/         # Pydantic request/response models
 │   ├── services/        # Population generate, OASIS körning spike, catalogs
-│   └── seed.py          # Load demo data into SQLite
+│   └── seed.py          # Load demo data into the configured database
 ├── scripts/             # Operator/dev CLIs (e.g. model benchmark)
 ├── tests/
 └── pyproject.toml
@@ -77,8 +77,9 @@ Optional dependency extra `oasis` (`camel-oasis`) — not installed by default (
 ## Database
 
 - Alembic is the source of truth for schema changes.
-- Phase 1 uses SQLite (`DATABASE_URL=sqlite+aiosqlite:///./data/opinionssimulator.db`). Models stay dialect-portable so we can point at Supabase Postgres later.
+- Production uses Supabase Postgres (`DATABASE_URL=postgresql+psycopg://...`). Local development and fast tests may use SQLite. Models and every Alembic migration must work on both dialects.
 - Run migrations from `backend/` with `uv run alembic upgrade head`.
+- Copy an existing, fully migrated SQLite database into an empty, fully migrated PostgreSQL database with `uv run python scripts/migrate_sqlite_to_postgres.py --source ... --target ...`.
 - Seed demo data with `uv run python -m app.seed`.
 
 ## Expert memory

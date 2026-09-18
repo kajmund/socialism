@@ -130,7 +130,11 @@ def upgrade() -> None:
     name_indexes = [
         idx["name"]
         for idx in inspector.get_indexes("populations")
-        if idx.get("unique") and list(idx.get("column_names") or []) == ["name"] and idx.get("name")
+        if idx.get("unique")
+        and list(idx.get("column_names") or []) == ["name"]
+        and idx.get("name")
+        and not idx.get("duplicates_constraint")
+        and idx["name"] not in name_uniques
     ]
     with op.batch_alter_table("populations") as batch_op:
         batch_op.alter_column("customer_id", existing_type=sa.Integer(), nullable=False)

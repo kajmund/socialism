@@ -108,6 +108,46 @@ jobs:
           --group ${{ matrix.group }}
           --splitting-algorithm least_duration
 
+  postgres-schema:
+    name: PostgreSQL schema
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: socialism_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d socialism_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:5432/socialism_test
+      OPENAI_API_KEY: test-openai-not-real
+      CEREBRAS_API_KEY: test-cerebras-not-real
+      SUPABASE_URL: https://test.supabase.co
+      SUPABASE_JWT_SECRET: test-supabase-jwt-not-real
+      SUPABASE_SERVICE_ROLE_KEY: test-supabase-service-role-not-real
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --frozen
+      - name: Apply all Alembic migrations
+        run: uv run alembic upgrade head
+
   frontend:
     name: Frontend tests
     needs: changes
@@ -176,13 +216,14 @@ jobs:
   ci:
     name: CI
     if: always()
-    needs: [changes, backend, frontend, word-addin, knowledge]
+    needs: [changes, backend, postgres-schema, frontend, word-addin, knowledge]
     runs-on: ubuntu-latest
     steps:
       - name: Require all jobs
         run: |
           changes="${{ needs.changes.result }}"
           backend="${{ needs.backend.result }}"
+          postgres_schema="${{ needs.postgres-schema.result }}"
           frontend="${{ needs.frontend.result }}"
           word_addin="${{ needs.word-addin.result }}"
           knowledge="${{ needs.knowledge.result }}"
@@ -192,9 +233,9 @@ jobs:
             exit 1
           fi
 
-          for result in "$backend" "$frontend" "$word_addin" "$knowledge"; do
+          for result in "$backend" "$postgres_schema" "$frontend" "$word_addin" "$knowledge"; do
             if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
-              echo "Required jobs: backend=$backend frontend=$frontend word-addin=$word_addin knowledge=$knowledge"
+              echo "Required jobs: backend=$backend postgres-schema=$postgres_schema frontend=$frontend word-addin=$word_addin knowledge=$knowledge"
               exit 1
             fi
           done

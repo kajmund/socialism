@@ -69,4 +69,6 @@ def async_engine_kwargs(url: str, **extra: Any) -> Mapping[str, Any]:
         connect_args = dict(kwargs.get("connect_args") or {})
         connect_args.update(sqlite_connect_args(url))
         kwargs["connect_args"] = connect_args
+    else:
+        kwargs["pool_pre_ping"] = True
     return kwargs

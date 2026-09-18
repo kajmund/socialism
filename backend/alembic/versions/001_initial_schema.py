@@ -17,6 +17,14 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    if op.get_bind().dialect.name == "postgresql":
+        op.alter_column(
+            "alembic_version",
+            "version_num",
+            existing_type=sa.String(length=32),
+            type_=sa.String(length=128),
+            existing_nullable=False,
+        )
     op.create_table(
         "personas",
         sa.Column("id", sa.String(length=64), nullable=False),
@@ -94,3 +102,11 @@ def downgrade() -> None:
     op.drop_table("population_members")
     op.drop_table("populations")
     op.drop_table("personas")
+    if op.get_bind().dialect.name == "postgresql":
+        op.alter_column(
+            "alembic_version",
+            "version_num",
+            existing_type=sa.String(length=128),
+            type_=sa.String(length=32),
+            existing_nullable=False,
+        )

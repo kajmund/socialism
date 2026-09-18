@@ -47,7 +47,7 @@ def upgrade() -> None:
     rows = connection.execute(
         sa.text(
             """
-            SELECT DISTINCT
+            SELECT
                 panel.customer_id AS target_customer_id,
                 expert.id,
                 expert.name,
