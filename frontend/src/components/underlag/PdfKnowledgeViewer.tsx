@@ -18,11 +18,13 @@ GlobalWorkerOptions.workerSrc = workerUrl
 export function PdfKnowledgeViewer({
   url,
   focusAnchor,
+  selectionActive,
   onSelection,
   onError,
 }: {
   url: string
   focusAnchor: DocumentKnowledgeAnchor | null
+  selectionActive: boolean
   onSelection: (anchor: DocumentKnowledgeAnchor) => void
   onError: (message: string) => void
 }) {
@@ -142,6 +144,16 @@ export function PdfKnowledgeViewer({
     }
     page.scrollIntoView({ behavior: "smooth", block: "center" })
   }, [focusAnchor, rendered])
+
+  useEffect(() => {
+    if (selectionActive) return
+    const root = pagesRef.current
+    const selection = window.getSelection()
+    if (!root || !selection || selection.rangeCount === 0) return
+    const anchorInside = selection.anchorNode != null && root.contains(selection.anchorNode)
+    const focusInside = selection.focusNode != null && root.contains(selection.focusNode)
+    if (anchorInside || focusInside) selection.removeAllRanges()
+  }, [selectionActive])
 
   function captureSelection() {
     const selection = window.getSelection()
