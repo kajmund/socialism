@@ -70,7 +70,7 @@ class PanelSessionConfig(BaseModel):
         return text or None
 
     @model_validator(mode="after")
-    def validate_protocol_fields(self) -> "PanelSessionConfig":
+    def validate_protocol_fields(self) -> PanelSessionConfig:
         if self.protocol == "dd_panel":
             if self.candidate is None:
                 raise ValueError("dd_panel requires candidate")
@@ -87,6 +87,10 @@ class PanelTurn(BaseModel):
     round_index: int | None = None
     slot_id: str | None = None
     sub_question_id: str | None = None
+    # Durable, machine-readable checkpoint data for crash-safe resume. Public
+    # content remains presentation text and must never be parsed back into
+    # domain state.
+    checkpoint: dict[str, Any] | None = None
 
 
 class DdExpertScore(BaseModel):
@@ -128,7 +132,7 @@ class PanelSessionCreate(BaseModel):
     project_id: int | None = None
 
     @model_validator(mode="after")
-    def require_slots_or_panel(self) -> "PanelSessionCreate":
+    def require_slots_or_panel(self) -> PanelSessionCreate:
         if not self.config.expert_slots and self.panel_id is None:
             raise ValueError("expert_slots or panel_id is required")
         return self
