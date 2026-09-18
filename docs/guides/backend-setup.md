@@ -54,14 +54,12 @@ cp .env.example .env
 | `RESEARCH_KNOWLEDGE_LOOKUP_LIMIT` | no | `10` | Max Question→Evidence graph hits per need (1–32) |
 | `RESEARCH_KNOWLEDGE_FRESHNESS_MAX_AGE_SECONDS` | no | unset | Age after which reused graph evidence is stale. Unset = freshness unknown; providers still run |
 | `SUPABASE_URL` | **yes** | — | Supabase project URL (Auth + Admin invite) |
-| `SUPABASE_JWT_SECRET` | **yes** | — | HS256 JWT secret for verifying access tokens |
-| `SUPABASE_SERVICE_ROLE_KEY` | **yes** | — | Backend-only; Admin invite API (never ship to the SPA) |
-| `SUPABASE_VECTOR_URL` | **yes** | — | Shared Support-project URL for research knowledge; intentionally separate from the product/Auth project |
-| `SUPABASE_VECTOR_SERVICE_ROLE_KEY` | **yes** | — | Backend-only service key for the shared Support project |
-| `SUPABASE_VECTOR_BUCKET` | no | `research-knowledge` | Storage Vector Bucket in the shared Support project |
+| `SUPABASE_SERVICE_ROLE_KEY` | **yes** | — | Backend-only; Admin invite API and Storage Vector Buckets (never ship to the SPA) |
+| `SUPABASE_VECTOR_BUCKET` | no | `research-knowledge` | Storage Vector Bucket in the Socialism project |
 | `SUPABASE_VECTOR_INDEX` | no | `documents-openai` | Vector index inside the research bucket |
 | `SUPABASE_VECTOR_DISTANCE_METRIC` | no | `cosine` | Immutable index metric: `cosine` or `euclidean` |
 | `ALLOW_LOCAL_LOGIN` | no | `false` | Local only. Enables `POST /auth/local-login` (used by `/dev-in`). **Never set in production.** |
+| `LOCAL_AUTH_JWT_SECRET` | with local login | — | Long random secret for local-only tokens; never used for Supabase Magic Link tokens |
 | `SUPABASE_S3_ACCESS_KEY_ID` | for Storage | — | S3 access key from Dashboard → Storage → S3. Required to upload annual reports or persist report artifacts |
 | `SUPABASE_S3_SECRET_ACCESS_KEY` | for Storage | — | Matching S3 secret. Backend only |
 | `SUPABASE_S3_REGION` | for Storage | — | Project region shown on the Storage S3 page |
@@ -94,7 +92,6 @@ LOG_MAX_BYTES=2000000
 LOG_BACKUP_COUNT=5
 LOG_LEVEL=INFO
 SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-SUPABASE_JWT_SECRET=your-jwt-secret
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 SUPABASE_VECTOR_BUCKET=research-knowledge
 SUPABASE_VECTOR_INDEX=documents-openai
@@ -108,9 +105,9 @@ Constraints:
 
 - The selected chat provider key (`CEREBRAS_API_KEY` or `DEEPSEEK_API_KEY`) is required at startup even when `PERSONA_GENERATOR=stub`. There is no keyword/heuristic LLM fallback for chat or reports, and no automatic fallback between providers.
 - `OPENAI_API_KEY` is required for Semantic Similarity Rating (report tone/style). The SSR embeddings client reads `settings.openai_api_key` explicitly — not the process env after OASIS mirrors DeepSeek into `OPENAI_API_KEY`.
-- `SUPABASE_URL`, `SUPABASE_JWT_SECRET`, and `SUPABASE_SERVICE_ROLE_KEY` are required at startup (Auth verify + Admin invite). The service role key must never be exposed to the frontend.
+- `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are required at startup. Magic Link access tokens are verified against the project's public JWKS endpoint; no shared JWT secret is needed. The service role key must never be exposed to the frontend.
 - When the research worker is enabled, startup creates the configured Supabase Vector Bucket/index if needed and verifies that its dimension equals `EMBEDDING_DIMENSION`. An existing index with another dimension, metric, or data type stops startup. `GET /health/research-vector` exposes the active bucket, index, and dimension without credentials.
-- `ALLOW_LOCAL_LOGIN=true` unlocks a localhost-only shortcut: open `/dev-in` to sign in as `erik@fremred.se` on the Devbrains kund without a magic-link email. Leave unset (or `false`) everywhere except a developer machine.
+- `ALLOW_LOCAL_LOGIN=true` plus `LOCAL_AUTH_JWT_SECRET=<long-random-value>` unlocks a localhost-only shortcut: open `/dev-in` to sign in as `erik@fremred.se` on the Devbrains kund without a magic-link email. Leave both unset everywhere except a developer machine.
 - `SUPABASE_S3_*` are required when storing files (annual reports, generated report HTML). Missing keys fail the upload or report job — there is no disk fallback for new artifacts. See [Supabase setup](supabase-setup.md#storage-s3).
 - Settings live only in `app/config.py` — do not call `os.getenv` / `load_dotenv` in app code.
 - `BOLAGSAPI_API_KEY` selects the company-data backend: BolagsAPI MCP when set, Allabolag scrape when empty. One path per process — a BolagsAPI failure does not fall through to Allabolag. Successful tool results (and Allabolag HTML) are cached on disk for 10 months.

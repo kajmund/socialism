@@ -14,7 +14,7 @@ os.environ.setdefault("CEREBRAS_API_KEY", "test-key-not-real")
 os.environ.setdefault("DEEPSEEK_API_KEY", "test-key-not-real")
 os.environ.setdefault("OPENAI_API_KEY", "test-openai-key-not-real")
 os.environ.setdefault("SUPABASE_URL", "https://test.supabase.co")
-os.environ.setdefault("SUPABASE_JWT_SECRET", "test-supabase-jwt-secret-not-real")
+os.environ.setdefault("LOCAL_AUTH_JWT_SECRET", "test-supabase-jwt-secret-not-real")
 os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "test-supabase-service-role-not-real")
 
 from collections.abc import AsyncIterator
@@ -104,7 +104,7 @@ def _bolag_token() -> str:
 def ws_client():
     settings.persona_generator = "stub"
     settings.deepseek_api_key = "test-key-not-real"
-    settings.supabase_jwt_secret = TEST_JWT_SECRET
+    settings.local_auth_jwt_secret = TEST_JWT_SECRET
     settings.simulation_engine = "none"
 
     async def _mock_text(_messages: list[dict[str, str]]) -> str:

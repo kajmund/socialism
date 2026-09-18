@@ -32,8 +32,8 @@ Required vars (validated in `src/lib/env.ts` — fail fast at boot):
 | -------- | ------- |
 | `VITE_API_BASE_URL` | FastAPI base URL (e.g. `http://localhost:8000`) |
 | `VITE_DEV_PROXY` | Set `true` locally so HTTP + WS go through the Vite dev proxy (same origin). Avoids CORS when Vite picks another port (5174, …). Requires backend on `:8000`. Leave unset/false in production builds. |
-| `VITE_SUPABASE_URL` | Placeholder for future Auth — required string today |
-| `VITE_SUPABASE_ANON_KEY` | Placeholder for future Auth — required string today |
+| `VITE_SUPABASE_URL` | Socialism project's URL for Magic Link Auth |
+| `VITE_SUPABASE_ANON_KEY` | Socialism project's public anon/publishable key for Magic Link Auth |
 
 Phase 1 uses a **static login** (`admin` / `admin`, `user` / `user`) in `src/lib/auth.ts`. The API client attaches a bearer token when the adapter provides one (static sessions have none). You still need non-empty Supabase placeholders so the SPA boots. Never put `service_role` or database URLs in frontend env.
 

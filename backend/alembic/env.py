@@ -1,12 +1,32 @@
 from logging.config import fileConfig
 from pathlib import Path
 
+from pydantic import field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import engine_from_config, pool
 
 from alembic import context
-from app.config import settings
 from app.database import models  # noqa: F401 — register models on metadata
 from app.database.base import Base
+from app.database_url import normalize_database_url
+
+
+class MigrationSettings(BaseSettings):
+    """Configuration needed by Alembic, independent of application services."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+    )
+
+    database_url: str = "sqlite+aiosqlite:///./data/opinionssimulator.db"
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def normalize_url(cls, value: object) -> str:
+        return normalize_database_url(value)
+
+
+migration_settings = MigrationSettings()
 
 config = context.config
 
@@ -17,7 +37,7 @@ target_metadata = Base.metadata
 
 
 def _sync_database_url() -> str:
-    url = settings.database_url
+    url = migration_settings.database_url
     if url.startswith("sqlite+aiosqlite://"):
         url = url.replace("sqlite+aiosqlite://", "sqlite://", 1)
     if url.startswith("sqlite:///"):

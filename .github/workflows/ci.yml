@@ -135,10 +135,8 @@ jobs:
       OPENAI_API_KEY: test-openai-not-real
       CEREBRAS_API_KEY: test-cerebras-not-real
       SUPABASE_URL: https://test.supabase.co
-      SUPABASE_JWT_SECRET: test-supabase-jwt-not-real
+      LOCAL_AUTH_JWT_SECRET: test-supabase-jwt-not-real
       SUPABASE_SERVICE_ROLE_KEY: test-supabase-service-role-not-real
-      SUPABASE_VECTOR_URL: https://knowledge-test.supabase.co
-      SUPABASE_VECTOR_SERVICE_ROLE_KEY: test-vector-service-role-not-real
     steps:
       - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v6
