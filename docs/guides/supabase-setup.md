@@ -63,6 +63,10 @@ curated document facts/Q&A. Metadata distinguishes `document_chunk` and
 `case_id`, so a document item cannot leak into unrelated research. Bookmarks
 and notes are stored in SQL only and are not indexed as evidence.
 
+The Python transport serializes multiple metadata constraints as an explicit
+S3 Vectors `$and` filter. Supabase accepts a flat object for one field but
+rejects multiple sibling fields as `Invalid filter`.
+
 `GET /health/research-vector` reports the configured bucket, index, and dimension after
 startup. It never returns credentials.
 
