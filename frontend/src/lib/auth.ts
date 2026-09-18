@@ -81,6 +81,16 @@ function clearLocalSession(): void {
   localStorage.removeItem(LOCAL_EMAIL_KEY)
 }
 
+function clearLocalSessionForSupabaseCallback(): void {
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""))
+  const query = new URLSearchParams(window.location.search)
+  if (hash.has("access_token") || hash.has("refresh_token") || query.has("code")) {
+    clearLocalSession()
+  }
+}
+
+clearLocalSessionForSupabaseCallback()
+
 function writeLocalSession(accessToken: string, email: string): AuthSession {
   localStorage.setItem(LOCAL_TOKEN_KEY, accessToken)
   localStorage.setItem(LOCAL_EMAIL_KEY, email)
@@ -112,18 +122,21 @@ const supabaseAuthAdapter: AuthAdapter = {
   },
 
   async getSession() {
-    const local = readLocalSession()
-    if (local) return local
     const { data, error } = await supabase.auth.getSession()
-    if (error || !data.session?.user) return null
-    return sessionFromSupabase(data.session.access_token, data.session.user)
+    if (!error && data.session?.user) {
+      clearLocalSession()
+      return sessionFromSupabase(data.session.access_token, data.session.user)
+    }
+    return readLocalSession()
   },
 
   async getAccessToken() {
-    const local = readLocalSession()
-    if (local?.accessToken) return local.accessToken
     const { data } = await supabase.auth.getSession()
-    return data.session?.access_token ?? null
+    if (data.session?.access_token) {
+      clearLocalSession()
+      return data.session.access_token
+    }
+    return readLocalSession()?.accessToken ?? null
   },
 
   installLocalSession(accessToken, email) {
@@ -134,16 +147,17 @@ const supabaseAuthAdapter: AuthAdapter = {
   onSessionChange(cb) {
     localSessionListeners.add(cb)
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        clearLocalSession()
+        cb(sessionFromSupabase(session.access_token, session.user))
+        return
+      }
       const local = readLocalSession()
       if (local) {
         cb(local)
         return
       }
-      if (!session?.user) {
-        cb(null)
-        return
-      }
-      cb(sessionFromSupabase(session.access_token, session.user))
+      cb(null)
     })
     return () => {
       localSessionListeners.delete(cb)
