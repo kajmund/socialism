@@ -23,6 +23,7 @@ class KnowledgeIngestResult:
     chunks_indexed: int
     content_hash: str | None = None
     message: str | None = None
+    extracted: ExtractedDocument | None = None
 
 
 class KnowledgeIngestService:
@@ -60,16 +61,28 @@ class KnowledgeIngestService:
         extracted = await self._extractor.extract(content, document.mime_type)
         outcome = _extraction_outcome(extracted)
         if outcome is not None:
-            return _result(document_id, outcome, content_hash, message=extracted.message)
+            return _result(
+                document_id,
+                outcome,
+                content_hash,
+                message=extracted.message,
+                extracted=extracted,
+            )
 
         chunks = self._chunker.chunk(extracted, document)
         if not chunks:
-            return _result(document_id, "empty", content_hash)
+            return _result(document_id, "empty", content_hash, extracted=extracted)
 
         try:
             vectors = await self._embeddings.embed([chunk.text for chunk in chunks])
         except Exception as exc:  # noqa: BLE001 — keep the previous index searchable
-            return _result(document_id, "failed", content_hash, message=str(exc))
+            return _result(
+                document_id,
+                "failed",
+                content_hash,
+                message=str(exc),
+                extracted=extracted,
+            )
 
         if len(vectors) != len(chunks):
             return _result(
@@ -79,6 +92,7 @@ class KnowledgeIngestService:
                 message=(
                     f"EmbeddingProvider returned {len(vectors)} vectors for {len(chunks)} chunks"
                 ),
+                extracted=extracted,
             )
 
         embedded = [
@@ -91,6 +105,7 @@ class KnowledgeIngestService:
             status="indexed",
             chunks_indexed=len(embedded),
             content_hash=content_hash,
+            extracted=extracted,
         )
 
 
@@ -108,6 +123,7 @@ def _result(
     content_hash: str | None,
     *,
     message: str | None = None,
+    extracted: ExtractedDocument | None = None,
 ) -> KnowledgeIngestResult:
     return KnowledgeIngestResult(
         document_id=document_id,
@@ -115,4 +131,5 @@ def _result(
         chunks_indexed=0,
         content_hash=content_hash,
         message=message,
+        extracted=extracted,
     )

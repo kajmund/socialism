@@ -66,9 +66,14 @@ question lineage receives a durable `ExpertKnowledgeReceipt` and an idempotent
 Mem0 receipt. The receipt means “this expert received research for this
 question”; it does not duplicate or replace the shared evidence.
 
-## Next stages
+## Document knowledge integration
 
-1. Surface completed expert-chat research proactively in its originating conversation.
-2. Build neutral document-understanding Q&A during ingest, with PDF text anchors, as another `case_knowledge` source. It has no expert ownership and must not contain risk or problem analysis.
+Underlag ingest now builds neutral document-understanding facts and Q&A with PDF text anchors. It has no expert ownership and contains no risk or problem analysis. Facts and Q&A are searchable as document-scoped `case_knowledge`; the research engine still assesses them against the current general question and freezes accepted evidence before consumers use it. Bookmarks and notes remain a human-only document layer.
+
+See [Document knowledge ingest](document-knowledge-ingest.md).
+
+## Next stage
+
+Surface completed expert-chat research proactively in its originating conversation.
 
 Evidence continues to freeze into an `EvidenceSet` before consumers use it. Comments and Word may receive read-only access to frozen evidence in a later stage, but remain outside research initiation.
