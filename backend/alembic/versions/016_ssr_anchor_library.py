@@ -150,19 +150,22 @@ def upgrade() -> None:
     conn = op.get_bind()
     ids: dict[tuple[str, str], int] = {}
     for row in _SEED:
+        insert_sql = (
+            "INSERT INTO ssr_anchor_sets "
+            "(name, kind, locale, version, labels, statements, status) "
+            "VALUES (:name, :kind, :locale, :version, :labels, :statements, 'published')"
+        )
+        if conn.dialect.name == "postgresql":
+            insert_sql += " RETURNING id"
         result = conn.execute(
-            sa.text(
-                "INSERT INTO ssr_anchor_sets "
-                "(name, kind, locale, version, labels, statements, status) "
-                "VALUES (:name, :kind, :locale, :version, :labels, :statements, 'published')"
-            ),
+            sa.text(insert_sql),
             {
                 **row,
                 "labels": json.dumps(row["labels"]),
                 "statements": json.dumps(row["statements"]),
             },
         )
-        anchor_id = result.lastrowid
+        anchor_id = result.scalar_one() if conn.dialect.name == "postgresql" else result.lastrowid
         ids[(row["kind"], row["locale"])] = int(anchor_id)
 
     refs = {

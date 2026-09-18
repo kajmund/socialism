@@ -75,6 +75,7 @@ def upgrade() -> None:
         ["configuration_id", "key"],
         unique=True,
         sqlite_where=sa.text("project_id IS NULL"),
+        postgresql_where=sa.text("project_id IS NULL"),
     )
     op.create_index(
         "uq_catalog_lists_config_project_key",
@@ -82,6 +83,7 @@ def upgrade() -> None:
         ["configuration_id", "project_id", "key"],
         unique=True,
         sqlite_where=sa.text("project_id IS NOT NULL"),
+        postgresql_where=sa.text("project_id IS NOT NULL"),
     )
 
     op.add_column("dd_campaigns", sa.Column("customer_id", sa.Integer(), nullable=True))

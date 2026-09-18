@@ -6,7 +6,6 @@ Revises: 074_word_review_question_routing
 
 from __future__ import annotations
 
-import json
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -120,11 +119,12 @@ def upgrade() -> None:
             "default_sv, default_en, default_nb, active"
             ") VALUES ("
             ":key, :modules, :section, :label_sv, :label_en, :hint_sv, :hint_en, "
-            ":default_sv, :default_en, :default_nb, 1"
+            ":default_sv, :default_en, :default_nb, TRUE"
             ")"
         ).bindparams(
+            sa.bindparam("modules", type_=sa.JSON()),
             key=_ROUTER_KEY,
-            modules=json.dumps(modules_for_prompt_key(_ROUTER_KEY)),
+            modules=modules_for_prompt_key(_ROUTER_KEY),
             section=field["section"],
             label_sv=labels["sv"],
             label_en=labels["en"],

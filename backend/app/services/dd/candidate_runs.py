@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as postgresql_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -64,7 +65,7 @@ async def _upsert_candidate_run(
     report_id: str | None = None,
     clear_report: bool = False,
 ) -> DdCandidateRunOut:
-    """Insert or update candidate run links atomically (SQLite upsert; phase-1 DB)."""
+    """Insert or update candidate run links atomically."""
     insert_values: dict[str, object] = {
         "campaign_id": campaign_id,
         "candidate_id": candidate_id,
@@ -80,7 +81,13 @@ async def _upsert_candidate_run(
         insert_values["report_id"] = None
         update_values["report_id"] = None
 
-    stmt = sqlite_insert(DdCandidateRun).values(**insert_values)
+    dialect = session.get_bind().dialect.name
+    if dialect == "sqlite":
+        stmt = sqlite_insert(DdCandidateRun).values(**insert_values)
+    elif dialect == "postgresql":
+        stmt = postgresql_insert(DdCandidateRun).values(**insert_values)
+    else:
+        raise RuntimeError(f"Unsupported database dialect for candidate upsert: {dialect}")
     if update_values:
         stmt = stmt.on_conflict_do_update(
             index_elements=["campaign_id", "candidate_id"],
