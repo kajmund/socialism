@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from typing import Annotated, Literal, Self
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from app.database_url import normalize_database_url
@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     @classmethod
     def normalize_database_url(cls, value: object) -> str:
         return normalize_database_url(value)
+
     allowed_origins: Annotated[list[str], NoDecode] = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
@@ -167,6 +168,14 @@ class Settings(BaseSettings):
     log_max_bytes: int = Field(default=2_000_000, ge=1024)
     log_backup_count: int = Field(default=5, ge=1, le=50)
     log_level: str = "INFO"
+    # Optional authenticated HTTPS log drain. Records are queued off the request path.
+    logstash_url: str = ""
+    logstash_username: str = ""
+    logstash_password: SecretStr = SecretStr("")
+    log_service: str = "socialism-backend"
+    log_environment: str = "production"
+    logstash_timeout_seconds: float = Field(default=2.0, gt=0, le=30)
+    logstash_queue_size: int = Field(default=512, ge=1, le=10_000)
 
     @field_validator("log_level")
     @classmethod
@@ -175,6 +184,24 @@ class Settings(BaseSettings):
         if name not in _LOG_LEVELS:
             raise ValueError(f"LOG_LEVEL must be one of {sorted(_LOG_LEVELS)}")
         return name
+
+    @model_validator(mode="after")
+    def require_complete_logstash_config(self) -> Self:
+        url = self.logstash_url.strip()
+        username = self.logstash_username.strip()
+        password = self.logstash_password.get_secret_value()
+        configured = (bool(url), bool(username), bool(password))
+        if any(configured) and not all(configured):
+            raise ValueError(
+                "LOGSTASH_URL, LOGSTASH_USERNAME, and LOGSTASH_PASSWORD must be set together"
+            )
+        if url and not url.startswith("https://"):
+            raise ValueError("LOGSTASH_URL must use HTTPS")
+        if not self.log_service.strip():
+            raise ValueError("LOG_SERVICE must not be empty")
+        if not self.log_environment.strip():
+            raise ValueError("LOG_ENVIRONMENT must not be empty")
+        return self
 
     @field_validator("allowed_origins", mode="before")
     @classmethod
