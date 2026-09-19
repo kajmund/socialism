@@ -22,6 +22,7 @@ from app.services.research.question_execution import (
     QuestionFollowUpDraft,
     QuestionResearchOutcome,
     execute_research_question_dag,
+    requeue_interrupted_research_questions,
 )
 
 
@@ -111,6 +112,31 @@ class RecordingWorker:
         if question.question in self.failures:
             raise RuntimeError("provider failed")
         return self.outcomes.get(question.question, QuestionResearchOutcome())
+
+
+async def test_requeue_makes_interrupted_running_question_runnable(factory):
+    attempt_id, specific_id = await _setup(factory)
+    question_id = await _question(
+        factory,
+        attempt_id=attempt_id,
+        specific_id=specific_id,
+        text="Vilka rekvisit gäller?",
+    )
+    async with factory() as session:
+        row = await session.get(ResearchQuestion, question_id)
+        assert row is not None
+        row.status = "running"
+        await session.commit()
+
+    async with factory() as session:
+        count = await requeue_interrupted_research_questions(session, attempt_id=attempt_id)
+        await session.commit()
+    assert count == 1
+
+    worker = RecordingWorker()
+    result = await execute_research_question_dag(factory, attempt_id=attempt_id, worker=worker)
+    assert result.status == "completed"
+    assert worker.calls == ["Vilka rekvisit gäller?"]
 
 
 async def test_empty_question_graph_is_not_reported_as_completed_research(factory):

@@ -13,14 +13,12 @@ import {
   type CustomerScope,
 } from "@/lib/scoping"
 import { cn } from "@/lib/utils"
-import { moduleScopeForNav } from "@/modules/kundModules"
 import {
   brandToForModules,
   buildSidebarNav,
   type ShellNavItem,
   type ShellNavSection,
 } from "@/modules/nav"
-import { useKundModules } from "@/modules/useKundModules"
 import { useJobsRealtime } from "@/realtime/JobsRealtimeProvider"
 
 export type { ShellNavItem }
@@ -353,17 +351,14 @@ export function AdminShell({
 }: AdminShellProps) {
   const { pathname } = useLocation()
   const { t } = useLocale()
-  const { isAdmin, resolvedModules, role } = useAuth()
+  const { isAdmin, resolvedModules } = useAuth()
   const customerScope = customerScopeProp ?? customerScopeFromPathname(pathname)
-  const navScope = moduleScopeForNav(role, customerScope)
-  const { moduleIds, loading: modulesLoading } = useKundModules(navScope)
   const showTools = showToolsProp ?? isAdmin
-  const activeModuleIds = modulesLoading ? resolvedModules : moduleIds
   const sections = useMemo(() => {
     if (navItems) return [{ id: "custom", items: navItems }]
-    return buildSidebarNav({ moduleIds: activeModuleIds, showTools })
-  }, [activeModuleIds, navItems, showTools])
-  const brandTo = brandToProp ?? brandToForModules(activeModuleIds)
+    return buildSidebarNav({ moduleIds: resolvedModules, showTools })
+  }, [resolvedModules, navItems, showTools])
+  const brandTo = brandToProp ?? brandToForModules(resolvedModules)
   const { jobs } = useJobsRealtime()
   const scopedJobs = useMemo(
     () => jobs.filter((job) => matchesCustomerScope(job, customerScope)),

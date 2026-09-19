@@ -21,7 +21,9 @@ Kunden kan också ha en **produkt**. Produkten styr hela gränssnittet och är s
 2. I tabellen syns kundens namn, slug, produkt och en kryssruta per modul.
 3. Välj **Standard** eller **SME** i produktlistan.
 4. Kryssa i eller ur moduler. Varje ändring sparas direkt.
-5. Logga in på nytt (eller ladda om) för att se det valda gränssnittet.
+5. Dina egna menyval och modulbehörigheter uppdateras direkt när du sparar modulerna. Andra redan inloggade användare behöver ladda om sidan. Efter byte av produkt behöver du också ladda om sidan.
+
+Menyn följer det inloggade kontots moduler även när du byter yta. En administratör som är kopplad till en kund får den kundens moduler samt Expertgranskning och Rättsunderlag. En administratör utan kundkoppling får alla kunders moduler. Rapporter, Återkoppling och Jobb kan öppnas även när kontot saknar Politik.
 
 En kund utan kryssade moduler får inga modulflikar i rapporterna och kan inte komma in i någon modul-yta. Ta inte bort sista modulen för en kund som ska fortsätta arbeta i ytan.
 

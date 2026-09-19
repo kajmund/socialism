@@ -499,6 +499,30 @@ async def test_generated_plan_rejects_source_types_router_cannot_run(db):
 
 
 @pytest.mark.asyncio
+async def test_planner_omits_case_knowledge_when_run_has_no_case(db):
+    session, _factory = db
+    _customer, _run, attempt = await _created_attempt(
+        session, slug="plan-no-case", case_id=None
+    )
+    router, sources = _router(
+        RecordingSource("case_knowledge"),
+        RecordingSource("customer_knowledge"),
+    )
+    planner = FakeResearchPlanner([_draft(source_types=["customer_knowledge"])])
+    result = await execute_attempt_research(
+        session,
+        attempt_id=attempt.id,
+        research_objective=_objective(),
+        research_planner=planner,
+        router=router,
+    )
+    assert planner.available_source_types_calls == [("customer_knowledge",)]
+    assert result.status == "ready"
+    assert sources[0].calls == 0
+    assert sources[1].calls == 1
+
+
+@pytest.mark.asyncio
 async def test_llm_planner_is_offered_only_executable_source_types():
     captured: list[list[dict]] = []
 

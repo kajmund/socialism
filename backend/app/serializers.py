@@ -59,6 +59,12 @@ def profile_from_dict(data: dict | None, fallback_name: str) -> EditablePersona:
     return EditablePersona.model_validate({**blank_profile(fallback_name).model_dump(), **data})
 
 
+def persona_avatar_url(persona: Persona) -> str | None:
+    if not persona.avatar_key:
+        return None
+    return f"/personas/{persona.id}/avatar?v={persona.avatar_revision}"
+
+
 def serialize_library_persona(persona: Persona, pops: list[str]) -> LibraryPersona:
     return LibraryPersona(
         id=persona.id,
@@ -73,6 +79,7 @@ def serialize_library_persona(persona: Persona, pops: list[str]) -> LibraryPerso
         origin=persona.origin,  # type: ignore[arg-type]
         profile=profile_from_dict(persona.profile, persona.name),
         tools=resolve_chat_tools(persona.tools, kind=persona.kind),
+        avatar_url=persona_avatar_url(persona),
     )
 
 

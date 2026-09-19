@@ -189,17 +189,17 @@ export function PopulationDetailPage({
     personaId ? `${memberBasePath}/${personaId}` : memberBasePath
   const excludeNames = members.map((m) => m.name)
 
-  function startRename() {
+  const startRename = () => {
     setNameDraft(pop.name)
     setEditingName(true)
   }
 
-  function cancelRename() {
+  const cancelRename = () => {
     setEditingName(false)
     setNameDraft(pop.name)
   }
 
-  async function savePanelName() {
+  const savePanelName = async () => {
     const name = nameDraft.trim()
     if (!name) {
       showToast(t("expertPanels.detail.nameEmpty"))

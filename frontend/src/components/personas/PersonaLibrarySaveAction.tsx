@@ -10,7 +10,7 @@ type PersonaLibrarySaveActionProps = {
   origin: PersonaOrigin | null | undefined
   onSaved?: (origin: PersonaOrigin) => void
   onToast?: (message: string) => void
-  size?: "sm" | "default"
+  size?: "sm" | "md"
   className?: string
 }
 

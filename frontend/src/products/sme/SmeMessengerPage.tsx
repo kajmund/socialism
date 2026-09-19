@@ -18,7 +18,9 @@ import { useLocale } from "@/i18n"
 import { ApiError } from "@/lib/api"
 import { SmeChatPane } from "@/products/sme/SmeChatPane"
 import { SmeConversationList } from "@/products/sme/SmeConversationList"
+import { SmeExpertEditorModal } from "@/products/sme/SmeExpertEditorModal"
 import { SmeJobsButton } from "@/products/sme/SmeJobsButton"
+import { SmeResearchJobsButton } from "@/products/sme/SmeResearchJobsButton"
 import { SmeUserMenu } from "@/products/sme/SmeUserMenu"
 import {
   smeTurnRecoveryAction,
@@ -53,6 +55,10 @@ export function SmeMessengerPage() {
   )
   const [inboxError, setInboxError] = useState<string | null>(null)
   const [chatError, setChatError] = useState<string | null>(null)
+  const [expertEditor, setExpertEditor] = useState<{
+    id: string
+    name: string
+  } | null>(null)
   const initialSelectionDone = useRef(false)
   const selectedRef = useRef<SmeInboxItem | null>(null)
   const filterRef = useRef<SmeInboxFilter>("all")
@@ -89,11 +95,31 @@ export function SmeMessengerPage() {
     })
   }
 
-  const loadInbox = useCallback(async (nextFilter: SmeInboxFilter) => {
-    setLoadingInbox(true)
+  const loadInbox = useCallback(async (
+    nextFilter: SmeInboxFilter,
+    options?: { silent?: boolean },
+  ) => {
+    if (!options?.silent) setLoadingInbox(true)
     try {
       const rows = await listSmeInbox(nextFilter)
       setInbox(rows)
+      setSelected((current) => {
+        if (!current) return current
+        return (
+          rows.find(
+            (row) =>
+              row.thread_type === current.thread_type &&
+              row.thread_id === current.thread_id,
+          ) ?? current
+        )
+      })
+      setExpertEditor((current) => {
+        if (!current) return current
+        const row = rows.find(
+          (item) => item.thread_type === "expert" && item.thread_id === current.id,
+        )
+        return row ? { id: row.thread_id, name: row.name } : current
+      })
       setInboxError(null)
       if (!initialSelectionDone.current) {
         setSelected(rows[0] ?? null)
@@ -102,7 +128,7 @@ export function SmeMessengerPage() {
     } catch (error: unknown) {
       setInboxError(errorMessage(error, t("sme.loadError")))
     } finally {
-      setLoadingInbox(false)
+      if (!options?.silent) setLoadingInbox(false)
     }
   }, [t])
 
@@ -346,6 +372,11 @@ export function SmeMessengerPage() {
     setChatError(null)
   }
 
+  function openExpertEditor(item: SmeInboxItem) {
+    if (item.thread_type !== "expert") return
+    setExpertEditor({ id: item.thread_id, name: item.name })
+  }
+
   function changeFilter(next: SmeInboxFilter) {
     setFilter(next)
     setSelected(null)
@@ -429,6 +460,7 @@ export function SmeMessengerPage() {
           {t("sme.productName")}
         </span>
         <div className="ml-auto flex items-center gap-2">
+          <SmeResearchJobsButton />
           <SmeJobsButton />
           <LocaleSwitcher locale={locale} setLocale={setLocale} t={t} />
           <SmeUserMenu />
@@ -446,6 +478,7 @@ export function SmeMessengerPage() {
             onFilterChange={changeFilter}
             onSearchChange={setSearch}
             onSelect={selectThread}
+            onOpenExpertEditor={openExpertEditor}
           />
         </div>
         <SmeChatPane
@@ -472,8 +505,24 @@ export function SmeMessengerPage() {
           suggestions={suggestions}
           onSend={send}
           onBack={() => setSelected(null)}
+          onOpenExpertEditor={
+            selected?.thread_type === "expert"
+              ? () => openExpertEditor(selected)
+              : undefined
+          }
         />
       </main>
+      {expertEditor ? (
+        <SmeExpertEditorModal
+          open
+          expertId={expertEditor.id}
+          expertName={expertEditor.name}
+          onClose={() => setExpertEditor(null)}
+          onSaved={() => {
+            void loadInbox(filterRef.current, { silent: true })
+          }}
+        />
+      ) : null}
     </div>
   )
 }

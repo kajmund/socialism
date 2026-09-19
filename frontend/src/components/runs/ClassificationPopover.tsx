@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type MouseEvent } from "react"
+import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react"
 import {
   createRunMisclassificationFlag,
   type RunTaggableTextRow,
@@ -106,7 +106,7 @@ export function ClassificationPopover({
     }
   }
 
-  function startReport(event: MouseEvent) {
+  function startReport(event: ReactMouseEvent) {
     event.stopPropagation()
     if (reported) return
     const nextKind = availableKinds.length === 1 ? availableKinds[0] : ""

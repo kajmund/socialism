@@ -48,6 +48,7 @@ export type RateResponse = {
 
 export type CompareRequest = {
   texts: string[]
+  anchor_set_id?: number
   locale?: PlaygroundLocale
   labels?: string[]
   statements?: string[]

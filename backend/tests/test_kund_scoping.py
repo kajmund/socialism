@@ -59,7 +59,7 @@ async def test_ensure_default_kunder_seeds_os_and_bolag(session: AsyncSession):
     assert projekt[0].slug == DEFAULT_PROJEKT_SLUG
 
 
-async def test_ensure_default_kunder_backfills_expertgranskning(session: AsyncSession):
+async def test_ensure_default_kunder_preserves_disabled_modules(session: AsyncSession):
     from app.serializers import utcnow
 
     now = utcnow()
@@ -78,7 +78,7 @@ async def test_ensure_default_kunder_backfills_expertgranskning(session: AsyncSe
     row = (
         await session.execute(select(Kund).where(Kund.slug == OS_DEFAULT_KUND_SLUG))
     ).scalar_one()
-    assert row.available_modules == ["politik", "expertgranskning"]
+    assert row.available_modules == ["politik"]
 
 
 async def test_default_os_customer_id_is_idempotent(session: AsyncSession):
