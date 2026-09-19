@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from app.services.expert_tools import normalize_expert_tools
 from app.services.report.thresholds import ReportThresholds
 
-PersonaOrigin = Literal["manuell", "beskrivning", "demografi", "population"]
+PersonaOrigin = Literal["manuell", "beskrivning", "demografi", "population", "research_auto"]
 PersonaKind = Literal["persona", "expert"]
 PopulationKind = Literal["persona", "expert_panel"]
 
@@ -73,10 +73,15 @@ class LibraryPersona(BaseModel):
     origin: PersonaOrigin
     profile: EditablePersona
     tools: list[str] | None = None
+    avatar_url: str | None = None
 
 
 class PersonaDetail(LibraryPersona):
     pass
+
+
+class PersonaAvatarOut(BaseModel):
+    avatar_url: str | None = None
 
 
 class PersonaCreate(BaseModel):

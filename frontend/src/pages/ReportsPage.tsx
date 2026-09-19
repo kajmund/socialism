@@ -17,11 +17,9 @@ import { ApiError } from "@/lib/api"
 import {
   isReportModuleId,
   moduleForReport,
-  reportModulesForUser,
   reportModulesFromIds,
   type ReportModuleId,
 } from "@/lib/report-modules"
-import { useKundModules } from "@/modules/useKundModules"
 import {
   matchesCustomerScope,
   type CustomerScope,
@@ -358,15 +356,11 @@ function emptyKey(module: ReportModuleId, scope: CustomerScope): MessageKey {
 
 export function ReportsPage({ scope = "admin", Shell = AdminShell }: ReportsPageProps) {
   const { t, intl } = useLocale()
-  const { user } = useAuth()
-  const { moduleIds, loading: kundLoading } = useKundModules(scope)
+  const { resolvedModules } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const { reports: allReports, connected, status: wsStatus } = useReportsRealtime()
   const { jobs } = useJobsRealtime()
-  const availableModules = useMemo(() => {
-    if (kundLoading) return reportModulesForUser(user, scope)
-    return reportModulesFromIds(moduleIds)
-  }, [kundLoading, moduleIds, scope, user])
+  const availableModules = useMemo(() => reportModulesFromIds(resolvedModules), [resolvedModules])
   const showModuleTabs = availableModules.length > 1
   const activeModule = useMemo<ReportModuleId>(() => {
     if (availableModules.length === 1) return availableModules[0]
@@ -378,9 +372,10 @@ export function ReportsPage({ scope = "admin", Shell = AdminShell }: ReportsPage
     () =>
       allReports.filter(
         (report) =>
+          availableModules.includes(moduleForReport(report)) &&
           matchesCustomerScope(report, scope) && moduleForReport(report) === activeModule,
       ),
-    [allReports, scope, activeModule],
+    [allReports, scope, activeModule, availableModules],
   )
   const reportBase = scope === "bolag" ? "/bolag/reports" : "/reports"
   const [selected, setSelected] = useState<Set<string>>(() => new Set())

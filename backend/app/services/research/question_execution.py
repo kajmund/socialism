@@ -88,6 +88,28 @@ class _QuestionState:
     assigned_to: str | None = None
 
 
+async def requeue_interrupted_research_questions(
+    session: AsyncSession,
+    *,
+    attempt_id: str,
+) -> int:
+    """Reset questions left `running` when a worker died mid-wave."""
+    questions = list(
+        (
+            await session.execute(
+                select(ResearchQuestion).where(
+                    ResearchQuestion.attempt_id == attempt_id,
+                    ResearchQuestion.status == "running",
+                )
+            )
+        ).scalars()
+    )
+    for question in questions:
+        question.status = "pending"
+        question.outcome_reason = None
+    return len(questions)
+
+
 async def execute_research_question_dag(
     factory: async_sessionmaker[AsyncSession],
     *,

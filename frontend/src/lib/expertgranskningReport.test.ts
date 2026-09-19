@@ -16,6 +16,7 @@ function report(id: string, createdAt: string): Report {
     mode: "expertgranskning",
     sources: [{ type: "expertgranskning_session", session_id: SESSION }],
     html_path: null,
+    has_source_pdf: false,
     slots_path: null,
     job_id: null,
     error: null,
@@ -27,15 +28,12 @@ function report(id: string, createdAt: string): Report {
 
 function panelJob(overrides: Partial<Job> & Pick<Job, "id" | "created_at" | "status">): Job {
   return {
-    id: overrides.id,
     customer_id: 1,
     kind: "panel_session_run",
-    status: overrides.status,
     label: "Panel",
     request: { session_id: SESSION },
     result: null,
     error: null,
-    created_at: overrides.created_at,
     started_at: overrides.started_at ?? null,
     finished_at: overrides.finished_at ?? null,
     updated_at: overrides.updated_at ?? overrides.created_at,

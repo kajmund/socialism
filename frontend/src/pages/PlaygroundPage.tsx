@@ -392,7 +392,7 @@ export function PlaygroundPage() {
       const toneSet = anchorsPayload?.tone[anchorLocale]
       const useEditedTone = dimension === "tone" && labels.length > 0 && !librarySnapshotClean
       const toneLibraryId =
-        dimension === "tone" && librarySnapshotClean && librarySetId !== ""
+        dimension === "tone" && librarySnapshotClean
           ? librarySetId
           : undefined
       const result = await comparePlaygroundSsr({
@@ -1029,7 +1029,7 @@ export function PlaygroundPage() {
             className="space-y-6"
           >
             <p className="text-sm text-muted-foreground">{t("playground.compareHint")}</p>
-            {librarySnapshotClean && librarySetId !== "" ? (
+            {librarySnapshotClean ? (
               <p className="text-sm text-muted-foreground">
                 {t("playground.compareLibraryTone", {
                   name: librarySets.find((row) => row.id === librarySetId)?.name ?? "",

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import secrets
+from random import Random
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,6 +16,7 @@ from app.services.expert_tools import resolve_chat_tools
 from app.services.panel.competency import assess_expert_competency
 from app.services.panel.expert_slots import profile_text_for_expert
 from app.services.panel.schemas import PanelExpertSlot, PanelSessionConfig
+from app.services.population_generate import sample_expert_identity
 from app.services.research.question_expert_assignment import (
     ExpertAssignmentQuestion,
     ExpertCandidateIdentity,
@@ -84,12 +87,16 @@ class UnderlagExpertCreator:
             prompts=self._prompts,
         )
         candidate = generated[0]
-        expert_id = slug_id(candidate.name)
-        while await session.get(Persona, expert_id) is not None:
-            expert_id = slug_id(candidate.name)
+        while True:
+            display_name, age, kon = sample_expert_identity(Random(secrets.randbits(32)))
+            expert_id = slug_id(display_name)
+            if await session.get(Persona, expert_id) is None:
+                break
         profile = EditablePersona(
-            name=candidate.name,
-            initials=persona_initials(candidate.name),
+            name=display_name,
+            initials=persona_initials(display_name),
+            age=str(age),
+            kön=kon,
             yrke=candidate.yrkesbakgrund,
             beskrivning=candidate.description,
             kompetensomrade=candidate.kompetensomrade,
@@ -101,8 +108,8 @@ class UnderlagExpertCreator:
             id=expert_id,
             customer_id=question.customer_id,
             kind="expert",
-            name=candidate.name,
-            age=None,
+            name=display_name,
+            age=age,
             occ=candidate.yrkesbakgrund or candidate.name,
             district="—",
             quote=candidate.description,

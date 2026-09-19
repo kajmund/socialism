@@ -1620,14 +1620,14 @@ HOW YOU WRITE COMMENTS:
         (
             "Du föreslår {count} distinkta expertprofiler för en expertpanel "
             "(modul: {module}). Varje expert ska kunna granska underlaget från "
-            "en unik kompetensvinkel. Namn är en yrkesroll, inte ett personnamn. "
+            "en unik kompetensvinkel. name är en yrkesroll, inte ett personnamn. "
             "Svara endast med JSON."
         ),
         (
             "You propose {count} distinct expert profiles for an expert panel "
             "(module: {module}). Each expert should review the source material "
-            "from a unique competence angle. Names are professional roles, not "
-            "personal names. Reply only with JSON."
+            "from a unique competence angle. name is a professional role, not a "
+            "personal name. Reply only with JSON."
         ),
     ),
     _f(

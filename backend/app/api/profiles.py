@@ -1,12 +1,10 @@
 """Authenticated profile photos and approval of exact expert-proposed edits."""
 
 import asyncio
-import io
 from typing import Literal
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile
-from PIL import Image, ImageOps, UnidentifiedImageError
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,6 +15,7 @@ from app.database.models import ActorContextProposal, Kund, UserAccount
 from app.database.session import get_session
 from app.serializers import utcnow
 from app.services.actor_profiles import serialize_proposal
+from app.services.avatar_images import MAX_AVATAR_BYTES, normalize_avatar_image
 from app.services.object_storage import (
     ObjectStorageError,
     delete_object,
@@ -28,7 +27,6 @@ from app.services.profiles import profile_values
 
 router = APIRouter(tags=["profiles"])
 AVATAR_BUCKET = "user-profiles"
-MAX_BYTES = 5 * 1024 * 1024
 
 
 async def _profile(
@@ -43,28 +41,6 @@ async def _profile(
     if not allowed:
         raise HTTPException(403, "profile_access_denied")
     return row
-
-
-def _normalize_image(data: bytes) -> bytes:
-    try:
-        with Image.open(io.BytesIO(data)) as image:
-            if (
-                image.format not in {"JPEG", "PNG", "WEBP"}
-                or image.width * image.height > 16_000_000
-                or image.width > 8192
-                or image.height > 8192
-            ):
-                raise ValueError("invalid_avatar")
-            image.load()
-            image = ImageOps.exif_transpose(image).convert("RGB")
-            image.thumbnail((1024, 1024))
-            clean = Image.new("RGB", image.size)
-            clean.paste(image)
-            out = io.BytesIO()
-            clean.save(out, format="JPEG", quality=88)
-            return out.getvalue()
-    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as exc:
-        raise HTTPException(422, "invalid_avatar") from exc
 
 
 @router.get("/profiles/{user_id}/avatar")
@@ -95,10 +71,10 @@ async def upload_avatar(
     session: AsyncSession = Depends(get_session),
 ) -> dict:
     row = await _profile(session, user, user_id, write=True)
-    data = await file.read(MAX_BYTES + 1)
-    if len(data) > MAX_BYTES:
+    data = await file.read(MAX_AVATAR_BYTES + 1)
+    if len(data) > MAX_AVATAR_BYTES:
         raise HTTPException(413, "avatar_too_large")
-    data = await asyncio.to_thread(_normalize_image, data)
+    data = await asyncio.to_thread(normalize_avatar_image, data)
     key = f"{uuid4().hex}.jpg"
     old = row.avatar_key
     try:

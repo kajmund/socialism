@@ -82,6 +82,44 @@ async def archive_finished_jobs(
     return [jobs_service.serialize_job(row) for row in rows]
 
 
+@router.post("/{job_id}/resume", response_model=JobOut)
+async def resume_job(
+    job_id: str,
+    session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
+) -> JobOut:
+    job = await jobs_service.get_job(session, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    assert_kund_access(user, job.customer_id)
+    assert_job_owner_access(user, job)
+    try:
+        job = await jobs_service.resume_failed_job(session, job)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    jobs_service.enqueue_job(job.id)
+    return jobs_service.serialize_job(job)
+
+
+@router.post("/{job_id}/rerun", response_model=JobOut, status_code=202)
+async def rerun_job(
+    job_id: str,
+    session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
+) -> JobOut:
+    job = await jobs_service.get_job(session, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    assert_kund_access(user, job.customer_id)
+    assert_job_owner_access(user, job)
+    try:
+        created = await jobs_service.rerun_finished_job(session, job)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    jobs_service.enqueue_job(created.id)
+    return jobs_service.serialize_job(created)
+
+
 @router.patch("/{job_id}", response_model=JobOut)
 async def patch_job(
     job_id: str,

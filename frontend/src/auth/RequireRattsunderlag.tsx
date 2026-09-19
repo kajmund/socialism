@@ -5,9 +5,9 @@ import { homePathForUser } from "@/lib/auth"
 
 /** Users without the rattsunderlag module belong elsewhere. */
 export function RequireRattsunderlag() {
-  const { hasModule, isAdmin, loading, resolvedModules } = useAuth()
+  const { hasModule, loading, resolvedModules } = useAuth()
   if (loading) return <AuthSplash />
-  if (!isAdmin && !hasModule("rattsunderlag")) {
+  if (!hasModule("rattsunderlag")) {
     return <Navigate to={homePathForUser(resolvedModules)} replace />
   }
   return <Outlet />

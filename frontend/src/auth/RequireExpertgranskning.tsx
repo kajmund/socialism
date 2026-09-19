@@ -5,9 +5,9 @@ import { homePathForUser } from "@/lib/auth"
 
 /** Users without the expertgranskning module belong elsewhere. */
 export function RequireExpertgranskning() {
-  const { hasModule, isAdmin, loading, resolvedModules } = useAuth()
+  const { hasModule, loading, resolvedModules } = useAuth()
   if (loading) return <AuthSplash />
-  if (!isAdmin && !hasModule("expertgranskning")) {
+  if (!hasModule("expertgranskning")) {
     return <Navigate to={homePathForUser(resolvedModules)} replace />
   }
   return <Outlet />

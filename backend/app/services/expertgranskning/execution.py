@@ -58,7 +58,10 @@ from app.services.research.question_domain import (
     create_general_question,
     create_specific_question,
 )
-from app.services.research.question_execution import execute_research_question_dag
+from app.services.research.question_execution import (
+    execute_research_question_dag,
+    requeue_interrupted_research_questions,
+)
 from app.services.research.question_expert_assignment import (
     assign_unowned_research_questions,
 )
@@ -286,26 +289,6 @@ async def _resumable_execution_attempt(
     return attempt
 
 
-async def _requeue_interrupted_questions(
-    session: AsyncSession,
-    *,
-    attempt_id: str,
-) -> None:
-    """Make questions left running by an interrupted worker resumable."""
-    questions = list(
-        (
-            await session.execute(
-                select(ResearchQuestion).where(
-                    ResearchQuestion.attempt_id == attempt_id,
-                    ResearchQuestion.status == "running",
-                )
-            )
-        ).scalars()
-    )
-    for question in questions:
-        question.status = "pending"
-
-
 async def run_expertgranskning_with_research(
     factory: async_sessionmaker[AsyncSession],
     *,
@@ -335,7 +318,7 @@ async def run_expertgranskning_with_research(
             run_id = attempt.run_id
             needs_research = attempt.status in {"created", "researching"}
             if needs_research:
-                await _requeue_interrupted_questions(session, attempt_id=attempt_id)
+                await requeue_interrupted_research_questions(session, attempt_id=attempt_id)
                 components = await bind_research_components(
                     session,
                     customer_id=customer_id,
