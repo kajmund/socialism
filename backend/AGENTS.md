@@ -84,8 +84,8 @@ Optional dependency extra `oasis` (`camel-oasis`) — not installed by default (
 
 ## Expert memory
 
-Expert long-term memory uses Mem0 OSS with embedded Chroma under `data/mem0/`;
-no container is required. Scope every operation by customer and expert. Expert
+Expert long-term memory uses Mem0 OSS with pgvector and history tables in the
+configured Supabase Postgres database. Scope every operation by customer and expert. Expert
 chat reads and writes memory, while Word review only writes deduplicated
 findings per `doc_id` in phase 1. Keep literal transcripts in their existing
 tables. See [expert-memory.md](../docs/guides/expert-memory.md).

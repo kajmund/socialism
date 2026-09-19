@@ -27,6 +27,10 @@ def test_preserves_explicit_database_driver() -> None:
     assert Settings.normalize_database_url(url) == url
 
 
+def test_application_database_url_has_no_sqlite_fallback() -> None:
+    assert Settings.model_fields["database_url"].is_required()
+
+
 def test_shared_normalizer_does_not_require_application_settings() -> None:
     assert (
         normalize_database_url("postgresql://user:pass@example.test/postgres")

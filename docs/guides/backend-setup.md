@@ -6,7 +6,7 @@ See [architecture.md](../architecture.md) for domain and run lifecycle. For inte
 
 ## Database
 
-Production uses Supabase Postgres. Local development and the fast unit-test suite may still use SQLite. SQLAlchemy models and Alembic are the schema source of truth for both dialects.
+Runtime environments use Supabase Postgres. The fast unit-test suite still uses isolated in-memory SQLite databases. SQLAlchemy models and Alembic are the schema source of truth for both dialects.
 
 ## Init
 
@@ -20,7 +20,7 @@ cp .env.example .env
 
 | Variable | Required | Default | Notes |
 | -------- | -------- | ------- | ----- |
-| `DATABASE_URL` | production | local SQLite | Use the Supabase direct/session URL for Railway. `postgres://` and `postgresql://` are normalized to the psycopg driver. Do not use the transaction pooler for the long-running backend. |
+| `DATABASE_URL` | **yes** | — | Use the Supabase direct/session URL. `postgres://` and `postgresql://` are normalized to the psycopg driver. Do not use the transaction pooler for the long-running backend. |
 | `ALLOWED_ORIGINS` | no | Vite localhost origins | Comma-separated CORS list |
 | `LLM_PROVIDER` | no | `cerebras` | `cerebras` or `deepseek`. No automatic fallback |
 | `LLM_MODEL` | no | provider default | Empty → `gpt-oss-120b` (Cerebras) or `DEEPSEEK_MODEL` |

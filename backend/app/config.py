@@ -28,7 +28,7 @@ CEREBRAS_DEFAULT_BASE_URL = "https://api.cerebras.ai/v1"
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    database_url: str = "sqlite+aiosqlite:///./data/opinionssimulator.db"
+    database_url: str
 
     @field_validator("database_url", mode="before")
     @classmethod
@@ -83,9 +83,7 @@ class Settings(BaseSettings):
     embedding_cache_dir: str = "data/embedding_cache"
     # Budskap image bytes + vision captions keyed by SHA256.
     image_cache_dir: str = "data/image_cache"
-    # Persistent expert memory (Mem0 OSS + embedded Chroma).
-    mem0_chroma_path: str = "data/mem0/chroma"
-    mem0_history_db_path: str = "data/mem0/history.db"
+    # Persistent expert memory in the configured Supabase Postgres database.
     mem0_collection_name: str = "expert_memories"
     mem0_embedding_model: str = "text-embedding-3-small"
     mem0_search_limit: int = Field(default=10, ge=1, le=50)
@@ -191,8 +189,6 @@ class Settings(BaseSettings):
         return value.strip()
 
     @field_validator(
-        "mem0_chroma_path",
-        "mem0_history_db_path",
         "mem0_collection_name",
         "mem0_embedding_model",
         "mem0_vision_model",

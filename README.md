@@ -10,7 +10,7 @@ Internal tool for testing political messaging (A/B or stimulus/control) against 
 4. Start simulations via background jobs; inspect results and **HTML reports**
 5. Browse admin surfaces: Personas, Populationer, Körningar, Budskap, Grunddata, Jobb
 
-Phase 1: admin CRUD is API-backed (SQLite). Simulation start defaults to status-only; live multi-agent (OASIS) is optional. The SPA has a static login (`admin` / `user`). Supabase Auth and Postgres come later.
+Admin CRUD is API-backed by Supabase Postgres. Simulation start defaults to status-only; live multi-agent (OASIS) is optional. Authentication uses Supabase Magic Link.
 
 ## Stack
 
@@ -19,7 +19,8 @@ Phase 1: admin CRUD is API-backed (SQLite). Simulation start defaults to status-
 | Backend | Python 3.12+ · FastAPI · SQLAlchemy · Alembic |
 | Frontend | Vite · React · TypeScript · Tailwind · shadcn |
 | Production database | Supabase Postgres |
-| Local/test database | SQLite (`aiosqlite`) under `backend/data/` |
+| Runtime database | Supabase Postgres (`psycopg`) |
+| Test database | Isolated in-memory SQLite (`aiosqlite`) |
 | Auth | Supabase Auth (email) |
 | LLM | DeepSeek (OpenAI-compatible SDK; stub persona sampling for tests) |
 | Hosting | Railway |
