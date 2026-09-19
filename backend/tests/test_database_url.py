@@ -42,7 +42,7 @@ def test_alembic_only_requires_database_configuration() -> None:
     environment = os.environ.copy()
     environment.update(
         {
-            "DATABASE_URL": "sqlite:///:memory:",
+            "MIGRATION_DATABASE_URL": "sqlite:///:memory:",
             "CEREBRAS_API_KEY": "",
             "OPENAI_API_KEY": "",
             "SUPABASE_URL": "",
