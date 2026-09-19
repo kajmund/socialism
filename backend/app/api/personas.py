@@ -1,8 +1,10 @@
+import asyncio
 import secrets
 from random import Random
+from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFile
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -29,8 +31,6 @@ from app.llm.persona_gen import llm_personas_from_description
 from app.modules.registry import MODULE_REGISTRY
 from app.schemas.domain import (
     ChatMode,
-    DistGroup,
-    DistRow,
     EditablePersona,
     ExpertMemoryListOut,
     ExpertMemoryOut,
@@ -40,24 +40,25 @@ from app.schemas.domain import (
     PersonaChatResponse,
     PersonaCreate,
     PersonaDetail,
+    PersonaAvatarOut,
     PersonaGenerateRequest,
     PersonaGenerateResponse,
     PersonaMessageDeleteResponse,
     PersonaMessageOut,
     PersonaUpdate,
-    PopulationRecipe,
     SuggestedQuestionsResponse,
 )
 from app.serializers import (
     blank_profile,
     format_date,
     persona_initials,
-    profile_from_dict,
+    persona_avatar_url,
     serialize_library_persona,
     serialize_persona_detail,
     slug_id,
     utcnow,
 )
+from app.services.avatar_images import MAX_AVATAR_BYTES, normalize_avatar_image
 from app.services.dd.default_experts import ensure_default_expert_personas
 from app.services.dd.expert_keys import persona_catalog_key
 from app.services.district_context import area_block_for_name
@@ -74,7 +75,14 @@ from app.services.expertgranskning.memory_view import (
     labeled_memory,
 )
 from app.services.kund_store import bolag_demo_customer_id, default_os_customer_id
-from app.services.object_storage import KIND_UNDERLAG
+from app.services.object_storage import (
+    KIND_UNDERLAG,
+    ObjectStorageError,
+    delete_object,
+    ensure_bucket,
+    get_object,
+    put_object,
+)
 from app.services.panel.catalog_schemas import ExpertSuggestIn
 from app.services.persona_chat import (
     ChatTurnError,
@@ -84,12 +92,13 @@ from app.services.persona_chat import (
     research_tool_handler_for_chat,
     safe_library_follow_ups,
 )
-from app.services.population_generate import stub_persona
+from app.services.population_generate import politik_identity_recipe, sample_expert_identity, stub_persona
 from app.services.prompt_store import require_active_prompts, require_prompts_for_persona
 from app.services.stored_objects import get_stored_object, read_stored_bytes
 from app.services.underlag_extract import ensure_underlag_extracted
 
 router = APIRouter(prefix="/personas", tags=["personas"])
+PERSONA_AVATAR_BUCKET = "persona-avatars"
 
 
 def _own_underlag(row: StoredObject | None, *, customer_id: int, user_id: str) -> StoredObject:
@@ -164,44 +173,7 @@ def _serialize_message(row: PersonaMessage) -> PersonaMessageOut:
 
 
 def _stub_candidates(body: PersonaGenerateRequest) -> list[EditablePersona]:
-    recipe = PopulationRecipe(
-        size=body.count,
-        dist={
-            "age": DistGroup(
-                label="Ålder",
-                rows=[
-                    DistRow(k="ung", l="Ung", v=30),
-                    DistRow(k="medel", l="Medel", v=40),
-                    DistRow(k="aldre", l="Äldre", v=30),
-                ],
-            ),
-            "district": DistGroup(
-                label="Ort",
-                rows=[
-                    DistRow(k="centrum", l="Centrum", v=50),
-                    DistRow(k="ovriga", l="Övriga", v=50),
-                ],
-            ),
-            "occupation": DistGroup(
-                label="Yrke",
-                rows=[
-                    DistRow(k="vard", l="Vård", v=50),
-                    DistRow(k="ovrigt", l="Övrigt", v=50),
-                ],
-            ),
-            "leaning": DistGroup(
-                label="Lutning",
-                rows=[
-                    DistRow(k="vanster", l="V", v=20),
-                    DistRow(k="mvanster", l="MV", v=20),
-                    DistRow(k="mitt", l="M", v=20),
-                    DistRow(k="mhoger", l="MH", v=20),
-                    DistRow(k="hoger", l="H", v=20),
-                ],
-            ),
-        },
-        seed=secrets.randbits(16),
-    )
+    recipe = politik_identity_recipe(seed=secrets.randbits(16), size=body.count)
     rng = Random(recipe.seed)
     out: list[EditablePersona] = []
     for _ in range(body.count):
@@ -337,17 +309,96 @@ async def get_persona(
     return serialize_persona_detail(persona, pops)
 
 
+@router.get("/{persona_id}/avatar")
+async def read_persona_avatar(
+    persona_id: str,
+    user: UserAccount = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> Response:
+    persona = await _get_persona(session, persona_id)
+    assert_kund_access(user, persona.customer_id)
+    if not persona.avatar_key:
+        raise HTTPException(404, "avatar_not_found")
+    try:
+        data, content_type = await get_object(PERSONA_AVATAR_BUCKET, persona.avatar_key)
+    except ObjectStorageError as exc:
+        raise HTTPException(502, "avatar_storage_error") from exc
+    return Response(
+        data,
+        media_type=content_type,
+        headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"},
+    )
+
+
+@router.post("/{persona_id}/avatar", response_model=PersonaAvatarOut)
+async def upload_persona_avatar(
+    persona_id: str,
+    file: UploadFile,
+    user: UserAccount = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> PersonaAvatarOut:
+    persona = await _get_persona(session, persona_id)
+    assert_kund_access(user, persona.customer_id)
+    if persona.kind != "expert":
+        raise HTTPException(422, "persona_avatar_expert_only")
+    data = await file.read(MAX_AVATAR_BYTES + 1)
+    if len(data) > MAX_AVATAR_BYTES:
+        raise HTTPException(413, "avatar_too_large")
+    data = await asyncio.to_thread(normalize_avatar_image, data)
+    key = f"{persona.customer_id}/{persona.id}/{uuid4().hex}.jpg"
+    old = persona.avatar_key
+    try:
+        await ensure_bucket(PERSONA_AVATAR_BUCKET)
+        await put_object(PERSONA_AVATAR_BUCKET, key, data, "image/jpeg")
+    except ObjectStorageError as exc:
+        raise HTTPException(502, "avatar_storage_error") from exc
+    result = await session.execute(
+        update(Persona)
+        .where(Persona.id == persona.id, Persona.avatar_revision == persona.avatar_revision)
+        .values(avatar_key=key, avatar_revision=Persona.avatar_revision + 1)
+    )
+    if result.rowcount != 1:
+        await session.rollback()
+        await delete_object(PERSONA_AVATAR_BUCKET, key)
+        raise HTTPException(409, "persona_changed")
+    await session.commit()
+    await session.refresh(persona)
+    if old:
+        await delete_object(PERSONA_AVATAR_BUCKET, old)
+    return PersonaAvatarOut(avatar_url=persona_avatar_url(persona))
+
+
+@router.delete("/{persona_id}/avatar", response_model=PersonaAvatarOut)
+async def remove_persona_avatar(
+    persona_id: str,
+    user: UserAccount = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> PersonaAvatarOut:
+    persona = await _get_persona(session, persona_id)
+    assert_kund_access(user, persona.customer_id)
+    if persona.kind != "expert":
+        raise HTTPException(422, "persona_avatar_expert_only")
+    old = persona.avatar_key
+    result = await session.execute(
+        update(Persona)
+        .where(Persona.id == persona.id, Persona.avatar_revision == persona.avatar_revision)
+        .values(avatar_key=None, avatar_revision=Persona.avatar_revision + 1)
+    )
+    if result.rowcount != 1:
+        raise HTTPException(409, "persona_changed")
+    await session.commit()
+    await session.refresh(persona)
+    if old:
+        await delete_object(PERSONA_AVATAR_BUCKET, old)
+    return PersonaAvatarOut(avatar_url=None)
+
+
 @router.post("", response_model=PersonaDetail, status_code=201)
 async def create_persona(
     body: PersonaCreate,
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> PersonaDetail:
-    persona_id = body.id or slug_id(body.name)
-    existing = await session.get(Persona, persona_id)
-    if existing is not None:
-        raise HTTPException(status_code=409, detail="Persona id already exists")
-
     if body.profile is not None:
         profile = body.profile
     elif body.kind == "expert":
@@ -369,6 +420,27 @@ async def create_persona(
             yrke=body.occ,
         )
 
+    name = body.name
+    age = body.age
+    if body.kind == "expert":
+        while True:
+            display_name, sampled_age, kon = sample_expert_identity(Random(secrets.randbits(32)))
+            persona_id = body.id or slug_id(display_name)
+            if await session.get(Persona, persona_id) is None:
+                break
+        name = display_name
+        age = sampled_age
+        profile.name = display_name
+        profile.initials = persona_initials(display_name)
+        profile.age = str(sampled_age)
+        profile.kön = kon
+    else:
+        persona_id = body.id or slug_id(body.name)
+
+    existing = await session.get(Persona, persona_id)
+    if existing is not None:
+        raise HTTPException(status_code=409, detail="Persona id already exists")
+
     if body.kind == "expert":
         customer_id = body.customer_id or await bolag_demo_customer_id(session)
         occ = body.occ or profile.yrkesbakgrund or profile.yrke or "—"
@@ -387,8 +459,8 @@ async def create_persona(
         id=persona_id,
         customer_id=customer_id,
         kind=body.kind,
-        name=body.name,
-        age=body.age,
+        name=name,
+        age=age,
         occ=occ,
         district=body.district,
         quote=quote,
@@ -944,6 +1016,7 @@ async def delete_persona(
 ) -> None:
     persona = await _get_persona(session, persona_id)
     assert_kund_access(user, persona.customer_id)
+    old_key = persona.avatar_key
     result = await session.execute(
         select(PopulationMember)
         .options(selectinload(PopulationMember.population))
@@ -964,3 +1037,5 @@ async def delete_persona(
         population.size = int(count.scalar_one())
         population.updated_at = utcnow()
     await session.commit()
+    if old_key:
+        await delete_object(PERSONA_AVATAR_BUCKET, old_key)

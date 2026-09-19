@@ -3,7 +3,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import { defineConfig, type ProxyOptions } from 'vite'
+import { defineConfig, type ProxyOptions, type UserConfig } from 'vite'
+import type { UserConfig as VitestConfig } from 'vitest/config'
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url))
 const backendTarget = 'http://127.0.0.1:8000'
@@ -54,7 +55,7 @@ const devProxy: Record<string, ProxyOptions> = Object.fromEntries(
 )
 devProxy['/ws'] = { target: backendTarget, ws: true, changeOrigin: true }
 
-export default defineConfig({
+const config: UserConfig & Pick<VitestConfig, 'test'> = {
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
@@ -71,4 +72,6 @@ export default defineConfig({
     strictPort: false,
     proxy: devProxy,
   },
-})
+}
+
+export default defineConfig(config)

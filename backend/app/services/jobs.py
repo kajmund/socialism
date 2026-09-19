@@ -73,6 +73,10 @@ logger = logging.getLogger(__name__)
 _simulation_job_semaphore: asyncio.Semaphore | None = None
 _simulation_job_semaphore_limit: int | None = None
 
+RESUMABLE_JOB_KINDS = frozenset({"expert_chat_research"})
+RERUNNABLE_JOB_KINDS = frozenset({"expert_chat_research"})
+FINISHED_JOB_STATUSES = frozenset({"succeeded", "failed"})
+
 
 _session_factory: async_sessionmaker[AsyncSession] | None = None
 
@@ -865,6 +869,40 @@ async def list_jobs(
 
 async def get_job(session: AsyncSession, job_id: str) -> Job | None:
     return await session.get(Job, job_id)
+
+
+async def resume_failed_job(session: AsyncSession, job: Job) -> Job:
+    """Re-queue a failed research job so the existing Attempt can continue."""
+    if job.status != "failed":
+        raise ValueError("Only failed jobs can be resumed")
+    if job.kind not in RESUMABLE_JOB_KINDS:
+        raise ValueError(f"Job kind cannot be resumed: {job.kind}")
+    job.status = "pending"
+    job.error = None
+    job.started_at = None
+    job.finished_at = None
+    job.archived_at = None
+    job.updated_at = utcnow()
+    await session.commit()
+    await session.refresh(job)
+    await publish_job(job)
+    return job
+
+
+async def rerun_finished_job(session: AsyncSession, job: Job) -> Job:
+    """Queue a new research job with the same request (fresh Attempt and plan)."""
+    if job.status not in FINISHED_JOB_STATUSES:
+        raise ValueError("Only finished jobs can be rerun")
+    if job.kind not in RERUNNABLE_JOB_KINDS:
+        raise ValueError(f"Job kind cannot be rerun: {job.kind}")
+    return await create_job(
+        session,
+        JobCreate(
+            kind="expert_chat_research",
+            label=job.label,
+            request=dict(job.request or {}),
+        ),
+    )
 
 
 async def set_job_archived(session: AsyncSession, job: Job, archived: bool) -> Job:

@@ -322,3 +322,8 @@ async def test_underlag_creator_reuses_existing_generator_and_persists_persona(s
     assert persona is not None
     assert persona.origin == "research_auto"
     assert persona.profile["kompetensomrade"] == "Svensk skatterätt"
+    assert persona.name != "Skattejurist"
+    assert " " in persona.name
+    assert persona.age is not None
+    assert 30 <= persona.age <= 60
+    assert persona.profile["age"] == str(persona.age)

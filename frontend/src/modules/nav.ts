@@ -95,20 +95,10 @@ export function brandToForModules(moduleIds: readonly string[]): string {
 export function buildSidebarNav(opts: {
   moduleIds: readonly string[]
   showTools: boolean
-  /** Admin always gets these in the main shell. Bolag surfaces stay on the kund's modules. */
-  injectToolModules?: boolean
 }): ShellNavSection[] {
-  const moduleIds = [...opts.moduleIds]
-  const injectToolModules = opts.injectToolModules ?? opts.showTools
-  if (injectToolModules && !moduleIds.includes("expertgranskning")) {
-    moduleIds.push("expertgranskning")
-  }
-  if (injectToolModules && !moduleIds.includes("rattsunderlag")) {
-    moduleIds.push("rattsunderlag")
-  }
   const moduleSections: ShellNavSection[] = []
   const beforeSharedSections: ShellNavSection[] = []
-  for (const manifest of sortManifestsForNav(manifestsForIds(moduleIds))) {
+  for (const manifest of sortManifestsForNav(manifestsForIds(opts.moduleIds))) {
     for (const section of moduleNavSections(manifest, opts.moduleIds)) {
       if (section.beforeShared) beforeSharedSections.push(section)
       else moduleSections.push(section)

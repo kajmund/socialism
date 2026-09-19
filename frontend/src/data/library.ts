@@ -19,6 +19,8 @@ export function originLabel(origin: PersonaOrigin, t: Translate): string {
       return t("personas.origin.fromDemographics")
     case "population":
       return t("personas.origin.viaPopulation")
+    case "research_auto":
+      return t("personas.origin.researchAuto")
     default: {
       const exhaustive: never = origin
       return exhaustive

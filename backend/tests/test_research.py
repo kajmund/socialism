@@ -42,6 +42,7 @@ from app.services.research import (
     provenance_from_hit,
     search_scope,
 )
+from app.services.research.provider import filter_source_types_for_scope
 from app.services.research.registry import set_standard_capability_descriptors
 from app.services.research.router import ResearchRouter as RouterImpl
 from tests.knowledge_fakes import FakeEmbeddingProvider, fake_embed_text
@@ -388,17 +389,33 @@ async def test_missing_customer_scope_fails_closed():
         KnowledgeScope(case_id="case-1", module="dd")
 
 
-async def test_case_knowledge_without_case_id_fails_closed_as_error():
+async def test_case_knowledge_without_case_id_is_unavailable():
     provider = RecordingKnowledgeProvider([_hit()])
     registry = ResearchSourceRegistry()
     registry.register(KnowledgeResearchSource(provider, source_type="case_knowledge"))
     router = ResearchRouter(registry)
     evidence = await router.execute_need(_need("case_knowledge"), _context(case_id=None))
-    assert [item.status for item in evidence] == ["error"]
-    assert evidence[0].metadata["error_type"] == "ResearchScopeRequiredError"
-    assert "case_id" in (evidence[0].excerpt or "")
+    assert [item.status for item in evidence] == ["not_found"]
+    assert evidence[0].metadata["error_type"] == "ResearchCapabilityUnavailableError"
+    assert evidence[0].metadata["reason"] == "no_matching_provider"
     assert provider.queries == []
     assert "acme/" not in (evidence[0].excerpt or "")
+
+
+def test_filter_source_types_drops_case_knowledge_without_case():
+    offered = filter_source_types_for_scope(
+        ("case_knowledge", "customer_knowledge", "swedish_law"),
+        case_id=None,
+        descriptors=(
+            knowledge_adapter_descriptor("supabase", "case_knowledge"),
+            knowledge_adapter_descriptor("supabase", "customer_knowledge"),
+        ),
+    )
+    assert offered == ("customer_knowledge", "swedish_law")
+    assert filter_source_types_for_scope(
+        ("case_knowledge", "customer_knowledge"),
+        case_id="case-1",
+    ) == ("case_knowledge", "customer_knowledge")
 
 
 async def test_empty_search_is_not_found():

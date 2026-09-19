@@ -31,8 +31,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { useLocale, type MessageKey } from "@/i18n"
 import { ApiError } from "@/lib/api"
 import { formatElapsed } from "@/lib/formatDuration"
-import { moduleForReport, reportModulesForUser, reportModulesFromIds } from "@/lib/report-modules"
-import { useKundModules } from "@/modules/useKundModules"
+import { moduleForReport, reportModulesFromIds } from "@/lib/report-modules"
 import { useJobsRealtime } from "@/realtime/JobsRealtimeProvider"
 import { useReportsRealtime } from "@/realtime/ReportsRealtimeProvider"
 
@@ -84,9 +83,8 @@ export function ReportPage({
   const location = useLocation()
   const navigate = useNavigate()
   const { t } = useLocale()
-  const { user } = useAuth()
+  const { resolvedModules } = useAuth()
   const isBolagReport = embedded || location.pathname.startsWith("/bolag/reports/")
-  const { moduleIds, loading: kundLoading } = useKundModules(isBolagReport ? "bolag" : "admin")
   const { jobs } = useJobsRealtime()
   const reportsListLabel = isBolagReport ? t("bolag.nav.reports") : t("reports.backToList")
   const { reports } = useReportsRealtime()
@@ -102,10 +100,7 @@ export function ReportPage({
       has_source_pdf: Boolean(wsReport.has_source_pdf || fetchedReport.has_source_pdf),
     }
   }, [fetchedReport, wsReport])
-  const reportModules = useMemo(() => {
-    if (kundLoading) return reportModulesForUser(user, isBolagReport ? "bolag" : "admin")
-    return reportModulesFromIds(moduleIds)
-  }, [isBolagReport, kundLoading, moduleIds, user])
+  const reportModules = useMemo(() => reportModulesFromIds(resolvedModules), [resolvedModules])
   const reportsListPath = isBolagReport
     ? "/bolag/reports"
     : report && reportModules.length > 1

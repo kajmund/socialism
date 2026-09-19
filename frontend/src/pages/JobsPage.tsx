@@ -3,6 +3,8 @@ import { Link } from "react-router-dom"
 import {
   archiveFinishedJobs,
   listJobs,
+  rerunJob,
+  resumeJob,
   setJobArchived,
   type Job,
   type JobStatus,
@@ -226,6 +228,52 @@ function isFinished(job: Job): boolean {
   return job.status === "succeeded" || job.status === "failed"
 }
 
+function canResumeJob(job: Job): boolean {
+  return job.kind === "expert_chat_research" && job.status === "failed"
+}
+
+function canRerunJob(job: Job): boolean {
+  return job.kind === "expert_chat_research" && isFinished(job)
+}
+
+function JobResumeButton({
+  job,
+  busy,
+  onResume,
+  t,
+}: {
+  job: Job
+  busy: boolean
+  onResume: (job: Job) => void
+  t: Translate
+}) {
+  if (!canResumeJob(job)) return null
+  return (
+    <button type="button" disabled={busy} onClick={() => onResume(job)}>
+      {t("jobs.resume")}
+    </button>
+  )
+}
+
+function JobRerunButton({
+  job,
+  busy,
+  onRerun,
+  t,
+}: {
+  job: Job
+  busy: boolean
+  onRerun: (job: Job) => void
+  t: Translate
+}) {
+  if (!canRerunJob(job)) return null
+  return (
+    <button type="button" disabled={busy} onClick={() => onRerun(job)}>
+      {t("jobs.rerun")}
+    </button>
+  )
+}
+
 function JobArchiveButton({
   job,
   busy,
@@ -256,10 +304,16 @@ function JobActionLinks({
   job,
   t,
   paths,
+  busy,
+  onResume,
+  onRerun,
 }: {
   job: Job
   t: Translate
   paths: JobLinkPaths
+  busy?: boolean
+  onResume?: (job: Job) => void
+  onRerun?: (job: Job) => void
 }) {
   const { popId, runId, reportId, sessionId, researchAttemptId } = jobIds(job)
   const links: ReactNode[] = []
@@ -333,6 +387,16 @@ function JobActionLinks({
       </Link>,
     )
   }
+  if (onResume) {
+    links.push(
+      <JobResumeButton key="resume" job={job} busy={busy === true} onResume={onResume} t={t} />,
+    )
+  }
+  if (onRerun) {
+    links.push(
+      <JobRerunButton key="rerun" job={job} busy={busy === true} onRerun={onRerun} t={t} />,
+    )
+  }
   if ((job.status === "pending" || job.status === "running") && job.kind === "run_simulate" && runId != null) {
     links.push(
       <Link key="run" to={`${paths.runs}/${runId}/edit?tab=results`}>
@@ -399,6 +463,8 @@ function JobCard({
   paths,
   busy,
   onArchive,
+  onResume,
+  onRerun,
 }: {
   job: Job
   t: Translate
@@ -406,6 +472,8 @@ function JobCard({
   paths: JobLinkPaths
   busy: boolean
   onArchive: (job: Job, archived: boolean) => void
+  onResume: (job: Job) => void
+  onRerun: (job: Job) => void
 }) {
   const { popId, runId, reportId } = jobIds(job)
   const ddHref = ddCampaignHref(job)
@@ -531,7 +599,7 @@ function JobCard({
             ) : null}
           </div>
         )}
-        {isFinished(job) || job.archived_at ? (
+        {isFinished(job) || job.archived_at || canResumeJob(job) || canRerunJob(job) ? (
           <div
             style={{
               marginTop: 12,
@@ -542,6 +610,8 @@ function JobCard({
               alignItems: "center",
             }}
           >
+            <JobResumeButton job={job} busy={busy} onResume={onResume} t={t} />
+            <JobRerunButton job={job} busy={busy} onRerun={onRerun} t={t} />
             <JobArchiveButton job={job} busy={busy} onArchive={onArchive} t={t} />
           </div>
         ) : null}
@@ -557,6 +627,8 @@ function JobListRow({
   paths,
   busy,
   onArchive,
+  onResume,
+  onRerun,
 }: {
   job: Job
   t: Translate
@@ -564,6 +636,8 @@ function JobListRow({
   paths: JobLinkPaths
   busy: boolean
   onArchive: (job: Job, archived: boolean) => void
+  onResume: (job: Job) => void
+  onRerun: (job: Job) => void
 }) {
   const duration = formatJobDuration(job, t)
   const whenCreated = formatWhen(job.created_at, intl, t("common.emDash"))
@@ -588,7 +662,14 @@ function JobListRow({
       </span>
       <div className="cell">{meta}</div>
       <div className="admin-list-actions">
-        <JobActionLinks job={job} t={t} paths={paths} />
+        <JobActionLinks
+          job={job}
+          t={t}
+          paths={paths}
+          busy={busy}
+          onResume={onResume}
+          onRerun={onRerun}
+        />
         <JobArchiveButton job={job} busy={busy} onArchive={onArchive} t={t} />
       </div>
     </div>
@@ -598,9 +679,14 @@ function JobListRow({
 export type JobsPageProps = {
   scope?: CustomerScope
   Shell?: ShellComponent
+  embedded?: boolean
 }
 
-export function JobsPage({ scope = "admin", Shell = AdminShell }: JobsPageProps) {
+export function JobsPage({
+  scope = "admin",
+  Shell = AdminShell,
+  embedded = false,
+}: JobsPageProps) {
   const { t, intl } = useLocale()
   const { jobs: liveJobs, applyJob, connected, status } = useJobsRealtime()
   const [showArchived, setShowArchived] = useState(false)
@@ -660,6 +746,33 @@ export function JobsPage({ scope = "admin", Shell = AdminShell }: JobsPageProps)
       : null
   const reconnecting = !connected && status !== "open"
 
+  async function onResume(job: Job) {
+    setBusyId(job.id)
+    try {
+      const updated = await resumeJob(job.id)
+      applyJob(updated)
+      setArchivedJobs((prev) => prev.filter((row) => row.id !== updated.id))
+      setToast(t("jobs.resumedToast"))
+    } catch (err) {
+      setToast(err instanceof ApiError ? err.message : t("jobs.resumeError"))
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function onRerun(job: Job) {
+    setBusyId(job.id)
+    try {
+      const created = await rerunJob(job.id)
+      applyJob(created)
+      setToast(t("jobs.rerunToast"))
+    } catch (err) {
+      setToast(err instanceof ApiError ? err.message : t("jobs.rerunError"))
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   async function onArchive(job: Job, archived: boolean) {
     setBusyId(job.id)
     try {
@@ -713,21 +826,23 @@ export function JobsPage({ scope = "admin", Shell = AdminShell }: JobsPageProps)
 
   return (
     <Shell>
-      <div className="wrap admin-page">
+      <div className={"wrap admin-page" + (embedded ? " admin-page-embedded" : "")}>
         <div className="admin-page-chrome">
-          <div className="section-head">
-            <span className="kicker">{t("jobs.kicker")}</span>
-            <h1
-              style={{
-                font: "var(--text-h1)",
-                fontFamily: "'Bai Jamjuree', sans-serif",
-                fontWeight: 400,
-              }}
-            >
-              {t("jobs.title")}
-            </h1>
-            <p>{scope === "bolag" ? t("jobs.introBolag") : t("jobs.intro")}</p>
-          </div>
+          {!embedded ? (
+            <div className="section-head">
+              <span className="kicker">{t("jobs.kicker")}</span>
+              <h1
+                style={{
+                  font: "var(--text-h1)",
+                  fontFamily: "'Bai Jamjuree', sans-serif",
+                  fontWeight: 400,
+                }}
+              >
+                {t("jobs.title")}
+              </h1>
+              <p>{scope === "bolag" ? t("jobs.introBolag") : t("jobs.intro")}</p>
+            </div>
+          ) : null}
 
           <div className="controls-row">
             <div className="controls-left" style={{ alignItems: "center", gap: 12 }}>
@@ -805,6 +920,8 @@ export function JobsPage({ scope = "admin", Shell = AdminShell }: JobsPageProps)
                   paths={paths}
                   busy={busyId === job.id}
                   onArchive={onArchive}
+                  onResume={onResume}
+                  onRerun={onRerun}
                 />
               ))}
             </div>
@@ -819,6 +936,8 @@ export function JobsPage({ scope = "admin", Shell = AdminShell }: JobsPageProps)
                   paths={paths}
                   busy={busyId === job.id}
                   onArchive={onArchive}
+                  onResume={onResume}
+                  onRerun={onRerun}
                 />
               ))}
             </div>

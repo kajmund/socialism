@@ -47,7 +47,7 @@ export function SuggestExpertsModal({
     }
   }, [open])
 
-  function selectionUsable(value: UnderlagSelection | null): boolean {
+  function selectionUsable(value: UnderlagSelection | null): value is UnderlagSelection {
     if (value == null) return false
     return value.status === "pending" || value.status === "ok"
   }

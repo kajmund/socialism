@@ -1,6 +1,7 @@
 import { useAuth } from "@/auth/AuthProvider"
 import { ProfileProposals } from "@/components/profiles/ProfileProposals"
-import { ArrowLeft, UserRound, UsersRound } from "lucide-react"
+import { ArrowLeft, UsersRound } from "lucide-react"
+import { ExpertAvatar } from "@/components/experts/ExpertAvatar"
 import { useEffect, useState } from "react"
 import { uploadMessageImageRaw } from "@/api/messages"
 import type { SmeInboxItem, SmeMessage } from "@/api/sme"
@@ -23,6 +24,7 @@ type Props = {
   suggestions: string[]
   onSend: (message: string, imageSha256?: string | null) => boolean
   onBack: () => void
+  onOpenExpertEditor?: () => void
 }
 
 export function SmeChatPane({
@@ -37,6 +39,7 @@ export function SmeChatPane({
   suggestions,
   onSend,
   onBack,
+  onOpenExpertEditor,
 }: Props) {
   const { refreshProfile } = useAuth()
   const { t } = useLocale()
@@ -112,13 +115,25 @@ export function SmeChatPane({
         >
           <ArrowLeft size={21} />
         </button>
-        <span className="grid size-10 shrink-0 place-items-center rounded-[var(--radius-md)] bg-db-ink-950 text-db-gold-500">
-          {thread.thread_type === "panel" ? (
+        {thread.thread_type === "expert" ? (
+          <button
+            type="button"
+            className="shrink-0 transition-opacity hover:opacity-90"
+            aria-label={t("sme.expertEditorAria", { name: thread.name })}
+            onClick={() => onOpenExpertEditor?.()}
+          >
+            <ExpertAvatar
+              avatarUrl={thread.avatar_url}
+              name={thread.name}
+              className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-[var(--radius-md)] bg-db-ink-950 text-db-gold-500"
+              iconSize={20}
+            />
+          </button>
+        ) : (
+          <span className="grid size-10 shrink-0 place-items-center rounded-[var(--radius-md)] bg-db-ink-950 text-db-gold-500">
             <UsersRound size={20} aria-hidden="true" />
-          ) : (
-            <UserRound size={20} aria-hidden="true" />
-          )}
-        </span>
+          </span>
+        )}
         <span className="min-w-0 flex-1">
           <strong className="block truncate font-[var(--font-display)] text-base font-medium text-[color:var(--text-body)]">
             {thread.name}
@@ -130,7 +145,7 @@ export function SmeChatPane({
           </span>
         </span>
         {thread.thread_type === "expert" ? (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <SmeExpertToolsButton
               key={`tools:${thread.thread_id}`}
               personaId={thread.thread_id}

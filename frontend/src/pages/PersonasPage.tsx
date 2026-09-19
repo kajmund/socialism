@@ -527,7 +527,13 @@ export function PersonasPage() {
         (a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime(),
       )
     }
-    if (sort === "age") next = [...next].sort((a, b) => a.age - b.age)
+    if (sort === "age") {
+      next = [...next].sort((a, b) => {
+        if (a.age == null) return b.age == null ? 0 : 1
+        if (b.age == null) return -1
+        return a.age - b.age
+      })
+    }
     if (
       sort === "kön" ||
       sort === "ort" ||

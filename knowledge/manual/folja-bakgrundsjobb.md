@@ -17,7 +17,7 @@ Längre arbeten — populationsgenerering, simulering och rapportskapande — k�
 4. Per jobb ser du typ (**Populationsgenerering**, **Simulering**, **Rapport**, **Due Diligence-panel**, **Due Diligence-research**, **Due Diligence-sourcing**, **Rättsunderlag**, **Expertresearch** eller **Dokumentbearbetning**), status, varaktighet och eventuella felmeddelanden. I SME öppnas samma lista från portföljikonen i chatten.
 5. **Due Diligence-sourcing** körs när du söker bolag i en kampanj — följ länken tillbaka till kampanjen när jobbet är klart.
 6. **Rättsunderlag** körs när du ställer en rättsfråga — öppna resultatet via länken till rättsunderlagssidan eller rapporten om en rapport beställdes.
-7. När ett jobb är klart eller misslyckat: följ länken till population, körning, rapport, kampanj eller rättsunderlag.
+7. När ett jobb är klart eller misslyckat: följ länken till population, körning, rapport, kampanj eller rättsunderlag. Ett misslyckat **Expertresearch**-jobb kan **återupptas** så att researchen fortsätter från det som redan sparats, till exempel efter en serveromstart. En avslutad **Expertresearch** kan **köras om** och startar då som ett nytt jobb med samma fråga.
 8. Vid populationsgenerering kan **varningar** visas om något avvek från receptet.
 9. Avslutade jobb (klara eller misslyckade) kan **arkiveras** så de försvinner från listan. Resultatet — population, körning eller rapport — ligger kvar. Pågående jobb kan inte arkiveras.
 10. **Arkivera avslutade** gömmer alla klara och misslyckade jobb på en gång. **Visa arkiverade** tar fram dem igen, och **Återställ** lägger tillbaka ett enskilt jobb i listan.

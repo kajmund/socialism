@@ -16,7 +16,9 @@ class SmeInboxItem(BaseModel):
     name: str
     initials: str
     subtitle: str
+    kompetensomrade: str = ""
     preview: str
+    avatar_url: str | None = None
     last_message_at: datetime | None
     unread_count: int
     member_names: list[str] = Field(default_factory=list)

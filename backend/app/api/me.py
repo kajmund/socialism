@@ -23,10 +23,10 @@ def _modules_from_kund(kund: Kund | None) -> list[str]:
 
 
 def _with_admin_modules(modules: list[str], role: str) -> list[str]:
-    """Admin always has Expertgranskning, even before a kund checkbox is ticked."""
-    if role != "admin" or "expertgranskning" in modules:
+    """Resolve admin grants here so navigation and route guards use the same list."""
+    if role != "admin":
         return modules
-    return [*modules, "expertgranskning"]
+    return list(dict.fromkeys([*modules, "expertgranskning", "rattsunderlag"]))
 
 
 @router.get("/me", response_model=MeOut)

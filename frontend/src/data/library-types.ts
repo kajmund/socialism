@@ -1,4 +1,4 @@
-export type PersonaOrigin = "manuell" | "beskrivning" | "demografi" | "population"
+export type PersonaOrigin = "manuell" | "beskrivning" | "demografi" | "population" | "research_auto"
 export type PersonaKind = "persona" | "expert"
 
 export type LibraryPersona = {
@@ -14,6 +14,7 @@ export type LibraryPersona = {
   origin: PersonaOrigin
   profile: EditablePersona
   tools?: string[] | null
+  avatar_url?: string | null
 }
 
 export type PopulationSummary = {
