@@ -10,15 +10,15 @@ This file is the source of truth for any coding agent (Claude Code, Cursor, Code
 
 - **Backend:** Python + FastAPI
 - **Frontend:** Vite + React SPA + TypeScript
-- **Production database:** Supabase Postgres via SQLAlchemy + `psycopg`
+- **Persistent database:** Supabase Postgres via SQLAlchemy + `psycopg`
 - **Local/test database:** SQLite via SQLAlchemy + `aiosqlite`
 - **Migrations:** SQLAlchemy models + Alembic from the backend
 - **Auth:** Supabase magic link (email). Role + kund binding live in `user_accounts` on the backend.
-- **Hosting:** Railway (backend service + frontend service)
+- **Runtime:** Local development only; no hosting target has been selected
 - **LLM:** Cerebras `gpt-oss-120b` default via OpenAI-compatible SDK; DeepSeek retained for A/B (`LLM_PROVIDER=deepseek`)
 - **Embeddings (SSR):** OpenAI `text-embedding-3-large` (separate `OPENAI_API_KEY`)
 
-Stack is locked unless explicitly changed. Production database code and migrations must support PostgreSQL; keep SQLite support for local development and fast tests.
+The application stack is locked unless explicitly changed. Hosting is not part of that lock: no provider has been selected. Persistent database code and migrations must support PostgreSQL; keep SQLite support for local development and fast tests.
 
 ## Repo layout
 

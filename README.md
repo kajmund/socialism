@@ -1,4 +1,4 @@
-# Opinionssimulator
+# Socialism
 
 Internal tool for testing political messaging (A/B or stimulus/control) against AI agent populations grounded in local civic context. Swedish UI.
 
@@ -18,12 +18,15 @@ Admin CRUD is API-backed by Supabase Postgres. Simulation start defaults to stat
 | ----- | ------ |
 | Backend | Python 3.12+ · FastAPI · SQLAlchemy · Alembic |
 | Frontend | Vite · React · TypeScript · Tailwind · shadcn |
-| Production database | Supabase Postgres |
-| Runtime database | Supabase Postgres (`psycopg`) |
-| Test database | Isolated in-memory SQLite (`aiosqlite`) |
+| Persistent database | Supabase Postgres (`psycopg`) |
+| Local/test database | SQLite (`aiosqlite`) |
 | Auth | Supabase Auth (email) |
-| LLM | DeepSeek (OpenAI-compatible SDK; stub persona sampling for tests) |
-| Hosting | Railway |
+| LLM | Cerebras by default; DeepSeek for A/B; stub persona sampling in tests |
+| Runtime | Local only; no deployment target selected |
+
+## Deployment status
+
+The frontend and backend currently run only on a developer machine. There is no hosted application environment or hosting project associated with this repository. Supabase and optional integrations can still be remote services configured through local environment variables. Select and document a hosting target before treating any environment as production.
 
 ## Repo layout
 
@@ -72,7 +75,7 @@ cd ..
 make start
 ```
 
-Open [http://localhost:5173/login](http://localhost:5173/login) (`admin`/`admin` or `user`/`user`). API docs: [http://localhost:8000/docs](http://localhost:8000/docs).
+Open [http://localhost:5173/login](http://localhost:5173/login) for Supabase magic-link sign-in. For the local shortcut, set `ALLOW_LOCAL_LOGIN=true` and `LOCAL_AUTH_JWT_SECRET` in `backend/.env`, restart the backend, and open [http://localhost:5173/dev-in](http://localhost:5173/dev-in). API docs: [http://localhost:8000/docs](http://localhost:8000/docs).
 
 Or start services separately: `make backend` / `make frontend` / `make word-addin`. Word add-in sideload: [docs/guides/word-addin.md](docs/guides/word-addin.md).
 
@@ -90,7 +93,7 @@ Checks: `pnpm exec tsc -p tsconfig.app.json --noEmit` and `pnpm lint`.
 
 ## Backend
 
-Local admin API: personas, populations, runs, messages, catalog, jobs, reports. Frontend login is static (not enforced by the API).
+Local admin API: personas, populations, runs, messages, catalog, jobs, reports. The frontend uses Supabase magic-link auth, with an explicitly enabled localhost-only shortcut for development.
 
 ```bash
 cd backend

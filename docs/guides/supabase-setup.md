@@ -1,6 +1,6 @@
 # Supabase setup
 
-Supabase provides Auth, Storage, Vector Buckets and the production PostgreSQL database. SQLAlchemy models + Alembic remain the schema source of truth. One Socialism project owns product data, Auth, private customer files and research vectors.
+Supabase provides Auth, Storage, Vector Buckets and the persistent PostgreSQL database. SQLAlchemy models + Alembic remain the schema source of truth. One Socialism project owns product data, Auth, private customer files and research vectors.
 
 ## Credentials
 
@@ -18,7 +18,7 @@ Keep `service_role` and S3 secrets out of git, client bundles, and frontend env 
 
 ## PostgreSQL
 
-Use the direct or session connection string for the long-running Railway backend. Do not use Supavisor transaction mode: the application owns normal SQLAlchemy transactions and persistent connection pooling. Plain `postgres://` or `postgresql://` values are normalized to `postgresql+psycopg://` at startup.
+Use the direct or session connection string for the long-running backend process. Do not use Supavisor transaction mode: the application owns normal SQLAlchemy transactions and persistent connection pooling. Plain `postgres://` or `postgresql://` values are normalized to `postgresql+psycopg://` at startup.
 
 Apply schema migrations with `uv run alembic upgrade head`. For the one-time SQLite import, follow [Backend setup](backend-setup.md#supabase-postgres-migration). The importer requires a dedicated new target, explicitly clears migration-created catalog rows with `--replace-target`, and verifies the copy before its transaction commits.
 
@@ -82,7 +82,7 @@ Target: magic link (email OTP) only — no Google/SSO, no password management in
 
 1. Dashboard → Authentication → Providers → Email enabled.
 2. Enable magic link / OTP sign-in.
-3. Set Site URL / redirect URLs to the SPA origin (local Vite + Railway frontend).
+3. Set Site URL / redirect URLs to the local Vite origin. Add a hosted SPA origin only after a deployment target has been selected.
 
 ## Schema
 
