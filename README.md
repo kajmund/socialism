@@ -52,6 +52,7 @@ socialism/
 | [uv](https://docs.astral.sh/uv/) | latest | Backend deps |
 | [Node.js](https://nodejs.org/) | 20+ | Frontend |
 | [pnpm](https://pnpm.io/) | latest | Frontend packages |
+| [flyctl](https://fly.io/docs/flyctl/install/) | latest | Local proxy to the Fly-hosted ELK stack |
 
 ## Quick start
 
@@ -71,13 +72,18 @@ cd frontend
 cp .env.example .env          # VITE_API_BASE_URL + Supabase placeholders
 cd ..
 
-# 4) Run both (API :8000, Vite :5173)
+# 4) Authenticate to Fly once
+flyctl auth login
+
+# 5) Run ELK proxy (:19200), API (:8000), and Vite (:5173)
 make start
 ```
 
 Open [http://localhost:5173/login](http://localhost:5173/login) for Supabase magic-link sign-in. For the local shortcut, set `ALLOW_LOCAL_LOGIN=true` and `LOCAL_AUTH_JWT_SECRET` in `backend/.env`, restart the backend, and open [http://localhost:5173/dev-in](http://localhost:5173/dev-in). API docs: [http://localhost:8000/docs](http://localhost:8000/docs).
 
-Or start services separately: `make backend` / `make frontend` / `make word-addin`. Word add-in sideload: [docs/guides/word-addin.md](docs/guides/word-addin.md).
+`make start` fails clearly if Fly authentication is missing, the proxy cannot connect, or Elasticsearch does not become healthy. The proxy only listens on `127.0.0.1`. Start it separately for troubleshooting with `make elk-proxy`.
+
+Or start application services separately: `make backend` / `make frontend` / `make word-addin`. Word add-in sideload: [docs/guides/word-addin.md](docs/guides/word-addin.md).
 
 ## Frontend
 
