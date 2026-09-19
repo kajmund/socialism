@@ -11,9 +11,11 @@ import {
 import { useLocale } from "@/i18n"
 import { ApiError } from "@/lib/api"
 import { MODULE_REGISTRY } from "@/modules/moduleRegistry"
+import { useAuth } from "@/auth/AuthProvider"
 
 export function KunderPage() {
   const { t } = useLocale()
+  const { refreshProfile } = useAuth()
   const [kunder, setKunder] = useState<Kund[]>([])
   const [modules, setModules] = useState<ProductModule[]>([])
   const [loading, setLoading] = useState(true)
@@ -66,6 +68,7 @@ export function KunderPage() {
     try {
       const updated = await updateKundModules(kund.id, next)
       setKunder((prev) => prev.map((row) => (row.id === updated.id ? updated : row)))
+      await refreshProfile()
       setToast(t("tools.kunder.saved"))
     } catch (err: unknown) {
       setError(err instanceof ApiError ? err.message : t("common.saveError"))

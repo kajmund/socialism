@@ -2,9 +2,9 @@ import {
   MailOpen,
   MessageCircle,
   Search,
-  UserRound,
   UsersRound,
 } from "lucide-react"
+import { ExpertAvatar } from "@/components/experts/ExpertAvatar"
 import type {
   SmeInboxFilter,
   SmeInboxItem,
@@ -21,6 +21,7 @@ type Props = {
   onFilterChange: (filter: SmeInboxFilter) => void
   onSearchChange: (value: string) => void
   onSelect: (item: SmeInboxItem) => void
+  onOpenExpertEditor: (item: SmeInboxItem) => void
 }
 
 const filters: SmeInboxFilter[] = ["all", "unread", "groups"]
@@ -35,12 +36,13 @@ export function SmeConversationList({
   onFilterChange,
   onSearchChange,
   onSelect,
+  onOpenExpertEditor,
 }: Props) {
   const { t, intl } = useLocale()
   const filtered = items.filter((item) =>
-    `${item.name} ${item.subtitle}`.toLocaleLowerCase().includes(
-      search.trim().toLocaleLowerCase(),
-    ),
+    `${item.name} ${item.kompetensomrade} ${item.subtitle}`
+      .toLocaleLowerCase()
+      .includes(search.trim().toLocaleLowerCase()),
   )
 
   function filterLabel(value: SmeInboxFilter): string {
@@ -129,29 +131,46 @@ export function SmeConversationList({
             selected?.thread_type === item.thread_type &&
             selected.thread_id === item.thread_id
           return (
-            <button
+            <div
               key={`${item.thread_type}:${item.thread_id}`}
-              type="button"
-              className={`relative flex w-full items-center gap-3 rounded-[var(--radius-md)] border py-2.5 pl-3 pr-8 text-left transition-colors ${
+              className={`relative flex w-full items-center gap-3 rounded-[var(--radius-md)] border py-2.5 pl-3 pr-8 transition-colors ${
                 active
                   ? "border-db-gold-500 bg-db-gold-100"
                   : "border-transparent hover:bg-db-ink-100"
               }`}
-              onClick={() => onSelect(item)}
             >
-              <span className="grid size-11 shrink-0 place-items-center rounded-[var(--radius-md)] bg-db-ink-950 text-db-gold-500">
-                {item.thread_type === "panel" ? (
+              {item.thread_type === "expert" ? (
+                <button
+                  type="button"
+                  className="shrink-0 transition-opacity hover:opacity-90"
+                  aria-label={t("sme.expertEditorAria", { name: item.name })}
+                  onClick={() => onOpenExpertEditor(item)}
+                >
+                  <ExpertAvatar
+                    avatarUrl={item.avatar_url}
+                    name={item.name}
+                  />
+                </button>
+              ) : (
+                <span className="grid size-11 shrink-0 place-items-center rounded-[var(--radius-md)] bg-db-ink-950 text-db-gold-500">
                   <UsersRound size={19} aria-hidden="true" />
-                ) : (
-                  <UserRound size={19} aria-hidden="true" />
-                )}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="flex items-baseline justify-between gap-2">
+                </span>
+              )}
+              <button
+                type="button"
+                className="min-w-0 flex-1 text-left"
+                onClick={() => onSelect(item)}
+              >
+                <span className="flex min-w-0 items-baseline gap-2">
                   <span className="truncate text-sm font-medium text-[color:var(--text-body)]">
                     {item.name}
                   </span>
-                  <span className="shrink-0 text-[10px] text-[color:var(--text-muted)]">
+                  {item.thread_type === "expert" && item.kompetensomrade ? (
+                    <span className="truncate text-xs text-[color:var(--text-muted)]">
+                      {item.kompetensomrade}
+                    </span>
+                  ) : null}
+                  <span className="ml-auto shrink-0 text-[10px] text-[color:var(--text-muted)]">
                     {timeLabel(item.last_message_at)}
                   </span>
                 </span>
@@ -164,14 +183,14 @@ export function SmeConversationList({
                 >
                   {item.preview || item.subtitle}
                 </span>
-              </span>
+              </button>
               {item.unread_count > 0 ? (
                 <span
                   className="absolute right-3 top-1/2 size-2.5 -translate-y-1/2 rounded-full bg-db-gold-500"
                   aria-label={t("sme.unreadCount", { count: item.unread_count })}
                 />
               ) : null}
-            </button>
+            </div>
           )
         })}
       </div>

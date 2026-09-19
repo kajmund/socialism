@@ -136,6 +136,21 @@ export function deletePersona(id: string): Promise<void> {
   return api.delete(`/personas/${id}`)
 }
 
+export function uploadPersonaAvatar(
+  id: string,
+  file: File,
+): Promise<{ avatar_url: string | null }> {
+  const form = new FormData()
+  form.set("file", file)
+  return api.postForm(`/personas/${id}/avatar`, form)
+}
+
+export function deletePersonaAvatar(
+  id: string,
+): Promise<{ avatar_url: string | null }> {
+  return api.delete(`/personas/${id}/avatar`)
+}
+
 export type ChatMode = "interview" | "character"
 
 export type PersonaMessage = {

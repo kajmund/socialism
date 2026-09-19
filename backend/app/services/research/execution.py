@@ -91,6 +91,8 @@ from app.services.research.completeness import (
     sanitize_completeness_draft,
 )
 from app.services.research.composition import standard_available_source_types
+from app.services.research.provider import filter_source_types_for_scope
+from app.services.research.registry import standard_capability_descriptors
 from app.services.research.followup import (
     FollowUpPlannerError,
     FollowUpResearchPlanner,
@@ -160,7 +162,6 @@ from app.services.research.question_reuse import (
     safe_upsert_persisted_evidence,
     should_skip_providers,
 )
-from app.services.research.registry import standard_capability_descriptors
 from app.services.research.router import ResearchRouter
 
 ResearchRouterFactory = Callable[[AsyncSession], ResearchRouter]
@@ -835,6 +836,7 @@ async def _review_and_persist_completeness(
     assessment: ResearchAssessment,
     reviewer: ResearchCompletenessReviewer,
     router: ResearchRouter | None,
+    case_id: str | None,
 ) -> ResearchCompletenessPass:
     """Judge the original objective. Incomplete is a valid outcome."""
     items = await list_evidence_items(session, evidence_set_id)
@@ -866,7 +868,7 @@ async def _review_and_persist_completeness(
         for row in await list_research_assessments(session, attempt.id)
     ]
     draft = assessment_draft_from_row(assessment)
-    allowed_source_types = _executable_source_types(router)
+    allowed_source_types = _executable_source_types(router, case_id=case_id)
     try:
         reviewed = await reviewer.review(
             objective=objective,
@@ -910,12 +912,13 @@ async def _plan_and_persist_global_needs(
     wave_number: int,
     max_needs: int,
     router: ResearchRouter | None,
+    case_id: str | None,
 ) -> list[RuntimeResearchNeed] | str:
     previous = [runtime_need_from_row(row) for row in await list_runtime_needs(session, attempt.id)]
     if len(previous) >= max_needs:
         return "max_needs"
     draft = completeness_draft_from_row(completeness)
-    allowed_source_types = _executable_source_types(router)
+    allowed_source_types = _executable_source_types(router, case_id=case_id)
     runnable = [row for row in draft.missing_questions if row.source_types]
     accepted = validate_follow_up_drafts(
         missing_questions_to_follow_up_drafts(runnable),
@@ -1071,6 +1074,7 @@ async def _run_research_loop(
                         assessment=assessment,
                         reviewer=completeness_reviewer,
                         router=router,
+                        case_id=context.scope.case_id,
                     )
                     await barrier_session.commit()
                     await progress.publish_committed()
@@ -1124,6 +1128,7 @@ async def _run_research_loop(
                         wave_number=follow_up_wave,
                         max_needs=max_needs,
                         router=router,
+                        case_id=context.scope.case_id,
                     )
                     if isinstance(planned, str):
                         await set_research_loop_state(
@@ -1220,11 +1225,22 @@ async def _resolve_research_objective(
     return research_objective
 
 
-def _executable_source_types(router: ResearchRouter | None) -> tuple[str, ...]:
+def _executable_source_types(
+    router: ResearchRouter | None,
+    *,
+    case_id: str | None,
+) -> tuple[str, ...]:
     """Types the attempt's production router/registry can actually run."""
     if router is not None:
-        return router.available_source_types()
-    return standard_available_source_types()
+        types = router.available_source_types()
+        registered = getattr(router, "registered_descriptors", None)
+        descriptors = tuple(registered()) if callable(registered) else None
+    else:
+        types = standard_available_source_types()
+        descriptors = standard_capability_descriptors()
+    return filter_source_types_for_scope(
+        types, case_id=case_id, descriptors=descriptors
+    )
 
 
 async def _resolve_initial_plan(
@@ -1236,6 +1252,7 @@ async def _resolve_initial_plan(
     research_planner: ResearchPlanner | None,
     need_limit: int,
     router: ResearchRouter | None,
+    case_id: str | None,
 ) -> ResearchPlan:
     """Persist objective + initial plan before research is claimed.
 
@@ -1264,7 +1281,7 @@ async def _resolve_initial_plan(
         )
     if research_planner is None:
         raise ResearchPlannerError("ResearchPlanner is required")
-    allowed_source_types = _executable_source_types(router)
+    allowed_source_types = _executable_source_types(router, case_id=case_id)
     if not allowed_source_types:
         raise ResearchPlannerError("no executable research source types are available")
     try:
@@ -1445,6 +1462,8 @@ async def execute_attempt_research(
     wave_limit, need_limit, completeness_limit = _loop_limits(
         max_follow_up_waves, max_needs, max_completeness_passes
     )
+    run = await get_run(session, attempt.run_id)
+    case_id = research_context_from_run(run).scope.case_id
     resume = attempt.status == "researching"
     if resume:
         await _resolve_research_objective(attempt, research_objective)
@@ -1463,8 +1482,8 @@ async def execute_attempt_research(
             research_planner=research_planner,
             need_limit=need_limit,
             router=router,
+            case_id=case_id,
         )
-    run = await get_run(session, attempt.run_id)
     need_concurrency = _concurrency_limit(concurrency)
     claimed = resume
     evidence_set_id: str | None = attempt.evidence_set_id

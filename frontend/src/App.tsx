@@ -116,12 +116,9 @@ function ProductGate() {
 }
 
 function JobsRoute() {
-  const { user, hasModule, loading, resolvedModules } = useAuth()
+  const { user, loading } = useAuth()
   if (loading) return <AuthSplash />
   if (user?.product === "sme") return <JobsPage Shell={SmeJobsShell} />
-  if (!hasModule("politik")) {
-    return <Navigate to={homePathForUser(resolvedModules)} replace />
-  }
   return <JobsPage />
 }
 
@@ -175,9 +172,11 @@ export default function App() {
               <Route path="expertpaneler" element={<ExpertPanelsPage />} />
               <Route path="expertpaneler/new" element={<ExpertPanelBuilderPage />} />
               <Route path="expertpaneler/:id" element={<ExpertPanelDetailPage />} />
-              <Route path="expertgranskning" element={<BolagExpertgranskningPage />} />
-              <Route path="expertgranskning/new" element={<BolagExpertgranskningRunPage />} />
-              <Route path="expertgranskning/:id" element={<BolagExpertgranskningRunPage />} />
+              <Route element={<RequireExpertgranskning />}>
+                <Route path="expertgranskning" element={<BolagExpertgranskningPage />} />
+                <Route path="expertgranskning/new" element={<BolagExpertgranskningRunPage />} />
+                <Route path="expertgranskning/:id" element={<BolagExpertgranskningRunPage />} />
+              </Route>
               <Route path="campaigns" element={<DdCampaignsPage />} />
               <Route path="campaigns/new" element={<DdCampaignEditorPage />} />
               <Route path="campaigns/:id/runs/:candidateId" element={<DdCampaignRunPage />} />
@@ -204,6 +203,9 @@ export default function App() {
           <Route path="/execution/runs/:runId" element={<ExecutionRunPage />} />
           <Route path="/research/:attemptId" element={<ResearchMonitorPage />} />
           <Route path="/jobs" element={<JobsRoute />} />
+          <Route path="/feedback" element={<FeedbackPage />} />
+          <Route path="/reports" element={<ReportsPage />} />
+          <Route path="/reports/:id" element={<ReportPage />} />
 
           <Route element={<RequireOsUser />}>
           <Route path="/" element={<DashboardPage />} />
@@ -223,10 +225,6 @@ export default function App() {
           <Route path="/messages" element={<MessagesPage />} />
           <Route path="/messages/new" element={<MessagesWorkshopPage />} />
           <Route path="/messages/:id/edit" element={<MessagesWorkshopPage />} />
-
-          <Route path="/feedback" element={<FeedbackPage />} />
-          <Route path="/reports" element={<ReportsPage />} />
-          <Route path="/reports/:id" element={<ReportPage />} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

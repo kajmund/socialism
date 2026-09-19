@@ -270,7 +270,7 @@ export function DistrictMapModal({
         const startCursor = e.latlng
         const startBounds = rect.getBounds()
 
-        function onMove(ev: MouseEvent) {
+        const onMove = (ev: MouseEvent) => {
           const cur = map.mouseEventToLatLng(ev)
           const dLat = cur.lat - startCursor.lat
           const dLng = cur.lng - startCursor.lng
@@ -283,7 +283,7 @@ export function DistrictMapModal({
           syncCorners()
         }
 
-        function onUp() {
+        const onUp = () => {
           document.removeEventListener("mousemove", onMove)
           map.dragging.enable()
           commit()
