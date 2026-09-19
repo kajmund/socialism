@@ -21,7 +21,6 @@ cp .env.example .env
 | Variable | Required | Default | Notes |
 | -------- | -------- | ------- | ----- |
 | `DATABASE_URL` | **yes** | — | Use the Supabase direct/session URL. `postgres://` and `postgresql://` are normalized to the psycopg driver. Do not use the transaction pooler for the long-running backend. |
-| `MIGRATION_DATABASE_URL` | **for Alembic** | — | Direct/session URL for the table owner (`postgres`), using that role's database password. Alembic never uses the runtime `DATABASE_URL`. Keep this credential backend-only. |
 | `ALLOWED_ORIGINS` | no | Vite localhost origins | Comma-separated CORS list |
 | `LLM_PROVIDER` | no | `cerebras` | `cerebras` or `deepseek`. No automatic fallback |
 | `LLM_MODEL` | no | provider default | Empty → `gpt-oss-120b` (Cerebras) or `DEEPSEEK_MODEL` |
@@ -47,6 +46,13 @@ cp .env.example .env
 | `LOG_MAX_BYTES` | no | `2000000` | Rotate `app.log` after this many bytes |
 | `LOG_BACKUP_COUNT` | no | `5` | Kept rotated files (`app.log.1` …) |
 | `LOG_LEVEL` | no | `INFO` | `DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL` |
+| `LOGSTASH_URL` | no | empty | Authenticated HTTPS endpoint for remote ELK logging |
+| `LOGSTASH_USERNAME` | no | empty | Logstash HTTP Basic Auth user; set with URL and password |
+| `LOGSTASH_PASSWORD` | no | empty | Logstash HTTP Basic Auth password; set with URL and username |
+| `LOG_SERVICE` | no | `socialism-backend` | Service name attached to remote log events |
+| `LOG_ENVIRONMENT` | no | `production` | Environment attached to remote log events |
+| `LOGSTASH_TIMEOUT_SECONDS` | no | `2` | Per-event remote delivery timeout in the background worker |
+| `LOGSTASH_QUEUE_SIZE` | no | `512` | Maximum queued remote log events before new events are dropped loudly |
 | `BOLAGSAPI_API_KEY` | for DD company tools | — | When set, company tools use BolagsAPI MCP. When empty, the same tools scrape Allabolag.se |
 | `BOLAGSAPI_MCP_URL` | no | `https://mcp.bolagsapi.se/mcp` | BolagsAPI remote MCP |
 | `BOLAGSAPI_CACHE_DIR` | no | `data/bolagsapi_cache` | Disk cache for MCP tool results. Entries expire after 10 months |
@@ -69,7 +75,6 @@ cp .env.example .env
 
 ```env
 DATABASE_URL=postgresql+psycopg://postgres.PROJECT_REF:PASSWORD@HOST:5432/postgres
-MIGRATION_DATABASE_URL=postgresql+psycopg://postgres.PROJECT_REF:PASSWORD@HOST:5432/postgres
 ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 
 LLM_PROVIDER=cerebras
@@ -93,6 +98,9 @@ LOG_DIR=data/logs
 LOG_MAX_BYTES=2000000
 LOG_BACKUP_COUNT=5
 LOG_LEVEL=INFO
+# LOGSTASH_URL=https://socialism-logstash.fly.dev
+# LOGSTASH_USERNAME=socialism
+# LOGSTASH_PASSWORD=generate-a-long-random-secret
 SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 SUPABASE_VECTOR_BUCKET=research-knowledge
