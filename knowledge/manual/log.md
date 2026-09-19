@@ -1,5 +1,15 @@
 # Manual update log
 
+## 2026-09-19
+
+* **Research**: Research utan kopplat ärende (till exempel från SME-chatten) söker inte längre i ärendespecifik kunskap. Tidigare visades felet `case_knowledge requires case_id`.
+* **Research**: Ett misslyckat expertresearch-jobb kan återupptas från jobblistan eller researchvyn. Den fortsätter från redan sparade frågor och evidens, till exempel efter en serveromstart.
+* **Research**: En avslutad expertresearch kan köras om från jobblistan eller researchvyn. Det skapar ett nytt jobb med samma fråga, till exempel när den första körningen sökte i fel källa.
+* **SME**: Bakgrundsjobb och **Min profil** öppnas i modaler ovanpå chatten i stället för separata sidor. Research-ikonen visar pågående och avslutade research-jobb i en dropdown och öppnar vald körning i modal.
+* **Experter / SME**: Expertprofiler kan ha profilbild som sparas i molnet. Klicka på bilden till vänster om namnet i redigeraren för att ladda upp eller ta bort. Bilden syns i SME-listan och chatthuvudet när den finns.
+* **SME**: Den runda expertikonen i listan och i chatthuvudet öppnar expertens profilfält i en modal ovanpå chatten.
+* **Moduler**: Vänstermenyn, sidåtkomsten och rapportflikarna följer nu samma kontobehörigheter. Egna menyval uppdateras direkt när kundmoduler sparas. Rapporter, Återkoppling och Jobb kräver inte längre Politik.
+
 ## 2026-09-18
 
 * **Underlag**: Uppladdade filer läses nu automatiskt som ett bakgrundsjobb. Bredvid PDF:en visas neutral dokumentkunskap med fakta och frågor och svar. Klick på en post går till källtexten. Markerad text kan sparas manuellt som fakta, fråga och svar, bokmärke eller anteckning. OCR ingår inte ännu; PDF:er utan textlager markeras tydligt.

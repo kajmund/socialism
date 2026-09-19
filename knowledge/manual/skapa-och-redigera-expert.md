@@ -14,7 +14,8 @@ tags: [personas]
 1. Öppna **Experter** i menyn.
 2. Välj **Ny expert**, eller **Föreslå experter** och välj underlag på samma sätt som i Expertgranskning.
 3. Fyll i namn, kompetensområde, rådgivningsstil, yrkesbakgrund och en kort professionell anekdot.
-4. Välj **Spara**.
+4. Klicka på profilbilden till vänster om namnet för att ladda upp en bild (JPEG, PNG eller WebP, max 5 MB). Ta bort med **×** om du vill återgå till standardikonen.
+5. Välj **Spara**.
 
 ## Välj verktyg
 

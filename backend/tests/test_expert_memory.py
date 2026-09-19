@@ -586,7 +586,7 @@ async def test_expert_memory_api_lists_and_scopes(client, user_token, admin_toke
     body = listed.json()
     assert body["count"] == 1
     assert body["memories"][0]["text"] == "Ansvar måste preciseras."
-    assert body["memories"][0]["expert_name"] == "Minnesjurist"
+    assert body["memories"][0]["expert_name"] == persona["name"]
 
     by_expert = await client.get(f"/personas/{persona['id']}/memories")
     assert by_expert.status_code == 200

@@ -1041,6 +1041,7 @@ textarea.free{width:100%;min-height:90px;font:inherit;font-size:14px;padding:12p
 .mode-switch button.on{background:var(--db-ink-950);color:var(--db-ink-0)}
 
 .work{display:flex;flex:1;min-height:0;overflow:hidden}
+.work.work-layers-only .layers-col{width:auto;flex:1;border-right:none;max-width:none}
 .layers-col{width:480px;border-right:1px solid var(--border-hairline);overflow:auto;padding:16px 22px;flex-shrink:0;min-height:0}
 .layers-col.is-collapsed{width:0;padding:0;border-right:none;overflow:hidden}
 .chat-top-lead,.chat-top-actions{display:flex;align-items:center;gap:8px;min-width:0}

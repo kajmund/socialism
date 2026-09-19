@@ -332,7 +332,9 @@ async def test_materialize_drops_actions_when_task_is_missing(client_db):
 
 def test_word_actions_migration_round_trip(tmp_path, monkeypatch):
     db_path = tmp_path / "word_actions.db"
-    monkeypatch.setenv("DATABASE_URL", f"sqlite+aiosqlite:///{db_path}")
+    url = f"sqlite+aiosqlite:///{db_path}"
+    monkeypatch.setenv("DATABASE_URL", url)
+    monkeypatch.setenv("MIGRATION_DATABASE_URL", url)
     cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
 
     command.upgrade(cfg, "069_word_actions")

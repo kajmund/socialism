@@ -91,6 +91,14 @@ export function getJob(id: string): Promise<Job> {
   return api.get<Job>(`/jobs/${id}`)
 }
 
+export function resumeJob(id: string): Promise<Job> {
+  return api.post<Job>(`/jobs/${id}/resume`, {})
+}
+
+export function rerunJob(id: string): Promise<Job> {
+  return api.post<Job>(`/jobs/${id}/rerun`, {})
+}
+
 export function setJobArchived(id: string, archived: boolean): Promise<Job> {
   return api.patch<Job>(`/jobs/${id}`, { archived })
 }

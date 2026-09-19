@@ -49,7 +49,7 @@ describe("buildVariantSimulatedTimeLabels", () => {
     OasisVariantResult,
     "posts" | "comments" | "trace" | "tick_markers"
   > = {
-    posts: [{ post_id: 1, user_id: 0, content: "Hej", created_at: 10, num_likes: 0, num_dislikes: 0, num_comments: 0 }],
+    posts: [{ post_id: 1, user_id: 0, content: "Hej", created_at: 10, num_likes: 0, num_dislikes: 0 }],
     comments: [
       {
         comment_id: 1,

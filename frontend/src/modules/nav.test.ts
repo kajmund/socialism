@@ -2,15 +2,15 @@ import { describe, expect, it } from "vitest"
 import { buildSidebarNav } from "@/modules/nav"
 
 describe("buildSidebarNav", () => {
-  it("includes expertgranskning for admin even when no kund has it", () => {
-    const sections = buildSidebarNav({ moduleIds: ["politik"], showTools: true })
+  it("shows expertgranskning when granted by the profile", () => {
+    const sections = buildSidebarNav({ moduleIds: ["politik", "expertgranskning"], showTools: true })
     expect(sections.map((section) => section.id)).toContain("expertgranskning")
     const item = sections.find((section) => section.id === "expertgranskning")?.items[0]
     expect(item?.to).toBe("/expertgranskning")
   })
 
-  it("includes rattsunderlag for admin even when no kund has it", () => {
-    const sections = buildSidebarNav({ moduleIds: ["politik"], showTools: true })
+  it("shows rattsunderlag when granted by the profile", () => {
+    const sections = buildSidebarNav({ moduleIds: ["rattsunderlag"], showTools: false })
     expect(sections.map((section) => section.id)).toContain("rattsunderlag")
     const item = sections.find((section) => section.id === "rattsunderlag")?.items[0]
     expect(item?.to).toBe("/rattsunderlag")
@@ -25,7 +25,6 @@ describe("buildSidebarNav", () => {
     const sections = buildSidebarNav({
       moduleIds: ["dd"],
       showTools: true,
-      injectToolModules: false,
     })
     const ids = sections.map((section) => section.id)
     expect(ids).not.toContain("expertgranskning")
@@ -37,7 +36,7 @@ describe("buildSidebarNav", () => {
 
   it("keeps politik and Due Diligence in the same rail when both are on", () => {
     const sections = buildSidebarNav({
-      moduleIds: ["politik", "dd"],
+      moduleIds: ["politik", "dd", "expertgranskning", "rattsunderlag"],
       showTools: true,
     })
     const ids = sections.map((section) => section.id)
@@ -62,5 +61,16 @@ describe("buildSidebarNav", () => {
     const ids = sections.map((section) => section.id)
     expect(ids.indexOf("dd:bolag.nav.experter")).toBe(ids.indexOf("shared") - 1)
     expect(ids.indexOf("dd")).toBeLessThan(ids.indexOf("dd:bolag.nav.experter"))
+  })
+
+  it("removes module links when the profile loses access, including for admins", () => {
+    const sections = buildSidebarNav({ moduleIds: ["expertgranskning"], showTools: true })
+    expect(sections.map((section) => section.id)).toEqual(["expertgranskning", "shared", "admin"])
+  })
+
+  it("uses shared routes for standalone review modules without requiring politik", () => {
+    const sections = buildSidebarNav({ moduleIds: ["rattsunderlag"], showTools: false })
+    expect(sections.find((section) => section.id === "shared")?.items.map((item) => item.to))
+      .toEqual(["/reports", "/feedback", "/jobs"])
   })
 })

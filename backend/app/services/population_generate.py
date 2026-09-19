@@ -16,6 +16,7 @@ from app.llm.persona_anecdote import llm_persona_anecdote, stub_persona_anecdote
 from app.llm.persona_gen import SlotPlan, apply_slot_to_profile, llm_persona_from_slot
 from app.schemas.domain import (
     DistGroup,
+    DistRow,
     EditablePersona,
     GeneratedPersonaOut,
     GenerationCandidate,
@@ -333,6 +334,68 @@ def stub_persona(
         quote=trait,
         profile=profile,
     )
+
+
+def politik_identity_recipe(*, seed: int, size: int = 1) -> PopulationRecipe:
+    """Default politik catalog recipe for sampling one person's name and age."""
+    return PopulationRecipe(
+        size=size,
+        dist={
+            "age": DistGroup(
+                label="Ålder",
+                rows=[
+                    DistRow(k="ung", l="Ung", v=30),
+                    DistRow(k="medel", l="Medel", v=40),
+                    DistRow(k="aldre", l="Äldre", v=30),
+                ],
+            ),
+            "district": DistGroup(
+                label="Ort",
+                rows=[
+                    DistRow(k="centrum", l="Centrum", v=50),
+                    DistRow(k="ovriga", l="Övriga", v=50),
+                ],
+            ),
+            "occupation": DistGroup(
+                label="Yrke",
+                rows=[
+                    DistRow(k="vard", l="Vård", v=50),
+                    DistRow(k="ovrigt", l="Övrigt", v=50),
+                ],
+            ),
+            "leaning": DistGroup(
+                label="Lutning",
+                rows=[
+                    DistRow(k="vanster", l="V", v=20),
+                    DistRow(k="mvanster", l="MV", v=20),
+                    DistRow(k="mitt", l="M", v=20),
+                    DistRow(k="mhoger", l="MH", v=20),
+                    DistRow(k="hoger", l="H", v=20),
+                ],
+            ),
+        },
+        seed=seed,
+    )
+
+
+def sample_expert_identity(rng: Random | None = None) -> tuple[str, int, str]:
+    """Return (full_name, age, kön) for a new expert — age 30–60, name from catalog by age."""
+    if rng is None:
+        rng = Random(secrets.randbits(32))
+    age = 30 + rng.randint(0, 30)
+    recipe = politik_identity_recipe(seed=rng.randint(0, 65535))
+    kon = _sample_kon(recipe.dist, rng)
+    first = _first_name_for_kon(kon, rng, age)
+    last = rng.choice(LASTN)
+    return f"{first} {last}", age, kon
+
+
+def sample_politik_person_identity(rng: Random | None = None) -> GeneratedPersonaOut:
+    """Sample display name, age, kön and ort using the same catalog rules as politik stub generate."""
+    if rng is None:
+        rng = Random(secrets.randbits(32))
+    recipe = politik_identity_recipe(seed=rng.randint(0, 65535))
+    return stub_persona(recipe, rng)
 
 
 def library_candidate(

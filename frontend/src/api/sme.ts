@@ -9,6 +9,8 @@ export type SmeInboxItem = {
   name: string
   initials: string
   subtitle: string
+  kompetensomrade: string
+  avatar_url: string | null
   preview: string
   last_message_at: string | null
   unread_count: number

@@ -56,8 +56,11 @@ async def test_sme_expert_inbox_and_read_cursor(client_db) -> None:
 
     inbox = await client.get("/sme/inbox", params={"filter": "all"})
     assert inbox.status_code == 200
-    expert = inbox.json()[0]
-    assert expert["thread_type"] == "expert"
+    experts = [row for row in inbox.json() if row["thread_type"] == "expert"]
+    assert experts
+    by_name = {row["name"]: row for row in experts}
+    assert by_name["Finansiell analytiker"]["kompetensomrade"] == "Finansiell analys"
+    expert = experts[0]
 
     async with factory() as session:
         session.add(

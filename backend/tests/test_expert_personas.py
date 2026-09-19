@@ -9,18 +9,18 @@ from app.services.kund_store import BOLAG_DEMO_KUND_SLUG
 
 
 @pytest.mark.asyncio
-async def test_create_expert_without_age(client: AsyncClient):
+async def test_create_expert_assigns_sampled_name_and_age(client: AsyncClient):
     create = await client.post(
         "/personas",
         json={
             "kind": "expert",
-            "name": "Test Expert",
+            "name": "Skattejurist",
             "occ": "M&A-rådgivare",
             "district": "—",
             "quote": "Granskar avtal och struktur.",
             "profile": {
-                "name": "Test Expert",
-                "initials": "TE",
+                "name": "Skattejurist",
+                "initials": "SJ",
                 "kompetensomrade": "Legal risk",
                 "radgivningsstil": "Försiktig",
                 "yrkesbakgrund": "M&A-rådgivare",
@@ -32,7 +32,11 @@ async def test_create_expert_without_age(client: AsyncClient):
     assert create.status_code == 201, create.text
     body = create.json()
     assert body["kind"] == "expert"
-    assert body["age"] is None
+    assert body["name"] != "Skattejurist"
+    assert " " in body["name"]
+    assert isinstance(body["age"], int)
+    assert 30 <= body["age"] <= 60
+    assert body["profile"]["age"] == str(body["age"])
     assert body["tools"] == [
         "search_companies",
         "lookup_company",
