@@ -119,6 +119,7 @@ class FakeMem0Client:
         self.deletes: list[str] = []
         self.delete_alls: list[dict[str, Any]] = []
         self.searches: list[str] = []
+        self.events: list[str] = []
         self.llm = _DescribeLlm(vision_description)
 
     def search(self, _query: str, **_kwargs) -> dict[str, object]:
@@ -131,6 +132,7 @@ class FakeMem0Client:
         return {"results": self.rows}
 
     def add(self, messages: object, **kwargs) -> dict[str, object]:
+        self.events.append("add")
         self.adds.append((messages, kwargs))
         if kwargs.get("infer") is False:
             content = ""
@@ -152,6 +154,7 @@ class FakeMem0Client:
         return {"results": []}
 
     def delete(self, memory_id: str) -> None:
+        self.events.append("delete")
         self.deletes.append(memory_id)
         self.rows = [row for row in self.rows if str(row.get("id")) != memory_id]
 
@@ -221,10 +224,47 @@ async def test_word_findings_replace_existing_document_memories():
 
     assert text.deletes == ["old"]
     assert len(text.adds) == 1
+    assert text.events == ["add", "delete"]
     _messages, kwargs = text.adds[0]
     assert kwargs["metadata"]["doc_id"] == "doc-1"
     assert kwargs["metadata"]["source"] == "word_findings"
     assert kwargs["prompt"] == LANGUAGE_PRESERVATION_INSTRUCTIONS
+
+
+@pytest.mark.asyncio
+async def test_word_findings_preserves_existing_when_add_fails():
+    text = FakeMem0Client(
+        [
+            {
+                "id": "old",
+                "memory": "old finding",
+                "metadata": {
+                    "source": "word_findings",
+                    "doc_id": "doc-1",
+                    "content_hash": "old-hash",
+                },
+            }
+        ]
+    )
+
+    class FailOnAddClient(FakeMem0Client):
+        def add(self, *args, **kwargs):
+            raise RuntimeError("embedding unavailable")
+
+    failing = FailOnAddClient(text.rows)
+    memory = ExpertMemory(failing, FakeMem0Client())  # type: ignore[arg-type]
+
+    with pytest.raises(RuntimeError, match="embedding unavailable"):
+        await memory.replace_word_findings(
+            customer_id=1,
+            expert_id="legal",
+            doc_id="doc-1",
+            job_id="job-2",
+            findings=["Ny slutsats."],
+        )
+
+    assert failing.deletes == []
+    assert failing.rows[0]["id"] == "old"
 
 
 @pytest.mark.asyncio
