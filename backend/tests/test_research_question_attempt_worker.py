@@ -77,7 +77,7 @@ async def _setup(factory):
             customer_id=customer.id,
             module="expertgranskning",
             title="Avtalsgranskning",
-            context={},
+            context={"case_id": "clause-2"},
         )
         parent = await create_attempt(
             session,

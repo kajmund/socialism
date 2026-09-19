@@ -53,6 +53,7 @@ from app.serializers import (
     format_date,
     persona_initials,
     persona_avatar_url,
+    profile_from_dict,
     serialize_library_persona,
     serialize_persona_detail,
     slug_id,
