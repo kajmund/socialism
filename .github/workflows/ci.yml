@@ -132,6 +132,7 @@ jobs:
         working-directory: backend
     env:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:5432/socialism_test
+      MIGRATION_DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:5432/socialism_test
       OPENAI_API_KEY: test-openai-not-real
       CEREBRAS_API_KEY: test-cerebras-not-real
       SUPABASE_URL: https://test.supabase.co
