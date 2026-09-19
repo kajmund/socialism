@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -13,6 +14,7 @@ from psycopg.types.json import Jsonb
 class PostgresHistoryManager:
     def __init__(self, connection_string: str) -> None:
         self._connection = psycopg.connect(connection_string)
+        self._lock = threading.Lock()
 
     def add_history(
         self,
@@ -46,7 +48,7 @@ class PostgresHistoryManager:
     def batch_add_history(self, records: list[dict[str, Any]]) -> None:
         if not records:
             return
-        with self._connection.transaction(), self._connection.cursor() as cursor:
+        with self._lock, self._connection.transaction(), self._connection.cursor() as cursor:
             cursor.executemany(
                 """
                 INSERT INTO mem0_history (
@@ -72,7 +74,7 @@ class PostgresHistoryManager:
             )
 
     def get_history(self, memory_id: str) -> list[dict[str, Any]]:
-        with self._connection.cursor() as cursor:
+        with self._lock, self._connection.cursor() as cursor:
             cursor.execute(
                 """
                 SELECT id, memory_id, old_memory, new_memory, event,
@@ -103,7 +105,7 @@ class PostgresHistoryManager:
         if not messages:
             return
         now = datetime.now(UTC).isoformat()
-        with self._connection.transaction(), self._connection.cursor() as cursor:
+        with self._lock, self._connection.transaction(), self._connection.cursor() as cursor:
             cursor.executemany(
                 """
                 INSERT INTO mem0_messages
@@ -139,7 +141,7 @@ class PostgresHistoryManager:
     def get_last_messages(
         self, session_scope: str, limit: int = 10
     ) -> list[dict[str, Any]]:
-        with self._connection.cursor() as cursor:
+        with self._lock, self._connection.cursor() as cursor:
             cursor.execute(
                 """
                 SELECT role, content, name, created_at FROM (
@@ -164,12 +166,13 @@ class PostgresHistoryManager:
             ]
 
     def reset(self) -> None:
-        with self._connection.transaction(), self._connection.cursor() as cursor:
+        with self._lock, self._connection.transaction(), self._connection.cursor() as cursor:
             cursor.execute("TRUNCATE mem0_history, mem0_messages")
 
     def close(self) -> None:
-        if not self._connection.closed:
-            self._connection.close()
+        with self._lock:
+            if not self._connection.closed:
+                self._connection.close()
 
     def __del__(self) -> None:
         self.close()
