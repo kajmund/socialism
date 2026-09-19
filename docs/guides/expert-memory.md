@@ -58,7 +58,7 @@ Cerebras-modellen (`MEM0_VISION_MODEL`, standard `qwen-3.8-27b`). GPT- och
 
 Vid **skrivning** extraherar vision-klienten fakta från bild + text. Vid
 **sökning** beskriver samma pipeline bilden till text (Mem0 `search()` tar
-bara en sträng) och den texten används mot Chroma. En bild utan
+bara en sträng) och den texten används mot pgvector. En bild utan
 bildtext är ett giltigt sökunderlag.
 
 pgvector-tabellerna lagrar de textfakta som Mem0 extraherar. `image_sha256` sparas som
