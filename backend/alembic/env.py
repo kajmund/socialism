@@ -1,29 +1,12 @@
 from logging.config import fileConfig
 from pathlib import Path
 
-from pydantic import field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import create_engine, pool
 
 from alembic import context
 from app.database import models  # noqa: F401 — register models on metadata
 from app.database.base import Base
-from app.database_url import normalize_database_url
-
-
-class MigrationSettings(BaseSettings):
-    """Configuration needed by Alembic, independent of application services."""
-
-    model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore"
-    )
-
-    database_url: str
-
-    @field_validator("database_url", mode="before")
-    @classmethod
-    def normalize_url(cls, value: object) -> str:
-        return normalize_database_url(value)
+from app.migration_config import MigrationSettings
 
 
 migration_settings = MigrationSettings()
@@ -37,7 +20,7 @@ target_metadata = Base.metadata
 
 
 def _sync_database_url() -> str:
-    url = migration_settings.database_url
+    url = migration_settings.migration_database_url
     if url.startswith("sqlite+aiosqlite://"):
         url = url.replace("sqlite+aiosqlite://", "sqlite://", 1)
     if url.startswith("sqlite:///"):
@@ -62,13 +45,7 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    configuration = config.get_section(config.config_ini_section, {})
-    configuration["sqlalchemy.url"] = _sync_database_url()
-    connectable = engine_from_config(
-        configuration,
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
+    connectable = create_engine(_sync_database_url(), poolclass=pool.NullPool)
 
     with connectable.connect() as connection:
         context.configure(
