@@ -655,8 +655,6 @@ class ExpertMemory:
             hit.metadata.get("content_hash") == content_hash for hit in existing
         ):
             return
-        for hit in existing:
-            await asyncio.to_thread(self._text_client.delete, hit.id)
         await asyncio.to_thread(
             self._text_client.add,
             [{"role": "assistant", "content": "\n".join(cleaned)}],
@@ -670,6 +668,8 @@ class ExpertMemory:
             },
             prompt=LANGUAGE_PRESERVATION_INSTRUCTIONS,
         )
+        for hit in existing:
+            await asyncio.to_thread(self._text_client.delete, hit.id)
 
     async def get(self, *, memory_id: str) -> ExpertMemoryHit | None:
         cleaned = memory_id.strip()
