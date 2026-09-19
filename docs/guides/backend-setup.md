@@ -21,6 +21,7 @@ cp .env.example .env
 | Variable | Required | Default | Notes |
 | -------- | -------- | ------- | ----- |
 | `DATABASE_URL` | **yes** | — | Use the Supabase direct/session URL. `postgres://` and `postgresql://` are normalized to the psycopg driver. Do not use the transaction pooler for the long-running backend. |
+| `MIGRATION_DATABASE_URL` | **for Alembic** | — | Direct/session URL for the table owner (`postgres`), using that role's database password. Alembic never uses the runtime `DATABASE_URL`. Keep this credential backend-only. |
 | `ALLOWED_ORIGINS` | no | Vite localhost origins | Comma-separated CORS list |
 | `LLM_PROVIDER` | no | `cerebras` | `cerebras` or `deepseek`. No automatic fallback |
 | `LLM_MODEL` | no | provider default | Empty → `gpt-oss-120b` (Cerebras) or `DEEPSEEK_MODEL` |
@@ -68,6 +69,7 @@ cp .env.example .env
 
 ```env
 DATABASE_URL=postgresql+psycopg://postgres.PROJECT_REF:PASSWORD@HOST:5432/postgres
+MIGRATION_DATABASE_URL=postgresql+psycopg://postgres.PROJECT_REF:PASSWORD@HOST:5432/postgres
 ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 
 LLM_PROVIDER=cerebras
