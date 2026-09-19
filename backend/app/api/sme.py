@@ -32,7 +32,7 @@ from app.schemas.sme import (
     SmeReadOut,
     SmeThreadType,
 )
-from app.serializers import persona_initials, utcnow
+from app.serializers import persona_initials, persona_avatar_url, profile_from_dict, utcnow
 from app.services import jobs as jobs_service
 from app.services.dd.default_experts import ensure_default_expert_personas
 from app.services.sme_expert_turns import (
@@ -136,6 +136,10 @@ async def list_inbox(
             last = messages[-1] if messages else None
             cursor = cursors.get(("expert", expert.id), 0)
             unread = sum(row.role == "assistant" and row.id > cursor for row in messages)
+            profile = profile_from_dict(expert.profile, expert.name)
+            kompetensomrade = profile.kompetensomrade.strip()
+            if kompetensomrade == "—":
+                kompetensomrade = ""
             items.append(
                 SmeInboxItem(
                     thread_type="expert",
@@ -143,6 +147,8 @@ async def list_inbox(
                     name=expert.name,
                     initials=persona_initials(expert.name),
                     subtitle=expert.occ,
+                    kompetensomrade=kompetensomrade,
+                    avatar_url=persona_avatar_url(expert),
                     preview=last.content if last else expert.quote,
                     last_message_at=last.created_at if last else None,
                     unread_count=unread,

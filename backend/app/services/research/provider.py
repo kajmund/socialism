@@ -125,6 +125,33 @@ def descriptor_from_source(source: ResearchSource) -> KnowledgeProviderDescripto
     )
 
 
+def descriptor_requires_case(descriptor: KnowledgeProviderDescriptor) -> bool:
+    return bool(descriptor.authority.get("requires_case"))
+
+
+def filter_source_types_for_scope(
+    source_types: Sequence[str],
+    *,
+    case_id: str | None,
+    descriptors: Sequence[KnowledgeProviderDescriptor] | None = None,
+) -> tuple[str, ...]:
+    """Drop case-scoped natures when the Run has no case_id.
+
+    Those providers are registered but not executable in this scope.
+    """
+    if case_id:
+        return tuple(source_types)
+    case_natures = {"case_knowledge"}
+    if descriptors:
+        case_natures.update(
+            nature
+            for descriptor in descriptors
+            if descriptor_requires_case(descriptor)
+            for nature in descriptor.evidence_natures
+        )
+    return tuple(item for item in source_types if item not in case_natures)
+
+
 def knowledge_adapter_descriptor(
     retrieval_provider_id: str,
     source_type: ResearchSourceType,

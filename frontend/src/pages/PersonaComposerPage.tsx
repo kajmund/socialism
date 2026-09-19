@@ -28,6 +28,7 @@ import {
   resendPersonaMessage,
   updatePersona,
   type ChatMode,
+  type PersonaDetail,
   type PersonaMessage,
 } from "@/api/personas"
 import { ChatMessageActions } from "@/components/chat/ChatMessageActions"
@@ -45,6 +46,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { ExpertMemoryDialog } from "@/components/experts/ExpertMemoryDialog"
 import { memoryNoticeText } from "@/components/experts/memoryNotice"
 import { ExpertToolsFields } from "@/components/experts/ExpertToolsFields"
+import { PersonaAvatarPicker } from "@/components/experts/PersonaAvatarPicker"
 import { blankEditableExpert, blankEditablePersona } from "@/data/library"
 import type { EditablePersona, PersonaKind, PersonaOrigin } from "@/data/library-types"
 import {
@@ -213,6 +215,9 @@ type EditorProps = {
   kind?: PersonaKind
   tools?: ExpertToolId[]
   onToolsChange?: (tools: ExpertToolId[]) => void
+  layersOnly?: boolean
+  avatarUrl?: string | null
+  onAvatarUrlChange?: (path: string | null) => void
 }
 
 function Editor({
@@ -233,6 +238,9 @@ function Editor({
   kind = "persona",
   tools = DEFAULT_EXPERT_TOOLS,
   onToolsChange,
+  layersOnly = false,
+  avatarUrl = null,
+  onAvatarUrlChange,
 }: EditorProps) {
   const { intl } = useLocale()
   const [mode, setMode] = useState<"work" | "present">("work")
@@ -270,10 +278,10 @@ function Editor({
   const [savedMemories, setSavedMemories] = useState<ExpertMemory[] | null>(null)
   const chatHello = useMemo(
     () =>
-      personaId
-        ? ({ scope: "library" as const, persona_id: personaId, mode: icMode })
-        : null,
-    [personaId, icMode],
+      layersOnly || !personaId
+        ? null
+        : ({ scope: "library" as const, persona_id: personaId, mode: icMode }),
+    [icMode, layersOnly, personaId],
   )
 
   const {
@@ -303,7 +311,7 @@ function Editor({
   const chatBusy = restBusy || socketBusy
 
   useEffect(() => {
-    if (!personaId) {
+    if (layersOnly || !personaId) {
       setMessages([])
       setOptimisticUser(null)
       setSuggestions([])
@@ -350,7 +358,7 @@ function Editor({
     }
     // intentionally omit onToast/t — parent recreates them each render
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [personaId, icMode, chatReady])
+  }, [layersOnly, personaId, icMode, chatReady])
 
   function clearPendingImage() {
     if (pendingImageUrl) URL.revokeObjectURL(pendingImageUrl)
@@ -571,7 +579,17 @@ function Editor({
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="topbar">
         <div className="persona-id">
-          <div className="avatar">{persona.initials}</div>
+          {kind === "expert" && personaId ? (
+            <PersonaAvatarPicker
+              personaId={personaId}
+              path={avatarUrl}
+              initials={persona.initials}
+              onChange={(path) => onAvatarUrlChange?.(path)}
+              onError={() => onToast(t("experts.avatar.error"))}
+            />
+          ) : (
+            <div className="avatar">{persona.initials}</div>
+          )}
           <div>
             <input
               className="nm-input"
@@ -580,28 +598,30 @@ function Editor({
             />
             <div className="sub">
               {kind === "expert"
-                ? `${persona.yrkesbakgrund && persona.yrkesbakgrund !== "—" ? persona.yrkesbakgrund : persona.yrke} · ${persona.kompetensomrade ?? "—"}`
+                ? `${persona.age} · ${persona.yrkesbakgrund && persona.yrkesbakgrund !== "—" ? persona.yrkesbakgrund : persona.yrke} · ${persona.kompetensomrade ?? "—"}`
                 : `${persona.age} · ${persona.yrke} · ${persona.ort}`}
             </div>
           </div>
         </div>
         <div className="topbar-actions">
-          <div className="mode-switch">
-            <button
-              type="button"
-              className={mode === "work" ? "on" : ""}
-              onClick={() => setMode("work")}
-            >
-              {t("personas.composer.workMode")}
-            </button>
-            <button
-              type="button"
-              className={mode === "present" ? "on" : ""}
-              onClick={() => setMode("present")}
-            >
-              {t("personas.composer.presentMode")}
-            </button>
-          </div>
+          {!layersOnly ? (
+            <div className="mode-switch">
+              <button
+                type="button"
+                className={mode === "work" ? "on" : ""}
+                onClick={() => setMode("work")}
+              >
+                {t("personas.composer.workMode")}
+              </button>
+              <button
+                type="button"
+                className={mode === "present" ? "on" : ""}
+                onClick={() => setMode("present")}
+              >
+                {t("personas.composer.presentMode")}
+              </button>
+            </div>
+          ) : null}
           <ExpertToolsFields
             tools={tools}
             onChange={onToolsChange ?? (() => undefined)}
@@ -614,9 +634,11 @@ function Editor({
               kind === "expert" ? "experts.tools.intro" : "personas.tools.intro"
             }
           />
-          <AdminButton variant="secondary" size="sm" onClick={onDuplicate}>
-            {t("common.duplicate")}
-          </AdminButton>
+          {!layersOnly ? (
+            <AdminButton variant="secondary" size="sm" onClick={onDuplicate}>
+              {t("common.duplicate")}
+            </AdminButton>
+          ) : null}
           {kind !== "expert" ? (
             <AdminButton variant="secondary" size="sm" onClick={onOpenVariants}>
               {t("personas.composer.variantsButton")}
@@ -640,7 +662,7 @@ function Editor({
           >
             {t("personas.composer.savePersona")}
           </AdminButton>
-          {onDelete &&
+          {!layersOnly && onDelete &&
             (confirmDelete ? (
               <>
                 <AdminButton
@@ -670,11 +692,13 @@ function Editor({
                 {t("common.delete")}
               </AdminButton>
             ))}
-          <Link to="/personas/new" className="no-underline">
-            <AdminButton variant="secondary" size="sm">
-              {t("personas.list.newPersona")}
-            </AdminButton>
-          </Link>
+          {!layersOnly ? (
+            <Link to="/personas/new" className="no-underline">
+              <AdminButton variant="secondary" size="sm">
+                {t("personas.list.newPersona")}
+              </AdminButton>
+            </Link>
+          ) : null}
         </div>
       </div>
       {saved && (
@@ -683,14 +707,26 @@ function Editor({
         </div>
       )}
 
-      <div className="work" style={{ display: mode === "work" ? "flex" : "none" }}>
+      <div
+        className={"work" + (layersOnly ? " work-layers-only" : "")}
+        style={{ display: layersOnly || mode === "work" ? "flex" : "none" }}
+      >
         <div
           id="persona-layers"
-          className={"layers-col" + (layersOpen ? "" : " is-collapsed")}
-          hidden={!layersOpen}
+          className={"layers-col" + (layersOpen || layersOnly ? "" : " is-collapsed")}
+          hidden={!layersOnly && !layersOpen}
         >
           {kind === "expert" ? (
             <>
+              <div className="layer-h">{t("personas.composer.layerDemography")}</div>
+              <LayerTable
+                fieldOptions={fieldOptions}
+                t={t}
+                onChange={upd}
+                rows={[
+                  { k: "age", l: t("personas.fields.age"), v: persona.age, locked: !!locks.age },
+                ]}
+              />
               <div className="layer-h">{t("experts.composer.layerCompetence")}</div>
               <LayerTable
                 fieldOptions={fieldOptions}
@@ -843,6 +879,7 @@ function Editor({
             </>
           )}
         </div>
+        {!layersOnly ? (
         <div className="chat-col">
           <div className="chat-top">
             <div className="chat-top-lead">
@@ -950,8 +987,10 @@ function Editor({
             }
           />
         </div>
+        ) : null}
       </div>
 
+      {!layersOnly ? (
       <div className={"present" + (mode === "present" ? " show" : "")}>
         <div className="p-portrait-col">
           <div
@@ -1099,6 +1138,7 @@ function Editor({
           />
         </div>
       </div>
+      ) : null}
     </div>
 
       <ConfirmModal
@@ -1249,6 +1289,10 @@ export type PersonaComposerPageProps = {
   basePath?: string
   Shell?: ComponentType<{ children: ReactNode }>
   customerId?: number
+  embedded?: boolean
+  personaId?: string
+  onSaved?: (detail: PersonaDetail) => void
+  onAvatarChange?: (avatarUrl: string | null) => void
 }
 
 export function PersonaComposerPage({
@@ -1256,6 +1300,10 @@ export function PersonaComposerPage({
   basePath = "/personas",
   Shell = AdminShell,
   customerId,
+  embedded = false,
+  personaId: personaIdProp,
+  onSaved,
+  onAvatarChange,
 }: PersonaComposerPageProps = {}) {
   const isExpert = kind === "expert"
   const { t } = useLocale()
@@ -1263,7 +1311,8 @@ export function PersonaComposerPage({
   const [params] = useSearchParams()
   const navigate = useNavigate()
   const startCreating = params.get("new") === "1" || id === "new"
-  const existingId = !startCreating && id && id !== "new" ? id : null
+  const routeId = !startCreating && id && id !== "new" ? id : null
+  const existingId = personaIdProp ?? routeId
 
   const [screen, setScreen] = useState<"create" | "edit" | "variants">(
     startCreating && !isExpert ? "create" : "edit",
@@ -1278,6 +1327,7 @@ export function PersonaComposerPage({
     startCreating ? (isExpert ? blankEditableExpert() : null) : isExpert ? blankEditableExpert() : blankEditablePersona(),
   )
   const [personaId, setPersonaId] = useState<string | null>(existingId)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [tools, setTools] = useState<ExpertToolId[]>(
     isExpert ? DEFAULT_EXPERT_TOOLS : [],
   )
@@ -1356,11 +1406,11 @@ export function PersonaComposerPage({
     getPersona(existingId)
       .then((detail) => {
         if (cancelled) return
-        if (detail.kind === "expert" && !isExpert) {
+        if (!embedded && detail.kind === "expert" && !isExpert) {
           navigate(`/bolag/experter/${detail.id}`, { replace: true })
           return
         }
-        if (detail.kind === "persona" && isExpert) {
+        if (!embedded && detail.kind === "persona" && isExpert) {
           navigate(`/personas/${detail.id}`, { replace: true })
           return
         }
@@ -1369,6 +1419,7 @@ export function PersonaComposerPage({
           ...detail.profile,
         })
         setPersonaId(detail.id)
+        setAvatarUrl(detail.avatar_url ?? null)
         setCreateOrigin(detail.origin)
         setTools(
           isExpert
@@ -1411,6 +1462,8 @@ export function PersonaComposerPage({
             ? normalizeExpertTools(saved.tools)
             : normalizePersonaTools(saved.tools),
         )
+        setAvatarUrl(saved.avatar_url ?? null)
+        if (embedded) onSaved?.(saved)
       } else {
         const saved = await createPersona(body)
         setPersona({ ...(isExpert ? blankEditableExpert() : blankEditablePersona()), ...saved.profile })
@@ -1420,7 +1473,8 @@ export function PersonaComposerPage({
             ? normalizeExpertTools(saved.tools)
             : normalizePersonaTools(saved.tools),
         )
-        navigate(`${basePath}/${saved.id}`, { replace: true })
+        if (!embedded) navigate(`${basePath}/${saved.id}`, { replace: true })
+        if (embedded) onSaved?.(saved)
       }
     } catch (err) {
       setToast(err instanceof ApiError ? err.message : t("common.saveError"))
@@ -1654,6 +1708,12 @@ export function PersonaComposerPage({
               kind={kind}
               tools={tools}
               onToolsChange={setTools}
+              layersOnly={embedded}
+              avatarUrl={avatarUrl}
+              onAvatarUrlChange={(path) => {
+                setAvatarUrl(path)
+                onAvatarChange?.(path)
+              }}
               onDelete={
                 personaId
                   ? () => {
@@ -1661,7 +1721,7 @@ export function PersonaComposerPage({
                         setDeleting(true)
                         try {
                           await deletePersona(personaId)
-                          navigate(basePath)
+                          if (!embedded) navigate(basePath)
                         } catch (err) {
                           setToast(
                             err instanceof ApiError ? err.message : t("common.deleteError"),

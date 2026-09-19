@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
-import { listLibraryPersonas, type LibraryPersona } from "@/api/personas"
+import { listLibraryPersonas } from "@/api/personas"
+import type { LibraryPersona } from "@/data/library-types"
 import {
   getPlaygroundImageModels,
   reactPlaygroundImage,

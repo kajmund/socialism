@@ -19,6 +19,7 @@ from app.services.research.provider import (
     KnowledgeProviderDescriptor,
     ProviderCandidate,
     constraints_from_need,
+    descriptor_requires_case,
 )
 from app.services.research.registry import KnowledgeProviderCapabilityRegistry
 from app.services.research.source import ResearchSource
@@ -136,6 +137,12 @@ class ResearchRouter:
     ) -> list[ResearchEvidence]:
         collected: list[ResearchEvidence] = []
         for candidate in self._registry.candidates_for(constraints_from_need(need)):
+            if _case_required(candidate) and not context.scope.case_id:
+                candidate = ProviderCandidate(
+                    outcome="unavailable",
+                    evidence_nature=candidate.evidence_nature,
+                    descriptor=candidate.descriptor,
+                )
             collected.extend(await self._run_candidate(candidate, need, context))
         return collected
 
@@ -205,3 +212,9 @@ class ResearchRouter:
         if not evidence:
             return [_not_found_evidence(need, source.source_type, provider=provider)]
         return list(evidence)
+
+
+def _case_required(candidate: ProviderCandidate) -> bool:
+    if candidate.descriptor is not None and descriptor_requires_case(candidate.descriptor):
+        return True
+    return candidate.evidence_nature == "case_knowledge"

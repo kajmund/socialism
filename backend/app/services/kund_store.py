@@ -19,12 +19,6 @@ _SEED_KUNDER: tuple[tuple[str, str, tuple[str, ...], str | None], ...] = (
 )
 
 
-def _module_ids(raw: object) -> list[str]:
-    if not isinstance(raw, list):
-        return []
-    return [item for item in raw if isinstance(item, str)]
-
-
 async def ensure_default_kunder(session: AsyncSession) -> bool:
     """Insert default kunder + a default projekt under the OS kund if missing."""
     changed = False
@@ -46,13 +40,6 @@ async def ensure_default_kunder(session: AsyncSession) -> bool:
                 )
             )
             changed = True
-        elif slug == OS_DEFAULT_KUND_SLUG:
-            current = _module_ids(row.available_modules)
-            missing = [mid for mid in modules if mid not in current]
-            if missing:
-                row.available_modules = [*current, *missing]
-                row.updated_at = now
-                changed = True
 
     if changed:
         await session.flush()
