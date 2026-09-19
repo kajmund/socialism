@@ -156,7 +156,7 @@ class Settings(BaseSettings):
     research_claim_lease_seconds: int = Field(default=60, ge=5, le=3600)
     # How often the reclaim loop looks for expired/unclaimed research work.
     research_worker_poll_seconds: float = Field(default=0.5, ge=0.05, le=60)
-    # Production starts a reclaim loop in lifespan. Tests turn this off.
+    # Normal app startup starts a reclaim loop in lifespan. Tests turn this off.
     research_worker_loop_enabled: bool = True
     # Max concurrent Word-review LLM calls within one expertgranskning job.
     word_review_max_concurrency: int = Field(default=8, ge=1, le=32)
@@ -173,7 +173,7 @@ class Settings(BaseSettings):
     logstash_username: str = ""
     logstash_password: SecretStr = SecretStr("")
     log_service: str = "socialism-backend"
-    log_environment: str = "production"
+    log_environment: str = "local"
     logstash_timeout_seconds: float = Field(default=2.0, gt=0, le=30)
     logstash_queue_size: int = Field(default=512, ge=1, le=10_000)
 
