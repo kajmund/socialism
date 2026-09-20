@@ -5,6 +5,7 @@ Orchestration symbols in ``execution`` are loaded lazily so
 ``research.execution`` from this package init created a circular ImportError.
 """
 
+from importlib import import_module
 from typing import TYPE_CHECKING
 
 from app.services.research.knowledge_source import (
@@ -12,7 +13,6 @@ from app.services.research.knowledge_source import (
     provenance_from_hit,
     search_scope,
 )
-from app.services.research.lagen_nu_source import LagenNuResearchSource
 from app.services.research.models import (
     RESEARCH_SOURCE_TYPES,
     InvalidResearchPlanError,
@@ -40,9 +40,9 @@ from app.services.research.planner import (
     ResearchObjective,
     ResearchPlannerError,
     plan_from_planner_drafts,
+    require_research_objective,
     research_objective_from_snapshot,
     research_objective_to_snapshot,
-    require_research_objective,
 )
 from app.services.research.provider import (
     KnowledgeProviderDescriptor,
@@ -52,13 +52,6 @@ from app.services.research.provider import (
     knowledge_adapter_descriptor,
     rank_provider_candidates,
 )
-from app.services.research.registry import (
-    KnowledgeProviderCapabilityRegistry,
-    ResearchSourceRegistry,
-    build_research_registry,
-    production_registered_source_types,
-)
-from app.services.research.router import ResearchRouter
 from app.services.research.source import ResearchSource
 
 if TYPE_CHECKING:
@@ -68,15 +61,25 @@ if TYPE_CHECKING:
         execute_attempt_research,
         research_context_from_run,
     )
+    from app.services.research.registry import (
+        KnowledgeProviderCapabilityRegistry,
+        ResearchSourceRegistry,
+        build_research_registry,
+        production_registered_source_types,
+    )
+    from app.services.research.router import ResearchRouter
 
-_LAZY_EXECUTION = frozenset(
-    {
-        "AttemptResearchResult",
-        "ResearchExecutionError",
-        "execute_attempt_research",
-        "research_context_from_run",
-    }
-)
+_LAZY_MODULE_BY_NAME = {
+    "AttemptResearchResult": "app.services.research.execution",
+    "ResearchExecutionError": "app.services.research.execution",
+    "execute_attempt_research": "app.services.research.execution",
+    "research_context_from_run": "app.services.research.execution",
+    "KnowledgeProviderCapabilityRegistry": "app.services.research.registry",
+    "ResearchSourceRegistry": "app.services.research.registry",
+    "build_research_registry": "app.services.research.registry",
+    "production_registered_source_types": "app.services.research.registry",
+    "ResearchRouter": "app.services.research.router",
+}
 
 __all__ = [
     "RESEARCH_SOURCE_TYPES",
@@ -86,11 +89,7 @@ __all__ = [
     "InvalidResearchPlanError",
     "KnowledgeProviderCapabilityRegistry",
     "KnowledgeProviderDescriptor",
-    "ResearchNeedDraft",
-    "ResearchObjective",
-    "ResearchPlannerError",
     "KnowledgeResearchSource",
-    "LagenNuResearchSource",
     "NeedConstraints",
     "ProviderAccess",
     "ResearchCapabilityUnavailableError",
@@ -99,7 +98,10 @@ __all__ = [
     "ResearchEvidence",
     "ResearchExecutionError",
     "ResearchNeed",
+    "ResearchNeedDraft",
+    "ResearchObjective",
     "ResearchPlan",
+    "ResearchPlannerError",
     "ResearchRouter",
     "ResearchScopeRequiredError",
     "ResearchSource",
@@ -110,9 +112,9 @@ __all__ = [
     "constraints_from_need",
     "execute_attempt_research",
     "knowledge_adapter_descriptor",
-    "production_registered_source_types",
     "make_evidence_id",
     "plan_from_planner_drafts",
+    "production_registered_source_types",
     "provenance_from_hit",
     "rank_provider_candidates",
     "require_research_objective",
@@ -128,8 +130,7 @@ __all__ = [
 
 
 def __getattr__(name: str):
-    if name in _LAZY_EXECUTION:
-        from app.services.research import execution as _execution
-
-        return getattr(_execution, name)
+    module_name = _LAZY_MODULE_BY_NAME.get(name)
+    if module_name is not None:
+        return getattr(import_module(module_name), name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

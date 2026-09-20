@@ -56,10 +56,11 @@ export function SmeResearchModal({
 
   useEffect(() => {
     if (!open || !jobId || attemptId) return
+    const activeJobId = jobId
     let cancelled = false
     async function poll() {
       try {
-        const job = await getJob(jobId)
+        const job = await getJob(activeJobId)
         if (cancelled) return
         const nextAttemptId = researchAttemptId(job)
         if (nextAttemptId) setPolledAttemptId(nextAttemptId)

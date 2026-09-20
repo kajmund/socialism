@@ -105,18 +105,27 @@ A synthetic non-text provider (for example image similarity) is the same path: d
 
 ## Existing knowledge providers
 
-`build_research_registry` composes each standard capability descriptor through its declared adapter. Tenant knowledge still wraps the shared `KnowledgeProvider`. Official lagen.nu is a separate public `ResearchSource` — MCP is only the access mechanism.
+`build_research_registry` composes each standard capability descriptor through its declared adapter. The production registry currently contains only lagen.nu capabilities; MCP is the access mechanism.
 
 | Registry id | Evidence nature | Scope |
 | --- | --- | --- |
-| `{provider}.case_knowledge` | `case_knowledge` | customer + case |
-| `{provider}.customer_knowledge` | `customer_knowledge` | customer only (case dropped) |
-| `lagen_nu.swedish_law` | `swedish_law` | public SFS via official lagen.nu MCP |
-| `lagen_nu.swedish_preparatory_works` | `swedish_preparatory_works` | public förarbeten via official lagen.nu MCP |
+| `lagen_nu.swedish_law` | `swedish_law` | public SFS via lagen.nu MCP |
+| `lagen_nu.swedish_case_law` | `swedish_case_law` | public Swedish court decisions (`dv/case`) via lagen.nu MCP |
+| `lagen_nu.swedish_preparatory_works` | `swedish_preparatory_works` | public förarbeten via lagen.nu MCP |
 
-Tenant evidence `provider` remains the retrieval provider id (`supabase`). lagen.nu evidence `provider` is `lagen_nu`. Tenant scope is identical or stricter than before; the public adapter never receives `customer_id` / `case_id`.
+The `case_knowledge` and `customer_knowledge` adapters remain implemented for future policy work but are not registered in production. User uploads can contain arbitrary material, so they must not become research evidence until source classification, provenance, and trust rules exist. Uploaded documents remain analysis objects for document-understanding flows.
 
-The lagen.nu descriptors come from one production registration (`app.services.lagen_nu.registration`). Planner and completeness see `swedish_law` / `swedish_preparatory_works` only because those natures are on that registration — not from a hardcoded legal list.
+lagen.nu evidence `provider` is `lagen_nu`. The public adapter never receives `customer_id` / `case_id`.
+
+The lagen.nu descriptors come from one production registration (`app.services.lagen_nu.registration`), while provider-owned retrieval lives in `app.services.lagen_nu.research_source`. Planner, follow-up planner, and completeness reviewer only see the evidence natures declared by the active registry and allowed by the Run scope.
+
+For `swedish_case_law`, a named decision resolves directly. A question about a provision combines question-specific full-text search with the incoming citation graph, deduplicates by canonical document URI, and ranks overlap between both candidate lists ahead of search-only and citation-only hits. Named `prop.` / `SOU` citations resolve the same way. This provider-specific ranking never enters the generic `ResearchRouter`.
+
+Search, citation-graph, and named-resolve hits go through a structured lagen.nu selector (`app.llm.lagen_nu_selector`) before `get_document`. The selector may only keep or drop already found candidate IDs; it does not search and it does not invent URIs. Omitted candidate IDs are dropped. Invented IDs are ignored. Named `prop.` / `SOU` / `NJA` resolves stay by identity; a later excerpt check drops the document if the span does not mention the provision. A question about förarbetena till a named provision resolves that statute and reads incoming forarbete citations in rail order (citation-count order surfaces later laws that merely mention the section). Preparatory search does not prefix `36 §`, which matches other SOU/prop numbers. Cover-page pinpoints (`huvudsakligt innehåll`) are ignored so the full document is fetched; the excerpt model windows around the provision itself, not every earlier `jämk` on the cover. Case excerpts come from the court's reasons when those mention the provision; party submissions are dropped. After fetch, a second structured call copies a contiguous excerpt that must already exist in the retrieved text and must mention the provision. A bad, empty, or front-matter excerpt skips that document instead of failing the whole need. Prompts live in `research.lagen_nu.select.*` and `research.lagen_nu.excerpt.*`.
+
+The adapter fetches at most five unique documents and enforces a hard budget of twelve MCP calls per ResearchNeed. Evidence provenance records retrieval origins and ranks so the selection remains auditable.
+
+lagen.nu republishes material collected from official sources. Its descriptors therefore declare `authority_level=trusted` and `source_nature=primary`; the evidence keeps the publisher URL and a publication note for audit, without treating the aggregation mechanism itself as a reliability defect.
 
 ## Semantic ranking seam
 

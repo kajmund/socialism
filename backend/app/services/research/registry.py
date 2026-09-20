@@ -1,17 +1,18 @@
-"""KnowledgeProvider capability registry. No LLM selection."""
+"""KnowledgeProvider capability registry. lagen.nu selection is injected."""
 
 from __future__ import annotations
 
 from collections.abc import Sequence
 
-from app.services.knowledge.provider import SUPABASE_PROVIDER_ID, KnowledgeProvider
+from app.services.knowledge.provider import KnowledgeProvider
 from app.services.lagen_nu.registration import (
     LAGEN_NU_ADAPTER,
     LAGEN_NU_EVIDENCE_NATURES,
     lagen_nu_capability_descriptors,
 )
+from app.services.lagen_nu.research_source import LagenNuResearchSource
+from app.services.lagen_nu.selection import LagenNuPassageSelector
 from app.services.research.knowledge_source import KnowledgeResearchSource
-from app.services.research.lagen_nu_source import LagenNuResearchSource
 from app.services.research.models import ResearchSourceType
 from app.services.research.provider import (
     KnowledgeProviderDescriptor,
@@ -34,11 +35,7 @@ def default_standard_capability_descriptors() -> tuple[KnowledgeProviderDescript
 
     ``build_research_registry`` and planner availability both read this set.
     """
-    return (
-        knowledge_adapter_descriptor(SUPABASE_PROVIDER_ID, "case_knowledge"),
-        knowledge_adapter_descriptor(SUPABASE_PROVIDER_ID, "customer_knowledge"),
-        *lagen_nu_capability_descriptors(),
-    )
+    return lagen_nu_capability_descriptors()
 
 
 def set_standard_capability_descriptors(
@@ -191,10 +188,12 @@ ResearchSourceRegistry = KnowledgeProviderCapabilityRegistry
 def _compose_standard_source(
     provider: KnowledgeProvider,
     descriptor: KnowledgeProviderDescriptor,
+    *,
+    lagen_nu_selector: LagenNuPassageSelector | None = None,
 ) -> tuple[ResearchSource, KnowledgeProviderDescriptor]:
     adapter = descriptor.access.adapter
     if adapter == LAGEN_NU_ADAPTER:
-        return _compose_lagen_nu_source(descriptor)
+        return _compose_lagen_nu_source(descriptor, selector=lagen_nu_selector)
     if adapter != _KNOWLEDGE_RESEARCH_ADAPTER:
         raise ValueError(
             f"standard capability {descriptor.provider_id} uses unsupported adapter {adapter!r}"
@@ -213,6 +212,8 @@ def _compose_standard_source(
 
 def _compose_lagen_nu_source(
     descriptor: KnowledgeProviderDescriptor,
+    *,
+    selector: LagenNuPassageSelector | None = None,
 ) -> tuple[ResearchSource, KnowledgeProviderDescriptor]:
     natures = _ordered_evidence_natures(descriptor)
     if len(natures) != 1:
@@ -224,13 +225,24 @@ def _compose_lagen_nu_source(
         raise ValueError(
             f"standard capability {descriptor.provider_id} declares unimplemented lagen.nu nature {nature!r}"
         )
-    return LagenNuResearchSource(source_type=nature), descriptor  # type: ignore[arg-type]
+    return (
+        LagenNuResearchSource(source_type=nature, selector=selector),  # type: ignore[arg-type]
+        descriptor,
+    )
 
 
-def build_research_registry(provider: KnowledgeProvider) -> ResearchSourceRegistry:
-    """Standard production providers: tenant knowledge + official lagen.nu."""
+def build_research_registry(
+    provider: KnowledgeProvider,
+    *,
+    lagen_nu_selector: LagenNuPassageSelector | None = None,
+) -> ResearchSourceRegistry:
+    """Compose the configured standard providers through explicit adapters."""
     registry = KnowledgeProviderCapabilityRegistry()
     for descriptor in standard_capability_descriptors():
-        source, live_descriptor = _compose_standard_source(provider, descriptor)
+        source, live_descriptor = _compose_standard_source(
+            provider,
+            descriptor,
+            lagen_nu_selector=lagen_nu_selector,
+        )
         registry.register(source, descriptor=live_descriptor)
     return registry

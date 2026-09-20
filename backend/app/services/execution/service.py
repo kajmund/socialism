@@ -11,8 +11,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database.models import (
+    EvidencePassage,
     EvidenceSet,
     EvidenceSetItem,
+    EvidenceSetItemNeed,
+    EvidenceSource,
     ExecutionAttempt,
     ExecutionAttemptResult,
     ExecutionRun,
@@ -66,6 +69,11 @@ from app.services.research.completeness import (
     INITIAL_COMPLETENESS_PASS,
     ResearchCompletenessDraft,
     missing_question_to_json,
+)
+from app.services.research.evidence_identity import (
+    canonical_source_identity,
+    evidence_passage_id,
+    evidence_source_id,
 )
 from app.services.research.followup import RuntimeResearchNeed
 from app.services.research.models import ResearchEvidence
@@ -329,13 +337,10 @@ async def add_evidence_items(
     evidence_set = await get_evidence_set(session, evidence_set_id)
     _assert_building(evidence_set)
     stored: list[EvidenceSetItem] = []
-    snapshots = _dedupe_snapshots(
-        [
-            raw if isinstance(raw, EvidenceItemSnapshot) else snapshot_research_evidence(raw)
-            for raw in items
-        ],
-        await _existing_original_evidence_ids(session, evidence_set.id),
-    )
+    snapshots = [
+        raw if isinstance(raw, EvidenceItemSnapshot) else snapshot_research_evidence(raw)
+        for raw in items
+    ]
     if not snapshots:
         return stored
     ordinals = _allocate_ordinals(
@@ -343,10 +348,85 @@ async def add_evidence_items(
     )
     for snapshot, ordinal in zip(snapshots, ordinals, strict=True):
         provenance = require_json_object(snapshot.provenance, field="provenance")
+        content_hash = snapshot.content_hash or compute_content_hash(
+            excerpt=snapshot.excerpt, provenance=provenance
+        )
+        passage_id = None
+        if snapshot.status == "found":
+            source_key = evidence_source_id(
+                provider=snapshot.provider,
+                source_id=snapshot.source_id,
+                source_url=snapshot.source_url,
+                content_hash=content_hash,
+            )
+            passage_id = evidence_passage_id(
+                source_key=source_key,
+                source_id=snapshot.source_id,
+                locator=snapshot.locator,
+                content_hash=content_hash,
+            )
+            source = await session.get(EvidenceSource, source_key)
+            if source is None:
+                source = EvidenceSource(
+                    id=source_key,
+                    provider=snapshot.provider,
+                    canonical_identity=canonical_source_identity(
+                        snapshot.source_id, snapshot.source_url
+                    )
+                    or f"content:{content_hash}",
+                    source_type=_require_non_empty(
+                        snapshot.source_type, field="source_type"
+                    ),
+                    source_id=snapshot.source_id,
+                    source_url=snapshot.source_url,
+                    title=snapshot.title,
+                )
+                session.add(source)
+            passage = await session.get(EvidencePassage, passage_id)
+            if passage is None:
+                session.add(
+                    EvidencePassage(
+                        id=passage_id,
+                        source_id=source_key,
+                        source_ref=snapshot.source_id,
+                        locator=snapshot.locator,
+                        excerpt=snapshot.excerpt,
+                        content_hash=content_hash,
+                        provenance=provenance,
+                        retrieved_at=snapshot.retrieved_at,
+                    )
+                )
+            existing = (
+                await session.execute(
+                    select(EvidenceSetItem).where(
+                        EvidenceSetItem.evidence_set_id == evidence_set.id,
+                        EvidenceSetItem.passage_id == passage_id,
+                    )
+                )
+            ).scalar_one_or_none()
+            if existing is not None:
+                linked = False
+                if snapshot.research_need_id is not None:
+                    link = await session.get(
+                        EvidenceSetItemNeed,
+                        (existing.id, snapshot.research_need_id),
+                    )
+                    if link is None:
+                        session.add(
+                            EvidenceSetItemNeed(
+                                evidence_set_item_id=existing.id,
+                                research_need_id=snapshot.research_need_id,
+                            )
+                        )
+                        linked = True
+                if linked and existing not in stored:
+                    stored.append(existing)
+                continue
         row = EvidenceSetItem(
             id=new_id(),
             evidence_set_id=evidence_set.id,
             research_need_id=snapshot.research_need_id,
+            passage_id=passage_id,
             original_evidence_id=snapshot.original_evidence_id,
             ordinal=ordinal,
             source_type=_require_non_empty(snapshot.source_type, field="source_type"),
@@ -360,10 +440,16 @@ async def add_evidence_items(
             score=snapshot.score,
             provenance=provenance,
             retrieved_at=snapshot.retrieved_at,
-            content_hash=snapshot.content_hash
-            or compute_content_hash(excerpt=snapshot.excerpt, provenance=provenance),
+            content_hash=content_hash,
         )
         session.add(row)
+        if snapshot.research_need_id is not None:
+            row.need_links.append(
+                EvidenceSetItemNeed(
+                    evidence_set_item_id=row.id,
+                    research_need_id=snapshot.research_need_id,
+                )
+            )
         stored.append(row)
     await session.flush()
     return stored

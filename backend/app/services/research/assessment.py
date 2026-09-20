@@ -19,6 +19,16 @@ AssessmentResult = Literal["sufficient", "insufficient"]
 
 ASSESSMENT_RESULTS: tuple[AssessmentResult, ...] = ("sufficient", "insufficient")
 INITIAL_ASSESSMENT_PASS = 1
+# Review models judge support, not the frozen document. Stored excerpts stay intact.
+REVIEW_EXCERPT_CHARS = 2000
+
+
+def review_excerpt(
+    excerpt: str | None, *, max_chars: int = REVIEW_EXCERPT_CHARS
+) -> str | None:
+    if excerpt is None or len(excerpt) <= max_chars:
+        return excerpt
+    return excerpt[:max_chars]
 
 
 class ResearchAssessmentError(ResearchError):
@@ -44,9 +54,20 @@ class AssessableEvidence:
     retrieved_at: datetime
     content_hash: str
     quality: EvidenceQualityDraft | None = None
+    research_need_ids: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "provenance", dict(self.provenance))
+        object.__setattr__(self, "research_need_ids", tuple(self.research_need_ids))
+
+
+@dataclass(frozen=True)
+class EvidenceReviewGroup:
+    """One review payload row with all runtime needs that retrieved the source."""
+
+    evidence: AssessableEvidence
+    research_need_ids: tuple[str, ...]
+    duplicate_evidence_ids: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -100,6 +121,38 @@ class ResearchAssessor(Protocol):
 
 def evidence_id_set(evidence: Sequence[AssessableEvidence]) -> frozenset[str]:
     return frozenset(item.evidence_id for item in evidence)
+
+
+def group_evidence_for_review(
+    evidence: Sequence[AssessableEvidence],
+) -> list[EvidenceReviewGroup]:
+    """Collapse exact source duplicates without losing need lineage."""
+    grouped: dict[str, list[AssessableEvidence]] = {}
+    for item in evidence:
+        source = (item.source_id or item.source_url or "").strip()
+        key = f"source:{source}" if source else f"content:{item.content_hash}"
+        grouped.setdefault(key, []).append(item)
+    result: list[EvidenceReviewGroup] = []
+    for items in grouped.values():
+        primary = items[0]
+        need_ids = tuple(
+            dict.fromkeys(
+                need_id
+                for item in items
+                for need_id in (
+                    item.research_need_ids
+                    or ((item.research_need_id,) if item.research_need_id else ())
+                )
+            )
+        )
+        result.append(
+            EvidenceReviewGroup(
+                evidence=primary,
+                research_need_ids=need_ids,
+                duplicate_evidence_ids=tuple(item.evidence_id for item in items[1:]),
+            )
+        )
+    return result
 
 
 def evidence_fingerprint(evidence: Sequence[AssessableEvidence]) -> str:

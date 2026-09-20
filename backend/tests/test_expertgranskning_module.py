@@ -157,9 +157,9 @@ def mock_panel_llm():
                 can_answer_from_document=False,
                 needs=[
                     PanelResearchNeedDraft(
-                        question="Vilket relevant kundunderlag finns för granskningen?",
-                        why_needed="Panelen behöver ett fryst externt underlag.",
-                        source_types=["customer_knowledge"],
+                        question="Vilken rättslig reglering är relevant för granskningen?",
+                        why_needed="Panelen behöver ett fryst rättsligt underlag.",
+                        source_types=["swedish_law"],
                     )
                 ],
             )
@@ -167,8 +167,8 @@ def mock_panel_llm():
             return ModeratorResearchPlan(
                 needs=[
                     ConsolidatedResearchNeed(
-                        question="Vilket relevant kundunderlag finns för granskningen?",
-                        why_needed="Panelen behöver ett fryst externt underlag.",
+                        question="Vilken rättslig reglering är relevant för granskningen?",
+                        why_needed="Panelen behöver ett fryst rättsligt underlag.",
                         proposal_ids=["proposal_1", "proposal_2"],
                     )
                 ]
@@ -186,15 +186,15 @@ def mock_panel_llm():
     planner = FakeResearchPlanner(
         [
             ResearchNeedDraft(
-                question="Vilket relevant kundunderlag finns för granskningen?",
-                why_needed="Panelen behöver ett fryst externt underlag.",
-                source_types=["customer_knowledge"],
+                question="Vilken rättslig reglering är relevant för granskningen?",
+                why_needed="Panelen behöver ett fryst rättsligt underlag.",
+                source_types=["swedish_law"],
             )
         ]
     )
 
     class _Source:
-        source_type = "customer_knowledge"
+        source_type = "swedish_law"
 
         async def research(
             self, need: ResearchNeed, context: ResearchContext
@@ -204,8 +204,8 @@ def mock_panel_llm():
                     research_need_id=need.id,
                     source_type=self.source_type,
                     status="found",
-                    title="Kundunderlag",
-                    excerpt="Relevant bakgrund för dokumentgranskningen.",
+                    title="Lagtext",
+                    excerpt="Relevant rättslig reglering för dokumentgranskningen.",
                     provider="test",
                 )
             ]
@@ -232,8 +232,6 @@ def mock_panel_llm():
 
 
 async def _create_expert_panel(client: AsyncClient) -> int:
-    from tests.conftest import BOLAG_USER_ID, mint_access_token
-
     listed = await client.get("/kunder")
     assert listed.status_code == 200
     bolag_id = next(row["id"] for row in listed.json() if row["slug"] == BOLAG_DEMO_KUND_SLUG)
@@ -626,8 +624,6 @@ async def test_admin_cannot_create_second_mixed_kund_panel(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_bolag_user_can_create_session_for_own_kund_panel(client: AsyncClient):
-    from tests.conftest import BOLAG_USER_ID, mint_access_token
-
     panel_id = await _create_expert_panel(client)
     client.headers["Authorization"] = (
         f"Bearer {mint_access_token(sub=BOLAG_USER_ID, email='bolag@test.local')}"
@@ -867,8 +863,6 @@ async def test_expertgranskning_report_writes_source_pdf_creating_out_dir(
 
 @pytest.mark.asyncio
 async def test_bolag_user_session_list_is_scoped(client: AsyncClient):
-    from tests.conftest import BOLAG_USER_ID, mint_access_token
-
     panel_id = await _create_expert_panel(client)
     bolag_session = await client.post(
         "/expertgranskning/sessions",
@@ -897,7 +891,6 @@ async def test_bolag_user_session_list_is_scoped(client: AsyncClient):
 async def test_bolag_user_can_watch_expertgranskning_panel_ws(client_db):
     from app.api.ws import _assert_panel_ws_access
     from app.database.models import UserAccount
-    from tests.conftest import BOLAG_USER_ID
 
     client, factory = client_db
     panel_id = await _create_expert_panel(client)

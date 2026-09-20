@@ -9,11 +9,16 @@ from typing import Any
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.llm import complete_structured_retry
 from app.services.prompt_catalog import render_prompt
 from app.services.prompt_store import require_active_prompts
-from app.services.research.assessment import AssessableEvidence, ResearchAssessmentDraft
+from app.services.research.assessment import (
+    AssessableEvidence,
+    EvidenceReviewGroup,
+    ResearchAssessmentDraft,
+    group_evidence_for_review,
+    review_excerpt,
+)
 from app.services.research.followup import (
     FollowUpNeedDraft,
     FollowUpPlannerError,
@@ -52,7 +57,7 @@ class FollowUpNeedModel(BaseModel):
         if value is None:
             return []
         if not isinstance(value, list):
-            raise ValueError("must be a list")
+            raise TypeError("must be a list")
         return [str(item).strip() for item in value if str(item).strip()]
 
 
@@ -107,15 +112,21 @@ def _need_payload(row: RuntimeResearchNeed) -> dict[str, object]:
     }
 
 
-def _evidence_payload(item: AssessableEvidence) -> dict[str, object]:
+def _evidence_payload(group: EvidenceReviewGroup) -> dict[str, object]:
+    item = group.evidence
     return {
         "evidence_id": item.evidence_id,
         "research_need_id": item.research_need_id,
+        "research_need_ids": list(group.research_need_ids),
+        "duplicate_evidence_ids": list(group.duplicate_evidence_ids),
         "source_type": item.source_type,
         "status": item.status,
         "title": item.title,
-        "excerpt": item.excerpt,
+        "excerpt": review_excerpt(item.excerpt),
         "locator": item.locator,
+        "source_id": item.source_id,
+        "source_url": item.source_url,
+        "content_hash": item.content_hash,
     }
 
 
@@ -162,7 +173,13 @@ class LlmFollowUpPlanner:
         assessment: ResearchAssessmentDraft,
         evidence: Sequence[AssessableEvidence],
         previous_needs: Sequence[RuntimeResearchNeed],
+        available_source_types: Sequence[str] | None = None,
     ) -> Sequence[FollowUpNeedDraft]:
+        source_types = (
+            tuple(available_source_types)
+            if available_source_types is not None
+            else RESEARCH_SOURCE_TYPES
+        )
         messages = [
             {"role": "system", "content": self._system_prompt},
             {
@@ -170,7 +187,7 @@ class LlmFollowUpPlanner:
                 "content": render_prompt(
                     {"research.followup.user": self._user_prompt},
                     "research.followup.user",
-                    source_types=", ".join(RESEARCH_SOURCE_TYPES),
+                    source_types=", ".join(source_types),
                     plan_json=json.dumps(_plan_payload(plan), ensure_ascii=False),
                     assessment_json=json.dumps(
                         _assessment_payload(assessment), ensure_ascii=False
@@ -180,7 +197,10 @@ class LlmFollowUpPlanner:
                         ensure_ascii=False,
                     ),
                     evidence_json=json.dumps(
-                        [_evidence_payload(item) for item in evidence],
+                        [
+                            _evidence_payload(group)
+                            for group in group_evidence_for_review(evidence)
+                        ],
                         ensure_ascii=False,
                     ),
                 ),

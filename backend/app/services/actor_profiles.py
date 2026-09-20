@@ -32,7 +32,7 @@ def actor_tool_specs() -> list[dict]:
             "function": {
                 "name": "get_actor_context",
                 "description": "Read the current user's profile and the customer for this conversation when needed.",
-                "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
+                "parameters": {"type": "object", "properties": {}},
             },
         },
         {
@@ -40,7 +40,23 @@ def actor_tool_specs() -> list[dict]:
             "function": {
                 "name": "propose_actor_context_update",
                 "description": "Propose exact profile or organization changes for user approval. This does not save the changes.",
-                "parameters": ProposedEdit.model_json_schema(),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "target": {
+                            "type": "string",
+                            "enum": ["current_user", "customer"],
+                        },
+                        "changes": {
+                            "type": "object",
+                            "properties": {
+                                field: {"type": "string"}
+                                for field in (*ProfileFields.model_fields, *OrganizationFields.model_fields)
+                            },
+                        },
+                    },
+                    "required": ["target", "changes"],
+                },
             },
         },
     ]

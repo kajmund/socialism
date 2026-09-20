@@ -245,6 +245,8 @@ class EvidenceSetItemOut(BaseModel):
     id: str
     evidence_set_id: str
     research_need_id: str | None
+    research_need_ids: list[str]
+    passage_id: str | None
     original_evidence_id: str | None
     ordinal: int
     source_type: str
@@ -294,6 +296,8 @@ class ResearchExpertOut(BaseModel):
 
 class ResearchSourceOut(BaseModel):
     id: str
+    passage_id: str | None
+    research_need_ids: list[str]
     status: str
     title: str | None
     excerpt: str | None

@@ -580,7 +580,7 @@ async def test_factory_path_offers_standard_capability_natures_to_completeness_r
     session, factory = db
     _customer, _run, attempt = await _created_attempt(session, slug="comp-factory-cap")
     reviewer = SequenceCompletenessReviewer([_complete()])
-    router, sources = _router(RecordingSource("case_knowledge"))
+    router, sources = _router(RecordingSource("swedish_law"))
     bound_sessions: list[object] = []
 
     def router_factory(bound):
@@ -598,7 +598,7 @@ async def test_factory_path_offers_standard_capability_natures_to_completeness_r
             session,
             attempt_id=attempt.id,
             research_objective=_objective(),
-            research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
+            research_plan=ResearchPlan(needs=[_need("research_1", "swedish_law")]),
             router=None,
             router_factory=router_factory,
             assessor=RecordingAssessor(),
@@ -612,8 +612,8 @@ async def test_factory_path_offers_standard_capability_natures_to_completeness_r
     assert reviewer.available_source_types_calls
     offered = reviewer.available_source_types_calls[0]
     assert "swedish_law" in offered
-    assert "case_knowledge" in offered
-    assert "customer_knowledge" in offered
+    assert "case_knowledge" not in offered
+    assert "customer_knowledge" not in offered
     assert bound_sessions
     assert session not in bound_sessions
     assert sources[0].calls == 1

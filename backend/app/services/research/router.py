@@ -6,6 +6,9 @@ no silent fallback to unrelated providers.
 
 from __future__ import annotations
 
+import logging
+
+from app.services.lagen_nu.selection import LagenNuSelectionError
 from app.services.research.models import (
     ResearchCapabilityUnavailableError,
     ResearchContext,
@@ -24,6 +27,8 @@ from app.services.research.provider import (
 from app.services.research.registry import KnowledgeProviderCapabilityRegistry
 from app.services.research.source import ResearchSource
 
+logger = logging.getLogger(__name__)
+
 
 def _safe_error_metadata(source_type: str | None, exc: BaseException) -> dict[str, object]:
     metadata: dict[str, object] = {"error_type": type(exc).__name__}
@@ -35,10 +40,27 @@ def _safe_error_metadata(source_type: str | None, exc: BaseException) -> dict[st
 def _safe_error_message(exc: BaseException) -> str:
     if isinstance(
         exc,
-        (ResearchScopeRequiredError, ResearchSourceNotRegisteredError, ResearchCapabilityUnavailableError),
+        (
+            ResearchScopeRequiredError,
+            ResearchSourceNotRegisteredError,
+            ResearchCapabilityUnavailableError,
+            LagenNuSelectionError,
+        ),
     ):
+        if isinstance(exc, LagenNuSelectionError):
+            return f"{type(exc).__name__}: {_selection_error_text(exc)}"
         return str(exc)
     return f"{type(exc).__name__}: research source failed"
+
+
+def _selection_error_text(exc: LagenNuSelectionError) -> str:
+    parts = [str(exc).strip() or type(exc).__name__]
+    cause = exc.__cause__
+    if cause is not None:
+        detail = str(cause).strip() or type(cause).__name__
+        if detail not in parts[0]:
+            parts.append(detail)
+    return ": ".join(parts)
 
 
 def _evidence_source_type(need: ResearchNeed, candidate: ProviderCandidate) -> str:
@@ -208,6 +230,11 @@ class ResearchRouter:
         try:
             evidence = await source.research(need, context)
         except Exception as exc:  # noqa: BLE001 — isolate provider failures per need
+            logger.exception(
+                "research source %s failed for need %s",
+                source.source_type,
+                need.id,
+            )
             return [_error_evidence(need, source.source_type, exc, provider=provider)]
         if not evidence:
             return [_not_found_evidence(need, source.source_type, provider=provider)]
