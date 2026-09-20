@@ -424,11 +424,19 @@ async def create_persona(
     name = body.name
     age = body.age
     if body.kind == "expert":
-        while True:
+        if body.id:
+            persona_id = body.id
+            if await session.get(Persona, persona_id) is not None:
+                raise HTTPException(status_code=409, detail="Persona id already exists")
             display_name, sampled_age, kon = sample_expert_identity(Random(secrets.randbits(32)))
-            persona_id = body.id or slug_id(display_name)
-            if await session.get(Persona, persona_id) is None:
-                break
+        else:
+            while True:
+                display_name, sampled_age, kon = sample_expert_identity(
+                    Random(secrets.randbits(32))
+                )
+                persona_id = slug_id(display_name)
+                if await session.get(Persona, persona_id) is None:
+                    break
         name = display_name
         age = sampled_age
         profile.name = display_name

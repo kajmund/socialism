@@ -259,17 +259,21 @@ def schedule_job(job_id: str) -> None:
 
 
 async def _mark_job_running(job_id: str) -> str | None:
-    """Transition pending/running → running. Returns kind, or None if skipped."""
+    """Transition pending → running once. Returns kind, or None if skipped."""
     factory = job_session_factory()
     async with factory() as session:
+        now = utcnow()
+        result = await session.execute(
+            update(Job)
+            .where(Job.id == job_id, Job.status == "pending")
+            .values(status="running", started_at=now, updated_at=now)
+            .returning(Job.id)
+        )
+        if result.scalar_one_or_none() is None:
+            return None
         job = await session.get(Job, job_id)
         if job is None:
             return None
-        if job.status not in {"pending", "running"}:
-            return None
-        job.status = "running"
-        job.started_at = utcnow()
-        job.updated_at = utcnow()
         await _sync_rattsunderlag_session(session, job, "running")
         await session.commit()
         await session.refresh(job)
@@ -317,7 +321,7 @@ async def _run_job(job_id: str) -> None:
             job = await session.get(Job, job_id)
             if job is None:
                 return
-            if job.status not in {"pending", "running"}:
+            if job.status != "pending":
                 return
             kind = job.kind
 
@@ -873,20 +877,30 @@ async def get_job(session: AsyncSession, job_id: str) -> Job | None:
 
 async def resume_failed_job(session: AsyncSession, job: Job) -> Job:
     """Re-queue a failed research job so the existing Attempt can continue."""
-    if job.status != "failed":
-        raise ValueError("Only failed jobs can be resumed")
     if job.kind not in RESUMABLE_JOB_KINDS:
         raise ValueError(f"Job kind cannot be resumed: {job.kind}")
-    job.status = "pending"
-    job.error = None
-    job.started_at = None
-    job.finished_at = None
-    job.archived_at = None
-    job.updated_at = utcnow()
+    now = utcnow()
+    result = await session.execute(
+        update(Job)
+        .where(Job.id == job.id, Job.status == "failed")
+        .values(
+            status="pending",
+            error=None,
+            started_at=None,
+            finished_at=None,
+            archived_at=None,
+            updated_at=now,
+        )
+        .returning(Job.id)
+    )
+    if result.scalar_one_or_none() is None:
+        raise ValueError("Only failed jobs can be resumed")
     await session.commit()
-    await session.refresh(job)
-    await publish_job(job)
-    return job
+    refreshed = await session.get(Job, job.id)
+    if refreshed is None:
+        raise ValueError(f"Job not found: {job.id}")
+    await publish_job(refreshed)
+    return refreshed
 
 
 async def rerun_finished_job(session: AsyncSession, job: Job) -> Job:
