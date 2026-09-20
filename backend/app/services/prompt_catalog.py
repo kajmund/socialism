@@ -3254,6 +3254,38 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         ),
     ),
     _f(
+        "research.lagen_nu.domain.system",
+        "research",
+        "Juridisk källanalys",
+        "Legal source analysis",
+        "Strukturerad analys av hämtad rättskälla.",
+        "Structured analysis of a retrieved legal source.",
+        (
+            "Analysera endast den angivna källtexten i relation till frågan. "
+            "Välj exakt en analys för källtypen. Skilj domstolens egna skäl från "
+            "partsargument och förarbetsuttalanden från gällande rätt. "
+            "Ange även begränsningar, motsägande utfall och osäkerhet. "
+            "Varje citat måste vara en exakt delsträng av källtexten med angiven URI."
+        ),
+        (
+            "Analyze only the supplied source text against the question. "
+            "Select exactly one analysis for its kind. Distinguish the court's own "
+            "reasoning from party submissions and legislative intent from enacted law. "
+            "State limitations, contrary outcomes and uncertainty. Every quote must "
+            "be an exact substring of the source text with the supplied URI."
+        ),
+    ),
+    _f(
+        "research.lagen_nu.domain.user",
+        "research",
+        "Juridisk källanalys (underlag)",
+        "Legal source analysis (input)",
+        "Platshållare: {question} {source_kind} {source_uri} {source_text}.",
+        "Placeholders: {question} {source_kind} {source_uri} {source_text}.",
+        "Fråga: {question}\nKälltyp: {source_kind}\nURI: {source_uri}\nKälltext:\n{source_text}",
+        "Question: {question}\nSource kind: {source_kind}\nURI: {source_uri}\nSource text:\n{source_text}",
+    ),
+    _f(
         "research.lagen_nu.select.system",
         "research",
         "Research — lagen.nu träffurval",

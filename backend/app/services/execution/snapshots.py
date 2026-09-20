@@ -54,6 +54,8 @@ def snapshot_research_evidence(
 ) -> EvidenceItemSnapshot:
     """Copy ResearchEvidence into a historical item. Does not keep a live link."""
     provenance = require_json_object(dict(evidence.metadata), field="provenance")
+    if evidence.legal_result is not None:
+        provenance["legal_result"] = evidence.legal_result.model_dump(mode="json")
     provenance["research_evidence_id"] = evidence.evidence_id
     explicit = provenance.get("content_hash")
     explicit_hash = explicit if isinstance(explicit, str) and explicit.strip() else None
