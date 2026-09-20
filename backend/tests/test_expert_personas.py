@@ -9,6 +9,36 @@ from app.services.kund_store import BOLAG_DEMO_KUND_SLUG
 
 
 @pytest.mark.asyncio
+async def test_create_expert_rejects_existing_id(client: AsyncClient):
+    first = await client.post(
+        "/personas",
+        json={
+            "kind": "expert",
+            "id": "expert-fixed-id",
+            "name": "Skattejurist",
+            "occ": "M&A-rådgivare",
+            "district": "—",
+            "quote": "Granskar avtal och struktur.",
+        },
+    )
+    assert first.status_code == 201, first.text
+
+    duplicate = await client.post(
+        "/personas",
+        json={
+            "kind": "expert",
+            "id": "expert-fixed-id",
+            "name": "Skattejurist",
+            "occ": "M&A-rådgivare",
+            "district": "—",
+            "quote": "Granskar avtal och struktur.",
+        },
+    )
+    assert duplicate.status_code == 409
+    assert duplicate.json()["detail"] == "Persona id already exists"
+
+
+@pytest.mark.asyncio
 async def test_create_expert_assigns_sampled_name_and_age(client: AsyncClient):
     create = await client.post(
         "/personas",
