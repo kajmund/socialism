@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 from app.database.models import Job, Persona
@@ -50,6 +52,39 @@ async def _expert(session) -> Persona:
     )
     session.add(expert)
     return expert
+
+
+@pytest.mark.asyncio
+async def test_concurrent_resume_only_requeues_once(client_db, monkeypatch) -> None:
+    client, factory = client_db
+    scheduled: list[str] = []
+    monkeypatch.setattr(jobs_service, "enqueue_job", scheduled.append)
+    async with factory() as session:
+        await _expert(session)
+        session.add(_job())
+        await session.commit()
+
+    async def resume_once() -> int:
+        response = await client.post("/jobs/job-resume-1/resume")
+        return response.status_code
+
+    first, second = await asyncio.gather(resume_once(), resume_once())
+    assert sorted([first, second]) == [200, 409]
+    assert scheduled == ["job-resume-1"]
+
+
+@pytest.mark.asyncio
+async def test_mark_job_running_is_single_claim(client_db) -> None:
+    _, factory = client_db
+    async with factory() as session:
+        await _expert(session)
+        session.add(_job(status="pending", error=None, finished_at=None))
+        await session.commit()
+
+    first = await jobs_service._mark_job_running("job-resume-1")
+    second = await jobs_service._mark_job_running("job-resume-1")
+    assert first == "expert_chat_research"
+    assert second is None
 
 
 @pytest.mark.asyncio
