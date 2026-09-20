@@ -1,10 +1,10 @@
-# Opinionssimulator architecture
+# Socialism architecture
 
 ## Purpose
 
-Opinionssimulator is an internal tool for testing political messaging against AI agent populations grounded in local civic context. Swedish UI by default.
+Socialism is an internal tool for testing political messaging against AI agent populations grounded in local civic context. Swedish UI by default.
 
-This document describes the current system: FastAPI + React SPA + Supabase Postgres in production, SQLite for local development and tests, optional OASIS multi-agent simulation, and hybrid HTML reports.
+This document describes the current system: locally run FastAPI + React processes, Supabase Postgres for durable shared state, SQLite for isolated development and tests, optional OASIS multi-agent simulation, and hybrid HTML reports. The application is not deployed and no hosting provider has been selected.
 
 ## High-level view
 
@@ -13,9 +13,9 @@ flowchart LR
     user[Operator] --> browser[Browser<br/>React SPA]
     word[Word desktop<br/>add-in] --> backend
 
-    subgraph railway[Deploy target]
-        frontend[Frontend service<br/>Vite static]
-        backend[Backend service<br/>FastAPI]
+    subgraph local[Developer machine]
+        frontend[Frontend process<br/>Vite]
+        backend[Backend process<br/>FastAPI]
     end
 
     supabase[(Supabase project<br/>Postgres · Auth · Storage · vectors)]
@@ -37,15 +37,15 @@ flowchart LR
 | ----- | ------ |
 | Frontend | Vite · React · TypeScript · Tailwind · shadcn · React Router |
 | Backend | Python 3.12+ · FastAPI · SQLAlchemy · Alembic · pydantic-settings |
-| Database | Supabase Postgres via `psycopg` in production; SQLite via `aiosqlite` locally and in tests |
+| Database | Supabase Postgres via `psycopg` for durable shared state; SQLite via `aiosqlite` for isolated local work and tests |
 | API logs | Rotating file `backend/data/logs/app.log` (uvicorn stdout unchanged) |
 | LLM | Cerebras `gpt-oss-120b` default (`CEREBRAS_API_KEY`); DeepSeek via `LLM_PROVIDER=deepseek` |
 | Embeddings (SSR) | OpenAI `text-embedding-3-large` (`OPENAI_API_KEY` required) |
 | Simulation | `SIMULATION_ENGINE=none` (default) or `oasis` (optional extra) |
-| Auth | Not wired — Supabase Auth planned later |
-| Hosting | Railway (frontend + backend services) |
+| Auth | Supabase magic link; optional localhost-only `/dev-in` shortcut |
+| Runtime | Local frontend and backend processes; no hosting target selected |
 
-`DATABASE_URL` selects the database. Production uses `postgresql+psycopg://`; SQLite remains a supported local/test dialect.
+`DATABASE_URL` selects the database. Supabase uses `postgresql+psycopg://`; SQLite remains a supported local/test dialect.
 
 ## System boundaries
 
@@ -176,7 +176,7 @@ Library chat and post-hoc run interviews share the `persona_messages` table but 
 
 Admin UI (Devbrains charcoal + gold): `/runs`, `/personas`, `/populations`, `/messages`, `/tools` (configurations / playground / embedding cache), `/jobs`, `/reports/:id`.
 
-Admin pages call FastAPI via `VITE_API_BASE_URL`. The SPA gates routes behind a static login (`/login`, roles `admin` / `user`). The API client reads `authAdapter.getAccessToken()` (null for the static adapter). Supabase env placeholders remain required at boot so Auth can replace the adapter later.
+Admin pages call FastAPI via `VITE_API_BASE_URL`. The SPA gates routes behind Supabase magic-link authentication (`/login`); the localhost-only `/dev-in` route can install a backend-issued development token when explicitly enabled. The API client reads the active token through `authAdapter.getAccessToken()`.
 
 ## Configuration sources
 
@@ -189,10 +189,10 @@ Fail fast on missing required config.
 
 ## Current limitations
 
-- Static frontend login only (not backend-enforced; not multi-tenant)
+- No hosted frontend or backend environment
 - No durable external job queue (in-process background tasks; Attempt research uses a DB lease, not a second job model)
 - Reports are hybrid HTML, not PDF
-- Supabase cutover requires a configured production `DATABASE_URL` and a one-time verified import of the existing SQLite data
+- Supabase cutover requires a configured persistent `DATABASE_URL` and a one-time verified import of the existing SQLite data
 
 ## Related docs
 

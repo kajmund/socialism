@@ -50,7 +50,7 @@ cp .env.example .env
 | `LOGSTASH_USERNAME` | no | empty | Logstash HTTP Basic Auth user; set with URL and password |
 | `LOGSTASH_PASSWORD` | no | empty | Logstash HTTP Basic Auth password; set with URL and username |
 | `LOG_SERVICE` | no | `socialism-backend` | Service name attached to remote log events |
-| `LOG_ENVIRONMENT` | no | `production` | Environment attached to remote log events |
+| `LOG_ENVIRONMENT` | no | `local` | Environment attached to remote log events |
 | `LOGSTASH_TIMEOUT_SECONDS` | no | `2` | Per-event remote delivery timeout in the background worker |
 | `LOGSTASH_QUEUE_SIZE` | no | `512` | Maximum queued remote log events before new events are dropped loudly |
 | `BOLAGSAPI_API_KEY` | for DD company tools | — | When set, company tools use BolagsAPI MCP. When empty, the same tools scrape Allabolag.se |
@@ -319,13 +319,13 @@ For a new empty Supabase database:
 2. Set `DATABASE_URL` to the direct/session Supabase URL, not the transaction pooler.
 3. Run `uv run alembic upgrade head` to create the target schema.
 4. Run `uv run python scripts/migrate_sqlite_to_postgres.py --source sqlite:///./data/opinionssimulator.db --replace-target`. Alembic creates some catalog rows, so the explicit flag clears all application tables in this dedicated new target before copying. The importer then copies in foreign-key order, resets integer sequences, and verifies row counts plus primary keys before committing. Without the flag it refuses any non-empty target.
-5. Start one staging backend against Postgres and exercise login, Expertgranskning, research, reports and background jobs.
-6. Set the same `DATABASE_URL` in Railway production and deploy. Keep the SQLite snapshot read-only until the Postgres backup has been verified.
+5. Start the local backend against Postgres and exercise login, Expertgranskning, research, reports and background jobs.
+6. Keep the SQLite snapshot read-only until the Postgres backup has been verified. When a deployment target is selected, configure the same `DATABASE_URL` there and repeat the verification before calling it production.
 
-Never paste the database password into git, logs, screenshots or a frontend environment. Alembic remains authoritative; do not edit the production schema in the Supabase dashboard.
+Never paste the database password into git, logs, screenshots or a frontend environment. Alembic remains authoritative; do not edit the application schema in the Supabase dashboard.
 
 See [supabase-setup.md](supabase-setup.md).
 
 ### LibreOffice (Word underlag)
 
-Uploading a `.docx` underlag converts it to PDF with LibreOffice (`soffice --headless`). Set `LIBREOFFICE_BIN` if the binary is not on `PATH`. Railway images install `libreoffice-writer` via `backend/nixpacks.toml`. Locally: install LibreOffice, or leave Word uploads for environments that have it.
+Uploading a `.docx` underlag converts it to PDF with LibreOffice (`soffice --headless`). Install LibreOffice locally and set `LIBREOFFICE_BIN` if the binary is not on `PATH`.
