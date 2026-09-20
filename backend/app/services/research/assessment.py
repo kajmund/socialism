@@ -132,7 +132,10 @@ def group_evidence_for_review(
     grouped: dict[str, list[AssessableEvidence]] = {}
     for item in evidence:
         source = (item.source_id or item.source_url or "").strip()
-        key = f"source:{source}" if source else f"content:{item.content_hash}"
+        if item.legal_result is not None:
+            key = f"legal:{source}:{item.research_need_id}:{item.content_hash}"
+        else:
+            key = f"source:{source}" if source else f"content:{item.content_hash}"
         grouped.setdefault(key, []).append(item)
     result: list[EvidenceReviewGroup] = []
     for items in grouped.values():
