@@ -7,7 +7,11 @@ import re
 from dataclasses import dataclass, replace
 from typing import Literal
 
-from app.llm.legal_research import LegalInterpreter, LlmLegalInterpreter
+from app.llm.legal_research import (
+    LegalDomainExtractionError,
+    LegalInterpreter,
+    LlmLegalInterpreter,
+)
 from app.services.lagen_nu.display import (
     WINDOW_CHARS,
     display_source_title,
@@ -926,6 +930,28 @@ class LagenNuResearchSource:
                     "lagen.nu excerpt rejected for %s (%s)",
                     uri,
                     need.id,
+                )
+            except LegalDomainExtractionError:
+                logger.exception(
+                    "lagen.nu legal analysis failed for %s (%s)",
+                    uri,
+                    need.id,
+                )
+                found.append(
+                    research_evidence(
+                        research_need_id=need.id,
+                        source_type=self.source_type,
+                        status="error",
+                        title=document.title or candidate.hit.title,
+                        source_id=uri,
+                        source_url=uri,
+                        provider=self.provider_id,
+                        metadata=self._provenance(
+                            budget,
+                            reason="legal_domain_extraction_failed",
+                            error_type="LegalDomainExtractionError",
+                        ),
+                    )
                 )
         return found
 

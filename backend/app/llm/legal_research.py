@@ -25,6 +25,10 @@ from app.services.research.models import ResearchContext
 Completer = Callable[[list[dict[str, Any]], type[Any]], Awaitable[Any]]
 
 
+class LegalDomainExtractionError(Exception):
+    """The model could not produce a verified interpretation of this document."""
+
+
 class LegalInterpretation(BaseModel):
     relation: LegalQuestionRelation
     case_law: CaseLawAnalysis | None = None
@@ -97,15 +101,18 @@ class LlmLegalInterpreter:
                 ),
             },
         ]
-        parsed = LegalInterpretation.model_validate(
-            await self._completer(messages, LegalInterpretation)
-        )
-        return LegalResearchResult(
-            source=source,
-            relation=parsed.relation,
-            case_law=parsed.case_law,
-            preparatory_work=parsed.preparatory_work,
-            statute=parsed.statute,
-            raw_text=raw_text,
-            truncated=truncated,
-        )
+        try:
+            parsed = LegalInterpretation.model_validate(
+                await self._completer(messages, LegalInterpretation)
+            )
+            return LegalResearchResult(
+                source=source,
+                relation=parsed.relation,
+                case_law=parsed.case_law,
+                preparatory_work=parsed.preparatory_work,
+                statute=parsed.statute,
+                raw_text=raw_text,
+                truncated=truncated,
+            )
+        except Exception as exc:
+            raise LegalDomainExtractionError("legal domain extraction failed") from exc
