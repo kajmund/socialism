@@ -74,12 +74,30 @@ def snapshot_research_evidence(
         retrieved_at=evidence.retrieved_at,
         original_evidence_id=evidence.evidence_id,
         ordinal=ordinal,
-        content_hash=compute_content_hash(
-            excerpt=evidence.excerpt,
-            provenance=provenance,
-            explicit=explicit_hash,
+        content_hash=(
+            _legal_content_hash(evidence)
+            if evidence.legal_result is not None
+            else compute_content_hash(
+                excerpt=evidence.excerpt,
+                provenance=provenance,
+                explicit=explicit_hash,
+            )
         ),
     )
+
+
+def _legal_content_hash(evidence: ResearchEvidence) -> str:
+    """A legal passage is question-specific once its interpretation is persisted."""
+    assert evidence.legal_result is not None
+    payload = "\x1f".join(
+        (
+            evidence.research_need_id,
+            evidence.excerpt or "",
+            evidence.legal_result.model_dump_json(exclude={"raw_text"}),
+            hashlib.sha256(evidence.legal_result.raw_text.encode("utf-8")).hexdigest(),
+        )
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 def compute_content_hash(

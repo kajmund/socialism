@@ -3265,13 +3265,15 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "Välj exakt en analys för källtypen. Skilj domstolens egna skäl från "
             "partsargument och förarbetsuttalanden från gällande rätt. "
             "Ange även begränsningar, motsägande utfall och osäkerhet. "
+            "Varje analys måste ha minst ett citat som stödjer dess slutsatser. "
             "Varje citat måste vara en exakt delsträng av källtexten med angiven URI."
         ),
         (
             "Analyze only the supplied source text against the question. "
             "Select exactly one analysis for its kind. Distinguish the court's own "
             "reasoning from party submissions and legislative intent from enacted law. "
-            "State limitations, contrary outcomes and uncertainty. Every quote must "
+            "State limitations, contrary outcomes and uncertainty. Include at least "
+            "one citation that supports the analysis. Every quote must "
             "be an exact substring of the source text with the supplied URI."
         ),
     ),

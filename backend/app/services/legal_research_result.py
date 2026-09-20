@@ -81,6 +81,8 @@ class LegalResearchResult(BaseModel):
             raise ValueError("legal analysis does not match source kind")
         if not self.raw_text.strip():
             raise ValueError("raw source text is required")
+        if not selected.citations:
+            raise ValueError("legal analysis requires a verified citation")
         for citation in selected.citations:
             if citation.source_uri != self.source.canonical_uri:
                 raise ValueError("citation URI differs from retrieved source")

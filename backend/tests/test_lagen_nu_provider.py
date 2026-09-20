@@ -268,16 +268,25 @@ class FakeLegalInterpreter:
             LegalResearchResult,
             PreparatoryWorkAnalysis,
             StatuteAnalysis,
+            LegalCitation,
         )
 
+        citation = LegalCitation(
+            source_uri=source.canonical_uri,
+            quote=raw_text[: min(len(raw_text), 100)],
+        )
         analyses = {
             "case_law": lambda: {"case_law": CaseLawAnalysis(
-                legal_issue=question, court_reasoning=raw_text, outcome="unknown"
+                legal_issue=question, court_reasoning=raw_text, outcome="unknown",
+                citations=[citation],
             )},
             "preparatory_work": lambda: {"preparatory_work": PreparatoryWorkAnalysis(
-                legislative_intent=raw_text, proposal_or_commentary=raw_text
+                legislative_intent=raw_text, proposal_or_commentary=raw_text,
+                citations=[citation],
             )},
-            "statute": lambda: {"statute": StatuteAnalysis(operative_rule=raw_text)},
+            "statute": lambda: {"statute": StatuteAnalysis(
+                operative_rule=raw_text, citations=[citation]
+            )},
         }
         return LegalResearchResult(
             source=source,

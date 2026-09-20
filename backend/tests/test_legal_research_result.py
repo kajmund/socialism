@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from dataclasses import replace
 
 import pytest
 from pydantic import ValidationError
@@ -19,7 +20,11 @@ from app.services.legal_research_result import (
     LegalSourceIdentity,
     StatuteAnalysis,
 )
-from app.services.research.assessment import AssessableEvidence, EvidenceReviewGroup
+from app.services.research.assessment import (
+    AssessableEvidence,
+    EvidenceReviewGroup,
+    group_evidence_for_review,
+)
 from app.services.research.models import ResearchContext, research_evidence
 
 
@@ -42,6 +47,13 @@ def test_citation_must_be_an_exact_span_of_the_original_document():
     assert _result().statute.citations[0].quote == "fordran preskriberas"
     with pytest.raises(ValidationError, match="absent from raw source"):
         _result("fordran får aldrig preskriberas")
+
+
+def test_legal_analysis_without_verified_citation_is_rejected():
+    payload = _result().model_dump(mode="json")
+    payload["statute"]["citations"] = []
+    with pytest.raises(ValidationError, match="requires a verified citation"):
+        LegalResearchResult.model_validate(payload)
 
 
 def test_domain_result_is_preserved_separately_from_excerpt():
@@ -91,6 +103,17 @@ def test_assessment_and_completeness_read_structured_legal_result():
         assert payload["legal_result"]["statute"]["citations"][0]["quote"] == "fordran preskriberas"
         assert "raw_text" not in payload["legal_result"]
         assert "legal_result" not in payload["provenance"]
+
+    second = replace(
+        item,
+        evidence_id="e2",
+        research_need_id="n2",
+        research_need_ids=("n2",),
+        content_hash="different-analysis",
+    )
+    groups = group_evidence_for_review([item, second])
+    assert len(groups) == 2
+    assert [group.research_need_ids for group in groups] == [("n1",), ("n2",)]
 
 
 @pytest.mark.asyncio
