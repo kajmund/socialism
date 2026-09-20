@@ -108,6 +108,7 @@ class FollowUpResearchPlanner(Protocol):
         assessment: ResearchAssessmentDraft,
         evidence: Sequence[AssessableEvidence],
         previous_needs: Sequence[RuntimeResearchNeed],
+        available_source_types: Sequence[str] | None = None,
     ) -> Sequence[FollowUpNeedDraft]: ...
 
 
@@ -121,7 +122,9 @@ class NoOpFollowUpPlanner:
         assessment: ResearchAssessmentDraft,
         evidence: Sequence[AssessableEvidence],
         previous_needs: Sequence[RuntimeResearchNeed],
+        available_source_types: Sequence[str] | None = None,
     ) -> Sequence[FollowUpNeedDraft]:
+        _ = available_source_types
         return []
 
 

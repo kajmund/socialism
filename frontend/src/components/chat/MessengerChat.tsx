@@ -42,6 +42,8 @@ type MessengerChatProps = {
   pendingImageUrl?: string | null
   onPickImage?: (file: File) => void
   onClearImage?: () => void
+  /** Optional control rendered immediately to the right of the text input. */
+  inputAction?: ReactNode
 }
 
 /**
@@ -72,6 +74,7 @@ export function MessengerChat({
   pendingImageUrl = null,
   onPickImage,
   onClearImage,
+  inputAction,
 }: MessengerChatProps) {
   const { t } = useLocale()
   const msgsRef = useRef<HTMLDivElement | null>(null)
@@ -243,6 +246,7 @@ export function MessengerChat({
             }
           }}
         />
+        {inputAction}
         <AdminButton
           variant="primary"
           size="sm"

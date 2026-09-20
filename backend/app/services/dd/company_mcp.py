@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from app.services.actor_profiles import ActorToolHandler
-
 import json
 import re
 from collections.abc import Awaitable, Callable
@@ -14,6 +12,7 @@ from typing import Any, Self
 from app.config import settings
 from app.llm import complete_text, complete_with_tools
 from app.llm.tool_messages import assistant_message_dict, tool_result_message
+from app.services.actor_profiles import ActorToolHandler
 from app.services.dd import allabolag
 from app.services.dd.bolagsapi_mcp import (
     BolagsapiMcpClient,
@@ -137,6 +136,10 @@ def uses_bolagsapi() -> bool:
 
 def company_tool_specs() -> list[dict[str, Any]]:
     return [dict(spec) for spec in _ALLABOLAG_SPECS]
+
+
+def research_tool_spec() -> dict[str, Any]:
+    return dict(_RESEARCH_TOOL_SPEC)
 
 
 def _orgnr_arg(arguments: dict[str, Any]) -> str:

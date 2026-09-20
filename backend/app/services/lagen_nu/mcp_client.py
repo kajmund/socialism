@@ -9,6 +9,7 @@ import httpx
 
 from app.config import settings
 from app.services.lagen_nu.models import (
+    IncomingCitations,
     LagenNuDocument,
     LagenNuPin,
     LagenNuSearchHit,
@@ -42,6 +43,15 @@ class LagenNuMcpClient(Protocol):
     ) -> SearchResults: ...
 
     async def resolve_citation(self, citation: str) -> ResolvedCitations: ...
+
+    async def get_incoming_citations(
+        self,
+        uri: str,
+        *,
+        source: str | None = None,
+        sort: str = "rail",
+        limit: int = 10,
+    ) -> IncomingCitations: ...
 
     async def get_document(
         self,
@@ -225,6 +235,25 @@ def parse_resolved_citations(payload: object) -> ResolvedCitations:
     )
 
 
+def parse_incoming_citations(payload: object) -> IncomingCitations:
+    data = _as_object(payload, what="get_incoming_citations result")
+    uri = canonical_lagen_nu_uri(data.get("uri"))
+    if uri is None:
+        raise OfficialLagenNuMcpError(
+            "lagen.nu MCP get_incoming_citations result had no canonical URI"
+        )
+    rows = data.get("citations")
+    if not isinstance(rows, list):
+        raise OfficialLagenNuMcpError(
+            "lagen.nu MCP get_incoming_citations citations was not a list"
+        )
+    return IncomingCitations(
+        uri=uri,
+        total=_optional_int(data.get("total")) or 0,
+        results=tuple(parse_search_hit(item) for item in rows),
+    )
+
+
 def parse_document(payload: object) -> LagenNuDocument:
     data = _as_object(payload, what="get_document result")
     uri = canonical_lagen_nu_uri(data.get("uri"))
@@ -368,6 +397,25 @@ class OfficialLagenNuMcpClient:
     async def resolve_citation(self, citation: str) -> ResolvedCitations:
         return parse_resolved_citations(
             await self.call_tool("resolve_citation", {"citation": citation})
+        )
+
+    async def get_incoming_citations(
+        self,
+        uri: str,
+        *,
+        source: str | None = None,
+        sort: str = "rail",
+        limit: int = 10,
+    ) -> IncomingCitations:
+        arguments: dict[str, Any] = {
+            "uri": uri,
+            "sort": sort,
+            "limit": limit,
+        }
+        if source is not None:
+            arguments["source"] = source
+        return parse_incoming_citations(
+            await self.call_tool("get_incoming_citations", arguments)
         )
 
     async def get_document(

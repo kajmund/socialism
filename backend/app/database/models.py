@@ -1863,6 +1863,58 @@ class ResearchRuntimeNeed(Base):
     attempt: Mapped[ExecutionAttempt] = relationship(back_populates="runtime_needs")
 
 
+class EvidenceSource(Base):
+    """One canonical provider document, shared by all questions and attempts."""
+
+    __tablename__ = "evidence_sources"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    provider: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    canonical_identity: Mapped[str] = mapped_column(String(1024), nullable=False)
+    source_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_id: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    source_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    title: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    passages: Mapped[list["EvidencePassage"]] = relationship(back_populates="source")
+
+
+class EvidencePassage(Base):
+    """Immutable content-addressed passage within a canonical source."""
+
+    __tablename__ = "evidence_passages"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    source_id: Mapped[str] = mapped_column(
+        ForeignKey("evidence_sources.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    source_ref: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    locator: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    excerpt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    provenance: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    retrieved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    source: Mapped[EvidenceSource] = relationship(back_populates="passages")
+
+
+class EvidenceSetItemNeed(Base):
+    """Many-to-many lineage from one stored passage to runtime needs."""
+
+    __tablename__ = "evidence_set_item_needs"
+
+    evidence_set_item_id: Mapped[str] = mapped_column(
+        ForeignKey("evidence_set_items.id", ondelete="CASCADE"), primary_key=True
+    )
+    research_need_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+
+
 class EvidenceSetItem(Base):
     """Historical snapshot of evidence the model saw — not a live pointer."""
 
@@ -1873,6 +1925,11 @@ class EvidenceSetItem(Base):
             "original_evidence_id",
             name="uq_evidence_set_items_set_original_evidence_id",
         ),
+        UniqueConstraint(
+            "evidence_set_id",
+            "passage_id",
+            name="uq_evidence_set_items_set_passage",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -1882,6 +1939,11 @@ class EvidenceSetItem(Base):
         index=True,
     )
     research_need_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    passage_id: Mapped[str | None] = mapped_column(
+        ForeignKey("evidence_passages.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
     original_evidence_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     ordinal: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     source_type: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -1898,6 +1960,11 @@ class EvidenceSetItem(Base):
     content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
 
     evidence_set: Mapped[EvidenceSet] = relationship(back_populates="items")
+    passage: Mapped[EvidencePassage | None] = relationship(lazy="selectin")
+    need_links: Mapped[list[EvidenceSetItemNeed]] = relationship(
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
     quality_assessments: Mapped[list["ResearchEvidenceQuality"]] = relationship(
         back_populates="evidence_set_item",
     )
@@ -2135,6 +2202,11 @@ class KnowledgeQuestionEvidenceLink(Base):
         nullable=False,
         index=True,
     )
+    passage_id: Mapped[str | None] = mapped_column(
+        ForeignKey("evidence_passages.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
     evidence_ref: Mapped[str] = mapped_column(String(64), nullable=False)
     relation: Mapped[str] = mapped_column(String(32), nullable=False, default="ANSWERED_BY")
     title: Mapped[str | None] = mapped_column(String(512), nullable=True)
@@ -2164,6 +2236,7 @@ class KnowledgeQuestionEvidenceLink(Base):
     )
 
     question: Mapped[KnowledgeQuestionRow] = relationship(back_populates="answers")
+    passage: Mapped[EvidencePassage | None] = relationship(lazy="selectin")
 
 
 class ExpertKnowledgeReceipt(Base):

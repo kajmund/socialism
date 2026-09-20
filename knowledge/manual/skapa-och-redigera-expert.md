@@ -33,6 +33,8 @@ tags: [personas]
 
 I chattpanelen kan du intervjua experten eller prata in-character. **Fäll in profil** döljer kompetens- och bakgrundsfälten så chatten får mer plats. **Visa profil** tar fram dem igen. Experten använder bara de verktyg du valt. Om ett bolagsuppslag saknar organisationsnummer eller inte hittas fortsätter chatten — den avbryts inte.
 
+Telefonikonen till höger om textfältet startar ett röstsamtal med experten. En samtalsvy öppnas ovanpå sidan med expertens bild, samtalsstatus, tid, mikrofon, högtalare och en röd knapp för att lägga på. Tillåt mikrofonen när webbläsaren frågar. En kort ringsignal spelas innan experten svarar med sitt namn och en mörk manlig röst. Experten känner till din profil, ditt bolag och en kort sammanfattning av sina minnen från de senaste fyra timmarna. Under röstsamtalet kan experten använda samma valda bolags-, sök-, research- och profilverktyg som i textchatten. Research kräver fortfarande att du uttryckligen bekräftar att den ska startas. Ljud och fullständigt transkript sparas inte i chatthistoriken. Efter varje färdigt samtalsvarv kan nya relevanta fakta extraheras till expertens minnen i bakgrunden.
+
 Efter ett svar kan en liten rad visa om något sparades i expertens långtidsminne. **Minnen** öppnar loggen för den experten, där du kan redigera eller ta bort sparade fakta. Hela översikten finns under **Verktyg** → **Minnen**. Se [Visa expertminnen](visa-expertminnen.md).
 
 ## Relaterade guider

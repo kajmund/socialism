@@ -293,6 +293,9 @@ def _item_out(
         id=item.id,
         evidence_set_id=item.evidence_set_id,
         research_need_id=item.research_need_id,
+        research_need_ids=[link.research_need_id for link in item.need_links]
+        or ([item.research_need_id] if item.research_need_id else []),
+        passage_id=item.passage_id,
         original_evidence_id=item.original_evidence_id,
         ordinal=item.ordinal,
         source_type=item.source_type,
@@ -942,6 +945,11 @@ async def get_attempt_research_overview(
                 sources=[
                     ResearchSourceOut(
                         id=item.id,
+                        passage_id=item.passage_id,
+                        research_need_ids=[
+                            link.research_need_id for link in item.need_links
+                        ]
+                        or ([item.research_need_id] if item.research_need_id else []),
                         status=item.status,
                         title=item.title,
                         excerpt=(item.excerpt[:1000] if item.excerpt else None),

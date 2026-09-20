@@ -1112,6 +1112,52 @@ async def test_duplicate_evidence_from_one_need_is_stored_once(db):
 
 
 @pytest.mark.asyncio
+async def test_same_passage_across_needs_is_stored_once_with_both_links(db):
+    session, _factory = db
+    _customer_row, _run, attempt = await _created_attempt(
+        session, slug="canonical-passage"
+    )
+
+    class SharedSource:
+        source_type = "case_knowledge"
+        provider_id = "fake"
+
+        async def research(self, need: ResearchNeed, context: ResearchContext):
+            return [
+                research_evidence(
+                    research_need_id=need.id,
+                    source_type="case_knowledge",
+                    status="found",
+                    title="Shared",
+                    excerpt="same passage",
+                    locator="p1",
+                    source_id="doc-1#p1",
+                    provider="fake",
+                )
+            ]
+
+    router, _ = _router(SharedSource())
+    result = await execute_attempt_research(
+        session,
+        attempt_id=attempt.id,
+        research_plan=ResearchPlan(
+            needs=[
+                _need("research_1", "case_knowledge"),
+                _need("research_2", "case_knowledge"),
+            ]
+        ),
+        router=router,
+    )
+    items = await list_evidence_items(session, result.evidence_set_id)
+    assert len(items) == 1
+    assert items[0].passage_id is not None
+    assert {link.research_need_id for link in items[0].need_links} == {
+        "research_1",
+        "research_2",
+    }
+
+
+@pytest.mark.asyncio
 async def test_interrupted_research_resumes_same_evidence_lineage(db):
     session, _factory = db
     _customer_row, _run, attempt = await _created_attempt(session, slug="sweep-co")

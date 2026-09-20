@@ -7,6 +7,7 @@ import {
   evidenceItemStatusTagClass,
   isEvidenceItemStatus,
 } from "@/components/execution/status"
+import { legalSourceDisplay } from "@/lib/legalSourceDisplay"
 import { cn } from "@/lib/utils"
 import { useLocale } from "@/i18n"
 
@@ -31,6 +32,7 @@ export function EvidenceItemCard({
     ? t(evidenceItemStatusLabelKey(item.status))
     : item.status
   const href = usefulUrl(item.source_url)
+  const display = legalSourceDisplay(item)
 
   return (
     <article
@@ -47,12 +49,12 @@ export function EvidenceItemCard({
       <div className="flex flex-wrap items-start justify-between gap-2">
         <h3 className="text-sm font-medium">
           {citation ? <span className="mr-2 text-db-gold-700">[{citation}]</span> : null}
-          {item.title || t("common.emDash")}
+          {display.title || t("common.emDash")}
         </h3>
         <span className={evidenceItemStatusTagClass(item.status)}>{statusLabel}</span>
       </div>
-      {item.excerpt ? (
-        <p className="mt-2 whitespace-pre-wrap text-sm text-[color:var(--text-body)]">{item.excerpt}</p>
+      {display.excerpt ? (
+        <p className="mt-2 whitespace-pre-wrap text-sm text-[color:var(--text-body)]">{display.excerpt}</p>
       ) : null}
       <dl className="mt-2 grid gap-1 text-xs text-[color:var(--text-muted)]">
         {item.locator ? (

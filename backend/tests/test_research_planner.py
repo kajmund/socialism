@@ -561,9 +561,8 @@ async def test_llm_planner_is_offered_only_executable_source_types():
 def test_production_registered_source_types_match_standard_registry():
     types = production_registered_source_types()
     assert types == (
-        "case_knowledge",
-        "customer_knowledge",
         "swedish_law",
+        "swedish_case_law",
         "swedish_preparatory_works",
     )
     assert types == tuple(
@@ -579,8 +578,8 @@ async def test_factory_path_offers_standard_capability_natures_without_caller_se
 ):
     session, _factory = db
     _customer, _run, attempt = await _created_attempt(session, slug="plan-factory-cap")
-    planner = FakeResearchPlanner([_draft()])
-    router, sources = _router(RecordingSource("case_knowledge"))
+    planner = FakeResearchPlanner([_draft(source_types=["swedish_law"])])
+    router, sources = _router(RecordingSource("swedish_law"))
     bound_sessions: list[object] = []
 
     def factory(bound):
@@ -609,8 +608,8 @@ async def test_factory_path_offers_standard_capability_natures_without_caller_se
     assert planner.available_source_types_calls
     offered = planner.available_source_types_calls[0]
     assert "swedish_law" in offered
-    assert "case_knowledge" in offered
-    assert "customer_knowledge" in offered
+    assert "case_knowledge" not in offered
+    assert "customer_knowledge" not in offered
     assert bound_sessions
     assert session not in bound_sessions
     assert sources[0].calls == 1

@@ -231,7 +231,9 @@ async def test_ranking_is_rank_then_provider_id():
 
 async def test_tenant_scope_is_not_widened_by_routed_provider():
     provider = RecordingKnowledgeProvider([_hit(customer_id=7, case_id="case-1")])
-    registry = build_research_registry(provider)
+    registry = KnowledgeProviderCapabilityRegistry()
+    registry.register(KnowledgeResearchSource(provider, source_type="case_knowledge"))
+    registry.register(KnowledgeResearchSource(provider, source_type="customer_knowledge"))
     context = _context(customer_id=7, case_id="case-1")
     evidence = await ResearchRouter(registry).execute_need(
         _need("case_knowledge", "customer_knowledge"),
@@ -280,7 +282,7 @@ async def test_provenance_survives_capability_routing():
     assert item.metadata["document_id"] == "doc-memory"
 
 
-async def test_existing_knowledge_providers_keep_tenant_behavior():
+async def test_standard_registry_excludes_tenant_knowledge_providers():
     provider = RecordingKnowledgeProvider([_hit()])
     registry = build_research_registry(provider)
     assert isinstance(registry, KnowledgeProviderCapabilityRegistry)
@@ -295,24 +297,23 @@ async def test_existing_knowledge_providers_keep_tenant_behavior():
         for entry in entries
         if entry.descriptor.access.adapter == "lagen_nu_research_source"
     ]
-    assert [entry.descriptor.provider_id for entry in knowledge] == [
-        "memory.case_knowledge",
-        "memory.customer_knowledge",
-    ]
+    assert knowledge == []
     assert [entry.descriptor.provider_id for entry in lagen] == [
         "lagen_nu.swedish_law",
+        "lagen_nu.swedish_case_law",
         "lagen_nu.swedish_preparatory_works",
     ]
-    for entry in knowledge:
-        assert entry.descriptor.modalities == frozenset({"text"})
-        assert entry.descriptor.capabilities == frozenset({"search"})
-        assert entry.descriptor.access.mechanism == "adapter"
-        assert entry.descriptor.authority["tenant_bound"] is True
     for entry in lagen:
         assert entry.descriptor.domains == frozenset({"law"})
         assert entry.descriptor.access.mechanism == "mcp"
         assert entry.descriptor.authority["tenant_bound"] is False
         assert entry.descriptor.authority["jurisdiction"] == "SE"
+    evidence = await ResearchRouter(registry).execute_need(
+        _need("case_knowledge"),
+        _context(customer_id=4, case_id="case-1"),
+    )
+    assert [item.status for item in evidence] == ["error"]
+    assert provider.queries == []
     source = KnowledgeResearchSource(provider, source_type="customer_knowledge")
     await source.research(_need("customer_knowledge"), _context(customer_id=7, case_id="case-1"))
     assert provider.queries[-1].scope.customer_id == 7

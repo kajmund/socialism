@@ -36,6 +36,7 @@ class QuestionEvidenceLink:
 
     question_id: str
     evidence_ref: str
+    passage_id: str | None = None
     relation: str = ANSWERED_BY
     title: str | None = None
     excerpt: str | None = None

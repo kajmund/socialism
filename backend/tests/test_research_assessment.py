@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from collections.abc import Sequence
+from dataclasses import replace
 from datetime import UTC, datetime
 
 import pytest
@@ -34,7 +36,9 @@ from app.services.research.assessment import (
     ResearchNeedAssessment,
     can_assess_programmatically,
     evidence_fingerprint,
+    group_evidence_for_review,
     programmatic_assessment,
+    review_excerpt,
     sanitize_assessment_draft,
 )
 from app.services.research.execution import execute_attempt_research
@@ -504,6 +508,187 @@ def test_assessment_user_prompt_is_rendered_at_call_time():
     )
     assert '{"needs":[]}' in rendered
     assert "EvidenceSet:" in rendered
+
+
+def test_review_excerpt_keeps_short_text_and_clips_long():
+    assert review_excerpt(None) is None
+    assert review_excerpt("kort") == "kort"
+    long = "å" * 2500
+    clipped = review_excerpt(long)
+    assert clipped == "å" * 2000
+    assert review_excerpt(long, max_chars=10) == "å" * 10
+
+
+def test_review_groups_exact_sources_and_preserves_need_lineage():
+    first = AssessableEvidence(
+        evidence_id="evidence-1",
+        research_need_id="need_1",
+        source_type="swedish_case_law",
+        status="found",
+        title="NJA",
+        excerpt="Domskäl",
+        locator=None,
+        source_id="https://lagen.nu/dom/nja/2005s142",
+        source_url=None,
+        provider="lagen_nu",
+        score=1.0,
+        provenance={},
+        retrieved_at=datetime(2026, 4, 1, tzinfo=UTC),
+        content_hash="same",
+    )
+    duplicate = replace(
+        first,
+        evidence_id="evidence-2",
+        research_need_id="need_2",
+    )
+    distinct_fragment = replace(
+        first,
+        evidence_id="evidence-3",
+        research_need_id="need_3",
+        source_id="https://lagen.nu/prop/1975/76:81#a38-2",
+    )
+    groups = group_evidence_for_review([first, duplicate, distinct_fragment])
+    assert len(groups) == 2
+    assert groups[0].research_need_ids == ("need_1", "need_2")
+    assert groups[0].duplicate_evidence_ids == ("evidence-2",)
+    assert groups[1].research_need_ids == ("need_3",)
+
+
+@pytest.mark.asyncio
+async def test_llm_assessor_receives_one_source_row_for_multiple_needs():
+    plan = ResearchPlan(
+        needs=[
+            _need("need_1", "swedish_case_law"),
+            _need("need_2", "swedish_case_law"),
+        ]
+    )
+    first = AssessableEvidence(
+        evidence_id="evidence-1",
+        research_need_id="need_1",
+        source_type="swedish_case_law",
+        status="found",
+        title="NJA",
+        excerpt="Domskäl",
+        locator=None,
+        source_id="https://lagen.nu/dom/nja/2005s142",
+        source_url=None,
+        provider="lagen_nu",
+        score=1.0,
+        provenance={},
+        retrieved_at=datetime(2026, 4, 1, tzinfo=UTC),
+        content_hash="same",
+    )
+    duplicate = replace(
+        first,
+        evidence_id="evidence-2",
+        research_need_id="need_2",
+    )
+
+    async def completer(messages, response_model):
+        payload = json.loads(messages[-1]["content"].split("EvidenceSet:\n", 1)[1])
+        assert len(payload) == 1
+        assert payload[0]["research_need_ids"] == ["need_1", "need_2"]
+        assert payload[0]["duplicate_evidence_ids"] == ["evidence-2"]
+        return EvidenceSufficiencyModel(
+            result="sufficient",
+            rationale="samma källa kan stödja båda frågorna",
+            need_assessments=[
+                NeedSufficiencyModel(
+                    research_need_id=need_id,
+                    sufficient=True,
+                    supporting_evidence_ids=["evidence-1"],
+                )
+                for need_id in ("need_1", "need_2")
+            ],
+        )
+
+    assessor = LlmResearchAssessor(
+        completer=completer,
+        system_prompt="bedöm",
+        user_prompt="ResearchPlan:\n{plan_json}\n\nEvidenceSet:\n{evidence_json}",
+    )
+    draft = await assessor.assess(plan, [first, duplicate])
+    assert draft.result == "sufficient"
+    assert [row.research_need_id for row in draft.need_assessments] == [
+        "need_1",
+        "need_2",
+    ]
+
+
+def test_research_evaluation_prompts_are_domain_neutral_and_outcome_aware():
+    for language in ("sv", "en"):
+        prompts = default_prompts(language)
+        combined = " ".join(
+            (
+                prompts["research.assessment.system"],
+                prompts["research.completeness.system"],
+            )
+        )
+        assert "NJA" not in combined
+        assert "36 §" not in combined
+        assert "lagrum" not in combined.casefold()
+    swedish = default_prompts("sv")
+    assert "direkt stöd" in swedish["research.assessment.system"]
+    assert "prövning utan det efterfrågade utfallet" in (
+        swedish["research.assessment.system"]
+    )
+    assert "Identiska underliggande källor" in (
+        swedish["research.completeness.system"]
+    )
+    english = default_prompts("en")
+    assert "direct support" in english["research.assessment.system"]
+    assert "examination without the requested outcome" in (
+        english["research.assessment.system"]
+    )
+
+
+@pytest.mark.asyncio
+async def test_llm_assessor_clips_long_excerpts_before_model_call():
+    plan = ResearchPlan(needs=[_need("research_1", "swedish_law")])
+    dumped = "Bokföringslag " + ("x" * 16000)
+    evidence = [
+        AssessableEvidence(
+            evidence_id="real-1",
+            research_need_id="research_1",
+            source_type="swedish_law",
+            status="found",
+            title="BFL",
+            excerpt=dumped,
+            locator=None,
+            source_id="https://lagen.nu/1999:1078",
+            source_url=None,
+            provider="lagen_nu",
+            score=1.0,
+            provenance={},
+            retrieved_at=datetime(2026, 4, 1, tzinfo=UTC),
+            content_hash="abc",
+        )
+    ]
+
+    async def completer(messages, response_model):
+        payload = json.loads(messages[-1]["content"].split("EvidenceSet:\n", 1)[1])
+        assert payload[0]["excerpt"] == dumped[:2000]
+        assert dumped not in messages[-1]["content"]
+        return EvidenceSufficiencyModel(
+            result="insufficient",
+            rationale="för stort underlag klipptes",
+            need_assessments=[
+                NeedSufficiencyModel(
+                    research_need_id="research_1",
+                    sufficient=False,
+                    missing_or_weak="behöver mer precist lagrum",
+                )
+            ],
+            considered_evidence_ids=["real-1"],
+        )
+
+    assessor = LlmResearchAssessor(
+        completer=completer,
+        system_prompt="bedöm evidens",
+        user_prompt="ResearchPlan:\n{plan_json}\n\nEvidenceSet:\n{evidence_json}",
+    )
+    draft = await assessor.assess(plan, evidence)
+    assert draft.result == "insufficient"
 
 
 @pytest.mark.asyncio

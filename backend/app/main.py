@@ -42,7 +42,11 @@ from app.services.kund_store import ensure_default_kunder
 from app.services.llm_runtime_settings import load_runtime_settings
 from app.services.panel.module_defaults import ensure_module_panel_defaults
 from app.services.prompt_store import ensure_default_configurations
-from app.services.research.composition import set_knowledge_vector_store_factory
+from app.llm.lagen_nu_selector import LlmLagenNuSelector
+from app.services.research.composition import (
+    set_knowledge_vector_store_factory,
+    set_lagen_nu_selector_factory,
+)
 from app.services.research_worker import (
     start_research_reclaim_loop,
     stop_research_reclaim_loop,
@@ -92,6 +96,7 @@ async def lifespan(_app: FastAPI):
     vector_runtime = None
     _app.state.research_vector = {"status": "disabled"}
     reclaim_stop = None
+    set_lagen_nu_selector_factory(LlmLagenNuSelector)
     if settings.research_worker_loop_enabled:
         vector_runtime = await start_supabase_vector_runtime(settings)
         vector_store = SupabaseVectorBucketStore(vector_runtime.client)
@@ -109,6 +114,7 @@ async def lifespan(_app: FastAPI):
         if reclaim_stop is not None:
             await stop_research_reclaim_loop(reclaim_stop)
         set_knowledge_vector_store_factory(None)
+        set_lagen_nu_selector_factory(None)
         if vector_runtime is not None:
             await vector_runtime.close()
 
