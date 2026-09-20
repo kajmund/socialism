@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
-from app.llm.legal_research import LlmLegalInterpreter
+from app.llm.legal_research import LegalDomainExtractionError, LlmLegalInterpreter
 from app.llm.research_assessment import _evidence_payload as assessment_payload
 from app.llm.research_completeness import _evidence_payload as completeness_payload
 from app.services.execution.snapshots import snapshot_research_evidence
@@ -105,7 +105,9 @@ async def test_structured_interpreter_verifies_model_quote(monkeypatch):
     async def prompts(*_args, **_kwargs):
         return {
             "research.lagen_nu.domain.system": "Read the source",
-            "research.lagen_nu.domain.user": "{question}\n{source_kind}\n{source_uri}\n{source_text}",
+            "research.lagen_nu.domain.user": (
+                "{question}\n{source_kind}\n{source_uri}\n{source_text}"
+            ),
         }
 
     async def complete(messages, schema):
@@ -126,7 +128,7 @@ async def test_structured_interpreter_verifies_model_quote(monkeypatch):
 
     monkeypatch.setattr("app.llm.legal_research.require_active_prompts", prompts)
     interpreter = LlmLegalInterpreter(completer=complete, session_factory=Session)
-    with pytest.raises(ValidationError, match="absent from raw source"):
+    with pytest.raises(LegalDomainExtractionError) as error:
         await interpreter.interpret(
             source=LegalSourceIdentity(
                 kind="statute", title="Preskriptionslag", canonical_uri="https://lagen.nu/1981:130"
@@ -136,3 +138,4 @@ async def test_structured_interpreter_verifies_model_quote(monkeypatch):
             truncated=False,
             context=ResearchContext(scope=KnowledgeScope(customer_id=1, module="dd")),
         )
+    assert isinstance(error.value.__cause__, ValidationError)
