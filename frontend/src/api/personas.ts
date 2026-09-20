@@ -117,6 +117,42 @@ export function getPersona(id: string): Promise<PersonaDetail> {
   return api.get<PersonaDetail>(`/personas/${id}`)
 }
 
+export type PersonaLiveToken = {
+  token: string
+  model: string
+  voice: string
+  expires_at: string
+  initial_turn: string
+}
+
+export function createPersonaLiveToken(id: string): Promise<PersonaLiveToken> {
+  return api.post<PersonaLiveToken>(`/personas/${id}/live-token`)
+}
+
+export function savePersonaLiveMemory(
+  id: string,
+  body: {
+    session_id: string
+    user_message: string
+    assistant_message: string
+  },
+): Promise<void> {
+  return api.post(`/personas/${id}/live-memory`, body)
+}
+
+export function runPersonaLiveTool(
+  id: string,
+  body: {
+    session_id: string
+    name: string
+    arguments: Record<string, unknown>
+    history: Array<{ role: "user" | "assistant"; content: string }>
+    user_message: string
+  },
+): Promise<{ result: string }> {
+  return api.post(`/personas/${id}/live-tool`, body, { timeoutMs: 120_000 })
+}
+
 export function createPersona(body: PersonaWrite): Promise<PersonaDetail> {
   return api.post<PersonaDetail>("/personas", body)
 }

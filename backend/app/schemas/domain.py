@@ -80,6 +80,37 @@ class PersonaDetail(LibraryPersona):
     pass
 
 
+class PersonaLiveTokenOut(BaseModel):
+    token: str
+    model: str
+    voice: str
+    expires_at: str
+    initial_turn: str
+
+
+class PersonaLiveMemoryRequest(BaseModel):
+    session_id: str = Field(min_length=1, max_length=128)
+    user_message: str = Field(min_length=1, max_length=20_000)
+    assistant_message: str = Field(min_length=1, max_length=20_000)
+
+
+class PersonaLiveToolHistoryItem(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=20_000)
+
+
+class PersonaLiveToolRequest(BaseModel):
+    session_id: str = Field(min_length=1, max_length=128)
+    name: str = Field(min_length=1, max_length=128)
+    arguments: dict[str, Any] = Field(default_factory=dict)
+    history: list[PersonaLiveToolHistoryItem] = Field(default_factory=list, max_length=50)
+    user_message: str = Field(default="", max_length=20_000)
+
+
+class PersonaLiveToolResponse(BaseModel):
+    result: str
+
+
 class PersonaAvatarOut(BaseModel):
     avatar_url: str | None = None
 

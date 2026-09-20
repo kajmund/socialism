@@ -54,6 +54,8 @@ export const fixtureItem = (
 ): EvidenceSetItem => ({
   evidence_set_id: "set-1",
   research_need_id: "research_1",
+  research_need_ids: ["research_1"],
+  passage_id: `passage-${partial.id}`,
   original_evidence_id: partial.id,
   source_type: "case_knowledge",
   title: `Titel ${partial.id}`,

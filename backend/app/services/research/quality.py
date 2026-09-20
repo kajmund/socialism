@@ -17,14 +17,19 @@ from urllib.parse import urlsplit, urlunsplit
 from app.services.research.models import ResearchNeed
 from app.services.research.provider import KnowledgeProviderDescriptor
 
-EVIDENCE_QUALITY_POLICY_VERSION = "1"
+EVIDENCE_QUALITY_POLICY_VERSION = "2"
 
-AuthorityLevel = Literal["unknown", "limited", "official"]
+AuthorityLevel = Literal["unknown", "limited", "trusted", "official"]
 RelevanceLevel = Literal["unknown", "low", "medium", "high"]
 CurrentnessLevel = Literal["unknown", "known"]
 SourceNature = Literal["unknown", "primary", "secondary"]
 
-AUTHORITY_LEVELS: tuple[AuthorityLevel, ...] = ("unknown", "limited", "official")
+AUTHORITY_LEVELS: tuple[AuthorityLevel, ...] = (
+    "unknown",
+    "limited",
+    "trusted",
+    "official",
+)
 RELEVANCE_LEVELS: tuple[RelevanceLevel, ...] = ("unknown", "low", "medium", "high")
 CURRENTNESS_LEVELS: tuple[CurrentnessLevel, ...] = ("unknown", "known")
 SOURCE_NATURES: tuple[SourceNature, ...] = ("unknown", "primary", "secondary")
@@ -344,6 +349,8 @@ def _authority_from_signals(
         return "official", flags
     if isinstance(declared_level, str) and declared_level.strip().lower() == "official":
         return "official", flags
+    if isinstance(declared_level, str) and declared_level.strip().lower() == "trusted":
+        return "trusted", flags
     if not_official or automated:
         return "limited", flags
     if isinstance(declared_level, str) and declared_level.strip().lower() == "limited":

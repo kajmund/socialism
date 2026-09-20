@@ -42,6 +42,7 @@ from app.services.research import (
     provenance_from_hit,
     search_scope,
 )
+from app.services.lagen_nu.selection import LagenNuSelectionError
 from app.services.research.provider import filter_source_types_for_scope
 from app.services.research.registry import set_standard_capability_descriptors
 from app.services.research.router import ResearchRouter as RouterImpl
@@ -252,6 +253,7 @@ def test_source_type_taxonomy_matches_planned_research_plan():
         "customer_knowledge",
         "domain_knowledge",
         "swedish_law",
+        "swedish_case_law",
         "swedish_preparatory_works",
         "web",
     )
@@ -456,6 +458,25 @@ async def test_source_exception_is_error_and_other_sources_continue():
     assert ok.calls == 1
 
 
+async def test_lagen_nu_selection_error_is_surfaced():
+    boom = FakeResearchSource(
+        "swedish_law",
+        error=LagenNuSelectionError("lagen.nu selector model call failed: length"),
+    )
+    registry = ResearchSourceRegistry()
+    registry.register(boom)
+    evidence = await ResearchRouter(registry).execute_need(
+        _need("swedish_law"),
+        _context(),
+    )
+    assert [item.status for item in evidence] == ["error"]
+    assert evidence[0].metadata["error_type"] == "LagenNuSelectionError"
+    assert evidence[0].excerpt == (
+        "LagenNuSelectionError: lagen.nu selector model call failed: length"
+    )
+    assert boom.calls == 1
+
+
 async def test_router_runs_source_types_in_order_and_keeps_all_provenance():
     first = FakeResearchSource(
         "case_knowledge",
@@ -512,18 +533,16 @@ async def test_unregistered_source_type_is_explicit_error():
     assert evidence[2].metadata["source_type"] == "web"
 
 
-def test_default_registry_has_no_domain_or_web_adapter():
+def test_default_registry_exposes_only_lagen_nu_sources():
     registry = build_research_registry(RecordingKnowledgeProvider())
     assert registry.registered_types() == [
-        "case_knowledge",
-        "customer_knowledge",
         "swedish_law",
+        "swedish_case_law",
         "swedish_preparatory_works",
     ]
     assert registry.registered_evidence_natures() == (
-        "case_knowledge",
-        "customer_knowledge",
         "swedish_law",
+        "swedish_case_law",
         "swedish_preparatory_works",
     )
     assert production_registered_source_types() == registry.registered_evidence_natures()
@@ -532,7 +551,10 @@ def test_default_registry_has_no_domain_or_web_adapter():
     )
     assert registry.sources_for("domain_knowledge") == []
     assert registry.sources_for("swedish_law")
+    assert registry.sources_for("swedish_case_law")
     assert registry.sources_for("swedish_preparatory_works")
+    assert registry.sources_for("case_knowledge") == []
+    assert registry.sources_for("customer_knowledge") == []
     assert registry.sources_for("web") == []
 
 
@@ -548,9 +570,8 @@ def test_build_research_registry_follows_standard_capability_descriptors():
     finally:
         set_standard_capability_descriptors(None)
     assert production_registered_source_types() == (
-        "case_knowledge",
-        "customer_knowledge",
         "swedish_law",
+        "swedish_case_law",
         "swedish_preparatory_works",
     )
 
@@ -621,7 +642,12 @@ async def test_acceptance_router_searches_knowledge_provider(session: AsyncSessi
         vector_store=store,
         embeddings=FakeEmbeddingProvider(),
     )
-    router = ResearchRouter(build_research_registry(provider))
+    registry = ResearchSourceRegistry()
+    registry.register(
+        KnowledgeResearchSource(provider, source_type="case_knowledge"),
+        descriptor=knowledge_adapter_descriptor(SUPABASE_PROVIDER_ID, "case_knowledge"),
+    )
+    router = ResearchRouter(registry)
     need = ResearchNeed(
         id="research_1",
         question="skattesats",
@@ -666,7 +692,15 @@ async def test_acceptance_wrong_customer_is_not_found(session: AsyncSession):
         vector_store=store,
         embeddings=FakeEmbeddingProvider(),
     )
-    router = ResearchRouter(build_research_registry(provider))
+    registry = ResearchSourceRegistry()
+    registry.register(
+        KnowledgeResearchSource(provider, source_type="customer_knowledge"),
+        descriptor=knowledge_adapter_descriptor(
+            SUPABASE_PROVIDER_ID,
+            "customer_knowledge",
+        ),
+    )
+    router = ResearchRouter(registry)
     evidence = await router.execute_need(
         _need("customer_knowledge", question="skattesats"),
         _context(customer_id=other.id, case_id=None),

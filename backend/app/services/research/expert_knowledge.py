@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import (
     EvidenceSet,
     EvidenceSetItem,
+    EvidenceSetItemNeed,
     ExecutionAttempt,
     ExecutionRun,
     ExpertKnowledgeReceipt,
@@ -94,8 +95,11 @@ async def publish_research_question_knowledge(
         EvidenceSetItem.status == "found",
     )
     if question.runtime_need_id is not None:
-        items_query = items_query.where(
-            EvidenceSetItem.research_need_id == question.runtime_need_id
+        items_query = items_query.join(
+            EvidenceSetItemNeed,
+            EvidenceSetItemNeed.evidence_set_item_id == EvidenceSetItem.id,
+        ).where(
+            EvidenceSetItemNeed.research_need_id == question.runtime_need_id
         )
     items = list(
         (
@@ -273,6 +277,7 @@ def _answer_link(
             locator=item.locator,
             excerpt=item.excerpt,
         ),
+        passage_id=item.passage_id,
         relation=ANSWERED_BY,
         title=item.title,
         excerpt=item.excerpt,

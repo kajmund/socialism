@@ -138,9 +138,11 @@ def programmatic_research_assessor():
 def research_sources():
     found = ScriptedSource("customer_knowledge", mode="found")
     missing = ScriptedSource("case_knowledge", mode="empty")
+    legal = ScriptedSource("swedish_law", mode="found")
     registry = ResearchSourceRegistry()
     registry.register(found)
     registry.register(missing)
+    registry.register(legal)
     router = ResearchRouter(registry)
     set_research_router_factory(lambda _session: router)
     yield found, missing, router
@@ -361,7 +363,7 @@ async def test_research_then_evidence_is_frozen_and_ordered(
     quality = first["quality"]
     assert quality["evidence_set_item_id"] == first["id"]
     assert quality["original_evidence_id"] == first["original_evidence_id"]
-    assert quality["scoring_policy_version"] == "1"
+    assert quality["scoring_policy_version"] == "2"
     assert quality["authority"] == "unknown"
     assert quality["relevance"] == "unknown"
     assert quality["currentness"] == "unknown"
@@ -411,7 +413,7 @@ async def test_research_from_objective_persists_generated_plan(
                 ResearchNeedDraft(
                     question="Vad är skattesatsen?",
                     why_needed="behövs för bedömning",
-                    source_types=["customer_knowledge"],
+                    source_types=["swedish_law"],
                     proposed_id="research_1",
                 )
             ]

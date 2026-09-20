@@ -29,7 +29,7 @@ retrieve  →  persist EvidenceSet items  →  need-wave barrier
 
 | Field | Meaning |
 | --- | --- |
-| `authority` | `unknown` / `limited` / `official` from declared provider metadata only |
+| `authority` | `unknown` / `limited` / `trusted` / `official` from declared provider metadata only |
 | `relevance` | `unknown` unless an injectable relevance assessor returns a structured level |
 | `currentness` | `known` only when a parseable source timestamp is present; otherwise `unknown` |
 | `source_nature` | `unknown` / `primary` / `secondary` from declared keys |
@@ -37,7 +37,7 @@ retrieve  →  persist EvidenceSet items  →  need-wave barrier
 | `independent_source_count` | Distinct keys among **found** items for the same ResearchNeed |
 | `flags` | Explicit limitations (`not_official_publication`, `authority_warning`, …) |
 | `declared_signals` | The authority keys actually used (audit) |
-| `scoring_policy_version` | `1` today (`EVIDENCE_QUALITY_POLICY_VERSION`) |
+| `scoring_policy_version` | `2` today (`EVIDENCE_QUALITY_POLICY_VERSION`) |
 | `model_*` | Relevance-model identity when a model ran; empty for programmatic scoring |
 
 Retry with the same item + policy + model identity returns the existing row. A new policy or a different provider/name/version may add a new row; old rows stay so earlier runs remain reproducible.
@@ -55,7 +55,7 @@ Recognized keys (generic, not legal-specific):
 
 Missing keys stay `unknown`. The scorer does not invent official status, dates, or independence from excerpt text.
 
-lagen.nu demonstrates this with the keys it already declares (`not_official_publication`, `automated_corpus`, `authority_warning`). The engine has no lagen.nu branch.
+lagen.nu declares `authority_level=trusted`, `primary_source=true`, and `source_nature=primary`. It is a publication and retrieval layer over material from official sources, so the generic scorer does not downgrade the legal source merely because lagen.nu aggregated it. Evidence provenance retains the publisher URL and a publication note for verification. The engine has no lagen.nu-specific branch.
 
 ## Relevance seam
 
@@ -67,8 +67,12 @@ Model or parse failure raises `EvidenceQualityError`. The research loop fail-clo
 
 Quality drafts are attached to `AssessableEvidence.quality` so an assessor can see dimensions and hard warnings. v1 programmatic sufficiency still means “at least one found item per need”. Hard warnings are not a discard rule and do not change a sufficient result.
 
+The shared LLM assessment and completeness prompts are domain-neutral but outcome-aware. Evidence must answer the exact ResearchNeed, not merely share its topic. Direct support, counterevidence, examination without the requested outcome, peripheral mention, and background material are distinct; duplicate underlying sources are not independent support. Provider-specific vocabulary and interpretation stay outside the generic quality layer.
+
+Canonical storage prevents exact passage duplicates before review: one immutable passage can carry many `research_need_ids` through `evidence_set_item_needs`. Assessment, follow-up planning, and completeness therefore receive one row per passage without a lossy cleanup step. Assessment uses the complete runtime plan, including derived and global needs, rather than comparing their evidence only with the immutable initial snapshot.
+
 ## Reproducible policy changes
 
-1. Keep `EVIDENCE_QUALITY_POLICY_VERSION = "1"` until the scoring rules change.
+1. Keep `EVIDENCE_QUALITY_POLICY_VERSION = "2"` until the scoring rules change.
 2. When rules change, bump the version string. New rows use the new version; old rows are left intact.
 3. Read models expose `scoring_policy_version` and `model_version` so a later report can say which policy judged the item.

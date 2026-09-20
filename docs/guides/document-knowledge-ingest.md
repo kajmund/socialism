@@ -30,7 +30,7 @@ Generated content is replaced on re-ingest. Manual content is preserved and mark
 
 Facts and Q&A are indexed as individual vector documents using a richer embedding text (title, question, answer, generated retrieval queries) while returning the concise human-readable content as the excerpt. Bookmarks and notes are intentionally not indexed as research evidence.
 
-All records use `case_id=StoredObject.id` and the underlag's module. Research receives that case id and module from Expertgranskning, so `case_knowledge` retrieval can discover document chunks and curated facts without making document knowledge global. Existing evidence assessment and freezing remain responsible for deciding whether a retrieved item actually answers the research question.
+All records use `case_id=StoredObject.id` and the underlag's module. The index remains tenant- and case-scoped, but `case_knowledge` is not registered as a production research capability. User uploads can contain arbitrary material and must not be treated as research evidence until source classification, provenance, and trust rules exist.
 
 The same Supabase vector bucket is reused. `knowledge_kind=document_chunk` and `knowledge_kind=document_item` metadata distinguish these records from canonical research questions and other knowledge types; SQL remains authoritative for tenancy and scope.
 
@@ -38,4 +38,4 @@ The same Supabase vector bucket is reused. `knowledge_kind=document_chunk` and `
 
 `GET/POST /underlag/{object_id}/knowledge` and `PUT/DELETE /underlag/{object_id}/knowledge/{item_id}` expose owner-scoped CRUD. The PDF picker renders PDF.js text layers so a browser selection can be converted into exact text plus normalized page rectangles. Selecting an item restores its source highlight and scroll position.
 
-This layer is mutable document understanding, not a frozen `EvidenceSet`. Research may retrieve it as a candidate source, assess it in the context of a question, and then freeze accepted evidence through the existing research pipeline.
+This layer is mutable document understanding, not a frozen `EvidenceSet`. It supports navigation and claims about what the uploaded document contains; it does not currently supply external research evidence.

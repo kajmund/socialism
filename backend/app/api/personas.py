@@ -3,7 +3,15 @@ import secrets
 from random import Random
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFile
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    Query,
+    Response,
+    UploadFile,
+)
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -25,7 +33,7 @@ from app.database.models import (
     UserAccount,
 )
 from app.database.session import get_session
-from app.llm.chat import reply_as_persona
+from app.llm.chat import build_chat_system_prompt, reply_as_persona
 from app.llm.expert_gen import ExpertCandidate, llm_experts_from_underlag
 from app.llm.persona_gen import llm_personas_from_description
 from app.modules.registry import MODULE_REGISTRY
@@ -36,13 +44,17 @@ from app.schemas.domain import (
     ExpertMemoryOut,
     ExpertMemoryUpdate,
     LibraryPersona,
+    PersonaAvatarOut,
     PersonaChatRequest,
     PersonaChatResponse,
     PersonaCreate,
     PersonaDetail,
-    PersonaAvatarOut,
     PersonaGenerateRequest,
     PersonaGenerateResponse,
+    PersonaLiveMemoryRequest,
+    PersonaLiveTokenOut,
+    PersonaLiveToolRequest,
+    PersonaLiveToolResponse,
     PersonaMessageDeleteResponse,
     PersonaMessageOut,
     PersonaUpdate,
@@ -51,8 +63,8 @@ from app.schemas.domain import (
 from app.serializers import (
     blank_profile,
     format_date,
-    persona_initials,
     persona_avatar_url,
+    persona_initials,
     profile_from_dict,
     serialize_library_persona,
     serialize_persona_detail,
@@ -67,7 +79,8 @@ from app.services.expert_chat_evidence import (
     combine_expert_chat_context,
     reusable_expert_chat_evidence_context,
 )
-from app.services.expert_tools import resolve_chat_tools
+from app.services.expert_chat_research_tool import research_tool_handler_for_chat
+from app.services.expert_tools import expert_tool_prompt_extra, resolve_chat_tools
 from app.services.expertgranskning.memory import get_expert_memory, memory_belongs_to
 from app.services.expertgranskning.memory_view import (
     attach_expert_labels,
@@ -75,7 +88,14 @@ from app.services.expertgranskning.memory_view import (
     expert_directory,
     labeled_memory,
 )
+from app.services.gemini_live import (
+    GeminiLiveProviderError,
+    GeminiLiveUnavailable,
+    create_gemini_live_token,
+)
 from app.services.kund_store import bolag_demo_customer_id, default_os_customer_id
+from app.services.live_voice_context import build_live_voice_context
+from app.services.live_voice_tools import live_voice_tool_specs, run_live_voice_tool
 from app.services.object_storage import (
     KIND_UNDERLAG,
     ObjectStorageError,
@@ -90,10 +110,13 @@ from app.services.persona_chat import (
     expert_memory_context,
     library_follow_up_questions,
     remember_expert_chat_turn,
-    research_tool_handler_for_chat,
     safe_library_follow_ups,
 )
-from app.services.population_generate import politik_identity_recipe, sample_expert_identity, stub_persona
+from app.services.population_generate import (
+    politik_identity_recipe,
+    sample_expert_identity,
+    stub_persona,
+)
 from app.services.prompt_store import require_active_prompts, require_prompts_for_persona
 from app.services.stored_objects import get_stored_object, read_stored_bytes
 from app.services.underlag_extract import ensure_underlag_extracted
@@ -308,6 +331,111 @@ async def get_persona(
     assert_kund_access(user, persona.customer_id)
     pops = await _population_names_for_persona(session, persona.id)
     return serialize_persona_detail(persona, pops)
+
+
+@router.post("/{persona_id}/live-token", response_model=PersonaLiveTokenOut)
+async def create_persona_live_token(
+    persona_id: str,
+    session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
+) -> PersonaLiveTokenOut:
+    persona = await _get_persona(session, persona_id)
+    assert_kund_access(user, persona.customer_id)
+    if persona.kind != "expert":
+        raise HTTPException(status_code=404, detail="Expert not found")
+
+    profile = profile_from_dict(persona.profile, persona.name)
+    prompts = await require_prompts_for_persona(session, persona)
+    area_block = await area_block_for_name(session, profile.ort or persona.district)
+    live_context, initial_turn = await build_live_voice_context(
+        session,
+        persona=persona,
+        user=user,
+        prompts=prompts,
+    )
+    allowed_tools = resolve_chat_tools(persona.tools, kind=persona.kind)
+    tool_context = expert_tool_prompt_extra(prompts, allowed_tools)
+    extra_system = "\n\n".join(
+        part for part in (live_context, tool_context) if part.strip()
+    )
+    system_instruction = build_chat_system_prompt(
+        profile,
+        "interview",
+        prompts=prompts,
+        area_block=area_block,
+        extra_system=extra_system,
+        profile_kind="expert",
+    )
+    try:
+        token, model, voice, expires_at = await create_gemini_live_token(
+            system_instruction,
+            tools=live_voice_tool_specs(persona),
+        )
+    except GeminiLiveUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except GeminiLiveProviderError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return PersonaLiveTokenOut(
+        token=token,
+        model=model,
+        voice=voice,
+        expires_at=expires_at,
+        initial_turn=initial_turn,
+    )
+
+
+@router.post(
+    "/{persona_id}/live-tool",
+    response_model=PersonaLiveToolResponse,
+)
+async def run_persona_live_tool(
+    persona_id: str,
+    body: PersonaLiveToolRequest,
+    session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
+) -> PersonaLiveToolResponse:
+    persona = await _get_persona(session, persona_id)
+    assert_kund_access(user, persona.customer_id)
+    if persona.kind != "expert":
+        raise HTTPException(status_code=404, detail="Expert not found")
+    history = [(item.role, item.content, None) for item in body.history]
+    try:
+        result = await run_live_voice_tool(
+            session,
+            persona=persona,
+            user=user,
+            session_id=body.session_id,
+            name=body.name,
+            arguments=body.arguments,
+            history=history,
+            user_message=body.user_message,
+        )
+    except ValueError as exc:
+        status = 403 if str(exc) == "voice_tool_not_allowed" else 400
+        raise HTTPException(status_code=status, detail=str(exc)) from exc
+    return PersonaLiveToolResponse(result=result)
+
+
+@router.post("/{persona_id}/live-memory", status_code=202)
+async def remember_persona_live_turn(
+    persona_id: str,
+    body: PersonaLiveMemoryRequest,
+    background_tasks: BackgroundTasks,
+    session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
+) -> None:
+    persona = await _get_persona(session, persona_id)
+    assert_kund_access(user, persona.customer_id)
+    if persona.kind != "expert":
+        raise HTTPException(status_code=404, detail="Expert not found")
+    background_tasks.add_task(
+        remember_expert_chat_turn,
+        persona,
+        message=body.user_message,
+        reply=body.assistant_message,
+        image_sha256=None,
+        session_id=body.session_id,
+    )
 
 
 @router.get("/{persona_id}/avatar")

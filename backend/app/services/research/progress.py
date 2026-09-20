@@ -546,7 +546,7 @@ async def emit_evidence_item(
     event_type = _EVIDENCE_EVENT_TYPES.get(status)
     if event_type is None:
         raise ValueError(f"Unknown evidence status: {status}")
-    evidence_key = item.original_evidence_id or item.id
+    evidence_key = item.passage_id or item.original_evidence_id or item.id
     return await append_research_progress_event(
         session,
         attempt_id=attempt_id,
@@ -556,6 +556,11 @@ async def emit_evidence_item(
             "evidence_item_id": item.id,
             "original_evidence_id": item.original_evidence_id,
             "research_need_id": item.research_need_id,
+            "research_need_ids": [
+                link.research_need_id for link in item.need_links
+            ]
+            or ([item.research_need_id] if item.research_need_id else []),
+            "passage_id": item.passage_id,
             "source_type": item.source_type,
             "provider": item.provider,
             "status": item.status,

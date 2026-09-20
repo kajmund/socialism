@@ -14,6 +14,7 @@ ResearchSourceType = Literal[
     "customer_knowledge",
     "domain_knowledge",
     "swedish_law",
+    "swedish_case_law",
     "swedish_preparatory_works",
     "web",
 ]
@@ -23,6 +24,7 @@ RESEARCH_SOURCE_TYPES: tuple[ResearchSourceType, ...] = (
     "customer_knowledge",
     "domain_knowledge",
     "swedish_law",
+    "swedish_case_law",
     "swedish_preparatory_works",
     "web",
 )

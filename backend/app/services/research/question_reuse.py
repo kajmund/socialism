@@ -6,6 +6,7 @@ outage must not fail the Attempt or invent a sufficient outcome.
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Sequence
 from datetime import UTC, datetime
 
@@ -13,6 +14,10 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.services.research.evidence_identity import (
+    evidence_passage_id,
+    evidence_source_id,
+)
 from app.services.research.knowledge_question import (
     KnowledgeQuestion,
     KnowledgeQuestionScope,
@@ -395,6 +400,24 @@ def evidence_to_link(
         locator=evidence.locator,
         excerpt=evidence.excerpt,
     )
+    declared_hash = evidence.metadata.get("content_hash")
+    content_hash = (
+        declared_hash
+        if isinstance(declared_hash, str) and declared_hash.strip()
+        else hashlib.sha256((evidence.excerpt or "").encode()).hexdigest()
+    )
+    source_key = evidence_source_id(
+        provider=evidence.provider,
+        source_id=evidence.source_id,
+        source_url=evidence.source_url,
+        content_hash=content_hash,
+    )
+    passage_id = evidence_passage_id(
+        source_key=source_key,
+        source_id=evidence.source_id,
+        locator=evidence.locator,
+        content_hash=content_hash,
+    )
     version = evidence.metadata.get("version")
     version_text = version if isinstance(version, str) else None
     provenance = dict(evidence.metadata)
@@ -403,6 +426,7 @@ def evidence_to_link(
     return QuestionEvidenceLink(
         question_id=question.id,
         evidence_ref=ref,
+        passage_id=passage_id,
         relation=ANSWERED_BY,
         title=evidence.title,
         excerpt=evidence.excerpt,

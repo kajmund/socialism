@@ -76,6 +76,8 @@ export function AddFromLibraryPanel({
         return t("populations.libPanel.originDemographic")
       case "population":
         return t("populations.libPanel.originPopulation")
+      case "research_auto":
+        return t("personas.origin.researchAuto")
       default: {
         const exhaustive: never = origin
         return exhaustive

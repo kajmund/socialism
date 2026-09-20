@@ -78,6 +78,11 @@ class Settings(BaseSettings):
     # Optional playground vision providers (validated when selected in UI).
     google_api_key: str = ""
     google_vision_base_url: str = "https://generativelanguage.googleapis.com/v1beta"
+    google_live_base_url: str = "https://generativelanguage.googleapis.com/v1beta"
+    gemini_live_model: str = "gemini-2.5-flash-native-audio-latest"
+    gemini_live_voice: str = "Algenib"
+    gemini_live_token_ttl_seconds: int = Field(default=600, ge=60, le=1800)
+    gemini_live_new_session_ttl_seconds: int = Field(default=60, ge=30, le=300)
     ollama_api_key: str = ""
     ollama_base_url: str = "https://ollama.com"
     # Write-through cache for SSR anchor embeddings (memory + disk).
@@ -104,7 +109,7 @@ class Settings(BaseSettings):
     lagen_nu_mcp_key: str = ""
     # Official lagen.nu MCP for the generic research KnowledgeProvider. No auth.
     lagen_nu_official_mcp_url: str = "https://lagen.nu/mcp"
-    lagen_nu_official_mcp_timeout_seconds: float = Field(default=20.0, gt=0)
+    lagen_nu_official_mcp_timeout_seconds: float = Field(default=60.0, gt=0)
 
     # Supabase Auth — JWKS verify + Admin invite (service_role never goes to the SPA).
     supabase_url: str = ""

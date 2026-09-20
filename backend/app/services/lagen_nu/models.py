@@ -53,6 +53,13 @@ class ResolvedCitations:
 
 
 @dataclass(frozen=True)
+class IncomingCitations:
+    uri: str
+    total: int
+    results: tuple[LagenNuSearchHit, ...] = ()
+
+
+@dataclass(frozen=True)
 class LagenNuDocument:
     uri: str
     title: str | None
