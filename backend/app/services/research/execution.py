@@ -469,6 +469,9 @@ def assessable_from_item(
     item: EvidenceSetItem,
     quality: EvidenceQualityDraft | None = None,
 ) -> AssessableEvidence:
+    from app.services.legal_research_result import LegalResearchResult
+
+    raw_legal = (item.provenance or {}).get("legal_result")
     return AssessableEvidence(
         evidence_id=item.original_evidence_id or item.id,
         research_need_id=item.research_need_id,
@@ -485,6 +488,7 @@ def assessable_from_item(
         retrieved_at=item.retrieved_at,
         content_hash=item.content_hash,
         quality=quality,
+        legal_result=LegalResearchResult.model_validate(raw_legal) if raw_legal else None,
         research_need_ids=tuple(link.research_need_id for link in item.need_links)
         or ((item.research_need_id,) if item.research_need_id else ()),
     )

@@ -10,6 +10,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from app.database.models import EvidenceSetItem
+from app.services.legal_research_result import LegalResearchResult, legal_result_summary
 
 _NO_POSITIVE_EVIDENCE = "No positive evidence was found."
 _GAPS_HEADER = "Known gaps (not evidence):"
@@ -67,6 +68,9 @@ def _format_found(ref: str, item: EvidenceSetItem) -> str:
         lines.append(f"Locator: {item.locator.strip()}")
     if item.excerpt and item.excerpt.strip():
         lines.append(f'Excerpt: "{item.excerpt.strip()}"')
+    raw_legal = (item.provenance or {}).get("legal_result")
+    if raw_legal:
+        lines.extend(legal_result_summary(LegalResearchResult.model_validate(raw_legal)))
     url = _useful_url(item.source_url)
     if url is not None:
         lines.append(f"URL: {url}")

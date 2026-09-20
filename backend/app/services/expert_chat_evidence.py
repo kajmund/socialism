@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import EvidenceSet, ExecutionAttempt
 from app.services.knowledge.models import KnowledgeScope
+from app.services.legal_research_result import legal_result_summary
 from app.services.prompt_catalog import render_prompt
 from app.services.research.composition import build_standard_question_graph
 from app.services.research.models import (
@@ -35,6 +36,8 @@ def _render_evidence(items: Sequence[ResearchEvidence]) -> str:
             lines.append(f"Plats: {item.locator}")
         if item.excerpt:
             lines.append(f'Utdrag: "{item.excerpt}"')
+        if item.legal_result is not None:
+            lines.extend(legal_result_summary(item.legal_result))
         if item.source_url and item.source_url.startswith(("http://", "https://")):
             lines.append(f"URL: {item.source_url}")
         blocks.append("\n".join(lines))

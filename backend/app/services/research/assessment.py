@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Literal, Protocol
 
+from app.services.legal_research_result import LegalResearchResult
 from app.services.research.models import ResearchError, ResearchPlan
 from app.services.research.quality import EvidenceQualityDraft
 
@@ -55,6 +56,7 @@ class AssessableEvidence:
     content_hash: str
     quality: EvidenceQualityDraft | None = None
     research_need_ids: tuple[str, ...] = ()
+    legal_result: LegalResearchResult | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "provenance", dict(self.provenance))

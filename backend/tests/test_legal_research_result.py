@@ -1,0 +1,138 @@
+"""Domain extraction must not turn invented quotations into research evidence."""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime
+
+import pytest
+from pydantic import ValidationError
+
+from app.llm.legal_research import LlmLegalInterpreter
+from app.llm.research_assessment import _evidence_payload as assessment_payload
+from app.llm.research_completeness import _evidence_payload as completeness_payload
+from app.services.execution.snapshots import snapshot_research_evidence
+from app.services.knowledge.models import KnowledgeScope
+from app.services.legal_research_result import (
+    LegalCitation,
+    LegalQuestionRelation,
+    LegalResearchResult,
+    LegalSourceIdentity,
+    StatuteAnalysis,
+)
+from app.services.research.assessment import AssessableEvidence, EvidenceReviewGroup
+from app.services.research.models import ResearchContext, research_evidence
+
+
+def _result(quote: str = "fordran preskriberas") -> LegalResearchResult:
+    uri = "https://lagen.nu/1981:130#P2"
+    return LegalResearchResult(
+        source=LegalSourceIdentity(kind="statute", title="Preskriptionslag", canonical_uri=uri),
+        relation=LegalQuestionRelation(
+            relation="supports", explanation="Regeln gäller fordran.", confidence="high"
+        ),
+        statute=StatuteAnalysis(
+            operative_rule="Fordran preskriberas efter viss tid.",
+            citations=[LegalCitation(source_uri=uri, quote=quote)],
+        ),
+        raw_text="En fordran preskriberas tio år efter tillkomsten.",
+    )
+
+
+def test_citation_must_be_an_exact_span_of_the_original_document():
+    assert _result().statute.citations[0].quote == "fordran preskriberas"
+    with pytest.raises(ValidationError, match="absent from raw source"):
+        _result("fordran får aldrig preskriberas")
+
+
+def test_domain_result_is_preserved_separately_from_excerpt():
+    result = _result()
+    evidence = research_evidence(
+        research_need_id="need-1",
+        source_type="swedish_law",
+        status="found",
+        excerpt="Kort passage",
+        legal_result=result,
+    )
+    snapshot = snapshot_research_evidence(evidence)
+    assert snapshot.excerpt == "Kort passage"
+    assert snapshot.provenance["legal_result"]["raw_text"] == result.raw_text
+    assert (
+        snapshot.provenance["legal_result"]["statute"]["citations"][0]["quote"]
+        == "fordran preskriberas"
+    )
+
+
+def test_assessment_and_completeness_read_structured_legal_result():
+    result = _result()
+    item = AssessableEvidence(
+        evidence_id="e1",
+        research_need_id="n1",
+        source_type="swedish_law",
+        status="found",
+        title=result.source.title,
+        excerpt="Kort passage",
+        locator="P2",
+        source_id=result.source.canonical_uri,
+        source_url=result.source.canonical_uri,
+        provider="lagen_nu",
+        score=None,
+        provenance={"legal_result": result.model_dump(mode="json")},
+        retrieved_at=datetime.now(UTC),
+        content_hash="abc",
+        legal_result=result,
+    )
+    group = EvidenceReviewGroup(
+        evidence=item,
+        research_need_ids=("n1",),
+        duplicate_evidence_ids=(),
+    )
+    for payload in (assessment_payload(group), completeness_payload(group)):
+        assert payload["legal_result"]["relation"]["relation"] == "supports"
+        assert payload["legal_result"]["statute"]["citations"][0]["quote"] == "fordran preskriberas"
+        assert "raw_text" not in payload["legal_result"]
+        assert "legal_result" not in payload["provenance"]
+
+
+@pytest.mark.asyncio
+async def test_structured_interpreter_verifies_model_quote(monkeypatch):
+    class Session:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+    async def prompts(*_args, **_kwargs):
+        return {
+            "research.lagen_nu.domain.system": "Read the source",
+            "research.lagen_nu.domain.user": "{question}\n{source_kind}\n{source_uri}\n{source_text}",
+        }
+
+    async def complete(messages, schema):
+        assert "fordran preskriberas" in messages[1]["content"]
+        return {
+            "relation": {
+                "relation": "supports",
+                "explanation": "Regeln gäller.",
+                "confidence": "high",
+            },
+            "statute": {
+                "operative_rule": "Preskription gäller.",
+                "citations": [
+                    {"source_uri": "https://lagen.nu/1981:130", "quote": "påhittat citat"}
+                ],
+            },
+        }
+
+    monkeypatch.setattr("app.llm.legal_research.require_active_prompts", prompts)
+    interpreter = LlmLegalInterpreter(completer=complete, session_factory=Session)
+    with pytest.raises(ValidationError, match="absent from raw source"):
+        await interpreter.interpret(
+            source=LegalSourceIdentity(
+                kind="statute", title="Preskriptionslag", canonical_uri="https://lagen.nu/1981:130"
+            ),
+            question="När preskriberas fordran?",
+            raw_text="En fordran preskriberas tio år efter tillkomsten.",
+            truncated=False,
+            context=ResearchContext(scope=KnowledgeScope(customer_id=1, module="dd")),
+        )

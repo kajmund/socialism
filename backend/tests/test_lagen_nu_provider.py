@@ -255,7 +255,36 @@ def _source(
         source_type=source_type,
         client=client,
         selector=selector or PassthroughLagenNuSelector(),
+        interpreter=FakeLegalInterpreter(),
     )
+
+
+class FakeLegalInterpreter:
+    async def interpret(self, *, source, question, raw_text, truncated, context):
+        from app.services.legal_research_result import (
+            CaseLawAnalysis,
+            LegalQuestionRelation,
+            LegalResearchResult,
+            PreparatoryWorkAnalysis,
+            StatuteAnalysis,
+        )
+
+        analyses = {
+            "case_law": lambda: {"case_law": CaseLawAnalysis(
+                legal_issue=question, court_reasoning=raw_text, outcome="unknown"
+            )},
+            "preparatory_work": lambda: {"preparatory_work": PreparatoryWorkAnalysis(
+                legislative_intent=raw_text, proposal_or_commentary=raw_text
+            )},
+            "statute": lambda: {"statute": StatuteAnalysis(operative_rule=raw_text)},
+        }
+        return LegalResearchResult(
+            source=source,
+            relation=LegalQuestionRelation(
+                relation="contextual", explanation=raw_text, confidence="low"
+            ),
+            raw_text=raw_text, truncated=truncated, **analyses[source.kind](),
+        )
 
 
 def test_canonical_uri_rewrites_ferenda_and_rejects_foreign_hosts():

@@ -150,7 +150,10 @@ def link_to_research_evidence(
     freshness: Freshness,
     question_id: str,
 ) -> ResearchEvidence:
+    from app.services.legal_research_result import LegalResearchResult
+
     metadata = dict(link.provenance)
+    raw_legal = metadata.pop("legal_result", None)
     metadata["source_attempt_id"] = link.source_attempt_id
     metadata["reuse"] = reuse_lineage(
         origin=REUSE_ORIGIN_PERSISTENT,
@@ -171,6 +174,7 @@ def link_to_research_evidence(
         provider=link.provider,
         retrieved_at=retrieved,
         metadata=metadata,
+        legal_result=LegalResearchResult.model_validate(raw_legal) if raw_legal else None,
     )
 
 
@@ -200,6 +204,7 @@ def attach_fresh_lineage(
         score=evidence.score,
         retrieved_at=evidence.retrieved_at,
         metadata=metadata,
+        legal_result=evidence.legal_result,
     )
 
 
@@ -421,6 +426,8 @@ def evidence_to_link(
     version = evidence.metadata.get("version")
     version_text = version if isinstance(version, str) else None
     provenance = dict(evidence.metadata)
+    if evidence.legal_result is not None:
+        provenance["legal_result"] = evidence.legal_result.model_dump(mode="json")
     if context is not None:
         provenance.update(_scope_provenance(context, evidence.source_type))
     return QuestionEvidenceLink(
