@@ -1,14 +1,20 @@
-.PHONY: help backend frontend word-addin start install test test-backend test-frontend test-word-addin knowledge-validate
+.PHONY: help backend frontend word-addin elk-proxy start install test test-backend test-frontend test-word-addin knowledge-validate
 
 # Pinned OKF CLI (validate + future MCP). Not a runtime app dependency.
 OKF_MCP_PKG := @mfdaves/okf-mcp@0.3.3
 
+FLYCTL ?= flyctl
+ELASTICSEARCH_FLY_APP ?= socialism-elasticsearch
+ELASTICSEARCH_PROXY_PORT ?= 19200
+ELASTICSEARCH_REMOTE_PORT ?= 9200
+
 help:
 	@echo "Targets:"
-	@echo "  make start               Start backend + frontend together"
+	@echo "  make start               Start ELK proxy + backend + frontend together"
 	@echo "  make backend             Start FastAPI (uvicorn --reload) on :8000"
 	@echo "  make frontend            Start Vite dev server on :5173"
 	@echo "  make word-addin          Start Word add-in Vite server on :3000"
+	@echo "  make elk-proxy           Proxy local :$(ELASTICSEARCH_PROXY_PORT) to Elasticsearch on Fly"
 	@echo "  make install             Install backend + frontend + word-addin deps"
 	@echo "  make test                Backend pytest + frontend and word-addin lint/vitest"
 	@echo "  make test-backend        Backend pytest (excludes smoke)"
@@ -29,8 +35,18 @@ frontend:
 word-addin:
 	cd word-addin && pnpm dev
 
+elk-proxy:
+	@FLYCTL="$(FLYCTL)" \
+	  ELASTICSEARCH_FLY_APP="$(ELASTICSEARCH_FLY_APP)" \
+	  ELASTICSEARCH_PROXY_PORT="$(ELASTICSEARCH_PROXY_PORT)" \
+	  ELASTICSEARCH_REMOTE_PORT="$(ELASTICSEARCH_REMOTE_PORT)" \
+	  ./scripts/elk-proxy.sh
+
 start:
 	@bash -eu -c '\
+	  proxy_pid=""; \
+	  backend_pid=""; \
+	  frontend_pid=""; \
 	  cleanup() { \
 	    trap - EXIT INT TERM HUP; \
 	    for pid in $$(jobs -p); do \
@@ -48,9 +64,51 @@ start:
 	    done; \
 	  }; \
 	  trap cleanup EXIT INT TERM HUP; \
+	  command -v curl >/dev/null 2>&1 || { echo "make start: curl is required for the Elasticsearch health check." >&2; exit 1; }; \
+	  FLYCTL="$(FLYCTL)" \
+	    ELASTICSEARCH_FLY_APP="$(ELASTICSEARCH_FLY_APP)" \
+	    ELASTICSEARCH_PROXY_PORT="$(ELASTICSEARCH_PROXY_PORT)" \
+	    ELASTICSEARCH_REMOTE_PORT="$(ELASTICSEARCH_REMOTE_PORT)" \
+	    ./scripts/elk-proxy.sh & \
+	  proxy_pid=$$!; \
+	  proxy_ready=0; \
+	  attempt=0; \
+	  while [ $$attempt -lt 60 ]; do \
+	    if curl --fail --silent --max-time 1 "http://127.0.0.1:$(ELASTICSEARCH_PROXY_PORT)/_cluster/health" >/dev/null 2>&1; then \
+	      proxy_ready=1; \
+	      break; \
+	    fi; \
+	    if ! kill -0 $$proxy_pid 2>/dev/null; then \
+	      wait $$proxy_pid || true; \
+	      echo "make start: ELK proxy stopped before Elasticsearch became ready." >&2; \
+	      exit 1; \
+	    fi; \
+	    attempt=$$((attempt + 1)); \
+	    sleep 0.5; \
+	  done; \
+	  if [ $$proxy_ready -ne 1 ]; then \
+	    echo "make start: Elasticsearch did not become ready on 127.0.0.1:$(ELASTICSEARCH_PROXY_PORT) within 30 seconds." >&2; \
+	    exit 1; \
+	  fi; \
+	  echo "make start: Elasticsearch is ready on http://127.0.0.1:$(ELASTICSEARCH_PROXY_PORT)"; \
 	  (cd backend && uv run $(BACKEND_UV_EXTRA) uvicorn app.main:app --reload) & \
+	  backend_pid=$$!; \
 	  (cd frontend && pnpm dev) & \
-	  wait \
+	  frontend_pid=$$!; \
+	  while :; do \
+	    for process in "ELK proxy:$$proxy_pid" "backend:$$backend_pid" "frontend:$$frontend_pid"; do \
+	      name=$${process%%:*}; \
+	      pid=$${process#*:}; \
+	      if ! kill -0 $$pid 2>/dev/null; then \
+	        status=0; \
+	        wait $$pid || status=$$?; \
+	        if [ $$status -eq 0 ]; then status=1; fi; \
+	        echo "make start: $$name stopped; shutting down the local stack." >&2; \
+	        exit $$status; \
+	      fi; \
+	    done; \
+	    sleep 1; \
+	  done \
 	'
 
 install:

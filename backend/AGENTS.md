@@ -10,7 +10,7 @@ This is the FastAPI service for **Socialism**. Read [../AGENTS.md](../AGENTS.md)
 - `httpx` for outbound HTTP
 - `pytest` for tests
 - SQLAlchemy models + Alembic migrations for database schema changes
-- **Production DB:** Supabase Postgres via `psycopg`
+- **Persistent DB:** Supabase Postgres via `psycopg`
 - **Local/test DB:** SQLite via `aiosqlite` (local file under `backend/data/`)
 - **LLM:** Cerebras `gpt-oss-120b` default via OpenAI-compatible SDK (`app/llm/`); DeepSeek via `LLM_PROVIDER=deepseek`
 - `structlog` for logging
@@ -77,7 +77,7 @@ Optional dependency extra `oasis` (`camel-oasis`) — not installed by default (
 ## Database
 
 - Alembic is the source of truth for schema changes.
-- Production uses Supabase Postgres (`DATABASE_URL=postgresql+psycopg://...`). Local development and fast tests may use SQLite. Models and every Alembic migration must work on both dialects.
+- The shared durable data path uses Supabase Postgres (`DATABASE_URL=postgresql+psycopg://...`). Local development and fast tests may use SQLite. Models and every Alembic migration must work on both dialects.
 - Run migrations from `backend/` with `uv run alembic upgrade head`.
 - Copy an existing, fully migrated SQLite database into an empty, fully migrated PostgreSQL database with `uv run python scripts/migrate_sqlite_to_postgres.py --source ... --target ...`.
 - Seed demo data with `uv run python -m app.seed`.

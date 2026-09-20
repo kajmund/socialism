@@ -18,7 +18,7 @@ dependencies = [
     "pdfplumber==0.11.9",
     # Decode, validate and strip image metadata; robust codecs are not a small helper.
     "pillow>=10.4.0",
-    # PostgreSQL driver for the long-running Railway backend and Alembic.
+    # PostgreSQL driver for the long-running backend process and Alembic.
     "psycopg[binary]>=3.2.0",
     # Mem0's pgvector provider uses Psycopg's maintained connection pool.
     "psycopg-pool>=3.2.0",

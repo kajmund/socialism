@@ -1,3 +1,0 @@
-# LibreOffice is required to convert Word (.docx) underlag to PDF on upload.
-[phases.setup]
-aptPkgs = ["libreoffice-writer", "fonts-liberation"]
