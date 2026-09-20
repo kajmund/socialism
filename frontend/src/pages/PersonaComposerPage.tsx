@@ -32,6 +32,7 @@ import {
   type PersonaMessage,
 } from "@/api/personas"
 import { ChatMessageActions } from "@/components/chat/ChatMessageActions"
+import { ExpertVoiceButton } from "@/components/chat/ExpertVoiceButton"
 import { MessengerChat } from "@/components/chat/MessengerChat"
 import { useLlmCapabilities } from "@/components/chat/useLlmCapabilities"
 import {
@@ -523,6 +524,15 @@ function Editor({
   const showMemoryUi = kind === "expert" && Boolean(personaId)
   const memoryNotice =
     showMemoryUi && savedMemories != null ? memoryNoticeText(savedMemories, t) : null
+  const voiceAction =
+    kind === "expert" ? (
+      <ExpertVoiceButton
+        personaId={personaId}
+        expertName={persona.name}
+        avatarUrl={avatarUrl}
+        onErrorMessage={onToast}
+      />
+    ) : undefined
 
   async function openMemoryLog() {
     if (!personaId) return
@@ -966,6 +976,7 @@ function Editor({
                 ? t("personas.composer.messagePlaceholder")
                 : t("personas.composer.savePersonaFirst")
             }
+            inputAction={voiceAction}
             empty={
               <div className="bub them">
                 {!personaId
@@ -1116,6 +1127,7 @@ function Editor({
             placeholder={t("personas.composer.askPersonaPlaceholder", {
               name: persona.name,
             })}
+            inputAction={voiceAction}
             empty={
               <div className="bub them">
                 {!personaId

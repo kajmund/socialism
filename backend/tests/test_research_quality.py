@@ -24,18 +24,18 @@ from app.services.execution import (
 )
 from app.services.lagen_nu.models import SearchResults
 from app.services.lagen_nu.registration import (
-    LAGEN_NU_AUTHORITY_WARNING,
     LAGEN_NU_PROVIDER_ID,
+    LAGEN_NU_PUBLICATION_NOTE,
     lagen_nu_descriptor,
 )
 from app.services.research import (
     KnowledgeProviderDescriptor,
     ProviderAccess,
+    ResearchExecutionError,
     ResearchNeed,
     ResearchPlan,
     ResearchRouter,
     ResearchSourceRegistry,
-    ResearchExecutionError,
     execute_attempt_research,
     research_evidence,
 )
@@ -181,7 +181,7 @@ async def test_unknown_recency_and_authority_are_not_guessed():
     assert drafts[0].relevance == "unknown"
 
 
-async def test_official_descriptor_scores_above_automated_corpus():
+async def test_explicit_trusted_descriptor_overrides_transport_warnings():
     official = _input(
         item_id="official",
         provider="gazette",
@@ -195,7 +195,7 @@ async def test_official_descriptor_scores_above_automated_corpus():
         provenance={
             "not_official_publication": True,
             "automated_corpus": True,
-            "authority_warning": LAGEN_NU_AUTHORITY_WARNING,
+            "authority_warning": "Automated corpus is not an official publication.",
         },
     )
     drafts = await assess_evidence_quality(
@@ -205,15 +205,15 @@ async def test_official_descriptor_scores_above_automated_corpus():
     by_id = {draft.evidence_set_item_id: draft for draft in drafts}
     assert by_id["official"].authority == "official"
     assert by_id["official"].source_nature == "primary"
-    assert by_id["auto"].authority == "limited"
-    assert by_id["auto"].source_nature == "secondary"
+    assert by_id["auto"].authority == "trusted"
+    assert by_id["auto"].source_nature == "primary"
     assert {flag.code for flag in by_id["auto"].flags} >= {
         FLAG_NOT_OFFICIAL_PUBLICATION,
         FLAG_AUTHORITY_WARNING,
     }
 
 
-async def test_lagen_nu_warning_is_a_limitation_not_a_disappearance():
+async def test_lagen_nu_is_a_trusted_primary_source_aggregator():
     client = FakeLagenNuClient(
         search=SearchResults(query="jämkning", total=1, results=(_hit(),)),
         documents={"https://lagen.nu/1915:218#P36": _document()},
@@ -245,15 +245,13 @@ async def test_lagen_nu_warning_is_a_limitation_not_a_disappearance():
         descriptors=(lagen_nu_descriptor("swedish_law"),),
     )
     draft = drafts[0]
-    assert item.metadata["not_official_publication"] is True
-    assert draft.authority == "limited"
-    assert draft.source_nature == "secondary"
+    assert item.metadata["official_source_aggregator"] is True
+    assert item.metadata["publication_note"] == LAGEN_NU_PUBLICATION_NOTE
+    assert draft.authority == "trusted"
+    assert draft.source_nature == "primary"
     assert draft.currentness == "unknown"
     assert draft.relevance == "unknown"
-    assert any(flag.code == FLAG_AUTHORITY_WARNING for flag in draft.flags)
-    assert any(
-        LAGEN_NU_AUTHORITY_WARNING in flag.detail for flag in draft.flags
-    )
+    assert draft.flags == []
     assert independence_key(
         QualityEvidenceInput(
             item_id="x",
@@ -323,7 +321,7 @@ async def test_quality_does_not_flip_programmatic_sufficient():
                 _input(
                     provenance={
                         "not_official_publication": True,
-                        "authority_warning": LAGEN_NU_AUTHORITY_WARNING,
+                        "authority_warning": "Secondary source warning.",
                     }
                 )
             ],
@@ -383,9 +381,11 @@ async def test_same_evidence_and_policy_is_idempotent(db: AsyncSession):
                 source_url="https://lagen.nu/1915:218#P36",
                 provider=LAGEN_NU_PROVIDER_ID,
                 metadata={
-                    "not_official_publication": True,
-                    "automated_corpus": True,
-                    "authority_warning": LAGEN_NU_AUTHORITY_WARNING,
+                    "authority_level": "trusted",
+                    "primary_source": True,
+                    "source_nature": "primary",
+                    "official_source_aggregator": True,
+                    "publication_note": LAGEN_NU_PUBLICATION_NOTE,
                 },
             )
         ],
@@ -407,7 +407,7 @@ async def test_same_evidence_and_policy_is_idempotent(db: AsyncSession):
     assert first[0].id == second[0].id
     assert len(rows) == 1
     assert rows[0].scoring_policy_version == EVIDENCE_QUALITY_POLICY_VERSION
-    assert rows[0].authority == "limited"
+    assert rows[0].authority == "trusted"
     assert items[0].excerpt == "jämkas"
 
 
@@ -437,23 +437,18 @@ async def test_loop_persists_lagen_nu_quality_and_keeps_evidence(db: AsyncSessio
     assert len(items) == 1
     assert items[0].status == "found"
     assert items[0].provider == LAGEN_NU_PROVIDER_ID
-    assert items[0].provenance["not_official_publication"] is True
+    assert items[0].provenance["official_source_aggregator"] is True
     assert len(quality) == 1
     row = quality[0]
     assert row.evidence_set_item_id == items[0].id
     assert row.original_evidence_id == items[0].original_evidence_id
     assert row.scoring_policy_version == EVIDENCE_QUALITY_POLICY_VERSION
-    assert row.authority == "limited"
-    assert row.source_nature == "secondary"
+    assert row.authority == "trusted"
+    assert row.source_nature == "primary"
     assert row.currentness == "unknown"
     assert row.relevance == "unknown"
     assert row.independence_key == "https://lagen.nu/1915:218"
-    codes = {flag["code"] for flag in row.flags}
-    assert FLAG_NOT_OFFICIAL_PUBLICATION in codes
-    assert FLAG_AUTHORITY_WARNING in codes
-    assert LAGEN_NU_AUTHORITY_WARNING in row.rationale or any(
-        LAGEN_NU_AUTHORITY_WARNING in flag["detail"] for flag in row.flags
-    )
+    assert row.flags == []
 
 
 @pytest.mark.asyncio

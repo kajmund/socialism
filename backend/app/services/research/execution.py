@@ -91,8 +91,6 @@ from app.services.research.completeness import (
     sanitize_completeness_draft,
 )
 from app.services.research.composition import standard_available_source_types
-from app.services.research.provider import filter_source_types_for_scope
-from app.services.research.registry import standard_capability_descriptors
 from app.services.research.followup import (
     FollowUpPlannerError,
     FollowUpResearchPlanner,
@@ -142,7 +140,10 @@ from app.services.research.progress import (
     emit_research_frozen_ready,
     emit_runtime_need_created,
 )
-from app.services.research.provider import KnowledgeProviderDescriptor
+from app.services.research.provider import (
+    KnowledgeProviderDescriptor,
+    filter_source_types_for_scope,
+)
 from app.services.research.quality import (
     EVIDENCE_QUALITY_POLICY_VERSION,
     EvidenceQualityDraft,
@@ -157,11 +158,10 @@ from app.services.research.question_graph import (
     QuestionEvidenceGraph,
 )
 from app.services.research.question_reuse import (
-    merge_reused_with_provider,
-    safe_lookup_reusable_evidence,
+    annotate_fresh_retrieval,
     safe_upsert_persisted_evidence,
-    should_skip_providers,
 )
+from app.services.research.registry import standard_capability_descriptors
 from app.services.research.router import ResearchRouter
 
 ResearchRouterFactory = Callable[[AsyncSession], ResearchRouter]
@@ -317,25 +317,17 @@ async def _candidates_then_providers(
     question_graph: QuestionEvidenceGraph,
     attempt_id: str,
 ) -> list[ResearchEvidence]:
-    """Graph candidates re-enter EvidenceSet. v1 still retrieves live."""
-    async with factory() as graph_session:
-        reused = await safe_lookup_reusable_evidence(
-            graph_session,
-            graph=question_graph,
+    """Executing research uses fresh provider evidence only."""
+    del question_graph, attempt_id
+    return annotate_fresh_retrieval(
+        await _retrieve_need(
+            factory=factory,
             need=need,
             context=context,
-            exclude_attempt_id=attempt_id,
+            router=router,
+            router_factory=router_factory,
         )
-    if reused and should_skip_providers(need, reused):
-        return list(reused)
-    provider = await _retrieve_need(
-        factory=factory,
-        need=need,
-        context=context,
-        router=router,
-        router_factory=router_factory,
     )
-    return merge_reused_with_provider(reused, provider)
 
 
 async def _execute_one_need(
@@ -493,6 +485,8 @@ def assessable_from_item(
         retrieved_at=item.retrieved_at,
         content_hash=item.content_hash,
         quality=quality,
+        research_need_ids=tuple(link.research_need_id for link in item.need_links)
+        or ((item.research_need_id,) if item.research_need_id else ()),
     )
 
 
@@ -771,6 +765,8 @@ async def _plan_and_persist_follow_ups(
     planner: FollowUpResearchPlanner,
     wave_number: int,
     max_needs: int,
+    router: ResearchRouter | None,
+    case_id: str | None,
 ) -> list[RuntimeResearchNeed] | str:
     previous = [runtime_need_from_row(row) for row in await list_runtime_needs(session, attempt.id)]
     if len(previous) >= max_needs:
@@ -778,12 +774,14 @@ async def _plan_and_persist_follow_ups(
     items = await list_evidence_items(session, evidence_set_id)
     evidence = [assessable_from_item(item) for item in items]
     draft = assessment_draft_from_row(assessment)
+    allowed_source_types = _executable_source_types(router, case_id=case_id)
     try:
         raw_drafts = await planner.plan_follow_ups(
             plan=snapshot_plan,
             assessment=draft,
             evidence=evidence,
             previous_needs=previous,
+            available_source_types=allowed_source_types,
         )
     except FollowUpPlannerError:
         raise
@@ -796,6 +794,7 @@ async def _plan_and_persist_follow_ups(
         previous_needs=previous,
         wave_number=wave_number,
         assessment_pass=assessment.assessment_pass,
+        allowed_source_types=allowed_source_types,
     )
     accepted = take_needs_within_budget(
         accepted, current_count=len(previous), max_needs=max_needs
@@ -1028,7 +1027,7 @@ async def _run_research_loop(
                     barrier_session,
                     attempt=attempt,
                     evidence_set_id=evidence_set_id,
-                    plan=snapshot_plan,
+                    plan=quality_plan,
                     assessor=assessor,
                     assessment_pass=next_assessment_pass(wave),
                     quality=quality,
@@ -1184,6 +1183,8 @@ async def _run_research_loop(
                     planner=planner,
                     wave_number=follow_up_wave,
                     max_needs=max_needs,
+                    router=router,
+                    case_id=context.scope.case_id,
                 )
                 if isinstance(planned, str):
                     await set_research_loop_state(

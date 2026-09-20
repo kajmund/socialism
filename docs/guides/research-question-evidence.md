@@ -9,10 +9,11 @@ Reusable persistent knowledge for research. This is a seam on the existing engin
 | `ResearchNeed` / `ResearchRuntimeNeed` | One Attempt/wave question plus execution/status/lineage | `research_runtime_needs`, plan snapshots |
 | `ResearchNeedExecution` | Running / completed / failed for that need | `research_need_executions` |
 | `KnowledgeQuestion` | Canonical persistent question identity | `knowledge_questions` + graph node |
-| `ANSWERED_BY` / `BESVARAS_AV` | Question → evidence *reference* | graph edge / `knowledge_question_evidence_links` |
-| `ResearchEvidence` / `EvidenceSet` | Source of truth for what an Attempt saw | `evidence_set_items` |
+| `EvidenceSource` / `EvidencePassage` | Canonical document and immutable unique passage | `evidence_sources`, `evidence_passages` |
+| `ANSWERED_BY` / `BESVARAS_AV` | Question → passage relation | `knowledge_question_evidence_links` |
+| `ResearchEvidence` / `EvidenceSet` | Frozen membership plus need lineage | `evidence_set_items`, `evidence_set_item_needs` |
 
-A runtime need may resolve to a `KnowledgeQuestion`. Execution state never moves into the graph. Documents stay in EvidenceSet storage. The graph stores a stable reference, excerpt/locator when useful, provider/provenance, timestamps, and version metadata.
+A runtime need may resolve to a `KnowledgeQuestion`. Execution state never moves into the graph. A provider document is stored once as `EvidenceSource`; each distinct locator/content combination is stored once as an immutable `EvidencePassage`. EvidenceSets and KnowledgeQuestions only link to those passages. Multiple ResearchNeeds can link the same EvidenceSet item without copying source text.
 
 Identity starts with the existing deterministic `research_question_key` (normalized casefold + whitespace) plus an explicit namespace. On an exact miss, production uses `SemanticQuestionIdentityMatcher` against the same Supabase Vector Bucket as document knowledge. Question vectors use a dedicated vector customer partition plus `knowledge_kind=knowledge_question` and namespace metadata, so ordinary document retrieval cannot return them. The canonical SQL row remains authoritative; the vector index only proposes one of the SQL candidates. Model, embedding version, and dimension are persisted together on `knowledge_questions`.
 
@@ -27,16 +28,12 @@ vectors.
 ```text
 ResearchNeed
   → resolve/match KnowledgeQuestion
-  → bounded one-hop lookup (Question → ANSWERED_BY)
-  → normalize into ResearchEvidence
-  → persist reused candidates into EvidenceSet
-  → ResearchRouter / providers always run in v1
-  → merge: live found hit wins the same evidence_ref; leftover candidates stay
+  → ResearchRouter / providers run with fresh evidence
   → idempotent upsert Question + ANSWERED_BY (fresh retrieval only)
   → wave-level evidence quality, then the configured ResearchAssessor / completeness
 ```
 
-Reuse is candidate retrieval, never automatic truth. Graph code cannot mark a need sufficient. v1 does not skip live providers from a programmatic "found = sufficient" check: production assessment can be an LLM and now also sees evidence quality. A later conservative skip-gate must be tested against that real policy.
+Executing research does not inject persistent graph candidates into a new EvidenceSet. This prevents old, broad, or truncated passages from accumulating beside fresh provider results. The graph remains the durable Question→Passage history and is available to explicit read-only expert-chat reuse. A future execution reuse gate must validate relevance and freshness before it can be enabled.
 
 Library expert chat is intentionally different from an executing research
 Attempt: it performs read-only semantic question matching and may answer from
@@ -102,7 +99,7 @@ Graph lookup or write failure falls back to normal provider retrieval / keeps al
 }
 ```
 
-Retries upsert the same `(question, evidence_ref)` edge. They do not duplicate nodes or EvidenceSet items. Edges store `source_attempt_id` so the current Attempt cannot reuse its own in-flight writes; a later Attempt can.
+Retries upsert the same `(question, passage_id)` edge. EvidenceSet writes upsert `(evidence_set, passage_id)` and add need links instead of copying the passage. Edges store `source_attempt_id` so the current Attempt cannot reuse its own in-flight writes; a later Attempt can.
 
 When a question child Attempt is ready, its found frozen EvidenceSet items are
 also linked directly to the high-level canonical `KnowledgeQuestion`. One

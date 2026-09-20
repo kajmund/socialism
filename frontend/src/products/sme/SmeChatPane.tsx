@@ -5,6 +5,7 @@ import { ExpertAvatar } from "@/components/experts/ExpertAvatar"
 import { useEffect, useState } from "react"
 import { uploadMessageImageRaw } from "@/api/messages"
 import type { SmeInboxItem, SmeMessage } from "@/api/sme"
+import { ExpertVoiceButton } from "@/components/chat/ExpertVoiceButton"
 import { MessengerChat } from "@/components/chat/MessengerChat"
 import { useLlmCapabilities } from "@/components/chat/useLlmCapabilities"
 import { useLocale } from "@/i18n"
@@ -48,6 +49,7 @@ export function SmeChatPane({
   const [pendingImageUrl, setPendingImageUrl] = useState<string | null>(null)
   const [imageBusy, setImageBusy] = useState(false)
   const [imageError, setImageError] = useState<string | null>(null)
+  const [voiceError, setVoiceError] = useState<string | null>(null)
   const { allowImageAttach, imageAccept } = useLlmCapabilities()
 
   useEffect(() => {
@@ -55,6 +57,7 @@ export function SmeChatPane({
     setPendingImageSha(null)
     setPendingImageUrl(null)
     setImageError(null)
+    setVoiceError(null)
   }, [thread?.thread_id, thread?.thread_type])
 
   useEffect(
@@ -172,6 +175,16 @@ export function SmeChatPane({
         busy={sending || imageBusy}
         ready={ready}
         placeholder={t("sme.messagePlaceholder")}
+        inputAction={
+          thread.thread_type === "expert" ? (
+            <ExpertVoiceButton
+              personaId={thread.thread_id}
+              expertName={thread.name}
+              avatarUrl={thread.avatar_url}
+              onErrorMessage={setVoiceError}
+            />
+          ) : undefined
+        }
         suggestions={thread.thread_type === "expert" ? suggestions : []}
         onSuggestion={(question) => {
           if (onSend(question, null)) setDraft("")
@@ -190,9 +203,9 @@ export function SmeChatPane({
         }
         notice={<>
           <div className="max-h-72 overflow-auto"><ProfileProposals conversation={thread.thread_type === "expert" ? `expert:${thread.thread_id}:interview` : `panel:${thread.thread_id}`} refreshKey={messages.length} onSaved={refreshProfile} /></div>
-          {imageError || error ? (
+          {voiceError || imageError || error ? (
             <span className="text-destructive" role="alert">
-              {imageError || error}
+              {voiceError || imageError || error}
             </span>
           ) : !ready && thread.thread_type === "expert" ? (
             t("sme.reconnecting")

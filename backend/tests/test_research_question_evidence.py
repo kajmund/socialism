@@ -320,8 +320,8 @@ async def test_stale_reused_evidence_still_calls_providers(db, monkeypatch):
     origins = {item.provenance.get("reuse", {}).get("origin") for item in items}
     excerpts = {item.excerpt for item in items}
     assert source.calls == 1
-    assert origins == {"persistent_knowledge", "fresh_retrieval"}
-    assert excerpts == {"old excerpt", "live hit"}
+    assert origins == {"fresh_retrieval"}
+    assert excerpts == {"live hit"}
 
 
 @pytest.mark.asyncio
@@ -397,9 +397,9 @@ async def test_public_evidence_is_reusable_across_customers(db, monkeypatch):
     assert public_q.scope.visibility == "public"
     assert source_b.calls == 1
     excerpts = {item.excerpt for item in items}
-    assert excerpts == {"SFS text", "should not run"}
+    assert excerpts == {"should not run"}
     origins = {item.provenance["reuse"]["origin"] for item in items}
-    assert origins == {"persistent_knowledge", "fresh_retrieval"}
+    assert origins == {"fresh_retrieval"}
 
 
 @pytest.mark.asyncio
@@ -763,7 +763,7 @@ async def test_insufficient_assessor_does_not_let_fresh_reuse_skip_providers(
     excerpts = {item.excerpt for item in items}
     assert live.calls == 1
     assert "live retrieval" in excerpts
-    assert "thin cache" in excerpts
+    assert "thin cache" not in excerpts
 
 
 @pytest.mark.asyncio

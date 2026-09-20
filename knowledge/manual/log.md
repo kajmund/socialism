@@ -1,7 +1,17 @@
 # Manual update log
 
+## 2026-09-20
+
+* **Research**: Juridisk research kombinerar nu frågespecifik sökning med lagen.nu:s hänvisningsgraf, väljer fler unika och relevanta rättsfall och hämtar relevanta avsnitt ur förarbeten. Evidensbedömningen skiljer tydligare mellan direkt stöd, motbevis, uteblivet efterfrågat utfall och perifer omnämning.
+* **Research**: Samma underliggande källa visas bara en gång för bedömningsmodellen även när flera researchfrågor har hittat den. Bedömningen omfattar nu även uppföljningsfrågor, och rättsfallssökning prioriterar domskäl med exakt lagrum framför parternas yrkanden och orelaterade paragrafträffar.
+* **Research**: Dokumentkällor och exakta källavsnitt lagras nu kanoniskt. Om flera researchbehov hittar samma passage skapas en gemensam källa med flera behovskopplingar, inte flera källkopior. Olika relevanta avsnitt ur samma dokument behålls separat.
+* **Research**: Nya researchkörningar blandar inte längre in äldre grafkällor automatiskt. Juridiska rättsfall hämtas med längre dokumentfönster, avgränsas till domskäl och domslut och måste behandla det efterfrågade lagrummet; förarbetesträffar filtreras på samma exakta lagrum.
+* **Expertchatten / SME**: Telefonikonen till höger om textfältet öppnar en samtalsvy med expertbild, status, samtalstid, mikrofon, högtalare och lägg på. En kort ringsignal spelas innan experten svarar med sitt namn och en mörk manlig röst. Experten får kontext om användaren, bolaget och en LLM-sammanfattning av sina minnen från de senaste fyra timmarna, och kan använda samma valda verktyg som i textchatten. Research kräver uttrycklig bekräftelse. Ljud och fullständigt transkript sparas inte, men relevanta fakta från färdiga samtalsvarv kan skrivas till expertminnet i bakgrunden. I SME visas ikonen för enskilda experter, inte expertpaneler.
+
 ## 2026-09-19
 
+* **Research**: Juridisk research via lagen.nu söker nu även svenska domstolsavgöranden. Frågor om hur ett namngivet lagrum har tillämpats använder hänvisningsgrafen för att hitta relevanta avgöranden. Lagtext, rättsfall och förarbeten behandlas som separata källtyper.
+* **Research**: Uppladdat kund- och ärendematerial används inte längre som researchkälla. Materialet kan fortfarande läsas och struktureras som underlag, men aktiveras inte som evidens innan det finns regler för ursprung och tillit.
 * **Research**: Research utan kopplat ärende (till exempel från SME-chatten) söker inte längre i ärendespecifik kunskap. Tidigare visades felet `case_knowledge requires case_id`.
 * **Research**: Ett misslyckat expertresearch-jobb kan återupptas från jobblistan eller researchvyn. Den fortsätter från redan sparade frågor och evidens, till exempel efter en serveromstart.
 * **Research**: En avslutad expertresearch kan köras om från jobblistan eller researchvyn. Det skapar ett nytt jobb med samma fråga, till exempel när den första körningen sökte i fel källa.

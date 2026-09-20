@@ -118,6 +118,58 @@ async def test_research_tool_queues_one_background_job_after_explicit_confirmati
     assert "redan köat" in second
 
 
+async def test_research_tool_accepts_explicit_spoken_confirmation_without_punctuation(
+    session,
+):
+    db, expert, _factory = session
+    scheduled: list[str] = []
+    jobs_service.set_schedule_hook(scheduled.append)
+    handler = research_tool_handler_for_chat(
+        db,
+        persona=expert,
+        history=[
+            ("user", "Hur ser konkurrensen ut?", None),
+            (
+                "assistant",
+                "Vill du att jag startar en bakgrundsresearch om konkurrenssituationen",
+                None,
+            ),
+        ],
+        user_message=(
+            "Ja, du får starta en bakgrundsresearch för att få en bättre bild"
+        ),
+    )
+
+    result = await handler({"question": "Hur ser Devbrains konkurrenssituation ut?"})
+
+    job = (await db.execute(select(Job))).scalar_one()
+    assert job.kind == "expert_chat_research"
+    assert scheduled == [job.id]
+    assert job.id in result
+
+
+async def test_research_tool_rejects_spoken_confirmation_with_negation(session):
+    db, expert, _factory = session
+    handler = research_tool_handler_for_chat(
+        db,
+        persona=expert,
+        history=[
+            (
+                "assistant",
+                "Vill du att jag startar en bakgrundsresearch om konkurrenssituationen",
+                None,
+            ),
+        ],
+        user_message="Ja, men starta inte research ännu",
+    )
+
+    result = await handler({"question": "Hur ser Devbrains konkurrenssituation ut?"})
+
+    assert "startades inte" in result
+    jobs = list((await db.execute(select(Job))).scalars())
+    assert jobs == []
+
+
 async def test_queued_research_runs_as_a_background_job(session, monkeypatch):
     db, expert, factory = session
     scheduled: list[str] = []

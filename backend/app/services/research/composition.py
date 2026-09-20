@@ -20,6 +20,10 @@ from app.services.research.models import ResearchError
 from app.services.research.planner import ResearchPlanner
 from app.services.research.question_graph_sql import SqlQuestionEvidenceGraph
 from app.services.research.question_semantic import SemanticQuestionIdentityMatcher
+from app.services.lagen_nu.selection import (
+    LagenNuPassageSelector,
+    set_passage_selector_factory,
+)
 from app.services.research.registry import (
     build_research_registry,
     production_registered_source_types,
@@ -32,6 +36,7 @@ FollowUpPlannerFactory = Callable[[], FollowUpResearchPlanner]
 ResearchPlannerFactory = Callable[[], ResearchPlanner]
 ResearchCompletenessReviewerFactory = Callable[[], ResearchCompletenessReviewer]
 KnowledgeVectorStoreFactory = Callable[[], KnowledgeVectorStore]
+LagenNuSelectorFactory = Callable[[], LagenNuPassageSelector]
 
 _UNCONFIGURED_VECTOR_STORE = (
     "KnowledgeVectorStore is not configured; "
@@ -44,6 +49,7 @@ _planner_factory: FollowUpPlannerFactory | None = None
 _research_planner_factory: ResearchPlannerFactory | None = None
 _completeness_reviewer_factory: ResearchCompletenessReviewerFactory | None = None
 _vector_store_factory: KnowledgeVectorStoreFactory | None = None
+_lagen_nu_selector_factory: LagenNuSelectorFactory | None = None
 
 
 class ResearchCompositionError(ResearchError):
@@ -90,6 +96,15 @@ def set_knowledge_vector_store_factory(
     _vector_store_factory = factory
 
 
+def set_lagen_nu_selector_factory(
+    factory: LagenNuSelectorFactory | None,
+) -> None:
+    """Production seam for the lagen.nu structured selector."""
+    global _lagen_nu_selector_factory
+    _lagen_nu_selector_factory = factory
+    set_passage_selector_factory(factory)
+
+
 def require_knowledge_vector_store() -> KnowledgeVectorStore:
     """Return the configured shared vector store for ingest and research."""
     if _vector_store_factory is None:
@@ -128,7 +143,12 @@ def build_standard_research_router(session: AsyncSession) -> ResearchRouter:
         embeddings=OpenAIEmbeddingProvider.from_settings(),
     )
     provider = registry.get(SUPABASE_PROVIDER_ID)
-    return ResearchRouter(build_research_registry(provider))
+    selector = (
+        _lagen_nu_selector_factory() if _lagen_nu_selector_factory is not None else None
+    )
+    return ResearchRouter(
+        build_research_registry(provider, lagen_nu_selector=selector)
+    )
 
 
 def build_standard_question_graph() -> SqlQuestionEvidenceGraph:

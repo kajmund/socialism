@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 import inspect
+from dataclasses import replace
 
 from app.services.knowledge.models import KnowledgeScope
 from app.services.lagen_nu.mcp_client import (
     OfficialLagenNuMcpError,
     parse_document,
+    parse_incoming_citations,
     parse_resolved_citations,
     parse_search_results,
 )
 from app.services.lagen_nu.models import (
+    IncomingCitations,
     LagenNuDocument,
     LagenNuPin,
     LagenNuSearchHit,
@@ -20,16 +23,38 @@ from app.services.lagen_nu.models import (
 )
 from app.services.lagen_nu.registration import (
     LAGEN_NU_ADAPTER,
-    LAGEN_NU_AUTHORITY_WARNING,
     LAGEN_NU_PROVIDER_ID,
+    LAGEN_NU_PUBLICATION_NOTE,
     lagen_nu_capability_descriptors,
     lagen_nu_descriptor,
+)
+from app.services.lagen_nu.display import choose_legal_excerpt
+from app.services.lagen_nu.research_source import (
+    MAX_DOCUMENT_FETCHES,
+    MAX_MCP_TOOL_CALLS,
+    MAX_SEARCH_HITS,
+    LagenNuResearchSource,
+    _candidates,
+    _judicial_reasons,
+    _preparatory_citations,
+    _query_terms,
+    looks_like_citation,
+    select_lagen_nu_flow,
+)
+from app.services.lagen_nu.selection import (
+    ExcerptDecision,
+    HitDecision,
+    LagenNuPassageSelector,
+    LagenNuSelectionError,
+    SelectableDocument,
+    SelectableHit,
+    set_passage_selector_factory,
+    verify_excerpt_span,
 )
 from app.services.lagen_nu.uris import canonical_lagen_nu_uri, compose_canonical_uri
 from app.services.research import (
     KnowledgeProviderCapabilityRegistry,
     KnowledgeResearchSource,
-    LagenNuResearchSource,
     ResearchContext,
     ResearchNeed,
     ResearchRouter,
@@ -37,12 +62,6 @@ from app.services.research import (
     production_registered_source_types,
 )
 from app.services.research.composition import standard_available_source_types
-from app.services.research.lagen_nu_source import (
-    MAX_DOCUMENT_FETCHES,
-    MAX_SEARCH_HITS,
-    looks_like_citation,
-    select_lagen_nu_flow,
-)
 from app.services.research.registry import default_standard_capability_descriptors
 from tests.test_research import RecordingKnowledgeProvider, _context, _need
 
@@ -76,20 +95,21 @@ def _hit(
         inbound_count=10,
         pin=pin,
         fragments=(),
-        highlight=(),
+        highlight=() if pin is not None else ((highlight,) if highlight else ()),
     )
 
 
 def _document(
     *,
     uri: str = "https://lagen.nu/1915:218",
+    title: str = "Lag (1915:218) om avtal",
     pinpoint: str | None = "P36",
     text: str = "Avtalsvillkor får jämkas eller lämnas utan avseende.",
     source: str = "sfs",
 ) -> LagenNuDocument:
     return LagenNuDocument(
         uri=uri,
-        title="Lag (1915:218) om avtal",
+        title=title,
         text=text,
         source=source,
         kind="lag",
@@ -107,14 +127,18 @@ class FakeLagenNuClient:
         *,
         search: SearchResults | None = None,
         resolved: ResolvedCitations | None = None,
+        incoming: IncomingCitations | None = None,
         documents: dict[str, LagenNuDocument] | None = None,
         search_error: Exception | None = None,
         resolve_error: Exception | None = None,
         document_error: Exception | None = None,
+        resolved_by_citation: dict[str, ResolvedCitations] | None = None,
     ) -> None:
         self.calls: list[tuple[str, dict[str, object]]] = []
         self.search_payload = search or SearchResults(query="", total=0, results=())
         self.resolved_payload = resolved or ResolvedCitations()
+        self.resolved_by_citation = resolved_by_citation or {}
+        self.incoming_payload = incoming or IncomingCitations(uri="https://lagen.nu/", total=0)
         self.documents = documents or {}
         self.search_error = search_error
         self.resolve_error = resolve_error
@@ -131,7 +155,28 @@ class FakeLagenNuClient:
         self.calls.append(("resolve_citation", {"citation": citation}))
         if self.resolve_error is not None:
             raise self.resolve_error
+        keyed = self.resolved_by_citation.get(citation) or self.resolved_by_citation.get(
+            citation.casefold()
+        )
+        if keyed is not None:
+            return keyed
         return self.resolved_payload
+
+    async def get_incoming_citations(
+        self,
+        uri: str,
+        *,
+        source: str | None = None,
+        sort: str = "rail",
+        limit: int = 10,
+    ):
+        self.calls.append(
+            (
+                "get_incoming_citations",
+                {"uri": uri, "source": source, "sort": sort, "limit": limit},
+            )
+        )
+        return self.incoming_payload
 
     async def get_document(self, uri: str, *, pinpoint: str | None = None, max_chars: int = 8000):
         self.calls.append(
@@ -150,11 +195,67 @@ class FakeLagenNuClient:
         self.closed = True
 
 
+class PassthroughLagenNuSelector:
+    async def select_hits(
+        self,
+        *,
+        need,
+        source_type,
+        candidates: list[SelectableHit],
+        context,
+    ) -> list[HitDecision]:
+        return [
+            HitDecision(
+                candidate_id=item.candidate_id,
+                keep=True,
+                role="ratio",
+                why="passthrough",
+            )
+            for item in candidates
+        ]
+
+    async def select_excerpt(
+        self,
+        *,
+        need,
+        source_type,
+        document: SelectableDocument,
+        context,
+    ) -> ExcerptDecision:
+        text = document.text or document.highlight
+        if source_type == "swedish_case_law":
+            excerpt = _judicial_reasons(text) or text
+        else:
+            excerpt = choose_legal_excerpt(
+                document_text=text,
+                hit_excerpt=document.highlight,
+                terms=_query_terms(need.question),
+                title=document.title,
+                max_chars=16000,
+            )
+        excerpt = verify_excerpt_span(
+            text,
+            excerpt,
+            max_chars=16000,
+            allowed_extra=document.highlight,
+        )
+        return ExcerptDecision(
+            excerpt=excerpt,
+            pinpoint=document.pinpoint,
+            why="passthrough",
+        )
+
+
 def _source(
     client: FakeLagenNuClient,
     source_type: str = "swedish_law",
+    selector: LagenNuPassageSelector | None = None,
 ) -> LagenNuResearchSource:
-    return LagenNuResearchSource(source_type=source_type, client=client)
+    return LagenNuResearchSource(
+        source_type=source_type,
+        client=client,
+        selector=selector or PassthroughLagenNuSelector(),
+    )
 
 
 def test_canonical_uri_rewrites_ferenda_and_rejects_foreign_hosts():
@@ -221,12 +322,35 @@ def test_parse_search_and_resolve_payloads():
     assert document.publisher_source_url is not None
 
 
+def test_parse_incoming_citations_payload():
+    parsed = parse_incoming_citations(
+        {
+            "uri": "https://lagen.nu/1915:218#P36",
+            "total": 1,
+            "citations": [
+                {
+                    "uri": "https://lagen.nu/dom/nja/1987s394",
+                    "title": "NJA 1987 s. 394",
+                    "source": "dv",
+                    "kind": "case",
+                    "inbound_count": 32,
+                }
+            ],
+        }
+    )
+    assert parsed.uri == "https://lagen.nu/1915:218#P36"
+    assert parsed.total == 1
+    assert parsed.results[0].source == "dv"
+    assert parsed.results[0].kind == "case"
+
+
 def test_production_introspection_exposes_lagen_nu_natures():
     descriptors = default_standard_capability_descriptors()
     lagen = [item for item in descriptors if item.access.adapter == LAGEN_NU_ADAPTER]
     assert lagen == list(lagen_nu_capability_descriptors())
     assert {item.provider_id for item in lagen} == {
         "lagen_nu.swedish_law",
+        "lagen_nu.swedish_case_law",
         "lagen_nu.swedish_preparatory_works",
     }
     for item in lagen:
@@ -235,10 +359,12 @@ def test_production_introspection_exposes_lagen_nu_natures():
         assert item.access.mechanism == "mcp"
         assert item.authority["jurisdiction"] == "SE"
         assert item.authority["tenant_bound"] is False
-        assert "citation_graph" not in item.capabilities
+    case_law = next(item for item in lagen if item.provider_id.endswith("swedish_case_law"))
+    assert "citation_graph" in case_law.capabilities
     offered = production_registered_source_types()
     assert offered == standard_available_source_types()
     assert "swedish_law" in offered
+    assert "swedish_case_law" in offered
     assert "swedish_preparatory_works" in offered
     assert "web" not in offered
     assert "domain_knowledge" not in offered
@@ -289,8 +415,9 @@ async def test_search_normalizes_canonical_uri_and_mcp_provenance():
     assert "jämkas" in (item.excerpt or "")
     assert item.locator == "P36"
     assert item.metadata["canonical_uri"] == item.source_id
-    assert item.metadata["automated_corpus"] is True
-    assert item.metadata["authority_warning"] == LAGEN_NU_AUTHORITY_WARNING
+    assert item.metadata["authority_level"] == "trusted"
+    assert item.metadata["primary_source"] is True
+    assert item.metadata["publication_note"] == LAGEN_NU_PUBLICATION_NOTE
     assert item.metadata["jurisdiction"] == "SE"
     assert item.metadata["publisher_source_url"] == (
         "https://svenskforfattningssamling.se/1915:218"
@@ -301,6 +428,68 @@ async def test_search_normalizes_canonical_uri_and_mcp_provenance():
     assert client.calls[0][1]["source"] == "sfs"
     assert "customer_id" not in str(client.calls)
     assert "case-secret" not in str(client.calls)
+
+
+async def test_proposition_cover_page_is_replaced_by_body_and_citation_title():
+    hit = _hit(
+        uri="https://lagen.nu/prop/1975:6",
+        title="Regeringens proposition om ändring i konkurslagen (1921:225) m.m.",
+        source="forarbete",
+        pinpoint=None,
+        highlight="Regeringens proposition nr 6 år 1975",
+    )
+    client = FakeLagenNuClient(
+        search=SearchResults(query="q", total=1, results=(hit,)),
+        documents={
+            "https://lagen.nu/prop/1975:6": _document(
+                uri="https://lagen.nu/prop/1975:6",
+                title="Regeringens proposition om ändring i konkurslagen (1921:225) m.m.",
+                pinpoint=None,
+                source="forarbete",
+                text=(
+                    "Regeringens proposition nr 6 år 1975 Prop. 1975:6 Nr 6 "
+                    "Regeringens proposition om ändring i konkurslagen (1921:225) m.m.; "
+                    "beslutad den 16 januari 1975.\n\n"
+                    "Kungl. Maj:t föreslår riksdagen att anta ett nytt obeståndsbegrepp "
+                    "som knyter konkursförutsättningen till gäldenärens betalningsoförmåga."
+                ),
+            )
+        },
+    )
+    evidence = await _source(client, "swedish_preparatory_works").research(
+        _need(
+            "swedish_preparatory_works",
+            question="Hur bedöms obestånd enligt konkurslagen?",
+        ),
+        _context(),
+    )
+    item = evidence[0]
+    assert item.status == "found"
+    assert item.title == "Prop. 1975:6 — Ändring i konkurslagen (1921:225)"
+    assert "obeståndsbegrepp" in (item.excerpt or "")
+    assert "beslutad den 16 januari 1975" not in (item.excerpt or "")
+
+
+async def test_unpinned_law_prefers_search_highlight_over_document_dump():
+    hit = _hit(pinpoint=None, highlight="Omsättningstillgångar är tillgångar som...")
+    client = FakeLagenNuClient(
+        search=SearchResults(query="q", total=1, results=(hit,)),
+        documents={
+            "https://lagen.nu/1915:218": _document(
+                pinpoint=None,
+                text="1 kap. Inledande bestämmelser\n" + ("x" * 20000),
+            )
+        },
+    )
+    evidence = await _source(client).research(
+        _need("swedish_law", question="Hur definieras omsättningstillgångar?"),
+        _context(),
+    )
+    assert [item.status for item in evidence] == ["found"]
+    item = evidence[0]
+    assert item.locator is None
+    assert item.excerpt == "Omsättningstillgångar är tillgångar som..."
+    assert "1 kap. Inledande bestämmelser" not in (item.excerpt or "")
 
 
 async def test_citation_resolution_path_fetches_pinpoint():
@@ -331,7 +520,12 @@ async def test_recognized_only_citation_is_not_found_without_search():
         )
     )
     client.resolved_payload = parse_resolved_citations(
-        {"results": [], "recognized": [{"uri": "https://lagen.nu/2099:1", "invalid": True}]}
+        {
+            "results": [],
+            "recognized": [
+                {"uri": "https://lagen.nu/2099:1", "source": "sfs", "invalid": True}
+            ],
+        }
     )
     evidence = await _source(client).research(
         _need("swedish_law", question="SFS 2099:1"),
@@ -379,7 +573,7 @@ async def test_no_hit_is_not_found_without_tenant_fallback():
     assert [name for name, _args in client.calls] == ["search"]
 
 
-async def test_provider_error_is_isolated_and_does_not_call_tenant_knowledge():
+async def test_provider_error_does_not_call_disabled_tenant_knowledge():
     provider = RecordingKnowledgeProvider()
     client = FakeLagenNuClient(search_error=OfficialLagenNuMcpError("lagen.nu MCP timed out"))
     registry = build_research_registry(provider)
@@ -387,7 +581,7 @@ async def test_provider_error_is_isolated_and_does_not_call_tenant_knowledge():
         if entry.descriptor.access.adapter == LAGEN_NU_ADAPTER:
             entry.source._client = client  # type: ignore[attr-defined]
     evidence = await ResearchRouter(registry).execute_need(
-        _need("swedish_law", "case_knowledge", question="jämkning"),
+        _need("swedish_law", question="jämkning"),
         _context(customer_id=3, case_id="case-1"),
     )
     statuses = [item.status for item in evidence]
@@ -396,7 +590,7 @@ async def test_provider_error_is_isolated_and_does_not_call_tenant_knowledge():
     error = next(item for item in evidence if item.status == "error")
     assert error.provider == LAGEN_NU_PROVIDER_ID
     assert error.metadata["error_type"] == "OfficialLagenNuMcpError"
-    assert provider.queries  # case_knowledge still ran
+    assert provider.queries == []
     assert all("customer_id" not in str(args) for _name, args in client.calls)
 
 
@@ -440,9 +634,9 @@ async def test_preparatory_works_use_forarbete_source_filter():
     client = FakeLagenNuClient(
         search=SearchResults(query="integritetsskydd", total=1, results=(hit,)),
         documents={
-            "https://lagen.nu/prop/2009/10:241#sec1": _document(
+            "https://lagen.nu/prop/2009/10:241": _document(
                 uri="https://lagen.nu/prop/2009/10:241",
-                pinpoint="sec1",
+                pinpoint=None,
                 text="Ett förstärkt integritetsskydd",
                 source="forarbete",
             )
@@ -455,7 +649,750 @@ async def test_preparatory_works_use_forarbete_source_filter():
     assert evidence[0].status == "found"
     assert evidence[0].source_type == "swedish_preparatory_works"
     assert client.calls[0][1]["source"] == "forarbete"
-    assert evidence[0].source_id == "https://lagen.nu/prop/2009/10:241#sec1"
+    assert evidence[0].source_id == "https://lagen.nu/prop/2009/10:241"
+
+
+async def test_preparatory_works_search_when_resolution_only_finds_statute():
+    statute = _hit()
+    preparatory_work = replace(
+        _hit(
+            uri="https://lagen.nu/prop/1975/76:81",
+            title="Prop. 1975/76:81",
+            source="forarbete",
+            pinpoint=None,
+        ),
+        highlight=("Förarbeten till 36 § avtalslagen.",),
+    )
+    client = FakeLagenNuClient(
+        resolved=ResolvedCitations(results=(statute,)),
+        search=SearchResults(
+            query="prop. 1975/76:81",
+            total=1,
+            results=(preparatory_work,),
+        ),
+        documents={
+            "https://lagen.nu/prop/1975/76:81": _document(
+                uri="https://lagen.nu/prop/1975/76:81",
+                pinpoint=None,
+                text="Förslag om en generalklausul i avtalslagen.",
+                source="forarbete",
+            )
+        },
+    )
+    evidence = await _source(client, "swedish_preparatory_works").research(
+        _need(
+            "swedish_preparatory_works",
+            question="Vad anger prop. 1975/76:81 om avtalslagen 36 §?",
+        ),
+        _context(),
+    )
+    assert evidence[0].status == "found"
+    assert [name for name, _args in client.calls] == [
+        "resolve_citation",
+        "search",
+        "get_document",
+    ]
+    assert client.calls[0][1]["citation"] == "prop. 1975/76:81"
+    assert client.calls[1][1]["query"] == (
+        "prop. 1975/76:81 avtalslagen"
+    )
+    assert client.calls[1][1]["source"] == "forarbete"
+
+
+async def test_preparatory_works_use_incoming_citations_for_a_named_provision():
+    statute = _hit()
+    proposition = replace(
+        _hit(
+            uri="https://lagen.nu/prop/1975/76:81",
+            title="Prop. 1975/76:81",
+            source="forarbete",
+            pinpoint=None,
+            highlight="36 § avtalslagen",
+        ),
+        identifier="Prop. 1975/76:81",
+    )
+    sou = replace(
+        _hit(
+            uri="https://lagen.nu/sou/1974:83",
+            title="SOU 1974:83",
+            source="forarbete",
+            pinpoint=None,
+            highlight="generalklausul 36 §",
+        ),
+        identifier="SOU 1974:83",
+    )
+    client = FakeLagenNuClient(
+        resolved=ResolvedCitations(results=(statute,)),
+        incoming=IncomingCitations(
+            uri="https://lagen.nu/1915:218#P36",
+            total=2,
+            results=(proposition, sou),
+        ),
+        documents={
+            "https://lagen.nu/prop/1975/76:81": _document(
+                uri="https://lagen.nu/prop/1975/76:81",
+                pinpoint=None,
+                text=(
+                    "Vid tillämpning av 36 § avtalslagen skall hänsyn tas till "
+                    "avtalets innehåll och omständigheterna vid avtalets tillkomst."
+                ),
+                source="forarbete",
+            ),
+            "https://lagen.nu/sou/1974:83": _document(
+                uri="https://lagen.nu/sou/1974:83",
+                pinpoint=None,
+                text=(
+                    "Utredningen föreslår att 36 § avtalslagen skall ge "
+                    "domstolen rätt att jämka oskäliga avtalsvillkor."
+                ),
+                source="forarbete",
+            ),
+        },
+    )
+    evidence = await _source(client, "swedish_preparatory_works").research(
+        _need(
+            "swedish_preparatory_works",
+            question=(
+                "Hur anger förarbetena till 36 § avtalslagen att "
+                "jämkningsbedömningen ska göras?"
+            ),
+        ),
+        _context(),
+    )
+    assert {item.source_id for item in evidence} == {
+        "https://lagen.nu/prop/1975/76:81",
+        "https://lagen.nu/sou/1974:83",
+    }
+    assert [name for name, _args in client.calls if name == "resolve_citation"] == [
+        "resolve_citation"
+    ]
+    assert client.calls[0][1]["citation"] == "36 § avtalslagen"
+    incoming = next(args for name, args in client.calls if name == "get_incoming_citations")
+    assert incoming["uri"] == "https://lagen.nu/1915:218#P36"
+    assert incoming["source"] == "forarbete"
+    assert incoming["sort"] == "rail"
+
+
+async def test_preparatory_works_resolve_every_named_citation():
+    proposition = _hit(
+        uri="https://lagen.nu/prop/1975/76:81",
+        title="Prop. 1975/76:81",
+        source="forarbete",
+        pinpoint=None,
+        highlight="Prop. 1975/76:81",
+    )
+    sou = _hit(
+        uri="https://lagen.nu/sou/1974:83",
+        title="SOU 1974:83",
+        source="forarbete",
+        pinpoint=None,
+        highlight="SOU 1974:83",
+    )
+    false_positive = replace(
+        _hit(
+            uri="https://lagen.nu/sou/1979:36",
+            title="SOU 1979:36",
+            source="forarbete",
+            pinpoint=None,
+        ),
+        highlight=("Kort omnämnande av 36 § avtalslagen.",),
+        identifier="SOU 1979:36",
+    )
+    client = FakeLagenNuClient(
+        resolved_by_citation={
+            "prop. 1975/76:81": ResolvedCitations(results=(proposition,)),
+            "SOU 1974:83": ResolvedCitations(results=(sou,)),
+        },
+        search=SearchResults(
+            query="36 §",
+            total=1,
+            results=(false_positive,),
+        ),
+        documents={
+            "https://lagen.nu/prop/1975/76:81": _document(
+                uri="https://lagen.nu/prop/1975/76:81",
+                title="Prop. 1975/76:81 med förslag till lag om ändring i avtalslagen",
+                pinpoint=None,
+                text=(
+                    "# Prop. 1975/76:81: med förslag till lag om ändring i lagen "
+                    "(1915:218) om avtal\n\n"
+                    "Huvudsakligt innehåll Propositionen föreslår en "
+                    "generalklausul i avtalslagen.\n\n"
+                    "Vid tillämpning av 36 § avtalslagen skall hänsyn tas till "
+                    "avtalets innehåll, omständigheterna vid avtalets tillkomst "
+                    "och omständigheterna i övrigt. Syftet är att kunna jämka "
+                    "oskäliga avtalsvillkor."
+                ),
+                source="forarbete",
+            ),
+            "https://lagen.nu/sou/1974:83": _document(
+                uri="https://lagen.nu/sou/1974:83",
+                title="SOU 1974:83 Generalklausul i förmögenhetsrätten",
+                pinpoint=None,
+                text=(
+                    "Utredningen föreslår att 36 § avtalslagen skall ge "
+                    "domstolen rätt att jämka oskäliga avtalsvillkor med "
+                    "hänsyn till vägledande faktorer som partsställning."
+                ),
+                source="forarbete",
+            ),
+        },
+    )
+    evidence = await _source(client, "swedish_preparatory_works").research(
+        _need(
+            "swedish_preparatory_works",
+            question=(
+                "Vad anger prop. 1975/76:81 och SOU 1974:83 om syftet med "
+                "36 § avtalslagen och de vägledande faktorerna?"
+            ),
+        ),
+        _context(),
+    )
+    assert {item.source_id for item in evidence} == {
+        "https://lagen.nu/prop/1975/76:81",
+        "https://lagen.nu/sou/1974:83",
+    }
+    assert [
+        args["citation"]
+        for name, args in client.calls
+        if name == "resolve_citation"
+    ] == ["prop. 1975/76:81", "SOU 1974:83"]
+    assert not any(name == "search" for name, _args in client.calls)
+    proposition_item = next(
+        item for item in evidence if "prop/1975/76:81" in (item.source_id or "")
+    )
+    assert "36 § avtalslagen" in (proposition_item.excerpt or "")
+    assert "Huvudsakligt innehåll" not in (proposition_item.excerpt or "")
+
+
+async def test_search_hits_are_fetched_only_when_selector_keeps_them():
+    mephedrone = replace(
+        _hit(
+            uri="https://lagen.nu/dom/nja/2011s357",
+            title="Mefedrondomen (NJA 2011 s. 357)",
+            source="dv",
+            pinpoint=None,
+        ),
+        highlight=("Narkotikaklassificering av mefedron var avgörande.",),
+    )
+    relevant = replace(
+        _hit(
+            uri="https://lagen.nu/dom/nja/1987s394",
+            title="NJA 1987 s. 394",
+            source="dv",
+            pinpoint=None,
+        ),
+        highlight=("36 § ledde till jämkning av ansvarsbegränsningen.",),
+    )
+
+    class KeepRelevant(PassthroughLagenNuSelector):
+        async def select_hits(self, *, need, source_type, candidates, context):
+            return [
+                HitDecision(
+                    candidate_id=item.candidate_id,
+                    keep="1987s394" in item.uri,
+                    role="ratio" if "1987s394" in item.uri else "wrong_subject",
+                    why="scripted",
+                )
+                for item in candidates
+            ]
+
+    client = FakeLagenNuClient(
+        search=SearchResults(query="36 §", total=2, results=(mephedrone, relevant)),
+        documents={
+            "https://lagen.nu/dom/nja/1987s394": _document(
+                uri="https://lagen.nu/dom/nja/1987s394",
+                pinpoint=None,
+                text="HD jämkade villkoret med stöd av 36 §.",
+                source="dv",
+            ),
+        },
+    )
+    evidence = await _source(
+        client,
+        "swedish_case_law",
+        selector=KeepRelevant(),
+    ).research(
+        _need(
+            "swedish_case_law",
+            question="Vilka omständigheter var avgörande där 36 § lett till jämkning?",
+        ),
+        _context(),
+    )
+    assert [item.source_id for item in evidence] == [
+        "https://lagen.nu/dom/nja/1987s394"
+    ]
+    assert not any(
+        args["uri"] == "https://lagen.nu/dom/nja/2011s357"
+        for name, args in client.calls
+        if name == "get_document"
+    )
+
+
+async def test_case_law_uses_incoming_citations_for_named_statute():
+    statute = _hit()
+    decision = _hit(
+        uri="https://lagen.nu/dom/nja/1987s394",
+        title="NJA 1987 s. 394",
+        source="dv",
+        pinpoint=None,
+    )
+    client = FakeLagenNuClient(
+        resolved=ResolvedCitations(results=(statute,)),
+        incoming=IncomingCitations(
+            uri="https://lagen.nu/1915:218#P36",
+            total=1,
+            results=(decision,),
+        ),
+        documents={
+            "https://lagen.nu/dom/nja/1987s394": _document(
+                uri="https://lagen.nu/dom/nja/1987s394",
+                pinpoint=None,
+                    text="Högsta domstolen prövade 36 § avtalslagen.",
+                source="dv",
+            )
+        },
+    )
+    evidence = await _source(client, "swedish_case_law").research(
+        _need(
+            "swedish_case_law",
+            question="Vilka avgöranden tillämpar avtalslagen 36 §?",
+        ),
+        _context(),
+    )
+    assert evidence[0].status == "found"
+    assert evidence[0].source_type == "swedish_case_law"
+    assert evidence[0].source_id == "https://lagen.nu/dom/nja/1987s394"
+    assert [name for name, _args in client.calls] == [
+        "resolve_citation",
+        "get_incoming_citations",
+        "search",
+        "get_document",
+    ]
+    assert client.calls[1][1]["source"] == "dv"
+    assert client.calls[1][1]["sort"] == "citations"
+
+
+async def test_case_law_fuses_search_and_graph_and_prefers_overlap():
+    statute = _hit()
+    graph_only = replace(
+        _hit(
+            uri="https://lagen.nu/dom/nja/1987s394",
+            title="NJA 1987 s. 394",
+            source="dv",
+            pinpoint=None,
+        ),
+        highlight=("allmän avtalsrätt",),
+    )
+    overlap = replace(
+        _hit(
+            uri="https://lagen.nu/dom/nja/2012s776",
+            title="NJA 2012 s. 776",
+            source="dv",
+            pinpoint=None,
+        ),
+        highlight=(
+            "36 § avtalslagen om konsumentavtal och oskäligt villkor",
+        ),
+    )
+    search_only = replace(
+        _hit(
+            uri="https://lagen.nu/dom/nja/2017s113",
+            title="NJA 2017 s. 113",
+            source="dv",
+            pinpoint=None,
+        ),
+        highlight=("36 § avtalslagen om konsumentavtal",),
+    )
+    client = FakeLagenNuClient(
+        resolved=ResolvedCitations(results=(statute,)),
+        incoming=IncomingCitations(
+            uri="https://lagen.nu/1915:218#P36",
+            total=2,
+            results=(graph_only, overlap),
+        ),
+        search=SearchResults(
+            query="konsumentavtal",
+            total=2,
+            results=(overlap, search_only),
+        ),
+        documents={
+            hit.uri: _document(
+                uri=hit.uri or "",
+                pinpoint=None,
+                    text=f"Domskäl om 36 § avtalslagen. {hit.title or ''}",
+                source="dv",
+            )
+            for hit in (graph_only, overlap, search_only)
+        },
+    )
+    evidence = await _source(client, "swedish_case_law").research(
+        _need(
+            "swedish_case_law",
+            question="Hur tillämpas avtalslagen 36 § i konsumentavtal?",
+        ),
+        _context(),
+    )
+    assert [item.source_id for item in evidence] == [
+        "https://lagen.nu/dom/nja/2012s776",
+        "https://lagen.nu/dom/nja/2017s113",
+        "https://lagen.nu/dom/nja/1987s394",
+    ]
+    assert evidence[0].metadata["retrieval_origins"] == [
+        "search",
+        "citation_graph",
+    ]
+    search_args = next(args for name, args in client.calls if name == "search")
+    assert search_args["query"] == "36 § avtalslagen konsumentavtal"
+    fetches = [call for call in client.calls if call[0] == "get_document"]
+    assert len(fetches) == 3
+
+
+async def test_case_search_filters_false_provision_matches():
+    statute = _hit()
+    false_match = replace(
+        _hit(
+            uri="https://lagen.nu/dom/pmod/PMT2851-25/2026-04-23",
+            title="PMT 2851-25",
+            source="dv",
+            pinpoint=None,
+        ),
+        highlight=(
+            "36 kap. offentlighets- och sekretesslagen. I övrigt nämns "
+            "avtalslagen utan koppling till paragrafen."
+        ),
+    )
+    exact_match = replace(
+        _hit(
+            uri="https://lagen.nu/dom/nja/2012s776",
+            title="NJA 2012 s. 776",
+            source="dv",
+            pinpoint=None,
+        ),
+        highlight=("Villkoret prövades enligt 36 § avtalslagen.",),
+    )
+    client = FakeLagenNuClient(
+        resolved=ResolvedCitations(results=(statute,)),
+        incoming=IncomingCitations(
+            uri="https://lagen.nu/1915:218#P36",
+            total=0,
+        ),
+        search=SearchResults(
+            query="36 § avtalslagen",
+            total=2,
+            results=(false_match, exact_match),
+        ),
+        documents={
+            "https://lagen.nu/dom/nja/2012s776": _document(
+                uri="https://lagen.nu/dom/nja/2012s776",
+                pinpoint=None,
+                text="Domskäl om 36 § avtalslagen.",
+                source="dv",
+            )
+        },
+    )
+    class KeepExactProvision(PassthroughLagenNuSelector):
+        async def select_hits(self, *, need, source_type, candidates, context):
+            return [
+                HitDecision(
+                    candidate_id=item.candidate_id,
+                    keep="2012s776" in item.uri,
+                    role="ratio" if "2012s776" in item.uri else "wrong_subject",
+                    why="scripted",
+                )
+                for item in candidates
+            ]
+
+    evidence = await _source(
+        client,
+        "swedish_case_law",
+        selector=KeepExactProvision(),
+    ).research(
+        _need(
+            "swedish_case_law",
+            question="Hur tillämpas avtalslagen 36 §?",
+        ),
+        _context(),
+    )
+    assert [item.source_id for item in evidence] == [
+        "https://lagen.nu/dom/nja/2012s776"
+    ]
+
+
+async def test_case_fetch_prefers_judicial_reasons_over_party_submissions():
+    submissions = LagenNuPin(
+        uri="https://lagen.nu/dom/nja/2012s776#yrkanden",
+        pinpoint="yrkanden",
+        label="Parternas yrkanden",
+        highlight=(
+            "Konsumenten yrkade jämkning av det oskäliga avtalsvillkoret.",
+        ),
+    )
+    reasons = LagenNuPin(
+        uri="https://lagen.nu/dom/nja/2012s776#domskal",
+        pinpoint="domskal",
+        label="Högsta domstolens domskäl",
+        highlight=("Högsta domstolen bedömer om villkoret ska jämkas.",),
+    )
+    hit = replace(
+        _hit(
+            uri="https://lagen.nu/dom/nja/2012s776",
+            title="NJA 2012 s. 776",
+            source="dv",
+            pinpoint=None,
+        ),
+        fragments=(submissions, reasons),
+    )
+    client = FakeLagenNuClient(
+        search=SearchResults(query="jämkning villkor", total=1, results=(hit,)),
+        documents={
+            "https://lagen.nu/dom/nja/2012s776#domskal": _document(
+                uri="https://lagen.nu/dom/nja/2012s776",
+                pinpoint="domskal",
+                text="Högsta domstolens avgörande skäl.",
+                source="dv",
+            )
+        },
+    )
+    evidence = await _source(client, "swedish_case_law").research(
+        _need(
+            "swedish_case_law",
+            question="Vilka villkor jämkas?",
+        ),
+        _context(),
+    )
+    assert evidence[0].source_id == "https://lagen.nu/dom/nja/2012s776#domskal"
+    fetch = next(args for name, args in client.calls if name == "get_document")
+    assert fetch["pinpoint"] == "domskal"
+
+
+async def test_preparatory_work_fetches_most_relevant_fragment():
+    relevant = LagenNuPin(
+        uri="https://lagen.nu/prop/1975/76:81#sec-oskalighet",
+        pinpoint="sec-oskalighet",
+        label="Oskäliga avtalsvillkor",
+            highlight=("Faktorer vid bedömning av oskäliga konsumentavtal enligt 36 §.",),
+    )
+    unrelated = LagenNuPin(
+        uri="https://lagen.nu/prop/1975/76:81#sec-inledning",
+        pinpoint="sec-inledning",
+        label="Inledning",
+        highlight=("Allmän bakgrund.",),
+    )
+    hit = replace(
+        _hit(
+            uri="https://lagen.nu/prop/1975/76:81",
+            title="Prop. 1975/76:81",
+            source="forarbete",
+            pinpoint=None,
+        ),
+        fragments=(unrelated, relevant),
+    )
+    client = FakeLagenNuClient(
+        search=SearchResults(query="oskäliga konsumentavtal", total=1, results=(hit,)),
+        documents={
+            "https://lagen.nu/prop/1975/76:81": _document(
+                uri="https://lagen.nu/prop/1975/76:81",
+                pinpoint=None,
+                text=(
+                    "Huvudsakligt innehåll Propositionen föreslår en generalklausul.\n\n"
+                    "Relevanta faktorer för oskälighetsbedömningen enligt 36 §."
+                ),
+                source="forarbete",
+            )
+        },
+    )
+    evidence = await _source(client, "swedish_preparatory_works").research(
+        _need(
+            "swedish_preparatory_works",
+            question="Vilka faktorer gäller för oskäliga konsumentavtal enligt 36 §?",
+        ),
+        _context(),
+    )
+    assert evidence[0].source_id == "https://lagen.nu/prop/1975/76:81"
+    fetch = next(args for name, args in client.calls if name == "get_document")
+    assert fetch["pinpoint"] is None
+    assert fetch["max_chars"] == 100000
+    assert "oskälig" in (evidence[0].excerpt or "").casefold()
+    assert "Huvudsakligt innehåll" not in (evidence[0].excerpt or "")
+
+
+async def test_hybrid_case_law_stays_within_quality_budget():
+    statute = _hit()
+    decisions = tuple(
+        _hit(
+            uri=f"https://lagen.nu/dom/nja/2000s{index}",
+            title=f"NJA 2000 s. {index}",
+            source="dv",
+            pinpoint=None,
+            highlight=f"jämkning {index}",
+        )
+        for index in range(1, 11)
+    )
+    client = FakeLagenNuClient(
+        resolved=ResolvedCitations(results=(statute,)),
+        incoming=IncomingCitations(
+            uri="https://lagen.nu/1915:218#P36",
+            total=len(decisions),
+            results=decisions,
+        ),
+        search=SearchResults(
+            query="jämkning",
+            total=len(decisions),
+            results=tuple(reversed(decisions)),
+        ),
+        documents={
+            hit.uri: _document(
+                uri=hit.uri or "",
+                pinpoint=None,
+                    text=f"Domskäl om 36 § avtalslagen. {hit.title or ''}",
+                source="dv",
+            )
+            for hit in decisions
+        },
+    )
+    evidence = await _source(client, "swedish_case_law").research(
+        _need(
+            "swedish_case_law",
+            question="Vilka avgöranden tillämpar avtalslagen 36 § vid jämkning?",
+        ),
+        ResearchContext(
+            scope=KnowledgeScope(customer_id=1, module="dd"),
+            limit=10,
+        ),
+    )
+    assert len(evidence) == MAX_DOCUMENT_FETCHES
+    assert len(client.calls) <= MAX_MCP_TOOL_CALLS
+    assert [name for name, _args in client.calls[:3]] == [
+        "resolve_citation",
+        "get_incoming_citations",
+        "search",
+    ]
+
+
+async def test_case_law_searches_dv_cases_without_named_citation():
+    decision = _hit(
+        uri="https://lagen.nu/dom/nja/2017s113",
+        title="NJA 2017 s. 113",
+        source="dv",
+        pinpoint=None,
+    )
+    client = FakeLagenNuClient(
+        search=SearchResults(query="avtalsvillkor", total=1, results=(decision,)),
+        documents={
+            "https://lagen.nu/dom/nja/2017s113": _document(
+                uri="https://lagen.nu/dom/nja/2017s113",
+                pinpoint=None,
+                text="Avgörande om oskäliga avtalsvillkor.",
+                source="dv",
+            )
+        },
+    )
+    evidence = await _source(client, "swedish_case_law").research(
+        _need("swedish_case_law", question="Praxis om oskäliga avtalsvillkor"),
+        _context(),
+    )
+    assert evidence[0].status == "found"
+    assert client.calls[0] == (
+        "search",
+        {
+            "query": "oskäliga avtalsvillkor",
+            "source": "dv",
+            "kind": "case",
+            "limit": MAX_SEARCH_HITS,
+        },
+    )
+
+
+async def test_case_law_fetches_resolved_decision_directly():
+    decision = _hit(
+        uri="https://lagen.nu/dom/nja/2005s142",
+        title="NJA 2005 s. 142",
+        source="dv",
+        pinpoint=None,
+    )
+    client = FakeLagenNuClient(
+        resolved=ResolvedCitations(results=(decision,)),
+        documents={
+            "https://lagen.nu/dom/nja/2005s142": _document(
+                uri="https://lagen.nu/dom/nja/2005s142",
+                pinpoint=None,
+                text="Högsta domstolens avgörande.",
+                source="dv",
+            )
+        },
+    )
+    evidence = await _source(client, "swedish_case_law").research(
+        _need("swedish_case_law", question="NJA 2005 s. 142"),
+        _context(),
+    )
+    assert evidence[0].status == "found"
+    assert evidence[0].source_id == "https://lagen.nu/dom/nja/2005s142"
+    assert [name for name, _args in client.calls] == [
+        "resolve_citation",
+        "get_document",
+    ]
+
+
+async def test_case_law_resolves_every_named_nja_citation():
+    first = _hit(
+        uri="https://lagen.nu/dom/nja/1983s385",
+        title="NJA 1983 s. 385",
+        source="dv",
+        pinpoint=None,
+    )
+    second = _hit(
+        uri="https://lagen.nu/dom/nja/1989s346",
+        title="NJA 1989 s. 346",
+        source="dv",
+        pinpoint=None,
+    )
+    client = FakeLagenNuClient(
+        resolved_by_citation={
+            "NJA 1983 s. 385": ResolvedCitations(results=(first,)),
+            "NJA 1989 s. 346": ResolvedCitations(results=(second,)),
+        },
+        documents={
+            "https://lagen.nu/dom/nja/1983s385": _document(
+                uri="https://lagen.nu/dom/nja/1983s385",
+                title="NJA 1983 s. 385",
+                pinpoint=None,
+                text="HD prövade arrendeavgiften mot 36 §.",
+                source="dv",
+            ),
+            "https://lagen.nu/dom/nja/1989s346": _document(
+                uri="https://lagen.nu/dom/nja/1989s346",
+                title="NJA 1989 s. 346",
+                pinpoint=None,
+                text="HD prövade jämkning av avtalsvillkor enligt 36 §.",
+                source="dv",
+            ),
+        },
+    )
+    evidence = await _source(client, "swedish_case_law").research(
+        _need(
+            "swedish_case_law",
+            question=(
+                "Vilka centrala HD-avgöranden om 36 § avtalslagen "
+                "(t.ex. NJA 1983 s. 385, NJA 1989 s. 346) är vägledande?"
+            ),
+        ),
+        _context(),
+    )
+    assert {item.source_id for item in evidence} == {
+        "https://lagen.nu/dom/nja/1983s385",
+        "https://lagen.nu/dom/nja/1989s346",
+    }
+    assert [name for name, _args in client.calls] == [
+        "resolve_citation",
+        "resolve_citation",
+        "get_document",
+        "get_document",
+    ]
+    assert [args["citation"] for name, args in client.calls if name == "resolve_citation"] == [
+        "NJA 1983 s. 385",
+        "NJA 1989 s. 346",
+    ]
 
 
 async def test_wrong_source_hits_are_not_used_for_swedish_law():
@@ -469,10 +1406,10 @@ async def test_wrong_source_hits_are_not_used_for_swedish_law():
         _context(),
     )
     assert [item.status for item in evidence] == ["not_found"]
-    assert [name for name, _args in client.calls] == ["resolve_citation"]
+    assert [name for name, _args in client.calls] == ["resolve_citation", "search"]
 
 
-async def test_standard_registry_keeps_tenant_providers_unchanged():
+async def test_standard_registry_excludes_tenant_providers():
     provider = RecordingKnowledgeProvider()
     registry = build_research_registry(provider)
     knowledge = [
@@ -485,17 +1422,15 @@ async def test_standard_registry_keeps_tenant_providers_unchanged():
         for entry in registry.registered_providers()
         if entry.descriptor.access.adapter == LAGEN_NU_ADAPTER
     ]
-    assert len(knowledge) == 2
-    assert len(lagen) == 2
-    assert all(entry.descriptor.authority["tenant_bound"] is True for entry in knowledge)
-    assert all(entry.source.provider_id == "memory" for entry in knowledge)
+    assert knowledge == []
+    assert len(lagen) == 3
     assert all(entry.source.provider_id == LAGEN_NU_PROVIDER_ID for entry in lagen)
-    await ResearchRouter(registry).execute_need(
+    evidence = await ResearchRouter(registry).execute_need(
         _need("case_knowledge"),
         _context(customer_id=4, case_id="case-1"),
     )
-    assert provider.queries
-    assert provider.queries[0].scope.customer_id == 4
+    assert [item.status for item in evidence] == ["error"]
+    assert provider.queries == []
 
 
 def test_adapter_is_programmatic():
@@ -504,6 +1439,22 @@ def test_adapter_is_programmatic():
         assert marker not in source
     assert "resolve_citation" in source
     assert "get_document" in source
+    assert "select_hits" in source
+
+
+async def test_search_requires_a_selector():
+    set_passage_selector_factory(None)
+    client = FakeLagenNuClient(
+        search=SearchResults(query="jämkning", total=1, results=(_hit(),)),
+        documents={"https://lagen.nu/1915:218#P36": _document()},
+    )
+    source = LagenNuResearchSource(source_type="swedish_law", client=client)
+    try:
+        await source.research(_need("swedish_law", question="jämkning"), _context())
+    except LagenNuSelectionError as exc:
+        assert "selector is required" in str(exc)
+    else:
+        raise AssertionError("expected LagenNuSelectionError")
 
 
 async def test_owned_client_is_closed_on_no_hit_and_error():
@@ -579,12 +1530,12 @@ async def test_duplicate_fetch_targets_do_not_consume_later_distinct_hit():
         if name == "get_document"
     ]
     assert fetch_targets == [
-        ("https://lagen.nu/1915:218", "P36"),
         ("https://lagen.nu/1981:130", "P2"),
+        ("https://lagen.nu/1915:218", "P36"),
     ]
     assert [item.source_id for item in evidence] == [
-        "https://lagen.nu/1915:218#P36",
         "https://lagen.nu/1981:130#P2",
+        "https://lagen.nu/1915:218#P36",
     ]
     assert client.closed is False
 
@@ -600,3 +1551,624 @@ def test_flow_selection_is_deterministic():
         capabilities=["resolve_citation"],
     )
     assert select_lagen_nu_flow(resolve_need) == "resolve"
+
+
+def test_legacy_case_extracts_highest_court_reasons_and_outcome():
+    text = """# Referat
+Domskäl. Tingsrättens skäl och parternas yrkanden.
+Domslut. Tingsrättens dom.
+HD (JustR A, B och C) beslöt följande dom:
+Domskäl. HD prövade 36 § avtalslagen och jämkade villkoret.
+Domslut. Villkoret jämkas.
+JustR D var skiljaktig."""
+    selected = _judicial_reasons(text)
+    assert selected.startswith("Domskäl. HD prövade 36 § avtalslagen")
+    assert "Villkoret jämkas" in selected
+    assert "Tingsrättens skäl" not in selected
+
+
+async def test_bad_excerpt_skips_that_document():
+    class InventOneExcerpt(PassthroughLagenNuSelector):
+        async def select_excerpt(self, *, need, source_type, document, context):
+            if "1915:218" in document.uri:
+                return ExcerptDecision(
+                    excerpt="Lagstiftaren avsåg att skydda den svagare parten.",
+                    why="invented",
+                )
+            return await super().select_excerpt(
+                need=need,
+                source_type=source_type,
+                document=document,
+                context=context,
+            )
+
+    other = _hit(
+        uri="https://lagen.nu/1981:130",
+        title="Köplagen",
+        pinpoint="P1",
+        highlight="Köplagen kompletterar avtalslagen.",
+    )
+    client = FakeLagenNuClient(
+        search=SearchResults(query="jämkning", total=2, results=(_hit(), other)),
+        documents={
+            "https://lagen.nu/1915:218#P36": _document(),
+            "https://lagen.nu/1981:130#P1": _document(
+                uri="https://lagen.nu/1981:130",
+                title="Köplagen",
+                pinpoint="P1",
+                text="Köplagen kompletterar avtalslagen när 36 § inte räcker.",
+            ),
+        },
+    )
+    evidence = await _source(
+        client, "swedish_law", selector=InventOneExcerpt()
+    ).research(_need("swedish_law", question="jämkning"), _context())
+    assert [item.status for item in evidence] == ["found"]
+    assert evidence[0].source_id == "https://lagen.nu/1981:130#P1"
+
+
+async def test_cover_pinpoint_fetches_full_travaux():
+    hit = replace(
+        _hit(
+            uri="https://lagen.nu/prop/1975/76:81",
+            title="Prop. 1975/76:81",
+            source="forarbete",
+            pinpoint=None,
+            highlight="Propositionens huvudsakliga innehåll",
+        ),
+        identifier="Prop. 1975/76:81",
+        pin=LagenNuPin(
+            uri="https://lagen.nu/prop/1975/76:81#Propositionens huvudsakliga innehåll",
+            pinpoint="Propositionens huvudsakliga innehåll",
+            label="Propositionens huvudsakliga innehåll",
+            highlight=("Propositionens huvudsakliga innehåll",),
+        ),
+    )
+    body = (
+        "Vid tillämpning av 36 § avtalslagen skall hänsyn tas till "
+        "avtalets innehåll och omständigheterna vid avtalets tillkomst."
+    )
+    client = FakeLagenNuClient(
+        resolved=ResolvedCitations(results=(hit,)),
+        documents={
+            "https://lagen.nu/prop/1975/76:81": _document(
+                uri="https://lagen.nu/prop/1975/76:81",
+                title="Prop. 1975/76:81",
+                pinpoint=None,
+                text=(
+                    "Propositionens huvudsakliga innehåll Propositionen föreslår "
+                    "en generalklausul.\n\n"
+                    + body
+                ),
+                source="forarbete",
+            )
+        },
+    )
+    evidence = await _source(client, "swedish_preparatory_works").research(
+        _need(
+            "swedish_preparatory_works",
+            question="Vad anger prop. 1975/76:81 om 36 § avtalslagen?",
+        ),
+        _context(),
+    )
+    fetch = next(args for name, args in client.calls if name == "get_document")
+    assert fetch["pinpoint"] is None
+    assert evidence[0].status == "found"
+    assert body in (evidence[0].excerpt or "")
+    assert evidence[0].locator != "Propositionens huvudsakliga innehåll"
+
+
+async def test_named_case_without_the_provision_is_skipped():
+    named = replace(
+        _hit(
+            uri="https://lagen.nu/dom/nja/1992s66",
+            title="NJA 1992 s. 66",
+            source="dv",
+            pinpoint=None,
+            highlight="Optionsavtal beträffande bostadsrätt.",
+        ),
+        identifier="NJA 1992 s. 66",
+    )
+    client = FakeLagenNuClient(
+        resolved=ResolvedCitations(results=(named,)),
+        documents={
+            "https://lagen.nu/dom/nja/1992s66": _document(
+                uri="https://lagen.nu/dom/nja/1992s66",
+                pinpoint=None,
+                text="Optionsavtal beträffande överlåtelse av bostadsrätt är bindande.",
+                source="dv",
+            )
+        },
+    )
+    evidence = await _source(client, "swedish_case_law").research(
+        _need(
+            "swedish_case_law",
+            question="Vilka villkor jämkades i NJA 1992 s. 66 enligt 36 §?",
+        ),
+        _context(),
+    )
+    assert [item.status for item in evidence] == ["not_found"]
+    assert evidence[0].excerpt == "no_fetchable_document"
+    assert evidence[0].metadata.get("reason") == "no_fetchable_document"
+
+
+async def test_excerpt_without_the_provision_is_skipped():
+    class OptionsExcerpt(PassthroughLagenNuSelector):
+        async def select_excerpt(self, *, need, source_type, document, context):
+            return ExcerptDecision(
+                excerpt="Optionsavtal beträffande överlåtelse av bostadsrätt är bindande.",
+                why="fel fråga",
+            )
+
+    hit = replace(
+        _hit(
+            uri="https://lagen.nu/dom/nja/1992s66",
+            title="NJA 1992 s. 66",
+            source="dv",
+            pinpoint=None,
+            highlight="Optionsavtal",
+        ),
+        identifier="NJA 1992 s. 66",
+    )
+    client = FakeLagenNuClient(
+        search=SearchResults(query="36 §", total=1, results=(hit,)),
+        documents={
+            "https://lagen.nu/dom/nja/1992s66": _document(
+                uri="https://lagen.nu/dom/nja/1992s66",
+                pinpoint=None,
+                text="Optionsavtal beträffande överlåtelse av bostadsrätt är bindande.",
+                source="dv",
+            )
+        },
+    )
+    evidence = await _source(
+        client, "swedish_case_law", selector=OptionsExcerpt()
+    ).research(
+        _need(
+            "swedish_case_law",
+            question="Vilka villkor har jämkats enligt 36 § avtalslagen?",
+        ),
+        _context(),
+    )
+    assert [item.status for item in evidence] == ["not_found"]
+    assert evidence[0].metadata.get("reason") == "no_fetchable_document"
+
+
+async def test_party_submission_excerpt_is_skipped():
+    class PartyExcerpt(PassthroughLagenNuSelector):
+        async def select_excerpt(self, *, need, source_type, document, context):
+            return ExcerptDecision(
+                excerpt=(
+                    "First Reserve har invänt: Konkurrensklausulen har utgjort "
+                    "avtalsinnehåll. Bestämmelsen i 36 § avtalslagen är inte "
+                    "tillämplig i förevarande fall."
+                ),
+                why="parts talan",
+            )
+
+    hit = replace(
+        _hit(
+            uri="https://lagen.nu/dom/ad/1998:80",
+            title="AD 1998 nr 80",
+            source="dv",
+            pinpoint=None,
+            highlight="36 § avtalslagen är inte tillämplig",
+        ),
+        identifier="AD 1998 nr 80",
+    )
+    client = FakeLagenNuClient(
+        search=SearchResults(query="36 §", total=1, results=(hit,)),
+        documents={
+            "https://lagen.nu/dom/ad/1998:80": _document(
+                uri="https://lagen.nu/dom/ad/1998:80",
+                pinpoint=None,
+                text=(
+                    "First Reserve har invänt: Konkurrensklausulen har utgjort "
+                    "avtalsinnehåll. Bestämmelsen i 36 § avtalslagen är inte "
+                    "tillämplig i förevarande fall."
+                ),
+                source="dv",
+            )
+        },
+    )
+    evidence = await _source(
+        client, "swedish_case_law", selector=PartyExcerpt()
+    ).research(
+        _need(
+            "swedish_case_law",
+            question="Finns det skillnader i hur 36 § tillämpas?",
+        ),
+        _context(),
+    )
+    assert [item.status for item in evidence] == ["not_found"]
+    assert evidence[0].metadata.get("reason") == "no_fetchable_document"
+
+
+async def test_named_citations_survive_search_selection_failure():
+    class BoomHits(PassthroughLagenNuSelector):
+        async def select_hits(self, *, need, source_type, candidates, context):
+            raise LagenNuSelectionError("selector model call failed: length")
+
+    named = replace(
+        _hit(
+            uri="https://lagen.nu/prop/1975/76:81",
+            title="Prop. 1975/76:81",
+            source="forarbete",
+            pinpoint=None,
+            highlight="36 § avtalslagen",
+        ),
+        identifier="Prop. 1975/76:81",
+    )
+    noise = replace(
+        _hit(
+            uri="https://lagen.nu/sou/1979:36",
+            title="SOU 1979:36",
+            source="forarbete",
+            pinpoint=None,
+            highlight="konsumenttjänst",
+        ),
+        identifier="SOU 1979:36",
+    )
+    source = _source(
+        FakeLagenNuClient(),
+        "swedish_preparatory_works",
+        selector=BoomHits(),
+    )
+    kept = await source._select_candidates(
+        _need(
+            "swedish_preparatory_works",
+            question="Vad anger prop. 1975/76:81 om 36 § avtalslagen?",
+        ),
+        _context(),
+        _candidates((named,), source="forarbete", origin="resolve")
+        + _candidates((noise,), source="forarbete", origin="search"),
+    )
+    assert [item.hit.uri for item in kept] == ["https://lagen.nu/prop/1975/76:81"]
+
+
+def test_preparatory_citations_normalize_proposition_wording():
+    assert _preparatory_citations(
+        "Vad anger proposition 1975/76:81, prop 1994/95:17, prop. 1971:15 och "
+        "lagutskottets betänkande 1975/76:LU21 jämfört med SOU 1974:83?"
+    ) == [
+        "prop. 1975/76:81",
+        "prop. 1994/95:17",
+        "prop. 1971:15",
+        "bet. 1975/76:LU21",
+        "SOU 1974:83",
+    ]
+
+
+async def test_proposition_wording_resolves_named_travaux():
+    proposition = _hit(
+        uri="https://lagen.nu/prop/1975/76:81",
+        title="Prop. 1975/76:81",
+        source="forarbete",
+        pinpoint=None,
+        highlight="Prop. 1975/76:81",
+    )
+    client = FakeLagenNuClient(
+        resolved_by_citation={
+            "prop. 1975/76:81": ResolvedCitations(results=(proposition,)),
+        },
+        documents={
+            "https://lagen.nu/prop/1975/76:81": _document(
+                uri="https://lagen.nu/prop/1975/76:81",
+                title="Prop. 1975/76:81",
+                pinpoint=None,
+                text=(
+                    "Vid tillämpning av 36 § avtalslagen skall hänsyn tas till "
+                    "avtalets innehåll och omständigheterna vid avtalets tillkomst."
+                ),
+                source="forarbete",
+            ),
+        },
+    )
+    evidence = await _source(client, "swedish_preparatory_works").research(
+        _need(
+            "swedish_preparatory_works",
+            question="Vad anger proposition 1975/76:81 om syftet med 36 §?",
+        ),
+        _context(),
+    )
+    assert [item.source_id for item in evidence] == [
+        "https://lagen.nu/prop/1975/76:81"
+    ]
+    assert client.calls[0] == (
+        "resolve_citation",
+        {"citation": "prop. 1975/76:81"},
+    )
+
+
+async def test_citation_graph_survives_search_selection_drop():
+    class DropSearch(PassthroughLagenNuSelector):
+        async def select_hits(self, *, need, source_type, candidates, context):
+            return [
+                HitDecision(
+                    candidate_id=item.candidate_id,
+                    keep=False,
+                    role="noise",
+                    why="drop search",
+                )
+                for item in candidates
+            ]
+
+    graph = replace(
+        _hit(
+            uri="https://lagen.nu/dom/nja/2005s142",
+            title="NJA 2005 s. 142",
+            source="dv",
+            pinpoint=None,
+            highlight="jämkning av ansvarsbegränsning",
+        ),
+        identifier="NJA 2005 s. 142",
+    )
+    search_only = replace(
+        _hit(
+            uri="https://lagen.nu/dom/nja/2017s113",
+            title="NJA 2017 s. 113",
+            source="dv",
+            pinpoint=None,
+            highlight="oskäliga avtalsvillkor",
+        ),
+        identifier="NJA 2017 s. 113",
+    )
+    source = _source(
+        FakeLagenNuClient(),
+        "swedish_case_law",
+        selector=DropSearch(),
+    )
+    kept = await source._select_candidates(
+        _need(
+            "swedish_case_law",
+            question="Vilka villkor har jämkats enligt 36 § avtalslagen?",
+        ),
+        _context(),
+        _candidates((graph,), source="dv", origin="citation_graph")
+        + _candidates((search_only,), source="dv", origin="search"),
+    )
+    assert [item.hit.uri for item in kept] == ["https://lagen.nu/dom/nja/2005s142"]
+
+
+async def test_judicial_reasons_with_jamkning_are_kept_without_repeating_section():
+    class JamkExcerpt(PassthroughLagenNuSelector):
+        async def select_excerpt(self, *, need, source_type, document, context):
+            return ExcerptDecision(
+                excerpt=(
+                    "Högsta domstolen finner att ansvarsbegränsningen ska jämkas "
+                    "med hänsyn till partsställningen och villkorets tyngd."
+                ),
+                why="domskäl",
+            )
+
+    hit = replace(
+        _hit(
+            uri="https://lagen.nu/dom/nja/2005s142",
+            title="NJA 2005 s. 142",
+            source="dv",
+            pinpoint=None,
+            highlight="ansvarsbegränsning jämkades",
+        ),
+        identifier="NJA 2005 s. 142",
+    )
+    client = FakeLagenNuClient(
+        resolved=ResolvedCitations(results=(hit,)),
+        documents={
+            "https://lagen.nu/dom/nja/2005s142": _document(
+                uri="https://lagen.nu/dom/nja/2005s142",
+                pinpoint=None,
+                text=(
+                    "Högsta domstolen finner att ansvarsbegränsningen ska jämkas "
+                    "med hänsyn till partsställningen och villkorets tyngd."
+                ),
+                source="dv",
+            )
+        },
+    )
+    evidence = await _source(
+        client, "swedish_case_law", selector=JamkExcerpt()
+    ).research(
+        _need(
+            "swedish_case_law",
+            question="Vilka villkor jämkades i NJA 2005 s. 142 enligt 36 §?",
+        ),
+        _context(),
+    )
+    assert [item.status for item in evidence] == ["found"]
+    assert "ansvarsbegränsningen" in (evidence[0].excerpt or "")
+
+
+async def test_statute_restatement_excerpt_is_skipped():
+    class RestateExcerpt(PassthroughLagenNuSelector):
+        async def select_excerpt(self, *, need, source_type, document, context):
+            return ExcerptDecision(
+                excerpt=(
+                    "Enligt 36 § avtalslagen får avtalsvillkor jämkas eller "
+                    "lämnas utan avseende om villkoret är oskäligt."
+                ),
+                why="lagtext",
+            )
+
+    hit = replace(
+        _hit(
+            uri="https://lagen.nu/dom/nja/2015s98",
+            title="NJA 2015 s. 98",
+            source="dv",
+            pinpoint=None,
+            highlight="36 § avtalslagen",
+        ),
+        identifier="NJA 2015 s. 98",
+    )
+    client = FakeLagenNuClient(
+        resolved=ResolvedCitations(results=(hit,)),
+        documents={
+            "https://lagen.nu/dom/nja/2015s98": _document(
+                uri="https://lagen.nu/dom/nja/2015s98",
+                pinpoint=None,
+                text=(
+                    "Enligt 36 § avtalslagen får avtalsvillkor jämkas eller "
+                    "lämnas utan avseende om villkoret är oskäligt."
+                ),
+                source="dv",
+            )
+        },
+    )
+    evidence = await _source(
+        client, "swedish_case_law", selector=RestateExcerpt()
+    ).research(
+        _need(
+            "swedish_case_law",
+            question="Vilka faktorer vägde HD i NJA 2015 s. 98 enligt 36 §?",
+        ),
+        _context(),
+    )
+    assert [item.status for item in evidence] == ["not_found"]
+    assert evidence[0].metadata.get("reason") == "no_fetchable_document"
+
+
+async def test_named_case_keeps_window_when_selector_excerpt_is_empty():
+    class EmptyExcerpt(PassthroughLagenNuSelector):
+        async def select_excerpt(self, *, need, source_type, document, context):
+            return ExcerptDecision(excerpt="", why="tom")
+
+    hit = replace(
+        _hit(
+            uri="https://lagen.nu/dom/nja/2005s142",
+            title="NJA 2005 s. 142",
+            source="dv",
+            pinpoint=None,
+            highlight="ansvarsbegränsning jämkades",
+        ),
+        identifier="NJA 2005 s. 142",
+    )
+    client = FakeLagenNuClient(
+        resolved=ResolvedCitations(results=(hit,)),
+        documents={
+            "https://lagen.nu/dom/nja/2005s142": _document(
+                uri="https://lagen.nu/dom/nja/2005s142",
+                pinpoint=None,
+                text=(
+                    "Högsta domstolen\n\nDomskäl\n\n"
+                    "Högsta domstolen finner att ansvarsbegränsningen ska jämkas "
+                    "med hänsyn till partsställningen och villkorets tyngd.\n\n"
+                    "Domslut\n\nVillkoret jämkas."
+                ),
+                source="dv",
+            )
+        },
+    )
+    evidence = await _source(
+        client, "swedish_case_law", selector=EmptyExcerpt()
+    ).research(
+        _need(
+            "swedish_case_law",
+            question="Vilka villkor jämkades i NJA 2005 s. 142 enligt 36 §?",
+        ),
+        _context(),
+    )
+    assert [item.status for item in evidence] == ["found"]
+    assert "ansvarsbegränsningen" in (evidence[0].excerpt or "")
+    assert evidence[0].metadata.get("selection_why") == "windowed_passage"
+
+
+async def test_search_empty_excerpt_is_still_skipped():
+    class EmptyExcerpt(PassthroughLagenNuSelector):
+        async def select_excerpt(self, *, need, source_type, document, context):
+            return ExcerptDecision(excerpt="", why="tom")
+
+    hit = replace(
+        _hit(
+            uri="https://lagen.nu/dom/nja/2005s142",
+            title="NJA 2005 s. 142",
+            source="dv",
+            pinpoint=None,
+            highlight="ansvarsbegränsning jämkades",
+        ),
+        identifier="NJA 2005 s. 142",
+    )
+    client = FakeLagenNuClient(
+        search=SearchResults(query="36 §", total=1, results=(hit,)),
+        documents={
+            "https://lagen.nu/dom/nja/2005s142": _document(
+                uri="https://lagen.nu/dom/nja/2005s142",
+                pinpoint=None,
+                text=(
+                    "Högsta domstolen finner att ansvarsbegränsningen ska jämkas "
+                    "med hänsyn till partsställningen."
+                ),
+                source="dv",
+            )
+        },
+    )
+    evidence = await _source(
+        client, "swedish_case_law", selector=EmptyExcerpt()
+    ).research(
+        _need(
+            "swedish_case_law",
+            question="Vilka villkor har jämkats enligt 36 § avtalslagen?",
+        ),
+        _context(),
+    )
+    assert [item.status for item in evidence] == ["not_found"]
+
+
+async def test_incoming_travaux_without_the_provision_are_skipped():
+    statute = _hit()
+    older = replace(
+        _hit(
+            uri="https://lagen.nu/prop/1971:15",
+            title="Prop. 1971:15",
+            source="forarbete",
+            pinpoint=None,
+            highlight="jämkning av köp",
+        ),
+        identifier="Prop. 1971:15",
+    )
+    travaux = replace(
+        _hit(
+            uri="https://lagen.nu/prop/1975/76:81",
+            title="Prop. 1975/76:81",
+            source="forarbete",
+            pinpoint=None,
+            highlight="36 § avtalslagen",
+        ),
+        identifier="Prop. 1975/76:81",
+    )
+    client = FakeLagenNuClient(
+        resolved=ResolvedCitations(results=(statute,)),
+        incoming=IncomingCitations(
+            uri="https://lagen.nu/1915:218#P36",
+            total=2,
+            results=(older, travaux),
+        ),
+        documents={
+            "https://lagen.nu/prop/1971:15": _document(
+                uri="https://lagen.nu/prop/1971:15",
+                pinpoint=None,
+                text=(
+                    "Vid bedömningen om jämkning skall ske skall hänsyn tagas "
+                    "dels till den förlust säljaren kan ha lidit."
+                ),
+                source="forarbete",
+            ),
+            "https://lagen.nu/prop/1975/76:81": _document(
+                uri="https://lagen.nu/prop/1975/76:81",
+                pinpoint=None,
+                text=(
+                    "Vid tillämpning av 36 § avtalslagen skall hänsyn tas till "
+                    "avtalets innehåll och omständigheterna vid avtalets tillkomst."
+                ),
+                source="forarbete",
+            ),
+        },
+    )
+    evidence = await _source(client, "swedish_preparatory_works").research(
+        _need(
+            "swedish_preparatory_works",
+            question="Hur anger förarbetena till 36 § avtalslagen att jämkning ska göras?",
+        ),
+        _context(),
+    )
+    assert [item.source_id for item in evidence] == [
+        "https://lagen.nu/prop/1975/76:81"
+    ]

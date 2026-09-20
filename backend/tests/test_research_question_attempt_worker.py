@@ -7,6 +7,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.database.base import Base
 from app.database.models import (
+    EvidencePassage,
     EvidenceSet,
     ExecutionAttempt,
     ExpertKnowledgeReceipt,
@@ -109,7 +110,7 @@ async def _setup(factory):
 
 
 class FoundSource:
-    source_type = "case_knowledge"
+    source_type = "swedish_law"
     provider_id = "test"
 
     def __init__(self):
@@ -120,7 +121,7 @@ class FoundSource:
         return [
             research_evidence(
                 research_need_id=need.id,
-                source_type="case_knowledge",
+                source_type="swedish_law",
                 status="found",
                 title="Avtalet",
                 excerpt="Avtalsvillkoret får jämkas om det är oskäligt.",
@@ -176,7 +177,7 @@ class OneFollowUpPlanner:
             FollowUpNeedDraft(
                 question="Hur har rekvisiten tillämpats i praxis?",
                 why_needed="Evidensen visar att praxis måste avgränsas.",
-                source_types=["case_knowledge"],
+                source_types=["swedish_law"],
                 parent_research_need_id="research_1",
             )
         ]
@@ -209,7 +210,7 @@ async def test_question_runs_as_child_attempt_with_frozen_evidence(factory):
                 ResearchNeedDraft(
                     question="Vilka rekvisit framgår av källorna?",
                     why_needed="Rekvisiten måste beläggas.",
-                    source_types=["case_knowledge"],
+                    source_types=["swedish_law"],
                 )
             ]
         ),
@@ -250,7 +251,9 @@ async def test_question_runs_as_child_attempt_with_frozen_evidence(factory):
         )
         assert len(links) == 1
         assert links[0].source_attempt_id == child.id
-        assert links[0].excerpt == "Avtalsvillkoret får jämkas om det är oskäligt."
+        passage = await session.get(EvidencePassage, links[0].passage_id)
+        assert passage is not None
+        assert passage.excerpt == "Avtalsvillkoret får jämkas om det är oskäligt."
         assert {receipt.role for receipt in receipts} == {"raised_by", "assigned_to"}
         assert {receipt.expert_id for receipt in receipts} == {"avtalsjurist"}
         assert {receipt.evidence_set_id for receipt in receipts} == {evidence_set.id}
@@ -277,7 +280,7 @@ async def test_ready_child_attempt_is_reused_without_new_retrieval(factory):
                 ResearchNeedDraft(
                     question="Vilka rekvisit framgår av källorna?",
                     why_needed="Rekvisiten måste beläggas.",
-                    source_types=["case_knowledge"],
+                    source_types=["swedish_law"],
                 )
             ]
         ),
@@ -322,7 +325,7 @@ async def test_researched_engine_follow_up_becomes_completed_dag_question(factor
                 ResearchNeedDraft(
                     question="Vilka rekvisit framgår av källorna?",
                     why_needed="Rekvisiten måste beläggas.",
-                    source_types=["case_knowledge"],
+                    source_types=["swedish_law"],
                 )
             ]
         ),

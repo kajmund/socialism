@@ -58,8 +58,8 @@ def test_standard_available_source_types_follow_capability_descriptors():
         assert offered == production_registered_source_types()
         assert "web" in offered
         assert "swedish_law" in offered
-        assert "case_knowledge" in offered
-        assert "customer_knowledge" in offered
+        assert "case_knowledge" not in offered
+        assert "customer_knowledge" not in offered
     finally:
         set_standard_capability_descriptors(None)
     assert "web" not in standard_available_source_types()

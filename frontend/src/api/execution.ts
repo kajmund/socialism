@@ -176,6 +176,8 @@ export type EvidenceSetItem = {
   id: string
   evidence_set_id: string
   research_need_id: string | null
+  research_need_ids: string[]
+  passage_id: string | null
   original_evidence_id: string | null
   ordinal: number
   source_type: string
@@ -272,6 +274,8 @@ export function getResearchProgressEvents(
 
 export type ResearchOverviewSource = {
   id: string
+  passage_id: string | null
+  research_need_ids: string[]
   status: string
   title: string | null
   excerpt: string | null

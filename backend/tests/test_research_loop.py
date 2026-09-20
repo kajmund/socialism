@@ -27,7 +27,6 @@ from app.services.research.assessment import (
     ResearchNeedAssessment,
     programmatic_assessment,
 )
-from app.services.research.models import InvalidResearchPlanError, ResearchPlan, research_evidence
 from app.services.research.execution import execute_attempt_research
 from app.services.research.followup import (
     FollowUpNeedDraft,
@@ -36,11 +35,7 @@ from app.services.research.followup import (
     research_question_key,
     validate_follow_up_drafts,
 )
-from app.services.research.models import (
-    InvalidResearchPlanError,
-    ResearchPlan,
-    research_evidence,
-)
+from app.services.research.models import InvalidResearchPlanError, ResearchPlan, research_evidence
 from tests.test_research_assessment import RecordingAssessor, _fixed_draft
 from tests.test_research_execution import (
     GuardRouter,
@@ -127,13 +122,39 @@ class SequenceAssessor:
     ) -> ResearchAssessmentDraft:
         self.calls.append((plan, tuple(evidence)))
         draft = self.drafts[min(len(self.calls) - 1, len(self.drafts) - 1)]
-        return _cite_existing_evidence(draft, evidence)
+        cited = _cite_existing_evidence(draft, evidence)
+        if cited.result != "sufficient":
+            return cited
+        existing = {row.research_need_id for row in cited.need_assessments}
+        missing = [
+            ResearchNeedAssessment(
+                research_need_id=need.id,
+                sufficient=True,
+                supporting_evidence_ids=[item.evidence_id for item in evidence],
+            )
+            for need in plan.needs
+            if need.id not in existing
+        ]
+        if not missing:
+            return cited
+        return ResearchAssessmentDraft(
+            result=cited.result,
+            rationale=cited.rationale,
+            need_assessments=[*cited.need_assessments, *missing],
+            gaps=list(cited.gaps),
+            contradictions=list(cited.contradictions),
+            considered_evidence_ids=list(cited.considered_evidence_ids),
+            model_provider=cited.model_provider,
+            model_name=cited.model_name,
+            model_version=cited.model_version,
+        )
 
 
 class ScriptedPlanner:
     def __init__(self, batches: list[list[FollowUpNeedDraft]]) -> None:
         self.batches = batches
         self.calls: list[tuple[ResearchPlan, ResearchAssessmentDraft, int]] = []
+        self.available_source_types_calls: list[tuple[str, ...]] = []
 
     async def plan_follow_ups(
         self,
@@ -142,7 +163,9 @@ class ScriptedPlanner:
         assessment: ResearchAssessmentDraft,
         evidence: Sequence[AssessableEvidence],
         previous_needs: Sequence[RuntimeResearchNeed],
+        available_source_types: Sequence[str] | None = None,
     ) -> Sequence[FollowUpNeedDraft]:
+        self.available_source_types_calls.append(tuple(available_source_types or ()))
         self.calls.append((plan, assessment, len(previous_needs)))
         index = len(self.calls) - 1
         if index >= len(self.batches):
@@ -378,6 +401,11 @@ async def test_reassessment_sees_accumulated_evidence_then_freezes(db):
     assert reloaded.research_wave == 1
     assert evidence_set.status == "frozen"
     assert len(assessor.calls) == 2
+    assert [need.id for need in assessor.calls[0][0].needs] == ["research_1"]
+    assert [need.id for need in assessor.calls[1][0].needs] == [
+        "research_1",
+        "followup_1_1",
+    ]
     first_ids = {item.evidence_id for item in assessor.calls[0][1]}
     second_ids = {item.evidence_id for item in assessor.calls[1][1]}
     assert first_ids < second_ids
@@ -545,6 +573,40 @@ async def test_no_novel_followups_stops_explicitly(db):
     assert reloaded.research_stop_reason == "no_novel_followups"
     assert [row.result for row in rows] == ["insufficient"]
     assert len(planner.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_followups_cannot_select_case_knowledge_without_case_scope(db):
+    session, _factory = db
+    _customer, _run, attempt = await _created_attempt(
+        session,
+        slug="loop-no-case",
+        case_id=None,
+    )
+    planner = ScriptedPlanner(
+        [[_follow_up("Hämta rättspraxis", source_types=["case_knowledge"])]]
+    )
+    router = _router(
+        RecordingSource("case_knowledge"),
+        RecordingSource("customer_knowledge"),
+    )[0]
+    await execute_attempt_research(
+        session,
+        attempt_id=attempt.id,
+        research_plan=ResearchPlan(
+            needs=[_need("research_1", "customer_knowledge")]
+        ),
+        router=router,
+        assessor=RecordingAssessor(
+            _fixed_draft(result="insufficient", need_id="research_1", evidence_ids=[])
+        ),
+        planner=planner,
+    )
+    reloaded = await get_attempt(session, attempt.id)
+    needs = await list_runtime_needs(session, attempt.id)
+    assert planner.available_source_types_calls == [("customer_knowledge",)]
+    assert [row.origin for row in needs] == ["initial"]
+    assert reloaded.research_stop_reason == "no_novel_followups"
 
 
 @pytest.mark.asyncio
