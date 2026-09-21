@@ -25,6 +25,14 @@ def test_golden_36_avtl_passes_all_stages():
             lambda a: a["source_reuse"]["synthetic_positive_case"].update(document_fetches=3),
         ),
         (
+            "source_reuse",
+            lambda a: a["source_reuse"].pop("synthetic_positive_case"),
+        ),
+        (
+            "source_reuse",
+            lambda a: a["source_reuse"]["synthetic_positive_case"].pop("document_fetches"),
+        ),
+        (
             "source_dedup",
             lambda a: a["source_groups"]["synthetic_positive_case"].update(group_count=3),
         ),

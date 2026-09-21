@@ -353,6 +353,7 @@ async def add_evidence_items(
                         EvidenceSetItem.evidence_set_id == evidence_set.id,
                         EvidenceSetItem.research_need_id == snapshot.research_need_id,
                         EvidenceSetItem.status == "error",
+                        EvidenceSetItem.source_type == snapshot.source_type,
                         EvidenceSetItem.provider == snapshot.provider,
                         EvidenceSetItem.source_id == snapshot.source_id,
                     )

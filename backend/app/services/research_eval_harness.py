@@ -53,15 +53,15 @@ def evaluate_case(golden: dict[str, Any], artifacts: dict[str, Any]) -> dict[str
 
     reuse = artifacts.get("source_reuse", {})
     expected_reuse = golden.get("source_reuse", {})
-    record(
-        "source_reuse",
-        [
-            f"{source_id}: extra provider document fetch"
-            for source_id, expected in expected_reuse.items()
-            if reuse.get(source_id, {}).get("document_fetches", 0)
-            > expected["max_document_fetches"]
-        ],
-    )
+    reuse_errors = []
+    for source_id, expected in expected_reuse.items():
+        metrics = reuse.get(source_id)
+        fetches = metrics.get("document_fetches") if isinstance(metrics, dict) else None
+        if type(fetches) is not int:
+            reuse_errors.append(f"{source_id}: missing document_fetches")
+        elif fetches > expected["max_document_fetches"]:
+            reuse_errors.append(f"{source_id}: extra provider document fetch")
+    record("source_reuse", reuse_errors)
     grouped = artifacts.get("source_groups", {})
     record(
         "source_dedup",

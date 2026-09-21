@@ -39,7 +39,8 @@ from app.services.research.models import research_evidence
 
 
 @pytest.mark.asyncio
-async def test_three_followups_reuse_one_raw_document_and_keep_distinct_analyses():
+async def test_three_followups_reuse_one_raw_document_and_keep_distinct_analyses(monkeypatch):
+    from app.config import settings
     from app.services.lagen_nu.models import ResolvedCitations
     from app.services.lagen_nu.research_source import LagenNuResearchSource
     from app.services.research.knowledge_question import research_question_key
@@ -167,6 +168,74 @@ async def test_three_followups_reuse_one_raw_document_and_keep_distinct_analyses
             assert len(response.sources[0].research_need_ids) == 4
             assert len(response.sources[0].domain_result_ids) == 3
             assert response.sources[0].error_count == 1
+
+            other_question = "Varför jämkades villkoret i NJA 2005 s. 142?"
+            second_attempt = await create_attempt(
+                session, run_id=run.id, attempt_type="generic_panel"
+            )
+            session.add(
+                ResearchRuntimeNeed(
+                    id="runtime-second",
+                    attempt_id=second_attempt.id,
+                    research_need_id="followup-0",
+                    question=other_question,
+                    why_needed="test",
+                    question_key=research_question_key(other_question),
+                )
+            )
+            await session.flush()
+            other_need = replace(
+                _need("swedish_case_law", question=other_question), id="followup-0"
+            )
+            raw_text = client.documents[uri].text
+            assert (
+                await source._cached_domain_result(
+                    need=other_need, source_uri=uri, raw_text=raw_text
+                )
+                is None
+            )
+
+            old = datetime(2020, 1, 1, tzinfo=UTC)
+            for item in items:
+                item.retrieved_at = old
+            raw_row = (await session.scalars(select(RawSource))).one()
+            raw_row.created_at = old
+            await session.flush()
+            monkeypatch.setattr(settings, "research_knowledge_freshness_max_age_seconds", 60)
+            second_set = await create_evidence_set(
+                session, run_id=run.id, created_from_attempt_id=second_attempt.id
+            )
+            second_context = replace(_context(), attempt_id=second_attempt.id)
+            second_evidence = await source.research(other_need, second_context)
+            await add_evidence_items(session, evidence_set_id=second_set.id, items=second_evidence)
+            await session.flush()
+            assert sum(name == "get_document" for name, _ in client.calls) == 2
+            assert interpreter.calls == 4
+
+            third_attempt = await create_attempt(
+                session, run_id=run.id, attempt_type="generic_panel"
+            )
+            third_context = replace(_context(), attempt_id=third_attempt.id)
+            await source.research(other_need, third_context)
+            assert sum(name == "get_document" for name, _ in client.calls) == 2
+            assert interpreter.calls == 4
+
+            for source_type in ("swedish_case_law", "swedish_law"):
+                await add_evidence_items(
+                    session,
+                    evidence_set_id=evidence_set.id,
+                    items=[
+                        research_evidence(
+                            research_need_id="followup-2",
+                            source_type=source_type,
+                            status="error",
+                            provider="lagen_nu",
+                            metadata={"reason": "provider_error", "error_type": "McpError"},
+                        )
+                    ],
+                )
+            items = await list_evidence_items(session, evidence_set.id)
+            assert len([item for item in items if item.status == "error"]) == 3
     finally:
         await engine.dispose()
 
