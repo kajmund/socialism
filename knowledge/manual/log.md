@@ -1,5 +1,10 @@
 # Manual update log
 
+## 2026-09-21
+
+* **Experter / SME**: En ny expert sparas på den kund kontot tillhör, även för administratör. Administratör utan kundkoppling sparar som tidigare i Bolag demo. Listan under **Experter** och SME-chatten visar samma kunds experter.
+* **Expertchatten / SME**: En expert kan nu använda **Fråga en annan expert** när en fråga ligger utanför den egna kompetensen. En kunnig kollega svarar i sin egen chatt, den första experten återger svaret direkt och båda experternas minnen uppdateras med frågan och svaret.
+
 ## 2026-09-20
 
 * **Research**: Juridisk research kombinerar nu frågespecifik sökning med lagen.nu:s hänvisningsgraf, väljer fler unika och relevanta rättsfall och hämtar relevanta avsnitt ur förarbeten. Evidensbedömningen skiljer tydligare mellan direkt stöd, motbevis, uteblivet efterfrågat utfall och perifer omnämning.

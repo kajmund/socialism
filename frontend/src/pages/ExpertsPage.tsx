@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
 import {
   createPersona,
@@ -7,6 +7,7 @@ import {
   listExpertPersonas,
   type ExpertCandidate,
 } from "@/api/personas"
+import { useAuth } from "@/auth/AuthProvider"
 import { SuggestExpertsModal } from "@/components/experts/SuggestExpertsModal"
 import { AdminButton } from "@/components/ui/admin-button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -15,13 +16,14 @@ import { blankEditableExpert, formatLibraryDate, personaInitials } from "@/data/
 import type { LibraryPersona } from "@/data/library-types"
 import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
 import { ApiError } from "@/lib/api"
+import { customerIdForExpertWrite } from "@/lib/scoping"
 
 type Translate = (key: MessageKey, params?: TranslateParams) => string
 
 const CTA_CLASS =
   "admin-cta inline-flex h-9 items-center rounded-[var(--radius-md)] bg-db-black px-[18px] text-[0.85rem] text-db-ink-0 no-underline hover:bg-db-ink-800"
 
-function expertWriteFromCandidate(candidate: ExpertCandidate) {
+function expertWriteFromCandidate(candidate: ExpertCandidate, customerId: number) {
   const profile = blankEditableExpert()
   profile.name = candidate.name
   profile.initials = personaInitials(candidate.name)
@@ -31,7 +33,10 @@ function expertWriteFromCandidate(candidate: ExpertCandidate) {
   profile.yrkesbakgrund = candidate.yrkesbakgrund || "—"
   profile.professionell_anekdot = candidate.professionell_anekdot || "—"
   profile.yrke = candidate.yrkesbakgrund || "—"
-  return editableToWrite(profile, "beskrivning", candidate.description, { kind: "expert" })
+  return editableToWrite(profile, "beskrivning", candidate.description, {
+    kind: "expert",
+    customerId,
+  })
 }
 
 type ExpertItemProps = {
@@ -128,6 +133,8 @@ function ExpertListRow({ expert, intl, t, onDelete }: ExpertItemProps) {
 
 export function ExpertsPage() {
   const { t, intl } = useLocale()
+  const { user, loading: authLoading } = useAuth()
+  const customerId = customerIdForExpertWrite(user?.kundId)
   const [rows, setRows] = useState<LibraryPersona[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -136,15 +143,16 @@ export function ExpertsPage() {
   const [toast, setToast] = useState<string | null>(null)
   const [suggestOpen, setSuggestOpen] = useState(false)
 
-  function loadExperts() {
-    return listExpertPersonas().then((items) => {
+  const loadExperts = useCallback(() => {
+    return listExpertPersonas({ customer_id: customerId }).then((items) => {
       setRows(items)
       setError(null)
       return items
     })
-  }
+  }, [customerId])
 
   useEffect(() => {
+    if (authLoading) return
     let cancelled = false
     setLoading(true)
     void loadExperts()
@@ -159,7 +167,7 @@ export function ExpertsPage() {
     return () => {
       cancelled = true
     }
-  }, [t])
+  }, [authLoading, loadExperts, t])
 
   useEffect(() => {
     if (!toast) return
@@ -189,7 +197,7 @@ export function ExpertsPage() {
 
   async function handleSuggested(candidates: ExpertCandidate[]) {
     for (const candidate of candidates) {
-      await createPersona(expertWriteFromCandidate(candidate))
+      await createPersona(expertWriteFromCandidate(candidate, customerId))
     }
     await loadExperts()
     setToast(t("experts.suggest.added", { count: candidates.length }))

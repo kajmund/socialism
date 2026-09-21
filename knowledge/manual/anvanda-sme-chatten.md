@@ -30,7 +30,9 @@ Telefonikonen till höger om skrivfältet startar ett röstsamtal med den valda 
 
 Knappen **Minnen** i chatthuvudet öppnar samma minneslogg som i expertchatten. Där kan du läsa, redigera, ta bort eller rensa expertens sparade minnen.
 
-Verktygsikonen i samma chatthuvud öppnar expertchattens verktygsval. Kryssa i vilka bolags-, sök- och researchverktyg experten får använda. Ändringen sparas direkt för experten. En expert som saknar ett verktyg använder det inte i chatten.
+Verktygsikonen i samma chatthuvud öppnar expertchattens verktygsval. Kryssa i vilka bolags-, sök-, research- och kollegieverktyg experten får använda. Ändringen sparas direkt för experten. En expert som saknar ett verktyg använder det inte i chatten.
+
+Med verktyget **Fråga en annan expert** kan experten lämna vidare en fråga som ligger utanför den egna kompetensen. En kunnig kollega svarar då i sin egen konversation med vem som frågade, den omformulerade frågan och sitt svar. Den första experten återger samtidigt kollegans svar i den pågående chatten. Båda experterna minns frågan och svaret. Om ingen kollega har rätt kompetens får du ett tydligt besked.
 
 Den runda expertikonen i listan eller i chatthuvudet öppnar expertens profilfält i en modal ovanpå chatten — samma vänsterkolumn som i Due Diligence (kompetens, bakgrund, anekdot, verktyg och spara). Du kan också ladda upp en profilbild som visas i listan och chatten. Chatten och presentationsläget ingår inte. Klicka på namn eller förhandsvisning i listan för att öppna konversationen.
 

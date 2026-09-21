@@ -35,6 +35,7 @@ from app.database.models import (
 from app.realtime.expertgranskning_broadcast import expertgranskning_broadcast
 from app.realtime.hub import job_hub, report_hub
 from app.realtime.interview_broadcast import interview_broadcast, interview_key_tuple
+from app.realtime.library_chat_broadcast import library_chat_broadcast
 from app.realtime.panel_broadcast import panel_broadcast
 from app.realtime.research_progress_broadcast import research_progress_broadcast
 from app.realtime.run_broadcast import run_broadcast
@@ -605,6 +606,11 @@ async def chat_websocket(websocket: WebSocket) -> None:
         return
     hello: LibraryHello | RunInterviewHello | HelpHello | SpindoctorHello | None = None
     help_customer_id: int | None = None
+    library_customer_id: int | None = None
+
+    async def emit_library_event(event: dict) -> None:
+        await websocket.send_json(event)
+
     try:
         raw = await websocket.receive_json()
         if not isinstance(raw, dict):
@@ -643,6 +649,7 @@ async def chat_websocket(websocket: WebSocket) -> None:
                         await websocket.close(code=1003)
                         return
                     assert_kund_access(user, persona.customer_id)
+                    library_customer_id = persona.customer_id
                 elif isinstance(hello, RunInterviewHello):
                     run = await session.get(Run, hello.run_id)
                     if run is None:
@@ -662,6 +669,13 @@ async def chat_websocket(websocket: WebSocket) -> None:
             except HTTPException as exc:
                 await _close_auth_error(websocket, exc)
                 return
+
+        if isinstance(hello, LibraryHello) and library_customer_id is not None:
+            await library_chat_broadcast.subscribe_persona(
+                library_customer_id,
+                hello.persona_id,
+                emit_library_event,
+            )
 
         await websocket.send_json({"type": "ready", "scope": hello.scope})
 
@@ -874,3 +888,4 @@ async def chat_websocket(websocket: WebSocket) -> None:
             pass
     finally:
         await interview_broadcast.unsubscribe(websocket)
+        await library_chat_broadcast.unsubscribe(emit_library_event)

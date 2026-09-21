@@ -11,6 +11,7 @@ describe("normalizeExpertTools", () => {
   it("defaults missing tools to the full catalog", () => {
     expect(normalizeExpertTools(null)).toEqual([...DEFAULT_EXPERT_TOOLS])
     expect(DEFAULT_EXPERT_TOOLS).toContain("start_research")
+    expect(DEFAULT_EXPERT_TOOLS).toContain("ask_expert")
   })
 
   it("keeps an explicit empty selection", () => {
@@ -50,6 +51,7 @@ describe("expert tool selection", () => {
 
   it("includes start_research in select-all and can clear it explicitly", () => {
     expect(selectAllExpertTools(true)).toContain("start_research")
+    expect(selectAllExpertTools(true)).toContain("ask_expert")
     expect(selectAllExpertTools(false)).toEqual([])
   })
 })

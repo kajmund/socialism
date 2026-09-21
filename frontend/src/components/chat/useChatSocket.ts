@@ -259,6 +259,13 @@ export function useChatSocket({
             if (message) onInterviewMessageRef.current?.(message)
             break
           }
+          case "thread.message": {
+            const rows = asDoneMessages(msg.messages)
+            if (rows.length > 0) onDoneRef.current(rows, [])
+            break
+          }
+          case "consult.answered":
+            break
           case "error":
             setTyping(false)
             setStreamText(null)

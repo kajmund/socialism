@@ -286,6 +286,25 @@ export function SmeMessengerPage() {
         setSuggestions(questions)
       }
     },
+    onThreadMessage: (threadId, rows) => {
+      const active = selectedRef.current
+      if (active?.thread_type === "expert" && active.thread_id === threadId) {
+        setMessages(
+          rows.map((row) => ({
+            ...row,
+            persona_id: row.role === "assistant" ? threadId : null,
+          })),
+        )
+        void markSmeThreadRead("expert", threadId).then(() =>
+          loadInbox(filterRef.current),
+        )
+      } else {
+        void loadInbox(filterRef.current)
+      }
+    },
+    onConsultAnswered: () => {
+      void loadInbox(filterRef.current)
+    },
     onError: applyExpertError,
   })
 

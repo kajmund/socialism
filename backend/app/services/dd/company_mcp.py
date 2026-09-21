@@ -12,7 +12,7 @@ from typing import Any, Self
 from app.config import settings
 from app.llm import complete_text, complete_with_tools
 from app.llm.tool_messages import assistant_message_dict, tool_result_message
-from app.services.actor_profiles import ActorToolHandler
+from app.services.actor_profiles import ActorToolHandler, actor_tool_specs
 from app.services.dd import allabolag
 from app.services.dd.bolagsapi_mcp import (
     BolagsapiMcpClient,
@@ -46,7 +46,9 @@ _TOOL_CALL_JSON_RE = re.compile(
 
 COMPANY_TOOL_NAMES = frozenset({"search_companies", "lookup_company", "validate_orgnr"})
 RESEARCH_TOOL_NAME = "start_research"
+CONSULT_TOOL_NAME = "ask_expert"
 ResearchToolHandler = Callable[[dict[str, Any]], Awaitable[str]]
+ConsultToolHandler = Callable[[dict[str, Any]], Awaitable[str]]
 
 _RESEARCH_TOOL_SPEC: dict[str, Any] = {
     "type": "function",
@@ -62,6 +64,27 @@ _RESEARCH_TOOL_SPEC: dict[str, Any] = {
                 "question": {
                     "type": "string",
                     "description": "Standalone general research question",
+                }
+            },
+            "required": ["question"],
+        },
+    },
+}
+
+_CONSULT_TOOL_SPEC: dict[str, Any] = {
+    "type": "function",
+    "function": {
+        "name": CONSULT_TOOL_NAME,
+        "description": (
+            "Ask a competent colleague when the question is outside your own "
+            "professional competence."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "question": {
+                    "type": "string",
+                    "description": "Standalone question for the colleague",
                 }
             },
             "required": ["question"],
@@ -140,6 +163,10 @@ def company_tool_specs() -> list[dict[str, Any]]:
 
 def research_tool_spec() -> dict[str, Any]:
     return dict(_RESEARCH_TOOL_SPEC)
+
+
+def consult_tool_spec() -> dict[str, Any]:
+    return dict(_CONSULT_TOOL_SPEC)
 
 
 def _orgnr_arg(arguments: dict[str, Any]) -> str:
@@ -310,6 +337,7 @@ async def run_company_tool_loop(
     with_search: bool = False,
     allowed_tools: frozenset[str] | None = None,
     research_tool_handler: ResearchToolHandler | None = None,
+    consult_tool_handler: ConsultToolHandler | None = None,
     actor_tool_handler: ActorToolHandler | None = None,
 ) -> tuple[list[dict[str, Any]], list[DdCandidateCompany]]:
     """Run search/lookup tool rounds. Returns the working transcript and parsed hits."""
@@ -326,9 +354,9 @@ async def run_company_tool_loop(
             tools = [*tools, *search_tool_specs()]
         if research_tool_handler is not None:
             tools = [*tools, _RESEARCH_TOOL_SPEC]
+        if consult_tool_handler is not None:
+            tools = [*tools, _CONSULT_TOOL_SPEC]
         if actor_tool_handler is not None:
-            from app.services.actor_profiles import actor_tool_specs
-
             tools.extend(actor_tool_specs())
         if allowed_tools is not None:
             tools = filter_openai_tools(tools, allowed_tools)
@@ -377,6 +405,11 @@ async def run_company_tool_loop(
                     ):
                         tool_text = await research_tool_handler(arguments)
                         parsed = []
+                    elif (
+                        allowed and name == CONSULT_TOOL_NAME and consult_tool_handler is not None
+                    ):
+                        tool_text = await consult_tool_handler(arguments)
+                        parsed = []
                     else:
                         tool_text = f"Unknown tool: {name}"
                         parsed = []
@@ -405,6 +438,7 @@ async def complete_text_with_company_tools(
     *,
     allowed_tools: frozenset[str] | None = None,
     research_tool_handler: ResearchToolHandler | None = None,
+    consult_tool_handler: ConsultToolHandler | None = None,
     actor_tool_handler: ActorToolHandler | None = None,
 ) -> str:
     """Tool loop then a visible assistant reply. Used by DD experts and chats."""
@@ -418,6 +452,7 @@ async def complete_text_with_company_tools(
         with_search=True,
         allowed_tools=allowed_tools,
         research_tool_handler=research_tool_handler,
+        consult_tool_handler=consult_tool_handler,
         actor_tool_handler=actor_tool_handler,
     )
     content = visible_assistant_text(working[-1])
