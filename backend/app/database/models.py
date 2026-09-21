@@ -1935,7 +1935,10 @@ class DomainResearchResultRecord(Base):
     schema_version: Mapped[int] = mapped_column(Integer, nullable=False)
     result: Mapped[dict] = mapped_column(JSON, nullable=False)
     raw_source: Mapped[RawSource] = relationship(lazy="selectin")
-    claims: Mapped[list["ResearchClaim"]] = relationship(lazy="selectin")
+    claims: Mapped[list["ResearchClaim"]] = relationship(
+        lazy="selectin",
+        order_by=lambda: (ResearchClaim.predicate, ResearchClaim.id),
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
