@@ -653,29 +653,40 @@ class LagenNuResearchSource:
         if row is None:
             return None
         raw, stored_source = row
-        created_at = (
-            raw.created_at.replace(tzinfo=UTC) if raw.created_at.tzinfo is None else raw.created_at
-        )
         max_age = settings.research_knowledge_freshness_max_age_seconds
-        same_attempt = False
-        if attempt_id is not None:
-            same_attempt = (
-                await session.execute(
-                    select(EvidenceSetItem.id)
-                    .join(EvidenceSet, EvidenceSetItem.evidence_set_id == EvidenceSet.id)
-                    .where(
-                        EvidenceSet.created_from_attempt_id == attempt_id,
-                        EvidenceSetItem.domain_result_id.in_(
-                            select(DomainResearchResultRecord.id).where(
-                                DomainResearchResultRecord.raw_source_id == raw.id
-                            )
-                        ),
-                    )
-                    .limit(1)
+        uses = (
+            await session.execute(
+                select(
+                    EvidenceSet.created_from_attempt_id,
+                    EvidenceSetItem.retrieved_at,
+                    EvidenceSetItem.provenance,
                 )
-            ).scalar_one_or_none() is not None
+                .join(EvidenceSetItem, EvidenceSetItem.evidence_set_id == EvidenceSet.id)
+                .join(
+                    DomainResearchResultRecord,
+                    EvidenceSetItem.domain_result_id == DomainResearchResultRecord.id,
+                )
+                .where(DomainResearchResultRecord.raw_source_id == raw.id)
+            )
+        ).all()
+        same_attempt = (
+            any(source_attempt == attempt_id for source_attempt, _, _ in uses)
+            if attempt_id
+            else False
+        )
+        provider_fetches = [
+            stamp.replace(tzinfo=UTC) if stamp.tzinfo is None else stamp
+            for _, stamp, provenance in uses
+            if any(
+                isinstance(call, dict) and call.get("tool") == "get_document"
+                for call in provenance.get("mcp_calls", [])
+            )
+        ]
+        latest_fetch = max(provider_fetches, default=None)
         if not same_attempt and (
-            max_age is None or (datetime.now(UTC) - created_at).total_seconds() > max_age
+            max_age is None
+            or latest_fetch is None
+            or (datetime.now(UTC) - latest_fetch).total_seconds() > max_age
         ):
             return None
         logger.info(
@@ -715,9 +726,21 @@ class LagenNuResearchSource:
                 .join(RawSource, DomainResearchResultRecord.raw_source_id == RawSource.id)
                 .join(EvidenceSource, RawSource.source_id == EvidenceSource.id)
                 .join(
+                    EvidenceSetItem,
+                    (EvidenceSetItem.domain_result_id == DomainResearchResultRecord.id)
+                    & (
+                        EvidenceSetItem.research_need_id
+                        == DomainResearchResultRecord.research_need_id
+                    ),
+                )
+                .join(EvidenceSet, EvidenceSetItem.evidence_set_id == EvidenceSet.id)
+                .join(
                     ResearchRuntimeNeed,
-                    DomainResearchResultRecord.research_need_id
-                    == ResearchRuntimeNeed.research_need_id,
+                    (ResearchRuntimeNeed.attempt_id == EvidenceSet.created_from_attempt_id)
+                    & (
+                        ResearchRuntimeNeed.research_need_id
+                        == DomainResearchResultRecord.research_need_id
+                    ),
                 )
                 .where(
                     EvidenceSource.provider == self.provider_id,
