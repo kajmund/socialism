@@ -65,7 +65,7 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 * [Prova bildreaktion i playground](prova-bildreaktion-i-playground.md) — Testa persona-reaktion och SSR på uppladdad bild
 * [Hantera embedding-cache](hantera-embedding-cache.md) — Visa och rensa cachade SSR-ankarembeddings och budskapsbilder
 * [Visa expertminnen](visa-expertminnen.md) — Se, redigera och ta bort vad experterna har sparat i långtidsminnet
-* [Välja LLM-modell](valja-llm-modell.md) — Skapa LLM-konfigurationer, sätt default och koppla dem till prompter
+* [Välja LLM-modell](valja-llm-modell.md) — Skapa LLM-konfigurationer, sätt default och välj default, fast eller Auto per prompt
 * [Följa bakgrundsjobb](folja-bakgrundsjobb.md) — Status för generering, simulering, sourcing, rättsunderlag och rapporter
 
 # Due Diligence (bolag)

@@ -1,7 +1,7 @@
 ---
 type: guide
 title: Välja LLM-modell
-description: Så skapar du LLM-konfigurationer, sätter default och kopplar dem till enskilda prompter.
+description: Så skapar du LLM-konfigurationer, sätter default och väljer default, fast eller Auto per prompt.
 tags: [grunddata, jobb]
 ---
 
@@ -9,7 +9,7 @@ tags: [grunddata, jobb]
 
 Under **Verktyg** → **LLM** skapar du namngivna **LLM-konfigurationer**. Varje konfiguration har samma inställningar som tidigare: modell, temperatur, top P, max tokens och reasoning effort.
 
-**En** konfiguration är **default**. Alla prompter använder den tills du väljer en annan konfiguration på just den prompten under **Verktyg** → **Konfigurationer**.
+**En** konfiguration är **default**. Varje prompt kan använda default, en **fast** konfiguration eller **Auto**. Auto klassificerar vad uppgiften behöver; systemet väljer sedan en konfiguration med rätt roll och capabilities.
 
 **OASIS** (simulering) påverkas inte — den fortsätter använda DeepSeek.
 
@@ -29,7 +29,8 @@ Under **Verktyg** → **LLM** skapar du namngivna **LLM-konfigurationer**. Varje
    - **Reasoning effort**:
      - DeepSeek: `none` / `low` / `high` / `max` (`none` stänger av thinking)
      - Cerebras GPT OSS och Qwen: `low` / `medium` / `high`
-6. Klicka **Spara konfiguration**.
+6. Sätt **Auto-roll** (`Snabb` / `Balanserad` / `Djup`), capabilities och om konfigurationen får användas av Auto. Vision kan bara vara på om modellprofilen stödjer bilder.
+7. Klicka **Spara konfiguration**.
 
 Den första konfigurationen blir automatiskt default. För en senare konfiguration: öppna den och klicka **Sätt som default**. Default kan inte tas bort — byt default först.
 
@@ -41,10 +42,10 @@ Om API-nyckel saknas för leverantören visas ett fel och du kan varken spara el
 
 1. Öppna **Verktyg** → **Konfigurationer** och redigera en konfiguration.
 2. Under **Innehåll & ton** väljer du ett promptfält.
-3. I **LLM-konfiguration** väljer du default eller en namngiven konfiguration.
+3. I **LLM-konfiguration** väljer du **Standard (default)**, **Auto** eller en namngiven konfiguration.
 4. Valet sparas direkt och gäller **alla kunder** — inte bara den konfiguration du redigerar.
 
-Nya och befintliga prompter använder default tills du byter.
+Nya och befintliga prompter använder default tills du byter. Auto faller tillbaka till default om klassificeringen misslyckas, är osäker eller inte matchar någon konfiguration.
 
 ## Bild i personachatt
 

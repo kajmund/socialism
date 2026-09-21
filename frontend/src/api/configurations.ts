@@ -36,6 +36,7 @@ export type PromptField = {
   label: string
   hint: string
   default: string
+  llm_selection_mode?: "default" | "fixed" | "auto"
   llm_configuration_id?: number | null
 }
 
