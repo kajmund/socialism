@@ -134,7 +134,12 @@ def test_renderer_gives_expert_verified_legal_analysis_without_raw_document():
         item_id="law",
         ordinal=0,
         source_type="swedish_law",
-        provenance={"legal_result": result.model_dump(mode="json")},
+    )
+    item.domain_result = SimpleNamespace(
+        domain="legal",
+        result=result.model_dump(mode="json", exclude={"raw_text"}),
+        raw_source=SimpleNamespace(raw_text=result.raw_text),
+        claims=[],
     )
     body = render_frozen_evidence([item]).prompt_body
     assert "Legal relation: limits (high)" in body

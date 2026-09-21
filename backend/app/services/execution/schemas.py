@@ -247,6 +247,8 @@ class EvidenceSetItemOut(BaseModel):
     research_need_id: str | None
     research_need_ids: list[str]
     passage_id: str | None
+    domain_result_id: str | None = None
+    raw_source_id: str | None = None
     original_evidence_id: str | None
     ordinal: int
     source_type: str
@@ -272,6 +274,24 @@ class EvidenceSetOut(BaseModel):
     created_at: datetime
     frozen_at: datetime | None
     items: list[EvidenceSetItemOut]
+
+
+class RawSourceOut(BaseModel):
+    id: str
+    source_id: str
+    content_hash: str
+    raw_text: str
+    truncated: bool
+
+
+class DomainResearchResultOut(BaseModel):
+    id: str
+    raw_source_id: str
+    research_need_id: str
+    domain: str
+    schema_version: int
+    result: dict[str, Any]
+    claims: list[dict[str, Any]]
 
 
 class ResearchProgressEventOut(BaseModel):

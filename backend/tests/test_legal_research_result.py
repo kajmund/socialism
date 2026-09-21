@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from dataclasses import replace
+from datetime import UTC, datetime
 
 import pytest
 from pydantic import ValidationError
@@ -26,6 +26,7 @@ from app.services.research.assessment import (
     group_evidence_for_review,
 )
 from app.services.research.models import ResearchContext, research_evidence
+from app.services.research_domain_results import legal_claims
 
 
 def _result(quote: str = "fordran preskriberas") -> LegalResearchResult:
@@ -56,6 +57,38 @@ def test_legal_analysis_without_verified_citation_is_rejected():
         LegalResearchResult.model_validate(payload)
 
 
+def test_legal_claim_projection_preserves_negative_outcomes_and_citations():
+    from app.services.legal_research_result import CaseLawAnalysis
+
+    uri = "https://lagen.nu/dom/example"
+    result = LegalResearchResult(
+        source=LegalSourceIdentity(kind="case_law", title="Testfall", canonical_uri=uri),
+        relation=LegalQuestionRelation(relation="limits", explanation="Avslag", confidence="high"),
+        case_law=CaseLawAnalysis(
+            legal_issue="36 §",
+            court_reasoning="Ingen jämkning",
+            outcome="Avslag",
+            adjustment_requested=True,
+            adjustment_granted=False,
+            contract_type="insurance",
+            party_context="consumer",
+            decisive_factors=["konsumentens ställning"],
+            citations=[LegalCitation(source_uri=uri, quote="Ingen jämkning")],
+        ),
+        raw_text="Ingen jämkning beslutades.",
+    )
+    claims = legal_claims(result, result_id="result-1", research_need_id="need-1")
+    granted = next(claim for claim in claims if claim.predicate == "legal.adjustment_granted")
+    assert granted.value == {"value": False}
+    assert granted.relation == "limits"
+    assert granted.citations[0]["quote"] == "Ingen jämkning"
+    assert {claim.predicate for claim in claims} >= {
+        "legal.contract_type",
+        "legal.party_context",
+        "legal.decisive_factor",
+    }
+
+
 def test_domain_result_is_preserved_separately_from_excerpt():
     result = _result()
     evidence = research_evidence(
@@ -67,11 +100,8 @@ def test_domain_result_is_preserved_separately_from_excerpt():
     )
     snapshot = snapshot_research_evidence(evidence)
     assert snapshot.excerpt == "Kort passage"
-    assert snapshot.provenance["legal_result"]["raw_text"] == result.raw_text
-    assert (
-        snapshot.provenance["legal_result"]["statute"]["citations"][0]["quote"]
-        == "fordran preskriberas"
-    )
+    assert "legal_result" not in snapshot.provenance
+    assert snapshot.legal_result == result
 
 
 def test_assessment_and_completeness_read_structured_legal_result():

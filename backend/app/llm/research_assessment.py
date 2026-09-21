@@ -106,6 +106,7 @@ def _evidence_payload(group: EvidenceReviewGroup) -> dict[str, object]:
             item.legal_result.model_dump(mode="json", exclude={"raw_text"})
             if item.legal_result else None
         ),
+        "claims": list(item.claims),
         "retrieved_at": item.retrieved_at.isoformat(),
         "content_hash": item.content_hash,
         **(
