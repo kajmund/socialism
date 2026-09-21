@@ -6,6 +6,13 @@ from datetime import UTC, datetime
 from types import SimpleNamespace
 
 from app.services.execution.evidence_render import render_frozen_evidence
+from app.services.legal_research_result import (
+    LegalCitation,
+    LegalQuestionRelation,
+    LegalResearchResult,
+    LegalSourceIdentity,
+    StatuteAnalysis,
+)
 
 
 def _item(
@@ -108,3 +115,28 @@ def test_renderer_omits_provenance_and_useless_urls():
     assert "Provider: supabase" in rendered.prompt_body
     assert "Locator: p. 14" in rendered.prompt_body
     assert 'Excerpt: "skattesats 32%"' in rendered.prompt_body
+
+
+def test_renderer_gives_expert_verified_legal_analysis_without_raw_document():
+    uri = "https://lagen.nu/1981:130#P2"
+    result = LegalResearchResult(
+        source=LegalSourceIdentity(kind="statute", title="Preskriptionslag", canonical_uri=uri),
+        relation=LegalQuestionRelation(
+            relation="limits", explanation="Undantaget begränsar regeln.", confidence="high"
+        ),
+        statute=StatuteAnalysis(
+            operative_rule="Fordran preskriberas efter viss tid.",
+            citations=[LegalCitation(source_uri=uri, quote="fordran preskriberas")],
+        ),
+        raw_text="En fordran preskriberas tio år efter tillkomsten.",
+    )
+    item = _item(
+        item_id="law",
+        ordinal=0,
+        source_type="swedish_law",
+        provenance={"legal_result": result.model_dump(mode="json")},
+    )
+    body = render_frozen_evidence([item]).prompt_body
+    assert "Legal relation: limits (high)" in body
+    assert 'Verified quote: "fordran preskriberas"' in body
+    assert result.raw_text not in body

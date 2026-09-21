@@ -45,6 +45,13 @@ from app.services.execution import (
     start_attempt,
 )
 from app.services.execution.snapshots import snapshot_research_evidence
+from app.services.legal_research_result import (
+    LegalCitation,
+    LegalQuestionRelation,
+    LegalResearchResult,
+    LegalSourceIdentity,
+    StatuteAnalysis,
+)
 from app.services.research.models import research_evidence
 
 EXECUTION_ROOT = Path(__file__).resolve().parents[1] / "app" / "services" / "execution"
@@ -596,6 +603,48 @@ async def test_add_evidence_items_skips_existing_original_evidence_id(session):
     items = await list_evidence_items(session, evidence_set.id)
     assert len(items) == 1
     assert items[0].original_evidence_id == first.evidence_id
+
+
+@pytest.mark.asyncio
+async def test_legal_analysis_is_stored_separately_for_each_research_need(session):
+    customer = await _customer(session, "legal-dedupe-co")
+    run = await create_run(session, customer_id=customer.id, module="dd", title="R")
+    evidence_set = await create_evidence_set(session, run_id=run.id)
+    uri = "https://lagen.nu/1981:130#P2"
+    source = LegalSourceIdentity(kind="statute", title="Preskriptionslag", canonical_uri=uri)
+    raw_text = "En fordran preskriberas tio år efter tillkomsten."
+
+    def item(need_id: str, relation: str):
+        result = LegalResearchResult(
+            source=source,
+            relation=LegalQuestionRelation(
+                relation=relation, explanation=f"Relation till {need_id}", confidence="high"
+            ),
+            statute=StatuteAnalysis(
+                operative_rule="Fordran preskriberas efter tio år.",
+                citations=[LegalCitation(source_uri=uri, quote="fordran preskriberas")],
+            ),
+            raw_text=raw_text,
+        )
+        return research_evidence(
+            research_need_id=need_id, source_type="swedish_law", status="found",
+            title=source.title, excerpt="En fordran preskriberas tio år efter tillkomsten.",
+            locator="P2", source_id=uri, source_url=uri, provider="lagen_nu",
+            legal_result=result,
+        )
+
+    await add_evidence_items(
+        session, evidence_set_id=evidence_set.id, items=[item("need-1", "supports")]
+    )
+    await add_evidence_items(
+        session, evidence_set_id=evidence_set.id, items=[item("need-2", "limits")]
+    )
+    stored = await list_evidence_items(session, evidence_set.id)
+
+    assert len(stored) == 2
+    assert stored[0].passage_id != stored[1].passage_id
+    assert {row.research_need_id: row.provenance["legal_result"]["relation"]["relation"]
+            for row in stored} == {"need-1": "supports", "need-2": "limits"}
 
 
 def test_execution_package_has_no_panel_word_or_api_imports():

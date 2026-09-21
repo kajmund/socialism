@@ -88,7 +88,11 @@ def _evidence_payload(group: EvidenceReviewGroup) -> dict[str, object]:
         "source_url": item.source_url,
         "provider": item.provider,
         "score": item.score,
-        "provenance": dict(item.provenance),
+        "provenance": {k: v for k, v in item.provenance.items() if k != "legal_result"},
+        "legal_result": (
+            item.legal_result.model_dump(mode="json", exclude={"raw_text"})
+            if item.legal_result else None
+        ),
         "retrieved_at": item.retrieved_at.isoformat(),
         "content_hash": item.content_hash,
     }

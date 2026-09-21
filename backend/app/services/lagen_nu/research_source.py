@@ -7,6 +7,11 @@ import re
 from dataclasses import dataclass, replace
 from typing import Literal
 
+from app.llm.legal_research import (
+    LegalDomainExtractionError,
+    LegalInterpreter,
+    LlmLegalInterpreter,
+)
 from app.services.lagen_nu.display import (
     WINDOW_CHARS,
     display_source_title,
@@ -32,6 +37,7 @@ from app.services.lagen_nu.mcp_client import (
     OfficialLagenNuMcpNotFoundError,
 )
 from app.services.lagen_nu.models import LagenNuDocument, LagenNuSearchHit
+from app.services.legal_research_result import LegalSourceIdentity
 from app.services.lagen_nu.registration import (
     LAGEN_NU_EVIDENCE_NATURES,
     LAGEN_NU_JURISDICTION,
@@ -597,6 +603,7 @@ class LagenNuResearchSource:
         source_type: ResearchSourceType,
         client: LagenNuMcpClient | None = None,
         selector: LagenNuPassageSelector | None = None,
+        interpreter: LegalInterpreter | None = None,
     ) -> None:
         if source_type not in LAGEN_NU_EVIDENCE_NATURES:
             raise ValueError(
@@ -606,6 +613,7 @@ class LagenNuResearchSource:
         self.provider_id = LAGEN_NU_PROVIDER_ID
         self._client = client
         self._selector = selector
+        self._interpreter = interpreter or LlmLegalInterpreter()
         self._owned_client: OfficialLagenNuMcpClient | None = None
 
     def _require_selector(self) -> LagenNuPassageSelector:
@@ -923,6 +931,28 @@ class LagenNuResearchSource:
                     uri,
                     need.id,
                 )
+            except LegalDomainExtractionError:
+                logger.exception(
+                    "lagen.nu legal analysis failed for %s (%s)",
+                    uri,
+                    need.id,
+                )
+                found.append(
+                    research_evidence(
+                        research_need_id=need.id,
+                        source_type=self.source_type,
+                        status="error",
+                        title=document.title or candidate.hit.title,
+                        source_id=uri,
+                        source_url=uri,
+                        provider=self.provider_id,
+                        metadata=self._provenance(
+                            budget,
+                            reason="legal_domain_extraction_failed",
+                            error_type="LegalDomainExtractionError",
+                        ),
+                    )
+                )
         return found
 
     async def _from_document(
@@ -939,13 +969,6 @@ class LagenNuResearchSource:
         raw_document = document.text.strip()
         hit_excerpt = _excerpt_from_hit(hit, terms) or ""
         passage_source = raw_document or hit_excerpt
-        if self.source_type == "swedish_case_law":
-            reasons = _judicial_reasons(raw_document)
-            if reasons and (
-                _excerpt_addresses_question(reasons, need.question)
-                or "jämk" in reasons.casefold()
-            ):
-                passage_source = reasons
         passage = selector_passage_text(
             passage_source,
             needles=_passage_needles(need.question, terms),
@@ -1021,6 +1044,20 @@ class LagenNuResearchSource:
             identifier=hit.identifier,
             title=document.title or hit.title,
         )
+        kind = {
+            "swedish_case_law": "case_law",
+            "swedish_preparatory_works": "preparatory_work",
+            "swedish_law": "statute",
+        }[self.source_type]
+        legal_result = await self._interpreter.interpret(
+            source=LegalSourceIdentity(
+                kind=kind, title=title, canonical_uri=source_uri,
+                identifier=hit.identifier,
+                publisher_url=document.publisher_source_url,
+            ),
+            question=need.question, raw_text=raw_document,
+            truncated=bool(document.truncated), context=context,
+        )
         return research_evidence(
             research_need_id=need.id,
             source_type=self.source_type,
@@ -1032,6 +1069,7 @@ class LagenNuResearchSource:
             source_url=source_uri,
             provider=self.provider_id,
             score=hit.score,
+            legal_result=legal_result,
             metadata=self._provenance(
                 budget,
                 canonical_uri=source_uri,
