@@ -64,7 +64,7 @@ class StatuteAnalysis(BaseModel):
 
 
 class LegalQuestionRelation(BaseModel):
-    relation: Literal["supports", "limits", "contradicts", "contextual", "unclear"]
+    relation: Literal["supports", "limits", "contradicts", "contextual", "unclear", "irrelevant"]
     explanation: str
     confidence: Literal["high", "medium", "low"]
     unresolved_questions: list[str] = Field(default_factory=list)

@@ -3159,6 +3159,10 @@ export const sv = {
       openSource: "Öppna källa",
       assessment: "Bedömning",
       completeness: "Fullständighet",
+      supportingEvidence: "Stödjande evidens",
+      missingOrWeak: "Saknat eller svagt stöd",
+      contradictions: "Motstridigheter",
+      furtherInformation: "Ytterligare information",
       reason: "Orsak",
       status: {
         answered: "Besvarad",

@@ -331,6 +331,9 @@ class ResearchExpertOut(BaseModel):
 class ResearchSourceOut(BaseModel):
     id: str
     passage_id: str | None
+    domain_result_id: str | None = None
+    raw_source_id: str | None = None
+    analysis: str | None = None
     research_need_ids: list[str]
     status: str
     title: str | None
@@ -357,10 +360,8 @@ class ResearchQuestionOverviewOut(BaseModel):
     raised_by: list[ResearchExpertOut]
     assigned_to: ResearchExpertOut | None
     sources: list[ResearchSourceOut]
-    assessment_result: str | None
-    assessment_rationale: str | None
-    completeness_result: str | None
-    completeness_rationale: str | None
+    source_count: int
+    need_assessment: ResearchNeedAssessmentOut | None = None
 
 
 class ResearchOverviewCountsOut(BaseModel):
