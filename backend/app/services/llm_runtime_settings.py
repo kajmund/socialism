@@ -752,6 +752,15 @@ async def set_default_configuration(
     await _clear_other_defaults(session, keep_id=row.id)
     row.is_default = True
     row.updated_at = utcnow()
+    assigned = (
+        await session.execute(
+            select(PromptField).where(PromptField.llm_configuration_id == row.id)
+        )
+    ).scalars().all()
+    now = utcnow()
+    for field in assigned:
+        field.llm_configuration_id = None
+        field.updated_at = now
     await _sync_singleton_from_configuration(session, row)
     await session.commit()
     await session.refresh(row)
