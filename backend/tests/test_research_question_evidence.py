@@ -203,10 +203,7 @@ def test_v1_reuse_gate_never_skips_providers():
 def test_freshness_unknown_when_max_age_is_absent():
     now = datetime(2026, 9, 15, 12, 0, tzinfo=UTC)
     observed = now - timedelta(seconds=10)
-    assert (
-        classify_freshness(observed_at=observed, retrieved_at=observed, now=now)
-        == "unknown"
-    )
+    assert classify_freshness(observed_at=observed, retrieved_at=observed, now=now) == "unknown"
     assert (
         classify_freshness(
             observed_at=observed,
@@ -260,9 +257,7 @@ async def test_later_attempt_reuses_candidates_without_duplicate_edges(db, monke
     )
 
     identity = identity_from_text("Vad gäller skattesatsen?")
-    tenant_q = await graph.match_question(
-        session, identity, tenant_question_scope(customer.id)
-    )
+    tenant_q = await graph.match_question(session, identity, tenant_question_scope(customer.id))
     assert tenant_q is not None
     links = await graph.lookup_answers(session, question=tenant_q, limit=10)
     first_items = await list_evidence_items(session, first_result.evidence_set_id)
@@ -273,9 +268,7 @@ async def test_later_attempt_reuses_candidates_without_duplicate_edges(db, monke
     assert len(graph.questions()) == 1
     assert len(links) == 1
     assert first_items[0].locator == "p1"
-    assert {item.provenance["reuse"]["origin"] for item in second_items} == {
-        "fresh_retrieval"
-    }
+    assert {item.provenance["reuse"]["origin"] for item in second_items} == {"fresh_retrieval"}
     assert second_items[0].locator == first_items[0].locator
     assert second_items[0].provenance["version"] == "3"
     assert second_items[0].provenance["document_id"] == "doc-brief"
@@ -288,9 +281,7 @@ async def test_stale_reused_evidence_still_calls_providers(db, monkeypatch):
     graph = InMemoryQuestionEvidenceGraph()
     identity = identity_from_text("Vad gäller skattesatsen?")
     customer, _run, attempt = await _created_attempt(session, slug="stale-co")
-    question = await graph.upsert_question(
-        session, identity, tenant_question_scope(customer.id)
-    )
+    question = await graph.upsert_question(session, identity, tenant_question_scope(customer.id))
     await graph.upsert_answer(
         session,
         QuestionEvidenceLink(
@@ -397,9 +388,9 @@ async def test_public_evidence_is_reusable_across_customers(db, monkeypatch):
     assert public_q.scope.visibility == "public"
     assert source_b.calls == 1
     excerpts = {item.excerpt for item in items}
-    assert excerpts == {"should not run"}
+    assert excerpts == {"SFS text", "should not run"}
     origins = {item.provenance["reuse"]["origin"] for item in items}
-    assert origins == {"fresh_retrieval"}
+    assert origins == {"fresh_retrieval", "persistent_knowledge"}
 
 
 @pytest.mark.asyncio
@@ -638,9 +629,7 @@ async def test_case_knowledge_does_not_reuse_across_cases(db, monkeypatch):
     monkeypatch.setattr(settings, "research_knowledge_freshness_max_age_seconds", 86_400)
     session, _factory = db
     graph = InMemoryQuestionEvidenceGraph()
-    customer, _run, first = await _created_attempt(
-        session, slug="case-scope", case_id="case-a"
-    )
+    customer, _run, first = await _created_attempt(session, slug="case-scope", case_id="case-a")
     await execute_attempt_research(
         session,
         attempt_id=first.id,
@@ -729,9 +718,7 @@ class _InsufficientAssessor:
 
 
 @pytest.mark.asyncio
-async def test_insufficient_assessor_does_not_let_fresh_reuse_skip_providers(
-    db, monkeypatch
-):
+async def test_insufficient_assessor_does_not_let_fresh_reuse_skip_providers(db, monkeypatch):
     monkeypatch.setattr(settings, "research_knowledge_freshness_max_age_seconds", 86_400)
     session, _factory = db
     graph = InMemoryQuestionEvidenceGraph()
@@ -763,7 +750,7 @@ async def test_insufficient_assessor_does_not_let_fresh_reuse_skip_providers(
     excerpts = {item.excerpt for item in items}
     assert live.calls == 1
     assert "live retrieval" in excerpts
-    assert "thin cache" not in excerpts
+    assert "thin cache" in excerpts
 
 
 @pytest.mark.asyncio

@@ -3087,6 +3087,8 @@ export const sv = {
       sourceType: "Källtyp",
       provider: "Provider",
       sourceLink: "Öppna källa",
+      sourceSummary: "Använd i {needs} researchfrågor · {analyses} analyser · {errors} analysfel",
+      sourceDetails: "Visa frågespecifika analyser och fel",
       provenance: "Provenance",
       hideProvenance: "Dölj provenance",
       unresolved: "Okänd referens",

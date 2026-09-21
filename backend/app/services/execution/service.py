@@ -346,6 +346,25 @@ async def add_evidence_items(
     for snapshot, ordinal in zip(snapshots, ordinals, strict=True):
         provenance = require_json_object(snapshot.provenance, field="provenance")
         provenance.pop("legal_result", None)
+        if snapshot.status == "error":
+            existing_errors = (
+                await session.scalars(
+                    select(EvidenceSetItem).where(
+                        EvidenceSetItem.evidence_set_id == evidence_set.id,
+                        EvidenceSetItem.research_need_id == snapshot.research_need_id,
+                        EvidenceSetItem.status == "error",
+                        EvidenceSetItem.source_type == snapshot.source_type,
+                        EvidenceSetItem.provider == snapshot.provider,
+                        EvidenceSetItem.source_id == snapshot.source_id,
+                    )
+                )
+            ).all()
+            failure = (provenance.get("reason"), provenance.get("error_type"))
+            if any(
+                (item.provenance.get("reason"), item.provenance.get("error_type")) == failure
+                for item in existing_errors
+            ):
+                continue
         content_hash = snapshot.content_hash or compute_content_hash(
             excerpt=snapshot.excerpt, provenance=provenance
         )
@@ -382,7 +401,18 @@ async def add_evidence_items(
             if snapshot.legal_result is not None:
                 legal = snapshot.legal_result
                 raw_id = raw_source_id(source_key, legal.raw_text)
-                domain_id = domain_result_id(raw_id, snapshot.research_need_id or "", legal)
+                reused_domain_id = provenance.get("reused_domain_result_id")
+                reused_domain = (
+                    await session.get(DomainResearchResultRecord, reused_domain_id)
+                    if isinstance(reused_domain_id, str)
+                    else None
+                )
+                reuse_valid = reused_domain is not None and reused_domain.raw_source_id == raw_id
+                domain_id = (
+                    reused_domain.id
+                    if reuse_valid
+                    else domain_result_id(raw_id, snapshot.research_need_id or "", legal)
+                )
                 if await session.get(RawSource, raw_id) is None:
                     session.add(
                         RawSource(
@@ -404,8 +434,12 @@ async def add_evidence_items(
                             result=legal.model_dump(mode="json", exclude={"raw_text"}),
                         )
                     )
-                for claim in legal_claims(
-                    legal, result_id=domain_id, research_need_id=snapshot.research_need_id or ""
+                for claim in (
+                    []
+                    if reuse_valid
+                    else legal_claims(
+                        legal, result_id=domain_id, research_need_id=snapshot.research_need_id or ""
+                    )
                 ):
                     if await session.get(ResearchClaim, claim.id) is None:
                         session.add(
