@@ -57,10 +57,12 @@ class AssessableEvidence:
     quality: EvidenceQualityDraft | None = None
     research_need_ids: tuple[str, ...] = ()
     legal_result: LegalResearchResult | None = None
+    claims: tuple[dict[str, object], ...] = ()
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "provenance", dict(self.provenance))
         object.__setattr__(self, "research_need_ids", tuple(self.research_need_ids))
+        object.__setattr__(self, "claims", tuple(self.claims))
 
 
 @dataclass(frozen=True)

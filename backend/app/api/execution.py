@@ -48,6 +48,7 @@ from app.services.execution.schemas import (
     AttemptResearchOut,
     AttemptResearchRequest,
     AttemptResultOut,
+    DomainResearchResultOut,
     EvidenceQualityFlagOut,
     EvidenceQualityOut,
     EvidenceSetItemOut,
@@ -58,6 +59,7 @@ from app.services.execution.schemas import (
     ExecutionRunCreate,
     ExecutionRunOut,
     MissingQuestionOut,
+    RawSourceOut,
     ResearchAssessmentOut,
     ResearchCompletenessOut,
     ResearchExpertOut,
@@ -296,6 +298,8 @@ def _item_out(
         research_need_ids=[link.research_need_id for link in item.need_links]
         or ([item.research_need_id] if item.research_need_id else []),
         passage_id=item.passage_id,
+        domain_result_id=item.domain_result_id,
+        raw_source_id=item.domain_result.raw_source_id if item.domain_result else None,
         original_evidence_id=item.original_evidence_id,
         ordinal=item.ordinal,
         source_type=item.source_type,
@@ -946,9 +950,7 @@ async def get_attempt_research_overview(
                     ResearchSourceOut(
                         id=item.id,
                         passage_id=item.passage_id,
-                        research_need_ids=[
-                            link.research_need_id for link in item.need_links
-                        ]
+                        research_need_ids=[link.research_need_id for link in item.need_links]
                         or ([item.research_need_id] if item.research_need_id else []),
                         status=item.status,
                         title=item.title,
@@ -1059,6 +1061,73 @@ async def get_attempt_evidence(
     evidence_set, items = attached
     quality_rows = await list_evidence_quality(session, evidence_set.id)
     return _evidence_set_out(evidence_set, items, quality_rows)
+
+
+async def _require_domain_item(
+    session: AsyncSession, user: UserAccount, attempt_id: str, item_id: str
+) -> EvidenceSetItem:
+    attempt, run = await _require_attempt(session, user, attempt_id)
+    attached = await _attached_evidence(session, attempt, run)
+    if attached is None:
+        raise HTTPException(status_code=404, detail="EvidenceSet not found")
+    _evidence_set, items = attached
+    item = next((row for row in items if row.id == item_id), None)
+    if item is None or item.domain_result is None:
+        raise HTTPException(status_code=404, detail="Domain result not found")
+    return item
+
+
+@router.get(
+    "/attempts/{attempt_id}/evidence/items/{item_id}/raw-source", response_model=RawSourceOut
+)
+async def get_evidence_raw_source(
+    attempt_id: str,
+    item_id: str,
+    session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
+) -> RawSourceOut:
+    item = await _require_domain_item(session, user, attempt_id, item_id)
+    raw = item.domain_result.raw_source
+    return RawSourceOut(
+        id=raw.id,
+        source_id=raw.source_id,
+        content_hash=raw.content_hash,
+        raw_text=raw.raw_text,
+        truncated=raw.truncated,
+    )
+
+
+@router.get(
+    "/attempts/{attempt_id}/evidence/items/{item_id}/domain-result",
+    response_model=DomainResearchResultOut,
+)
+async def get_evidence_domain_result(
+    attempt_id: str,
+    item_id: str,
+    session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
+) -> DomainResearchResultOut:
+    item = await _require_domain_item(session, user, attempt_id, item_id)
+    record = item.domain_result
+    return DomainResearchResultOut(
+        id=record.id,
+        raw_source_id=record.raw_source_id,
+        research_need_id=record.research_need_id,
+        domain=record.domain,
+        schema_version=record.schema_version,
+        result=dict(record.result),
+        claims=[
+            {
+                "id": claim.id,
+                "research_need_id": claim.research_need_id,
+                "predicate": claim.predicate,
+                "value": claim.value,
+                "relation": claim.relation,
+                "citations": claim.citations,
+            }
+            for claim in record.claims
+        ],
+    )
 
 
 @router.get(

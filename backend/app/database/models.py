@@ -1904,6 +1904,65 @@ class EvidencePassage(Base):
     source: Mapped[EvidenceSource] = relationship(back_populates="passages")
 
 
+class RawSource(Base):
+    """Immutable full provider document; versions are addressed by content hash."""
+
+    __tablename__ = "raw_sources"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    source_id: Mapped[str] = mapped_column(
+        ForeignKey("evidence_sources.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    raw_text: Mapped[str] = mapped_column(Text, nullable=False)
+    truncated: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class DomainResearchResultRecord(Base):
+    """Immutable interpretation of a RawSource for one research question."""
+
+    __tablename__ = "domain_research_results"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    raw_source_id: Mapped[str] = mapped_column(
+        ForeignKey("raw_sources.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    research_need_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    domain: Mapped[str] = mapped_column(String(64), nullable=False)
+    schema_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    result: Mapped[dict] = mapped_column(JSON, nullable=False)
+    raw_source: Mapped[RawSource] = relationship(lazy="selectin")
+    claims: Mapped[list["ResearchClaim"]] = relationship(
+        lazy="selectin",
+        order_by=lambda: (ResearchClaim.predicate, ResearchClaim.id),
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class ResearchClaim(Base):
+    """Grounded, machine-readable assertion extracted from a domain result."""
+
+    __tablename__ = "research_claims"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    domain_result_id: Mapped[str] = mapped_column(
+        ForeignKey("domain_research_results.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    research_need_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    predicate: Mapped[str] = mapped_column(String(128), nullable=False)
+    value: Mapped[dict] = mapped_column(JSON, nullable=False)
+    relation: Mapped[str] = mapped_column(String(32), nullable=False)
+    citations: Mapped[list] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 class EvidenceSetItemNeed(Base):
     """Many-to-many lineage from one stored passage to runtime needs."""
 
@@ -1944,6 +2003,10 @@ class EvidenceSetItem(Base):
         nullable=True,
         index=True,
     )
+    domain_result_id: Mapped[str | None] = mapped_column(
+        ForeignKey("domain_research_results.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    domain_result: Mapped[DomainResearchResultRecord | None] = relationship(lazy="selectin")
     original_evidence_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     ordinal: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     source_type: Mapped[str] = mapped_column(String(64), nullable=False)

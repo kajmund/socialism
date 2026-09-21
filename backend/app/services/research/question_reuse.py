@@ -14,6 +14,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.database.models import DomainResearchResultRecord
+from app.services.legal_research_result import LegalResearchResult
 from app.services.research.evidence_identity import (
     evidence_passage_id,
     evidence_source_id,
@@ -44,6 +46,7 @@ from app.services.research.question_graph import (
     QuestionEvidenceLink,
     ReuseOrigin,
 )
+from app.services.research_domain_results import domain_result_id, raw_source_id
 
 REUSE_ORIGIN_PERSISTENT: ReuseOrigin = "persistent_knowledge"
 REUSE_ORIGIN_FRESH: ReuseOrigin = "fresh_retrieval"
@@ -123,9 +126,7 @@ def merge_reused_with_provider(
         for ref in [_item_evidence_ref(item)]
         if ref is not None
     }
-    kept = [
-        item for item in reused if _item_evidence_ref(item) not in found_refs
-    ]
+    kept = [item for item in reused if _item_evidence_ref(item) not in found_refs]
     return [*kept, *annotated]
 
 
@@ -149,11 +150,10 @@ def link_to_research_evidence(
     *,
     freshness: Freshness,
     question_id: str,
+    legal_result: LegalResearchResult | None = None,
 ) -> ResearchEvidence:
-    from app.services.legal_research_result import LegalResearchResult
-
     metadata = dict(link.provenance)
-    raw_legal = metadata.pop("legal_result", None)
+    metadata.pop("domain_result_id", None)
     metadata["source_attempt_id"] = link.source_attempt_id
     metadata["reuse"] = reuse_lineage(
         origin=REUSE_ORIGIN_PERSISTENT,
@@ -174,7 +174,7 @@ def link_to_research_evidence(
         provider=link.provider,
         retrieved_at=retrieved,
         metadata=metadata,
-        legal_result=LegalResearchResult.model_validate(raw_legal) if raw_legal else None,
+        legal_result=legal_result,
     )
 
 
@@ -253,9 +253,7 @@ async def lookup_reusable_evidence(
     """Bounded one-hop lookup. Scope isolation is mandatory."""
     customer_id = context.scope.customer_id
     if customer_id is None:
-        raise QuestionEvidenceGraphError(
-            "Question→Evidence lookup requires customer_id"
-        )
+        raise QuestionEvidenceGraphError("Question→Evidence lookup requires customer_id")
     identity = identity_from_text(need.question)
     bound = _lookup_limit(limit)
     age = (
@@ -297,12 +295,27 @@ async def lookup_reusable_evidence(
                 now=now,
                 max_age_seconds=age,
             )
+            domain_record = None
+            domain_id = link.provenance.get("domain_result_id")
+            if isinstance(domain_id, str):
+                domain_record = await session.get(DomainResearchResultRecord, domain_id)
+            legal_result = (
+                LegalResearchResult.model_validate(
+                    {
+                        **domain_record.result,
+                        "raw_text": domain_record.raw_source.raw_text,
+                    }
+                )
+                if domain_record is not None and domain_record.domain == "legal"
+                else None
+            )
             reused.append(
                 link_to_research_evidence(
                     need,
                     link,
                     freshness=freshness,
                     question_id=question.id,
+                    legal_result=legal_result,
                 )
             )
     return reused
@@ -343,9 +356,7 @@ def _provenance_text(provenance: dict[str, object], key: str) -> str | None:
     return None
 
 
-def _scope_provenance(
-    context: ResearchContext, source_type: str | None
-) -> dict[str, object]:
+def _scope_provenance(context: ResearchContext, source_type: str | None) -> dict[str, object]:
     payload: dict[str, object] = {}
     if source_type in CASE_SCOPED_SOURCE_TYPES and context.scope.case_id is not None:
         payload[SCOPE_CASE_KEY] = context.scope.case_id
@@ -427,7 +438,10 @@ def evidence_to_link(
     version_text = version if isinstance(version, str) else None
     provenance = dict(evidence.metadata)
     if evidence.legal_result is not None:
-        provenance["legal_result"] = evidence.legal_result.model_dump(mode="json")
+        raw_id = raw_source_id(source_key, evidence.legal_result.raw_text)
+        provenance["domain_result_id"] = domain_result_id(
+            raw_id, evidence.research_need_id, evidence.legal_result
+        )
     if context is not None:
         provenance.update(_scope_provenance(context, evidence.source_type))
     return QuestionEvidenceLink(
@@ -464,9 +478,7 @@ async def upsert_persisted_evidence(
     """Idempotent Question + ANSWERED_BY upsert after EvidenceSet persist."""
     customer_id = context.scope.customer_id
     if customer_id is None:
-        raise QuestionEvidenceGraphError(
-            "Question→Evidence upsert requires customer_id"
-        )
+        raise QuestionEvidenceGraphError("Question→Evidence upsert requires customer_id")
     identity = identity_from_text(need.question)
     tenant_question = await graph.upsert_question(
         session, identity, tenant_question_scope(customer_id)
@@ -509,11 +521,7 @@ async def upsert_persisted_evidence(
                     await graph.upsert_answer(session, public_link)
                 question_id = public_question.id
         if item.status == "found" and not _has_reuse_lineage(item):
-            annotated.append(
-                attach_fresh_lineage(
-                    item, question_id=question_id, evidence_ref=ref
-                )
-            )
+            annotated.append(attach_fresh_lineage(item, question_id=question_id, evidence_ref=ref))
         else:
             annotated.append(item)
     return annotated
