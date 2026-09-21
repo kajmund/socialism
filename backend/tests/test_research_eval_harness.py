@@ -21,6 +21,14 @@ def test_golden_36_avtl_passes_all_stages():
         ("plan_coverage", lambda a: a["plan_topics"].remove("consumer_factors")),
         ("source_relevance", lambda a: a["sources"]["prop_1971_20"].update(selected=True)),
         (
+            "source_reuse",
+            lambda a: a["source_reuse"]["synthetic_positive_case"].update(document_fetches=3),
+        ),
+        (
+            "source_dedup",
+            lambda a: a["source_groups"]["synthetic_positive_case"].update(group_count=3),
+        ),
+        (
             "domain_extraction",
             lambda a: a["domain_results"]["synthetic_positive_case"]["fields"].update(
                 adjustment_granted=False

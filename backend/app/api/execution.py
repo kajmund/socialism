@@ -53,6 +53,7 @@ from app.services.execution.schemas import (
     EvidenceQualityOut,
     EvidenceSetItemOut,
     EvidenceSetOut,
+    EvidenceSourceGroupOut,
     EvidenceSummaryOut,
     ExecutionAttemptCreate,
     ExecutionAttemptOut,
@@ -104,6 +105,7 @@ from app.services.research.completeness import (
     missing_question_from_json,
 )
 from app.services.research.composition import ResearchCompositionError
+from app.services.research.evidence_identity import canonical_source_identity
 from app.services.research.execution import ResearchExecutionError
 from app.services.research.models import InvalidResearchPlanError
 from app.services.research.planner import (
@@ -326,6 +328,45 @@ def _evidence_set_out(
     latest: dict[str, ResearchEvidenceQuality] = {}
     for quality in quality_rows or []:
         latest[quality.evidence_set_item_id] = quality
+    groups: dict[str, dict] = {}
+    for item in items:
+        identity = canonical_source_identity(item.source_id, item.source_url)
+        key = f"{item.provider or ''}:{identity or item.id}"
+        group = groups.setdefault(
+            key,
+            {
+                "source_key": key,
+                "title": item.title,
+                "source_url": item.source_url,
+                "item_ids": [],
+                "research_need_ids": set(),
+                "domain_result_ids": set(),
+                "raw_source_ids": set(),
+                "successful_analyses": 0,
+                "error_count": 0,
+                "claim_count": 0,
+            },
+        )
+        group["item_ids"].append(item.id)
+        group["research_need_ids"].update(link.research_need_id for link in item.need_links)
+        if item.research_need_id:
+            group["research_need_ids"].add(item.research_need_id)
+        if item.domain_result is not None:
+            group["domain_result_ids"].add(item.domain_result_id)
+            group["raw_source_ids"].add(item.domain_result.raw_source_id)
+        if item.status == "error":
+            group["error_count"] += 1
+    for group in groups.values():
+        results = [
+            item.domain_result
+            for item in items
+            if item.domain_result_id in group["domain_result_ids"]
+        ]
+        unique_results = {result.id: result for result in results if result is not None}
+        group["successful_analyses"] = len(unique_results)
+        group["claim_count"] = sum(len(result.claims) for result in unique_results.values())
+        for field in ("research_need_ids", "domain_result_ids", "raw_source_ids"):
+            group[field] = sorted(group[field])
     return EvidenceSetOut(
         id=row.id,
         run_id=row.run_id,
@@ -334,6 +375,7 @@ def _evidence_set_out(
         created_at=row.created_at,
         frozen_at=row.frozen_at,
         items=[_item_out(item, latest.get(item.id)) for item in items],
+        sources=[EvidenceSourceGroupOut(**group) for group in groups.values()],
     )
 
 

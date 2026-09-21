@@ -55,6 +55,8 @@ export const fixtureItem = (
   evidence_set_id: "set-1",
   research_need_id: "research_1",
   research_need_ids: ["research_1"],
+  domain_result_id: null,
+  raw_source_id: null,
   passage_id: `passage-${partial.id}`,
   original_evidence_id: partial.id,
   source_type: "case_knowledge",
@@ -83,10 +85,29 @@ export const fixtureEvidence: EvidenceSet = {
     fixtureItem({ id: "item-e2", ordinal: 1, status: "found", title: "Jämförelse 2024" }),
     fixtureItem({ id: "item-e3", ordinal: 2, status: "found", title: "Policy" }),
   ],
+  sources: [
+    {
+      source_key: "supabase:doc-brief",
+      title: "Kommunens skattesats",
+      source_url: "https://example.test/brief.pdf",
+      item_ids: ["item-e1", "item-e2", "item-e3"],
+      research_need_ids: ["research_1"],
+      domain_result_ids: [],
+      raw_source_ids: [],
+      successful_analyses: 0,
+      error_count: 0,
+      claim_count: 0,
+    },
+  ],
 }
 
 export const mixedEvidence: EvidenceSet = {
   ...fixtureEvidence,
+  sources: [{
+    ...fixtureEvidence.sources[0],
+    item_ids: ["item-missing", "item-error", "item-found"],
+    error_count: 1,
+  }],
   items: [
     fixtureItem({ id: "item-found", ordinal: 2, status: "found", title: "Hittad sist" }),
     fixtureItem({ id: "item-missing", ordinal: 0, status: "not_found", title: "Saknas först" }),

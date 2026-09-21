@@ -13,6 +13,10 @@ from app.services.knowledge import (
     build_knowledge_registry,
 )
 from app.services.knowledge.vector_store import KnowledgeVectorStore
+from app.services.lagen_nu.selection import (
+    LagenNuPassageSelector,
+    set_passage_selector_factory,
+)
 from app.services.research.assessment import ResearchAssessor
 from app.services.research.completeness import ResearchCompletenessReviewer
 from app.services.research.followup import FollowUpResearchPlanner
@@ -20,10 +24,6 @@ from app.services.research.models import ResearchError
 from app.services.research.planner import ResearchPlanner
 from app.services.research.question_graph_sql import SqlQuestionEvidenceGraph
 from app.services.research.question_semantic import SemanticQuestionIdentityMatcher
-from app.services.lagen_nu.selection import (
-    LagenNuPassageSelector,
-    set_passage_selector_factory,
-)
 from app.services.research.registry import (
     build_research_registry,
     production_registered_source_types,
@@ -39,8 +39,7 @@ KnowledgeVectorStoreFactory = Callable[[], KnowledgeVectorStore]
 LagenNuSelectorFactory = Callable[[], LagenNuPassageSelector]
 
 _UNCONFIGURED_VECTOR_STORE = (
-    "KnowledgeVectorStore is not configured; "
-    "refusing to use an empty in-memory test store"
+    "KnowledgeVectorStore is not configured; refusing to use an empty in-memory test store"
 )
 
 _router_factory: ResearchRouterFactory | None = None
@@ -143,11 +142,9 @@ def build_standard_research_router(session: AsyncSession) -> ResearchRouter:
         embeddings=OpenAIEmbeddingProvider.from_settings(),
     )
     provider = registry.get(SUPABASE_PROVIDER_ID)
-    selector = (
-        _lagen_nu_selector_factory() if _lagen_nu_selector_factory is not None else None
-    )
+    selector = _lagen_nu_selector_factory() if _lagen_nu_selector_factory is not None else None
     return ResearchRouter(
-        build_research_registry(provider, lagen_nu_selector=selector)
+        build_research_registry(provider, lagen_nu_selector=selector, reuse_session=session)
     )
 
 

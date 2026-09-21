@@ -11,6 +11,8 @@ from typing import Any
 STAGES = (
     "plan_coverage",
     "source_relevance",
+    "source_reuse",
+    "source_dedup",
     "domain_extraction",
     "citation_grounding",
     "claim_coverage",
@@ -48,6 +50,27 @@ def evaluate_case(golden: dict[str, Any], artifacts: dict[str, Any]) -> dict[str
         elif actual.get("selected") is not expected:
             source_errors.append(f"incorrect source decision: {source_id}")
     record("source_relevance", source_errors)
+
+    reuse = artifacts.get("source_reuse", {})
+    expected_reuse = golden.get("source_reuse", {})
+    record(
+        "source_reuse",
+        [
+            f"{source_id}: extra provider document fetch"
+            for source_id, expected in expected_reuse.items()
+            if reuse.get(source_id, {}).get("document_fetches", 0)
+            > expected["max_document_fetches"]
+        ],
+    )
+    grouped = artifacts.get("source_groups", {})
+    record(
+        "source_dedup",
+        [
+            f"{source_id}: duplicate source group"
+            for source_id, expected in expected_reuse.items()
+            if grouped.get(source_id, {}).get("group_count") != expected["group_count"]
+        ],
+    )
 
     results = artifacts.get("domain_results", {})
     extraction_errors = []

@@ -177,6 +177,8 @@ export type EvidenceSetItem = {
   evidence_set_id: string
   research_need_id: string | null
   research_need_ids: string[]
+  domain_result_id: string | null
+  raw_source_id: string | null
   passage_id: string | null
   original_evidence_id: string | null
   ordinal: number
@@ -195,6 +197,19 @@ export type EvidenceSetItem = {
   quality?: EvidenceQuality | null
 }
 
+export type EvidenceSourceGroup = {
+  source_key: string
+  title: string | null
+  source_url: string | null
+  item_ids: string[]
+  research_need_ids: string[]
+  domain_result_ids: string[]
+  raw_source_ids: string[]
+  successful_analyses: number
+  error_count: number
+  claim_count: number
+}
+
 export type EvidenceSet = {
   id: string
   run_id: string
@@ -203,6 +218,7 @@ export type EvidenceSet = {
   created_at: string
   frozen_at: string | null
   items: EvidenceSetItem[]
+  sources: EvidenceSourceGroup[]
 }
 
 export function getExecutionRun(runId: string): Promise<ExecutionRun> {

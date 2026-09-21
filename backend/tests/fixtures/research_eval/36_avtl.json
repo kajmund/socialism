@@ -24,6 +24,7 @@
     ],
     "assessment": {"positive_cases": true, "negative_cases": true, "commercial_factors": true, "consumer_factors": true, "contract_type_differences": true, "preparatory_and_consumer_specific_rules": true},
     "completeness": "complete",
+    "source_reuse": {"synthetic_positive_case": {"max_document_fetches": 1, "group_count": 1}},
     "expert_claim_ids": ["positive", "negative", "commercial", "consumer", "contract_type", "preparatory"],
     "expert_context_markers": ["adjusted the liability cap", "declined adjustment", "negotiated allocation of risk", "consumer's weaker position", "insurance", "special consumer protections interact"]
   },
@@ -33,6 +34,8 @@
       "synthetic_positive_case": {"selected": true}, "synthetic_negative_case": {"selected": true},
       "prop_1975_76_81": {"selected": true}, "prop_1971_20": {"selected": false}, "statute_36": {"selected": true}
     },
+    "source_reuse": {"synthetic_positive_case": {"document_fetches": 1, "needs": 3}},
+    "source_groups": {"synthetic_positive_case": {"group_count": 1, "needs": 3, "domain_results": 3}},
     "domain_results": {
       "synthetic_positive_case": {
         "source_uri": "fixture://case/positive", "raw_text": "The court adjusted the liability cap after considering negotiated allocation of risk.",

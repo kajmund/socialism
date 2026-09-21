@@ -101,6 +101,7 @@ class ResearchContext:
 
     scope: KnowledgeScope
     limit: int = 10
+    attempt_id: str | None = None
 
     def __post_init__(self) -> None:
         require_scope(self.scope)
