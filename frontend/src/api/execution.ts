@@ -291,6 +291,9 @@ export function getResearchProgressEvents(
 export type ResearchOverviewSource = {
   id: string
   passage_id: string | null
+  domain_result_id: string | null
+  raw_source_id: string | null
+  analysis: string | null
   research_need_ids: string[]
   status: string
   title: string | null
@@ -322,10 +325,8 @@ export type ResearchOverviewQuestion = {
   raised_by: ResearchOverviewExpert[]
   assigned_to: ResearchOverviewExpert | null
   sources: ResearchOverviewSource[]
-  assessment_result: string | null
-  assessment_rationale: string | null
-  completeness_result: string | null
-  completeness_rationale: string | null
+  source_count: number
+  need_assessment: ResearchNeedAssessment | null
 }
 
 export type ResearchOverview = {

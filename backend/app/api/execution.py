@@ -6,12 +6,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.auth.dependencies import get_current_user
 from app.auth.scope import assert_kund_access
 from app.database.models import (
     EvidenceSet,
     EvidenceSetItem,
+    EvidenceSetItemNeed,
     ExecutionAttempt,
     ExecutionAttemptResult,
     ExecutionRun,
@@ -895,6 +897,7 @@ async def get_attempt_research_overview(
             (
                 await session.execute(
                     select(EvidenceSetItem)
+                    .options(selectinload(EvidenceSetItem.domain_result))
                     .where(EvidenceSetItem.evidence_set_id.in_(evidence_set_ids))
                     .order_by(EvidenceSetItem.ordinal, EvidenceSetItem.id)
                 )
@@ -903,6 +906,27 @@ async def get_attempt_research_overview(
         if evidence_set_ids
         else []
     )
+    item_need_links = (
+        (
+            await session.execute(
+                select(EvidenceSetItemNeed).where(
+                    EvidenceSetItemNeed.evidence_set_item_id.in_(
+                        [item.id for item in evidence_items]
+                    )
+                )
+            )
+        )
+        .scalars()
+        .all()
+        if evidence_items
+        else []
+    )
+    need_ids_by_item: dict[str, set[str]] = {}
+    for link in item_need_links:
+        need_ids_by_item.setdefault(link.evidence_set_item_id, set()).add(link.research_need_id)
+    for item in evidence_items:
+        if item.research_need_id:
+            need_ids_by_item.setdefault(item.id, set()).add(item.research_need_id)
     assessments = (
         list(
             (
@@ -916,20 +940,6 @@ async def get_attempt_research_overview(
         if child_ids
         else []
     )
-    completeness = (
-        list(
-            (
-                await session.execute(
-                    select(ResearchCompletenessPass)
-                    .where(ResearchCompletenessPass.attempt_id.in_(child_ids))
-                    .order_by(ResearchCompletenessPass.completeness_pass)
-                )
-            ).scalars()
-        )
-        if child_ids
-        else []
-    )
-
     links_by_question: dict[str, list[ResearchQuestionExpert]] = {}
     for link in expert_links:
         links_by_question.setdefault(link.question_id, []).append(link)
@@ -942,21 +952,36 @@ async def get_attempt_research_overview(
     for item in evidence_items:
         items_by_set.setdefault(item.evidence_set_id, []).append(item)
     assessment_by_attempt = {row.attempt_id: row for row in assessments}
-    completeness_by_attempt = {row.attempt_id: row for row in completeness}
 
     questions: list[ResearchQuestionOverviewOut] = []
     for row, question_text, specific_text in question_rows:
         child = child_by_id.get(row.execution_attempt_id or "")
         items = (
-            items_by_set.get(child.evidence_set_id, []) if child and child.evidence_set_id else []
+            [
+                item
+                for item in items_by_set.get(child.evidence_set_id, [])
+                if row.runtime_need_id in need_ids_by_item.get(item.id, set())
+            ]
+            if child and child.evidence_set_id and row.runtime_need_id
+            else []
         )
         assessment = assessment_by_attempt.get(child.id) if child else None
-        complete = completeness_by_attempt.get(child.id) if child else None
+        need_assessment = (
+            next(
+                (
+                    item
+                    for item in (assessment.need_assessments or [])
+                    if item.get("research_need_id") == row.runtime_need_id
+                ),
+                None,
+            )
+            if assessment and row.runtime_need_id
+            else None
+        )
         status = _research_question_display_status(
             raw_status=row.status,
             items=items,
-            assessment=assessment,
-            completeness=complete,
+            need_sufficient=(need_assessment.get("sufficient") if need_assessment else None),
         )
         links = links_by_question.get(row.id, [])
         raised = [link for link in links if link.role == "raised_by"]
@@ -992,8 +1017,19 @@ async def get_attempt_research_overview(
                     ResearchSourceOut(
                         id=item.id,
                         passage_id=item.passage_id,
-                        research_need_ids=[link.research_need_id for link in item.need_links]
-                        or ([item.research_need_id] if item.research_need_id else []),
+                        domain_result_id=item.domain_result_id,
+                        raw_source_id=(
+                            item.domain_result.raw_source_id if item.domain_result else None
+                        ),
+                        analysis=(
+                            str(
+                                item.domain_result.result.get("relation", {}).get("explanation")
+                                or ""
+                            )[:1000]
+                            if item.domain_result
+                            else None
+                        ),
+                        research_need_ids=sorted(need_ids_by_item[item.id]),
                         status=item.status,
                         title=item.title,
                         excerpt=(item.excerpt[:1000] if item.excerpt else None),
@@ -1004,10 +1040,18 @@ async def get_attempt_research_overview(
                     )
                     for item in items
                 ],
-                assessment_result=assessment.result if assessment else None,
-                assessment_rationale=assessment.rationale if assessment else None,
-                completeness_result=complete.result if complete else None,
-                completeness_rationale=complete.rationale if complete else None,
+                source_count=len(
+                    {
+                        (
+                            item.provider,
+                            canonical_source_identity(item.source_id, item.source_url) or item.id,
+                        )
+                        for item in items
+                    }
+                ),
+                need_assessment=(
+                    ResearchNeedAssessmentOut(**need_assessment) if need_assessment else None
+                ),
             )
         )
     status_counts = {
@@ -1064,8 +1108,7 @@ def _research_question_display_status(
     *,
     raw_status: str,
     items: list[EvidenceSetItem],
-    assessment: ResearchAssessment | None,
-    completeness: ResearchCompletenessPass | None,
+    need_sufficient: bool | None,
 ) -> str:
     if raw_status == "running":
         return "running"
@@ -1080,9 +1123,7 @@ def _research_question_display_status(
     found = any(item.status == "found" for item in items)
     if not found:
         return "unanswered"
-    if completeness is not None and completeness.result != "complete":
-        return "insufficient"
-    if completeness is None and assessment is not None and assessment.result != "sufficient":
+    if need_sufficient is False:
         return "insufficient"
     return "answered"
 

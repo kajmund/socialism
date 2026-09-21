@@ -3159,6 +3159,10 @@ export const en: LocalizedTree<SvMessages> = {
       openSource: "Open source",
       assessment: "Assessment",
       completeness: "Completeness",
+      supportingEvidence: "Supporting evidence",
+      missingOrWeak: "Missing or weak support",
+      contradictions: "Contradictions",
+      furtherInformation: "Further information",
       reason: "Reason",
       status: {
         answered: "Answered",

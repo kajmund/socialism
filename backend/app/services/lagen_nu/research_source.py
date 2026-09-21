@@ -572,7 +572,7 @@ def _kept_candidates(
     kept: list[_Candidate] = []
     for candidate in candidates:
         decision = by_id[_selectable_hit(candidate).candidate_id]
-        if not decision.keep:
+        if not decision.keep or decision.role in {"wrong_number", "wrong_subject"}:
             continue
         hit = candidate.hit
         if decision.pinpoint:
@@ -971,10 +971,10 @@ class LagenNuResearchSource:
             for item in candidates
             if item.direct_rank is None and item.citation_rank is not None
         ]
-        others = [
+        others = graph + [
             item for item in candidates if item.direct_rank is None and item.citation_rank is None
         ]
-        kept = list(named) + list(graph)
+        kept = list(named)
         if others:
             selectable = [_selectable_hit(item) for item in others]
             try:
@@ -985,10 +985,10 @@ class LagenNuResearchSource:
                     context=context,
                 )
             except LagenNuSelectionError:
-                if not named and not graph:
+                if not named:
                     raise
                 logger.exception(
-                    "lagen.nu hit selection failed for %s; keeping named and graph hits",
+                    "lagen.nu hit selection failed for %s; keeping named hits",
                     need.id,
                 )
             else:
@@ -1107,7 +1107,7 @@ class LagenNuResearchSource:
             title=document.title or hit.title,
             max_chars=MAX_SELECTOR_DOCUMENT_CHARS,
         )
-        trusted = candidate.direct_rank is not None or candidate.citation_rank is not None
+        trusted = candidate.direct_rank is not None
         excerpt = None
         excerpt_why = ""
         excerpt_pinpoint = None
@@ -1204,6 +1204,22 @@ class LagenNuResearchSource:
                 "domain_result_recomputed_from_raw provider=%s source=%s",
                 self.provider_id,
                 source_uri,
+            )
+        if legal_result.relation.relation == "irrelevant":
+            return research_evidence(
+                research_need_id=need.id,
+                source_type=self.source_type,
+                status="not_found",
+                title=title,
+                source_id=source_uri,
+                source_url=source_uri,
+                provider=self.provider_id,
+                metadata=self._provenance(
+                    budget,
+                    reason="domain_relation_irrelevant",
+                    canonical_uri=source_uri,
+                    selection_why=legal_result.relation.explanation,
+                ),
             )
         return research_evidence(
             research_need_id=need.id,
