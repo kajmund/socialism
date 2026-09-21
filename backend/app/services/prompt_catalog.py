@@ -88,6 +88,71 @@ def _f(
 
 PROMPT_FIELDS: list[PromptFieldDef] = [
     _f(
+        "chat.expert.consult_tool",
+        "chat",
+        "Expertchatt — fråga en kollega",
+        "Expert chat — ask a colleague",
+        "Instruktion för verktyget ask_expert.",
+        "Instruction for the ask_expert tool.",
+        (
+            "Om användarens fråga ligger utanför ditt eget kompetensområde ska du "
+            "använda ask_expert med en fristående och tydligt omformulerad fråga. "
+            "Använd inte verktyget när du själv har relevant kompetens. Gissa inte "
+            "och visa aldrig verktygsanropet."
+        ),
+        (
+            "When the user's question is outside your own professional competence, "
+            "use ask_expert with a clear, standalone reformulation. Do not use the "
+            "tool when you have relevant competence. Do not guess or reveal tool calls."
+        ),
+    ),
+    _f(
+        "chat.expert.consult_colleague",
+        "chat",
+        "Expertchatt — kollegans svar",
+        "Expert chat — colleague response",
+        "Platshållare: {asker_name}, {question}",
+        "Placeholders: {asker_name}, {question}",
+        (
+            "Din kollega {asker_name} ber om din hjälp med frågan nedan. Svara "
+            "sakligt inom ditt eget kompetensområde. Du får inte fråga en annan "
+            "expert eller använda verktyg.\n\nFråga:\n{question}"
+        ),
+        (
+            "Your colleague {asker_name} asks for your help with the question below. "
+            "Answer factually within your own professional competence. Do not ask "
+            "another expert or use tools.\n\nQuestion:\n{question}"
+        ),
+    ),
+    _f(
+        "chat.expert.consult_announce",
+        "chat",
+        "Expertchatt — visa kollegans svar",
+        "Expert chat — show colleague response",
+        "Platshållare: {asker_name}, {question}, {answer}",
+        "Placeholders: {asker_name}, {question}, {answer}",
+        "{asker_name} frågade mig: ”{question}” och jag svarade hen: {answer}",
+        "{asker_name} asked me: “{question}” and I answered them: {answer}",
+    ),
+    _f(
+        "chat.expert.consult_inject",
+        "chat",
+        "Expertchatt — injicera kollegans svar",
+        "Expert chat — inject colleague response",
+        "Platshållare: {colleague_name}",
+        "Placeholder: {colleague_name}",
+        (
+            "Berätta nu för användaren att {colleague_name} har svarat och återge "
+            "svaret korrekt, exempelvis: ”Nu har {colleague_name} svarat och hen "
+            "säger att …”. Lägg inte till egna sakpåståenden utanför din kompetens."
+        ),
+        (
+            "Tell the user that {colleague_name} has answered and relay the answer "
+            "accurately, for example: “{colleague_name} has now replied and says …”. "
+            "Do not add claims outside your own competence."
+        ),
+    ),
+    _f(
         "chat.expert.actor_context", "chat",
         "Expert — profil och uppdragsgivare", "Expert — profile and customer",
         "Behovsstyrda profilverktyg och godkännande.", "On-demand profile tools and approval.",

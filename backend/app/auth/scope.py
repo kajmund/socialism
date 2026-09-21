@@ -64,6 +64,21 @@ def require_user_kund_id(user: UserAccount) -> int:
     return user.kund_id
 
 
+def customer_id_for_expert_create(
+    user: UserAccount,
+    requested: int | None,
+    default_id: int,
+) -> int:
+    """Experts belong to the user's kund. Unbound admin uses requested or default."""
+    if user.role != "admin":
+        return require_user_kund_id(user)
+    if user.kund_id is not None:
+        return user.kund_id
+    if requested is not None:
+        return requested
+    return default_id
+
+
 async def customer_id_for_user(session: AsyncSession, user: UserAccount) -> int:
     """Resolve the logged-in user's kund. Admin without kund_id uses the OS tenant."""
     if user.kund_id is not None:

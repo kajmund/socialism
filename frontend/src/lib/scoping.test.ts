@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import {
   BOLAG_DEMO_CUSTOMER_ID,
   OS_CUSTOMER_ID,
+  customerIdForExpertWrite,
   customerScopeFromPathname,
   helpChatTenantForRole,
 } from "@/lib/scoping"
@@ -10,6 +11,17 @@ describe("customerScopeFromPathname", () => {
   it("treats /bolag routes as the bolag customer", () => {
     expect(customerScopeFromPathname("/bolag/campaigns")).toBe("bolag")
     expect(customerScopeFromPathname("/reports")).toBe("admin")
+  })
+})
+
+describe("customerIdForExpertWrite", () => {
+  it("uses the logged-in kund when the account is bound", () => {
+    expect(customerIdForExpertWrite(7)).toBe(7)
+  })
+
+  it("falls back to Bolag demo when the account has no kund", () => {
+    expect(customerIdForExpertWrite(null)).toBe(BOLAG_DEMO_CUSTOMER_ID)
+    expect(customerIdForExpertWrite(undefined)).toBe(BOLAG_DEMO_CUSTOMER_ID)
   })
 })
 

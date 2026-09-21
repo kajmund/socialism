@@ -30,6 +30,7 @@ from app.schemas.domain import (
     PersonaMessageOut,
 )
 from app.serializers import format_date, profile_from_dict, utcnow
+from app.services.actor_profiles import ActorProfileTools
 from app.services.dd.company_mcp import CompanyMcpError
 from app.services.dd.expert_keys import persona_catalog_key
 from app.services.district_context import area_block_for_name
@@ -38,6 +39,7 @@ from app.services.expert_chat_evidence import (
     reusable_expert_chat_evidence_context,
 )
 from app.services.expert_chat_research_tool import research_tool_handler_for_chat
+from app.services.expert_consult import expert_consult_handler_for_chat
 from app.services.expert_tools import resolve_chat_tools
 from app.services.expertgranskning.memory import ExpertMemoryHit, get_expert_memory
 from app.services.expertgranskning.memory_view import serialize_memory_hit
@@ -192,6 +194,7 @@ async def expert_memory_context(
             {
                 "persona_chat",
                 "panel_chat",
+                "expert_consult",
                 "intent_interview",
                 "word_findings",
                 "research_receipt",
@@ -222,7 +225,7 @@ async def remember_expert_chat_turn(
     message: str,
     reply: str,
     image_sha256: str | None,
-    source: Literal["persona_chat", "panel_chat"] = "persona_chat",
+    source: Literal["persona_chat", "panel_chat", "expert_consult"] = "persona_chat",
     session_id: str | None = None,
 ) -> list[ExpertMemoryOut]:
     if persona.kind != "expert":
@@ -397,12 +400,20 @@ async def stream_library_chat_turn(
         chat_tools = library_chat_tools(persona)
         with_tools = _library_chat_uses_tools(persona)
         research_tool_handler = None
+        consult_tool_handler = None
         if persona.kind == "expert" and "start_research" in (chat_tools or []):
             research_tool_handler = research_tool_handler_for_chat(
                 session,
                 persona=persona,
                 history=history,
                 user_message=message,
+            )
+        if persona.kind == "expert" and "ask_expert" in (chat_tools or []):
+            consult_tool_handler = expert_consult_handler_for_chat(
+                session,
+                asker=persona,
+                mode=mode,
+                prompts=prompts,
             )
 
         user_row = PersonaMessage(
@@ -419,8 +430,6 @@ async def stream_library_chat_turn(
             sme_expert_turn_request_id=sme_expert_turn_request_id,
             persist_guard=persist_guard,
         )
-
-        from app.services.actor_profiles import ActorProfileTools
 
         actor_handler = (
             ActorProfileTools(
@@ -446,6 +455,7 @@ async def stream_library_chat_turn(
                 extra_system=combine_expert_chat_context(memory_context, evidence_context),
                 user_image_sha256=image_sha256,
                 research_tool_handler=research_tool_handler,
+                consult_tool_handler=consult_tool_handler,
                 actor_tool_handler=actor_handler,
             )
             async with asyncio.timeout(_llm_reply_timeout_seconds(with_tools=with_tools)):
