@@ -389,10 +389,19 @@ async def test_llm_configuration_crud_default_and_prompt_assignment(client_db):
     names = {row["name"] for row in payload["configurations"]}
     assert names == {"Reasoning", "Creative"}
 
+    assigned_before_default = await client.put(
+        "/llm/prompt-fields/help.system",
+        json={"llm_configuration_id": creative["id"]},
+    )
+    assert assigned_before_default.status_code == 200, assigned_before_default.text
+    assert assigned_before_default.json()["assignments"]["help.system"] == creative["id"]
+
     promoted = await client.post(f"/llm/configurations/{creative['id']}/default")
     assert promoted.status_code == 200, promoted.text
     assert promoted.json()["is_default"] is True
     assert settings.llm_model == "qwen-3.8-27b"
+    after_promote = await client.get("/llm")
+    assert "help.system" not in after_promote.json()["assignments"]
 
     forbidden = await client.delete(f"/llm/configurations/{creative['id']}")
     assert forbidden.status_code == 400
