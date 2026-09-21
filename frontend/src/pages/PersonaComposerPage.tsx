@@ -31,6 +31,7 @@ import {
   type PersonaDetail,
   type PersonaMessage,
 } from "@/api/personas"
+import { useAuth } from "@/auth/AuthProvider"
 import { ChatMessageActions } from "@/components/chat/ChatMessageActions"
 import { ExpertVoiceButton } from "@/components/chat/ExpertVoiceButton"
 import { MessengerChat } from "@/components/chat/MessengerChat"
@@ -58,6 +59,7 @@ import {
 } from "@/data/expert-tools"
 import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
 import { ApiError } from "@/lib/api"
+import { customerIdForExpertWrite } from "@/lib/scoping"
 
 type Translate = (key: MessageKey, params?: TranslateParams) => string
 
@@ -1319,6 +1321,8 @@ export function PersonaComposerPage({
 }: PersonaComposerPageProps = {}) {
   const isExpert = kind === "expert"
   const { t } = useLocale()
+  const { user } = useAuth()
+  const writeCustomerId = customerId ?? (isExpert ? customerIdForExpertWrite(user?.kundId) : undefined)
   const { id } = useParams()
   const [params] = useSearchParams()
   const navigate = useNavigate()
@@ -1462,7 +1466,7 @@ export function PersonaComposerPage({
     try {
       const body = editableToWrite(target, origin, "", {
         kind,
-        customerId,
+        customerId: writeCustomerId,
         tools,
       })
       if (personaId) {

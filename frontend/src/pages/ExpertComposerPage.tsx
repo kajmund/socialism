@@ -1,14 +1,16 @@
+import { useAuth } from "@/auth/AuthProvider"
 import { NestedBolagPage } from "@/components/layout/BolagShell"
+import { customerIdForExpertWrite } from "@/lib/scoping"
 import { PersonaComposerPage } from "@/pages/PersonaComposerPage"
-import { BOLAG_DEMO_CUSTOMER_ID } from "@/lib/scoping"
 
 export function ExpertComposerPage() {
+  const { user } = useAuth()
   return (
     <PersonaComposerPage
       kind="expert"
       basePath="/bolag/experter"
       Shell={NestedBolagPage}
-      customerId={BOLAG_DEMO_CUSTOMER_ID}
+      customerId={customerIdForExpertWrite(user?.kundId)}
     />
   )
 }

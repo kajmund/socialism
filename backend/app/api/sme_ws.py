@@ -17,6 +17,7 @@ from pydantic import (
 
 from app.auth.tokens import user_from_bearer_token
 from app.database.models import Kund, Persona, UserAccount
+from app.realtime.library_chat_broadcast import library_chat_broadcast
 from app.services import jobs as jobs_service
 from app.services.persona_chat import ChatTurnError, library_follow_up_questions
 from app.services.sme_expert_turns import (
@@ -91,6 +92,8 @@ async def sme_chat_websocket(websocket: WebSocket) -> None:
                 await websocket.send_json(payload)
             except (RuntimeError, WebSocketDisconnect):
                 disconnected.set()
+
+    await library_chat_broadcast.subscribe_customer(user.kund_id, emit)
 
     async def _fail_expert_turn(
         request_id: str,
@@ -292,3 +295,4 @@ async def sme_chat_websocket(websocket: WebSocket) -> None:
     finally:
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
+        await library_chat_broadcast.unsubscribe(emit)

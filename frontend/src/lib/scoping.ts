@@ -8,6 +8,11 @@ export const OS_DEFAULT_PROJECT_ID = 1
 export const OS_CUSTOMER_SLUG = "devbrains"
 export const BOLAG_DEMO_CUSTOMER_SLUG = "bolag-demo"
 
+/** Kund for new experts: the logged-in kund when bound, else Bolag demo. */
+export function customerIdForExpertWrite(kundId: number | null | undefined): number {
+  return kundId ?? BOLAG_DEMO_CUSTOMER_ID
+}
+
 /** Which customer slice a shared list page shows. */
 export type CustomerScope = "admin" | "bolag"
 

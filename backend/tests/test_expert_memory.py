@@ -475,6 +475,7 @@ async def test_expert_chat_context_includes_all_memory_sources():
                 {
                     "persona_chat",
                     "panel_chat",
+                        "expert_consult",
                     "intent_interview",
                     "word_findings",
                     "research_receipt",

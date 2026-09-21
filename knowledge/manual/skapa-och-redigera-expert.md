@@ -17,6 +17,8 @@ tags: [personas]
 4. Klicka på profilbilden till vänster om namnet för att ladda upp en bild (JPEG, PNG eller WebP, max 5 MB). Ta bort med **×** om du vill återgå till standardikonen.
 5. Välj **Spara**.
 
+Experten sparas på den kund ditt konto tillhör. Samma experter syns i SME-chatten för den kunden. Administratör utan kundkoppling sparar i Bolag demo.
+
 ## Välj verktyg
 
 Öppna skiftnyckeln i topbaren och kryssa i vad experten får använda i chatt och i expertpanelen:
@@ -24,6 +26,7 @@ tags: [personas]
 - **Bolag** — sök bolag, slå upp ett bolag, validera organisationsnummer.
 - **Sök** — webbsökning (DuckDuckGo) och Wikipedia.
 - **Research** — starta en researchkörning från expertchatten efter att du bekräftat. Word startar inte research.
+- **Kollegor** — fråga en annan expert när frågan ligger utanför den egna kompetensen. Kollegan svarar också i sin egen chatt.
 
 **Alla verktyg** markerar eller avmarkerar allt. En expert utan verktyg svarar bara utifrån sin profil.
 
@@ -31,9 +34,9 @@ tags: [personas]
 
 ## Chatt
 
-I chattpanelen kan du intervjua experten eller prata in-character. **Fäll in profil** döljer kompetens- och bakgrundsfälten så chatten får mer plats. **Visa profil** tar fram dem igen. Experten använder bara de verktyg du valt. Om ett bolagsuppslag saknar organisationsnummer eller inte hittas fortsätter chatten — den avbryts inte.
+I chattpanelen kan du intervjua experten eller prata in-character. **Fäll in profil** döljer kompetens- och bakgrundsfälten så chatten får mer plats. **Visa profil** tar fram dem igen. Experten använder bara de verktyg du valt. Om en fråga ligger utanför expertens kompetens kan verktyget **Fråga en annan expert** hitta en kunnig kollega. Den första experten återger svaret i den pågående chatten och kollegan skriver samtidigt frågan och sitt svar i sin egen chatt. Om ingen kollega har rätt kompetens säger experten det. Om ett bolagsuppslag saknar organisationsnummer eller inte hittas fortsätter chatten — den avbryts inte.
 
-Telefonikonen till höger om textfältet startar ett röstsamtal med experten. En samtalsvy öppnas ovanpå sidan med expertens bild, samtalsstatus, tid, mikrofon, högtalare och en röd knapp för att lägga på. Tillåt mikrofonen när webbläsaren frågar. En kort ringsignal spelas innan experten svarar med sitt namn och en mörk manlig röst. Experten känner till din profil, ditt bolag och en kort sammanfattning av sina minnen från de senaste fyra timmarna. Under röstsamtalet kan experten använda samma valda bolags-, sök-, research- och profilverktyg som i textchatten. Research kräver fortfarande att du uttryckligen bekräftar att den ska startas. Ljud och fullständigt transkript sparas inte i chatthistoriken. Efter varje färdigt samtalsvarv kan nya relevanta fakta extraheras till expertens minnen i bakgrunden.
+Telefonikonen till höger om textfältet startar ett röstsamtal med experten. En samtalsvy öppnas ovanpå sidan med expertens bild, samtalsstatus, tid, mikrofon, högtalare och en röd knapp för att lägga på. Tillåt mikrofonen när webbläsaren frågar. En kort ringsignal spelas innan experten svarar med sitt namn och en mörk manlig röst. Experten känner till din profil, ditt bolag och en kort sammanfattning av sina minnen från de senaste fyra timmarna. Under röstsamtalet kan experten använda valda bolags-, sök-, research- och profilverktyg, men inte fråga en annan expert. Research kräver fortfarande att du uttryckligen bekräftar att den ska startas. Ljud och fullständigt transkript sparas inte i chatthistoriken. Efter varje färdigt samtalsvarv kan nya relevanta fakta extraheras till expertens minnen i bakgrunden.
 
 Efter ett svar kan en liten rad visa om något sparades i expertens långtidsminne. **Minnen** öppnar loggen för den experten, där du kan redigera eller ta bort sparade fakta. Hela översikten finns under **Verktyg** → **Minnen**. Se [Visa expertminnen](visa-expertminnen.md).
 

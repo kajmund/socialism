@@ -19,6 +19,9 @@ Mem0 innehåller extraherade långtidsminnen.
 ## Skriv- och läsvägar
 
 - Expertchat skriver text- och bildturner och söker relevanta minnen före svar.
+- Expertkonsultation skriver `expert_consult` för både den frågande och den
+  svarande experten. Båda minnena innehåller den omformulerade frågan, vem som
+  frågade respektive svarade och kollegans svar.
 - Intent-svar skrivs per expert och identiska payloads hoppas över.
 - Word-granskning skriver destillerade findings efter lyckad körning.
   Findings ersätts per `kund × expert × doc_id`; oförändrat innehåll hoppas över.
