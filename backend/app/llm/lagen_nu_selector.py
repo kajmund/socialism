@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.database.session import SessionLocal
 from app.llm import complete_structured_retry
+from app.llm.runtime_override import bound_llm_prompt
 from app.services.lagen_nu.selection import (
     HIT_ROLES,
     ExcerptDecision,
@@ -116,7 +117,8 @@ class LlmLagenNuSelector:
                 ),
             },
         ]
-        parsed = await self._complete(messages, HitSelectionModel)
+        with bound_llm_prompt("research.lagen_nu.select.system"):
+            parsed = await self._complete(messages, HitSelectionModel)
         decisions = [
             HitDecision(
                 candidate_id=item.candidate_id,
@@ -160,7 +162,8 @@ class LlmLagenNuSelector:
                 ),
             },
         ]
-        parsed = await self._complete(messages, ExcerptDecisionModel)
+        with bound_llm_prompt("research.lagen_nu.excerpt.system"):
+            parsed = await self._complete(messages, ExcerptDecisionModel)
         return ExcerptDecision(
             excerpt=parsed.excerpt,
             pinpoint=parsed.pinpoint or None,

@@ -575,7 +575,9 @@ async def collect_expert_research_needs(
             source_types=source_types_prompt(),
         ),
     )
-    result = await complete_structured_retry(messages, ExpertResearchNeeds)
+    result = await complete_structured_retry(
+        messages, ExpertResearchNeeds, prompt_key="panel.expert.system"
+    )
     if (
         result.needs_actor_profile
         and actor_profile_handler is not None
@@ -592,7 +594,9 @@ async def collect_expert_research_needs(
                 ),
             }
         )
-        result = await complete_structured_retry(messages, ExpertResearchNeeds)
+        result = await complete_structured_retry(
+        messages, ExpertResearchNeeds, prompt_key="panel.expert.system"
+    )
     return result
 
 
@@ -633,7 +637,9 @@ async def consolidate_research_plan(
                 ),
             }
         )
-    return await complete_structured_retry(messages, ModeratorResearchPlan)
+    return await complete_structured_retry(
+        messages, ModeratorResearchPlan, prompt_key="panel.moderator.system"
+    )
 
 
 def plan_from_moderator_draft(

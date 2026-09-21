@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.database.session import SessionLocal
 from app.llm import complete_structured_retry
+from app.llm.runtime_override import bound_llm_prompt
 from app.services.legal_research_result import (
     CaseLawAnalysis,
     LegalQuestionRelation,
@@ -102,9 +103,10 @@ class LlmLegalInterpreter:
             },
         ]
         try:
-            parsed = LegalInterpretation.model_validate(
-                await self._completer(messages, LegalInterpretation)
-            )
+            with bound_llm_prompt("research.lagen_nu.domain.system"):
+                parsed = LegalInterpretation.model_validate(
+                    await self._completer(messages, LegalInterpretation)
+                )
             return LegalResearchResult(
                 source=source,
                 relation=parsed.relation,

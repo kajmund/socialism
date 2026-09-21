@@ -17,7 +17,7 @@ I **Konfigurationer** sparar du **prompttexter** (persona, chat, budskap, OASIS 
 2. I listan syns **namn**, **promptspråk** och om posten är **Aktiv**. Växla mellan **Rutnät** och **Lista** vid behov.
 3. Skapa nytt med **+ Ny konfiguration** — promptfälten fylls i med standardtexter.
 4. I sidhuvudet: ge konfigurationen ett **Namn**, välj **promptspråk** (SV/EN/NB) och slå på **Aktiv** om den här postens SSR, ankare och grunddata ska användas. **Spara** och **Avbryt** sitter till höger i samma rad.
-5. Under fliken **Innehåll & ton**: sök eller bläddra i listan till vänster och redigera **ett promptfält i taget**. Du kan återställa ett fält till standardtexten.
+5. Under fliken **Innehåll & ton**: sök eller bläddra i listan till vänster och redigera **ett promptfält i taget**. Du kan återställa ett fält till standardtexten. På varje fält väljer du också **LLM-konfiguration** — default eller en namngiven konfiguration från **Verktyg** → **LLM**. Valet sparas direkt och gäller alla kunder.
 6. Under fliken **Känslighet & rapportgränser**: välj en grupp i vänstermenyn. **Variation i svar** är SSR-temperatur (lägre = skarpare ton/stil-fördelning; kalibrera gärna i Playground först). Övriga grupper är rapporttrösklar (hur slutsats och rekommendation tolkas). Standardvärden räcker oftast — ändringar gäller bara **nya** rapporter. Under **Avancerat** finns poängformel och **målgruppssammanfattning**.
 7. Under fliken **Ankare**: välj publicerat **ton-** och **stilankare** för svenska respektive engelska rapporter.
 8. **Spara** — du landar i redigeringsläget där fliken **Grunddata** blir tillgänglig.
@@ -27,6 +27,7 @@ I **Konfigurationer** sparar du **prompttexter** (persona, chat, budskap, OASIS 
 
 ## Relaterade guider
 
+- [Välja LLM-modell](valja-llm-modell.md)
 - [Använda playground](anvanda-playground.md)
 - [Redigera grunddata](redigera-grunddata.md)
 - [Hantera SSR-ankare](hantera-ssr-ankare.md)

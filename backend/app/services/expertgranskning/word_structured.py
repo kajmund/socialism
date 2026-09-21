@@ -41,4 +41,5 @@ async def complete_word_structured[T](
         on_retry=timings.record_structured_retry if timings is not None else None,
         model=model,
         max_tokens=max_tokens,
+        prompt_key="expertgranskning.word.structured_retry",
     )

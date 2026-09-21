@@ -29,10 +29,28 @@ export type LlmActive = {
   reasoning_effort: string | null
 }
 
+export type LlmConfiguration = {
+  id: number
+  name: string
+  profile_id: string
+  provider: string
+  model: string
+  temperature: number | null
+  top_p: number | null
+  max_tokens: number
+  reasoning_effort: string | null
+  is_default: boolean
+  created_at: string
+  updated_at: string
+}
+
 export type LlmSettingsResponse = {
   catalog: LlmCatalogProfile[]
   active: LlmActive
   credentials: { cerebras: boolean; deepseek: boolean }
+  configurations: LlmConfiguration[]
+  default_id: number | null
+  assignments: Record<string, number>
 }
 
 export type LlmPutBody = {
@@ -41,6 +59,16 @@ export type LlmPutBody = {
   top_p?: number | null
   max_tokens?: number | null
   reasoning_effort?: string | null
+}
+
+export type LlmConfigurationWrite = {
+  name: string
+  profile_id: string
+  temperature?: number | null
+  top_p?: number | null
+  max_tokens?: number | null
+  reasoning_effort?: string | null
+  is_default?: boolean
 }
 
 export type LlmProbeBody = {
@@ -73,6 +101,34 @@ export function getLlmSettings(): Promise<LlmSettingsResponse> {
 
 export function putLlmSettings(body: LlmPutBody): Promise<LlmActive> {
   return api.put<LlmActive>("/llm", body)
+}
+
+export function createLlmConfiguration(body: LlmConfigurationWrite): Promise<LlmConfiguration> {
+  return api.post<LlmConfiguration>("/llm/configurations", body)
+}
+
+export function updateLlmConfiguration(
+  id: number,
+  body: Partial<LlmConfigurationWrite>,
+): Promise<LlmConfiguration> {
+  return api.patch<LlmConfiguration>(`/llm/configurations/${id}`, body)
+}
+
+export function setDefaultLlmConfiguration(id: number): Promise<LlmConfiguration> {
+  return api.post<LlmConfiguration>(`/llm/configurations/${id}/default`, {})
+}
+
+export function deleteLlmConfiguration(id: number): Promise<void> {
+  return api.delete(`/llm/configurations/${id}`)
+}
+
+export function assignPromptLlmConfiguration(
+  promptKey: string,
+  llmConfigurationId: number | null,
+): Promise<LlmSettingsResponse> {
+  return api.put<LlmSettingsResponse>(`/llm/prompt-fields/${encodeURIComponent(promptKey)}`, {
+    llm_configuration_id: llmConfigurationId,
+  })
 }
 
 export function probeLlm(body: LlmProbeBody): Promise<LlmProbeResult> {

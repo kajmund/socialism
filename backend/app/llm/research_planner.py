@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.llm import complete_structured_retry
+from app.llm.runtime_override import bound_llm_prompt
 from app.services.prompt_catalog import render_prompt
 from app.services.prompt_store import require_active_prompts
 from app.services.research.planner import (
@@ -127,7 +128,8 @@ class LlmResearchPlanner:
             },
         ]
         try:
-            parsed = await self._completer(messages, PlannedResearchModel)
+            with bound_llm_prompt("research.planner.system"):
+                parsed = await self._completer(messages, PlannedResearchModel)
         except Exception as exc:
             raise ResearchPlannerError("Research planner model call failed") from exc
         if not isinstance(parsed, PlannedResearchModel):

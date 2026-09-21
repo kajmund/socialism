@@ -343,3 +343,117 @@ async def test_save_runtime_settings_does_not_apply_when_commit_fails(
             )
     assert settings.llm_model == before_model
     assert runtime.settings_revision() == before_revision
+
+
+@pytest.mark.asyncio
+async def test_llm_configuration_crud_default_and_prompt_assignment(client_db):
+    client, factory = client_db
+    settings.cerebras_api_key = "cb-test"
+    settings.deepseek_api_key = "ds-test"
+
+    created = await client.post(
+        "/llm/configurations",
+        json={
+            "name": "Reasoning",
+            "profile_id": "deepseek-v4-pro",
+            "temperature": 0.2,
+            "top_p": 0.8,
+            "max_tokens": 2048,
+            "reasoning_effort": "max",
+        },
+    )
+    assert created.status_code == 201, created.text
+    reasoning = created.json()
+    assert reasoning["name"] == "Reasoning"
+    assert reasoning["is_default"] is True
+
+    second = await client.post(
+        "/llm/configurations",
+        json={
+            "name": "Creative",
+            "profile_id": "qwen-3.8-27b",
+            "temperature": 1.2,
+            "top_p": 0.95,
+            "max_tokens": 4096,
+            "reasoning_effort": "low",
+        },
+    )
+    assert second.status_code == 201, second.text
+    creative = second.json()
+    assert creative["is_default"] is False
+
+    listed = await client.get("/llm")
+    assert listed.status_code == 200
+    payload = listed.json()
+    assert payload["default_id"] == reasoning["id"]
+    names = {row["name"] for row in payload["configurations"]}
+    assert names == {"Reasoning", "Creative"}
+
+    promoted = await client.post(f"/llm/configurations/{creative['id']}/default")
+    assert promoted.status_code == 200, promoted.text
+    assert promoted.json()["is_default"] is True
+    assert settings.llm_model == "qwen-3.8-27b"
+
+    forbidden = await client.delete(f"/llm/configurations/{creative['id']}")
+    assert forbidden.status_code == 400
+
+    assigned = await client.put(
+        "/llm/prompt-fields/research.planner.system",
+        json={"llm_configuration_id": reasoning["id"]},
+    )
+    assert assigned.status_code == 200, assigned.text
+    assert assigned.json()["assignments"]["research.planner.system"] == reasoning["id"]
+
+    catalog = await client.get("/configurations/catalog", params={"language": "sv"})
+    assert catalog.status_code == 200
+    field = next(
+        row
+        for row in catalog.json()["fields"]
+        if row["key"] == "research.planner.system"
+    )
+    assert field["llm_configuration_id"] == reasoning["id"]
+
+    cleared = await client.put(
+        "/llm/prompt-fields/research.planner.system",
+        json={"llm_configuration_id": None},
+    )
+    assert cleared.status_code == 200
+    assert "research.planner.system" not in cleared.json()["assignments"]
+
+    deleted = await client.delete(f"/llm/configurations/{reasoning['id']}")
+    assert deleted.status_code == 204
+
+
+def test_prompt_override_changes_chat_kwargs():
+    from app import llm as llm_mod
+    from app.llm.runtime_override import LlmRuntimeView, bound_llm_runtime
+
+    settings.llm_provider = "cerebras"
+    settings.llm_model = "gpt-oss-120b"
+    settings.llm_temperature = 1.0
+    settings.llm_top_p = 1.0
+    settings.llm_max_tokens = 8192
+    settings.llm_reasoning_effort = "medium"
+
+    override = LlmRuntimeView(
+        provider="deepseek",
+        model="deepseek-flash",
+        temperature=0.15,
+        top_p=0.7,
+        max_tokens=512,
+        reasoning_effort="low",
+        api_key="ds-test",
+        base_url="https://api.deepseek.com",
+    )
+    with bound_llm_runtime(override):
+        kwargs = llm_mod._chat_create_kwargs(model="deepseek-flash", messages=[])
+    assert kwargs["temperature"] == 0.15
+    assert kwargs["top_p"] == 0.7
+    assert kwargs["max_tokens"] == 512
+    assert (
+        kwargs.get("reasoning_effort") == "low"
+        or (kwargs.get("extra_body") or {}).get("reasoning_effort") == "low"
+    )
+    default_kwargs = llm_mod._chat_create_kwargs(model="gpt-oss-120b", messages=[])
+    assert default_kwargs["temperature"] == 1.0
+    assert default_kwargs["max_tokens"] == 8192

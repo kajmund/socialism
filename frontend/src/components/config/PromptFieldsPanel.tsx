@@ -1,6 +1,12 @@
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import type { PromptCatalog, PromptField } from "@/api/configurations"
+import {
+  assignPromptLlmConfiguration,
+  getLlmSettings,
+  type LlmConfiguration,
+} from "@/api/llmSettings"
 import { useLocale } from "@/i18n"
+import { ApiError } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
 type PromptFieldsPanelProps = {
@@ -35,6 +41,31 @@ export function PromptFieldsPanel({ catalog, prompts, onChange }: PromptFieldsPa
   const { t } = useLocale()
   const [query, setQuery] = useState("")
   const [activeKey, setActiveKey] = useState<string | null>(catalog.fields[0]?.key ?? null)
+  const [llmConfigs, setLlmConfigs] = useState<LlmConfiguration[]>([])
+  const [assignments, setAssignments] = useState<Record<string, number>>(() =>
+    Object.fromEntries(
+      catalog.fields
+        .filter((field) => field.llm_configuration_id != null)
+        .map((field) => [field.key, field.llm_configuration_id as number]),
+    ),
+  )
+  const [llmError, setLlmError] = useState<string | null>(null)
+  const [llmSaving, setLlmSaving] = useState(false)
+
+  const loadLlm = useCallback(async () => {
+    try {
+      const next = await getLlmSettings()
+      setLlmConfigs(next.configurations)
+      setAssignments(next.assignments)
+      setLlmError(null)
+    } catch (err) {
+      setLlmError(err instanceof ApiError ? err.message : t("configurations.editor.llmLoadError"))
+    }
+  }, [t])
+
+  useEffect(() => {
+    void loadLlm()
+  }, [loadLlm])
 
   const allFields = useMemo<FieldRow[]>(
     () =>
@@ -157,6 +188,49 @@ export function PromptFieldsPanel({ catalog, prompts, onChange }: PromptFieldsPa
                   ))}
                 </div>
               ) : null}
+              <label className="mb-4 block text-sm">
+                <span className="mb-1 block text-[12.5px] text-muted-foreground">
+                  {t("configurations.editor.llmLabel")}
+                </span>
+                <select
+                  className="w-full max-w-md rounded-[var(--radius-md)] border-[1.5px] border-[color:var(--border-hairline)] bg-transparent px-3 py-2 text-[0.82rem]"
+                  value={assignments[selected.key] ?? ""}
+                  disabled={llmSaving || llmConfigs.length === 0}
+                  onChange={(event) => {
+                    const raw = event.target.value
+                    const nextId = raw === "" ? null : Number(raw)
+                    setLlmSaving(true)
+                    void assignPromptLlmConfiguration(selected.key, nextId)
+                      .then((payload) => {
+                        setAssignments(payload.assignments)
+                        setLlmError(null)
+                      })
+                      .catch((err: unknown) => {
+                        setLlmError(
+                          err instanceof ApiError
+                            ? err.message
+                            : t("configurations.editor.llmSaveError"),
+                        )
+                      })
+                      .finally(() => setLlmSaving(false))
+                  }}
+                >
+                  <option value="">{t("configurations.editor.llmDefault")}</option>
+                  {llmConfigs
+                    .filter((row) => !row.is_default)
+                    .map((row) => (
+                      <option key={row.id} value={row.id}>
+                        {row.name}
+                      </option>
+                    ))}
+                </select>
+                <span className="mt-1 block text-[11.5px] text-muted-foreground">
+                  {t("configurations.editor.llmHint")}
+                </span>
+                {llmError ? (
+                  <span className="mt-1 block text-[11.5px] text-destructive">{llmError}</span>
+                ) : null}
+              </label>
               <textarea
                 key={selected.key}
                 className="min-h-60 w-full resize-y whitespace-pre-wrap rounded-[var(--radius-md)] border-[1.5px] border-[color:var(--border-hairline)] px-4 py-3.5 font-mono text-[0.82rem] leading-[1.6] text-[color:var(--text-body)] focus:border-db-gold-700 focus:shadow-[0_0_0_3px_var(--db-gold-100)] focus:outline-none"

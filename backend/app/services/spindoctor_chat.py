@@ -113,7 +113,9 @@ async def _run_spindoctor_tool_loop(
     emitted = len(ctx.widgets)
     new_widgets: list[SpindoctorWidgetOut] = []
     for _ in range(_MAX_TOOL_ROUNDS):
-        message = await complete_with_tools(working, tools)
+        message = await complete_with_tools(
+            working, tools, prompt_key="spinndoctor.system"
+        )
         working.append(assistant_message_dict(message))
         tool_calls = getattr(message, "tool_calls", None)
         if not tool_calls:
@@ -306,7 +308,9 @@ async def stream_spindoctor_chat_turn(
                 chunks.append(piece)
                 yield piece
         else:
-            async for piece in stream_text(working):
+            async for piece in stream_text(
+                working, prompt_key="spinndoctor.system"
+            ):
                 chunks.append(piece)
                 yield piece
         reply = "".join(chunks).strip()

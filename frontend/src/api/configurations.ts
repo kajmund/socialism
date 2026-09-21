@@ -36,6 +36,7 @@ export type PromptField = {
   label: string
   hint: string
   default: string
+  llm_configuration_id?: number | null
 }
 
 export type PromptCatalog = {
