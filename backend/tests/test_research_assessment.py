@@ -490,10 +490,7 @@ def test_invalid_evidence_ids_are_discarded():
     assert rejected.result == "insufficient"
     assert rejected.need_assessments[0].sufficient is False
     assert rejected.need_assessments[0].supporting_evidence_ids == []
-    assert (
-        "cite persisted EvidenceSet IDs"
-        in rejected.need_assessments[0].missing_or_weak
-    )
+    assert "cite persisted EvidenceSet IDs" in rejected.need_assessments[0].missing_or_weak
 
 
 def test_assessment_user_prompt_is_rendered_at_call_time():
@@ -548,14 +545,13 @@ def test_review_groups_exact_sources_and_preserves_need_lineage():
         source_id="https://lagen.nu/prop/1975/76:81#a38-2",
     )
     groups = group_evidence_for_review([first, duplicate, distinct_fragment])
-    assert len(groups) == 2
-    assert groups[0].research_need_ids == ("need_1", "need_2")
-    assert groups[0].duplicate_evidence_ids == ("evidence-2",)
-    assert groups[1].research_need_ids == ("need_3",)
+    assert len(groups) == 3
+    assert [group.research_need_ids for group in groups] == [("need_1",), ("need_2",), ("need_3",)]
+    assert all(not group.duplicate_evidence_ids for group in groups)
 
 
 @pytest.mark.asyncio
-async def test_llm_assessor_receives_one_source_row_for_multiple_needs():
+async def test_llm_assessor_keeps_same_source_analyses_separate_by_need():
     plan = ResearchPlan(
         needs=[
             _need("need_1", "swedish_case_law"),
@@ -586,9 +582,8 @@ async def test_llm_assessor_receives_one_source_row_for_multiple_needs():
 
     async def completer(messages, response_model):
         payload = json.loads(messages[-1]["content"].split("EvidenceSet:\n", 1)[1])
-        assert len(payload) == 1
-        assert payload[0]["research_need_ids"] == ["need_1", "need_2"]
-        assert payload[0]["duplicate_evidence_ids"] == ["evidence-2"]
+        assert len(payload) == 2
+        assert [row["research_need_ids"] for row in payload] == [["need_1"], ["need_2"]]
         return EvidenceSufficiencyModel(
             result="sufficient",
             rationale="samma källa kan stödja båda frågorna",
@@ -596,7 +591,7 @@ async def test_llm_assessor_receives_one_source_row_for_multiple_needs():
                 NeedSufficiencyModel(
                     research_need_id=need_id,
                     sufficient=True,
-                    supporting_evidence_ids=["evidence-1"],
+                    supporting_evidence_ids=["evidence-1" if need_id == "need_1" else "evidence-2"],
                 )
                 for need_id in ("need_1", "need_2")
             ],
@@ -629,17 +624,11 @@ def test_research_evaluation_prompts_are_domain_neutral_and_outcome_aware():
         assert "lagrum" not in combined.casefold()
     swedish = default_prompts("sv")
     assert "direkt stöd" in swedish["research.assessment.system"]
-    assert "prövning utan det efterfrågade utfallet" in (
-        swedish["research.assessment.system"]
-    )
-    assert "Identiska underliggande källor" in (
-        swedish["research.completeness.system"]
-    )
+    assert "prövning utan det efterfrågade utfallet" in (swedish["research.assessment.system"])
+    assert "Identiska underliggande källor" in (swedish["research.completeness.system"])
     english = default_prompts("en")
     assert "direct support" in english["research.assessment.system"]
-    assert "examination without the requested outcome" in (
-        english["research.assessment.system"]
-    )
+    assert "examination without the requested outcome" in (english["research.assessment.system"])
 
 
 @pytest.mark.asyncio
@@ -833,3 +822,47 @@ async def test_need_executions_completed_before_assessment_uses_all_items(db):
     assert {row.status for row in executions} == {"completed"}
     _plan, evidence = assessor.calls[0]
     assert len(evidence) == 2
+
+
+def test_need_assessment_cannot_cite_other_needs_found_or_error_items():
+    plan = ResearchPlan(needs=[_need("need_a", "swedish_law"), _need("need_b", "swedish_law")])
+    template = AssessableEvidence(
+        evidence_id="found-b",
+        research_need_id="need_b",
+        source_type="swedish_law",
+        status="found",
+        title="B",
+        excerpt="B",
+        locator=None,
+        source_id="source-b",
+        source_url=None,
+        provider="lagen_nu",
+        score=None,
+        provenance={},
+        retrieved_at=datetime(2026, 4, 1, tzinfo=UTC),
+        content_hash="b",
+    )
+    evidence = [
+        template,
+        replace(template, evidence_id="error-a", research_need_id="need_a", status="error"),
+    ]
+    draft = ResearchAssessmentDraft(
+        result="sufficient",
+        rationale="global",
+        need_assessments=[
+            ResearchNeedAssessment(
+                research_need_id="need_a",
+                sufficient=True,
+                supporting_evidence_ids=["found-b", "error-a"],
+            ),
+            ResearchNeedAssessment(
+                research_need_id="need_b", sufficient=True, supporting_evidence_ids=["found-b"]
+            ),
+        ],
+    )
+    result = sanitize_assessment_draft(draft, plan=plan, evidence=evidence)
+    assert not result.need_assessments[0].sufficient
+    assert result.need_assessments[0].supporting_evidence_ids == []
+    assert result.need_assessments[1].supporting_evidence_ids == ["found-b"]
+    groups = group_evidence_for_review(evidence)
+    assert [group.research_need_ids for group in groups] == [("need_b",), ("need_a",)]

@@ -24,9 +24,7 @@ INITIAL_ASSESSMENT_PASS = 1
 REVIEW_EXCERPT_CHARS = 2000
 
 
-def review_excerpt(
-    excerpt: str | None, *, max_chars: int = REVIEW_EXCERPT_CHARS
-) -> str | None:
+def review_excerpt(excerpt: str | None, *, max_chars: int = REVIEW_EXCERPT_CHARS) -> str | None:
     if excerpt is None or len(excerpt) <= max_chars:
         return excerpt
     return excerpt[:max_chars]
@@ -84,9 +82,7 @@ class ResearchNeedAssessment:
     further_information: str | None = None
 
     def __post_init__(self) -> None:
-        object.__setattr__(
-            self, "supporting_evidence_ids", list(self.supporting_evidence_ids)
-        )
+        object.__setattr__(self, "supporting_evidence_ids", list(self.supporting_evidence_ids))
         object.__setattr__(self, "contradictions", list(self.contradictions))
 
 
@@ -110,9 +106,7 @@ class ResearchAssessmentDraft:
         object.__setattr__(self, "need_assessments", list(self.need_assessments))
         object.__setattr__(self, "gaps", list(self.gaps))
         object.__setattr__(self, "contradictions", list(self.contradictions))
-        object.__setattr__(
-            self, "considered_evidence_ids", list(self.considered_evidence_ids)
-        )
+        object.__setattr__(self, "considered_evidence_ids", list(self.considered_evidence_ids))
 
 
 class ResearchAssessor(Protocol):
@@ -134,10 +128,11 @@ def group_evidence_for_review(
     grouped: dict[str, list[AssessableEvidence]] = {}
     for item in evidence:
         source = (item.source_id or item.source_url or "").strip()
-        if item.legal_result is not None:
-            key = f"legal:{source}:{item.research_need_id}:{item.content_hash}"
-        else:
-            key = f"source:{source}" if source else f"content:{item.content_hash}"
+        need_ids = item.research_need_ids or (
+            (item.research_need_id,) if item.research_need_id else ()
+        )
+        identity = source or f"content:{item.content_hash}"
+        key = f"{identity}:{','.join(sorted(need_ids))}:{item.status}:{item.content_hash}"
         grouped.setdefault(key, []).append(item)
     result: list[EvidenceReviewGroup] = []
     for items in grouped.values():
@@ -237,13 +232,13 @@ def _keep_known_ids(values: Sequence[str], allowed: frozenset[str]) -> list[str]
     return kept
 
 
-def _found_ids_for_need(
-    need_id: str, evidence: Sequence[AssessableEvidence]
-) -> list[str]:
+def _found_ids_for_need(need_id: str, evidence: Sequence[AssessableEvidence]) -> list[str]:
     return [
         item.evidence_id
         for item in evidence
-        if item.research_need_id == need_id and item.status == "found"
+        if need_id in (item.research_need_ids or (item.research_need_id,))
+        and item.status == "found"
+        and (item.legal_result is None or item.legal_result.relation.relation != "irrelevant")
     ]
 
 
@@ -315,9 +310,7 @@ def programmatic_assessment(
     )
 
 
-def can_assess_programmatically(
-    plan: ResearchPlan, evidence: Sequence[AssessableEvidence]
-) -> bool:
+def can_assess_programmatically(plan: ResearchPlan, evidence: Sequence[AssessableEvidence]) -> bool:
     """True when the outcome is determined without a model call."""
     if not plan.needs:
         return True
@@ -352,7 +345,8 @@ def sanitize_assessment_draft(
                 )
             )
             continue
-        supporting = _keep_known_ids(row.supporting_evidence_ids, allowed)
+        need_found = frozenset(_found_ids_for_need(need.id, evidence))
+        supporting = _keep_known_ids(row.supporting_evidence_ids, need_found)
         sufficient = row.sufficient
         missing = row.missing_or_weak
         further = row.further_information
@@ -372,9 +366,7 @@ def sanitize_assessment_draft(
                 supporting_evidence_ids=supporting,
                 missing_or_weak=missing,
                 contradictions=[
-                    str(item).strip()
-                    for item in row.contradictions
-                    if str(item).strip()
+                    str(item).strip() for item in row.contradictions if str(item).strip()
                 ],
                 further_information=further,
             )
@@ -394,9 +386,7 @@ def sanitize_assessment_draft(
         rationale=draft.rationale.strip() or "Assessor returned no rationale.",
         need_assessments=aligned,
         gaps=gaps,
-        contradictions=[
-            str(item).strip() for item in draft.contradictions if str(item).strip()
-        ],
+        contradictions=[str(item).strip() for item in draft.contradictions if str(item).strip()],
         considered_evidence_ids=list(allowed),
         model_provider=draft.model_provider,
         model_name=draft.model_name,
