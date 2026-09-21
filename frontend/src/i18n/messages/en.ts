@@ -3087,6 +3087,8 @@ export const en: LocalizedTree<SvMessages> = {
       sourceType: "Source type",
       provider: "Provider",
       sourceLink: "Open source",
+      sourceSummary: "Used in {needs} research questions · {analyses} analyses · {errors} analysis errors",
+      sourceDetails: "Show question-specific analyses and errors",
       provenance: "Provenance",
       hideProvenance: "Hide provenance",
       unresolved: "Unresolved reference",

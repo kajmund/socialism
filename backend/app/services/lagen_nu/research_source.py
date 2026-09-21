@@ -2,11 +2,25 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import re
 from dataclasses import dataclass, replace
+from datetime import UTC, datetime
 from typing import Literal
 
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.config import settings
+from app.database.models import (
+    DomainResearchResultRecord,
+    EvidenceSet,
+    EvidenceSetItem,
+    EvidenceSource,
+    RawSource,
+    ResearchRuntimeNeed,
+)
 from app.llm.legal_research import (
     LegalDomainExtractionError,
     LegalInterpreter,
@@ -19,6 +33,20 @@ from app.services.lagen_nu.display import (
     relevant_legal_excerpt,
     selector_passage_text,
 )
+from app.services.lagen_nu.mcp_client import (
+    LagenNuMcpClient,
+    OfficialLagenNuMcpClient,
+    OfficialLagenNuMcpError,
+    OfficialLagenNuMcpNotFoundError,
+)
+from app.services.lagen_nu.models import LagenNuDocument, LagenNuSearchHit
+from app.services.lagen_nu.registration import (
+    LAGEN_NU_EVIDENCE_NATURES,
+    LAGEN_NU_JURISDICTION,
+    LAGEN_NU_PROVIDER_ID,
+    LAGEN_NU_PUBLICATION_NOTE,
+    mcp_source_for_nature,
+)
 from app.services.lagen_nu.selection import (
     MAX_SELECTOR_DOCUMENT_CHARS,
     HitDecision,
@@ -30,22 +58,10 @@ from app.services.lagen_nu.selection import (
     resolve_passage_selector,
     verify_excerpt_span,
 )
-from app.services.lagen_nu.mcp_client import (
-    LagenNuMcpClient,
-    OfficialLagenNuMcpClient,
-    OfficialLagenNuMcpError,
-    OfficialLagenNuMcpNotFoundError,
-)
-from app.services.lagen_nu.models import LagenNuDocument, LagenNuSearchHit
-from app.services.legal_research_result import LegalSourceIdentity
-from app.services.lagen_nu.registration import (
-    LAGEN_NU_EVIDENCE_NATURES,
-    LAGEN_NU_JURISDICTION,
-    LAGEN_NU_PROVIDER_ID,
-    LAGEN_NU_PUBLICATION_NOTE,
-    mcp_source_for_nature,
-)
 from app.services.lagen_nu.uris import compose_canonical_uri
+from app.services.legal_research_result import LegalResearchResult, LegalSourceIdentity
+from app.services.research.evidence_identity import canonical_source_identity
+from app.services.research.knowledge_question import research_question_key
 from app.services.research.models import (
     ResearchContext,
     ResearchEvidence,
@@ -310,9 +326,7 @@ def _search_query(question: str, source_type: ResearchSourceType) -> str:
         seen.add(normalized)
         terms.append(token)
     if source_type == "swedish_preparatory_works":
-        prefixes = [
-            item for item in prefixes if _PREPARATORY_CITATION.search(item)
-        ]
+        prefixes = [item for item in prefixes if _PREPARATORY_CITATION.search(item)]
         extra: list[str] = []
         if "förarbet" in question.casefold() and "generalklausul" not in {
             term.casefold() for term in terms
@@ -395,8 +409,7 @@ def _judicial_reasons(text: str) -> str:
         (
             index
             for index, heading in headings
-            if index > court_start
-            and any(court in heading for court in _COURT_HEADINGS)
+            if index > court_start and any(court in heading for court in _COURT_HEADINGS)
         ),
         len(lines),
     )
@@ -410,11 +423,7 @@ def _judicial_reasons(text: str) -> str:
         court_start,
     )
     outcome_end = next(
-        (
-            index
-            for index, heading in headings
-            if index > reason_start and "domslut" in heading
-        ),
+        (index for index, heading in headings if index > reason_start and "domslut" in heading),
         next_court,
     )
     following_heading = next(
@@ -466,10 +475,7 @@ def _prefer_hit(current: LagenNuSearchHit, incoming: LagenNuSearchHit) -> LagenN
     current_detail = bool(current.pin or current.fragments or current.highlight)
     incoming_detail = bool(incoming.pin or incoming.fragments or incoming.highlight)
     selected = incoming if incoming_detail and not current_detail else current
-    inbound_count = max(
-        value
-        for value in (current.inbound_count, incoming.inbound_count, 0)
-    )
+    inbound_count = max(value for value in (current.inbound_count, incoming.inbound_count, 0))
     score = selected.score
     if score is None:
         score = current.score if current.score is not None else incoming.score
@@ -510,10 +516,7 @@ def _rank_candidates(need: ResearchNeed, candidates: list[_Candidate]) -> list[_
 
     def key(candidate: _Candidate) -> tuple[object, ...]:
         exact = candidate.direct_rank is not None
-        overlap_sources = (
-            candidate.search_rank is not None
-            and candidate.citation_rank is not None
-        )
+        overlap_sources = candidate.search_rank is not None and candidate.citation_rank is not None
         return (
             0 if exact else 1,
             0 if overlap_sources else 1,
@@ -604,16 +607,16 @@ class LagenNuResearchSource:
         client: LagenNuMcpClient | None = None,
         selector: LagenNuPassageSelector | None = None,
         interpreter: LegalInterpreter | None = None,
+        reuse_session: AsyncSession | None = None,
     ) -> None:
         if source_type not in LAGEN_NU_EVIDENCE_NATURES:
-            raise ValueError(
-                f"{source_type} is not implemented by the official lagen.nu adapter"
-            )
+            raise ValueError(f"{source_type} is not implemented by the official lagen.nu adapter")
         self.source_type = source_type
         self.provider_id = LAGEN_NU_PROVIDER_ID
         self._client = client
         self._selector = selector
         self._interpreter = interpreter or LlmLegalInterpreter()
+        self._reuse_session = reuse_session
         self._owned_client: OfficialLagenNuMcpClient | None = None
 
     def _require_selector(self) -> LagenNuPassageSelector:
@@ -625,6 +628,139 @@ class LagenNuResearchSource:
         if self._owned_client is None:
             self._owned_client = OfficialLagenNuMcpClient()
         return self._owned_client
+
+    async def _cached_document(
+        self, uri: str, *, source: str, attempt_id: str | None
+    ) -> LagenNuDocument | None:
+        session = self._reuse_session
+        if session is None:
+            return None
+        identity = canonical_source_identity(uri, None)
+        row = (
+            await session.execute(
+                select(RawSource, EvidenceSource)
+                .join(EvidenceSource, RawSource.source_id == EvidenceSource.id)
+                .where(
+                    EvidenceSource.provider == self.provider_id,
+                    EvidenceSource.source_type == self.source_type,
+                    EvidenceSource.canonical_identity == identity,
+                    RawSource.truncated.is_(False),
+                )
+                .order_by(RawSource.created_at.desc())
+                .limit(1)
+            )
+        ).first()
+        if row is None:
+            return None
+        raw, stored_source = row
+        max_age = settings.research_knowledge_freshness_max_age_seconds
+        uses = (
+            await session.execute(
+                select(
+                    EvidenceSet.created_from_attempt_id,
+                    EvidenceSetItem.retrieved_at,
+                    EvidenceSetItem.provenance,
+                )
+                .join(EvidenceSetItem, EvidenceSetItem.evidence_set_id == EvidenceSet.id)
+                .join(
+                    DomainResearchResultRecord,
+                    EvidenceSetItem.domain_result_id == DomainResearchResultRecord.id,
+                )
+                .where(DomainResearchResultRecord.raw_source_id == raw.id)
+            )
+        ).all()
+        same_attempt = (
+            any(source_attempt == attempt_id for source_attempt, _, _ in uses)
+            if attempt_id
+            else False
+        )
+        provider_fetches = [
+            stamp.replace(tzinfo=UTC) if stamp.tzinfo is None else stamp
+            for _, stamp, provenance in uses
+            if any(
+                isinstance(call, dict) and call.get("tool") == "get_document"
+                for call in provenance.get("mcp_calls", [])
+            )
+        ]
+        latest_fetch = max(provider_fetches, default=None)
+        if not same_attempt and (
+            max_age is None
+            or latest_fetch is None
+            or (datetime.now(UTC) - latest_fetch).total_seconds() > max_age
+        ):
+            return None
+        logger.info(
+            "raw_source_reused provider=%s source=%s raw_source_id=%s",
+            self.provider_id,
+            uri,
+            raw.id,
+        )
+        logger.info(
+            "provider_document_fetch_skipped provider=%s source=%s saved_mcp_calls=1",
+            self.provider_id,
+            uri,
+        )
+        return LagenNuDocument(
+            uri=uri,
+            title=stored_source.title,
+            text=raw.raw_text,
+            source=source,
+            kind=None,
+            label=None,
+            publisher_source_url=None,
+            pinpoint=None,
+            truncated=False,
+        )
+
+    async def _cached_domain_result(
+        self, *, need: ResearchNeed, source_uri: str, raw_text: str
+    ) -> tuple[str, LegalResearchResult] | None:
+        session = self._reuse_session
+        if session is None:
+            return None
+        source_identity = canonical_source_identity(source_uri, None)
+        raw_hash = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()
+        row = (
+            await session.execute(
+                select(DomainResearchResultRecord)
+                .join(RawSource, DomainResearchResultRecord.raw_source_id == RawSource.id)
+                .join(EvidenceSource, RawSource.source_id == EvidenceSource.id)
+                .join(
+                    EvidenceSetItem,
+                    (EvidenceSetItem.domain_result_id == DomainResearchResultRecord.id)
+                    & (
+                        EvidenceSetItem.research_need_id
+                        == DomainResearchResultRecord.research_need_id
+                    ),
+                )
+                .join(EvidenceSet, EvidenceSetItem.evidence_set_id == EvidenceSet.id)
+                .join(
+                    ResearchRuntimeNeed,
+                    (ResearchRuntimeNeed.attempt_id == EvidenceSet.created_from_attempt_id)
+                    & (
+                        ResearchRuntimeNeed.research_need_id
+                        == DomainResearchResultRecord.research_need_id
+                    ),
+                )
+                .where(
+                    EvidenceSource.provider == self.provider_id,
+                    EvidenceSource.canonical_identity == source_identity,
+                    RawSource.content_hash == raw_hash,
+                    ResearchRuntimeNeed.question_key == research_question_key(need.question),
+                )
+                .order_by(DomainResearchResultRecord.created_at.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if row is None:
+            return None
+        logger.info(
+            "domain_result_reused provider=%s source=%s domain_result_id=%s",
+            self.provider_id,
+            source_uri,
+            row.id,
+        )
+        return row.id, LegalResearchResult.model_validate({**row.result, "raw_text": raw_text})
 
     async def research(
         self,
@@ -688,19 +824,13 @@ class LagenNuResearchSource:
                     self._mcp().resolve_citation(citation),
                     {"citation": citation},
                 )
-                direct.extend(
-                    _candidates(resolved.results, source=source, origin="resolve")
-                )
+                direct.extend(_candidates(resolved.results, source=source, origin="resolve"))
             if direct:
                 return _merge_candidates(direct)
         citation_graph: list[_Candidate] = []
         provision_query = _provision_resolution_query(need.question)
         resolved_provision = False
-        if (
-            self.source_type == "swedish_preparatory_works"
-            and provision_query
-            and not named
-        ):
+        if self.source_type == "swedish_preparatory_works" and provision_query and not named:
             resolved = await budget.call(
                 "resolve_citation",
                 self._mcp().resolve_citation(provision_query),
@@ -734,9 +864,7 @@ class LagenNuResearchSource:
         if flow == "resolve" and not named and not resolved_provision:
             resolved = await budget.call(
                 "resolve_citation",
-                self._mcp().resolve_citation(
-                    _resolution_query(need, self.source_type)
-                ),
+                self._mcp().resolve_citation(_resolution_query(need, self.source_type)),
                 {"citation": _resolution_query(need, self.source_type)},
             )
             direct = _candidates(resolved.results, source=source, origin="resolve")
@@ -778,17 +906,13 @@ class LagenNuResearchSource:
                     self._mcp().resolve_citation(citation),
                     {"citation": citation},
                 )
-                direct.extend(
-                    _candidates(resolved.results, source=source, origin="resolve")
-                )
+                direct.extend(_candidates(resolved.results, source=source, origin="resolve"))
             if direct:
                 return _merge_candidates(direct)
         if looks_like_citation(need.question) and not named_cases:
             resolved = await budget.call(
                 "resolve_citation",
-                self._mcp().resolve_citation(
-                    _resolution_query(need, self.source_type)
-                ),
+                self._mcp().resolve_citation(_resolution_query(need, self.source_type)),
                 {"citation": _resolution_query(need, self.source_type)},
             )
             direct = _candidates(resolved.results, source=source, origin="resolve")
@@ -848,9 +972,7 @@ class LagenNuResearchSource:
             if item.direct_rank is None and item.citation_rank is not None
         ]
         others = [
-            item
-            for item in candidates
-            if item.direct_rank is None and item.citation_rank is None
+            item for item in candidates if item.direct_rank is None and item.citation_rank is None
         ]
         kept = list(named) + list(graph)
         if others:
@@ -887,9 +1009,7 @@ class LagenNuResearchSource:
         for candidate in candidates:
             if len(found) >= MAX_DOCUMENT_FETCHES or budget.remaining <= 0:
                 break
-            uri, pinpoint = _fetch_target(
-                candidate.hit, terms, source_type=self.source_type
-            )
+            uri, pinpoint = _fetch_target(candidate.hit, terms, source_type=self.source_type)
             if uri is None:
                 continue
             target_key = uri if pinpoint is None else f"{uri}#{pinpoint}"
@@ -897,19 +1017,29 @@ class LagenNuResearchSource:
                 continue
             seen.add(target_key)
             try:
-                document = await budget.call(
-                    "get_document",
-                    self._mcp().get_document(
-                        uri,
-                        pinpoint=pinpoint,
-                        max_chars=MAX_DOCUMENT_CHARS,
-                    ),
-                    {
-                        "uri": uri,
-                        "pinpoint": pinpoint,
-                        "max_chars": MAX_DOCUMENT_CHARS,
-                    },
+                document = (
+                    await self._cached_document(uri, source=source, attempt_id=context.attempt_id)
+                    if pinpoint is None
+                    else None
                 )
+                raw_reused = document is not None
+                if document is None:
+                    logger.info(
+                        "provider_retrieval_started provider=%s source=%s", self.provider_id, uri
+                    )
+                    document = await budget.call(
+                        "get_document",
+                        self._mcp().get_document(
+                            uri,
+                            pinpoint=pinpoint,
+                            max_chars=MAX_DOCUMENT_CHARS,
+                        ),
+                        {
+                            "uri": uri,
+                            "pinpoint": pinpoint,
+                            "max_chars": MAX_DOCUMENT_CHARS,
+                        },
+                    )
             except OfficialLagenNuMcpNotFoundError:
                 continue
             if document.source and document.source != source:
@@ -923,6 +1053,7 @@ class LagenNuResearchSource:
                         document,
                         budget,
                         terms=terms,
+                        raw_reused=raw_reused,
                     )
                 )
             except LagenNuSelectionError:
@@ -964,6 +1095,7 @@ class LagenNuResearchSource:
         budget: _CallBudget,
         *,
         terms: frozenset[str],
+        raw_reused: bool = False,
     ) -> ResearchEvidence:
         hit = candidate.hit
         raw_document = document.text.strip()
@@ -975,9 +1107,7 @@ class LagenNuResearchSource:
             title=document.title or hit.title,
             max_chars=MAX_SELECTOR_DOCUMENT_CHARS,
         )
-        trusted = (
-            candidate.direct_rank is not None or candidate.citation_rank is not None
-        )
+        trusted = candidate.direct_rank is not None or candidate.citation_rank is not None
         excerpt = None
         excerpt_why = ""
         excerpt_pinpoint = None
@@ -1049,15 +1179,32 @@ class LagenNuResearchSource:
             "swedish_preparatory_works": "preparatory_work",
             "swedish_law": "statute",
         }[self.source_type]
-        legal_result = await self._interpreter.interpret(
-            source=LegalSourceIdentity(
-                kind=kind, title=title, canonical_uri=source_uri,
-                identifier=hit.identifier,
-                publisher_url=document.publisher_source_url,
-            ),
-            question=need.question, raw_text=raw_document,
-            truncated=bool(document.truncated), context=context,
+        cached = await self._cached_domain_result(
+            need=need, source_uri=source_uri, raw_text=raw_document
         )
+        legal_result = (
+            cached[1]
+            if cached is not None
+            else await self._interpreter.interpret(
+                source=LegalSourceIdentity(
+                    kind=kind,
+                    title=title,
+                    canonical_uri=source_uri,
+                    identifier=hit.identifier,
+                    publisher_url=document.publisher_source_url,
+                ),
+                question=need.question,
+                raw_text=raw_document,
+                truncated=bool(document.truncated),
+                context=context,
+            )
+        )
+        if cached is None and raw_reused:
+            logger.info(
+                "domain_result_recomputed_from_raw provider=%s source=%s",
+                self.provider_id,
+                source_uri,
+            )
         return research_evidence(
             research_need_id=need.id,
             source_type=self.source_type,
@@ -1085,10 +1232,9 @@ class LagenNuResearchSource:
                 citation_rank=candidate.citation_rank,
                 direct_rank=candidate.direct_rank,
                 query_term_overlap=_term_overlap(terms, _highlight_text(hit)),
-                selection_role=(
-                    "named_citation" if candidate.direct_rank is not None else None
-                ),
+                selection_role=("named_citation" if candidate.direct_rank is not None else None),
                 selection_why=excerpt_why or None,
+                reused_domain_result_id=cached[0] if cached is not None else None,
             ),
         )
 
@@ -1111,13 +1257,9 @@ class LagenNuResearchSource:
         )
         if is_legal_front_matter(verified, title=document.title or hit.title):
             raise LagenNuSelectionError("selector excerpt is front matter")
-        if self.source_type == "swedish_case_law" and _excerpt_is_party_submission(
-            verified
-        ):
+        if self.source_type == "swedish_case_law" and _excerpt_is_party_submission(verified):
             raise LagenNuSelectionError("selector excerpt is a party submission")
-        if self.source_type == "swedish_case_law" and _excerpt_is_statute_restatement(
-            verified
-        ):
+        if self.source_type == "swedish_case_law" and _excerpt_is_statute_restatement(verified):
             raise LagenNuSelectionError("selector excerpt only restates the statute")
         pinpoint = _usable_fetch_pinpoint(
             document.pinpoint or excerpt_pinpoint,
@@ -1256,8 +1398,7 @@ def _excerpt_addresses_question(
     compact = excerpt.casefold()
     compact_nospace = compact.replace(" ", "")
     if any(
-        provision.casefold() in compact
-        or provision.casefold().replace(" ", "") in compact_nospace
+        provision.casefold() in compact or provision.casefold().replace(" ", "") in compact_nospace
         for provision in provisions
     ):
         return True
@@ -1322,9 +1463,7 @@ def _usable_fetch_pinpoint(
         or is_legal_front_matter(label)
     ):
         return None
-    if source_type == "swedish_preparatory_works" and not _STATUTE_PINPOINT.fullmatch(
-        pinpoint
-    ):
+    if source_type == "swedish_preparatory_works" and not _STATUTE_PINPOINT.fullmatch(pinpoint):
         return None
     return pinpoint
 
@@ -1354,7 +1493,5 @@ def _fetch_target(
         return None, None
     if "#" in hit.uri:
         document_uri, pinpoint = hit.uri.split("#", 1)
-        return document_uri, _usable_fetch_pinpoint(
-            pinpoint or None, source_type=source_type
-        )
+        return document_uri, _usable_fetch_pinpoint(pinpoint or None, source_type=source_type)
     return hit.uri, None

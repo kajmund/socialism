@@ -25,7 +25,7 @@ Status kan vara skapad, research, redo, pågår, klar eller misslyckad.
 
 ## Evidence
 
-Evidence är det underlag attemptet faktiskt såg. En fryst uppsättning visar tidpunkten och posterna i den sparade ordningen.
+Evidence är det underlag attemptet faktiskt såg. En fryst uppsättning visar tidpunkten. Samma källa samlas i ett kort även om flera researchfrågor har använt den. Kortet visar antal frågor, analyser och analysfel. Öppna **Visa frågespecifika analyser och fel** för att se de enskilda posterna i sparad ordning.
 
 Varje post kan vara **hittad**, **ej hittad** eller **fel**. Hittade poster har en etikett som `[E1]`. Finns en käll-URL kan du öppna den. **Provenance** fäller ut mer om var posten kom ifrån.
 
